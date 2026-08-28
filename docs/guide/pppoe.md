@@ -104,17 +104,17 @@ therefore authenticates against those users, on PPPoE and on L2TP.
 
 ## Interoperability
 
-Two Docker lab scenarios run Ze in each PPPoE role. `make
-ze-deployment-docker-pppoe-accel-test` runs both.
+Two Docker lab scenarios run Ze in each PPPoE role.
+`./le deployment docker-pppoe-accel-test` runs both.
 
 | Scenario | Ze role | Peer | Proves |
 |----------|---------|------|--------|
 | `01-pppoe-chap-ipv4` | client | accel-ppp | Discovery, LCP, CHAP-MD5, the IPCP address on a kernel `pppN` interface, a ping to the AC gateway through the session, and a clean teardown |
 | `02-ze-ac-pppd-client` | access concentrator | pppd 2.5.1 with the rp-pppoe plugin | Discovery, LCP demanding CHAP-MD5, the credential accepted, an IPCP pool address, ICMP across the session, and a wrong password refused before IPCP |
 
-`make ze-qemu-pppoe-accel-test` runs the client half in QEMU, and `make
-ze-qemu-pppoe-test` runs the access concentrator's own `test/pppoe/` suite on
-Ze's runtime kernel (stock Alpine has no `CONFIG_PPPOE`).
+`./le qemu pppoe-accel-test` runs the client half in QEMU, and
+`./le qemu pppoe-test` runs the access concentrator's `test/pppoe/` suite on
+Ze's runtime kernel. The stock Alpine kernel has no `CONFIG_PPPOE`.
 
 ## CLI Commands
 

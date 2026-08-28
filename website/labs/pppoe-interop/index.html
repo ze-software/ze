@@ -81,7 +81,7 @@
                         </div>
                         <div class="status-row">
                             <strong>Requires</strong>
-                            <span>Docker, or the QEMU path with a staged kernel</span>
+                            <span>Docker, or Linux root with accel-ppp and PPPoE kernel support</span>
                         </div>
                         <div class="status-row">
                             <strong>Source</strong>
@@ -102,18 +102,18 @@
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># Docker lab</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-deployment-docker-pppoe-accel-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> deployment docker-pppoe-accel-test
 
-<span class="term-comment"># QEMU path (needs tmp/kernel/vmlinuz)</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-pppoe-accel-test</pre>
+<span class="term-comment"># native Linux network-namespace path</span>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu pppoe-accel-test</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
                         <span class="tag">Prerequisites</span>
                         <p>
-                            Docker for the primary path. The QEMU runner is
-                            the one to use where Docker Desktop's VM lacks the
-                            needed kernel modules.
+                            Docker for the peer-isolated lab. The native Linux
+                            action uses paired network namespaces and needs
+                            <code>ip</code>, <code>ping</code>, <code>accel-pppd</code>, and PPPoE kernel support.
                         </p>
                         <div class="link-list">
                             <a

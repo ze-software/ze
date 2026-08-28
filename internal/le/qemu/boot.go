@@ -131,7 +131,7 @@ func (h *Hugepages) startConsole(image string, port int) (*os.File, error) {
 func (h *Hugepages) boot(argv []string, port int, console *os.File) (answers, error) {
 	var said answers
 
-	vm := exec.CommandContext(context.Background(), QemuBinary(h.Arch), argv...) //nolint:gosec // the argv is built by this package, never by an operator
+	vm := exec.CommandContext(context.Background(), qemuBinary(h.Arch), argv...) //nolint:gosec // the argv is built by this package, never by an operator
 	vm.Stdout = console
 	vm.Stderr = console
 	if err := vm.Start(); err != nil {

@@ -13,12 +13,12 @@ depth is fixed at two, so a point id is always `<rule>/<section>/<slug>`.
 |------|-------|---------------|
 | `ai/rules/points/<rule>/manifest.md` | The title, the metadata block, the sections and the reading order | You |
 | `ai/rules/points/<rule>/<section>/<slug>.md` | One point: a frontmatter header, then the body verbatim | You |
-| `ai/rules/<rule>.md` | The rendered rule an agent reads | `make ze-rules-render-update` |
-| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload | `make ze-rules-condensed-update` |
-| `ai/rules/INDEX.md` | The dispatch index | `make ze-rules-index-update` |
+| `ai/rules/<rule>.md` | The rendered rule an agent reads | `./le rules render-update` |
+| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload | `./le rules condensed-update` |
+| `ai/rules/INDEX.md` | The dispatch index | `./le rules index-update` |
 
-An Edit to any generated file is refused by `c_rendered_rules` in
-`.claude/hooks/pretool-writeedit.py`. The refusal names the point directory.
+An Edit to any generated file is refused by `writeRenderedRule` in
+`internal/le/hookruntime/writeedit.go`. The refusal names the point directory.
 
 A `##` heading is a section DIRECTORY, not a point file. A `###` or `####`
 heading stays a point inside its section: it is sub-structure within a section
@@ -28,7 +28,7 @@ rather than a section of its own, and that is what keeps the depth at two.
 
 | Task | Steps |
 |------|-------|
-| Change one instruction | Edit the point file. Run `make ze-rules-render-update` |
+| Change one instruction | Edit the point file. Run `./le rules render-update` |
 | Add an instruction | Pick a slug no file in that SECTION uses, write the point, add the slug under that section in the manifest, render |
 | Add a section | Add its line to the manifest, create the directory, and put at least one point in it. An empty section is refused |
 | Remove an instruction | Delete the point file AND its manifest line. Either one alone is a hard error |
@@ -37,7 +37,7 @@ rather than a section of its own, and that is what keeps the depth at two.
 
 A point body is copied through verbatim. The renderer joins bodies with one
 blank line and rewrites nothing inside one. That is what lets
-`make ze-rules-points-roundtrip-check` prove no byte was lost.
+`./le rules points-roundtrip-check` prove no byte was lost.
 
 ## Pick a slug that is free
 
@@ -47,8 +47,8 @@ Before you create a point, check the name:
 
     ls ai/rules/points/<rule>/<section>/<slug>.md
 
-A Write to a name that already exists is REFUSED by `c_point_overwrite` in
-`.claude/hooks/pretool-writeedit.py`. The Write replaces the whole file, so the
+A Write to a name that already exists is refused by `writePointOverwrite` in
+`internal/le/hookruntime/writeedit.go`. The Write replaces the whole file, so the
 instruction in it is gone before any gate runs. The refusal names both routes:
 edit the point that is there, or pick a slug no file uses. An Edit is targeted
 and stays permitted, and so does a Write to a free slug.
@@ -61,7 +61,7 @@ cannot derive either one and an empty line would claim the point was examined.
 
 | Field | Values | Notes |
 |-------|--------|-------|
-| `kind` | `directive`, `table`, `note`, `heading`, `fence` | Describes the block. `heading` and `fence` are structural, so `make ze-rules-gate-map-report` leaves them out of its counts |
+| `kind` | `directive`, `table`, `note`, `heading`, `fence` | Describes the block. `heading` and `fence` are structural, so `./le rules gate-map-report` leaves them out of its counts |
 | `level` | `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY` | The strongest RFC 2119 level the body states. Required on a `directive`, empty on every other kind. See "Every directive states a level" |
 | `stage` | empty | Reserved. It will let a design-phase agent skip implementation directives. Leave it empty |
 | `rationale` | a repo-relative path, or the line absent | Where the record of WHY this instruction exists lives: a `plan/learned/NNNN-*.md` summary, or an `ai/rationale/*.md` file |
@@ -85,7 +85,7 @@ reader who stops after the general statement is misled, and the repetition that
 prevents that is invisible: `ai/rules/writing.md` states the UK English
 exception at three levels, and a dedup pass can delete one copy with every gate
 staying green. The link closes that. Deleting the exception point leaves the
-general point naming nothing, and `make ze-rules-gate-map-report` fails.
+general point naming nothing, and `./le rules gate-map-report` fails.
 
 Declare it when the exception lives in a DIFFERENT point. An instruction that
 states its own carve-out in the same block needs no link, and neither does one
@@ -93,7 +93,7 @@ whose exception is a co-equal branch of a decision table. An invented link is
 worse than an absent one: coverage is a measurement and never a red.
 
 The manifest frontmatter carries `title`, `when`, `severity` and an optional
-`related`. `scripts/dev/rules_lint.py` validates what those produce in the
+`related`. `internal/le/rules.Answer` validates what those produce in the
 rendered file, so the metadata contract did not change when the format did.
 
 The manifest BODY is the rule's structural spine, and it has exactly two line
@@ -141,17 +141,17 @@ A block that states no obligation is `kind: note` or `kind: table`, never
 `kind: directive`. The gate is scoped to directives on purpose: a two-column
 lookup gains a word and no obligation from being made to say MUST.
 
-Two gates enforce this. `.claude/hooks/pretool-writeedit.py`
-(`c_rule_point_rfc_language`) refuses the write, and `make ze-rules-lint`
+Two gates enforce this. `writePointLanguage` in
+`internal/le/hookruntime/writeedit.go` refuses the write, and `./le rules lint`
 refuses the finished tree. A Write carries the whole point, so a missing keyword
 is refused there; an Edit carries a fragment, so only the lowercase modal it
 introduces is decidable at write time. Run the pass alone with:
 
-    python3 scripts/dev/rules_lint.py --points
+    ./le rules lint
 
 ## What the renderer refuses
 
-`scripts/dev/rules_points.py` fails closed rather than rendering a partial rule.
+`internal/le/rules.Answer` fails closed rather than rendering a partial rule.
 
 | Refused | Why |
 |---------|-----|
@@ -176,7 +176,7 @@ every gate stays green, because the points and the rendered rule then agree on
 the smaller corpus.
 
 So a removal is declared: one row in `ai/rules/points/RETIRED.md`, naming the id
-and saying what happened to the instruction. `make ze-rules-gate-map-report` compares
+and saying what happened to the instruction. `./le rules gate-map-report` compares
 each rule's point count against git HEAD and fails when a drop is not covered by
 a row added since HEAD. A row stops counting once it is committed, so nothing
 there pre-approves a future deletion.
@@ -186,18 +186,20 @@ not change, and the point's `# ze point:` binding is repointed at the new id.
 
 ## Binding a hook check to a point
 
-A check declares what it enforces with one comment directly above its `def`.
-Only a blank line or another comment can sit between the two.
+A native check declares what it enforces with a `// ze point:` comment directly
+above its Go function. Only another comment may sit between the binding and the
+declaration.
 
-    # ze point: performance/directives/write-wire-encoding-into-pooled-bounded-buffers
-    def c_encoding_alloc(ctx):
+    // ze point: performance/directives/write-wire-encoding-into-pooled-bounded-buffers
+    func writeGoPatterns(ctx context) *verdict {
 
 A check that enforces nothing written in `ai/rules/` says so, with a reason:
 
-    # ze point: none -- build hygiene, and no rule states where a Go binary lands
-    def check_root_build(ctx):
+    // ze point: none -- build hygiene; no rule states where a Go binary must be written
+    func bashRootBuild(ctx context) *verdict {
 
-`make ze-rules-gate-map-report` joins those comments against the points on disk, and
+<!-- source: internal/le/rules/coverage.go -- bindingLine, noPointLine -->
+`./le rules gate-map-report` joins those comments against the points on disk, and
 joins the two optional link fields the same way. It reports the gated points,
 the dangling bindings, the points that regressed, the checks that declare
 `none`, the two sets of links naming nothing, the ungated count, and the two
@@ -225,16 +227,16 @@ owes a row in that table, and a deleted check's row cannot survive it.
 
 ## The order the generators run in
 
-`make ze-rules-condensed-update` and `make ze-rules-index-update` parse the RENDERED rules, so
+`./le rules condensed-update` and `./le rules index-update` parse the RENDERED rules, so
 a render that has not run yet feeds them the previous text.
 
-    make ze-rules-render-update
-    make ze-rules-condensed-update
-    make ze-rules-index-update
-    make ze-rules-lint
+    ./le rules render-update
+    ./le rules condensed-update
+    ./le rules index-update
+    ./le rules lint
 
-`make ze-doc-verify` runs all of them, plus `ze-rules-render-check`,
-`ze-rules-points-roundtrip-check` and `ze-rules-gate-map-report`. Run it before you commit.
+`./le doc-check verify` runs all of them, plus `./le rules render-check`,
+`./le rules points-roundtrip-check` and `./le rules gate-map-report`. Run it before you commit.
 
 After a trigger edit, READ your rule's row in the regenerated `TRIGGERS.md`. A
 trigger that lost half its clause is not visible from the point file alone.
@@ -251,7 +253,7 @@ Several sessions share this checkout, so your working tree can hold another
 author's unlanded rule text. When it does, generate the artifacts from HEAD plus
 your own points rather than from the shared tree:
 
-    git archive HEAD ai/rules scripts/dev/rules_points.py scripts/dev/rules_condensed.py \
+    git archive HEAD ai/rules internal/le/rules.Answer internal/le/rules.Answer \
         | tar -x -C <scratch>
     # copy your edited point files into <scratch>/ai/rules/points/
     # run the generators there, and commit what they produce
@@ -281,7 +283,7 @@ what a refusal had prevented. Nothing said whether a reworded instruction still
 had a gate behind it.
 
 The path is now the id, and a machine answers the first two. `gate_map` in
-`scripts/dev/rules_points.py` names the point each check enforces, and a refusal
+`internal/le/rules.Answer` names the point each check enforces, and a refusal
 cites that point rather than a 900-line file.
 
 The third is answered in REVIEW, not by a machine. `Binding` carries the point's

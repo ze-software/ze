@@ -323,7 +323,7 @@ func unprovenMetric(rows, unproven []ledgerRow) Metric {
 	}
 
 	// The WHOLE set, named, and sorted by name rather than by rank.
-	// StructuralFacts gates this list, so two properties are load-bearing.
+	// structuralFacts gates this list, so two properties are load-bearing.
 	// Complete: the density metric's `worst` is a display slice of ten, so an
 	// eleventh RFC earning its first pair would have been an undetectable
 	// event. Rank-free: ordering by gated count would rewrite this list

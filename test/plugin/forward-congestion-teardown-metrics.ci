@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes with telemetry enabled
-# 2. Python plugin dispatches "show metrics values" via dispatch-command
+# 2. compiled Go plugin dispatches "show metrics values" via dispatch-command
 # 3. Verifies Phase 5 congestion metrics appear in output
 # 4. Shuts down daemon
 #
@@ -18,119 +18,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies congestion metrics appear in Prometheus output
-tmpfs=congestion-teardown-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: congestion teardown metrics visible in metrics values output."""
-
-import json
-import sys
-
-from ze_api import API, result_text_data, runtime_fail
-
-
-def dispatch(api, command):
-    """Call dispatch-command and return result dict."""
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for peer1's initial sync (the EOR this test's ze-peer expects) to
-    # reach the wire, BEFORE asserting anything or shutting down. Without this
-    # barrier the peer's EOR expectation is unreachable by construction: every
-    # metric this test checks is a scalar counter registered at telemetry setup
-    # with value 0, so `show metrics values` is already non-empty when the plugin
-    # becomes ready -- which is BEFORE peers are even started
-    # (plugin/server/startup.go:220-223 fans out post-startup, then calls
-    # SignalPluginStartupComplete -> StartPeers). The script would therefore
-    # complete and dispatch `request shutdown` in the window before the OPEN
-    # handshake, closing the session under the peer.
-    #
-    # // the `'established' in <detail json>` check removed here was
-    # VACUOUS, not coverage: every peer row carries the key
-    # `connections-established` (cmd/peer/peer.go:238), so the substring matched
-    # on the first poll and the barrier waited for nothing. Reproduced under
-    # scripts/dev/stress-repro.py as `failed: connection closed before
-    # completion` with the OPEN exchange complete and no EOR on the wire. It is
-    # replaced by a STRICTLY STRONGER wait on the per-peer `eor-sent` counter
-    # (peer.go:217; peer_stats.go IncrEORSent increments it only once
-    # peer_initial_sync.go's sendInitialRoutes has written AND flushed the EOR to
-    # the peer's socket), which cannot return before the asserted frame is sent, and
-    # by runtime_fail instead of the sys.exit(1) observer antipattern that the
-    # runner ignores (ai/rules/testing.md, Observer-Exit Antipattern).
-    if not api.wait_peer_eor_sent('peer1', attempts=40):
-        runtime_fail('peer1 initial-sync EOR never reached the wire')
-    # Complement, not a substitute: quiesce drains the forward pool, but its
-    # bgp-peer-sync quiescer skips a peer that has not begun its initial sync
-    # (reactor_api.go peersSynced), so it returns instantly before establishment.
-    api.quiesce()
-
-    # Poll for metrics -- under parallel load, BGP session establishment can
-    # take longer than a fixed sleep allows.
-    def has_metrics(res):
-        if res.get('status') != 'done':
-            return False
-        try:
-            data = json.loads(result_text_data(res, '{}'))
-        except (json.JSONDecodeError, TypeError):
-            return False
-        return bool(data.get('metrics', ''))
-
-    r = api.dispatch_until('show metrics values', has_metrics, attempts=10, delay=0.5)
-    metrics_text = ''
-    if r.get('status') == 'done':
-        try:
-            metrics_text = json.loads(result_text_data(r, '{}')).get('metrics', '')
-        except (json.JSONDecodeError, TypeError):
-            metrics_text = ''
-
-    if not metrics_text:
-        print('FAIL: empty metrics after dispatch_until poll', file=sys.stderr)
-        sys.exit(1)
-
-    # Phase 5 scalar counters: always registered, value 0 at startup
-    required = [
-        'ze_forward_buffer_denied_total',
-        'ze_forward_congestion_teardown_total',
-        'ze_bgp_pool_used_ratio',
-    ]
-    missing = []
-    for name in required:
-        if name not in metrics_text:
-            missing.append(name)
-
-    if missing:
-        print(f'FAIL: missing congestion metrics: {missing}', file=sys.stderr)
-        for line in metrics_text.split('\n'):
-            if 'ze_' in line and not line.startswith('#'):
-                print(f'  {line}', file=sys.stderr)
-        sys.exit(1)
-
-    print(f'OK: congestion teardown metrics present', file=sys.stderr)
-
-    # Shutdown daemon
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# compiled Go test plugin: verifies congestion metrics appear in Prometheus output
 
 # ze bgp configuration with telemetry enabled
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external congestion-teardown-test {
-		run ./congestion-teardown-test.run
+		run "ze-test fixture plugin/forward-congestion-teardown-metrics"
 		encoder json
 	}
 }

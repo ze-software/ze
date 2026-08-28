@@ -3,9 +3,9 @@ kind: table
 level:
 stage:
 ---
-| Dispatcher | Runs on | Contains |
+| Go source | Runs on | Contains |
 |---|---|---|
-| `.claude/hooks/pretool-bash.py` | PreToolUse `Bash` | every Bash check below |
-| `.claude/hooks/pretool-writeedit.py` | PreToolUse `Write\|Edit\|MultiEdit\|NotebookEdit` | every Write/Edit check below |
-| `.claude/hooks/pretool-agent-skill.py` | PreToolUse `Task\|Agent` | two gates: skills-over-raw-agents (`ai/rules/cli.md`), and review-runs-on-Opus-5 (`ai/rules/planning.md`) |
-| `.claude/hooks/posttool-writeedit.py` | PostToolUse `Write\|Edit` | the formatters (gofmt/goimports/golangci, ruff) + cheap advisory checks |
+| `internal/le/hookruntime/bash.go` | PreToolUse `Bash` | every registered Bash check below |
+| `internal/le/hookruntime/writeedit.go` | PreToolUse `Write\|Edit\|MultiEdit\|NotebookEdit` | every registered Write/Edit check below |
+| `internal/le/hookruntime/agent.go` | PreToolUse `Task\|Agent` | skill routing, review-model enforcement, and the Go style-guide reminder |
+| `internal/le/hookruntime/postwrite.go` | PostToolUse `Write\|Edit` | formatting and post-edit advisory checks |

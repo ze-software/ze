@@ -109,9 +109,8 @@ func (r AuditReport) Text() string {
 	return tb.String()
 }
 
-// sortByExternalCount orders the shared libraries by how many external
-// importers they have, most first, keeping the name order among equals. That is
-// Python's stable sort on the negated count.
+// sortByExternalCount orders shared libraries by external importer count,
+// keeping name order among equals.
 func sortByExternalCount(rows []Row) {
 	for i := 1; i < len(rows); i++ {
 		for j := i; j > 0 && len(rows[j].External) > len(rows[j-1].External); j-- {
@@ -120,8 +119,8 @@ func sortByExternalCount(rows []Row) {
 	}
 }
 
-// GateResult is what one of the five checks said.
-type GateResult struct {
+// CheckResult is what one of the five checks said.
+type CheckResult struct {
 	// Name is the check, so a caller of `| json` can tell which one failed.
 	Name string `json:"name"`
 	// Page is what the check wrote to stdout, which is its verdict.
@@ -134,8 +133,8 @@ type GateResult struct {
 
 // CheckReport is the whole answer of `le tier check`.
 type CheckReport struct {
-	// Gates are the five checks, in the order they ran.
-	Gates []GateResult `json:"gates"`
+	// Checks are the five checks, in the order they ran.
+	Checks []CheckResult `json:"checks"`
 	// Failed is the FIRST non-zero code, which is the one a caller can act on:
 	// a later check's failure says nothing about the first one's.
 	Failed int `json:"failed"`
@@ -144,8 +143,8 @@ type CheckReport struct {
 // Text renders the stdout half: every check's verdict, in order.
 func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
-	for _, gate := range r.Gates {
-		tb.Str(gate.Page)
+	for _, check := range r.Checks {
+		tb.Str(check.Page)
 	}
 	return tb.String()
 }
@@ -153,14 +152,14 @@ func (r CheckReport) Text() string {
 // Diagnosis renders the stderr half: every check's failure, in order.
 func (r CheckReport) Diagnosis() string {
 	var tb textbuf.Buffer
-	for _, gate := range r.Gates {
-		tb.Str(gate.Diagnosis)
+	for _, check := range r.Checks {
+		tb.Str(check.Diagnosis)
 	}
 	return tb.String()
 }
 
-// BaselineReport is what `le tier write-baseline` answers.
-type BaselineReport struct {
+// baselineReport is what `le tier write-baseline` answers.
+type baselineReport struct {
 	// File is the baseline that was written.
 	File string `json:"file"`
 	// Engines is how many misplaced engines it now names.
@@ -168,7 +167,7 @@ type BaselineReport struct {
 }
 
 // Text renders the line that the script prints after it writes the baseline.
-func (r BaselineReport) Text() string {
+func (r baselineReport) Text() string {
 	var tb textbuf.Buffer
 	return tb.Str("wrote ").Str(r.File).Str(" with ").Int(int64(r.Engines)).Str(" engine(s)\n").String()
 }

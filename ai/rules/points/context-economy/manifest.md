@@ -9,7 +9,7 @@ directives ## Directives
   why-the-ratios-matter-more-than-the-absolutes
   lower-cost-by-cutting-round-trips-and-context
   agent-startup-floor-is-set-by-the-tools-field
-  python-symbols-resolve-through-pyright
+  go-symbols-resolve-through-gopls
 which-lsp-operation-answers-which-question ## Which LSP Operation Answers Which Question
   lsp-operation-and-gopls-command-for-each-question
 the-gopls-cli-lsp-from-any-context-subagents-included ## The gopls CLI: LSP From Any Context, Subagents Included

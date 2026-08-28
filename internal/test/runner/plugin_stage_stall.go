@@ -49,7 +49,7 @@ const pluginStageStallShare = 0.8
 // author already expresses "this environment is slow" -- the ospfv3 netns tests
 // declare timeout=15s for work that costs 1.6s natively. Under QEMU emulation a
 // single plugin's stage-3 work can exceed a fixed 10s of wall time between two
-// progress events, and `make ze-qemu-netns-test` runs `-p 1`, so
+// progress events, and `./le qemu netns-test` runs `-p 1`, so
 // withParallelHeadroom is a no-op there and could not compensate. Deriving keeps
 // the intended ordering at any budget on any machine instead of at one specific
 // pairing.

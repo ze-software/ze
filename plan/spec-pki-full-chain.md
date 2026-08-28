@@ -64,7 +64,7 @@ behavior.
 - [ ] `ai/rules/config.md` - YANG vs env var decision
   → Decision: operator-facing certificate selection is YANG config (visible, validated, commit/rollback); the `environment/` placement of the web leaf mandates a matching `ze.web.certificate` env var (`ai/patterns/config-option.md` step 3).
 - [ ] `ai/rules/architecture.md` - tier placement for the shared loader
-  → Constraint: `internal/core/` MUST NOT import `internal/component/` (core import-direction rule, enforced by `scripts/dev/dep_audit.py --check`); so `internal/core/dnsserver` and `internal/core/selfcert` can never call the pki store directly. PKI is explicitly "shared certificate infrastructure for IPsec and future TLS users" (`ai/rules/architecture.md`) -- the loader lives there.
+  → Constraint: `internal/core/` MUST NOT import `internal/component/` (core import-direction rule, enforced by `internal/le/ --check`); so `internal/core/dnsserver` and `internal/core/selfcert` can never call the pki store directly. PKI is explicitly "shared certificate infrastructure for IPsec and future TLS users" (`ai/rules/architecture.md`) -- the loader lives there.
 - [ ] `ai/rules/config.md` - leaf naming
   → Decision: reuse the ipsec precedent `leaf certificate { type string; description "Name of the ... certificate in the PKI store." }` (`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang`).
 - [ ] `ai/rules/plugins.md` - ownership of doctor checks and YANG
@@ -383,7 +383,7 @@ None deferred.
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan -- check what exists |
 | 3. Wiring phase | Wiring Test table -- register entry points, write failing wiring tests |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Fix every issue from critical review |
 | 8. Re-verify | Re-run stage 5 |
@@ -417,7 +417,7 @@ None deferred.
    - Files: `pki/tls.go` (helper), plugin doctor files + registrations, web doctor registration, `diagnostic/codes.go`
    - Verify: `doctor-tls-reference` registered and explainable; checks fire only when the leaf is set
 6. **Functional tests** -- fill the `.ci` files (`test/plugin/as112-dot-pki.ci`, `geodns-dot-pki.ci`, `test/reload/pki-reference-reload.ci`, complete the parse ones)
-7. **Full verification** -- `make ze-precommit-verify` (respect `scripts/dev/verify-status.sh check` freshness)
+7. **Full verification** -- `./le verify current mode full` (respect `internal/le/verifystatus/answer.go check` freshness)
 8. **Complete spec** -- audit tables, learned summary `plan/learned/NNN-pki-full-chain.md`, two-commit closure
 
 ### Critical Review Checklist (/implement stage 6)
@@ -427,7 +427,7 @@ None deferred.
 | Feature completeness | Every End-to-End User Story path works; web and BOTH dns consumers covered |
 | Correctness | Chain order leaf-first; fail-closed on web (R-5) vs degrade-loud on DoT/DoH (existing semantics preserved); rollback reinstalls prior store (R-3) |
 | Naming | `certificate` leaf on all three surfaces; env `ze.web.certificate` leaf segment matches YANG leaf |
-| Data flow | core dnsserver never imports component pki (run `scripts/dev/dep_audit.py --check`); resolution only via injected resolver |
+| Data flow | core dnsserver never imports component pki (run `internal/le/ --check`); resolution only via injected resolver |
 | CLI grammar | N/A (no CLI change) |
 | Registration over hardcoding | doctor checks registered via existing registries; no plugin spelling added to central packages |
 | Doctor checks | `doctor-tls-reference` in `diagnostic/codes.go`, owner-registered, unit + functional coverage |
@@ -444,7 +444,7 @@ None deferred.
 | Reload ordering + rollback | `go test ./cmd/ze/hub -run TestReloadInstallsPKIBeforePluginApply`; read `doReload` order |
 | Doctor code registered | `go test ./internal/component/doctor -run TestDoctorCoverageCodesRegistered` |
 | Six .ci files exist and pass | `ls test/parse/web-pki-* test/plugin/*-dot-pki.ci test/reload/pki-reference-reload.ci` + functional run |
-| Tier rule intact | `scripts/dev/dep_audit.py --check` |
+| Tier rule intact | `internal/le/ --check` |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -732,7 +732,7 @@ shape for core-hosted listeners like dnsserver.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

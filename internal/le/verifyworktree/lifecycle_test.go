@@ -59,10 +59,10 @@ func (repo fixtureRepo) commit(t *testing.T, message, content string) string {
 	return repo.git(t, "rev-parse", "HEAD")
 }
 
-func passingRunner(_ context.Context, root string, identity verify.Identity) verify.GateResult {
-	return verify.GateResult{
+func passingRunner(_ context.Context, root string, identity verify.Identity) verify.ActionResult {
+	return verify.ActionResult{
 		Identity: identity, Registered: true, Completed: true,
-		Output: "native " + identity.Gate + " in " + root,
+		Output: "native " + identity.Name + " in " + root,
 	}
 }
 
@@ -84,7 +84,7 @@ func TestDefaultAndOverrideResolveExactCommits(t *testing.T) {
 func TestWorktreeIsDetachedThenRemovedAndPruned(t *testing.T) {
 	repo := newFixtureRepo(t)
 	var branchStatus int
-	runner := func(ctx context.Context, root string, identity verify.Identity) verify.GateResult {
+	runner := func(ctx context.Context, root string, identity verify.Identity) verify.ActionResult {
 		cmd := exec.CommandContext(ctx, "git", "symbolic-ref", "--quiet", "HEAD")
 		cmd.Dir = root
 		err := cmd.Run()
@@ -93,7 +93,7 @@ func TestWorktreeIsDetachedThenRemovedAndPruned(t *testing.T) {
 		} else {
 			branchStatus = 1
 		}
-		return verify.GateResult{Identity: identity, Registered: true, Completed: true}
+		return verify.ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
 
 	report := Run(context.Background(), repo.root, Options{}, runner)
@@ -228,9 +228,9 @@ func TestKeepLeavesWorktreeRegistrationAndOwnerMarker(t *testing.T) {
 func TestRedRunPreservesLogsAndPythonDiagnosticOrder(t *testing.T) {
 	repo := newFixtureRepo(t)
 	calls := 0
-	runner := func(_ context.Context, _ string, identity verify.Identity) verify.GateResult {
+	runner := func(_ context.Context, _ string, identity verify.Identity) verify.ActionResult {
 		calls++
-		result := verify.GateResult{Identity: identity, Registered: true, Completed: true, Output: "stage marker"}
+		result := verify.ActionResult{Identity: identity, Registered: true, Completed: true, Output: "stage marker"}
 		if calls == 1 {
 			result.Code = 9
 		}
@@ -254,15 +254,15 @@ func TestRedRunPreservesLogsAndPythonDiagnosticOrder(t *testing.T) {
 	text := report.Text()
 	ordered := []string{
 		"verify-worktree: " + shortSHA(report.Commit) + " -> ",
-		"verify-worktree: native ze-precommit-verify",
-		"verify-worktree: ze-precommit-verify exit=1",
+		"verify-worktree: native full",
+		"verify-worktree: full exit=1",
 		"verify-worktree: logs saved to ",
 	}
 	position := -1
 	for _, message := range ordered {
 		next := strings.Index(text, message)
 		if next <= position {
-			t.Fatalf("diagnostics out of Python lifecycle order at %q: %s", message, text)
+			t.Fatalf("diagnostics out of lifecycle order at %q: %s", message, text)
 		}
 		position = next
 	}
@@ -294,9 +294,9 @@ func TestCleanupFailureOverridesAFalseGreenAndIsReported(t *testing.T) {
 func TestInterruptionStillRemovesAndPrunesTheWorktree(t *testing.T) {
 	repo := newFixtureRepo(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	runner := func(_ context.Context, _ string, identity verify.Identity) verify.GateResult {
+	runner := func(_ context.Context, _ string, identity verify.Identity) verify.ActionResult {
 		cancel()
-		return verify.GateResult{Identity: identity, Registered: true, Completed: true}
+		return verify.ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
 
 	report := Run(ctx, repo.root, Options{}, runner)
@@ -308,14 +308,19 @@ func TestInterruptionStillRemovesAndPrunesTheWorktree(t *testing.T) {
 	}
 }
 
-func TestActionClaimsReadOnlyGateAndTranslatesProducerEnvironment(t *testing.T) {
+func TestActionsDeclareWorktreeCurrentAndList(t *testing.T) {
 	listing := Actions()
-	if len(listing.Actions) != 1 {
+	want := []string{"worktree", "current", "list"}
+	if len(listing.Actions) != len(want) {
 		t.Fatalf("actions = %#v", listing)
 	}
-	row := listing.Actions[0]
-	if row.Gate != gateName || row.Writes || row.Verb != "worktree" {
-		t.Fatalf("action = %#v", row)
+	for index, verb := range want {
+		if listing.Actions[index].Verb != verb {
+			t.Errorf("action %d = %q, want %q", index, listing.Actions[index].Verb, verb)
+		}
+	}
+	if listing.Actions[0].Writes {
+		t.Fatalf("worktree action is marked as writing: %#v", listing.Actions[0])
 	}
 	environment := map[string]string{"COMMIT": "abc123", "KEEP": "1"}
 	getenv := func(key string) string { return environment[key] }

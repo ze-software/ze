@@ -57,9 +57,9 @@ func TestBuildTag_Gate11_SymbolMatrix(t *testing.T) {
 	// recognize a top-level t.Parallel() call that sits after an early
 	// t.Skip(), and flags the parent as non-parallel while its subtests are.
 	t.Parallel()
-	// -short guard only; this test still runs in full (make ze-precommit-verify
-	// passes no -short). It builds and links six ze binaries, so opt-in -short
-	// runs skip it for speed. No coverage is lost in the verify/CI suite.
+	// -short guard only; this test still runs in full verification
+	// (`./le verify current mode full` passes no -short). It builds and links six
+	// ze binaries, so opt-in -short runs skip it for speed.
 	if testing.Short() {
 		t.Skip("builds six ze binaries (slow); skipped under -short")
 	}

@@ -1,11 +1,10 @@
 // Design: docs/architecture/dns/as112.md -- end-to-end DNS-serving proof against the real privileged port 53
 //
 // Requires CAP_NET_BIND_SERVICE / root: binding UDP/TCP port 53 needs
-// elevated privilege on Linux (and everywhere else). This is why these
-// assertions live in the sudo-gated `make ze-integration-as112-test` target
-// (mk/test-integration.mk), not the standard `test/plugin/*.ci` functional
-// suite, which runs unprivileged and has no precedent for a privileged-port
-// bind. The as112-*.ci functional tests (test/plugin/) still verify
+// elevated privilege on Linux (and everywhere else). These assertions run under
+// `./le integration as112`, not the standard `test/plugin/*.ci` functional
+// suite, which is unprivileged and has no precedent for a privileged-port bind.
+// The as112-*.ci functional tests still verify
 // config-application and `show as112` state; THIS file is the only place
 // that proves the server actually answers real wire queries on port 53.
 

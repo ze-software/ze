@@ -41,121 +41,6 @@ expect=bgp:conn=1:seq=2:ordered=80040400000064
 expect=bgp:conn=1:seq=2:ordered=180A3E00
 EOF_DEST
 
-tmpfs=raw-med-drop.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import base64
-import sys
-
-from ze_api import API, runtime_fail
-
-removed = []
-
-
-def drop_med(body):
-    if len(body) < 4:
-        runtime_fail('RAW-MED-DROP: raw UPDATE body too short')
-        raise RuntimeError('short raw body')
-    withdrawn_len = int.from_bytes(body[0:2], 'big')
-    attrs_len_off = 2 + withdrawn_len
-    if attrs_len_off + 2 > len(body):
-        runtime_fail('RAW-MED-DROP: withdrawn section overruns body')
-        raise RuntimeError('bad withdrawn length')
-    attr_len = int.from_bytes(body[attrs_len_off:attrs_len_off + 2], 'big')
-    attrs_start = attrs_len_off + 2
-    attrs_end = attrs_start + attr_len
-    if attrs_end > len(body):
-        runtime_fail('RAW-MED-DROP: attribute section overruns body')
-        raise RuntimeError('bad attribute length')
-    attrs = body[attrs_start:attrs_end]
-    out = bytearray()
-    pos = 0
-    saw_med = False
-    while pos < len(attrs):
-        if pos + 3 > len(attrs):
-            runtime_fail('RAW-MED-DROP: truncated attribute header')
-            raise RuntimeError('truncated attribute')
-        flags = attrs[pos]
-        code = attrs[pos + 1]
-        if flags & 0x10:
-            if pos + 4 > len(attrs):
-                runtime_fail('RAW-MED-DROP: truncated extended attribute header')
-                raise RuntimeError('truncated extended attribute')
-            length = int.from_bytes(attrs[pos + 2:pos + 4], 'big')
-            header_len = 4
-        else:
-            length = attrs[pos + 2]
-            header_len = 3
-        end = pos + header_len + length
-        if end > len(attrs):
-            runtime_fail('RAW-MED-DROP: attribute length overruns section')
-            raise RuntimeError('bad attribute span')
-        if code == 4:
-            saw_med = True
-        else:
-            out.extend(attrs[pos:end])
-        pos = end
-    if pos != len(attrs):
-        runtime_fail('RAW-MED-DROP: attribute parser stopped early')
-        raise RuntimeError('parser stopped early')
-    if not saw_med:
-        return None
-    return body[:attrs_len_off] + len(out).to_bytes(2, 'big') + bytes(out) + body[attrs_end:]
-
-
-def filter_handler(params):
-    if params.get('direction') != 'export':
-        return {'action': 'accept'}
-    raw_b64 = params.get('raw') or ''
-    if not raw_b64:
-        runtime_fail('RAW-MED-DROP: export callback had no raw body')
-        return {'action': 'reject'}
-    body = base64.b64decode(raw_b64)
-    stripped = drop_med(body)
-    if stripped is None:
-        return {'action': 'accept'}
-    removed.append(params.get('peer', ''))
-    print('RAW-MED-DROP: removed MULTI_EXIT_DISC for %s' % params.get('peer'), file=sys.stderr, flush=True)
-    return {'action': 'modify', 'raw': base64.b64encode(stripped).decode('ascii')}
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'None'}
-    return resp.get('result', {})
-
-
-def serve_until(api, predicate, attempts=100):
-    for _ in range(attempts):
-        if predicate():
-            return True
-        api.read_line(timeout=0.1)
-    return predicate()
-
-
-def main():
-    api = API()
-    api.declare_filter(name='drop-med-raw', direction='export', on_error='reject')
-    api._filters[-1]['raw'] = True
-    api.on_filter_update(filter_handler)
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    serve_until(api, lambda: len(removed) > 0)
-    if not removed:
-        runtime_fail('RAW-MED-DROP: export filter never saw the forwarded route')
-    if not api.wait_peer_counter('updates-sent', 2, peer='127.0.0.2', attempts=40):
-        runtime_fail('RAW-MED-DROP: ze never wrote the restored UPDATE to dest')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -166,7 +51,7 @@ plugin {
         use bgp-rs;
     }
     external raw-med-drop {
-        run ./raw-med-drop.run;
+        run "ze-test fixture plugin/med-ibgp-post-selection-removal;"
         encoder json;
     }
 }

@@ -4,7 +4,7 @@ level: MUST
 stage:
 ---
 **You MUST NOT let a red persist.** Scope-to-changed is a temporary bridge while the
-global suite is being cleared, not a standing mode. A `ze-precommit-verify` that stays red
+global suite is being cleared, not a standing mode. A `./le verify current mode full` that stays red
 across sessions hides newly-introduced breakage under the existing red -- that is
 exactly how an import cycle, a YANG typedef gap, and stale registry snapshots all
 landed under one persistent red without any gate firing. You MUST log the failing stage in

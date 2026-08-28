@@ -121,8 +121,8 @@ const (
 	PeerOpTeardown
 )
 
-// PeerOp represents a queued operation (announce, withdraw, or teardown).
-type PeerOp struct {
+// peerOp represents a queued operation (announce, withdraw, or teardown).
+type peerOp struct {
 	Type    PeerOpType
 	Route   *rib.Route // For PeerOpAnnounce
 	NLRI    nlri.NLRI  // For PeerOpWithdraw
@@ -253,13 +253,13 @@ type Peer struct {
 	// going" while the engine is already leaving. Stop has to notify first --
 	// the cancel closes the sockets the NOTIFICATION needs -- so for the whole
 	// shutdown budget every peer context is still live, and a session torn down
-	// by ShutdownNotify would send run() straight back round the loop to dial
+	// by shutdownNotify would send run() straight back round the loop to dial
 	// again.
 	//
 	// It is read TWICE, and the second read is the load-bearing one. run()'s
 	// loop top is the cheap early exit. runOnce reads it again inside the p.mu
 	// hold that publishes p.session (peer_run.go), which is the field
-	// ShutdownNotify reads under the same lock: that pairing is what makes "the
+	// shutdownNotify reads under the same lock: that pairing is what makes "the
 	// notify covered this session, or this session was never published" a
 	// guarantee rather than a likelihood. The loop top alone can be passed
 	// before Reactor.stop sets the mark, and the dial that follows takes a TCP
@@ -290,7 +290,7 @@ type Peer struct {
 	// (internal/core/report). Producer-side dedup uses Session.prefixCounts.warned;
 	// the bus is the single source of truth for queries and the login banner.
 
-	// notificationExchanged is set true by IncrNotificationSent / IncrNotificationReceived
+	// notificationExchanged is set true by incrNotificationSent / incrNotificationReceived
 	// when a NOTIFICATION is sent or received during the current session lifecycle.
 	// Read by the FSM Established->Idle transition handler in peer_run.go to suppress
 	// the session-dropped error report when a notification has already been raised.
@@ -300,7 +300,7 @@ type Peer struct {
 	// Ordered operation queue: Used when session is NOT established.
 	// Maintains strict ordering of announce/withdraw/teardown operations.
 	// Processed on session establishment; teardowns act as batch separators.
-	opQueue    []PeerOp
+	opQueue    []peerOp
 	opQueueMax int
 
 	// sendingInitialRoutes gates route sending during session establishment.
@@ -323,7 +323,7 @@ type Peer struct {
 	// (rs/server_handlers.go sendEOR -> AnnounceEOR).
 	//
 	// It replaces a TIME-WINDOW test as the de-duplicator. AnnounceEOR gated on
-	// ShouldQueue(), i.e. on sendingInitialRoutes still being non-zero; when the
+	// shouldQueue(), i.e. on sendingInitialRoutes still being non-zero; when the
 	// route-server replay finished after that flag cleared, the guard failed open
 	// and the peer received the same family's EoR twice
 	// (ai/rules/evidence.md). Whether the marker is already on the wire
@@ -413,7 +413,7 @@ type Peer struct {
 
 	// fwdOverflowPending is this peer's handle to the count its forward worker
 	// keeps of the bytes it still owes this peer through overflow
-	// (forward_pool.go, fwdWorker.overflowPending). DispatchOverflow publishes
+	// (forward_pool.go, fwdWorker.overflowPending). dispatchOverflow publishes
 	// it when it parks the first real item for this peer, and nothing clears
 	// it: the counter it names reads zero once the worker has written what it
 	// owed, and a later worker for the same peer republishes its own.
@@ -462,7 +462,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		dialer:          &network.RealDialer{},
 		reconnectMin:    reconnectMin,
 		reconnectMax:    DefaultReconnectMax,
-		opQueue:         make([]PeerOp, 0, 16), // Pre-allocate small capacity
+		opQueue:         make([]peerOp, 0, 16), // Pre-allocate small capacity
 		opQueueMax:      queueMax,
 		sourceID:        source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
 		inboundNotify:   make(chan struct{}, 1),
@@ -485,11 +485,11 @@ func NewPeer(settings *PeerSettings) *Peer {
 // and Capabilities as well when the reload proved the negotiation unchanged
 // (peer_settings_negotiation.go). A caller running on a different goroutine than those
 // writes MUST read those five fields through PeerAS()/ImportFilters()/ExportFilters()/
-// OldestPrefixUpdated()/ConfiguredCapabilities(), not off this pointer, or it races the
+// oldestPrefixUpdated()/ConfiguredCapabilities(), not off this pointer, or it races the
 // write. Every other PeerSettings field is set at construction and never mutated, so
 // reading it off this pointer is race-free.
 //
-// A caller that needs the WHOLE struct rather than one field uses SettingsSnapshot.
+// A caller that needs the WHOLE struct rather than one field uses settingsSnapshot.
 // There is no goroutine that owns every write to this struct, so no caller can be
 // excused the lock by naming one: applyHotSwappableSettings runs on the reload
 // goroutine and resolveDynamicPeerSettings runs on the establishment goroutine, and
@@ -498,7 +498,7 @@ func (p *Peer) Settings() *PeerSettings {
 	return p.settings
 }
 
-// SettingsSnapshot returns a copy of the peer's settings taken under p.mu, for a
+// settingsSnapshot returns a copy of the peer's settings taken under p.mu, for a
 // caller that must read the struct as a whole.
 //
 // The reload path is that caller. reconcilePeersJournaled (reactor_api.go) compares
@@ -513,7 +513,7 @@ func (p *Peer) Settings() *PeerSettings {
 // and applyHotSwappableSettings, peer_settings_apply.go), and no backing array or map
 // is mutated in place. A shallow copy under the lock therefore observes one consistent
 // set of headers, and what they point at never changes afterwards.
-func (p *Peer) SettingsSnapshot() *PeerSettings {
+func (p *Peer) settingsSnapshot() *PeerSettings {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	snapshot := *p.settings
@@ -558,12 +558,12 @@ func (p *Peer) configuredCapabilities() []capability.Capability {
 	return p.settings.Capabilities
 }
 
-// OldestPrefixUpdated returns the oldest per-family PeeringDB refresh date under p.mu.
+// oldestPrefixUpdated returns the oldest per-family PeeringDB refresh date under p.mu.
 // applyHotSwappableSettings (peer_settings_apply.go) replaces the whole PrefixUpdated map
 // when a reload delivers new dates, so cross-goroutine readers MUST use this accessor:
-// PeerSettings.OldestPrefixUpdated walks the map and reads the field more than once, and
+// PeerSettings.oldestPrefixUpdated walks the map and reads the field more than once, and
 // an unguarded walk can pair the old map's keys with the new map's values.
-func (p *Peer) OldestPrefixUpdated() string {
+func (p *Peer) oldestPrefixUpdated() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.settings.OldestPrefixUpdated()
@@ -636,10 +636,10 @@ func (p *Peer) SetDialer(d network.Dialer) {
 	p.dialer = d
 }
 
-// ResetAPISync resets the per-session API synchronization state.
+// resetAPISync resets the per-session API synchronization state.
 // Called when session transitions to Established.
 // expectedCount is the number of API processes with SendUpdate permission.
-func (p *Peer) ResetAPISync(expectedCount int) {
+func (p *Peer) resetAPISync(expectedCount int) {
 	p.mu.Lock()
 	p.apiSyncExpected = int32(expectedCount) //nolint:gosec // API process count will never overflow int32
 	p.apiSyncReady = make(chan struct{})
@@ -652,7 +652,7 @@ func (p *Peer) ResetAPISync(expectedCount int) {
 // When all expected signals are received, unblocks waitForAPISync.
 //
 // Uses a single Lock (not RLock→WLock upgrade) to prevent a race where
-// ResetAPISync replaces apiSyncReady between the read and close operations.
+// resetAPISync replaces apiSyncReady between the read and close operations.
 func (p *Peer) SignalAPIReady() {
 	count := p.apiSyncCount.Add(1)
 	p.mu.Lock()
@@ -1173,17 +1173,17 @@ func (p *Peer) State() PeerState {
 // Publishing PeerStateEstablished CLOSES the initial-sync gate first, and the
 // order is the whole point: p.state is what every other goroutine reads, so the
 // instant Established becomes visible the peer must already look busy to both
-// gate readers. ShouldQueue would otherwise send a plugin's route DIRECT to the
+// gate readers. shouldQueue would otherwise send a plugin's route DIRECT to the
 // session, ahead of the End-of-RIB sendInitialRoutes has not started emitting
-// (RFC 4724 Section 2), and PendingSync would tell the bgp-peer-sync quiescer
+// (RFC 4724 Section 2), and pendingSync would tell the bgp-peer-sync quiescer
 // (DrainPeerSync, reactor_api.go) that a peer whose initial sync has not begun
 // is settled -- so `request quiesce` returns and the caller sends its next route
 // into the same window.
 //
 // It lives HERE rather than at the one call site because the store used to sit
 // 39 lines after the publication in peer_run.go's FSM callback, and every line
-// between them (SetEstablishedNow, the GR EoR timer, resolveDynamicPeerSettings,
-// a synchronous Info log, ResetAPISync, ResetPeerUpBarrier) held the window open
+// between them (setEstablishedNow, the GR EoR timer, resolveDynamicPeerSettings,
+// a synchronous Info log, resetAPISync, ResetPeerUpBarrier) held the window open
 // -- wide enough that an oversubscribed CI host reordered test/plugin/mup-ipv4-announce.ci's
 // wire to announce, withdraw, EoR. Binding the store to the publication makes
 // the window unreachable rather than short, and a future publication site
@@ -1222,8 +1222,8 @@ func (p *Peer) SetCallback(cb PeerCallback) {
 	p.callback = cb
 }
 
-// SetReconnectDelay configures reconnection delays.
-func (p *Peer) SetReconnectDelay(min, max time.Duration) {
+// setReconnectDelay configures reconnection delays.
+func (p *Peer) setReconnectDelay(min, max time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.reconnectMin = min
@@ -1276,7 +1276,7 @@ func (p *Peer) ConnectRetryCounter() uint32 {
 	return p.connectRetryCounter.Load()
 }
 
-// ShutdownNotify tells this peer's live session that the local system is being
+// shutdownNotify tells this peer's live session that the local system is being
 // taken out of service, with Cease / Administrative Shutdown (RFC 4486 subcode
 // 2). It is the ManualStop action of RFC 4271 Section 8.2.2, which OpenSent,
 // OpenConfirm and Established all list, and Teardown is state-blind for the
@@ -1288,7 +1288,7 @@ func (p *Peer) ConnectRetryCounter() uint32 {
 // way to exit nothing drains it, so the queued NOTIFICATION would simply never
 // be sent. A peer with no session here has nothing to say goodbye on and is
 // skipped. Nor does it set PeerStateConnecting: this peer is not reconnecting.
-func (p *Peer) ShutdownNotify() {
+func (p *Peer) shutdownNotify() {
 	p.mu.Lock()
 	session := p.session
 	p.mu.Unlock()
@@ -1314,11 +1314,11 @@ func (p *Peer) ShutdownNotify() {
 // the accept rail through AcceptConnection, so the seal has to land ON it, and
 // Session.connectionEstablished is where it is read (session_connection.go).
 //
-// It reads p.session under the same lock ShutdownNotify does, and after the same
+// It reads p.session under the same lock shutdownNotify does, and after the same
 // mark, so the pairing is the one runOnce is written against: either the publish
 // got in first and is sealed here, or it never happens.
 //
-// This is not ShutdownNotify with the message removed. ShutdownNotify runs on
+// This is not shutdownNotify with the message removed. shutdownNotify runs on
 // the notify path only, so without this a StopForRestart would seal no session
 // at all, and it also spends up to shutdownNotifyBudget on the wire -- the seal
 // must be in place before any of that starts.
@@ -1358,13 +1358,13 @@ func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
 	return p.teardown(subcode, shutdownMsg, false)
 }
 
-// TeardownAutomatic is Teardown for a stop the LOCAL SYSTEM chose rather than
+// teardownAutomatic is Teardown for a stop the LOCAL SYSTEM chose rather than
 // the operator, so it raises RFC 4271 Event 8 (AutomaticStop) instead of Event
 // 2 (ManualStop). §8.2.2 has Event 8 increment the ConnectRetryCounter where
 // Event 2 zeroes it, and a peer torn down because BFD went down or the forward
 // pool ran out of room has just failed an attempt, not been told to forget the
 // ones before it. Everything else matches Teardown, queuing included.
-func (p *Peer) TeardownAutomatic(subcode uint8, shutdownMsg string) error {
+func (p *Peer) teardownAutomatic(subcode uint8, shutdownMsg string) error {
 	return p.teardown(subcode, shutdownMsg, true)
 }
 
@@ -1377,7 +1377,7 @@ func (p *Peer) teardown(subcode uint8, shutdownMsg string, automatic bool) error
 	// BGP protocol sequencing: routes + EOR + NOTIFICATION.
 	if p.sendingInitialRoutes.Load() != 0 {
 		if len(p.opQueue) < p.opQueueMax {
-			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic})
+			p.opQueue = append(p.opQueue, peerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic})
 			p.mu.Unlock()
 			return nil
 		}
@@ -1400,7 +1400,7 @@ func (p *Peer) teardown(subcode uint8, shutdownMsg string, automatic bool) error
 
 	// No active session - queue teardown to maintain operation order
 	if len(p.opQueue) < p.opQueueMax {
-		p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic})
+		p.opQueue = append(p.opQueue, peerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic})
 		p.mu.Unlock()
 		return nil
 	}
@@ -1409,7 +1409,7 @@ func (p *Peer) teardown(subcode uint8, shutdownMsg string, automatic bool) error
 	return ErrOpQueueFull
 }
 
-// ClaimInitialSyncEOR records that an End-of-RIB for fam is about to go on the
+// claimInitialSyncEOR records that an End-of-RIB for fam is about to go on the
 // wire for THIS session, and reports whether the caller is the one that may send
 // it. It returns false when the marker has already been sent, so the second
 // producer stands down instead of duplicating it (RFC 4724 Section 2: one
@@ -1421,9 +1421,9 @@ func (p *Peer) teardown(subcode uint8, shutdownMsg string, automatic bool) error
 // pass the check before either marks.
 //
 // A caller whose send then FAILS should release the claim with
-// ReleaseInitialSyncEOR, otherwise the family is left marked and the peer never
+// releaseInitialSyncEOR, otherwise the family is left marked and the peer never
 // receives the marker at all.
-func (p *Peer) ClaimInitialSyncEOR(fam family.Family) bool {
+func (p *Peer) claimInitialSyncEOR(fam family.Family) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.initialSyncEOR == nil {
@@ -1436,9 +1436,9 @@ func (p *Peer) ClaimInitialSyncEOR(fam family.Family) bool {
 	return true
 }
 
-// ReleaseInitialSyncEOR undoes a claim whose send failed, so the other producer
-// may still deliver the marker. Pairs with ClaimInitialSyncEOR.
-func (p *Peer) ReleaseInitialSyncEOR(fam family.Family) {
+// releaseInitialSyncEOR undoes a claim whose send failed, so the other producer
+// may still deliver the marker. Pairs with claimInitialSyncEOR.
+func (p *Peer) releaseInitialSyncEOR(fam family.Family) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.initialSyncEOR, fam)
@@ -1452,7 +1452,7 @@ func (p *Peer) resetInitialSyncEOR() {
 	p.initialSyncEOR = nil
 }
 
-// ShouldQueue returns true if routes should be queued rather than sent directly.
+// shouldQueue returns true if routes should be queued rather than sent directly.
 // Routes must be queued when:
 //   - Session is not established
 //   - The initial sync is pending or running (sendingInitialRoutes non-zero)
@@ -1465,7 +1465,7 @@ func (p *Peer) resetInitialSyncEOR() {
 // goroutine: setState closes the gate before it publishes PeerStateEstablished,
 // so an observer that sees Established already sees a non-zero flag. Reading the
 // state first and the flag second is therefore safe in either order.
-func (p *Peer) ShouldQueue() bool {
+func (p *Peer) shouldQueue() bool {
 	if p.State() != PeerStateEstablished {
 		return true
 	}
@@ -1475,10 +1475,10 @@ func (p *Peer) ShouldQueue() bool {
 }
 
 // initialSyncInProgress reports whether sendInitialRoutes is currently running for
-// this peer. It distinguishes the three conditions ShouldQueue folds together, so
+// this peer. It distinguishes the three conditions shouldQueue folds together, so
 // a caller that suppresses work can say WHICH one applied (logEORSuppressed,
 // reactor_api_forward.go). Reads the atomic directly: sendingInitialRoutes is set
-// and cleared without p.mu, and ShouldQueue reads it the same way.
+// and cleared without p.mu, and shouldQueue reads it the same way.
 func (p *Peer) initialSyncInProgress() bool {
 	return p.sendingInitialRoutes.Load() != 0
 }
@@ -1491,7 +1491,7 @@ func (p *Peer) initialSyncInProgress() bool {
 // parks items nothing will release, and a hold wider than its gate releases
 // items the gate never parked.
 //
-// It is ShouldQueue() narrowed twice, and each narrowing is load-bearing.
+// It is shouldQueue() narrowed twice, and each narrowing is load-bearing.
 //
 // Not-Established is excluded: that peer will never drain an opQueue, so holding
 // for it parks the items until its REPLACEMENT session has finished its own
@@ -1565,13 +1565,13 @@ func (p *Peer) wakeForwardOverflow() {
 	r.fwdPool.wakeOverflow(fwdKey{peerAddr: p.settings.PeerKey()})
 }
 
-// PendingSync reports whether the peer still has route work that has not reached
+// pendingSync reports whether the peer still has route work that has not reached
 // the wire: routes queued while not-yet-established, or an in-flight initial-route
-// sync. Unlike ShouldQueue it does NOT gate on state -- a not-yet-established peer
+// sync. Unlike shouldQueue it does NOT gate on state -- a not-yet-established peer
 // with queued routes IS pending (those routes drain when it establishes), while a
 // down/idle peer with an empty queue is not. Used by the DrainPeerSync barrier so
 // a test can wait for send()-during-establishment routes to reach the wire.
-func (p *Peer) PendingSync() bool {
+func (p *Peer) pendingSync() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.sendingInitialRoutes.Load() != 0 || len(p.opQueue) > 0
@@ -1587,7 +1587,7 @@ func (p *Peer) QueueAnnounce(route *rib.Route) {
 		routesLogger().Warn("opQueue full, dropping announce", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", route.NLRI())
 		return
 	}
-	p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpAnnounce, Route: route})
+	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route})
 }
 
 // QueueWithdraw queues a route withdrawal for when session establishes.
@@ -1600,7 +1600,7 @@ func (p *Peer) QueueWithdraw(n nlri.NLRI) {
 		routesLogger().Warn("opQueue full, dropping withdraw", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", n)
 		return
 	}
-	p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpWithdraw, NLRI: n})
+	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpWithdraw, NLRI: n})
 }
 
 // Wait waits for the peer to stop.

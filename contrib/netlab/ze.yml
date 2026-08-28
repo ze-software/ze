@@ -13,7 +13,7 @@
 # needs from daemon_config, so a declared module with no key fails
 # `netlab create` with "Cannot find <module> configuration template".
 #
-# `make ze-netlab-render-check` renders these templates and compares the output
+# `./le netlab render-check` renders these templates and compares the output
 # against contrib/netlab/golden/, so they cannot drift from ze config syntax.
 
 description: Ze network operating system
@@ -43,9 +43,9 @@ clab:
     docker_shell: sh
     netlab_config_mode: sh
     netlab_start_daemon: "/usr/local/bin/ze start /etc/ze/ze.conf"
-  # The image is built by ze, not by netlab: `make ze-docker-lab-build` builds
-  # netlab/ze:latest from docker/Dockerfile.lab, deriving its feature tags from
-  # feature-gates.txt. Dockerfile.j2 is kept beside the templates for the day
+  # Ze builds the image rather than netlab: `docker build -f
+  # docker/Dockerfile.lab -t netlab/ze:latest .` derives its feature tags from
+  # feature-gates.txt. Dockerfile.j2 stays beside the templates for the day
   # netlab builds it itself; flip build to True to use it.
   image: netlab/ze:latest
   build: False

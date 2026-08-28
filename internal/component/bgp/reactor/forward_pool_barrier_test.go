@@ -114,7 +114,7 @@ func TestFwdPool_Barrier_Filtered(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := pool.BarrierPeer(ctx, netip.MustParseAddrPort("1.1.1.1:179"))
+	err := pool.barrierPeer(ctx, netip.MustParseAddrPort("1.1.1.1:179"))
 	assert.NoError(t, err)
 }
 
@@ -187,8 +187,8 @@ func TestFwdPool_Barrier_WithOverflow(t *testing.T) {
 	pool.TryDispatch(key, fwdItem{})
 
 	// These go to overflow
-	pool.DispatchOverflow(key, fwdItem{})
-	pool.DispatchOverflow(key, fwdItem{})
+	pool.dispatchOverflow(key, fwdItem{})
+	pool.dispatchOverflow(key, fwdItem{})
 
 	// Start barrier
 	barrierDone := make(chan error, 1)

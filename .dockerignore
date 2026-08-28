@@ -3,10 +3,11 @@ tmp/
 bin/
 # Local Go build cache (/cache in .gitignore). Untracked and unbounded -- 29GB on the
 # machine this was found on, which the daemon transferred as build context on EVERY
-# interop image build: >10 minutes, blowing test/interop/run.py's own 600s build timeout
-# and saturating the host. Nothing in any Dockerfile reads it. Now that
-# .github/workflows/evidence-nightly.yml runs ze-interop-test, a context this size would
-# also make the nightly job a permanent red.
+# interop image build: >10 minutes, exceeding the native interoplab Docker
+# build deadline (internal/le/interoplab/docker.go, dockerBuildTimeout) and
+# saturating the host. Nothing in any Dockerfile reads it. The evidence-nightly
+# workflow now runs `./le integration interop`; a context this size would also
+# make the nightly job a permanent red.
 cache/
 docs/
 plan/
@@ -16,7 +17,6 @@ etc/
 gokrazy/
 ai/
 test/
-!test/scripts/ze_api.py
 !test/perf/configs/
 !test/interop-ipsec/ze-linux
 *.md

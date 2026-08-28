@@ -76,107 +76,6 @@ expect=bgp:conn=1:seq=1:contains=180A0000
 expect=bgp:conn=1:seq=2:contains=FFFFFF01
 EOF_OBSN
 
-tmpfs=observer.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import (
-    API,
-    dispatch,
-    dispatch_until,
-    result_text_data,
-    runtime_fail,
-)
-
-OBSN = '127.0.0.2'
-
-
-def obsn_counter(api, field):
-    """Return one integer counter from obsn's `show bgp peer * detail` row.
-
-    Indexed out of the all-peers dict rather than dispatched with the address as
-    the selector, because peer_fields keys its rows by address while this config
-    names its peers `source` and `obsn`. A row that is not there yet reads as 0,
-    which is what a poller wants.
-    """
-    row = api.peer_fields('*').get(OBSN, {})
-    if not isinstance(row, dict):
-        return 0
-    try:
-        return int(row.get(field, 0) or 0)
-    except (TypeError, ValueError):
-        return 0
-
-
-def obsn_routes_sent(api):
-    """UPDATEs written to obsn that are not its End-of-RIB.
-
-    updates-sent counts every UPDATE written to the session, End-of-RIB
-    included: session_write.go calls onMessageReceived with DirectionSent once
-    the bytes are on the socket, and reactor_notify.go increments the counter on
-    TypeUPDATE. eor-sent is the separate marker, so the difference counts real
-    routes toward obsn -- the same two writes obsn's own expect rules read.
-    """
-    return obsn_counter(api, 'updates-sent') - obsn_counter(api, 'eor-sent')
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Barrier 1: the source route is selected best, so it can be reflected.
-    best = dispatch_until(
-        api,
-        'show bgp rib best',
-        lambda r: r.get('status') == 'done'
-        and '10.0.0.0/24' in result_text_data(r),
-        attempts=60,
-    )
-    if '10.0.0.0/24' not in result_text_data(best):
-        runtime_fail(f'source route never became best: {best}')
-
-    # Barrier 2: both peers have their initial-sync End-of-RIB on the wire. That
-    # frame IS the source peer's only expect, and eor-sent counts markers ze has
-    # flushed to the socket. It also makes the readvertise below a clean post-EOR
-    # incremental instead of a write racing a sync that is still draining.
-    if not api.wait_peer_eor_sent(expected_peers=2, attempts=60):
-        runtime_fail('ze never sent both peers their End-of-RIB')
-
-    # Barrier 3: the reflection has been WRITTEN to obsn, which is obsn's seq=1
-    # expect. The reflection and the readvertise below reach obsn over the same
-    # session, so this counter is what orders them; a duration only guessed.
-    if not api.wait_until(lambda: obsn_routes_sent(api) >= 1, attempts=60):
-        runtime_fail('obsn was never sent the reflected route '
-                     f'(routes sent={obsn_routes_sent(api)})')
-
-    # Mark the source's routes stale at the depreference level and readvertise.
-    base = obsn_routes_sent(api)
-    ms = dispatch(api, 'request bgp rib mark-stale 127.0.0.1 60 2')
-    if ms.get('status') != 'done':
-        runtime_fail(f'mark-stale failed: {ms}')
-    cr = dispatch(api, 'clear bgp rib out * ipv4/unicast')
-    if cr.get('status') != 'done':
-        runtime_fail(f'clear-rib-out failed: {cr}')
-
-    print('OK: mark-stale + clear-rib-out dispatched', file=sys.stderr)
-
-    # Barrier 4: the depreferenced readvertise is on the wire, which is obsn's
-    # seq=2 expect. Shutting down on a duration raced that write; this cannot.
-    if not api.wait_until(lambda: obsn_routes_sent(api) >= base + 1,
-                          attempts=60):
-        runtime_fail('the readvertise never reached obsn '
-                     f'(routes sent={obsn_routes_sent(api)}, want {base + 1})')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -187,7 +86,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external observer {
-		run ./observer.run
+		run "ze-test fixture plugin/llgr-egress-state-unloaded"
 		encoder json
 	}
 	external gr {

@@ -71,7 +71,7 @@ real API is a test whose verdict depends on somebody else's uptime.
 ### Item 3: no-congestion-initial chaos `.ci`
 
 **What is missing.** The scenario itself. Multi-peer chaos orchestration exists
-(`mk/test-chaos.mk`, `--peers`), which is what the 2026-07-06 row was waiting on.
+(`internal/le/testchaos/actions.go`, `--peers`), which is what the 2026-07-06 row was waiting on.
 
 **What blocks it: one constraint, not a gap.** `ValidateConfigRangeConflicts`
 (`internal/chaos/orchestrator/conflict.go`) derives the per-peer BGP and listen
@@ -93,7 +93,7 @@ never started.** No gRPC client is available to a `.ci` helper script:
 
 | Candidate | State at HEAD |
 |-----------|---------------|
-| `grpcurl` | not on PATH, not installed by `./le setup`, and named by no `Makefile`, `mk/`, `scripts/` or `test/` file |
+| `grpcurl` | not on PATH, not installed by `./le setup`, and named by no `internal/le/` native action tables, `internal/le/`, `internal/le/` or `test/` file |
 | Python `grpcio` | `python3 -c "import grpc"` fails with `ModuleNotFoundError`. Every `.ci` helper is Python |
 | Go `google.golang.org/grpc` | vendored, and already a build dependency |
 
@@ -102,7 +102,7 @@ test tooling, and the owner MUST make it. A session that picks one for him is ho
 a dependency arrives that nobody agreed to:
 
 1. Vendor or install `grpcurl` and add it to the `le setup` tool table
-   (`scripts/le/devtools/tools.py`) plus a `ze doctor`
+   (`internal/le/`) plus a `ze doctor`
    check. It adds a runtime dependency to every developer machine and to CI.
 2. Add `grpcio` to the test-side Python requirements. It puts a generated-stub
    build step in front of the functional suite, and the `.ci` helper environment
@@ -123,7 +123,7 @@ reader inherits the question instead of re-deriving it.
 twelve live rows in nine other shards named it as their Destination. Commit B of
 its closure removes the file, which would leave every one of them pointing at
 nothing. No gate would have caught it: the FAIL pass of
-`scripts/dev/spec-citation-check.py` globs `plan/spec-*.md` and never reads
+`internal/le/speccitation/speccitation.go` globs `plan/spec-*.md` and never reads
 `plan/deferrals/`.
 
 Each row's Destination cell now names this spec. Each row stays `deferred` and
@@ -135,7 +135,7 @@ undesigned, which is the state it was already in. Only its home changed.
 | `plan/deferrals/test-coverage-gaps.md` | 2026-07-10 AC-3 (`ipsec-dpd-timeout.ci`, deleted) | needs a runner primitive to stop a background daemon mid-test |
 | `plan/deferrals/test-coverage-gaps.md` | 2026-07-10 AC-3 (`ipsec-monitor.ci`, deleted) | `monitor vpn ipsec` streaming, blocked on the bgp-locked startup subscription |
 | `plan/deferrals/fixit-plugin-event-subscription.md` | 2026-07-19 | functional `.ci` for the SDK-fork end-to-end path |
-| `plan/deferrals/fixit-perf-alloc-ci-gate.md` | 2026-07-19 | full `make ze-alloc-check` run, needs a bench log |
+| `plan/deferrals/fixit-perf-alloc-ci-gate.md` | 2026-07-19 | full the retired `ze-alloc-check` (current: `./le verify-deps alloc`) run, needs a bench log |
 | `plan/deferrals/fixit-fuzz-target-discovery.md` | 2026-07-19 | bounded `ze-fuzz-test` mutation run over the newly-enabled IS-IS / OSPF targets |
 | `plan/deferrals/fixit-agent-tooling-misleads.md` | 2026-07-19 | functional proof beyond the corrected gates (the row's own What cell says "none") |
 | `plan/deferrals/fixit-runner-kill-background.md` | 2026-07-19 | `stop-background.ci` live run |

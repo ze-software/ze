@@ -5,11 +5,6 @@
 // index outdated. The changed-file router uses this answer to select the
 // freshness gate. The commit gate uses it to require an updated committed
 // index.
-//
-// It stays beside the generator by design. Python kept the same rules in
-// another module because a gate cannot import a generator reached through
-// `go run`. That split duplicated the rules behind a "keep in sync" comment.
-// A compiled package removes the split and keeps each rule with its generator.
 
 package discoveryindex
 
@@ -18,14 +13,9 @@ import (
 	"strings"
 )
 
-// generator is the program that produces OutputRel. A commit touching it can
-// change every byte of the index, so it feeds the index it writes.
-//
-// It still names the Python script, because that script is what the Make target
-// runs until the migration swaps the shims. The Go generator needs no entry of
-// its own: it is a `.go` file carrying a `// Package` header, which the marker
-// rule below already covers.
-const generator = "scripts/dev/package_map.py"
+// generator is the source file that produces OutputRel. A commit touching it
+// can change every byte of the index, so it feeds the index it writes.
+const generator = "internal/le/discoveryindex/discoveryindex.go"
 
 // packageMarker is the header a Go file carries when the index derives a line
 // from it.
@@ -39,25 +29,19 @@ const packageMarker = "// Package"
 // view. The working tree still generates both files on demand.
 var outputs = [...]string{OutputRel}
 
-// Feeds answers the indexes that committing path can drift, sorted, or nothing
+// feeds answers the indexes that committing path can drift, sorted, or nothing
 // when path feeds none.
 //
 // headerText is used only for a non-test `.go` file. It searches for the
 // `// Package` marker from which the index derives text. The caller supplies
 // content from the working tree, HEAD, or both. A change can add or remove the
 // marker, and only the caller knows which trees are available.
-func Feeds(path, headerText string) []string {
+func feeds(path, headerText string) []string {
 	// A committed index feeds only itself: committing it is how its own
 	// freshness is satisfied, and it never obliges any OTHER index to ride
 	// along.
 	if slices.Contains(outputs[:], path) {
 		return []string{path}
-	}
-
-	// Makefile and mk/ carry the wiring that runs every generator, so a change
-	// there can drift any index. Conservative: demand all.
-	if path == "Makefile" || strings.HasPrefix(path, "mk/") {
-		return slices.Clone(outputs[:])
 	}
 
 	// A generator feeds exactly the output it writes.
@@ -79,8 +63,8 @@ func Feeds(path, headerText string) []string {
 }
 
 // IsSource reports whether committing path can change a generated discovery
-// index. It is defined in terms of Feeds so the "is it a source" and "which
+// index. It is defined in terms of feeds so the "is it a source" and "which
 // index" answers can never disagree.
 func IsSource(path, headerText string) bool {
-	return len(Feeds(path, headerText)) > 0
+	return len(feeds(path, headerText)) > 0
 }

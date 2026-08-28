@@ -11,7 +11,4 @@ FROM alpine:3.21
 # diagnostics; kmod: modprobe pppoe/ppp_generic at start.
 RUN apk add --no-cache accel-ppp ppp iproute2 iputils kmod
 
-COPY entrypoint-accel.sh /usr/local/bin/entrypoint-accel.sh
-RUN chmod +x /usr/local/bin/entrypoint-accel.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint-accel.sh"]
+ENTRYPOINT ["sh", "-c", "modprobe ppp_generic 2>/dev/null || true; modprobe pppoe 2>/dev/null || true; mkdir -p /var/run /var/log /etc/accel-ppp; exec accel-pppd -c /etc/accel-ppp.conf -p /var/run/accel-ppp.pid"]

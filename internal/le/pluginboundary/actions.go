@@ -18,16 +18,10 @@ const area = "plugin-boundary"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-plugin-boundary-check",
-		Why:    "no plugin calls a same-process-effect function without a guard, so a plugin moved to an external subprocess fails loudly rather than silently no-opping",
-		Answer: runCheck,
-	},
-	leaction.Action{
-		Gate:   "ze-plugin-boundary-selftest",
-		Why:    "the guard itself still resolves a renamed import and still leaves a guarded package alone, proved against fixtures rather than against the tree it judges",
-		Answer: runSelftest,
-	},
+	leaction.Action{Verb: "check", Why: "no plugin calls a same-process-effect function without a guard, so a plugin moved to an external subprocess fails loudly rather than silently no-opping",
+		Answer: runCheck},
+	leaction.Action{Verb: "selftest", Why: "the guard itself still resolves a renamed import and still leaves a guarded package alone, proved against fixtures rather than against the tree it judges",
+		Answer: runSelftest},
 	leaction.Action{
 		// No Make target names this one: it is the script's --print-roots, and
 		// it exists so a reader can see WHICH packages the gate judges without

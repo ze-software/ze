@@ -4,100 +4,47 @@ This guide covers how to run tests, what the different test types are, and how t
 interpret their output. For the full technical reference (`.ci` format spec, `.et`
 directives, fuzz target list), see `docs/functional-tests.md`.
 
-## First time setup
+## First-time setup
 
 ```sh
-./le setup    # install all dev tools: build deps, linters, appliance tools (one-time)
-make ze-smoke-verify    # verify everything works: lint + unit + build (~2 min)
+./le setup
+./le verify current mode full
 ```
 
-If `ze-smoke-verify` passes, your environment is ready.
-
-## Make target naming
-
-Public project targets use:
-
-```text
-ze-<family>[-<scope>...][-<subject>]-<action>[-<mode>][-<format>]
-```
-
-The family and scope come first, then the subject, then the action. For
-example, `ze-unit-bgp-test`, `ze-functional-plugin-test`, and
-`ze-qemu-install-iso-test` identify progressively more specific test families
-before saying that they run tests. Modes follow the action
-(`ze-unit-test-cached`, `ze-fuzz-test-one`, `ze-qemu-test-all`), and output
-formats come last (`ze-inventory-json`).
+`./le` is the compiled repository development entry point. Each area exposes
+its own verbs, for example `./le functional plugin`,
+`./le qemu install-iso-test`, and `./le test-unit bgp`. Legacy command names
+have no compatibility aliases.
 
 Action words describe the contract: `check` is a read-only verdict, `verify` is
-a composite policy gate, `report` is advisory output, `update` rewrites tracked
-state, `reconcile` rewrites generated state before checking whether it was
-current, `record` appends durable evidence, `sync` copies canonical state, and
-`build` produces an artifact. Build targets include the action rather than
-reusing a bare binary basename: `ze-build` produces `bin/ze`,
-`ze-appliance-build` produces `bin/ze-appliance`, and `ze-test-build` produces
-`bin/ze-test`.
-
-The conventional unprefixed entry points (`build`, `check`, `clean`, `fmt`,
-`generate`, `help`, `test`, `tidy`, and `vet`) remain short. Retired names have
-no compatibility aliases, so scripts and documentation must use the current
-spelling. `make help`, `make help-test`, `make help-deploy`, and `make help-dev`
-show the common entry points, not an exhaustive target inventory.
+a composite policy gate, `report` is advisory output, and `write` or `update`
+changes tracked state.
 
 ## The escalation ladder
 
 Use the narrowest test that covers your change. Escalate only when needed.
 
 | Step | What you run | When | Time |
-|------|-------------|------|------|
-| 1 | `make ze-unit-pkg-test PKG=./pkg/... RUN=TestName` | Iterating on one test | seconds |
-| 2 | `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor/...` | Iterating on one package | seconds |
-| 3 | `make ze-unit-bgp-test` | Done with a component, want to check for regressions | 10s - 1:30 |
-| 4 | `make ze-precommit-verify` | Ready to commit | ~2 min |
+|------|--------------|------|------|
+| 1 | `./le job run label one-test command go test ./pkg/... -run TestName` | Iterating on one test | seconds |
+| 2 | `./le test-unit bgp` | Checking one component group | 10s to 1:30 |
+| 3 | `./le functional plugin` | Checking the user-visible path | varies |
+| 4 | `./le verify current mode full` | Ready to commit | about 2 minutes |
 
-`make ze-precommit-verify` is the pre-commit gate. Everything below that is a development tool.
-
-Every step goes through `make`, and that is not a style preference. Several
-sessions share this machine, so `make` hands each heavy job to
-`scripts/dev/ze-run.sh`, which runs it now, queues it, or attaches it to an
-equivalent run already in flight. A `go test` typed into a shell skips that,
-and it also drops the feature tags, the timeout, `GOMAXPROCS` and the shared
-build cache that the `make` variables carry. The Bash hook refuses the raw form
-(`ai/rules/commands.md`).
-
-### The cadence targets
-
-The ladder above is keyed to a change you are making. Three targets are keyed to
-the calendar instead, and they exist for one reason: `make ze-precommit-verify` runs 27
-checks and the nightly workflows run a dozen more, which leaves a set that is in
-NEITHER and is therefore run by nobody.
-
-| Target | Time | What it is for |
-|--------|------|----------------|
-| `make ze-cadence-daily-run` | seconds | Run it every morning. No Docker, no network, and it never takes the verify lock, so it cannot block |
-| `make ze-cadence-weekly-run` | minutes | Takes the same repo-wide lock as `ze-precommit-verify`. Do not start it beside one: it blocks rather than fails, which reads as a hang |
-| `make ze-cadence-monthly-run` | long | Needs Docker, QEMU or root. Its preflight probe runs first and says what this machine can do |
-
-Each member is one of two kinds. A `gate` has a verdict, and a non-zero exit
-fails the run. A `note` is a census or a report that exits 0 whatever it finds,
-so it is printed and never fails the run. Mixing the two under one exit code is
-what makes an aggregate meaningless: the censuses would drag it red every day
-until it was ignored. The summary table is the product; the exit code covers the
-gates.
-
-`make ze-cadence-daily-run` is where `ze-repository-check` finally runs. `ze-precommit-verify` runs
-`ze-repository-tree-check`, which passes `--changed-file ''`, and two of validate's
-checks return empty before reading anything when that list is empty.
+`./le verify current mode full` is the pre-commit gate. The narrower commands
+are development tools. `./le job run` admits an individual heavy command
+through `internal/le/lejob`, so concurrent sessions do not oversubscribe the
+machine.
 
 ### Component groups for step 3
 
-| Target | Scope | Time |
-|--------|-------|------|
-| `make ze-unit-bgp-test` | BGP engine, wire, reactor | ~1:30 |
-| `make ze-unit-core-test` | Core libraries | ~30s |
-| `make ze-unit-plugins-test` | All plugins | ~40s |
-| `make ze-unit-config-test` | Config parsing, YANG | ~20s |
-| `make ze-unit-cli-test` | CLI component | ~10s |
-| `make ze-unit-rest-test` | Everything else | ~1:00 |
+| Command | Scope | Time |
+|---------|-------|------|
+| `./le test-unit bgp` | BGP engine, wire, reactor | about 1:30 |
+| `./le test-unit core` | Core libraries | about 30 seconds |
+| `./le test-unit plugins` | All plugins | about 40 seconds |
+| `./le test-unit config` | Config parsing and YANG | about 20 seconds |
+| `./le test-unit cli` | CLI component | about 10 seconds |
 
 Pick the group matching your change.
 
@@ -112,9 +59,9 @@ right output, does the state machine transition correctly, does the encoder
 round-trip.
 
 ```sh
-make ze-unit-pkg-test PKG=./internal/component/bgp/message/...   # one package
-make ze-unit-pkg-test PKG=./internal/... RUN=TestParseOrigin     # one test
-make ze-unit-test                                                # all packages (~5 min)
+./le job run label bgp-message command go test ./internal/component/bgp/message/...
+./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
+./le verify current mode full
 ```
 
 ### Functional tests (`.ci` files)
@@ -140,18 +87,18 @@ Each `test/` subdirectory has its own runner and format:
 | `test/policy/` | Policy routing | `ze-test policy` |
 | `test/exabgp-compat/` | ExaBGP compatibility | `ze-test exabgp` |
 
-Run a single test by one-based id or exact name, list the available ids, or
-resume from the last printed id after an interrupted run. No `make` target
-expresses a selection, so queue the runner yourself: `ze-run.sh` takes a label
-and the command, and gives it the same admission a suite target gets.
+Run a single test by one-based ID or exact name, list the available IDs, or
+resume from the last printed ID after an interrupted run. Queue the runner
+through `./le job run label <label> command <argv...>` to use the same admission
+as a full suite.
 
 ```sh
-scripts/dev/ze-run.sh plugin-42 bin/ze-test bgp plugin 42          # test id 42
-scripts/dev/ze-run.sh encode-list bin/ze-test bgp encode --list    # list N/TOTAL, id, and name
-scripts/dev/ze-run.sh plugin-from-42 bin/ze-test bgp plugin --start 42  # id 42 and every later test
-scripts/dev/ze-run.sh editor-7 bin/ze-test editor 7                # editor test id 7
-scripts/dev/ze-run.sh editor-nav bin/ze-test editor -p nav         # editor tests matching "nav"
-scripts/dev/ze-run.sh exabgp-from-20 bin/ze-test exabgp --start 20 # resume ExaBGP compatibility
+./le job run label plugin-42 command bin/ze-test bgp plugin 42          # test id 42
+./le job run label encode-list command bin/ze-test bgp encode --list    # list N/TOTAL, id, and name
+./le job run label plugin-from-42 command bin/ze-test bgp plugin --start 42  # id 42 and every later test
+./le job run label editor-7 command bin/ze-test editor 7                # editor test id 7
+./le job run label editor-nav command bin/ze-test editor -p nav         # editor tests matching "nav"
+./le job run label exabgp-from-20 command bin/ze-test exabgp --start 20 # resume ExaBGP compatibility
 ```
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- TestFinished -->
@@ -160,10 +107,10 @@ scripts/dev/ze-run.sh exabgp-from-20 bin/ze-test exabgp --start 20 # resume ExaB
 Run a full suite:
 
 ```sh
-make ze-functional-encode-test     # all encode tests
-make ze-functional-plugin-test     # all plugin tests
-make ze-functional-test # all release-gate suites
-make ze-functional-exabgp-test     # ExaBGP compatibility through ze-test
+./le functional encode
+./le functional plugin
+./le functional
+./le functional exabgp-test
 ```
 
 ### Mutation tests (gomu)
@@ -174,17 +121,12 @@ would notice if those lines did something different.
 logical, bitwise, branch, return value, and error handling operators), runs the test
 suite against each mutation, and reports which mutations survived.
 
-gomu uses overlay-based execution, so it never modifies source files on disk. It is
-vendored in `tools.go` and runs via `go run`; no separate install is needed.
+gomu uses overlay-based execution, so it never modifies source files on disk.
+It is a Go tool recorded in `tools.go`. The native `./le mutation combine`
+command combines completed reports, and `./le mutation record-history` appends
+their per-package scores to the committed history.
 
-```sh
-make ze-mutation-test-changed                              # changed files only (fast)
-make ze-mutation-pkg-test PKG=./internal/core/textbuf/     # one package
-make ze-mutation-test                                 # all non-excluded packages (slow)
-make ze-mutation-report                               # full run with HTML report
-```
-
-Mutation testing is advisory. It never gates `ze-precommit-verify` or CI. A surviving mutant
+Mutation testing is advisory. It never gates `./le verify current mode full` or CI. A surviving mutant
 is a signal that a test could be stronger, not a blocking failure.
 
 Files with custom build tags and `cmd/ze/` are excluded via `.gomuignore` because
@@ -200,13 +142,12 @@ These require external infrastructure (Docker, root/CAP_NET_ADMIN, QEMU, or inte
 They are not part of the normal development cycle.
 
 ```sh
-make ze-interop-test              # FRR/BIRD in Docker
-make ze-integration-test          # netns tests (needs root)
-make ze-qemu-integration-test     # same tests in QEMU (macOS-friendly)
-make ze-live-rpki-test            # real RPKI data (needs internet)
+./le integration interop
+./le integration iface
+./le qemu all-tests
+./le integration live-rpki
 ```
 
-See `make help-test` for the full list.
 
 ## When a test must be weakened
 
@@ -222,11 +163,10 @@ holds every past row beside the change it accepted, so
 
 The route, in order:
 
-1. Write the row FIRST. `c_test_weakening` (`.claude/hooks/pretool-writeedit.py`)
-   reads the file from disk, so a row written after the edit buys nothing until
-   you retry. The refusal message prints the exact row to write.
+1. Write the row first. The native write-edit hook reads the file from disk, so
+   a row added after the edit takes effect only after the edit is retried.
 2. Make the edit.
-3. Name `test/weakened.md` in the commit. `scripts/dev/commit_helper.py` refuses
+3. Name `test/weakened.md` in the commit. `internal/le/commit.Answer` refuses
    a commit that weakens a test and leaves the row in the working tree.
 
 The test name is the enclosing top-level `func TestXxx` for Go, and the file stem
@@ -238,37 +178,37 @@ three cases into one table lowers a count exactly as deleting a check does. The
 COMMIT still needs a row for it, and that row is where you say which of the two
 happened.
 
-`make ze-test-weakened-check` runs the checker over the file and is a stage of
-`ze-precommit-verify` in both modes. The rule is `ai/rules/testing.md`, and the design is
+`./le test-weakened check` runs the checker over the file and is a stage of
+`./le verify current mode full` in both modes. The rule is `ai/rules/testing.md`, and the design is
 `docs/architecture/testing/test-health.md`.
 
-## How `ze-precommit-verify` works
+## How `./le verify current mode full` works
 
-`ze-precommit-verify` is the pre-commit gate. It uses a two-pass strategy to stay fast:
+`./le verify current mode full` is the pre-commit gate. It uses a two-pass strategy to stay fast:
 
 1. **Lint** (27 linters via golangci-lint)
-2. **Vet evidence** (cross-compile evidence scripts for Linux)
+2. **Vet evidence** (cross-compile the Go evidence packages for Linux)
 3. **Cached full pass** (`go test` without `-race`): Go caches by source hash,
    so when nothing changed this is instant. Catches logic regressions everywhere.
 4. **Changed-group pass**: uses the test-only `CGO_ENABLED=1 go test -race`
    path on Linux and Darwin. Its test binaries are never release/build evidence.
-5. **Functional tests** (the gating functional suites; see `mk/test-functional.mk`)
+5. **Functional tests** from `internal/le/functional/catalog.go`
 6. **ExaBGP compatibility**
 
 Common case (one group changed): ~2 min total instead of 6+.
 
 ### The builds the linter reads
 
-<!-- source: scripts/dev/lint_flavors.py -- FLAVORS, scopes -->
+<!-- source: internal/le/lintgate/actions.go -- Answer -->
 
 golangci-lint analyzes ONE build for each run: one GOOS, one GOARCH, one tag
-set. `make ze-lint` therefore runs more than one.
+set. `./le verify-lint run` therefore runs more than one.
 
 | Pass | Build | What only it reads |
 |------|-------|--------------------|
 | 1 | the host GOOS, `.golangci.yml` tags | the shipped daemon |
 | 2 | `GOOS=linux`, plus `integration` | every kernel-facing `//go:build integration` test |
-| 3..N | one for each row of `FLAVORS` (`scripts/dev/lint_flavors.py`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
+| 3..N | one for each row of `FLAVORS` (`internal/le/lintgate.Answer`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
 
 Each flavor pass lints only the packages holding a file the two passes above do
 not load. That package set is DERIVED from the tree with `go list` on every run.
@@ -277,13 +217,9 @@ file in a new package, and the drift is silent.
 
 The driver then asserts coverage. Every tracked Go file must be loaded by some
 pass. The exceptions are `vendor/`, `gokrazy/modcache/`, and the `//go:build
-ignore` files that belong to no build. `make ze-lint` fails when one file is not
-loaded. Ask for the answer alone with:
-
-```sh
-python3 scripts/dev/lint_flavors.py --coverage   # about 40 seconds
-python3 scripts/dev/lint_flavors.py --list       # the flavor table
-```
+ignore` files that belong to no build. `./le verify-lint run` executes the
+native plan and returns its flavor rows as structured output; `./le verify-lint run`
+retains the established target interface.
 
 Two files are still outside it, and the driver names both on every run.
 `examples/plugin/go/main.go`, which is a separate Go module. And `tools.go`,
@@ -302,9 +238,9 @@ build constraint. Without it, the bare-core build reports the helper as
 
 ### Feature-tag structural type check
 
-<!-- source: scripts/checks/staticcheck_feature_matrix.go -- buildFeatureMatrix, runStaticcheckFeatureMatrix -->
+<!-- source: internal/le/staticcheckmatrix/actions.go -- Answer -->
 
-`make ze-staticcheck-feature-matrix-check` type-checks the working tree in N+2
+`./le staticcheck-feature-matrix check` type-checks the working tree in N+2
 configurations derived from the N unique features in `feature-gates.txt`: one
 distro all-on row, one bare-core row, and one row that omits each feature.
 Staticcheck includes selected `_test.go` files. This stage type-checks those
@@ -321,17 +257,17 @@ every row is `../architecture/testing/verify-freshness-scope.md`. Rerun the stag
 directly:
 
 ```sh
-make ze-staticcheck-feature-matrix-check
+./le staticcheck-feature-matrix check
 ```
 
 The matrix checks package and test variants in the working tree.
-`ze-repository-tracked-build-check` remains the committed-tree final-link check for shipped
+`./le repository-tracked-build check` remains the committed-tree final-link check for shipped
 build flavors.
 
 ### The one stage that does not read your working tree
 
 Every stage above compiles and runs the files on your disk, uncommitted ones
-included. `ze-repository-tracked-build-check` (`scripts/checks/tracked_build.go`) is the
+included. `./le repository-tracked-build check` (`internal/le/trackedbuild.Answer`) is the
 exception: it extracts the commit with `git archive` and compiles the extracted
 tree, so it sees only what git holds.
 
@@ -340,19 +276,15 @@ producer uncommitted. The build is green on your disk and red for everybody who
 clones. Run it after the commit script when the commit carried Go:
 
 ```sh
-make ze-repository-tracked-build-check              # HEAD
-make ze-repository-tracked-build-check REV=7abe8a07e  # any commit
+./le repository-tracked-build check
+REV=7abe8a07e ./le repository-tracked-build check
 ```
 
-It builds six flavors over `./...`: `ze_core ze_distro`, `ze_test` and
-`ze_core ze_appliance` each carry the feature tags that commit declared in
-`feature-gates.txt`; `ze_setup`, `ze_core ze_setup` and `ze_installer` carry
-none, matching the Makefile targets that build them. The installer flavor pins
-`GOOS=linux`, and every flavor must select the tag-gated FILES its own tags own
-(`ze_core_dispatch.go` for the core flavors, `setup_dispatch.go` for `ze_setup`,
-and so on). Naming the package is not enough: `cmd/ze/main.go` carries no build
-constraint, so the package resolves under any tag set at all, and `go build
-./...` skips every file its constraints exclude while still exiting 0.
+The action builds every flavor in `internal/le/trackedbuild/matrix.go` over
+`./...`. Each row pins its tags, operating system where required, and a
+tag-gated anchor file that proves the flavor selected code. Naming the package
+alone is insufficient because `go build ./...` can skip every constrained file
+and still exit zero.
 About 45 seconds warm. It does not compile `_test.go` files, because `go build`
 never does.
 
@@ -395,23 +327,16 @@ fuzz corpus entry becomes a regression test automatically.
 
 | I want to... | Run |
 |--------------|-----|
-| Check my setup works | `make ze-smoke-verify` |
-| Run one Go test | `make ze-unit-pkg-test PKG=./pkg/... RUN=TestName` |
-| Run one functional test | `scripts/dev/ze-run.sh plugin-42 bin/ze-test bgp plugin 42` |
-| Run tests for what I changed | `make ze-unit-bgp-test` (pick your group) |
-| Pre-commit check | `make ze-precommit-verify` |
-| Type-check every supported direct feature omission | `make ze-staticcheck-feature-matrix-check` |
-| See all test targets | `make help-test` |
-| List functional tests | `scripts/dev/ze-run.sh encode-list bin/ze-test bgp encode --list` |
-| Run fuzz for one target | `make ze-fuzz-test-one FUZZ=FuzzName PKG=./path/... TIME=30s` |
-| Check test coverage | `make ze-unit-test-coverage` then open `coverage.html` |
-| Mutation test changed files | `make ze-mutation-test-changed` |
-| Mutation test one package | `make ze-mutation-pkg-test PKG=./internal/core/textbuf/` |
-| Debug a verify failure | `grep FAIL tmp/ze-verify.log` |
-| Check the commit I just made compiles | `make ze-repository-tracked-build-check` |
-| Prove a web or looking-glass template renders the same bytes | `make ze-web-golden-check` |
-| Prove a web or looking-glass ROUTE answers the same bytes | `make ze-web-golden-check` (the handler capture runs in the same target) |
-| Prove an HTML builder that no template holds renders the same bytes | `make ze-web-golden-check` (the markup capture runs in the same target) |
-| Recapture those bytes after a deliberate markup change | `make ze-web-golden-update`, then read the diff |
-| Prove a rendering-engine port changed no page | `make ze-templ-port-check REF=<sha>`. It compares every fixture against the bytes it held at REF, under `golden.AssertPortFidelity`. Whitespace layout, doctype case, the attribute delimiter and the character-reference spelling fold. Nothing else does. Run it BEFORE you recapture. After a recapture, `ze-web-golden-check` compares the port against itself |
-| Check that every `*_templ.go` matches its `.templ` source | `make ze-templ-output-check`, and `make generate` to bring it back in step. Both walk `internal/` only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare `templ generate` walks from the repo root. It writes that root into every generated file, and it reds the gate |
+| Check my setup | `./le verify current mode full` |
+| Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
+| Run one functional test | `./le job run label plugin-42 command bin/ze-test bgp plugin 42` |
+| Run a component group | `./le test-unit bgp` |
+| Run the pre-commit check | `./le verify current mode full` |
+| Type-check every supported feature combination | `./le staticcheck-feature-matrix check` |
+| List native test actions | `./le help` |
+| List functional tests | `./le job run label encode-list command bin/ze-test bgp encode --list` |
+| Run one fuzz target | `FUZZ=FuzzName PKG=./path/... TIME=30s ./le fuzz run` |
+| Run all fuzz targets | `./le fuzz run` |
+| Check the commit compiles | `./le repository-tracked-build check` |
+| Check web behavior | `./le functional web` |
+| Check that every `*_templ.go` matches its `.templ` source | `./le doc-check templ-output`, and `./le repository generate` to bring it back in step. Both walk `internal/` only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare `templ generate` walks from the repo root. It writes that root into every generated file, and it reds the gate |

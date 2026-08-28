@@ -18,8 +18,8 @@ func init() {
 		RFCs:         []string{"6811", "8210"},
 		Features:     "yang",
 		YANG:         rpkiyang.ZeRPKIYANG,
-		ConfigRoots:  []string{"bgp"},
-		Dependencies: []string{"bgp", "bgp-adj-rib-in"},
+		ConfigRoots:  []string{configRootBGP},
+		Dependencies: []string{configRootBGP, "bgp-adj-rib-in"},
 		RunEngine:    runRPKIPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

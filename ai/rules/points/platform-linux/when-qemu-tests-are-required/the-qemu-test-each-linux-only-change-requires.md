@@ -10,5 +10,5 @@ stage:
 | netlink / interface code | Network namespace + veth/dummy test |
 | nftables / firewall code | Network namespace + nft test |
 | sysctl / kernel tuning | procfs read test (may need `t.Skip` for write) |
-| Any new linux-only package | Package added to `ze-qemu-integration-test` Makefile target |
-| Docker interop lab needing host-kernel features (l2tp, pppoe, ...) | A netns `effective-<feature>.py` + `ze-qemu-<feature>-test` target -- the Docker lab cannot run in the Alpine VM (see "Interop Labs" below) |
+| Any new Linux-only package | Add it to `integrationPackages` in `internal/le/qemu/alltests.go` |
+| Docker interop lab needing host-kernel features | Add a native `./le qemu <feature>` action beside the Docker action |

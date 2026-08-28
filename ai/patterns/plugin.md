@@ -28,7 +28,7 @@ internal/component/bgp/plugins/<name>/
     ze-<name>-conf.yang
 ```
 
-After creating, run `make generate` to update `internal/component/plugin/all/all.go`.
+After creating, run `./le repository generate` to update `internal/component/plugin/all/all.go`.
 
 ## register.go Template
 
@@ -275,7 +275,7 @@ Space-separated flags: `"nlri yang capa"`.
 ```
 [ ] Create plugins/<name>/register.go with init() -> registry.Register()
 [ ] Create plugins/<name>/<name>.go with atomic logger + Run<Name>Plugin()
-[ ] Run make generate (updates all.go)
+[ ] Run ./le repository generate (updates all.go)
 [ ] Update TestAllPluginsRegistered expected count
 [ ] If YANG config: create schema/ subdir with register.go + embed.go + .yang file
 [ ] If capabilities: set CapabilityCodes, Features: "capa"

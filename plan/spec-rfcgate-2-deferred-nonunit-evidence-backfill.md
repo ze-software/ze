@@ -50,7 +50,7 @@ wire, and judged by an oracle that is not the code under test".
 
 The spec previously quoted `unit/verify 2571`. That figure is a TAG count taken
 at the parent spec's closure. The requirement count is different and is the
-number that matters. Measured by importing `scripts/dev/rfc_requirements.py` and
+number that matters. Measured by importing `internal/le/rfc/rfc.go` and
 folding `carrier_for` over every tag, WITHOUT rendering `ai/RFC-REQUIREMENTS.md`
 (three concurrent sessions own that file this week):
 
@@ -62,7 +62,7 @@ folding `carrier_for` over every tag, WITHOUT rendering `ai/RFC-REQUIREMENTS.md`
 | Carrying no tag at all (annotated `{gap}` / `{not-applicable}`) | 1370 |
 
 Reachability, derived from the directory each requirement's unit tags live in,
-mapped against the suite list `mk/test-functional.mk` `all_suites` actually
+mapped against the suite list `internal/le/functional/suites.go` `all_suites` actually
 names. A `.ci` outside that list earns `TIER_UNRUN` and the scanner REFUSES it,
 so "could a `.ci` prove this today" is a real constraint, not a preference:
 
@@ -98,7 +98,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/dev/rfc_requirements.py` - `CARRIERS`, `carrier_for`, `functional_suites`; the evidence kind and tier model, and the refusal of a tag in a suite nothing runs
+- [ ] `internal/le/rfc/rfc.go` - `CARRIERS`, `carrier_for`, `functional_suites`; the evidence kind and tier model, and the refusal of a tag in a suite nothing runs
 - [ ] `internal/component/l2tp/auth.go` - `ChallengeResponse` and `VerifyChallengeResponse`; the verifier CALLS the producer, so the two cannot disagree by construction
 - [ ] `internal/component/l2tp/tunnel_fsm.go` - `writeSCCRPBody`, `parseSCCRQ`; the SCCRP AVP write order and the SCCRQ validation
 - [ ] `internal/component/l2tp/avp.go` - `WriteAVPHeader`; the AVP first word, where reserved bits 2-5 live
@@ -108,7 +108,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 
 **Behavior to preserve:**
 - Every existing `test/l2tp/*.ci` expectation. The suite was green before and after.
-- The `kind/tier` cell semantics in `scripts/dev/rfc_requirements.py`. This spec adds tags, it does not touch the model.
+- The `kind/tier` cell semantics in `internal/le/rfc/rfc.go`. This spec adds tags, it does not touch the model.
 
 **Behavior to change:**
 - None. This spec adds test evidence only. No production Go file is modified.
@@ -134,7 +134,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 | RFC text ↔ implementation | digest re-derived in Python from §4.2 | Yes, same test |
 
 ### Integration Points
-- `scripts/dev/rfc_requirements.py` `scan_ci_tags` reads the `# RFC requirement:` lines out of the `.ci` and `carrier_for` resolves the file to the `functional-l2tp` carrier, `functional/verify`.
+- `internal/le/rfc/rfc.go` `scan_ci_tags` reads the `# RFC requirement:` lines out of the `.ci` and `carrier_for` resolves the file to the `functional-l2tp` carrier, `functional/verify`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -151,15 +151,15 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The unit-only population is dominated by requirements whose oracle is ze's own code, so functional evidence adds real discrimination | today's five IKE defects, all unit-green for months | the backfill adds tier without adding discrimination | mutation: break the producer, check whether unit tests survive | **broken** for the L2TP cluster. `TestChallengeResponseKnown` and `TestCHAPAuthenticationKnownVector` re-derive the digest in the test body, so they DO catch a swapped field order. See Mistake Log |
-| A-2 | A `.ci` in `test/l2tp/` earns `functional/verify` | `mk/test-functional.mk` `all_suites` lists `l2tp` | the binding is refused as `TIER_UNRUN` | `carrier_for` on the landed file | **confirmed**: `functional-l2tp -> functional/verify`, runner `make ze-functional-test` |
-| A-3 | The l2tp suite runs natively on darwin, so the tranche executes in `make ze-precommit-verify` | only `session-stopccn-cascade.ci` carries `option=needs-linux` | the tier claim is true only inside QEMU | full suite run on this host | **confirmed**: 17/17 pass, 1 skip |
+| A-2 | A `.ci` in `test/l2tp/` earns `functional/verify` | `internal/le/functional/suites.go` `all_suites` lists `l2tp` | the binding is refused as `TIER_UNRUN` | `carrier_for` on the landed file | **confirmed**: `functional-l2tp -> functional/verify`, runner `./le functional` |
+| A-3 | The l2tp suite runs natively on darwin, so the tranche executes in `./le verify current mode full` | only `session-stopccn-cascade.ci` carries `option=needs-linux` | the tier claim is true only inside QEMU | full suite run on this host | **confirmed**: 17/17 pass, 1 skip |
 | A-4 | RFC 2661 §4.2 tunnel auth can carry a gated binding | the summary lists a §4.2 requirement | the strongest available evidence binds no gated id | read `rfc/short/rfc2661.md` | **broken**: RFC2661-4.2-1 is `[MAY]`, so it is not gated. The digest assertion still ships, binding no id |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | The backfill raises tier without raising discrimination, buying a greener ledger for nothing | a mutation that reddens the `.ci` also reddens the unit suite | mutation-verify BOTH layers, and report honestly when the unit layer already catches it. Done: see Goal Validation |
-| R-2 | `ai/RFC-REQUIREMENTS.md` is stale until regenerated, and `make ze-rfc-check` fails on staleness | `check_ledger_fresh` byte comparison | deliberate. Three sessions own that file this week; the regen is owed and named in the report |
+| R-2 | `ai/RFC-REQUIREMENTS.md` is stale until regenerated, and `./le rfc check` fails on staleness | `check_ledger_fresh` byte comparison | deliberate. Three sessions own that file this week; the regen is owed and named in the report |
 | R-3 | A future session reads the 76% classifier number as a work list | the number is quoted without its caveat | the caveat is restated in Task and the rule below forbids deriving decisions from it |
 
 ## Blast Radius
@@ -177,7 +177,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 | UDP SCCRQ to ze's L2TP listener | → | `Reactor.handlePacket` then `writeSCCRPBody` (`internal/component/l2tp/tunnel_fsm.go`) | `rfc2661-emitted-control-shape` |
 | SCCRQ carrying a Challenge AVP | → | `ChallengeResponse` (`internal/component/l2tp/auth.go`) | `rfc2661-emitted-control-shape` |
 | SCCCN carrying an externally computed response | → | `VerifyChallengeResponse` (`internal/component/l2tp/auth.go`) | `rfc2661-emitted-control-shape` |
-| `# RFC requirement:` line in the landed `.ci` | → | `scan_ci_tags` then `carrier_for` (`scripts/dev/rfc_requirements.py`) | `rfc2661-emitted-control-shape` resolves to `functional/verify` |
+| `# RFC requirement:` line in the landed `.ci` | → | `scan_ci_tags` then `carrier_for` (`internal/le/rfc/rfc.go`) | `rfc2661-emitted-control-shape` resolves to `functional/verify` |
 
 ## Acceptance Criteria
 
@@ -246,7 +246,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 | 6 | Has a user guide page? | No | - |
 | 7 | Wire format changed? | No | No encoder changed; the test observes the existing format |
 | 8 | Plugin SDK/protocol changed? | No | - |
-| 9 | RFC behavior implemented, changed, or newly proven? | **Yes, and OWED** | Three RFC 2661 requirements are newly proven at a new tier. `ai/RFC-REQUIREMENTS.md` needs `make ze-rfc-index-update`, deliberately NOT run this session (R-2). `docs/features/rfc-status.md` support level is unchanged, so no row edit is due |
+| 9 | RFC behavior implemented, changed, or newly proven? | **Yes, and OWED** | Three RFC 2661 requirements are newly proven at a new tier. `ai/RFC-REQUIREMENTS.md` needs `./le rfc index-update`, deliberately NOT run this session (R-2). `docs/features/rfc-status.md` support level is unchanged, so no row edit is due |
 | 10 | Test infrastructure changed? | No | Uses the existing suite shape |
 | 11 | Affects daemon comparison? | No | - |
 | 12 | Internal architecture changed? | No | - |
@@ -261,7 +261,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 1. **Phase: Wiring (MANDATORY FIRST)** - prove a `.ci` tag in `test/l2tp/` resolves to `functional/verify`
    - Tests: `carrier_for("test/l2tp/...")` returns the `functional-l2tp` carrier
    - Files: `test/draft/l2tp/rfc2661-emitted-control-shape.ci`
-   - Verify: DONE. `functional-l2tp -> functional/verify`, runner `make ze-functional-test`
+   - Verify: DONE. `functional-l2tp -> functional/verify`, runner `./le functional`
 2. **Phase: Measure** - derive the distribution without rendering the tracked ledger
    - Files: session scratch only
    - Verify: DONE. Table in Task above
@@ -288,7 +288,7 @@ an owner question, recorded below, and not a `{gap}` this spec writes.
 | Risk ranking | "Risk ranking" section below |
 | Three bound requirements | `python3 -c` over `rfc_requirements.scan_ci_tags` on the landed file |
 | Mutation evidence | Mutation table below |
-| Suite still green | `make ze-functional-l2tp-test` |
+| Suite still green | `./le functional l2tp` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -319,7 +319,7 @@ Three tests, applied in order. All three must hold.
 |---|------|-----------|
 | 1 | **Oracle independence.** Read every test tagged with the requirement id. Does at least one derive its expected value from the RFC text, rather than by calling the production helper that computes it? | Every bound test computes `want` by calling the same code the assertion exercises. `TestBuildCHAPResponse` (`internal/component/l2tp/pppoeclient/session_test.go`) does exactly this: `want := chapMD5Response(...)`, the same helper `buildCHAPResponse` calls |
 | 2 | **Boundary observability.** Can the obligation be seen at a socket, a file, or a command output, rather than only inside a function? | The obligation is an internal invariant with no external form |
-| 3 | **Tier reachability.** Does a suite named in `mk/test-functional.mk` `all_suites`, or a scheduled interop tree, already boot the owning subsystem? | No suite runs it. The scanner refuses the tag as `TIER_UNRUN`, so the requirement is an infrastructure question, not a backfill candidate |
+| 3 | **Tier reachability.** Does a suite named in `internal/le/functional/suites.go` `all_suites`, or a scheduled interop tree, already boot the owning subsystem? | No suite runs it. The scanner refuses the tag as `TIER_UNRUN`, so the requirement is an infrastructure question, not a backfill candidate |
 
 **Defence.** The rule tests the ORACLE, not the requirement text, and that is
 the whole point. The parent spec's A-4 forbids driving decisions from the keyword
@@ -388,7 +388,7 @@ lacked.
 ## Design Insights
 - The spec's own headline figure was a tag count read as a requirement count. Any future session sizing this work should fold `carrier_for` over tags and count REQUIREMENTS.
 - Tier reachability is a hard gate that is easy to miss: `functional_suites()` refuses a `.ci` in a suite `all_suites` does not name, so 242 unit-only requirements cannot be backfilled at verify tier no matter how well written the test is.
-- Measurement scripts live in `tmp/s/5f02ca42-5e01-481a-bd32-1d8e5029c764/`: `measure_evidence.py`, `reach.py`, `rfc2661_mutate.py`. They import `scripts/dev/rfc_requirements.py` rather than shelling out, so they never write `ai/RFC-REQUIREMENTS.md`.
+- Measurement scripts live in `tmp/s/5f02ca42-5e01-481a-bd32-1d8e5029c764/`: `measure_evidence.py`, `reach.py`, `rfc2661_mutate.py`. They import `internal/le/rfc/rfc.go` rather than shelling out, so they never write `ai/RFC-REQUIREMENTS.md`.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -420,7 +420,7 @@ about. Which way do you want this fixed? A reproducer is at
 
 **Q2. 242 gated MUSTs cannot be proven at verify tier because no suite boots
 their subsystem** (BFD 98, VRRP 80, dhcpserver 28, geodns 18, dnsserver 18).
-`mk/test-functional.mk` `all_suites` names no `bfd`, `vrrp`, or `dhcp` suite, so
+`internal/le/functional/suites.go` `all_suites` names no `bfd`, `vrrp`, or `dhcp` suite, so
 `carrier_for` resolves any `.ci` there to `TIER_UNRUN` and the scanner refuses
 the tag. VRRP has a nightly interop path (`ze-qemu-vrrp-keepalived-test`), the
 others have none. Add suites, accept nightly-only tier for these, or leave them
@@ -428,7 +428,7 @@ unit-only by decision?
 
 ## Known Limitations
 - Three requirements moved. 1533 remain unit-only. The rule and the ranking are the durable output; the tranche is a worked example of applying them.
-- `ai/RFC-REQUIREMENTS.md` is not regenerated this session (R-2), so `make ze-rfc-check` will report ledger staleness until `make ze-rfc-index-update` runs.
+- `ai/RFC-REQUIREMENTS.md` is not regenerated this session (R-2), so `./le rfc check` will report ledger staleness until `./le rfc index-update` runs.
 - The reserved-bit-on-receive behaviour was not established either way: the probe produced no ze log line and no reply, and the cause was not isolated. It is not claimed as a finding.
 
 ## Checklist
@@ -437,7 +437,7 @@ unit-only by decision?
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -455,7 +455,7 @@ unit-only by decision?
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

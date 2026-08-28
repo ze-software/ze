@@ -357,7 +357,7 @@ func TestNoDigestTokenNeedsAUnicodeWordCharacter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolving the checkout: %v", err)
 	}
-	names, err := DigestFiles(root)
+	names, err := digestFiles(root)
 	if err != nil {
 		t.Fatalf("listing the digests: %v", err)
 	}

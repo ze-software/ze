@@ -19,8 +19,8 @@ Generate a structured implementation summary from an RFC text file.
 3. WRITE: `rfc/short/$ARGUMENTS.md`
 4. CHECK errata: https://www.rfc-editor.org/errata/rfcNNNN
 5. ALLOCATE requirement IDs (see "Requirement IDs" below) — every checklist line gets one
-6. REGISTER: run `make ze-rfc-index-update` to render the requirement into `rfc/requirements/<stem>.md`,
-   then `make ze-rfc-check`. **A summary that is new since HEAD and declares gated MUSTs
+6. REGISTER: run `./le rfc index-update` to render the requirement into `rfc/requirements/<stem>.md`,
+   then `./le rfc check`. **A summary that is new since HEAD and declares gated MUSTs
    must be enrolled in the same change** (`check_new_summaries`): writing obligations down
    and gating none of them is how a compliance claim rots. Enrolling does not mean every
    MUST is met — classify each honestly as tested, `{single-polarity}`, `{gap}` (with a
@@ -31,7 +31,7 @@ Generate a structured implementation summary from an RFC text file.
    see "Extraction sign-off" below.
 
 6b. ENROL OR DECLARE (BLOCKING). Every summary under `rfc/short/` is in `rfc/enrolled.txt`
-   or in `rfc/not-enrolled.txt`. A summary in neither reds `make ze-rfc-check`
+   or in `rfc/not-enrolled.txt`. A summary in neither reds `./le rfc check`
    (`check_summary_disposition`). Un-enrolment with no recorded reason cannot be told apart
    from work nobody has got to yet.
 
@@ -70,12 +70,12 @@ Generate a structured implementation summary from an RFC text file.
 **Extraction sign-off (BLOCKING before enrolling).** The old two-grep, eyeball-the-ratio
 coverage check is superseded: it was an honour-system count that nothing recorded and
 nothing re-checked. Record the walk instead, in an artifact a machine re-checks on every
-`make ze-rfc-check`:
+`./le rfc check`:
 
 ```
-make ze-rfc-extraction-create STEM=$ARGUMENTS     # writes an UNCLASSIFIED skeleton
+./le rfc extraction-create STEM=$ARGUMENTS     # writes an UNCLASSIFIED skeleton
                                         # then classify every site and section by hand
-make ze-rfc-check                       # re-derives the inventory and judges it
+./le rfc check                       # re-derives the inventory and judges it
 ```
 
 The skeleton lists every normative site of the source (`<section>:<n>` plus the derived
@@ -91,7 +91,7 @@ section's `unsourced-ids`) catches one you invented. Contract:
 
 For a stem enrolled since HEAD the sign-off is a PRECONDITION of enrolment
 (`check_enrolment`). RFCs enrolled before the gate existed are grandfathered and published
-as a counted backlog in `ai/RFC-REQUIREMENTS.md`; `make ze-rfc-extraction-status` emits the
+as a counted backlog in `ai/RFC-REQUIREMENTS.md`; `./le rfc extraction-status` emits the
 same counts as JSON.
 
 This replaces a check that had caught real failures and would have caught more: `rfc5303`,
@@ -101,7 +101,7 @@ list says which sentence, by name.
 
 ## Keep the ledger committed (BLOCKING)
 
-`make ze-rfc-index-update` writes two outputs from the summaries and the `RFC requirement:` tags.
+`./le rfc index-update` writes two outputs from the summaries and the `RFC requirement:` tags.
 One is `ai/RFC-REQUIREMENTS.md`, the index of counts, coverage rollup, audit coverage,
 extraction sign-off and backlog. The other is one file per RFC under `rfc/requirements/`,
 holding that RFC's requirement rows.
@@ -110,12 +110,12 @@ The per-RFC file records each enforcing test's `file:line`. It goes stale when y
 retire a requirement. It also goes stale whenever a tagged test is added, moved, deleted or
 re-tagged. An unrelated edit that shifts a tagged test's line stales it too.
 
-Regenerate with `make ze-rfc-index-update`. **Commit BOTH outputs in the SAME commit** as the
+Regenerate with `./le rfc index-update`. **Commit BOTH outputs in the SAME commit** as the
 change that caused the drift: the index, and every changed file under `rfc/requirements/`.
 Commit the index alone and the gate is red for the next session.
-`ze-rfc-check` renders both and fails on any mismatch, and it
-runs in both `ze-precommit-verify` and `ze-precommit-verify-changed` (`check_ledger_fresh`,
-`scripts/dev/rfc_requirements.py`). A ledger left stale is not silently tolerated: it
+`./le rfc check` renders both and fails on any mismatch, and it
+runs in both `./le verify current mode full` and `./le verify current mode changed` (`check_ledger_fresh`,
+`internal/le/rfc/rfc.go`). A ledger left stale is not silently tolerated: it
 surfaces later as a cross-commit diff that the next session inherits and the freshness gate
 pins on them. This cuts both ways: it is also why you must not regenerate the ledger as a
 side effect of unrelated work. If the diff is a pure line-number refresh with no change of
@@ -232,7 +232,7 @@ the numbering stops tracking the document at all.
 | Rule | Why |
 |------|-----|
 | Anchor to the FIRST section the line cites; ordinal counts within that section | Section is immutable; the id says where to read the normative text |
-| The id's section MUST match the line's `(§N)` | Checked by `make ze-rfc-check` — the id and the citation can never drift apart |
+| The id's section MUST match the line's `(§N)` | Checked by `./le rfc check` — the id and the citation can never drift apart |
 | Ordinals are per-section, starting at 1 | Adding to §5.3 only has to clear §5.3's high-water, so it lands beside its siblings |
 | **Never renumber. Never reuse.** A new requirement takes the next free ordinal IN ITS SECTION | A renumber silently re-points every test tag at the wrong requirement |
 | When REMOVING a requirement, retire the ordinal — do not backfill the hole | Reuse makes an old tag point at a new, unrelated obligation |
@@ -272,7 +272,7 @@ one needs no record: the gate never charges for a conformance improvement.
 
 A MUST-level requirement in an **enrolled** RFC must be covered by tests, or carry exactly
 one annotation explaining why not. Every annotation needs a reason — a bare annotation is
-rejected by `make ze-rfc-check`.
+rejected by `./le rfc check`.
 
 ```
 - [ ] [RFC5303-3-1] [MUST] <text> (§3) {not-applicable: Ze does not implement IS-IS mesh groups}
@@ -446,9 +446,9 @@ Step-by-step, pseudocode if RFC provides it.
 - Every checklist line gets a unique, permanent ID. Never renumber, never reuse
 - Never tick a checkbox — coverage is derived from test tags, not declared here
 - Never hand-write a test path into a summary — `rfc/requirements/<stem>.md` is generated
-- Run `make ze-rfc-index-update` and commit BOTH its outputs in the same change whenever a tagged
+- Run `./le rfc index-update` and commit BOTH its outputs in the same change whenever a tagged
   test is added, moved, deleted, or re-tagged: `ai/RFC-REQUIREMENTS.md` and every changed
-  file under `rfc/requirements/`. The per-RFC file records `file:line`, and `ze-rfc-check`
+  file under `rfc/requirements/`. The per-RFC file records `file:line`, and `./le rfc check`
   fails on a stale index and on a stale per-RFC file
 - Never annotate `{not-applicable}` / `{gap}` to reach green. Write the test, or leave
   the RFC un-enrolled and say so
@@ -466,8 +466,8 @@ Step-by-step, pseudocode if RFC provides it.
 
 | Need | Use |
 |------|-----|
-| Check requirements are covered | `make ze-rfc-check` |
-| Regenerate the requirement ledger | `make ze-rfc-index-update` → `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` |
-| Read one RFC's requirement → test rows | `python3 scripts/dev/rfc_requirements.py --show <stem>` |
+| Check requirements are covered | `./le rfc check` |
+| Regenerate the requirement ledger | `./le rfc index-update` → `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` |
+| Read one RFC's requirement → test rows | Read `rfc/requirements/<stem>.md` after `./le rfc index-update` |
 | Re-audit that tests still enforce letter and spirit | `/ze-rfc-audit <rfc>` |
 | Public per-RFC support status | `docs/features/rfc-status.md` (product ledger; must agree with `{gap}` annotations) |

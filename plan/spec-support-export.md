@@ -347,7 +347,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
    - Files: pipe users, support runner, help metadata
    - Verify: functional tests pass through user entry points.
 5. **Phase: Docs and generated surfaces** - update command docs, feature row, command catalogue, and any generated help data.
-   - Tests: `make ze-doc-verify`, `make ze-doc-wiring-check`, and any generated-file check required by changed files
+   - Tests: `./le doc-check verify`, `./le doc-wiring`, and any generated-file check required by changed files
    - Files: docs listed above and generated outputs if required
    - Verify: doc checks pass.
 
@@ -369,14 +369,14 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `save` pipe syntax documented by parser tests | `make ze-unit-pkg-test PKG=./internal/component/command` |
-| Local file save works through user entry point | `make ze-functional-ui-test` with `pipe-save-file` pattern |
-| Support archive save writes archive bytes | `make ze-functional-ui-test` with `support-save-file` pattern |
-| Named destinations parse and validate | `make ze-functional-parse-test` with `support-export-destination` pattern |
+| `save` pipe syntax documented by parser tests | `go test -race ./internal/component/command` |
+| Local file save works through user entry point | `./le functional ui` with `pipe-save-file` pattern |
+| Support archive save writes archive bytes | `./le functional ui` with `support-save-file` pattern |
+| Named destinations parse and validate | `./le functional parse` with `support-export-destination` pattern |
 | SSH credential reference is checked | owning unit test and doctor test |
 | Syslog behavior is bounded and tested | owning unit test and functional or fixture-backed test |
-| Documentation reflects shipped command shape | `make ze-doc-verify` and `make ze-doc-wiring-check` |
-| Changed Go code is linted | `make ze-lint-changed` |
+| Documentation reflects shipped command shape | `./le doc-check verify` and `./le doc-wiring` |
+| Changed Go code is linted | `./le changed scope` |
 
 ### Security Review Checklist
 
@@ -434,7 +434,7 @@ N-A. No protocol behavior changes.
 - [ ] AC-1..AC-13 demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row has a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes
 - [ ] Every A-N assumption confirmed or broken, none unvalidated

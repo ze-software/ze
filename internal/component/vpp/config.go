@@ -206,7 +206,7 @@ func ParseConfigSection(data string) (*VPPSettings, error) {
 	if err := json.Unmarshal([]byte(data), &wrapped); err != nil {
 		return nil, fmt.Errorf("vpp: parse wrapped config: %w", err)
 	}
-	inner, ok := wrapped["vpp"]
+	inner, ok := wrapped[componentVPP]
 	if !ok {
 		return nil, errVppConfigSectionMissingVppRoot
 	}

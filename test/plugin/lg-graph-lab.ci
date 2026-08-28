@@ -9,131 +9,12 @@ option=timeout:value=25s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: injects routes for 12 routers across 3 prefixes, then stays alive
-tmpfs=lg-lab.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""
-UK Network Lab -- Route Injection for Looking Glass Graph Testing
-
-Topology (AS65000):
-  Core Ring: Telehouse (th), Leeds (lds), Manchester (man), Birmingham (bhm)
-  Edge:      Slough (slo), Bradford (bfd)
-
-  Ring: TH <-> LDS <-> MAN <-> BHM <-> TH
-  Slough  -> TH, BHM (customer POP)
-  Bradford -> LDS, MAN (customer POP)
-
-External:
-  NTT        AS2914  -> th-1  (transit)
-  Cogent     AS174   -> man-1 (transit)
-  Cloudflare AS13335 -> th-2  (peering)
-  Akamai     AS20940 -> man-2 (peering)
-
-Routers (IP addresses):
-  th-1  10.0.1.1    th-2  10.0.1.2
-  lds-1 10.0.2.1    lds-2 10.0.2.2
-  man-1 10.0.3.1    man-2 10.0.3.2
-  bhm-1 10.0.4.1    bhm-2 10.0.4.2
-  slo-1 10.0.5.1    slo-2 10.0.5.2
-  bfd-1 10.0.6.1    bfd-2 10.0.6.2
-"""
-import sys
-from ze_api import API
-from ze_api import runtime_fail
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def inject(api, peer, prefix, nhop, aspath):
-    cmd = f'request bgp rib inject {peer} ipv4/unicast {prefix} origin igp nhop {nhop} aspath {aspath}'
-    result = dispatch(api, cmd)
-    if result.get('status') != 'done':
-        # runtime_fail emits the ZE-OBSERVER-FAIL sentinel the runner detects;
-        # a bare sys.exit(1) here is the banned silent-false-pass pattern.
-        runtime_fail(f'{cmd} -> {result}')
-        sys.exit(1)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # --- Prefix 10.10.1.0/24: dual transit (NTT at th-1, Cogent at man-1) ---
-    p1 = '10.10.1.0/24'
-    inject(api, '10.0.1.1', p1, '10.0.1.1', '2914,65100')   # th-1 egress (NTT)
-    inject(api, '10.0.3.1', p1, '10.0.3.1', '174,65100')    # man-1 egress (Cogent)
-    inject(api, '10.0.1.2', p1, '10.0.1.1', '2914,65100')   # th-2 -> th-1
-    inject(api, '10.0.4.1', p1, '10.0.1.1', '2914,65100')   # bhm-1 -> th-1
-    inject(api, '10.0.4.2', p1, '10.0.1.1', '2914,65100')   # bhm-2 -> th-1
-    inject(api, '10.0.5.1', p1, '10.0.1.1', '2914,65100')   # slo-1 -> th-1
-    inject(api, '10.0.5.2', p1, '10.0.1.1', '2914,65100')   # slo-2 -> th-1
-    inject(api, '10.0.2.1', p1, '10.0.3.1', '174,65100')    # lds-1 -> man-1
-    inject(api, '10.0.2.2', p1, '10.0.3.1', '174,65100')    # lds-2 -> man-1
-    inject(api, '10.0.3.2', p1, '10.0.3.1', '174,65100')    # man-2 -> man-1
-    inject(api, '10.0.6.1', p1, '10.0.3.1', '174,65100')    # bfd-1 -> man-1
-    inject(api, '10.0.6.2', p1, '10.0.3.1', '174,65100')    # bfd-2 -> man-1
-
-    # --- Prefix 10.10.2.0/24: peering only (Cloudflare at th-2) ---
-    p2 = '10.10.2.0/24'
-    inject(api, '10.0.1.2', p2, '10.0.1.2', '13335,65200')  # th-2 egress
-    inject(api, '10.0.1.1', p2, '10.0.1.2', '13335,65200')  # th-1 -> th-2
-    inject(api, '10.0.2.1', p2, '10.0.1.2', '13335,65200')  # lds-1 -> th-2
-    inject(api, '10.0.2.2', p2, '10.0.1.2', '13335,65200')  # lds-2 -> th-2
-    inject(api, '10.0.3.1', p2, '10.0.1.2', '13335,65200')  # man-1 -> th-2
-    inject(api, '10.0.3.2', p2, '10.0.1.2', '13335,65200')  # man-2 -> th-2
-    inject(api, '10.0.4.1', p2, '10.0.1.2', '13335,65200')  # bhm-1 -> th-2
-    inject(api, '10.0.4.2', p2, '10.0.1.2', '13335,65200')  # bhm-2 -> th-2
-    inject(api, '10.0.5.1', p2, '10.0.1.2', '13335,65200')  # slo-1 -> th-2
-    inject(api, '10.0.5.2', p2, '10.0.1.2', '13335,65200')  # slo-2 -> th-2
-    inject(api, '10.0.6.1', p2, '10.0.1.2', '13335,65200')  # bfd-1 -> th-2
-    inject(api, '10.0.6.2', p2, '10.0.1.2', '13335,65200')  # bfd-2 -> th-2
-
-    # --- Prefix 10.10.3.0/24: all four externals, peering preferred ---
-    p3 = '10.10.3.0/24'
-    inject(api, '10.0.1.2', p3, '10.0.1.2', '13335,65300')  # th-2 egress (Cloudflare)
-    inject(api, '10.0.3.2', p3, '10.0.3.2', '20940,65300')  # man-2 egress (Akamai)
-    inject(api, '10.0.1.1', p3, '10.0.1.2', '13335,65300')  # th-1 -> th-2
-    inject(api, '10.0.4.1', p3, '10.0.1.2', '13335,65300')  # bhm-1 -> th-2
-    inject(api, '10.0.4.2', p3, '10.0.1.2', '13335,65300')  # bhm-2 -> th-2
-    inject(api, '10.0.5.1', p3, '10.0.1.2', '13335,65300')  # slo-1 -> th-2
-    inject(api, '10.0.5.2', p3, '10.0.1.2', '13335,65300')  # slo-2 -> th-2
-    inject(api, '10.0.2.1', p3, '10.0.3.2', '20940,65300')  # lds-1 -> man-2
-    inject(api, '10.0.2.2', p3, '10.0.3.2', '20940,65300')  # lds-2 -> man-2
-    inject(api, '10.0.3.1', p3, '10.0.3.2', '20940,65300')  # man-1 -> man-2
-    inject(api, '10.0.6.1', p3, '10.0.3.2', '20940,65300')  # bfd-1 -> man-2
-    inject(api, '10.0.6.2', p3, '10.0.3.2', '20940,65300')  # bfd-2 -> man-2
-
-    print('OK: all 36 routes injected', file=sys.stderr)
-
-    # // the previous idle loop (a forever 10s-sleep cycle)
-    # never exited when the daemon shut down, so the orphaned observer held
-    # ze's inherited output pipe open and the runner's cmd.Wait() blocked
-    # forever (the pipe-hold hang documented in mk/test-functional.mk).
-    # wait_for_shutdown() blocks until the engine goes away, then the script
-    # exits so the pipe closes and the runner can finish the test.
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration with LG enabled
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external lg-lab {
-		run ./lg-lab.run
+		run "ze-test interop-bgp process lg-graph-lab lg-lab"
 		encoder json
 	}
 	internal bgp-rib {
@@ -203,7 +84,7 @@ cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 # a proxy: the plugin injects the three prefixes' routes as separate commands,
 # so prefix 1 being complete says nothing about prefix 3, and under load the
 # graph for 10.10.3.0/24 was rendered from a partially populated RIB and missed
-# its exact-body match (seen once in a full ze-precommit-verify run, 2026-07-26; not
+# its exact-body match (seen once in a full ./le verify current mode full run, 2026-07-26; not
 # reproducible in 40 stressed runs of this test alone, because in isolation the
 # injection always wins the race). Each prefix now waits for its own state
 # rather than for prefix 1's (ai/rules/fix-dont-record.md).

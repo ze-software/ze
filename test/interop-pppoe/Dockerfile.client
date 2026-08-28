@@ -6,10 +6,9 @@
 # faces). Alpine 3.21 ships pppd 2.5.1; the rp-pppoe plugin is packaged apart
 # as ppp-pppoe (/usr/lib/pppd/2.5.1/pppoe.so).
 #
-# The container stays alive doing nothing. The scenario's check.py runs pppd
-# itself with `docker exec`, once per credential it wants to try, so the good
-# and the rejected credential are two runs of the same client rather than two
-# containers.
+# The container stays alive while the native checker drives pppd with
+# `docker exec`, once per credential. The good and rejected credential are two
+# runs of the same client rather than two containers.
 
 FROM alpine:3.21
 
@@ -18,7 +17,4 @@ FROM alpine:3.21
 # ppp_generic from the shared host /lib/modules.
 RUN apk add --no-cache ppp ppp-pppoe iproute2 iputils kmod
 
-COPY entrypoint-client.sh /usr/local/bin/entrypoint-client.sh
-RUN chmod +x /usr/local/bin/entrypoint-client.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint-client.sh"]
+ENTRYPOINT ["sh", "-c", "modprobe ppp_generic 2>/dev/null || true; modprobe pppoe 2>/dev/null || true; mkdir -p /etc/ppp /var/log/ppp; exec tail -f /dev/null"]

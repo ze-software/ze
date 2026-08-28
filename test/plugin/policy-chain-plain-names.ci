@@ -9,71 +9,6 @@ option=timeout:value=20s
 option=bind:value=0.0.0.0
 EOF_PEER
 
-tmpfs=policy-chain-names.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    result = dispatch(api, 'show policy chain peer test-peer export')
-    status = result.get('status', '')
-    if status != 'done':
-        runtime_fail(f'status={status} error={result.get("error", "")}')
-        print(f'FAIL: status={status} error={result.get("error", "")}', file=sys.stderr)
-        sys.exit(1)
-
-    data = result.get('data', {})
-    if isinstance(data, str):
-        data = json.loads(data)
-    chains = data.get('chains', [])
-    if not chains:
-        runtime_fail(f'no chains in output: {result}')
-        print(f'FAIL: no chains in output: {result}', file=sys.stderr)
-        sys.exit(1)
-
-    export = chains[0].get('export', [])
-    if not export:
-        runtime_fail(f'no export refs: {chains[0]}')
-        print(f'FAIL: no export refs: {chains[0]}', file=sys.stderr)
-        sys.exit(1)
-
-    ref = export[0]
-    name = ref.get('name', '')
-    canonical = ref.get('canonical', '')
-    print(f'OK: export ref name={name!r} canonical={canonical!r}')
-
-    if name != 'STRIP':
-        runtime_fail(f'plain name = {name!r}, want STRIP')
-        print(f'FAIL: plain name = {name!r}, want "STRIP"', file=sys.stderr)
-        sys.exit(1)
-    if canonical != 'bgp-filter-remove-private-as:STRIP':
-        runtime_fail(f'canonical = {canonical!r}, want bgp-filter-remove-private-as:STRIP')
-        print(f'FAIL: canonical = {canonical!r}, want "bgp-filter-remove-private-as:STRIP"',
-              file=sys.stderr)
-        sys.exit(1)
-
-    print('OK: show policy chain exposes plain name and canonical ref')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -81,7 +16,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-chain-names {
-		run ./policy-chain-names.run
+		run "ze-test fixture plugin/policy-chain-plain-names"
 		encoder json
 	}
 }

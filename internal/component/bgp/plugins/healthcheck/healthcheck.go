@@ -81,8 +81,8 @@ func commandDecls() []sdk.CommandDecl {
 	}
 }
 
-// RunHealthcheckPlugin is the in-process entry point for the healthcheck plugin.
-func RunHealthcheckPlugin(conn net.Conn) int {
+// runHealthcheckPlugin is the in-process entry point for the healthcheck plugin.
+func runHealthcheckPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-healthcheck", conn)
 	defer func() { _ = p.Close() }()
 
@@ -195,7 +195,7 @@ func (m *probeManager) markReady() {
 //
 // after which every later dispatch gets "mux conn read error: EOF" and the
 // plugin is dead for the process lifetime. Only load makes the window wide
-// enough to hit, which is why it surfaced under scripts/dev/stress-repro.py and
+// enough to hit, which is why it surfaced under internal/le/stressrepro/actions.go and
 // not in a quiet run. ai/rules/plugins.md states the rule this restores:
 // a DispatchCommand aimed at another plugin's command (here bgp-watchdog's
 // "request bgp watchdog announce") belongs after the dispatcher command

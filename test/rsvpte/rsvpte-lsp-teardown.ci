@@ -19,62 +19,11 @@
 # TestRSVPAdmissionReserveAndRelease). This functional test covers the
 # always-available half: config -> engine configured -> session show.
 
-tmpfs=rsvpte-teardown.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show rsvp-te session` answers as a well-formed JSON array."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = dispatch(api, 'show rsvp-te session')
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"show rsvp-te session: expected done, got status={r.get('status')} "
-            f"data={result_text_data(r)[:200]}")
-    sessions = result_json_data(r, None)
-    if not isinstance(sessions, list):
-        runtime_fail(f"show rsvp-te session: expected list, got {sessions!r}")
-    # Every reported session must carry its identity fields; a half-torn entry
-    # missing these is exactly the leak we assert against.
-    for s in sessions:
-        for field in ('tunnel-endpoint', 'tunnel-id', 'state'):
-            if field not in s:
-                runtime_fail(f"show rsvp-te session: missing {field} in {s!r}")
-
-    print('OK: rsvp-te session table queryable with no malformed entries',
-          file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external rsvpte-teardown {
-		run ./rsvpte-teardown.run
+		run "ze-test fixture rsvpte/rsvpte-lsp-teardown"
 		encoder json
 	}
 }

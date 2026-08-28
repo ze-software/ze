@@ -2,7 +2,7 @@
 // port corrected.
 //
 // VALIDATES: spec-le-is-a-ze-binary AC-11. For the same checkout, this package
-// derives the same argv and environment as scripts/le/devtools/toolchain.py.
+// derives the same argv and environment as internal/le/gotoolchain/gotoolchain.go.
 // PREVENTS: These tests prevent a test run against a SMALLER product than the
 // one that ships. The Python implementation returns an empty feature tuple for
 // an unreadable manifest and for a manifest that declares no ze_ tag. In both
@@ -82,13 +82,43 @@ func TestAnUnreadableGoModIsAnError(t *testing.T) {
 	}
 }
 
-// TestAGoModWithNoToolchainLineIsNotAnError separates the two facts. A go.mod
-// that parses and declares no pin is the behavior before the pin existed, and
-// it must stay legal.
-func TestAGoModWithNoToolchainLineIsNotAnError(t *testing.T) {
-	chain, err := New(fixture(t, goodManifest, "module example.com/x\n\ngo 1.26\n"))
+// TestTheGoDirectivePinsTheToolchainWhenNoToolchainLineDoes states the fallback.
+// A module that declares its Go version and no separate toolchain line still
+// pins one, and reading only the toolchain line left this repository with no pin
+// at all: go.mod says `go 1.27.0` and nothing else, so every le action ran under
+// the ambient toolchain and the export-data protection was silently off.
+func TestTheGoDirectivePinsTheToolchainWhenNoToolchainLineDoes(t *testing.T) {
+	chain, err := New(fixture(t, goodManifest, "module example.com/x\n\ngo 1.27.0\n"))
 	if err != nil {
 		t.Fatalf("a go.mod with no toolchain line was refused: %v", err)
+	}
+	if chain.GoToolchain != "go1.27.0" {
+		t.Errorf("GoToolchain = %q, want go1.27.0 derived from the go directive", chain.GoToolchain)
+	}
+	if !slices.Contains(chain.Overrides(EnvOptions{}), "GOTOOLCHAIN=go1.27.0") {
+		t.Error("the derived pin did not reach the environment, so the ambient toolchain still wins")
+	}
+}
+
+// TestAToolchainLineWinsOverTheGoDirective pins the precedence, so a repository
+// that deliberately runs an older toolchain than it targets keeps that choice.
+func TestAToolchainLineWinsOverTheGoDirective(t *testing.T) {
+	chain, err := New(fixture(t, goodManifest,
+		"module example.com/x\n\ngo 1.27.0\n\ntoolchain go1.26.6\n"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if chain.GoToolchain != "go1.26.6" {
+		t.Errorf("GoToolchain = %q, want the toolchain line go1.26.6", chain.GoToolchain)
+	}
+}
+
+// TestAGoModDeclaringNeitherIsNotAnError keeps a manifest that states no version
+// at all legal, and answers no pin for it rather than a malformed one.
+func TestAGoModDeclaringNeitherIsNotAnError(t *testing.T) {
+	chain, err := New(fixture(t, goodManifest, "module example.com/x\n"))
+	if err != nil {
+		t.Fatalf("a go.mod with no version was refused: %v", err)
 	}
 	if chain.GoToolchain != "" {
 		t.Errorf("GoToolchain = %q, want empty", chain.GoToolchain)
@@ -125,14 +155,14 @@ func TestTheFeatureTagsAreSortedAndCarried(t *testing.T) {
 }
 
 // TestTheCoreTagsAreTheReducedSet verifies the distinction that the fail-open
-// behavior erased. CoreTags is intentionally small. TestTags must never render
+// behavior erased. coreTags is intentionally small. TestTags must never render
 // the same string.
 func TestTheCoreTagsAreTheReducedSet(t *testing.T) {
 	chain := Toolchain{Features: []string{"ze_bgp"}}
-	if chain.CoreTags() != "ze_core" {
-		t.Errorf("CoreTags = %q, want ze_core", chain.CoreTags())
+	if chain.coreTags() != "ze_core" {
+		t.Errorf("CoreTags = %q, want ze_core", chain.coreTags())
 	}
-	if chain.TestTags() == chain.CoreTags() {
+	if chain.TestTags() == chain.coreTags() {
 		t.Error("TestTags and CoreTags rendered the same string: the reduced set has silently become the normal one")
 	}
 }
@@ -142,7 +172,7 @@ func TestExtraTagsFollowTheFeatures(t *testing.T) {
 	if got := chain.TestTags(); got != "ze_core ze_bgp ze_probe" {
 		t.Errorf("TestTags = %q", got)
 	}
-	if got := chain.CoreTags(); got != "ze_core ze_probe" {
+	if got := chain.coreTags(); got != "ze_core ze_probe" {
 		t.Errorf("CoreTags = %q", got)
 	}
 }
@@ -186,12 +216,12 @@ func TestGoTestCoreSelectsTheReducedTags(t *testing.T) {
 // adjacency.
 func TestGoRunCarriesTheFullTagSet(t *testing.T) {
 	chain := Toolchain{Features: []string{"ze_bgp"}}
-	argv := chain.GoRun("scripts/x.go", "--flag")
+	argv := chain.goRun("test/fixtures/x.go", "--flag")
 
 	// Assembled in two steps for the reason in the comment above: the two words
 	// must not sit side by side in this file's source.
 	want := []string{"go"}
-	want = append(want, "run", "-tags", "ze_core ze_bgp", "scripts/x.go", "--flag")
+	want = append(want, "run", "-tags", "ze_core ze_bgp", "test/fixtures/x.go", "--flag")
 
 	if len(argv) != len(want) {
 		t.Fatalf("GoRun = %v, want %d words", argv, len(want))
@@ -294,5 +324,19 @@ func TestAtoiRefusesWhatItCannotRead(t *testing.T) {
 	}
 	if got, ok := atoi("16384"); !ok || got != 16384 {
 		t.Errorf("atoi(16384) = %d, %v", got, ok)
+	}
+}
+
+// TestALanguageVersionGoDirectiveYieldsNoPin keeps the fallback from inventing
+// an invalid toolchain. Go refuses `GOTOOLCHAIN=go1.26` with "go1.26 is a
+// language version but not a toolchain version (go1.26.x)", so a two-component
+// directive must answer no pin rather than a name every command would reject.
+func TestALanguageVersionGoDirectiveYieldsNoPin(t *testing.T) {
+	chain, err := New(fixture(t, goodManifest, "module example.com/x\n\ngo 1.26\n"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if chain.GoToolchain != "" {
+		t.Errorf("GoToolchain = %q, want empty: go1.26 is not a toolchain version", chain.GoToolchain)
 	}
 }

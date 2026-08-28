@@ -264,12 +264,12 @@ plugin {
 
 ### Unit Tests
 ```bash
-make ze-unit-test             # Ze unit tests
+./le verify current mode full   # complete pre-commit verification
 ```
 
 ### Functional Tests
 ```bash
-make ze-functional-test       # All functional tests
+./le functional       # All functional tests
 ze-test bgp encode --list     # List N/TOTAL, id, and name
 ze-test bgp encode 1 2 3      # Run specific tests
 ze-test bgp encode --start 42 # Resume at id 42
@@ -278,7 +278,7 @@ ze-test bgp encode --start 42 # Resume at id 42
 
 ### Linting
 ```bash
-make lint                     # 27 linters via golangci-lint
+./le verify-lint run            # golangci-lint over every build flavor
 ```
 
 ---

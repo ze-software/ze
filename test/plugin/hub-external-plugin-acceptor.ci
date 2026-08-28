@@ -21,45 +21,6 @@
 # No sleep: the await=stderr fence below waits for the relayed plugin line and
 # then tears the daemon down (the .ci sleep ratchet has zero headroom).
 
-tmpfs=hub-acceptor-probe.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""External plugin for a pure `plugin { external ... }` hub config.
-
-Completes the 5-stage startup handshake against the hub's minimal startup sink
-(nil config, nil registry), then announces itself on stderr.
-
-How that line reaches the daemon's stderr, precisely: a bare print carries no
-`level=` tag, so slogutil.ParseLogLine would score it Info and the default WARN
-relay filter (slogutil.RelayLevel) would DROP it. It survives because
-classifyStderrLine (internal/component/plugin/process/process.go) promotes any
-non-empty non-slog plugin stderr line to WARN, which clears that filter. If that
-promotion is ever removed, this test fails as a 20s await timeout -- emit a real
-`level=WARN msg=...` slog line here instead.
-"""
-
-import sys
-
-from ze_api import ready, wait_for_shutdown
-
-
-def main() -> None:
-    # Blocks until stage 5 (ready) is acknowledged. Reaching this point proves
-    # the TLS connect-back succeeded, i.e. the hub wired an acceptor.
-    ready()
-    print("hub-external-plugin reached stage running", file=sys.stderr, flush=True)
-
-    # Hold the process open so the daemon stays in its steady state until the
-    # runner tears it down. Any transport error here means ze went away first,
-    # which is the normal end of this test.
-    try:
-        wait_for_shutdown(timeout=30.0)
-    except (OSError, EOFError, TimeoutError):
-        pass
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # Pure hub config: `plugin {}` is the ONLY top-level block, so ProbeConfigType
 # returns ConfigTypeHub and Run hands it to the orchestrator rather than the
@@ -68,7 +29,7 @@ EOF_RUN
 stdin=hub-conf:terminator=EOF_CONF
 plugin {
 	external hub-acceptor-probe {
-		run ./hub-acceptor-probe.run
+		run "ze-test fixture plugin/hub-external-plugin-acceptor"
 	}
 }
 EOF_CONF

@@ -249,7 +249,7 @@ deterministic simulation.
 2. **Phase: capture format + session tee** (including coalesced path)
 3. **Phase: replay harness** with deterministic clock via existing seam
 4. **Phase: transaction event capture**
-5. Functional test, stress check (A-3), `make ze-precommit-verify`, learned summary, two-commit closure
+5. Functional test, stress check (A-3), `./le verify current mode full`, learned summary, two-commit closure
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -448,7 +448,7 @@ function. Restored (`config.go`).
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 
 ### TDD
 - [ ] Tests written

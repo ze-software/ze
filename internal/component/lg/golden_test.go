@@ -27,7 +27,7 @@ import (
 // compiles each .templ into Go, so nothing is embedded any more. Ext keeps the
 // walk to the sources and off the Go files beside them.
 //
-// Recapture a deliberate markup change with `make ze-web-golden-update`.
+// Recapture a deliberate markup change with `go test ./internal/component/lg -run TestLGGoldenOutput -update-golden`.
 var lgGolden = golden.Set{
 	FS:      os.DirFS("."),
 	Dir:     ".",

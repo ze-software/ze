@@ -4,17 +4,17 @@ Source common.tape
 Hide
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/rpki/config ZE_INIT_INPUT=/src/tmp/terminal-demos/state/rpki/init.input ZE_SSH_PASSWORD=secret123 SSHPASS=secret123"
 Enter
-Type "/src/demos/terminal/rpki/run.sh prepare"
+Type "ze-demo run rpki prepare"
 Enter
 Wait+Screen /RPKI demo prepared/
 Type "ze init < $ZE_INIT_INPUT >/dev/null"
 Enter
-Type "/src/demos/terminal/rpki/run.sh start"
+Type "ze-demo run rpki start"
 Enter
 Wait+Screen /RPKI demo ready/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh rpki intro"
+Type "ze-demo card rpki intro"
 Enter
 Show
 Wait+Screen /====/
@@ -37,12 +37,12 @@ Wait+Screen /11.43.0.0\/24/
 Sleep 7s
 
 Hide
-Type "/src/demos/terminal/rpki/run.sh stop"
+Type "ze-demo run rpki stop"
 Enter
 Wait+Screen /RPKI demo stopped/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh rpki recap"
+Type "ze-demo card rpki recap"
 Enter
 Show
 Sleep 9s

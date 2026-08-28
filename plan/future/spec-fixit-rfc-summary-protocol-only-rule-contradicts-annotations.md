@@ -98,7 +98,7 @@ check that reads the line as annotation or prose.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/dev/rfc_requirements.py` -- the annotation parser, what a valid
+- [ ] `internal/le/rfc/rfc.go` -- the annotation parser, what a valid
       `{not-applicable}` / `{single-polarity}` / `{gap}` reason must contain, and
       `check_summary_disposition`, which already refuses a `non-normative` reason
       that judges what ZE owes rather than what the DOCUMENT states
@@ -110,7 +110,7 @@ check that reads the line as annotation or prose.
       name producing functions, the case the rule cannot mean
 
 **Behavior to preserve:**
-- Every existing gate and ratchet in `make ze-rfc-check`.
+- Every existing gate and ratchet in `./le rfc check`.
 - An annotation still has to name the producing function. Weakening that to
   satisfy the prose rule would trade a real guarantee for a stylistic one.
 - A summary's prose stays usable as a standalone protocol reference.
@@ -121,7 +121,7 @@ check that reads the line as annotation or prose.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- An agent writes or edits an `rfc/short/<stem>.md` and runs `make ze-rfc-check`.
+- An agent writes or edits an `rfc/short/<stem>.md` and runs `./le rfc check`.
 - A reviewer citing `ai/rules/rfc-compliance.md` against a summary.
 
 ### Transformation Path
@@ -179,14 +179,14 @@ moving, the blast radius includes every annotation in the corpus.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-rfc-check` over a summary with a Ze path in its PROSE | -> | the new register check | a case in `scripts/dev/rfc_requirements_test.py` |
+| `./le rfc check` over a summary with a Ze path in its PROSE | -> | the new register check | a case in `internal/le/` |
 | the same with a Ze path only inside an annotation reason | -> | the same | a second case, accepted |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | A summary naming a Ze source path in its prose | `make ze-rfc-check` FAILS, naming the file and the line |
+| AC-1 | A summary naming a Ze source path in its prose | `./le rfc check` FAILS, naming the file and the line |
 | AC-2 | A summary naming a Ze source path only inside an annotation reason | PASSES: the annotation contract requires it |
 | AC-3 | The corpus as it stands | Every one of the 148 classified, and every prose violation either repaired or listed with a reason |
 | AC-4 | `ai/rules/rfc-compliance.md` | States which register the protocol-only rule governs, and names the check that enforces it |
@@ -205,21 +205,21 @@ moving, the blast radius includes every annotation in the corpus.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| a Ze path in prose is refused | `scripts/dev/rfc_requirements_test.py` | AC-1 | |
-| a Ze path in an annotation reason is accepted | `scripts/dev/rfc_requirements_test.py` | AC-2 | |
-| an annotation naming no producing function is still refused | `scripts/dev/rfc_requirements_test.py` | AC-5 | |
+| a Ze path in prose is refused | `internal/le/` | AC-1 | |
+| a Ze path in an annotation reason is accepted | `internal/le/` | AC-2 | |
+| an annotation naming no producing function is still refused | `internal/le/` | AC-5 | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A | - | The RFC gate is a dev tool with no daemon surface; `make ze-rfc-check` over the real corpus is the end-to-end test | |
+| N-A | - | The RFC gate is a dev tool with no daemon surface; `./le rfc check` over the real corpus is the end-to-end test | |
 
 ## Files to Modify
 
-- `scripts/dev/rfc_requirements.py` -- the new register check
-- `scripts/dev/rfc_requirements_test.py` -- the failing case first
+- `internal/le/rfc/rfc.go` -- the new register check
+- `internal/le/` -- the failing case first
 - `ai/rules/points/rfc-compliance/` -- the point file behind the protocol-only
-  directive, then `make ze-rules-condensed-update` and `make ze-rules-lint`
+  directive, then `./le rules condensed-update` and `./le rules lint`
 - `rfc/short/rfc1035.md` and whichever others AC-3 finds in prose
 
 ## Files to Create
@@ -239,14 +239,14 @@ moving, the blast radius includes every annotation in the corpus.
 4. **Phase: Check**
    - Verify: AC-1, AC-2, AC-5
 5. **Phase: Clean the prose violations and correct the rule**
-   - Verify: AC-3, AC-4, AC-6, and `make ze-rfc-check` green
+   - Verify: AC-3, AC-4, AC-6, and `./le rfc check` green
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
@@ -256,7 +256,7 @@ moving, the blast radius includes every annotation in the corpus.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] **Commit A:** code + tests + spec
 - [ ] **Commit B:** `git rm plan/<spec>` only
 

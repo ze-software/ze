@@ -34,63 +34,11 @@
 # engine -> IPv6 SPF wiring -> `show isis route ipv6`, with no peer. The external
 # dispatcher is anchored under a BGP peer process, matching isis-route-install.
 
-tmpfs=isis-ipv6.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show isis route ipv6` is empty with no adjacency (no phantom routes)."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = dispatch(api, 'show isis route ipv6')
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"show isis route ipv6: expected done, got status={r.get('status')} "
-            f"data={result_text_data(r)[:200]}")
-    routes = result_json_data(r, None)
-    if routes is None:
-        routes = []
-    if not isinstance(routes, list):
-        runtime_fail(f"show isis route ipv6: expected list, got {routes!r}")
-    # No adjacency -> no remote IPv6 prefix -> no installed route. A non-empty
-    # list here would mean the IPv6 SPF pass fabricated a route with no neighbour.
-    if routes:
-        runtime_fail(
-            f"show isis route ipv6: expected empty list (no peer), got {routes!r}")
-
-    print('OK: IS-IS IPv6 route table empty with no adjacency '
-          '(dual-stack SPF wired, no phantom routes)', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external isis-ipv6 {
-		run ./isis-ipv6.run
+		run "ze-test fixture isis/isis-ipv6"
 		encoder json
 	}
 }

@@ -33,7 +33,7 @@ func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
 	bmpData := parseJSON(bmpResult)
 
 	v := peersView{
-		layoutView: layoutView{Title: "Peers", ActiveTab: "peers", Page: pgPeersPage},
+		layoutView: layoutView{Title: "Peers", ActiveTab: fieldPeers, Page: pgPeersPage},
 		Peers:      s.extractPeers(zeData),
 		BMPPeers:   s.extractBMPPeers(bmpData),
 		Error:      engineError(zeData),
@@ -231,7 +231,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	v := peerRoutesView{
 		layoutView: layoutView{
 			Title:     tb.Reset().Str("Routes from ").Str(address).String(),
-			ActiveTab: "peers",
+			ActiveTab: fieldPeers,
 			Page:      pgPeerRoutesPage,
 		},
 		Address:   address,
@@ -361,7 +361,7 @@ func peerInfoFrom(peer map[string]any) *peerInfoRow {
 	}
 
 	return &peerInfoRow{
-		State:        getStr(peer, "state"),
+		State:        getStr(peer, fieldState),
 		RemoteAS:     getStr(peer, "remote-as"),
 		RemoteASName: getStr(peer, "remote-as-name"),
 		Description:  getStr(peer, "description"),
@@ -640,7 +640,7 @@ func (s *LGServer) extractPeers(ze map[string]any) []peerRow {
 	// handleBgpSummary answers the aggregates and the rows as siblings, so the
 	// rows are at ze["peers"] (bgp/plugins/cmd/peer/summary.go,
 	// handleBgpSummary).
-	peers, _ := ze["peers"].([]any)
+	peers, _ := ze[fieldPeers].([]any)
 	var result []peerRow
 
 	for _, p := range peers {
@@ -660,7 +660,7 @@ func (s *LGServer) extractPeers(ze map[string]any) []peerRow {
 			Address:      address,
 			RemoteAS:     remoteAS,
 			RemoteASName: s.resolveASN(remoteAS),
-			State:        getStr(peer, "state"),
+			State:        getStr(peer, fieldState),
 			Uptime:       getStr(peer, "uptime"),
 			// Route counts (NLRI-level) and UPDATE message counts are
 			// separate. A count the engine cannot produce stays an empty
@@ -694,7 +694,7 @@ func (s *LGServer) extractBMPPeers(ze map[string]any) []bmpPeerRow {
 		return nil
 	}
 
-	peers, _ := ze["peers"].([]any)
+	peers, _ := ze[fieldPeers].([]any)
 	if len(peers) == 0 {
 		return nil
 	}
@@ -798,7 +798,7 @@ func findPeer(ze map[string]any, address string) map[string]any {
 		return nil
 	}
 
-	peers, _ := ze["peers"].([]any)
+	peers, _ := ze[fieldPeers].([]any)
 	for _, p := range peers {
 		peer, ok := p.(map[string]any)
 		if !ok {

@@ -54,7 +54,7 @@
                     <div class="status-copy">
                         <span class="tag">Appliance</span>
                         <p>
-                            Four QEMU evidence scripts cover the installer end
+                            Four native QEMU actions cover the installer end
                             to end: the PXE/HTTP chain boots the installer
                             kernel and initrd, serves the image over HTTP, and
                             asserts serial success markers before rebooting
@@ -64,7 +64,7 @@
                             power-off-not-reboot behaviour. The Ventoy path
                             proves the installer finds the appliance ISO as a
                             <em>file</em> on a FAT/exFAT data partition rather
-                            than as burned boot media. The scenarios script
+                            than as burned boot media. The scenarios action
                             covers what the other three do not: a forced
                             mid-init panic recovering cleanly, MAC-based
                             install pinning on multi-homed boxes, and rescue
@@ -72,8 +72,8 @@
                         </p>
                         <p>
                             The installer kernel is operator-supplied by
-                            design; Ze neither ships nor builds it. Point
-                            any script at one with <code>ZE_INSTALL_KERNEL</code>.
+                            design; Ze neither ships nor builds it. Set
+                            <code>ZE_INSTALL_KERNEL</code> to its path.
                         </p>
                     </div>
                     <div class="status-table" aria-label="Lab facts">
@@ -108,16 +108,16 @@
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># HTTP/PXE install chain</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-test
 
 <span class="term-comment"># bootable ISO chain</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-iso-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-iso-test
 
 <span class="term-comment"># Ventoy ISO-on-FAT path</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-ventoy-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-ventoy-test
 
 <span class="term-comment"># fault/pin/rescue scenarios</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-scenarios-test</pre>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-scenarios-test</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
@@ -125,14 +125,14 @@
                         <p>
                             QEMU and an operator-supplied installer kernel
                             (<code>ZE_INSTALL_KERNEL=/path/to/vmlinuz</code>);
-                            each script self-skips with a clear message if
+                            each native QEMU action reports a clear skip when
                             none is usable.
                         </p>
                         <div class="link-list">
                             <a
-                                href="https://github.com/ze-software/ze/tree/main/scripts/evidence" target="_blank" rel="noopener"
-                                >scripts/evidence/effective-install-*.py
-                                <span>evidence scripts</span></a
+                                href="https://github.com/ze-software/ze/tree/main/internal/le/qemu" target="_blank" rel="noopener"
+                                >internal/le/qemu
+                                <span>native QEMU evidence</span></a
                             >
                         </div>
                     </div>

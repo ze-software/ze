@@ -56,7 +56,7 @@ func vppHugepagesDoctorCheck() diagnostic.DoctorCheck {
 		Name:         "vpp-hugepages",
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        820,
-		Component:    "vpp",
+		Component:    componentVPP,
 		Dependencies: []string{"kernel"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{doctorVPPHugepagesCode},
@@ -110,7 +110,7 @@ func hugepageRootsFromEnv() hugepageDoctorRoots {
 // hugepageParamsFromTree extracts the hugepage-relevant VPP settings from the
 // config tree. ok is false when VPP is absent or disabled (the check is silent).
 func hugepageParamsFromTree(tree *config.Tree) (hugepageParams, bool) {
-	vpp := tree.GetContainer("vpp")
+	vpp := tree.GetContainer(componentVPP)
 	if vpp == nil {
 		return hugepageParams{}, false
 	}

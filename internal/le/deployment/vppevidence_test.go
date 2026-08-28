@@ -8,7 +8,7 @@ import (
 // TestVPPScenarioTableNamesEveryProducerScenario validates the complete and
 // ordered producer population.
 //
-// VALIDATES: all eight effective-vpp.py scenarios are represented as data.
+// VALIDATES: all eight legacy effective-VPP scenarios are represented as data.
 // PREVENTS: a scenario disappearing while the command still reports a pass.
 func TestVPPScenarioTableNamesEveryProducerScenario(t *testing.T) {
 	want := []string{
@@ -22,7 +22,7 @@ func TestVPPScenarioTableNamesEveryProducerScenario(t *testing.T) {
 		VPPScenarioFirewall,
 	}
 	got := make([]string, 0, 8)
-	for _, step := range NewVPP(t.TempDir()).scenarioRuns() {
+	for _, step := range newVPP(t.TempDir()).scenarioRuns() {
 		got = append(got, step.name)
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -177,7 +177,7 @@ func TestVPPFailureStopsAtTheFirstScenario(t *testing.T) {
 // PREVENTS: a missing Docker binary producing a valid-looking failed scenario.
 func TestVPPBuildErrorsStayOperatingErrors(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	run := NewVPP(t.TempDir())
+	run := newVPP(t.TempDir())
 	run.Progress = nil
 	report, err := run.Run()
 	if err == nil {

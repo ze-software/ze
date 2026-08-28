@@ -263,9 +263,7 @@ func TestFeedsNamesTheIndexEachSourceDrifts(t *testing.T) {
 		want         bool
 	}{
 		{OutputRel, "", true},
-		{"Makefile", "", true},
-		{"mk/check-rules.mk", "", true},
-		{"scripts/dev/package_map.py", "", true},
+		{"internal/le/discoveryindex/discoveryindex.go", "", true},
 		{"internal/plugins/p/register.go", "", true},
 		{"internal/core/x/x.go", "// Package x does x.", true},
 		{"internal/core/x/x.go", "package x", false},
@@ -296,7 +294,7 @@ func TestReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	}
 }
 
-func TestTheAreaHoldsBothGatesAndOnlyUpdateWrites(t *testing.T) {
+func TestTheAreaHoldsBothNativeActionsAndOnlyUpdateWrites(t *testing.T) {
 	list := Actions()
 
 	if len(list.Actions) != 2 {
@@ -308,15 +306,9 @@ func TestTheAreaHoldsBothGatesAndOnlyUpdateWrites(t *testing.T) {
 			if row.Writes {
 				t.Error("check is marked as writing")
 			}
-			if row.Gate != "ze-discovery-index-check" {
-				t.Errorf("check names the gate %q", row.Gate)
-			}
 		case "update":
 			if !row.Writes {
 				t.Error("update is not marked as writing")
-			}
-			if row.Gate != "ze-discovery-index-update" {
-				t.Errorf("update names the gate %q", row.Gate)
 			}
 		default:
 			t.Errorf("an unexpected action: %+v", row)

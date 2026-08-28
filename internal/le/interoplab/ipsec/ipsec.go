@@ -1,6 +1,6 @@
-// Design: test/interop-ipsec/run.py -- strongSwan scenario selection, images, and verdicts.
-// Detail: test/interop-ipsec/lab.py -- container topology, config rendering, and cleanup.
-// Related: checkers.go -- typed replacements for every scenario check.py.
+// Design: native strongSwan scenario selection, images, topology, and verdicts.
+// Detail: checkers.go and helpers.go carry every typed protocol observation.
+// Related: test/interop-ipsec/parity_test.go pins the complete fixture population.
 package ipsec
 
 import (
@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	// Gate is the forked Make gate this callable runner replaces.
-	Gate = "ze-interop-ipsec-test"
+	// Action is the native action identity served by this callable runner.
+	Action = "integration/interop-ipsec"
 
 	defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
 	zeImage         = "ze-ipsec-interop"
@@ -48,7 +48,7 @@ type Report struct {
 	interoplab.SuiteReport
 }
 
-// Text preserves the producer's scenario and summary presentation.
+// Text renders the native scenario and summary presentation.
 func (r Report) Text() string {
 	var out textbuf.Buffer
 	out.SetColor(slogutil.UseColor(os.Stdout))

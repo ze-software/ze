@@ -7,7 +7,8 @@
 #   1. REPLAY path (relay-liveness). The injector announces 10.0.0.0/24 as soon as its
 #      session comes up, before FRR connects, so FRR receives it via Ze's replay-on-peer-up.
 #      This replay is forwarded verbatim (buildFwdBody), so FRR keeps 10.0.0.0/24 even with
-#      the NEXT_HOP dedup reverted (empirically verified) -- so check.py's 10.0.0.0/24
+#      the NEXT_HOP dedup reverted (empirically verified) -- so the internal/le/interoplab/bgp
+#      checker's 10.0.0.0/24
 #      assertion is a relay-liveness check, NOT the discriminator.
 #
 #   2. LIVE relay + split path (the discriminator). After FRR is up, the injector sends ONE
@@ -15,7 +16,8 @@
 #      7606 Section 5.1; the announced half (203.0.113.0/24) is re-encoded through the
 #      wire-mode builder (reactor_api_batch.go buildWireModeUpdate), which used to add a
 #      second NEXT_HOP -- Section 3(g) makes a duplicated attribute a treat-as-withdraw, so
-#      FRR would discard it. check.py asserts FRR has 203.0.113.0/24: THIS goes RED when the
+#      FRR would discard it. the internal/le/interoplab/bgp checker asserts FRR has 203.0.113.0/24:
+#      THIS goes RED when the
 #      de-duplication is reverted (verified). It does NOT prove FRR rejects the UNSPLIT form
 #      (Section 5.1's third bullet obliges receivers to accept any combination); split-vs-
 #      unsplit discrimination lives in the unit tests and the .ci. The independent-speaker
@@ -47,7 +49,8 @@ expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 # relaying it.
 action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000418C6336400144001010040020602010000FDEC400304AC1E000918CB0071
 
-# The session must stay open while check.py polls FRR: a peer whose script is exhausted exits,
+# The session must stay open while the internal/le/interoplab/bgp checker polls FRR: a peer whose
+# script is exhausted exits,
 # and its session dropping would make Ze withdraw the relayed routes before FRR is asked.
 #
 # `option=linger` does that. Two trailing `expect=...KEEPALIVE` rules used to, and they were
@@ -59,7 +62,8 @@ action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000418C633640
 #     Received: UPDATE (len=56)  ORIGIN: IGP  AS_PATH: [65002 65004] ...
 #
 # The peer then exited, Ze logged `forward matched no target ... 172.30.0.9=down`, and
-# check.py failed on a missing route rather than on anything this scenario asserts. Whether
+# the internal/le/interoplab/bgp checker failed on a missing route rather than on anything this
+# scenario asserts. Whether
 # that UPDATE arrives before or after Ze's KEEPALIVE is FRR's timing, so the rules asserted a
 # claim the scenario never meant to make. This is the same mistake this spec's Mistake Log
 # already records for the `.ci`: declaring a frame you only want to WAIT for opts into a race.

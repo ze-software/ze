@@ -1,81 +1,51 @@
-// Design: docs/architecture/core-design.md -- the documentation gates, as one command
-// Overview: drift.go -- the drift gate this command runs
+// Design: docs/architecture/core-design.md -- documentation checks as one command.
+// Overview: drift.go -- the drift analysis this command runs.
 //
-// actions.go is the Python area, ported. `le check-docs ze-doc-drift-check` and
-// `le check-cli ze-command-contract-check` selected one gate out of an area's
-// GateSet; `le docvalid doc-drift-check` selects one action out of the table
-// below. The three fields the Gate carried travel with it: the Make target it
-// still is, the reason `--list` printed, and whether it WRITES.
-//
-// Three gates over two scripts become ONE command with three actions, because
-// one package registers exactly one root (internal/le/register_test.go,
-// TestLeRegistersOneRootAndNoToolRoots). internal/le/vendorweb is the template,
-// and this is the SECOND table of its shape: the THIRD tool that needs
-// sub-actions lifts the table into internal/le/leroot rather than writing another
-// (plan/spec-le-is-a-ze-binary.md, Known Limitations).
+// The action table keeps each native verb, purpose, write marker, and callable
+// implementation together.
 
 package docvalid
 
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-// area is the name this command is typed as. It is the directory the two
-// scripts live in, because the gates it holds share no prefix of their own:
-// one is spelled ze-command-*, one ze-doc-*, one ze-docs-*.
+// area is the name this command is typed as.
 const area = "docvalid"
 
-// action is one thing `le docvalid` can do. It is scripts/le/devtools/gate.py
-// Gate, with the argv replaced by the function the port made callable.
+// action is one callable `le docvalid` operation.
 type action struct {
-	// gate is the Make target, unchanged. Every shim, doc, rule and journal row
-	// spells this, so it stays the identity and the verb is a rendering of it.
-	gate string
-	// why is what the gate is for, printed by the listing and by help.
-	why string
-	// writes says this action changes the tree.
+	verb   string
+	why    string
 	writes bool
-	// answer runs it.
 	answer func() (any, int)
 }
 
-// actions is the whole command surface. A fourth gate would be a row here and
-// nothing else.
+// actions is the whole command surface.
 var actions = []action{
 	{
-		gate:   "ze-command-contract-check",
+		verb:   "command-contract",
 		why:    "every YANG command node has a handler, and every handler a node",
 		answer: runContract,
 	},
 	{
-		gate:   "ze-doc-drift-check",
+		verb:   "doc-drift",
 		why:    "the documentation claims agree with the registry, the tree and the operator catalog",
 		answer: runDrift,
 	},
 	{
-		gate:   "ze-docs-pipe-operators-update",
+		verb:   "pipe-operators-update",
 		why:    "regenerate the published pipe operator table from the operator catalog",
 		writes: true,
 		answer: runWriteGenerated,
 	},
 }
 
-// verb answers the word a developer types for this action.
-//
-// It is the gate name with the ze- prefix removed, which is as much as can be
-// derived here: three gates in one area with three different prefixes leave the
-// rest of the name as the thing that tells them apart. Nothing is typed beside
-// a gate name, so the two cannot drift.
-func (a action) verb() string {
-	return strings.TrimPrefix(a.gate, "ze-")
-}
-
-// runContract runs the YANG/handler contract gate over the checkout.
+// runContract runs the YANG/handler contract over the checkout.
 func runContract() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -93,7 +63,7 @@ func runContract() (any, int) {
 	return result, 0
 }
 
-// runDrift runs the documentation drift gate over the checkout.
+// runDrift checks documentation claims over the checkout.
 func runDrift() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -114,7 +84,7 @@ func runWriteGenerated() (any, int) {
 		reportError(err)
 		return nil, 1
 	}
-	report, err := WriteGenerated(root)
+	report, err := writeGenerated(root)
 	if err != nil {
 		reportError(err)
 		return nil, 1
@@ -122,12 +92,10 @@ func runWriteGenerated() (any, int) {
 	return report, 0
 }
 
-// ActionRow is one row of the bare command's answer: what to type, whether it
-// writes, the Make target it still is, and why it exists.
+// ActionRow is one row of the bare command's answer.
 type ActionRow struct {
 	Verb   string `json:"verb"`
 	Writes bool   `json:"writes"`
-	Gate   string `json:"gate"`
 	Why    string `json:"why"`
 }
 
@@ -144,15 +112,14 @@ func Actions() ActionList {
 	list := ActionList{Area: area, Actions: make([]ActionRow, 0, len(actions))}
 	for _, a := range actions {
 		list.Actions = append(list.Actions, ActionRow{
-			Verb: a.verb(), Writes: a.writes, Gate: a.gate, Why: a.why,
+			Verb: a.verb, Writes: a.writes, Why: a.why,
 		})
 	}
 	return list
 }
 
-// Text renders the listing for a person, in the shape the Python area printed:
-// the area, then one padded row per action carrying the writes marker and the
-// reason.
+// Text renders the listing for a person: the area, then one padded row per
+// action carrying the writes marker and reason.
 func (l ActionList) Text() string {
 	var tb textbuf.Buffer
 	tb.Str(l.Area).Str(":\n")
@@ -164,9 +131,8 @@ func (l ActionList) Text() string {
 		}
 	}
 
-	// "writes" and "checks" are the two words the Python listing printed for
-	// this fact, and they are the whole reason a reader can pick an action
-	// without opening the code behind it.
+	// "writes" and "checks" let a reader pick an action without opening the
+	// code behind it.
 	for _, row := range l.Actions {
 		mark := "checks"
 		if row.Writes {
@@ -187,7 +153,7 @@ func Subs() string {
 		if i > 0 {
 			tb.Str(" | ")
 		}
-		tb.Str(a.verb())
+		tb.Str(a.verb)
 		if a.writes {
 			tb.Str(" (writes)")
 		}
@@ -204,32 +170,26 @@ func Answer(args []string) (any, int) {
 	}
 
 	for _, a := range actions {
-		if a.verb() != args[0] {
+		if a.verb != args[0] {
 			continue
 		}
 		if len(args) > 1 {
-			return nil, refuseValue(a.verb(), args[1])
+			return nil, refuseValue(a.verb, args[1])
 		}
 		return a.answer()
 	}
 
-	// 2 rather than 1: the Python area answered 2 for a name it did not hold,
-	// which is a different fact from a gate that ran and failed. Callers that
-	// read the codes apart keep reading them apart.
+	// Usage errors answer 2, distinct from an action that ran and failed.
 	return nil, refuseVerb(args[0])
 }
 
-// reportError writes one failure line to stderr, in the spelling every ported
-// le tool uses. The scripts prefixed it with their own file name; the command's
-// name is what a reader of `le` has to type, and leroot already knows it.
+// reportError writes one failure line to stderr.
 func reportError(err error) {
 	var tb textbuf.Buffer
 	fmt.Fprintln(os.Stderr, tb.Str("error: ").Err(err).String()) //nolint:errcheck // CLI output
 }
 
-// refuseVerb reports an action this command does not hold, and answers the code
-// the Python area answered for the same mistake: 2, which a caller can tell
-// apart from a gate that ran and failed.
+// refuseVerb reports an action this command does not hold.
 func refuseVerb(got string) int {
 	var tb textbuf.Buffer
 	fmt.Fprintln(os.Stderr, tb.Str("error: no such action in ").Str(area).Str(": ").Str(got).String()) //nolint:errcheck // CLI output
@@ -246,5 +206,5 @@ func refuseValue(verb, got string) int {
 	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(area).Byte(' ').Str(verb).Str(" takes no arguments, got ").Quoted(got).String()) //nolint:errcheck // CLI output
 	tb.Reset()
 	fmt.Fprintln(os.Stderr, tb.Str("usage: le ").Str(area).Byte(' ').Str(verb).Str(" [| json | yaml | table]").String()) //nolint:errcheck // CLI output
-	return 1
+	return 2
 }

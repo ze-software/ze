@@ -43,111 +43,9 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F400101
 # above are this test's actual subject and are unchanged.
 EOF_DEST
 
-# Python test plugin: keeps the daemon alive while the destination wire
+# native test plugin: keeps the daemon alive while the destination wire
 # assertion proves OTC stamping.
-tmpfs=test-stamp.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Keep the daemon alive while the dest peer verifies OTC egress stamping."""
-import json
-import sys
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def dest_got_route(result):
-    """True once the dest peer has been sent a real UPDATE, not just its EOR.
-
-    updates-sent counts EVERY UPDATE written to the peer, End-of-RIB included
-    (reactor_notify.go IncrUpdatesSent, which sees only the message type).
-    eor-sent is the separate marker counter, so the DIFFERENCE is the stamped
-    re-advertisement this test is about.
-
-    Deliberately NOT gated on state == established: the dest is a check-mode
-    ze-peer without linger, so it closes the instant its expect=bgp rule matches
-    and the success this predicate looks for is immediately followed by
-    "connecting".
-    """
-    if result.get('status') != 'done':
-        return False
-    data = result_text_data(result, '{}')
-    try:
-        parsed = json.loads(data) if isinstance(data, str) else data
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    if not isinstance(parsed, dict):
-        return False
-    peers = parsed.get('peers', {})
-    if not isinstance(peers, dict):
-        return False
-    for row in peers.values():
-        if not isinstance(row, dict):
-            continue
-        if row.get('updates-sent', 0) - row.get('eor-sent', 0) >= 1:
-            return True
-    return False
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # ONE barrier, on the outbound side, because it implies the inbound one: the
-    # dest peer cannot have been sent the stamped route unless adj-rib-in learned
-    # it first. Polling adj-rib-in and then the dest in sequence cost two full
-    # poll budgets, and with the source peer lingering the observer's wall clock
-    # IS the test's.
-    #
-    # The dest's expect=bgp rule is the authoritative proof of the OTC stamp, but
-    # it can only run while the daemon is alive and this observer owns `request
-    # shutdown`. quiesce() is not the barrier: it drains the forward pool, which
-    # says nothing when the dest was not yet an established forward target at
-    # forward time -- the route then arrives on the Adj-RIB-In replay rail, after
-    # a quiesce-only observer would already have torn the daemon down.
-    #
-    # quiesce() FIRST so the poll behind it is a safety net rather than the
-    # mechanism: every dispatch_until attempt is a full engine RPC, and 60 of
-    # them on a starved daemon outlast the test's own 20s budget -- turning a run
-    # whose wire assertions had already passed into an opaque timeout. One
-    # barrier RPC plus a short bounded poll costs a couple of round trips in the
-    # normal case and still tolerates the replay rail arriving late.
-    api.quiesce()
-    dest_result = api.dispatch_until(
-        'show bgp peer dest-peer detail', dest_got_route, attempts=24,
-    )
-    dest_data = result_text_data(dest_result)
-    if not dest_got_route(dest_result):
-        print(f'FAIL: dest-peer detail: {dest_data}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail('dest peer was never sent the OTC-stamped route')
-
-    # Diagnostics, not an assertion, and deliberately NOT `< 1`. The forwarded
-    # copy and adj-rib-in's own bookkeeping are independent rails: the dest can
-    # legitimately have been sent the stamped route while this query still reads
-    # 0. Only a FAILED query (result_json_data's -1 default) is a fault here.
-    total = result_json_data(dispatch(api, 'show bgp adj-rib-in status'), {}).get('total-routes', -1)
-    if total < 0:
-        msg = f'adj-rib-in query failed, got total={total}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    print(f'INFO: {total} route(s) in adj-rib-in from source Customer peer', file=sys.stderr)
-    print(f'INFO: dest-peer detail after the re-advertisement: {dest_data}', file=sys.stderr)
-    print('OK: dest peer was sent the OTC-stamped route', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# Native compiled fixture: plugin/role-otc-egress-stamp
 # ze configuration: Provider with two Customer peers on different loopback addresses
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -158,7 +56,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-stamp {
-		run ./test-stamp.run
+		run "ze-test fixture plugin/role-otc-egress-stamp"
 		encoder json
 	}
 }

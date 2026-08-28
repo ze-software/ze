@@ -206,7 +206,7 @@ func newSyncOrderFixture(t *testing.T, updateID uint64) (*Reactor, *Peer, *Peer,
 	update := syncOrderPublish(t, r, ctxID, updateID, syncOrderWithdrawBody)
 
 	// The announce this forwarded withdraw must never overtake. It is queued,
-	// not sent: ShouldQueue() is true for a peer inside its initial sync, so the
+	// not sent: shouldQueue() is true for a peer inside its initial sync, so the
 	// injection rail parks it here and sendInitialRoutes drains it.
 	dst.QueueAnnounce(testRoute(syncOrderPrefix))
 
@@ -263,7 +263,7 @@ func assertAnnounceThenWithdraw(t *testing.T, dst *Peer, conn *recordingConn) {
 // initial route sync reaches that peer AFTER the announce already queued for it,
 // so the peer does not end holding a prefix that was withdrawn.
 //
-// VALIDATES: AC-1 -- forwardUpdateCore consults Peer.ShouldQueue() and parks the
+// VALIDATES: AC-1 -- forwardUpdateCore consults Peer.shouldQueue() and parks the
 // item in overflow, and drainOverflow keeps it there until the sync ends.
 // PREVENTS: the routing blackhole this spec exists to remove. Without the gate
 // the withdraw is written and flushed immediately, the queued announce drains
@@ -285,7 +285,7 @@ func TestForwardedWithdrawWaitsForQueuedAnnounceCoreRail(t *testing.T) {
 // fast path, which reaches the destination's write buffer directly and so cannot
 // be covered by the plugin rail's test.
 //
-// VALIDATES: AC-1 -- reactorForwardRS consults Peer.ShouldQueue() BEFORE
+// VALIDATES: AC-1 -- reactorForwardRS consults Peer.shouldQueue() BEFORE
 // tryDirectWriteNoFlush, so the item takes the overflow path instead of the
 // destination's bufWriter.
 // PREVENTS: the same blackhole reaching the peer by the rail that never touches
@@ -322,7 +322,7 @@ func TestForwardedUpdateWaitsForPendingOverflowRSRail(t *testing.T) {
 	const announceID, withdrawID uint64 = 7400, 7401
 
 	// gate blocks the destination's worker inside its FIRST batch, which is the
-	// wake sentinel DispatchOverflow sends. runWorker calls the handler and only
+	// wake sentinel dispatchOverflow sends. runWorker calls the handler and only
 	// then calls drainOverflow, so nothing can leave overflow until this test
 	// opens the gate. Without it the worker could drain between the store and
 	// the dispatch below, and the test would race its own setup.

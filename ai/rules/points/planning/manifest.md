@@ -51,7 +51,7 @@ creating-a-spec-blocking ## Creating a Spec (BLOCKING)
   always-start-a-spec-from-plan-template-md
   keep-the-design-and-closure-templates-apart
   leave-placeholders-only-while-the-spec-is-a-skeleton
-  name-make-ze-verify-as-the-spec-s-only-gate
+  name-the-native-verify-action-as-the-spec-s-only-gate
 pre-implementation ## Pre-Implementation
   the-research-and-design-phase-checklist
 implementation-plan-format ## Implementation Plan Format

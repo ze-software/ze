@@ -3,15 +3,15 @@ Source common.tape
 Set WaitTimeout 60s
 
 Hide
-Type "/src/demos/terminal/ospf-adjacency/run.sh prepare"
+Type "ze-demo run ospf-adjacency prepare"
 Enter
 Wait+Screen /OSPF lab prepared/
-Type "/src/demos/terminal/ospf-adjacency/run.sh start"
+Type "ze-demo run ospf-adjacency start"
 Enter
 Wait+Screen /OSPF adjacency converged/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh ospf-adjacency intro"
+Type "ze-demo card ospf-adjacency intro"
 Enter
 Show
 Wait+Screen /====/
@@ -32,7 +32,7 @@ Wait+Screen /router-id 172.31.0.2/
 Sleep 6s
 
 Hide
-Type "ip netns exec ospf-ze bash"
+Type "ip netns exec ospf-ze ze-demo shell"
 Enter
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/ospf-adjacency/config ZE_SSH_PASSWORD=secret123"
 Enter

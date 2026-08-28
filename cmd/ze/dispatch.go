@@ -19,6 +19,16 @@ import (
 	zeversion "github.com/ze-software/ze/internal/core/version"
 )
 
+const (
+	booleanTextTrue         = "true"
+	commandModeOffline      = "offline"
+	flagExtendedVersion     = "--extended-version"
+	flagJSON                = "--json"
+	helpMCPPortOption       = "--mcp <port>"
+	helpOptionsSectionTitle = "Options"
+	typeNameString          = "string"
+)
+
 // binarySetup is called before dispatch to perform personality-specific
 // initialization (plugin server version stamp, diagnostics, command registration)
 // and to parse personality-specific global flags from the arg list, returning
@@ -100,7 +110,6 @@ func defaultDispatch(args []string) int {
 		return 0
 	}
 
-
 	if handler := registry.LookupRoot(arg); handler != nil {
 		return handler(rctx, args[1:])
 	}
@@ -160,7 +169,7 @@ func dispatchMain(args []string) int {
 			rw := helpfmt.NewRenderWriter(os.Stdout)
 			rw.Line(zeversion.Short())
 			return rw.ExitCode()
-		case "--extended-version":
+		case flagExtendedVersion:
 			rw := helpfmt.NewRenderWriter(os.Stdout)
 			rw.Line(zeversion.Extended())
 			return rw.ExitCode()

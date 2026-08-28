@@ -3,6 +3,8 @@
 package cli
 
 import (
+	interopbgp "github.com/ze-software/ze/internal/le/interoplab/bgp"
+	"github.com/ze-software/ze/internal/test/fixture"
 	"github.com/ze-software/ze/internal/test/mock/cymru"
 	"github.com/ze-software/ze/internal/test/mock/irr"
 	"github.com/ze-software/ze/internal/test/mock/peeringdb"
@@ -29,7 +31,7 @@ func init() {
 	registerCIRoot("ldp", "ldp", "LDP", "Run LDP functional tests (.ci files in test/ldp/).\nCovers single-daemon boot: config parse -> YANG -> engine startup -> show ldp neighbor/binding.", 0)
 	registerCIRoot("managed", "managed", "managed", "Run managed config functional tests (.ci files in test/managed/).\nTests fleet management: hub config, per-client auth, managed boot, config change.", 1)
 	registerCIRoot("policy", "policy", "policy routing", "Run policy routing functional tests (.ci files in test/policy/).\nCovers boot-time apply, table/next-hop actions, tcp-flags, tcp-mss, and reload.", 0)
-	registerCIRoot("pppoe", "pppoe", "PPPoE", "Run PPPoE access-concentrator functional tests (.ci files in test/pppoe/).\nCovers RFC 2516 discovery over a real veth pair: PADI/PADO with AC-Name and\nAC-Cookie, PADR/PADS session allocation, forged-cookie rejection, an 802.1Q\nsub-interface, and PPPoE running alongside L2TP on one daemon. Every test\ndeclares option=netns-link, so `make ze-qemu-pppoe-test` is what runs them and\nthey SKIP everywhere else. That target is the only one that supplies both\nhalves: the per-test netns launch mode, and ze's runtime kernel, whose\nCONFIG_PPPOE the AF_PPPOX session behind PADS needs.", 0)
+	registerCIRoot("pppoe", "pppoe", "PPPoE", "Run PPPoE access-concentrator functional tests (.ci files in test/pppoe/).\nCovers RFC 2516 discovery over a real veth pair: PADI/PADO with AC-Name and\nAC-Cookie, PADR/PADS session allocation, forged-cookie rejection, an 802.1Q\nsub-interface, and PPPoE running alongside L2TP on one daemon. Every test\ndeclares option=netns-link, so `./le qemu pppoe-test` runs them and they SKIP\neverywhere else. That action supplies both halves: the per-test netns launch\nmode, and ze's runtime kernel, whose CONFIG_PPPOE the AF_PPPOX session behind\nPADS needs.", 0)
 	registerCIRoot("rsvpte", "rsvpte", "RSVP-TE", "Run RSVP-TE functional tests (.ci files in test/rsvpte/).\nCovers single-daemon boot: config parse -> YANG -> engine startup -> show rsvp-te session/interface/tunnel/fast-reroute (incl. RFC 4090 fast-reroute config + bypass).", 0)
 	registerCIRoot("runner", "runner", "runner", "Run test-runner primitive functional tests (.ci files in test/runner/).\nCovers the .ci orchestration grammar itself: naming a background process and stopping it mid-test (cmd=background:name=, cmd=stop).", 0)
 	// Serial (1), not parallel: every test in this suite programs routes into
@@ -78,5 +80,11 @@ func init() {
 	registerRoot("peer", cmdPeer, "BGP test peer (sink/echo/check modes)")
 	registerRoot("replay", cmdReplay, "Replay a captured BGP session (ze-test replay <capture-file|->) through the real read path with a deterministic clock")
 	registerRoot("plugin-external", cmdPluginExternal, "Run a registered engine plugin's RunEngine externally (TLS connect-back) -- proves IsInternal()-guarded refuse/warn behavior; not a production plugin launcher")
+	registerRoot("interop-bgp", interopbgp.Helper, "Compiled BGP interop process, speaker, and collector personalities")
 	registerRoot("text-plugin", cmdTextPlugin, "Run minimal text-mode plugin (for .ci tests)")
+	registerRoot("static-http", cmdStaticHTTP, "Serve a directory over HTTP for deterministic functional tests")
+	registerRoot("json-ip-bytes", cmdJSONIPBytes, "Sum byte counters for an IP across named JSON arrays")
+	registerRoot("vpp-stub", cmdVPPStub, "Run the GoVPP Unix-socket stub used by VPP functional tests")
+	registerRoot("http-get", cmdHTTPGet, "Fetch one HTTP URL to stdout for container-local test tooling")
+	registerRoot("fixture", fixture.Run, "Run one compiled .ci fixture helper")
 }

@@ -115,7 +115,7 @@ capability that the product should report.
     error, not a new level
 - [ ] `internal/core/diagnostic/doctor_registry.go` - `RegisterDoctorCheck` and
   `DoctorCheckContext{Tree any, ConfigDir, Plugins, Store, Platform}` already
-  exist. `Tree` is `any` because `scripts/dev/core_import_baseline.txt` is
+  exist. `Tree` is `any` because `internal/le/` is
   shrink-only, so `internal/core` cannot import `internal/component/config`
   → Decision: THE REGISTRY ALREADY EXISTS. This spec adds two callers and a
     severity, not a mechanism (`ai/rules/no-layering.md`)
@@ -200,13 +200,13 @@ Three, all reading one enrolment: `ze doctor` (`internal/component/doctor/doctor
 
 ### Integration Points
 - `diagnostic.RegisterDoctorCheck` (`internal/core/diagnostic/doctor_registry.go`) - the enrolment mechanism, already built. Each subsystem registers from its owning package.
-- `diagnostic.DoctorCheckContext` - carries `Tree any`, type-asserted to `*config.Tree`. The `any` is required: `scripts/dev/core_import_baseline.txt` is shrink-only, so `internal/core` cannot import `internal/component/config`.
+- `diagnostic.DoctorCheckContext` - carries `Tree any`, type-asserted to `*config.Tree`. The `any` is required: `internal/le/` is shrink-only, so `internal/core` cannot import `internal/component/config`.
 - `internal/core/sysctl/known_linux.go` - already registers `net.mpls.platform_labels`, so decision 5 writes through a surface ze owns.
 - `internal/appliance/kernelreq.go` `enforceKernelRequirements` - the build-time twin. Naming runtime capabilities after the same `CONFIG_` symbols keeps the two legible against each other.
 
 ### Architectural Verification
 - **Registration over hardcoding.** Each subsystem registers its own capability from its owning package through `RegisterDoctorCheck`. No core or shared package spells a subsystem name, and `runChecks` loses a direct append rather than gaining one (`ai/rules/plugins.md`, `ai/rules/repo-maintenance.md`).
-- **Tier.** The enrolment lives under `internal/component/doctor`, so it may take the typed tree. Nothing new is added to `internal/core` and `make ze-tier-check` sees no new core-to-component pair.
+- **Tier.** The enrolment lives under `internal/component/doctor`, so it may take the typed tree. Nothing new is added to `internal/core` and `./le tier check` sees no new core-to-component pair.
 - **One mechanism.** Three XFRM probes collapse to one. Two are deleted, not wrapped (`ai/rules/no-layering.md`).
 
 ## Risks & Assumptions
@@ -333,7 +333,7 @@ when the predicate is stubbed to return false.
 ### QEMU Tests (BLOCKING, `ai/rules/platform-linux.md`)
 | Test | Validates |
 |------|-----------|
-| `make ze-qemu-needs-linux-test` over the five `.ci` | AC-1 through AC-6 against a real kernel |
+| `./le qemu run command "./le qemu all-tests"` over the five `.ci` | AC-1 through AC-6 against a real kernel |
 | MPLS built-in versus modular | A-5, and AC-8's whole point |
 | MPLS configured with `mpls_iptunnel` unloaded | A-4: the kernel autoloads it, so it must not be gated |
 | Unprivileged `ze doctor` on a kernel with XFRM | AC-13 |
@@ -452,7 +452,7 @@ Each names its path and the test that proves it.
 | Exactly ONE XFRM probe in the tree | `grep -rn "func probeXFRM\|func xfrmAvailable\|func openXFRMNetlink" internal/` returns one Linux implementation and its non-Linux twin |
 | One shared `ipsecInUse`, three callers | `gopls references` on the predicate names the gate, `checkKernelModules`, and `extractIPsecListeners` |
 | Appliance kernel carries MPLS | `grep -n "CONFIG_MPLS" gokrazy/kernel/runtime.config gokrazy/kernel/runtime.require` returns both symbols |
-| The five functional tests exist and pass | `make ze-functional-plugin-test` names each `kernel-capability-*` test |
+| The five functional tests exist and pass | `./le functional plugin` names each `kernel-capability-*` test |
 | Every probe's three states are reachable in test | each `.ci` or unit test drives present, absent, and cannot-determine |
 | Diagnostic codes registered | `go test ./internal/component/doctor -run TestDoctorCoverageCodesRegistered` |
 
@@ -502,7 +502,7 @@ N-A. No RFC governs kernel capability detection.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] `make ze-precommit-verify` green, or scoped evidence with attribution
+- [ ] `./le verify current mode full` green, or scoped evidence with attribution
 
 ### TDD
 - [ ] Tests written

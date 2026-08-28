@@ -221,9 +221,9 @@ func TestAMissingAnchorStopsTheRun(t *testing.T) {
 	}
 }
 
-// VALIDATES: both answers render themselves in the words the script printed.
+// VALIDATES: both answers render themselves as actionable native verdicts.
 // PREVENTS: a report a developer cannot read at a terminal.
-func TestBothReportsRenderTheScriptWording(t *testing.T) {
+func TestBothReportsRenderNativeWording(t *testing.T) {
 	current := CheckReport{}
 	want := "feature-tag lists are current (.golangci.yml, gokrazy/ze/config.json, docs/guide/quickstart.md, .github/workflows/codeql.yml)\n"
 	if got := current.Text(); got != want {
@@ -231,7 +231,7 @@ func TestBothReportsRenderTheScriptWording(t *testing.T) {
 	}
 
 	stale := CheckReport{Stale: []string{".golangci.yml"}}
-	if got := stale.Text(); got != ".golangci.yml is stale; run make generate\n" {
+	if got := stale.Text(); got != ".golangci.yml is stale; run ./le feature-tags write\n" {
 		t.Errorf("a stale check renders %q", got)
 	}
 

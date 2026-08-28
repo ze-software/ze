@@ -800,8 +800,8 @@ func TestFwdPool_DispatchOverflow(t *testing.T) {
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Dispatch some items via overflow
-	pool.DispatchOverflow(key, fwdItem{done: func() {}})
-	pool.DispatchOverflow(key, fwdItem{done: func() {}})
+	pool.dispatchOverflow(key, fwdItem{done: func() {}})
+	pool.dispatchOverflow(key, fwdItem{done: func() {}})
 
 	// Dispatch a normal item to trigger worker creation + processing
 	pool.Dispatch(key, fwdItem{})
@@ -841,7 +841,7 @@ func TestFwdPool_OverflowNeverDrops(t *testing.T) {
 	// Fill overflow with many items -- none should be dropped
 	const overflowCount = 500
 	for range overflowCount {
-		pool.DispatchOverflow(key, fwdItem{done: func() {}})
+		pool.dispatchOverflow(key, fwdItem{done: func() {}})
 	}
 
 	// Unblock handler -- all items should eventually be processed
@@ -879,7 +879,7 @@ func TestFwdPool_StopFiresOverflowDone(t *testing.T) {
 
 	// Add overflow items
 	for range 3 {
-		pool.DispatchOverflow(key, fwdItem{
+		pool.dispatchOverflow(key, fwdItem{
 			done: func() { doneCalled.Add(1) },
 		})
 	}
@@ -980,7 +980,7 @@ func TestFwdPool_DrainOverflowDirectProcess(t *testing.T) {
 	// Add many overflow items (more than channel capacity).
 	// When drainOverflow runs, some will enqueue, rest will be processed directly.
 	for range 10 {
-		pool.DispatchOverflow(key, fwdItem{done: func() {}})
+		pool.dispatchOverflow(key, fwdItem{done: func() {}})
 	}
 
 	// Trigger worker creation + processing by dispatching a normal item.
@@ -1025,7 +1025,7 @@ func TestFwdPool_OverflowUsesPool(t *testing.T) {
 	// peer must be non-nil so items are not treated as sentinels (which skip pool acquire).
 	dummyPeer := &Peer{}
 	for range 5 {
-		pool.DispatchOverflow(key, fwdItem{done: func() {}, peer: dummyPeer})
+		pool.dispatchOverflow(key, fwdItem{done: func() {}, peer: dummyPeer})
 	}
 
 	// Mux should have buffers in use.
@@ -1076,7 +1076,7 @@ func TestFwdPool_PeerDisconnectReturnsSlots(t *testing.T) {
 	// peer must be non-nil so items acquire overflow handles (nil peer = sentinel, skips acquire).
 	dummyPeer := &Peer{}
 	for range 4 {
-		pool.DispatchOverflow(key, fwdItem{
+		pool.dispatchOverflow(key, fwdItem{
 			done: func() { doneCalled.Add(1) },
 			peer: dummyPeer,
 		})
@@ -1131,8 +1131,8 @@ func TestFwdPool_PoolExhausted(t *testing.T) {
 	// Items beyond budget get nil Buf (exhausted) but are still accepted.
 	dummyPeer := &Peer{}
 	for range 20 {
-		ok := pool.DispatchOverflow(key, fwdItem{done: func() {}, peer: dummyPeer})
-		require.True(t, ok, "DispatchOverflow must never reject items")
+		ok := pool.dispatchOverflow(key, fwdItem{done: func() {}, peer: dummyPeer})
+		require.True(t, ok, "dispatchOverflow must never reject items")
 	}
 
 	// Unblock and verify all 20 items processed (none dropped).
@@ -1173,7 +1173,7 @@ func TestFwdPool_DrainOverflowDirectProcessReleasesTokens(t *testing.T) {
 	// peer must be non-nil so items acquire overflow handles (nil peer = sentinel, skips acquire).
 	dummyPeer := &Peer{}
 	for range 10 {
-		pool.DispatchOverflow(key, fwdItem{done: func() {}, peer: dummyPeer})
+		pool.dispatchOverflow(key, fwdItem{done: func() {}, peer: dummyPeer})
 	}
 
 	// Trigger worker creation + processing.
@@ -1191,11 +1191,11 @@ func TestFwdPool_DrainOverflowDirectProcessReleasesTokens(t *testing.T) {
 	}, time.Second, time.Millisecond, "all mux buffers must be returned")
 }
 
-// TestFwdPool_DispatchOverflowAfterStopWithMux verifies DispatchOverflow
+// TestFwdPool_DispatchOverflowAfterStopWithMux verifies dispatchOverflow
 // on a stopped pool with overflow mux enabled: returns false, calls done(),
 // and does NOT consume a mux buffer.
 //
-// VALIDATES: DispatchOverflow stopped-pool path with mux enabled
+// VALIDATES: dispatchOverflow stopped-pool path with mux enabled
 // PREVENTS: Buffer leaks when dispatching to a stopped pool.
 func TestFwdPool_DispatchOverflowAfterStopWithMux(t *testing.T) {
 	var doneCalled atomic.Int32
@@ -1207,11 +1207,11 @@ func TestFwdPool_DispatchOverflowAfterStopWithMux(t *testing.T) {
 	pool.setOverflowMux(mux)
 	pool.Stop()
 
-	ok := pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{
+	ok := pool.dispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{
 		done: func() { doneCalled.Add(1) },
 	})
 
-	assert.False(t, ok, "DispatchOverflow must return false on stopped pool")
+	assert.False(t, ok, "dispatchOverflow must return false on stopped pool")
 	assert.Equal(t, int32(1), doneCalled.Load(), "done must be called on stopped pool")
 	_, inUse := mux.Stats()
 	assert.Equal(t, int64(0), inUse,
@@ -1239,7 +1239,7 @@ func TestFwdPool_OverflowDepths(t *testing.T) {
 
 	// Add overflow items to first peer only.
 	for range 3 {
-		pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}, fwdItem{done: func() {}})
+		pool.dispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}, fwdItem{done: func() {}})
 	}
 
 	depths := pool.overflowDepths()
@@ -1255,7 +1255,7 @@ func TestFwdPool_OverflowDepths(t *testing.T) {
 	}, time.Second, time.Millisecond, "overflow depth should return to 0 after drain")
 }
 
-// TestFwdPool_PoolUsedRatio verifies PoolUsedRatio returns correct utilization.
+// TestFwdPool_PoolUsedRatio verifies poolUsedRatio returns correct utilization.
 //
 // VALIDATES: AC-18 (pool utilization visible as ratio)
 // PREVENTS: Incorrect pool utilization metric.
@@ -1275,23 +1275,23 @@ func TestFwdPool_PoolUsedRatio(t *testing.T) {
 	defer pool.Stop()
 
 	// No overflow items yet -- ratio should be 0.
-	assert.InDelta(t, 0.0, pool.PoolUsedRatio(), 0.001, "empty pool should have 0.0 ratio")
+	assert.InDelta(t, 0.0, pool.poolUsedRatio(), 0.001, "empty pool should have 0.0 ratio")
 
 	// Create worker and add overflow items.
 	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 	<-handlerStarted
 	dummyPeer := &Peer{}
 	for range 4 {
-		pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{done: func() {}, peer: dummyPeer})
+		pool.dispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{done: func() {}, peer: dummyPeer})
 	}
 
 	// With items in use, ratio should be > 0.
-	assert.Greater(t, pool.PoolUsedRatio(), 0.0, "ratio should be > 0 with items in use")
+	assert.Greater(t, pool.poolUsedRatio(), 0.0, "ratio should be > 0 with items in use")
 
 	close(blocker)
 }
 
-// TestFwdPool_PoolUsedRatioNoPool verifies PoolUsedRatio returns 0 when
+// TestFwdPool_PoolUsedRatioNoPool verifies poolUsedRatio returns 0 when
 // no overflow pool is configured.
 //
 // VALIDATES: AC-18 (graceful no-pool path)
@@ -1301,7 +1301,7 @@ func TestFwdPool_PoolUsedRatioNoPool(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	assert.InDelta(t, 0.0, pool.PoolUsedRatio(), 0.001, "no pool should return 0.0")
+	assert.InDelta(t, 0.0, pool.poolUsedRatio(), 0.001, "no pool should return 0.0")
 }
 
 // TestFwdPool_SourceOverflowRatios verifies per-source overflow ratio tracking.
@@ -1449,7 +1449,7 @@ func TestPeerPoolConcurrent(t *testing.T) {
 // --- Overflow MixedBufMux integration tests (fwd-auto-sizing Phase 4) ---
 
 func TestFwdPool_PoolUsedRatioMixedBufMux(t *testing.T) {
-	// PoolUsedRatio = totalBlocks / maxBlocks (memory pressure, not bytes handed out).
+	// poolUsedRatio = totalBlocks / maxBlocks (memory pressure, not bytes handed out).
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	defer pool.Stop()
@@ -1460,18 +1460,18 @@ func TestFwdPool_PoolUsedRatioMixedBufMux(t *testing.T) {
 	pool.setOverflowMux(mux)
 
 	// No allocations: ratio should be 0.
-	assert.Equal(t, 0.0, pool.PoolUsedRatio())
+	assert.Equal(t, 0.0, pool.poolUsedRatio())
 
 	// Get4K grows one chunk (16 blocks) -> totalBlocks=16, maxBlocks=32 -> ratio=0.5.
 	h := mux.Get4K()
-	ratio := pool.PoolUsedRatio()
+	ratio := pool.poolUsedRatio()
 	assert.InDelta(t, 0.5, ratio, 0.01, "one chunk of two allocated")
 
 	mux.Return(h)
 }
 
 func TestFwdPool_OverflowExhaustedRejectsDispatch(t *testing.T) {
-	// When overflow MixedBufMux is exhausted, DispatchOverflow still accepts
+	// When overflow MixedBufMux is exhausted, dispatchOverflow still accepts
 	// (routes never dropped) but without a pooled buffer.
 	handled := make(chan struct{}, 100)
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
@@ -1487,9 +1487,9 @@ func TestFwdPool_OverflowExhaustedRejectsDispatch(t *testing.T) {
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
 
-	// DispatchOverflow should still return true (routes never dropped).
-	ok := pool.DispatchOverflow(key, fwdItem{})
-	assert.True(t, ok, "DispatchOverflow must not drop routes even when exhausted")
+	// dispatchOverflow should still return true (routes never dropped).
+	ok := pool.dispatchOverflow(key, fwdItem{})
+	assert.True(t, ok, "dispatchOverflow must not drop routes even when exhausted")
 }
 
 // --- Two-tier dispatch integration tests (deep-review findings 1-5, 10) ---
@@ -1568,7 +1568,7 @@ func TestFwdPool_TryDispatchChannelFull(t *testing.T) {
 }
 
 func TestFwdPool_DispatchOverflowGet64K(t *testing.T) {
-	// Finding #10: DispatchOverflow uses Get64K() for ExtMsg peers.
+	// Finding #10: dispatchOverflow uses Get64K() for ExtMsg peers.
 	blocker := make(chan struct{})
 	handlerStarted := make(chan struct{}, 1)
 
@@ -1595,7 +1595,7 @@ func TestFwdPool_DispatchOverflowGet64K(t *testing.T) {
 	<-handlerStarted
 
 	dummyPeer := &Peer{}
-	pool.DispatchOverflow(key, fwdItem{peer: dummyPeer, done: func() {}})
+	pool.dispatchOverflow(key, fwdItem{peer: dummyPeer, done: func() {}})
 
 	// Check that the mux allocated a whole block (64K) for the ExtMsg peer.
 	_, usedBytes := mux.Stats()
@@ -1631,7 +1631,7 @@ func TestFwdPool_SupersedeReleasesOverflowBuf(t *testing.T) {
 
 	// Dispatch two overflow items with same supersede key and body.
 	body := []byte{0x00, 0x00, 0x00, 0x15, 0x40, 0x01}
-	pool.DispatchOverflow(key, fwdItem{
+	pool.dispatchOverflow(key, fwdItem{
 		peer:         dummyPeer,
 		rawBodies:    [][]byte{body},
 		supersedeKey: 12345,
@@ -1642,7 +1642,7 @@ func TestFwdPool_SupersedeReleasesOverflowBuf(t *testing.T) {
 	assert.Greater(t, used1, int64(0), "first overflow item should hold a buffer")
 
 	// Second item with same key supersedes the first -- old buffer returned.
-	pool.DispatchOverflow(key, fwdItem{
+	pool.dispatchOverflow(key, fwdItem{
 		peer:         dummyPeer,
 		rawBodies:    [][]byte{body},
 		supersedeKey: 12345,
@@ -1677,7 +1677,7 @@ func TestFwdPool_RegisterUnregisterOutgoingPool(t *testing.T) {
 }
 
 // TestFwdPool_DenialThroughDispatchOverflow verifies that the congestion
-// controller's ShouldDeny integrates with DispatchOverflow: when the pool
+// controller's shouldDeny integrates with dispatchOverflow: when the pool
 // is above the denial threshold and the peer is the worst offender, the
 // item is still accepted (routes never dropped) but no overflow buffer is
 // acquired. This is the actual backpressure signal -- not dispatch rejection.
@@ -1725,8 +1725,8 @@ func TestFwdPool_DenialThroughDispatchOverflow(t *testing.T) {
 	<-handlerStarted
 
 	dummyPeer := &Peer{}
-	ok := pool.DispatchOverflow(key, fwdItem{peer: dummyPeer, done: func() {}})
-	assert.True(t, ok, "DispatchOverflow must accept (routes never dropped)")
+	ok := pool.dispatchOverflow(key, fwdItem{peer: dummyPeer, done: func() {}})
+	assert.True(t, ok, "dispatchOverflow must accept (routes never dropped)")
 	assert.Equal(t, int64(1), deniedCount.Load(), "denial callback should fire")
 
 	// The item was accepted but no overflow buffer acquired (denied).
@@ -1829,7 +1829,7 @@ func TestFwdPool_ReregisterExtMsg(t *testing.T) {
 // FIFO guarantee across the channel/overflow boundary: while any item is
 // pending in the overflow buffer (including items an in-flight drain has
 // snapshotted), TryDispatch must refuse new items so they route through
-// DispatchOverflow behind the pending ones.
+// dispatchOverflow behind the pending ones.
 //
 // VALIDATES: AC-11 (all routes delivered in order across overflow dispatch)
 // PREVENTS: a newer UPDATE entering the freed worker channel ahead of older
@@ -1870,7 +1870,7 @@ func TestFwdPool_TryDispatchRefusesWhileOverflowPending(t *testing.T) {
 
 	// Channel full: 4 refuses and goes to overflow (the documented protocol).
 	require.False(t, pool.TryDispatch(key, item(4)))
-	require.True(t, pool.DispatchOverflow(key, item(4)))
+	require.True(t, pool.dispatchOverflow(key, item(4)))
 
 	// Unblock batch [1]. The worker's post-batch drainOverflow cannot fit 4
 	// (channel still holds [2,3]), so it re-queues 4 and starts batch [2,3],
@@ -1883,7 +1883,7 @@ func TestFwdPool_TryDispatchRefusesWhileOverflowPending(t *testing.T) {
 	// of pending overflow item 4.
 	require.False(t, pool.TryDispatch(key, item(5)),
 		"TryDispatch must refuse while overflow items are pending (per-key FIFO)")
-	require.True(t, pool.DispatchOverflow(key, item(5)))
+	require.True(t, pool.dispatchOverflow(key, item(5)))
 
 	// Drain everything and verify global FIFO order 1..5.
 	unblock()

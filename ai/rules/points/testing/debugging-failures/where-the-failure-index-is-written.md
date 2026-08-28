@@ -4,7 +4,7 @@ level:
 stage:
 ---
 ```bash
-make ze-precommit-verify
+./le verify worktree
 # On failure, read:
 tmp/ze-verify-failures.log
 ```

@@ -231,7 +231,7 @@ annotation a blocker. Clearing means **deleting the `{gap: ...}` text from
 | 1 | A narrowing function has a NON-TEST caller on the responder path | `grep` shows a call from `buildAuthResponse` |
 | 2 | The response carries the narrowed selectors, not `anyChildTSPayloads` | the `2.9-2` positive below |
 | 3 | `NotifyTSUnacceptable` is SENT when the narrowed set is empty | the `2.9-1` positive below |
-| 4 | `RFC7296-2.9-1` carries BOTH polarities as tagged tests | `make ze-rfc-check` exits 0 |
+| 4 | `RFC7296-2.9-1` carries BOTH polarities as tagged tests | `./le rfc check` exits 0 |
 
 Removing the annotation without 1-3 is the "annotation smuggled in" failure the spec's
 Critical Review Checklist calls the one thing the gate cannot catch.
@@ -745,14 +745,14 @@ mode being guarded is one the kernel accepts without error. A unit test with a f
 proves the engine's arithmetic; **only a real kernel proves the SA was installed in
 transport mode.**
 
-The good news is that the wiring already exists and needs no Makefile edit:
+The good news is that the wiring already exists and needs no the retired Makefile (current producers: `internal/le/` native action tables) edit:
 
 - `internal/component/ike/dataplane/xfrm_integration_linux_test.go` already carries
   `//go:build integration && linux` and gives the harness pattern (`TestXFRMListSAs`
   constructs `&xfrmBackend{}` directly and skips on `EPERM`/`EACCES`).
-- `ZE_QEMU_INTEGRATION_PKGS` (`mk/test-integration.mk`) is **derived**: it greps for
+- `ZE_QEMU_INTEGRATION_PKGS` (the retired `mk/test-integration.mk` (current producer: `internal/le/integration/gates.go`)) is **derived**: it greps for
   `^//go:build integration && linux` across `internal/` and `cmd/`. So a new test in that
-  same package is picked up by `make ze-qemu-integration-test` automatically.
+  same package is picked up by `./le qemu run command "./le qemu all-tests"` automatically.
 
 Add a transport-mode case there: install a transport-mode policy and state, read them back
 with `netlink.XfrmStateList`, and assert the kernel reports `XFRM_MODE_TRANSPORT` (0) and
@@ -771,7 +771,7 @@ by hand and its output pasted as evidence.
 
 **A tag in `test/interop-ipsec/` is REFUSED.** `ai/rules/testing.md` states it, and the
 carrier table confirms it: `interop-ipsec` is declared with `TIER_UNRUN`
-(`scripts/dev/rfc_requirements.py`, `CARRIERS`, the "other three interop trees have runners
+(the retired `scripts/dev/rfc_requirements.py` (current producer: `internal/le/rfc/rfc.go`), `CARRIERS`, the "other three interop trees have runners
 but NO automated caller" entry). Only `test/interop/scenarios/*/check.py` earns
 `interop/nightly`. There are zero `RFC requirement:` tags under `test/interop-ipsec/` today.
 
@@ -780,7 +780,7 @@ So the 22 tags must live in:
 | Carrier | Tier | Where |
 |---------|------|-------|
 | `*_test.go` | `unit/verify` | `internal/component/ike/engine/`, `internal/component/ike/ipsec/` |
-| `test/ipsec/*.ci` | `functional/verify` | the `ipsec` suite IS in `all_suites` and HAS a `run_suite` line (`mk/test-functional.mk`, `:217`), so it earns the verify tier |
+| `test/ipsec/*.ci` | `functional/verify` | the `ipsec` suite IS in `all_suites` and HAS a `run_suite` line (the retired `mk/test-functional.mk` (current producer: `internal/le/functional/suites.go`), `:217`), so it earns the verify tier |
 
 The interop scenarios `ts-narrowing` and `transport-mode` are
 **goal-validation evidence, not tagged evidence**. Write them; do not tag them.
@@ -849,7 +849,7 @@ explicitly rather than sampling.**
 
 ## 10. Id allocation
 
-`check_id_allocation` (`scripts/dev/rfc_requirements.py`) refuses a new id whose
+`check_id_allocation` (the retired `scripts/dev/rfc_requirements.py` (current producer: `internal/le/rfc/rfc.go`)) refuses a new id whose
 ordinal is at or below its section's high-water mark. The mark comes from the COMMITTED
 HEAD (`git show HEAD:<path>`), and **a section with no mark is skipped entirely** (`:500-502`).
 
@@ -907,14 +907,14 @@ and adds its two tags.
 
 | Invariant | Why it is at risk | The guard |
 |-----------|-------------------|-----------|
-| **Every `test/interop-ipsec/` scenario stays green** | R-2 names WP-7's TS narrowing as one of four packages that change what a peer sees. Every existing scenario negotiates Child SAs, and today they get a wildcard. Once Ze narrows, a scenario whose `ze.conf` has no selector config must still produce a working SA | `make ze-interop-ipsec-test` at the package boundary, not at the end. A red is this package's own defect and is fixed here (`ai/rules/completion.md`) |
+| **Every `test/interop-ipsec/` scenario stays green** | R-2 names WP-7's TS narrowing as one of four packages that change what a peer sees. Every existing scenario negotiates Child SAs, and today they get a wildcard. Once Ze narrows, a scenario whose `ze.conf` has no selector config must still produce a working SA | `./le integration interop-ipsec` at the package boundary, not at the end. A red is this package's own defect and is fixed here (`ai/rules/completion.md`) |
 | **A peer with no configured selectors still works** | If "no `tunnel` list configured" narrows to the empty set, every existing config breaks with TS_UNACCEPTABLE | The absent-config default must be "policy allows everything", preserving today's behaviour exactly. Assert it with a fixture that configures no selectors |
 | `RFC4301-4.4.2-1`'s existing coverage | `child_test.go` (`TestChildSAInboundPolicyUsesNegotiatedTS`) asserts the inbound policy carries the negotiated TS. Section 6 changes what "negotiated" means | The test sets `sa.NegotiatedTSi/TSr` directly, so it survives. Re-read it before editing; do not weaken it |
 | `RFC4301-4.4.2-1`'s OTHER binding | `child_test.go` tags `TestNarrowTS`, which section 1.5 deletes | The obligation must be RE-BOUND to the new engine's test in the SAME commit, or `check_evidence_ratchet` fires. **Needs Thomas's `rfc-test-change-approved`** |
 | `RFC4301-4.1-1/-3/-4` tunnel-mode assertions | `child_test.go` asserts every installed Child SA carries `Mode == modeTunnel`. Section 6.6 makes the mode variable | These tests must keep asserting tunnel for a TUNNEL-mode SA. If they sweep "every child", they need a mode-aware fixture. **`RFC4301-4.1-1`'s transport half is currently delegated to an OSPF test**; once IKE can do transport, re-point it |
 | The dataplane fail-closed guards | `kernelXFRMMode` (`dataplane.go`) and `tunnelEndpoints` exist because a wrong mode is silent | WP-7 must not add a permissive default to either. Mutation 8 confirms the guard fires |
 | `ipToFullNet` remains the no-TS fallback | `child.go` | Keep it when deleting `narrowTS`'s neighbours |
-| Existing `test/ipsec/*.ci` | eight files, all exercising SA install and show output | They earn the verify tier, so a regression is caught by `make ze-precommit-verify` |
+| Existing `test/ipsec/*.ci` | eight files, all exercising SA install and show output | They earn the verify tier, so a regression is caught by `./le verify current mode full` |
 
 ---
 
@@ -922,7 +922,7 @@ and adds its two tags.
 
 | Id | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
-| R-WP7-1 | **Narrowing breaks every existing interop scenario**, because none configures selectors and the default becomes deny | scenario psk-site-to-site reds immediately | The absent-config default is "allow everything". Run `make ze-interop-ipsec-test` FIRST, before writing any narrowing logic, to capture the green baseline |
+| R-WP7-1 | **Narrowing breaks every existing interop scenario**, because none configures selectors and the default becomes deny | scenario psk-site-to-site reds immediately | The absent-config default is "allow everything". Run `./le integration interop-ipsec` FIRST, before writing any narrowing logic, to capture the green baseline |
 | R-WP7-2 | **The wire and the dataplane still disagree**, in a new way: the response carries a range Ze then programs approximately | none; both sides look plausible in isolation | Section 7.2's programmable-subset rule, plus a test asserting the emitted selectors EQUAL the installed policy selectors. Make that assertion explicit; it is the invariant the whole package exists to restore |
 | R-WP7-3 | **The EAP responder path is left unnarrowed.** `startResponderEAP` (`responder_eap.go`) is a second producer | mutation 6 leaves the suite green | Fixtures for BOTH paths. This shape has now cost this spec three times |
 | R-WP7-4 | **Transport mode installs fail with a confusing error** because `TunnelSrc`/`TunnelDst` were left in place | `tunnelEndpoints`' error text appears in logs | Section 6.6 names the exact sites (`child.go`, `:333`). Mutation 8 pins it |
@@ -933,7 +933,7 @@ and adds its two tags.
 | R-WP7-9 | **`2.9-1` and `2.9-2` prove the same observable** and neither tag establishes which case it is in | a reviewer cannot tell the two tags apart | Section 1.6: `2.9-1` is the empty case, `2.9-2` the non-empty one. The fixtures differ, and both tags must say how. This is the `1.4.1-4` trap |
 | R-WP7-10 | **`2.9.2-1`/`-2` are marked conformant** on today's wildcard, which satisfies them vacuously | a verdict of "conformant" with no floor parameter in the code | Section 2.2: the vacuity expires the moment narrowing lands, and narrowing lands in this same package. They are constraints ON the new engine |
 | R-WP7-11 | **QEMU is skipped** because the unit tests pass with a fake backend | no signal; nothing automated runs `ze-qemu-integration-test` | Section 8.3. The failure being guarded is one the kernel accepts silently. Paste the QEMU output as evidence |
-| R-WP7-12 | **An interop scenario is tagged**, and the scan refuses it | `make ze-rfc-check` errors naming the file | Section 9.1: interop-ipsec is `TIER_UNRUN`. Tags go in `_test.go` and `test/ipsec/*.ci` |
+| R-WP7-12 | **An interop scenario is tagged**, and the scan refuses it | `./le rfc check` errors naming the file | Section 9.1: interop-ipsec is `TIER_UNRUN`. Tags go in `_test.go` and `test/ipsec/*.ci` |
 | R-WP7-13 | **Line numbers move under concurrent agents.** Several sessions are editing `internal/component/ike/engine/` | a tag cites a line holding different code | Every citation here names its function. Re-locate by function name and re-read before quoting a line in a tag |
 | R-WP7-14 | **Port selectors need a dataplane API change** (`SPParams` has no port fields) that is discovered mid-implementation | the narrowing engine has nowhere to put the port | Section 7.1 states it up front. Extend `SPParams`, and make every backend honour or reject the new fields |
 
@@ -960,7 +960,7 @@ respond with TS_UNACCEPTABLE" and is classed `[MUST]` (`rfc/short/rfc7296.md`). 
 2119 keyword; both are indicative. The obligation is real and derivable, and Ze should meet
 it either way. The question is whether the row's TEXT should be corrected to quote the
 source while keeping its id -- which `check_id_allocation` explicitly permits ("text edits
-completely free", `scripts/dev/rfc_requirements.py`) and
+completely free", the retired `scripts/dev/rfc_requirements.py` (current producer: `internal/le/rfc/rfc.go`)) and
 `check_retired_requirements` requires be done under the same id. **Which way do you want it
 recorded?**
 
@@ -1040,6 +1040,6 @@ Two corrections against Appendix A are folded in above:
 And `rfc/short/rfc7296.md` loses its `{gap: ...}` annotation, keeping id `RFC7296-2.9-1`
 and gaining two tagged tests (section 1.6).
 
-After the rows land, run `make ze-rfc-index-update` and commit `ai/RFC-REQUIREMENTS.md` in the SAME
+After the rows land, run `./le rfc index-update` and commit `ai/RFC-REQUIREMENTS.md` in the SAME
 commit. The ledger records each tagged test's `file:line`, and both verify modes of
-`ze-rfc-check` fail on a stale ledger (`ai/rules/testing.md`, RFC-Tagged Tests).
+`./le rfc check` fail on a stale ledger (`ai/rules/testing.md`, RFC-Tagged Tests).

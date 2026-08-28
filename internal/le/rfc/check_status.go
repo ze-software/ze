@@ -152,7 +152,7 @@ func statusIsSupportClaim(status string) bool {
 
 func derivedRegisters(deriver *Deriver, signed map[string]Extraction,
 	requirements []Requirement) (map[string]string, error) {
-	gated := GatedCounts(requirements)
+	gated := gatedCounts(requirements)
 	out := map[string]string{}
 	for _, stem := range sortedKeysOf(signed) {
 		inventory, err := deriver.Inventory(stem, gated[stem])
@@ -169,7 +169,7 @@ func derivedRegisters(deriver *Deriver, signed map[string]Extraction,
 func checkUnprovenSupport(requirements []Requirement, rows map[string]LedgerRow,
 	stems map[string]bool, dispositions map[string]Disposition, signed map[string]Extraction,
 	derived map[string]string) []string {
-	gated := GatedCounts(requirements)
+	gated := gatedCounts(requirements)
 	var errs []string
 	for _, stem := range sortedSet(stems) {
 		row, held := rows[stem]

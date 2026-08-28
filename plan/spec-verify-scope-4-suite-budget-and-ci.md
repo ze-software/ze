@@ -18,7 +18,7 @@ Two independent faults, both outside the selector work, and neither depending on
 it.
 
 **Fault A: the `plugin` suite runs at its own wall-clock cap.** `ZE_SUITE_TIMEOUT
-?= 600s` (`mk/test-functional.mk`) caps every suite, and `SUITE_RUN` applies it
+?= 600s` (`internal/le/functional/suites.go`) caps every suite, and `SUITE_RUN` applies it
 through `timeout --kill-after=10s`. On the full verify run of 2026-08-18T21:43
 the `plugin` suite measured **599.7 seconds** against that 600 second cap, and
 five of its tests failed reporting `start ze-peer: context canceled`
@@ -39,9 +39,9 @@ cap.
 
 **Fault B: CI runs the whole hour on one runner.** `.github/workflows/verify.yml`
 has one job, `runs-on: ubuntu-latest`, whose only step is `make
-ze-precommit-verify`. It carries no `timeout-minutes`, so it inherits the
+./le verify current mode full`. It carries no `timeout-minutes`, so it inherits the
 360 minute default. Every push pays the full sequential run on a runner with
-far fewer cores than the dev box. `scripts/dev/github_workflows_test.go` pins
+far fewer cores than the dev box. `internal/le/` pins
 the workflow's shape, so any change here changes that test too.
 
 Note the scale difference from the local box: the owner refused a 38-way local
@@ -63,11 +63,11 @@ GitHub job is a separate machine, so sharding there takes nothing from anybody.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `mk/test-functional.mk` - `ZE_SUITE_TIMEOUT`, `ZE_SUITE_KILL_AFTER`, `SUITE_RUN`, `ZE_PLUGIN_PARALLEL`, the `run_suite` loop
+- [ ] `internal/le/functional/suites.go` - `ZE_SUITE_TIMEOUT`, `ZE_SUITE_KILL_AFTER`, `SUITE_RUN`, `ZE_PLUGIN_PARALLEL`, the `run_suite` loop
 - [ ] `internal/test/runner/ports.go` - `ReservePorts` and its two callers
 - [ ] `.github/workflows/verify.yml` - the single job and its single step
-- [ ] `scripts/dev/github_workflows_test.go` - what the workflow's shape is pinned to
-- [ ] `tmp/verify/run-20260818T214315Z-ze-precommit-verify-34884788/29-ze-functional-test.log` - the measured run
+- [ ] `internal/le/` - what the workflow's shape is pinned to
+- [ ] `tmp/verify/run-20260818T214315Z-./le verify current mode full-34884788/29-./le functional.log` - the measured run
 
 **Behavior to preserve:**
 - The per-suite cap stays. It exists because a stuck subprocess holding an output pipe made `cmd.Wait()` block indefinitely, and `timeout` signals the whole process group.
@@ -83,10 +83,10 @@ GitHub job is a separate machine, so sharding there takes nothing from anybody.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `make ze-functional-test`, and a push or pull request to GitHub.
+- `./le functional`, and a push or pull request to GitHub.
 
 ### Transformation Path
-1. `_ze-functional-test-impl` runs `run_suite` per suite, each wrapped in `timeout`.
+1. `_./le functional` runs `run_suite` per suite, each wrapped in `timeout`.
 2. `timeout` signals the suite's process group on expiry and returns 124.
 3. `run_suite` counts a non-zero exit as a suite failure and continues.
 4. In CI, one job runs every stage in `stagesForMode` in order.
@@ -95,8 +95,8 @@ GitHub job is a separate machine, so sharding there takes nothing from anybody.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | make ↔ suite process group | `timeout --kill-after` | No |
-| Workflow ↔ stage list | `make ze-precommit-verify` | No |
-| Workflow shape ↔ its pin | `scripts/dev/github_workflows_test.go` | No |
+| Workflow ↔ stage list | `./le verify current mode full` | No |
+| Workflow shape ↔ its pin | `internal/le/` | No |
 
 ### Integration Points
 - `run_suite` - gains the distinct cap-expiry report.
@@ -124,7 +124,7 @@ GitHub job is a separate machine, so sharding there takes nothing from anybody.
 binding, and phase 4 must give the `plugin` suite a budget of its own rather
 than raise the shared one.**
 
-`make ze-functional-plugin-test ZE_SUITE_TIMEOUT=1800s` ran the suite to
+the retired `ze-functional-plugin-test ZE_SUITE_TIMEOUT=1800s` (current: `./le functional plugin`) ran the suite to
 completion in **855 seconds**, which is 142% of the 600 second cap. Under the
 shipped cap the suite is killed with about four minutes of work left, so the
 2026-08-18 run did not measure a slow suite. It measured a suite that never
@@ -182,8 +182,8 @@ run the suite.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Raising the cap hides a genuine slowdown instead of fixing it | The suite creeps back to the new cap | Record the suite's runtime per run and fail when it exceeds a recorded fraction of its cap |
-| R-2 | Splitting the `plugin` suite changes which `.ci` files are gating, and lowers an RFC tier | `make ze-rfc-check` reports a tier change | Any split adds every new suite name to `all_suites` in the same commit |
-| R-3 | Sharding CI drops a stage silently | A gate stops running and nobody notices | The workflow derives its shards from `make ze-precommit-verify-list`, and a test asserts the union equals the full stage list |
+| R-2 | Splitting the `plugin` suite changes which `.ci` files are gating, and lowers an RFC tier | `./le rfc check` reports a tier change | Any split adds every new suite name to `all_suites` in the same commit |
+| R-3 | Sharding CI drops a stage silently | A gate stops running and nobody notices | The workflow derives its shards from `./le verify current mode full-list`, and a test asserts the union equals the full stage list |
 
 ## Blast Radius
 
@@ -191,14 +191,14 @@ run the suite.
 |----------|--------|
 | What breaks if this is wrong? | A suite hangs instead of being killed, or a CI shard silently drops a gate. Nothing at runtime |
 | How is it reverted? | Single commit revert per fault; the two are independent |
-| Who else touches this path? | Every session runs `ze-functional-test`; every push runs the workflow |
+| Who else touches this path? | Every session runs `./le functional`; every push runs the workflow |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | a suite that exceeds its cap | → | `run_suite` cap-expiry branch | `TestRunSuiteReportsCapExpiryDistinctly` |
-| `make ze-functional-test` | → | the per-suite runtime record | `TestSuiteRuntimeRecorded` |
+| `./le functional` | → | the per-suite runtime record | `TestSuiteRuntimeRecorded` |
 | a push to GitHub | → | the sharded workflow | `TestWorkflowShardsCoverEveryStage` |
 
 ## Acceptance Criteria
@@ -208,21 +208,21 @@ run the suite.
 | AC-1 | The `plugin` suite runs on the dev box | It completes below its cap, with margin, and reports no `context canceled` failure |
 | AC-2 | A suite is killed by its wall-clock cap | The run reports the cap expiry as such, naming the suite and its budget, and does not present it as N test failures |
 | AC-3 | A suite's runtime exceeds a recorded fraction of its cap | The run says so, so the creep is visible before it becomes a red |
-| AC-4 | `make ze-precommit-verify-list` gains or loses a stage | The CI shards follow it with no second list to edit |
+| AC-4 | `./le verify current mode full-list` gains or loses a stage | The CI shards follow it with no second list to edit |
 | AC-5 | A push runs CI | The union of the shards' stages equals the full stage list, asserted by a test |
-| AC-6 | `make ze-rfc-check` runs before and after | No `.ci` file loses its `functional/verify` tier |
+| AC-6 | `./le rfc check` runs before and after | No `.ci` file loses its `functional/verify` tier |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRunSuiteReportsCapExpiryDistinctly` | `scripts/dev/functional_suite_test.py` | AC-2: exit 124 reads as a cap expiry | green |
-| `TestSuiteRuntimeRecorded` | `scripts/dev/functional_suite_test.py` | AC-3: the runtime is recorded per suite | green |
-| `TestMakeExpandsTheBudgetReport` | `scripts/dev/functional_suite_test.py` | AC-2, AC-3 over the recipe MAKE expands, with the shipped cap value in it | green |
-| `TestSuiteBudgetContract` | `scripts/dev/functional_suite_test.py` | The cap stays finite, overridable, and applied through `timeout` on the process group | green |
-| `TestWorkflowShardsCoverEveryStage` | `scripts/dev/github_workflows_test.go` | AC-4, AC-5: the shards derive from the stage list | PASS |
-| `TestVerifyShardsRunStagesTheWayTheVerifyRunnerDoes` | `scripts/dev/github_workflows_test.go` | AC-5: a shard runs stages as `execStage` does, with `ZE_VERIFY_MODE=1` | PASS |
+| `TestRunSuiteReportsCapExpiryDistinctly` | `internal/le/` | AC-2: exit 124 reads as a cap expiry | green |
+| `TestSuiteRuntimeRecorded` | `internal/le/` | AC-3: the runtime is recorded per suite | green |
+| `TestMakeExpandsTheBudgetReport` | `internal/le/` | AC-2, AC-3 over the recipe MAKE expands, with the shipped cap value in it | green |
+| `TestSuiteBudgetContract` | `internal/le/` | The cap stays finite, overridable, and applied through `timeout` on the process group | green |
+| `TestWorkflowShardsCoverEveryStage` | `internal/le/` | AC-4, AC-5: the shards derive from the stage list | PASS |
+| `TestVerifyShardsRunStagesTheWayTheVerifyRunnerDoes` | `internal/le/` | AC-5: a shard runs stages as `execStage` does, with `ZE_VERIFY_MODE=1` | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -240,7 +240,7 @@ run the suite.
 `TestMakeExpandsTheBudgetReport`, and no `.ci` file was written.** The scenario
 needs the report make actually expands, and a `.ci` reaches that only by
 re-entering `make` from inside a running functional suite. Every route there is
-worse than the test that replaced it: `make ze-functional-runner-test` re-enters
+worse than the test that replaced it: `./le functional runner` re-enters
 the suite that is running the `.ci`, and the combined target rebuilds the whole
 isolated binary set to print a report string. `TestMakeExpandsTheBudgetReport`
 drives the recipe from `make --dry-run` output, with the shipped
@@ -254,13 +254,13 @@ tier it runs at, not the behavior it proves.
 | N-A | - | - | Scope is tooling. No wire-visible behavior changes | |
 
 ## Files to Modify
-- `mk/test-functional.mk` - the cap value, the cap-expiry report, the per-suite runtime record
+- `internal/le/functional/suites.go` - the cap value, the cap-expiry report, the per-suite runtime record
 - `.github/workflows/verify.yml` - sharding
-- `scripts/dev/github_workflows_test.go` - the pinned shape follows the shards
+- `internal/le/` - the pinned shape follows the shards
 - `docs/functional-tests.md` - the budgets and what a cap expiry looks like
 
 ## Files to Create
-- `scripts/dev/functional_suite_test.py` - the cap and runtime contract
+- `internal/le/` - the cap and runtime contract
 - `test/runner/verify-scope-suite-cap.ci` - not written; `TestMakeExpandsTheBudgetReport` carries the end-to-end proof (see the Functional Tests decision above) <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 ### Integration Checklist
@@ -304,23 +304,23 @@ tier it runs at, not the behavior it proves.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- establish the mechanism before changing it
    - Tests: `TestRunSuiteReportsCapExpiryDistinctly` written and failing
-   - Files: `scripts/dev/functional_suite_test.py`
+   - Files: `internal/le/`
    - Verify: re-run `plugin` alone with a raised cap on a quiet tree and record whether the `context canceled` set survives. A-1 is confirmed or broken HERE, and the rest of the phase order depends on the answer
 2. **Phase: Cap reporting** -- exit 124 reads as a budget expiry, naming the suite and its cap
    - Tests: `TestRunSuiteReportsCapExpiryDistinctly`, `verify-scope-suite-cap.ci`
-   - Files: `mk/test-functional.mk`
+   - Files: `internal/le/functional/suites.go`
    - Verify: AC-2 holds
 3. **Phase: Runtime record and creep warning** -- record each suite's runtime, warn near the cap
    - Tests: `TestSuiteRuntimeRecorded`
-   - Files: `mk/test-functional.mk`
+   - Files: `internal/le/functional/suites.go`
    - Verify: AC-3 holds
 4. **Phase: The `plugin` suite's budget** -- apply what phase 1 established
    - Tests: the existing `plugin` suite, run to completion with margin
-   - Files: `mk/test-functional.mk`, and `all_suites` if a split is the answer
+   - Files: `internal/le/functional/suites.go`, and `all_suites` if a split is the answer
    - Verify: AC-1 and AC-6 hold
-5. **Phase: CI sharding** -- derive shards from `make ze-precommit-verify-list`
+5. **Phase: CI sharding** -- derive shards from `./le verify current mode full-list`
    - Tests: `TestWorkflowShardsCoverEveryStage`
-   - Files: `.github/workflows/verify.yml`, `scripts/dev/github_workflows_test.go`
+   - Files: `.github/workflows/verify.yml`, `internal/le/`
    - Verify: AC-4 and AC-5 hold
 
 ### Critical Review Checklist
@@ -330,7 +330,7 @@ tier it runs at, not the behavior it proves.
 | Feature completeness | A cap expiry is distinguishable from a test failure in the run's output AND in `tmp/ze-verify-failures.json` |
 | Correctness | Phase 1's finding is recorded, and phase 4 acts on it rather than on the assumption |
 | Naming | One name for the per-suite budget, used by the make variable and the report |
-| Data flow | The CI shards derive from `stagesForMode` through `ze-precommit-verify-list`, never from a second list |
+| Data flow | The CI shards derive from `stagesForMode` through `./le verify current mode full-list`, never from a second list |
 | Rule: `ai/rules/completion.md` | Raising a timeout is not a fix on its own. AC-3 exists so the creep stays visible |
 
 ### Deliverables Checklist
@@ -366,8 +366,8 @@ tier it runs at, not the behavior it proves.
 | Establish the mechanism before changing the cap | Raise the cap and see | The journal records three disjoint failing sets for this suite across three runs, so the failing names are not a signal. The runtime against the cap is |
 | Keep the cap finite | Remove it for the `plugin` suite | The cap exists because a stuck subprocess holding an output pipe blocked `cmd.Wait()` indefinitely. Removing it reopens that |
 | Shard CI, do not fan out locally | Shard both, or neither | A GitHub job is its own machine, so it takes nothing from the other sessions. The local box is shared, which is why the owner refused the local fan-out |
-| Each shard selects its own stages from `make ze-precommit-verify-list` at run time, by round-robin on the line number | A setup job that runs the same command and emits a JSON matrix; a small number of named shards each holding a stage subset | Both alternatives carry stage NAMES through the YAML, which is the second list this design exists to refuse. Selecting in the shard leaves the workflow holding a count and an arithmetic rule, so `stagesForMode` stays the only list. The count is stated once, in the matrix: the shard reads it back as `strategy.job-total` |
-| Six shards | Four, five, eight | Measured on the 2026-08-18 full run: round-robin at six puts `ze-functional-test` (1472s), `ze-staticcheck-feature-matrix-check` (874s) and `ze-unit-test-race-changed` (638s) on three runners, and the heaviest shard holds 1492s against the 1472s floor that `ze-functional-test` alone sets. Four puts lint, staticcheck and the functional suite together (2924s); eight puts staticcheck back with the functional suite (2349s). More shards buy nothing until that suite is split |
+| Each shard selects its own stages from `./le verify current mode full-list` at run time, by round-robin on the line number | A setup job that runs the same command and emits a JSON matrix; a small number of named shards each holding a stage subset | Both alternatives carry stage NAMES through the YAML, which is the second list this design exists to refuse. Selecting in the shard leaves the workflow holding a count and an arithmetic rule, so `stagesForMode` stays the only list. The count is stated once, in the matrix: the shard reads it back as `strategy.job-total` |
+| Six shards | Four, five, eight | Measured on the 2026-08-18 full run: round-robin at six puts `./le functional` (1472s), `./le staticcheck-feature-matrix check` (874s) and `ze-unit-test-race-changed` (638s) on three runners, and the heaviest shard holds 1492s against the 1472s floor that `./le functional` alone sets. Four puts lint, staticcheck and the functional suite together (2924s); eight puts staticcheck back with the functional suite (2349s). More shards buy nothing until that suite is split |
 | A shard runs one `make` per stage with `ZE_VERIFY_MODE=1` | `make a b c` in one invocation; omit the variable | `execStage` runs each stage as its own `make --no-print-directory <name>` with `ZE_VERIFY_MODE=1`, and the functional runner reads that variable (`VerifyModeEnabled`) to turn a silent environment skip into a hard failure. One invocation per stage also keeps a red from hiding the stages after it |
 
 ## Known Limitations
@@ -379,7 +379,7 @@ tier it runs at, not the behavior it proves.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -397,7 +397,7 @@ tier it runs at, not the behavior it proves.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

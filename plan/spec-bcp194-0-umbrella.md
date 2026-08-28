@@ -67,7 +67,7 @@ the RFC spells out.
 
 - [ ] `rfc/short/rfc7454.md` - written 2026-08-08, 64 requirements, 0 gated
   → Constraint: 42 SHOULD, 12 SHOULD NOT, 8 RECOMMENDED, 1 MAY, 1 OPTIONAL, and
-    no MUST of any kind. Nothing here can be gated by `make ze-rfc-check`, so the
+    no MUST of any kind. Nothing here can be gated by `./le rfc check`, so the
     proof of conformance is the mechanism plus the default, recorded per child.
 
 - [ ] `rfc/short/rfc8195.md` - conventions, not protocol
@@ -117,7 +117,7 @@ the RFC spells out.
       computed. Invalid is rejected by default. No local-preference write exists.
 - [ ] `internal/component/bgp/plugins/rib/bestpath.go` - every `FirstAS` use is
       MED comparison, not ingress validation.
-- [ ] `scripts/dev/rfc_requirements.py` - `check_new_summaries` and
+- [ ] `internal/le/rfc/rfc.go` - `check_new_summaries` and
       `source_keyword_count`.
 
 **Behavior to preserve:**
@@ -268,7 +268,7 @@ yet.
 
 | Step | What it requires |
 |------|------------------|
-| Extraction sign-off | `make ze-rfc-extraction-create STEM=rfc7999` writes an unclassified skeleton, and every derived site and section is then classified by hand at `rfc/extraction/rfc7999.json`. A generated skeleton always fails the check, so only the walk makes it pass |
+| Extraction sign-off | `./le rfc extraction-create STEM=rfc7999` writes an unclassified skeleton, and every derived site and section is then classified by hand at `rfc/extraction/rfc7999.json`. A generated skeleton always fails the check, so only the walk makes it pass |
 | Register | Derived, and a stronger claim than the source supports is refused. RFC 7999 carries capitalised RFC 2119 keywords, so it takes the `rfc2119` register and needs no `register-reason` |
 | Disposition move | The stem leaves `rfc/not-enrolled.txt` by arriving in `rfc/enrolled.txt`. A deletion alone returns it to the undeclared state, which the gate also refuses |
 | Public row | `docs/features/rfc-status.md` gains an RFC 7999 row in the same change, per `check_status_completeness` |
@@ -310,7 +310,7 @@ lacks from a mechanism an operator did not configure.
 | R-1 | The set is read as a conformance claim that Ze "implements BCP 194" | A doc or release note says Ze is BCP 194 compliant | The ledger decision forbids enrolment. Documentation states mechanism and default per recommendation, never a blanket claim |
 | R-2 | Children 1 and 2 both touch role resolution and collide | Two specs editing the role plugin at once | Child 1 reads the resolver and adds no mechanism to it. Child 2 owns any change to it |
 | R-3 | Shipped default lists go stale and become worse than none | An operator reports a bogon list rejecting allocated space | Child 4 must ship a refresh path with any list derived from a registry, per §6.1.2.1 |
-| R-4 | Four skeleton children are never written and become invisible scope reduction | The umbrella stays `ready` while children stay `skeleton` for weeks | Each child is a real file with a `## Task` on disk, so `make ze-spec-status` counts it |
+| R-4 | Four skeleton children are never written and become invisible scope reduction | The umbrella stays `ready` while children stay `skeleton` for weeks | Each child is a real file with a `## Task` on disk, so `./le spec-status` counts it |
 | R-5 | The audit's verdicts go stale before a child is implemented | A child's research finds a producer that has changed | Each child re-verifies its own rows at its research gate. The inventory records the producer, not the conclusion alone |
 
 ## Blast Radius
@@ -348,7 +348,7 @@ the child that owns the wiring and the test that proves it.
 | AC-1 | The set is complete | Every row of the Gap Inventory names exactly one owning child, and every child file exists in `plan/` |
 | AC-2 | A reader asks what Ze does for an RFC 7454 recommendation | The owning child records the mechanism verdict and the default verdict separately, each naming a producing function |
 | AC-3 | `rfc/not-enrolled.txt` after child 1 lands | rfc7454 and rfc8195 both read `non-normative` with text-property reasons, and neither appears in `rfc/enrolled.txt` |
-| AC-4 | `make ze-rfc-check` after child 1 lands | Passes, and neither rfc7454 nor rfc8195 is enrolled |
+| AC-4 | `./le rfc check` after child 1 lands | Passes, and neither rfc7454 nor rfc8195 is enrolled |
 | AC-7 | `rfc/enrolled.txt` after child 6 lands | rfc7999 is present, `rfc/extraction/rfc7999.json` carries a classified walk, `docs/features/rfc-status.md` has an RFC 7999 row, and every one of the four MUSTs has a tagged positive and negative pair or an owner-authorised annotation |
 | AC-5 | Documentation after any child lands | No file claims Ze is BCP 194 compliant. Each claim is scoped to a recommendation, a mechanism and a default |
 | AC-6 | A child is closed | Its inventory rows are marked done here, and any row it could not close has a deferral row with a destination spec that exists on disk |
@@ -366,7 +366,7 @@ the child that owns the wiring and the test that proves it.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBCP194InventoryOwnership` | `scripts/dev/spec_inventory_test.py` | Every Gap Inventory row names a child spec that exists in `plan/` | |
+| `TestBCP194InventoryOwnership` | `internal/le/` | Every Gap Inventory row names a child spec that exists in `plan/` | |
 
 The umbrella ships no runtime code. Every other unit test belongs to a child and
 is listed there.
@@ -444,10 +444,10 @@ is listed there.
 1. **Phase: Wiring (MANDATORY FIRST)** -- the set exists and is discoverable
    - Tests: `TestBCP194InventoryOwnership`
    - Files: this file and the five child specs
-   - Verify: `make ze-spec-status` lists all six, and every inventory row names a
+   - Verify: `./le spec-status` lists all six, and every inventory row names a
      child that exists on disk
 2. **Phase: Child 1** -- communities, per its own Implementation Steps
-   - Verify: its Review Gate is clean and `make ze-rfc-check` passes
+   - Verify: its Review Gate is clean and `./le rfc check` passes
 3. **Phase: Child 2** -- role-derived policy
    - Verify: the role has a consumer outside its own plugin
 4. **Phase: Child 3** -- session and speaker hardening, may run beside child 2
@@ -475,7 +475,7 @@ is listed there.
 | Seven spec files exist | `ls plan/spec-bcp194-*.md` returns seven paths |
 | Every inventory row has an owner | Read the Owner column. No cell is empty and none names two children |
 | Neither RFC is enrolled | `grep -E "^rfc(7454\|8195)" rfc/enrolled.txt` returns nothing |
-| The RFC gate is green after child 1 | `make ze-rfc-check` |
+| The RFC gate is green after child 1 | `./le rfc check` |
 | No blanket compliance claim exists | `grep -ri "BCP 194 compliant" docs/` returns nothing |
 
 ### Security Review Checklist
@@ -544,7 +544,7 @@ id from `rfc/short/rfc7454.md` beside each mechanism it adds.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -564,7 +564,7 @@ id from `rfc/short/rfc7454.md` beside each mechanism it adds.
 ### Closure
 
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

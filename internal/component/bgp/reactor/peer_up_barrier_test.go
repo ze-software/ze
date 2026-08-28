@@ -189,7 +189,7 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	// A route sender signaling must leave the registrar barrier shut, and must
 	// release its own.
 	peer := newBarrierPeer(t)
-	peer.ResetAPISync(1)
+	peer.resetAPISync(1)
 	peer.SetPeerUpBarrier(1)
 
 	peer.SignalAPIReady()
@@ -206,7 +206,7 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	// And the reverse: a registrar acknowledgement must not release the API
 	// sync, but must open the peer-up barrier.
 	peer2 := newBarrierPeer(t)
-	peer2.ResetAPISync(1)
+	peer2.resetAPISync(1)
 	peer2.SetPeerUpBarrier(1)
 
 	api2 := make(chan struct{})

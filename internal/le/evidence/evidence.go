@@ -72,7 +72,7 @@ var platformEntry = env.MustRegister(env.EnvEntry{
 })
 
 // ContainerScript is the program the container runs, exactly as
-// scripts/evidence/effective-verify.sh handed it to bash.
+// internal/le/evidence/evidence.go handed it to bash.
 //
 // It installs what the gate needs, clones the read-only mount into a writable
 // path, checks that the CLONE is clean too, and runs the gate there. The clone
@@ -89,12 +89,9 @@ export DEBIAN_FRONTEND=noninteractive
 
 rm -f /etc/apt/apt.conf.d/docker-clean
 apt-get update
-apt-get install -y --no-install-recommends build-essential curl git iputils-ping iproute2 iptables nftables python3 python3-venv util-linux
-if ! command -v uv >/dev/null 2>&1; then
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-fi
-export PATH="/go/bin:/usr/local/go/bin:$HOME/.local/bin:$PATH"
-CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+apt-get install -y --no-install-recommends build-essential git iputils-ping iproute2 iptables nftables util-linux
+export PATH="/go/bin:/usr/local/go/bin:$PATH"
+CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
 CGO_ENABLED=0 go install honnef.co/go/tools/cmd/staticcheck@2026.1
 
 git config --global --add safe.directory /host
@@ -106,7 +103,7 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 
-ZE_SKIP_SUITES=firewall,web ZE_SUITE_TIMEOUT=1200s make ze-precommit-verify
+./le verify current mode full
 `
 
 // requiredCommands are the programs the run cannot proceed without. Both are
@@ -114,9 +111,9 @@ ZE_SKIP_SUITES=firewall,web ZE_SUITE_TIMEOUT=1200s make ze-precommit-verify
 // run rather than in two.
 var requiredCommands = [...]string{"docker", "git"}
 
-// RequiredCommands answers the programs the run needs on PATH. A test drives
+// requiredCommandNames answers the programs the run needs on PATH. A test drives
 // every one of them from this list rather than from a copy of it.
-func RequiredCommands() []string { return requiredCommands[:] }
+func requiredCommandNames() []string { return requiredCommands[:] }
 
 // gitTimeout bounds one git query. `git status` over a checkout is local work
 // with no network and no lock this process waits behind, so a minute means git
@@ -220,14 +217,13 @@ func (r *Runner) dockerArgs() []string {
 		"--privileged",
 		"--platform", r.Platform,
 		"-v", mount,
-		// The four named volumes are caches. They survive between runs, which
+		// The three named volumes are caches. They survive between runs, which
 		// is what keeps a second release-candidate run minutes rather than the
-		// better part of an hour, and none of them can carry the developer's
-		// source: each is a toolchain or package cache the container fills.
+		// better part of an hour, and none can carry the developer's source:
+		// each is a toolchain or package cache the container fills.
 		"-v", "ze-gomod-cache:/go/pkg/mod",
 		"-v", "ze-gobuild-cache:/root/.cache/go-build",
 		"-v", "ze-apt-cache:/var/cache/apt",
-		"-v", "ze-uv-cache:/root/.local/bin",
 		r.Image,
 		"bash", "-lc", ContainerScript,
 	}

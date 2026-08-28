@@ -22,7 +22,7 @@
 # Flow:
 # 1. The daemon starts with no firewall table, so nothing references the set yet.
 # 2. The observer fetches AS-TEST and AS-V4ONLY from the mock IRR server.
-# 3. trigger.sh swaps in a config carrying both table terms and sends SIGHUP.
+# 3. The native reload driver swaps in a config carrying both table terms and sends SIGHUP.
 # 4. The observer waits for the reload, then reads the kernel ruleset back.
 
 # This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
@@ -45,87 +45,12 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=30s
 
-tmpfs=firewall-irr-table-term-commit.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Fetch two AS-SETs, commit a table term for each, read the ruleset back."""
-import os
-import sys
-from ze_api import API, runtime_fail, result_json_data
 
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    if result.get('status') != 'done':
-        runtime_fail(f'update failed: {result}')
-    data = result_json_data(result, {})
-    if data.get('ipv4-count', 0) < 1 or data.get('ipv6-count', 0) < 1:
-        runtime_fail(f'AS-TEST must cache both families: {result}')
-
-    # AS-V4ONLY announces IPv4 and no IPv6, which is the ordinary case for most
-    # networks. Its term still reaches the kernel as two rules, so the table
-    # must declare the IPv6 set too, empty.
-    result = api.dispatch_until_done('update firewall irr as-set AS-V4ONLY')
-    if result.get('status') != 'done':
-        runtime_fail(f'update failed for AS-V4ONLY: {result}')
-    data = result_json_data(result, {})
-    if data.get('ipv4-count', 0) < 1:
-        runtime_fail(f'no IPv4 prefixes cached for AS-V4ONLY: {result}')
-    if data.get('ipv6-count', 0) != 0:
-        runtime_fail(f'AS-V4ONLY must cache no IPv6 prefixes: {result}')
-
-    with open('observer.fetched', 'w') as f:
-        f.write('ok')
-
-    if not api.wait_until(lambda: os.path.exists('reload.done'), attempts=200, delay=0.1):
-        runtime_fail('trigger.sh never created reload.done marker')
-
-    result = api.dispatch_until(
-        'show firewall ruleset wan',
-        lambda res: res.get('status') == 'done' and 'from-v4only_v6' in str(result_json_data(res, {})),
-        attempts=100,
-        delay=0.1,
-    )
-    dumped = str(result_json_data(result, {}))
-    if result.get('status') != 'done':
-        runtime_fail(f'ruleset dump failed after the commit: {result}')
-    for term in ('from-as-test', 'from-as-test_v6', 'from-v4only', 'from-v4only_v6'):
-        if term not in dumped:
-            runtime_fail(f'term {term} is not in the kernel ruleset: {dumped}')
-    # The dump lists terms, not sets. A programmed match-in-set rule is the
-    # proof the set is on the table: lowerMatchInSet refuses to lower a match
-    # against a set the table does not carry, and the whole apply fails with it.
-    # from-v4only_v6 is therefore the single-family assertion: it names
-    # irr_v6_AS-V4ONLY, a set the AS-SET has no prefixes for.
-    print('OK: both table terms and their IPv6 twins are in the kernel ruleset', file=sys.stderr)
-
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-# Swap in the config carrying the table terms once the prefixes are cached.
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-while [ ! -f observer.fetched ]; do sleep 0.1; done
-cp config2.conf ze-bgp.conf
-kill -HUP $(cat daemon.pid)
-touch reload.done
-EOF_TRIGGER
 
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external firewall-irr-table-term-test {
-		run ./firewall-irr-table-term-commit.run
+		run "ze-test fixture plugin/firewall-irr-table-term-commit"
 		encoder json
 	}
 }
@@ -178,7 +103,7 @@ EOF_CONF2
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-table-term-test {
-		run ./firewall-irr-table-term-commit.run
+		run "ze-test fixture plugin/firewall-irr-table-term-commit"
 		encoder json
 	}
 }
@@ -204,7 +129,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-test irr --port $PORT2
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture plugin/firewall-irr-table-term-commit/reload
 cmd=foreground:seq=3:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=both table terms and their IPv6 twins are in the kernel ruleset

@@ -41,15 +41,6 @@ option=env:var=ze.log.firewall:value=info
 option=env:var=ze.log.flowspec.firewall:value=info
 option=timeout:value=40s
 
-tmpfs=seed.sh:mode=755:terminator=EOF_SEED
-#!/bin/sh
-# What a build before the ownership prefix left in the kernel.
-set -e
-nft add table inet flowspec
-nft add chain inet flowspec flowspec-fwd '{ type filter hook forward priority -1 ; policy accept ; }'
-nft add rule inet flowspec flowspec-fwd ip daddr 198.51.100.0/24 drop
-nft list table inet flowspec
-EOF_SEED
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -65,72 +56,6 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E40010
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E4001010040020040050400000064800E120001850401020304000801180A0100058150C010088006000000000000
 EOF_PEER
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Assert the legacy table is gone, the new one is there, and it holds one rule."""
-import os
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-if not wait_until(
-    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-    attempts=400,
-    delay=0.05,
-):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-state = {"ruleset": ""}
-
-
-def table_block(ruleset, header):
-    """The body of one `table ... {` block, or "" when the table is absent."""
-    start = ruleset.find(header)
-    if start < 0:
-        return ""
-    depth = 0
-    for i in range(start, len(ruleset)):
-        if ruleset[i] == "{":
-            depth += 1
-        elif ruleset[i] == "}":
-            depth -= 1
-            if depth == 0:
-                return ruleset[start:i + 1]
-    return ruleset[start:]
-
-
-def settled():
-    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
-    state["ruleset"] = snap.stdout
-    block = table_block(snap.stdout, "table inet ze_flowspec {")
-    return "10.1.0.0/24" in block
-
-
-ok = wait_until(settled, attempts=200, delay=0.1)
-
-ruleset = state["ruleset"]
-sys.stdout.write(ruleset)
-os.kill(pid, signal.SIGTERM)
-
-if not ok:
-    sys.exit("the announced route never reached table inet ze_flowspec")
-
-# The legacy table and its rule must both be gone.
-if "table inet flowspec {" in ruleset:
-    sys.exit("the table an older build wrote survived the reconcile")
-if "198.51.100.0/24" in ruleset:
-    sys.exit("the rule an older build installed is still enforcing")
-
-# AC-2: two reconciles of the same route leave one rule, not two.
-copies = table_block(ruleset, "table inet ze_flowspec {").count("10.1.0.0/24")
-if copies != 1:
-    sys.exit("table inet ze_flowspec holds %d copies of the announced rule, want 1" % copies)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -168,10 +93,10 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=sh seed.sh
+cmd=foreground:seq=1:exec=ze-test fixture plugin/flowspec-fw-legacy-table-removed/seed
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=3:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=4:exec=python3 driver.py:timeout=35s
+cmd=foreground:seq=4:exec=ze-test fixture plugin/flowspec-fw-legacy-table-removed:timeout=35s
 expect=exit:code=0
 expect=stdout:contains=table inet ze_flowspec
 expect=stdout:contains=10.1.0.0/24

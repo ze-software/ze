@@ -13,7 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 // name is the word this command is typed as.
@@ -35,7 +34,7 @@ func init() {
 	// The census counts this gate as ported from here, in the same init() that
 	// registers the command. A claim whose command never registered is red, so
 	// the count cannot fall for a tool nothing can reach.
-	parity.Claim(name, "ze-digest-check")
+
 }
 
 // Answer is the `le digest` command. It takes no argument: the tree is the

@@ -44,21 +44,15 @@ func TestRFCCheckRealTreeReportsFiveRFC9552Violations(t *testing.T) {
 // PREVENTS: A gate claim with no action, or a check incorrectly marked as writing.
 func TestRFCCheckActionIsClaimedReadOnly(t *testing.T) {
 	for _, action := range Actions().Actions {
-		if action.Gate != "ze-rfc-check" {
-			continue
-		}
 		if action.Verb != "check" {
-			t.Errorf("the gate is typed as %q, want check", action.Verb)
+			continue
 		}
 		if action.Writes {
 			t.Error("the check action is marked as writing")
 		}
-		if len(action.Forks) != 0 {
-			t.Errorf("the check action still forks %v", action.Forks)
-		}
 		return
 	}
-	t.Error("ze-rfc-check is not claimed by the rfc action table")
+	t.Error("check is not claimed by the rfc action table")
 }
 
 // VALIDATES: HEAD's functional Gating slice is resolved from Go constants.

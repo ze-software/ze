@@ -24,32 +24,12 @@ expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030301
 EOF_PEER
 
 # Minimal plugin (ze needs at least one plugin process)
-tmpfs=rfc7606-reset.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Minimal plugin for RFC 7606 session-reset test."""
-
-from ze_api import API
-
-
-def main() -> None:
-    api = API()
-    api.declare_done()
-    api.wait_for_config(timeout=10.0)
-    api.capability_done()
-    api.wait_for_registry(timeout=10.0)
-    api.ready()
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration (IBGP)
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rfc7606-test {
-		run ./rfc7606-reset.run
+		run "ze-test fixture plugin/rfc7606-reset"
 		encoder json
 	}
 }

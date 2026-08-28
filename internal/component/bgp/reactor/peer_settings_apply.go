@@ -59,10 +59,10 @@ type peerSettingsSwap struct {
 //   - PrefixUpdated: the per-family PeeringDB refresh dates. They feed no session
 //     and no datapath: their two consumers are the prefix-stale report bus warning
 //     and the ze_bgp_prefix_stale gauge, both published from the dates alone
-//     (RaisePrefixStale and setPrefixStaleMetric, session_prefix.go).
+//     (raisePrefixStale and setPrefixStaleMetric, session_prefix.go).
 //     applyHotSwappableSettings republishes both, which is what makes this field
 //     swappable rather than inert. Every reader outside AddPeer goes through the
-//     p.mu-guarded accessor Peer.OldestPrefixUpdated (peer.go).
+//     p.mu-guarded accessor Peer.oldestPrefixUpdated (peer.go).
 //
 // All three are the mutable set: resolveDynamicPeerSettings (reactor_dynamic.go)
 // writes the filter pair on the pointed-to struct under p.mu on a dynamic peer's
@@ -170,7 +170,7 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 //
 // The undo is read from the RUNNING peer, and BEFORE the apply. Each half has its
 // own reason. The reconcile loop's "current" is a snapshot taken at the top of the
-// diff (SettingsSnapshot, reactor_api.go), so it is not the peer's live value by
+// diff (settingsSnapshot, reactor_api.go), so it is not the peer's live value by
 // the time a swap runs. The apply then writes onto the struct the peer holds, so
 // reading it afterwards would read the new values. A rollback therefore returns
 // the running session to the chain it was enforcing, and restarts nothing either.
@@ -260,7 +260,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 // the prefix-stale report bus warning (`ze show warnings`, the login banner) and
 // the ze_bgp_prefix_stale gauge.
 //
-// Both directions matter and both are covered, because RaisePrefixStale and
+// Both directions matter and both are covered, because raisePrefixStale and
 // setPrefixStaleMetric each derive the verdict from the date rather than only
 // raising on a bad one (session_prefix.go): a PeeringDB refresh that makes the
 // dates fresh CLEARS the warning and sets the gauge to 0, and a config that lets
@@ -277,7 +277,7 @@ func (p *Peer) refreshPrefixStale() {
 	p.mu.RUnlock()
 
 	now := p.clock.Now()
-	RaisePrefixStale(p.addrString, oldest, now)
+	raisePrefixStale(p.addrString, oldest, now)
 	if p.reactor != nil {
 		setPrefixStaleMetric(p.reactor.rmetrics, p.addrString, oldest, now)
 	}

@@ -1,76 +1,253 @@
 package runner
 
-// VALIDATES: every .ci that runs a privileged iproute2 command declares
-//   caps=net-admin, so an unprivileged Linux host SKIPS it with a reason instead
-//   of running it and failing.
-// PREVENTS: the suite going red for something that is not a defect. Without the
-//   declaration the parser records no skip (record_parse.go, case
-//   "needs-linux"), so the test runs. `ip link add` is refused for want of
-//   CAP_NET_ADMIN, and the daemon never reaches the state the file asserts. The
-//   red then names a route or an interface, never the capability, so the reader
-//   diagnoses a product defect that is not there.
-//
-// Nine files carried it on 2026-08-23: the seven in test/static and two in
-// test/vrrp. Each creates its devices from a `tmpfs=setup.py` and each declared
-// `option=needs-linux` alone.
-//
-// THE BOUND, so nobody reads more into a green than it says: this check sees
-// iproute2 mutations and nothing else. `nft`, `tc`, `sysctl -w` and a daemon
-// that opens a raw socket all need capabilities too. A file that needs net-raw
-// as well as net-admin is not distinguishable from here. Declaring one
-// capability a test really needs is always better than declaring none, and it is
-// not a claim that the declaration is complete.
+// VALIDATES: each compiled fixture that mutates kernel networking through the
+// iproute2 CLI has a tracked .ci caller declaring net-admin.
+// PREVENTS: an unprivileged host running the fixture and reporting a product
+// failure when the kernel refused the test setup.
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
 
-// privilegedIPShell matches a shell-spelled iproute2 mutation: `ip link add`,
-// `ip -6 route replace`, and the rest. Read-only forms (`ip link show`) are not
-// matched, because reading needs no capability.
-//
-// The `^[^#\n]*` prefix is what keeps a comment out. It cannot cross a `#`, so
-// a line that only DISCUSSES the command never matches. The .ci files discuss it
-// often, and the declaration this check enforces is usually explained right
-// above the invocation it applies to.
-var privilegedIPShell = regexp.MustCompile(
-	`(?m)^[^#\n]*\bip\s+(?:-[46]\s+)?(?:link|addr|address|route|rule|neigh|netns)\s+` +
-		`(?:add|set|del|delete|replace|change|append)\b`)
-
-// privilegedIPCall matches the same mutations spelled as the one-line Python
-// helper every setup.py in this corpus defines: `def ip(*args)` wrapping
-// subprocess, then `ip("link", "add", ...)`. Without this arm the check would
-// see none of the files it was written for. Not one of them spells the command
-// as a shell line.
-var privilegedIPCall = regexp.MustCompile(
-	`(?m)^[^#\n]*\bip\(\s*"(?:link|addr|address|route|rule|neigh|netns)"\s*,\s*` +
-		`"(?:add|set|del|delete|replace|change|append)"`)
-
-// privilegedIPLines returns each line of raw that runs a privileged iproute2
-// command, in file order.
-func privilegedIPLines(raw string) []string {
-	var out []string
-	for line := range strings.SplitSeq(raw, "\n") {
-		if privilegedIPShell.MatchString(line) || privilegedIPCall.MatchString(line) {
-			out = append(out, strings.TrimSpace(line))
-		}
-	}
-	return out
+type fixtureFunctionFacts struct {
+	calls      map[string]bool
+	privileged bool
 }
 
-// declaresNetAdmin reports whether raw carries `option=needs-linux` with
-// net-admin among its caps.
-//
-// It reads the OPTION LINE rather than searching the file for the token. The
-// token also appears in the prose that explains the declaration, so a file that
-// only talks about net-admin would otherwise satisfy this check. That is the
-// same shape as an assertion satisfied by a mention.
+var iprouteDomains = map[string]bool{
+	"link": true, "addr": true, "address": true, "route": true,
+	"rule": true, "neigh": true, "netns": true,
+}
+
+var iprouteMutations = map[string]bool{
+	"add": true, "set": true, "del": true, "delete": true,
+	"replace": true, "change": true, "append": true,
+}
+
+func TestNativeIPRouteFixturesDeclareNetAdmin(t *testing.T) {
+	root := repoRootForTest(t)
+	privileged, err := privilegedFixtureNames(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(privileged) == 0 {
+		t.Fatal("no compiled fixture is recognized as an iproute2 mutator")
+	}
+	callers, err := nativeFixtureCallers(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var missing []string
+	for _, name := range privileged {
+		paths := callers[name]
+		if len(paths) == 0 {
+			missing = append(missing, fmt.Sprintf("%s has no tracked .ci caller", name))
+			continue
+		}
+		for _, path := range paths {
+			raw, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if !declaresNetAdmin(string(raw)) {
+				missing = append(missing, fmt.Sprintf("%s calls %s without option=needs-linux:caps=net-admin", path, name))
+			}
+		}
+	}
+	if len(missing) != 0 {
+		t.Fatalf("compiled privileged fixtures are not capability-gated:\n  %s", strings.Join(missing, "\n  "))
+	}
+}
+
+func privilegedFixtureNames(root string) ([]string, error) {
+	dir := filepath.Join(root, "internal", "test", "fixture")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	functions := make(map[string]*fixtureFunctionFacts)
+	registrations := make(map[string]map[string]bool)
+	fset := token.NewFileSet()
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		file, parseErr := parser.ParseFile(fset, path, nil, 0)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		for _, declaration := range file.Decls {
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok || function.Body == nil {
+				continue
+			}
+			facts := inspectFixtureExpression(function.Body)
+			functions[function.Name.Name] = facts
+			if function.Name.Name == "init" {
+				collectFixtureRegistrations(function.Body, registrations)
+			}
+		}
+	}
+
+	changed := true
+	for changed {
+		changed = false
+		for _, facts := range functions {
+			if facts.privileged {
+				continue
+			}
+			for called := range facts.calls {
+				if target := functions[called]; target != nil && target.privileged {
+					facts.privileged = true
+					changed = true
+					break
+				}
+			}
+		}
+	}
+
+	var names []string
+	for name, seeds := range registrations {
+		for seed := range seeds {
+			if facts := functions[seed]; facts != nil && facts.privileged {
+				names = append(names, name)
+				break
+			}
+		}
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+func inspectFixtureExpression(node ast.Node) *fixtureFunctionFacts {
+	facts := &fixtureFunctionFacts{calls: make(map[string]bool)}
+	ast.Inspect(node, func(current ast.Node) bool {
+		call, ok := current.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		switch function := call.Fun.(type) {
+		case *ast.Ident:
+			facts.calls[function.Name] = true
+		case *ast.SelectorExpr:
+			facts.calls[function.Sel.Name] = true
+		}
+		words := stringLiterals(call)
+		if hasWord(words, "ip") && hasAnyWord(words, iprouteDomains) && hasAnyWord(words, iprouteMutations) {
+			facts.privileged = true
+		}
+		return true
+	})
+	return facts
+}
+
+func collectFixtureRegistrations(body *ast.BlockStmt, registrations map[string]map[string]bool) {
+	ast.Inspect(body, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || len(call.Args) < 2 {
+			return true
+		}
+		name, ok := call.Fun.(*ast.Ident)
+		if !ok || name.Name != "Register" {
+			return true
+		}
+		literal, ok := call.Args[0].(*ast.BasicLit)
+		if !ok || literal.Kind != token.STRING {
+			return true
+		}
+		fixtureName, err := strconv.Unquote(literal.Value)
+		if err != nil {
+			return true
+		}
+		seeds := make(map[string]bool)
+		for _, argument := range call.Args[1:] {
+			ast.Inspect(argument, func(current ast.Node) bool {
+				if identifier, held := current.(*ast.Ident); held {
+					seeds[identifier.Name] = true
+				}
+				return true
+			})
+		}
+		registrations[fixtureName] = seeds
+		return true
+	})
+}
+
+func stringLiterals(node ast.Node) map[string]bool {
+	words := make(map[string]bool)
+	ast.Inspect(node, func(current ast.Node) bool {
+		literal, ok := current.(*ast.BasicLit)
+		if !ok || literal.Kind != token.STRING {
+			return true
+		}
+		value, err := strconv.Unquote(literal.Value)
+		if err == nil {
+			words[value] = true
+		}
+		return true
+	})
+	return words
+}
+
+func hasWord(words map[string]bool, wanted string) bool { return words[wanted] }
+
+func hasAnyWord(words, wanted map[string]bool) bool {
+	for word := range wanted {
+		if words[word] {
+			return true
+		}
+	}
+	return false
+}
+
+func nativeFixtureCallers(root string) (map[string][]string, error) {
+	callers := make(map[string][]string)
+	base := filepath.Join(root, "test")
+	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if isDraftPath(base, path) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".ci") {
+			return nil
+		}
+		raw, err := os.ReadFile(path) //nolint:gosec // repository test path
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		for _, line := range strings.Split(string(raw), "\n") {
+			at := strings.Index(line, "ze-test fixture ")
+			if at < 0 {
+				continue
+			}
+			fields := strings.Fields(line[at:])
+			if len(fields) < 3 {
+				continue
+			}
+			name, _, _ := strings.Cut(strings.Trim(fields[2], `"'`), ":")
+			callers[name] = append(callers[name], filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	return callers, err
+}
+
 func declaresNetAdmin(raw string) bool {
 	for line := range strings.SplitSeq(raw, "\n") {
 		line = strings.TrimSpace(line)
@@ -82,8 +259,8 @@ func declaresNetAdmin(raw string) bool {
 			if !ok {
 				continue
 			}
-			for c := range strings.SplitSeq(caps, ",") {
-				if strings.TrimSpace(c) == capsNetAdmin {
+			for capability := range strings.SplitSeq(caps, ",") {
+				if strings.TrimSpace(capability) == capsNetAdmin {
 					return true
 				}
 			}
@@ -92,120 +269,17 @@ func declaresNetAdmin(raw string) bool {
 	return false
 }
 
-// undeclaredPrivilegedIP returns one finding per file in corpus that runs a
-// privileged iproute2 command and does not declare net-admin.
-func undeclaredPrivilegedIP(corpus map[string]string) []string {
-	var out []string
-	for name, raw := range corpus {
-		lines := privilegedIPLines(raw)
-		if len(lines) == 0 || declaresNetAdmin(raw) {
-			continue
-		}
-		out = append(out, fmt.Sprintf("%s runs %q", name, lines[0]))
+func TestNativeIPRouteDetectorDiscriminates(t *testing.T) {
+	source := `package fixture
+func driver(ctx context.Context) error {
+    return rawCommand(ctx, "ip", "link", "add", "dummy0", "type", "dummy")
+}`
+	file, err := parser.ParseFile(token.NewFileSet(), "fixture.go", source, 0)
+	if err != nil {
+		t.Fatal(err)
 	}
-	sort.Strings(out)
-	return out
-}
-
-// TestCIPrivilegedIPDeclaresNetAdmin walks the .ci corpus and fails when a test
-// configures the kernel's network but does not declare the capability it needs.
-func TestCIPrivilegedIPDeclaresNetAdmin(t *testing.T) {
-	root := repoRootForTest(t)
-	testDir := filepath.Join(root, "test")
-
-	corpus := map[string]string{}
-	walkErr := filepath.WalkDir(testDir, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		// test/draft/ is invisible to every gate (test/draft/README.md).
-		if d.IsDir() && isDraftPath(testDir, p) {
-			return filepath.SkipDir
-		}
-		if d.IsDir() || !strings.HasSuffix(p, ".ci") {
-			return nil
-		}
-		raw, readErr := os.ReadFile(p) //nolint:gosec // repo test tree
-		if readErr != nil {
-			return readErr
-		}
-		rel, relErr := filepath.Rel(root, p)
-		if relErr != nil {
-			rel = p
-		}
-		corpus[filepath.ToSlash(rel)] = string(raw)
-		return nil
-	})
-	if walkErr != nil {
-		t.Fatalf("walk %s: %v", testDir, walkErr)
-	}
-
-	// A corpus that carries no privileged command at all would make every
-	// assertion below vacuous. That is exactly how this check would rot: a
-	// helper rename, or a walk that stops finding files, leaves it green
-	// forever. Three test/plugin files declared net-admin correctly before this
-	// check existed, so the population is never legitimately empty.
-	privileged := 0
-	for _, raw := range corpus {
-		if len(privilegedIPLines(raw)) > 0 {
-			privileged++
-		}
-	}
-	if privileged == 0 {
-		t.Fatal("no .ci in the corpus runs a privileged iproute2 command: the walk or " +
-			"the detector changed, and this check would pass vacuously")
-	}
-
-	if missing := undeclaredPrivilegedIP(corpus); len(missing) > 0 {
-		t.Errorf("%d .ci file(s) run a privileged iproute2 command without "+
-			"declaring `option=needs-linux:caps=net-admin`.\n"+
-			"On an unprivileged Linux host each one FAILS instead of skipping, and the "+
-			"failure names a route or an interface rather than the missing capability:\n  %s",
-			len(missing), strings.Join(missing, "\n  "))
-	}
-}
-
-// TestPrivilegedIPDetectorDiscriminates pins the detector itself.
-//
-// The corpus walk above can only report what the detector sees. A detector that
-// saw nothing would report a clean corpus, and that reads exactly like a
-// genuinely clean corpus. These fixtures are the difference between the two.
-func TestPrivilegedIPDetectorDiscriminates(t *testing.T) {
-	const declared = "option=needs-linux:caps=net-admin\n" +
-		"tmpfs=setup.py:mode=755:terminator=EOF_SETUP\n" +
-		"ip(\"link\", \"add\", \"zens0\", \"type\", \"dummy\")\n"
-	const undeclared = "option=needs-linux\n" +
-		"tmpfs=setup.py:mode=755:terminator=EOF_SETUP\n" +
-		"ip(\"link\", \"add\", \"zens0\", \"type\", \"dummy\")\n"
-	const shell = "option=needs-linux\ncmd=ip link add zens0 type dummy\n"
-	const readOnly = "option=needs-linux\ncmd=ip link show zens0\n"
-	// The declaration named in prose only. The check must not accept it: a
-	// mention is not a declaration.
-	const mentioned = "# needs caps=net-admin one day\noption=needs-linux\n" +
-		"ip(\"addr\", \"add\", \"10.0.0.1/24\", \"dev\", \"zens0\")\n"
-	// The command named in a comment only. The check must not flag it.
-	const commented = "option=needs-linux\n# setup.py would run ip link add zens0\n"
-	// A different capability, declared. net-admin is still absent.
-	const otherCap = "option=needs-linux:caps=bpf\nip(\"link\", \"set\", \"zens0\", \"up\")\n"
-
-	for _, tc := range []struct {
-		name string
-		raw  string
-		want bool // want a finding
-	}{
-		{"declared", declared, false},
-		{"undeclared-python-call", undeclared, true},
-		{"undeclared-shell", shell, true},
-		{"read-only-needs-nothing", readOnly, false},
-		{"declared-in-prose-only", mentioned, true},
-		{"named-in-a-comment-only", commented, false},
-		{"a-different-capability", otherCap, true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got := undeclaredPrivilegedIP(map[string]string{"probe.ci": tc.raw})
-			if (len(got) > 0) != tc.want {
-				t.Errorf("undeclaredPrivilegedIP = %v, want a finding: %v", got, tc.want)
-			}
-		})
+	facts := inspectFixtureExpression(file)
+	if !facts.privileged {
+		t.Fatal("native iproute2 mutation was not detected")
 	}
 }

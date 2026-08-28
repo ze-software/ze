@@ -7,44 +7,10 @@
 # the test needs no certificate tooling on the host: lab's certificate with
 # other's key is a genuine mismatch of two real pairs.
 
-# Underscore form: /bin/sh (dash) drops dotted names from the environment, so
-# the dotted spelling never survives into sh-script children. ze's env lookup
-# treats dots and underscores as equivalent (internal/core/env/env.go:40).
+# The native fixture creates both appliance identities and compares stored
+# certificate bytes directly.
 option=env:var=ze_appliance_ssh_password:value=secret
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
-mkdir appliances
-ze appliance --dir appliances init --config lab-config.json lab >/dev/null
-ze appliance --dir appliances init --config other-config.json other >/dev/null
-
-cp appliances/lab/secrets/tls/cert.pem good.pem
-cp appliances/lab/secrets/tls/key.pem good.key
-cp appliances/other/secrets/tls/key.pem other.key
-
-# A valid pair replaces both files.
-ze appliance --dir appliances replace-cert --cert good.pem --key good.key lab
-cmp appliances/lab/secrets/tls/cert.pem good.pem
-cmp appliances/lab/secrets/tls/key.pem good.key
-
-# A mismatched pair is refused and nothing on disk moves.
-cp appliances/lab/secrets/tls/cert.pem before.pem
-cp appliances/lab/secrets/tls/key.pem before.key
-if ze appliance --dir appliances replace-cert --cert good.pem --key other.key lab >/dev/null 2>refuse.err; then
-    echo "replace-cert accepted a mismatched certificate and key" >&2
-    exit 1
-fi
-cat refuse.err >&2
-cmp appliances/lab/secrets/tls/cert.pem before.pem
-cmp appliances/lab/secrets/tls/key.pem before.key
-
-if ls appliances/lab/secrets/tls/ | grep -q '\.tmp$'; then
-    echo "temp file left behind in the secrets directory" >&2
-    exit 1
-fi
-echo "stored material unchanged after the refusal" >&2
-EOF_SH
 
 tmpfs=lab-config.json:terminator=EOF_LAB
 {
@@ -74,7 +40,7 @@ tmpfs=other-config.json:terminator=EOF_OTHER
 }
 EOF_OTHER
 
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture appliance/appliance-replace-cert
 expect=exit:code=0
 expect=stdout:contains=certificate replaced for appliance "lab" (CA-signed)
 expect=stderr:contains=are not a pair

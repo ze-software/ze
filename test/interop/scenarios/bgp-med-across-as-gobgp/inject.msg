@@ -11,7 +11,8 @@
 # The metric is 100 rather than 0. GoBGP treats an absent MULTI_EXIT_DISC as
 # nothing to print, so a check for the value 0 could not tell a leaked attribute
 # from an absent one; 100 can only have come off the wire. Ze's OWN metric,
-# announced by /etc/ze/announce.py, is 42, so the two are never confused.
+# announced by the fixture plan in internal/le/interoplab/bgp/helper.go, is 42, so the two are never
+# confused.
 #
 # The NEXT_HOP is written as hex (AC1E0009), so it does NOT follow the runner's
 # rendered subnet prefix the way a dotted address in a text file does. This
@@ -29,7 +30,8 @@ option=timeout:value=300s
 # reactor/reactor_api_forward.go), so a prefix announced early either never
 # arrives or arrives on the replay rail instead. Ze sends a KEEPALIVE every 5 s at
 # the 15 s hold ze.conf sets, so four of them is a 20 s wait. FRR and GoBGP both
-# reach Established inside that on the lab bridge, and check.py waits on each
+# reach Established inside that on the lab bridge, and the internal/le/interoplab/bgp checker waits
+# on each
 # session besides.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
@@ -53,7 +55,8 @@ action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E000980040400000064180A3C02
 
-# Hold the session open while check.py polls both daemons. A peer whose script is
+# Hold the session open while the internal/le/interoplab/bgp checker polls both daemons. A peer
+# whose script is
 # exhausted exits, and its session dropping makes Ze withdraw the relayed routes
 # before the check runs. Twenty-four KEEPALIVEs at 5 s give the check 120 s, and
 # the runner tears the lab down as soon as the check returns.

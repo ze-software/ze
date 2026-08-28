@@ -30,6 +30,6 @@ func init() {
 	// instead of rejecting them.
 	leroot.RegisterShape(area, command.ShapeMap)
 
-	// No parity.Claim: no Make target runs this tool, so it declares none of
-	// the 156 gates the census counts.
+	// No parity.Claim: setup has no migration-census gate, so it declares none
+	// of those rows.
 }

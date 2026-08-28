@@ -1,4 +1,4 @@
-// Design: test/interop-pppoe/lab.py -- role-selected Docker topology.
+// Design: role-selected Docker topology for both PPPoE scenarios.
 // Related: pppoe.go -- suite discovery, images, preflight, and network lifecycle.
 package pppoe
 

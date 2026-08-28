@@ -13,116 +13,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=system-date-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show system date` produces a self-consistent, current timestamp."""
-
-import datetime
-import json
-import sys
-import time
-
-from ze_api import API, dispatch, runtime_fail, result_text_data
-
-# The daemon and this observer read the same host clock, so the two readings are
-# separated only by one RPC round trip. The window is generous enough to survive a
-# heavily loaded parallel suite and still far too tight for a constant or a zero.
-MAX_CLOCK_SKEW_SECS = 300
-
-
-def payload(resp, label):
-    status = resp.get('status')
-    if status != 'done':
-        runtime_fail(f'{label}: status={status} data={result_text_data(resp)}')
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    if not isinstance(data, dict):
-        runtime_fail(f'{label}: expected dict, got {type(data).__name__}: {data}')
-    return data
-
-
-def require_int(data, key, label):
-    if key not in data:
-        runtime_fail(f'{label}: missing "{key}" in {sorted(data)}')
-    value = data[key]
-    if isinstance(value, bool) or not isinstance(value, int):
-        runtime_fail(f'{label}: "{key}"={value!r} is not an integer')
-    return value
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        observed_before = time.time()
-        data = payload(dispatch(api, 'show system date'), 'system-date')
-        observed_after = time.time()
-
-        unix = require_int(data, 'unix', 'system-date')
-        unix_nano = require_int(data, 'unix-nano', 'system-date')
-        offset = require_int(data, 'utc-offset-secs', 'system-date')
-
-        zone = data.get('timezone')
-        if not isinstance(zone, str) or not zone:
-            runtime_fail(f'system-date: "timezone"={zone!r} is not a zone name')
-
-        # unix and unix-nano are two renderings of one time.Now(). Truncating the
-        # nanosecond form must land on the second form.
-        if unix_nano // 1_000_000_000 != unix:
-            runtime_fail(
-                f'system-date: unix-nano={unix_nano} truncates to '
-                f'{unix_nano // 1_000_000_000}, but unix={unix}')
-
-        # The RFC3339 rendering is the third form of the same instant.
-        raw_time = data.get('time')
-        if not isinstance(raw_time, str) or not raw_time:
-            runtime_fail(f'system-date: "time"={raw_time!r} is not an RFC3339 string')
-        try:
-            parsed = datetime.datetime.fromisoformat(raw_time)
-        except ValueError as exc:
-            runtime_fail(f'system-date: "time"={raw_time!r} does not parse as RFC3339: {exc}')
-            return
-        if parsed.utcoffset() is None:
-            runtime_fail(f'system-date: "time"={raw_time!r} carries no UTC offset')
-        if int(parsed.utcoffset().total_seconds()) != offset:
-            runtime_fail(
-                f'system-date: "time" offset {parsed.utcoffset()} disagrees with '
-                f'utc-offset-secs={offset}')
-        if abs(int(parsed.timestamp()) - unix) > 1:
-            runtime_fail(
-                f'system-date: "time"={raw_time} is {int(parsed.timestamp())} epoch, '
-                f'but unix={unix}')
-
-        # And the whole reading must be the CURRENT time, not a constant.
-        if not (observed_before - MAX_CLOCK_SKEW_SECS
-                <= unix
-                <= observed_after + MAX_CLOCK_SKEW_SECS):
-            runtime_fail(
-                f'system-date: unix={unix} is outside the observer window '
-                f'[{observed_before}, {observed_after}] +/- {MAX_CLOCK_SKEW_SECS}s')
-
-        print(f'OK: show system date unix={unix} timezone={zone} offset={offset}',
-              file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external system-date-show-test {
-		run ./system-date-show-test.run
+		run "ze-test fixture plugin/system-date-show"
 		encoder json
 	}
 }

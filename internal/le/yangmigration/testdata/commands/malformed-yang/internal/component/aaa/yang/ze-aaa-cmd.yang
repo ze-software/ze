@@ -1,0 +1,3 @@
+module ze-aaa-cmd {
+  namespace "urn:broken";
+  prefix broken;

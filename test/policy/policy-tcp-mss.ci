@@ -7,41 +7,6 @@
 
 option=needs-linux:caps=net-admin
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import os, signal, sys
-from ze_api import wait_for_daemon_ready, wait_for_output
-
-# // two WAITS replaced, no assertion touched. The hand-rolled
-# daemon-readiness for-loop became ze_api.wait_for_daemon_ready (same 200x0.05s
-# budget, ratchet-exempt internal sleep), and the blind post-apply settle became
-# ze_api.wait_for_output. Every expect= below is unchanged and still evaluated
-# against a real `nft list table` readback; the driver is shorter only because
-# the loops moved into the shared helpers.
-pid = wait_for_daemon_ready()
-
-# Was a blind 0.5s "settle". ze_pr is programmed by applyPolicies ->
-# firewall.ApplyAll() (internal/plugins/policyroute/register.go:200), which this
-# driver cannot observe from outside the daemon, so it waited on a clock. Gating
-# on ONE rule is enough: nft commits a table as a single transaction. The
-# `type ...` base-chain declaration is skipped because it exists from the moment
-# the chain does and would satisfy the wait before any rule was programmed.
-# attempts=100 (5s), not the 200 default: this driver already spent up to 10s on
-# the readiness wait and the whole test is capped at 10s, so a full-budget second
-# wait would be cut short by the harness and report an opaque test-level timeout
-# instead of the assertion message below.
-out = wait_for_output(
-    ["nft", "list", "table", "inet", "ze_pr"],
-    lambda dump: any(
-        s and s not in ("{", "}") and not s.startswith(("table ", "chain ", "type "))
-        for s in (line.strip() for line in dump.splitlines())
-    ),
-    attempts=100,
-)
-sys.stdout.write(out)
-os.kill(pid, signal.SIGTERM)
-EOF_PY
-
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
 	backend nft;
@@ -68,7 +33,7 @@ option=env:var=ze.log.policy.routes:value=info
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+cmd=foreground:seq=2:exec=ze-test fixture policy/policy-tcp-mss:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=policy routes applied
 expect=stdout:contains=table inet ze_pr

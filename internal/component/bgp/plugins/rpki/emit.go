@@ -88,7 +88,7 @@ func buildRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, fam
 	}
 
 	evt := rpkiEventJSON{
-		Type: "bgp",
+		Type: configRootBGP,
 		BGP: rpkiEventBGP{
 			Peer:    rpkiEventPeer{Name: peerName, Remote: rpkiEventRemote{Address: peerAddr, AS: peerASN}},
 			Message: rpkiEventMessage{ID: msgID, Type: "rpki"},
@@ -109,7 +109,7 @@ func buildRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, fam
 // with a "status" key (not a bare string) so consumers always get an object.
 func buildRPKIEventUnavailable(peerAddr, peerName string, peerASN uint32, msgID uint64) string {
 	evt := rpkiEventJSON{
-		Type: "bgp",
+		Type: configRootBGP,
 		BGP: rpkiEventBGP{
 			Peer:    rpkiEventPeer{Name: peerName, Remote: rpkiEventRemote{Address: peerAddr, AS: peerASN}},
 			Message: rpkiEventMessage{ID: msgID, Type: "rpki"},

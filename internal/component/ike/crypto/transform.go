@@ -59,6 +59,12 @@ var ErrUnsupportedAlgorithm = errors.New("unsupported algorithm")
 
 const unknownAlgo = "unknown"
 
+const (
+	hashNameSHA256 = "sha256"
+	hashNameSHA384 = "sha384"
+	hashNameSHA512 = "sha512"
+)
+
 func (id EncryptionID) String() string {
 	switch id {
 	case ENCR_AES_CBC:
@@ -70,16 +76,16 @@ func (id EncryptionID) String() string {
 	}
 }
 
-func (id IntegrityID) String() string { //nolint:goconst // display names intentionally match registry keys
+func (id IntegrityID) String() string {
 	switch id {
 	case AUTH_NONE:
 		return "none"
 	case AUTH_HMAC_SHA2_256_128:
-		return "sha256"
+		return hashNameSHA256
 	case AUTH_HMAC_SHA2_384_192:
-		return "sha384"
+		return hashNameSHA384
 	case AUTH_HMAC_SHA2_512_256:
-		return "sha512"
+		return hashNameSHA512
 	default:
 		return unknownAlgo
 	}
@@ -197,15 +203,15 @@ func buildEncryptionRegistry() map[string]EncryptionTransform {
 }
 
 var prfRegistry = map[string]PRFTransform{
-	"sha256": {ID: PRF_HMAC_SHA2_256, KeyLength: 32, OutputLength: 32},
-	"sha384": {ID: PRF_HMAC_SHA2_384, KeyLength: 48, OutputLength: 48},
-	"sha512": {ID: PRF_HMAC_SHA2_512, KeyLength: 64, OutputLength: 64},
+	hashNameSHA256: {ID: PRF_HMAC_SHA2_256, KeyLength: 32, OutputLength: 32},
+	hashNameSHA384: {ID: PRF_HMAC_SHA2_384, KeyLength: 48, OutputLength: 48},
+	hashNameSHA512: {ID: PRF_HMAC_SHA2_512, KeyLength: 64, OutputLength: 64},
 }
 
 var integrityRegistry = map[string]IntegrityTransform{
-	"sha256": {ID: AUTH_HMAC_SHA2_256_128, KeyLength: 32, TruncatedLength: 16},
-	"sha384": {ID: AUTH_HMAC_SHA2_384_192, KeyLength: 48, TruncatedLength: 24},
-	"sha512": {ID: AUTH_HMAC_SHA2_512_256, KeyLength: 64, TruncatedLength: 32},
+	hashNameSHA256: {ID: AUTH_HMAC_SHA2_256_128, KeyLength: 32, TruncatedLength: 16},
+	hashNameSHA384: {ID: AUTH_HMAC_SHA2_384_192, KeyLength: 48, TruncatedLength: 24},
+	hashNameSHA512: {ID: AUTH_HMAC_SHA2_512_256, KeyLength: 64, TruncatedLength: 32},
 }
 
 var dhGroupRegistry = map[uint8]DHGroupTransform{

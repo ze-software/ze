@@ -45,7 +45,7 @@ and an escape nobody can audit is worse than no gate at all.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `scripts/dev/changed-pkgs.sh` - the existing pattern for a repository-wide dev script
+- [ ] `internal/le/` - the existing pattern for a repository-wide dev script
 
 **Behavior to preserve:**
 - <to be filled>
@@ -85,12 +85,12 @@ and an escape nobody can audit is worse than no gate at all.
 ### Functional Tests
 
 Tooling only, no daemon code. The driving surface is a new dev script beside
-`scripts/dev/audit-test-relaxation.py`, with a Go-hosted test proving that a
+`internal/le/weakened/audit.go`, with a Go-hosted test proving that a
 changed body is reported and that a pure move is not.
 
 ## Files to Modify
 
-- `scripts/dev/changed-pkgs.sh` - <reference pattern only; the new tool lands beside it>
+- `internal/le/` - <reference pattern only; the new tool lands beside it>
 
 ## Implementation Steps
 
@@ -101,7 +101,7 @@ changed body is reported and that a pure move is not.
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `make ze-precommit-verify` green
+- [ ] `./le verify current mode full` green
 
 ### Integration Checklist
 - [ ] <to be filled>

@@ -340,8 +340,8 @@ daemon, and no RFC obligation is touched.
 | All four surfaces gated | The four `.ci` files pass, and each fails with the gate reverted |
 | The recovery path survives | `TestPowerUserIgnoresLoginSets`, driven from a running daemon |
 | An untouched config still works | A `.ci` on a config with no login section at all |
-| Lint | `make ze-lint-changed` |
-| Schema | `make ze-doc-verify`, `make ze-cli-grammar-check` |
+| Lint | `./le changed scope` |
+| Schema | `./le doc-check verify`, `./le cli-grammar` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -411,7 +411,7 @@ daemon, and no RFC obligation is touched.
 - [ ] AC-1..AC-11 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated on all four surfaces, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -429,7 +429,7 @@ daemon, and no RFC obligation is touched.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

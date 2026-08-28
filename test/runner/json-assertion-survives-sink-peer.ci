@@ -29,42 +29,12 @@ expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"mes
 # Observer: hold the daemon until the initial-sync EOR has reached the wire, so
 # the UPDATE above is always sent before shutdown, then stop ze cleanly so the
 # record's expect=exit:code=0 is satisfied.
-tmpfs=sink-json.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Wait for the peer's EOR, then shut the daemon down."""
-
-import sys
-
-from ze_api import API, runtime_fail
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    if not api.wait_peer_eor_sent():
-        runtime_fail('peer never reported eor-sent')
-
-    print('OK: eor-sent observed', file=sys.stderr)
-    api._call_engine('ze-plugin-engine:dispatch-command',
-                     {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration: one iBGP peer that originates a single route from config.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external sink-json {
-		run ./sink-json.run
+		run "ze-test fixture runner/json-assertion-survives-sink-peer"
 		encoder json
 	}
 }

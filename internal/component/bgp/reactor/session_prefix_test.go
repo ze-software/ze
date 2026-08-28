@@ -381,8 +381,8 @@ func TestPrefixStalenessCheck(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsPrefixDataStale(tt.updated, now)
-			assert.Equal(t, tt.want, got, "IsPrefixDataStale(%q, %v)", tt.updated, now)
+			got := isPrefixDataStale(tt.updated, now)
+			assert.Equal(t, tt.want, got, "isPrefixDataStale(%q, %v)", tt.updated, now)
 		})
 	}
 }

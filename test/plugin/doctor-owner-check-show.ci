@@ -21,62 +21,11 @@ plugin {
 }
 EOF_DOCTOR_CONF
 
-tmpfs=doctor-owner-check-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Dispatch `show doctor` and assert owner-registered checks are included."""
-
-import json
-import time
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    result = api.dispatch_until_done('show doctor doctor-missing-plugin.conf')
-    if result is None or result.get('status') != 'done':
-        status = result.get('status') if result else 'nil'
-        data = result_text_data(result) if result else ''
-        runtime_fail(f'show doctor: status={status} data={data[:200]}')
-
-    try:
-        data = result_json_data(result, {})
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'show doctor json: {exc}: {result_text_data(result)[:200]}')
-        data = {}
-
-    diagnostics = data.get('diagnostics', [])
-    codes = [diag.get('code') for diag in diagnostics]
-    if 'doctor-plugin-missing' not in codes:
-        runtime_fail(f'show doctor missing owner-registered plugin check: codes={codes!r}')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external doctor-owner-check-show {
-        run ./doctor-owner-check-show.run
+        run "ze-test fixture plugin/doctor-owner-check-show"
         encoder json
     }
 }

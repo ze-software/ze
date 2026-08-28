@@ -16,21 +16,20 @@ The feature is two things that share collectors but not enforcement.
 | | Ratchets | Report |
 |---|---|---|
 | Question | "Did this commit make sensitivity worse?" | "What is the state of the suite?" |
-| Enforced by | `make ze-test-sensitivity-check`, stage 10 of `ze-precommit-verify` | `make ze-test-health-check`, inside `ze-generated-files-check` |
+| Enforced by | `./le test-sensitivity check`, stage 10 of `./le verify current mode full` | `./le test-health check`, inside `./le repository generated-check` |
 | Reads | `test/health/sensitivity-baseline.json` + the working tree | the committed report vs the tree |
-| Source | `scripts/checks/inert_tests.go` | `scripts/dev/testing_health.py` |
-<!-- source: scripts/status/verify_run.go -- stagesForMode; the two stages -->
+| Source | `internal/le/testsensitivity.Answer` | `internal/le/testhealth.Answer` |
+<!-- source: internal/le/verify/run.go -- Run, RunMode -->
 
-The ratchets do NOT depend on the report. `ze-test-sensitivity-check` reads only
+The ratchets do NOT depend on the report. `./le test-sensitivity check` reads only
 the baseline and the tree, so a stale or wrong report cannot weaken the
 guarantee that you cannot add an inert test or strand a test file.
 
 ## The sensitivity detectors
 
-`scripts/checks/inert_tests.go` is a `//go:build ignore` AST gate, run via
-`go run`, in the family of `scripts/checks/*.go` source gates (each with a
-`--selftest` that proves the detector fires on known-bad fixtures before it
-judges the live tree).
+`./le test-sensitivity check` runs the native AST detectors in
+`internal/le/testsensitivity`. Its `selftest` action proves each detector on
+known-bad fixtures before the live-tree check is trusted.
 
 ### assert-nothing
 
@@ -46,13 +45,12 @@ import aliases are resolved so `require` under a different name still counts.
 
 ### tag-orphan
 
-A `_test.go` file whose `//go:build` constraint is unsatisfiable given the tags
-any `go test -tags` invocation in the Makefile or `mk/*.mk` actually supplies.
-The tag universe is DERIVED from those invocations, never hardcoded, so adding a
-gated feature cannot silently orphan its own tests and deleting a target
-surfaces the tests it stranded. The check is a satisfiability search, so a
-negated or compile-out constraint (`!linux`, `ze_core && !ze_web`) is correctly
-NOT an orphan.
+A `_test.go` file whose `//go:build` constraint is unsatisfiable under every
+native test action is a tag orphan. The tag universe is derived from the Go
+action tables and feature manifest, so a new feature gate cannot silently
+orphan its tests. The satisfiability search handles negated and compile-out
+constraints such as `!linux` and `ze_core && !ze_web`.
+<!-- source: internal/le/testsensitivity/tags.go -- TagUniverse -->
 
 ### Detector pitfalls
 
@@ -87,28 +85,26 @@ floor, so deleting the baseline cannot launder a regression; first-time creation
 is the explicit `--bootstrap-baseline`.
 
 The ratchet scans the WORKING TREE, so an inert test is caught by the
-`ze-precommit-verify` run that precedes its commit, not blamed on the next one.
+`./le verify current mode full` run that precedes its commit, not blamed on the next one.
 
 ## The per-commit weakening record
 
 A third gate, on a different failure: a test that stopped proving something with
 a written excuse attached.
 
-`c_test_weakening` (`.claude/hooks/pretool-writeedit.py`) refuses an edit that
+The compiled weakening detector in `internal/le/weakened` refuses an edit that
 deletes assertions, adds a `t.Skip`, drops an `expect=`, or introduces an
 assertion that cannot fail. Its escape hatch is a row in `test/weakened.md`
-naming the test the edit weakens, and the hatch is SELF-SERVICE by design: the
-agent that weakened the test writes its own justification. The only thing that
-makes that safe is a human reading it.
+naming the test the edit weakens.
 
 | | |
 |---|---|
-| Refused at edit time by | `c_test_weakening` (`.claude/hooks/pretool-writeedit.py`) |
-| Refused at commit time by | `weakened_problems` (`scripts/dev/commit_helper.py`) |
+| Refused at edit time by | `internal/le/hookruntime` calling `internal/le/weakened` |
+| Refused at commit time by | `weakened_problems` (`internal/le/commit.Answer`) |
 | Reads | `test/weakened.md` + the HEAD content of the paths the commit names |
-| Source | `scripts/dev/check_weakened_tests.py`, called by both gates |
-| Parse gate | `make ze-test-weakened-check`, in `ze-precommit-verify` both modes |
-<!-- source: scripts/status/verify_run.go -- stagesForMode -->
+| Source | `internal/le/weakened.Answer`, called by both gates |
+| Parse gate | `./le test-weakened check`, in `./le verify current mode full` both modes |
+<!-- source: internal/le/verify/run.go -- Run, RunMode -->
 
 **The file is replaced per commit, and that shape is the whole design.** Delete
 the rows of the last commit. Write the rows of this one. Git history holds every
@@ -116,9 +112,8 @@ past row beside the change it accepted. A record that cannot accumulate cannot
 become unreadable, so no ceiling and no census are needed to cap it.
 
 **The commit must CARRY the file**, not merely have the row in the working tree.
-`weakened_problems` refuses a commit that weakens a test and does not name
-`test/weakened.md` in its own `--file` list. A row nobody commits records
-nothing.
+`internal/le/commit.Answer` refuses a weakening when `test/weakened.md` is not
+one of the repeated `file <path>` values passed to `./le commit create`.
 
 **The commit gate judges the paths the commit NAMES, never the working tree**,
 which is where it differs from the sensitivity ratchet above. Several sessions
@@ -144,7 +139,7 @@ sat in the file and contradicted each other for four months.
 
 ## The report
 
-`scripts/dev/testing_health.py` aggregates ten metrics, each assigned to one of
+`internal/le/testhealth.Answer` aggregates ten metrics, each assigned to one of
 three questions (sensitivity / intent / integrity) and each stating the action
 its degradation implies. Every number is derived from committed state; which
 files count comes from `git ls-files`, so an untracked scratch test does not
@@ -152,7 +147,7 @@ move the figures.
 
 ### What is gated, and what is only published
 
-`ze-test-health-check` compares only the STRUCTURAL facts against the tree: the
+`./le test-health check` compares only the STRUCTURAL facts against the tree: the
 orphaned-test-file list, the unproven-RFC list, and every metric's status. Each
 of those changing is an event, and a status flipping to `unknown` means a
 collector stopped measuring, which is the sensor rot the report exists to
@@ -163,26 +158,24 @@ gated. Byte-comparing the whole report charged a regenerate-and-commit to ~60%
 of commits, because every added test moves a denominator, and a check that fires
 that often for cosmetic reasons gets routed around rather than read: the
 "advisory gate permanently red" failure the report is built to expose. The
-counters are refreshed by `make ze-generated-files-update` and the page discloses that they may
+counters are refreshed by `./le repository generate` and the page discloses that they may
 lag.
-<!-- source: scripts/dev/testing_health.py -- structural_facts, do_check -->
+<!-- source: internal/le/testhealth/actions.go -- Answer -->
 
 ### The KPI series
 
-`make ze-test-health-record` appends one row to `test/health/history.ndjson`
-(committed), from which the page draws trends. It runs from the mutation targets
-in `mk/test-mutation.mk`, beside `mutation_history.py`, and skips a sample
-identical to the previous one at the same commit so trends do not overstate `n`.
+`./le test-health record` appends one row to `test/health/history.ndjson`.
+`./le mutation record-history` maintains the per-package mutation series. Both
+skip an identical sample at the same commit, so trends do not overstate the
+number of runs.
 
 ## Publication
 
-The website mirrors the generated Markdown verbatim: `website/tools/render-test-health.py`
-reads `test/health/latest.json` and `history.ndjson`, renders the page at
-`quality/health/`, and publishes the repository's `docs/features/test-health.md`
-as the `index.md` sibling unchanged. It computes nothing, so the site cannot
-publish a figure the repository disagrees with. The homepage's test counts read
-the same `latest.json` through `website/tools/sitefacts.py`.
-<!-- source: website/tools/render-test-health.py -- page_markdown, render -->
+The native `./le site build` action renders the website health page from
+`test/health/latest.json`, `history.ndjson`, and the generated Markdown. The
+site builder computes no new test-health facts.
+<!-- source: internal/le/sitebuild/build.go -- Build -->
+<!-- source: internal/le/testhealth/actions.go -- Actions -->
 
 ## Full operator reference
 

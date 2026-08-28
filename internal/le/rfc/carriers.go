@@ -28,7 +28,7 @@ import (
 
 // The three execution tiers.
 const (
-	tierVerify  = "verify"  // runs in a ze-precommit-verify stage, on every push
+	tierVerify  = "verify"  // runs in the native full verifier on every push
 	tierNightly = "nightly" // runs in a scheduled advisory workflow
 	tierUnrun   = "unrun"   // nothing runs it automatically: a tag here is refused
 )
@@ -58,35 +58,37 @@ type Carrier struct {
 	Prefix   string `json:"prefix"`   // repo-relative path prefix ("" matches anywhere)
 	Suffix   string `json:"suffix"`   // path suffix selecting this carrier
 	Reader   string `json:"reader"`   // which scanner parses this shape
-	Runner   string `json:"runner"`   // the make target that executes it
-	Pipeline string `json:"pipeline"` // where that target runs
+	Runner   string `json:"runner"`   // the native action that executes it
+	Pipeline string `json:"pipeline"` // where that action runs
 	// Derived is true for a row generated from the run list rather than
 	// declared literally. The HEAD table swaps exactly these out.
 	Derived bool `json:"derived"`
 }
 
-// interopTree is one interop tree: its path prefix and the make target that
-// executes it. The TIER is not here, because the tier is not a property of the
-// tree -- it is a property of whether CI runs that target.
-type interopTree struct{ name, prefix, target string }
+// interopTree is one native interop test package and the action that executes it.
+// The tier is derived from whether CI schedules that action.
+type interopTree struct{ name, prefix, action string }
 
 var interopTrees = [...]interopTree{
-	{"interop-bgp", "test/interop/scenarios/", "ze-interop-test"},
-	{"interop-ipsec", "test/interop-ipsec/", "ze-interop-ipsec-test"},
-	{"interop-l2tp", "test/interop-l2tp/", "ze-deployment-docker-l2tp-ppp-test"},
-	{"interop-pppoe", "test/interop-pppoe/", "ze-deployment-docker-pppoe-accel-test"},
+	{"interop-bgp", "internal/le/interoplab/bgp/", "integration/interop"},
+	{"interop-ipsec", "internal/le/interoplab/ipsec/", "integration/interop-ipsec"},
+	{"interop-l2tp", "internal/le/interoplab/l2tp/", "deployment/docker-l2tp-ppp-test"},
+	{"interop-pppoe", "internal/le/interoplab/pppoe/", "deployment/docker-pppoe-accel-test"},
 }
 
-// FunctionalSuites answers the suites `make ze-functional-test` runs.
+var legacyInteropTrees = [...]interopTree{
+	{"interop-bgp", "test/interop/scenarios/", "integration/interop"},
+	{"interop-ipsec", "test/interop-ipsec/", "integration/interop-ipsec"},
+	{"interop-l2tp", "test/interop-l2tp/", "deployment/docker-l2tp-ppp-test"},
+	{"interop-pppoe", "test/interop-pppoe/", "deployment/docker-pppoe-accel-test"},
+}
+
+// FunctionalSuites answers the suites `./le functional` runs.
 //
-// The Python reads them out of scripts/le/application/functional.py's source,
-// because a `//go:build ignore` module cannot be imported by the gate that
-// needs it. A compiled package has no such problem, so the list is READ from
-// the package that runs it. The three refusals the source reader owed -- an
-// unreadable module, two GATING assignments, a name with no Suite record --
-// are two impossibilities and one check that already exists beside the list
-// (internal/le/functional, TestEveryGatingNameIsASuite).
-func FunctionalSuites() []string { return append([]string(nil), functional.Gating...) }
+// The answer comes from the functional area's read-only catalogue. RFC evidence
+// classification therefore consumes the same run list as the native runner
+// without importing or parsing internal/le/functional/actions.go.
+func FunctionalSuites() []string { return functional.GatingNames() }
 
 // suiteCarriers answers one verify-tier row per suite, so the prefix carries
 // the execution claim.
@@ -117,28 +119,46 @@ func suiteCarriers(kind, suffix, reader, runner, stage string, suites []string) 
 // scheduled workflow names its runner. A tree nobody schedules resolves unrun
 // and its tags stay refused, which is the same answer four literals used to
 // assert -- but now it is measured.
-func interopCarriers(suffix string, scheduled map[string]string) []Carrier {
+func interopCarriers(scheduled map[string]string) []Carrier {
 	out := make([]Carrier, 0, len(interopTrees))
 	for _, tree := range interopTrees {
-		workflow := scheduled[tree.target]
+		workflow := scheduled[tree.action]
 		tier, pipeline := tierUnrun, "no automated caller"
 		if workflow != "" {
 			var tb textbuf.Buffer
 			tier = tierNightly
 			pipeline = tb.Str(".github/workflows/").Str(workflow).Str(" (advisory)").String()
 		}
-		var runner textbuf.Buffer
 		out = append(out, Carrier{
 			Name: tree.name, Kind: "interop", Tier: tier, Prefix: tree.prefix,
-			Suffix: suffix, Reader: "python",
-			Runner:   runner.Str("make ").Str(tree.target).String(),
+			Suffix: ".go", Reader: "go",
+			Runner:   "./le " + strings.Replace(tree.action, "/", " ", 1),
 			Pipeline: pipeline,
 		})
 	}
 	return out
 }
 
-// Carriers answers the whole table for one checkout.
+func legacyInteropCarriers(scheduled map[string]string) []Carrier {
+	out := make([]Carrier, 0, len(legacyInteropTrees))
+	for _, tree := range legacyInteropTrees {
+		workflow := scheduled[tree.action]
+		tier, pipeline := tierUnrun, "no automated caller"
+		if workflow != "" {
+			tier = tierNightly
+			pipeline = ".github/workflows/" + workflow + " (advisory)"
+		}
+		out = append(out, Carrier{
+			Name: tree.name, Kind: "interop", Tier: tier, Prefix: tree.prefix,
+			Suffix: "/check.py", Reader: "legacy-python",
+			Runner:   "./le " + strings.Replace(tree.action, "/", " ", 1),
+			Pipeline: pipeline,
+		})
+	}
+	return out
+}
+
+// carriers answers the whole table for one checkout.
 //
 // It is ORDERED: the first entry whose prefix AND suffix match wins, so the
 // specific scenario trees are declared before the unclassified catch-all.
@@ -146,8 +166,8 @@ func interopCarriers(suffix string, scheduled map[string]string) []Carrier {
 // It is computed per call rather than once, because two of its rows are read
 // off the tree: a checkout whose workflows changed under a long-lived process
 // must not be judged by the table the process started with.
-func Carriers(tree string) ([]Carrier, error) {
-	scheduled, err := ScheduledWorkflowTargets(tree)
+func carriers(tree string) ([]Carrier, error) {
+	scheduled, err := scheduledWorkflowActions(tree)
 	if err != nil {
 		return nil, err
 	}
@@ -167,68 +187,62 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 
 	var unrunCI, unrunET textbuf.Buffer
 	out := make([]Carrier, 0, len(suites)+len(editorSuites)+len(interopTrees)+5)
+	out = append(out, interopCarriers(scheduled)...)
+	out = append(out, Carrier{
+		Name: "interop-unrun", Kind: "unknown", Tier: tierUnrun, Prefix: "internal/le/interoplab/",
+		Suffix: ".go", Reader: "go", Runner: "no declared native interop action",
+		Pipeline: "no automated caller",
+	})
 	out = append(out, Carrier{
 		Name: "unit", Kind: "unit", Tier: tierVerify, Prefix: "", Suffix: "_test.go",
-		Reader: "go", Runner: "make ze-unit-test",
-		Pipeline: "ze-precommit-verify (unit stage)",
+		Reader: "go", Runner: "./le verify-deps unit-cached",
+		Pipeline: "./le verify current mode full (unit stage)",
 	})
 	// ONE verify-tier row per suite the run list actually names. A single
 	// empty-prefix row credited ANY .ci anywhere under internal/, pkg/ or test/
-	// as merge-gate evidence, which made three silent evasions possible: move a
-	// tagged .ci out of a run suite, into the gitignored incubator, or into a
-	// tree whose sibling check.py the SAME table refuses as unrun.
+	// as verify evidence, which made two silent evasions possible: move a
+	// tagged .ci out of a run suite or into the gitignored incubator.
 	out = append(out, suiteCarriers("functional", ".ci", "ci",
-		"make ze-functional-test", "ze-precommit-verify (functional stage", suites)...)
+		"./le functional", "./le verify current mode full (functional stage", suites)...)
 	// `.et` is the cheapest verify-tier non-unit carrier available, and it
 	// costs one row: it is .ci semantics exactly, and only test/editor/ is
 	// walked for it.
 	out = append(out, suiteCarriers("editor", ".et", "ci",
-		"make ze-functional-editor-test", "ze-precommit-verify (functional stage",
+		"./le functional editor", "./le verify current mode full (functional stage",
 		editorSuites)...)
-	// test/exabgp-compat is NOT one of the run list's suites: it has its own
-	// stage. A separate target is a separate fact, so it is a declared row
-	// rather than a second suite list. The two catch-alls follow it, reached by
-	// a file under a suite no verify stage runs -- and they follow it in this
-	// order because the FIRST matching row wins.
+	// test/exabgp-compat is not one of the run list's suites. It has its own
+	// native action and stage, so it is a declared row rather than a second
+	// suite list.
 	out = append(out, Carrier{
 		Name: "functional-exabgp", Kind: "functional", Tier: tierVerify,
 		Prefix: "test/exabgp-compat/", Suffix: ".ci", Reader: "ci",
-		Runner:   "make ze-functional-exabgp-test",
-		Pipeline: "ze-precommit-verify (exabgp stage)",
+		Runner:   "./le functional exabgp-test",
+		Pipeline: "./le verify current mode full (exabgp stage)",
 	}, Carrier{
 		Name: "functional-unrun", Kind: "functional", Tier: tierUnrun, Prefix: "",
 		Suffix: ".ci", Reader: "ci",
-		Runner: "no ze-precommit-verify stage walks this directory",
-		Pipeline: unrunCI.Str("no automated caller; ze-functional-test runs ").
+		Runner: "no native full-verifier stage walks this directory",
+		Pipeline: unrunCI.Str("no automated caller; ./le functional runs ").
 			Join(suites, ", ").String(),
 	}, Carrier{
 		Name: "editor-unrun", Kind: "editor", Tier: tierUnrun, Prefix: "",
 		Suffix: ".et", Reader: "ci",
-		Runner: "no ze-precommit-verify stage walks this directory",
+		Runner: "no native full-verifier stage walks this directory",
 		Pipeline: unrunET.Str("no automated caller; only test/").Str(editorSuite).
 			Str("/ is walked for .et").String(),
-	})
-	out = append(out, interopCarriers("/check.py", scheduled)...)
-	// Catch-all. Other trees hold check.py files, and any future tree will too.
-	// Refusing a tag there by DEFAULT is the fail-closed shape: a carrier whose
-	// pipeline nobody has declared is exactly the case where silence would be
-	// indistinguishable from proof.
-	out = append(out, Carrier{
-		Name: "scenario-check", Kind: "unknown", Tier: tierUnrun, Prefix: "",
-		Suffix: "/check.py", Reader: "python", Runner: "no declared runner",
-		Pipeline: "no automated caller",
 	})
 	return out
 }
 
-// CarrierFor answers the carrier a repo-relative path belongs to, and false
+// carrierFor answers the carrier a repo-relative path belongs to, and false
 // when the shape carries no tags.
 //
-// test/draft/ and internal/le/ answer false. The incubator executes in no
-// repository gate. Development-tool tests exercise the scanner and cannot
-// become protocol proof merely because the tool moved under internal/.
-func CarrierFor(rel string, carriers []Carrier) (Carrier, bool) {
-	if strings.HasPrefix(rel, draftPrefix) || strings.HasPrefix(rel, developmentToolsPrefix) {
+// test/draft/ and development-tool tests outside interoplab answer false.
+// Interoplab tests exercise foreign implementations and can carry protocol
+// evidence when their native action is scheduled.
+func carrierFor(rel string, carriers []Carrier) (Carrier, bool) {
+	if strings.HasPrefix(rel, draftPrefix) ||
+		(strings.HasPrefix(rel, developmentToolsPrefix) && !strings.HasPrefix(rel, "internal/le/interoplab/")) {
 		return Carrier{}, false
 	}
 	for _, one := range carriers {
@@ -253,7 +267,7 @@ func refuseUnrun(carrier Carrier, tag Tag) error {
 		Str("workflow (the interop jobs in .github/workflows/evidence-nightly.yml are ").
 		Str("the pattern); an interop carrier's tier is derived from that set, so the ").
 		Str("job is the whole fix and CARRIERS needs no edit -- or bind the requirement ").
-		Str("to a .ci instead, which runs inside ze-precommit-verify on every push"))
+		Str("to a .ci instead, which runs inside the native full verifier on every push"))
 }
 
 // skipDirs are never walked: two hold code this repository does not author, and
@@ -263,11 +277,10 @@ var skipDirs = map[string]bool{".git": true, "vendor": true, "testdata": true}
 // ScanTree answers every tag under the three test roots.
 //
 // The walk visits a directory's files before its subdirectories and takes both
-// in sorted order, which is the order the Python walk produces. It is
-// load-bearing for one reason: an unrun carrier refuses on the FIRST tag it
-// finds, so the order decides which of several offending files is named.
+// them in sorted order. It is load-bearing because an unrun carrier refuses on
+// the first tag it finds, so order decides which offending file is named.
 func ScanTree(tree string) ([]Tag, error) {
-	carriers, err := Carriers(tree)
+	carriers, err := carriers(tree)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +324,7 @@ func scanDir(tree, dir string, carriers []Carrier) ([]Tag, error) {
 	for _, name := range files {
 		path := filepath.Join(dir, name)
 		rel := relTo(tree, path)
-		carrier, ok := CarrierFor(rel, carriers)
+		carrier, ok := carrierFor(rel, carriers)
 		if !ok {
 			continue
 		}
@@ -321,10 +334,8 @@ func scanDir(tree, dir string, carriers []Carrier) ([]Tag, error) {
 		}
 		// THE pre-filter tagMarker exists for. Every tag in every carrier
 		// contains this literal, so a file without it certainly holds none and
-		// the expensive answer -- a per-line regex, or a whole Python comment
-		// walk for a check.py -- never has to be computed. Skipping is safe
-		// precisely BECAUSE the readers only ever report a tag whose line
-		// contains it, so no reachable verdict can change.
+		// the per-line scanner never has to run. Skipping is safe because each
+		// reader only reports a tag whose line contains the marker.
 		if !strings.Contains(src, tagMarker) {
 			continue
 		}
@@ -351,20 +362,22 @@ func scanDir(tree, dir string, carriers []Carrier) ([]Tag, error) {
 func readerFor(name string) func(src, path string) ([]Tag, error) {
 	switch name {
 	case "go":
-		return ScanGoTags
+		return scanGoTags
 	case "ci":
-		return ScanCITags
+		return scanCITags
+	case "legacy-python":
+		return scanLegacyPythonTags
+	default:
+		return func(_ string, path string) ([]Tag, error) {
+			var tb textbuf.Buffer
+			return nil, parseErr(tb.Str(path).Str(": unknown RFC carrier reader ").Str(name))
+		}
 	}
-	return ScanPythonTags
 }
 
-// ─── The workflow half: whether CI runs a target ────────────────────────────
+// ─── The workflow half: whether CI runs a native action ─────────────────────
 
-var makeFlagsWithArg = map[string]bool{
-	"-C": true, "-f": true, "-j": true, "-l": true, "-o": true, "-W": true,
-}
-
-// cmdWrappers sit BEFORE `make` and are not part of it.
+// cmdWrappers sit before `./le` and are not part of its action identity.
 var cmdWrappers = map[string]bool{"sudo": true, "env": true, "then": true, "do": true}
 
 var workflowSuffixes = [...]string{".yml", ".yaml"}
@@ -379,12 +392,11 @@ func stripYAMLComments(src string) string {
 	return strings.Join(lines, "\n")
 }
 
-// MakeTargetsIn answers every make target a workflow body invokes, one bare
-// word after `make` per entry.
+// nativeActionsIn answers every `./le <area> <verb>` action a workflow invokes.
 //
-// It models shell command LINES, not a shell: `$(MAKE)`, `bash -c "..."`,
-// backticks and subshells are not parsed.
-func MakeTargetsIn(src string) []string {
+// It models command lines, not a shell. Chains are split, but substitutions,
+// backticks, and subshells are not parsed.
+func nativeActionsIn(src string) []string {
 	var out []string
 	for line := range strings.SplitSeq(src, "\n") {
 		cmd := strings.TrimSpace(line)
@@ -395,17 +407,17 @@ func MakeTargetsIn(src string) []string {
 			cmd = strings.ReplaceAll(cmd, sep, "\x00")
 		}
 		for frag := range strings.SplitSeq(cmd, "\x00") {
-			out = append(out, targetsInCommand(strings.Fields(frag))...)
+			out = append(out, actionsInCommand(strings.Fields(frag))...)
 		}
 	}
 	return out
 }
 
-func targetsInCommand(fields []string) []string {
+func actionsInCommand(fields []string) []string {
 	if len(fields) > 0 && fields[0] == "-" {
 		fields = fields[1:]
 	}
-	// `run: make ...` -- the YAML command key is not part of the command.
+	// The YAML command key is not part of the command.
 	if len(fields) > 0 && fields[0] == "run:" {
 		fields = fields[1:]
 	}
@@ -413,22 +425,10 @@ func targetsInCommand(fields []string) []string {
 		strings.HasPrefix(fields[0], "-") || strings.Contains(fields[0], "=")) {
 		fields = fields[1:]
 	}
-	if len(fields) < 2 || fields[0] != "make" {
+	if len(fields) < 3 || (fields[0] != "./le" && fields[0] != "le") {
 		return nil
 	}
-	var out []string
-	for i := 1; i < len(fields); i++ {
-		arg := fields[i]
-		if makeFlagsWithArg[arg] {
-			i++ // the flag AND its separate argument
-			continue
-		}
-		if !strings.HasPrefix(arg, "-") && !strings.Contains(arg, "=") {
-			// EVERY bare word is a target: `make a b` invokes both.
-			out = append(out, arg)
-		}
-	}
-	return out
+	return []string{fields[1] + "/" + fields[2]}
 }
 
 // topLevelBlock answers the indented body of a top-level `key:` line, and false
@@ -475,10 +475,19 @@ func isScheduled(src string) bool {
 	return false
 }
 
-// ScheduledTargetsFrom answers `make target -> the scheduled workflow that runs
+// workflowIsScheduled reports whether source declares a schedule trigger.
+//
+// Comments are stripped first so a disabled example cannot grant a workflow a
+// scheduled tier. The workflow catalogue and external migration checks consume
+// this same parser.
+func workflowIsScheduled(source string) bool {
+	return isScheduled(stripYAMLComments(source))
+}
+
+// scheduledActionsFrom answers `area/verb -> the scheduled workflow that runs
 // it`. The pure core, so the tree and the HEAD table share one notion of "CI
 // runs this".
-func ScheduledTargetsFrom(sources map[string]string) map[string]string {
+func scheduledActionsFrom(sources map[string]string) map[string]string {
 	out := map[string]string{}
 	names := make([]string, 0, len(sources))
 	for name := range sources {
@@ -490,27 +499,27 @@ func ScheduledTargetsFrom(sources map[string]string) map[string]string {
 		if !isScheduled(src) {
 			continue
 		}
-		for _, target := range MakeTargetsIn(src) {
-			if _, seen := out[target]; !seen {
-				out[target] = name
+		for _, action := range nativeActionsIn(src) {
+			if _, seen := out[action]; !seen {
+				out[action] = name
 			}
 		}
 	}
 	return out
 }
 
-// ReadWorkflowSources answers every workflow file's text, keyed by base name.
+// readWorkflowSources answers every workflow file's text, keyed by base name.
 // It raises rather than answering an empty map: not knowing what CI runs is a
 // different fact from CI running nothing.
-func ReadWorkflowSources(tree string) (map[string]string, error) {
+func readWorkflowSources(tree string) (map[string]string, error) {
 	dir := treePath(tree, workflowsRel)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		var tb textbuf.Buffer
 		return nil, parseErr(tb.Str(dir).
-			Str(": cannot read the workflow directory, so which make targets CI runs on ").
+			Str(": cannot read the workflow directory, so which native actions CI runs on ").
 			Str("a schedule is unknown. The interop evidence tier is derived from that ").
-			Str("set, and a gate that answers 'everything runs' in this state would ").
+			Str("set, and a check that answers 'everything runs' in this state would ").
 			Str("credit evidence to a pipeline nobody confirmed: ").Err(err))
 	}
 	sources := map[string]string{}
@@ -545,13 +554,13 @@ func hasWorkflowSuffix(name string) bool {
 	return false
 }
 
-// ScheduledWorkflowTargets answers which make targets a scheduled workflow
+// scheduledWorkflowActions answers which native actions a scheduled workflow
 // invokes. It fails closed: an unreadable or empty workflow directory means we
 // do not know what CI runs.
-func ScheduledWorkflowTargets(tree string) (map[string]string, error) {
-	sources, err := ReadWorkflowSources(tree)
+func scheduledWorkflowActions(tree string) (map[string]string, error) {
+	sources, err := readWorkflowSources(tree)
 	if err != nil {
 		return nil, err
 	}
-	return ScheduledTargetsFrom(sources), nil
+	return scheduledActionsFrom(sources), nil
 }

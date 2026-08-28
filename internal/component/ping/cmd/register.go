@@ -5,7 +5,7 @@
 //     ping handlers, and
 //   - the local command registry, for offline `show ping` and `monitor ping`.
 //
-// The module is reached by the daemon through scripts/codegen/plugin_imports.go
+// The module is reached by the daemon through internal/le/pluginimports/pluginimports.go
 // rpcDirs (internal/component/ping/cmd) and by the `ze` binary through plugin/all.
 
 package cmd

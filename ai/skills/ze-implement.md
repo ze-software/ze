@@ -9,7 +9,7 @@ Build the selected spec: wiring first, then feature phases, with review loops
 until the diff is clean. **Closure is a separate skill** -- when this one ends,
 run `/ze-close`.
 
-See also: `/ze-close` (deliverables, security, docs, Review Gate, the two closure commits), `/ze-audit` (check what exists first), `/ze-review` (the adversarial pass), `/ze-precommit-verify` (run tests)
+See also: `/ze-close` (deliverables, security, docs, Review Gate, the two closure commits), `/ze-audit` (check what exists first), `/ze-review` (the adversarial pass), `/ze-verify` (run tests)
 
 ## Delegation
 
@@ -45,7 +45,7 @@ phase itself.
 - **Why one agent per phase.** Cost per API call is the context size at that
   call, and context grows with turns. A long agent therefore pays more for every
   later call it makes. Measured over this machine's session transcripts
-  (`make ze-token-economy-report`), implementation agents ran 144 API calls each
+  (`./le token-economy`), implementation agents ran 144 API calls each
   at 294k mean context, more of both than any other phase. Splitting
   the spec across phase agents cuts the turns each one carries. It does not cut
   the work: every phase still runs the full steps below.
@@ -73,11 +73,11 @@ phase itself.
 
 ### Phase handoff: the per-spec state file
 
-Every phase agent ends by APPENDING its handoff to the per-spec state file
-`tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md`, the path `_state_file`
-computes in `.claude/hooks/lib/state-file.sh` and `_find_latest_state_for_spec`
-recovers across sessions. That file already exists and already carries digests
-after compaction. Write into it. A new handoff file family is layering
+Every phase agent ends by APPENDING its handoff to the per-spec state file that
+`./le spec-session state current` reports. `./le spec-session state latest spec
+<spec-stem>` recovers the newest state across sessions. That file already
+exists and carries digests after compaction. Write into it. A new handoff file
+family is layering
 (`ai/rules/no-layering.md`).
 
 The next phase's agent READS that file before it reads any source. It does not
@@ -91,7 +91,7 @@ A handoff carries four things:
 |------|---------|
 | Files changed | one line per file, in the digest format `.claude/rules/post-compaction.md` already defines: `` - `path/to/file.go` (380L): what it holds. Key: `Run()`, `handleOpen()`. Uses `wire.SessionBuffer`. `` |
 | Acceptance criteria covered | each AC-N this phase now satisfies, with the test name or command that is its evidence |
-| Verified green | the exact targets run and their result (`make ze-unit-test`, the wiring test name, the phase's Verify line from the spec) |
+| Verified green | the exact targets run and their result (`./le test-unit`, the wiring test name, the phase's Verify line from the spec) |
 | Do not assume | what the next phase must NOT take for granted. A stub still standing, an A-N still `unvalidated`, a gate not yet run, a file left untouched |
 
 ### Work-package size (BLOCKING)
@@ -139,20 +139,20 @@ Review Gate, or the commits. Those are `/ze-close`, for two reasons:
 | 3. Audit | Files to Modify, Files to Create, TDD Test Plan, **Risks & Assumptions** (validate assumptions before coding) |
 | 4. Wiring phase | **Wiring Test** table (entry points, registration, skeleton) |
 | 5. Implement | Implementation Phases, TDD Test Plan, Acceptance Criteria |
-| 6. Verify | (make targets) |
+| 6. Verify | (native `./le` verification actions) |
 | 7. Critical review | **Critical Review Checklist** (feature-specific checks) |
 
 The spec carries only design-time sections while this skill runs. The closure
 half lives in `plan/TEMPLATE-CLOSURE.md` and `/ze-close` appends it when it is
 first needed.
 
-**Verification: inner loop vs gate.** Steps 6 and 9 use the fast targets to
-iterate. `make ze-precommit-verify` is the pre-commit GATE (`ai/rules/precommit-verify.md`) and
-is the only command the spec's Goal Gates name. Do not add a third spelling.
+**Verification: inner loop vs gate.** Steps 6 and 9 use the native focused
+actions. `./le verify worktree` is the pre-commit GATE
+(`ai/rules/precommit-verify.md`) and is the only command the spec's Goal Gates name.
 
 ## Steps
 
-1. **Read the spec:** Run `scripts/dev/spec-session.sh current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `scripts/dev/spec-session.sh claim <spec-name>`. Then read `plan/<spec-name>`.
+1. **Read the spec:** Run `./le spec-session current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec-session claim spec <spec-name>`. Then read `plan/<spec-name>`.
    - If `claim` exits 3, the WIP cap refused it: too many specs are already in-progress. That is a decision for the user, not something to route around. Show them the list it printed and ask whether to close one first or raise `ZE_SPEC_WIP_CAP`. Do NOT edit the spec's Status by hand to skip the check.
 2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.
@@ -182,7 +182,7 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
 5. **Implement feature phases:** Follow the spec's **Implementation Phases** section in order, filling in the stubs created in step 4. For each phase:
    - Write the tests listed for that phase (TDD — test must fail before implementation)
    - Implement minimal code to pass
-   - Run `make ze-unit-test` until green
+   - Run `./le test-unit` until green
    - Confirm the wiring test from step 4 now passes (or progresses) after each phase
    - Update the **Risks & Assumptions** tables: flip A-N statuses as evidence arrives;
      when an assumption breaks mid-phase, add the Mistake Log row immediately and STOP
@@ -191,20 +191,20 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
      A style defect caught in the phase that produced it costs one edit. The same defect
      caught in step 7 costs a re-read of every phase before it.
    - Move to next phase
-6. **Run full verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+6. **Run full verification:** `./le verify-lint run && ./le test-unit && ./le functional`
 7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
    - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests, Style)
    - **Ze Style (BLOCKING):** Apply the Style row of `ai/rules/quality.md` to every Go file this spec touched, against `docs/contributing/ze-go-style.md`. Four questions, and the first is a BLOCKER on its own. Can a peer reach any `panic()` you added? Trace the input back to the socket: a malformed message is an operating error and returns an error. What bounds each new loop, queue, retry, and cache? Does each new name say what the value IS rather than its Go type? Does each new lifecycle or paired call state its obligation with MUST on BOTH sides?
    - **CLI grammar (BLOCKING):** If any CLI command was added or changed, verify it follows action-before-identifier per `ai/rules/cli.md`. Run the mechanical check: `args[0]` must always be a keyword, never a user identifier.
-   - **Invocation-form change (BLOCKING):** If the change REMOVES or ALTERS how a binary is invoked (a launch/dispatch form, a positional's meaning, a flag's meaning), enumerate EVERY invocation site by grepping the bare invocation token (`\bze <positional>`), NOT just the framework directive (`exec=ze`). Invocations hide in `.ci` `exec=` directives, **embedded `tmpfs=*.sh` script bodies** (run via `exec=./script.sh`), helper `.sh`/`.py`, the test-runner launch code, wrapper scripts (`test/exabgp-compat/bin/exabgp`), and docs. A directive-only grep is blind to shell-script-mediated launches. Then prove the change against the **FULL affected suite, never a sample** -- only the full run executes the embedded launches, so a passing sample is a false green. (Learned 1248: removing the bare `ze <config>` sink broke 26 auth `.ci` that launched the daemon from an embedded `tmpfs=*.sh` `ze <config>` line the migration grep never saw; the full functional suite caught it, a sampled run would not have.)
+   - **Invocation-form change (BLOCKING):** If the change REMOVES or ALTERS how a binary is invoked (a launch/dispatch form, a positional's meaning, a flag's meaning), enumerate EVERY invocation site by searching for the bare invocation token (`\bze <positional>`), not only the framework directive (`exec=ze`). Invocations hide in `.ci` `exec=` directives, embedded `tmpfs=` bodies, compiled fixture drivers under `internal/test/fixture`, test-runner launch code, and compatibility launchers under `internal/test`. Prove the complete affected suite, never a sample, because only it runs every embedded launch (learned 1248).
    - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, socket, kernel module, port, TLS cert, external binary), verify a `ze doctor` check exists per `ai/rules/repo-maintenance.md`. Register diagnostic codes in `internal/core/diagnostic/codes.go`.
    - **Prometheus counters:** If the feature has observable state (connections, errors, rates, gauges), verify counters are defined, registered in telemetry, and listed in the spec's Integration Checklist.
    - **YANG validation:** If YANG leaves were added, verify each has maximum native constraints (`range`, `length`, `pattern`, `enumeration`). If native is insufficient, verify a custom validator with `CompleteFn` exists per `ai/patterns/config-option.md`. A leaf with `type string` and no constraint is a red flag.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 8. **Fix every issue found** in the review. For each fix apply `ai/rules/completion.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
-9. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+9. **Re-run verification:** `./le verify-lint run && ./le test-unit && ./le functional`
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Bounding the loop").
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
     steps 7-9 find nothing, every target is green, AND you have read the whole
@@ -231,13 +231,13 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
       starts, so read the row rather than choosing here. When the row says
       `verify` and the LAST phase is green, commit the work before you stop:
       1. Set `| Status | verification |` and `| Updated |` to today.
-      2. Prepare ONE commit with `scripts/dev/commit_helper.py create`, carrying
-         the code, the tests, the docs and the spec file. Carry NO
-         `plan/learned/` file and NO `--remove` of the spec: those two make it a
-         closure commit, and a closure commit needs the Review Gate artifact
-         this session MUST NOT produce. Run the script the helper prints
+      2. Prepare ONE commit with `./le commit create`, carrying the code, the
+         tests, the docs and the spec file. Carry NO `plan/learned/` file and no
+         `remove` keyword for the spec: those two make it a closure commit, and
+         a closure commit needs the Review Gate artifact this session MUST NOT
+         produce. Run the script path the command prints
          (`ai/rules/git-safety.md`).
-      3. Run `scripts/dev/spec-session.sh release`.
+      3. Run `./le spec-session release`.
       4. Report the commit SHA, and state that `/ze-close` on Opus 5 is the next
          phase. It reviews that commit.
       When the row is absent or `-`, none of this applies: hand the uncommitted

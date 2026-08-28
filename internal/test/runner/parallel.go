@@ -30,10 +30,9 @@ const (
 )
 
 // SuiteConcurrencyFloor is the smallest default concurrency DefaultSuiteConcurrency
-// will hand out. It is the value ZE_PLUGIN_PARALLEL has been running the 530-test
-// plugin suite at on GitHub's 4-vCPU hosted runner (mk/test-functional.mk), so it
-// is a measured survivable figure on the smallest host this project builds on,
-// not a guess.
+// will hand out. It is the value ZE_PLUGIN_PARALLEL uses for the 530-test plugin
+// suite on GitHub's 4-vCPU hosted runner, so it is a measured survivable figure
+// on the smallest host this project builds on, not a guess.
 const SuiteConcurrencyFloor = 8
 
 // DefaultSuiteConcurrency is the per-suite default for `ze-test <suite>` when the
@@ -86,9 +85,9 @@ func verifyModeEnabled() bool {
 	return env.IsEnabled("ze.verify.mode")
 }
 
-// VerifyModeEnabled reports whether this run is part of a `make ze-precommit-verify`
-// gate (the verify runner sets ZE_VERIFY_MODE=1). Suites use it to turn
-// silent environment skips into hard failures.
+// VerifyModeEnabled reports whether this run is part of
+// `./le verify current mode full` (the verify runner sets ZE_VERIFY_MODE=1).
+// Suites use it to turn silent environment skips into hard failures.
 func VerifyModeEnabled() bool {
 	return verifyModeEnabled()
 }

@@ -10,95 +10,11 @@ option=tcp_connections:value=1
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=api-commit-reject.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-import urllib.error
-import urllib.request
-from ze_api import API, wait_until
-
-REST_PORT = 18088
-BASE_URL = f'http://127.0.0.1:{REST_PORT}/api/v1'
-HEADERS = {'Authorization': 'Bearer secret', 'Content-Type': 'application/json'}
-
-def wait_for_rest(url, timeout=10):
-    def ok():
-        try:
-            urllib.request.urlopen(urllib.request.Request(url, headers={'Authorization': 'Bearer secret'}), timeout=2).read()
-            return True
-        except (urllib.error.URLError, ConnectionRefusedError, OSError):
-            return False
-    return wait_until(ok, attempts=max(1, int(timeout / 0.5)), delay=0.5)
-
-def request(method, path, payload=None):
-    data = None
-    headers = dict(HEADERS)
-    if payload is not None:
-        data = json.dumps(payload).encode()
-    req = urllib.request.Request(BASE_URL + path, data=data, headers=headers, method=method)
-    resp = urllib.request.urlopen(req, timeout=5)
-    raw = resp.read()
-    if not raw:
-        return {}
-    return json.loads(raw)
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        if not wait_for_rest(f'{BASE_URL}/commands'):
-            print('FAIL: REST API did not respond', file=sys.stderr)
-            sys.exit(1)
-
-        created = request('POST', '/config/sessions')
-        session_id = created.get('session-id')
-        if not session_id:
-            print(f'FAIL: create session response={created}', file=sys.stderr)
-            sys.exit(1)
-
-        request('PUT', f'/config/sessions/{session_id}', {'path': 'bgp.peer.peer1.timer.receive-hold-time', 'value': '2'})
-        try:
-            request('POST', f'/config/sessions/{session_id}/commit')
-        except urllib.error.HTTPError as err:
-            body = err.read().decode(errors='replace')
-            if 'receive-hold-time' not in body and 'reload' not in body and 'commit' not in body:
-                print(f'FAIL: unexpected commit rejection status={err.code} body={body}', file=sys.stderr)
-                sys.exit(1)
-        else:
-            print('FAIL: invalid commit unexpectedly succeeded', file=sys.stderr)
-            sys.exit(1)
-
-        diff = request('GET', f'/config/sessions/{session_id}/diff')
-        if 'receive-hold-time' not in diff.get('diff', ''):
-            print(f'FAIL: rejected session was not kept open: {diff}', file=sys.stderr)
-            sys.exit(1)
-        print('OK: REST config commit rejected and session kept open', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 tmpfs=api-config-commit-reject.conf:terminator=EOF_CONF
 plugin {
     external api-commit-reject {
-        run ./api-commit-reject.run
+        run "ze-test fixture plugin/api-config-commit-reject"
         encoder json
     }
 }

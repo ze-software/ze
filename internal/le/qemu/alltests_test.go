@@ -13,12 +13,12 @@ import (
 
 // VALIDATES: the in-VM run covers EVERY functional suite this repository
 // declares, refuses to start when it cannot, and names each phase it ran.
-// PREVENTS: the defect measured in scripts/evidence/qemu-all-tests.sh on
-// 2026-08-26. The script has 25 hand-written `fsuite` lines. The suite table
-// declares 29 suites. runner, flow-export, vpp and web appear nowhere in the
-// script, so they never execute in the VM. Four of the script's own comments say
-// a suite left off that list "would execute NOWHERE". This run's completeness
-// guard makes that silent failure impossible.
+// PREVENTS: the defect measured in the former shell driver on 2026-08-26. It
+// had 25 hand-written `fsuite` lines while the suite table declared 29. runner,
+// flow-export, vpp and web appeared nowhere, so they never executed in the VM.
+// Four of the driver's own comments said a suite left off that list "would
+// execute NOWHERE". This run's completeness guard makes that silent failure
+// impossible.
 
 // recorder is a child runner that answers a fixed code and remembers every
 // command line it receives. This lets a case assert the ABSOLUTE number of
@@ -37,7 +37,7 @@ func (r *recorder) run(argv, environ []string) int {
 
 // vmFixture builds a workspace that passes every precondition: the three
 // binaries, a feature-gates file, and each integration package directory.
-func vmFixture(t *testing.T) *AllTests {
+func vmFixture(t *testing.T) *allTestsRun {
 	t.Helper()
 	workspace := t.TempDir()
 
@@ -51,7 +51,7 @@ func vmFixture(t *testing.T) *AllTests {
 		}
 	}
 
-	return &AllTests{
+	return &allTestsRun{
 		Workspace:   workspace,
 		BinDir:      filepath.Join(t.TempDir(), "bin"),
 		ZeBin:       "bin/ze",
@@ -236,9 +236,9 @@ func TestAMissingBinaryIsRefusedBeforeAnythingRuns(t *testing.T) {
 	}
 }
 
-// The build caches are passed to make as command-line variables. Unset, the
-// unit phase would compile into whatever the makefile's own assignment names,
-// which in the VM is a dangling host symlink.
+// The native host action passes both build caches explicitly. Unset, the unit
+// phase could compile into a guest-local or dangling host path and make the
+// evidence irreproducible.
 func TestAnUnsetBuildCacheIsRefusedBeforeAnythingRuns(t *testing.T) {
 	run := vmFixture(t)
 	run.BuildCache = ""
@@ -340,8 +340,7 @@ func TestAnOptionalTransportPackageIsAddedOnlyWhenItIsThere(t *testing.T) {
 	}
 }
 
-// The PATH shim is what lets a test exec `ze-stripped` by name, and
-// mk/test-integration.mk:626 mirrors this directory for the same reason.
+// The PATH shim is what lets a test exec `ze-stripped` by name.
 func TestTheBinaryShimIsBuiltBeforeTheSuitesRun(t *testing.T) {
 	run := vmFixture(t)
 	rec := &recorder{}

@@ -1,0 +1,41 @@
+#!/bin/sh
+set -eu
+
+root=$(CDPATH= cd "$(dirname "$0")" && pwd)
+binary=$root/bin/ze
+
+# This is an existence cache, not a freshness check. An existing binary is
+# deliberately executed without asking the toolchain whether sources changed.
+if [ ! -x "$binary" ]; then
+	feature_tags=$(awk 'NF && $1 !~ /^#/ && !seen[$1]++ { printf "%s%s", sep, $1; sep="," }' "$root/feature-gates.txt")
+	tags=ze_core,ze_distro
+	if [ -n "$feature_tags" ]; then
+		tags=$tags,$feature_tags
+	fi
+
+	GOCACHE=$root/cache/go-cache
+	GOLANGCI_LINT_CACHE=$root/tmp/golangci-lint-cache
+	CGO_ENABLED=0
+	export GOCACHE GOLANGCI_LINT_CACHE CGO_ENABLED
+	# A toolchain line wins; the go directive is the fallback, because a module
+	# stating `go 1.27.0` and no toolchain line still pins go1.27.0. Reading only
+	# the toolchain line left this build with no pin at all.
+	toolchain=$(awk '$1 == "toolchain" { print $2; exit }' "$root/go.mod")
+	if [ -z "$toolchain" ]; then
+		toolchain=$(awk '$1 == "go" { print "go" $2; exit }' "$root/go.mod")
+	fi
+	if [ -n "$toolchain" ]; then
+		GOTOOLCHAIN=$toolchain
+		export GOTOOLCHAIN
+	fi
+
+	mkdir -p "$root/bin"
+	if [ -x "$root/bin/le" ]; then
+		ZE_REPO_ROOT=$root "$root/bin/le" job run label ze-build command \
+			go build -tags "$tags" -o "$binary" ./cmd/ze
+	else
+		(cd "$root" && go build -tags "$tags" -o "$binary" ./cmd/ze)
+	fi
+fi
+
+exec "$binary" "$@"

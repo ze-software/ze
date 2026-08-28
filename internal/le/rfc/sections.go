@@ -20,7 +20,7 @@ import (
 // Without it the backlog exists but is unreadable -- thousands of rows with a
 // dash in them is an inventory, not a worklist.
 func renderRollup(in RenderInput) []string {
-	cov := RFCCoverageRows(in.Requirements, in.Tags, in.Carriers)
+	cov := rfcCoverageRows(in.Requirements, in.Tags, in.Carriers)
 	// Enrolled first (regressions matter most), then closest to enrollable, so
 	// the next RFC worth finishing is always at the top.
 	sort.SliceStable(cov, func(i, j int) bool {
@@ -69,7 +69,7 @@ func renderRollup(in RenderInput) []string {
 	var nightly textbuf.Buffer
 	out = append(out, nightly.Str("**Nightly-only** (").Int(int64(nightlyTotal)).
 		Str(" requirement(s)) counts what is proven ONLY by evidence no ").
-		Str("`ze-precommit-verify` stage runs -- today, interop scenarios, which are ").
+		Str("`./le verify current mode full` stage runs -- today, interop scenarios, which are ").
 		Str("scheduled and advisory. **Both** and **One polarity** are the polarity ").
 		Str("view: they answer which polarities exist, not which pipeline runs them, ").
 		Str("so a nightly-only requirement is counted there too. **Nightly-only** is ").
@@ -112,7 +112,7 @@ func renderRollup(in RenderInput) []string {
 // not here, the other says its summary declares no row, and neither is a
 // checked pointer. None of this lowers what any of these requirements owes -- a
 // superseded MUST is gated, counted and ratcheted exactly as a current one is.
-func renderSupersededNote(in RenderInput, cov []RFCCoverage) []string {
+func renderSupersededNote(in RenderInput, cov []rfcCoverage) []string {
 	var superseded []string
 	for _, c := range cov {
 		if _, held := in.Successors[c.RFC]; held {
@@ -165,12 +165,12 @@ func renderSupersededNote(in RenderInput, cov []RFCCoverage) []string {
 // SAMPLING possible -- the only real check on whether a verdict was written by
 // someone who read something -- which no gate can perform.
 //
-// The COLUMN COUNT here is load-bearing. scripts/dev/testing_health.py pins the
+// The COLUMN COUNT here is load-bearing. internal/le/testhealth/actions.go pins the
 // polarity rollup with a nine-cell regex and matches it against every line of
 // this file, so a table whose rows had the same shape would be silently folded
 // into that tool's proof-density figure.
 func renderAuditCoverage(in RenderInput) []string {
-	rows, worklist := AuditCoverageRows(AuditCoverageInput{
+	rows, worklist := auditCoverageRows(auditCoverageInput{
 		Requirements: in.Requirements, Tags: in.Tags, Enrolled: in.Enrolled,
 		Carriers: in.Carriers, Audits: in.Audits, States: in.States,
 	})
@@ -216,7 +216,7 @@ func renderAuditCoverage(in RenderInput) []string {
 		remainder.Str("The remaining ").Int(int64(auditable - audited)).
 			Str(" carry no verdict at all. That is not a violation: the audit is sampled ").
 			Str("and the gate is total, so a missing verdict never fails ").
-			Str("`make ze-rfc-check`. It is published because an unmeasured semantic half ").
+			Str("`./le rfc check`. It is published because an unmeasured semantic half ").
 			Str("is indistinguishable from a clean one.").String(),
 		"",
 		partitions.Str("Two partitions over two populations, because one denominator ").
@@ -235,7 +235,7 @@ func renderAuditCoverage(in RenderInput) []string {
 		"| RFC | Auditable | Audited | Proven | Not proven | Unaudited |",
 		"|---|---|---|---|---|---|",
 	}
-	ordered := append([]AuditCoverage(nil), rows...)
+	ordered := append([]auditCoverage(nil), rows...)
 	sort.SliceStable(ordered, func(i, j int) bool {
 		if ordered[i].Audited != ordered[j].Audited {
 			return ordered[i].Audited > ordered[j].Audited
@@ -249,7 +249,7 @@ func renderAuditCoverage(in RenderInput) []string {
 		var row textbuf.Buffer
 		out = append(out, row.Str("| `").Str(r.RFC).Str("` | ").Int(int64(r.Auditable)).
 			Str(" | ").Int(int64(r.Audited)).Str(" | ").Int(int64(r.Proven)).
-			Str(" | ").Int(int64(r.Findings)).Str(" | ").Int(int64(r.Unaudited())).
+			Str(" | ").Int(int64(r.Findings)).Str(" | ").Int(int64(r.unaudited())).
 			Str(" |").String())
 	}
 	out = append(out, "", "### Audited but not proven", "")
@@ -294,7 +294,7 @@ var unprovenMeaning = map[string]string{
 // when one mechanical command clears it.
 var stateMeaning = map[string]string{
 	ShiftedState: "the tagged unit is byte-identical and only the file around it moved; " +
-		"nothing was re-judged, so re-stamp it with `make ze-rfc-reseal`",
+		"nothing was re-judged, so re-stamp it with `./le rfc reseal`",
 	StaleUnitState: "what it judged changed -- the tagged unit itself, or the producing " +
 		"code it cites; it must be re-judged with the `ze-rfc-audit` skill before it " +
 		"counts as anything",
@@ -331,7 +331,7 @@ func verdictMeaning(reason string) string {
 	return "no published meaning for this verdict -- add one to _UNPROVEN_MEANING"
 }
 
-// RenderExtractionTable is the published backlog: how much of the standards
+// renderExtractionTable is the published backlog: how much of the standards
 // claim is BOUNDED.
 //
 // Derived columns are shown only for a stem that HAS a sign-off. That is both
@@ -340,14 +340,14 @@ func verdictMeaning(reason string) string {
 // deriving the inventory for every enrolled RFC costs seconds on top of the
 // gate, on EVERY run, and a gate that doubles verify time is a gate people learn
 // to skip.
-func RenderExtractionTable(in RenderInput) ([]string, error) {
-	valid, _, err := EvaluateExtractions(in.Deriver, in.Requirements)
+func renderExtractionTable(in RenderInput) ([]string, error) {
+	valid, _, err := evaluateExtractions(in.Deriver, in.Requirements)
 	if err != nil {
 		return nil, err
 	}
-	signed := Credited(valid, in.Enrolled)
-	counts := RegisterCounts(signed)
-	gated := GatedCounts(in.Requirements)
+	signed := credited(valid, in.Enrolled)
+	counts := registerCounts(signed)
+	gated := gatedCounts(in.Requirements)
 	var unsigned []string
 	for _, stem := range sortedSet(in.Enrolled) {
 		if _, held := signed[stem]; !held {
@@ -444,7 +444,7 @@ func renderRelocationNote(signed map[string]Extraction) []string {
 	return []string{tb.Str("Of those exclusions, ").Int(int64(total)).
 		Str(" carry `relocated-to-spec` (").Str(detail.String()).
 		Str("): the obligation is owed, by the spec the site names, under the ").
-		Str("requirement id reserved for it there. `make ze-rfc-check` refuses the ").
+		Str("requirement id reserved for it there. `./le rfc check` refuses the ").
 		Str("sign-off unless that spec exists and still names that id, so a relocation ").
 		Str("cannot outlive the document it points at. It is counted in `Excluded` and ").
 		Str("in the ratio above because this walk did decline to map the sentence HERE, ").
@@ -538,7 +538,7 @@ func renderStatusBacklog(in RenderInput) []string {
 // uppercase count with a large lowercase count is the pre-RFC-2119 signature,
 // and a genuinely non-normative document shows zero for both.
 func renderUnconverted(in RenderInput) []string {
-	stale := UnconvertedSummaries(in.Tree, in.Stems, capturedGated(in.Requirements))
+	stale := unconvertedSummaries(in.Tree, in.Stems, capturedGated(in.Requirements))
 	if len(stale) == 0 {
 		return nil
 	}

@@ -5,15 +5,15 @@ Set WaitTimeout 60s
 Hide
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/traffic-anomaly/config ZE_SSH_PASSWORD=secret123"
 Enter
-Type "/src/demos/terminal/traffic-anomaly/run.sh prepare"
+Type "ze-demo run traffic-anomaly prepare"
 Enter
 Wait+Screen /Traffic lab prepared/
-Type "/src/demos/terminal/traffic-anomaly/run.sh start"
+Type "ze-demo run traffic-anomaly start"
 Enter
 Wait+Screen /Traffic monitor attached/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh traffic-anomaly intro"
+Type "ze-demo card traffic-anomaly intro"
 Enter
 Show
 Wait+Screen /====/

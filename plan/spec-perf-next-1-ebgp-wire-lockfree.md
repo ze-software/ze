@@ -172,7 +172,7 @@ Local idiom to match: `Peer.negotiated` and `Peer.sendCtx` already use
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Data race introduced by incorrect publication ordering | `make ze-unit-reactor-test-race` (-race -count=20) failure | Double-checked locking with atomic.Pointer only; never publish before the struct is fully built |
+| R-1 | Data race introduced by incorrect publication ordering | the retired `ze-unit-reactor-test-race` (current: `go test -race ./internal/component/bgp/reactor/...`) (-race -count=20) failure | Double-checked locking with atomic.Pointer only; never publish before the struct is fully built |
 | R-2 | Pool buffer leak on generation race | Buffer multiplexer exhaustion in soak tests | Generation stays under ebgpMu (single-flight); error paths return the buffer before unlock |
 | R-3 | Benchmark shows no measurable win on darwin (low contention locally) | flat ns/op in new parallel benchmark | Accept code-shape win with rationale, or run benchmark with GOMAXPROCS sweep; present to user before claiming AC-3 |
 
@@ -189,11 +189,11 @@ Local idiom to match: `Peer.negotiated` and `Peer.sendCtx` already use
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Two sequential EBGPWire calls, same variant | Identical pointer returned; second call performs no mutex operations (verified by code review of the fast path + mutex absence in the hit branch) |
-| AC-2 | 10+ goroutines calling EBGPWire concurrently, mixed variants | All receive a non-nil wire; per-variant pointers identical; `make ze-unit-reactor-test-race` passes (-race -count=20) |
+| AC-2 | 10+ goroutines calling EBGPWire concurrently, mixed variants | All receive a non-nil wire; per-variant pointers identical; `go test -race ./internal/component/bgp/reactor/...` passes (-race -count=20) |
 | AC-3 | New parallel benchmark BenchmarkEBGPWireCacheHitParallel | 0 allocs/op on hits; ns/op improves vs the before-change run recorded in this spec |
 | AC-4 | Generation error (pool exhausted / malformed payload) | Same errors as today; slot stays nil; buffer returned; later call retries generation |
 | AC-5 | Eviction of an entry with 0, 1, or 2 published variants | Exactly the published buffers are returned, each once (asserted via multiplexer accounting in the new test) |
-| AC-6 | Full suite | `make ze-standard-test` passes; existing received_update_test.go tests unchanged and green |
+| AC-6 | Full suite | `./le verify current mode full` passes; existing received_update_test.go tests unchanged and green |
 
 ## 🧪 TDD Test Plan
 
@@ -216,7 +216,7 @@ Local idiom to match: `Peer.negotiated` and `Peer.sendCtx` already use
 ### Functional Tests
 No user-facing behavior change; no new RPC/CLI surface. Existing functional
 suite proves no regressions on the forwarding path (existing test suite passes
-via `make ze-precommit-verify`, including the route-server `.ci` scenarios under `test/`).
+via `./le verify current mode full`, including the route-server `.ci` scenarios under `test/`).
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
@@ -262,7 +262,7 @@ run needed beyond the existing suite. Justification: synchronization-only change
 | 3. Wiring phase | Wiring Test table (existing tests already wire the path; add the two new tests failing) |
 | 4. Implement (TDD) | Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` + `make ze-unit-reactor-test-race` |
+| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` + `go test -race ./internal/component/bgp/reactor/...` |
 | 7-14 | Per template |
 
 ### Implementation Phases
@@ -272,9 +272,9 @@ run needed beyond the existing suite. Justification: synchronization-only change
    - Verify: new tests pass against current code (they assert preserved behavior); benchmark baseline recorded
 2. **Phase: Atomic slots** - introduce the bundling struct + two atomic.Pointer slots; rewrite EBGPWire fast path + double-checked miss path; update evictLocked
    - Tests: full received_update_test.go suite
-   - Verify: all tests pass; `make ze-unit-reactor-test-race` green
-3. **Phase: Measure** - re-run benchmark; paste after numbers; run `make ze-perf-bench PERF_DUT=ze` and record movement in umbrella
-4. **Full verification** - `make ze-precommit-verify`
+   - Verify: all tests pass; `go test -race ./internal/component/bgp/reactor/...` green
+3. **Phase: Measure** - re-run benchmark; paste after numbers; run `./le perf-bench suggestion-report` and record movement in umbrella
+4. **Full verification** - `./le verify current mode full`
 5. **Complete spec** - audit tables, learned summary, two-commit closure per `ai/rules/planning.md`
 
 ### Critical Review Checklist (/implement stage 6)
@@ -291,7 +291,7 @@ run needed beyond the existing suite. Justification: synchronization-only change
 |-------------|---------------------|---------------------|
 | Lock-free hit path | read EBGPWire; confirm no Lock() before the hit return | Done. `slot.Load()` and its return precede `u.ebgpMu.Lock()` in `EBGPWire` |
 | Before/after benchmark numbers in spec | grep this file for BenchmarkEBGPWireCacheHitParallel results | Done, re-measured; run pasted under Goal Validation with the host named |
-| Race gate | `make ze-unit-reactor-test-race` output pasted | Done: `ok github.com/ze-software/ze/internal/component/bgp/reactor 221.454s`, exit 0 |
+| Race gate | `go test -race ./internal/component/bgp/reactor/...` output pasted | Done: `ok github.com/ze-software/ze/internal/component/bgp/reactor 221.454s`, exit 0 |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for | Result (2026-08-05) |
@@ -299,7 +299,7 @@ run needed beyond the existing suite. Justification: synchronization-only change
 | Input validation | Unchanged; RewriteASPath error paths still reject malformed payloads | Pass. `EBGPWire` wraps and returns the `RewriteASPath` error and publishes nothing; TestReceivedUpdate_EBGPWireErrorDoesNotPublish feeds a truncated payload and asserts a nil slot |
 | Resource exhaustion | Pool-exhaustion path still returns errEbgpWireBufferExhaustedPoolAt without publishing | Pass. `dst.Buf == nil` returns before the store, so an exhausted pool cannot publish a slot over a zero handle |
 | Buffer lifetime (generic) | Double-return or use-after-return of a pool handle | Pass. The independent review enumerated every slot reader: the writer in `EBGPWire` and the two release sites in `evictLocked` and `Delete`, both under `c.mu`, both deleting the entry in the same call. Mutants M1 and M2 confirm the tests catch a missing return |
-| Race / TOCTOU (generic) | Torn publication, double generation | Pass. `make ze-unit-reactor-test-race` (-race -count=20) exit 0. Generation is single-flight under `ebgpMu` with a re-check after the lock |
+| Race / TOCTOU (generic) | Torn publication, double generation | Pass. `go test -race ./internal/component/bgp/reactor/...` (-race -count=20) exit 0. Generation is single-flight under `ebgpMu` with a re-check after the lock |
 | Untrusted input, injection, crypto, privilege, path traversal (generic) | Any new surface | Not applicable. The change reads and writes no external input, adds no parsing, no filesystem or network call, and no privilege decision |
 
 ### Failure Routing
@@ -358,7 +358,7 @@ protocol-enforcing code is added. Keep existing references intact.
 
 ### Bugs Found/Fixed
 - Closure fixed four prose defects the independent review found: the `EBGPWire` doc comment's false SourceCtxID claim, and three sites plus a doc section that still called the path a live RS fan-out hot path (see Review Gate).
-- Closure cleared a `make ze-doc-verify` red it did not cause but depended on: two learned summaries cited `spec-rfc7606-5-1-2-relay-shape`, which its own closure commit (`632dcade1`) removed, putting `scripts/dev/learned_staleness.py` two references over its shrink-only ceiling. The two dead lines were deleted: a record must not cite a spec that closure removed.
+- Closure cleared a `./le doc-check verify` red it did not cause but depended on: two learned summaries cited `spec-rfc7606-5-1-2-relay-shape`, which its own closure commit (`632dcade1`) removed, putting `internal/le/journal/validate.go` two references over its shrink-only ceiling. The two dead lines were deleted: a record must not cite a spec that closure removed.
 
 ### Documentation Updates
 - `docs/architecture/buffer-architecture.md`: "EBGP Variant Cache" section describing the lock-free publication and eviction contract, plus the reachability note added at closure
@@ -366,7 +366,7 @@ protocol-enforcing code is added. Keep existing references intact.
 
 ### Deviations from Plan
 - `BenchmarkEBGPWireCacheHitParallelMutexBaseline` was added at closure. The plan assumed the before number recorded during Phase 1 would stand; it could not be re-run, so the comparator now produces it on demand.
-- Phase 3's `make ze-perf-bench PERF_DUT=ze` was not run. It measures end-to-end daemon throughput, and the change under test is unreachable from the daemon (see the header), so the run could only report noise. The microbenchmark is the evidence.
+- Phase 3's the retired `ze-perf-bench PERF_DUT=ze` (current: `./le perf-bench suggestion-report`) was not run. It measures end-to-end daemon throughput, and the change under test is unreachable from the daemon (see the header), so the run could only report noise. The microbenchmark is the evidence.
 - A-1 is recorded broken rather than confirmed. See Mistake Log.
 
 ## Implementation Audit
@@ -382,7 +382,7 @@ protocol-enforcing code is added. Keep existing references intact.
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-1 | done | TestReceivedUpdate_EBGPWireCachedASN4 | same pointer on second call |
-| AC-2 | done | TestReceivedUpdate_EBGPWireConcurrent + `make ze-unit-reactor-test-race` | 10 goroutines, mixed variants, -race -count=20 |
+| AC-2 | done | TestReceivedUpdate_EBGPWireConcurrent + `go test -race ./internal/component/bgp/reactor/...` | 10 goroutines, mixed variants, -race -count=20 |
 | AC-3 | done | BenchmarkEBGPWireCacheHitParallel vs BenchmarkEBGPWireCacheHitParallelMutexBaseline | re-measured 2026-08-05: 73.6 ns/op -> 0.26 ns/op, 0 allocs/op on both (see Goal Validation) |
 | AC-4 | done | TestReceivedUpdate_EBGPWireErrorDoesNotPublish | slot nil after error, buffer returned |
 | AC-5 | done | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers | 0/1/2 variants, pool stats verified |
@@ -427,7 +427,7 @@ protocol-enforcing code is added. Keep existing references intact.
 | "~15M lock ops/sec removed at 100K UPDATE/s route-server fan-out" (Task) | NOT achieved | The RS fan-out no longer calls `EBGPWire` at all (`grep -rn '\.EBGPWire(' --include=*.go .` returns only `_test.go` hits). The lock ops were removed by the AS-path fold deleting the call, not by this spec. Recorded rather than claimed |
 | Generation stays single-flight | code + test | `EBGPWire` generates under `ebgpMu` with a re-check after the lock (received_update.go); TestReceivedUpdate_EBGPWireConcurrent passes under `-race -count=20` |
 | Buffer ownership unchanged | mutation-killed test | M1 (drop the ASN2 return in `evictLocked`) fails TestReceivedUpdate_EBGPWireEvictionReturnsBuffers/both_variants; M2 (drop `ReturnReadBuffer` on the error path in `EBGPWire`) fails TestReceivedUpdate_EBGPWireErrorDoesNotPublish. Both restored |
-| No safety regression | race gate | `make ze-unit-reactor-test-race` (-race -count=20) exit 0: `ok ... reactor 221.454s` |
+| No safety regression | race gate | `go test -race ./internal/component/bgp/reactor/...` (-race -count=20) exit 0: `ok ... reactor 221.454s` |
 
 ### Benchmark (re-measured 2026-08-05)
 
@@ -465,7 +465,7 @@ M4 Max with 16 goroutines and are not comparable to the run above.
 ## Review Gate
 
 Independent `/ze-review` subagents, 2026-08-05. Artifact recorded with
-`scripts/dev/review_gate.py`.
+`internal/le/speclifecycle/review.go`.
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
@@ -518,16 +518,16 @@ survives.
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-1 | Same pointer, no mutex on the hit | `EBGPWire` returns `s.wire` from `slot.Load()` before any `ebgpMu.Lock()` (received_update.go); TestReceivedUpdate_EBGPWireCachedASN4 PASS |
-| AC-2 | Concurrent mixed variants safe | TestReceivedUpdate_EBGPWireConcurrent PASS; `make ze-unit-reactor-test-race` exit 0, `ok ... reactor 221.454s` |
-| AC-3 | 0 allocs on hits, ns/op improves | 0 allocs/op measured; 73.6 -> 0.26 ns/op (Goal Validation). Ceiling 0 registered for the benchmark in `internal/perf/allocgate.go` (`AllocCeilings`), enforced by `mk/test-alloc.mk` |
+| AC-2 | Concurrent mixed variants safe | TestReceivedUpdate_EBGPWireConcurrent PASS; `go test -race ./internal/component/bgp/reactor/...` exit 0, `ok ... reactor 221.454s` |
+| AC-3 | 0 allocs on hits, ns/op improves | 0 allocs/op measured; 73.6 -> 0.26 ns/op (Goal Validation). Ceiling 0 registered for the benchmark in `internal/perf/allocgate.go` (`AllocCeilings`), enforced by `internal/le/verifydeps/actions.go` |
 | AC-4 | Error leaves the slot nil, buffer returned | TestReceivedUpdate_EBGPWireErrorDoesNotPublish PASS; mutant M2 (drop `ReturnReadBuffer` on the error path) FAILS it |
 | AC-5 | Eviction returns exactly the published handles | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers PASS with subtests no_variants / one_variant_(ASN4) / both_variants; mutant M1 (drop the ASN2 return in `evictLocked`) FAILS both_variants |
-| AC-6 | Suite green | `make ze-unit-reactor-test-race` exit 0 over `./internal/component/bgp/reactor/...`; `make ze-lint-changed` 0 issues; `make ze-repository-tracked-build-check` OK across 6 build flavors |
+| AC-6 | Suite green | `go test -race ./internal/component/bgp/reactor/...` exit 0 over `./internal/component/bgp/reactor/...`; `./le changed scope` 0 issues; `./le repository-tracked-build check` OK across 6 build flavors |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| RS fast path -> `reactorForwardRS` -> EBGPWire hit | no `.ci`; unit-level | TestReceivedUpdate_EBGPWireConcurrent, run under `-race -count=20` by `make ze-unit-reactor-test-race` |
+| RS fast path -> `reactorForwardRS` -> EBGPWire hit | no `.ci`; unit-level | TestReceivedUpdate_EBGPWireConcurrent, run under `-race -count=20` by `go test -race ./internal/component/bgp/reactor/...` |
 | `forwardUpdateCore` -> EBGPWire miss (generation under `ebgpMu`) | no `.ci`; unit-level | TestReceivedUpdate_EBGPWireLazyASN4 / LazyASN2 |
 | Cache eviction after final ack -> `evictLocked` returns both variant buffers | no `.ci`; unit-level | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers, mutation-killed by M1 |
 
@@ -549,7 +549,7 @@ discriminating evidence is the mutation kills above plus the race gate.
 | buffer-architecture.md EBGP section | source anchor names `ebgpWireSlot`, `ebgpSlotASN4`, `ebgpSlotASN2`, `EBGPWire`; all four exist in received_update.go. Section now also states the path has no production caller | yes |
 | No source anchor stale | the only `docs/` anchor onto received_update.go / recent_cache.go is the one above; re-read and corrected | yes |
 | Categories 1-11 (user-facing / config / CLI / API / wire) | no user-visible surface changed; wire bytes are `RewriteASPath` output, unchanged | no update needed |
-| `make ze-doc-verify` | PASSED after the fixes (log `tmp/doc-test-ebgp3.log`) | yes |
+| `./le doc-check verify` | PASSED after the fixes (log `tmp/doc-test-ebgp3.log`) | yes |
 
 ## Deferrals Resolved
 
@@ -567,8 +567,8 @@ shard.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
-- [ ] `make ze-unit-reactor-test-race` passes (BLOCKING for this spec)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `go test -race ./internal/component/bgp/reactor/...` passes (BLOCKING for this spec)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)

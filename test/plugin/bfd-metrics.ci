@@ -26,74 +26,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=bfd-metrics.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Scrape the telemetry endpoint and assert ze_bfd_sessions appears."""
-
-import time
-import urllib.request
-
-from ze_api import API, runtime_fail
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Trigger Snapshot so refreshSessionsGauge runs and sets the gauge
-    # for at least one (state, mode, vrf) bucket.
-    r = api.dispatch_until_done('show bfd sessions')
-    if r.get('status') != 'done':
-        runtime_fail(f'priming: status={r.get("status")}')
-
-    # Scrape the metrics endpoint. Retry briefly to absorb any late
-    # registry rebinding done by the plugin's OnStarted hook.
-    scrape = {'body': '', 'last': None}
-    def scraped():
-        try:
-            with urllib.request.urlopen('http://127.0.0.1:19273/metrics', timeout=1.0) as resp:
-                scrape['body'] = resp.read().decode('utf-8', 'replace')
-                return 'ze_bfd_sessions' in scrape['body']
-        except (OSError, ValueError) as exc:
-            scrape['last'] = exc
-            return False
-    api.wait_until(scraped, attempts=20, delay=0.25)
-    body = scrape['body']
-    if body == '':
-        runtime_fail(f'scrape: {scrape["last"]}')
-
-    # ze_bfd_sessions is the only metric guaranteed to have a sample
-    # without any state transitions; refreshSessionsGauge sets it
-    # from Snapshot on every dispatch. Counters like
-    # ze_bfd_transitions_total only appear once at least one sample
-    # has been recorded, so we do not assert on them here.
-    if 'ze_bfd_sessions' not in body:
-        runtime_fail('missing ze_bfd_sessions in scrape body')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
 	external bfd-metrics-test {
-		run ./bfd-metrics.run
+		run "ze-test fixture plugin/bfd-metrics"
 		encoder json
 	}
 }

@@ -1,6 +1,6 @@
 // Design: docs/architecture/appliance/build-artifacts.md -- installer kernel download/build
 // Design: docs/architecture/appliance/kernel-profiles.md -- installer kernel profile registry
-// Design: kernel-build-consolidation — single run.py driver, runtime verified path, --target
+// Kernel builds run entirely in Go; Docker and QEMU are native backends.
 
 package appliance
 
@@ -12,21 +12,22 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // kernelVersionFile holds the single source of truth for the Linux kernel
-// version Ze builds. The build-time reader is tools/kernel-builder/run.py (it
-// self-locates this file); this //go:embed is the compile-time reader. Bump the
-// kernel by editing internal/appliance/kernel.version only.
+// version Ze builds. Bump the kernel by editing
+// internal/appliance/kernel.version only.
 //
 //go:embed kernel.version
 var kernelVersionFile string
@@ -52,7 +53,6 @@ const (
 	kernelTargetRuntime      = "runtime"
 	defaultKernelTarget      = kernelTargetInstaller
 	runtimeKernelProfile     = "runtime"
-	runPyName                = "run.py"
 )
 
 var i915FirmwareBlobs = []string{
@@ -65,9 +65,11 @@ var _ = env.MustRegister(env.EnvEntry{
 	Description: "Base URL for pre-built installer kernel downloads",
 })
 
-// kernelBuildFn invokes the shared driver. It is a package var so unit tests can
-// substitute a fake build without docker or qemu.
+// kernelBuildFn invokes the native builder. It is a package var so unit tests can
+// substitute a fake build without Docker or QEMU.
 var kernelBuildFn = defaultKernelBuild
+
+var nativeKernelBuildFn = kernelbuilder.Build
 
 func init() {
 	cmdKernel = runKernel
@@ -89,9 +91,8 @@ type kernelTargetDesc struct {
 }
 
 // kernelTestOutputDirEnv lets a test relocate the build output dir so parallel
-// `ze appliance kernel` runs don't race on the shared build/kernel
-// (Go writes it via run.py and reads its config back for enforcement). Unset in
-// production, where the hardcoded per-target dirs are used.
+// `ze appliance kernel` runs don't race on the shared build output directory.
+// Unset in production, where the hardcoded per-target dirs are used.
 const kernelTestOutputDirEnv = "ZE_KERNEL_TEST_OUTPUT_DIR"
 
 func kernelOutputDir(def string) string {
@@ -134,10 +135,9 @@ func kernelTargetFor(target string) (kernelTargetDesc, error) {
 	}
 }
 
-// validateKernelVersionString mirrors tools/kernel-builder/build.py's
-// validate_version: the embedded version is checked in the command path (not
-// package init, which would panic every `ze` invocation) so a malformed
-// kernel.version fails fast before any download or build.
+// validateKernelVersionString mirrors kernelbuilder.ValidateVersion. The
+// embedded version is checked in the command path (not package init, which
+// would panic every `ze` invocation) so a malformed version fails before work.
 func validateKernelVersionString(version string) error {
 	if version == "" || strings.HasPrefix(version, ".") || strings.HasSuffix(version, ".") {
 		return fmt.Errorf("kernel version %q must be a non-empty N.N.N string", version)
@@ -175,8 +175,8 @@ func runKernel(args []string) int {
 	builderFlag := fs.String("builder", "", "Build backend: docker or qemu (default: docker if available, else qemu)")
 	targetFlag := fs.String("target", defaultKernelTarget, "Kernel target: installer (default) or runtime")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
-	printCacheDirFlag := fs.Bool("print-cache-dir", false, "Print the durable cache path for this kernel (key = target+arch+config) and exit, without downloading or building. Used by the make kernel path to route through the cache (Option C).")
-	evictCacheFlag := fs.Bool("evict-cache", false, "Bound this kernel's cache namespace to the keep-N most recent entries and exit (the make path calls this after populating). Evicts, does not build.")
+	printCacheDirFlag := fs.Bool("print-cache-dir", false, "Print the durable cache path for this kernel (key = target+arch+config) and exit, without downloading or building.")
+	evictCacheFlag := fs.Bool("evict-cache", false, "Bound this kernel's cache namespace to the keep-N most recent entries and exit. Evicts, does not build.")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -307,11 +307,10 @@ func resolveKernel(version, arch, profile, builder, target string) (string, erro
 	return resolveInstallerKernel(version, arch, profile, builder, td, resolved, variant)
 }
 
-// kernelCachePathFor returns the durable cache DIRECTORY for the given kernel, using the
-// SAME key as resolveKernel (kernelCacheVariantFor), so the make kernel path (Option C)
-// consumes exactly the entry `ze appliance kernel` would populate. No download, no build.
-// For the runtime (tree) target it is the tree directory; for the installer (single Image)
-// target it is the directory containing the cached Image.
+// kernelCachePathFor returns the durable cache directory for the same identity
+// resolveKernel uses. It observes the cache namespace without downloading or
+// building. Runtime targets return the tree directory; installer targets return
+// the directory containing Image.
 func kernelCachePathFor(version, arch, profile, target string) (string, error) {
 	td, err := kernelTargetFor(target)
 	if err != nil {
@@ -328,52 +327,15 @@ func kernelCachePathFor(version, arch, profile, target string) (string, error) {
 	return filepath.Dir(kernelCachePath(version, variant)), nil
 }
 
-// installerKernelRequestFile is the record BOTH kernel Makefiles write beside
-// the artifact they build. It holds the arch-profile-builder that was asked for,
-// and the Makefile skips its build while the record still matches. Producers:
-// $(REQUEST) in tools/installer-kernel/Makefile and in gokrazy/kernel/Makefile.
-const installerKernelRequestFile = ".request"
-
-// installerKernelVariantFile is the second record, and only the installer target
-// has one. It holds the arch-profile-version-builder that was BUILT.
-// installerKernelBuildMatches in cmd_iso.go reads it to decide whether the image
-// in build/kernel/ is the one an ISO of that arch and profile needs.
+// installerKernelVariantFile records the installer arch, profile, version, and
+// backend. installerKernelBuildMatches in cmd_iso.go reads it before accepting
+// build/kernel/Image as an ISO input.
 const installerKernelVariantFile = ".variant"
 
-// installerKernelBuildRecords and runtimeKernelBuildRecords name what each target
-// must invalidate.
-var (
-	installerKernelBuildRecords = []string{installerKernelRequestFile, installerKernelVariantFile}
-	runtimeKernelBuildRecords   = []string{installerKernelRequestFile}
-)
-
-// invalidateKernelBuildRecords deletes the records for one target. Every path
-// through resolveInstallerKernel and resolveRuntimeKernel replaces the artifact
-// in the Makefile's output directory, and none of them runs the Makefile. A
-// surviving record therefore describes an artifact the Makefile did not produce.
-//
-// A stale .request makes the next `make` in that directory report nothing to do
-// over another arch's or another profile's kernel. A stale .variant makes
-// `ze appliance iso` accept the image as this profile's. verifyKernelArch in
-// cmd_iso.go still catches a wrong ARCH. Nothing catches a wrong PROFILE, so the
-// ISO ships a qemu kernel with none of the hardware profile's NIC and NVMe
-// drivers.
-//
-// Deleting .variant rather than rewriting it is enough. This path always
-// populates the XDG cache with the image it places, and isoKernelCachePath reads
-// that cache under the same variant key before it reaches the .variant fallback.
-// That fallback exists for an image `make` built, and `make` writes the record.
-//
-// It returns the error, and the caller stops on it. A record this process cannot
-// delete, whose artifact it is about to replace, is the state the deletion exists
-// to prevent. To continue past it leaves the wrong kernel behind under a success
-// exit code. An absent record is the wanted state, not a failure.
-func invalidateKernelBuildRecords(outputDir string, names []string) error {
-	for _, name := range names {
-		path := filepath.Join(outputDir, name)
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("remove stale build record %s: %w", path, err)
-		}
+func invalidateInstallerKernelVariant(outputDir string) error {
+	path := filepath.Join(outputDir, installerKernelVariantFile)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove stale build record %s: %w", path, err)
 	}
 	return nil
 }
@@ -381,9 +343,9 @@ func invalidateKernelBuildRecords(outputDir string, names []string) error {
 func resolveInstallerKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant string) (string, error) {
 	cached := kernelCachePath(version, variant)
 	toolsDst := filepath.Join(td.outputDir, td.artifact)
-	// Before any path below replaces the image, so no branch can skip it. The
-	// cache hit is the common repeat path and it returns before any build.
-	if err := invalidateKernelBuildRecords(td.outputDir, installerKernelBuildRecords); err != nil {
+	// Before any path below replaces the image, so no branch can leave an old
+	// arch/profile record beside new bytes.
+	if err := invalidateInstallerKernelVariant(td.outputDir); err != nil {
 		return "", err
 	}
 
@@ -435,13 +397,6 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 	cachedDir := kernelTreeCachePath(version, variant)
 	cachedKernel := filepath.Join(cachedDir, td.artifact)
 
-	// Before any path below replaces the vmlinuz tree. gokrazy/kernel/Makefile
-	// skips its build while $(REQUEST) matches. An amd64 vmlinuz and an arm64 one
-	// live at the same path.
-	if err := invalidateKernelBuildRecords(td.outputDir, runtimeKernelBuildRecords); err != nil {
-		return "", err
-	}
-
 	if _, err := os.Stat(cachedKernel); err == nil {
 		if cpErr := copyTree(cachedDir, td.outputDir); cpErr != nil {
 			fmt.Fprintf(os.Stdout, "warning: copy tree to %s: %v\n", td.outputDir, cpErr) //nolint:errcheck // CLI warning
@@ -471,7 +426,7 @@ func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTarge
 	return cachedDir, nil
 }
 
-// buildKernelArtifact resolves the firmware dir then invokes the shared driver.
+// buildKernelArtifact resolves the firmware directory then invokes the native driver.
 func buildKernelArtifact(version, arch, profile, builder string, td kernelTargetDesc) error {
 	fwDir, err := ensureFirmware(profile)
 	if err != nil {
@@ -484,7 +439,7 @@ func buildKernelArtifact(version, arch, profile, builder string, td kernelTarget
 		}
 		fwDir = absFW
 	}
-	fmt.Fprintf(os.Stdout, "building %s kernel via %s...\n", td.name, runPyName) //nolint:errcheck // CLI output
+	fmt.Fprintf(os.Stdout, "building %s kernel via Go...\n", td.name) //nolint:errcheck // CLI output
 	return kernelBuildFn(kernelBuildSpec{
 		version:  version,
 		arch:     arch,
@@ -499,7 +454,7 @@ func buildKernelArtifact(version, arch, profile, builder string, td kernelTarget
 	})
 }
 
-// kernelBuildSpec is the request handed to the shared driver tools/kernel-builder/run.py.
+// kernelBuildSpec is the request handed to the native kernel builder.
 type kernelBuildSpec struct {
 	version  string
 	arch     string
@@ -517,43 +472,31 @@ func defaultKernelBuild(spec kernelBuildSpec) error {
 	if err := os.MkdirAll(spec.outDir, cacheDirPerm); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
-	scriptPath, err := filepath.Abs(filepath.Join(kernelBuilderDir, runPyName))
+	resolved, err := resolveKernelProfile(spec.srcDir, spec.profile)
 	if err != nil {
-		return fmt.Errorf("resolve run.py path: %w", err)
+		return err
 	}
-
-	args := []string{
-		scriptPath,
-		"--target", spec.target,
-		"--arch", spec.arch,
-		"--profile", spec.profile,
-		"--src-dir", spec.srcDir,
-		"--out-dir", spec.outDir,
-		"--builder-dir", kernelBuilderDir,
-		"--common-dir", kernelCommonDir,
-		"--modules", spec.modules,
-		"--version", spec.version,
-	}
-	if spec.builder != "" {
-		args = append(args, "--builder", spec.builder)
-	}
-	if spec.patches != "" {
-		args = append(args, "--patches-dir", spec.patches)
-	}
-	if spec.firmware != "" {
-		args = append(args, "--firmware-dir", spec.firmware)
-	}
-
-	buildCtx, buildCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
-	defer buildCancel()
-
-	cmd := exec.CommandContext(buildCtx, "python3", args...) //nolint:gosec // controlled args, list form, no shell
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stdout
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s: %w", runPyName, err)
-	}
-	return nil
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	buildCtx, cancel := context.WithTimeout(signalCtx, kernelBuildTimeout)
+	defer cancel()
+	return nativeKernelBuildFn(buildCtx, kernelbuilder.Request{
+		Version:     spec.version,
+		Arch:        spec.arch,
+		Profile:     spec.profile,
+		Builder:     spec.builder,
+		Target:      spec.target,
+		SourceDir:   spec.srcDir,
+		OutputDir:   spec.outDir,
+		BuilderDir:  kernelBuilderDir,
+		CommonDir:   kernelCommonDir,
+		Modules:     spec.modules,
+		PatchesDir:  spec.patches,
+		FirmwareDir: spec.firmware,
+		Fragments:   resolved.Fragments,
+		Stdout:      os.Stdout,
+		Stderr:      os.Stdout,
+	})
 }
 
 func ensureFirmware(profile string) (string, error) {

@@ -49,7 +49,7 @@ than only documenting the hazard.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `scripts/dev/audit-test-relaxation.py` - audits a diff for deleted or weakened tests, and is the closest existing mechanical check to the survey this spec needs
+- [ ] `internal/le/weakened/audit.go` - audits a diff for deleted or weakened tests, and is the closest existing mechanical check to the survey this spec needs
 
 `ai/rules/interop-and-goal-validation.md` holds the four-row trap table and has
 no latched-counter row.
@@ -107,7 +107,7 @@ daemon behavior of its own. Any test it repairs is repaired in its own suite.
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `make ze-precommit-verify` green
+- [ ] `./le verify current mode full` green
 
 ### Integration Checklist
 - [ ] <to be filled>

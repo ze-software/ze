@@ -1,13 +1,13 @@
-package markupcheck_test
+package markupcheck
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"testing/fstest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/test/markupcheck"
 )
 
 // servedAssets is what the file server hands out, which is the sub-FS the
@@ -22,6 +22,15 @@ func servedAssets(names ...string) fstest.MapFS {
 	return served
 }
 
+func writeAssetTempl(t *testing.T, body string) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "page.templ"), []byte(body), 0o600))
+
+	return dir
+}
+
 // TestAssetFindingsNamesAPathNothingServes proves a reference the embedded FS
 // cannot answer is a finding.
 //
@@ -29,13 +38,13 @@ func servedAssets(names ...string) fstest.MapFS {
 // PREVENTS: the failure this scan exists for. A page whose script 404s renders
 // and reports success, so the live view stops updating.
 func TestAssetFindingsNamesAPathNothingServes(t *testing.T) {
-	dir := writeTempl(t, "package p\n"+
+	dir := writeAssetTempl(t, "package p\n"+
 		"templ a() {\n"+
 		"\t<script src=\"/assets/snapshot-live.js\" defer></script>\n"+
 		"\t<link rel=\"stylesheet\" href=\"/assets/style.css\">\n"+
 		"}\n")
 
-	findings, refs, err := markupcheck.AssetFindings(dir, "/assets/", servedAssets("style.css"))
+	findings, refs, err := assetFindings(dir, "/assets/", servedAssets("style.css"))
 	require.NoError(t, err)
 	assert.Equal(t, 2, refs)
 	require.Len(t, findings, 1)
@@ -49,14 +58,14 @@ func TestAssetFindingsNamesAPathNothingServes(t *testing.T) {
 // PREVENTS: a false finding on `href={ v.URL }`, which no static check can
 // resolve.
 func TestAssetFindingsPassesEveryServedPath(t *testing.T) {
-	dir := writeTempl(t, "package p\n"+
+	dir := writeAssetTempl(t, "package p\n"+
 		"templ a() {\n"+
 		"\t<script src=\"/assets/htmx.min.js\"></script>\n"+
 		"\t<a href={ v.URL }>go</a>\n"+
 		"\t<a href=\"/show/\">show</a>\n"+
 		"}\n")
 
-	findings, refs, err := markupcheck.AssetFindings(dir, "/assets/", servedAssets("htmx.min.js"))
+	findings, refs, err := assetFindings(dir, "/assets/", servedAssets("htmx.min.js"))
 	require.NoError(t, err)
 	assert.Equal(t, 1, refs, "only the one path under the prefix is an asset reference")
 	assert.Empty(t, findings)
@@ -73,12 +82,12 @@ func TestAssetFindingsPassesEveryServedPath(t *testing.T) {
 // VALIDATES: the scan is fail-closed on a path it cannot resolve.
 // PREVENTS: a copied component pointing at the sibling package's asset tree.
 func TestAssetFindingsRefusesAnAssetPathOffThisPrefix(t *testing.T) {
-	dir := writeTempl(t, "package p\n"+
+	dir := writeAssetTempl(t, "package p\n"+
 		"templ a() {\n"+
 		"\t<script src=\"/assets/theme.js\"></script>\n"+
 		"}\n")
 
-	findings, refs, err := markupcheck.AssetFindings(dir, "/lg/assets/", servedAssets("theme.js"))
+	findings, refs, err := assetFindings(dir, "/lg/assets/", servedAssets("theme.js"))
 	require.NoError(t, err)
 	assert.Zero(t, refs)
 	require.Len(t, findings, 1)

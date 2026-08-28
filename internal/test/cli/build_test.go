@@ -40,9 +40,9 @@ func clearBinOverrides(t *testing.T) {
 // VALIDATES: the bgp suites (encode/plugin/decode/parse/reload), which build ze
 // via buildZe rather than runner.Runner.Build, also skip the compile under
 // ZE_TEST_NO_BUILD.
-// PREVENTS: those suites recompiling ze on a slow target (e.g. a QEMU VM over
-// 9p) when a host cross-compiled binary already exists, defeating the
-// host-compile architecture used by `make ze-qemu-test-all`.
+// PREVENTS: those suites recompiling ze on a slow target (for example a QEMU VM
+// over 9p) when a host cross-compiled binary already exists, defeating the
+// host-compile architecture used by `./le qemu all-tests`.
 func TestBuildZeNoBuild(t *testing.T) {
 	clearBinOverrides(t)
 	setBuildEnv(t, "ZE_TEST_NO_BUILD", "1")

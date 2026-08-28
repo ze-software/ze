@@ -9,50 +9,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for bgp monitor
-tmpfs=monitor-basic-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API, dispatch, runtime_fail
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        result = dispatch(api, 'monitor bgp')
-        if result.get('status') != 'done':
-            runtime_fail(f'monitor bgp: status={result.get("status")} data={result.get("data")}')
-
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-        status = data.get('status', '')
-        if status != 'monitor-configured':
-            runtime_fail(f'monitor bgp: expected monitor-configured, got {status!r}')
-
-        print(f'OK: monitor returned status={status}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer exercises dispatch-command for bgp monitor.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external monitor-basic-test {
-		run ./monitor-basic-test.run
+		run "ze-test fixture plugin/monitor-basic"
 		encoder json
 	}
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// Section-key and path-segment constants used in selection logic.
+// Shared paths, labels, and path-segment constants used across workbench pages.
 const (
 	segBGP       = "bgp"
 	segFirewall  = "firewall"
@@ -34,6 +34,27 @@ const (
 	segLogs      = "logs"
 	segHealth    = "health"
 	segEvents    = "events"
+
+	showPathPrefix  = "/show/"
+	ifacePathPrefix = "/show/iface/"
+
+	labelName            = "Name"
+	labelFamily          = "Family"
+	labelFamilies        = "Families"
+	labelEdit            = "Edit"
+	labelDetail          = "Detail"
+	labelDNS             = "DNS"
+	labelComponent       = "Component"
+	labelMessage         = "Message"
+	labelProtocol        = "Protocol"
+	labelInterface       = "Interface"
+	labelMTU             = "MTU"
+	labelMAC             = "MAC"
+	labelEnabled         = "Enabled"
+	labelListenEndpoints = "Listen Endpoints"
+	labelBearerToken     = "Bearer Token"
+
+	invalidFormDataMessage = "Invalid form data."
 )
 
 // WorkbenchSubPage is a child entry within a workbench navigation section.
@@ -77,12 +98,12 @@ type sectionDef struct {
 func sections() []sectionDef {
 	return []sectionDef{
 		{key: "dashboard", label: "Dashboard", children: []WorkbenchSubPage{
-			{Key: "overview", Label: "Overview", URL: "/show/"},
+			{Key: "overview", Label: "Overview", URL: showPathPrefix},
 			{Key: "health", Label: "Health", URL: "/show/health/"},
 			{Key: "events", Label: "Recent Events", URL: "/show/events/"},
 		}},
 		{key: "interfaces", label: "Interfaces", children: []WorkbenchSubPage{
-			{Key: "all", Label: "All Interfaces", URL: "/show/iface/"},
+			{Key: "all", Label: "All Interfaces", URL: ifacePathPrefix},
 			{Key: "ethernet", Label: "Ethernet", URL: "/show/iface/?type=ethernet"},
 			{Key: "bridge", Label: "Bridge", URL: "/show/iface/?type=bridge"},
 			{Key: "vlan", Label: "VLAN", URL: "/show/iface/?type=vlan"},
@@ -92,12 +113,12 @@ func sections() []sectionDef {
 		{key: "ip", label: "IP", children: []WorkbenchSubPage{
 			{Key: "addresses", Label: "Addresses", URL: "/show/ip/addresses/"},
 			{Key: "routes", Label: "Routes", URL: "/show/ip/routes/"},
-			{Key: "dns", Label: "DNS", URL: "/show/ip/dns/"},
+			{Key: "dns", Label: labelDNS, URL: "/show/ip/dns/"},
 		}},
 		{key: segRouting, label: "Routing", children: []WorkbenchSubPage{
-			{Key: "peers", Label: "Peers", URL: "/show/bgp/peer/"},
+			{Key: "peers", Label: "Peers", URL: bgpPeerPathPrefix},
 			{Key: "groups", Label: "Groups", URL: "/show/bgp/group/"},
-			{Key: "families", Label: "Families", URL: "/show/bgp/family/"},
+			{Key: "families", Label: labelFamilies, URL: "/show/bgp/family/"},
 			{Key: "summary", Label: "Summary", URL: "/show/bgp/summary/"},
 		}},
 		{key: segPolicy, label: "Policy", children: []WorkbenchSubPage{
@@ -279,7 +300,7 @@ func selectChild(section *WorkbenchSection, currentPath []string) {
 // selectBestChild marks the best-matching child as selected.
 func selectBestChild(section *WorkbenchSection, currentPath []string) {
 	// Build a path for matching: /segment1/segment2/...
-	showPath := "/show/" + textbuf.Join(currentPath, "/")
+	showPath := showPathPrefix + textbuf.Join(currentPath, "/")
 	adminPath := "/admin/" + textbuf.Join(currentPath, "/")
 
 	bestIdx := -1

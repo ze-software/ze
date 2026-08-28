@@ -421,9 +421,9 @@ The existing interop suite already contains the AS112 proof this page is based o
 Run the lab from the main Ze checkout:
 
 ```text
-python3 test/interop/run.py as112-redistribute-lab
-python3 test/interop/run.py as112-redistribute-origin-frr
-python3 test/interop/run.py as112-redistribute-community-frr
+INTEROP_SCENARIO=as112-redistribute-lab ./le integration interop
+INTEROP_SCENARIO=as112-redistribute-origin-frr ./le integration interop
+INTEROP_SCENARIO=as112-redistribute-community-frr ./le integration interop
 ```
 
 The AS112 feature reference remains at [docs/guide/as112](../../guides/as112/) for every configuration leaf, CLI command, and RFC compliance note.

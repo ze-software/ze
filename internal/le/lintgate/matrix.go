@@ -2,8 +2,10 @@
 // Detail: lintgate.go -- scope derivation and direct golangci-lint execution
 //
 // Package lintgate owns the native full-tree lint stage. The matrix below is the
-// Go form of the builds formerly selected by scripts/dev/lint_flavors.py.
+// Go form of the builds formerly selected by internal/le/lintgate/matrix.go.
 package lintgate
+
+import "sort"
 
 const (
 	area        = "verify-lint"
@@ -55,12 +57,16 @@ func flavorMatrix(featureTags []string) []Flavor {
 			Why: "the generic non-Linux TCP-MD5 fallback selected on OpenBSD",
 		},
 		{
-			Name: "dragonfly", GOOS: "dragonfly",
-			Why: "the generic Unix fallback outside the explicitly supported BSD targets",
+			Name: "dragonfly", GOOS: "dragonfly", GOARCH: "amd64",
+			Why: "the generic Unix fallback outside the explicitly supported BSD targets; amd64 is pinned because it is the only architecture DragonFly builds for, so an arm64 host would select no files and lint nothing",
 		},
 		{
 			Name: "wasip1", GOOS: "wasip1", GOARCH: "wasm",
 			Why: "the !unix fallbacks through a target whose whole import graph type-checks",
+		},
+		{
+			Name: "linux-amd64", GOOS: "linux", GOARCH: "amd64",
+			Why: "the amd64 filename-selected netlink implementations, which the base Linux pass covers only on an amd64 host",
 		},
 		{
 			Name: "linux-arm64", GOOS: "linux", GOARCH: "arm64",
@@ -119,4 +125,27 @@ func flavorMatrix(featureTags []string) []Flavor {
 			Why: "every !ze_<feature> stub selected with ze_core and no feature gate",
 		},
 	}
+}
+
+// ReachableProjectTags returns every project tag selected by the native lint
+// action population. Lint analyzes test files, so this is the build-tag
+// universe the test-sensitivity check uses.
+func ReachableProjectTags(featureTags []string) []string {
+	seen := map[string]bool{"ze_core": true}
+	for _, tag := range featureTags {
+		seen[tag] = true
+	}
+	for _, flavor := range flavorMatrix(featureTags) {
+		for _, tag := range flavor.Tags {
+			if len(tag) > 3 && tag[:3] == "ze_" {
+				seen[tag] = true
+			}
+		}
+	}
+	tags := make([]string, 0, len(seen))
+	for tag := range seen {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	return tags
 }

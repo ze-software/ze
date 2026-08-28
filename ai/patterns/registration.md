@@ -16,9 +16,9 @@ Every module (plugin, schema, env var, command, validator) follows this model.
 The core never imports a specific plugin. Plugins never import each other.
 Communication is through text commands (`DispatchCommand`) and registries.
 
-`make generate` auto-generates `internal/component/plugin/all/all.go` by scanning
+`./le repository generate` auto-generates `internal/component/plugin/all/all.go` by scanning
 the filesystem for `register.go` files. Adding/removing a plugin = add/remove files
-+ run `make generate`.
++ run `./le repository generate`.
 
 ## All Registration Mechanisms
 
@@ -365,7 +365,7 @@ All registration is complete before any concurrent access. Registries are read-o
 ### New plugin
 See `ai/patterns/plugin.md`. Touch: plugin registry, YANG module registry (if schema),
 attribute name registry (if new attr), attr mod handler (if modifying attrs).
-Run `make generate`.
+Run `./le repository generate`.
 
 ### New config option
 See `ai/patterns/config-option.md`. Touch: YANG module (leaf definition),
@@ -380,7 +380,7 @@ Touch: env var registry (`env.MustRegister()`), YANG module (leaf under environm
 See `ai/rules/config.md`: every YANG environment leaf = matching env var.
 
 ### New YANG module
-Create `schema/register.go` + `schema/embed.go` with `//go:embed`. Run `make generate`.
+Create `schema/register.go` + `schema/embed.go` with `//go:embed`. Run `./le repository generate`.
 
 ### New attribute code
 Touch: attribute name registry, optionally attr mod handler registry.
@@ -427,5 +427,5 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 | No missing plugin deps | Resolver checks all declared deps exist |
 | Plugins never import siblings | `ai/rules/plugins.md` import rules + code review |
 | No duplicate show enricher keys | `show.Register()` returns error; `show.MustRegister()` panics |
-| All blank imports auto-generated | `make generate` + `scripts/codegen/plugin_imports.go` |
+| All blank imports auto-generated | `./le repository generate` + `internal/le/pluginimports/pluginimports.go` |
 | YANG is source of truth for CLI tree | WireMethod -> YANG path mapping in dispatcher |

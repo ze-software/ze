@@ -25,7 +25,7 @@ Standing owner instructions still in force:
 **1. Clear the verification debt.**
 
 ```
-make ze-verify-debt-clear
+./le commit debt-clear
 ```
 
 Under a minute to start. 654 open debt rows across 28 shards, and *nothing
@@ -37,23 +37,14 @@ for why I first reported this as impossible.
 **2. Render the website catalog.**
 
 ```
-make ze-build
-cd website/tools && python3 render-cli-catalog.py
+./le site build
 ```
 
-**The thing the owner asked about last, and the only item with a real unknown
-in it.** `website/tools/render-cli-catalog.py` has been changed to publish
-per-command modifiers grouped by availability — but that change is
-**uncommitted** (217 insertions; HEAD holds zero occurrences of `operators` or
-`with-rows`), and it has never been run end to end. Rendering refuses a
-`zetest` binary by design, which is where we stopped. The wiki half *is* done
-and committed (`a1507c0c2`).
-
-When it renders, confirm each command shows its modifiers with `always` /
-`with-rows` / `when-streaming` distinguished. The generator reads a `pipes` and
-a `pipe-aliases` key that the product emits for **none** of its 199 commands. I
-expect harmless no-ops. That is an inference, and inference is what I got wrong
-twice today, so run it rather than trust it.
+The owner asked about the command catalog last. The retired Python renderer was
+replaced by the compiled Go renderer in `internal/le/sitebuild`; `./le site
+build` publishes the catalog with the rest of the site. Confirm each command
+shows its modifiers with `always`, `with-rows`, and `when-streaming`
+distinguished.
 
 > **Caution.** The website tree carries a lot of other uncommitted work by
 > another agent — blog posts, CSS, JS, faq. Commit the generator alone.
@@ -74,8 +65,8 @@ nothing — which is not hypothetical: five references are stranded in the tree
 right now from the `8f3a80bf9` closure doing the opposite.
 
 It owes exactly one thing: **a review pass by a context that did not write the
-code.** `scripts/dev/commit_helper.py` refuses the closure commit without a
-review artifact under `tmp/review/`, and `scripts/dev/review_gate.py`'s own
+code.** `internal/le/commit/actions.go` refuses the closure commit without a
+review artifact under `tmp/review/`, and `internal/le/commit/review.go`'s own
 contract says that artifact comes from subagents or a fresh session, "never the
 author's own inline reasoning". This session was instructed not to spawn
 agents, so it could not produce one. Recording my self-review there would have
@@ -179,15 +170,15 @@ Another session (`fix`) holds **untracked** work in this checkout:
 
 Consequences you will meet and should **not** "fix":
 
-- `ze-lint-changed` is red: 9 misspell findings, all in their
+- `./le changed scope` is red: 9 misspell findings, all in their
   `toplugin_order_test.go`.
-- `ze-doc-verify` is red: `ai/PACKAGE-MAP.md` stale from their untracked
+- `./le doc-check verify` is red: `ai/PACKAGE-MAP.md` stale from their untracked
   packages, plus a source anchor in `docs/guide/web-interface.md` broken by a
   third session's uncommitted edit to `cmd/ze/hub/aaa_authenticator_web.go`.
 - **Regenerating `ai/PACKAGE-MAP.md` would carry their packages into your
   commit.** I did that once already today and had to recover with
   `git show HEAD:<path> > <path>`. Leave it.
-- `ze-doc-links-check` is red on 7 references, 5 of them stranded by the
+- `./le doc-check links` is red on 7 references, 5 of them stranded by the
   `8f3a80bf9` closure. None is ours.
 
 Four journal rows in my own `87645d0db` cite files from that untracked set. My
@@ -196,7 +187,7 @@ was mine. **If a doc gate reddens on a citation, attribute by the row's Spec
 cell and subject, not by the commit that carried it** — the carrier is nearly
 always innocent, and `git log -S` cannot tell you the difference.
 
-Related and unbuilt: `path_resolves` in `scripts/dev/check_doc_links.py` uses
+Related and unbuilt: `path_resolves` in `internal/le/doccheck/links.go` uses
 `os.path.exists`, so it measures the *checkout*, not the tracked corpus. A row
 citing untracked code is therefore not red, it is **latent**: green on every
 machine carrying the work, broken only in a fresh clone or CI. That is a

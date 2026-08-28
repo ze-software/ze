@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- transcript verification reads the terminal grid, not its byte stream
-// Overview: render.go -- the transcript gate that consumes painted lines
+// Overview: render.go -- the transcript check that consumes painted lines
 
 package terminaldemo
 

@@ -21,16 +21,13 @@ func TestRenderWorkbench(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := workbenchData{
-		LayoutData: LayoutData{
-			Title:      "Ze: /bgp/peer",
-			Content:    template.HTML(`<div id="workspace-marker">workspace-content</div>`),
-			HasSession: true,
-			Username:   "alice",
-			CLIPrompt:  "ze>",
-		},
-		Sections: workbenchSections([]string{"bgp", "peer"}),
-	}
+	data := newWorkbenchData(LayoutData{
+		Title:      "Ze: /bgp/peer",
+		Content:    template.HTML(`<div id="workspace-marker">workspace-content</div>`),
+		HasSession: true,
+		Username:   "alice",
+		CLIPrompt:  "ze>",
+	}, workbenchSections([]string{"bgp", "peer"}))
 
 	rec := httptest.NewRecorder()
 	assert.NoError(t, r.RenderWorkbench(rec, data))
@@ -69,16 +66,13 @@ func TestRenderWorkbenchTopbarUsesSharedChrome(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := workbenchData{
-		LayoutData: LayoutData{
-			Title:          "Ze: /",
-			Content:        template.HTML(`<p>workspace</p>`),
-			ActiveUI:       uiModeTokenWorkbench,
-			RouterIdentity: "ze",
-			Insecure:       true,
-		},
-		Sections: workbenchSections(nil),
-	}
+	data := newWorkbenchData(LayoutData{
+		Title:          "Ze: /",
+		Content:        template.HTML(`<p>workspace</p>`),
+		ActiveUI:       uiModeTokenWorkbench,
+		RouterIdentity: "ze",
+		Insecure:       true,
+	}, workbenchSections(nil))
 
 	rec := httptest.NewRecorder()
 	assert.NoError(t, r.RenderWorkbench(rec, data))
@@ -101,15 +95,12 @@ func TestRenderWorkbenchTopbarShowsConfiguredIdentity(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := workbenchData{
-		LayoutData: LayoutData{
-			Title:          "Ze: /",
-			Content:        template.HTML(`<p>workspace</p>`),
-			ActiveUI:       uiModeTokenWorkbench,
-			RouterIdentity: "edge-01",
-		},
-		Sections: workbenchSections(nil),
-	}
+	data := newWorkbenchData(LayoutData{
+		Title:          "Ze: /",
+		Content:        template.HTML(`<p>workspace</p>`),
+		ActiveUI:       uiModeTokenWorkbench,
+		RouterIdentity: "edge-01",
+	}, workbenchSections(nil))
 
 	rec := httptest.NewRecorder()
 	assert.NoError(t, r.RenderWorkbench(rec, data))
@@ -127,13 +118,10 @@ func TestRenderWorkbench_NoFinderMarkers(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := workbenchData{
-		LayoutData: LayoutData{
-			Title:   "Ze: /",
-			Content: template.HTML(`<p>workspace</p>`),
-		},
-		Sections: workbenchSections(nil),
-	}
+	data := newWorkbenchData(LayoutData{
+		Title:   "Ze: /",
+		Content: template.HTML(`<p>workspace</p>`),
+	}, workbenchSections(nil))
 
 	rec := httptest.NewRecorder()
 	assert.NoError(t, r.RenderWorkbench(rec, data))
@@ -244,13 +232,10 @@ func TestRenderWorkbenchNav_TwoLevel(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := workbenchData{
-		LayoutData: LayoutData{
-			Title:   "Ze: /",
-			Content: template.HTML(`<p>workspace</p>`),
-		},
-		Sections: workbenchSections(nil),
-	}
+	data := newWorkbenchData(LayoutData{
+		Title:   "Ze: /",
+		Content: template.HTML(`<p>workspace</p>`),
+	}, workbenchSections(nil))
 
 	rec := httptest.NewRecorder()
 	assert.NoError(t, r.RenderWorkbench(rec, data))
@@ -269,13 +254,10 @@ func TestRenderWorkbenchNav_ActiveHighlight(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := workbenchData{
-		LayoutData: LayoutData{
-			Title:   "Ze: /bgp/peer",
-			Content: template.HTML(`<p>peers</p>`),
-		},
-		Sections: workbenchSections([]string{"bgp", "peer"}),
-	}
+	data := newWorkbenchData(LayoutData{
+		Title:   "Ze: /bgp/peer",
+		Content: template.HTML(`<p>peers</p>`),
+	}, workbenchSections([]string{"bgp", "peer"}))
 
 	rec := httptest.NewRecorder()
 	assert.NoError(t, r.RenderWorkbench(rec, data))
@@ -292,13 +274,10 @@ func TestRenderWorkbenchNav_ExpandedSection(t *testing.T) {
 	r, err := NewRenderer()
 	assert.NoError(t, err)
 
-	data := workbenchData{
-		LayoutData: LayoutData{
-			Title:   "Ze: /bgp/peer",
-			Content: template.HTML(`<p>peers</p>`),
-		},
-		Sections: workbenchSections([]string{"bgp", "peer"}),
-	}
+	data := newWorkbenchData(LayoutData{
+		Title:   "Ze: /bgp/peer",
+		Content: template.HTML(`<p>peers</p>`),
+	}, workbenchSections([]string{"bgp", "peer"}))
 
 	rec := httptest.NewRecorder()
 	assert.NoError(t, r.RenderWorkbench(rec, data))

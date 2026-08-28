@@ -10,7 +10,7 @@
 # box can perturb.
 #
 # The factor is set HERE rather than inherited from the suite's own -p, because
-# the inherited value is 3 under `make ze-functional-plugin-test` and 1 under
+# the inherited value is 3 under `./le functional plugin-test` and 1 under
 # `ze-test bgp plugin mcp-ready-under-load`, and a test whose expected value
 # changes with the way it is run cannot assert one. 5 is neither of those, so a
 # pass cannot come from the runner's own value leaking through.

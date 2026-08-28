@@ -194,7 +194,7 @@ They were added on 2026-08-18 by an independent review of
 (`internal/component/trafficfeature`, `internal/core/anomalyevent`,
 `detector.go`, `show.go`, `responder.go`) from another session's working tree,
 because a commit there took `detector.go` as a CONSUMER and broke
-`ze-repository-tracked-build-check`. The code is this spec's; only the landing
+`./le repository-tracked-build check`. The code is this spec's; only the landing
 was somebody else's, and the three rows are what that review found unproven.
 
 ## End-to-End User Stories
@@ -309,7 +309,7 @@ was somebody else's, and the three rows are what that review found unproven.
 | 3. Wiring phase | Wiring Test table -- add `Dests`/`Ports` fields + failing dest/port feature and chain tests |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section -- loop to 0 BLOCKER/ISSUE |
-| 6. Full verification | `make ze-lint-changed` then `make ze-unit-test` then `make ze-functional-test` |
+| 6. Full verification | `./le changed scope` then `./le test-unit` then `./le functional` |
 | 7-10. Critical review | Critical Review Checklist below |
 | 11. Deliverables | Deliverables Checklist below |
 | 12. Security | Security Review Checklist below |
@@ -339,7 +339,7 @@ was somebody else's, and the three rows are what that review found unproven.
    - Tests: `TestTrackedGaugeByDimension`, `TestResponderIgnoresNonSourceEntity`; `anomaly-show.ci` still green
    - Verify: no term for non-source; gauge per dimension
 8. **Functional tests** - `TestChainDestOutlier`/`TestChainPortOutlier` pass end to end; optional `.ci` if `fakeflow` present.
-9. **Full verification** - `make ze-precommit-verify` (or scoped to changed per `ai/rules/git-safety.md`).
+9. **Full verification** - `./le verify current mode full` (or scoped to changed per `ai/rules/git-safety.md`).
 10. **Complete spec** - fill audit tables; learned summary; two-commit closure per `.claude/rules/planning.md`.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -365,7 +365,7 @@ was somebody else's, and the three rows are what that review found unproven.
 | Responder guard | `go test ./internal/plugins/anomaly/shape/ -run NonSource` |
 | Source path unchanged | `go test ./internal/component/trafficfeature/ ./internal/plugins/anomaly/detect/ -run 'FanOut|ConfirmClear|FreezeLearn'` (existing tests, unmodified) |
 | Per-dimension gauge | `grep -n 'GaugeVec' internal/plugins/anomaly/detect/detector.go` |
-| Docs updated | `make ze-doc-verify`; grep `docs/features.md` source anchors resolve |
+| Docs updated | `./le doc-check verify`; grep `docs/features.md` source anchors resolve |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -525,7 +525,7 @@ Widening the entity axis is not "teach the detector new keys" -- it is "teach th
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled - 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/component/trafficfeature`, `internal/plugins/anomaly/detect`, `internal/core/anomalyevent`)
 - [ ] Integration completeness proven end-to-end (`TestChainDestOutlier`/`TestChainPortOutlier`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

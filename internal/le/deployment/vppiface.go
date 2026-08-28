@@ -109,8 +109,8 @@ const (
 	scenarioPoll = 500 * time.Millisecond
 )
 
-// VPPIface is one run of the VPP interface-feature proof.
-type VPPIface struct {
+// vppIface is one run of the VPP interface-feature proof.
+type vppIface struct {
 	// Tree is the checkout: the daemon is built from it, and it is mounted
 	// into the container at /src.
 	Tree string
@@ -130,10 +130,10 @@ type VPPIface struct {
 	Progress io.Writer
 }
 
-// NewVPPIface answers the run the command performs over tree, with every
+// newVPPIface answers the run the command performs over tree, with every
 // setting taken from the environment or from its default.
-func NewVPPIface(tree string) *VPPIface {
-	return &VPPIface{
+func newVPPIface(tree string) *vppIface {
+	return &vppIface{
 		Tree:         tree,
 		Image:        setting(vppImageEntry.Key, VPPImage),
 		Platform:     setting(vppPlatformEntry.Key, VPPPlatform),
@@ -150,7 +150,7 @@ func NewVPPIface(tree string) *VPPIface {
 // holds the checkout at /src and the run's scratch directory at /run/vpp. The
 // entry point is replaced by a sleep so the image's own VPP is not started
 // before its configuration has been written.
-func (v *VPPIface) containerArgs(name, work string) []string {
+func (v *vppIface) containerArgs(name, work string) []string {
 	var tb textbuf.Buffer
 	src := tb.Str(v.Tree).Str(":/src").String()
 	tb.Reset()
@@ -171,7 +171,7 @@ func (v *VPPIface) containerArgs(name, work string) []string {
 
 // vppArgs answers VPP itself, started detached inside the container so the run
 // keeps the container's foreground for the queries that follow.
-func (v *VPPIface) vppArgs(name string) []string {
+func (v *vppIface) vppArgs(name string) []string {
 	return []string{dockerExec, dockerDetach, name, "vpp", "-c", "/run/vpp/startup.conf"}
 }
 
@@ -182,18 +182,18 @@ func (v *VPPIface) vppArgs(name string) []string {
 // the run leaves nothing behind in the checkout. The `start` keyword is
 // explicit because the bare `ze <config>` launch form was removed from the CLI
 // (learned 1248) and a positional path now dies with "unknown command".
-func (v *VPPIface) daemonArgs(name, binaryRel, configFile string) []string {
+func (v *vppIface) daemonArgs(name, binaryRel, configFile string) []string {
 	var tb textbuf.Buffer
 	binary := tb.Str("/src/").Str(filepath.ToSlash(binaryRel)).String()
 	tb.Reset()
 	config := tb.Str(vppMount).Byte('/').Str(configFile).String()
 
 	return []string{
-		dockerExec, "--interactive",
+		dockerExec, dockerInteractiveArg,
 		dockerEnv, "ZE_LOG_VPP=info",
 		dockerEnv, "ZE_LOG_INTERFACE=debug",
 		dockerEnv, "ZE_LOG_BGP=info",
-		dockerEnv, "ZE_STORAGE_BLOB=false",
+		dockerEnv, storageBlobDisabledEnv,
 		dockerEnv, "ZE_CONFIG_DIR=/run/vpp/ze",
 		name,
 		binary,
@@ -214,7 +214,7 @@ func vppctlArgs(query string) []string {
 // writeScratch creates the directory that VPP and ze both read. It contains
 // VPP's own startup file, each scenario's configuration, and the empty directory
 // where ze writes its configuration store.
-func (v *VPPIface) writeScratch(work string) error {
+func (v *vppIface) writeScratch(work string) error {
 	if err := os.MkdirAll(filepath.Join(work, "ze"), 0o750); err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (v *VPPIface) writeScratch(work string) error {
 // fix, and the run reached no verdict. A feature that did not appear is NOT an
 // error. It is the verdict. The report includes that verdict, the query's own
 // output and the daemon's last lines.
-func (v *VPPIface) Run() (VPPIfaceReport, error) {
+func (v *vppIface) Run() (VPPIfaceReport, error) {
 	report := VPPIfaceReport{Image: v.Image}
 
 	if err := look("docker", "go"); err != nil {
@@ -282,7 +282,7 @@ func (v *VPPIface) Run() (VPPIfaceReport, error) {
 // It stops at the first failure, as the Python did. The scenarios share one VPP
 // daemon. A feature that the run was unable to program leaves that daemon in a state
 // that the next scenario would use for its verdict.
-func (v *VPPIface) proveScenarios(report VPPIfaceReport) (VPPIfaceReport, error) {
+func (v *vppIface) proveScenarios(report VPPIfaceReport) (VPPIfaceReport, error) {
 	reported := []string{WireguardPlugin, LinuxCPPlugin, LinuxNLPlugin}
 	loaded := make(map[string]bool, len(reported))
 	for _, plugin := range reported {
@@ -311,7 +311,7 @@ func (v *VPPIface) proveScenarios(report VPPIfaceReport) (VPPIfaceReport, error)
 
 // proveOne runs one scenario: start ze on its configuration, ask VPP whether
 // the object exists, and answer what happened.
-func (v *VPPIface) proveOne(container string, one *vppScenario, loaded map[string]bool) (ScenarioResult, error) {
+func (v *vppIface) proveOne(container string, one *vppScenario, loaded map[string]bool) (ScenarioResult, error) {
 	result := ScenarioResult{Feature: one.feature}
 
 	for _, plugin := range one.needsPlugins {
@@ -368,7 +368,7 @@ func (v *VPPIface) proveOne(container string, one *vppScenario, loaded map[strin
 // the needle `gre`, and the fallback reported a tunnel that was never created
 // (plan/journal/zero-value-as-valid-answer.md). awaitFeature always answers the
 // last text it saw. Thus, a failure still reports what VPP said.
-func (v *VPPIface) awaitFeature(container string, one *vppScenario) (string, bool) {
+func (v *vppIface) awaitFeature(container string, one *vppScenario) (string, bool) {
 	deadline := time.Now().Add(v.ScenarioWait)
 	last := ""
 	for {
@@ -401,10 +401,10 @@ func (v *VPPIface) awaitFeature(container string, one *vppScenario) (string, boo
 // A query that FAILED is an error, not an absent plugin. If code reads those two
 // results as one value, a container whose CLI socket has gone away answers
 // "not loaded" for every plugin. The run then skips both gated scenarios and
-// reports a pass. `plugin_loaded` (scripts/evidence/effective-vpp-iface.py) has
+// reports a pass. `plugin_loaded` (internal/le/deployment/vppiface.go) has
 // this defect because it ignores the exit status and tests the error text for
 // the plugin's name.
-func (v *VPPIface) pluginLoaded(container, plugin string) (bool, error) {
+func (v *vppIface) pluginLoaded(container, plugin string) (bool, error) {
 	text, ok := v.vppctl(container, "show plugins")
 	if !ok {
 		var tb textbuf.Buffer
@@ -416,7 +416,7 @@ func (v *VPPIface) pluginLoaded(container, plugin string) (bool, error) {
 
 // vppctl puts one query to VPP's own command line and answers its output and
 // whether it succeeded.
-func (v *VPPIface) vppctl(container, query string) (string, bool) {
+func (v *vppIface) vppctl(container, query string) (string, bool) {
 	return v.containerText(container, vppctlArgs(query)...)
 }
 
@@ -426,7 +426,7 @@ func (v *VPPIface) vppctl(container, query string) (string, bool) {
 // containerText captures both streams. vppctl reports an unknown command on
 // standard error and the answer to a known one on standard output. A reader of
 // a failure needs the stream that contains the reason.
-func (v *VPPIface) containerText(container string, argv ...string) (string, bool) {
+func (v *vppIface) containerText(container string, argv ...string) (string, bool) {
 	full := make([]string, 0, len(argv)+2)
 	full = append(full, dockerExec, container)
 	full = append(full, argv...)
@@ -435,7 +435,7 @@ func (v *VPPIface) containerText(container string, argv ...string) (string, bool
 
 // dockerText runs one complete docker argv and returns its combined output.
 // It exists because docker exec flags can appear before the container name.
-func (v *VPPIface) dockerText(argv ...string) (string, bool) {
+func (v *vppIface) dockerText(argv ...string) (string, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), vppctlTimeout)
 	defer cancel()
 
@@ -444,7 +444,7 @@ func (v *VPPIface) dockerText(argv ...string) (string, bool) {
 }
 
 // startContainer starts the container the proof runs in.
-func (v *VPPIface) startContainer(name, work string) error {
+func (v *vppIface) startContainer(name, work string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)
 	defer cancel()
 
@@ -465,7 +465,7 @@ func (v *VPPIface) startContainer(name, work string) error {
 //
 // If VPP never creates its API socket, the container's own log is the only
 // evidence of the cause. Thus, the error includes the log.
-func (v *VPPIface) startVPP(name, work string) error {
+func (v *vppIface) startVPP(name, work string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dockerTimeout)
 	defer cancel()
 
@@ -489,7 +489,7 @@ func (v *VPPIface) startVPP(name, work string) error {
 // containerLog answers what the container has written for a failure with no
 // other evidence. If this process cannot read the log, containerLog answers
 // nothing. The caller already holds the failure that the report describes.
-func (v *VPPIface) containerLog(name string) string {
+func (v *vppIface) containerLog(name string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), vppctlTimeout)
 	defer cancel()
 
@@ -502,7 +502,7 @@ func (v *VPPIface) containerLog(name string) string {
 
 // note writes one line of narration to the progress stream. The report is the
 // answer, so everything a person watches the run by goes to the other stream.
-func (v *VPPIface) note(line string) {
+func (v *vppIface) note(line string) {
 	if v.Progress == nil || line == "" {
 		return
 	}

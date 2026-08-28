@@ -229,7 +229,7 @@ func TestErrorFragmentMiddlewareConvertsOnlyBareStatusLines(t *testing.T) {
 			mux := http.NewServeMux()
 			mux.Handle("GET /probe", c.handler(t))
 
-			req := httptest.NewRequest(http.MethodGet, "/probe", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/probe", http.NoBody)
 			if c.HTMX {
 				req.Header.Set("HX-Request", htmxRequestTrue)
 			}
@@ -269,7 +269,7 @@ func TestErrorFragmentEscapesTheMessage(t *testing.T) {
 		AnswerBody:   `invalid value: <img src=x onerror="alert(1)">`,
 	}.handler(t))
 
-	req := httptest.NewRequest(http.MethodGet, "/probe", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/probe", http.NoBody)
 	req.Header.Set("HX-Request", htmxRequestTrue)
 
 	rec := httptest.NewRecorder()

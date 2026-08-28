@@ -15,61 +15,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=fib-blackhole-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: fib-kernel processes blackhole route from sysrib event."""
-
-import sys
-import time
-
-from ze_api import API, runtime_fail
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = dispatch(api, 'request fakefib emit add ipv4/unicast 192.0.2.0/24 routetype blackhole')
-    if r.get('status') != 'done':
-        runtime_fail(f'request fakefib emit failed: {r}')
-
-    # blind hold: sysrib to fib-kernel delivery is fire-and-forget with no end-to-end "programmed" signal to poll
-    time.sleep(1.0)
-
-    print('OK AC-1: blackhole route emitted to fib-kernel via sysrib EventBus', file=sys.stderr)
-
-    # The peer asserts ze's End-of-RIB frame, so hold the barrier ze_api
-    # documents for that shape before shutting the daemon down: this peer
-    # attaches a process permitted to send updates, so the initial-sync gate
-    # holds the marker and a prompt shutdown closes the session under it.
-    if not api.wait_peer_eor_sent():
-        runtime_fail('ze did not send the End-of-RIB to the peer before shutdown')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external fib-blackhole-test {
-		run ./fib-blackhole-test.run
+		run "ze-test fixture plugin/fib-blackhole"
 		encoder json
 	}
 	internal bgp-rib {

@@ -108,7 +108,7 @@ func procRootWithMPLSLabels(t *testing.T, value string) string {
 // sysctl below it fails with ENOTDIR. That is an error which is not
 // fs.ErrNotExist, and the filesystem produces it whatever user the test runs as.
 // A chmod 000 would not do it, because root ignores the mode and this suite runs
-// as root under make ze-qemu-needs-linux-test.
+// as root under `./le qemu all-tests`.
 func procRootWithUnreadableMPLS(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()

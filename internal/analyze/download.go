@@ -1,7 +1,6 @@
 // Design: (none -- research/analysis tool)
 //
 // Download MRT RIB dumps and BGP4MP updates from RIPE RIS and RouteViews.
-// Replaces test/internet/download.sh with a Go implementation.
 package analyze
 
 import (
@@ -85,16 +84,18 @@ Examples:
 	}
 
 	type dlTask struct {
-		name string
-		url  string
-		out  string
+		name     string
+		url      string
+		out      string
+		required bool
 	}
 
 	tasks := []dlTask{
 		{
-			name: "RIPE RIS latest RIB",
-			url:  "https://data.ris.ripe.net/rrc00/latest-bview.gz",
-			out:  filepath.Join(*outDir, "latest-bview.gz"),
+			name:     "RIPE RIS latest RIB",
+			url:      "https://data.ris.ripe.net/rrc00/latest-bview.gz",
+			out:      filepath.Join(*outDir, "latest-bview.gz"),
+			required: true,
 		},
 		{
 			name: fmt.Sprintf("RIPE RIS updates %s.%s", date, timeSlot),
@@ -113,31 +114,29 @@ Examples:
 		},
 	}
 
-	failed := 0
-	for _, t := range tasks {
-		fmt.Fprintf(os.Stderr, "Downloading %s...\n", t.name)
-		if err := downloadFile(t.url, t.out); err != nil {
+	for _, task := range tasks {
+		fmt.Fprintf(os.Stderr, "Downloading %s...\n", task.name)
+		if err := downloadFile(task.url, task.out); err != nil {
+			if task.required {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				return 1
+			}
 			fmt.Fprintf(os.Stderr, "  warning: %v\n", err)
-			failed++
 			continue
 		}
-		fi, err := os.Stat(t.out)
+		fi, err := os.Stat(task.out)
 		if err == nil {
-			fmt.Fprintf(os.Stderr, "  saved: %s (%s)\n", t.out, formatBytes(uint64(fi.Size()))) //nolint:gosec // file size is positive
+			fmt.Fprintf(os.Stderr, "  saved: %s (%s)\n", task.out, formatBytes(uint64(fi.Size()))) //nolint:gosec // file size is positive
 		}
-	}
-
-	if failed == len(tasks) {
-		fmt.Fprintf(os.Stderr, "error: all downloads failed\n")
-		return 1
 	}
 
 	fmt.Fprintf(os.Stderr, "\nDone. Use 'ze-analyze density %s/ripe-updates.*.gz' to analyze.\n", *outDir)
 	return 0
 }
 
-// downloadFile fetches a URL and saves to disk.
-// If the URL is .bz2, it converts to .gz on the fly.
+// downloadFile fetches a gzip or bzip2 source and recompresses it with gzip's
+// best compression level. Recompression both validates the transfer and keeps
+// every output compatible with Go's gzip reader.
 func downloadFile(url, outPath string) error {
 	resp, err := http.Get(url) //nolint:gosec,noctx // CLI tool, URL from hardcoded templates
 	if err != nil {
@@ -149,49 +148,53 @@ func downloadFile(url, outPath string) error {
 		return fmt.Errorf("HTTP %d for %s", resp.StatusCode, url)
 	}
 
+	var source io.Reader
+	var sourceCloser io.Closer
+	switch {
+	case strings.HasSuffix(url, ".bz2"):
+		source = bzip2.NewReader(resp.Body)
+	case strings.HasSuffix(url, ".gz"):
+		gzReader, gzErr := gzip.NewReader(resp.Body)
+		if gzErr != nil {
+			return fmt.Errorf("reading gzip response from %s: %w", url, gzErr)
+		}
+		source = gzReader
+		sourceCloser = gzReader
+	default:
+		return fmt.Errorf("unsupported compression for %s", url)
+	}
+	if sourceCloser != nil {
+		defer sourceCloser.Close() //nolint:errcheck // decoder close has no additional validation
+	}
+
 	out, err := os.Create(outPath) //nolint:gosec // outPath from CLI args
 	if err != nil {
 		return fmt.Errorf("creating %s: %w", outPath, err)
 	}
 
-	// If source is .gz, save directly. If .bz2, we need to recompress.
-	// For simplicity, save the raw response -- our MRT reader handles both formats.
-	// However, the output filename is always .gz, so if source is .bz2 we convert.
-	var writeErr error
-	if strings.HasSuffix(url, ".bz2") {
-		// bz2 -> gz conversion: read bz2, compress as gzip.
-		// Note: we import compress/bzip2 in mrt.go; use it here via the reader.
-		writeErr = convertBZ2ToGZ(resp.Body, out)
-	} else {
-		_, writeErr = io.Copy(out, resp.Body)
-	}
-
+	writeErr := compressToGZ(source, out)
 	if closeErr := out.Close(); closeErr != nil && writeErr == nil {
 		writeErr = closeErr
 	}
-
 	if writeErr != nil {
-		// Clean up partial file.
 		os.Remove(outPath) //nolint:errcheck // best-effort cleanup
 		return fmt.Errorf("writing %s: %w", outPath, writeErr)
 	}
-
 	return nil
 }
 
-// convertBZ2ToGZ reads bzip2 data and writes gzip-compressed output.
-func convertBZ2ToGZ(src io.Reader, dst io.Writer) error {
-	// Use compress/bzip2 from stdlib.
-	bzReader := bzip2.NewReader(src)
-
+func compressToGZ(src io.Reader, dst io.Writer) error {
 	gzWriter, err := gzip.NewWriterLevel(dst, gzip.BestCompression)
 	if err != nil {
 		return fmt.Errorf("creating gzip writer: %w", err)
 	}
-
-	if _, err := io.Copy(gzWriter, bzReader); err != nil { //nolint:gosec // CLI tool, input from trusted sources
-		return fmt.Errorf("converting bz2 to gz: %w", err)
+	_, copyErr := io.Copy(gzWriter, src)
+	closeErr := gzWriter.Close()
+	if copyErr != nil {
+		return fmt.Errorf("compressing download: %w", copyErr)
 	}
-
-	return gzWriter.Close()
+	if closeErr != nil {
+		return fmt.Errorf("closing gzip writer: %w", closeErr)
+	}
+	return nil
 }

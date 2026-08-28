@@ -116,7 +116,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		peerAS := p.PeerAS()
 		importFilters := p.ImportFilters()
 		exportFilters := p.ExportFilters()
-		prefixUpdated := p.OldestPrefixUpdated()
+		prefixUpdated := p.oldestPrefixUpdated()
 		stats := p.Stats()
 		peerType := "external"
 		if s.LocalAS == peerAS {
@@ -535,7 +535,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 	// (peer_settings_negotiation.go). A peer with no session yields nil, which the
 	// decision reads as "nothing to preserve" and restarts.
 	//
-	// SettingsSnapshot, not Settings: everything below reads the struct as a whole
+	// settingsSnapshot, not Settings: everything below reads the struct as a whole
 	// (peerSettingsEqual here, and the struct copy plus the Capabilities read inside
 	// peerSettingsSwapPlan), and the running peer's struct has two writers on two
 	// goroutines -- applyHotSwappableSettings on this one, resolveDynamicPeerSettings
@@ -547,7 +547,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 	currentPeers := make(map[netip.AddrPort]*PeerSettings)
 	currentSessions := make(map[netip.AddrPort]*Session)
 	for key, peer := range r.peers {
-		currentPeers[key] = peer.SettingsSnapshot()
+		currentPeers[key] = peer.settingsSnapshot()
 		currentSessions[key] = peer.currentSession()
 	}
 	r.mu.RUnlock()
@@ -665,7 +665,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 					// teardown defer in peer_run.go via Session.ClearReportedWarnings.
 					// This mirrors the explicit RemovePeer path; without it,
 					// stale entries leak when peers are removed via config reload.
-					ClearPrefixStale(peerKey.Addr().String())
+					clearPrefixStale(peerKey.Addr().String())
 					if peer.health != nil {
 						peer.health.stop()
 					}
@@ -746,7 +746,7 @@ func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
 		newPeerSettings[p.PeerKey()] = p
 	}
 
-	// SettingsSnapshot for the same reason reconcilePeersJournaled uses it: the two
+	// settingsSnapshot for the same reason reconcilePeersJournaled uses it: the two
 	// judgements below, peerSettingsEqual and peerSettingsRestartRequired, are
 	// whole-struct reads of a struct with writers on two goroutines (peer.go,
 	// Settings). This count is only a budget estimate, but an estimate read from a
@@ -755,7 +755,7 @@ func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
 	currentPeers := make(map[netip.AddrPort]*PeerSettings)
 	currentSessions := make(map[netip.AddrPort]*Session)
 	for key, peer := range a.r.peers {
-		currentPeers[key] = peer.SettingsSnapshot()
+		currentPeers[key] = peer.settingsSnapshot()
 		currentSessions[key] = peer.currentSession()
 	}
 	a.r.mu.RUnlock()
@@ -960,15 +960,15 @@ func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr strin
 	if !ap.IsValid() {
 		return fmt.Errorf("invalid peer address %q", addr)
 	}
-	return a.r.fwdPool.BarrierPeer(ctx, ap)
+	return a.r.fwdPool.barrierPeer(ctx, ap)
 }
 
 // DrainPeerSync blocks until no peer has pending route work -- for every peer,
-// !PendingSync(): sendingInitialRoutes cleared AND its opQueue drained
+// !pendingSync(): sendingInitialRoutes cleared AND its opQueue drained
 // (peer_initial_sync.go). A peer that is still establishing but already has
 // routes queued IS waited on: those routes drain when it comes up, so a test's
 // send() reaches the wire before its next send(). Only a down/idle peer with an
-// empty queue is skipped. Unlike ShouldQueue, the condition does NOT gate on
+// empty queue is skipped. Unlike shouldQueue, the condition does NOT gate on
 // peer state -- gating on state would let a route queued before establishment
 // race ahead of the initial-sync EOR (the nexthop.ci ordering).
 //
@@ -978,7 +978,7 @@ func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr strin
 // barriers. Registered as the bgp-peer-sync quiescer alongside bgp-forward-pool.
 //
 // No completion signal exists for sendingInitialRoutes (a plain atomic cleared at
-// several sites), so this polls the cheap PendingSync() condition rather than a
+// several sites), so this polls the cheap pendingSync() condition rather than a
 // fixed sleep: it returns as soon as the condition holds, and ctx bounds it.
 func (a *reactorAPIAdapter) DrainPeerSync(ctx context.Context) error {
 	return waitForCondition(ctx, time.Millisecond, a.peerSyncDrained)
@@ -991,13 +991,13 @@ func (a *reactorAPIAdapter) peerSyncDrained() bool {
 	return peersSynced(a.r.Peers())
 }
 
-// peersSynced reports whether no peer has pending route work (!PendingSync for
+// peersSynced reports whether no peer has pending route work (!pendingSync for
 // every peer): a peer with routes queued while establishing IS waited on (those
 // routes drain when it comes up, and a test's send() must reach the wire before
 // the next send), while a down/idle peer with an empty queue is skipped.
 func peersSynced(peers []*Peer) bool {
 	for _, p := range peers {
-		if p.PendingSync() {
+		if p.pendingSync() {
 			return false
 		}
 	}

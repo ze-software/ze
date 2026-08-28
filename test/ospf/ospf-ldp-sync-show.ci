@@ -14,59 +14,11 @@
 # ospf/lsdb/spf unit tests.
 option=skip-os:value=darwin
 
-tmpfs=ospf-ldp-sync-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show ospf ldp-sync` reports an ldp-sync interface not-synchronized."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    result = dispatch(api, 'show ospf ldp-sync')
-    if result.get('status') != 'done':
-        runtime_fail(f"show ospf ldp-sync: status={result.get('status')}")
-    rows = result_json_data(result, None) or []
-    by_iface = {r.get('interface'): r for r in rows if isinstance(r, dict)}
-    if 'eth0' not in by_iface:
-        runtime_fail(f"show ospf ldp-sync: eth0 missing, got {rows!r}")
-    row = by_iface['eth0']
-    if row.get('state') != 'not-synchronized':
-        runtime_fail(f"eth0 state = {row.get('state')!r}, want not-synchronized")
-    if row.get('effective-metric') != 65535:
-        runtime_fail(f"eth0 effective-metric = {row.get('effective-metric')!r}, want 65535 (LSInfinity)")
-
-    print('OK: show ospf ldp-sync reports not-synchronized/LSInfinity', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-ldp-sync-show {
-		run ./ospf-ldp-sync-show.run
+		run "ze-test fixture ospf/ospf-ldp-sync-show"
 		encoder json
 	}
 }

@@ -90,11 +90,11 @@ func peeringDBUsage() {
 		Summary: "PeeringDB prefix count and AS-SET queries",
 		Usage:   []string{"ze resolve peeringdb [--url <url>] <operation> <asn>"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Operations", Entries: []helpfmt.HelpEntry{
+			{Title: usageSectionOperations, Entries: []helpfmt.HelpEntry{
 				{Name: "max-prefix <asn>", Desc: "IPv4 and IPv6 prefix counts"},
 				{Name: "as-set <asn>", Desc: "Registered IRR AS-SET names"},
 			}},
-			{Title: "Flags", Entries: []helpfmt.HelpEntry{
+			{Title: usageSectionFlags, Entries: []helpfmt.HelpEntry{
 				{Name: "--url <url>", Desc: "PeeringDB API base URL (default: " + defaultPeeringDBURL + ")"},
 			}},
 		},

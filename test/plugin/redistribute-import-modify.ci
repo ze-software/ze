@@ -10,86 +10,11 @@ option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: import filter that modifies local-preference
-tmpfs=filter-modify-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API, runtime_fail
-
-modified_count = 0
-
-def filter_handler(params):
-    """Modify local-preference to 200."""
-    global modified_count
-    modified_count += 1
-    print(f'filter-update MODIFY: filter={params.get("filter")} peer={params.get("peer")}', file=sys.stderr)
-    return {'action': 'modify', 'update': 'local-preference 200'}
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'None'}
-    return resp.get('result', {})
-
-def serve_until(api, predicate, attempts=100):
-    """Answer plugin callbacks until predicate() holds, or attempts run out.
-
-    ze asks for a filter decision over the callback connection, and only
-    api.read_line() answers it. An observer parked in a dispatch RPC leaves that
-    request unanswered until the reactor's IPC deadline expires, and on-error
-    then decides the route instead of the filter. read_line blocks in select for
-    its timeout, so this loop costs no CPU and adds no sleep.
-    """
-    for _ in range(attempts):
-        if predicate():
-            return True
-        api.read_line(timeout=0.1)
-    return predicate()
-
-def main():
-    api = API()
-    api.declare_filter(
-        name='set-localpref',
-        direction='import',
-        attributes=['local-preference'],
-        on_error='reject',
-    )
-    api.on_filter_update(filter_handler)
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Three barriers, in this order.
-    # 1. serve_until answers the filter callback for the route ze-peer sends.
-    # 2. wait_peer_eor_sent blocks until ze has put its initial-sync EOR on the
-    #    wire, which is the frame the ze-peer block asserts. quiesce alone
-    #    returns instantly while the session is still opening.
-    # 3. wait_for_ack drains the forward pool before the daemon stops.
-    serve_until(api, lambda: modified_count > 0)
-    if not api.wait_peer_eor_sent():
-        runtime_fail('ze sent no end-of-rib to peer1 before shutdown')
-    api.wait_for_ack()
-
-    # The filter must have been called: ze-peer sends 10.0.0.0/24 on establishment.
-    if modified_count == 0:
-        runtime_fail('import filter never called for the route ze-peer sent')
-    print(f'OK: filter modified {modified_count} route(s)', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external filter-modify-test {
-        run ./filter-modify-test.run;
+        run "ze-test fixture plugin/redistribute-import-modify";
         encoder json;
     }
 }

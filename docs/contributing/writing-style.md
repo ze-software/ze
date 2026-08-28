@@ -17,8 +17,8 @@ translator, a machine translation engine, and the agents that read this
 repository.
 
 The rule that makes this blocking is `ai/rules/writing.md`.
-The checker is `scripts/dev/ste_check.py`.
-<!-- source: scripts/dev/ste_check.py -- review, ratchet -->
+The checker is `internal/le/ste.Answer`.
+<!-- source: internal/le/ste/actions.go -- Answer -->
 
 ## What this covers
 
@@ -504,18 +504,18 @@ voice, which keeps UK English and which this page does not govern
 
 | Command | What it does |
 |---------|--------------|
-| `make ze-ste-review-changed` | Every finding in the files you changed, with the line and the replacement |
-| `make ze-ste-check` | The gate. It fails when a habit grew in a file you changed |
-| `make ze-ste-review` | The whole tree, for a rewriting session |
-| `python3 scripts/dev/ste_check.py <file>...` | Named files |
-| `git log -1 --format=%B \| python3 scripts/dev/ste_check.py -` | A commit message or a PR body |
+| `./le ste review-changed` | Every finding in the files you changed, with the line and the replacement |
+| `./le ste check` | The gate. It fails when a habit grew in a file you changed |
+| `./le ste review` | The whole tree, for a rewriting session |
+| `./le ste check file <path>...` | Named files |
+| `git log -1 --format=%B \| ./le ste check file -` | A commit message or a PR body |
 
 The gate compares each file against its own version at HEAD. Legacy prose in a
 file you touch costs nothing, and the sentence you add is what goes red. No
 baseline file exists, so the one way to green is to rewrite the prose.
 
 When the checker is wrong, correct the checker and add the case to
-`scripts/dev/ste_check_test.py`. A checker that flags a code span, an RFC 2119
+`internal/le/ste.Answer`. A checker that flags a code span, an RFC 2119
 MUST, or the noun `setup` teaches its readers to ignore it.
 
 When a document must quote non-conforming text at length, exempt it with

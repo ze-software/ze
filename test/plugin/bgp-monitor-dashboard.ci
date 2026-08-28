@@ -9,58 +9,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for bgp summary
-tmpfs=dashboard-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API, dispatch, runtime_fail
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        result = dispatch(api, 'show bgp')
-        if result.get('status') != 'done':
-            runtime_fail(f'show bgp: status={result.get("status")} data={result.get("data")}')
-
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-
-        if 'router-id' not in data:
-            runtime_fail(f'show bgp: missing router-id: {json.dumps(data)}')
-        if 'peers' not in data:
-            runtime_fail(f'show bgp: missing peers: {json.dumps(data)}')
-        if 'local-as' not in data:
-            runtime_fail(f'show bgp: missing local-as: {json.dumps(data)}')
-
-        peers = data.get('peers', [])
-        if not isinstance(peers, list):
-            runtime_fail(f'show bgp: peers is not a list: {type(peers).__name__}')
-
-        print(f'OK: summary has router-id={data["router-id"]} local-as={data["local-as"]} peers={len(peers)}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Compiled observer exercises dispatch-command for the BGP summary.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external dashboard-test {
-		run ./dashboard-test.run
+		run "ze-test fixture plugin/bgp-monitor-dashboard"
 		encoder json
 	}
 }

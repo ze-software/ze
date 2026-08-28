@@ -54,42 +54,41 @@ canonical-sources-and-sync-direction ## Canonical Sources and Sync Direction
   banned-edits-and-the-canonical-source-to-use
 hook-to-rule-mapping ## Hook-to-Rule Mapping
   what-this-mapping-table-answers
-  architecture-checks-live-in-three-python-dispatchers
-  shell-hooks-were-folded-into-one-dispatcher-per-trigger
+  architecture-checks-live-in-native-go-hookruntime
+  hook-checks-run-in-one-native-dispatcher-per-trigger
   what-each-dispatcher-runs-on-and-contains
   the-hooks-that-stayed-standalone
   edit-the-dispatcher-function-then-check-parity
   reads-never-block-and-some-write-a-freshness-marker
   keep-the-session-id-resolvers-in-agreement
   pretooluse-checks-block-before-the-tool-runs
-  lsp-gate-block-until-lsp-sh-standalone
+  lsp-gate-runs-in-native-hookruntime
   what-the-lsp-gate-blocks-and-until-when
-  bash-pretool-bash-py
+  bash-pretool-native-go
   the-bash-checks-and-what-each-one-blocks
   why-the-commit-time-gates-moved-out-of-the-hook
-  golangci-lint-run-also-runs-standalone-on-bash-git-commit
-  write-edit-pretool-writeedit-py
+  write-edit-pretool-native-go
   the-write-edit-checks-and-what-each-one-blocks
   why-format-alloc-is-live-and-what-it-adds
-  agent-skill-task-agent-pretool-agent-skill-py
+  agent-skill-pretool-native-go
   the-task-agent-checks-and-what-each-one-blocks
   posttooluse-checks-run-after-the-tool-completes
   the-posttooluse-checks-and-what-each-one-does
-  why-validate-spec-sh-stayed-standalone
-  ze-verify-runs-the-wiring-and-doc-drift-gate
-  changed-file-gates-inside-ze-verify-wiring-docs
-  these-gates-are-make-targets-scoped-to-changed-files
+  spec-validation-runs-in-native-hookruntime
+  native-verify-runs-the-wiring-and-doc-drift-gate
+  changed-file-gates-inside-native-verify-wiring-docs
+  these-gates-are-native-actions-scoped-to-changed-files
   the-wiring-docs-gates-and-what-each-one-blocks
-  ze-verify-runs-the-tree-wide-half-of-ze-validate
+  native-verify-runs-the-tree-wide-half-of-repository-checks
   the-validate-checks-and-which-half-the-gate-runs
   why-two-validate-checks-stay-out-of-the-gate
   prose-gate-asd-ste100
   the-prose-gate-compares-each-file-with-its-own-head
   the-prose-gate-checks-and-what-each-one-does
-  commit-time-gates-scripts-dev-commit-helper-py
+  commit-time-gates-internal-le-commit
   the-commit-gates-run-at-script-creation-time
   the-commit-time-gates-and-what-each-one-does
-  hook-tests-make-ze-hook-test
+  hook-tests-native-hook-check
   what-each-hook-test-runner-covers
   session-lifecycle-hooks
   stdout-reaches-the-model-stderr-costs-no-context
@@ -102,8 +101,6 @@ hook-to-rule-mapping ## Hook-to-Rule Mapping
   what-fires-on-a-test-file
   spec-files-plan-spec-md
   what-fires-on-a-spec-file
-  python-files-py
-  what-fires-on-a-python-file
   commits
   what-fires-on-a-commit
 gate-population ## Gate Population

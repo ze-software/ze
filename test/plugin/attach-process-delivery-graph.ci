@@ -18,83 +18,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=delivery-graph-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-    # The barrier ze_api documents for any test whose ze-peer asserts the
-    # End-of-RIB frame: post-startup is when the peers are STARTED, so without
-    # it the shutdown below can land inside peer1's establishment window and the
-    # peer sees a Cease instead of the marker.
-    if not api.wait_peer_eor_sent(peer='127.0.0.1'):
-        runtime_fail(
-            f'delivery: peer1 never reached its initial-sync end-of-rib: {api.peer_fields("*")}')
-
-    try:
-        resp = dispatch(api, 'show event delivery')
-        status = resp.get('status')
-        if status != 'done':
-            runtime_fail(f'delivery: status={status} data={resp.get("data")}')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-
-        peers = {p['peer']: p for p in data.get('peers', [])}
-        if len(peers) != 3:
-            runtime_fail(f'delivery: expected 3 peers, got {sorted(peers)}')
-
-        # peer1 is fed session state and may send nothing.
-        fed = peers['127.0.0.1'].get('processes', [])
-        if len(fed) != 1 or fed[0]['process'] != 'delivery-graph-test':
-            runtime_fail(f'delivery: peer1 edges are {fed}')
-        if fed[0].get('receive') != ['state']:
-            runtime_fail(f'delivery: peer1 receive is {fed[0].get("receive")}')
-        if fed[0].get('send'):
-            runtime_fail(f'delivery: peer1 granted a send it never states: {fed[0]}')
-
-        # peer2 grants the send permission and is fed nothing.
-        sender = peers['192.0.2.9'].get('processes', [])
-        if len(sender) != 1 or sender[0].get('send') != ['update']:
-            runtime_fail(f'delivery: peer2 edges are {sender}')
-        if sender[0].get('receive'):
-            runtime_fail(f'delivery: peer2 feeds a process it only lets announce: {sender[0]}')
-
-        # peer3 attaches nothing, so it feeds nobody. The running process must
-        # not appear under it.
-        if peers['192.0.2.10'].get('processes'):
-            runtime_fail(f'delivery: peer3 attaches nothing but has edges: {peers["192.0.2.10"]}')
-
-        print('OK: delivery graph published for 3 peers', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external delivery-graph-test {
-		run ./delivery-graph-test.run
+		run "ze-test fixture plugin/attach-process-delivery-graph"
 		encoder json
 	}
 }

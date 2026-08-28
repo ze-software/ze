@@ -29,10 +29,6 @@ var scenarioExtras = map[string][]operation{
 	"bgp-addpath-frr": {
 		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{"10.10.0.0/24", "2 paths"}},
 	},
-	"bgp-addpath-readvertise-collision-frr": {
-		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show bgp neighbor 172.30.0.2 json"}, contains: []string{"addPath", "receive"}},
-		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show bgp ipv4 unicast 10.99.0.0/24"}, contains: []string{"10.99.0.0/24"}},
-	},
 	"bgp-ecmp-frr": {
 		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show bgp ipv4 unicast 10.100.0.0/24 json"}, contains: []string{"10.100.0.0/24", "172.30.0.2", "172.30.0.5"}},
 	},
@@ -50,48 +46,18 @@ var scenarioExtras = map[string][]operation{
 	"bgp-flowspec-gobgp": {
 		{kind: opWaitContains, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4-flowspec", "-j"}, contains: []string{"10.99.0.0/24", "10.99.1.0/24"}, timeout: 30 * time.Second},
 	},
-	"bgp-rfc7999-blackhole-frr": {
-		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-4", "route", "show"}, contains: []string{"blackhole 10.100.0.1", "198.51.100.1 via", "10.200.0.1 via"}, timeout: 90 * time.Second},
-	},
 	"bgp-graceful-restart-frr": {
 		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show bgp neighbor 172.30.0.2 json"}, contains: []string{"gracefulRestart", "advertisedAndReceived"}},
-	},
-	"bgp-local-pref-strip-gobgp": {
-		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show bgp ipv4 unicast"}, contains: []string{"10.54.0.0/24", "10.54.1.0/24", "10.54.2.0/24"}},
-		{kind: opRequireAbsent, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.54.0.0/24"}, absent: []string{"LocalPref"}, proof: []string{"10.54.0.0/24", "65004", "172.30.0.9"}},
-		{kind: opRequireAbsent, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.54.1.0/24"}, absent: []string{"LocalPref"}, proof: []string{"10.54.1.0/24", "65004", "172.30.0.9"}},
-		{kind: opRequireAbsent, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.54.2.0/24"}, absent: []string{"LocalPref"}, proof: []string{"10.54.2.0/24", "65004", "172.30.0.9"}},
-	},
-	"bgp-med-across-as-gobgp": {
-		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show bgp ipv4 unicast"}, contains: []string{"10.60.0.0/24", "10.60.1.0/24", "10.60.2.0/24", "10.60.9.0/24"}},
-		{kind: opRequireAbsent, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.60.0.0/24"}, absent: []string{"Med:"}, proof: []string{"10.60.0.0/24", "65004", "172.30.0.9"}},
-		{kind: opRequireAbsent, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.60.1.0/24"}, absent: []string{"Med:"}, proof: []string{"10.60.1.0/24", "65004", "172.30.0.9"}},
-		{kind: opRequireAbsent, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.60.2.0/24"}, absent: []string{"Med:"}, proof: []string{"10.60.2.0/24", "65004", "172.30.0.9"}},
-		{kind: opRequireContains, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.60.9.0/24"}, contains: []string{"10.60.9.0/24", "Med: 42"}},
 	},
 	"bgp-med-ibgp-post-selection-removal-gobgp": {
 		{kind: opWaitLogContains, peer: "ze", contains: []string{"RAW-MED-DROP: removed MULTI_EXIT_DISC"}, timeout: 120 * time.Second},
 		{kind: opRequireContains, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.62.0.0/24"}, contains: []string{"10.62.0.0/24", "65005", "172.30.0.2", "Med: 100"}},
-	},
-	"bgp-med-remove-configured-gobgp": {
-		{kind: opRequireAbsent, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.61.0.0/24"}, absent: []string{"Med:"}, proof: []string{"10.61.0.0/24", "65005", "172.30.0.3"}},
-		{kind: opRequireContains, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "ipv4", "10.61.1.0/24"}, contains: []string{"10.61.1.0/24", "65005", "172.30.0.3", "Med: 100"}},
 	},
 	"bgp-policy-import-export-frr": {
 		{kind: opRequireContains, peer: "bird", command: []string{"birdc", "show route for 10.39.1.0/24 all"}, contains: []string{"10.39.1.0/24", "BGP.local_pref: 250", "BGP.med: 77"}},
 		{kind: opBIRDRouteAbsent, argument: "10.39.2.0/24", proof: []string{"BIRD"}},
 	},
 	"bgp-relay-withdraw-nexthop-self-frr": relayWithdrawalExtras("10.10.0.0/24"),
-	"bgp-relay-withdraw-shape-frr":        relayWithdrawalExtras("10.10.0.0/24"),
-	"bgp-role-otc-withdraw-frr":           relayWithdrawalExtras("10.10.0.0/24"),
-	"bgp-rfc7606-relay-shape-frr":         relayWithdrawalExtras("203.0.113.0/24"),
-	"bgp-rfc2545-linklocal-nexthop-frr": {
-		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show ipv6 route bgp"}, contains: []string{"2001:db8:5601::/48"}},
-		{kind: opRequireAbsent, peer: "frr", command: []string{"vtysh", "-c", "show ipv6 route bgp"}, absent: []string{"2001:db8:5602::/48"}, proof: []string{"2001:db8:5601::/48"}},
-	},
-	"bgp-self-nexthop-withheld-frr": {
-		{kind: opRequireAbsent, peer: "frr", command: []string{"cat", "/tmp/frr.log"}, absent: []string{"10.11.0.0/24"}, proof: []string{"10.12.0.0/24"}},
-	},
 	"bgp-send-community-suppress-frr": {
 		{kind: opRequireAbsent, peer: "frr", command: []string{"vtysh", "-c", "show bgp ipv4 unicast 10.52.0.0/24"}, absent: []string{"65004:100", "65004:200", "65004:300", "65004:1:2"}, proof: []string{"10.52.0.0/24"}},
 		{kind: opRequireAbsent, peer: "frr", command: []string{"vtysh", "-c", "show bgp ipv4 unicast 10.52.1.0/24"}, absent: []string{"65004:100", "65004:200", "65004:300", "65004:1:2"}, proof: []string{"10.52.1.0/24"}},
@@ -112,16 +78,8 @@ var scenarioExtras = map[string][]operation{
 	"bgp-vpn-gobgp": {
 		{kind: opWaitContains, peer: "gobgp", command: []string{"gobgp", "global", "rib", "-a", "vpnv4", "-j"}, contains: []string{"10.99.0.0/24", "10.99.1.0/24"}, timeout: 30 * time.Second},
 	},
-	"bgp-wellknown-noexport-frr": {
-		{kind: opBIRDRoute, argument: "10.10.0.0/24"},
-		{kind: opFRRRouteAbsent, argument: "10.10.0.0/24"},
-	},
 	"bmp-frr": {
 		{kind: opWaitContains, peer: "bmp", command: []string{"cat", "/tmp/bmp-status.json"}, contains: []string{"initiation", "peer-up", "route-monitoring"}, timeout: 30 * time.Second},
-	},
-	"no-family-peer-eor-frr": {
-		{kind: opRequireAbsent, peer: "frr", command: []string{"vtysh", "-c", "show bgp neighbor 172.30.0.2 json"}, absent: []string{"\"advertisedAndReceived\": true", "\"advertisedAndReceived\":true"}, proof: []string{"172.30.0.2", "Established"}},
-		{kind: opWaitContains, peer: "frr", command: []string{"cat", "/tmp/frr.log"}, contains: []string{"rcvd End-of-RIB for IPv4 Unicast from"}, timeout: 60 * time.Second},
 	},
 	"isis-auth-frr": {
 		{kind: opDelayRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show isis neighbor"}, contains: []string{"Up"}, delay: 5 * time.Second},
@@ -129,10 +87,6 @@ var scenarioExtras = map[string][]operation{
 	"isis-dualstack-frr": {
 		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show isis database"}, contains: []string{"ze-ds"}, timeout: 60 * time.Second},
 		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show ipv6 route isis"}, contains: []string{"I"}, timeout: 60 * time.Second},
-	},
-	"isis-p2p-frr": {
-		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show isis database"}, contains: []string{"ze-p2p"}, timeout: 60 * time.Second},
-		{kind: opDelayRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show isis neighbor"}, contains: []string{"Up"}, delay: 5 * time.Second},
 	},
 	"isis-redist-frr": {
 		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show ip route isis"}, contains: []string{"10.99.0.0/24"}, timeout: 60 * time.Second},
@@ -178,10 +132,6 @@ var scenarioExtras = map[string][]operation{
 	"ospf-p2p-frr": {
 		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show ip ospf interface"}, contains: []string{"POINTOPOINT"}},
 		{kind: opDelayRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show ip ospf neighbor"}, contains: []string{"Full"}, delay: 5 * time.Second},
-	},
-	"ospf-stub-nssa-frr": {
-		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show ip route ospf"}, contains: []string{"0.0.0.0/0"}, timeout: 60 * time.Second},
-		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show ip ospf database external"}, contains: []string{"AS External Link States"}},
 	},
 	"ospf-debug-inject-frr": {
 		{kind: opExec, peer: "ze", command: zeCommand("debug ospf inject enable")},

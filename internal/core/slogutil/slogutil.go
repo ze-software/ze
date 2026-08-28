@@ -41,13 +41,15 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+const envTypeString = "string"
+
 // Env var registrations for logging.
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log", Type: "string", Default: "warn", Description: "Base log level for all subsystems"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.<subsystem>", Type: "string", Description: "Log level for specific subsystem (e.g. ze.log.bgp.fsm)", Private: true})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.backend", Type: "string", Default: "stderr", Description: "Log output: stderr, stdout, or syslog (requires ze.log.destination)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.destination", Type: "string", Description: "Syslog address when backend=syslog (e.g. localhost:514, /dev/log)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.relay", Type: "string", Description: "Plugin stderr relay level (disabled/debug/info/warn/err)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log", Type: envTypeString, Default: "warn", Description: "Base log level for all subsystems"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.<subsystem>", Type: envTypeString, Description: "Log level for specific subsystem (e.g. ze.log.bgp.fsm)", Private: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.backend", Type: envTypeString, Default: "stderr", Description: "Log output: stderr, stdout, or syslog (requires ze.log.destination)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.destination", Type: envTypeString, Description: "Syslog address when backend=syslog (e.g. localhost:514, /dev/log)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.relay", Type: envTypeString, Description: "Plugin stderr relay level (disabled/debug/info/warn/err)"})
 )
 
 // SubsystemInfo describes a log subsystem for ze env listing.
@@ -126,6 +128,7 @@ func Subsystems() []SubsystemInfo {
 const (
 	levelDisabled = "disabled"
 	levelDebug    = "debug"
+	levelInfo     = "info"
 	levelError    = "error"
 	backendStdout = "stdout"
 	backendSyslog = "syslog"
@@ -134,7 +137,7 @@ const (
 )
 
 // validLevelNames lists accepted level strings for parseLevel (excluding "disabled").
-var validLevelNames = []string{levelDebug, "info", "warn", "warning", "err", "error"}
+var validLevelNames = []string{levelDebug, levelInfo, "warn", "warning", "err", levelError}
 
 // levelRegistry tracks subsystem names to their *slog.LevelVar for runtime level changes.
 // Only loggers created via Logger() or LazyLogger() are registered (not disabled ones).
@@ -365,7 +368,7 @@ func parseLevel(s string) (slog.Level, bool) {
 		return slog.LevelInfo, false
 	case levelDebug:
 		return slog.LevelDebug, true
-	case "info":
+	case levelInfo:
 		return slog.LevelInfo, true
 	case "warn", "warning":
 		return slog.LevelWarn, true
@@ -534,7 +537,7 @@ func levelString(level slog.Level) string {
 	case slog.LevelDebug:
 		return levelDebug
 	case slog.LevelInfo:
-		return "info"
+		return levelInfo
 	case slog.LevelWarn:
 		return "warn"
 	case slog.LevelError:

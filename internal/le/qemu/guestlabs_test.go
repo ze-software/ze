@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func TestGuestEvidenceActionsAreNativeAndGateless(t *testing.T) {
+func TestGuestEvidenceActionsAreNative(t *testing.T) {
 	t.Parallel()
 	list := Actions()
 	wanted := map[string]bool{
@@ -23,12 +23,6 @@ func TestGuestEvidenceActionsAreNativeAndGateless(t *testing.T) {
 	for _, row := range list.Actions {
 		if _, ok := wanted[row.Verb]; !ok {
 			continue
-		}
-		if row.Gate != "" {
-			t.Fatalf("guest action %s unexpectedly claims gate %s", row.Verb, row.Gate)
-		}
-		if len(row.Forks) != 0 {
-			t.Fatalf("guest action %s still forks %v", row.Verb, row.Forks)
 		}
 		wanted[row.Verb] = true
 	}
@@ -58,20 +52,20 @@ func TestClosedSelectionsValidateEveryNameBeforeEffects(t *testing.T) {
 
 func TestGuestVerdictZeroNeverExitsSuccessfully(t *testing.T) {
 	t.Parallel()
-	if _, code := finishGuestLab(GuestLabReport{Lab: "netns"}, nil); code == 0 {
+	if _, code := finishGuestLab(guestLabReport{Lab: "netns"}, nil); code == 0 {
 		t.Fatal("an unspecified verdict exited zero")
 	}
-	if _, code := finishGuestLab(GuestLabReport{Lab: "netns", Verdict: VerdictFail}, nil); code == 0 {
+	if _, code := finishGuestLab(guestLabReport{Lab: "netns", Verdict: VerdictFail}, nil); code == 0 {
 		t.Fatal("a failed verdict exited zero")
 	}
-	if _, code := finishGuestLab(GuestLabReport{Lab: "netns", Verdict: VerdictPass}, nil); code != 0 {
+	if _, code := finishGuestLab(guestLabReport{Lab: "netns", Verdict: VerdictPass}, nil); code != 0 {
 		t.Fatalf("pass exited %d", code)
 	}
 }
 
 func TestGuestFailureReportRetainsArtifacts(t *testing.T) {
 	t.Parallel()
-	report := GuestLabReport{
+	report := guestLabReport{
 		Lab: "vrrp-keepalived", Verdict: VerdictFail,
 		Artifacts: []string{"/tmp/effective-vrrp-qs-2/observer.pcap", "/tmp/effective-vrrp-qs-2/ze.conf"},
 		Scenarios: []GuestScenario{{Name: vrrpQS2, Verdict: VerdictFail, Artifacts: []string{"observer.pcap"}}},
@@ -79,7 +73,7 @@ func TestGuestFailureReportRetainsArtifacts(t *testing.T) {
 	if len(report.Artifacts) != 2 || len(report.Scenarios[0].Artifacts) != 1 {
 		t.Fatalf("failure lost artifacts: %#v", report)
 	}
-	pass := GuestLabReport{Lab: "vrrp-keepalived", Verdict: VerdictPass}
+	pass := guestLabReport{Lab: "vrrp-keepalived", Verdict: VerdictPass}
 	if len(pass.Artifacts) != 0 {
 		t.Fatalf("pass retained artifacts: %#v", pass.Artifacts)
 	}

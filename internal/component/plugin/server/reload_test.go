@@ -26,9 +26,11 @@ import (
 // Embeds mockReactor (from handler_test.go) for all other interface methods.
 type mockReloadReactor struct {
 	mockReactor
-	mu      sync.Mutex
-	tree    map[string]any
-	setTree map[string]any // Captures what was passed to SetConfigTree
+	mu         sync.Mutex
+	tree       map[string]any
+	setTree    map[string]any
+	verifyTree map[string]any
+	applyTree  map[string]any
 }
 
 func (m *mockReloadReactor) GetConfigTree() map[string]any {
@@ -41,6 +43,20 @@ func (m *mockReloadReactor) SetConfigTree(tree map[string]any) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.setTree = tree
+}
+
+func (m *mockReloadReactor) VerifyConfig(tree map[string]any) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.verifyTree = tree
+	return nil
+}
+
+func (m *mockReloadReactor) ApplyConfigDiff(tree map[string]any) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.applyTree = tree
+	return nil
 }
 
 // mockPluginResponder runs a goroutine that reads RPCs from a PluginConn
@@ -624,6 +640,8 @@ func TestReloadConfigVerifyThenApply(t *testing.T) {
 	bgpSection, ok := reactor.setTree["bgp"].(map[string]any)
 	require.True(t, ok, "bgp section should be a map")
 	assert.Equal(t, "5.6.7.8", bgpSection["router-id"])
+	assert.Equal(t, newTree, reactor.verifyTree)
+	assert.Equal(t, newTree, reactor.applyTree)
 	reactor.mu.Unlock()
 }
 

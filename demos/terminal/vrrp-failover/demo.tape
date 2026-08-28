@@ -3,15 +3,15 @@ Source common.tape
 Set WaitTimeout 60s
 
 Hide
-Type "/src/demos/terminal/vrrp-failover/run.sh prepare"
+Type "ze-demo run vrrp-failover prepare"
 Enter
 Wait+Screen /VRRP lab prepared/
-Type "/src/demos/terminal/vrrp-failover/run.sh start"
+Type "ze-demo run vrrp-failover start"
 Enter
 Wait+Screen /Ze is master/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh vrrp-failover intro"
+Type "ze-demo card vrrp-failover intro"
 Enter
 Show
 Wait+Screen /====/
@@ -36,7 +36,7 @@ Wait+Screen /priority 100/
 Sleep 6s
 
 Hide
-Type "ip netns exec vrrp-ze bash"
+Type "ip netns exec vrrp-ze ze-demo shell"
 Enter
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/vrrp-failover/config ZE_SSH_PASSWORD=secret123"
 Enter
@@ -62,13 +62,13 @@ Sleep 6s
 
 Type "clear"
 Enter
-Type "cat /src/demos/terminal/vrrp-failover/failover-proof.sh"
+Type "ze-demo run vrrp-failover proof-show"
 Enter
-Wait+Screen /set -euo pipefail/
+Wait+Screen /VRRP failover proof/
 Sleep 7s
 Type "clear"
 Enter
-Type "bash -x /src/demos/terminal/vrrp-failover/failover-proof.sh"
+Type "ze-demo run vrrp-failover proof"
 Enter
 Wait+Screen /2 packets transmitted, 2 received/
 Sleep 8s

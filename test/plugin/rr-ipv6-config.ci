@@ -34,102 +34,17 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004B020000003440010
 # bytes byte-for-byte. ze is correct here; the old expectation was the bug.
 #
 # Cross-checked against exabgp, an independent implementation: its EOR_NLRI.PREFIX
-# (bgp/message/update/eor.py:33) is b'\x00\x00\x00\x07\x90\x0f\x00\x03' + AFI + SAFI,
-# and packing it for ipv6/unicast yields this exact hex. exabgp packs ipv4/unicast
-# as FFFF..00170200000000, which is precisely the marker that was wrongly used here.
+# for ipv6/unicast yields this exact hex. Its ipv4/unicast form is
+# FFFF..00170200000000, precisely the marker that was wrongly used here.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
 EOF_PEER
 
-tmpfs=rr-ipv6-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def eor_sent(result):
-    """True once ze has written its End-of-RIB to at least one peer.
-
-    `show bgp peer <sel> detail` returns {"peers": {"<ip>": {..., "eor-sent": N}}}
-    (peer.go:217, :341-345). peer_stats.go IncrEORSent, called only from
-    peer_initial_sync.go's sendInitialRoutes, increments the counter once the EOR
-    write has succeeded and been flushed to the peer's socket, so eor-sent >= 1
-    proves the marker is on the wire rather than merely scheduled.
-    """
-    if result.get('status') != 'done':
-        return False
-    try:
-        peers = result_json_data(result, {}).get('peers', {})
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    return any(p.get('eor-sent', 0) >= 1 for p in peers.values())
-
-def wait_eor_sent(api, selector):
-    """Block until ze has sent its EOR, so `request shutdown` cannot pre-empt it.
-
-    The peer block asserts ze's End-of-RIB on the wire. ze emits it only after the
-    initial-sync barrier: peer_initial_sync.go's sendInitialRoutes runs the
-    apiSync wait (500ms sleep, then the plugin-ready signal) before its EOR-send
-    loop builds and sends the EOR. The
-    session reaches `established` long before that, so a shutdown gated on
-    establishment alone closes TCP first and the peer's expectation can never fire.
-    Gate on the EOR the test actually asserts.
-    """
-    if not eor_sent(api.dispatch_until(
-            f'show bgp peer {selector} detail', eor_sent, attempts=40)):
-        runtime_fail(f'ze never sent its End-of-RIB to {selector}')
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for peer-src's initial sync to reach the wire before asserting anything.
-    #
-    # // the `'established' in <detail json>` check removed here was
-    # VACUOUS, not coverage: every peer row carries the KEY
-    # `connections-established` (cmd/peer/peer.go:238), so the substring matched
-    # on the FIRST poll -- before any session existed -- and the barrier returned
-    # instantly, gating none of the assertions below it. Replaced by this file's
-    # own wait_eor_sent, which polls the per-peer `eor-sent` counter (peer.go:217;
-    # peer_stats.go IncrEORSent increments it only once peer_initial_sync.go's
-    # sendInitialRoutes has written AND flushed the EOR to the peer's socket).
-    # eor-sent >= 1 strictly implies established, so this is stronger than the
-    # check it replaces and it fails loudly.
-    wait_eor_sent(api, 'peer-src')
-
-    result = dispatch(api, 'show bgp peer peer-src detail')
-    if result.get('status') != 'done':
-        runtime_fail(f'peer detail failed: {result}')
-
-    detail = result_text_data(result)
-    if 'route-reflector-client' not in detail:
-        runtime_fail(f'missing route-reflector-client: {detail[:300]}')
-
-    print('OK: IPv6 RR client config accepted, peer detail shows RR fields', file=sys.stderr)
-
-    wait_eor_sent(api, 'peer-src')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/rr-ipv6-config.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rr-ipv6-test {
-		run ./rr-ipv6-test.run
+		run "ze-test fixture plugin/rr-ipv6-config"
 		encoder json
 	}
 }

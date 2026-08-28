@@ -3,4 +3,4 @@ kind: heading
 level:
 stage:
 ---
-### PostToolUse Checks (run after the tool completes)
+#### Post Write/Edit (`internal/le/hookruntime/postwrite.go`)

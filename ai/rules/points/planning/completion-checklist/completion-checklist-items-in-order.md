@@ -26,19 +26,19 @@ stage:
       - Assumptions Resolved: every A-N row is `confirmed` or `broken` with evidence --
         none `unvalidated`; broken ones have Mistake Log + Deviations entries
       Fill the "## Pre-Commit Verification" section in the spec.
-      Hook `pre-commit-spec-audit.sh` (exit 2) checks this section is filled.
+      The closure review and `./le commit create` consume the completed spec.
 [ ] 6. Critical Review (BLOCKING -- rules/quality.md)
 [ ] 7. Review Mistake Log -- check MEMORY.md, promote if seen before
 [ ] 7. Update spec -- Implementation Summary, Documentation Updates, Deviations
 [ ] 7. Write journal row: append a row to `plan/journal/<class>.md` naming the spec in the Spec column
-[ ] 7. Verify: `make ze-precommit-verify` + git status + git diff, no unintended changes
+[ ] 7. Verify: `./le verify worktree` + git status + git diff, no unintended changes
 [ ] 7. Executive Summary Report -- present to user with what was done and what is left (including deferred).
         BLOCKING: journal row (step 10) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.
 [ ] 7. Commit (when user says so) -- ONE helper-generated script, TWO commits (per Spec Closure below):
-        - **Commit A:** `scripts/dev/commit_helper.py create --replace` with `--file` for all implementation files (code, tests, docs, schema)
+        - **Commit A:** `./le commit create replace` with `--file` for all implementation files (code, tests, docs, schema)
           + `--file plan/journal/<class>.md` + `--file plan/spec-<name>.md` (preserves edits)
-        - **Commit B:** `scripts/dev/commit_helper.py create --append --remove plan/spec-<name>.md` (spec closure)
+        - **Commit B:** `./le commit create append remove plan/spec-<name>.md` (spec closure)
         Run the generated script yourself and the work is done. There is no
         second step. If spec closure or the journal row is missing, it never happens.
         Disjoint systems (e.g., CLI and BGP encoding) get separate commits.

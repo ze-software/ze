@@ -3,7 +3,7 @@
 // actions.go is the Python area, ported. `le repository ze-config-coercion-check`
 // selected one gate out of an area's GateSet; `le config-coercion check` selects
 // one action out of the table below. The three fields the Gate carried travel
-// with it: the Make target it still is, the reason `--list` printed, and whether
+// with it: the retired Make target, the reason `--list` printed, and whether
 // it WRITES.
 //
 // The dispatch, the listing, the help line and the two refusals live in
@@ -22,16 +22,10 @@ const area = "config-coercion"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-config-coercion-check",
-		Why:    "no config parser coerces a delivered value with a native-type assertion, which always fails because the framework delivers every leaf as a string",
-		Answer: runCheck,
-	},
-	leaction.Action{
-		Gate:   "ze-config-coercion-selftest",
-		Why:    "the guard itself still detects both shapes, proved against four fixtures rather than against the tree it judges",
-		Answer: runSelftest,
-	},
+	leaction.Action{Verb: "check", Why: "no config parser coerces a delivered value with a native-type assertion, which always fails because the framework delivers every leaf as a string",
+		Answer: runCheck},
+	leaction.Action{Verb: "selftest", Why: "the guard itself still detects both shapes, proved against four fixtures rather than against the tree it judges",
+		Answer: runSelftest},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line

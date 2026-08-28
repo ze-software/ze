@@ -334,8 +334,8 @@ timeout arm deterministically.
 | All three plugins report | The three `.ci` files pass and fail with the bound reverted |
 | Static isolation intact | The static suite passes with one unprogrammable route in the config |
 | One rollback verdict | `TestRollbackVerdictMatchesFirewall` |
-| Lint | `make ze-lint-changed` |
-| Packages | `make ze-unit-pkg-test` for the three plugin packages and `internal/component/vpp` |
+| Lint | `./le changed scope` |
+| Packages | `go test -race ./...` for the three plugin packages and `internal/component/vpp` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -396,7 +396,7 @@ timeout arm deterministically.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated in all three plugins, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -414,7 +414,7 @@ timeout arm deterministically.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

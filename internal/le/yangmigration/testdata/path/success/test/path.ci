@@ -1,0 +1,13 @@
+exec=ze --context bgp/peer/p1/connection/remote
+stdin=<<EOF
+bgp {
+    peer p1 {
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+    }
+}
+EOF
+exec=ze config set bgp peer p1 connection remote ip 192.0.2.1

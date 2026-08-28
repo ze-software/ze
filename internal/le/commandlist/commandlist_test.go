@@ -1,5 +1,5 @@
 // The tool is called as a function here, which is the whole point of compiling
-// it. Its predecessor, scripts/inventory/commands_test.go, forked `go run` and
+// it. Its predecessor, internal/le/commandlist/commandlist_test.go, forked `go run` and
 // asserted on the process's combined output; every case below says what the old
 // assertion proved and where that proof now lives.
 

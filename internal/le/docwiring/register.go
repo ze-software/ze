@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -30,8 +29,4 @@ func init() {
 	// than letting one of the lists stand in for the answer.
 	leroot.RegisterShape(name, command.ShapeDoc)
 
-	// The census counts the gate as converted from here, in the same init()
-	// that registers the command. Every selected repository check is a linked
-	// Go callback in delegate.go.
-	parity.Claim(name, gateTarget)
 }

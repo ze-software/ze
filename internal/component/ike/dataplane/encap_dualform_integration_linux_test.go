@@ -60,10 +60,10 @@ const encapChildEnv = "ZE_ENCAP_PROBE_OWN_PROCESS"
 // fails its second with no new code involved.
 //
 // The mechanism is NOT diagnosed. What is measured is the boundary: one unshare per
-// process is reliable and two are not. So the contract is enforced structurally rather
-// than left to an ordering assumption, because `make ze-qemu-integration-test` runs the
-// whole package and a later probe would otherwise report a product defect that does not
-// exist.
+// process is reliable and two are not. The contract is enforced structurally,
+// rather than left to an ordering assumption, because the integration pass runs
+// the whole package and a later probe would otherwise report a product defect
+// that does not exist.
 //
 // Every namespace probe in this package MUST open with this call. A probe that skips it
 // works only while it happens to run first.

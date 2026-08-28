@@ -31,7 +31,7 @@ type trafficRow struct {
 // Rows are sorted by total traffic (RX+TX bytes) descending.
 func buildTrafficTableData(infos []iface.InterfaceInfo) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "interface", Label: "Interface", Sortable: true},
+		{Key: "interface", Label: labelInterface, Sortable: true},
 		{Key: "rx-bytes", Label: "RX Bytes", Sortable: true},
 		{Key: "rx-packets", Label: "RX Packets", Sortable: true},
 		{Key: "rx-errors", Label: "RX Errors", Sortable: true},

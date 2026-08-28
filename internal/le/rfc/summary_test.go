@@ -14,7 +14,7 @@ import (
 // oneLine parses a single checklist line and answers what it produced.
 func oneLine(t *testing.T, line string) (*Requirement, error) {
 	t.Helper()
-	return ParseChecklistLine(line, "rfc9999", "rfc/short/rfc9999.md", 7)
+	return parseChecklistLine(line, "rfc9999", "rfc/short/rfc9999.md", 7)
 }
 
 func TestAChecklistLineParsesIntoItsFields(t *testing.T) {
@@ -104,7 +104,7 @@ func TestTheSectionIsTheTrailingCitationAndNotTheFirstMention(t *testing.T) {
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			if got := ExtractSection(one.text); got != one.want {
+			if got := extractSection(one.text); got != one.want {
 				t.Errorf("ExtractSection(%q) = %q, want %q", one.text, got, one.want)
 			}
 		})
@@ -115,7 +115,7 @@ func TestSHOULDAndSHALLAreNotReadAsTheBareSForm(t *testing.T) {
 	// The bare-S form demands a digit right after the S. Without that, every
 	// SHOULD in the corpus would anchor a requirement to section "HOULD".
 	for _, text := range []string{"a speaker SHOULD do it", "a speaker SHALL do it", "AS4 is a number"} {
-		if got := ExtractSection(text); got != noSection {
+		if got := extractSection(text); got != noSection {
 			t.Errorf("ExtractSection(%q) = %q, want %q", text, got, noSection)
 		}
 	}
@@ -201,14 +201,14 @@ func TestEverySupersededDispositionStatesWhatItNames(t *testing.T) {
 
 func TestADuplicateIdIsRefused(t *testing.T) {
 	text := "- [ ] [RFC9999-2-1] [MUST] first (§2)\n- [ ] [RFC9999-2-1] [MUST] second (§2)\n"
-	_, err := ParseSummaryText(text, "rfc9999", "rfc/short/rfc9999.md")
+	_, err := parseSummaryText(text, "rfc9999", "rfc/short/rfc9999.md")
 	if err == nil || !strings.Contains(err.Error(), "duplicate requirement id") {
 		t.Errorf("two rows sharing one id were accepted: %v", err)
 	}
 }
 
 func TestEnrolledRowsTakeTheFirstWordAndSkipComments(t *testing.T) {
-	got := ParseEnrolled("# a comment\n\nrfc7606  # trailing words\nrfc4271\n")
+	got := parseEnrolled("# a comment\n\nrfc7606  # trailing words\nrfc4271\n")
 	if len(got) != 2 || !got["rfc7606"] || !got["rfc4271"] {
 		t.Errorf("ParseEnrolled read %v", sortedSet(got))
 	}
@@ -219,7 +219,7 @@ func TestGatedCountsCountOnlyMustLevelRows(t *testing.T) {
 		{RFC: "rfc1", Level: "MUST"}, {RFC: "rfc1", Level: "SHOULD"},
 		{RFC: "rfc1", Level: "REQUIRED"}, {RFC: "rfc2", Level: "MAY"},
 	}
-	got := GatedCounts(reqs)
+	got := gatedCounts(reqs)
 	if got["rfc1"] != 2 {
 		t.Errorf("rfc1 gated count = %d, want 2", got["rfc1"])
 	}

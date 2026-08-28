@@ -5,8 +5,8 @@
 //            test/plugin/plugin-metrics-registered.ci fail on an oversubscribed
 //            CI host. The gate used to be closed 39 lines after the publication
 //            (peer_run.go's FSM callback), and everything in between --
-//            SetEstablishedNow, the GR EoR timer, resolveDynamicPeerSettings, a
-//            synchronous Info log, ResetAPISync, ResetPeerUpBarrier -- held that
+//            setEstablishedNow, the GR EoR timer, resolveDynamicPeerSettings, a
+//            synchronous Info log, resetAPISync, ResetPeerUpBarrier -- held that
 //            window open. A plugin pushing a route inside it had the route
 //            written DIRECT to the session, ahead of the End-of-RIB
 //            sendInitialRoutes had not started emitting (RFC 4724 Section 2), and
@@ -43,8 +43,8 @@ func TestSetStateEstablished_ClosesGateBeforePublishing(t *testing.T) {
 			return
 		}
 		seen = append(seen, observation{
-			shouldQueue: peer.ShouldQueue(),
-			pendingSync: peer.PendingSync(),
+			shouldQueue: peer.shouldQueue(),
+			pendingSync: peer.pendingSync(),
 		})
 	})
 
@@ -52,9 +52,9 @@ func TestSetStateEstablished_ClosesGateBeforePublishing(t *testing.T) {
 
 	require.Len(t, seen, 1, "the state callback must fire once for the transition into Established")
 	require.True(t, seen[0].shouldQueue,
-		"ShouldQueue must already be true when Established becomes visible, or a plugin route overtakes the initial-sync End-of-RIB")
+		"shouldQueue must already be true when Established becomes visible, or a plugin route overtakes the initial-sync End-of-RIB")
 	require.True(t, seen[0].pendingSync,
-		"PendingSync must already be true when Established becomes visible, or DrainPeerSync reports a peer settled before its initial sync starts")
+		"pendingSync must already be true when Established becomes visible, or DrainPeerSync reports a peer settled before its initial sync starts")
 }
 
 // TestPeersSynced_NotSyncedForJustEstablishedPeer pins the barrier half at the

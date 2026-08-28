@@ -75,9 +75,9 @@ const (
 	GokrazyCPU          = "max"
 )
 
-// GokrazyArchEnv is the Make variable that supplies the architecture for an
-// appliance build. The proof reads it as a fallback, so an operator who set it
-// for the build does not have to set a second variable for the proof.
+// GokrazyArchEnv is the environment variable that supplies the architecture for
+// an appliance build. The proof reads it as a fallback, so an operator does not
+// have to set a second variable for the proof.
 const GokrazyArchEnv = "GOKRAZY_ARCH"
 
 var (
@@ -151,8 +151,8 @@ const (
 	GokrazyCleanupWait  = 30 * time.Second
 )
 
-// GokrazyL2TP is one run of the appliance L2TP PPP proof.
-type GokrazyL2TP struct {
+// gokrazyL2TP is one run of the appliance L2TP PPP proof.
+type gokrazyL2TP struct {
 	// Tree is the checkout the image is built from.
 	Tree string
 	// Arch is what the image is built and booted for, and Accel is how QEMU
@@ -178,9 +178,9 @@ type GokrazyL2TP struct {
 	Progress io.Writer
 }
 
-// NewGokrazyL2TP answers the run the command performs over tree, with every
+// newGokrazyL2TP answers the run the command performs over tree, with every
 // setting taken from the environment or from its default.
-func NewGokrazyL2TP(tree string) *GokrazyL2TP {
+func newGokrazyL2TP(tree string) *gokrazyL2TP {
 	lab := newGokrazyLab(namespaceSuffix())
 	lab.HostIP = setting(gokrazyHostIPEntry.Key, GokrazyHostIP)
 	lab.PeerIP = setting(gokrazyPeerIPEntry.Key, GokrazyPeerIP)
@@ -188,7 +188,7 @@ func NewGokrazyL2TP(tree string) *GokrazyL2TP {
 	lab.ApplianceIP = setting(gokrazyApplianceIPEntry.Key, GokrazyApplianceIP)
 	lab.ApplianceMAC = setting(gokrazyApplianceMACEntry.Key, GokrazyApplianceMAC)
 
-	return &GokrazyL2TP{
+	return &gokrazyL2TP{
 		Tree:         tree,
 		Arch:         applianceArch(),
 		Accel:        applianceAccel(),
@@ -209,8 +209,8 @@ func NewGokrazyL2TP(tree string) *GokrazyL2TP {
 
 // applianceArch answers the architecture that the image build and boot use.
 //
-// The function reads the Make variable as a fallback because an operator who
-// set it for the build intended the same architecture for this proof. The
+// The function reads the appliance build's environment variable as a fallback
+// because an operator intended the same architecture for this proof. The
 // fallback avoids a second variable that CAN make the two architectures
 // disagree.
 func applianceArch() string {
@@ -245,7 +245,7 @@ func applianceAccel() string {
 // fix, and the proof reached no verdict. A step of the L2TP path that does not
 // happen is NOT an error. It is the verdict. The report contains the verdict,
 // the reason, and the appliance's last console lines.
-func (g *GokrazyL2TP) Run() (GokrazyL2TPReport, error) {
+func (g *gokrazyL2TP) Run() (GokrazyL2TPReport, error) {
 	report := GokrazyL2TPReport{
 		Peer:             PeerName,
 		Arch:             g.Arch,
@@ -310,7 +310,7 @@ func (g *GokrazyL2TP) Run() (GokrazyL2TPReport, error) {
 // The proof stops the peer before the appliance. Only the peer's departure can
 // test the teardown path. If the appliance stops first, it ends the session
 // from the wrong end and proves nothing about the withdraw path.
-func (g *GokrazyL2TP) observe(report GokrazyL2TPReport, image, peerDir string) (GokrazyL2TPReport, error) {
+func (g *gokrazyL2TP) observe(report GokrazyL2TPReport, image, peerDir string) (GokrazyL2TPReport, error) {
 	baselines, err := readPPPBaselines([]string{g.Lab.Namespace})
 	if err != nil {
 		return report, err
@@ -409,7 +409,7 @@ func (g *GokrazyL2TP) observe(report GokrazyL2TPReport, image, peerDir string) (
 // virtual machine. The appliance reports its interface through the console. The
 // host kernel reports the peer's interface. A successful dataplane ping proves
 // that a packet crossed both interfaces.
-func (g *GokrazyL2TP) assertKernelState(report GokrazyL2TPReport, console *collector, base pppBaseline) (GokrazyL2TPReport, bool) {
+func (g *gokrazyL2TP) assertKernelState(report GokrazyL2TPReport, console *collector, base pppBaseline) (GokrazyL2TPReport, bool) {
 	var tb textbuf.Buffer
 	wantAddress := tb.Str("address=").Str(L2TPPPPPeerAddr).String()
 	if !anyLineCarrying(console.carrying(pppIPLine), wantAddress) {
@@ -444,7 +444,7 @@ func (g *GokrazyL2TP) assertKernelState(report GokrazyL2TPReport, console *colle
 }
 
 // step waits for one set of console lines and turns a miss into the verdict.
-func (g *GokrazyL2TP) step(console *collector, report GokrazyL2TPReport, appliance *running,
+func (g *gokrazyL2TP) step(console *collector, report GokrazyL2TPReport, appliance *running,
 	wanted, fatal []string, wait time.Duration, missed string,
 ) (GokrazyL2TPReport, bool) {
 	arrived, err := awaitAll(console, wanted, fatal, appliance, wait)
@@ -459,7 +459,7 @@ func (g *GokrazyL2TP) step(console *collector, report GokrazyL2TPReport, applian
 
 // fail answers the report for a proof that did not complete, with the reason
 // and the appliance's last console lines in it.
-func (g *GokrazyL2TP) fail(report GokrazyL2TPReport, console *collector, reason string) GokrazyL2TPReport {
+func (g *gokrazyL2TP) fail(report GokrazyL2TPReport, console *collector, reason string) GokrazyL2TPReport {
 	report.Proven = false
 	report.Reason = reason
 	report.LogTail = console.tailLines()
@@ -469,7 +469,7 @@ func (g *GokrazyL2TP) fail(report GokrazyL2TPReport, console *collector, reason 
 // context answers the context the virtual machine is started under. It is
 // unbounded because the run's own waits are where it is bounded in time, and
 // the stop path is what ends the machine.
-func (g *GokrazyL2TP) context() context.Context { return context.Background() }
+func (g *gokrazyL2TP) context() context.Context { return context.Background() }
 
 // qemuArgs answers the virtual machine.
 //
@@ -477,7 +477,7 @@ func (g *GokrazyL2TP) context() context.Context { return context.Background() }
 // The lab exists because user-mode networking does not deliver inbound UDP to
 // the guest. An L2TP tunnel starts with an inbound SCCRQ. The bridge makes the
 // appliance reachable at its own address with no translation or forwarding.
-func (g *GokrazyL2TP) qemuArgs(image string) ([]string, error) {
+func (g *gokrazyL2TP) qemuArgs(image string) ([]string, error) {
 	var tb textbuf.Buffer
 	netdev := tb.Str("tap,id=net0,ifname=").Str(g.Lab.Tap).Str(",script=no,downscript=no").String()
 	drive := tb.Reset().Str("file=").Str(image).Str(",format=raw").String()
@@ -532,7 +532,7 @@ func (g *GokrazyL2TP) qemuArgs(image string) ([]string, error) {
 // each line into the appliance's editor during the build. DHCP lets the
 // appliance find the lab. The proof enables the web server and SSH for access.
 // The web server reports when the boot is complete.
-func (g *GokrazyL2TP) applianceTemplate() string {
+func (g *gokrazyL2TP) applianceTemplate() string {
 	var tb textbuf.Buffer
 	return tb.Str("set environment log level info\n").
 		Str("set environment web enabled true\n").
@@ -563,7 +563,7 @@ func (g *GokrazyL2TP) applianceTemplate() string {
 // These files differ from the on-host proof's files in two ways. The peer dials
 // the APPLIANCE instead of a daemon on the loopback. The peer also runs without
 // a pppd log file because its output already reaches this process.
-func (g *GokrazyL2TP) writePeerInputs(dir string) error {
+func (g *gokrazyL2TP) writePeerInputs(dir string) error {
 	var tb textbuf.Buffer
 	config := tb.Str("[global]\nport = ").Str(g.PeerPort).
 		Str("\nauth file = ").Str(filepath.Join(dir, PeerSecretsFile)).

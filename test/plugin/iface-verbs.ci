@@ -22,7 +22,7 @@
 #
 # needs-linux: create-dummy/mtu/mac/up/addr-add program a real interface via netlink and
 # require CAP_NET_ADMIN; the SKIPPED-on-darwin runner cannot exercise them. Run via
-# `make ze-qemu-needs-linux-test` (boots a root QEMU VM). zetest0 is a uniquely named
+# `./le qemu all-tests` (boots a root QEMU VM). zetest0 is a uniquely named
 # throwaway dummy in the VM's default namespace, deleted at the end (idempotent on rerun).
 # This test creates interfaces, so it needs CAP_NET_ADMIN, not merely Linux. On
 # the unprivileged GitHub runner 'create interface dummy name zetest0' came back
@@ -31,140 +31,11 @@
 # (ai/rules/qemu-testing.md).
 option=needs-linux:caps=net-admin
 
-tmpfs=iface-verbs.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Drive the ze-iface:* imperative verbs over dispatch-command; assert real kernel state.
-
-Every mutation goes through ze-plugin-engine:dispatch-command exactly as an operator
-command does, then the effect is read back through the producer (`show interface name
-zetest0 detail` -> iface.GetInterface -> linkToInfo). dispatch() turns any RPC-level
-failure (unwired/unknown command -> _call_engine raises, or a nil result) into a
-status=error dict so a broken verb triggers a loud runtime_fail instead of a vacuous pass.
-"""
-
-import sys
-
-from ze_api import API
-from ze_api import result_json_data
-from ze_api import runtime_fail
-
-IF = "zetest0"
-MTU = 1400
-MAC = "02:de:ad:be:ef:01"
-ADDR = "10.99.0.1"
-PLEN = 24
-CIDR = f"{ADDR}/{PLEN}"
-
-
-def dispatch(api, command):
-    try:
-        resp = api._call_engine(
-            'ze-plugin-engine:dispatch-command', {'command': command})
-    except Exception as e:  # unwired/unknown command -> loud RED, never a vacuous pass
-        return {'status': 'error', 'error': f'engine call raised: {e}'}
-    if resp is None:
-        return {'status': 'error', 'error': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def expect_done(api, command):
-    resp = dispatch(api, command)
-    status = resp.get('status')
-    if status != 'done':
-        runtime_fail(
-            f'{command!r}: expected status=done, got status={status!r} '
-            f'error={resp.get("error")!r} data={resp.get("data")!r}')
-    return resp
-
-
-def read_detail(api):
-    return dispatch(api, f'show interface name {IF} detail')
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # 1. create a dummy interface.
-        expect_done(api, f'create interface dummy name {IF}')
-        # 2. configure MTU and MAC while it is still down (safest order).
-        expect_done(api, f'request interface {IF} mtu {MTU}')
-        expect_done(api, f'request interface {IF} mac {MAC}')
-        # 3. bring it up and add an address.
-        expect_done(api, f'request interface {IF} up')
-        expect_done(api, f'create interface {IF} address {CIDR}')
-
-        # 4. assert every mutation via the producer (linkToInfo fields). netlink
-        #    writes are synchronous, but retry briefly so a slow address read cannot
-        #    flake the assertion.
-        info = None
-        for _ in range(40):
-            resp = read_detail(api)
-            if resp.get('status') == 'done':
-                candidate = result_json_data(resp, None)
-                if isinstance(candidate, dict) and candidate.get('addresses'):
-                    info = candidate
-                    break
-            api.wait_for_event(timeout=0.25)
-        if not isinstance(info, dict):
-            runtime_fail(
-                f'show interface name {IF} detail: expected InterfaceInfo dict with '
-                f'addresses, got {info!r} (last resp {read_detail(api)!r})')
-
-        if info.get('type') != 'dummy':
-            runtime_fail(f'type: expected dummy, got {info.get("type")!r}')
-        if info.get('mtu') != MTU:
-            runtime_fail(f'mtu: expected {MTU}, got {info.get("mtu")!r}')
-        mac = str(info.get('mac-address', '')).lower()
-        if mac != MAC:
-            runtime_fail(f'mac-address: expected {MAC}, got {mac!r}')
-        if info.get('state') != 'up':
-            runtime_fail(f'state: expected up, got {info.get("state")!r}')
-        addrs = info.get('addresses') or []
-        if not any(a.get('address') == ADDR and a.get('prefix-length') == PLEN
-                   for a in addrs):
-            runtime_fail(f'addresses: expected {CIDR}, got {addrs!r}')
-
-        print(
-            f'OK: {IF} dummy mtu={MTU} mac={MAC} state=up addr={CIDR} '
-            f'confirmed via show interface detail', file=sys.stderr)
-
-        # 5. tear the interface down and delete it; the detail read must then error.
-        expect_done(api, f'delete interface name {IF} address {CIDR}')
-        expect_done(api, f'request interface {IF} down')
-        expect_done(api, f'delete interface name {IF}')
-
-        gone = False
-        for _ in range(40):
-            if read_detail(api).get('status') == 'error':
-                gone = True
-                break
-            api.wait_for_event(timeout=0.25)
-        if not gone:
-            runtime_fail(
-                f'delete: {IF} still present after delete; detail={read_detail(api)!r}')
-
-        print(f'OK: {IF} removed; show interface detail reports error', file=sys.stderr)
-    finally:
-        dispatch(api, f'delete interface name {IF}')
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-verbs {
-		run ./iface-verbs.run
+		run "ze-test fixture plugin/iface-verbs"
 		encoder json
 	}
 }

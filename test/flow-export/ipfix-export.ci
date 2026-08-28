@@ -17,60 +17,10 @@
 option=env:var=ze.log.flow.export:value=info
 option=timeout:value=20s
 
-tmpfs=ipfix-receiver.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Bind UDP $PORT2, wait for an IPFIX datagram, assert version 10 + template Set."""
-import socket
-import struct
-
-from ze_api import API, runtime_fail
-
-
-def dispatch(api, command):
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-
-
-def main():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(('127.0.0.1', $PORT2))
-    sock.settimeout(8.0)
-
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    try:
-        data, _ = sock.recvfrom(65535)
-    except socket.timeout:
-        runtime_fail('no IPFIX datagram received within timeout')
-
-    # IPFIX message header is 16 bytes: version(2) length(2) exportTime(4)
-    # seqNumber(4) obsDomain(4). The first Set follows.
-    if len(data) < 20:
-        runtime_fail(f'IPFIX datagram too short: {len(data)} bytes')
-    version = struct.unpack('!H', data[:2])[0]
-    if version != 0x000a:
-        runtime_fail(f'IPFIX version={version:#06x} want 0x000a')
-    set_id = struct.unpack('!H', data[16:18])[0]
-    if set_id != 2:
-        runtime_fail(f'first Set id={set_id} want 2 (template)')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ipfix-receiver {
-		run ./ipfix-receiver.run
+		run "ze-test fixture flow-export/ipfix-export $PORT2"
 		encoder json
 	}
 }

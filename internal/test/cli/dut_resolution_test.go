@@ -16,11 +16,11 @@ import (
 // builds only when asked to), rather than composing a path to <baseDir>/bin/ze
 // itself.
 // PREVENTS: the failure that made every CI run red for the whole web suite.
-// cmd_web.go built its own <baseDir>/bin/ze path, but the functional flow builds
-// its isolated set into tmp/testbin-*/bin and exports ZE_BIN there
-// (mk/test-functional.mk), leaving <baseDir>/bin empty. On a fresh checkout all
-// 87 .wb tests died in ~4ms each on "fork/exec bin/ze: no such file or
-// directory"; on a developer host a leftover bin/ze hid it AND meant the suite
+// cmd_web.go built its own <baseDir>/bin/ze path, but the native functional flow
+// builds its isolated set into tmp/testbin-*/bin and exports ZE_BIN there,
+// leaving <baseDir>/bin empty. On a fresh checkout all 87 .wb tests died in ~4ms
+// each on "fork/exec bin/ze: no such file or directory"; on a developer host a
+// leftover bin/ze hid it AND meant the suite
 // tested a binary that was not the one under test.
 //
 // The check is structural because the behavioral path is not reachable from a
@@ -89,8 +89,8 @@ func stringLit(e ast.Expr) string {
 }
 
 // isZeBinary reports whether name is one of the binaries a suite runs as the
-// device under test. These are the ones mk/test-functional.mk builds into its
-// isolated dir and points ZE_BIN/ZE_TEST_BIN at.
+// device under test. The native functional builder places these in its isolated
+// directory and points ZE_BIN/ZE_TEST_BIN at them.
 func isZeBinary(name string) bool {
 	switch name {
 	case "ze", "ze-test", "ze-stripped":

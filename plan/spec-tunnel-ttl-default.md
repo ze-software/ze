@@ -78,7 +78,7 @@ All refs re-verified against current code after the followup-spec wave:
   `createIPIPTunnel` :113) has no TTL/hop-limit field, so neither the new
   default nor an explicit ttl reaches a VPP-programmed tunnel. USER DECISION
   2026-07-10: this spec is netlink-only (see Task scope and Known Limitations).
-- Edit targets sit inside the `ze-platform-vet` gate scope (Makefile:337-341
+- Edit targets sit inside the `ze-platform-vet` gate scope (the native action tables under `internal/le/`:337-341
   vets `internal/component/iface/...` and `internal/plugins/iface/...` under
   GOOS=darwin and GOOS=freebsd); keep any Go edits building on both.
 - Functional test location corrected everywhere in this spec: `test/ci/` does
@@ -228,7 +228,7 @@ All refs re-verified against current code after the followup-spec wave:
 3. **Phase: Netlink audit** - confirm ipip/sit apply the TTL like gre/gretap.
    - Tests: `TestBuildGretunTTLApplied`
 4. **Functional test (device TTL check)**
-5. **Full verification** → `make ze-precommit-verify`
+5. **Full verification** → `./le verify current mode full`
 6. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -305,7 +305,7 @@ All refs re-verified against current code after the followup-spec wave:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

@@ -59,95 +59,11 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000014400101
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=prefix-count-reannounce.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Prove both prefixes reached the Adj-RIB-In under a re-announcing peer."""
-
-import json
-import sys
-
-from ze_api import API, result_text_data, runtime_fail
-
-# The peer advertises two DISTINCT prefixes. Both fit inside `maximum 2`, so
-# both must be installed. Under the announcement tally that this mode replaced,
-# the second one was refused because three advertisements of the first had
-# already filled the count.
-EXPECTED = 2
-
-# The one RIB scope this test reads. `count` answers {"count": N}.
-RECEIVED_QUERY = 'show bgp rib received count'
-
-
-def rib_count(result):
-    """Return the route count from a dispatch result, or None when unreadable."""
-    if result.get('status') != 'done':
-        return None
-    try:
-        payload = json.loads(result_text_data(result))
-    except (json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(payload, dict) or 'count' not in payload:
-        return None
-    return int(payload['count'])
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # POSITIVE CONTROL, and it runs FIRST. Until one route is counted, a zero
-    # from this scope says nothing about the limit: a RIB plugin that never
-    # started reads zero too.
-    control = api.dispatch_until(
-        RECEIVED_QUERY,
-        lambda res: (rib_count(res) or 0) >= 1,
-        attempts=60, delay=0.25)
-    installed = rib_count(control)
-    if installed is None:
-        runtime_fail('bgp-rib did not answer %s: %r' % (RECEIVED_QUERY, control))
-    if installed < 1:
-        runtime_fail(
-            'no route reached the RIB at all: a number at or under the maximum '
-            'cannot be believed without this floor')
-    print('OK control: the RIB answers, %d routes received' % installed,
-          file=sys.stderr)
-
-    # THE ASSERTION. Both distinct prefixes must be installed. This polls up to
-    # the expected number, so a route delivered late still counts.
-    received = api.dispatch_until(
-        RECEIVED_QUERY,
-        lambda res: (rib_count(res) or 0) >= EXPECTED,
-        attempts=40, delay=0.25)
-    installed = rib_count(received)
-    if installed is None:
-        runtime_fail('%s stopped answering: %r' % (RECEIVED_QUERY, received))
-    if installed != EXPECTED:
-        runtime_fail(
-            'a re-announced prefix must not consume a slot: %d routes received, '
-            'wanted exactly %d. Three advertisements of 10.0.0.0/24 are one '
-            'route, and 10.0.1.0/24 is the second.' % (installed, EXPECTED))
-
-    print('OK reannounce: %d routes installed, the re-announced prefix took one '
-          'slot' % installed, file=sys.stderr)
-
-    api._call_engine('ze-plugin-engine:dispatch-command',
-                     {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external prefix-count-reannounce {
-		run ./prefix-count-reannounce.run
+		run "ze-test fixture plugin/prefix-count-installed-reannounce"
 		encoder json
 	}
 	internal bgp-rib {

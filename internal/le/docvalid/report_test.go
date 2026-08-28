@@ -35,7 +35,7 @@ func TestDriftTextRendersEveryFinding(t *testing.T) {
 		"  x docs/DESIGN.md:12: claims 3 address families, registry has 4\n" +
 		"  x README.md:0: claims 9+ fuzz targets, actual is 3\n" +
 		"    -> run the counter\n" +
-		"\n  Run: make ze-doc-drift-check\n\n"
+		"\n  Run: ./le docvalid doc-drift\n\n"
 	if got != want {
 		t.Fatalf("the drift report renders\n%q\nwant\n%q", got, want)
 	}
@@ -55,9 +55,8 @@ func TestDriftTextColorsTheFindings(t *testing.T) {
 }
 
 // VALIDATES: a clean validation result renders the counts, the verdict and the
-// full command table the script printed.
-// PREVENTS: a port that drops the table `make ze-command-contract-check` pastes
-// into a document.
+// full command table.
+// PREVENTS: a native port that drops the table from the validation payload.
 func TestValidationTextRendersACleanRun(t *testing.T) {
 	result := ValidationResult{
 		YANGCommands: []CommandEntry{{WireMethod: "ze-show:env-list", YANGPath: "show > env > list", Module: "ze-show-cmd"}},

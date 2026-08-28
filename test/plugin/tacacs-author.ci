@@ -1,74 +1,20 @@
-# Test: TACACS+ per-command authorization PASS_ADD and FAIL
-#
-# Flow:
-# 1. Mock accepts admin:testpass:15 and denies any AUTHOR REQUEST whose cmd
-#    contains "clear"
-# 2. Daemon enables TACACS+ authorization (`authorization true`)
-# 3. ze cli -c "show bgp" succeeds (mock replies PASS_ADD)
-# 4. ze cli -c "clear interface counters" fails (mock replies FAIL; daemon emits
-#    "command restricted by access control")
-#
-# VALIDATES: AC-9  -- TACACS+ AUTHOR REQUEST sent, PASS_ADD reply lets command run.
-# VALIDATES: AC-10 -- TACACS+ AUTHOR REQUEST sent, FAIL reply blocks the command.
-# PREVENTS: TACACS+ authorization wired but dispatcher never consults it (or always
-#           ignores the FAIL status), letting denied commands run anyway.
-#
-# Both commands must be ones Ze actually has. The dispatcher resolves a command
-# before authorizing it, so a command that exists nowhere never reaches TACACS+ and
-# no AUTHOR REQUEST is sent for it. This test used `configure` for step 4, which is
-# an interactive-CLI mode switch rather than a daemon command: it failed as "unknown
-# command" for every user, so the step passed without proving the FAIL status was
-# ever consumed.
+# Test: TACACS+ per-command authorization consumes PASS_ADD and FAIL replies.
+# VALIDATES: AC-9 and AC-10.
 
 option=env:var=ze.log.hub.infra:value=info
-
-tmpfs=test-tacacs-author.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
-
-touch daemon.ready
-
-ze-test tacacs-mock --port 0 --key ze-mock-key \
-	--user admin:testpass:15 \
-	--author-deny clear \
-	--addr-file mock.addr 2>mock.log &
-MOCK_PID=$!
-trap 'kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
-
-MOCK_ADDR=""
-for i in $(seq 1 30); do
-	if [ -s mock.addr ]; then
-		MOCK_ADDR=$(cat mock.addr)
-		break
-	fi
-	sleep 0.1
-done
-if [ -z "$MOCK_ADDR" ]; then
-	echo "FAIL: mock did not report address" >&2
-	cat mock.log >&2
-	exit 1
-fi
-MOCK_IP=$(echo "$MOCK_ADDR" | cut -d: -f1)
-MOCK_PORT=$(echo "$MOCK_ADDR" | cut -d: -f2)
-echo "mock at $MOCK_ADDR" >&2
-
-cat > tacacs-author.conf <<ZECONF
+stdin=ze-conf:terminator=EOF_CONF
 bgp {
 	peer peer1 {
-		connection {
-			remote { ip 127.0.0.1; }
-			local  { ip 127.0.0.1; accept false; }
-		}
+		connection { remote { ip 127.0.0.2; } local { ip 127.0.0.1; accept false; } }
 		session { asn { local 65533; remote 65533; } }
 	}
 }
-
 system {
 	authentication {
 		tacacs {
-			server ${MOCK_IP} { port ${MOCK_PORT}; key "ze-mock-key"; }
-			timeout 2;
-			authorization true;
+			server 127.0.0.1 { port $PORT; key "ze-mock-key"; }
+			timeout 2
+			authorization true
 		}
 		tacacs-profile 15 { profile [ admin ]; }
 	}
@@ -76,92 +22,19 @@ system {
 		profile admin { run { default-action allow; } edit { default-action allow; } }
 	}
 }
-
-environment {
-	ssh {
-		enabled true
-		server main { ip 127.0.0.1; port 0; }
+environment { ssh { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+plugin {
+	external tacacs-author-test {
+		run "ze-test fixture plugin/tacacs-author $PORT $PORT2"
+		encoder json
 	}
 }
-ZECONF
+EOF_CONF
 
-export ze_test_bgp_port=$((10000 + ($$ % 50000)))
-
-ze start tacacs-author.conf 2>daemon.log &
-DAEMON_PID=$!
-trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
-
-SSH_PORT=""
-for i in $(seq 1 50); do
-	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
-	if [ -n "$SSH_PORT" ]; then
-		break
-	fi
-	sleep 0.2
-done
-if [ -z "$SSH_PORT" ]; then
-	echo "FAIL: SSH server did not start" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "ssh on :$SSH_PORT" >&2
-
-sleep 0.5
-
-ADMIN_DIR=$(mktemp -d)
-trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
-printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
-
-# AC-9: show summary is NOT in the deny list -- mock replies PASS_ADD, command runs.
-OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp" 2>&1) || {
-	echo "FAIL: 'show summary' should have been authorized by TACACS+" >&2
-	echo "OUTPUT: $OUTPUT" >&2
-	echo "--- daemon log ---" >&2
-	cat daemon.log >&2
-	echo "--- mock log ---" >&2
-	cat mock.log >&2
-	exit 1
-}
-echo "OK: 'show summary' authorized" >&2
-
-# AC-10: 'clear interface counters' contains the deny substring -- mock replies FAIL,
-# command blocked. It is a real command, so it reaches authorization; the mock log
-# assertion below proves the AUTHOR REQUEST was actually issued for it.
-if OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "clear interface counters" 2>&1); then
-	echo "FAIL: 'clear interface counters' should have been blocked by TACACS+ authorization" >&2
-	echo "OUTPUT: $OUTPUT" >&2
-	exit 1
-fi
-echo "OK: 'clear interface counters' blocked: $OUTPUT" >&2
-
-# The refusal must name access control, not look like a typo.
-case "$OUTPUT" in
-	*"command restricted by access control"*)
-		echo "OK: TACACS+ refusal names access control" >&2
-		;;
-	*)
-		echo "FAIL: expected 'command restricted by access control', got: $OUTPUT" >&2
-		exit 1
-		;;
-esac
-
-sleep 0.3
-cat daemon.log >&2
-cat mock.log >&2
-
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-tacacs-author.sh:timeout=20s
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=25s
 expect=exit:code=0
-# AC-9: AUTHOR REQUEST issued for 'show summary' AND mock replied PASS_ADD.
-expect=stderr:pattern=tacacs-mock: AUTHOR cmd="show bgp" reply=PASS_ADD
-# AC-10: AUTHOR REQUEST issued for 'clear interface counters' AND mock replied FAIL.
-expect=stderr:pattern=tacacs-mock: AUTHOR cmd="clear interface counters" reply=FAIL
-# Script-side proof that the daemon actually blocked the command (exits 1 inside
-# the script if it returned 0, i.e. authorization was ignored). Combined with the
-# FAIL mock reply above, this proves the dispatcher consumed the FAIL status
-# rather than silently letting the command run.
+expect=stderr:pattern=tacacs-mock: AUTHOR cmd=\\"show bgp\\" reply=PASS_ADD
+expect=stderr:pattern=tacacs-mock: AUTHOR cmd=\\"clear interface counters\\" reply=FAIL
 expect=stderr:pattern=OK: 'clear interface counters' blocked
-# The refusal is reported as authorization, not as an unrecognized command.
 expect=stderr:pattern=OK: TACACS\+ refusal names access control
+reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -172,8 +172,8 @@
       ]
     },
     {
-      "action": "Add the tag to a go test invocation, or delete the file. Either way the false inventory shrinks.",
-      "detail": "Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, so these tests exist but never run.",
+      "action": "Add the tag to a native Go test action, or delete the file. Either way the false inventory shrinks.",
+      "detail": "No registered Go test action supplies these build tags, so the tests exist but never run.",
       "key": "tag-orphan",
       "label": "Test files no `go test` target can build",
       "orphan_count": 8,

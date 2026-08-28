@@ -109,16 +109,9 @@ EOF_CONF
 # above is sent. The sleep only has to cover a dial the peer retries every 500ms
 # against a daemon that has already written daemon.ready; too short and the file
 # fails on the missing NOTIFICATION rather than passing quietly.
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-sleep 3
-kill -TERM $(cat daemon.pid)
-EOF_TRIGGER
 
 cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture plugin/dynamic-group-static-peer-wins-trigger
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
 
 # The session was the STATIC peer's.

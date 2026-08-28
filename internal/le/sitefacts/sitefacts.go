@@ -11,10 +11,10 @@
 // about to commit, is what makes the claim checkable: the file lands in the
 // same commit as whatever moved the count.
 //
-// The precedent is ze-test-health-update, which writes test/health/latest.json.
-// The site already reads that file for its test inventory rather than counting
-// for itself (website/tools/sitefacts.py, inventory_counts), and this package
-// gives the rest of the published repository facts the same shape.
+// The precedent is the native test-health producer, which writes
+// test/health/latest.json. internal/le/sitebuild reads that committed inventory
+// instead of recounting it, and this package gives the rest of the published
+// repository facts the same shape.
 //
 // Detail: actions.go -- the command surface. register.go -- the registration.
 package sitefacts
@@ -48,9 +48,9 @@ const gitTimeout = 30 * time.Second
 
 // goListTimeout bounds the `go list` run. It loads the package graph of the
 // whole module, which is seconds against a warm build cache and minutes against
-// a cold one. The Python this replaces allowed 60 seconds and published a zero
-// when it ran out (website/tools/sitefacts.py, count_go_packages); this leaves
-// headroom for the cold case, and answers an error rather than a zero.
+// a cold one. The retired site producer allowed 60 seconds and published a zero
+// when it ran out; this leaves headroom for the cold case and answers an error
+// rather than a zero.
 const goListTimeout = 2 * time.Minute
 
 // outputMax bounds what the derivation reads back from a command, and with it
@@ -112,8 +112,8 @@ const (
 const frrTarget = 1
 
 // categoryBuiltBinary marks a published fact about this repository that this
-// tool cannot commit, because deriving it RUNS the built ze rather than reading
-// what git holds (website/tools/sitefacts.py, ze_json).
+// tool cannot commit, because deriving it runs the built ze rather than reading
+// what git holds. internal/le/sitebuild owns that live derivation.
 const categoryBuiltBinary = "built-binary"
 
 // fact is one published number about this repository: what it is a claim about,
@@ -140,9 +140,9 @@ type live struct {
 // from the network -- can be recorded beside them rather than among them.
 //
 // A name here is the fact's path in the site's own published site-facts.json,
-// so nothing is renamed on the way through: `repo.design_comments` is read by
-// website/tools/sitefacts.py and rendered from the token spec of the same name
-// (website/tools/sitelib.py, number_token_specs).
+// so nothing is renamed on the way through. internal/le/sitebuild reads
+// `repo.design_comments` and renders it from the token specification with the
+// same name.
 type facts struct {
 	Facts map[string]fact `json:"facts"`
 	Live  map[string]live `json:"live"`
@@ -188,8 +188,8 @@ const statusPrefix = 3
 //
 // One derivation, called by the action that WRITES the file and by the action
 // that CHECKS it, because two derivations over one tree drift by construction:
-// the site and the repository already disagreed by 30 tests the moment both
-// counted for themselves (website/tools/sitefacts.py, inventory_counts).
+// the retired site producer and repository producer once disagreed by 30 tests
+// when both counted for themselves.
 func derive(root string) (facts, error) {
 	tracked, err := trackedPaths(root, "*.go")
 	if err != nil {
@@ -249,9 +249,8 @@ func derive(root string) (facts, error) {
 // liveFacts is every published fact ABOUT this repository that the site derives
 // while it builds, and that this tool does not derive at all.
 //
-// Both of them run the built ze: one asks it for its command surface and the
-// other for its configuration tree (website/tools/sitefacts.py, count_cli_commands
-// and count_config_sections). That makes each one a claim about a binary rather
+// Both run the built ze: internal/le/sitebuild asks it for the command surface
+// and configuration tree. That makes each one a claim about a binary rather
 // than about a commit, so it cannot be regenerated from a tree and cannot be
 // gated for staleness the way the facts above can.
 //
@@ -377,9 +376,9 @@ func trackedPaths(root string, patterns ...string) ([]string, error) {
 // a file for. The tracked paths are the ones trackedGoFiles named.
 //
 // Two questions, and neither half answers both. What is a package is a question
-// for the toolchain: it applies the build constraints, it skips a nested module
-// and a vendor tree, and it is the same `go list ./...` the site build ran for
-// itself until this file existed (website/tools/sitefacts.py, walk_go_packages).
+// for the toolchain: it applies build constraints, skips a nested module and a
+// vendor tree, and uses the same `go list ./...` population the native site
+// builder consumes.
 // What the repository holds is a question for git: a directory whose Go files
 // are all untracked is a package on this disk and in no commit, so it must not
 // move a published number. The count is the packages that pass both.

@@ -62,7 +62,7 @@ Hidden overlays (shown on demand):
 Each page loads the vendored assets its own markup needs, and no others. The set
 is derived at build time, never at request time.
 
-`scripts/codegen/web_assets.go` reads the `.templ` sources of
+`internal/le/webassets.Write` reads the `.templ` sources of
 `internal/component/web` and `internal/component/lg`, and the Go string literals
 of `internal/chaos/web`. From each page it walks the `@component(...)`
 invocations transitively and collects the `hx-*` and `sse-*` attributes every
@@ -86,7 +86,7 @@ An unknown page gets every asset the package renders. One file too many costs
 bytes; one missing gives a page that renders correctly and does nothing in the
 browser.
 
-<!-- source: scripts/codegen/web_assets.go -- templPages, closure, render -->
+<!-- source: internal/le/webassets/actions.go -- Answer -->
 <!-- source: internal/component/lg/layout.templ -- pageAssets(v.Page), the one shell -->
 
 Two checks hold the set honest, from opposite directions, and neither is relaxed
@@ -94,7 +94,7 @@ to make the other pass.
 
 | Check | Reads | Error direction |
 |-------|-------|-----------------|
-| `make ze-web-assets-check` | the sources | OVER-approximates: a branch no request takes still contributes its asset |
+| `./le web-assets check` | the sources | OVER-approximates: a branch no request takes still contributes its asset |
 | `TestPageImportsCoverRenderedAttributes` (web), `TestLGPageImportsCoverRenderedAttributes`, `TestChaosPageImportsCoverRenderedAttributes` | the captured fixtures | UNDER-approximates: a branch no fixture exercises is invisible |
 
 <!-- source: internal/test/markupcheck/head.go -- HeadCoverageFindings, the fixture side -->
@@ -102,7 +102,7 @@ to make the other pass.
 ## Component Filesystem
 
 Every unit below is a templ component in `internal/component/web`. The file name
-carries the visual concern, and `make generate` writes a `*_templ.go` beside
+carries the visual concern, and `./le repository generate` writes a `*_templ.go` beside
 each source.
 
 ```

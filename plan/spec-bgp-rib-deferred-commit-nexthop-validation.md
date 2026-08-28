@@ -203,7 +203,7 @@ already return.
 | A-1 | `(*MPReachNLRI).WriteTo` with SAFI 128 emits bytes identical to the deleted `vpnMPReachNLRI` for every next hop the rib rail can pass | `mpnlri.go` `nextHopOctets` adds `RDSize` for `SAFIVPN` and `WriteTo` writes 8 zero octets before each address; `commit.go` `buildVPNMPReachNLRI` writes the same fields in the same order | the VPN wire form changes and a peer rejects the UPDATE | `TestCommitVPNAnnounceCarriesTheRFC4364NextHop` pins the whole attribute value byte by byte, and `TestCommitService_VPNNextHopHasRD` stays green | confirmed 2026-08-23: the byte test passed against the UNCHANGED code in phase 1 and passes against the core encoder after the deletion, with no assertion edited; `TestCommitService_VPNNextHopHasRD` never went red |
 | A-2 | `(*Transaction).QueueAnnounce` has no non-test caller, so no production path reaches `Commit` with routes today | grep over the tree: the only callers are `transaction/commit_manager_test.go`. `Peer.QueueAnnounce` and `OutgoingRIB.QueueAnnounce` are different methods on different types | the rail is live and the defect is shipping, which raises priority but changes no line of this spec | grep for `QueueAnnounce` at implementation time; record the result in the Implementation Summary | confirmed 2026-08-23: `gopls references` on `(*Transaction).QueueAnnounce` returns nine references, every one in `transaction/commit_manager_test.go`. The `peer.QueueAnnounce` call inside `(*reactorAPIAdapter).SendRoutes` is `(*Peer).QueueAnnounce` (`reactor/peer.go`), a different method on a different type |
 | A-3 | `attribute.ErrUnencodableNextHop` survives the wrapping `Commit` applies (`build update: %w`), so `errors.Is` holds at the `Commit` boundary | `commit.go` wraps with `%w` in both branches | the test asserts on a string instead of a sentinel, which is weaker | the new tests assert with `errors.Is` from `Commit`, not from the helper | confirmed 2026-08-23: `assert.ErrorIs` holds on all four rows of `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`, each driving `(*CommitService).Commit` |
-| A-4 | No caller outside `internal/component/bgp/rib` names `vpnMPReachNLRI` or `buildVPNMPReachNLRI` | both are unexported and grep finds references only inside `commit.go` | the deletion breaks a build | `make ze-unit-pkg-test PKG=./internal/component/bgp/rib` plus `make ze-lint-changed` | confirmed 2026-08-23: after the deletion `grep -rn "vpnMPReachNLRI\|buildVPNMPReachNLRI\|isVPNSAFI" internal/` returns nothing, the package is green, and the tree-wide lint reports no finding in any package this spec touches |
+| A-4 | No caller outside `internal/component/bgp/rib` names `vpnMPReachNLRI` or `buildVPNMPReachNLRI` | both are unexported and grep finds references only inside `commit.go` | the deletion breaks a build | the retired `ze-unit-pkg-test PKG=./internal/component/bgp/rib` (current: `go test -race ./internal/component/bgp/rib`) plus `./le changed scope` | confirmed 2026-08-23: after the deletion `grep -rn "vpnMPReachNLRI\|buildVPNMPReachNLRI\|isVPNSAFI" internal/` returns nothing, the package is green, and the tree-wide lint reports no finding in any package this spec touches |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -339,7 +339,7 @@ proving the same requirement, so it adds proof and removes none
 | 6 | Has a user guide page? | No | `docs/guide/route-injection.md` anchors `commit.go`, and its claim is about a VALID extended next hop, which AC-4 keeps byte-identical |
 | 7 | Wire format changed? | No | AC-3 and AC-4 pin every reachable encoding unchanged |
 | 8 | Plugin SDK/protocol changed? | No | no SDK type touched |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | no summary edit is owed: RFC4760-3-2 already carries positive and negative tags (`rfc/enrolled.txt`), and this adds a third tagged proof on a new rail. Run `make ze-rfc-check` and confirm no counter moves; do NOT edit `rfc/short/rfc4760.md` or `docs/features/rfc-status.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | no summary edit is owed: RFC4760-3-2 already carries positive and negative tags (`rfc/enrolled.txt`), and this adds a third tagged proof on a new rail. Run `./le rfc check` and confirm no counter moves; do NOT edit `rfc/short/rfc4760.md` or `docs/features/rfc-status.md` |
 | 10 | Test infrastructure changed? | No | one new test file using existing package helpers |
 | 11 | Affects daemon comparison? | No | no capability claim changes |
 | 12 | Internal architecture changed? | No | `docs/architecture/update-building.md` describes the rail as it stays; the deletion removes a duplicate encoder the doc never named. The two design docs the changed files' `// Design:` headers name are unaffected: `docs/architecture/pool-architecture.md` (named by `internal/component/bgp/rib/commit.go`) documents RIB wire storage, and this change allocates one buffer fewer rather than changing where a buffer comes from; `docs/architecture/wire/attributes.md` (named by `internal/core/bgp/attribute/mpnlri.go`) documents the attribute wire forms, and the edit there is a doc comment with no encoding change |
@@ -356,7 +356,7 @@ proving the same requirement, so it adds proof and removes none
      rows, and `TestCommitVPNAnnounceCarriesTheRFC4364NextHop`, before touching
      `commit.go`.
    - Files: `internal/component/bgp/rib/commit_nexthop_test.go`. <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
-   - Verify: run `make ze-unit-pkg-test PKG=./internal/component/bgp/rib`. The refusal test
+   - Verify: run `go test -race ./internal/component/bgp/rib`. The refusal test
      MUST fail, and it MUST fail for the stated reason: `Commit` returns a nil error and
      the mock sender holds one UPDATE. Record what the captured MP_REACH shows in each
      row: next-hop length `0x00` on the IPv6 rows, next-hop length `0x18` followed by 24
@@ -389,10 +389,10 @@ proving the same requirement, so it adds proof and removes none
    - Work: rewrite the `ValidateNextHops` paragraph that says one assembling caller does
      not ask, and drop the deferral pointer with it. Say what is then true: all three
      assembling rails call `ValidateNextHops` before contributing the attribute.
-   - Verify: `make ze-lint-changed`, then `make ze-unit-pkg-test PKG=./internal/core/bgp/attribute`.
+   - Verify: `./le changed scope`, then `go test -race ./internal/core/bgp/attribute`.
 5. **Phase: Discrimination proof (BLOCKING before any completion claim)**
    - Work: revert ONLY the phase 2 guard in the working tree, re-run
-     `make ze-unit-pkg-test PKG=./internal/component/bgp/rib`, and paste the RED output into
+     `go test -race ./internal/component/bgp/rib`, and paste the RED output into
      the spec. Restore the guard and paste the GREEN output
      (`ai/rules/interop-and-goal-validation.md`, "Prove the test discriminates"). Red
      looks like: `TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm` fails on every
@@ -400,9 +400,9 @@ proving the same requirement, so it adds proof and removes none
    - Verify: the test cannot pass without the guard. If it can, the test asserts the
      wrong thing and must be fixed before anything else.
 6. **Phase: Gates and handoff**
-   - Verify: `make ze-unit-pkg-test PKG=./internal/component/bgp/rib`,
-     `make ze-unit-pkg-test PKG=./internal/core/bgp/attribute`, `make ze-lint-changed`,
-     `make ze-rfc-check`, and `make ze-precommit-verify` per `ai/rules/git-safety.md` (or the
+   - Verify: `go test -race ./internal/component/bgp/rib`,
+     `go test -race ./internal/core/bgp/attribute`, `./le changed scope`,
+     `./le rfc check`, and `./le verify current mode full` per `ai/rules/git-safety.md` (or the
      scoped evidence a shared checkout allows, attributed).
    - Then: commit, set `Status` to `verification`, and STOP. Handoff is `verify`: a
      later Opus 5 session reviews the commit and closes the spec.
@@ -427,8 +427,8 @@ proving the same requirement, so it adds proof and removes none
 | The refusal is visible | `grep -n "slog" internal/component/bgp/rib/commit.go` shows the Warn record in the guard branch |
 | The stale comment is gone | `grep -n "does NOT ask" internal/core/bgp/attribute/mpnlri.go` returns nothing |
 | The tests exist and drive the entry point | `grep -n "cs.Commit\|\.Commit(" internal/component/bgp/rib/commit_nexthop_test.go` shows every case calling `Commit`, none calling `buildMPReachNLRI` |
-| The package is green | `make ze-unit-pkg-test PKG=./internal/component/bgp/rib` |
-| The RFC ledger did not move | `make ze-rfc-check` |
+| The package is green | `go test -race ./internal/component/bgp/rib` |
+| The RFC ledger did not move | `./le rfc check` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -550,7 +550,7 @@ and already documented there. The refusal test carries the
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The new test was shown RED with the guard reverted, and the output is pasted
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`), not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -571,7 +571,7 @@ and already documented there. The refusal test carries the
 - [ ] Implementation session: commit, set Status to `verification`, STOP
 - [ ] Verification session (Opus 5): review the commit against every AC
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

@@ -65,14 +65,12 @@ const (
 )
 
 // The metric keys that more than one file names. A key is the identity a
-// gated fact, a ratchet floor and a KPI column all agree on, so each is stated
-// once.
+// checked fact, ratchet floor, and KPI column share.
 const (
 	keyProofDensity  = "rfc-proof-density"
 	keyUnproven      = "rfc-unproven"
 	keyAssertNothing = "assert-nothing"
 	keyTagOrphan     = "tag-orphan"
-	keyMutation      = "mutation"
 	keyNegative      = "negative-tests"
 	keySleeps        = "ci-sleeps"
 )
@@ -80,22 +78,20 @@ const (
 // qualityMetrics are the metrics whose status is a regression signal against
 // QualityBaseline. The number each compares is read from its own data at
 // tighten time.
-var qualityMetrics = [...]string{keyProofDensity, keyMutation, keyNegative}
+var qualityMetrics = [...]string{keyProofDensity, keyNegative}
 
 // The other inputs the collectors read.
 const (
 	rfcLedger        = "ai/RFC-REQUIREMENTS.md"
 	rfcSummaries     = "rfc/short"
 	rfcSummariesTree = "rfc"
-	mutationHistory  = "test/mutation/history.ndjson"
 	sleepBaseline    = "test/.ci-sleep-baseline"
 	knownFailures    = "plan/known-failures"
 )
 
 // testRoots are the in-repo test trees. vendor/ and gokrazy/modcache/ are
-// third-party module trees; counting them is exactly the error that let the
-// published unit-test total reach six times the real one.
-var testRoots = [...]string{"internal", "cmd", "pkg", "scripts", "test"}
+// third-party module trees and are excluded.
+var testRoots = [...]string{"internal", "cmd", "pkg", "test"}
 
 // rfcTableHeader is the RFC ledger's coverage table header, pinned exactly: the
 // ledger is generated, and a column change must fail loudly rather than

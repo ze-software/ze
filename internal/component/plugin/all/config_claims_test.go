@@ -228,7 +228,7 @@ func repoRoot(t *testing.T) string {
 // gatedYANGModules maps YANG module name to the build tag that gates it.
 //
 // Derivation, not a list: feature-gates.txt gives "<tag> <package>" per gated
-// package; scripts/codegen/yang_glue.go gates <pkg>/yang alongside <pkg>, so a
+// package; internal/le/yangglue/yangglue.go gates <pkg>/yang alongside <pkg>, so a
 // gated package's .yang files are exactly the modules that disappear with the
 // tag. The module name is read from the .yang source.
 func gatedYANGModules(t *testing.T, root string) map[string]string {

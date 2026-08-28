@@ -146,7 +146,7 @@ func TestPeerHeldDownAfterPrefixTeardown(t *testing.T) {
 	peer := NewPeer(settings)
 	// A backoff far shorter than the observation window below, so a peer that
 	// reconnects gets many chances to prove it.
-	peer.SetReconnectDelay(20*time.Millisecond, 40*time.Millisecond)
+	peer.setReconnectDelay(20*time.Millisecond, 40*time.Millisecond)
 	stopPeer := startAndStop(t, peer)
 	defer stopPeer()
 

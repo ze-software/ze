@@ -18,71 +18,11 @@
 # always-available half: the FRR config reaches the engine and the show command
 # dispatches and reports the bypass.
 
-tmpfs=rsvpte-frr.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show rsvp-te fast-reroute` dispatches and reports the bypass."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def done_array(api, command):
-    r = dispatch(api, command)
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"{command}: expected done, got status={r.get('status')} "
-            f"data={result_text_data(r)[:200]}")
-    arr = result_json_data(r, None)
-    if not isinstance(arr, list):
-        runtime_fail(f"{command}: expected list, got {arr!r}")
-    return arr
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # The fast-reroute show must dispatch through the engine and return an array.
-    rows = done_array(api, 'show rsvp-te fast-reroute')
-
-    # The configured bypass LSP must be reported, terminating at its merge point.
-    bypasses = [r for r in rows if r.get('kind') == 'bypass']
-    if not bypasses:
-        runtime_fail(
-            f"show rsvp-te fast-reroute: expected a configured bypass, got {rows!r}")
-    if not any(b.get('tunnel-endpoint') == '10.0.0.5' for b in bypasses):
-        runtime_fail(
-            f"bypass should terminate at the merge point 10.0.0.5, got {bypasses!r}")
-
-    print('OK: rsvp-te fast-reroute show dispatched and reported the bypass',
-          file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external rsvpte-frr {
-		run ./rsvpte-frr.run
+		run "ze-test fixture rsvpte/rsvpte-frr"
 		encoder json
 	}
 }

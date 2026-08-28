@@ -89,7 +89,7 @@ type SessionSnapshot struct {
 // hand to any goroutine. Order: tunnels sorted by LocalTID, sessions
 // within each tunnel sorted by LocalSID -- deterministic output for
 // test assertions and human-readable CLI output.
-func (r *L2TPReactor) Snapshot() Snapshot {
+func (r *l2tpReactor) Snapshot() Snapshot {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	return r.snapshotLocked()
@@ -98,7 +98,7 @@ func (r *L2TPReactor) Snapshot() Snapshot {
 // snapshotLocked produces a Snapshot assuming tunnelsMu is held by the
 // caller. Used internally by aggregate façades that want one lock
 // acquire across several reactors.
-func (r *L2TPReactor) snapshotLocked() Snapshot {
+func (r *l2tpReactor) snapshotLocked() Snapshot {
 	snap := Snapshot{
 		CapturedAt:  r.params.Clock(),
 		TunnelCount: len(r.tunnelsByLocalID),
@@ -179,7 +179,7 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 // LookupTunnel returns a deep copy of the named tunnel, or false if no
 // tunnel is registered under that local TID. Follows the same locking
 // contract as Snapshot: caller MUST NOT hold tunnelsMu.
-func (r *L2TPReactor) LookupTunnel(localTID uint16) (TunnelSnapshot, bool) {
+func (r *l2tpReactor) LookupTunnel(localTID uint16) (TunnelSnapshot, bool) {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	t, ok := r.tunnelsByLocalID[localTID]
@@ -217,7 +217,7 @@ func (r *L2TPReactor) LookupTunnel(localTID uint16) (TunnelSnapshot, bool) {
 // expect a single global lookup; the reactor walks the map once and
 // returns the first match. Returns false when no session has the given
 // SID on any tunnel.
-func (r *L2TPReactor) LookupSession(localSID uint16) (SessionSnapshot, bool) {
+func (r *l2tpReactor) LookupSession(localSID uint16) (SessionSnapshot, bool) {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	for tid, t := range r.tunnelsByLocalID {
@@ -230,7 +230,7 @@ func (r *L2TPReactor) LookupSession(localSID uint16) (SessionSnapshot, bool) {
 
 // ReliableStats returns a snapshot of the reliable engine state for a
 // tunnel. Returns nil when the tunnel does not exist.
-func (r *L2TPReactor) ReliableStats(localTID uint16) *ReliableStats {
+func (r *l2tpReactor) ReliableStats(localTID uint16) *ReliableStats {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	t, ok := r.tunnelsByLocalID[localTID]
@@ -243,7 +243,7 @@ func (r *L2TPReactor) ReliableStats(localTID uint16) *ReliableStats {
 
 // TunnelFSMHistory returns the FSM transition history for a tunnel.
 // Returns nil when the tunnel does not exist.
-func (r *L2TPReactor) TunnelFSMHistory(localTID uint16) []FSMTransition {
+func (r *l2tpReactor) TunnelFSMHistory(localTID uint16) []FSMTransition {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	t, ok := r.tunnelsByLocalID[localTID]
@@ -258,7 +258,7 @@ func (r *L2TPReactor) TunnelFSMHistory(localTID uint16) []FSMTransition {
 
 // SessionFSMHistory returns the FSM transition history for a session.
 // Returns nil when the session does not exist.
-func (r *L2TPReactor) SessionFSMHistory(localSID uint16) []FSMTransition {
+func (r *l2tpReactor) SessionFSMHistory(localSID uint16) []FSMTransition {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	for _, t := range r.tunnelsByLocalID {

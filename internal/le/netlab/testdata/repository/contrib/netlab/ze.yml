@@ -1,0 +1,4 @@
+---
+name: ze
+daemon_config:
+  ze: /etc/ze/ze.conf

@@ -820,9 +820,9 @@ entry points is not a substitute.
 BGP daemons. Ze establishes real sessions with FRR, BIRD, and GoBGP in containers and
 verifies correct behavior: session establishment, route exchange, graceful restart,
 route refresh, next-hop handling, BFD failover, ECMP, SRv6, and remove-private-as policy.
-100+ interop scenarios run across multiple implementations, written in Python with
-automated container orchestration. Interop correctness is measured by real peers,
-not unit tests alone.
+100+ interop scenarios run across multiple implementations through a typed Go
+checker catalogue and compiled container helpers. Interop correctness is
+measured by real peers, not unit tests alone.
 
 | What you are testing | Required evidence |
 |---------------------|-------------------|
@@ -857,34 +857,34 @@ expect=exit:code=0
 | Decoding | `test/decode/` | `ze-test bgp decode` |
 | Config parsing | `test/parse/` | `ze-test bgp parse` |
 | Plugin behavior | `test/plugin/` | `ze-test bgp plugin` |
-| ExaBGP compat | `test/exabgp/` | `make ze-functional-exabgp-test` |
-| Integration | `test/integration/` | `make ze-functional-test` |
-| Unit tests | `internal/**/*_test.go` | `CGO_ENABLED=0 go test ./...` |
-| Fuzz tests | Various | `make ze-fuzz-test` |
-| Chaos tests | Various | `make ze-chaos-test` |
+| ExaBGP compat | `test/exabgp/` | `./le functional exabgp-test` |
+| Integration | `test/integration/` | `./le functional` |
+| Unit tests | `internal/**/*_test.go` | `./le test-unit bgp` and the other native groups |
+| Fuzz tests | Various | `./le fuzz run` |
+| Chaos tests | Various | `./le test-chaos unit` |
 
-### Make Targets
+### Native Test Commands
 
-| Target | What It Runs |
-|--------|-------------|
-| `make ze-precommit-verify` | Static gates + Linux/amd64 SCA + unit + functional + ExaBGP (pre-commit gate) |
-| `make ze-unit-test` | Unit tests with race detector |
-| `make ze-functional-test` | All `.ci` functional tests |
-| `make ze-lint` | 27 linters via golangci-lint |
-| `make ze-fuzz-test` | Fuzz tests (10s per target) |
-| `make ze-functional-exabgp-test` | ExaBGP compatibility suite |
-| `make ze-chaos-test` | Chaos unit + functional + web dashboard tests |
-| `make ze-standard-test` | Everything including fuzz |
+| Command | What It Runs |
+|---------|--------------|
+| `./le verify current mode full` | Static gates, Linux/amd64 SCA, unit, functional, and ExaBGP checks |
+| `./le test-unit bgp` | Race-instrumented BGP unit group |
+| `./le functional` | All release-gate `.ci` suites |
+| `./le verify-lint run` | golangci-lint over every Go build flavor |
+| `./le fuzz run` | Every discovered Go fuzz target |
+| `./le functional exabgp-test` | ExaBGP compatibility suite |
+| `./le test-chaos unit` | Chaos simulator unit tests |
 
-Both `ze-precommit-verify` modes run `make ze-dependency-vulnerability-check` before their unit stage. The outer
-Go process stays host-native. Its exec wrapper starts the host-native govulncheck
-process with `GOOS=linux GOARCH=amd64`, so the scanner loads the Linux/amd64
-package graph. The target needs network access to the live Go vulnerability
-database.
-<!-- source: Makefile -- ze-precommit-verify, ze-precommit-verify-changed, ze-dependency-vulnerability-check -->
-<!-- source: scripts/status/verify_run.go -- stagesForMode -->
+Full verification runs `./le verify-deps vulnerability` before its unit stage.
+The outer Go process stays host-native. Its exec wrapper starts host-native
+`govulncheck` with `GOOS=linux GOARCH=amd64`, so the scanner loads the
+Linux/amd64 package graph. The action needs network access to the live Go
+vulnerability database.
+<!-- source: internal/le/verify/stages.go -- stagesForMode -->
+<!-- source: internal/le/verifydeps/actions.go -- Actions -->
+<!-- source: internal/le/verify/run.go -- Run, RunMode -->
 
-`make ze-precommit-verify` is the pre-commit gate. Not `go test`, not any subset. Every commit
+`./le verify current mode full` is the pre-commit gate. Not `go test`, not any subset. Every commit
 passes the full suite.
 
 ### Linting

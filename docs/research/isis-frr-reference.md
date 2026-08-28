@@ -2164,4 +2164,4 @@ When in doubt between the two:
 - For "what does correct look like in practice", trust FRR's code.
 - For "what can I skip on the first pass", trust the deferred-list above.
 
-And always: `make ze-precommit-verify` before closing the spec.
+And always: `./le verify current mode full` before closing the spec.

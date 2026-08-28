@@ -10,7 +10,7 @@
 // The answer is a GUARD that fails closed. A run can fail to read the checkout
 // or resolve a package directory. In either case, it MUST NOT answer "nothing
 // changed." Both callers treat an empty answer as permission to run no tests
-// and report success. scripts/dev/changed-groups.sh currently returns that
+// and report success. internal/le/changed/actions.go currently returns that
 // answer when git or `go list` fails. This port closes that defect
 // (plan/journal/zero-value-as-valid-answer.md, 2026-08-26).
 package changed
@@ -46,8 +46,8 @@ const restGroup = "rest"
 // `golangci-lint` read it as a directory rather than as a module path.
 const relativePrefix = "./"
 
-// Group is one mapped test group. It contains the short name of a Make target
-// and the Go package pattern that the name represents.
+// Group is one mapped test group. It contains the short name the native unit
+// action reports and the Go package pattern that name represents.
 type Group struct {
 	Name    string `json:"name"`
 	Pattern string `json:"pattern"`
@@ -86,9 +86,9 @@ var groups = []struct {
 	{"cmd/", Group{Name: "cmd", Pattern: "./cmd/..."}},
 }
 
-// GroupOf answers the group a changed path belongs to, and whether one claimed
+// groupOf answers the group a changed path belongs to, and whether one claimed
 // it. A path no prefix claims is a package of its own.
-func GroupOf(file string) (Group, bool) {
+func groupOf(file string) (Group, bool) {
 	for _, entry := range groups {
 		if strings.HasPrefix(file, entry.Prefix) {
 			return entry.Group, true
@@ -159,7 +159,7 @@ func groupFiles(files []string) grouping {
 	hit := make(map[string]bool, len(groups))
 	dirs := make(map[string]bool)
 	for _, file := range files {
-		group, mapped := GroupOf(file)
+		group, mapped := groupOf(file)
 		if mapped {
 			hit[group.Name] = true
 			continue

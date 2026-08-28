@@ -132,6 +132,7 @@ func TestDockerBuildNetworkAndContainerArguments(t *testing.T) {
 		Tag:        "ze-interop",
 		Dockerfile: "Dockerfile.ze",
 		Context:    "/repo",
+		BuildArgs:  []string{"ZE_FEATURES=ze_bgp ze_ssh"},
 	})
 	if err != nil {
 		t.Fatalf("Build returned an error: %v", err)
@@ -140,7 +141,7 @@ func TestDockerBuildNetworkAndContainerArguments(t *testing.T) {
 		t.Errorf("image reference = %q, want immutable image id", image.Reference)
 	}
 
-	network, err := docker.CreateNetwork(t.Context(), NetworkSpec{
+	network, err := docker.createNetwork(t.Context(), NetworkSpec{
 		Name: "lab-net",
 		Candidates: []Subnet{
 			{IPv4: netip.MustParsePrefix("172.30.0.0/24")},
@@ -148,13 +149,13 @@ func TestDockerBuildNetworkAndContainerArguments(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("CreateNetwork returned an error: %v", err)
+		t.Fatalf("createNetwork returned an error: %v", err)
 	}
 	if network.IPv4 != netip.MustParsePrefix("172.31.0.0/24") {
 		t.Errorf("selected subnet = %s, want second non-overlapping candidate", network.IPv4)
 	}
 
-	err = docker.RunContainer(t.Context(), network, PeerConfig{
+	err = docker.runContainer(t.Context(), network, PeerConfig{
 		Name:         "peer",
 		Container:    "lab-peer",
 		Image:        "sha256:peer",
@@ -166,10 +167,10 @@ func TestDockerBuildNetworkAndContainerArguments(t *testing.T) {
 		Command:      []string{"start", "/etc/peer.conf"},
 	})
 	if err != nil {
-		t.Fatalf("RunContainer returned an error: %v", err)
+		t.Fatalf("runContainer returned an error: %v", err)
 	}
 
-	wantBuild := []string{"docker", "build", "-t", "ze-interop", "-f", "Dockerfile.ze", "/repo", "-q"}
+	wantBuild := []string{"docker", "build", "-t", "ze-interop", "--build-arg", "ZE_FEATURES=ze_bgp ze_ssh", "-f", "Dockerfile.ze", "/repo", "-q"}
 	if got := runner.commands[0].Arguments; !reflect.DeepEqual(got, wantBuild) {
 		t.Errorf("build argv = %#v, want %#v", got, wantBuild)
 	}
@@ -272,8 +273,8 @@ func TestContainerPIDRejectsInvalidOutput(t *testing.T) {
 			docker := newDocker(&recordingRunner{run: func(processCommand) (processResult, error) {
 				return processResult{Stdout: one.stdout}, nil
 			}})
-			if _, err := docker.ContainerPID(t.Context(), "lab-peer"); err == nil {
-				t.Fatalf("ContainerPID accepted %q", one.stdout)
+			if _, err := docker.containerPID(t.Context(), "lab-peer"); err == nil {
+				t.Fatalf("containerPID accepted %q", one.stdout)
 			}
 		})
 	}

@@ -176,7 +176,7 @@ func TestWorkbenchFormNeverRendersAStoredSecret(t *testing.T) {
 	require.NoError(t, err)
 
 	schema, tree := secretSchemaAndTree(true)
-	req := httptest.NewRequest(http.MethodGet, "/show/api/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/api/", http.NoBody)
 	content, handled := renderPageContent(renderer, req, []string{segAPI}, tree, schema, nil, nil, nil)
 	require.True(t, handled, "the workbench must serve the API page")
 
@@ -200,7 +200,7 @@ func TestWorkbenchFormRendersAnEmptySecretAsEmpty(t *testing.T) {
 	require.NoError(t, err)
 
 	schema, _ := secretSchemaAndTree(true)
-	req := httptest.NewRequest(http.MethodGet, "/show/api/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/api/", http.NoBody)
 	content, handled := renderPageContent(renderer, req, []string{segAPI}, config.NewTree(), schema, nil, nil, nil)
 	require.True(t, handled, "the workbench must serve the API page")
 

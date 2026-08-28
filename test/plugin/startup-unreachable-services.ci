@@ -1,80 +1,37 @@
-# Test: startup resilience -- daemon boots, applies a config change, and reports
-# degradation when every external service (RPKI cache, BMP collector, NTP
-# servers, RADIUS admin, management hub) is unreachable.
+# Test: startup and reload stay responsive when every external service is unreachable.
 #
-# Flow:
-# 1. ze doctor --json over a config whose external-service addresses are all RFC
-#    5737 TEST-NET blackholes reports each service unreachable (including the new
-#    doctor-hub-unreachable managed-hub check) and still exits 0.  [AC-5]
-# 2. The daemon started on the same config reaches ready (writes ZE_READY_FILE)
-#    within budget: no touchpoint blocks startup on its dead peer.  [AC-2]
-# 3. A SIGHUP reload that edits the environment/ntp block re-applies while the
-#    three NTP servers are still blackholed and completes without an apply
-#    timeout: the stop-aware NTP worker handoff stays within the apply
-#    deadline.  [AC-3]
-#
-# VALIDATES: startup-resilience AC-2, AC-3, AC-5, and the new managed-hub doctor
-#            check (doctor-hub-unreachable).
-# PREVENTS: a regression where an unreachable external service blocks daemon
-#           startup, or where the NTP worker handoff (stopAndWait over serial
-#           per-server queries) blocks a config re-apply past its deadline.
+# VALIDATES: startup-resilience AC-2, AC-3, AC-5 and the managed-hub doctor check.
+# PREVENTS: a dead RPKI, BMP, NTP, RADIUS, or hub peer blocking startup or reload.
 
-tmpfs=startup-unreachable-services.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
-
-# RFC 5737 TEST-NET addresses are unrouteable, so every probe/dial fails (drop or
-# host-unreachable) and exercises the not-reachable path deterministically.
-# Three NTP servers so a reverted stop-check (serial 5s queries) would push the
-# reload handoff past the apply budget.
-write_conf() {
-	ntp_interval="$1"
-	cat > unreachable.conf <<ZECONF
+tmpfs=unreachable.conf:mode=600:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	session {
-		asn {
-			local 65000
-		}
-	}
-	rpki {
-		cache-server 203.0.113.2 {
-			port 3323
-		}
-	}
+	session { asn { local 65000; } }
+	rpki { cache-server 203.0.113.2 { port 3323; } }
 	bmp {
 		sender {
-			collector c1 {
-				address 203.0.113.3
-				port 11019
-			}
+			collector c1 { address 203.0.113.3; port 11019; }
 		}
 	}
 }
-
 system {
 	authentication {
 		radius {
-			server 203.0.113.1 {
-				port 1812
-				key "unused-probe-secret"
-			}
+			server 203.0.113.1 { port 1812; key "unused-probe-secret"; }
 			timeout 1
 			retries 1
 		}
 	}
 }
-
 environment {
 	ntp {
 		enabled true
-		interval ${ntp_interval}
+		interval 3600
 		server dead1 { address 203.0.113.4; }
 		server dead2 { address 203.0.113.6; }
 		server dead3 { address 203.0.113.7; }
 	}
 }
-
 plugin {
 	hub {
 		client edge-01 {
@@ -83,90 +40,26 @@ plugin {
 			secret "startup-resilience-32char-min-secret"
 		}
 	}
+	external startup-unreachable-test {
+		run "ze-test fixture plugin/startup-unreachable-services unreachable.conf"
+		encoder json
+	}
 }
-ZECONF
-}
+EOF_CONF
 
-fail() {
-	echo "FAIL: $1" >&2
-	echo "--- daemon.log ---" >&2
-	cat daemon.log 2>/dev/null >&2 || true
-	exit 1
-}
-
-write_conf 3600
-
-# --- AC-5: ze doctor surfaces every unreachable service (static, no daemon) ---
-echo "== ze doctor --json ==" >&2
-DOCTOR=$(ze doctor --json unreachable.conf 2>doctor.err) || {
-	echo "FAIL: ze doctor exited non-zero" >&2
-	cat doctor.err >&2
-	exit 1
-}
-for code in doctor-hub-unreachable doctor-ntp-server-unreachable doctor-rpki-unreachable doctor-bmp-unreachable; do
-	if ! printf '%s' "$DOCTOR" | grep -q "$code"; then
-		echo "FAIL: doctor did not report $code" >&2
-		printf '%s\n' "$DOCTOR" >&2
-		exit 1
-	fi
-	echo "OK: doctor reports $code" >&2
-done
-
-# --- AC-2: daemon boots to ready with every service blackholed ---
-echo "== daemon boot ==" >&2
-rm -f ready
-ZE_READY_FILE="$PWD/ready"
-export ZE_READY_FILE
-
-ze start unreachable.conf >daemon.log 2>&1 &
-DAEMON_PID=$!
-trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
-
-i=0
-while [ "$i" -lt 100 ]; do
-	[ -f ready ] && break
-	kill -0 "$DAEMON_PID" 2>/dev/null || fail "daemon exited before signaling ready"
-	sleep 0.2
-	i=$((i + 1))
-done
-[ -f ready ] || fail "daemon did not reach ready within budget (blocked on an unreachable service?)"
-echo "OK: daemon reached ready with all external services blackholed" >&2
-
-# --- AC-3: SIGHUP reload editing environment/ntp re-applies within budget ---
-echo "== SIGHUP reload (edit ntp while servers blackholed) ==" >&2
-write_conf 120
-kill -HUP "$DAEMON_PID"
-
-# The reload is silent on success and prints "reload error" / "apply timeout" on
-# failure (orchestrator.go apply deadline). Fail fast on either. The window must
-# outlast the apply deadline (NTP ApplyBudget 10s): a reverted stop-check makes
-# the serial 3x5s handoff overrun and the orchestrator emits "apply timeout after
-# 10s" at ~10s, so ~16s of observation reliably catches the regression while the
-# fixed ~5s handoff sails through with no error.
-i=0
-while [ "$i" -lt 80 ]; do
-	if grep -q 'apply timeout' daemon.log 2>/dev/null; then
-		fail "NTP reload apply timed out (worker handoff blocked on blackholed servers)"
-	fi
-	if grep -q 'reload error' daemon.log 2>/dev/null; then
-		fail "SIGHUP reload reported an error"
-	fi
-	kill -0 "$DAEMON_PID" 2>/dev/null || fail "daemon exited during reload"
-	sleep 0.2
-	i=$((i + 1))
-done
-grep -q 'received SIGHUP' daemon.log 2>/dev/null || fail "daemon never processed the SIGHUP"
-kill -0 "$DAEMON_PID" 2>/dev/null || fail "daemon not alive after reload"
-echo "OK: environment/ntp reload applied within budget while servers blackholed" >&2
-
-kill "$DAEMON_PID" 2>/dev/null || true
-wait "$DAEMON_PID" 2>/dev/null || true
-echo "PASS: startup-unreachable-services" >&2
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./startup-unreachable-services.sh:timeout=120s
+# The offline command remains a declarative runner command, so the exact ze doctor
+# entry point is exercised without an embedded helper program.
+cmd=foreground:seq=1:exec=ze doctor --json unreachable.conf:exit=0:timeout=60s
+cmd=foreground:seq=2:exec=ze start unreachable.conf:timeout=60s
 expect=exit:code=0
-expect=stderr:pattern=doctor reports doctor-hub-unreachable
-expect=stderr:pattern=daemon reached ready with all external services blackholed
-expect=stderr:pattern=environment/ntp reload applied within budget
+expect=stdout:contains=doctor-hub-unreachable
+expect=stdout:contains=doctor-ntp-server-unreachable
+expect=stdout:contains=doctor-rpki-unreachable
+expect=stdout:contains=doctor-bmp-unreachable
+expect=file:path=daemon.ready:exists=true
+expect=stderr:pattern=OK: daemon reached ready with all external services blackholed
+expect=stderr:pattern=OK: environment/ntp reload applied within budget while servers blackholed
+expect=stderr:contains=received SIGHUP
+reject=stderr:pattern=apply timeout
+reject=stderr:pattern=reload error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

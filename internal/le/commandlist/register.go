@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -29,5 +28,5 @@ func init() {
 	// The census counts this gate as ported from here, in the same init() that
 	// registers the command. A claim whose command never registered is red, so
 	// the count cannot fall for a tool nothing can reach.
-	parity.Claim("command-list", "ze-command-list")
+
 }

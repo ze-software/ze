@@ -152,10 +152,10 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// The oldest per-family date drives both surfaces, so the alarm stays
 	// raised while any one family is stale.
 	oldestUpdated := settings.OldestPrefixUpdated()
-	RaisePrefixStale(settings.Address.String(), oldestUpdated, r.clock.Now())
+	raisePrefixStale(settings.Address.String(), oldestUpdated, r.clock.Now())
 
 	// Log staleness warning if prefix data is outdated.
-	if IsPrefixDataStale(oldestUpdated, r.clock.Now()) {
+	if isPrefixDataStale(oldestUpdated, r.clock.Now()) {
 		reactorLogger().Warn("prefix data is stale",
 			"peer", settings.Address,
 			"updated", oldestUpdated,
@@ -270,7 +270,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 	// Clear any prefix-stale warning for this peer from the report bus.
 	// Threshold warnings are cleared by Session.ClearReportedWarnings
 	// during the session teardown defer in peer_run.go.
-	ClearPrefixStale(addr.String())
+	clearPrefixStale(addr.String())
 
 	if peer.health != nil {
 		peer.health.stop()

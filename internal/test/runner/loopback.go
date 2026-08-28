@@ -8,11 +8,11 @@
 //
 // The runner does not add it, and this is measured rather than assumed:
 // SIOCAIFADDR_IN6 returns EPERM to an unprivileged process on darwin, and the
-// Linux equivalent needs CAP_NET_ADMIN, while `make ze-precommit-verify` runs as an
-// ordinary user on both (the merge gate runs it bare on ubuntu-latest,
-// .github/workflows/verify.yml). So the privilege moved to environment-setup
+// Linux equivalent needs CAP_NET_ADMIN, while `./le verify current mode full`
+// runs as an ordinary user on both (the merge gate runs it bare on
+// ubuntu-latest). So the privilege moved to environment-setup
 // time, where the IPv4 aliases already live: `./le setup` adds the addresses
-// (scripts/le/devtools/system.py, missing_loopback/apply_loopback). This file only
+// (internal/le/devsetup/system.go, missing_loopback/apply_loopback). This file only
 // REPORTS, and its error carries the exact command an operator can run instead.
 
 package runner
@@ -190,7 +190,7 @@ func configTokens(config string) []string {
 //
 // A `.ci` declares two kinds of local address. One is a loopback address the
 // fixture needs the host to carry: 127.0.0.4 for a second IPv4 session end,
-// fd00::2 for an IPv6 one (scripts/le/devtools/system.py provisions both). The other
+// fd00::2 for an IPv6 one (internal/le/devsetup/system.go provisions both). The other
 // is a routable address a config-validation fixture names and Ze never binds --
 // test/parse/graceful-restart-llgr.ci declares `local { ip 192.0.2.1 }` and the
 // daemon exits after parsing. Probing the second kind would fail a test that

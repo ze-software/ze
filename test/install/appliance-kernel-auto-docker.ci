@@ -1,87 +1,10 @@
-# Test: ze appliance kernel without --builder delegates to run.py, which prefers
-# docker when it is available. Real python3 + run.py; only docker is faked (so
-# run.py's docker-first auto-selection picks it).
-#
-# // kernel-build-consolidation moved builder auto-selection out of Go
-# into run.py. The old assertions on Go's "building kernel with docker" and the
-# absence of a python.log no longer apply; this asserts the equivalent run.py
-# auto-docker path (Go -> run.py -> docker -> build.py).
+# Test: ze appliance kernel without --builder delegates to the native shared
+# driver, which prefers docker when it is available. Only docker is faked so
+# the docker-first auto-selection path wins.
 
 option=timeout:value=30s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-work=$PWD
-ze_bin=$(command -v ze)
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$ze_bin")/.." && pwd)}
-cd "$repo"
-
-# // ZE_KERNEL_TEST_OUTPUT_DIR redirects the build to $work/out, so
-# this test no longer writes the shared tools/installer-kernel/build; the previous
-# save/restore of that dir was unnecessary and raced with appliance-kernel-registry.
-mkdir -p "$work/fakebin" "$work/cache"
-
-cat > "$work/fakebin/docker" <<'EOF_DOCKER'
-#!/bin/sh
-set -eu
-printf '%s\n' "$*" >> "$ZE_DOCKER_LOG"
-if [ "$1" = run ]; then
-	# Only a run carrying build.py is a BUILD. run.py issues a second
-	# `docker run ... chown -R <uid>:<gid> /out` to hand the build's output back
-	# to the invoking user, and that run mounts :/out as well. Synthesizing build
-	# output for it rewrites what the build produced.
-	case " $* " in *" /builder/build.py "*) ;; *) exit 0 ;; esac
-	prev=
-	for arg in "$@"; do
-		if [ "$prev" = -v ]; then
-			case "$arg" in
-				*:/out)
-					out=${arg%:/out}
-					mkdir -p "$out"
-					printf 'auto-docker-kernel\n' > "$out/Image"
-					cat > "$out/config" <<'EOF_CONFIG'
-CONFIG_IP_PNP_DHCP=y
-CONFIG_EXT4_FS=y
-CONFIG_BLK_DEV_INITRD=y
-CONFIG_DEVTMPFS_MOUNT=y
-CONFIG_VIRTIO_NET=y
-CONFIG_VIRTIO_BLK=y
-EOF_CONFIG
-					;;
-			esac
-		fi
-		prev=$arg
-	done
-fi
-EOF_DOCKER
-chmod +x "$work/fakebin/docker"
-
-# No --builder: run.py auto-selects, and docker (faked, present) wins.
-PATH="$work/fakebin:$PATH" \
-XDG_CACHE_HOME="$work/cache" \
-ZE_DOCKER_LOG="$work/docker.log" \
-ZE_KERNEL_TEST_OUTPUT_DIR="$work/out" \
-"$ze_bin" appliance kernel --arch amd64 --profile qemu >"$work/stdout" 2>"$work/stderr"
-
-# Assert only per-test ISOLATED state (stdout + docker.log + the XDG cache):
-# the shared tools/installer-kernel/build is written by every parallel
-# appliance-kernel-* test, so its content is not a safe assertion target.
-grep -q 'via run.py' "$work/stdout"
-grep -q 'kernel ready:' "$work/stdout"
-grep -q 'target=installer' "$work/stdout"
-grep -q -- '--platform linux/amd64' "$work/docker.log"
-grep -q -- 'python3 /builder/build.py' "$work/docker.log"
-# A populated docker.log proves run.py's auto-selection invoked the (faked) docker
-# backend rather than falling back to QEMU.
-[ -s "$work/docker.log" ]
-cache_image=$(find "$work/cache" -path '*/installer-kernel/*/Image' -print | head -n 1)
-[ -n "$cache_image" ]
-
-echo OK
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/appliance-kernel-auto-docker
 expect=exit:code=0
 expect=stdout:contains=OK

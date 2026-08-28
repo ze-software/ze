@@ -4,14 +4,11 @@
 // verdict only when the two trees match. If attachment used only the LABEL, a
 // run that never saw a session's code would certify that session. The
 // Go-commit coverage gate reads that certificate
-// (full_verify_coverage in scripts/dev/commit_helper.py).
+// (full_verify_coverage in internal/le/commit/actions.go).
 //
-// The Go implementation restates the definition from
-// scripts/dev/verify-status.sh. The two implementations must agree byte for
-// byte. During migration, jobs admitted by the shell and by this package share
-// a registry. A different hash would silently prevent sharing. The hashed
-// stream contains the commit, all tracked changes, and each untracked file
-// with the hash of its content.
+// This package is the single definition shared by job admission and native
+// verification certificates. The hashed stream contains the commit, all
+// tracked changes, and each untracked file with the hash of its content.
 
 package lejob
 
@@ -68,6 +65,82 @@ func TreeHash(root string) string {
 	return hex.EncodeToString(sum.Sum(nil))
 }
 
+// TreeSnapshot records the whole-tree hash and each dirty path fingerprint at
+// one instant.
+type TreeSnapshot struct {
+	Hash     string
+	Manifest map[string]string
+}
+
+// SnapshotTree records both fingerprints used by a verification certificate.
+// The two views are intentionally produced by this package. Admission and
+// verification MUST use one definition of the checkout state.
+func SnapshotTree(root string) TreeSnapshot {
+	return TreeSnapshot{
+		Hash:     TreeHash(root),
+		Manifest: DirtyManifest(root),
+	}
+}
+
+// DirtyManifest fingerprints each path that differs from HEAD.
+//
+// A deleted path and a non-regular path both carry MISSING. Paths use the
+// spelling that Git prints because the status file format predates this port
+// and both its readers use that spelling.
+func DirtyManifest(root string) map[string]string {
+	tracked, _ := git(root, "diff", "HEAD", "--name-only")
+	untracked, _ := git(root, "ls-files", "-o", "--exclude-standard")
+	paths := append(nonEmptyLines(tracked), nonEmptyLines(untracked)...)
+
+	manifest := make(map[string]string, len(paths))
+	for _, rel := range paths {
+		if _, exists := manifest[rel]; exists {
+			continue
+		}
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		info, err := os.Stat(path)
+		if err != nil {
+			manifest[rel] = strings.TrimSpace(missingFile)
+			continue
+		}
+		if !info.Mode().IsRegular() {
+			manifest[rel] = strings.TrimSpace(missingFile)
+			continue
+		}
+		fingerprint, err := fileHash(path)
+		if err != nil {
+			manifest[rel] = strings.TrimSpace(missingFile)
+			continue
+		}
+		manifest[rel] = fingerprint
+	}
+	return manifest
+}
+
+// Head returns the current commit, or Unknown when Git cannot name one.
+func Head(root string) string {
+	out, err := git(root, "rev-parse", "HEAD")
+	if err != nil {
+		return Unknown
+	}
+	head := strings.TrimSpace(string(out))
+	if head == "" {
+		return Unknown
+	}
+	return head
+}
+
+func nonEmptyLines(out []byte) []string {
+	lines := strings.Split(string(trimNewline(out)), "\n")
+	kept := lines[:0]
+	for _, line := range lines {
+		if line != "" {
+			kept = append(kept, line)
+		}
+	}
+	return kept
+}
+
 // add puts bytes into the stream being hashed.
 //
 // hash.Hash documents that Write never returns an error, and this is the one
@@ -96,8 +169,8 @@ func writeCommit(sum hash.Hash, root string) {
 }
 
 // writeDiff puts every tracked change into the stream, staged and unstaged
-// alike. A tree git cannot diff contributes nothing, which is what the shell
-// half's `|| true` does.
+// alike. A tree Git cannot diff contributes nothing, matching the established
+// fingerprint definition.
 func writeDiff(sum hash.Hash, root string) {
 	out, err := git(root, "diff", "HEAD")
 	if err != nil {
@@ -112,9 +185,8 @@ func writeDiff(sum hash.Hash, root string) {
 // Ignored files are excluded. Therefore, the registry can remain under tmp/
 // and the hash stays unchanged when a job is admitted.
 //
-// Paths are sorted in byte order to match `LC_ALL=C sort` in the shell half.
-// git lists paths in its own order. The extra sort makes the two streams
-// identical regardless of the order selected by git.
+// Paths are sorted in byte order. Git lists paths in its own order, so the
+// explicit sort makes the fingerprint deterministic.
 func writeUntracked(sum hash.Hash, root string) {
 	out, err := git(root, "ls-files", "-o", "--exclude-standard")
 	if err != nil {
@@ -172,13 +244,12 @@ func fileHash(path string) (string, error) {
 	return hex.EncodeToString(sum.Sum(nil)), nil
 }
 
-// git runs one read-only git command in the checkout and returns its stdout.
+// git runs one read-only Git command in the checkout and returns its stdout.
 //
 // A failed command returns an error. Each caller above converts the error to
-// the stand-in value that the shell half writes. Stderr is discarded because
-// the shell half also discards it. A repository question that cannot be
-// answered is a fact about the tree. It is not a failure to report to a
-// process that waits for a slot.
+// the fingerprint's fail-closed stand-in value. Stderr is discarded because a
+// repository question that cannot be answered is a fact about the tree, not a
+// failure to report to a process waiting for admission.
 func git(root string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()

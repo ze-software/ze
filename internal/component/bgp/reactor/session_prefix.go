@@ -150,12 +150,12 @@ func clearPrefixHold(peerAddr string) {
 	report.ClearWarning(reportSourceBGP, reportCodePrefixHold, peerAddr)
 }
 
-// RaisePrefixStale pushes a prefix-stale warning for a peer if its
+// raisePrefixStale pushes a prefix-stale warning for a peer if its
 // PrefixUpdated date is older than stalenessThreshold. Otherwise it clears
 // any existing prefix-stale warning for the peer. Called at peer add and
 // peer config reload.
-func RaisePrefixStale(peerAddr, prefixUpdated string, now time.Time) {
-	if IsPrefixDataStale(prefixUpdated, now) {
+func raisePrefixStale(peerAddr, prefixUpdated string, now time.Time) {
+	if isPrefixDataStale(prefixUpdated, now) {
 		report.RaiseWarning(
 			reportSourceBGP,
 			reportCodePrefixStale,
@@ -168,9 +168,9 @@ func RaisePrefixStale(peerAddr, prefixUpdated string, now time.Time) {
 	report.ClearWarning(reportSourceBGP, reportCodePrefixStale, peerAddr)
 }
 
-// ClearPrefixStale removes any prefix-stale warning for a peer. Called on
+// clearPrefixStale removes any prefix-stale warning for a peer. Called on
 // peer remove so cleared peers do not linger on the report bus.
-func ClearPrefixStale(peerAddr string) {
+func clearPrefixStale(peerAddr string) {
 	report.ClearWarning(reportSourceBGP, reportCodePrefixStale, peerAddr)
 }
 
@@ -516,8 +516,8 @@ type prefixSetChange struct {
 //
 // A family stops taking new prefixes the moment its set passes its maximum, so
 // one over-limit message can grow a set to maximum+1 and no further. Without
-// that bound a peer could make ze-build build a set the size of its message before ze
-// threw it away, and a Go map does not return its buckets when its entries go.
+// that bound a peer could make ze build a set the size of its message before
+// throwing it away, and a Go map does not return its buckets when its entries go.
 // The count this reports is therefore maximum+1: the size at which the family
 // crossed its bound, not the size the whole message would have reached.
 func (s *Session) applyInstalledPrefixSections(sections []prefixSection, hasLimits bool) (*message.Notification, bool) {
@@ -969,9 +969,9 @@ func setPrefixConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSe
 // stalenessThreshold is the age beyond which prefix data is considered stale.
 const stalenessThreshold = 180 * 24 * time.Hour // 6 months
 
-// IsPrefixDataStale reports whether a prefix updated timestamp is older than 6 months.
+// isPrefixDataStale reports whether a prefix updated timestamp is older than 6 months.
 // Returns false for empty timestamps (manually configured, no staleness tracking).
-func IsPrefixDataStale(updated string, now time.Time) bool {
+func isPrefixDataStale(updated string, now time.Time) bool {
 	if updated == "" {
 		return false
 	}
@@ -988,7 +988,7 @@ func setPrefixStaleMetric(m *reactorMetrics, peerAddr, updated string, now time.
 		return
 	}
 	val := float64(0)
-	if IsPrefixDataStale(updated, now) {
+	if isPrefixDataStale(updated, now) {
 		val = 1
 	}
 	m.prefixStale.With(peerAddr).Set(val)

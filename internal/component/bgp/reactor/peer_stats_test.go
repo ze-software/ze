@@ -40,22 +40,22 @@ func TestPeerStatsInitialZero(t *testing.T) {
 
 // TestPeerStatsIncrement verifies counter increment methods.
 //
-// VALIDATES: IncrUpdatesReceived/Sent, IncrKeepalivesReceived/Sent, IncrEORReceived/Sent update counters.
+// VALIDATES: incrUpdatesReceived/Sent, incrKeepalivesReceived/Sent, incrEORReceived/Sent update counters.
 // PREVENTS: Counters not being updated or updating the wrong counter.
 func TestPeerStatsIncrement(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	peer.IncrUpdatesReceived()
-	peer.IncrUpdatesReceived()
-	peer.IncrUpdatesSent()
-	peer.IncrKeepalivesReceived()
-	peer.IncrKeepalivesReceived()
-	peer.IncrKeepalivesReceived()
+	peer.incrUpdatesReceived()
+	peer.incrUpdatesReceived()
+	peer.incrUpdatesSent()
+	peer.incrKeepalivesReceived()
+	peer.incrKeepalivesReceived()
+	peer.incrKeepalivesReceived()
 	peer.incrKeepalivesSent()
 	peer.incrKeepalivesSent()
-	peer.IncrEORReceived()
-	peer.IncrEORSent()
+	peer.incrEORReceived()
+	peer.incrEORSent()
 
 	stats := peer.Stats()
 	assert.Equal(t, uint32(2), stats.UpdatesReceived)
@@ -68,7 +68,7 @@ func TestPeerStatsIncrement(t *testing.T) {
 
 // TestPeerEstablishedAt verifies per-peer uptime tracking.
 //
-// VALIDATES: SetEstablishedNow records a timestamp, EstablishedAt returns it.
+// VALIDATES: setEstablishedNow records a timestamp, EstablishedAt returns it.
 // PREVENTS: Uptime using reactor start time instead of per-peer session time.
 func TestPeerEstablishedAt(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
@@ -76,7 +76,7 @@ func TestPeerEstablishedAt(t *testing.T) {
 
 	require.True(t, peer.EstablishedAt().IsZero(), "should be zero before establishment")
 
-	peer.SetEstablishedNow()
+	peer.setEstablishedNow()
 
 	require.False(t, peer.EstablishedAt().IsZero(), "should be non-zero after establishment")
 }
@@ -89,13 +89,13 @@ func TestPeerStatsClearOnReset(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	peer.IncrUpdatesReceived()
-	peer.IncrUpdatesSent()
-	peer.IncrKeepalivesReceived()
+	peer.incrUpdatesReceived()
+	peer.incrUpdatesSent()
+	peer.incrKeepalivesReceived()
 	peer.incrKeepalivesSent()
-	peer.IncrEORReceived()
-	peer.IncrEORSent()
-	peer.SetEstablishedNow()
+	peer.incrEORReceived()
+	peer.incrEORSent()
+	peer.setEstablishedNow()
 
 	peer.ClearStats()
 
@@ -226,17 +226,17 @@ func TestUpdatePeerStateMetric_NonEstablished(t *testing.T) {
 	assert.Equal(t, float64(PeerStateStopped), g.Value())
 }
 
-// TestIncrNotificationSent verifies that IncrNotificationSent increments
+// TestIncrNotificationSent verifies that incrNotificationSent increments
 // both the notifSent counter (with code/subcode labels) and peerMsgSent.
 //
-// VALIDATES: IncrNotificationSent records notification code, subcode, and message type.
+// VALIDATES: incrNotificationSent records notification code, subcode, and message type.
 // PREVENTS: Notification send events missing from metrics, wrong label mapping.
 func TestIncrNotificationSent(t *testing.T) {
 	peer, reg := newPeerWithMetrics()
 	addr := peer.peerAddrLabel()
 
 	// Send a "cease" notification (code=6, subcode=2).
-	peer.IncrNotificationSent(6, 2)
+	peer.incrNotificationSent(6, 2)
 
 	// notifSent counter should be 1 with correct labels.
 	notifVec := reg.counterVecs["ze_peer_notifications_sent_total"]
@@ -253,23 +253,23 @@ func TestIncrNotificationSent(t *testing.T) {
 	assert.Equal(t, 1.0, mc.Value())
 
 	// Unknown code should map to "other".
-	peer.IncrNotificationSent(255, 0)
+	peer.incrNotificationSent(255, 0)
 	oc := notifVec.get(addr, "other", "0")
 	require.NotNil(t, oc, "unknown code should map to 'other'")
 	assert.Equal(t, 1.0, oc.Value())
 }
 
-// TestIncrNotificationReceived verifies that IncrNotificationReceived increments
+// TestIncrNotificationReceived verifies that incrNotificationReceived increments
 // both the notifRecv counter (with code/subcode labels) and peerMsgRecv.
 //
-// VALIDATES: IncrNotificationReceived records notification code, subcode, and message type.
+// VALIDATES: incrNotificationReceived records notification code, subcode, and message type.
 // PREVENTS: Notification receive events missing from metrics, wrong label mapping.
 func TestIncrNotificationReceived(t *testing.T) {
 	peer, reg := newPeerWithMetrics()
 	addr := peer.peerAddrLabel()
 
 	// Receive an "open" notification (code=2, subcode=4).
-	peer.IncrNotificationReceived(2, 4)
+	peer.incrNotificationReceived(2, 4)
 
 	// notifRecv counter should be 1 with correct labels.
 	notifVec := reg.counterVecs["ze_peer_notifications_received_total"]
@@ -286,13 +286,13 @@ func TestIncrNotificationReceived(t *testing.T) {
 	assert.Equal(t, 1.0, mc.Value())
 
 	// Unknown code should map to "other".
-	peer.IncrNotificationReceived(99, 7)
+	peer.incrNotificationReceived(99, 7)
 	oc := notifVec.get(addr, "other", "7")
 	require.NotNil(t, oc, "unknown code should map to 'other'")
 	assert.Equal(t, 1.0, oc.Value())
 }
 
-// TestIncrNotificationSentRaisesReport verifies that IncrNotificationSent
+// TestIncrNotificationSentRaisesReport verifies that incrNotificationSent
 // pushes a notification-sent error event onto the report bus and sets the
 // notificationExchanged flag.
 //
@@ -306,7 +306,7 @@ func TestIncrNotificationSentRaisesReport(t *testing.T) {
 	peer, _ := newPeerWithMetrics()
 	require.False(t, peer.notificationExchanged.Load(), "flag should start false")
 
-	peer.IncrNotificationSent(6, 2) // Cease / Admin Shutdown
+	peer.incrNotificationSent(6, 2) // Cease / Admin Shutdown
 
 	assert.True(t, peer.notificationExchanged.Load(), "flag should be set after sent")
 
@@ -332,7 +332,7 @@ func TestIncrNotificationReceivedRaisesReport(t *testing.T) {
 
 	peer, _ := newPeerWithMetrics()
 
-	peer.IncrNotificationReceived(2, 4) // OPEN / Unsupported optional parameter
+	peer.incrNotificationReceived(2, 4) // OPEN / Unsupported optional parameter
 
 	assert.True(t, peer.notificationExchanged.Load(), "flag should be set after received")
 
@@ -381,7 +381,7 @@ func TestPeerStatsLastNotification(t *testing.T) {
 
 	peer, _ := newPeerWithMetrics()
 
-	peer.IncrNotificationSent(6, 2)
+	peer.incrNotificationSent(6, 2)
 	stats := peer.Stats()
 	assert.Equal(t, uint8(6), stats.LastNotifCode)
 	assert.Equal(t, uint8(2), stats.LastNotifSubcode)
@@ -389,7 +389,7 @@ func TestPeerStatsLastNotification(t *testing.T) {
 	assert.False(t, stats.LastNotifTime.IsZero())
 	assert.Equal(t, uint32(1), stats.NotificationsSent)
 
-	peer.IncrNotificationReceived(3, 1)
+	peer.incrNotificationReceived(3, 1)
 	stats = peer.Stats()
 	assert.Equal(t, uint8(3), stats.LastNotifCode)
 	assert.Equal(t, uint8(1), stats.LastNotifSubcode)
@@ -402,8 +402,8 @@ func TestPeerStatsConnectionCounts(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	peer.SetEstablishedNow()
-	peer.SetEstablishedNow()
+	peer.setEstablishedNow()
+	peer.setEstablishedNow()
 
 	stats := peer.Stats()
 	assert.Equal(t, uint32(2), stats.ConnectionsEstablished)
@@ -441,8 +441,8 @@ func TestPeerStatsClearPreservesLifetime(t *testing.T) {
 
 	peer.incrOpensReceived()
 	peer.incrRefreshSent()
-	peer.IncrNotificationSent(6, 2)
-	peer.SetEstablishedNow()
+	peer.incrNotificationSent(6, 2)
+	peer.setEstablishedNow()
 	peer.incrConnectionsDropped()
 	peer.touchLastRead()
 

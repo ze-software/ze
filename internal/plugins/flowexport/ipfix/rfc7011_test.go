@@ -1,7 +1,7 @@
 // RFC 7011 conformance tests for the IPFIX exporter encoding path.
 // Each test is bound to a Compliance Checklist requirement in
 // rfc/short/rfc7011.md via an `RFC requirement:` tag scanned by
-// scripts/dev/rfc_requirements.py.
+// internal/le/rfc/actions.go.
 //
 // VALIDATES: the IPFIX exporter's on-wire encoding meets the RFC 7011 MUST-level
 // message, Set, padding, Template ID, field-specifier, and reduced-size rules.

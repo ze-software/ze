@@ -42,8 +42,7 @@ func (m *mockPluginManager) StopAll(ctx context.Context) error { return nil }
 func (m *mockPluginManager) Plugin(name string) (ze.PluginProcess, bool) {
 	return ze.PluginProcess{}, false
 }
-func (m *mockPluginManager) Plugins() []ze.PluginProcess   { return nil }
-func (m *mockPluginManager) Capabilities() []ze.Capability { return nil }
+func (m *mockPluginManager) Plugins() []ze.PluginProcess { return nil }
 
 // mockSubsystem is a minimal Subsystem implementation.
 type mockSubsystem struct{}
@@ -92,5 +91,4 @@ func TestInterfacesCompile(t *testing.T) {
 	_ = ze.SchemaTree{}
 	_ = ze.PluginConfig{}
 	_ = ze.PluginProcess{}
-	_ = ze.Capability{}
 }

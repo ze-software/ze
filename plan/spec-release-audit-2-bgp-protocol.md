@@ -339,7 +339,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 | 3. Wiring phase | Data Flow and Wiring Test |
 | 4. Document findings | No production implementation in this spec |
 | 5. Review gate | Verify source/RFC/test evidence for each finding |
-| 6. Full verification | `make ze-spec-status`, `git diff --check`, and targeted source checks |
+| 6. Full verification | `./le spec-status`, `git diff --check`, and targeted source checks |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Route issues | Record suggested direction and owner for future fix work |
 | 9. Re-verify audit evidence | Re-check source references and reproductions, not product fixes |
@@ -377,7 +377,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 | Initial findings exist | Initial Findings section |
 | RFC summaries cited | Required Reading and findings reference `rfc/short/` files |
 | Interop drift captured | RA-BGP-008 |
-| Spec visible to status tool | `make ze-spec-status` shows `release-audit-2-bgp-protocol` |
+| Spec visible to status tool | `./le spec-status` shows `release-audit-2-bgp-protocol` |
 
 ### Security Review Checklist
 
@@ -539,8 +539,8 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 - [ ] AC-1..AC-7 demonstrated (protocol surfaces mapped, findings evidence-backed, audit-only scope held)
 - [ ] Every finding RA-BGP-001..RA-BGP-008 cites source/RFC/test evidence, owner, and requested verification
-- [ ] `make ze-spec-status` shows `release-audit-2-bgp-protocol`
-- [ ] `make ze-standard-test` unaffected (audit-only: this spec changes no product code or tests)
+- [ ] `./le spec-status` shows `release-audit-2-bgp-protocol`
+- [ ] `./le verify current mode full` unaffected (audit-only: this spec changes no product code or tests)
 
 ### TDD
 

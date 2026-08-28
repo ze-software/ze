@@ -26,10 +26,10 @@ The initrd binary is a TARGET binary. It is cross-compiled
 `GOOS=linux GOARCH=<arch> CGO_ENABLED=0` and it runs on the appliance, never on
 the build host. `CLAUDE.md`, "Binary naming convention", holds the full rule.
 
-**Never cross-compile a host binary.** A build or test script that must RUN
+**Never cross-compile a host binary.** A native build or test action that must RUN
 `ze appliance ...` on the build host compiles `cmd/ze` for the host and names
 the result `ze-host`. Give that build a target `GOARCH` and it cannot exec:
-the failure is "exec format error", and it looks like a broken script rather
+the failure is "exec format error", and it looks like a broken build rather
 than a wrong tag. Apply `GOARCH=<target>` only to the build of a target binary,
 or to the `ze appliance initrd` invocation that cross-compiles one internally.
 
@@ -69,7 +69,7 @@ allowlist entry, not a resolver call. The initrd must not pull the `iface`
 component: it is a self-contained PID 1 binary. `internal/plugins/provision/`
 carries the same exemption for the same reason.
 
-<!-- source: scripts/checks/iface_resolution.go -- the allowlist and the reason for each entry -->
+<!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
 
 **arm64 `virt` has no IDE bus.** The ISO cdrom must attach as virtio-scsi, not
 `if=ide`. You can prove the attachment parses without a bootable image: run
@@ -81,11 +81,8 @@ the recovery NIC's directly connected subnet. The connected route always beats
 any default route the pinned or foreign NIC holds, so reachability does not
 depend on default-route ordering after the DHCP fallback re-leases every NIC.
 
-<!-- source: scripts/evidence/effective-install-scenarios-qemu.py -- pin, fault, and rescue scenarios -->
+<!-- source: internal/le/qemu/actions.go -- Answer -->
 
-**A backgrounded `make ... > log; echo "exit=$?"` reports the echo's exit.** The
-`;` chain returns the last command's status, so a failing `make` reads as
-"exit 0". Read the log, or put `$?` inside the redirect.
 
 ## What is not proven here
 
@@ -96,9 +93,9 @@ QEMU acceptance path as unproven until these run green on a machine that has a
 kernel and those tools:
 
 ```
-ZE_INSTALL_KERNEL=/path/to/vmlinuz make ze-qemu-install-scenarios-test
-ZE_INSTALL_KERNEL=/path/to/vmlinuz make ze-qemu-install-ventoy-test
-ZE_INSTALL_ARCH=arm64 ZE_INSTALL_KERNEL=/path/to/Image make ze-qemu-install-iso-test
+ZE_INSTALL_KERNEL=/path/to/vmlinuz ./le qemu install-scenarios-test
+ZE_INSTALL_KERNEL=/path/to/vmlinuz ./le qemu install-ventoy-test
+ZE_INSTALL_ARCH=arm64 ZE_INSTALL_KERNEL=/path/to/Image ./le qemu install-iso-test
 ```
 
 The first-run risks, most likely first: `nclient4` DHCP behavior under QEMU

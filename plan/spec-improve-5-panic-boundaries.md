@@ -182,7 +182,7 @@ receive paths) for the same boundary and apply the same policy where missing.
 2. **Phase: session boundary** - recover, structured log, metric, teardown reuse
 3. **Phase: lock/state audit (A-1, A-3)** - document containable vs non-containable sites in this spec
 4. **Phase: sibling-loop audit (AC-6)** - apply boundary where missing
-5. `make ze-precommit-verify` including race tests, learned summary, two-commit closure
+5. `./le verify current mode full` including race tests, learned summary, two-commit closure
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -262,7 +262,7 @@ sent from the recover path (see Required Reading constraint).
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 
 ### TDD
 - [ ] Tests written

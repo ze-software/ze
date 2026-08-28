@@ -58,7 +58,7 @@ navigation problem worse. Most of what an agent needs is already here:
 | `ai/patterns/` (8) | mechanical recipes for CLI, plugin, config, family, test | hand |
 | `ai/rationale/` (44) | why each rule exists | hand |
 | `ai/skills/` (26) | end-to-end workflows (implement, review, debug, audit) | hand |
-| `ai/CODE-TO-DOCS.md` | code path to the docs that describe it | generated (`make ze-doc-index-update`) |
+| `ai/CODE-TO-DOCS.md` | code path to the docs that describe it | generated (`./le docs-to-code index-update`) |
 | `ai/LEARNED-INDEX.md` | a curated slice of learned summaries by topic | hand |
 | `plan/learned/` (1082) + `DESIGN-HISTORY` / `RECURRING-PATTERNS` / `HOOK-FRICTION` | history: decisions, recurring traps, hook false positives | hand + append |
 | `docs/architecture/` (100) | canonical design of each subsystem | hand |
@@ -74,7 +74,7 @@ RFCs, and `CODE-TO-DOCS.md` is a real generated reverse index. The gaps below ar
 code itself.** When I need "which package owns route selection" or "what does
 `internal/component/managed` actually do", there is no compact source. The generated
 arch map lists 134 directory names with zero descriptions each
-(`scripts/dev/arch_map.py` emits `", ".join(names)` and nothing more). The
+(the retired `scripts/dev/arch_map.py` (current producer: `internal/le/archmap/archmap.go`) emits `", ".join(names)` and nothing more). The
 keyword table in `ai/INDEX.md` covers popular topics but is not an enumeration of
 packages. So I open packages one at a time, and 42% of them have no package doc
 comment to read (356 of 610 package directories carry `// Package ...`; the rest do
@@ -99,7 +99,7 @@ Everything below follows from these two.
 lists every package or plugin with a one-line responsibility.
 
 **Evidence.**
-- `scripts/dev/arch_map.py` generates only comma-separated directory-name lists
+- the retired `scripts/dev/arch_map.py` (current producer: `internal/le/archmap/archmap.go`) generates only comma-separated directory-name lists
   (the `arch-components` / `arch-system-plugins` / `arch-bgp-plugins` blocks in
   `CLAUDE.md`). Names, no descriptions.
 - Package doc coverage is ~58% (356 of 610 dirs). Confirmed missing on real packages:
@@ -121,10 +121,10 @@ joining two sources you already keep:
 - Undocumented packages (~254): emit as `TODO`. The artifact then doubles as a
   doc-coverage backfill driver, which is a feature, not a defect.
 
-**Cost.** Low. Extend `scripts/dev/arch_map.py` (already walks the trees) or
-`scripts/inventory/inventory.go` (already imports the registry and renders a
+**Cost.** Low. Extend the retired `scripts/dev/arch_map.py` (current producer: `internal/le/archmap/archmap.go`) (already walks the trees) or
+the retired `scripts/inventory/inventory.go` (current producer: `internal/le/inventory/inventory.go`) (already imports the registry and renders a
 Description column, `inventory.go`), and wire it into the existing
-`ze-doc-verify` / `ze-generated-files-update` freshness gate (`mk/check-docs.mk`) so it cannot rot.
+`./le doc-check verify` / `./le repository generate` freshness gate (the retired `mk/check-docs.mk` (current producer: `internal/le/doccheck/actions.go`)) so it cannot rot.
 
 **Why first.** It is the literal answer to your complaint, it is ~90% generatable from
 metadata you maintain, and the freshness gate keeps it honest. This is the single best
@@ -231,7 +231,7 @@ Two principles worth adopting:
 
 | # | Action | Payoff | Effort | Generatable |
 |---|--------|--------|--------|-------------|
-| 1 | Generate `ai/PACKAGE-MAP.md` (path, one-line role, key type) from registry `Description` + package doc first line; add to `ze-generated-files-update` gate | High: direct answer to "what does what" | Low | ~90% |
+| 1 | Generate `ai/PACKAGE-MAP.md` (path, one-line role, key type) from registry `Description` + package doc first line; add to `./le repository generate` gate | High: direct answer to "what does what" | Low | ~90% |
 | 2 | Generate `ai/DOCS-TO-CODE.md` by inverting `// Design:` edges; add a `make` target + gate | Medium-High: ends the per-lookup grep | Low | 100% |
 | 3 | Generate a *complete* learned-summary index (all 1082, id + slug + first line) under `LEARNED-INDEX.md` | Medium: ends `ls`-and-guess for ~840 summaries | Low | 100% |
 | 4 | Add an "I want to understand, not change" front-door section to `ai/INDEX.md` | Medium: one cold-start entrypoint | Low | No |

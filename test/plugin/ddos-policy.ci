@@ -39,118 +39,6 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=ddos-policy-probe.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Flood a loopback victim under an allow/mitigation policy: assert detection opens
-an incident but the local responder installs NO drop (policy exempts mitigation).
-In-daemon observer plugin (5-stage handshake); pacing is sleep-free."""
-import json
-import socket
-import sys
-import time
-
-from ze_api import API, result_text_data, runtime_fail
-
-# Unique per test: the ddos plugin-suite tests share ONE network namespace (the
-# QEMU suite runs `bgp plugin -p 4`, no ZE_TEST_NETNS), so a victim/sink pair
-# reused by a sibling test makes the second binder die EADDRINUSE -- which is
-# exactly how this test failed once ddos-detect-characterize also bound
-# 127.0.0.2:9999. Allocation table in ddos-bps-amplification.ci. MUST match the
-# `rule <victim>/32` in the detect policy block below.
-VICTIM = "127.0.0.7"
-DPORT = 9999
-PAYLOAD = b"x" * 64
-
-
-def dispatch(api, command):
-    resp = api._call_engine("ze-plugin-engine:dispatch-command", {"command": command})
-    if resp is None:
-        return {"status": "error", "data": "engine call returned None"}
-    return resp.get("result", {})
-
-
-def show_json(api, command):
-    r = dispatch(api, command)
-    if r.get("status") != "done":
-        return None
-    data = result_text_data(r)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    return data if isinstance(data, dict) else None
-
-
-def active_attacks(api):
-    d = show_json(api, "show ddos status")
-    if not d or d.get("enabled") is not True:
-        return None
-    return d.get("active-attacks", 0)
-
-
-def local_active(api):
-    d = show_json(api, "show ddos local")
-    if not d:
-        return None
-    return bool(d.get("active", False))
-
-
-def blast(sock, n):
-    sent = 0
-    for _ in range(n):
-        try:
-            sock.sendto(PAYLOAD, (VICTIM, DPORT))
-            sent += 1
-        except OSError:
-            pass
-    return sent
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # Bind a sink on the victim port so the flood is absorbed and no ICMP
-    # port-unreachable backscatter makes trafficusage mis-resolve the victim (learned/1109).
-    sink = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sink.bind((VICTIM, DPORT))
-    sink.setblocking(False)
-    detected = False
-    sent = 0
-    deadline = time.monotonic() + 45.0
-    while time.monotonic() < deadline:
-        sent += blast(sock, 4000)
-        a = active_attacks(api)
-        if a and a > 0:
-            detected = True
-            break
-        api.read_line(timeout=0.3)
-
-    la = local_active(api)
-    sock.close()
-    sink.close()
-
-    if not detected:
-        runtime_fail(f"detection never opened an incident under the allow/mitigation "
-                     f"policy (sent {sent} packets); the policy or detector is broken")
-    if la:
-        runtime_fail(f"allow/mitigation policy did not exempt mitigation: ddos-local is "
-                     f"active (a drop was installed) after {sent} packets")
-
-    print(f"OK: detection opened an incident but ddos-local is not active -- the "
-          f"allow/mitigation policy exempted mitigation (sent {sent} packets)",
-          file=sys.stderr)
-    dispatch(api, "request shutdown")
-    api.wait_for_shutdown()
-
-
-if __name__ == "__main__":
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 ddos {
@@ -200,7 +88,7 @@ traffic {
 # event's SuppressMitigation flag -- i.e. only when the policy actually worked.
 plugin {
 	external ddos-policy-probe {
-		run ./ddos-policy-probe.run
+		run "ze-test fixture plugin/ddos-policy"
 		encoder json
 	}
 }

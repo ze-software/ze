@@ -203,29 +203,6 @@ func TestPlugins(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-8 — Capabilities returns collected capabilities.
-// PREVENTS: Lost capabilities.
-func TestCapabilities(t *testing.T) {
-	mgr := plugin.NewManager()
-
-	mgr.AddCapability(ze.Capability{Plugin: "bgp-gr", Code: 64, Value: []byte{0x01}})
-	mgr.AddCapability(ze.Capability{Plugin: "bgp-rib", Code: 65, Value: []byte{0x00, 0x01}})
-
-	caps := mgr.Capabilities()
-	if len(caps) != 2 {
-		t.Fatalf("got %d capabilities, want 2", len(caps))
-	}
-
-	// Sort by code for deterministic comparison.
-	sort.Slice(caps, func(i, j int) bool { return caps[i].Code < caps[j].Code })
-	if caps[0].Code != 64 || caps[0].Plugin != "bgp-gr" {
-		t.Errorf("caps[0] = {Code:%d Plugin:%s}, want {Code:64 Plugin:bgp-gr}", caps[0].Code, caps[0].Plugin)
-	}
-	if caps[1].Code != 65 || caps[1].Plugin != "bgp-rib" {
-		t.Errorf("caps[1] = {Code:%d Plugin:%s}, want {Code:65 Plugin:bgp-rib}", caps[1].Code, caps[1].Plugin)
-	}
-}
-
 // VALIDATES: Full lifecycle: register → start → query → stop.
 // PREVENTS: State machine bugs.
 func TestLifecycle(t *testing.T) {

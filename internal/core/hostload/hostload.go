@@ -2,8 +2,8 @@
 
 // Package hostload samples system load to classify whether a test run was
 // CPU-contended. It is the single source of truth for the "contended" verdict,
-// shared by the functional-test runner (internal/test/runner) and the verify
-// status tool (scripts/status) so the two surfaces cannot drift on what
+// shared by the functional-test runner (internal/test/runner) and the native
+// verification-status action so the two surfaces cannot drift on what
 // "contended" means.
 package hostload
 

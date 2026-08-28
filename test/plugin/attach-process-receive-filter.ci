@@ -33,125 +33,18 @@ EOF_PEER
 
 # The program the peer grants `receive [ state ]`. It subscribes to update as
 # well, so anything but a state event is the config being ignored.
-tmpfs=receive-filter-state.run:mode=755:terminator=EOF_STATE
-#!/usr/bin/env python3
-import json
-import sys
-
-from ze_api import API, runtime_fail
-
-
-def kind_and_direction(raw):
-    try:
-        decoded = json.loads(raw)
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return "", ""
-    body = decoded.get("bgp", decoded)
-    message = body.get("message", {})
-    return message.get("type", ""), message.get("direction", "")
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.subscribe(["update", "state"])
-    api.ready()
-
-    seen_state = False
-    while True:
-        event = api.wait_for_event(timeout=20.0)
-        if event is None:
-            break  # the other program shut ze down, or nothing more is coming
-        kind, direction = kind_and_direction(event)
-        if kind == "update":
-            runtime_fail(
-                f"FILTER-STATE: update leaked to a process granted state only ({direction})")
-        if kind == "state" and not seen_state:
-            seen_state = True
-            print("FILTER-STATE: state event delivered", file=sys.stderr, flush=True)
-
-    if not seen_state:
-        runtime_fail("FILTER-STATE: the peer grants state and delivered none")
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_STATE
 
 # The program the peer grants `receive [ update-received ]`. It subscribes to
 # state as well, and it drives the shutdown once its own event has arrived.
-tmpfs=receive-filter-update.run:mode=755:terminator=EOF_UPDATE
-#!/usr/bin/env python3
-import json
-import sys
-
-from ze_api import API, runtime_fail
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return (resp or {}).get('result', {})
-
-
-def kind_and_direction(raw):
-    try:
-        decoded = json.loads(raw)
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return "", ""
-    body = decoded.get("bgp", decoded)
-    message = body.get("message", {})
-    return message.get("type", ""), message.get("direction", "")
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.subscribe(["update", "state"])
-    api.ready()
-
-    seen_update = False
-    while not seen_update:
-        event = api.wait_for_event(timeout=20.0)
-        if event is None:
-            runtime_fail("FILTER-UPDATE: no received update arrived")
-            return
-        kind, direction = kind_and_direction(event)
-        if kind == "state":
-            runtime_fail("FILTER-UPDATE: state leaked to a process granted update-received")
-            return
-        if kind == "update" and direction == "sent":
-            runtime_fail("FILTER-UPDATE: a SENT update reached an update-received grant")
-            return
-        if kind == "update":
-            seen_update = True
-
-    print("FILTER-UPDATE: received update delivered", file=sys.stderr, flush=True)
-    # Drain before stopping, so the other program has been handed everything ze
-    # is going to hand it and its own refusal has had its chance to fire.
-    api.quiesce()
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_UPDATE
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external receive-filter-state {
-		run ./receive-filter-state.run
+		run "ze-test fixture plugin/attach-process-receive-filter-state"
 		encoder json
 	}
 	external receive-filter-update {
-		run ./receive-filter-update.run
+		run "ze-test fixture plugin/attach-process-receive-filter-update"
 		encoder json
 	}
 }

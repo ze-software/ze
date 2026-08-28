@@ -72,7 +72,7 @@ func digestCorpus() map[string]string {
 func TestTheRuleParseSeparatesTitleMetadataAndBody(t *testing.T) {
 	root := digestTree(t, digestCorpus())
 
-	rules, err := LoadRules(rulesDir(root))
+	rules, err := loadRules(rulesDir(root))
 	if err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestTheRuleParseSeparatesTitleMetadataAndBody(t *testing.T) {
 		"**Severity:** blocking\n**Note:** this key is not canonical\n" +
 		"**Related:** never read, the block ended above\n\n" +
 		"## Directives\n\n- MUST finish it.\n"
-	extra, err := LoadRules(rulesDir(digestTree(t, files)))
+	extra, err := loadRules(rulesDir(digestTree(t, files)))
 	if err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
@@ -147,12 +147,12 @@ func TestTheRuleParseSeparatesTitleMetadataAndBody(t *testing.T) {
 
 func TestTheCoreIsDerivedFromTheLadderRatherThanFromAList(t *testing.T) {
 	root := digestTree(t, digestCorpus())
-	rules, err := LoadRules(rulesDir(root))
+	rules, err := loadRules(rulesDir(root))
 	if err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
 
-	core, err := CoreMembers(rules, Corpus{}, nil)
+	core, err := coreMembers(rules, taskCorpus{}, nil)
 	if err != nil {
 		t.Fatalf("CoreMembers: %v", err)
 	}
@@ -172,11 +172,11 @@ func TestTheCoreIsDerivedFromTheLadderRatherThanFromAList(t *testing.T) {
 	files["ai/rules/rule-precedence.md"] = strings.Replace(ladder,
 		"| 3 | Scope | `completion` |", "| 2 | Scope | `completion` |", 1)
 	moved := digestTree(t, files)
-	rules, err = LoadRules(rulesDir(moved))
+	rules, err = loadRules(rulesDir(moved))
 	if err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
-	core, err = CoreMembers(rules, Corpus{}, nil)
+	core, err = coreMembers(rules, taskCorpus{}, nil)
 	if err != nil {
 		t.Fatalf("CoreMembers: %v", err)
 	}
@@ -215,16 +215,16 @@ func TestARewordedLadderRefusesRatherThanEmptyingTheCore(t *testing.T) {
 			files := digestCorpus()
 			files["ai/rules/rule-precedence.md"] = tc.ladder
 			root := digestTree(t, files)
-			rules, err := LoadRules(rulesDir(root))
+			rules, err := loadRules(rulesDir(root))
 			if err != nil {
 				t.Fatalf("LoadRules: %v", err)
 			}
-			core, err := CoreMembers(rules, Corpus{}, nil)
+			core, err := coreMembers(rules, taskCorpus{}, nil)
 			if err == nil {
 				t.Fatalf("the core was derived from an unreadable ladder: %v",
 					sortedNames(coreNames(core)))
 			}
-			var ladderErr *LadderError
+			var ladderErr *ladderError
 			if !asLadderError(err, &ladderErr) {
 				t.Fatalf("error is %T, want *LadderError", err)
 			}
@@ -237,8 +237,8 @@ func TestARewordedLadderRefusesRatherThanEmptyingTheCore(t *testing.T) {
 
 // asLadderError spells out errors.As so the test states its required type. This
 // avoids an import of errors for one call.
-func asLadderError(err error, target **LadderError) bool {
-	le, ok := err.(*LadderError) //nolint:errorlint // the port wraps nothing
+func asLadderError(err error, target **ladderError) bool {
+	le, ok := err.(*ladderError) //nolint:errorlint // the port wraps nothing
 	if ok {
 		*target = le
 	}
@@ -256,11 +256,11 @@ func TestATableAfterTheLadderIsNotReadWithTheLaddersColumns(t *testing.T) {
 		"| 2 | home it | `completion` | write the spec |\n"
 	root := digestTree(t, files)
 
-	rules, err := LoadRules(rulesDir(root))
+	rules, err := loadRules(rulesDir(root))
 	if err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
-	core, err := CoreMembers(rules, Corpus{}, nil)
+	core, err := coreMembers(rules, taskCorpus{}, nil)
 	if err != nil {
 		t.Fatalf("CoreMembers: %v", err)
 	}
@@ -279,11 +279,11 @@ func TestATriggerWithNoTermToMatchGoesIntoTheCore(t *testing.T) {
 		"**Severity:** blocking\n\n## Directives\n\n- MUST finish it.\n"
 	root := digestTree(t, files)
 
-	rules, err := LoadRules(rulesDir(root))
+	rules, err := loadRules(rulesDir(root))
 	if err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
-	core, err := CoreMembers(rules, Corpus{}, nil)
+	core, err := coreMembers(rules, taskCorpus{}, nil)
 	if err != nil {
 		t.Fatalf("CoreMembers: %v", err)
 	}
@@ -305,11 +305,11 @@ func TestAMissingTriggerAndAnUnknownSeverityBothLandInTheCore(t *testing.T) {
 		"**Severity:** urgent\n\n## D\n\n- MUST.\n"
 	root := digestTree(t, files)
 
-	rules, err := LoadRules(rulesDir(root))
+	rules, err := loadRules(rulesDir(root))
 	if err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
-	core, err := CoreMembers(rules, Corpus{}, nil)
+	core, err := coreMembers(rules, taskCorpus{}, nil)
 	if err != nil {
 		t.Fatalf("CoreMembers: %v", err)
 	}
@@ -352,7 +352,7 @@ func TestATriggerRowIsCutAtAWordBoundaryAndCountsRunes(t *testing.T) {
 		"\n**Severity:** blocking\n\n## D\n\n- MUST.\n"
 	root := digestTree(t, files)
 
-	rules, err := LoadRules(rulesDir(root))
+	rules, err := loadRules(rulesDir(root))
 	if err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
@@ -656,7 +656,7 @@ func TestTheIndexNamesEveryRuleWithNoDerivableSummary(t *testing.T) {
 func TestARungIsAnASCIINumberAndNothingElse(t *testing.T) {
 	// Python's str.isdigit() and int() accept fullwidth and Arabic-Indic digits.
 	// Thus, the script treats them as rungs. This implementation fails CLOSED.
-	// A ladder without an ASCII rung number produces a LadderError instead of a
+	// A ladder without an ASCII rung number produces a ladderError instead of a
 	// core derived from a typo.
 	cases := []struct {
 		cell  string
@@ -722,7 +722,7 @@ func TestTheDigestWritesBothArtifactsAndTheCheckThenPasses(t *testing.T) {
 	if !stale.Failed() {
 		t.Fatalf("an absent artifact did not read as stale: %+v", stale.Artifacts)
 	}
-	if !strings.Contains(stale.Text(), "ze-rules-condensed-update") {
+	if !strings.Contains(stale.Text(), "./le rules condensed-update") {
 		t.Errorf("the page does not name the fix: %q", stale.Text())
 	}
 
@@ -874,7 +874,7 @@ func TestTheRouterReadsOnlyTheSectionsThatStateTheWork(t *testing.T) {
 	files["plan/RECURRING.md"] = "# R\n\n## Task\n\nall caps stem\n"
 	root := digestTree(t, files)
 
-	corpus, err := LoadCorpus(filepath.Join(root, "plan"))
+	corpus, err := loadCorpus(filepath.Join(root, "plan"))
 	if err != nil {
 		t.Fatalf("LoadCorpus: %v", err)
 	}

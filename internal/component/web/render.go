@@ -80,6 +80,10 @@ type workbenchData struct {
 	Sections []WorkbenchSection
 }
 
+func newWorkbenchData(layout LayoutData, sections []WorkbenchSection) workbenchData {
+	return workbenchData{LayoutData: layout, Sections: sections}
+}
+
 // Renderer renders the web interface.
 //
 // Every page, fragment and editor is a templ component. A component is a Go

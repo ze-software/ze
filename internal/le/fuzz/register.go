@@ -27,8 +27,5 @@ func init() {
 	// The row operators therefore act on that set instead of being refused.
 	leroot.RegisterShape(area, command.ShapeMap)
 
-	// No parity.Claim, and the absence is a fact rather than an oversight:
-	// `./le gates --json` declares 156 gates and neither ze-fuzz-test nor
-	// ze-fuzz-test-one is one of them. The census counts this directory under
-	// script-files, which falls when the swap deletes the Python.
+	// No parity.Claim: these operator actions have no census gate.
 }

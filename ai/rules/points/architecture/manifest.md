@@ -125,7 +125,7 @@ ze-divergences-from-standard-go ## Ze Divergences from Standard Go
   where-ze-testing-diverges-from-standard-go
   cli-commands
   where-the-ze-cli-diverges-from-standard-go
-  scripts-tooling
+  native-tooling
   where-ze-tooling-diverges-from-standard-go
 server-rendered-markup ## Server-Rendered Markup
   keep-markup-in-templ-and-out-of-go

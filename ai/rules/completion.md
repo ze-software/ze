@@ -76,7 +76,7 @@ nobody checked.
 | 3 | Every user-facing behavior has a functional test (`.ci`/`.et`) per `ai/rules/testing.md` |
 | 4 | Protocol features have interop tests per `ai/rules/interop-and-goal-validation.md` |
 | 5 | Goal Validation table filled with concrete evidence per goal |
-| 6 | The code compiles and `make ze-precommit-verify` passes |
+| 6 | The code compiles and `./le verify worktree` passes |
 | 7 | No TODO, FIXME, or stub remains in the new code |
 | 8 | No item was silently dropped from scope |
 | 9 | Every function is reachable from a user entry point (wired, not just library) |
@@ -172,11 +172,11 @@ the shard.
 
 **VERIFICATION debt MAY be recorded. DEFECT debt MUST NOT be.** They are different
 things and this rule bans only one of them. Verification debt is a gate that has not
-yet run over code you believe is correct: a full `ze-precommit-verify` you have not
+yet run over code you believe is correct: a full `./le verify current mode full` you have not
 waited for, a review not yet done, an index left stale by a concurrent session. There
 is nothing broken to fix, only a check owed. Its home is
 `plan/verification-debt/<session>.md`, one row per owed gate, written by
-`scripts/dev/commit_helper.py create` when you pass an override.
+`./le commit create` when you pass an override.
 
 | What you are holding | Which debt | What to do |
 |---|---|---|
@@ -187,18 +187,18 @@ is nothing broken to fix, only a check owed. Its home is
 | A review not yet performed on a spec closure | verification | Record the row; the review is still owed before any push |
 | Behavior an acceptance criterion requires and nothing implements | defect | Implement it. Nothing here makes an unfinished AC recordable |
 
-**The override flags on `commit_helper.py create` are SELF-SERVICE. You MUST NOT stop
-and ask Thomas before using one.** `--unverified`, `--structural-red-ok`,
-`--missing-full-verify-ok`, `--stale-index-ok` and `--review-override` each admit one
-unrun gate, and each writes its row. Give a truthful reason and proceed. Several
+**The override keywords on `./le commit create` are SELF-SERVICE. You MUST NOT stop
+and ask Thomas before using one.** `unverified`, `structural-red-ok`,
+`missing-full-verify-ok`, `stale-index-ok`, and `review-override` each take a truthful
+reason, admit one unrun gate, and write its row. Several
 sessions share this checkout, so the shared verify record is red for somebody else's
 in-flight work nearly always, and work that was finished but never landed is the most
 expensive failure this repo has (`ai/rules/rule-precedence.md`).
 
-**Enforcement is at the PUSH, which is where code reaches users: `create --push`
+**Enforcement is at the PUSH, which is where code reaches users: `create push <remote>`
 refuses while any row is open.** A commit that stays local costs nobody anything, so it
 is not the place to hold the line. The next session reads the open rows at session
-start and runs `make ze-verify-debt-clear`, which re-runs each owed gate ONCE per pass
+start and runs `./le commit debt-clear`, which re-runs each owed gate ONCE per pass
 and writes `cleared` only where that gate exits 0. A row is never marked by hand: the
 ledger records what a gate did, never what a reader believed.
 
@@ -300,7 +300,7 @@ duration.
 
 | Symptom | Fix |
 |---------|-----|
-| `time.Sleep` / `time.sleep(` then assert | poll the condition: `wait_until`, `dispatch_until`, `wait_for_event` (`test/scripts/ze_api.py`) |
+| `time.Sleep` then assert | poll the condition with `fixture.Poll`, using `fixture.Dispatch` when the state comes from the engine |
 | fixed deadline for startup, teardown or reconnect | wait on the readiness signal the daemon emits. If none exists, ADD one: a missing signal is a product gap, not a test problem |
 | "at most N events in a window" | count between two state transitions, not between two clock reads |
 | assert immediately after a command returns | wait for the effect to be observable, then assert |
@@ -312,7 +312,7 @@ Raising a timeout is not a fix. It moves the load level at which the test lies.
 Replacing a sleep with a real wait routinely exposes a genuine data race in the
 product. That is a feature of the technique, not a reason to avoid it.
 
-`ai/rules/testing.md` and `scripts/dev/stress-repro.py` exist to
+`ai/rules/testing.md` and `./le stress-repro run` exist to
 DIAGNOSE such a failure, never to decide whether it deserves recording. A
 deliberate timer that IS the behaviour under test stays, and says so in its
 comment (`ai/rules/testing.md`).
@@ -334,8 +334,8 @@ one.
 | "pre-existing" anywhere as a reason | it is yours: the word says when it started, not whose it is. Blocks your goal, fix it now; does not, spec it, close, ask |
 | the same failure in a shard, a commit body, a report and a summary | pick one place |
 
-Enforced: `check_known_failure_load_excuses` in `scripts/dev/verify_wiring_docs.py`
-(`make ze-doc-wiring-check`, inside `make ze-precommit-verify`) fails a CHANGED
+Enforced: `check_known_failure_load_excuses` in `internal/le/docwiring/docwiring.go`
+(`./le doc-wiring`, inside `./le verify worktree`) fails a CHANGED
 `plan/known-failures/` shard containing "under load", "loaded host", "load
 average", "load-sensitive", "passes in isolation", "resource contention" or
 "contended host". `README.md` and `RESOLVED.md` are exempt: the first states this
@@ -352,7 +352,7 @@ and needs no archaeology.
 **`/ze-close` sweeps the rows when a spec closes, and most sessions do not close
 a spec.** A session that ends any other way MUST commit its own rows first.
 
-**The trap that strands them:** a row naming a spec makes `commit_helper.py`
+**The trap that strands them:** a row naming a spec makes `internal/le/commit`
 read the commit as that spec's CLOSURE and demand the Review Gate artifact. The
 obvious answer is to drop the rows "for now", and "for now" is the rest of the
 session. A rows-only commit that adds no learned summary and removes no spec
@@ -402,7 +402,7 @@ Rationale: `ai/rationale/anti-rationalization.md`
    determine.** Deterministic reds, structural gates, anything with a reproduction
    command, and anything host load explains MUST be fixed, never sharded. When the exception
    does apply, you MUST add
-   `plan/known-failures/<make-target>-<test-name>.md` with: failure output, the
+   `plan/known-failures/<native-action>-<test-name>.md` with: failure output, the
    reproduction attempt and its result, evidence gathered, and the next step. You MUST label a
    root cause you have not verified against source a HYPOTHESIS, so the next agent does
    not inherit it as fact.
@@ -527,13 +527,13 @@ If you find yourself checking wiring for the first time at completion, three ear
 
 ### Mechanical Check (MANDATORY before claiming done)
 
-`make ze-precommit-verify` runs `make ze-doc-wiring-check`. That changed-file
+`./le verify worktree` runs `./le doc-wiring`. That changed-file
 gate is blocking and checks:
 
 **The wiring gate MUST verify that:**
 - new exported Go symbols under `internal/` or `cmd/` have a non-test
   production reference in `internal/` or `cmd/`;
-- command declaration changes run `make ze-command-contract-check`;
+- command declaration changes run `./le docvalid command-contract`;
 - source-anchored documentation changes run doc drift and stale-anchor
   checks;
 - plugin registration and generated inventory source changes run
@@ -617,7 +617,7 @@ A wiring test proves the feature is reachable from its intended entry point (con
 | "Deferred to next spec" | Next spec won't pick it up. Feature ships unwired. |
 | "Requires infrastructure not yet built" | Then the feature is blocked, not done. |
 | "Unit tests cover the logic" | Unit tests prove the algorithm, not the wiring. |
-| "make ze-precommit-verify passes" | Passing tests that don't exercise the entry point prove nothing. |
+| "./le verify worktree passes" | Passing tests that don't exercise the entry point prove nothing. |
 | "Go test exercises the handler" | A Go test with mocked entry points is not a `.ci` test. |
 
 **If the wiring test cannot be written, the feature MUST NOT be considered done: it is blocked.**
@@ -674,7 +674,7 @@ Before: writing the journal row, claiming "done", asking to commit.
 
 | Claim | Acceptable Evidence | NOT Acceptable |
 |-------|-------------------|----------------|
-| Feature works | Test name + output | "make ze-precommit-verify passes" |
+| Feature works | Test name + output | "./le verify worktree passes" |
 | Feature is wired in | Wiring test that exercises entry-to-feature path | Unit test with mock/fake entry point |
 | AC-N done (wiring) | Functional test name exercising full path | Unit test in isolation |
 | AC-N done (logic) | Unit test name + file, assertion matches AC text | "should work" |
@@ -699,7 +699,7 @@ This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended
 | Documentation Verified | Every Yes/No in the Documentation checklist | The edited claim checked against source, or the grep proving no update was needed |
 
 **EVERY table MUST have at least one evidence row.** `pre_commit_verification_gaps`
-(`scripts/dev/commit_helper.py`) checks them one at a time and names the empty
+(`internal/le/commit`) checks them one at a time and names the empty
 ones on the closure commit. Each table is a separate obligation: a row in
 `Files Exist` is not evidence for `AC Verified`.
 
@@ -737,14 +737,13 @@ Standing exceptions, where asking is MANDATORY and this rule does not apply:
 
 This rule is hook-enforced. Breaking it costs a blocked Stop, not a note.
 
-- `.claude/hooks/block-premature-stop.sh` scans the last assistant message against a phrase list and exits 2 on the first match. Exit 2 refuses the session an end and returns the turn to the model. The hook is live and first in the `Stop` array.
-- Two lists, and only one of them is unconditional. `PHRASES` covers ownership-dodging, premature handoff and permission-seeking, and it always blocks.
-- `COMPLETION_PHRASES` covers `what next`, `what would you like` and `what do you want to do`. These join the scan ONLY when work remains, which the hook reads as a claimed spec still `in-progress` (the `OPEN_WORK` flag). Asking what to do next is not the same failure as asking permission to do what was already requested. `.claude/rules/session-start.md` REQUIRES the question once the original task is done.
-- **The retry bound is scoped to this scan, and it disables nothing else.** When the harness sets `stop_hook_active`, the flag `STOP_RETRY` skips the scan loop alone. That bounds a refusal loop whose only escape is rewording. The spec-closure gate above it still blocks on a retry, because that gate has two escapes of its own: run commit B, or write `tmp/session/.closure-ack-<stem>`. You MUST NOT read a blocked stop as a licence to stop next turn. The hook also exits 0 on input it cannot parse.
+- `hookStop` in `internal/le/hookruntime/lifecycle.go` scans the last assistant message and refuses a permission-seeking stop.
+- The unconditional phrase list covers ownership-dodging and premature handoff. Completion questions join only while a claimed spec remains in progress.
+- The harness retry flag skips the phrase scan alone. Spec-closure checks remain active, so a blocked stop is not permission to stop on the next turn.
 - A banned phrase inside backticks or a closed fence is treated as QUOTED, not used, and does not block. You MAY write about the phrases freely. Four guards keep that exemption from becoming a bypass. An unclosed fence is not a code block. A fence closes only on a run at least as long as the opener. The hook scans an all-markup message raw. Inline spans are stripped only on a line whose backticks balance, so one stray backtick cannot swallow a real request.
 - **A blocked Stop is not an instruction to do the work you just offered.** The block asks who wanted that work. The user wanted it: finish it, and do not ask again. You thought of it: DROP it, and MUST NOT start it, size it, or offer it a second time. The remedy read `Continue without asking permission` until 2026-08-19, which answered permission-seeking and misread an offer: a turn ending `Want me to spec the streaming writer?` was refused its end and then went and wrote that spec, so the gate against uncommissioned work was producing it.
 - Neither list is exhaustive, so a green Stop is not proof you followed this rule. You MUST finish the work, then report.
-- Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation`. Full hook map: `ai/rules/repo-maintenance.md`.
+- Fixtures: `./le hook-check unit`. Full hook map: `ai/rules/repo-maintenance.md`.
 
 ## Rationale
 

@@ -44,7 +44,7 @@ func workbenchForTools(t *testing.T, dispatch CommandDispatcher) http.HandlerFun
 
 func TestToolPingPageRendersForm(t *testing.T) {
 	handler := workbenchForTools(t, nil)
-	req := httptest.NewRequest(http.MethodGet, "/show/tools/ping/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/tools/ping/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -77,7 +77,7 @@ func TestToolPingValidatesInput(t *testing.T) {
 
 	// Empty destination.
 	body := "destination=&count=5&timeout=5"
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -93,7 +93,7 @@ func TestToolPingValidatesIPAddress(t *testing.T) {
 	handler := workbenchForTools(t, dispatch)
 
 	body := "destination=not-an-ip&count=5&timeout=5"
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -122,7 +122,7 @@ func TestToolPingBoundaryCount(t *testing.T) {
 			handler := workbenchForTools(t, dispatch)
 
 			body := "destination=192.0.2.1&count=" + tt.count + "&timeout=5"
-			req := httptest.NewRequest(http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("HX-Request", "true")
 			rec := httptest.NewRecorder()
@@ -156,7 +156,7 @@ func TestToolPingBoundaryTimeout(t *testing.T) {
 			handler := workbenchForTools(t, dispatch)
 
 			body := "destination=192.0.2.1&count=5&timeout=" + tt.timeout
-			req := httptest.NewRequest(http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("HX-Request", "true")
 			rec := httptest.NewRecorder()
@@ -176,7 +176,7 @@ func TestToolPingBoundaryTimeout(t *testing.T) {
 
 func TestToolBGPDecodePageRendersForm(t *testing.T) {
 	handler := workbenchForTools(t, nil)
-	req := httptest.NewRequest(http.MethodGet, "/show/tools/bgp-decode/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/tools/bgp-decode/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -192,7 +192,7 @@ func TestToolBGPDecodeDispatchesCommand(t *testing.T) {
 	handler := workbenchForTools(t, dispatch)
 
 	body := "hex=FFFFFFFF00000017"
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/bgp-decode/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/bgp-decode/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -208,7 +208,7 @@ func TestToolBGPDecodeValidatesHex(t *testing.T) {
 	handler := workbenchForTools(t, dispatch)
 
 	body := "hex=ZZZZ_not_hex"
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/bgp-decode/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/bgp-decode/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -224,7 +224,7 @@ func TestToolBGPDecodeValidatesEmpty(t *testing.T) {
 	handler := workbenchForTools(t, dispatch)
 
 	body := "hex="
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/bgp-decode/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/bgp-decode/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -238,7 +238,7 @@ func TestToolBGPDecodeValidatesEmpty(t *testing.T) {
 
 func TestToolMetricsPageRendersForm(t *testing.T) {
 	handler := workbenchForTools(t, nil)
-	req := httptest.NewRequest(http.MethodGet, "/show/tools/metrics/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/tools/metrics/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -254,7 +254,7 @@ func TestToolMetricsDispatchesCommand(t *testing.T) {
 	handler := workbenchForTools(t, dispatch)
 
 	body := "name=bgp_peer_up&label=instance%3Dpeer1"
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/metrics/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/metrics/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -270,7 +270,7 @@ func TestToolMetricsValidatesName(t *testing.T) {
 	handler := workbenchForTools(t, dispatch)
 
 	body := "name="
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/metrics/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/metrics/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -285,7 +285,7 @@ func TestToolMetricsValidatesNameFormat(t *testing.T) {
 	handler := workbenchForTools(t, dispatch)
 
 	body := "name=invalid%21name"
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/metrics/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/metrics/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -301,7 +301,7 @@ func TestToolMetricsValidatesNameLength(t *testing.T) {
 
 	longName := strings.Repeat("a", maxMetricNameLen+1)
 	body := "name=" + longName
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/metrics/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/metrics/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -315,7 +315,7 @@ func TestToolMetricsValidatesNameLength(t *testing.T) {
 
 func TestToolCapturePageRendersForm(t *testing.T) {
 	handler := workbenchForTools(t, nil)
-	req := httptest.NewRequest(http.MethodGet, "/show/tools/capture/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/tools/capture/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -332,7 +332,7 @@ func TestToolCaptureDispatchesCommand(t *testing.T) {
 	handler := workbenchForTools(t, dispatch)
 
 	body := "tunnel-id=100&peer=192.0.2.1&count=50"
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/capture/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/capture/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -359,7 +359,7 @@ func TestToolCaptureBoundaryTunnelID(t *testing.T) {
 			handler := workbenchForTools(t, dispatch)
 
 			body := "tunnel-id=" + tt.tunnelID + "&count=100"
-			req := httptest.NewRequest(http.MethodPost, "/show/tools/capture/", strings.NewReader(body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/capture/", strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("HX-Request", "true")
 			rec := httptest.NewRecorder()
@@ -393,7 +393,7 @@ func TestToolCaptureBoundaryCount(t *testing.T) {
 			handler := workbenchForTools(t, dispatch)
 
 			body := "count=" + tt.count
-			req := httptest.NewRequest(http.MethodPost, "/show/tools/capture/", strings.NewReader(body))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/capture/", strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("HX-Request", "true")
 			rec := httptest.NewRecorder()
@@ -418,7 +418,7 @@ func TestToolOutputTruncation(t *testing.T) {
 	handler := workbenchForTools(t, dispatch)
 
 	body := "destination=192.0.2.1&count=1&timeout=1"
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()

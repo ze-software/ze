@@ -10,74 +10,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=system-ntp-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        resp = dispatch(api, 'show system ntp')
-        status = resp.get('status')
-        if status is None:
-            runtime_fail(f'ntp: dispatch returned no status: {resp}')
-        if status != 'done':
-            runtime_fail(f'ntp: status={status} data={resp.get("data")}')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-
-        if not isinstance(data, dict):
-            runtime_fail(f'ntp: expected dict, got {type(data).__name__}')
-        if 'enabled' not in data:
-            runtime_fail(f'ntp: missing "enabled" in {data}')
-
-        resp2 = dispatch(api, 'show system ntp peers')
-        status2 = resp2.get('status')
-        if status2 != 'done':
-            runtime_fail(f'ntp peers: status={status2} data={resp2.get("data")}')
-
-        data2 = result_text_data(resp2)
-        if isinstance(data2, str) and data2:
-            data2 = json.loads(data2)
-
-        if not isinstance(data2, dict):
-            runtime_fail(f'ntp peers: expected dict, got {type(data2).__name__}')
-        if 'peers' not in data2:
-            runtime_fail(f'ntp peers: missing "peers" in {data2}')
-        if 'count' not in data2:
-            runtime_fail(f'ntp peers: missing "count" in {data2}')
-
-        print(f'OK: ntp enabled={data["enabled"]} peers-count={data2["count"]}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external system-ntp-show-test {
-		run ./system-ntp-show-test.run
+		run "ze-test fixture plugin/system-ntp-show"
 		encoder json
 	}
 }

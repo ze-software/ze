@@ -475,8 +475,8 @@ func TestInstallReportAndExitMapping(t *testing.T) {
 	}
 }
 
-// VALIDATES: all four Make suffixes are native gateless qemu actions with no fork declaration.
-// PREVENTS: one producer remaining hidden behind a Python fork.
+// VALIDATES: all four installer actions are native and present.
+// PREVENTS: one installer workflow disappearing from the action table.
 func TestInstallerActionsAreNativeAndComplete(t *testing.T) {
 	wanted := map[string]bool{"install-test": false, "install-iso-test": false, "install-scenarios-test": false, "install-ventoy-test": false}
 	for _, action := range Actions().Actions {
@@ -484,12 +484,6 @@ func TestInstallerActionsAreNativeAndComplete(t *testing.T) {
 			continue
 		}
 		wanted[action.Verb] = true
-		if action.Gate != "" {
-			t.Fatalf("%s gate %q", action.Verb, action.Gate)
-		}
-		if len(action.Forks) != 0 {
-			t.Fatalf("%s forks %q", action.Verb, action.Forks)
-		}
 	}
 	for verb, found := range wanted {
 		if !found {

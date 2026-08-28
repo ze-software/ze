@@ -45,7 +45,7 @@ func (r Report) Text() string {
 	case r.Written:
 		tb.Str("wrote ").Str(r.File).Str(" (").Int(int64(len(r.Packages))).Str(" packages)")
 	case r.Stale:
-		tb.Str("WARNING: ").Str(r.File).Str(" is stale -- run: make ze-discovery-index-update")
+		tb.Str("WARNING: ").Str(r.File).Str(" is stale -- run: ./le discovery-index update")
 	default:
 		tb.Str("checked ").Int(int64(len(r.Packages))).Str(" packages, ").Str(r.File).Str(" up to date")
 	}

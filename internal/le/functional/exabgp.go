@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	exaBGPGate            = "ze-functional-exabgp-test"
+	exaBGPAction          = "functional/exabgp-test"
 	exaBGPTimeoutKey      = "ze.functional.exabgp.timeout"
 	exaBGPTimeoutAlias    = "ZE_EXABGP_TIMEOUT"
 	exaBGPTimeoutDefault  = "180"
@@ -42,11 +42,11 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
-// ExaBGPCommand is one context-bound child of the compatibility stage.
+// exaBGPCommand is one context-bound child of the compatibility stage.
 // Environment is the complete child environment and can contain credentials;
 // callers MUST NOT render it. ReportEnvironment is the safe subset recorded in
 // the stage report.
-type ExaBGPCommand struct {
+type exaBGPCommand struct {
 	Stage             string
 	Arguments         []string
 	Directory         string
@@ -55,18 +55,18 @@ type ExaBGPCommand struct {
 	Artifact          string
 }
 
-// ExaBGPExecution is the observable result of one child process.
-type ExaBGPExecution struct {
+// exaBGPExecution is the observable result of one child process.
+type exaBGPExecution struct {
 	Stdout string
 	Stderr string
 	Error  string
 	Code   int
 }
 
-// ExaBGPRunner runs one child. Implementations MUST bind every process to ctx
+// exaBGPRunner runs one child. Implementations MUST bind every process to ctx
 // and MUST return the child's exact exit code.
-type ExaBGPRunner interface {
-	Run(ctx context.Context, command ExaBGPCommand) ExaBGPExecution
+type exaBGPRunner interface {
+	Run(ctx context.Context, command exaBGPCommand) exaBGPExecution
 }
 
 // ExaBGPChildResult records one build or compatibility-suite child.
@@ -91,9 +91,9 @@ type ExaBGPCleanup struct {
 	Error   string `json:"error,omitempty"`
 }
 
-// ExaBGPReport is the structured answer from ze-functional-exabgp-test.
-type ExaBGPReport struct {
-	Gate      string              `json:"gate"`
+// exaBGPReport is the structured answer from `le functional exabgp-test`.
+type exaBGPReport struct {
+	Action    string              `json:"action"`
 	Root      string              `json:"root"`
 	Timeout   string              `json:"timeout"`
 	Artifacts []string            `json:"artifacts"`
@@ -103,15 +103,15 @@ type ExaBGPReport struct {
 	Code      int                 `json:"code"`
 }
 
-// RunExaBGP builds the exact ze and ze-test subjects, then runs every ExaBGP
+// runExaBGP builds the exact ze and ze-test subjects, then runs every ExaBGP
 // compatibility case through uv. A nil runner selects the real process runner.
 // The first failing child supplies both the report code and the returned code.
-func RunExaBGP(ctx context.Context, root string, runner ExaBGPRunner) (
-	report ExaBGPReport,
+func runExaBGP(ctx context.Context, root string, runner exaBGPRunner) (
+	report exaBGPReport,
 	code int,
 ) {
-	report = ExaBGPReport{
-		Gate:      exaBGPGate,
+	report = exaBGPReport{
+		Action:    exaBGPAction,
 		Root:      root,
 		Timeout:   exaBGPTimeout(),
 		Children:  []ExaBGPChildResult{},
@@ -202,14 +202,20 @@ func exaBGPTimeout() string {
 
 func exaBGPBinarySet(toolchain gotoolchain.Toolchain) (BinarySet, error) {
 	if env.Get("ze.test.canonical") != "" {
-		dir := canonicalBinDir(toolchain.Root)
+		dir, err := canonicalBinDir(toolchain.Root)
+		if err != nil {
+			return BinarySet{}, err
+		}
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return BinarySet{}, err
 		}
 		return BinarySet{Dir: dir}, nil
 	}
 
-	root, remove := BinaryRoot(toolchain.Root, "exabgp")
+	root, remove, err := binaryRoot(toolchain.Root, "exabgp")
+	if err != nil {
+		return BinarySet{}, err
+	}
 	dir := filepath.Join(root, "bin")
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return BinarySet{}, err
@@ -221,15 +227,15 @@ func exaBGPCommands(
 	toolchain gotoolchain.Toolchain,
 	set BinarySet,
 	timeout string,
-) ([]ExaBGPCommand, error) {
+) ([]exaBGPCommand, error) {
 	buildEnvironment := toolchain.Environment(gotoolchain.EnvOptions{})
 	buildReportEnvironment := toolchain.Overrides(gotoolchain.EnvOptions{})
-	commands := make([]ExaBGPCommand, 0, 3)
+	commands := make([]exaBGPCommand, 0, 3)
 	var tb textbuf.Buffer
 	zeFound := false
 	zeTestFound := false
 
-	for _, arguments := range BuildCommands(toolchain, set.Dir, false) {
+	for _, arguments := range buildCommands(toolchain, set.Dir, false) {
 		artifact, ok := exaBGPBuildArtifact(arguments)
 		if !ok {
 			return nil, errors.New("functional artifact owner declared a build without an output")
@@ -249,7 +255,7 @@ func exaBGPCommands(
 		default:
 			continue
 		}
-		commands = append(commands, ExaBGPCommand{
+		commands = append(commands, exaBGPCommand{
 			Stage:             tb.Reset().Str("build-").Str(name).String(),
 			Arguments:         append([]string(nil), arguments...),
 			Directory:         toolchain.Root,
@@ -268,16 +274,16 @@ func exaBGPCommands(
 	runEnvironment := set.Environment(toolchain)
 	runReportEnvironment := toolchain.Overrides(gotoolchain.EnvOptions{})
 	zePathEnvironment := tb.Reset().Str("ZE_BIN=").Str(filepath.Join(set.Dir, "ze")).String()
-	zeTestPathEnvironment := tb.Reset().Str("ZE_TEST_BIN=").Str(set.ZeTestPath()).String()
+	zeTestPathEnvironment := tb.Reset().Str("ZE_TEST_BIN=").Str(set.zeTestPath()).String()
 	runReportEnvironment = append(runReportEnvironment,
 		"ZE_TEST_NO_BUILD=1",
 		zePathEnvironment,
 		zeTestPathEnvironment,
 	)
-	commands = append(commands, ExaBGPCommand{
+	commands = append(commands, exaBGPCommand{
 		Stage: "exabgp",
 		Arguments: []string{
-			"uv", "run", "--with", "paramiko", set.ZeTestPath(),
+			"uv", "run", "--with", "paramiko", set.zeTestPath(),
 			"exabgp", "--all", "--timeout", timeout,
 		},
 		Directory:         toolchain.Root,
@@ -299,8 +305,8 @@ func exaBGPBuildArtifact(arguments []string) (string, bool) {
 
 func exaBGPRunChild(
 	ctx context.Context,
-	runner ExaBGPRunner,
-	command ExaBGPCommand,
+	runner exaBGPRunner,
+	command exaBGPCommand,
 ) ExaBGPChildResult {
 	execution := runner.Run(ctx, command)
 	return ExaBGPChildResult{
@@ -330,7 +336,7 @@ func exaBGPCheckArtifact(path string) error {
 	return nil
 }
 
-func exaBGPCleanupBinarySet(set BinarySet, report *ExaBGPReport, code *int) {
+func exaBGPCleanupBinarySet(set BinarySet, report *exaBGPReport, code *int) {
 	path := filepath.Dir(set.Dir)
 	if !set.Remove {
 		report.Cleanup = ExaBGPCleanup{Path: path, Kept: true}
@@ -347,7 +353,7 @@ func exaBGPCleanupBinarySet(set BinarySet, report *ExaBGPReport, code *int) {
 	report.Cleanup = ExaBGPCleanup{Path: path, Removed: true}
 }
 
-func exaBGPSetupFailure(report ExaBGPReport, err error) (ExaBGPReport, int) {
+func exaBGPSetupFailure(report exaBGPReport, err error) (exaBGPReport, int) {
 	report.Error = err.Error()
 	report.Code = 1
 	return report, 1
@@ -372,10 +378,10 @@ func (capture *exaBGPCapture) Write(output []byte) (int, error) {
 
 func (exaBGPProcessRunner) Run(
 	ctx context.Context,
-	command ExaBGPCommand,
-) ExaBGPExecution {
+	command exaBGPCommand,
+) exaBGPExecution {
 	if len(command.Arguments) == 0 {
-		return ExaBGPExecution{
+		return exaBGPExecution{
 			Error: "ExaBGP child declared no command",
 			Code:  gaterun.CannotStart,
 		}
@@ -393,7 +399,7 @@ func (exaBGPProcessRunner) Run(
 	cmd.WaitDelay = 5 * time.Second
 
 	err := cmd.Run()
-	result := ExaBGPExecution{
+	result := exaBGPExecution{
 		Stdout: exaBGPOutput(stdout.Bytes()),
 		Stderr: exaBGPOutput(stderr.Bytes()),
 	}

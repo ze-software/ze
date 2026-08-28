@@ -10,7 +10,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -32,5 +31,5 @@ func init() {
 	leroot.RegisterShape(Area, command.ShapeDoc)
 
 	// The census derives every claimed gate from the native action table.
-	parity.Claim(Area, Gates()...)
+
 }

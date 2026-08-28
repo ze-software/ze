@@ -6,8 +6,8 @@ tools: Bash, Read, Edit, Write, NotebookEdit, ToolSearch, Skill, WebFetch, WebSe
 
 You run one editing phase for the main thread, through the `ze-*` skill named in
 your prompt. Read that skill and follow it. Your contract is
-`ai/rules/planning.md`, and `.claude/hooks/subagent-context.sh` has already
-given you the rest of it.
+`ai/rules/planning.md`, and the native `subagent-context` hook in
+`internal/le/hookruntime/lifecycle.go` has already given you the rest of it.
 
 You hold no Agent. When your package is too big to finish, report its size to
 the main thread and let it re-cut the packages. Never trim an acceptance
@@ -21,9 +21,9 @@ file and costs about a tenth of reading it. Never read a whole file to hunt for
 a symbol, and never report that you cannot look.
 
 **You hold no Monitor, so wait on a long command in the FOREGROUND** with the
-largest timeout your harness allows. `make ze-precommit-verify` returns when it is done,
+largest timeout your harness allows. `./le verify current mode full` returns when it is done,
 and that return is the completion signal (`ai/rules/git-safety.md`). Never write
-a polling loop: `.claude/hooks/pretool-bash.py` blocks one.
+a polling loop: `internal/le/hookruntime/bash.go` blocks one.
 
 <!--
 The `tools:` list above holds ONLY names this harness resolves for a subagent.

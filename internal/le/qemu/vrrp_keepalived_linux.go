@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: plan/spec-le-is-a-ze-binary.md -- step 10 guest-side evidence ports
-// Producer: scripts/evidence/effective-vrrp-keepalived.py.
+// Replaces the former effective VRRP Python guest driver.
 package qemu
 
 import (
@@ -300,7 +300,7 @@ func probeVRRPKernel(ctx context.Context, names vrrpNames) error {
 				"kernel lacks %s: `%s` failed in a private namespace. This lab needs %s in the running kernel. "+
 					"It already boots ze's runtime kernel, so a module package is not the answer and there is "+
 					"nothing to load: add %s to gokrazy/kernel/runtime.config and to "+
-					"gokrazy/kernel/runtime.require, then `make ze-kernel-vmlinuz-stage KERNEL_ARCH=<arch>`. "+
+					"gokrazy/kernel/runtime.require, then run `./ze appliance kernel --target runtime --arch <arch>`. "+
 					"The require entry makes a later build fail rather than silently ship without the symbol",
 				probe.feature, strings.Join(probe.argv, " "), probe.symbol, probe.symbol)
 		}
@@ -1059,8 +1059,8 @@ func lastLines(lines []string, count int) []string {
 	return lines[len(lines)-count:]
 }
 
-func runVRRPGuest(ctx context.Context, root string, selected []string) (GuestLabReport, error) {
-	report := GuestLabReport{Lab: "vrrp-keepalived", Selected: append([]string(nil), selected...), Verdict: VerdictUnspecified}
+func runVRRPGuest(ctx context.Context, root string, selected []string) (guestLabReport, error) {
+	report := guestLabReport{Lab: "vrrp-keepalived", Selected: append([]string(nil), selected...), Verdict: VerdictUnspecified}
 	if err := requireGuestCommands("ip", "ping", "tcpdump", "keepalived"); err != nil {
 		return report, err
 	}

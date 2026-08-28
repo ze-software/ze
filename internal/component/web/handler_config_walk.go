@@ -274,7 +274,7 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 			data.Children = append(data.Children, ChildEntry{
 				Name: name,
 				Kind: nodeKindString(node.Kind()),
-				URL:  func() string { var tb textbuf.Buffer; return tb.Str("/show/").Str(name).Byte('/').String() }(),
+				URL:  func() string { var tb textbuf.Buffer; return tb.Str(showPathPrefix).Str(name).Byte('/').String() }(),
 			})
 		}
 		return data, nil
@@ -290,7 +290,7 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 
 	data.NodeKind = schemaNode.Kind()
 	var tb textbuf.Buffer
-	prefix := tb.Str("/show/").Join(path, "/").String()
+	prefix := tb.Str(showPathPrefix).Join(path, "/").String()
 
 	switch n := schemaNode.(type) {
 	case *config.ContainerNode:
@@ -301,7 +301,7 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 		// When the path ends at the list itself (no key selected),
 		// show the list of keys with the base path for navigation.
 		data.Keys = collectListKeys(tree, schema, path)
-		data.BasePath = tb.Reset().Str("/show/").Join(path, "/").Byte('/').String()
+		data.BasePath = tb.Reset().Str(showPathPrefix).Join(path, "/").Byte('/').String()
 
 		// When we have a list node and the path included a key (walkTree
 		// descended into an entry), also populate leaf fields.

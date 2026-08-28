@@ -311,7 +311,7 @@ The YANG path maps directly: `show bgp peer` = container nesting = WireMethod `z
 | No os.Exit() | Return exit code from handler. Never call `os.Exit()` in a handler |
 | Suggest | Unknown subcommand: `suggest.Command(arg, candidates)` + hint to stderr |
 | Help | Handle `help`, `-h`, `--help` at parent level BEFORE dispatch |
-| Stdin/stdout | `-` means stdin (read) / stdout (write). Read/write a user-supplied path through `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), NEVER a raw `os` call -- `make ze-dash-stdio-check` enforces it |
+| Stdin/stdout | `-` means stdin (read) / stdout (write). Read/write a user-supplied path through `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), NEVER a raw `os` call -- `./le dash-stdio check` enforces it |
 | JSON output | `--json` flag. Default is human-readable text |
 
 ## Command Registration (BLOCKING)

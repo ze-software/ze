@@ -29,8 +29,8 @@ import (
 // DISCRIMINATION: the reader is runIngressPolicyChain (filter_ordered.go), the real
 // producer of the ingress read, not the accessor called directly -- the accessor
 // alone would still pass if the datapath stopped using it. It is evidence ONLY
-// under -race: `make ze-unit-reactor-test-race`. Verified by mutation on 2026-08-12 --
-// replacing the accessor call at filter_ordered.go with a direct peer.settings
+// under `./le test-unit bgp`. Verified by mutation on 2026-08-12: replacing the
+// accessor call at filter_ordered.go with a direct peer.settings
 // read makes the detector report a read there against the write in
 // hotSwappableSettings from applyHotSwappableSettings.
 func TestReloadWhileReceivingNoRace(t *testing.T) {

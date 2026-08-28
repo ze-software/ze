@@ -5,7 +5,7 @@ description: Audit that RFC tests still enforce the letter and spirit of their r
 
 # RFC Requirement Audit
 
-`make ze-rfc-check` proves a **link** exists: this requirement has a positive test and a
+`./le rfc check` proves a **link** exists: this requirement has a positive test and a
 negative test. It cannot read either. A test can be tagged, green, and still not enforce
 what the RFC says.
 
@@ -21,15 +21,14 @@ audit; everything below serves it.
    alone: the summary is the thing under audit. RFC 7606's own list once said an UPDATE
    with no reachable NLRI must session-reset, dropping the RFC's "other than
    MP_UNREACH_NLRI" clause — which made it demand a reset on every End-of-RIB.
-4. Run `make ze-rfc-index-update`, then print that RFC's requirement → test map with
-   `python3 scripts/dev/rfc_requirements.py --show $ARGUMENTS`, which reads
-   `rfc/requirements/$ARGUMENTS.md`. If this regen produces a diff you did not cause
+4. Run `./le rfc index-update`, then read
+   `rfc/requirements/$ARGUMENTS.md`. If this regeneration produces a diff you did not cause
    (a pure `file:line` refresh from someone else's un-regenerated test edit), do NOT fold it
    into the audit: it belongs to that other change's commit. See "Keep the ledger committed"
    in `ai/skills/ze-rfc.md`.
 5. For EACH gated requirement, open every tagged test and judge it (see below).
 6. WRITE `rfc/audit/$ARGUMENTS.json`.
-7. Run `make ze-rfc-check`.
+7. Run `./le rfc check`.
 
 ## The judgement
 
@@ -74,7 +73,7 @@ Then the polarity pair:
 | `unimplemented` | The tests are fine; the CODE does not do it. This is a `{gap}`, not a test gap. Requires a `code` map and a `{gap}`/`{not-applicable}` annotation. |
 | `not-applicable` | No reachable code path can satisfy or violate the requirement — it binds a document's authors, another role, or a layer Ze does not implement. Requires NO cited test (`tests` empty or omitted, either is the same state), a `no_code_path` reason in prose, and a `{not-applicable}` annotation on the checklist line. |
 
-**The five values are a closed enum and `make ze-rfc-check` enforces it.** A sixth word is a
+**The five values are a closed enum and `./le rfc check` enforces it.** A sixth word is a
 parse error, not a novel verdict. `implemented` sat in `rfc/audit/rfc7606.json` for weeks, and no
 code read the field at all.
 
@@ -91,21 +90,20 @@ This verdict says what the CODE can do. It never says that the classification is
 |-------|------|-----------|
 | `requirement_sha` | always | `requirement_sha(text)` of the checklist line |
 | `tests` | one entry per tagged test, and empty or omitted on `not-applicable`, which cites none | `{key -> whole-file sha}` for each tagged test |
-| `units` | one entry per `tests` entry, so empty or omitted whenever `tests` is | `{key -> enclosing-unit sha}`. The unit is one top-level Go function (doc comment through closing brace) or the whole file for a `.ci`, a `.et` or an interop `check.py` |
+| `units` | one entry per `tests` entry, so empty or omitted whenever `tests` is | `{key -> enclosing-unit sha}`. The unit is one top-level Go function (doc comment through closing brace) or the whole file for a `.ci`, a `.et`, or a native interop evidence file |
 | `code` | `unimplemented` | `{key -> enclosing-unit sha}` of the PRODUCING code the note names. Without it the verdict can never go stale |
 | `no_code_path` | `not-applicable` | prose stating why no reachable path exists |
 | `upgrade_reason` | changing a `weak`/`wrong` verdict to `enforced` with no unit change | what you re-read and why the earlier judgement was wrong |
 
 **The key names a SYMBOL, never a location.** `<path>::<FuncName>` for a Go function, and the
-bare `<path>` when the whole file is the unit (a `.ci`, an `.et`, an interop `check.py`, or a Go
-tag that sits outside every function span). A second and later tag inside ONE function takes an
+bare `<path>` when the whole file is the unit (a `.ci`, a `.et`, or a native interop evidence file). A second and later tag inside ONE function takes an
 ordinal: `<path>::<FuncName>#2`, `#3`, in tag order. The retired `<path>:<line>` form is refused,
 because no generator kept that line current and it rotted at the next edit above it.
 
 **Compute the keys and the shas with the tool, never by hand:**
 `requirement_sha(text)`, `test_sha(source)`, `tag_keys(tags)` (the keys), `tagged_unit_shas(tags)`
 (the `tests` map) and `unit_shas(keys)` (the `units` and `code` maps) in
-`scripts/dev/rfc_requirements.py`.
+`internal/le/rfc/rfc.go`.
 
 ## Recording a finding never fails the build
 
@@ -125,7 +123,7 @@ with the RFC text and the producing `file:line`. Then ask which way he wants it 
 ## Why the fingerprint exists
 
 A verdict is a claim about two things that both change: the requirement's text and the
-test's source. `make ze-rfc-check` recomputes both shas and **fails** when either moved,
+test's source. `./le rfc check` recomputes both shas and **fails** when either moved,
 because a verdict that no longer describes what it judged is worse than no verdict — it is
 a stale assurance wearing the badge of a fresh one.
 
@@ -140,7 +138,7 @@ a test that no longer enforces its requirement.
 | State | What moved | What clears it |
 |-------|-----------|----------------|
 | `fresh` | nothing | — |
-| `shifted` | the FILE around a tagged unit: a line shift, a sibling test, an import rewrite. The unit itself is byte-identical, so nothing was re-judged | `make ze-rfc-reseal`, then `make ze-rfc-index-update`. **No re-reading is asked for** |
+| `shifted` | the FILE around a tagged unit: a line shift, a sibling test, an import rewrite. The unit itself is byte-identical, so nothing was re-judged | `./le rfc reseal`, then `./le rfc index-update`. **No re-reading is asked for** |
 | `stale-unit` | the tagged unit itself, or a cited producer in a `code` map | `/ze-rfc-audit <rfc>` — read it again |
 | `stale-requirement` | the checklist line's own text | `/ze-rfc-audit <rfc>` — every judgement under it is void |
 
@@ -149,8 +147,8 @@ were hand re-stamps in which no verdict changed. Each one cost a human a mechani
 written note. And each one taught the reflex that re-stamping is what you do when this gate goes
 red. That is the failure mode at fleet scale, so the class is now automated away.
 
-`make ze-rfc-reseal` is the ONLY thing that writes `rfc/audit/` without a human editing it.
-`make ze-rfc-check` is read-only, and `make ze-rfc-index-update` touches `ai/RFC-REQUIREMENTS.md`
+`./le rfc reseal` is the ONLY thing that writes `rfc/audit/` without a human editing it.
+`./le rfc check` is read-only, and `./le rfc index-update` touches `ai/RFC-REQUIREMENTS.md`
 and `rfc/requirements/` alone.
 
 ## Rules
@@ -175,10 +173,10 @@ and `rfc/requirements/` alone.
 
 | Need | Use |
 |------|-----|
-| Does every MUST have its pair of tests? | `make ze-rfc-check` |
-| Requirement → test map for one RFC | `make ze-rfc-index-update`, then `python3 scripts/dev/rfc_requirements.py --show <stem>` → `rfc/requirements/<stem>.md` |
-| The backlog over every RFC | `make ze-rfc-index-update` → `ai/RFC-REQUIREMENTS.md` |
+| Does every MUST have its pair of tests? | `./le rfc check` |
+| Requirement → test map for one RFC | `./le rfc index-update`, then read `rfc/requirements/<stem>.md` |
+| The backlog over every RFC | `./le rfc index-update` → `ai/RFC-REQUIREMENTS.md` |
 | Which requirements are audited, proven, or carry a finding | the **Audit coverage** section of `ai/RFC-REQUIREMENTS.md` (derived, never hand-maintained) |
-| Clear a `shifted` verdict | `make ze-rfc-reseal`, then `make ze-rfc-index-update` |
+| Clear a `shifted` verdict | `./le rfc reseal`, then `./le rfc index-update` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
 | Public support claims | `docs/features/rfc-status.md` |

@@ -41,7 +41,7 @@ func fakeISISDispatch(payload string, gotCmd *string) CommandDispatcher {
 func TestISISNeighborsJSON(t *testing.T) {
 	var got string
 	h := &ISISHandlers{Dispatch: fakeISISDispatch(`[{"system-id":"0000.0000.0002","state":"up"}]`, &got)}
-	req := httptest.NewRequest("GET", "/isis?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/isis?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.handleISISNeighbors()(rec, req)
 
@@ -60,7 +60,7 @@ func TestISISNeighborsJSON(t *testing.T) {
 func TestISISDatabaseJSON(t *testing.T) {
 	var got string
 	h := &ISISHandlers{Dispatch: fakeISISDispatch(`[{"lsp-id":"0000.0000.0001.00-00","sequence":1}]`, &got)}
-	req := httptest.NewRequest("GET", "/isis/database?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/isis/database?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.handleISISDatabase()(rec, req)
 
@@ -76,7 +76,7 @@ func TestISISDatabaseJSON(t *testing.T) {
 // initial snapshot and pointing at the SSE stream.
 func TestISISNeighborsHTML(t *testing.T) {
 	h := &ISISHandlers{Dispatch: fakeISISDispatch(`[]`, nil)}
-	req := httptest.NewRequest("GET", "/isis", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/isis", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.handleISISNeighbors()(rec, req)
 
@@ -93,7 +93,7 @@ func TestISISNeighborsHTML(t *testing.T) {
 // than panicking.
 func TestISISNoDispatch(t *testing.T) {
 	h := &ISISHandlers{}
-	req := httptest.NewRequest("GET", "/isis?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/isis?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.handleISISNeighbors()(rec, req)
 	if rec.Code != 503 {
@@ -106,8 +106,8 @@ func TestISISNoDispatch(t *testing.T) {
 // loop honors ctx.Done (no goroutine leak).
 func TestISISSSEEmitsAndCloses(t *testing.T) {
 	h := &ISISHandlers{Dispatch: fakeISISDispatch(`[{"system-id":"0000.0000.0003"}]`, nil)}
-	ctx, cancel := context.WithCancel(context.Background())
-	req := httptest.NewRequest("GET", "/isis/neighbors/stream", http.NoBody).WithContext(ctx)
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/isis/neighbors/stream", http.NoBody).WithContext(ctx)
 	rec := httptest.NewRecorder()
 
 	done := make(chan struct{})

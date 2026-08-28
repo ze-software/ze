@@ -3,4 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-**A main thread whose context passes 600k MUST write its per-spec state file and hand off rather than continuing.** The file is `tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md`, and `_find_latest_state_for_spec` (`.claude/hooks/lib/state-file.sh`) is what the next session reads it back with. Measured: 49.5% of main-thread context was fed at calls already above 600k, against a 1M ceiling, where every later call pays the whole context again.
+**A main thread whose context passes 600k MUST write its per-spec state file and hand off rather than continuing.** Resolve the newest file with `./le spec-session state latest spec <spec-stem>`.

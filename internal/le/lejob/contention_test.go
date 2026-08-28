@@ -1,6 +1,6 @@
 // Related: lejob.go -- the admission these tests drive from its entry point
 //
-// VALIDATES: spec-le-is-a-ze-binary AC-11 for scripts/dev/ze-run.sh. Admission
+// VALIDATES: spec-le-is-a-ze-binary AC-11 for internal/le/lejob/answer.go. Admission
 // concerns CONTENTION. Equivalence therefore depends on what happens when two
 // processes request the machine at the same time, not on one process's output.
 // Every case runs REAL processes against one registry. This test binary
@@ -310,7 +310,7 @@ func TestANestedJobWhoseParentHasFinishedIsAdmittedNormally(t *testing.T) {
 }
 
 // TestTheJobsOwnExitCodeReachesTheCaller verifies AC-8 at the wrapper. A gate
-// that fails with 3 must return 3 because scripts/dev/commit_helper.py blocks
+// that fails with 3 must return 3 because internal/le/commit/actions.go blocks
 // on 3 but treats 1 as a warning.
 func TestTheJobsOwnExitCodeReachesTheCaller(t *testing.T) {
 	root := fixtureRepo(t)
@@ -349,7 +349,7 @@ func TestMakesNoExecuteModesTakeNoSlot(t *testing.T) {
 func TestALabelThatIsNotAPathComponentIsRefused(t *testing.T) {
 	adm := &Admission{Root: t.TempDir(), Slots: 1, Stall: StallDefault}
 	for _, label := range []string{"", "../escape", "a/b", "dotted.name"} {
-		if _, err := adm.Admit(label, []string{"true"}); err == nil {
+		if _, err := adm.admit(label, []string{"true"}); err == nil {
 			t.Errorf("the label %q was accepted", label)
 		}
 	}
@@ -381,11 +381,10 @@ func TestAPolicyOutsideItsRangeIsRefusedRatherThanClamped(t *testing.T) {
 }
 
 // TestTheDocumentedKnobsReachThePolicy verifies the three environment names
-// that the Makefile and ai/rules tell a session to use.
+// that native actions and ai/rules tell a session to use.
 //
-// A misspelled key fails SILENTLY. env.Get returns the empty string, the default
-// remains in effect, and `make <target> ZE_RUN_SLOTS=1` has no effect when a
-// session needs it.
+// A misspelled key fails SILENTLY. env.Get returns the empty string and the
+// default remains in effect.
 func TestTheDocumentedKnobsReachThePolicy(t *testing.T) {
 	detach(t)
 
@@ -492,7 +491,7 @@ func TestReleaseRecordsTheVerdictWhereAFollowerFindsIt(t *testing.T) {
 	root := fixtureRepo(t)
 	adm := admission(t, root)
 
-	ticket, err := adm.Admit("held", []string{"true"})
+	ticket, err := adm.admit("held", []string{"true"})
 	if err != nil {
 		t.Fatalf("admit: %v", err)
 	}
@@ -513,9 +512,9 @@ func TestReleaseRecordsTheVerdictWhereAFollowerFindsIt(t *testing.T) {
 // detach makes a case's own admission independent of the job this test binary
 // is running inside.
 //
-// It is needed because the nesting rule WORKS. `make ze-unit-pkg-test` routes
-// through scripts/dev/ze-run.sh, which exports ZE_RUN_JOB. Thus, a test process
-// that admits its own job finds a live parent entry and runs inside that slot.
+// It is needed because the nesting rule WORKS. `./le test-unit core` routes
+// through internal/le/lejob/answer.go, which exports ZE_RUN_JOB. Thus, a test
+// process that admits its own job finds a live parent entry and runs inside that slot.
 // The helper processes are unaffected because their environment names nothing.
 // A case that admits in-process has to say so.
 //
@@ -675,7 +674,6 @@ func heldEntrySince(t *testing.T, root, label string, pid int, since time.Durati
 	tb.Str("PGID=0\n")
 	tb.Str("TREE=").Str(TreeHash(root)).Byte('\n')
 	tb.Str("KEY=fabricated\n")
-	tb.Str("PARAMS=\n")
 	tb.Str("STARTED=").Int(time.Now().Add(-since).Unix()).Byte('\n')
 	tb.Str("LOG=").Str(logRel).Byte('\n')
 	tb.Str("STATE=running\n")

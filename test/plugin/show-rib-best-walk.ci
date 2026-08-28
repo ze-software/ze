@@ -29,136 +29,13 @@ option=tcp_connections:value=1
 option=timeout:value=20s
 EOF_PEER
 
-# Python test plugin
-tmpfs=rib-best-walk-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: show bgp rib best answers a walk whose document is unchanged."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-failures = 0
-
-# Twelve routes: enough that a lost row or a reordered walk is visible, and far
-# inside the 256 lines the engine's answer queue guarantees.
-ROUTES = 12
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def fail(message):
-    global failures
-    print(f'FAIL {message}', file=sys.stderr)
-    failures += 1
-
-
-def check_status(label, result):
-    actual = result.get('status')
-    if actual != 'done':
-        fail(f'{label}: expected status=done, got={actual} data={result.get("data")!r}')
-        return False
-    print(f'OK {label}: status=done', file=sys.stderr)
-    return True
-
-
-def best_entries(label, result):
-    data = result_json_data(result, {})
-    if not isinstance(data, dict) or 'best-path' not in data:
-        fail(f'{label}: no best-path envelope in {data!r}')
-        return []
-    entries = data['best-path']
-    if not isinstance(entries, list):
-        fail(f'{label}: best-path is not an array: {entries!r}')
-        return []
-    return entries
-
-
-def main():
-    global failures
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    api.wait_for_post_startup(timeout=5.0)
-    if api.dispatch_until_done('show bgp rib status').get('status') != 'done':
-        fail('rib plugin did not become ready')
-
-    for i in range(ROUTES):
-        cmd = (f'request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.{i}.0/24 '
-               f'aspath 64501,{64600 + i} nhop 10.0.0.1 localpref 100')
-        if not check_status(f'inject-{i}', dispatch(api, cmd)):
-            break
-
-    # The whole walk. The envelope, the row shape and the row count are what an
-    # operator and every buffered surface read.
-    r = dispatch(api, 'show bgp rib best')
-    if check_status('best', r):
-        entries = best_entries('best', r)
-        if len(entries) != ROUTES:
-            fail(f'best: expected {ROUTES} rows, got {len(entries)}')
-        else:
-            print(f'OK best: {len(entries)} rows', file=sys.stderr)
-        prefixes = sorted(e.get('prefix') for e in entries)
-        want = sorted(f'10.10.{i}.0/24' for i in range(ROUTES))
-        if prefixes != want:
-            fail(f'best: prefixes {prefixes!r} != {want!r}')
-        else:
-            print('OK best: every injected prefix is a row', file=sys.stderr)
-        first = entries[0] if entries else {}
-        for field in ('family', 'prefix', 'best-peer', 'attributes'):
-            if field not in first:
-                fail(f'best: row is missing {field!r}: {first!r}')
-        attrs = first.get('attributes', {})
-        if attrs.get('next-hop') != '10.0.0.1':
-            fail(f'best: row lost its next-hop: {attrs!r}')
-        else:
-            print('OK best: the row carries the attributes it was selected with', file=sys.stderr)
-
-    # A bound folded into the command bounds the walk itself.
-    r = dispatch(api, 'show bgp rib best first 2')
-    if check_status('best-first', r):
-        entries = best_entries('best-first', r)
-        if len(entries) != 2:
-            fail(f'best-first: expected 2 rows, got {len(entries)}')
-        else:
-            print('OK best-first: the walk stopped at two rows', file=sys.stderr)
-
-    # A terminal still folds the same walk into one number.
-    r = dispatch(api, 'show bgp rib best count')
-    if check_status('best-count', r):
-        data = result_json_data(r, {})
-        if data.get('count') != ROUTES:
-            fail(f'best-count: expected count={ROUTES}, got {data!r}')
-        else:
-            print(f'OK best-count: count={ROUTES}', file=sys.stderr)
-
-    if failures > 0:
-        msg = f'{failures} best-path walk assertions failed (see FAIL lines above)'
-        print(f'\n{msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/show-rib-best-walk.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rib-best-walk-test {
-		run ./rib-best-walk-test.run
+		run "ze-test fixture plugin/show-rib-best-walk"
 		encoder json
 	}
 	internal bgp-rib {

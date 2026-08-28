@@ -19,7 +19,7 @@ adversarial-self-review-blocking ## Adversarial Self-Review (BLOCKING)
   restate-an-unanswered-question-before-proceeding
 proof ## Proof
   paste-command-output-as-evidence
-  run-make-ze-verify-before-claiming-done
+  run-native-verify-before-claiming-done
   run-race-detection-on-changed-component-groups
 learned-summary-verification ## Learned Summary Verification
   verify-a-learned-summary-s-claims-against-the-code

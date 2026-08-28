@@ -14,45 +14,13 @@ cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast del 1.1.0.0/25
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C02000519010100000000
 EOF_PEER
 
-# Python plugin script
-tmpfs=add-remove.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-
-import time
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-
-def main() -> None:
-    ready()
-
-    messages = [
-        'peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24',
-        'peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25',
-        'sleep',
-        'peer * update text nlri ipv4/unicast del 1.1.0.0/24',
-        'peer * update text nlri ipv4/unicast del 1.1.0.0/25',
-    ]
-
-    for message in messages:
-        if message == 'sleep':
-            wait_for_ack(expected_count=2)
-            continue
-        send(message)
-
-    wait_for_ack(expected_count=4)
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native plugin script
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external add-remove {
-		run ./add-remove.run
+		run "ze-test fixture plugin/add-remove"
 		encoder json
 	}
 }

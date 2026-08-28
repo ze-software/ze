@@ -17,8 +17,28 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	coremetrics "github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+type metricsTestSpawner struct {
+	reg coremetrics.Registry
+}
+
+func (s *metricsTestSpawner) SetMetricsRegistry(reg coremetrics.Registry) { s.reg = reg }
+func (s *metricsTestSpawner) SpawnMore([]plugin.PluginConfig) error       { return nil }
+func (s *metricsTestSpawner) GetProcessManager() any                      { return nil }
+
+func TestLateMetricsRegistryReachesProcessSpawner(t *testing.T) {
+	server, err := NewServer(&ServerConfig{}, nil)
+	require.NoError(t, err)
+	spawner := &metricsTestSpawner{}
+	server.SetProcessSpawner(spawner)
+	reg := coremetrics.NewPrometheusRegistry()
+	server.SetMetricsRegistry(reg)
+	assert.Same(t, reg, spawner.reg)
+	assert.Same(t, reg, server.config.MetricsRegistry)
+}
 
 // TestServerStartStop verifies server lifecycle.
 //

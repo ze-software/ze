@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 type operationKind uint8
@@ -32,7 +32,6 @@ const (
 	opGoBGPRoute
 	opFRRCommunity
 	opFRRNoAS
-	opBIRDNoAS
 	opWaitContains
 	opRequireContains
 	opRequireAbsent
@@ -77,13 +76,23 @@ func checkScenario(ctx context.Context, check *interoplab.CheckContext, name str
 	return nil
 }
 func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string, assertion int, cause error) error {
-	logs, err := lab.Logs(ctx, "ze", 2000)
-	if err == nil && logs.Available {
-		for line := range strings.SplitSeq(logs.Text, "\n") {
-			if strings.Contains(line, "ZE-OBSERVER-FAIL") {
-				return fmt.Errorf("scenario %s assertion %d: %w; process plugin failed: %s", name, assertion, cause, strings.TrimSpace(line))
+	var diagnostics strings.Builder
+	for _, peer := range []string{"ze", "frr", "bird", "gobgp", "inject", "speaker", "speaker2"} {
+		logs, err := lab.Logs(ctx, peer, 80)
+		if err != nil || !logs.Available || strings.TrimSpace(logs.Text) == "" {
+			continue
+		}
+		if peer == "ze" {
+			for line := range strings.SplitSeq(logs.Text, "\n") {
+				if strings.Contains(line, "ZE-OBSERVER-FAIL") {
+					return fmt.Errorf("scenario %s assertion %d: %w; process plugin failed: %s", name, assertion, cause, strings.TrimSpace(line))
+				}
 			}
 		}
+		fmt.Fprintf(&diagnostics, "\n--- %s logs ---\n%s", peer, strings.TrimSpace(logs.Text))
+	}
+	if diagnostics.Len() != 0 {
+		return fmt.Errorf("scenario %s assertion %d: %w%s", name, assertion, cause, diagnostics.String())
 	}
 	return fmt.Errorf("scenario %s assertion %d: %w", name, assertion, cause)
 }
@@ -177,18 +186,6 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 				"vtysh",
 				"-c",
 				command.Str("show bgp ipv4 unicast ").Str(current.argument).Str(" json").String(),
-			},
-			current.argument,
-			current.absent[0],
-		)
-	case opBIRDNoAS:
-		return requireASAbsent(
-			ctx,
-			lab,
-			"bird",
-			[]string{
-				"birdc",
-				command.Str("show route for ").Str(current.argument).Str(" all").String(),
 			},
 			current.argument,
 			current.absent[0],

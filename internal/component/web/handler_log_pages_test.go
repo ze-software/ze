@@ -38,7 +38,7 @@ func TestLogLivePageRendersToolbar(t *testing.T) {
 	broker := NewEventBroker(10)
 	defer broker.Close()
 	handler := workbenchForLogs(t, nil, broker)
-	req := httptest.NewRequest(http.MethodGet, "/show/logs/live/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/logs/live/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -64,7 +64,7 @@ func TestLogLiveSSEStreamsEvents(t *testing.T) {
 	defer broker.Close()
 
 	handler := handleLogLiveStream(broker)
-	req := httptest.NewRequest(http.MethodGet, "/logs/live/stream", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/logs/live/stream", http.NoBody)
 	// Cancel the request context to make the SSE handler exit.
 	ctx, cancel := context.WithCancel(req.Context())
 	req = req.WithContext(ctx)
@@ -95,7 +95,7 @@ func TestLogLiveSSEClientDisconnect(t *testing.T) {
 
 func TestLogLiveSSENilBroker(t *testing.T) {
 	handler := handleLogLiveStream(nil)
-	req := httptest.NewRequest(http.MethodGet, "/logs/live/stream", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/logs/live/stream", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -109,7 +109,7 @@ func TestLogWarningsRendersTable(t *testing.T) {
 	dispatch, _ := mockDispatcher(jsonResp)
 	handler := workbenchForLogs(t, dispatch, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/logs/warnings/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/logs/warnings/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -127,7 +127,7 @@ func TestLogWarningsAllClear(t *testing.T) {
 	dispatch, _ := mockDispatcher(`{"warnings":[],"count":0}`)
 	handler := workbenchForLogs(t, dispatch, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/logs/warnings/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/logs/warnings/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -142,7 +142,7 @@ func TestLogWarningsAllClear(t *testing.T) {
 func TestLogWarningsUnavailableWithoutDispatch(t *testing.T) {
 	handler := workbenchForLogs(t, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/logs/warnings/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/logs/warnings/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -159,7 +159,7 @@ func TestLogErrorsRendersTable(t *testing.T) {
 	dispatch, _ := mockDispatcher(jsonResp)
 	handler := workbenchForLogs(t, dispatch, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/logs/errors/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/logs/errors/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -174,7 +174,7 @@ func TestLogErrorsEmptyJSON(t *testing.T) {
 	dispatch, _ := mockDispatcher(`{"errors":[],"count":0}`)
 	handler := workbenchForLogs(t, dispatch, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/logs/errors/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/logs/errors/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -188,7 +188,7 @@ func TestLogErrorsEmptyJSON(t *testing.T) {
 func TestLogErrorsUnavailableWithoutDispatch(t *testing.T) {
 	handler := workbenchForLogs(t, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/logs/errors/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/logs/errors/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -216,7 +216,7 @@ func TestLogPagesDispatchError(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			handler := workbenchForLogs(t, failing, nil)
-			req := httptest.NewRequest(http.MethodGet, tc.path, http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.path, http.NoBody)
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
 

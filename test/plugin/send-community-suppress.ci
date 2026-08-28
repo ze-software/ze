@@ -59,78 +59,7 @@ option=timeout:value=20s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C00804FDE800C8180A0000
 EOF_DEST_STD
 
-tmpfs=test-sendcomm.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Keep the daemon alive while both destination peers prove their wire.
-
-The expect=bgp rules on the two destinations are the authoritative assertions.
-This observer exists to own `request shutdown` and to fail loudly if a
-destination was never sent a real UPDATE -- an absence assertion is satisfied
-just as well by a daemon that never got as far as forwarding.
-"""
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-
-def peer_got_route(result):
-    """True once this peer has been sent an UPDATE that is not its own EOR.
-
-    updates-sent counts every UPDATE written to the peer, End-of-RIB included,
-    so the DIFFERENCE against eor-sent is the forwarded route. Not gated on
-    state == established: a check-mode ze-peer without linger closes the moment
-    its expect=bgp rule matches, so requiring established would be unsatisfiable
-    in exactly the run that passed (community-strip.ci makes the same note).
-    """
-    if result.get('status') != 'done':
-        return False
-    data = result_text_data(result, '{}')
-    try:
-        parsed = json.loads(data) if isinstance(data, str) else data
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    if not isinstance(parsed, dict):
-        return False
-    peers = parsed.get('peers', {})
-    if not isinstance(peers, dict):
-        return False
-    for row in peers.values():
-        if isinstance(row, dict) and row.get('updates-sent', 0) - row.get('eor-sent', 0) >= 1:
-            return True
-    return False
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # quiesce first so the bounded poll behind it is a safety net rather than the
-    # mechanism: every dispatch_until attempt is a full engine RPC, and a long
-    # poll on a starved daemon outlasts the test budget and turns a run whose
-    # wire assertions already passed into an opaque timeout.
-    api.quiesce()
-    for name in ('dest-none-peer', 'dest-standard-peer'):
-        result = api.dispatch_until(
-            f'show bgp peer {name} detail', peer_got_route, attempts=24,
-        )
-        if not peer_got_route(result):
-            detail = result_text_data(result)
-            print(f'FAIL: {name} detail: {detail}', file=sys.stderr)
-            sys.stderr.flush()
-            runtime_fail(f'{name} was never sent the forwarded route')
-        print(f'OK: {name} was sent the forwarded route', file=sys.stderr)
-
-    api.dispatch('request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/send-community-suppress.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -141,7 +70,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-sendcomm {
-		run ./test-sendcomm.run
+		run "ze-test fixture plugin/send-community-suppress"
 		encoder json
 	}
 }

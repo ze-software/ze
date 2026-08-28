@@ -5,70 +5,11 @@
 # PREVENTS: static config section accepted but plugin never loads
 #           (missing auto-import or init registration).
 #
-# Requires a Linux kernel (netlink route programming): gated needs-linux:caps=net-admin
-# and validated under QEMU (make ze-qemu-needs-linux-test). setup.py first
-# creates a dummy interface carrying the next-hop subnets so the gateways
-# resolve in the bare VM (otherwise RouteReplace fails ENETUNREACH).
-
-# caps=net-admin because setup.py below runs `ip link add`. Without the
-# declaration an unprivileged Linux host does not skip: it runs, the `ip`
-# calls are refused, and the test FAILS for a capability the host never had
-# (internal/test/runner/record_parse.go, option=needs-linux).
+# Requires a Linux kernel and CAP_NET_ADMIN for netlink route programming.
+# The native setup fixture creates a dummy interface carrying both next-hop
+# subnets so the gateways resolve in the bare VM. Declaring the capability
+# makes an unprivileged Linux host skip instead of failing the `ip` operations.
 option=needs-linux:caps=net-admin
-
-tmpfs=setup.py:mode=755:terminator=EOF_SETUP
-#!/usr/bin/env python3
-# Create a dummy interface carrying the next-hop subnets (192.168.1.0/24,
-# 10.0.0.0/24) so the static routes' gateways resolve. Idempotent: "exists"
-# errors are ignored so repeat/parallel runs are safe.
-import subprocess
-def ip(*args):
-    subprocess.run(["ip", *args], stderr=subprocess.DEVNULL)
-ip("link", "add", "zens0", "type", "dummy")
-ip("addr", "add", "192.168.1.2/24", "dev", "zens0")
-ip("addr", "add", "10.0.0.100/24", "dev", "zens0")
-ip("link", "set", "zens0", "up")
-EOF_SETUP
-
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import os, signal, subprocess, sys
-
-from ze_api import wait_until
-
-if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-                  attempts=200, delay=0.05):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# // `ze cli show static` needs an SSH server + auth the static config
-# does not declare (ze cli connects over SSH). Verify the kernel FIB directly
-# instead -- the daemon programs proto=static routes via netlink, so `ip route`
-# is the faithful (stronger) source of truth. Poll until both routes appear.
-_seen = {}
-def _programmed():
-    _seen["s"] = subprocess.run(["ip", "route", "show", "table", "all"],
-                                capture_output=True, text=True).stdout
-    return "10.0.0.0/8" in _seen["s"] and "default" in _seen["s"]
-if not wait_until(_programmed, attempts=100, delay=0.1):
-    sys.exit("static routes not programmed into kernel:\n%s" % _seen.get("s", ""))
-# Emit the config-form prefixes confirmed in the kernel (default -> 0.0.0.0/0)
-# so the expect=stdout checks match.
-sys.stdout.write("10.0.0.0/8\n0.0.0.0/0\n")
-
-os.kill(pid, signal.SIGTERM)
-# Wait for the daemon to exit so rm.shutdown() removes the routes before the
-# next test (kernel tables are shared; show static is per-daemon in-memory).
-def _dead():
-    try:
-        os.kill(pid, 0)
-        return False
-    except OSError:
-        return True
-wait_until(_dead, attempts=100, delay=0.05)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 static {
@@ -90,9 +31,9 @@ EOF_CONF
 
 option=env:var=ze.log.static:value=info
 
-cmd=foreground:seq=1:exec=python3 setup.py
+cmd=foreground:seq=1:exec=ze-test fixture static/static-boot-apply-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=3:exec=ze-test fixture static/static-boot-apply:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=static routes loaded
 expect=stdout:contains=10.0.0.0/8

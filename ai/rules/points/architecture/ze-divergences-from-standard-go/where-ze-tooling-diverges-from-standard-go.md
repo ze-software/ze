@@ -5,6 +5,6 @@ stage:
 ---
 | Standard Go | Ze | Rule | Why |
 |---|---|---|---|
-| Shell scripts for tooling | Python only | `ai/rules/go-standards.md` | Shell is fragile for complex orchestration |
-| `/tmp` for scratch files | Project `tmp/` (gitignored) | `ai/rules/testing.md` | `go test ./...` walks `/tmp`; project tmp is isolated |
-| `git add -A && git commit` | Commit via script the user triggers | `CLAUDE.md` prohibitions | Sessions share staging; cross-commits result |
+| Ad-hoc scripts for tooling | Native Go package with a registered `./le` action | `ai/rules/go-standards.md` | One typed implementation serves local and CI callers |
+| `/tmp` for scratch files | Per-session directory from `./le session scratch ensure` | `ai/rules/commands.md` | Concurrent sessions do not share names |
+| `git add -A && git commit` | `./le commit create`, then the generated script | `ai/rules/git-safety.md` | The declared file population is checked before staging |

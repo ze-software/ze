@@ -53,10 +53,10 @@ var areas = []struct {
 	{"plan/", "specs"},
 	{"docs/", "docs"},
 	{"test/", "tests"},
-	{"scripts/evidence/", "evidence-tools"},
-	{"scripts/", "tooling"},
-	{"mk/", buildArea},
-	{"Makefile", buildArea},
+	{"internal/le/deployment/", "evidence-tools"},
+	{"internal/le/evidence/", "evidence-tools"},
+	{"internal/le/qemu/", "evidence-tools"},
+	{"internal/le/", "tooling"},
 	{".golangci.yml", buildArea},
 	{"pkg/plugin/", "plugin-sdk"},
 	{"internal/component/bgp/", "bgp"},
@@ -66,9 +66,9 @@ var areas = []struct {
 	{"cmd/", "cmd"},
 }
 
-// AreaOf answers the area a path belongs to, or "other" when no prefix claims
+// areaOf answers the area a path belongs to, or "other" when no prefix claims
 // it.
-func AreaOf(path string) string {
+func areaOf(path string) string {
 	for _, area := range areas {
 		if strings.HasPrefix(path, area.Prefix) {
 			return area.Name
@@ -77,12 +77,12 @@ func AreaOf(path string) string {
 	return "other"
 }
 
-// ParsePorcelain answers the changed paths of `git status --porcelain`.
+// parsePorcelain answers the changed paths of `git status --porcelain`.
 //
 // The format is two status characters, a space, then the path. A rename carries
 // "old -> new", and the NEW name is what a commit would name, so that is the
 // one kept.
-func ParsePorcelain(out string) []string {
+func parsePorcelain(out string) []string {
 	var paths []string
 	for line := range strings.SplitSeq(out, "\n") {
 		if strings.TrimSpace(line) == "" {
@@ -113,7 +113,7 @@ func Changed(tree string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParsePorcelain(string(out)), nil
+	return parsePorcelain(string(out)), nil
 }
 
 // Group builds the report from the changed paths and the ceiling asked for.
@@ -125,7 +125,7 @@ func Group(paths []string, maxAreas int) Report {
 
 	byArea := make(map[string][]string, len(areas))
 	for _, path := range paths {
-		area := AreaOf(path)
+		area := areaOf(path)
 		byArea[area] = append(byArea[area], path)
 	}
 

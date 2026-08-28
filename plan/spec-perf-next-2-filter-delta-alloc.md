@@ -219,7 +219,7 @@ fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
 | AC-3 | BenchmarkFilterModifyEgress after Phase B | Total at or below ~12 allocs/op (target 10; hard gate: at least 40% reduction from the re-measured baseline) |
 | AC-4 | Unmodified UPDATE through filters | BenchmarkFilterDispatch_ZeroAlloc remains 0 allocs/op |
 | AC-5 | Parse-count invariant | Exactly 2 parses per modified UPDATE (counter test green) |
-| AC-6 | Full suite | `make ze-standard-test` passes; `make ze-unit-reactor-test-race` passes (reactor files touched) |
+| AC-6 | Full suite | `./le verify current mode full` passes; `go test -race ./internal/component/bgp/reactor/...` passes (reactor files touched) |
 
 ## 🧪 TDD Test Plan
 
@@ -241,7 +241,7 @@ fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
 
 ### Functional Tests
 No user-facing behavior change and no new RPC surface; existing test suite
-passes (`make ze-precommit-verify`) including the policy-filter `.ci` scenarios proving
+passes (`./le verify current mode full`) including the policy-filter `.ci` scenarios proving
 filters still modify routes end-to-end. No new `.ci` needed: the contract
 exercised by users (filter text in, modified UPDATE out) is unchanged and
 already covered.
@@ -306,8 +306,8 @@ re-run beyond existing suite. Justification: allocation-shape-only change.
    - GATE (before starting Phase B): confirm the umbrella baseline profile (umbrella AC-1) actually surfaces `parseFilterAttrs`/`encode*Value` frames AND the re-measured BenchmarkFilterModifyEgress baseline (A-4) confirms ~24 allocs/op. Phase B is the largest refactor surface for the smallest win in this round; if those frames do NOT appear near the top of the profile, STOP and present a scope reconsideration to the user before refactoring the 14 encoders.
    - Tests: TestEncodeValuesIntoScratch (incl. multi-prepend case), all existing delta tests
    - Verify: tests pass; benchmark at AC-3 target; ze-unit-reactor-test-race green
-4. **Functional tests** - re-run existing policy-filter .ci suite via `make ze-precommit-verify`
-5. **Full verification** - `make ze-precommit-verify`
+4. **Functional tests** - re-run existing policy-filter .ci suite via `./le verify current mode full`
+5. **Full verification** - `./le verify current mode full`
 6. **Complete spec** - audit tables, learned summary, two-commit closure
 
 ### Critical Review Checklist (/implement stage 6)
@@ -463,8 +463,8 @@ protocol-enforcing code.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
-- [ ] `make ze-unit-reactor-test-race` passes
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `go test -race ./internal/component/bgp/reactor/...` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)

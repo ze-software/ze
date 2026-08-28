@@ -16,7 +16,7 @@ been legitimate, and the spec said so itself.
 
 | Setting | Value |
 |---------|-------|
-| Tool | `scripts/dev/stress-repro.py "bgp plugin" --test forward-overflow-two-tier --any-failure` |
+| Tool | the retired `scripts/dev/stress-repro.py "bgp plugin" --test forward-overflow-two-tier --any-failure` (current producer: `internal/le/stressrepro/run.go`) |
 | Invocations | 80 |
 | Concurrent `ze-test` processes | 8 (tool default, `max(2, NCPU//2)`, NOT chosen) |
 | CPU/GC burners | 32 (tool default, `2*NCPU`, NOT chosen) |
@@ -41,13 +41,13 @@ invocations per round", and it is the `max_workers` of the `ThreadPoolExecutor`
 that launches whole `ze-test` processes. Plugin-level parallelism inside one
 runner was never raised, which is what the spec's Task asked for.
 
-An earlier draft of this shard said `run_once` (`scripts/dev/stress-repro.py`)
+An earlier draft of this shard said `run_once` (the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`))
 cannot set it, because that function builds the child environment with
 `ze.bin`, `ze.test.bin`, `ZE_TEST_NO_BUILD` and `GOTRACEBACK`. That reasoning
 does not hold: the same function opens with `env = dict(os.environ)`, so the
 variable is INHERITED from the caller. The real reason raising it changes
 nothing here is different and simpler. `ZE_PLUGIN_PARALLEL` is a make variable
-(`mk/test-functional.mk`) that becomes `-p N` on the runner's command line, and
+(the retired `mk/test-functional.mk` (current producer: `internal/le/functional/suites.go`)) that becomes `-p N` on the runner's command line, and
 `-p` bounds how many `.ci` tests run CONCURRENTLY. With one test selected there
 is nothing to run it beside, so the knob is inert for a single-test stress run
 whatever its value.
@@ -108,9 +108,9 @@ peer: attach`, a config grammar the working tree parses and a day-old binary did
 not. Nothing about the suspected flake was exercised.
 
 The cause is a documented trap the tool still carries: `_bin_from_env`
-(`scripts/dev/stress-repro.py`) honours `ZE_BIN` / `ZE_TEST_BIN` but FALLS BACK
+(the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`)) honours `ZE_BIN` / `ZE_TEST_BIN` but FALLS BACK
 to `bin/ze`, and in this repository that path is stale by construction, because
-`mk/helper-session.mk` builds the canonical binaries into a per-session directory.
+the retired `mk/helper-session.mk` (current producer: `internal/le/session/actions.go`) builds the canonical binaries into a per-session directory.
 `ensure_binaries` checks only that the files exist. The tool's own docstring
 describes this incident happening once before, in the opposite direction: a fix
 under test looked "still reproducing" because the run never contained it.

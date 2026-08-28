@@ -70,51 +70,7 @@ EOF_DEST
 
 # Observer: keeps the daemon alive until the dest has actually been written the
 # stamped route, so the wire rule above cannot pass or fail by absence.
-tmpfs=test-rs-client-stamp.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Hold the daemon up while the RS-Client dest verifies the OTC stamp."""
-import sys
-from ze_api import API, runtime_fail
-
-DEST = '127.0.0.2'
-
-
-def dest_updates(api):
-    """Real UPDATEs written to the dest peer, its own initial-sync EoR excluded.
-
-    updates-sent counts EVERY UPDATE written to the peer, End-of-RIB included
-    (IncrUpdatesSent in reactor/reactor_notify.go sees only the message type).
-    eor-sent is the separate marker counter for ze's OWN End-of-RIB, so the
-    difference is the forwarded traffic -- here, the stamped re-advertisement.
-    """
-    return (api.peer_counter('updates-sent', peer=DEST)
-            - api.peer_counter('eor-sent', peer=DEST))
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # quiesce FIRST so the poll behind it is a safety net rather than the
-    # mechanism: it drains the forward pool in one RPC, and 40 engine round trips
-    # on a starved daemon would outlast the test's own budget.
-    api.quiesce()
-    if not api.wait_until(lambda: dest_updates(api) >= 1, attempts=40):
-        runtime_fail('dest peer was never sent the OTC-stamped route')
-    print('OK: dest was sent the OTC-stamped route', file=sys.stderr)
-
-    api.dispatch('request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# Native compiled fixture: plugin/role-otc-rs-client-dest-stamp
 # ze: ASN 65000, Provider to the source Customer and RS to the dest RS-Client.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -125,7 +81,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-rs-client-stamp {
-		run ./test-rs-client-stamp.run
+		run "ze-test fixture plugin/role-otc-rs-client-dest-stamp"
 		encoder json
 	}
 }

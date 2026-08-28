@@ -4,55 +4,14 @@
 #            `while not api._shutdown: api.read_line(...)` exits instead of
 #            busy-spinning a core forever on repeated instant EOF returns.
 # PREVENTS: the regression where a daemon dying WITHOUT a graceful `bye` leaves the
-#           external python plugin spinning at 100% CPU, which (holding the shared
-#           stdout pipe open) can deadlock ze-precommit-verify for hours.
+#           external native plugin spinning at 100% CPU, which (holding the shared
+#           stdout pipe open) can deadlock ./le verify current mode full for hours.
 #
 # Pure SDK-level check: uses a socketpair as the callback fd (FD mode, no TLS) and
 # closes the peer to simulate the engine going away. No ze daemon, no CAP_NET_ADMIN,
 # so it runs on every platform in the normal functional gate.
 
-tmpfs=eof-selftest.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Assert read_line() sets _shutdown on connection EOF (no busy-spin)."""
-import os
-import socket
-import sys
-import time
 
-# Force FD mode: ze_api uses TLS when a hub token is present.
-for k in ("ze.plugin.hub.token", "ZE_PLUGIN_HUB_TOKEN", "ze_plugin_hub_token"):
-    os.environ.pop(k, None)
-
-import ze_api
-
-# socketpair: `a` is the plugin's engine/callback fd; closing `b` is the engine
-# going away, which makes reads on `a` return EOF (b"") immediately.
-a, b = socket.socketpair()
-api = ze_api.API(engine_fd=a.fileno(), callback_fd=a.fileno())
-assert not api._tls_mode, "test must run in FD mode, not TLS"
-
-b.close()
-
-# Emulate the vulnerable plugin loop with a hard iteration + wall-clock cap: if the
-# bug is present, read_line returns None instantly forever and _shutdown never flips,
-# so this loop would spin. The caps turn a spin into a clear failure instead of a hang.
-start = time.monotonic()
-iterations = 0
-while not api._shutdown:
-    api.read_line(timeout=0.5)
-    iterations += 1
-    if iterations > 100 or (time.monotonic() - start) > 3.0:
-        print(
-            f"FAIL: read_line did not set _shutdown on EOF "
-            f"(iterations={iterations}, elapsed={time.monotonic()-start:.2f}s) -- busy-spin bug",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-print("OK: read_line set _shutdown on EOF; plugin loop exited", file=sys.stderr)
-sys.exit(0)
-EOF_PY
-
-cmd=foreground:seq=1:exec=python3 eof-selftest.py:timeout=8s
+cmd=foreground:seq=1:exec=ze-test fixture plugin/eof-no-spin:timeout=8s
 expect=exit:code=0
 expect=stderr:contains=OK: read_line set _shutdown on EOF

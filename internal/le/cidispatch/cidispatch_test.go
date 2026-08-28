@@ -1,8 +1,5 @@
-// VALIDATES: spec-le-is-a-ze-binary AC-5, AC-7 -- the call-site gate is called as
-// a function and answers structured data.
-// PREVENTS: the fail-open the script carried. It walked six roots relative to
-// the working directory and dropped every walk error, so a tree it never read
-// reported `Emitters checked: 0` and `ci-dispatch-check: OK`.
+// VALIDATES: native call-site checks return structured data and fail closed
+// when the requested source population is absent.
 
 package cidispatch
 
@@ -35,7 +32,7 @@ func surface(t *testing.T) (string, Surface) {
 		if sharedSurfErr != nil {
 			return
 		}
-		sharedSurf, sharedSurfErr = NewSurface(sharedTree)
+		sharedSurf, sharedSurfErr = newSurface(sharedTree)
 	})
 	if sharedSurfErr != nil {
 		t.Fatalf("build the command surface: %v", sharedSurfErr)
@@ -43,19 +40,17 @@ func surface(t *testing.T) (string, Surface) {
 	return sharedTree, sharedSurf
 }
 
-// VALIDATES: this checkout passes the gate, and the walk actually found
-// emitters to check.
-// PREVENTS: a port whose walk roots resolve to nothing, which looks identical to
-// a tree in which every emitter resolves.
+// VALIDATES: this checkout passes the check, and the walk found native
+// emitters.
 func TestTheRealCheckoutPassesAndWasRead(t *testing.T) {
 	tree, loaded := surface(t)
 
 	report, err := CheckWith(loaded, tree, emitterFloor)
 	if err != nil {
-		t.Fatalf("the gate could not read this checkout: %v", err)
+		t.Fatalf("the check could not read this checkout: %v", err)
 	}
 	if !report.Valid() {
-		t.Errorf("this checkout fails the dispatch gate:\n%s", report.Text())
+		t.Errorf("this checkout fails the dispatch check:\n%s", report.Text())
 	}
 	if report.CommandsKnown < surfaceFloor {
 		t.Errorf("the surface carries %d commands, want at least %d", report.CommandsKnown, surfaceFloor)
@@ -65,9 +60,7 @@ func TestTheRealCheckoutPassesAndWasRead(t *testing.T) {
 	}
 }
 
-// VALIDATES: a tree holding no emitter is an ERROR.
-// PREVENTS: the script's fail-open, demonstrated on the built script run in an
-// empty directory: Emitters checked 0, OK, exit 0.
+// VALIDATES: a tree holding no emitter is an error rather than a vacuous pass.
 func TestATreeWithNoEmitterIsAnError(t *testing.T) {
 	_, loaded := surface(t)
 
@@ -83,7 +76,7 @@ func TestATreeWithNoEmitterIsAnError(t *testing.T) {
 
 	// The surface itself refuses a tree it cannot walk, which is the earlier of
 	// the two guards.
-	if _, err := NewSurface(t.TempDir()); err == nil {
+	if _, err := newSurface(t.TempDir()); err == nil {
 		t.Error("the surface was built over a tree holding neither internal nor pkg")
 	}
 }
@@ -94,7 +87,7 @@ func TestATreeWithNoEmitterIsAnError(t *testing.T) {
 func TestTheFixtureDrawsEachShape(t *testing.T) {
 	_, loaded := surface(t)
 
-	findings, scanned, passthroughs := ScanFile(loaded, "fixture.ci", fixtureSource, pyEmitters)
+	findings, scanned, passthroughs := ScanFile(loaded, "fixture.go", fixtureSource, goEmitters)
 	if scanned != 6 {
 		t.Errorf("the fixture read %d emitters, want 6", scanned)
 	}
@@ -126,7 +119,7 @@ func TestTheFixtureDrawsEachShape(t *testing.T) {
 func TestTheSelftestPassesOverThisCheckout(t *testing.T) {
 	_, loaded := surface(t)
 
-	report := SelftestWith(loaded)
+	report := selftestWith(loaded)
 	if failures := report.Failures(); len(failures) != 0 {
 		t.Errorf("the selftest failed: %v", failures)
 	}
@@ -173,14 +166,11 @@ func TestEveryFixtureCaseFailsOnABrokenResult(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-7 -- the payload is data a JSON encoder takes, with the
-// script's own keys.
-// PREVENTS: a port that answers a rendered page, which no pipe operator can act
-// on.
+// VALIDATES: the payload is structured data a JSON encoder can render.
 func TestReportIsStructuredData(t *testing.T) {
 	raw, err := json.Marshal(Report{
 		SchemaVersion: 1, CommandsKnown: 425, EmittersChecked: 1075, PassThrough: 53,
-		Findings: []Finding{{File: "a.ci", Line: 3, Kind: KindDead, Emitter: "dispatch", Command: "bgp health", Detail: "d"}},
+		Findings: []Finding{{File: "a.go", Line: 3, Kind: KindDead, Emitter: "SendCommand", Command: "bgp health", Detail: "d"}},
 	})
 	if err != nil {
 		t.Fatalf("the payload does not encode: %v", err)
@@ -195,41 +185,38 @@ func TestReportIsStructuredData(t *testing.T) {
 	}
 }
 
-// VALIDATES: the page carries the three counts and the right verdict.
-// PREVENTS: a failing gate whose page still reads OK, which is what a reader
-// acts on.
+// VALIDATES: the page carries the three counts and verdict.
 func TestThePageCarriesItsCountsAndItsVerdict(t *testing.T) {
 	clean := Report{SchemaVersion: 1, CommandsKnown: 425, EmittersChecked: 1075, PassThrough: 53}.Text()
-	for _, want := range []string{"Registered commands: 425", "Emitters checked:    1075", "Pass-through (var):  53", "ci-dispatch-check: OK"} {
+	for _, want := range []string{"Registered commands: 425", "Emitters checked:    1075", "Pass-through (var):  53", "ci-dispatch check: OK"} {
 		if !strings.Contains(clean, want) {
 			t.Errorf("the clean page has no %q:\n%s", want, clean)
 		}
 	}
 
 	failed := Report{Findings: []Finding{
-		{File: "a.ci", Line: 3, Kind: KindDead, Emitter: "dispatch", Command: "bgp health", Detail: "gone"},
-		{File: "b.ci", Line: 9, Kind: KindUnverifiable, Emitter: "send", Command: "build(x)", Detail: "opaque"},
+		{File: "a.go", Line: 3, Kind: KindDead, Emitter: "SendCommand", Command: "bgp health", Detail: "gone"},
+		{File: "b.go", Line: 9, Kind: KindUnverifiable, Emitter: "SendCommand", Command: "build(x)", Detail: "opaque"},
 	}}.Text()
 	if strings.Contains(failed, "OK") {
 		t.Errorf("a page holding findings still says OK:\n%s", failed)
 	}
-	if !strings.Contains(failed, "ci-dispatch-check: FAIL (1 dead, 1 unverifiable)") {
+	if !strings.Contains(failed, "ci-dispatch check: FAIL (1 dead, 1 unverifiable)") {
 		t.Errorf("the failing page does not carry its verdict:\n%s", failed)
 	}
-	if !strings.Contains(failed, `a.ci:3: dead: dispatch("bgp health")`) {
+	if !strings.Contains(failed, `a.go:3: dead: SendCommand("bgp health")`) {
 		t.Errorf("the failing page does not carry its site:\n%s", failed)
 	}
 }
 
-// VALIDATES: the area dispatches its two actions and refuses the two mistakes.
-// PREVENTS: a verb that drifts from its gate name, which would leave the Make
-// target pointing at nothing after the swap.
+// VALIDATES: the area dispatches its two native actions and refuses invalid
+// invocations.
 func TestTheAreaDispatchesItsActions(t *testing.T) {
 	if _, code := Answer([]string{"nope"}); code != 2 {
 		t.Errorf("an unknown action answers %d, want 2", code)
 	}
-	if _, code := Answer([]string{"check", "value"}); code != 1 {
-		t.Errorf("a value after an action answers %d, want 1", code)
+	if _, code := Answer([]string{"check", "value"}); code != 2 {
+		t.Errorf("a value after an action answers %d, want 2", code)
 	}
 
 	verbs := Actions()

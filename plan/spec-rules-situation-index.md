@@ -20,7 +20,7 @@ Every artifact today, the rendered rule, `TRIGGERS.md`, `CORE.md`, the router, i
 a rearrangement of a DOCUMENT. An agent mid-task needs the two to five
 instructions bearing on what it is about to do. Measured over 1,043 past task
 descriptions: mean 2.5 rules surfaced per task out of 27, and
-`scripts/dev/rule_coverage.py` exists precisely because sessions do not open the
+`internal/le/` exists precisely because sessions do not open the
 rules whose triggers matched.
 
 The split made every instruction addressable and bound 47 of 1,585 to a check.
@@ -56,7 +56,7 @@ subagent skip implementation directives". This spec is that later.
   → Decision: citation count is not a relevance metric; the corpus is the rationale layer for hooks and code, not for rules
   → Constraint: 1,538 of 1,585 instruction points have no machine behind them
 - [ ] `ai/rules/rule-format.md` - the point format this extends
-  → Constraint: `POINT_KEYS` in `scripts/dev/rules_points.py` is a closed tuple and `parse_point` raises on any field outside it, so a fifth key is a format change and not free text
+  → Constraint: `POINT_KEYS` in `internal/le/rules/points.go` is a closed tuple and `parse_point` raises on any field outside it, so a fifth key is a format change and not free text
 - [ ] `docs/contributing/rule-authoring.md` - the authoring surface a predicate appears on
   → Constraint: an absent field must mean "as today", never "narrower than today"
 
@@ -64,14 +64,14 @@ subagent skip implementation directives". This spec is that later.
 Not applicable. Scope is tooling.
 
 **Key insights:** (minimal context to resume after compaction)
-- `dispatchers` in `scripts/dev/rules_points.py` derives the roster from the PreToolUse entries in `.claude/settings.json` and cross-checks the files on disk, so a generated check has a gated place to be registered.
+- `dispatchers` in `internal/le/rules/points.go` derives the roster from the PreToolUse entries in `.claude/settings.json` and cross-checks the files on disk, so a generated check has a gated place to be registered.
 - `parse_bindings` takes a file list, so a later reader is added without a second convention. That is what made assumption A-5 of the closed spec recoverable rather than a redesign.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `scripts/dev/rules_points.py` - `POINT_KEYS`, `parse_point`, `format_point`, `gate_map`, `parse_bindings`, `dispatchers`
-- [ ] `scripts/dev/rules_condensed.py` - builds `TRIGGERS.md` and `CORE.md` from the rendered rules
+- [ ] `internal/le/rules/points.go` - `POINT_KEYS`, `parse_point`, `format_point`, `gate_map`, `parse_bindings`, `dispatchers`
+- [ ] `internal/le/` - builds `TRIGGERS.md` and `CORE.md` from the rendered rules
 
 **Behavior to preserve:**
 - (fill during design)
@@ -139,7 +139,7 @@ Not applicable. Scope is tooling.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (fill during design) | `scripts/dev/rules_points_test.py` | | |
+| (fill during design) | `internal/le/` | | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -155,7 +155,7 @@ Not applicable. Scope is tooling.
 Not applicable. No wire-visible behavior.
 
 ## Files to Modify
-- `scripts/dev/rules_points.py` - (fill during design)
+- `internal/le/rules/points.go` - (fill during design)
 
 ## Files to Create
 - (fill during design)
@@ -221,7 +221,7 @@ Not applicable. No protocol code.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
-- [ ] `make ze-precommit-verify` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
@@ -230,14 +230,14 @@ Not applicable. No protocol code.
 - [ ] Tests PASS (paste output)
 
 ### Closure
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
 
 ## Scope Note (2026-08-18, owner question: one agent per stage of work)
 
-**Where the eager payload actually is.** `make ze-rules-payload-report`:
+**Where the eager payload actually is.** `./le rules payload-report`:
 21,561 tokens always loaded. `ai/INSTRUCTIONS.md` 6,901, `CORE.md` 13,491,
 `TRIGGERS.md` 1,169.
 
@@ -286,10 +286,10 @@ main thread.
 
 | Producer | What it does today |
 |----------|--------------------|
-| `render_text` (`scripts/dev/rules_points.py`) | emits the manifest heading, then EVERY point body of that section, unconditionally. It never reads `Point.stage` |
+| `render_text` (`internal/le/rules/points.go`) | emits the manifest heading, then EVERY point body of that section, unconditionally. It never reads `Point.stage` |
 | `ManifestSection` + `MANIFEST_SECTION` (same file) | a section line carries `slug`, `heading` and a `^` tight marker, and nothing else. There is no metadata slot |
 | `POINT_KEYS` / `parse_point` (same file) | `stage` is already an authored per-point key, refused if misspelled, and empty in all 2,245 points. `split_rule` writes it empty for every rule-derived point |
-| `load_rules` (`scripts/dev/rules_condensed.py`) | parses each RENDERED `ai/rules/<rule>.md` as one whole record. Section identity does not survive into it |
+| `load_rules` (`internal/le/`) | parses each RENDERED `ai/rules/<rule>.md` as one whole record. Section identity does not survive into it |
 | `core_members` (same file) | derives the always-on set at WHOLE-RULE granularity from the precedence ladder, plus three fail-closed reasons |
 | `ARTIFACTS` (same file) | `(("TRIGGERS.md", build_triggers), ("CORE.md", build_core))`, and its comment states a new artifact needs only a row here |
 
@@ -306,7 +306,7 @@ read points, couples two generators to save one walk.
 
 → Constraint: the authored unit is the manifest SECTION line, so
 `MANIFEST_SECTION`, `parse_manifest`, `format_manifest` and `ManifestSection`
-change together, and `make ze-rules-points-roundtrip-check` is what proves the
+change together, and `./le rules points-roundtrip-check` is what proves the
 new line shape survives split and render. A line shape it does not know raises
 `RulePointsError`, so render-check, roundtrip-check and gate-map-report fail
 hard rather than silently.
@@ -316,7 +316,7 @@ of them was rejected in the Scope Note. Retiring the key, or stamping it from
 the section at render, is a DESIGN-gate call.
 
 → Constraint: tests extend in place, no new files.
-`scripts/dev/rules_points_test.py` covers the manifest spine (`SectionSpineTest`,
-`RenderFailureTest`, `TightHeadingTest`) and `scripts/dev/rules_condensed_test.py`
+`internal/le/` covers the manifest spine (`SectionSpineTest`,
+`RenderFailureTest`, `TightHeadingTest`) and `internal/le/`
 covers membership and the payload budget (`CoreMembershipTest`,
 `PayloadBudgetTest`, `GeneratedShapeTest`).

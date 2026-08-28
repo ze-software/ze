@@ -74,71 +74,13 @@ EOF_PEER
 # Observer: hold ze open until the forwarded route has reached EVERY client, then
 # shut down.
 #
-# NOT run_rs_observer(expected_peers=4, forward_prefix=...): that helper sets
-# forward_seen on the FIRST sent UPDATE carrying the prefix, to ANY peer
-# (ze_api.py wait_rs_replayed), which is a proxy for the condition this test
-# needs rather than the condition itself. With three receivers it lets the
-# shutdown race the second and third forwards, and stress-repro reproduced
-# exactly that on invocation 2 of 80: ze stopped with only some clients served
-# and the run failed as an unmatched peer-exchange rather than as anything about
-# the accumulator.
+# The generic route-server observer stops after the first sent UPDATE carrying
+# the prefix, which is only a proxy for this test's condition. With three
+# receivers it can let shutdown race the second and third forwards.
 #
-# So this waits on the real condition -- one forward observed per client address
-# -- and never on a duration (ai/rules/fix-dont-record.md). Progress rearms the
-# idle window, so a slow host cannot fail it; a genuinely wedged replay still
-# fails loudly through runtime_fail rather than hanging to the outer timeout.
-tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import time
-
-from ze_api import API, runtime_fail
-
-CLIENTS = {"127.0.0.2", "127.0.0.3", "127.0.0.4"}
-PREFIX = "10.0.0.0/24"
-IDLE = 30.0
-
-api = API()
-api.declare_done()
-api.wait_for_config()
-api.capability_done()
-api.wait_for_registry()
-api.subscribe(["update"])
-api.ready()
-
-served = set()
-hard_deadline = time.monotonic() + IDLE * 8
-idle_deadline = time.monotonic() + IDLE
-while served != CLIENTS:
-    remaining = min(idle_deadline, hard_deadline) - time.monotonic()
-    if remaining <= 0:
-        runtime_fail(
-            f"forward reached {sorted(served)}, expected every client of {sorted(CLIENTS)}"
-        )
-    ev = api.wait_for_event(timeout=min(remaining, 0.5))
-    if ev is None:
-        continue
-    try:
-        decoded = json.loads(ev)
-    except (json.JSONDecodeError, TypeError, ValueError):
-        continue
-    if not isinstance(decoded, dict):
-        continue
-    bgp = decoded.get("bgp", {})
-    if bgp.get("message", {}).get("direction") != "sent":
-        continue
-    update = bgp.get("update", {})
-    # No NLRI means an EOR (an empty UPDATE), which is not a forward.
-    if not update.get("nlri") or PREFIX not in json.dumps(update):
-        continue
-    addr = bgp.get("peer", {}).get("remote", {}).get("address")
-    if addr in CLIENTS and addr not in served:
-        served.add(addr)
-        idle_deadline = time.monotonic() + IDLE
-
-api.shutdown_fire_and_forget()
-api.wait_for_shutdown(timeout=15.0)
-EOF_RUN
+# This native observer subscribes to update events and waits on the real
+# condition: one prefix-bearing forward observed for every client address.
+# Progress is event-driven and a genuinely wedged replay fails loudly.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -149,7 +91,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external shutdown-after-up {
-		run ./shutdown-after-up.run
+		run "ze-test fixture plugin/modify-accumulator-per-peer-isolation"
 		encoder json
 	}
 }

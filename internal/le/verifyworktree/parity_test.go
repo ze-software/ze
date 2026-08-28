@@ -1,5 +1,5 @@
 // VALIDATES: the native lifecycle keeps the Python producer's paths and
-// operator diagnostics without executing scripts/dev/verify_worktree.py or its
+// operator diagnostics without executing internal/le/verifyworktree/actions.go or its
 // verification body.
 // PREVENTS: a port that is behaviorally native but changes the evidence paths
 // or the diagnostics developers already use.
@@ -32,9 +32,9 @@ func TestPythonPathAndOwnerMarkerParity(t *testing.T) {
 func TestPythonInvalidCommitDiagnosticParityWithoutVerifyBody(t *testing.T) {
 	repo := newFixtureRepo(t)
 	called := false
-	runner := func(context.Context, string, verify.Identity) verify.GateResult {
+	runner := func(context.Context, string, verify.Identity) verify.ActionResult {
 		called = true
-		return verify.GateResult{}
+		return verify.ActionResult{}
 	}
 
 	report := Run(context.Background(), repo.root, Options{Commit: "not-a-commit"}, runner)
@@ -69,9 +69,9 @@ func TestPythonAddFailureDiagnosticNamesShortCommitWithoutVerifyBody(t *testing.
 		pid: func() int { return 1 }, alive: func(int) bool { return true },
 	}
 	called := false
-	runner := func(context.Context, string, verify.Identity) verify.GateResult {
+	runner := func(context.Context, string, verify.Identity) verify.ActionResult {
 		called = true
-		return verify.GateResult{}
+		return verify.ActionResult{}
 	}
 
 	report := run(context.Background(), root, Options{}, runner, deps)

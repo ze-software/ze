@@ -36,48 +36,11 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=20s
 
-tmpfs=firewall-irr-refresh.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify auto-refresh loop runs and is fail-closed."""
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Fetch initial data.
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    if result.get('status') != 'done':
-        runtime_fail(f'initial update failed: {result}')
-
-    data = result_json_data(result, {})
-    initial_v4 = data.get('ipv4-count', 0)
-    if initial_v4 < 1:
-        runtime_fail(f'expected v4 prefixes, got {initial_v4}')
-
-    # Verify data is still cached (fail-closed: refresh preserves last-good).
-    result = api.dispatch_until_done('show firewall irr')
-    if result.get('status') != 'done':
-        runtime_fail(f'show after wait: status={result.get("status")}')
-
-    print(f'OK: cache preserved with {initial_v4} v4 prefixes', file=sys.stderr)
-
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-refresh-test {
-		run ./firewall-irr-refresh.run
+		run "ze-test fixture plugin/firewall-irr-refresh"
 		encoder json
 	}
 }

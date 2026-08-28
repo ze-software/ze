@@ -212,4 +212,4 @@ Website content work — no daemon feature; existing test suite and website buil
 - [x] Tests written (renderer + llms tests listed above)
 - [x] Tests FAIL was N/A for pure content pages; renderer tests guarded regressions
 - [x] Tests PASS (`test_render_doc.py` 11/11, `test_render_llms.py` 4/4, link check clean)
-- [x] `make ze-standard-test` N/A — no change in this repo; website build (`./update-website.sh`) green
+- [x] `./le verify current mode full` N/A — no change in this repo; website build (`./update-website.sh`) green

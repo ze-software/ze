@@ -438,7 +438,7 @@ claimed done until it exists.
 | 3. Wiring phase | Wiring Test table -- config flag + failing wiring tests |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist |
 | 8. Fix issues | from critical review |
 | 9. Re-verify | re-run stage 6 |
@@ -481,7 +481,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 7. **Functional tests** -> the six `.ci` cover the user-visible behaviour
 8. **RFC refs** -> add `// RFC 4576 Section 4` / `// RFC 4577 Section 4.2.x` comments on the honour gate, the set-on-originate, the tag, the Domain ID, the Route Type community, and the sham-link code
 9. **Interop** -> `ospf-l3vpn-frr` QEMU scenario (OSPF-only DN/tag mechanics)
-10. **Full verification** -> `make ze-precommit-verify`
+10. **Full verification** -> `./le verify current mode full`
 11. **Complete spec** -> audit tables + learned summary; two commits (A: code+spec+learned, B: `git rm` spec). BLOCKING: if the A-1-gated phases (4, 5, and the gated ACs) are unimplemented because the infrastructure is absent, the spec MUST stay OPEN and the audit MUST show those items blocked, not done (R-7)
 
 ### Critical Review Checklist (/implement stage 6)
@@ -692,7 +692,7 @@ MUST document on:
 - [ ] End-to-End User Stories: every non-gated story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/plugins/ospf/*`, `internal/core/diagnostic/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

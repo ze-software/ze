@@ -29,7 +29,7 @@ session's uncommitted work. The failure is not that the build breaks. The
 failure is that the break is filed as someone else's, which converts a red the
 session owns into a red it may override.
 
-The same shape reaches the commit gate. A full `make ze-precommit-verify`
+The same shape reaches the commit gate. A full `./le verify current mode full`
 certifies the tree as it stands when the run FINISHES, so a run that spans a
 sibling's edits certifies content its early stages never saw. That half is
 already recorded at `plan/journal/reference-checked-claim-unchecked.md` and

@@ -287,7 +287,7 @@ func writeKernelModule(t *testing.T, srcParent string) string {
 // injected into the PREPARED copy only, as an absolute path, leaving the tracked
 // module byte-identical.
 //
-// This replaces `make ze-kernel-build` editing gokrazy/ze/builddir/github.com/rtr7/
+// This replaces `./ze appliance kernel --target runtime` editing gokrazy/ze/builddir/github.com/rtr7/
 // kernel/go.mod in place, which made a build step write to a tracked file and
 // left the tree dirty until ze-kernel-clean was run.
 //

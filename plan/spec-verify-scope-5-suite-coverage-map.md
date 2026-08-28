@@ -17,7 +17,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Derive which functional suites exercise which Go packages, by RECORDING it at
 run time, so the functional stage can run only the suites a change can reach.
 
-`ze-functional-test` is 1472s of the 4418s full run and is now the largest
+`./le functional` is 1472s of the 4418s full run and is now the largest
 remaining cost: sub-spec 3 cut the staticcheck matrix from 38 rows to 3 for a
 feature-local change (12.1x, measured), and sub-spec 2 scoped the lint and unit
 stages. The functional suite is the one stage still judging everything.
@@ -55,19 +55,19 @@ package at all.
 
 **Key insights:**
 - The suites cannot be run concurrently: only the `bgp` and `vpp` paths call `runner.ReservePorts` (`internal/test/runner/ports.go`), and suites registered through `registerCIRoot` take a deterministic port. `plan/journal/parallel-copies-collide-on-a-deterministic-port.md` records the collisions. This spec SELECTS suites; it does not parallelize them.
-- `functional_suites` (`scripts/dev/rfc_requirements.py`) fails CLOSED by design: an unreadable or ambiguous recipe raises rather than assuming everything runs, and its own comment calls the opposite "the exact zero-that-looks-like-an-answer this module refuses elsewhere". That shapes the tier decision below.
+- `functional_suites` (`internal/le/rfc/rfc.go`) fails CLOSED by design: an unreadable or ambiguous recipe raises rather than assuming everything runs, and its own comment calls the opposite "the exact zero-that-looks-like-an-answer this module refuses elsewhere". That shapes the tier decision below.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
 - [ ] `internal/test/runner/runner.go` - `(*Runner).Build` compiles `./cmd/ze` with `go build -tags TestBuildTags() -ldflags ...`, and returns `r.verifyPrebuilt()` early when `ze.test.no.build` is enabled
 - [ ] `internal/test/runner/runner_exec_util.go` - `childEnv` returns `os.Environ()` plus `GOTRACEBACK=all` and `CGO_ENABLED=0`, so an exported variable reaches every spawned process with no per-test plumbing
-- [ ] `mk/test-functional.mk` - `ZE_ALT_BUILD` compiles ze, ze-test and ze-stripped into `tmp/testbin-*`; `ZE_TEST_RUN` sets `ZE_TEST_NO_BUILD=1`; `run_suite` executes the 24 `all_suites` entries in order
-- [ ] `scripts/checks/verify_scope_selector.go` - `runSelector`, whose package answer this spec consumes
-- [ ] `scripts/dev/rfc_requirements.py` - `functional_suites`, `_suite_carriers`, `check_evidence_ratchet`
+- [ ] `internal/le/functional/suites.go` - `ZE_ALT_BUILD` compiles ze, ze-test and ze-stripped into `tmp/testbin-*`; `ZE_TEST_RUN` sets `ZE_TEST_NO_BUILD=1`; `run_suite` executes the 24 `all_suites` entries in order
+- [ ] `internal/le/changed/selector.go` - `runSelector`, whose package answer this spec consumes
+- [ ] `internal/le/rfc/rfc.go` - `functional_suites`, `_suite_carriers`, `check_evidence_ratchet`
 
 **→ Constraint: the instrumentation goes where the binary is BUILT, and in the
-default mode that is not the runner.** `ZE_ALT_BUILD` (`mk/test-functional.mk`)
+default mode that is not the runner.** `ZE_ALT_BUILD` (`internal/le/functional/suites.go`)
 compiles the isolated set and `ZE_TEST_RUN` sets `ZE_TEST_NO_BUILD=1`, so
 `(*Runner).Build` takes its `verifyPrebuilt` branch and never compiles. Adding
 `-cover` to `(*Runner).Build` alone instruments only `ZE_TEST_CANONICAL=1` runs,
@@ -106,7 +106,7 @@ which mode produces the map.
 
 ### Integration Points
 - `ZE_ALT_BUILD` and `(*Runner).Build` - the two binary producers.
-- `run_suite` (`mk/test-functional.mk`) - the per-suite environment and the post-suite reduction.
+- `run_suite` (`internal/le/functional/suites.go`) - the per-suite environment and the post-suite reduction.
 - `runSelector` - the package answer this consumes.
 
 ### Architectural Verification
@@ -167,7 +167,7 @@ and 2236s of wall clock against 1472s (+52%).
 | R-1 | The map skips a suite that would have caught the change | CI red on a locally green change | The map may only NARROW from a package it records; anything it does not know widens to every suite |
 | R-2 | A stale map omits a suite that now covers the package | a suite newly reaches a package and nobody notices | A package is answerable only when the map records it AND no commit since the map's recorded HEAD touched it |
 | R-3 | Instrumentation costs more than selection saves | the instrumented full run exceeds the uninstrumented one by more than selection saves | Phase 1 measures both before anything depends on it |
-| R-4 | Per-change suite skipping lowers a tagged RFC requirement's derived tier | `make ze-rfc-check` reports a tier change | See the tier decision below: the derivation stays on `all_suites`, and the ledger is diffed before and after |
+| R-4 | Per-change suite skipping lowers a tagged RFC requirement's derived tier | `./le rfc check` reports a tier change | See the tier decision below: the derivation stays on `all_suites`, and the ledger is diffed before and after |
 
 ## Blast Radius
 
@@ -181,10 +181,10 @@ and 2236s of wall clock against 1472s (+52%).
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-functional-test` | → | the per-suite `GOCOVERDIR` export in `run_suite` | `TestEverySuiteRecordsACoverageProfile` |
+| `./le functional` | → | the per-suite `GOCOVERDIR` export in `run_suite` | `TestEverySuiteRecordsACoverageProfile` |
 | a recorded map plus a package answer | → | the computed `ZE_SKIP_SUITES` | `TestSuiteSelectionSkipsOnlyUnreachedSuites` |
 | an absent or stale map | → | the fail-open branch | `TestAbsentMapRunsEverySuite` |
-| `make ze-rfc-check` | → | `functional_suites` reading `all_suites` | `test_functional_tier_is_unchanged_by_selection` |
+| `./le rfc check` | → | `functional_suites` reading `all_suites` | `test_functional_tier_is_unchanged_by_selection` |
 
 ## Acceptance Criteria
 
@@ -196,7 +196,7 @@ and 2236s of wall clock against 1472s (+52%).
 | AC-4 | The map does not record a changed package | Every suite runs, and the stage names the package it could not answer for |
 | AC-5 | The map exists, but a commit since its recorded HEAD touched the changed package | That package is treated as unknown, so every suite runs |
 | AC-6 | The map is absent entirely | Every suite runs, exactly as today |
-| AC-7 | `make ze-rfc-check` runs before and after | No requirement loses its `functional/verify` tier, and `check_evidence_ratchet` stays green |
+| AC-7 | `./le rfc check` runs before and after | No requirement loses its `functional/verify` tier, and `check_evidence_ratchet` stays green |
 | AC-8 | An operator sets `ZE_SKIP_SUITES` | Those suites are still skipped, and the map cannot re-add them |
 
 ## 🧪 TDD Test Plan
@@ -204,13 +204,13 @@ and 2236s of wall clock against 1472s (+52%).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEverySuiteRecordsACoverageProfile` | `scripts/dev/functional_suite_test.py` | AC-1: the export reaches every suite | |
-| `TestSuiteSelectionSkipsOnlyUnreachedSuites` | `scripts/checks/verify_scope_suites_test.go` | AC-3 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-| `TestAbsentMapRunsEverySuite` | `scripts/checks/verify_scope_suites_test.go` | AC-4, AC-6: the fail-open branches | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-| `TestStaleMapTreatsTouchedPackagesAsUnknown` | `scripts/checks/verify_scope_suites_test.go` | AC-5 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-| `TestEmptyRecordedSetIsARefusal` | `scripts/checks/verify_scope_suites_test.go` | a suite recording nothing must fail, never read as covering nothing | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-| `TestOperatorSkipStillWins` | `scripts/dev/functional_suite_test.py` | AC-8 | |
-| `test_functional_tier_is_unchanged_by_selection` | `scripts/dev/rfc_requirements_test.py` | AC-7 | |
+| `TestEverySuiteRecordsACoverageProfile` | `internal/le/` | AC-1: the export reaches every suite | |
+| `TestSuiteSelectionSkipsOnlyUnreachedSuites` | `internal/le/changed/scope_test.go` | AC-3 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestAbsentMapRunsEverySuite` | `internal/le/changed/scope_test.go` | AC-4, AC-6: the fail-open branches | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestStaleMapTreatsTouchedPackagesAsUnknown` | `internal/le/changed/scope_test.go` | AC-5 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestEmptyRecordedSetIsARefusal` | `internal/le/changed/scope_test.go` | a suite recording nothing must fail, never read as covering nothing | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestOperatorSkipStillWins` | `internal/le/` | AC-8 | |
+| `test_functional_tier_is_unchanged_by_selection` | `internal/le/` | AC-7 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -233,14 +233,14 @@ and 2236s of wall clock against 1472s (+52%).
 | N-A | - | - | Scope is tooling. No wire-visible behavior changes | |
 
 ## Files to Modify
-- `mk/test-functional.mk` - the `-cover` build, the per-suite `GOCOVERDIR`, the post-suite reduction, the computed `ZE_SKIP_SUITES`
+- `internal/le/functional/suites.go` - the `-cover` build, the per-suite `GOCOVERDIR`, the post-suite reduction, the computed `ZE_SKIP_SUITES`
 - `internal/test/runner/runner.go` - `(*Runner).Build` for the canonical-mode producer
 - `docs/functional-tests.md`, `docs/architecture/testing/verify-freshness-scope.md`
 - `ai/rules/testing.md` - what the `functional/verify` tier now MEANS
 
 ## Files to Create
-- `scripts/checks/verify_scope_suites.go` - the map reader and the suite selector <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-- `scripts/checks/verify_scope_suites_test.go` <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+- `internal/le/changed/scope.go` - the map reader and the suite selector <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+- `internal/le/changed/scope_test.go` <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 - `test/runner/verify-scope-suite-map.ci` <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 
 ### Integration Checklist
@@ -308,7 +308,7 @@ and 2236s of wall clock against 1472s (+52%).
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The map exists and is derived | `make ze-functional-test` produces it; no hand-written rows |
+| The map exists and is derived | `./le functional` produces it; no hand-written rows |
 | Selection works | The stage prints which suites it skipped and why |
 | The instrumented cost is known | Phase 1's measurement, recorded in this spec |
 | The ledger is unchanged in tier | `git diff ai/RFC-REQUIREMENTS.md rfc/requirements/` |
@@ -340,7 +340,7 @@ and 2236s of wall clock against 1472s (+52%).
 | Observe the mapping at run time | Derive it from `.ci` text, filenames, suite names, or the import graph | All four measured and rejected: 4.1% coverage, one-suite granularity, a false name match, and 87% of the module |
 | The map is a DERIVED artifact under `tmp/`, not committed | Commit it and gate its freshness | A committed map needs a staleness gate, and staleness here is detectable only by re-running the suites. An absent map costs today's behavior, so absence is safe and needs no gate |
 | A package is answerable only if the map records it AND no commit since the map's HEAD touched it | Trust the map until it is regenerated | The stale-map risk is a suite that newly reaches a package. Treating touched packages as unknown bounds it cheaply, with `git diff --name-only <map-sha> HEAD` |
-| **The tier derivation stays on `all_suites`; it does NOT read the map** | Point `functional_suites` at the recorded map | `functional_suites` fails CLOSED by design, and the map can legitimately be absent. Making a fail-closed derivation depend on an optional artifact inverts it. The tier's meaning becomes "this suite runs when its subject changes", which is the standard `ze-lint-changed` and `ze-unit-test-changed` already meet. `ai/rules/testing.md` must SAY that rather than leave the older reading standing |
+| **The tier derivation stays on `all_suites`; it does NOT read the map** | Point `functional_suites` at the recorded map | `functional_suites` fails CLOSED by design, and the map can legitimately be absent. Making a fail-closed derivation depend on an optional artifact inverts it. The tier's meaning becomes "this suite runs when its subject changes", which is the standard `./le changed scope` and `ze-unit-test-changed` already meet. `ai/rules/testing.md` must SAY that rather than leave the older reading standing |
 | Select suites; do not parallelize them | Run the suites concurrently | Only `bgp` and `vpp` reserve ports; the rest take deterministic ones, and the collisions are already journalled |
 
 ## Known Limitations
@@ -353,7 +353,7 @@ and 2236s of wall clock against 1472s (+52%).
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -371,7 +371,7 @@ and 2236s of wall clock against 1472s (+52%).
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

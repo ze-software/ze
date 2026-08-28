@@ -6,135 +6,15 @@
 # PREVENTS: regression where public key handler is not wired into wish.
 #
 # Flow:
-# 1. Generate an ed25519 key pair at test time.
+# 1. Compiled setup generates an ed25519 key pair and writes the daemon config.
 # 2. Daemon starts with YANG user "keyuser" whose public-keys block contains the generated key.
-# 3. SSH with matching key -> succeeds (exec "show bgp peer list").
-# 4. SSH with wrong key -> rejected.
-# 5. Daemon log shows "source=public-key" for the successful auth.
+# 3. Compiled SSH client with matching key succeeds; a wrong key is rejected.
+# 4. Daemon log shows "source=public-key" for the successful auth.
 
-tmpfs=test-ssh-pubkey-auth.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
-
-touch daemon.ready
-
-# Isolate from host SSH agent to prevent stray keys from authenticating.
-unset SSH_AUTH_SOCK
-
-# Generate an ed25519 key pair for the test.
-KEYDIR=$(mktemp -d)
-trap 'rm -rf "$KEYDIR"' EXIT
-ssh-keygen -t ed25519 -f "$KEYDIR/testkey" -N "" -q
-
-# Extract the base64 key data (middle field of the .pub file).
-PUBKEY_DATA=$(awk '{print $2}' "$KEYDIR/testkey.pub")
-
-# bcrypt cost-4 hash of "testpass" (for password fallback).
-PASSHASH='$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO'
-
-cat > ssh-pubkey.conf << ZECONF
-bgp {
-    peer peer1 {
-        connection {
-            remote {
-                ip 127.0.0.1
-            }
-            local {
-                ip 127.0.0.1
-                accept false
-            }
-        }
-        session {
-            asn {
-                local 65533
-                remote 65533
-            }
-        }
-    }
-}
-
-system {
-    authentication {
-        user keyuser {
-            password "$PASSHASH"
-            profile admin
-            public-keys testkey {
-                type ssh-ed25519
-                key $PUBKEY_DATA
-            }
-        }
-    }
-}
-
-environment {
-    ssh {
-        enabled true
-        server main {
-            ip 127.0.0.1;
-            port 0;
-        }
-    }
-}
-ZECONF
-
-export ze_test_bgp_port=$((10000 + ($$ % 50000)))
-
-ze start ssh-pubkey.conf 2>daemon.log &
-DAEMON_PID=$!
-trap 'rm -rf "$KEYDIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
-
-SSH_PORT=""
-for i in $(seq 1 50); do
-    SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
-    if [ -n "$SSH_PORT" ]; then
-        break
-    fi
-    sleep 0.2
-done
-if [ -z "$SSH_PORT" ]; then
-    echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
-    cat daemon.log >&2
-    exit 1
-fi
-echo "SSH port: $SSH_PORT" >&2
-
-sleep 0.5
-
-# Test 1: SSH with matching public key should succeed.
-DLOG_BEFORE=$(wc -c < daemon.log)
-OUTPUT=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-    -o PasswordAuthentication=no -o BatchMode=yes \
-    -o IdentitiesOnly=yes \
-    -i "$KEYDIR/testkey" \
-    -p "$SSH_PORT" keyuser@127.0.0.1 "show bgp peer list" 2>/dev/null) || {
-    echo "FAIL: SSH with matching public key should authenticate" >&2
-    echo "OUTPUT: $OUTPUT" >&2
-    tail -20 daemon.log >&2
-    exit 1
-}
-NEW_LOG=$(tail -c +$((DLOG_BEFORE + 1)) daemon.log)
-if ! echo "$NEW_LOG" | grep -q 'SSH auth success.*username=keyuser.*source=public-key'; then
-    echo "FAIL: daemon did not log public-key auth success for keyuser" >&2
-    echo "NEW LOG: $NEW_LOG" >&2
-    exit 1
-fi
-echo "OK: public key authentication succeeded" >&2
-
-# Test 2: SSH with wrong key should be rejected.
-ssh-keygen -t ed25519 -f "$KEYDIR/wrongkey" -N "" -q
-if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-    -o PasswordAuthentication=no -o BatchMode=yes \
-    -o IdentitiesOnly=yes -o KbdInteractiveAuthentication=no \
-    -i "$KEYDIR/wrongkey" \
-    -p "$SSH_PORT" keyuser@127.0.0.1 "show bgp peer list" >/dev/null 2>&1; then
-    echo "FAIL: SSH with wrong key should NOT authenticate" >&2
-    exit 1
-fi
-echo "OK: wrong key rejected" >&2
-
-echo "OK: all SSH public key auth tests passed" >&2
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-ssh-pubkey-auth.sh:timeout=15s
+cmd=foreground:seq=1:exec=ze-test fixture plugin/ssh-pubkey-auth-setup $PORT2:timeout=15s
+cmd=foreground:seq=2:exec=ze start ssh-pubkey.conf:timeout=15s
+cmd=foreground:seq=3:exec=ze-test fixture plugin/ssh-pubkey-auth $PORT2:timeout=15s
 expect=exit:code=0
+expect=stderr:contains=OK: public key authentication succeeded
+expect=stderr:contains=OK: wrong key rejected
+expect=stderr:pattern=SSH auth success.*username=keyuser.*source=public-key

@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- putting a tool on the machine
 //
-// install.go is the port of scripts/le/devtools/install.py. It contains one
-// route per tool and vendors the Go dependencies at the end of an install run.
+// install.go contains one route per tool and vendors the Go dependencies at
+// the end of an install run.
 //
 // USE ONE Installer PER RUN instead of package-level state. The replaced shell
 // version kept a global apt-updated flag. That flag describes one run, but all
@@ -12,11 +12,13 @@ package devsetup
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// DetectPackageManager returns the package manager that this host uses to
+// detectPackageManager returns the package manager that this host uses to
 // install system packages.
 //
 // SELECT IT BY PLATFORM, not by the contents of PATH. macOS uses Homebrew, and
@@ -28,7 +30,7 @@ import (
 // ManagerNone means that neither route exists. This is not a failure of this
 // tool. The platform is not supported for installation, so the caller gives
 // the manual list.
-func (s *Setup) DetectPackageManager() PackageManager {
+func (s *Setup) detectPackageManager() PackageManager {
 	switch s.goos() {
 	case osDarwin:
 		if s.Shell.Present(brewBin) {
@@ -71,18 +73,13 @@ func (s *Setup) NewInstaller(manager PackageManager, report *Report) *Installer 
 // Install puts tool on the machine by whichever route it declares, and answers
 // whether that worked.
 //
-// Order matters: `go install` and pipx come first because they work the same on
-// both platforms, so a tool declaring one gets the same version everywhere. The
-// system package manager is the fallback.
+// Go-installed tools take precedence over the system package manager.
 func (i *Installer) Install(tool Tool) bool {
 	if tool.GoInstall != "" {
 		return i.goInstall(tool, tool.GoInstall)
 	}
-	if tool.PipxInstall != "" {
-		return i.pipxInstall(tool, tool.PipxInstall)
-	}
 
-	name := tool.PackageFor(i.Manager)
+	name := tool.packageFor(i.Manager)
 	if name == "" {
 		if tool.Note != "" {
 			var tb textbuf.Buffer
@@ -107,37 +104,29 @@ func (i *Installer) skip(tool Tool, why string) bool {
 // fail records a command that ran and did not work.
 func (i *Installer) fail(tool Tool, result Result) bool {
 	var tb textbuf.Buffer
-	i.report.Note(tb.Str("  FAIL ").Str(tool.Name).Str(": ").Str(result.Complaint()).String())
+	i.report.Note(tb.Str("  FAIL ").Str(tool.Name).Str(": ").Str(result.complaint()).String())
 	return false
 }
 
-// goInstall builds and installs a Go tool at its pinned version.
+// goInstall builds and installs a Go tool. The pinned gopls package is built
+// from the root vendor tree; versioned standalone tools retain their explicit
+// module target.
 func (i *Installer) goInstall(tool Tool, target string) bool {
 	if !i.setup.Shell.Present(toolGo) {
 		return i.skip(tool, "go not available yet")
 	}
+	argv := []string{toolGo, installSubcommand, target}
+	dir := i.setup.Root
+	if target == goplsTarget {
+		argv = []string{toolGo, installSubcommand, "-mod=vendor", target}
+	}
 	var tb textbuf.Buffer
-	i.report.Note(tb.Str("  CGO_ENABLED=0 go install ").Str(target).String())
-
+	i.report.Note(tb.Str("  CGO_ENABLED=0 ").Join(argv, " ").String())
 	result := i.setup.Shell.Run(Cmd{
-		Argv: []string{toolGo, installSubcommand, target},
+		Argv: argv,
+		Dir:  dir,
 		Env:  append(os.Environ(), "CGO_ENABLED=0"),
 	})
-	if !result.OK() {
-		return i.fail(tool, result)
-	}
-	return true
-}
-
-// pipxInstall installs a Python tool into its own environment.
-func (i *Installer) pipxInstall(tool Tool, target string) bool {
-	if !i.setup.Shell.Present(toolPipx) {
-		return i.skip(tool, "pipx not available yet")
-	}
-	var tb textbuf.Buffer
-	i.report.Note(tb.Str("  pipx install ").Str(target).String())
-
-	result := i.setup.Shell.Run(Cmd{Argv: []string{toolPipx, installSubcommand, "--force", target}})
 	if !result.OK() {
 		return i.fail(tool, result)
 	}
@@ -179,7 +168,7 @@ func (i *Installer) aptInstall(tool Tool, name string) bool {
 
 	i.aptUpdate()
 
-	ok, detail := i.setup.Shell.RunPrivileged(i.report,
+	ok, detail := i.setup.Shell.runPrivileged(i.report,
 		[]string{"env", "DEBIAN_FRONTEND=noninteractive", aptBin, installSubcommand, "-y", name}, nil, "")
 	if !ok {
 		var why textbuf.Buffer
@@ -207,23 +196,20 @@ func (i *Installer) aptUpdate() {
 		return
 	}
 	i.aptUpdated = true
-	if ok, detail := i.setup.Shell.RunPrivileged(i.report, []string{aptBin, "update"}, nil, ""); !ok {
+	if ok, detail := i.setup.Shell.runPrivileged(i.report, []string{aptBin, "update"}, nil, ""); !ok {
 		var tb textbuf.Buffer
 		i.report.Note(tb.Str("  WARN apt-get update: ").Str(detail).String())
 	}
 }
 
-// VendorGoDeps synchronizes vendor/ with go.mod and returns whether the
-// operation succeeded.
-//
-// THE CALLER USES THE RESULT. This corrects a defect that the script still
-// contains. le.application.setup.action calls vendor_go_deps() and discards its
-// result. Therefore, a failed `go mod tidy` or `go mod vendor` still ends the
-// run with "Setup complete" and exit 0. Vendoring makes the tree build. If the
-// operation fails but the run reports success, it has the defect described in
-// the header of console.py
-// (plan/journal/validated-value-discarded-by-its-caller.md, 2026-08-26).
-func (s *Setup) VendorGoDeps(report *Report) bool {
+var vendorPatchPaths = [...]string{
+	"internal/le/vendorpatch/patches/bubbles-textinput-cursor.patch",
+	"internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch",
+}
+
+// vendorGoDeps synchronizes vendor/ with go.mod and populates the offline
+// gokrazy module cache. A failed command makes setup fail.
+func (s *Setup) vendorGoDeps(report *Report) bool {
 	if !s.Shell.Present(toolGo) {
 		report.Note("  SKIP vendoring: go not available")
 		return false
@@ -234,9 +220,89 @@ func (s *Setup) VendorGoDeps(report *Report) bool {
 		result := s.Shell.Run(Cmd{Argv: argv, Dir: s.Root})
 		if !result.OK() {
 			var tb textbuf.Buffer
-			report.Note(tb.Str("  FAIL ").Join(argv, " ").Str(": ").Str(result.Complaint()).String())
+			report.Note(tb.Str("  FAIL ").Join(argv, " ").Str(": ").Str(result.complaint()).String())
+			return false
+		}
+	}
+	if !s.applyVendorPatches(report) {
+		return false
+	}
+	return s.downloadApplianceDeps(report)
+}
+
+func (s *Setup) applyVendorPatches(report *Report) bool {
+	for _, relative := range vendorPatchPaths {
+		patch := filepath.Join(s.Root, filepath.FromSlash(relative))
+		if _, err := os.Stat(patch); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			report.Note("  FAIL read vendor patch " + relative + ": " + err.Error())
+			return false
+		}
+		if !s.Shell.Present(toolGit) {
+			report.Note("  FAIL apply vendor patch " + relative + ": git not available")
+			return false
+		}
+		reverse := s.Shell.Run(Cmd{Argv: []string{toolGit, "apply", "--reverse", "--check", relative}, Dir: s.Root})
+		if reverse.OK() {
+			report.Note("  vendor patch already applied: " + relative)
+			continue
+		}
+		check := s.Shell.Run(Cmd{Argv: []string{toolGit, "apply", "--check", relative}, Dir: s.Root})
+		if !check.OK() {
+			report.Note("  FAIL check vendor patch " + relative + ": " + check.complaint())
+			return false
+		}
+		apply := s.Shell.Run(Cmd{Argv: []string{toolGit, "apply", relative}, Dir: s.Root})
+		if !apply.OK() {
+			report.Note("  FAIL apply vendor patch " + relative + ": " + apply.complaint())
+			return false
+		}
+		report.Note("  applied vendor patch: " + relative)
+	}
+	return true
+}
+
+func (s *Setup) downloadApplianceDeps(report *Report) bool {
+	root := filepath.Join(s.Root, "gokrazy", "ze", "builddir")
+	var modules []string
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !entry.IsDir() && entry.Name() == "go.mod" {
+			modules = append(modules, filepath.Dir(path))
+		}
+		return nil
+	})
+	if os.IsNotExist(err) {
+		return true
+	}
+	if err != nil {
+		report.Note("  FAIL discover appliance modules: " + err.Error())
+		return false
+	}
+	cache := filepath.Join(s.Root, "gokrazy", "modcache")
+	environment := applianceDownloadEnvironment(cache)
+	for _, module := range modules {
+		argv := []string{toolGo, "mod", "download", "all"}
+		report.Note("  " + module + ": go mod download all")
+		result := s.Shell.Run(Cmd{Argv: argv, Dir: module, Env: environment})
+		if !result.OK() {
+			report.Note("  FAIL " + module + ": " + result.complaint())
 			return false
 		}
 	}
 	return true
+}
+
+func applianceDownloadEnvironment(cache string) []string {
+	environment := make([]string, 0, len(os.Environ())+2)
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, "GOMODCACHE=") || strings.HasPrefix(entry, "GOFLAGS=") {
+			continue
+		}
+		environment = append(environment, entry)
+	}
+	return append(environment, "GOMODCACHE="+cache, "GOFLAGS=-modcacherw")
 }

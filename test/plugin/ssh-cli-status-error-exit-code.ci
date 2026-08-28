@@ -24,63 +24,34 @@
 #    code under test) when bgp {} is present; without it, the no-bgp{}
 #    standalone path (sshBuildStandaloneImpl) wires a different executor that
 #    does not go through responseExecErr at all.
-# 2. Shell script discovers the OS-assigned SSH port from daemon.log, then
-#    runs `ze init` against a throwaway ZE_CONFIG_DIR purely to seed the
-#    client-side zefs lookup keys (meta/ssh/<host>/<port>/username and the
-#    default host/port pointer) that internal/core/ssh/client/client.go's
-#    ReadCredentialsForRemote requires unconditionally before it even looks
-#    at ZE_SSH_PASSWORD -- the actual auth secret is supplied via
-#    ZE_SSH_PASSWORD (plaintext), matched server-side against the YANG
-#    system.authentication.user bcrypt hash baked into the config below.
-# 3. `ze cli -c "request as112 healthcheck"` queries the default target 127.0.0.1:53.
+# 2. The compiled driver connects directly to the fixed fixture SSH port with
+#    the configured password.
+# 3. `request as112 healthcheck` queries the default target 127.0.0.1:53.
 #    Nothing binds the privileged port 53 in this unprivileged sandbox (see
 #    test/plugin/as112-health.ci's identical rationale), so the health check
 #    fails and handleAS112Health returns Status:StatusError with a nil Go
-#    error. Shell exit code MUST be non-zero -- the core regression proof:
-#    before the fix this would incorrectly exit 0.
-# 4. `ze cli -c "show version"` returns Status:StatusDone under normal
-#    conditions. Shell exit code MUST be 0, proving the fix did not break the
-#    success path.
+#    error. The SSH command MUST fail -- the core regression proof.
+# 4. `show version` returns Status:StatusDone under normal conditions. The SSH
+#    command succeeds, proving the fix did not break the success path.
 #
 # VALIDATES: cmd/ze/hub/service_ssh.go's responseExecErr -- the SSH exec
 # session's exit code matches the dispatched Response's Status.
 # PREVENTS: `ze cli -c "..."` over SSH always exiting 0 regardless of the
 # command's actual outcome.
 
-tmpfs=test-ssh-cli-status-error-exit-code.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
-
-# Signal test runner readiness
-touch daemon.ready
-
-# Generate config with SSH on port 0 (OS-assigned). The bgp{} block is
-# required so SSH startup routes through sshWireImpl (see header comment).
-cat > ssh-cli-status-error.conf << 'ZECONF'
+tmpfs=ssh-cli-status-error.conf:terminator=EOF_CONF
 bgp {
 	peer peer1 {
 		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
+			remote { ip 127.0.0.1 }
+			local { ip 127.0.0.1; accept false }
 		}
-		session {
-			asn {
-				local 65533
-				remote 65533
-			}
-		}
+		session { asn { local 65533; remote 65533 } }
 	}
 }
 
 service {
-	as112 {
-		enabled true
-	}
+	as112 { enabled true }
 }
 
 system {
@@ -96,73 +67,14 @@ environment {
 		enabled true
 		server main {
 			ip 127.0.0.1;
-			port 0;
+			port $PORT2;
 		}
 	}
 }
-ZECONF
+EOF_CONF
 
-# Use a PID-derived high port for BGP to avoid needing root for port 179
-export ze_test_bgp_port=$((10000 + ($$ % 50000)))
-
-# Start daemon, capture stderr to parse SSH port
-ze start ssh-cli-status-error.conf 2>daemon.log &
-DAEMON_PID=$!
-trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
-
-# Wait for SSH server to report its listening address. Anchored to the "SSH
-# server listening" line specifically -- as112's bind-failure log lines (this
-# unprivileged sandbox cannot bind port 53) also contain "127.0.0.1:53" and
-# would otherwise be matched first, sending the CLI client at port 53 instead
-# of the real SSH port.
-SSH_PORT=""
-for i in $(seq 1 50); do
-	SSH_PORT=$(grep 'SSH server listening' daemon.log 2>/dev/null | grep -o '127\.0\.0\.1:[0-9]*' | head -1 | cut -d: -f2 || true)
-	if [ -n "$SSH_PORT" ]; then
-		break
-	fi
-	sleep 0.2
-done
-
-if [ -z "$SSH_PORT" ]; then
-	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "SSH port: $SSH_PORT" >&2
-
-# Brief delay for postStartFunc to wire the executor factory
-sleep 0.5
-
-# Set up admin credentials (zefs lookup keys only; auth itself uses
-# ZE_SSH_PASSWORD plaintext matched against the YANG bcrypt hash above).
-ADMIN_DIR=$(mktemp -d)
-trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
-printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
-
-# Test 1 (core regression proof): "request as112 healthcheck" fails (Status:StatusError,
-# nil Go error from handleAS112Health) -- exit code MUST be non-zero.
-if ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "request as112 healthcheck" >as112.out 2>as112.err; then
-	echo "FAIL: 'request as112 healthcheck' should have exited non-zero (Status:StatusError) but exited 0" >&2
-	echo "STDOUT: $(cat as112.out)" >&2
-	echo "STDERR: $(cat as112.err)" >&2
-	exit 1
-fi
-echo "OK: 'request as112 healthcheck' exited non-zero as expected (Status:StatusError mapped to exit code)" >&2
-
-# Test 2 (success path not broken): "show version" returns Status:StatusDone
-# under normal conditions -- exit code MUST be 0.
-OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show version" 2>&1) || {
-	echo "FAIL: 'show version' should have exited 0 but did not" >&2
-	echo "OUTPUT: $OUTPUT" >&2
-	exit 1
-}
-echo "OK: 'show version' exited 0 as expected" >&2
-
-echo "OK: all ssh-cli-status-error-exit-code tests passed" >&2
-exit 0
-EOF_SH
-
-# Process orchestration
-cmd=foreground:seq=1:exec=./test-ssh-cli-status-error-exit-code.sh:timeout=15s
+cmd=foreground:seq=1:exec=ze start ssh-cli-status-error.conf:timeout=15s
+cmd=foreground:seq=2:exec=ze-test fixture plugin/ssh-cli-status-error-exit-code $PORT2:timeout=15s
 expect=exit:code=0
+expect=stderr:contains=OK: 'request as112 healthcheck' exited non-zero
+expect=stderr:contains=OK: 'show version' exited 0

@@ -2,7 +2,7 @@
 //
 // Requirement-bound tests for RFC 6793. Each test carries an
 // "RFC requirement: RFC6793-<sec>-<n> <polarity>" tag consumed by
-// scripts/dev/rfc_requirements.py.
+// internal/le/rfc/actions.go.
 
 package attribute_test
 

@@ -15,60 +15,15 @@ option=needs-linux:caps=net-admin
 # The ZE_QEMU exclusion that used to sit here is GONE, and removing it is
 # the point. It was added in d419a059e for tests that "need a real Linux
 # host (… nftables genl)" when QEMU could not do nft; QEMU can now --
-# ze-qemu-needs-linux-test passes ZE_QEMU_SKIP_SUITES="web" so the firewall
+# `./le qemu all-tests` passes ZE_QEMU_SKIP_SUITES="web" so the firewall
 # suite runs there, and test/firewall/firewall-boot-apply.ci is nft-based and
 # carries the same caps marker. Kept together, the two options meant this
 # test ran in NO environment at all: the caps gate skips it everywhere
-# without CAP_NET_ADMIN, and ZE_QEMU=1 (scripts/evidence/qemu-all-tests.sh)
+# without CAP_NET_ADMIN, and ZE_QEMU=1 (internal/le/qemu/alltests.go)
 # skipped it in the one place that has it. It was the only one of 68
 # capability-gated tests carrying that combination.
 option=timeout:value=15s
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import json, os, signal, subprocess, sys, time
-
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-last_err = None
-out = None
-for _ in range(50):
-    try:
-        out = subprocess.check_output(
-            ["ze", "cli", "-c", "show policy routes"],
-            text=True, stderr=subprocess.STDOUT)
-        break
-    except subprocess.CalledProcessError as e:
-        last_err = e
-        # retry interval; the loop above stops on the first successful CLI response, bounded wait not a blind sleep
-        time.sleep(0.1)
-if out is None:
-    sys.exit("ze cli never became ready: %s" % last_err.output)
-
-try:
-    data = json.loads(out)
-except json.JSONDecodeError as e:
-    sys.exit("invalid JSON from show policy routes: %s\noutput: %s" % (e, out))
-
-if not isinstance(data, list) or len(data) == 0:
-    sys.exit("expected non-empty list, got: %s" % out)
-
-entry = data[0]
-if 'name' not in entry:
-    sys.exit("policy entry missing 'name' field: %s" % entry)
-
-sys.stdout.write(out)
-os.kill(pid, signal.SIGTERM)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
@@ -94,7 +49,7 @@ option=env:var=ze.log.policy.routes:value=info
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=2:exec=ze-test fixture plugin/policy-routes-show:timeout=15s
 expect=exit:code=0
 expect=stdout:contains=test-pbr
 expect=stdout:contains=allow-http

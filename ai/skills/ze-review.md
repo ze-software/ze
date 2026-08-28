@@ -26,7 +26,7 @@ phase itself.
   know the scope: you wrote the file list. Left to find it, each agent runs its
   own `git diff` and reads the changed files again. Measured 2026-08-10: three
   lenses over a 1000-line diff cost 364k tokens between them. Put the diff under
-  `$(scripts/dev/session-scratch.sh)` and name the path in the prompt.
+  `$(./le session scratch ensure)` and name the path in the prompt.
   **This replaces the DISCOVERY, never the verification.** A finding still names
   the producing function, read from source (`ai/rules/evidence.md`).
 - **If you are that agent:** run the steps below. Resolve symbols with the LSP
@@ -40,12 +40,11 @@ phase itself.
   unverified is fabrication with an extra hop. Report the conclusion and the
   evidence that would overturn it, never the search. Under 40 lines
   (`ai/rules/writing.md`).
-- **Read the per-spec state file first.** When a spec is claimed,
-  `tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md` already carries each
-  implementation phase's handoff: files changed with a digest, which AC-N are
-  covered, what is green. `_find_latest_state_for_spec` in
-  `.claude/hooks/lib/state-file.sh` resolves it. Read it before the diff. Do not
-  re-read a source file only to learn what the digest already tells you.
+- **Read the per-spec state file first.** When a spec is claimed, run
+  `./le spec-session state latest spec <spec-stem>` and read the reported file.
+  It carries each implementation phase's handoff: files changed with a digest,
+  covered AC-N rows, and green checks. Read it before the diff. Do not re-read a
+  source file only to learn what the digest already tells you.
 - **Reading it NEVER reduces this review's independence or its lens count.** The
   digest says what was TOUCHED. It is not evidence. It never stands in for
   reading a file you must judge. Every finding still names the PRODUCING
@@ -67,17 +66,17 @@ phase itself.
   grandfathered as dead, a ratchet that disarmed itself on any git error, and
   two false claims in a module docstring. The artifact is required for every
   closure commit carrying code, whichever count you run
-  (`scripts/dev/commit_helper.py`, `review_gate_problems`). This scales the
-  WORK and never the requirement, and `--rounds` stays bounded by what the
+  (`commit.reviewGateProblems`, `internal/le/commit/review.go`). This scales the
+  WORK and never the requirement, and `rounds` stays bounded by what the
   passes FIND.
 
 ## Steps
 
 0. **Automated pre-checks (run both, fix or report findings before proceeding):**
-    - `make ze-repository-check` — catches the mechanical subset of steps 2-4 (stale source anchors, line-number anchors, unwired exports, spec AC completeness, CLI handler coverage) without manual review.
-    - `python3 scripts/dev/audit-test-relaxation.py` for uncommitted changes, or `python3 scripts/dev/audit-test-relaxation.py origin/main` to also cover work already committed but not yet pushed (this repo commits directly to main, so `main` is normally HEAD and auditing against it would compare nothing; the tool refuses that with exit 2 rather than reporting clean). The audit reads accepted rows from each commit in the audited range and suppresses each matching structural finding. Treat every remaining `[DELETED]` and `[WEAKENED]` finding as a **BLOCKER**. A test edited to match broken code IS the defect, not the fix. This pass exists because weakening tests to reach green is a recurring failure mode (see `ai/rules/testing.md`).
+    - `./le repository check` catches the mechanical subset of steps 2-4 (stale source anchors, line-number anchors, unwired exports, spec AC completeness, CLI handler coverage) without manual review.
+    - `./le commit audit` for uncommitted changes, or `./le commit audit base origin/main` to also cover committed-but-unpushed work (this repo commits directly to main, so `main` is normally HEAD and auditing against it would compare nothing; the tool refuses that with exit 2 rather than reporting clean). The audit reads accepted rows from each commit in the audited range and suppresses each matching structural finding. Treat every remaining `[DELETED]` and `[WEAKENED]` finding as a **BLOCKER**. A test edited to match broken code IS the defect, not the fix.
 
-1. **Size the change (BEFORE any other analysis):** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff bigger than its problem gets ONE finding: a BLOCKER naming the smaller change. The review stops there. Auditing the details of over-engineered code ratifies it, and every fix it drives earns another pass over more of it (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`). Size decides the spec and the phase sequence, and nothing else (`ai/rules/context-economy.md`). It never caps the review rounds, which `ai/rules/planning.md` "Bounding the loop" owns, and it never licenses doing a small edit inline instead of in its phase. The rounds are bounded by what they FIND, never by the diff's size. `scripts/dev/review_gate.py record` refuses more than five without `--rounds-reason`, which names a PRODUCT defect a later round found. A sixth round also needs `--owner-authorised`: more than five passes is Thomas's decision (owner ruling 2026-08-17).
+1. **Size the change (BEFORE any other analysis):** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff bigger than its problem gets ONE finding: a BLOCKER naming the smaller change. The review stops there. Auditing the details of over-engineered code ratifies it, and every fix it drives earns another pass over more of it (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`). Size decides the spec and the phase sequence, and nothing else (`ai/rules/context-economy.md`). It never caps the review rounds, which `ai/rules/planning.md` "Bounding the loop" owns. The rounds are bounded by what they FIND. `./le spec-session review record` refuses more than five without `rounds-reason <reason>` naming a PRODUCT defect a later round found; a sixth round also needs `owner-authorised <reason>` from Thomas.
 
 2. **Wiring verification (before any analysis of correctness):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. It leads the correctness checks because it catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`). If new code has no caller in production, nothing else in this review matters.
 
@@ -90,7 +89,7 @@ phase itself.
     | HTTP handler / web route | Registered on a mux (`srv.Handle`, `mux.HandleFunc`, etc.) and reachable from `hub/main.go` or `web/server.go` |
     | CLI command | Registered via `registry.MustRegisterLocal` or `registry.RegisterRoot` in a `register.go` with a blank import chain to `main.go` |
     | CLI command (completion) | Command appears in tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`). A command without completion is undiscoverable. See `ai/rules/cli.md` "Command Completion". |
-    | Plugin | Has `register.go` with `registry.Register()`, appears in generated `all.go` (or will after `make generate`) |
+    | Plugin | Has `register.go` with `registry.Register()`, appears in generated `all.go` (or will after `./le repository generate`) |
     | Config option / YANG leaf | YANG module registered, leaf read by runtime code (not just parsed) |
     | Env var | `env.MustRegister()` call exists, `env.Get*()` call exists |
     | Metrics | Metric created AND updated somewhere reachable |
@@ -143,7 +142,7 @@ phase itself.
     | Plugin registration/inventory | Runtime inventory docs match registry or `bin/ze --plugins` output |
     | Architecture/data flow | Relevant `docs/architecture/*` claims match current source and have source anchors |
     | Metrics | Telemetry docs list metric names and labels |
-    | New feature, tool, make target, or verification gate | `ai/INDEX.md` keyword + task rows updated; `docs/architecture/` if the decision is structural; `ai/rules/repo-maintenance.md` if a new hook/gate. Per `ai/rules/repo-maintenance.md`. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is an ISSUE. |
+    | New feature, native action, or verification gate | `ai/INDEX.md` keyword + task rows updated; `docs/architecture/` if the decision is structural; `ai/rules/repo-maintenance.md` if a new hook/gate. Per `ai/rules/repo-maintenance.md`. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is an ISSUE. |
 
     Also grep `docs/` for `source: <changed-file>` for every changed source file. If any anchored claim is stale or missing after the code change, report an ISSUE. If a user-visible behavior changed and no documentation was updated or explicitly proven unnecessary, report an ISSUE.
 
@@ -250,7 +249,7 @@ phase itself.
 | False positive | Why discard |
 |----------------|-------------|
 | Pre-existing issue the goal does NOT depend on | Not introduced by these changes. If the goal depends on that path, "pre-existing" never excuses it: the test is dependency, never causation (`ai/rules/planning.md`, "Bounding the loop") |
-| Linter/compiler-catchable (imports, types, formatting) | `make ze-lint` catches these separately |
+| Linter/compiler-catchable (imports, types, formatting) | `./le verify-lint run` catches these separately |
 | Issue on unmodified lines, when the goal does not depend on it | This review does not cover it. Never discard an always-in-scope class this way (`ai/rules/planning.md`, "Bounding the loop", which owns the list). An absence sits on no changed line, so this row would otherwise swallow every one of them |
 | Intentional behavioral change clearly related to the broader diff | Not a bug, it is the point |
 | General quality concern not tied to a specific bug | Too vague to act on. A simplicity finding from step 17 is NOT this: it names the construct, the file, and the simpler shape |
@@ -353,7 +352,7 @@ surfaced at daemon startup / on another OS -- not at compile time.
 
 | Check | What to verify | Failure it prevents |
 |-------|----------------|---------------------|
-| **New wire method in the golden** | Every new `RegisterRPCs` WireMethod / `ze:command` is present (sorted) in `internal/component/plugin/all/testdata/wire-methods.snapshot`; a new plugin in `plugins.snapshot`; a new YANG provider in `yang-providers.snapshot`. | `TestRegisteredWireMethods` fails `unexpected wire-methods: ...`. The golden is hand-maintained -- `make generate` does NOT update it (learned 1046). |
+| **New wire method in the golden** | Every new `RegisterRPCs` WireMethod / `ze:command` is present (sorted) in `internal/component/plugin/all/testdata/wire-methods.snapshot`; a new plugin in `plugins.snapshot`; a new YANG provider in `yang-providers.snapshot`. | `TestRegisteredWireMethods` fails `unexpected wire-methods: ...`. The golden is hand-maintained -- `./le repository generate` does NOT update it (learned 1046). |
 | **Merged-node description parity** | When more than one module contributes the same container node (container-merge on a shared `show` parent, or `augment` into a shared config parent), the node's `description` is byte-identical across every contributing module. | `YANG command description mismatch node=X` warns on every startup. Fix: make the shared parent a pure namespace with one agreed description; put per-command text on the leaf command node. |
 | **Nested ConfigRoot fully unwrapped** | A `ConfigRoot`/`WantsConfig` containing `/` (e.g. `traffic/usage`) is delivered as `{"traffic":{"usage":{...}}}`. The section reader unwraps EVERY segment -- never `root[configRoot]`, which looks up a literal `"traffic/usage"` key and silently yields an empty config. Doctors/completers use a path-aware lookup (`Tree.GetContainerPath`), never `GetContainer("<a/b>")`. | Config parses to empty with no error (plugin inert); a doctor/completer silently sees no container. |
 | **needs-linux for dependency-pulling `.ci`** | A `test/plugin/*.ci` (or `reload`/`parse`) that configures a plugin whose `Registration.Dependencies` include `interface`/`firewall`/`vpp` (directly or transitively) sets `option=needs-linux`, or supplies a working backend. | The daemon starts the dependency plugin, which has no OS-default backend on darwin (`no backend configured and no OS default available`), so the test fails on macOS before the behavior under test runs. |
@@ -389,4 +388,4 @@ permission to home the class it omitted.
 - After the user reviews your list, they will tell you which to fix.
 - **Regression test required per fix:** When fixing an issue found by this review, add a test that would have caught the problem during development. The issue exists because a test was missing; the fix is incomplete without one. If a regression test is genuinely impossible (e.g., the finding is a naming convention violation), note why in the fix. Otherwise, no test = not fixed.
 - The diff's SIZE caps no review pass, and each pass has a hard bound on its SCOPE. Run a fresh pass whenever the code has changed since the last one, over the fixes that changed it. Stop when a pass finds nothing within its own scope. "I already reviewed this" is not a reason to stop. "A full re-read of the whole diff found something unrelated" is not a reason to continue (`ai/rules/planning.md`, "Bounding the loop").
-- **What the passes FIND does bound them.** A false statement in the spec's own closure record is a NOTE and never re-opens a round, and a round whose findings are all record defects is the last round. `scripts/dev/review_gate.py record` takes `--rounds N` and refuses more than five without `--rounds-reason` naming the PRODUCT defect a later round found. Past five it also refuses without `--owner-authorised`. A sixth pass is Thomas's decision, so you stop at the cap and ask him. You never set that flag yourself (owner ruling 2026-08-17, `ai/rules/planning.md`, "A finding in the record is not a finding in the product").
+- **What the passes FIND does bound them.** A false statement in the spec's own closure record is a NOTE and never re-opens a round, and a round whose findings are all record defects is the last round. `./le spec-session review record` takes `rounds <N>` and refuses more than five without `rounds-reason <reason>` naming the PRODUCT defect a later round found. Past five it also refuses without `owner-authorised <reason>`. A sixth pass is Thomas's decision, so you stop at the cap and ask him. You never set that keyword yourself (owner ruling 2026-08-17, `ai/rules/planning.md`, "A finding in the record is not a finding in the product").

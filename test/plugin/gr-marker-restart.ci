@@ -1,7 +1,7 @@
 # gr-marker-restart - verify valid GR marker triggers restart detection
 #
 # Flow:
-# 1. Shell script creates a valid (far-future) GR marker in meta/bgp/gr-marker
+# 1. Compiled fixture creates a valid (far-future) GR marker in meta/bgp/gr-marker
 # 2. Ze starts with GR capability (restart-time=120) and filesystem storage
 # 3. Ze reads marker, sets RestartUntil, logs "GR restart marker found"
 # 4. Ze connects to ze-peer, session establishes (UPDATE + EOR sent)
@@ -14,17 +14,8 @@
 # VALIDATES: AC-6 -- marker consumed (removed) on startup.
 # PREVENTS: GR marker ignored on startup.
 
-# Shell script to create marker before ze starts
-tmpfs=create-marker.sh:mode=755:terminator=EOF_MARKER
-#!/bin/sh
-set -e
-mkdir -p meta/bgp
-# Far-future timestamp (year 2099): 4070910976 = 0x00000000F2A52C00
-# 8-byte big-endian int64 UNIX seconds (octal: \x not portable in /bin/sh)
-printf '\000\000\000\000\362\245\054\000' > meta/bgp/gr-marker
-EOF_MARKER
 
-# Use filesystem storage: the shell script creates the marker as a file on disk.
+# Use filesystem storage: the compiled fixture creates the marker as a file on disk.
 # With default blob storage the marker would live inside database.zefs (binary-relative
 # configDir), not the tmpfs, so the pre-seeded marker would never be visible to ze.
 # Must live OUTSIDE the stdin=peer block: the test runner only parses expect= / action=
@@ -33,6 +24,9 @@ option=env:var=ze.storage.blob:value=false
 
 # Enable GR subsystem logging so marker detection is visible (also outside peer block).
 option=env:var=ze.log.bgp.gr:value=info
+tmpfs=.gr-marker-workdir:terminator=EOF_WORKDIR
+restart
+EOF_WORKDIR
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -123,9 +117,9 @@ bgp {
 EOF_CONF
 
 # Process orchestration:
-# 1. Create marker file (foreground, completes instantly)
+# 1. Create marker file through the compiled fixture
 # 2. Start ze-peer (background, waits for connection)
 # 3. Start ze with marker present (foreground, reads marker on startup)
-cmd=foreground:seq=1:exec=./create-marker.sh
+cmd=foreground:seq=1:exec=ze-test fixture plugin/gr-marker-restart-create
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s

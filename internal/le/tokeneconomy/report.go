@@ -375,8 +375,8 @@ func (r *Report) agentTypeBlock() []string {
 		"  the parent wrote, and drifts as a live session grows. A fork",
 		"  reports 0: it inherits its parent's context, so it has no floor.",
 		"  ACROSS sessions the rows do not compare, because the always-on",
-		"  preamble changes size. Scope with make ze-token-economy-report",
-		"  ZE_SESSION=<id>. See ai/agents/, ai/rules/context-economy.md.")
+		"  preamble changes size. Scope with ./le token-economy session",
+		"  <id>. See ai/agents/, ai/rules/context-economy.md.")
 }
 
 func (r *Report) toolBlock() []string {

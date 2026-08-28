@@ -24,9 +24,9 @@ import (
 //
 // The sink is a syncBuffer, not a bytes.Buffer: the override is process-global, so every
 // live session's background goroutines (keepalive and hold timers, the cancel goroutine)
-// write into it while the test reads it. A bare bytes.Buffer here is a data race, seen
-// under `make ze-unit-reactor-test-race` between a keepalive timer's Debug line and this test's
-// String().
+// write into it while the test reads it. A bare bytes.Buffer here is a data race,
+// seen under `./le test-unit bgp` between a keepalive timer's Debug line and this
+// test's String().
 func captureSessionLog(t *testing.T, level slog.Level) *syncBuffer {
 	t.Helper()
 	buf := &syncBuffer{}

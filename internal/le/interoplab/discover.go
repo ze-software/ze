@@ -20,7 +20,7 @@ const defaultSessionTimeout = 90 * time.Second
 // Checker is the protocol leaf's typed assertion entry point.
 type Checker func(context.Context, *CheckContext) error
 
-// ScenarioSource binds a directory to the Go checker that replaces check.py.
+// ScenarioSource binds a directory to its typed Go checker.
 type ScenarioSource struct {
 	Name      string  `json:"name"`
 	Directory string  `json:"directory"`

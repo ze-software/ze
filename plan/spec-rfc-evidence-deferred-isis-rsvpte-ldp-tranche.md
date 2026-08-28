@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Bind the IS-IS, RSVP-TE and LDP unit-only requirements at `functional/verify`.
 84 gated MUST-level requirements sit there: IS-IS 52, RSVP-TE 25, LDP 7. All
 three subsystems already have runnable suites, so the tier is reachable today:
-`mk/test-functional.mk` `all_suites` names `isis`, `isis-wire`, `rsvpte` and
+`internal/le/functional/suites.go` `all_suites` names `isis`, `isis-wire`, `rsvpte` and
 `ldp`.
 
 Deferred out of `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md`,
@@ -39,18 +39,18 @@ one, and let the scan set the order.
   happen is the vacuity trap in `ai/rules/interop-and-goal-validation.md`.
 - Write no `{gap}`. A requirement that cannot be proven at any tier is an owner
   question (`ai/rules/rfc-compliance.md`).
-- Measure by importing `scripts/dev/rfc_requirements.py`. Do not render
+- Measure by importing `internal/le/rfc/rfc.go`. Do not render
   `ai/RFC-REQUIREMENTS.md` to read a number: the regen sweeps other sessions'
   uncommitted tags into your commit.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `scripts/dev/rfc_requirements.py` - `CARRIERS`, `carrier_for`, `functional_suites`
+- [ ] `internal/le/rfc/rfc.go` - `CARRIERS`, `carrier_for`, `functional_suites`
   → Constraint: the four suites above are named in `all_suites`, so a `.ci` in any of them earns `functional/verify`.
 - [ ] `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` - the selection rule and the measured ranking
   → Decision: the rule tests the ORACLE, never the requirement text.
-- [ ] `mk/test-functional.mk` - `all_suites`
+- [ ] `internal/le/functional/suites.go` - `all_suites`
   → Constraint: the suite list is the tier gate; read it rather than assuming.
 
 ### RFC Summaries (Scope: protocol)
@@ -63,7 +63,7 @@ one, and let the scan set the order.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `scripts/dev/rfc_requirements.py` - resolves a test path to a carrier, an evidence kind and an execution tier
+- [ ] `internal/le/rfc/rfc.go` - resolves a test path to a carrier, an evidence kind and an execution tier
 
 **Behavior to preserve:**
 - Every existing expectation in the four suites, and the `kind/tier` model.
@@ -85,7 +85,7 @@ one, and let the scan set the order.
 | Ze ↔ external peer | IS-IS, RSVP-TE or LDP PDUs | No |
 
 ### Integration Points
-- `scripts/dev/rfc_requirements.py` `scan_ci_tags` - discovers the `# RFC requirement:` lines.
+- `internal/le/rfc/rfc.go` `scan_ci_tags` - discovers the `# RFC requirement:` lines.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -101,7 +101,7 @@ one, and let the scan set the order.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The four suites boot enough of each subsystem to observe these obligations at a boundary | they are named in `all_suites` and run in `make ze-precommit-verify` | the requirement needs a tier the suite cannot give | run each suite and read what it exercises | unvalidated |
+| A-1 | The four suites boot enough of each subsystem to observe these obligations at a boundary | they are named in `all_suites` and run in `./le verify current mode full` | the requirement needs a tier the suite cannot give | run each suite and read what it exercises | unvalidated |
 | A-2 | A useful share of the 84 are self-oracled | untested. Rank 4 came from intuition, and the L2TP cluster measured BETTER covered than predicted | the tranche buys tier without discrimination | run the oracle scan before picking | unvalidated |
 
 ### Risks
@@ -121,7 +121,7 @@ one, and let the scan set the order.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `# RFC requirement:` line in a landed `.ci` | → | `scan_ci_tags` then `carrier_for` (`scripts/dev/rfc_requirements.py`) | the landed `.ci` resolves to `functional/verify` |
+| `# RFC requirement:` line in a landed `.ci` | → | `scan_ci_tags` then `carrier_for` (`internal/le/rfc/rfc.go`) | the landed `.ci` resolves to `functional/verify` |
 
 ## Acceptance Criteria
 
@@ -263,7 +263,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -281,7 +281,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

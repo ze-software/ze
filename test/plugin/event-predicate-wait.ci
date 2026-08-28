@@ -1,82 +1,24 @@
-# Test: wait_for_event(predicate) matches a specific event by its decoded form.
-# Spec: spec-payload-predicate-waits (AC-4, Python observer SDK).
+# Test: a native event predicate matches a specific event by decoded content.
+# Spec: spec-payload-predicate-waits (AC-4, observer SDK).
 #
 # NOTE: an earlier draft waited on peer STATE events, but external observers
 # received no state deliveries here; this uses the exabgp-style echo path instead
 # (internal/test/peer/peer.go ModeEcho reflects the announced UPDATE back).
 #
-# VALIDATES: ze_api.wait_for_event(timeout, predicate) returns the first
-#            delivered event whose decoded JSON satisfies the predicate. The
-#            observer subscribes to bgp update events, announces a route, and the
+# VALIDATES: the observer skips non-matching events and returns the first
+#            delivered event whose content satisfies the predicate. It
+#            subscribes to bgp update events, announces a route, and the
 #            echo-mode ze-peer reflects the UPDATE straight back
 #            (internal/test/peer/peer.go ModeEcho); the daemon receives it and
-#            delivers a bgp update event, which the predicate matches by prefix --
-#            end to end through the daemon, no time.sleep.
-# PREVENTS:  wait_for_event(predicate) regressing (the predicate parameter the
-#            Observer API docs promised; closes doc-vs-code drift).
+#            delivers a bgp update event, which the predicate matches by prefix,
+#            end to end through the daemon with no fixed delay.
+# PREVENTS:  payload-predicate event waits regressing.
 
-tmpfs=event-predicate-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Observer: announce a route, wait for the echoed update via a payload predicate."""
-
-import json
-import sys
-
-from ze_api import API, runtime_fail
-
-PREFIX = "203.0.113.0/24"
-
-
-def dispatch(api, command):
-    resp = api._call_engine("ze-plugin-engine:dispatch-command", {"command": command})
-    if resp is None:
-        return {"status": "error", "data": "engine call returned None"}
-    return resp.get("result", {})
-
-
-def mentions_prefix(ev):
-    """Shape-agnostic: true if the decoded event mentions the announced prefix."""
-    blob = ev if isinstance(ev, str) else json.dumps(ev)
-    return PREFIX in blob
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Subscribe to bgp update events, then announce a route. The echo peer
-    # reflects the UPDATE back, so the daemon delivers a matching update event.
-    sub = dispatch(api, "request subscribe bgp event update")
-    if sub.get("status") != "done":
-        runtime_fail(f"subscribe bgp event update failed: {sub}")
-
-    api.send(f"peer * update text origin igp nhop 101.1.101.1 nlri ipv4/unicast add {PREFIX}")
-
-    # Block until the decoded event mentions the announced prefix. Non-matching
-    # deliveries (EoR, keepalive-driven noise) are skipped until one matches or
-    # the timeout expires (AC-4) -- no fixed time.sleep.
-    ev = api.wait_for_event(timeout=15.0, predicate=mentions_prefix)
-    if ev is None:
-        runtime_fail(f"wait_for_event(predicate) never matched an update for {PREFIX} within 15s")
-    print(f"OK: wait_for_event(predicate) matched the echoed update: {ev[:160]}", file=sys.stderr)
-
-    dispatch(api, "request shutdown")
-    api.wait_for_shutdown()
-
-
-if __name__ == "__main__":
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external event-predicate-test {
-		run ./event-predicate-test.run
+		run "ze-test fixture plugin/event-predicate-wait"
 		encoder json
 	}
 }

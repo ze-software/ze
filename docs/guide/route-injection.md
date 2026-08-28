@@ -234,19 +234,13 @@ ze cli -c "request commit end my-batch"    # All routes sent together
 
 ## From Plugins
 
-External plugins send routes through the SDK:
-
-```python
-from ze_api import API
-
-api = API()
-# ... 5-stage startup ...
-api.send("peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
-```
+External plugins send the same newline-framed YANG RPC command over the plugin
+hub. The wire protocol is language-independent; the repository no longer
+ships a Python launcher or helper.
 
 Go plugins use the SDK method:
 
 ```go
 p.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
 ```
-<!-- source: pkg/plugin/sdk/ -- SDK DispatchCommand; test/scripts/ze_api.py -- Python SDK -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin -->

@@ -203,13 +203,13 @@ empty `default:` branch is refused by the pretool hook.
 
 ## The consumer side is a standing gate, not a one-time migration
 
-`scripts/checks/iface_resolution.go` rejects new direct kernel name resolution
-outside its allowlist. It runs as a `ze-precommit-verify` stage through
+`internal/le/ifaceresolution.Answer` rejects new direct kernel name resolution
+outside its allowlist. It runs as a `./le verify current mode full` stage through
 `stagesForMode`, and the allowlist records every legitimate direct-resolution
 site.
 
-<!-- source: scripts/checks/iface_resolution.go -- direct-resolution guard and allowlist -->
-<!-- source: scripts/status/verify_run.go -- stagesForMode -->
+<!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
+<!-- source: internal/le/verify/run.go -- Run, RunMode -->
 
 The gate proved load-bearing: the VPP tunnel, mirror and LCP files had to pass
 it. A consumer that needs interface identity imports iface, which is an

@@ -16,7 +16,7 @@ no doctor code change. The alternative, extending the YANG compiler to
 propagate `refine` defaults, would have touched every consumer of the compiler.
 
 <!-- source: internal/component/config/listener_defaults.go -- builtin listener defaults -->
-<!-- source: scripts/checks/port_defaults.go -- listener default port table gate -->
+<!-- source: internal/le/portdefaults/actions.go -- Answer -->
 
 Two constraints hold this together:
 

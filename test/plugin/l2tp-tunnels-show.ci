@@ -12,7 +12,7 @@
 # Architecture:
 #   seq=1: ze-peer (BGP) — triggers TLS plugin hub setup so the
 #          external observer process can reach the engine.
-#   seq=2: python l2tp-peer — brings up one tunnel via SCCRQ / SCCRP
+#   seq=2: native L2TP peer brings up one tunnel via SCCRQ / SCCRP
 #          / SCCCN, then blocks on a marker file so the tunnel stays
 #          established while the observer reads.
 #   seq=3: ze daemon.
@@ -43,208 +43,11 @@ option=timeout:value=20s
 # content -- its l2tp assertions and expect=exit:code=0 are what it proves.
 EOF_PEER
 
-# Python L2TP peer: establish one tunnel, hold it, then exit cleanly.
-tmpfs=l2tp-peer.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Establish an L2TP tunnel with ze, then idle until signalled."""
-import hashlib
-import os
-import socket
-import struct
-import sys
-import time
-
-if len(sys.argv) < 2:
-    print("usage: l2tp-peer.py <port> [tunnel-id]", file=sys.stderr)
-    sys.exit(2)
-
-TARGET = ("127.0.0.1", int(sys.argv[1]))
-PEER_TID = int(sys.argv[2], 0) if len(sys.argv) > 2 else 0x0123
-SECRET = os.environ.get("TEST_SECRET", "").encode("utf-8")
-PEER_CHALLENGE = bytes.fromhex("00112233445566778899aabbccddeeff")
-
-
-def avp(mandatory, attr_type, value):
-    flags = 0x8000 if mandatory else 0
-    return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
-
-
-def build_sccrq():
-    body = b""
-    body += avp(True, 0, struct.pack("!H", 1))
-    body += avp(True, 2, b"\x01\x00")
-    body += avp(True, 3, struct.pack("!I", 0x3))
-    body += avp(True, 4, struct.pack("!I", 0x0))
-    body += avp(True, 7, b"py-peer")
-    body += avp(True, 9, struct.pack("!H", PEER_TID))
-    body += avp(True, 10, struct.pack("!H", 8))
-    if SECRET:
-        body += avp(True, 11, PEER_CHALLENGE)
-    total = 12 + len(body)
-    hdr = struct.pack("!HHHHHH", 0xC802, total, 0, 0, 0, 0)
-    return hdr + body
-
-
-def parse_avps(body):
-    out = {}
-    off = 0
-    while off + 6 <= len(body):
-        word, vendor, atype = struct.unpack("!HHH", body[off:off + 6])
-        length = word & 0x03FF
-        if length < 6 or off + length > len(body):
-            break
-        if vendor == 0:
-            out[atype] = body[off + 6:off + length]
-        off += length
-    return out
-
-
-def build_scccn(dest_tid, ns, nr, response):
-    body = b""
-    body += avp(True, 0, struct.pack("!H", 3))
-    if response is not None:
-        body += avp(True, 13, response)
-    total = 12 + len(body)
-    hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, 0, ns, nr)
-    return hdr + body
-
-
-def main():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("127.0.0.1", 0))
-    sock.settimeout(0.25)
-    sccrp = None
-    for _ in range(40):
-        try:
-            sock.sendto(build_sccrq(), TARGET)
-            data, _ = sock.recvfrom(1500)
-            sccrp = data
-            break
-        except (socket.timeout, ConnectionRefusedError, OSError):
-            continue
-    if sccrp is None:
-        print("ERROR: no SCCRP", file=sys.stderr)
-        return 1
-    _, length, _, _, _, _ = struct.unpack("!HHHHHH", sccrp[:12])
-    avps = parse_avps(sccrp[12:length])
-    tid_bytes = avps.get(9)
-    if tid_bytes is None:
-        print("ERROR: SCCRP missing AssignedTID", file=sys.stderr)
-        return 1
-    local_tid = struct.unpack("!H", tid_bytes)[0]
-
-    response = None
-    if SECRET:
-        our_challenge = avps.get(11)
-        if our_challenge is None:
-            print("ERROR: SCCRP missing Challenge", file=sys.stderr)
-            return 1
-        response = hashlib.md5(bytes([3]) + SECRET + our_challenge).digest()
-
-    sock.settimeout(1.0)
-    sock.sendto(build_scccn(local_tid, 1, 1, response), TARGET)
-    try:
-        sock.recvfrom(1500)
-    except (socket.timeout, OSError):
-        pass
-    print(f"OK: tunnel established local_tid={PEER_TID} remote_tid={local_tid}")
-    sys.stdout.flush()
-
-    # Keep the tunnel alive while the observer does its dispatches.
-    # Exit on marker or after a hard timeout.
-    deadline = time.time() + 15.0
-    sock.settimeout(0.2)
-    while time.time() < deadline:
-        if os.path.exists("peer.exit"):
-            break
-        try:
-            sock.recvfrom(1500)
-        except (socket.timeout, OSError):
-            pass
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-EOF_PY
-
-tmpfs=l2tp-tunnels-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Dispatch show l2tp tunnels after the peer has brought up a tunnel."""
-import json
-import os
-import time
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Poll show l2tp tunnels until the peer's handshake completes
-    # and the tunnel is visible. Generous budget because SCCRQ/SCCCN
-    # traverses the whole reliable-delivery stack.
-    def _has_tunnel(r):
-        if r.get('status') != 'done':
-            return False
-        try:
-            ts = result_json_data(r, [])
-        except json.JSONDecodeError:
-            return False
-        return isinstance(ts, list) and len(ts) >= 1
-
-    r = api.dispatch_until('show l2tp tunnels', _has_tunnel, attempts=100, delay=0.1)
-    try:
-        tunnels = result_json_data(r, []) if r.get('status') == 'done' else []
-    except json.JSONDecodeError:
-        tunnels = []
-    if not (isinstance(tunnels, list) and tunnels):
-        runtime_fail('tunnel never appeared in `show l2tp tunnels`')
-
-    t = tunnels[0]
-    if t.get('peer-hostname') != 'py-peer':
-        runtime_fail(f'tunnel peer-hostname={t.get("peer-hostname")!r} want "py-peer"')
-    if t.get('state') != 'established':
-        runtime_fail(f'tunnel state={t.get("state")!r} want "established"')
-    if not isinstance(t.get('local-tid'), int) or t.get('local-tid') == 0:
-        runtime_fail(f'tunnel local-tid={t.get("local-tid")!r} invalid')
-    if t.get('remote-tid') != 0x0123:
-        runtime_fail(f'tunnel remote-tid={t.get("remote-tid")!r} want 0x0123')
-
-    # Signal the peer to exit so the test terminates cleanly.
-    with open('peer.exit', 'w') as f:
-        f.write('ok')
-
-    # Fire-and-forget: a synchronous dispatch of `request shutdown` races ze's own
-    # socket close. When the close wins (routine under load) _call_engine blocks for
-    # its 30s TLS read timeout then raises "no response for
-    # ze-plugin-engine:dispatch-command", failing a test whose assertions all passed.
-    # wait_for_shutdown observes the close itself, which is the real condition.
-    api.shutdown_fire_and_forget()
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external l2tp-tunnels-show-test {
-		run ./l2tp-tunnels-show.run
+		run "ze-test fixture plugin/l2tp-tunnels-show"
 		encoder json
 	}
 }
@@ -298,7 +101,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
-cmd=background:seq=2:exec=python3 l2tp-peer.py $PORT2 0x0123
+cmd=background:seq=2:exec=ze-test fixture plugin/l2tp-tunnels-show-peer $PORT2 0x0123
 cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=tunnel now established

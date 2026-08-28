@@ -16,38 +16,6 @@
 # (web.TestWebServerServesPKIChain, pki.TestServerTLSMaterialAssemblesChain);
 # the observer sandbox cannot drive a TLS handshake.
 
-tmpfs=signal.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-# ONE reload per test. Several HUPs in one run race the daemon's reload queue
-# (a HUP arriving mid-reload is queued and replayed), which made a three-reload
-# script pass or fail depending on machine load rather than on the behavior.
-#
-# Fence on daemon.pid, NOT on daemon.ready. The runner waits for the daemon to
-# write daemon.ready and only THEN publishes daemon.pid
-# (internal/test/runner/runner_exec.go), so daemon.pid is the later of the two:
-# breaking out on daemon.ready and reading daemon.pid immediately loses the race
-# under parallel load, and a HUP sent before the signal handlers are registered
-# is lost anyway. This daemon loads pki, plugins and ike, so allow 20s.
-for i in $(seq 1 200); do
-    if [ -f daemon.pid ]; then
-        break
-    fi
-    sleep 0.1
-done
-if [ ! -f daemon.pid ]; then
-    echo "daemon.pid not found" >&2
-    exit 1
-fi
-PID=$(cat daemon.pid)
-
-cp addref.conf hub.conf
-kill -HUP "$PID" 2>/dev/null
-# One reload, then stop. The runner fences on the stderr assertions below; this
-# sleep only keeps the script alive long enough for the reload to emit them.
-sleep 3
-
-kill -TERM "$PID" 2>/dev/null
-EOF_SH
 
 tmpfs=hub.conf:terminator=EOF_CONF
 plugin {
@@ -111,7 +79,7 @@ environment {
 }
 EOF_ADDREF
 
-cmd=background:seq=1:exec=./signal.sh
+cmd=background:seq=1:exec=ze-test fixture reload/pki-reference-reload-trigger
 cmd=foreground:seq=2:exec=ze start hub.conf:timeout=40s
 expect=exit:code=0
 expect=stderr:contains=sighup reload complete

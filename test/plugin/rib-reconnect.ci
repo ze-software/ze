@@ -27,56 +27,13 @@ expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python plugin script
-tmpfs=rib-reconnect.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""
-Test: RIB replays routes on reconnection + route-refresh
-
-Flow:
-1. ZeBGP connects to test peer
-2. This script sends route via API -> RIB stores in ribOut
-3. Test peer receives route + EOR, sends NOTIFICATION
-4. ZeBGP reconnects
-5. RIB replays the route automatically (peer state "up")
-6. Test peer receives route again + EOR
-7. Test peer sends ROUTE-REFRESH
-8. RIB responds with BoRR + route + EoRR
-"""
-
-import time
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-
-def main() -> None:
-    ready()
-
-    # Send one route - RIB will store it and replay on reconnect
-    send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
-
-    # Wait for ACK
-    wait_for_ack(expected_count=1)
-
-    # Test peer will:
-    # 1. Receive route + EOR
-    # 2. Send NOTIFICATION -> ZeBGP disconnects
-    # 3. ZeBGP reconnects
-    # 4. RIB replays the route
-    # 5. Send ROUTE-REFRESH
-    # 6. RIB responds with BoRR + route + EoRR
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# native plugin script
+# Native compiled fixture: plugin/rib-reconnect
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run ./rib-reconnect.run
+		run "ze-test fixture plugin/rib-reconnect"
 		encoder json
 	}
 	internal bgp-rib {

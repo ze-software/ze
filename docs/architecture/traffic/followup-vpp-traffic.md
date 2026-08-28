@@ -96,7 +96,7 @@ verifier, through `RunVerifier` in `parseAndVerifyTrafficSections` under
 
 ## Evidence
 
-<!-- source: scripts/evidence/effective-vpp.py -- run_traffic_dscp_evidence, run_traffic_multiclass_evidence -->
+<!-- source: internal/le/deployment/actions.go -- Answer -->
 
 Real-VPP evidence is the authoritative apply-tier validation, because the stub
 cannot run a full traffic Apply. Both evidence phases are green on VPP v25.10.

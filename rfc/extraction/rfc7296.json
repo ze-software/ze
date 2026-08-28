@@ -2513,7 +2513,7 @@
       "quote": "Every implementation MUST be capable of doing four-message IKE_SA_INIT and IKE_AUTH exchanges establishing two SAs (one for IKE, one for ESP or AH).",
       "disposition": "mapped",
       "mapped-to": "RFC7296-4-5",
-      "reason": "Section 4 names the four-message IKE_SA_INIT and IKE_AUTH exchange establishing an IKE SA and an ESP or AH SA as a capability every implementation must have. No row stated it, so the walk added RFC7296-4-5, which quotes the sentence in full. The ordinal is -5 rather than -2 because Section 4's high-water mark is already 4 (check_id_allocation, scripts/dev/rfc_requirements.py)."
+      "reason": "Section 4 names the four-message IKE_SA_INIT and IKE_AUTH exchange establishing an IKE SA and an ESP or AH SA as a capability every implementation must have. No row stated it, so the walk added RFC7296-4-5, which quotes the sentence in full. The ordinal is -5 rather than -2 because Section 4's high-water mark is already 4 (internal/le/rfc.Check)."
     },
     {
       "id": "4:5",

@@ -32,4 +32,4 @@ A spec with `type Schema struct { Module string; Handlers []string }` and `func 
 4. Return response to caller
 
 ## Validation
-The `validate-spec.sh` hook BLOCKS specs containing code blocks. Fix: convert code to tables and prose before saving.
+The `./le hook-check validate-spec` action, produced by `internal/le/hookruntime/lifecycle.go`, BLOCKS specs containing code blocks. Fix: convert code to tables and prose before saving.

@@ -15,107 +15,14 @@ cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nho
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030405060708400504000000642001020304
 EOF_PEER
 
-# Python plugin script
-tmpfs=check.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""
-Plugin that subscribes to UPDATE events, validates received default route,
-and sends back a route announcement.
-
-Subscription events are delivered in JSON format (not text).
-"""
-
-import json
-import time
-
-from ze_api import (
-    declare_done, wait_for_config, capability_done, wait_for_registry,
-    subscribe, send, wait_for_ack, wait_for_shutdown, _get_api
-)
-
-
-def main() -> None:
-    api = _get_api()
-
-    # Stage 1: Declaration
-    declare_done()
-
-    # Stage 2: Config delivery
-    wait_for_config()
-
-    # Stage 3: Capabilities
-    capability_done()
-
-    # Stage 4: Registry
-    wait_for_registry()
-
-    # Subscribe to UPDATE events atomically with ready
-    # Included in ready RPC to avoid race with event delivery
-    subscribe(['update'])
-
-    # Stage 5: Ready (includes subscription)
-    api.ready()
-
-    # Wait for UPDATE event from peer (default route)
-    # Subscription events are delivered in JSON format
-    start_time = time.time()
-    while time.time() - start_time < 8:
-        line = api.read_line(0.5)
-        if line is None:
-            continue
-
-        # Try to parse as JSON event
-        try:
-            event = json.loads(line)
-        except (json.JSONDecodeError, TypeError):
-            continue
-
-        # Check for UPDATE event with expected content
-        # JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},"peer":{"remote":{"address":"..."}},"update":{"attr":{...},"nlri":{...}}}}
-        # Type is in bgp.message.type, peer address is in bgp.peer.remote.address, attr/nlri are inside update container
-        bgp = event.get('bgp', {})
-        msg = bgp.get('message', {})
-        if msg.get('type') != 'update':
-            continue
-        peer = bgp.get('peer', {})
-        remote = peer.get('remote', {})
-        if remote.get('address') != '127.0.0.1':
-            continue
-
-        # Check for default route (0.0.0.0/32) announcement
-        # Look in update.nlri -> ipv4/unicast -> operations -> nlri list
-        update = bgp.get('update', {})
-        nlri_data = update.get('nlri', {})
-        families = nlri_data.get('ipv4/unicast', [])
-        nlris = []
-        for op in families if isinstance(families, list) else [families]:
-            if isinstance(op, dict):
-                nlris.extend(op.get('nlri', []))
-
-        if '0.0.0.0/32' in nlris:
-            # Got expected UPDATE, send response route
-            send('peer 127.0.0.1 update text origin igp local-preference 100 nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32')
-            wait_for_ack()
-            break
-    else:
-        # Timeout - send error signal route
-        send('peer 127.0.0.1 update text nhop 255.255.255.255 nlri ipv4/unicast add 0.0.0.0/0')
-        wait_for_ack()
-        return
-
-    # Wait for shutdown
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native plugin subscribes atomically to UPDATE events, validates the default
+# route, and sends the response route.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external check-and-announce {
-		run ./check.run
+		run "ze-test fixture plugin/plugin-check"
 		encoder json
 	}
 }

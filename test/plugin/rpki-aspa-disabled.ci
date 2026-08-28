@@ -11,70 +11,8 @@ option=update:value=send-route:prefix=10.0.1.0/24:origin-as=64502:next-hop=10.0.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python observer: verify NO aspa-state field appears in rpki events
-tmpfs=rpki-aspa-disabled-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-
-    api.subscribe(['rpki direction received'])
-    api.ready()
-
-    # // removed the redundant blocking lead-in and its now-unused
-    # import; the rpki-event read loop below already waits deterministically for
-    # the validation event (up to 30 * 0.5s), which is the real synchronization.
-    try:
-        got_rpki_event = False
-        for _ in range(30):
-            event_str = api.read_line(timeout=0.5)
-            if event_str is None:
-                continue
-            try:
-                evt = json.loads(event_str)
-            except (json.JSONDecodeError, TypeError):
-                continue
-            bgp = evt.get('bgp', {})
-            msg = bgp.get('message', {})
-            if msg.get('type') != 'rpki':
-                continue
-            rpki = bgp.get('rpki', {})
-            if not isinstance(rpki, dict):
-                continue
-            if rpki.get('status') == 'unavailable':
-                continue
-            got_rpki_event = True
-            if 'aspa-state' in rpki:
-                print(f'FAIL: aspa-state present when disabled: {rpki}', file=sys.stderr)
-                sys.exit(1)
-            print('OK: rpki event has no aspa-state (disabled)', file=sys.stderr)
-            break
-
-        if not got_rpki_event:
-            print('FAIL: no rpki event received at all', file=sys.stderr)
-            sys.exit(1)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# native observer: verify NO aspa-state field appears in rpki events
+# Native compiled fixture: plugin/rpki-aspa-disabled
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	hub {
@@ -85,7 +23,7 @@ plugin {
 		}
 	}
 	external rpki-aspa-disabled-test {
-		run ./rpki-aspa-disabled-test.run
+		run "ze-test fixture plugin/rpki-aspa-disabled"
 		encoder json
 	}
 	internal rpki {

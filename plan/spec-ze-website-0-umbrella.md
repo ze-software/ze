@@ -68,7 +68,7 @@ after all six children close and the final browser goal test passes.
 | D-6 | Initial protocols | BGP and BFD | Raw Ethernet fabric or additional protocols before the first lab is proven |
 | D-7 | Commit semantics | Same semantic sequence as SSH: validate, persist, promote, reconcile, and report through the same session path | Browser-only save or restart shortcut |
 | D-8 | Backend gates | General default-on mechanism gates such as `ze_netlink`, `ze_netfilter`, `ze_kernel`, and `ze_p4`; keep `ze_vpp` | One website-specific exclusion switch |
-| D-9 | Build identity | `ze_website` is a distinct `cmd/ze` personality; `make ze-website` supplies only the required feature tags | Reusing `ze_core` or `ze_web` as the browser personality |
+| D-9 | Build identity | `ze_website` is a distinct `cmd/ze` personality; `./le site build` supplies only the required feature tags | Reusing `ze_core` or `ze_web` as the browser personality |
 | D-10 | Storage medium | One Base64-encoded complete ZeFS blob per node profile in `localStorage`, with Web Locks for writes | One key per ZeFS path or IndexedDB in the first implementation |
 
 ## Required Reading
@@ -92,7 +92,7 @@ after all six children close and the final browser goal test passes.
 - [ ] `ai/rules/testing.md` and `ai/rules/interop-and-goal-validation.md` - entry-point proof and non-vacuous protocol tests
   → Constraint: the browser test must fail when the real command, commit, BGP, or BFD path is removed. Startup alone is not evidence.
 - [ ] `ai/rules/repo-maintenance.md` - new make target, browser test lane, and discovery updates
-  → Constraint: `make ze-website`, its test target, architecture docs, and `ai/INDEX.md` must land together.
+  → Constraint: `./le site build`, its test target, architecture docs, and `ai/INDEX.md` must land together.
 
 ### Related Specifications
 
@@ -212,7 +212,7 @@ started.
 
 ### Behavior to Change
 
-- `make ze-website` builds a runnable browser artifact with `ze_website`, BGP,
+- `./le site build` builds a runnable browser artifact with `ze_website`, BGP,
   and BFD, without `ze_core` or host backends.
 - All CLI frontends delegate semantic work to one `cli.Session`.
 - Host dataplane mechanisms become general default-on feature gates.
@@ -224,7 +224,7 @@ started.
 
 ### Entry Point
 
-- Build entry: `make ze-website` compiles `cmd/ze` for `js/wasm` and assembles a
+- Build entry: `./le site build` compiles `cmd/ze` for `js/wasm` and assembles a
   static bundle.
 - Browser entry: the page loads the Go runtime support file and WASM artifact,
   then waits for an explicit ready result.
@@ -271,7 +271,7 @@ started.
 
 ### Integration Points
 
-- `cmd/ze` binary personality registration and Makefile target.
+- `cmd/ze` binary personality registration and the native action tables under `internal/le/` target.
 - `feature-gates.txt` and generated plugin imports.
 - `internal/component/cli` session, editor, completion, pipes, and rendering
   boundaries.
@@ -355,7 +355,7 @@ started.
 |-------------|---|--------------|------|
 | Native SSH/TUI command sequence | → | `cli.Session` | `TestCLISessionNativeParity` |
 | Server web terminal request | → | HTTP adapter → `cli.Session` | `TestWebTerminalUsesSharedSession` |
-| `make ze-website` | → | `ze_website` personality and selected composition | `TestWebsiteWASMBuildAndStart` |
+| `./le site build` | → | `ze_website` personality and selected composition | `TestWebsiteWASMBuildAndStart` |
 | Website command input | → | JavaScript bridge → `cli.Session` | `TestWebsiteExecuteAndComplete` |
 | Website config commit | → | editor → candidate → promote → node reconcile | `TestWebsiteCommitReconcilesNode` |
 | Browser profile write and refresh | → | ZeFS encoder → localStorage backing | `TestBrowserZeFSRefreshPersistence` |
@@ -370,7 +370,7 @@ started.
 
 | AC ID | Input / Condition | Expected Behavior | Child |
 |-------|-------------------|-------------------|-------|
-| AC-1 | Run `make ze-website` in a supported host environment | It produces a static bundle containing the Go WASM artifact, Go runtime support, HTML, CSS, and JavaScript, and the page reaches an explicit ready state in a real browser | 2, 6 |
+| AC-1 | Run `./le site build` in a supported host environment | It produces a static bundle containing the Go WASM artifact, Go runtime support, HTML, CSS, and JavaScript, and the page reaches an explicit ready state in a real browser | 2, 6 |
 | AC-2 | Inspect the website artifact and dependency graph | It contains BGP, BFD, RIB, CLI, config, and ZeFS code and contains no VPP, netlink, netfilter, kernel FIB, P4, SSH server, child-process, host-signal, or host-socket implementation symbols | 2 |
 | AC-3 | Run the same shared command sequence through SSH/TUI, server web, and WASM | Parsing, mode and path transitions, completion items, pipe behavior, config mutations, structured status, text output, JSON output, and errors are semantically identical; only frontend rendering differs | 1, 4, 6 |
 | AC-4 | Build default native and appliance compositions after adding backend gates | Every existing default-on backend and its config schema remains present, and absent builds reject the omitted backend's config instead of accepting a no-op | 2 |
@@ -433,12 +433,12 @@ first invalid values below and above where applicable.
 
 ### Functional Tests
 
-Child 6 implements these cases in `scripts/evidence/ze-website-browser.py` and  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
-binds them to `make ze-website-test`.
+Child 6 implements these cases in `internal/le/deployment/` and  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
+binds them to `./le site check`.
 
 | Test | Entry point | What it proves | Status |
 |------|-------------|----------------|--------|
-| `TestWebsiteWASMBuildAndStart` | `make ze-website` then real browser page load | AC-1 and browser runtime startup | planned |
+| `TestWebsiteWASMBuildAndStart` | `./le site build` then real browser page load | AC-1 and browser runtime startup | planned |
 | `TestWebsiteExecuteAndComplete` | Browser terminal | AC-3 and AC-10 through the user surface | planned |
 | `TestWebsiteCommitReconcilesNode` | Browser terminal config workflow | AC-6 and AC-7 | planned |
 | `TestBrowserZeFSRefreshPersistence` | Browser refresh and reopen | AC-11 | planned |
@@ -481,7 +481,7 @@ integration with two real Ze protocol engines.
 |---------|--------------|----------|
 | `cli.Session` and native frontend migration | 1 | One semantic engine; no browser code in the session core |
 | Backend feature manifest and generated import groups | 2 | General default-on gates; no website-specific no-op backend |
-| `ze_website` personality and Makefile build | 2 | Selected composition only; no `ze_core` or `ze_web` server root |
+| `ze_website` personality and the native action tables under `internal/le/` build | 2 | Selected composition only; no `ze_core` or `ze_web` server root |
 | ZeFS persistence seam and browser backing | 3 | One encoder and commit model; browser-only storage implementation behind platform files |
 | JavaScript bridge and reusable browser terminal adapter | 4 | Structured asynchronous contract; no command or schema copy in JavaScript |
 | Node runtime, transport, reconcile, BGP, BFD, and RIB | 5 | Real engines and isolated mutable state; no external socket relay |
@@ -496,8 +496,8 @@ integration with two real Ze protocol engines.
 | YANG schema (new RPCs/config) | Yes | Children 2 and 5 select existing BGP/BFD/config modules; no browser-only config syntax. Absent backend modules must be rejected |
 | YANG validation constraints | Yes | Existing constraints remain. Child 3 import validation must run the registered schema before replacement |
 | YANG custom validators | Yes | Existing dynamic completion and validators must remain linked when their owner is selected; no browser duplicate |
-| CLI commands/flags | No | No new user CLI command is required. `make ze-website` is a build target and the browser UI is the entry point |
-| CLI grammar (keyword before value) | Yes | Child 1 preserves the existing grammar through `cli.Session`; `make ze-cli-grammar-check` remains authoritative |
+| CLI commands/flags | No | No new user CLI command is required. `./le site build` is a build target and the browser UI is the entry point |
+| CLI grammar (keyword before value) | Yes | Child 1 preserves the existing grammar through `cli.Session`; `./le cli-grammar` remains authoritative |
 | Editor autocomplete | Yes | Child 1 and child 4 derive completion from YANG and command registries |
 | Functional test for new RPC/API | Yes | Child 4 JavaScript bridge contract and child 6 browser entry-point tests |
 | Pipe completeness | Yes | `cli.Session` owns existing text and JSON pipe handling for every frontend |
@@ -535,7 +535,7 @@ integration with two real Ze protocol engines.
 | Where would an agent look first? | Add `ze_website`, browser lab, WASM, browser ZeFS, and browser CLI rows to `ai/INDEX.md` |
 | What rule or gate prevents regression? | Feature gate checks, CLI grammar, generated plugin import checks, native parity tests, WASM build gate, and browser functional target |
 | What source of truth prevents drift? | `feature-gates.txt`, command/YANG/plugin registries, generated compositions, and the linked browser artifact inventory |
-| What verification proves it? | `make ze-website`, child package tests, `make ze-website-test`, feature matrix checks, native CLI/web tests, and goal mutation runs |
+| What verification proves it? | `./le site build`, child package tests, `./le site check`, feature matrix checks, native CLI/web tests, and goal mutation runs |
 | What docs explain usage? | `docs/guide/browser-lab.md` and the browser-lab architecture page created by child 6 |  <!-- doc-links: ignore (file this spec will create; the spec is `design` and the work is not implemented) -->
 | What journal record preserves the decision? | None required now. No recurring implementation defect was diagnosed during design |
 
@@ -585,13 +585,13 @@ integration with two real Ze protocol engines.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Six child specifications | `make ze-spec-status` plus exact child path checks |
+| Six child specifications | `./le spec-status` plus exact child path checks |
 | Shared CLI session | Child 1 package tests, editor tests, web tests, and parity contract |
 | General backend gates | Feature matrix, dependency audit, generated import check, and native present/absent artifact tests |
 | Browser ZeFS | Unit tests plus real-browser persistence, quota, corruption, lock, and import/export tests |
-| WASM bundle | `make ze-website` and artifact inventory |
+| WASM bundle | `./le site build` and artifact inventory |
 | Two-node BGP/BFD lab | Real-browser Established, route exchange, BFD Up/Down, and node-isolation tests |
-| Static website user workflow | `make ze-website-test` in a real browser with network disabled after load |
+| Static website user workflow | `./le site check` in a real browser with network disabled after load |
 | Documentation and discovery | Documentation verification, wiring check, and `ai/INDEX.md` entries |
 
 ### Security Review Checklist
@@ -704,5 +704,5 @@ integration with two real Ze protocol engines.
 - [ ] Commit A contains each child's code, tests, docs, and child spec
 - [ ] Commit B removes each closed child spec
 - [ ] Final umbrella commit records integrated evidence
-- [ ] `make ze-precommit-verify` passes before the final implementation commit
+- [ ] `./le verify current mode full` passes before the final implementation commit
 - [ ] Final cleanup commit removes this umbrella only after all children close

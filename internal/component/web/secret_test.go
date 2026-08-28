@@ -268,7 +268,7 @@ func commitReviewMarkup(t *testing.T, schema *config.Schema, renderer *Renderer)
 
 	handler := HandleConfigCommitWithAuthorizerAndAudit(mgr, renderer, nil, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/config/commit/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/commit/", http.NoBody)
 	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, secretUser))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -303,7 +303,7 @@ func addFormMarkup(t *testing.T, schema *config.Schema, renderer *Renderer) stri
 
 	mgr := secretEditorManager(t, schema)
 
-	req := httptest.NewRequest(http.MethodGet, "/config/add-form/environment/api-server/client/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/add-form/environment/api-server/client/", http.NoBody)
 	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, secretUser))
 	rec := httptest.NewRecorder()
 	HandleConfigAddForm(mgr, schema, renderer).ServeHTTP(rec, req)
@@ -321,7 +321,7 @@ func addFormMarkup(t *testing.T, schema *config.Schema, renderer *Renderer) stri
 func workbenchFormMarkup(t *testing.T, renderer *Renderer, schema *config.Schema, tree *config.Tree) string {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodGet, "/show/api/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/api/", http.NoBody)
 	content, handled := renderPageContent(renderer, req, []string{segAPI}, tree, schema, nil, nil, nil)
 	require.True(t, handled, "the workbench must serve /show/api/ as a purpose-built page")
 	require.NotEmpty(t, content, "the API page rendered nothing, so this case would prove nothing")

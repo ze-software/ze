@@ -10,83 +10,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=warnings-filter-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # Unfiltered should have at least 1 warning (stale prefix)
-        result = dispatch(api, 'show warnings')
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-        total = data.get('count', 0)
-        if total < 1:
-            print(f'FAIL: expected at least 1 warning, got {total}', file=sys.stderr)
-            sys.exit(1)
-
-        # Filter by "bgp" source should still have warnings
-        result = dispatch(api, 'show warnings source bgp')
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-        bgp_count = data.get('count', 0)
-        if bgp_count < 1:
-            print(f'FAIL: expected at least 1 bgp warning, got {bgp_count}', file=sys.stderr)
-            sys.exit(1)
-
-        # Verify all returned warnings have source == bgp
-        for w in data.get('warnings', []):
-            if w.get('source') != 'bgp':
-                print(f'FAIL: non-bgp warning in filtered result: {w}', file=sys.stderr)
-                sys.exit(1)
-
-        # Filter by nonexistent source should return 0
-        result = dispatch(api, 'show warnings source nonexistent')
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-        none_count = data.get('count', 0)
-        if none_count != 0:
-            print(f'FAIL: expected 0 for nonexistent source, got {none_count}', file=sys.stderr)
-            sys.exit(1)
-
-        print(f'OK: filter works (total={total} bgp={bgp_count} nonexistent=0)', file=sys.stderr)
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-    except SystemExit:
-        raise
-    except Exception as e:
-        print(f'FAIL: unexpected error: {e}', file=sys.stderr)
-        sys.exit(1)
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external warnings-filter-show-test {
-		run ./warnings-filter-show-test.run
+		run "ze-test fixture plugin/warnings-filter-show"
 		encoder json
 	}
 }

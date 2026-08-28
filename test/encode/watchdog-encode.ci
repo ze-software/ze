@@ -1,63 +1,5 @@
-# watchdog script (needs to be on disk)
-tmpfs=watchdog.run:terminator=EOF_RUN
-#!/usr/bin/env python3
+# Native observer: gates each watchdog transition on peer state.
 
-from ze_api import API
-
-
-def main() -> None:
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # The watchdog commands must land AFTER the session is up and the config
-    # routes have been sent. Arriving inside the establishment window they set
-    # the state to "announced" early, and 77.77.77.77/32 then leaves with the
-    # initial config batch instead of as a separate UPDATE. wait_peer_eor_sent
-    # gates on the product's own per-peer eor-sent counter, incremented by
-    # IncrEORSent (internal/component/bgp/reactor/peer_stats.go) only once the
-    # End-of-RIB write reached the socket, which is precisely the end of that
-    # window.
-    api.wait_peer_eor_sent()
-
-    # THREE cycles, and the number is the peer block's, not a guess: the peer
-    # binds six watchdog frames, an add and a del per cycle. 77.77.77.77/32 is
-    # declared `watchdog { name dnsr; withdraw true; }`, which sets
-    # initiallyAnnounced = !initiallyWithdrawn = false
-    # (internal/component/bgp/plugins/watchdog/config.go), so peer-up does not
-    # send it and every announce in the loop below has work to do. announceForPeer
-    # and withdrawForPeer (watchdog/pool.go) each return only the entries whose
-    # state actually flips, so a fourth cycle would add two more frames the peer
-    # asserts nothing about.
-    #
-    # The loop used to run to `os.getppid() != 1` and was paced by two 0.2s
-    # sleeps. Deleting those sleeps without bounding the loop would make it spin
-    # at RPC speed and flood the session with thousands of UPDATEs the peer no
-    # longer asserts on -- a real cost, and no assertion buys it. wait_for_ack
-    # runs `request quiesce`, which drains the forward pool and every peer's
-    # initial-sync opQueue, so each command's UPDATE is on the wire before the
-    # next command is written: that, not a duration, is what keeps the frames
-    # separate.
-    for _ in range(3):
-        api.send('request bgp watchdog announce dnsr')
-        api.wait_for_ack()
-
-        api.send('request bgp watchdog withdraw dnsr')
-        api.wait_for_ack()
-
-    # Stay alive so the plugin process does not die under a daemon that is still
-    # writing. wait_for_shutdown returns on the bye, or when this process is
-    # reparented to init because ze exited -- the same condition the old loop
-    # used, without the sleep.
-    api.wait_for_shutdown(timeout=30)
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -93,7 +35,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external service-watchdog {
-		run ./watchdog.run
+		run "ze-test fixture encode/watchdog-encode"
 		encoder json
 	}
 }

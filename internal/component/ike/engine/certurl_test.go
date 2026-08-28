@@ -70,7 +70,7 @@ func curlReset() {
 // NOT YET TAGGED as `RFC requirement: RFC7296-3.6-3`, deliberately. Section 3.6 has three
 // Appendix A rows -- 3.6-1 (four X.509 certificates), 3.6-2 (both Hash and URL formats)
 // and 3.6-3. Section 3.6 has NO committed id, so the first package to land there sets
-// the high-water mark. check_id_allocation (scripts/dev/rfc_requirements.py,
+// the high-water mark. check_id_allocation (internal/le/rfc/actions.go,
 // check_id_allocation) then refuses every ordinal at or below it, so enrolling 3.6-3
 // alone would strand 3.6-1 and 3.6-2 permanently. The three must land together. The
 // send half and the accept-path wiring 3.6-1 and 3.6-2 need are not implemented yet, so

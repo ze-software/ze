@@ -22,13 +22,10 @@ import (
 const area = "plugin-imports"
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-plugin-imports-check",
-		Why: "the blank imports in internal/component/plugin/all are current, so the composition" +
-			" root still registers every plugin, schema, RPC package and event namespace the tree" +
-			" holds. A stale one is a feature that vanishes with no build error",
-		Answer: runCheckHere,
-	},
+	leaction.Action{Verb: "check", Why: "the blank imports in internal/component/plugin/all are current, so the composition" +
+		" root still registers every plugin, schema, RPC package and event namespace the tree" +
+		" holds. A stale one is a feature that vanishes with no build error",
+		Answer: runCheckHere},
 	leaction.Action{
 		Verb:   "write",
 		Why:    "regenerate the composition root and every feature-gated import group",

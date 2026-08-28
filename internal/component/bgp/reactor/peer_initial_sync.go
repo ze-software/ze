@@ -32,7 +32,7 @@ func (p *Peer) sendInitialRoutes() {
 				"panic", r,
 				"stack", string(buf[:n]),
 			)
-			// Clear flag so ShouldQueue() returns false and peer isn't stuck.
+			// Clear flag so shouldQueue() returns false and peer isn't stuck.
 			p.sendingInitialRoutes.Store(0)
 			p.wakeForwardOverflow()
 		}
@@ -41,7 +41,7 @@ func (p *Peer) sendInitialRoutes() {
 	peerLogger().Debug("sendInitialRoutes ENTER", "peer", addr)
 
 	// setState sets sendingInitialRoutes to 1 in the same call that publishes
-	// PeerStateEstablished, and before it, so ShouldQueue() is already true when
+	// PeerStateEstablished, and before it, so shouldQueue() is already true when
 	// the FSM callback notifies plugins. Here we upgrade 1→2 to indicate the
 	// goroutine is actively running. CAS guards against concurrent execution from
 	// rapid reconnects (flag would be 2 if another goroutine is already
@@ -52,7 +52,7 @@ func (p *Peer) sendInitialRoutes() {
 		return
 	}
 	// Flag is cleared inside the mutex after the opQueue drain loop completes,
-	// NOT via defer. This ensures ShouldQueue() sees a consistent state:
+	// NOT via defer. This ensures shouldQueue() sees a consistent state:
 	// either the flag is set (routes will be queued and drained by us),
 	// or the flag is cleared and the queue is empty (routes can be sent directly).
 
@@ -62,7 +62,7 @@ func (p *Peer) sendInitialRoutes() {
 	nc := p.negotiated.Load()
 	if nc == nil {
 		peerLogger().Debug("sendInitialRoutes aborted (no negotiated caps)", "peer", addr)
-		p.sendingInitialRoutes.Store(0) // Clear flag so ShouldQueue() returns false
+		p.sendingInitialRoutes.Store(0) // Clear flag so shouldQueue() returns false
 		p.wakeForwardOverflow()
 		return
 	}
@@ -182,7 +182,7 @@ func (p *Peer) sendInitialRoutes() {
 	//
 	// It used to sleep 500ms FIRST and then wait, and that fixed sleep was pure
 	// latency once a process answered promptly. It was also wire-visible: the
-	// sleep keeps ShouldQueue true, so an announce an API client issues inside
+	// sleep keeps shouldQueue true, so an announce an API client issues inside
 	// it is queued and drains AHEAD of the marker. test/exabgp-compat/encoding/
 	// conf-watchdog.ci caught exactly that -- ExaBGP emits the End-of-RIB before
 	// the first scripted announce, and ze stopped doing so the moment the
@@ -214,15 +214,15 @@ func (p *Peer) sendInitialRoutes() {
 	//
 	// What survives is the OVERCOUNT: only bgp-rib ever signals plugin-session-
 	// ready, so any other permitted plugin makes this wait run to apiSyncTimeout,
-	// and the hold keeps ShouldQueue true for the whole of it. An event-driven
+	// and the hold keeps shouldQueue true for the whole of it. An event-driven
 	// announce raised inside that window (a watchdog probe going up) is queued
 	// and drains BEFORE the marker, so the marker then claims a route that was
 	// never part of the initial routing update.
 	//
 	// Widening the condition to "any process binding" is NOT the fix on its own:
 	// the hold keeps sendingInitialRoutes non-zero, so it also widens the window
-	// in which ShouldQueue() is true, and the FORWARDING rail does not consult
-	// ShouldQueue. Measured on 2026-08-08: with a 500ms hold,
+	// in which shouldQueue() is true, and the FORWARDING rail does not consult
+	// shouldQueue. Measured on 2026-08-08: with a 500ms hold,
 	// test/plugin/role-otc-rs-withdraw-eor.ci delivers the same relayed route to
 	// the destination peer TWICE. Separating "initial sync running" (which gates
 	// queueing) from "End-of-RIB not yet sent" (which gates the marker) is what
@@ -240,7 +240,7 @@ func (p *Peer) sendInitialRoutes() {
 	// CONCURRENCY NOTE: Uses index-based loop (not range) so that items appended
 	// by concurrent QueueAnnounce/QueueWithdraw calls during unlocked sends are
 	// picked up by the next iteration's len(p.opQueue) check. This, combined with
-	// ShouldQueue() in the announce/withdraw paths, ensures strict insertion order:
+	// shouldQueue() in the announce/withdraw paths, ensures strict insertion order:
 	// routes arriving while this loop runs are queued (not sent directly) and
 	// processed here in FIFO order.
 	var teardownSubcode uint8
@@ -321,7 +321,7 @@ func (p *Peer) sendInitialRoutes() {
 	// The flag is cleared AFTER EOR to prevent a race where a plugin command
 	// arrives between flag-clear and EOR-send, bypasses the queue, and races
 	// with EOR for the session write lock. With the flag set, concurrent
-	// plugin commands are queued (ShouldQueue=true) and drained after EOR.
+	// plugin commands are queued (shouldQueue=true) and drained after EOR.
 	if processed > 0 {
 		p.opQueue = p.opQueue[processed:]
 	}
@@ -338,7 +338,7 @@ func (p *Peer) sendInitialRoutes() {
 		//
 		// eorSent counts frames that reached the socket, never attempts: a failed
 		// send leaves the counter alone so `eor-sent` stays usable as the
-		// "end-of-RIB is on the wire" barrier (peer_stats.go IncrEORSent). One
+		// "end-of-RIB is on the wire" barrier (peer_stats.go incrEORSent). One
 		// error here is session-level (ErrNotConnected / ErrInvalidState / a write
 		// error), so the remaining families would fail identically -- stop, the
 		// same way the queue drain above stops on a connection error.
@@ -348,7 +348,7 @@ func (p *Peer) sendInitialRoutes() {
 					"peer", addr, "family", fam, "phase", "teardown", "error", err)
 				break
 			}
-			p.IncrEORSent()
+			p.incrEORSent()
 			routesLogger().Debug("sent EOR (before teardown)", "peer", addr, "family", fam)
 		}
 
@@ -424,14 +424,14 @@ func (p *Peer) sendInitialRoutes() {
 	// SendUpdateHeld returns ErrInvalidState without writing anything once the FSM
 	// has left Established, and the session can go down between the p.session read
 	// above and this call. Counting such an attempt would publish an end-of-RIB
-	// the peer never receives, which is exactly the barrier the functional suite
-	// waits on (test/scripts/ze_api.py wait_peer_eor_sent).
+	// the peer never receives, exactly the barrier the compiled functional
+	// observers wait on.
 	families := nc.Families()
 	for _, fam := range families {
 		// Claim BEFORE sending. A route server announcing EoR when its replay
 		// finishes reaches the same wire through AnnounceEOR, and RFC 4724
 		// Section 2 allows one End-of-RIB per family per session.
-		if !p.ClaimInitialSyncEOR(fam) {
+		if !p.claimInitialSyncEOR(fam) {
 			routesLogger().Debug("end-of-rib already sent for this session, skipping",
 				"peer", addr, "family", fam, "phase", "initial-sync")
 			continue
@@ -439,12 +439,12 @@ func (p *Peer) sendInitialRoutes() {
 		if err := sendFn(message.BuildEOR(fam)); err != nil {
 			// Hand the claim back: nothing reached the wire, so the other
 			// producer must still be allowed to deliver the marker.
-			p.ReleaseInitialSyncEOR(fam)
+			p.releaseInitialSyncEOR(fam)
 			routesLogger().Warn("end-of-rib send failed",
 				"peer", addr, "family", fam, "phase", "initial-sync", "error", err)
 			break
 		}
-		p.IncrEORSent()
+		p.incrEORSent()
 		routesLogger().Debug("sent EOR", "peer", addr, "family", fam)
 	}
 

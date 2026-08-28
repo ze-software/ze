@@ -40,8 +40,8 @@ import (
 )
 
 // update rewrites the captured fixtures instead of comparing against them. It
-// is inert in a normal run. Recapture a deliberate markup change with
-// `make ze-web-golden-update`.
+// is inert in a normal run. Recapture a deliberate markup change by running the
+// owning package's golden test with `-update-golden`.
 var update = flag.Bool("update-golden", false,
 	"rewrite the golden fixtures in testdata/golden from the current templates")
 

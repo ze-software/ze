@@ -23,21 +23,8 @@
 # (cmd/ze/login.go:47-49). A negative control proves normal ze dispatch is
 # unaffected by the symlink gate.
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
-ln -s "$(command -v ze)" ./ash
-# Non-terminal stdin: the login gate must reject (exit 1), never exec a shell.
-if ./ash < /dev/null; then
-	echo "FAIL: ash invocation with non-terminal stdin was not rejected" >&2
-	exit 1
-fi
-# Negative control: the same binary under its own name still dispatches.
-ze show version > /dev/null
-echo OK
-EOF_SH
 
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture appliance/serial-login
 expect=exit:code=0
 expect=stdout:contains=OK
 reject=stderr:pattern=FAIL:

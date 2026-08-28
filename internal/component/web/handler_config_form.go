@@ -391,10 +391,9 @@ func normalizeBoolFormValue(value string) string {
 }
 
 func backToRefererOrShow(r *http.Request) string {
-	const fallback = "/show/"
 	ref := r.Referer()
 	if ref == "" {
-		return fallback
+		return showPathPrefix
 	}
 	u, err := url.Parse(ref)
 	// isSameOriginPath is the single guard for every request-derived redirect
@@ -402,7 +401,7 @@ func backToRefererOrShow(r *http.Request) string {
 	// not "/\host", which several browsers normalize to "//host" -- the exact
 	// case the shared guard exists to catch.
 	if err != nil || !isSameOriginPath(u.Path) {
-		return fallback
+		return showPathPrefix
 	}
 	return u.Path
 }

@@ -111,9 +111,9 @@ func (pm *ProcessManager) SetMetricsRegistry(reg metrics.Registry) {
 		return
 	}
 	pm.pmetrics = &pluginMetrics{
-		status:    reg.GaugeVec("ze_plugin_status", "Current plugin stage (0=init, 6=running)", []string{"plugin"}),
-		restarts:  reg.CounterVec("ze_plugin_restarts_total", "Total plugin restart attempts (process started)", []string{"plugin"}),
-		delivered: reg.CounterVec("ze_plugin_events_delivered_total", "Total events delivered to plugin", []string{"plugin"}),
+		status:    reg.GaugeVec("ze_plugin_status", "Current plugin stage (0=init, 6=running)", []string{reportSourcePlugin}),
+		restarts:  reg.CounterVec("ze_plugin_restarts_total", "Total plugin restart attempts (process started)", []string{reportSourcePlugin}),
+		delivered: reg.CounterVec("ze_plugin_events_delivered_total", "Total events delivered to plugin", []string{reportSourcePlugin}),
 	}
 }
 

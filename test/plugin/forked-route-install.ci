@@ -21,108 +21,11 @@
 # anchored under a BGP peer process (the hub/TLS acceptor mechanism), matching
 # isis-route-install.ci.
 
-tmpfs=forked-route.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Drive route-install / route-remove as an external plugin; assert the engine applies them and sysrib sees them."""
-
-import sys
-
-from ze_api import API, runtime_fail
-from ze_api import result_json_data
-
-
-def call(api, method, params):
-    resp = api._call_engine(method, params)
-    return (resp or {}).get('result', {})
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def rib_has(api, prefix):
-    r = dispatch(api, 'show rib')
-    if r.get('status') != 'done':
-        return False
-    entries = result_json_data(r, [])
-    if not isinstance(entries, list):
-        return False
-    return any(e.get('prefix') == prefix for e in entries)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Install one route through the forked route-install RPC.
-    result = call(api, 'ze-plugin-engine:route-install', {'routes': [{
-        'protocol': 'bgp', 'afi': 1, 'safi': 1,
-        'prefix': '10.99.0.0/24', 'next-hop': '192.0.2.1',
-        'admin-distance': 110, 'metric': 10,
-    }]})
-    if result.get('installed') != 1:
-        runtime_fail(f"route-install: expected installed=1, got {result!r}")
-
-    # The route must reach sysrib (`show rib`) via the Loc-RIB OnChange path.
-    present = False
-    for _ in range(20):
-        if rib_has(api, '10.99.0.0/24'):
-            present = True
-            break
-        api.wait_for_event(timeout=0.25)
-    if not present:
-        runtime_fail("route-install: 10.99.0.0/24 never reached sysrib (`show rib`)")
-
-    # Withdraw it; it must leave sysrib.
-    result = call(api, 'ze-plugin-engine:route-remove', {'routes': [{
-        'protocol': 'bgp', 'afi': 1, 'safi': 1,
-        'prefix': '10.99.0.0/24', 'instance': 0,
-    }]})
-    if result.get('removed') != 1:
-        runtime_fail(f"route-remove: expected removed=1, got {result!r}")
-
-    gone = False
-    for _ in range(20):
-        if not rib_has(api, '10.99.0.0/24'):
-            gone = True
-            break
-        api.wait_for_event(timeout=0.25)
-    if not gone:
-        runtime_fail("route-remove: 10.99.0.0/24 still in sysrib after withdrawal")
-
-    # A malformed (empty) protocol name must be rejected with an RPC error.
-    try:
-        api._call_engine('ze-plugin-engine:route-install', {'routes': [{
-            'protocol': '', 'afi': 1, 'safi': 1, 'prefix': '10.98.0.0/24',
-            'admin-distance': 110,
-        }]})
-        runtime_fail("route-install with an empty protocol name should have errored")
-    except RuntimeError:
-        pass  # expected: the engine rejects malformed input
-
-    print('OK: forked route-install reached sysrib, route-remove withdrew it, bad input rejected',
-          file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external forked-route {
-		run ./forked-route.run
+		run "ze-test fixture plugin/forked-route-install"
 		encoder json
 	}
 	internal rib {

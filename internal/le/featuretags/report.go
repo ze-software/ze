@@ -4,9 +4,7 @@
 //
 // Each answer carries one row set, so `| json` feeds a script, `| match
 // golangci` keeps one file and `| count` says how many are stale. Each also
-// renders ITSELF in the words the script printed, because the script printed a
-// verdict rather than a table and the verdict is what a person reads
-// (internal/le/leroot, Prose).
+// renders ITSELF as a native actionable verdict (internal/le/leroot, Prose).
 
 package featuretags
 
@@ -23,8 +21,7 @@ type CheckReport struct {
 	Stale []string `json:"stale"`
 }
 
-// Text renders the verdict in the words the script printed. It ends in a
-// newline.
+// Text renders the native check verdict. It ends in a newline.
 func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
 
@@ -33,7 +30,7 @@ func (r CheckReport) Text() string {
 	}
 
 	for _, file := range r.Stale {
-		tb.Str(file).Str(" is stale; run make generate\n")
+		tb.Str(file).Str(" is stale; run ./le feature-tags write\n")
 	}
 
 	return tb.String()
@@ -47,8 +44,7 @@ type WriteReport struct {
 	Updated []string `json:"updated"`
 }
 
-// Text renders the verdict in the words the script printed. It ends in a
-// newline.
+// Text renders the native write verdict. It ends in a newline.
 func (r WriteReport) Text() string {
 	var tb textbuf.Buffer
 

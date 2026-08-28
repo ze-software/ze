@@ -47,7 +47,7 @@ five before deciding: `FamilyUDPFlood`, `FamilySYNFlood`, `FamilyICMPFlood` and
 `FamilyGenericFlood` is the fallback. Fragment flood is the only orphan, so this
 is a single gap rather than a pattern.
 
-**Owning gate:** `make ze-functional-plugin-test` covers both, with
+**Owning gate:** `./le functional plugin` covers both, with
 `test/plugin/ddos-bps-amplification.ci` the closest existing fixture to the grace
 row. It does not currently exercise the grace window, so the fix needs either a
 new fixture or an extension that starts bandwidth-only traffic inside grace with

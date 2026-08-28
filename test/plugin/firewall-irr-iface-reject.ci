@@ -33,32 +33,11 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=20s
 
-tmpfs=firewall-irr-iface-reject.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify config commit rejects uncached interface AS-SET references."""
-import sys
-from ze_api import API
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    print('OK: reached observer (verify rejection tested via stderr pattern)', file=sys.stderr)
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-iface-reject-test {
-		run ./firewall-irr-iface-reject.run
+		run "ze-test fixture plugin/firewall-irr-iface-reject"
 		encoder json
 	}
 }

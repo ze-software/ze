@@ -882,6 +882,42 @@ func TestOrphanJunkStillClosesConnection(t *testing.T) {
 	assert.Contains(t, err.Error(), "consecutive malformed lines")
 }
 
+func TestActiveAnswerConsumerStreamsPastQueueDepth(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	const records = answerQueueDepth + 100
+	go func() {
+		engineConn := NewConn(engineEnd, engineEnd)
+		request, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		writeLines(engineEnd, wireLine(request.ID, "top map 5:peers 0:\n"))
+		for i := range records {
+			writeLines(engineEnd, wireLine(request.ID, answerRowTail(fmt.Sprintf(`{"row":%d}`, i))))
+		}
+		writeLines(engineEnd, wireLine(request.ID, string(AppendAnswerTerminator(nil, AnswerNoID, records, 0, ""))+"\n"))
+	}()
+
+	mux := NewMuxConn(NewConn(pluginEnd, pluginEnd))
+	defer func() { _ = mux.Close() }()
+	answer, err := mux.CallAnswer(ctx, "ze-bgp:peer-list", nil)
+	require.NoError(t, err)
+	delivered := 0
+	for range answer.Records {
+		delivered++
+	}
+	require.NoError(t, answer.Err())
+	assert.Equal(t, records, delivered)
+	assert.Equal(t, VerdictDone, answer.Verdict())
+}
+
 // TestSlowConsumerDoesNotStallReadLoop checks that one caller that stops
 // reading its records cannot stop the connection. The method: a peer writes
 // more record lines than the queue holds for a caller that reads none, then

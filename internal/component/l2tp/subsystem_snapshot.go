@@ -121,12 +121,12 @@ func (s *Subsystem) TeardownTunnel(localTID uint16) error {
 		s.mu.Unlock()
 		return ErrSubsystemNotStarted
 	}
-	reactors := make([]*L2TPReactor, len(s.reactors))
+	reactors := make([]*l2tpReactor, len(s.reactors))
 	copy(reactors, s.reactors)
 	s.mu.Unlock()
 
 	for _, r := range reactors {
-		err := r.TeardownTunnelByID(localTID)
+		err := r.teardownTunnelByID(localTID)
 		if err == nil {
 			return nil
 		}
@@ -145,12 +145,12 @@ func (s *Subsystem) TeardownSession(localSID uint16) error {
 		s.mu.Unlock()
 		return ErrSubsystemNotStarted
 	}
-	reactors := make([]*L2TPReactor, len(s.reactors))
+	reactors := make([]*l2tpReactor, len(s.reactors))
 	copy(reactors, s.reactors)
 	s.mu.Unlock()
 
 	for _, r := range reactors {
-		err := r.TeardownSessionByID(localSID)
+		err := r.teardownSessionByID(localSID)
 		if err == nil {
 			return nil
 		}
@@ -170,7 +170,7 @@ func (s *Subsystem) TeardownAllTunnels() int {
 		s.mu.Unlock()
 		return 0
 	}
-	reactors := make([]*L2TPReactor, len(s.reactors))
+	reactors := make([]*l2tpReactor, len(s.reactors))
 	copy(reactors, s.reactors)
 	s.mu.Unlock()
 
@@ -189,7 +189,7 @@ func (s *Subsystem) TeardownAllSessions() int {
 		s.mu.Unlock()
 		return 0
 	}
-	reactors := make([]*L2TPReactor, len(s.reactors))
+	reactors := make([]*l2tpReactor, len(s.reactors))
 	copy(reactors, s.reactors)
 	s.mu.Unlock()
 

@@ -53,49 +53,11 @@ func netnsModeActive() bool {
 // caps.go and interfaceByName in internal/component/ike/engine/doctor.go.
 var netnsActive = netnsModeActive
 
-// copyTestScripts copies the Python test-support modules (test/scripts/*.py,
-// notably ze_api.py) from baseDir into dstDir. In netns launch mode ze runs as a
-// normal user and forks observer plugins as that user; PYTHONPATH points at
-// test/scripts under the repo, but a uid-dropped observer cannot traverse a 0700
-// repo root to reach it. The observer's own script directory (dstDir, the tmpfs
-// workdir) is on sys.path[0], so placing the modules there makes `import ze_api`
-// work regardless of repo-root permissions. A missing source dir is not an error
-// (a test with no observer needs nothing).
-func copyTestScripts(baseDir, dstDir string) error {
-	srcDir := filepath.Join(baseDir, "test", "scripts")
-	entries, err := os.ReadDir(srcDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".py") {
-			continue
-		}
-		dst := filepath.Join(dstDir, e.Name())
-		// A test may ship its own .py of the same name (materialized earlier from a
-		// tmpfs= block); it wins. Only fill in modules the test did not provide.
-		if _, statErr := os.Stat(dst); statErr == nil {
-			continue
-		}
-		data, readErr := os.ReadFile(filepath.Join(srcDir, e.Name())) //nolint:gosec // fixed repo path test/scripts/*.py, not user input
-		if readErr != nil {
-			return fmt.Errorf("read %s: %w", e.Name(), readErr)
-		}
-		if writeErr := os.WriteFile(dst, data, 0o644); writeErr != nil { //nolint:gosec // test-support module, world-readable by design so the uid-dropped observer can import it
-			return fmt.Errorf("write %s: %w", e.Name(), writeErr)
-		}
-	}
-	return nil
-}
-
 // netnsChildIDs parses the normal-user uid/gid the netns mode drops the ze
 // daemon to (ZE_TEST_UID, ZE_TEST_GID). ze must NOT run as root in the netns:
 // its readiness file is created after dropPrivileges, so a root ze never writes
-// it and the handshake times out (assumption A-4). The make target passes
-// ZE_TEST_UID=$(id -u) ZE_TEST_GID=$(id -g); GID defaults to UID when unset.
+// it and the native network-namespace action supplies ZE_TEST_UID=$(id -u)
+// ZE_TEST_GID=$(id -g); GID defaults to UID when unset.
 // ok is false when no valid non-root uid is configured, in which case the caller
 // leaves the child as-is (runner-privileged) rather than silently mis-dropping.
 func netnsChildIDs() (uid, gid int, ok bool) {
@@ -158,7 +120,7 @@ func zeRepoRootEnv(baseDir string) string {
 //   - A user-level runtime panic defaults to printing only the panicking
 //     goroutine. GOTRACEBACK=all prints every stack, which is what identifies the
 //     goroutine racing on the other side of a corrupt buffer. That is the case it
-//     buys, and why scripts/dev/stress-repro.py:224 sets it.
+//     buys, and why internal/le/stressrepro/actions.go:224 sets it.
 //   - A runtime THROW ("fatal error: ...", e.g. the SIGBUS behind
 //     test/ospf/ospf-ldp-sync-restore.ci on 2026-07-29) already dumps every
 //     goroutine regardless: runtime1.go's gotraceback() forces all=true and
@@ -282,10 +244,9 @@ const (
 // zeReadyFileEnabled reports whether a launched command is a ze daemon whose
 // readiness handshake the runner should arm: set ZE_READY_FILE so the daemon
 // writes daemon.ready after startup, and track daemon.pid. It is true for a ze
-// daemon started either foreground (the default daemon path) or background
-// (driver.py-style suites that poll daemon.pid/daemon.ready). A TmpfsTempDir is
-// required because that is where the handshake files live. Non-ze binaries
-// (ze-peer, helper scripts) are never armed.
+// daemon started either foreground (the default daemon path) or background in a
+// suite that polls daemon.pid/daemon.ready. A TmpfsTempDir is required because
+// that is where the handshake files live. Non-ze binaries are never armed.
 func zeReadyFileEnabled(mode, binName, tmpfsTempDir string) bool {
 	if binName != "ze" || tmpfsTempDir == "" {
 		return false
@@ -295,9 +256,9 @@ func zeReadyFileEnabled(mode, binName, tmpfsTempDir string) bool {
 
 // lockedBuilder is a mutex-guarded output accumulator.
 //
-// A .ci test's non-peer client processes -- the ze daemon plus every
-// cmd=background helper (python collectors, mock servers, observers) -- all
-// write into ONE stdout and ONE stderr accumulator, and os/exec spawns a copy
+// A .ci test's non-peer client processes, the ze daemon plus every background
+// helper, mock server, and observer, all write into ONE stdout and ONE stderr
+// accumulator. os/exec spawns a copy
 // goroutine per stream per process whenever Cmd.Stdout/Stderr is not an
 // *os.File. A bare strings.Builder is not safe for concurrent use: two copy
 // goroutines appending at once lose whole lines, so an expect=stderr:pattern=

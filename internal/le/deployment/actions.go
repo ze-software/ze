@@ -28,38 +28,27 @@ import (
 const area = "deployment"
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-deployment-l2tp-test",
-		Why: "the L2TP control session against an external peer." +
-			" Needs Docker and a privileged container",
-		Answer: runL2TPHere,
-	},
-	leaction.Action{
-		Gate: "ze-deployment-l2tp-ppp-test",
-		Why: "the full L2TP PPP/NCP path on the host: LCP, IPCP, a kernel PPP" +
-			" interface at each end, a dataplane ping and a clean teardown." +
-			" Needs Linux root, xl2tpd, pppd, ping and PPPoL2TP kernel support",
-		Answer: runL2TPPPPHere,
-	},
-	leaction.Action{
-		Gate: "ze-deployment-gokrazy-l2tp-ppp-test",
-		Why: "the same L2TP PPP/NCP path proven on the gokrazy appliance image" +
-			" rather than on a dev host. Needs Linux root, QEMU, dnsmasq," +
-			" xl2tpd, pppd and PPPoL2TP kernel support",
-		Answer: runGokrazyL2TPHere,
-	},
-	leaction.Action{
-		Gate: "ze-deployment-vpp-iface-test",
-		Why: "the VPP interface features against a real daemon: tunnels, mirror," +
-			" wireguard, LCP. Needs Docker and a privileged container",
-		Answer: runVPPIfaceHere,
-	},
-	leaction.Action{
-		Gate: "ze-deployment-vpp-test",
-		Why: "ze driving a real VPP daemon, not a fake channel. Needs Docker and a" +
-			" privileged container",
-		Answer: runVPPHere,
-	},
+	leaction.Action{Verb: "l2tp-test", Why: "the L2TP control session against an external peer." +
+		" Needs Docker and a privileged container",
+		Answer: runL2TPHere},
+	leaction.Action{Verb: "l2tp-ppp-test", Why: "the full L2TP PPP/NCP path on the host: LCP, IPCP, a kernel PPP" +
+		" interface at each end, a dataplane ping and a clean teardown." +
+		" Needs Linux root, xl2tpd, pppd, ping and PPPoL2TP kernel support",
+		Answer: runL2TPPPPHere},
+	leaction.Action{Verb: L2TPScaleAction, Why: "the native loopback L2TP scale registry: 2,000 sessions," +
+		" clean teardown, pool exhaustion, and delayed RADIUS." +
+		" L2TP_SCALE_SCENARIO=<name> runs one scenario",
+		Answer: runL2TPScaleHere},
+	leaction.Action{Verb: "gokrazy-l2tp-ppp-test", Why: "the same L2TP PPP/NCP path proven on the gokrazy appliance image" +
+		" rather than on a dev host. Needs Linux root, QEMU, dnsmasq," +
+		" xl2tpd, pppd and PPPoL2TP kernel support",
+		Answer: runGokrazyL2TPHere},
+	leaction.Action{Verb: "vpp-iface-test", Why: "the VPP interface features against a real daemon: tunnels, mirror," +
+		" wireguard, LCP. Needs Docker and a privileged container",
+		Answer: runVPPIfaceHere},
+	leaction.Action{Verb: "vpp-test", Why: "ze driving a real VPP daemon, not a fake channel. Needs Docker and a" +
+		" privileged container",
+		Answer: runVPPHere},
 	leaction.Action{
 		Verb:       l2tpPPPoXDiagnosticName,
 		Why:        "the native Linux netlink, PPPoX and PPP ioctl path. Leaves created L2TP objects for inspection",
@@ -72,18 +61,12 @@ var actions = leaction.New(area,
 		Parameters: tunnelDiagnosticParameters(),
 		AnswerArgs: runL2TPTunnelDiagnosticHere,
 	},
-	leaction.Action{
-		Gate: "ze-deployment-docker-l2tp-ppp-test",
-		Why: "the same L2TP PPP/NCP path in a peer-isolated Docker lab. Needs" +
-			" PPPoL2TP support in the Docker host kernel",
-		Answer: runDockerL2TPHere,
-	},
-	leaction.Action{
-		Gate: "ze-deployment-docker-pppoe-accel-test",
-		Why: "Ze's PPPoE client against a real accel-ppp access concentrator in a" +
-			" Docker lab. Needs PPPoE support in the Docker host kernel",
-		Answer: runDockerPPPoEHere,
-	},
+	leaction.Action{Verb: "docker-l2tp-ppp-test", Why: "the same L2TP PPP/NCP path in a peer-isolated Docker lab. Needs" +
+		" PPPoL2TP support in the Docker host kernel",
+		Answer: runDockerL2TPHere},
+	leaction.Action{Verb: "docker-pppoe-accel-test", Why: "Ze's PPPoE client against a real accel-ppp access concentrator in a" +
+		" Docker lab. Needs PPPoE support in the Docker host kernel",
+		Answer: runDockerPPPoEHere},
 )
 
 func runDockerL2TPHere() (any, int) {
@@ -141,6 +124,11 @@ func runL2TP(run *L2TP) (L2TPReport, int) {
 	return report, 0
 }
 
+func runL2TPScaleHere() (any, int) {
+	report, code := runL2TPScale(context.Background(), l2tpScaleOptions())
+	return report, code
+}
+
 // runL2TPPPPHere proves the whole L2TP PPP path over the checkout this command
 // was run in.
 func runL2TPPPPHere() (any, int) {
@@ -175,13 +163,13 @@ func runGokrazyL2TPHere() (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runGokrazyL2TP(NewGokrazyL2TP(root))
+	return runGokrazyL2TP(newGokrazyL2TP(root))
 }
 
 // runGokrazyL2TP answers the proof over one run. It uses the same terms as its
 // on-host sibling. A step that cannot be performed is an error. A step in the
 // path that did not happen is the verdict.
-func runGokrazyL2TP(run *GokrazyL2TP) (GokrazyL2TPReport, int) {
+func runGokrazyL2TP(run *gokrazyL2TP) (GokrazyL2TPReport, int) {
 	report, err := run.Run()
 	if err != nil {
 		leaction.ReportError(err)
@@ -201,13 +189,13 @@ func runVPPIfaceHere() (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runVPPIface(NewVPPIface(root))
+	return runVPPIface(newVPPIface(root))
 }
 
 // runVPPIface answers the proof over one run. It uses the same terms as the L2TP
 // proof. A step that cannot be performed is an error. A feature that VPP never
 // showed is the verdict.
-func runVPPIface(run *VPPIface) (VPPIfaceReport, int) {
+func runVPPIface(run *vppIface) (VPPIfaceReport, int) {
 	report, err := run.Run()
 	if err != nil {
 		leaction.ReportError(err)
@@ -226,7 +214,7 @@ func runVPPHere() (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runVPP(NewVPP(root))
+	return runVPP(newVPP(root))
 }
 
 // runVPP maps the report and operating error onto the action exit code.
@@ -259,7 +247,7 @@ func runL2TPPPoXDiagnosticHere(args leaction.Arguments) (any, int) {
 	return runL2TPPPoXDiagnostic(options)
 }
 
-func runL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticReport, int) {
+func runL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (l2tpDiagnosticReport, int) {
 	report, err := executeL2TPPPoXDiagnostic(options)
 	reportL2TPDiagnosticError(err)
 	return report, diagnosticExitCode(report.Verdict, err)
@@ -276,7 +264,7 @@ func runL2TPTunnelDiagnosticHere(args leaction.Arguments) (any, int) {
 	return runL2TPTunnelDiagnostic(options)
 }
 
-func runL2TPTunnelDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticReport, int) {
+func runL2TPTunnelDiagnostic(options l2tpDiagnosticOptions) (l2tpDiagnosticReport, int) {
 	report, err := executeL2TPTunnelDiagnostic(options)
 	reportL2TPDiagnosticError(err)
 	return report, diagnosticExitCode(report.Verdict, err)

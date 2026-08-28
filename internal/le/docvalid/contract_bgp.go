@@ -4,7 +4,7 @@
 // The BGP command handlers register their RPCs through init(), and they are not
 // reached by internal/component/plugin/all. Importing them is what lets the
 // contract gate see them, and the tag is what keeps that import out of a build
-// with no BGP: `make ze-tier-check` refuses an always-on file that reaches a
+// with no BGP: `./le tier check` refuses an always-on file that reaches a
 // compile-out-able feature (ai/rules/architecture.md).
 //
 // A build without ze_bgp therefore judges a product without BGP commands, which

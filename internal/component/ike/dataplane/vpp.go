@@ -60,7 +60,7 @@ type vppBackend struct {
 	// matches an SPD entry by its whole content rather than by a key, so the entry
 	// that was sent IS the handle, and Close sends each one back (removeInstalled).
 	//
-	// MEASURED on VPP v26.06 (scripts/evidence/effective-vpp.py, run_ipsec_evidence):
+	// MEASURED on VPP v26.06 (internal/le/deployment/vppevidence.go, run_ipsec_evidence):
 	// a close that unbound the interface and deleted the SPD, without sending the
 	// entries back, left the SA of its PROTECT entry INSTALLED while every request
 	// returned retval 0. Sending the entries back first is what removes it.
@@ -322,7 +322,7 @@ func (b *vppBackend) InstallSA(p SAParams) error {
 	// can re-derive the claim. It is withdrawn.
 	//
 	// The proof is a real VPP receiving BOTH forms on one inbound SA and decrypting
-	// both. The AC-7 deployment run (scripts/evidence/effective-vpp.py,
+	// both. The AC-7 deployment run (internal/le/deployment/vppevidence.go,
 	// run_ipsec_evidence) programs an SA and reads it back through vppctl. It sends no
 	// ESP, so it does not settle this.
 	//
@@ -552,7 +552,7 @@ func vppSAFlags(p SAParams) ipsec_types.IpsecSadFlags {
 	// UNVERIFIED against a running VPP: that VPP selects an SA for inbound processing
 	// by this flag ALONE is read from the VPP IPsec documentation, not from code this
 	// repository can compile. The AC-7 deployment run
-	// (scripts/evidence/effective-vpp.py, run_ipsec_evidence) reads the installed SA
+	// (internal/le/deployment/vppevidence.go, run_ipsec_evidence) reads the installed SA
 	// back through `vppctl show ipsec sa`, so what it settles is that VPP RECORDS the
 	// flag this backend sent. What it does not settle is that inbound selection reads
 	// nothing else, which needs ESP arriving at a real VPP.
@@ -613,7 +613,7 @@ const (
 // encodes a u32 big-endian (vendor/go.fd.io/govpp/codec/buffer.go, EncodeUint32).
 //
 // MEASURED on VPP v26.06 in the AC-7 deployment run
-// (scripts/evidence/effective-vpp.py, run_ipsec_evidence). An AES-GCM-256 SA whose
+// (internal/le/deployment/vppevidence.go, run_ipsec_evidence). An AES-GCM-256 SA whose
 // KEYMAT ends de ad be ef is reported by `show ipsec sa 0` as "salt 0xdeadbeef", with
 // "crypto alg aes-gcm-256 key 000102...1e1f", the 32 cipher octets alone. So the four
 // KEYMAT octets reach VPP's salt in KEYMAT order, and the key field holds the cipher

@@ -59,7 +59,7 @@ func openReader(filename string) (io.ReadCloser, error) {
 	}
 	// Both "-" (stdin) and a real path go through cliio: the "-" token is resolved
 	// to stdin and no raw os.Open on a CLI-supplied path escapes the shared helper
-	// (enforced by scripts/checks/cli_dash_stdio.go). filename IS user input.
+	// (enforced by internal/le/dashstdio/actions.go). filename IS user input.
 	rc, err := cliio.OpenReader(filename)
 	if err != nil {
 		return nil, err

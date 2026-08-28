@@ -1,9 +1,12 @@
 # Build environment for Ze runtime and installer kernels.
-#
-# The build script downloads pinned kernel source, merges config fragments,
-# optionally applies Ze patches, and emits either installer Image artifacts or
-# runtime vmlinuz/modules/DTBs. Docker is faster than QEMU for cross-arch builds
-# on macOS when the requested platform is available.
+FROM golang:1.27-bookworm AS builder
+
+WORKDIR /src
+COPY go.mod go.sum ./
+COPY internal/appliance/kernelbuilder ./internal/appliance/kernelbuilder
+COPY tools/kernel-builder/main.go ./tools/kernel-builder/main.go
+RUN CGO_ENABLED=0 go build -o /ze-kernel-builder ./tools/kernel-builder
+
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -21,7 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         kmod \
         zstd \
         patch \
-        python3 \
     && rm -rf /var/lib/apt/lists/*
 
+COPY --from=builder /ze-kernel-builder /usr/local/bin/ze-kernel-builder
 WORKDIR /build

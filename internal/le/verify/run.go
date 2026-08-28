@@ -3,19 +3,22 @@ package verify
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lejob"
 )
 
 const (
-	// Mode is the status identity used by the full pre-commit gate.
-	Mode = "ze-precommit-verify"
+	// Mode is the status identity for the full native action population.
+	Mode = "full"
+	// ChangedMode is the status identity for the scoped native population.
+	ChangedMode = "changed"
 	// Interrupted is the shell-compatible status for an interrupt signal.
 	Interrupted = 130
 )
@@ -27,10 +30,10 @@ type Failure struct {
 	Message string `json:"message"`
 }
 
-// GateResult is the typed answer an in-process gate implementation returns.
-// Registered and Completed are independent on purpose. Their zero values make
-// an omitted dispatcher answer fail closed instead of looking like exit zero.
-type GateResult struct {
+// ActionResult is the typed answer an in-process action implementation returns.
+// Registered and Completed are independent so an omitted dispatcher answer
+// fails closed instead of looking like exit zero.
+type ActionResult struct {
 	Identity   Identity `json:"identity"`
 	Registered bool     `json:"registered"`
 	Completed  bool     `json:"completed"`
@@ -39,10 +42,9 @@ type GateResult struct {
 	Failure    *Failure `json:"failure,omitempty"`
 }
 
-// GateRunner dispatches one registered gate inside this process. A runner MUST
-// execute the identity in root and return a populated GateResult. It must not
-// route through Make, le, Python, or a repository script.
-type GateRunner func(context.Context, string, Identity) GateResult
+// ActionRunner dispatches one registered action inside this process. A runner
+// MUST execute the identity in root and return a populated ActionResult.
+type ActionRunner func(context.Context, string, Identity) ActionResult
 
 // StageReport records one attempted stage and the log that explains it.
 type StageReport struct {
@@ -52,7 +54,6 @@ type StageReport struct {
 	Failure  *Failure `json:"failure,omitempty"`
 }
 
-// Report is the complete structured verdict for one fixed commit.
 type Report struct {
 	Mode       string        `json:"mode"`
 	Commit     string        `json:"commit"`
@@ -62,61 +63,102 @@ type Report struct {
 	StatusPath string        `json:"status-path"`
 	Stages     []StageReport `json:"stages"`
 	Failure    *Failure      `json:"failure,omitempty"`
+	Console    string        `json:"-"`
 }
 
-// Run executes every full pre-commit stage in order and writes its logs and
-// status below the detached worktree. A red stage does not hide later reds; an
-// interruption stops before another stage starts.
-func Run(ctx context.Context, root, commit string, runner GateRunner) Report {
-	return run(ctx, root, commit, runner, time.Now)
+// Text renders the run protocol and every stage's captured output.
+func (r Report) Text() string { return r.Console }
+
+// Run executes every full verification stage in order at root and writes its
+// logs and status there. A red stage does not hide later reds; an interruption
+// stops before another stage starts.
+func Run(ctx context.Context, root, commit string, runner ActionRunner) Report {
+	return RunMode(ctx, root, commit, Mode, runner)
 }
 
-func run(ctx context.Context, root, commit string, runner GateRunner, now func() time.Time) Report {
-	stages := FullStages()
+// RunMode executes the native stage population selected by mode.
+func RunMode(ctx context.Context, root, commit, mode string, runner ActionRunner) Report {
+	leave, err := enterVerifyEnvironment()
+	if err != nil {
+		return Report{Mode: mode, Commit: commit, Code: 2, Failure: failure("environment", "", err.Error())}
+	}
+	defer leave()
+	return runMode(ctx, root, commit, mode, runner, time.Now)
+}
+
+func run(ctx context.Context, root, commit string, runner ActionRunner, now func() time.Time) Report {
+	return runMode(ctx, root, commit, Mode, runner, now)
+}
+
+func runMode(ctx context.Context, root, commit, mode string, runner ActionRunner, now func() time.Time) Report {
+	stages := StagesForMode(mode)
 	report := Report{
-		Mode:       Mode,
+		Mode:       mode,
 		Commit:     commit,
 		Code:       2,
-		LogDir:     filepath.ToSlash(filepath.Join("tmp", "verify")),
-		StatusPath: filepath.ToSlash(filepath.Join("tmp", "ze-verify.status")),
+		StatusPath: StatusPath,
 		Stages:     make([]StageReport, 0, len(stages)),
 	}
-	logDir := filepath.Join(root, filepath.FromSlash(report.LogDir))
-	if err := os.MkdirAll(logDir, 0o750); err != nil {
-		report.Failure = failure("log-setup", "", messageWithError("create verify log directory: ", err))
+	if len(stages) == 0 {
+		report.Failure = failure("unknown-mode", "", "no verify stages configured for mode "+mode)
 		return report
 	}
+	start := lejob.SnapshotTree(root)
+	started := now()
+	logFailure := func(err error) Report {
+		report.Failure = failure("log-setup", "", messageWithError("create verify log directory: ", err))
+		if _, statusErr := WriteCertificate(root, WriteRequest{
+			Exit: report.Code, Mode: report.Mode, Skipped: SkippedSuites(),
+			GitSHA: commit, Start: start, At: now(),
+		}); statusErr != nil {
+			report.Failure = failure("status-write", "", statusErr.Error())
+		}
+		return report
+	}
+	logParent := filepath.Join(root, "tmp", "verify")
+	if err := os.MkdirAll(logParent, 0o750); err != nil {
+		return logFailure(err)
+	}
+	logDir, err := os.MkdirTemp(logParent, mode+"-")
+	if err != nil {
+		return logFailure(err)
+	}
+	logRel, err := filepath.Rel(root, logDir)
+	if err != nil {
+		return logFailure(err)
+	}
+	report.LogDir = filepath.ToSlash(logRel)
 
 	var combined textbuf.Buffer
-	combined.Str("Ze verify protocol run: ").Str(now().UTC().Format(time.RFC3339)).
-		Str("\nMode: ").Str(Mode).Str("\nCommit: ").Str(commit).Str("\n\n")
+	combined.Str("Ze verify protocol run: ").Str(started.UTC().Format(time.RFC3339)).
+		Str("\nMode: ").Str(mode).Str("\nCommit: ").Str(commit).Str("\n\n")
 	report.Code = 0
 	for index, current := range stages {
 		if err := ctx.Err(); err != nil {
 			report.Code = Interrupted
-			report.Failure = failure("interrupted", current.Identity.Gate, err.Error())
+			report.Failure = failure("interrupted", current.Identity.Name, err.Error())
 			break
 		}
 
 		expected := cloneIdentity(current.Identity)
-		result := GateResult{}
+		result := ActionResult{}
 		if runner != nil {
 			result = runner(ctx, root, cloneIdentity(expected))
 		}
 		stageReport := validateResult(expected, result)
-		stageReport.Log = stageLogPath(report.LogDir, index+1, expected.Gate)
+		stageReport.Log = stageLogPath(report.LogDir, index+1, expected.Name)
 
 		stageStart := combined.Len()
 		combined.Str("### Stage ")
 		appendTwoDigits(&combined, index+1)
 		combined.Byte('/')
 		appendTwoDigits(&combined, len(stages))
-		combined.Str(": ").Str(current.Identity.Gate).Str("\nCommand: ").
+		combined.Str(": ").Str(current.Identity.Name).Str("\nCommand: ").
 			Str(invocation(current.Identity)).Byte('\n').Str(result.Output)
 		if result.Output != "" && !strings.HasSuffix(result.Output, "\n") {
 			combined.Byte('\n')
 		}
-		combined.Str("### Stage result: ").Str(current.Identity.Gate).Str(" exit=").
+		combined.Str("### Stage result: ").Str(current.Identity.Name).Str(" exit=").
 			Int(int64(stageReport.Code)).Byte('\n')
 
 		if err := os.WriteFile(
@@ -125,7 +167,7 @@ func run(ctx context.Context, root, commit string, runner GateRunner, now func()
 			0o600,
 		); err != nil {
 			report.Code = 2
-			report.Failure = failure("log-write", current.Identity.Gate,
+			report.Failure = failure("log-write", current.Identity.Name,
 				messageWithError("write stage log: ", err))
 			report.Stages = append(report.Stages, stageReport)
 			break
@@ -141,7 +183,7 @@ func run(ctx context.Context, root, commit string, runner GateRunner, now func()
 		}
 		if ctx.Err() != nil {
 			report.Code = Interrupted
-			report.Failure = failure("interrupted", current.Identity.Gate, ctx.Err().Error())
+			report.Failure = failure("interrupted", current.Identity.Name, ctx.Err().Error())
 			break
 		}
 	}
@@ -153,7 +195,16 @@ func run(ctx context.Context, root, commit string, runner GateRunner, now func()
 		report.Failure = failure("log-write", "",
 			messageWithError("write combined verify log: ", err))
 	}
-	if err := writeStatus(root, report, now()); err != nil {
+	report.Console = combined.String()
+	if err := writeRunArtifacts(root, report, started); err != nil {
+		report.Code = 2
+		report.Completed = false
+		report.Failure = failure("artifact-write", "", err.Error())
+	}
+	if _, err := WriteCertificate(root, WriteRequest{
+		Exit: report.Code, Mode: report.Mode, Skipped: SkippedSuites(),
+		GitSHA: commit, Start: start, At: now(),
+	}); err != nil {
 		report.Code = 2
 		report.Completed = false
 		report.Failure = failure("status-write", "", err.Error())
@@ -161,38 +212,71 @@ func run(ctx context.Context, root, commit string, runner GateRunner, now func()
 	return report
 }
 
-func validateResult(identity Identity, result GateResult) StageReport {
+var verifyEnvironment struct {
+	sync.Mutex
+	active   int
+	previous string
+	had      bool
+}
+
+func enterVerifyEnvironment() (func(), error) {
+	verifyEnvironment.Lock()
+	if verifyEnvironment.active == 0 {
+		verifyEnvironment.previous, verifyEnvironment.had = os.LookupEnv("ZE_VERIFY_MODE")
+		if err := os.Setenv("ZE_VERIFY_MODE", "1"); err != nil {
+			verifyEnvironment.Unlock()
+			return nil, err
+		}
+	}
+	verifyEnvironment.active++
+	verifyEnvironment.Unlock()
+	return func() {
+		verifyEnvironment.Lock()
+		defer verifyEnvironment.Unlock()
+		verifyEnvironment.active--
+		if verifyEnvironment.active != 0 {
+			return
+		}
+		if verifyEnvironment.had {
+			_ = os.Setenv("ZE_VERIFY_MODE", verifyEnvironment.previous)
+		} else {
+			_ = os.Unsetenv("ZE_VERIFY_MODE")
+		}
+	}, nil
+}
+
+func validateResult(identity Identity, result ActionResult) StageReport {
 	report := StageReport{Identity: identity, Code: result.Code, Failure: result.Failure}
 	var text textbuf.Buffer
 	switch {
 	case !result.Registered:
 		report.Code = 2
-		report.Failure = failure("unregistered", identity.Gate, "gate runner returned no registered action")
+		report.Failure = failure("unregistered", identity.Name, "action runner returned no registered action")
 	case !result.Completed:
 		report.Code = 2
-		report.Failure = failure("empty-result", identity.Gate, "gate runner returned no completed result")
+		report.Failure = failure("empty-result", identity.Name, "action runner returned no completed result")
 	case !sameIdentity(result.Identity, identity):
 		report.Code = 2
-		text.Str("runner answered gate ").Quoted(result.Identity.Gate).
+		text.Str("runner answered action ").Quoted(result.Identity.Name).
 			Str(" command ").Quoted(result.Identity.Command).Str(" args ")
 		appendQuotedStrings(&text, result.Identity.Args)
-		report.Failure = failure("identity-mismatch", identity.Gate, text.String())
+		report.Failure = failure("identity-mismatch", identity.Name, text.String())
 	case result.Code < 0:
 		report.Code = 2
-		report.Failure = failure("invalid-status", identity.Gate,
-			text.Str("gate returned negative exit status ").Int(int64(result.Code)).String())
+		report.Failure = failure("invalid-status", identity.Name,
+			text.Str("action returned negative exit status ").Int(int64(result.Code)).String())
 	case result.Failure != nil && result.Code == 0:
 		report.Code = 2
-		report.Failure = failure("inconsistent-result", identity.Gate, "gate returned a failure with exit status zero")
+		report.Failure = failure("inconsistent-result", identity.Name, "action returned a failure with exit status zero")
 	case result.Code != 0 && result.Failure == nil:
-		report.Failure = failure("stage-failed", identity.Gate,
-			text.Str("gate exited ").Int(int64(result.Code)).String())
+		report.Failure = failure("stage-failed", identity.Name,
+			text.Str("action exited ").Int(int64(result.Code)).String())
 	}
 	return report
 }
 
 func sameIdentity(left, right Identity) bool {
-	return left.Gate == right.Gate &&
+	return left.Name == right.Name &&
 		left.Command == right.Command &&
 		slices.Equal(left.Args, right.Args)
 }
@@ -219,12 +303,13 @@ func messageWithError(prefix string, err error) string {
 	return text.Str(prefix).Err(err).String()
 }
 
-func stageLogPath(logDir string, number int, gate string) string {
+func stageLogPath(logDir string, number int, stage string) string {
 	var text textbuf.Buffer
 	if number < 10 {
 		text.Byte('0')
 	}
-	name := text.Int(int64(number)).Byte('-').Str(gate).Str(".log").String()
+	stage = strings.ReplaceAll(stage, "/", "-")
+	name := text.Int(int64(number)).Byte('-').Str(stage).Str(".log").String()
 	return filepath.ToSlash(filepath.Join(logDir, name))
 }
 
@@ -244,21 +329,4 @@ func appendQuotedStrings(text *textbuf.Buffer, values []string) {
 		text.Quoted(value)
 	}
 	text.Byte(']')
-}
-
-func writeStatus(root string, report Report, at time.Time) error {
-	var status textbuf.Buffer
-	status.Str("exit=").Int(int64(report.Code)).
-		Str("\ntimestamp=").Str(at.UTC().Format(time.RFC3339)).
-		Str("\nmode=").Str(report.Mode).
-		Str("\nskipped=\ngit_sha=").Str(report.Commit).
-		Str("\ntree_hash=").Str(report.Commit).Byte('\n')
-	if err := os.WriteFile(
-		filepath.Join(root, filepath.FromSlash(report.StatusPath)),
-		status.Bytes(),
-		0o600,
-	); err != nil {
-		return fmt.Errorf("write verify status: %w", err)
-	}
-	return nil
 }

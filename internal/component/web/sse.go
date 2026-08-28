@@ -234,7 +234,7 @@ func BroadcastConfigChange(broker *EventBroker, username, reason string) {
 	var tb textbuf.Buffer
 	data := notificationBannerData{
 		Reason:     tb.Str("Config changed by ").Str(username).Str(": ").Str(reason).String(),
-		RefreshURL: "/show/",
+		RefreshURL: showPathPrefix,
 	}
 
 	var buf bytes.Buffer

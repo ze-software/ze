@@ -21,7 +21,7 @@ func pluginSetup() {
 		Dependencies: []string{"bgp", "bgp-watchdog"},
 		Features:     "yang",
 		YANG:         yang.ZeHealthcheckConfYANG,
-		RunEngine:    RunHealthcheckPlugin,
+		RunEngine:    runHealthcheckPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},
@@ -31,7 +31,7 @@ func pluginSetup() {
 		cfg.ConfigLogger = func(level string) {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}
-		cfg.RunEngine = RunHealthcheckPlugin
+		cfg.RunEngine = runHealthcheckPlugin
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {

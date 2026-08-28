@@ -6,7 +6,7 @@ stage:
 ```
 [ ] Create internal/plugins/<name>/<name>.go (package-level logger with SetLogger)
 [ ] Create internal/plugins/<name>/register.go (init() → registry.Register())
-[ ] Run make generate (regenerates all.go)
+[ ] Run ./le repository generate (regenerates all.go)
 [ ] Update TestAllPluginsRegistered expected count
 [ ] Add YANG schema if config support (schema/ subdir)
 [ ] Add EventTypes if plugin produces custom event types (e.g., ["update-rpki"])

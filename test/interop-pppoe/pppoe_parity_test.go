@@ -2,15 +2,12 @@ package interop_pppoe_test
 
 import (
 	"context"
-	"go/ast"
-	"go/parser"
-	"go/token"
+	"crypto/sha256"
+	"encoding/hex"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -21,112 +18,99 @@ import (
 var _ func(context.Context, pppoeleaf.Options) interoplab.SuiteReport = pppoeleaf.Run
 var _ func(context.Context, string, pppoeleaf.Options) interoplab.SuiteReport = pppoeleaf.RunAt
 
-func TestNativeScenarioPopulationMatchesPythonProducer(t *testing.T) {
-	// VALIDATES: The native selector exposes every Python-produced PPPoE scenario
-	// under the same exact name and lexical order.
-	// PREVENTS: A sampled port that silently omits one checker directory.
-	root := repositoryRoot(t)
-	producerScenarios := producerScenarioNames(t, filepath.Join(root, "test", "interop-pppoe", "scenarios"))
-	nativeScenarios := nativeCheckerNames(t, filepath.Join(root, "internal/le", "interoplab", "pppoe", "pppoe.go"))
-	if !reflect.DeepEqual(nativeScenarios, producerScenarios) {
-		t.Fatalf("native checkers = %v, producer scenarios = %v", nativeScenarios, producerScenarios)
+var pppoeScenarios = []string{
+	"01-pppoe-chap-ipv4",
+	"02-ze-ac-pppd-client",
+}
+
+// VALIDATES: The native selector exposes both reviewed PPPoE roles under their
+// exact names and lexical order.
+// PREVENTS: A Go-only gate dropping either the Ze client or access-concentrator role.
+func TestNativeScenarioPopulationIsExact(t *testing.T) {
+	if got := pppoeleaf.ScenarioNames(); !reflect.DeepEqual(got, pppoeScenarios) {
+		t.Fatalf("native scenarios = %v, want %v", got, pppoeScenarios)
+	}
+	entries, err := os.ReadDir("scenarios")
+	if err != nil {
+		t.Fatal(err)
+	}
+	directories := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			directories = append(directories, entry.Name())
+		}
+	}
+	if !reflect.DeepEqual(directories, pppoeScenarios) {
+		t.Fatalf("fixture directories = %v, want %v", directories, pppoeScenarios)
 	}
 
-	runner := readFile(t, filepath.Join(root, "test", "interop-pppoe", "run.py"))
-	if !strings.Contains(runner, "for scenario_name in sorted(os.listdir(scenarios_dir)):") {
-		t.Fatal("Python producer no longer declares lexical scenario order")
-	}
+	root := repositoryRoot(t)
 	report := pppoeleaf.RunAt(context.Background(), root, pppoeleaf.Options{
 		Scenario: "not-a-pppoe-scenario",
 		NoBuild:  true,
-		Suffix:   "parity",
+		Suffix:   "population",
 	})
 	if report.Code != 1 || report.SetupError != "no scenario matching 'not-a-pppoe-scenario' found" {
 		t.Fatalf("native missing-selector result = %#v", report)
 	}
+
+	t.Setenv("ZE_PPPOE_INTEROP_SCENARIO", "missing-from-environment")
+	report = pppoeleaf.RunAt(context.Background(), root, pppoeleaf.Options{
+		NoBuild: true,
+		Suffix:  "population",
+	})
+	if report.Code != 1 || report.SetupError != "no scenario matching 'missing-from-environment' found" {
+		t.Fatalf("environment-selected missing scenario result = %#v", report)
+	}
 }
 
-func TestNativeImagesConfigsAndPPPDArgvMatchPythonProducer(t *testing.T) {
-	// VALIDATES: The native suite consumes the producer's three Dockerfiles and
-	// scenario configs, and preserves pppd's exact ordered negotiation argv.
-	// PREVENTS: Peer substitution, copied config drift, or a weakened auth dial.
-	root := repositoryRoot(t)
-	pythonRunner := readFile(t, filepath.Join(root, "test", "interop-pppoe", "run.py"))
-	pythonLab := readFile(t, filepath.Join(root, "test", "interop-pppoe", "lab.py"))
-	goSuitePath := filepath.Join(root, "internal/le", "interoplab", "pppoe", "pppoe.go")
-	goSuite := readFile(t, goSuitePath)
-	goScenarios := readFile(t, filepath.Join(root, "internal/le", "interoplab", "pppoe", "scenarios.go"))
-	goCheckerPath := filepath.Join(root, "internal/le", "interoplab", "pppoe", "check_ac.go")
+// VALIDATES: Docker peers, credentials, role selection, and protocol configs
+// remain the exact reviewed inputs consumed by the typed plans.
+// PREVENTS: Peer substitution or copied fixture drift after runner removal.
+func TestNativeConfigBytesArePinned(t *testing.T) {
+	files := map[string]string{
+		"Dockerfile.ze":                               "73cb9f9e42bdefdd491ae76b8673ebec6f5066e10618ce0c6c8d70584aa71963",
+		"Dockerfile.accel":                            "9d64c266c9481adc00df37b70a83aa8c7bddbab8dfc75f4c7c05ddabe1bbcc6a",
+		"Dockerfile.client":                           "5482e6e0f678503e95c1ff10977ca91ff70211942a3cb449ec3f830582346e28",
+		"scenarios/01-pppoe-chap-ipv4/ze.conf":        "1b1427eb24d3cc599f02d7e285606a99d91ca64a7d9df1f222bb757e26d8f54b",
+		"scenarios/01-pppoe-chap-ipv4/accel-ppp.conf": "c7b096b09feb5492123e4f32fff09a167abc30b798f5a6b22ae6e007f3d5fa05",
+		"scenarios/01-pppoe-chap-ipv4/chap-secrets":   "04525c6958851189a53ea92d539f1dd5970eceff8e95d626eb7033438b912067",
+		"scenarios/01-pppoe-chap-ipv4/role":           "a15ed3e38a6f9a28ca3acbe40026602dfff0c833b992f2937e4722520480f6fc",
+		"scenarios/02-ze-ac-pppd-client/ze.conf":      "86018076f6fa758abb91a5108f39fda38ca78ddd6d0c15325f77ca630daa89e5",
+		"scenarios/02-ze-ac-pppd-client/role":         "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
+	}
+	for name, want := range files {
+		data, err := os.ReadFile(filepath.Clean(name))
+		if err != nil {
+			t.Errorf("read %s: %v", name, err)
+			continue
+		}
+		digest := sha256.Sum256(data)
+		if got := hex.EncodeToString(digest[:]); got != want {
+			t.Errorf("%s sha256 = %s, want %s", name, got, want)
+		}
+	}
+}
 
-	constants := nativeStringConstants(t, goSuitePath)
-	for name, want := range map[string]string{
-		"zeImageTag":     "ze-pppoe-interop",
-		"accelImageTag":  "ze-pppoe-accel",
-		"clientImageTag": "ze-pppoe-client",
-	} {
-		if constants[name] != want {
-			t.Fatalf("%s = %q, want %q", name, constants[name], want)
+// VALIDATES: The PPPoE fixture tree has no interpreter-backed source or cache.
+// PREVENTS: Reintroducing an executable fallback beside the typed plans.
+func TestPPPoETreeIsGoOnly(t *testing.T) {
+	err := filepath.WalkDir(".", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
-		if !strings.Contains(pythonRunner, `"`+want+`"`) {
-			t.Fatalf("Python image producer does not build %q", want)
+		if entry.IsDir() && entry.Name() == "__pycache__" {
+			t.Errorf("Python cache directory remains: %s", path)
+			return filepath.SkipDir
 		}
-	}
-	for _, dockerfile := range []string{"Dockerfile.ze", "Dockerfile.accel", "Dockerfile.client"} {
-		if !strings.Contains(pythonRunner, `"`+dockerfile+`"`) ||
-			!strings.Contains(goSuite, `"`+dockerfile+`"`) {
-			t.Fatalf("Dockerfile %s is not shared by both producers", dockerfile)
+		if !entry.IsDir() && (strings.HasSuffix(entry.Name(), ".py") ||
+			strings.HasSuffix(entry.Name(), ".pyc") || strings.HasSuffix(entry.Name(), ".sh")) {
+			t.Errorf("interpreter-backed artifact remains: %s", path)
 		}
-	}
-	if strings.Count(pythonRunner, "timeout=600") != 2 ||
-		strings.Count(goSuite, "Timeout:    10 * time.Minute") != 2 ||
-		!strings.Contains(pythonRunner, "timeout=900") ||
-		!strings.Contains(goSuite, "Timeout:    15 * time.Minute") {
-		t.Fatal("native image build timeouts do not match the Python producer")
-	}
-
-	for _, contract := range []string{
-		"accel-ppp.conf",
-		"/etc/accel-ppp.conf",
-		"chap-secrets",
-		"/etc/accel-ppp/chap-secrets",
-		"ze.conf",
-		"/etc/ze/ze.conf",
-	} {
-		nativeContains := strings.Contains(goScenarios, contract)
-		if !nativeContains {
-			for _, value := range constants {
-				if value == contract {
-					nativeContains = true
-					break
-				}
-			}
-		}
-		if !strings.Contains(pythonLab, contract) || !nativeContains {
-			t.Fatalf("config/mount contract %q is not present in both producers", contract)
-		}
-	}
-
-	pythonArgv := pythonPPPDArguments(t, pythonLab)
-	if len(pythonArgv) != 29 ||
-		pythonArgv[0] != "pppd" ||
-		pythonArgv[5] != "<username>" ||
-		pythonArgv[7] != "<password>" ||
-		pythonArgv[28] != "debug" {
-		t.Fatalf("Python pppd argv extractor returned a non-discriminating population: %v", pythonArgv)
-	}
-	goArgv := goPPPDArguments(t, goCheckerPath, constants)
-	if !reflect.DeepEqual(goArgv, pythonArgv) {
-		t.Fatalf("native pppd argv = %v\nPython pppd argv = %v", goArgv, pythonArgv)
-	}
-	for _, exact := range []string{
-		`args.extend(["rp_pppoe_service", service_name])`,
-		`arguments = append(arguments, "rp_pppoe_service", service)`,
-		`"docker",`,
-		`ExecDetached(`,
-	} {
-		if !strings.Contains(pythonLab+readFile(t, goCheckerPath), exact) {
-			t.Fatalf("detached/service argv contract %q disappeared", exact)
-		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -137,164 +121,4 @@ func repositoryRoot(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return filepath.Clean(filepath.Join(working, "..", ".."))
-}
-
-func producerScenarioNames(t *testing.T, directory string) []string {
-	t.Helper()
-	entries, err := os.ReadDir(directory)
-	if err != nil {
-		t.Fatal(err)
-	}
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(directory, entry.Name(), "check.py")); err != nil {
-			continue
-		}
-		names = append(names, entry.Name())
-	}
-	sort.Strings(names)
-	return names
-}
-
-func nativeCheckerNames(t *testing.T, path string) []string {
-	t.Helper()
-	parsed := parseGo(t, path)
-	names := make([]string, 0)
-	for _, declaration := range parsed.Decls {
-		function, ok := declaration.(*ast.FuncDecl)
-		if !ok || function.Name.Name != "checkers" {
-			continue
-		}
-		ast.Inspect(function.Body, func(node ast.Node) bool {
-			pair, ok := node.(*ast.KeyValueExpr)
-			if !ok {
-				return true
-			}
-			literal, ok := pair.Key.(*ast.BasicLit)
-			if !ok || literal.Kind != token.STRING {
-				return true
-			}
-			name, err := strconv.Unquote(literal.Value)
-			if err == nil {
-				names = append(names, name)
-			}
-			return true
-		})
-	}
-	sort.Strings(names)
-	return names
-}
-
-func nativeStringConstants(t *testing.T, path string) map[string]string {
-	t.Helper()
-	parsed := parseGo(t, path)
-	constants := make(map[string]string)
-	for _, declaration := range parsed.Decls {
-		general, ok := declaration.(*ast.GenDecl)
-		if !ok || general.Tok != token.CONST {
-			continue
-		}
-		for _, specification := range general.Specs {
-			value, ok := specification.(*ast.ValueSpec)
-			if !ok || len(value.Names) != 1 || len(value.Values) != 1 {
-				continue
-			}
-			literal, ok := value.Values[0].(*ast.BasicLit)
-			if !ok || literal.Kind != token.STRING {
-				continue
-			}
-			text, err := strconv.Unquote(literal.Value)
-			if err == nil {
-				constants[value.Names[0].Name] = text
-			}
-		}
-	}
-	return constants
-}
-
-func pythonPPPDArguments(t *testing.T, source string) []string {
-	t.Helper()
-	start := strings.Index(source, "\ndef pppd_dial(")
-	if start < 0 {
-		t.Fatal("cannot find Python pppd_dial function")
-	}
-	endRelative := strings.Index(source[start:], "\n\ndef pppd_log(")
-	if endRelative < 0 {
-		t.Fatal("cannot find end of Python pppd_dial function")
-	}
-	function := source[start : start+endRelative]
-	blockPattern := regexp.MustCompile(`(?s)\n {4}args = \[\n(.*?)\n {4}\]`)
-	block := blockPattern.FindStringSubmatch(function)
-	if len(block) != 2 {
-		t.Fatal("cannot find Python pppd argv list inside pppd_dial")
-	}
-	tokenPattern := regexp.MustCompile(`"([^"]*)"|\b(username|password)\b`)
-	matches := tokenPattern.FindAllStringSubmatch(block[1], -1)
-	arguments := make([]string, 0, len(matches))
-	for _, match := range matches {
-		if match[1] != "" {
-			arguments = append(arguments, match[1])
-			continue
-		}
-		arguments = append(arguments, "<"+match[2]+">")
-	}
-	return arguments
-}
-
-func goPPPDArguments(t *testing.T, path string, constants map[string]string) []string {
-	t.Helper()
-	parsed := parseGo(t, path)
-	arguments := make([]string, 0)
-	ast.Inspect(parsed, func(node ast.Node) bool {
-		assignment, ok := node.(*ast.AssignStmt)
-		if !ok || len(assignment.Lhs) != 1 || len(assignment.Rhs) != 1 {
-			return true
-		}
-		name, ok := assignment.Lhs[0].(*ast.Ident)
-		if !ok || name.Name != "arguments" {
-			return true
-		}
-		literal, ok := assignment.Rhs[0].(*ast.CompositeLit)
-		if !ok {
-			return true
-		}
-		for _, element := range literal.Elts {
-			switch value := element.(type) {
-			case *ast.BasicLit:
-				text, err := strconv.Unquote(value.Value)
-				if err == nil {
-					arguments = append(arguments, text)
-				}
-			case *ast.Ident:
-				if constant, found := constants[value.Name]; found {
-					arguments = append(arguments, constant)
-					continue
-				}
-				arguments = append(arguments, "<"+value.Name+">")
-			}
-		}
-		return false
-	})
-	return arguments
-}
-
-func parseGo(t *testing.T, path string) *ast.File {
-	t.Helper()
-	parsed, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return parsed
-}
-
-func readFile(t *testing.T, path string) string {
-	t.Helper()
-	content, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(content)
 }

@@ -62,6 +62,7 @@ func TestMetricsListWithRegistry(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	reg.Counter("test_list_total", "A test counter").Inc()
 	reg.Gauge("test_gauge_value", "A test gauge").Set(42)
+	reg.CounterVec("test_empty_vector_total", "A registered vector with no samples", []string{"label"})
 
 	old := registry.GetMetricsRegistry()
 	registry.SetMetricsRegistry(reg)
@@ -78,6 +79,7 @@ func TestMetricsListWithRegistry(t *testing.T) {
 	require.True(t, ok, "expected []string in names field")
 	assert.Contains(t, names, "test_list_total")
 	assert.Contains(t, names, "test_gauge_value")
+	assert.Contains(t, names, "test_empty_vector_total")
 }
 
 // TestMetricsListNoRegistry verifies handler returns error when no registry.

@@ -24,71 +24,13 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.4"}]}
 EOF_PEER
 
-# Python observer plugin: drive `fakeredist emit add` via dispatch-command, then exit.
-tmpfs=announce-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import time
-from ze_api import API, runtime_fail
-
-# Both sleeps are converted. The claim that blocked this -- "redistribute
-# UPDATEs bypass the updates-sent counter via the forward-pool send path" -- is
-# false: writeRawUpdateBody (reactor/session_write.go), the forward-pool raw-body
-# write invoked from fwdBatchHandler (reactor/forward_pool.go), calls
-# onMessageReceived(..., rpc.DirectionSent, ...), which reaches
-# peer.IncrUpdatesSent() (reactor/reactor_notify.go) on the sent branch for
-# TypeUPDATE. So the counter DOES see a redistribute UPDATE, and this test now
-# gates on it. The other half of that comment was right and still is: quiesce
-# blocks ~10s on the forward-pool quiescer, which is why the two ABSENCE tests
-# in this family (filtered-out, metrics) cannot use it inside a 15s budget.
-
-
-def dispatch(api, command):
-    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for BGP session up so the UPDATE has a destination peer.
-    # Baseline AFTER the initial-sync EOR settles: the EOR counts into
-    # updates-sent, so a threshold taken before it would be met by
-    # establishment alone rather than by the redistribute UPDATE.
-    if not api.wait_peer_eor_sent():
-        runtime_fail('initial-sync EOR never reached the wire')
-        return
-    base = api.peer_counter('updates-sent')
-
-    resp = dispatch(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32')
-    result = resp.get('result', {})
-    if result.get('status') != 'done':
-        runtime_fail(f'request fakeredist emit failed: {result}')
-        return
-
-    # Wait for the redistribute UPDATE to be COUNTED as sent, rather than
-    # holding a blind 2s and hoping. writeRawUpdateBody increments this counter
-    # after the body reaches the session, and TCP FIFO then delivers it ahead of
-    # the shutdown below.
-    if not api.wait_peer_counter('updates-sent', base + 1):
-        runtime_fail('redistribute UPDATE never counted as sent')
-        return
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Compiled observer drives `fakeredist emit add` via dispatch-command.
 
 # ze configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-test {
-		run ./announce-test.run
+		run "ze-test fixture plugin/bgp-redistribute-announce"
 		encoder json
 	}
 	# redistribute-orchestrator is intentionally NOT listed here. The

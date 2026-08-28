@@ -18,16 +18,10 @@ const area = "dash-stdio"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-dash-stdio-check",
-		Why:    "no command reads or writes a user-supplied path with a raw os call, so the \"-\" token still means stdin and stdout everywhere it is typed",
-		Answer: runCheck,
-	},
-	leaction.Action{
-		Gate:   "ze-dash-stdio-selftest",
-		Why:    "the taint analysis itself still follows a path from the CLI edge through two helpers, proved against fourteen fixtures rather than against the tree it judges",
-		Answer: runSelftest,
-	},
+	leaction.Action{Verb: "check", Why: "no command reads or writes a user-supplied path with a raw os call, so the \"-\" token still means stdin and stdout everywhere it is typed",
+		Answer: runCheck},
+	leaction.Action{Verb: "selftest", Why: "the taint analysis itself still follows a path from the CLI edge through two helpers, proved against fourteen fixtures rather than against the tree it judges",
+		Answer: runSelftest},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line

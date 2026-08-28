@@ -41,89 +41,7 @@ option=open:value=add-capability:code=9:hex=00
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_DEST
 
-tmpfs=test-egress.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert ze learned the provider route and withheld it from the other provider.
-
-The dest peer's expect=bgp rule asserts an ABSENCE (only an End-of-RIB reaches
-the wire), and an absence is satisfied just as well by a daemon that never got
-as far as deciding. So this observer's barrier has to be the INVERSE of
-role-otc-egress-stamp.ci's: that test waits for the dest to be SENT something
-(updates-sent - eor-sent >= 1), this one holds until the forwarding decision has
-been MADE and then asserts the difference is still 0, alongside the positive
-half -- that the source peer's UPDATE was received in the first place. Either
-half alone is vacuous; together they say "ze had the route and did not send it".
-"""
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def peer_rows(api):
-    data = result_json_data(dispatch(api, 'show bgp peer * detail'), {})
-    rows = data.get('peers', {}) if isinstance(data, dict) else {}
-    return rows if isinstance(rows, dict) else {}
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Barrier 1: both ze-peers assert the EOR frame, so neither may have its
-    # session closed by the shutdown below before that frame is on the wire.
-    if not api.wait_peer_eor_sent(expected_peers=2):
-        runtime_fail('ze never sent an initial-sync EOR to both peers')
-
-    # Barrier 2: the forwarding decision for the source's route has been made.
-    # quiesce drains the forward pool AND each peer's initial-sync opQueue, so
-    # after it returns the dest has been either sent the route or refused it --
-    # which is what makes the "still 0" assertion below mean something.
-    # // dispatch_until(adj-rib-in total-routes>=1) is gone. It polled a
-    # // counter that only status()'s ribIn feeds, the non-lingering source had
-    # // already been torn down by then, so it burned its full 5s budget every run;
-    # // quiesce then burned the full 10s quiesceTimeout waiting on that dead peer's
-    # // opQueue. 15.02s against a 15s budget is the timeout this test kept hitting.
-    # // With linger both are immediate (0.25s + 0.00s measured).
-    if not api.quiesce():
-        runtime_fail('quiesce barrier did not settle; forwarding decision not yet made')
-
-    rows = peer_rows(api)
-    source = rows.get('127.0.0.1', {})
-    dest = rows.get('127.0.0.2', {})
-    if not source or not dest:
-        runtime_fail(f'peer detail missing a peer row: {sorted(rows)}')
-
-    # Positive half: ze received the provider route. Without this the assertion
-    # below would pass on a daemon that was never given anything to leak.
-    if int(source.get('updates-received', 0) or 0) < 1:
-        runtime_fail(f'source peer UPDATE never reached ze: {source}')
-
-    # Negative half: nothing but the End-of-RIB was written to the dest.
-    # updates-sent counts EVERY UPDATE including the EOR marker
-    # (reactor_notify.go IncrUpdatesSent sees only the message type), so the
-    # difference is the route this test proves was withheld.
-    leaked = int(dest.get('updates-sent', 0) or 0) - int(dest.get('eor-sent', 0) or 0)
-    if leaked != 0:
-        runtime_fail(f'provider route leaked to the provider dest peer: {dest}')
-
-    total = result_json_data(dispatch(api, 'show bgp adj-rib-in status'), {}).get('total-routes', -1)
-    print(f'OK: route accepted from the provider source ({total} in adj-rib-in), '
-          f'{leaked} routes beyond EOR sent to the provider dest', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# Native compiled fixture: plugin/role-otc-egress-filter
 # ze configuration: local role = customer, source/dest peers are providers
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -134,7 +52,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-egress {
-		run ./test-egress.run
+		run "ze-test fixture plugin/role-otc-egress-filter"
 		encoder json
 	}
 }

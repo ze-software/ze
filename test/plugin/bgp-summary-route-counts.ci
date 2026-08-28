@@ -11,134 +11,18 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-option=update:value=send-default-route
+option=linger:value=true
+# UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=summary-counts-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def find_peer(summary, addr):
-    for p in summary.get('peers', []):
-        if p.get('address') == addr:
-            return p
-    return None
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    def peer_ready(r):
-        # Ready when the inbound route has landed in the summary's per-peer
-        # route-counts AND ze has sent its EOR to the peer. Gating on eor-sent
-        # closes the teardown race: without it, `request shutdown` can close the
-        # session before ze writes the EOR the ze-peer expects, and the peer's
-        # exchange assertion fails under load. Both are read from one poll.
-        p = find_peer(result_json_data(r, {}), '127.0.0.1')
-        if p is None:
-            return False
-        return p.get('routes-received', 0) >= 1 and p.get('eor-sent', 0) >= 1
-
-    try:
-        # // dispatch_until poll, not a blind sleep -- the inbound
-        # route landing in a plugin and the EOR being sent are async engine
-        # states with no outbound-quiesce barrier to wait on.
-        api.dispatch_until('show bgp', peer_ready)
-
-        result = dispatch(api, 'show bgp')
-        if result.get('status') != 'done':
-            print(f'FAIL: summary status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-        summary = result_json_data(result, {})
-
-        peer = find_peer(summary, '127.0.0.1')
-        if peer is None:
-            print(f'FAIL: 127.0.0.1 not in summary peers', file=sys.stderr)
-            sys.exit(1)
-
-        # The merge must have added the route-count keys from the bgp-rib dispatch.
-        recv = peer.get('routes-received')
-        acc = peer.get('routes-accepted')
-        sent = peer.get('routes-sent')
-        if recv is None or acc is None or sent is None:
-            print(f'FAIL: summary peer row missing route-count keys: {peer}', file=sys.stderr)
-            sys.exit(1)
-        if recv < 1:
-            print(f'FAIL: routes-received={recv}, want >=1 (peer sent a default route)', file=sys.stderr)
-            sys.exit(1)
-        if acc != recv:
-            print(f'FAIL: routes-accepted={acc} != routes-received={recv} (Ze retains only accepted)', file=sys.stderr)
-            sys.exit(1)
-        # Ze does not retain filtered routes: the key must be absent.
-        if 'routes-filtered' in peer:
-            print(f'FAIL: routes-filtered present ({peer["routes-filtered"]}); Ze does not track filtered routes', file=sys.stderr)
-            sys.exit(1)
-
-        print(f'OK: summary route counts merged: received={recv} accepted={acc} sent={sent}', file=sys.stderr)
-
-        # --- Family scoping (proves the /ze-review family-filter fix end-to-end) ---
-        # Inject an IPv6 route for the same peer so its Adj-RIB-In spans two
-        # families. A family-filtered `show bgp <afi/safi>` must then
-        # report the family-scoped count, not the all-family total.
-        inj = dispatch(api, 'request bgp rib inject 127.0.0.1 ipv6/unicast 2001:db8::/32 origin igp nexthop 2001:db8::1')
-        if inj.get('status') != 'done':
-            print(f'FAIL: ipv6 inject status={inj.get("status")} data={inj.get("data")}', file=sys.stderr)
-            sys.exit(1)
-
-        # // dispatch_until poll on the injected route landing, not a
-        # blind sleep. Wait for the all-family count to include both families.
-        api.dispatch_until(
-            'show bgp',
-            lambda r: (find_peer(result_json_data(r, {}), '127.0.0.1') or {})
-                .get('routes-received', 0) >= 2,
-        )
-
-        # All-family: 1 IPv4 (wire) + 1 IPv6 (inject) = 2.
-        both = find_peer(result_json_data(dispatch(api, 'show bgp'), {}), '127.0.0.1')
-        if both is None:
-            print('FAIL: 127.0.0.1 absent from all-family summary', file=sys.stderr)
-            sys.exit(1)
-        if both.get('routes-received') != 2:
-            print(f'FAIL: all-family routes-received={both.get("routes-received")}, want 2', file=sys.stderr)
-            sys.exit(1)
-
-        # IPv4-filtered: only the IPv4 route -> 1, NOT the all-family 2.
-        v4 = find_peer(result_json_data(dispatch(api, 'show bgp ipv4/unicast'), {}), '127.0.0.1')
-        if v4 is None:
-            print('FAIL: 127.0.0.1 absent from ipv4/unicast summary', file=sys.stderr)
-            sys.exit(1)
-        if v4.get('routes-received') != 1:
-            print(f'FAIL: ipv4/unicast-scoped routes-received={v4.get("routes-received")}, want 1 (IPv6 route must be excluded)', file=sys.stderr)
-            sys.exit(1)
-
-        print('OK: family scoping: all-family=2, ipv4/unicast=1', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external summary-counts-test {
-		run ./summary-counts-test.run
+		run "ze-test fixture plugin/bgp-summary-route-counts"
 		encoder json
 	}
 	internal bgp-rib {

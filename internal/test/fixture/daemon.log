@@ -1,0 +1,26 @@
+warning: running without root; missing capabilities:
+warning:   CAP_NET_BIND_SERVICE (port 179)
+warning:   CAP_NET_RAW (ping, traceroute)
+warning:   CAP_NET_ADMIN (FIB, interfaces)
+time=2026-08-27T19:23:12.501+01:00 level=WARN msg="zefs power user unavailable: the break-glass account cannot log in until this is repaired" subsystem=hub.aaa error="read local username: read meta/auth/local/username: file does not exist"
+2026/08/27 19:23:13 INFO SSH server listening subsystem=ssh address=127.0.0.1:38589
+time=2026-08-27T19:23:13.628+01:00 level=WARN msg="event delivery: the plugin declared events and no peer attaches it, so no peer-scoped event reaches it" subsystem=plugin.server process=bgp-adj-rib-in effect="no peer-scoped event of any type reaches this process" action="name it in an `attach process` block on each peer it serves"
+time=2026-08-27T19:23:13.628+01:00 level=WARN msg="event delivery: the plugin declared events and no peer attaches it, so no peer-scoped event reaches it" subsystem=plugin.server process=bgp-rib effect="no peer-scoped event of any type reaches this process" action="name it in an `attach process` block on each peer it serves"
+time=2026-08-27T19:23:13.628+01:00 level=WARN msg="event delivery: the plugin declared events and no peer attaches it, so no peer-scoped event reaches it" subsystem=plugin.server process=bgp-bmp effect="no peer-scoped event of any type reaches this process" action="name it in an `attach process` block on each peer it serves"
+time=2026-08-27T19:23:13.634+01:00 level=WARN msg="event delivery: the plugin declared events and no peer attaches it, so no peer-scoped event reaches it" subsystem=plugin.server process=bgp-gr effect="no peer-scoped event of any type reaches this process" action="name it in an `attach process` block on each peer it serves"
+time=2026-08-27T19:23:13.634+01:00 level=WARN msg="event delivery: the plugin declared events and no peer attaches it, so no peer-scoped event reaches it" subsystem=plugin.server process=bgp-watchdog effect="no peer-scoped event of any type reaches this process" action="name it in an `attach process` block on each peer it serves"
+time=2026-08-27T19:23:13.635+01:00 level=WARN msg="event delivery: the plugin declared events and no peer attaches it, so no peer-scoped event reaches it" subsystem=plugin.server process=bgp-rpki effect="no peer-scoped event of any type reaches this process" action="name it in an `attach process` block on each peer it serves"
+time=2026-08-27T19:23:13.635+01:00 level=WARN msg="event delivery: the plugin declared events and no peer attaches it, so no peer-scoped event reaches it" subsystem=plugin.server process=bgp-rs effect="no peer-scoped event of any type reaches this process" action="name it in an `attach process` block on each peer it serves"
+time=2026-08-27T19:23:13.681+01:00 level=WARN msg="2026/08/27 19:23:13 INFO record-plugin: read the engine answer type=map rows=413 verdict=done" subsystem=plugin.relay plugin=record-plugin
+2026/08/27 19:23:15 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:37490 source=local profiles=[admin]
+2026/08/27 19:23:15 INFO SSH exec command subsystem=ssh user=admin command="show version" remote=127.0.0.1:37490
+2026/08/27 19:23:15 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:37496 source=local profiles=[admin]
+2026/08/27 19:23:15 INFO SSH exec command subsystem=ssh user=admin command="system command list | raw" remote=127.0.0.1:37496
+2026/08/27 19:23:15 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:37508 source=local profiles=[admin]
+2026/08/27 19:23:15 INFO SSH exec command subsystem=ssh user=admin command="show version" remote=127.0.0.1:37508
+2026/08/27 19:23:15 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:37524 source=local profiles=[admin]
+2026/08/27 19:23:15 INFO SSH exec command subsystem=ssh user=admin command="show test records fault | raw" remote=127.0.0.1:37524
+2026/08/27 19:23:15 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:37534 source=local profiles=[admin]
+2026/08/27 19:23:15 INFO SSH exec command subsystem=ssh user=admin command="show version" remote=127.0.0.1:37534
+2026/08/27 19:23:15 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:37544 source=local profiles=[admin]
+2026/08/27 19:23:15 INFO SSH exec command subsystem=ssh user=admin command="show test records walk | raw" remote=127.0.0.1:37544

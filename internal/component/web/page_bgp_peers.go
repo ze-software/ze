@@ -148,13 +148,13 @@ func peerFlagFromState(pe peerEntry, state string) (string, string) {
 // live provides operational state from "show bgp" (nil when unavailable).
 func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[string]bgpSummaryPeer) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: "Name", Sortable: true},
+		{Key: "name", Label: labelName, Sortable: true},
 		{Key: "remote-ip", Label: "Remote IP", Sortable: true},
 		{Key: "remote-as", Label: "Remote AS", Sortable: true},
 		{Key: "local-as", Label: "Local AS", Sortable: true},
 		{Key: "group", Label: "Group", Sortable: true},
 		{Key: "state", Label: "State"},
-		{Key: "families", Label: "Families"},
+		{Key: "families", Label: labelFamilies},
 	}
 
 	var rows []WorkbenchTableRow
@@ -184,7 +184,7 @@ func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[stri
 		}
 
 		actions := []WorkbenchRowAction{
-			{Label: "Edit", URL: pe.EditURL},
+			{Label: labelEdit, URL: pe.EditURL},
 		}
 
 		// Row-level operational tools (dispatch through /tools/related/run).
@@ -198,7 +198,7 @@ func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[stri
 			}
 			actions = append(actions,
 				WorkbenchRowAction{
-					Label:  "Detail",
+					Label:  labelDetail,
 					HxPost: "/tools/related/run",
 					Class:  "inspect",
 				},
@@ -304,12 +304,12 @@ func peerTeardownConfirm(name string) string {
 
 func buildPeerConfigHTML(renderer *Renderer, pe peerEntry) template.HTML {
 	rows := []detailKV{
-		{Key: "Name", Value: pe.Name},
+		{Key: labelName, Value: pe.Name},
 		{Key: "Remote IP", Value: valueOrDash(pe.RemoteIP)},
 		{Key: "Remote AS", Value: valueOrDash(pe.RemoteAS)},
 		{Key: "Local AS", Value: valueOrDash(pe.LocalAS)},
 		{Key: "Group", Value: valueOrDash(pe.Group)},
-		{Key: "Families", Value: valueOrDash(pe.Families)},
+		{Key: labelFamilies, Value: valueOrDash(pe.Families)},
 	}
 
 	return renderer.renderComponent("peer_detail_config", detailKVSection(rows))

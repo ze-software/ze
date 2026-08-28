@@ -19,38 +19,14 @@ option=env:var=ze.log.bgp.filter.prefix:value=info
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=linger:value=true
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 EOF_PEER
-
-# Observer: sleep briefly so the filter fires, then dispatch daemon shutdown.
-tmpfs=test-shortform.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-from ze_api import API, result_json_data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    # Deterministic replacement for blind sleep(2.0): poll adj-rib-in until
-    # the accepted route lands, proving the short-form filter fired before shutdown.
-    api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,
-    )
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-shortform {
-		run ./test-shortform.run
+		run "ze-test fixture plugin/prefix-filter-shortform"
 		encoder json
 	}
 }
@@ -89,6 +65,9 @@ bgp {
 		# Filter-type prefix form: `prefix-list` resolves to bgp-filter-prefix.
 		filter {
 			import [ prefix-list:CUSTOMERS ]
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

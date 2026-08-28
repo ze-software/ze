@@ -18,9 +18,9 @@
 - **One fact per guard. A compound condition MUST be split.** `if a || b` and `if a && b && !c` make a reader hold two or three facts at once to decide whether every case is covered, and the answer is usually that one of them was never considered. Write one `if` per question and ask, for each, whether the negative case needs a branch of its own.
 - **State the invariant POSITIVELY.** `if index < length` reads directly. `if index >= length` states the failure of the invariant and makes the reader invert it before they can check it.
 - **Name a compound test rather than inlining it.** Two exit codes tested inline are a condition; `isCheckIgnoreAnswer(code)` is a sentence. The name is where the reason lives, and a reviewer checks a name against its call site far faster than they re-derive a boolean.
-- **Every non-exempt `.go` file MUST carry a `// Design:` header, and that is now checked at COMMIT time as well as at write time.** `go_design_ref_problems` (`scripts/dev/commit_helper.py`) refuses a commit whose `.go` files lack it. It exists because `c_require_design_ref` reaches the Write and Edit tools only, so a file written from Bash met no gate; a commit's changed-file set is a fact, and it does not matter which tool produced the file. Exempt: `_test.go`, `_gen.go`, `register.go`, `embed.go`, `doc.go`, `vendor/`, and a generated file saying `Code generated` or `DO NOT EDIT` in its first 500 bytes.
+- **Every non-exempt `.go` file MUST carry a `// Design:` header.** The native `./le consistency` action reports missing headers from `internal/le/consistency.checkDesignRefs`. Exempt: tests, generated files, registration leaves, and vendor code.
 - **This obliges; `docs/contributing/ze-go-style.md` explains.** That page's "Control flow a reader can simulate" carries the reasoning. When the two disagree, this file wins.
-- **The one-fact rule was guidance-only until 2026-08-18 and that cost real code.** It lived on a page reachable through three triggers a session could miss entirely, so `timedOut` (`internal/component/ike/engine/dpd.go`) shipped opening on a two-fact condition and `ignoredNames` (`scripts/vendor/check_web.go`) decided its error case on three. Both were written by a session that never opened the guide, because `c_pre_write_go` (`.claude/hooks/pretool-writeedit.py`) fires only for the Write and Edit tools and every one of those edits went through a Bash heredoc.
+- **The one-fact rule was guidance-only until 2026-08-18 and that cost real code.** `timedOut` in `internal/component/ike/engine/dpd.go` shipped with a two-fact condition and `ignoredNames` in `internal/le/vendorweb/check.go` decided its error case on three. The native edit checks do not replace reading this rule.
 
 ### Required
 
@@ -84,9 +84,9 @@ Before adding an env var, read `ai/rules/config.md` (should this be YANG config 
 - When two packages in the module share the same name (e.g., `internal/component/iface/cli/` and `internal/component/iface/`), goimports cannot resolve which to use and silently removes the import. You MUST use an aliased import in this case: `ifacepkg "github.com/ze-software/ze/internal/component/iface"`.
 - You MUST add import + usage in the same Edit call to prevent goimports from removing an "unused" import between edits.
 
-### Scripts: Python Only
+### First-Party Tooling: Native Go Only
 
-Do not use shell/bash for scripts. Use Python. Shell scripts are fragile and hard to debug for complex orchestration. Precedent: `test/interop/run.py`, `test/interop/interop.py`.
+First-party tooling MUST live in a native Go package under `internal/le/` and register its `./le` action. The root `le` and `ze` POSIX launchers are intentional entry points; new Python or shell helpers are prohibited.
 
 ### Style patterns to prefer
 
@@ -106,7 +106,7 @@ Every exported struct field that reaches JSON output **must** have a `json:"keba
 ### Forbidden
 
 **Code MUST NOT write these forbidden Go patterns:**
-- `panic()` for error handling. Allowed prefixes (enforced by `block-panic-error.sh`): `panic("BUG: ...")`, `panic("unreachable: ...")`, `panic("not implemented")`, `panic("unimplemented")`, `panic("TODO: ...")`, `panic("impossible: ...")`. Use `panic("BUG: <what>")` for programmer-error guards that MUST never fire at runtime. Any other `panic()` call is rejected at Write/Edit time (test files and `scripts/` excepted)
+- `panic()` for error handling. The native Write/Edit gate in `internal/le/hookruntime/writeedit.go` blocks a new `panic()` call. Return an error from operating paths; reserve `panic("BUG: <what>")` for a programmer-error invariant only where the owning rule permits it
 - `f, _ := func()` and `_, _ = func()` (ignoring errors). If you genuinely MUST discard, use `//nolint:errcheck // <why>` with a specific reason
 - Global mutable state
 - `init()` except registry patterns
@@ -246,7 +246,7 @@ wrong reason or loses the output it was watching for.
 This has already recurred here often enough to earn a gate. A log subsystem was
 registered as `bgp-adj-rib-in` when the real key is `ze.log.bgp.adj.rib.in`; the
 key set nothing, the level stayed at the WARN default, and the test quietly lost
-the lines it existed to assert on. `scripts/dev/verify_wiring_docs.py` was
+the lines it existed to assert on. `internal/le/docwiring/docwiring.go` was
 written to catch that one shape after it landed three times, and it can only
 check hyphen-bearing subsystems declared literally in Go source. A constant
 would have made all three a compile error at the first occurrence.
@@ -327,7 +327,7 @@ The line threshold exists for **context economy**. Any task that touches a file 
 
 ### Splitting
 
-- **Tool:** `go build -o bin/go_extract ./scripts/dev/go_extract.go && bin/go_extract <source.go> <dest.go> <symbol1> [symbol2 ...]` moves named declarations (with doc comments) to dest, runs `goimports` on both. Note: `goimports` cannot resolve aliased imports; you MUST add those manually to the new file.
+- **Tool:** `go build -o bin/go_extract ./internal/le/goextract/goextract.go && bin/go_extract <source.go> <dest.go> <symbol1> [symbol2 ...]` moves named declarations (with doc comments) to dest, runs `goimports` on both. Note: `goimports` cannot resolve aliased imports; you MUST add those manually to the new file.
 - Zero semantic effect: Go compiles all files in a package together
 - File-local types move with their functions
 - Shared test helpers stay in base `_test.go`
@@ -449,9 +449,9 @@ Same as `// Design:`: `*_test.go`, `*_gen.go`, `register.go`, `embed.go`, `doc.g
 
 **Thomas authorises every exception, and it MUST carry a row in `ai/allowed-system-commands.md` before the code lands.** The register is the only authority: a fork whose command names no row there is a defect whatever the comment beside it says. An agent that believes a fork is unavoidable MUST state the case and STOP. It MUST NOT add its own row, and it MUST NOT ask whether to skip the Go path -- the question is which Go path to take.
 
-**Take the native path, and it nearly always exists.** Links, routes, addresses and generic families come from `vishvananda/netlink`; a family it does not wrap is still reachable by building the request by hand, as `scripts/evidence/l2tp-tunnel-diag/main.go` does for L2TP, which the library does not support at all. `/proc` and `/sys` answer through `os.ReadFile`, a device node through `os.Stat`, and the rest through `x/sys/unix`. A fork that only formats something Ze already knows MUST be replaced by stating Ze's own view, because a second view can disagree with it.
+**Take the native path, and it nearly always exists.** Links, routes, addresses and generic families come from `vishvananda/netlink`; a family it does not wrap is still reachable by building the request by hand, as `internal/le/deployment/l2tpdiag.go` does for L2TP, which the library does not support at all. `/proc` and `/sys` answer through `os.ReadFile`, a device node through `os.Stat`, and the rest through `x/sys/unix`. A fork that only formats something Ze already knows MUST be replaced by stating Ze's own view, because a second view can disagree with it.
 
-**Test code and the build harness are outside this rule.** A `_test.go` anywhere, `test/`, `internal/test/`, `Makefile`, `mk/` and `scripts/dev/` all drive a developer machine or a CI runner, where the toolchain is present by construction and calling it is often the point: a test MAY run whatever it needs to set up or observe. What is governed is what Ze SHIPS and runs on an appliance: non-test code under `cmd/`, `internal/`, `pkg/` and `scripts/evidence/`, in every build and on every platform. A diagnostic Ze ships is Ze, and it runs where no toolchain exists.
+**Test code and native developer tooling are outside this rule.** A `_test.go` anywhere, `test/`, `internal/test/`, and `internal/le/` drive a developer machine or CI runner, where the toolchain is present by construction and calling it is often the point: a test MAY run what it needs to set up or observe. What is governed is what Ze ships and runs on an appliance: non-test product code under `cmd/`, `internal/`, and `pkg/`. A diagnostic Ze ships is Ze, and it runs where no toolchain exists.
 
 ## No Backwards Compatibility
 

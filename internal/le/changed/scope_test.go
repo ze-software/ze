@@ -1,15 +1,13 @@
 package changed
 
 import (
-	"errors"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
 // VALIDATES: `le changed packages` widens to ./... on EVERY route it cannot
 // answer. Thus, a scoped stage never covers nothing while it reports success.
-// PREVENTS: The regression measured in scripts/dev/changed-pkgs.sh on
+// PREVENTS: The regression measured in internal/le/changed/actions.go on
 // 2026-08-26. ZE_VERIFY_SCOPE_PACKAGES names a readable path that is not a file.
 // Then `cat` fails, but the script ignores the exit status. The recipe receives
 // an empty package list with exit 0. The script's header requires every failure
@@ -18,7 +16,10 @@ import (
 func TestAScopeFileThatCannotBeReadWidensToEveryPackage(t *testing.T) {
 	// A DIRECTORY: the shell's `[ -r ]` test passes for it and `cat` then
 	// fails, which is the exact shape the script answers nothing for.
-	report := Scope{Root: t.TempDir(), File: t.TempDir()}.Resolve(nil)
+	report, code := (Scope{Root: t.TempDir(), File: t.TempDir()}).Resolve(nil)
+	if code != 0 {
+		t.Fatalf("precomputed package widening exited %d", code)
+	}
 
 	if !report.Widened {
 		t.Fatalf("an unreadable scope file did not widen: %+v", report)
@@ -32,7 +33,10 @@ func TestAScopeFileThatCannotBeReadWidensToEveryPackage(t *testing.T) {
 }
 
 func TestAMissingScopeFileWidensToEveryPackage(t *testing.T) {
-	report := Scope{Root: t.TempDir(), File: filepath.Join(t.TempDir(), "absent")}.Resolve(nil)
+	report, code := (Scope{Root: t.TempDir(), File: filepath.Join(t.TempDir(), "absent")}).Resolve(nil)
+	if code != 0 {
+		t.Fatalf("missing precomputed package widening exited %d", code)
+	}
 	if !report.Widened {
 		t.Fatalf("a missing scope file did not widen: %+v", report)
 	}
@@ -41,15 +45,13 @@ func TestAMissingScopeFileWidensToEveryPackage(t *testing.T) {
 func TestAScopeFileIsReadWhenNoArgumentAsksADifferentQuestion(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "scope.txt", "./internal/core/env\n./cmd/ze\n")
-	rec := &recorder{}
 
-	report := Scope{Root: root, File: filepath.Join(root, "scope.txt"), Run: rec.run}.Resolve(nil)
-
+	report, code := (Scope{Root: root, File: filepath.Join(root, "scope.txt")}).Resolve(nil)
+	if code != 0 {
+		t.Fatalf("precomputed package answer exited %d", code)
+	}
 	if report.Widened {
 		t.Fatalf("a readable scope file widened: %+v", report)
-	}
-	if len(rec.calls) != 0 {
-		t.Errorf("%d commands ran, want 0: the precomputed answer was published for exactly this", len(rec.calls))
 	}
 	want := []string{"./internal/core/env", "./cmd/ze"}
 	if len(report.Packages) != len(want) {
@@ -65,81 +67,37 @@ func TestAScopeFileIsReadWhenNoArgumentAsksADifferentQuestion(t *testing.T) {
 // An argument asks a different question than the one the run precomputed, so
 // the precomputed answer must not be handed back for it.
 func TestAnArgumentBypassesThePrecomputedAnswer(t *testing.T) {
-	root := t.TempDir()
-	writeFile(t, root, "scope.txt", "./internal/core/env\n")
-	rec := &recorder{answers: map[string]string{selectorCall(root, "--depth=1"): "./cmd/ze\n"}}
+	root := writeScopeFixture(t)
+	writeFile(t, root, "scope.txt", "./precomputed\n")
+	paths := scopePathsFile(t, "core/core.go")
 
-	report := Scope{Root: root, File: filepath.Join(root, "scope.txt"), Run: rec.run}.Resolve([]string{"--depth=1"})
-
-	if len(rec.calls) != 1 {
-		t.Fatalf("%d commands ran, want exactly 1 (the selector)", len(rec.calls))
+	report, code := (Scope{
+		Root: root,
+		File: filepath.Join(root, "scope.txt"),
+	}).Resolve([]string{"--depth=1", "--paths-from=" + paths})
+	if code != 0 {
+		t.Fatalf("native selector exited %d", code)
 	}
-	if len(report.Packages) != 1 || report.Packages[0] != "./cmd/ze" {
-		t.Errorf("packages are %v, want exactly [./cmd/ze]", report.Packages)
-	}
-}
-
-func TestASelectorFailureWidensToEveryPackage(t *testing.T) {
-	root := t.TempDir()
-	rec := &recorder{fail: map[string]error{selectorCall(root): errors.New("selector: exit 1")}}
-
-	report := Scope{Root: root, Run: rec.run}.Resolve(nil)
-
-	if !report.Widened {
-		t.Fatalf("a failing selector did not widen: %+v", report)
-	}
-	if len(report.Packages) != 1 || report.Packages[0] != everyPackage {
-		t.Errorf("packages are %v, want exactly [%s]", report.Packages, everyPackage)
+	if len(report.Packages) != 2 || report.Packages[0] != "./core" || report.Packages[1] != "./mid" {
+		t.Errorf("packages are %v, want [./core ./mid]", report.Packages)
 	}
 }
 
-// An empty answer is an ANSWER: no changed path is compiled by a Go package.
-// Widening for it would make every non-Go commit verify the whole tree.
-func TestAnEmptySelectorAnswerIsAnAnswerRatherThanAWidening(t *testing.T) {
-	root := t.TempDir()
-	rec := &recorder{answers: map[string]string{selectorCall(root): "\n"}}
-
-	report := Scope{Root: root, Run: rec.run}.Resolve(nil)
-
-	if report.Widened {
-		t.Fatalf("an empty selector answer widened: %+v", report)
+func TestTheScopeReportPreservesEveryPrintMode(t *testing.T) {
+	report := ScopeReport{
+		Packages: []string{"./cmd/ze", "./internal/core/env"},
+		Tags:     []string{"ze_bgp", "ze_ssh"},
 	}
-	if len(report.Packages) != 0 {
-		t.Errorf("packages are %v, want none", report.Packages)
-	}
-}
-
-func TestTheScopeReportRendersOnePackagePerLine(t *testing.T) {
-	report := ScopeReport{Packages: []string{"./cmd/ze", "./internal/core/env"}}
 	if text := report.Text(); text != "./cmd/ze\n./internal/core/env\n" {
-		t.Errorf("scope rendering is %q", text)
+		t.Errorf("default scope rendering is %q", text)
 	}
-	if text := (ScopeReport{}).Text(); text != "" {
-		t.Errorf("an empty scope renders %q, want the empty string", text)
+	report.Print = "tags"
+	if text := report.Text(); text != "ze_bgp\nze_ssh\n" {
+		t.Errorf("tag rendering is %q", text)
 	}
-}
-
-// The selector remains a script that this repository carries. Thus, the command
-// line must name the script exactly. With a typo, the selector does not answer.
-// Every run then silently widens to the whole tree.
-func TestTheSelectorIsNamedByAnAbsolutePathOfTheCheckout(t *testing.T) {
-	root := t.TempDir()
-	rec := &recorder{}
-	Scope{Root: root, Run: rec.run}.Resolve(nil)
-
-	if len(rec.calls) != 1 {
-		t.Fatalf("%d commands ran, want exactly 1", len(rec.calls))
+	report.Print = "both"
+	want := "# packages\n./cmd/ze\n./internal/core/env\n# tags\nze_bgp\nze_ssh\n"
+	if text := report.Text(); text != want {
+		t.Errorf("both rendering is %q, want %q", text, want)
 	}
-	joined := strings.Join(rec.calls[0], " ")
-	want := filepath.Join(root, selectorPath)
-	if !strings.Contains(joined, want) {
-		t.Errorf("selector command %q does not name %q", joined, want)
-	}
-}
-
-// selectorCall spells the command the scope resolution runs, for the recorder's
-// table.
-func selectorCall(root string, extra ...string) string {
-	argv := selectorArgv(root, extra)
-	return strings.Join(argv, " ")
 }

@@ -6,6 +6,7 @@ package metrics
 
 import (
 	"net/http"
+	"sort"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -239,6 +240,48 @@ func (r *PrometheusRegistry) RegisterRuntimeCollectors() {
 // Handler returns an HTTP handler that serves the /metrics endpoint.
 func (r *PrometheusRegistry) Handler() http.Handler {
 	return promhttp.HandlerFor(r.registry, promhttp.HandlerOpts{})
+}
+
+// Names returns every metric registered with this registry, including vectors
+// that do not have a labeled series yet. A Prometheus scrape omits empty
+// vectors, but `show metrics list` reports the command surface, not only the
+// samples created by traffic so far.
+func (r *PrometheusRegistry) Names() ([]string, error) {
+	r.mu.RLock()
+	seen := make(map[string]bool, len(r.counters)+len(r.gauges)+len(r.counterVecs)+len(r.gaugeVecs)+len(r.histograms)+len(r.histogramVecs))
+	for name := range r.counters {
+		seen[name] = true
+	}
+	for name := range r.gauges {
+		seen[name] = true
+	}
+	for name := range r.counterVecs {
+		seen[name] = true
+	}
+	for name := range r.gaugeVecs {
+		seen[name] = true
+	}
+	for name := range r.histograms {
+		seen[name] = true
+	}
+	for name := range r.histogramVecs {
+		seen[name] = true
+	}
+	r.mu.RUnlock()
+
+	families, err := r.registry.Gather()
+	if err != nil {
+		return nil, err
+	}
+	for _, family := range families {
+		seen[family.GetName()] = true
+	}
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
 }
 
 // promCounterVec wraps prometheus.CounterVec to return metrics.Counter.

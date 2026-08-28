@@ -12,92 +12,11 @@
 # state-machine timing is unit-tested natively.
 option=skip-os:value=darwin
 
-tmpfs=ospf-ldp-sync-restore.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Emit an LDP session-up and assert the configured cost is restored after hold-down."""
-
-import json
-import sys
-import time
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def ldp_row(api, iface):
-    result = dispatch(api, 'show ospf ldp-sync')
-    rows = result_json_data(result, None) or []
-    for r in rows:
-        if isinstance(r, dict) and r.get('interface') == iface:
-            return r
-    return None
-
-
-def emit_session(api, event_type, iface):
-    api._call_engine('ze-plugin-engine:emit-event', {
-        'namespace': 'ldp',
-        'event-type': event_type,
-        'event': json.dumps({'interface': iface, 'session-state': 'operational'}),
-    })
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    row = ldp_row(api, 'eth0')
-    if row is None or row.get('state') != 'not-synchronized':
-        runtime_fail(f"initial eth0 = {row!r}, want not-synchronized")
-
-    emit_session(api, 'session-up', 'eth0')
-
-    # After session-up the machine is in hold-down; the metric stays LSInfinity.
-    time.sleep(0.2)
-    row = ldp_row(api, 'eth0')
-    if row is None or row.get('state') != 'hold-down':
-        runtime_fail(f"after session-up eth0 = {row!r}, want hold-down")
-    if row.get('effective-metric') != 65535:
-        runtime_fail(f"hold-down effective-metric = {row.get('effective-metric')!r}, want 65535")
-
-    # After the 1s hold-down expires the configured cost (100) is restored.
-    deadline = time.time() + 6.0
-    while time.time() < deadline:
-        row = ldp_row(api, 'eth0')
-        if row and row.get('state') == 'synchronized':
-            break
-        # poll interval; the loop above breaks once the ldp-sync state reaches synchronized, bounded wait not a blind sleep
-        time.sleep(0.2)
-    if row is None or row.get('state') != 'synchronized':
-        runtime_fail(f"after hold-down eth0 = {row!r}, want synchronized")
-    if row.get('effective-metric') != 100:
-        runtime_fail(f"restored effective-metric = {row.get('effective-metric')!r}, want configured 100")
-
-    print('OK: LDP session-up + hold-down restores configured cost', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-ldp-sync-restore {
-		run ./ospf-ldp-sync-restore.run
+		run "ze-test fixture ospf/ospf-ldp-sync-restore"
 		encoder json
 	}
 }

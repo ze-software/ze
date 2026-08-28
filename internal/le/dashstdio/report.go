@@ -43,6 +43,6 @@ func (f Findings) Text() string {
 	tb.Str("A filename-accepting command must read/write through internal/core/cliio\n")
 	tb.Str("(ReadFile/OpenReader/Create/WriteFile) so \"-\" resolves to stdin/stdout. If this\n")
 	tb.Str("path can never be \"-\" (a device node, an internally-derived name), add an\n")
-	tb.Str("allowlist entry with a reason in scripts/checks/cli_dash_stdio.go.\n")
+	tb.Str("allowlist entry with a reason in internal/le/dashstdio/actions.go.\n")
 	return tb.String()
 }

@@ -4,25 +4,25 @@ when: before running precommit-verify, judging its red in a shared checkout, or 
 severity: blocking
 related: git-safety, commands, completion
 ---
-does-verify-apply ## Does `ze-precommit-verify` Apply?
+does-verify-apply ## Does `./le verify current mode full` Apply?
   run-verify-only-when-the-commit-can-affect-the-build
-  which-file-types-require-ze-verify
+  which-file-types-require-native-verify
   run-verify-when-any-file-in-a-mixed-commit-needs-it
 running-the-gate ## Running The Gate
-  run-make-ze-verify-and-check-freshness-first
+  run-native-verify-and-check-freshness-first
   what-computes-the-changed-mode-package-list
   what-each-changed-path-selects
   the-pre-commit-verify-checklist
   run-verify-in-the-foreground-and-wait
   run-the-full-gate-once-when-the-work-is-finished
-  run-the-target-that-owns-what-you-changed
-  go-through-make-or-carry-gocache-yourself
-  test-one-package-with-ze-test-pkg
-  ze-test-pkg-examples
-  which-target-owns-each-surface
+  run-the-action-that-owns-what-you-changed
+  use-the-native-action-or-carry-the-go-build-environment
+  test-one-package-with-a-native-job
+  native-package-test-examples
+  which-action-owns-each-surface
   a-wire-behaviour-change-owes-its-functional-suite
   run-the-gates-your-new-files-join
-  derive-the-owning-target-when-the-table-has-no-row
+  derive-the-owning-action-when-the-table-has-no-row
   never-commit-with-lint-issues-or-no-test-evidence
   the-spec-completion-and-report-checklist
 reading-a-red ## Reading A Red
@@ -63,7 +63,7 @@ what-may-be-overridden ## What May Be Overridden
   what-the-override-permits-and-forbids
 after-the-commit ## After The Commit
   only-one-check-compiles-what-git-holds
-  what-ze-tracked-build-check-reads
+  what-native-tracked-build-check-reads
   commit-the-producer-with-its-consumer
   clear-a-broken-head-by-committing-the-producer
   bisect-a-broken-head-with-rev

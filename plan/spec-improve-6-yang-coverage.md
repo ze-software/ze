@@ -14,7 +14,7 @@
 2. `.claude/rules/planning.md` -- workflow rules
 3. `plan/spec-improve-0-umbrella.md` -- set context
 4. `internal/component/config/yang/loader.go` -- module loading
-5. `scripts/checks/command_ownership.go` -- precedent for ownership checks
+5. `internal/le/commandownership/commandownership.go` -- precedent for ownership checks
 
 ## Task
 
@@ -28,7 +28,7 @@ report keeps schema honesty visible as the surface grows.
 
 Ze implements its own modules, not IETF ones, so "coverage" here means
 schema-vs-implementation consistency, not standards coverage: a `ze yang coverage`
-report (and a scripts/checks-style verifier where rules are mechanical) producing
+report (and a internal/le/ verifier where rules are mechanical) producing
 per-module node counts, per-leaf constraint status, config-root ownership mapping, and
 orphan detection. Wire the mechanical subset into the existing check infrastructure;
 the report itself is a developer/agent tool.
@@ -50,7 +50,7 @@ the report itself is a developer/agent tool.
 - Not protocol work; RFC 7950 (YANG) semantics come via goyang.
 
 **Key insights:**
-- `scripts/checks/` already hosts mechanical schema/ownership checks
+- `internal/le/` already hosts mechanical schema/ownership checks
   (`command_ownership.go`); this extends that family, not a new infrastructure.
 
 ## Current Behavior (MANDATORY)
@@ -58,12 +58,12 @@ the report itself is a developer/agent tool.
 **Source files read:** (must read BEFORE writing this spec)
 - [ ] `internal/component/config/yang/loader.go` - `DefaultLoader` loads embedded bootstrap modules then registered modules, best-effort resolve (:20-28); `LoadEmbedded` covers ze-extensions/ze-types only (:48-52)
 - [ ] `internal/component/plugin/registry/registry.go` - Registration carries per-plugin `YANG` schema content (:64) and `ConfigRoots` (:50)
-- [ ] `scripts/codegen/yang_glue.go` - generates embed/register glue for YANG files (verify exact behavior during design)
-- [ ] `scripts/checks/command_ownership.go` - existing ownership-check precedent (read during design)
+- [ ] `internal/le/yangglue/yangglue.go` - generates embed/register glue for YANG files (verify exact behavior during design)
+- [ ] `internal/le/commandownership/commandownership.go` - existing ownership-check precedent (read during design)
 - [ ] `internal/component/gnmi/capabilities.go` - `loadModels` walks `loader.ModuleNames()` (:39-52): existing module enumeration the report can share
 
 **Design-phase research completed (2026-07-10; producers read by research agent, loader/registry re-read directly this session):**
-- `scripts/codegen/yang_glue.go` verified (spec asked for this): discovers `internal/**/yang/` dirs (:137-176, skips internal/test + the registry pkg); generates embed.go (:193-208) and register.go calling `configyang.RegisterModule("<filename>.yang", ...)` (:210-227) -- registration key is the FILENAME, not the YANG module name; `--check` only byte-compares regenerated content (:65-91), says nothing about handlers or coverage
+- `internal/le/yangglue/yangglue.go` verified (spec asked for this): discovers `internal/**/yang/` dirs (:137-176, skips internal/test + the registry pkg); generates embed.go (:193-208) and register.go calling `configyang.RegisterModule("<filename>.yang", ...)` (:210-227) -- registration key is the FILENAME, not the YANG module name; `--check` only byte-compares regenerated content (:65-91), says nothing about handlers or coverage
 - Loader surface re-read directly: `Resolve`=modules.Process (`loader.go`), `GetEntry`=yang.ToEntry resolved (:109-117), `ModuleNames` (:119-126), `ConfModuleNames` selects the "-conf" name suffix (:128-131) -- the report's config-module scoping mechanism
 - Walker precedent to reuse: `internal/component/config/yang/validator.go` `walkTree` recurses entry.Dir (:616-659); native constraints read as `yangType.Kind/Length/Pattern/Range` (:220-234, :254, :268, :361,:426) -- validates assumption A-1's feasibility
 - Registry join re-read directly: `YANGSchemas()` (`registry.go`), `ConfigRootsMap()` (:560-573). Module name is NOT stored; must be parsed from the `module <name>` statement in content. TWO registration channels exist: `Registration.YANG` (~74 plugins) vs the loader's `RegisterModule` init channel; `-cmd.yang`/`-api.yang` modules flow ONLY through the loader channel -- the ownership join must handle loader-only modules
@@ -73,7 +73,7 @@ the report itself is a developer/agent tool.
 **Behavior to preserve:** (unless user explicitly said to change)
 - Loader semantics (best-effort resolve, bootstrap vs registered split) unchanged; the
   report is read-only over the resolved module set.
-- Existing checks in `scripts/checks/` and their exit-code contract unchanged.
+- Existing checks in `internal/le/` and their exit-code contract unchanged.
 
 **Behavior to change:** (only if user explicitly requested)
 - None; purely additive tooling. (If the constraint check lands in verify as blocking,
@@ -82,7 +82,7 @@ the report itself is a developer/agent tool.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `ze yang coverage` CLI command (developer/agent tool) and/or `make ze-yang-coverage`;
+- `ze yang coverage` CLI command (developer/agent tool) and/or `./le yang-leaf-mentions report`;
   mechanical subset runs as a check inside the existing verify stage family.
 
 ### Transformation Path
@@ -97,12 +97,12 @@ the report itself is a developer/agent tool.
 |----------|-----|----------|
 | Loader ↔ report | read-only walk of resolved goyang modules | [ ] |
 | Registry ↔ report | module-to-plugin/ConfigRoots join | [ ] |
-| Report ↔ verify | check-mode exit code, same contract as scripts/checks | [ ] |
+| Report ↔ verify | check-mode exit code, same contract as internal/le/ | [ ] |
 
 ### Integration Points
 - `DefaultLoader` (`loader.go`) - module source.
 - `registry` module/ConfigRoots metadata - ownership join.
-- `scripts/checks/` + `mk/` targets - check-mode wiring.
+- `internal/le/` + `internal/le/` targets - check-mode wiring.
 
 ### Architectural Verification
 - [ ] No bypassed layers (report reads via loader, not raw .yang file parsing of its own)
@@ -124,7 +124,7 @@ the report itself is a developer/agent tool.
 |----|------|--------------|----------------------|
 | R-1 | Report becomes a stale second source of truth if it caches anything | drift between report and loader behavior | always compute live from the loader; no stored inventories |
 | R-2 | "Coverage" naming misleads (suggests IETF-standards coverage) | user/docs confusion | name and docs say schema-consistency report; comparison docs handle standards claims separately |
-| R-3 | Check mode blocks unrelated PRs on legacy violations (A-3) | verify failures on untouched modules | advisory first; blocking only for CHANGED modules (matches ze-lint-changed philosophy) |
+| R-3 | Check mode blocks unrelated PRs on legacy violations (A-3) | verify failures on untouched modules | advisory first; blocking only for CHANGED modules (matches ./le changed scope philosophy) |
 
 ## Wiring Test (MANDATORY)
 
@@ -132,7 +132,7 @@ the report itself is a developer/agent tool.
 |-------------|---|--------------|------|
 | ze yang coverage | → | loader walk + registry join + report | TestYANGCoverageReport |
 | check mode on a module with an unconstrained leaf (fixture) | → | violation detection, non-zero exit | TestYANGCoverageCheckFailsOnBareLeaf |
-| make ze-yang-coverage | → | make target runs the tool | test/plugin/yang-coverage.ci |
+| ./le yang-leaf-mentions report | → | make target runs the tool | test/plugin/yang-coverage.ci |
 
 ## Acceptance Criteria
 
@@ -142,7 +142,7 @@ the report itself is a developer/agent tool.
 | AC-2 | Module with a bare `type string` leaf (test fixture) | Listed as a violation with module, path, and what to add |
 | AC-3 | Registered module that fails to resolve | Reported explicitly (today it is silently skipped by best-effort resolve) |
 | AC-4 | Subtree with no owning ConfigRoot | Flagged as unowned |
-| AC-5 | Check mode, violations present | Non-zero exit with the scripts/checks output contract |
+| AC-5 | Check mode, violations present | Non-zero exit with the internal/le/ output contract |
 | AC-6 | JSON output flag | Machine-readable per `ai/rules/cli.md` |
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -175,7 +175,7 @@ the report itself is a developer/agent tool.
 - N/A: developer tooling, no wire behavior.
 
 ## Files to Modify
-- `mk/` - `ze-yang-coverage` target; verify wiring per R-3 decision
+- `internal/le/` - `ze-yang-coverage` target; verify wiring per R-3 decision
 - `docs/guide/command-reference.md` - document the command
 - ~~`cmd/ze/` command tree registration~~ superseded 2026-07-10: root handler
   registers in an internal owner package beside `internal/component/config/yang/`
@@ -220,7 +220,7 @@ the report itself is a developer/agent tool.
 
 ## Files to Create
 - coverage walker + report (location per module tiers during design; likely beside `internal/component/config/yang/`)
-- check-mode entry in `scripts/checks/` family if design separates it
+- check-mode entry in `internal/le/` family if design separates it
 - `test/plugin/yang-coverage.ci` - functional test
 
 ## Implementation Steps
@@ -229,7 +229,7 @@ the report itself is a developer/agent tool.
 2. **Phase: module walk + counts** (A-1 prototype hardened)
 3. **Phase: ownership/gating join + violations** (AC-2..AC-4)
 4. **Phase: check mode + JSON output** (AC-5, AC-6; R-3 decision applied)
-5. `make ze-precommit-verify`, learned summary, two-commit closure
+5. `./le verify current mode full`, learned summary, two-commit closure
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -293,7 +293,7 @@ Decisions with the module that motivated it.
 | Config-module scoping via the `-conf` suffix convention (`ConfModuleNames`, `loader.go`) + category labels for the rest | grade everything uniformly | Four module categories exist by design; grading a type-lib for "missing constraints" would be all noise |
 | Constraint grading counts `ze:validate` extensions as constraints | native-only grading | A bare leaf with a custom validator IS validated at runtime; native-only grading would report false violations |
 | Gating column derives from `feature-gates.txt` | live-loader observation; hand list | Compiled-out modules are invisible to a live loader; the manifest is the declared SSOT |
-| Check-mode output follows sibling checks (bare `--json` array + exit contract); CLI report mode uses the json-format envelope | one format for both | Check mode must match the `scripts/checks` family contract for verify integration; the operator-facing CLI follows `ai/rules/cli.md` |
+| Check-mode output follows sibling checks (bare `--json` array + exit contract); CLI report mode uses the json-format envelope | one format for both | Check mode must match the `internal/le/` family contract for verify integration; the operator-facing CLI follows `ai/rules/cli.md` |
 | Handler-claim ENFORCEMENT excluded -- owned by `spec-improve-7-yang-handler-gate.md` | fold enforcement into this report's check mode | One spec per property: improve-6 reports and advises, improve-7 blocks; prevents double ownership of orphan detection (same pattern as the port-defaults carve-out) |
 
 ## Known Limitations
@@ -335,7 +335,7 @@ Decisions with the module that motivated it.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 
 ### TDD
 - [ ] Tests written
@@ -345,8 +345,8 @@ Decisions with the module that motivated it.
 
 ### Post-wave corrections (2026-07-10)
 
-- A mechanical YANG-default check subset of this spec ALREADY LANDED in the followup wave: `scripts/checks/port_defaults.go` compares each service's YANG `refine port { default N }` (regex `refinePortRe` at `port_defaults.go`, extraction `yangPortDefault` at `:143`) against the hand-maintained Go listener-defaults table, wired as `ze-port-defaults-check` (`Makefile:327-329`) and run by the live verify stage list in both branches (`scripts/status/verify_run.go`, `:140`).
-- The proposed `ze yang coverage` check mode must NOT duplicate that coverage: port-default consistency is owned by `ze-port-defaults-check`. Design the coverage tool as a sibling in the existing `scripts/checks/` family (now `command_ownership.go`, `iface_resolution.go`, `plugin_process_boundary.go`, `port_defaults.go`, `cli_grammar.go`) and scope its constraint grading to what the port gate does not already check.
+- A mechanical YANG-default check subset of this spec ALREADY LANDED in the followup wave: `internal/le/portdefaults/portdefaults.go` compares each service's YANG `refine port { default N }` (regex `refinePortRe` at `port_defaults.go`, extraction `yangPortDefault` at `:143`) against the hand-maintained Go listener-defaults table, wired as `./le port-defaults check` (the retired `Makefile:327-329` (current producers: `internal/le/` native action tables)) and run by the live verify stage list in both branches (`internal/le/verify/run.go`, `:140`).
+- The proposed `ze yang coverage` check mode must NOT duplicate that coverage: port-default consistency is owned by `./le port-defaults check`. Design the coverage tool as a sibling in the existing `internal/le/` family (now `command_ownership.go`, `iface_resolution.go`, `plugin_process_boundary.go`, `port_defaults.go`, `cli_grammar.go`) and scope its constraint grading to what the port gate does not already check.
 - Loader evidence re-verified, not stale: `DefaultLoader` (`internal/component/config/yang/loader.go`, best-effort `LoadRegistered`/`Resolve` at `:25-26`) and the `LoadEmbedded` bootstrap set covering ze-extensions/ze-types still match the Current Behavior citations.
 
 ### Design-phase corrections (2026-07-10)

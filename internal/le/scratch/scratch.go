@@ -32,10 +32,10 @@ const Sentinel = `// Sentinel module: marks a REAL tmp/ as a nested module so ` 
 // ` + "`go test ./...`" + ` skip the Go/QEMU caches under it (they hold foreign go.mod files
 // that would otherwise fail with "directory ... outside main module").
 //
-// Committed so it is present on a fresh checkout. scripts/dev/ensure-links.py recreates
-// it whenever tmp/ is a real directory; after the opt-in ` + "`make ze-scratch-migrate`" + `, tmp/
+// Committed so it is present on a fresh checkout. internal/le/scratch/move.go recreates
+// it whenever tmp/ is a real directory; after the opt-in ` + "`./le scratch migrate`" + `, tmp/
 // is a symlink that ` + "`go list`" + ` skips without any sentinel, so this file is not needed there.
-// Keep this content in sync with SENTINEL in scripts/dev/ensure-links.py.
+// Keep this content in sync with SENTINEL in internal/le/scratch/move.go.
 module ze-tmp-scratch
 
 go 1.25
@@ -119,24 +119,24 @@ func New(root string, environ []string) *Manager {
 	}
 }
 
-// CheckoutID returns the stable human-readable key for one absolute checkout.
-func CheckoutID(root string) string {
+// checkoutID returns the stable human-readable key for one absolute checkout.
+func checkoutID(root string) string {
 	digest := sha256.Sum256([]byte(root))
 	var text textbuf.Buffer
 	return text.Str(filepath.Base(root)).Byte('-').Hex(digest[:8]).String()
 }
 
-// ScratchTarget derives the per-checkout disposable target.
-func (m *Manager) ScratchTarget() string {
+// scratchTarget derives the per-checkout disposable target.
+func (m *Manager) scratchTarget() string {
 	base := m.environment("TMPDIR")
 	if base == "" {
 		base = "/tmp"
 	}
-	return filepath.Join(base, "ze", CheckoutID(m.Root))
+	return filepath.Join(base, "ze", checkoutID(m.Root))
 }
 
-// CacheTarget derives the durable per-user target.
-func (m *Manager) CacheTarget() (string, error) {
+// cacheTarget derives the durable per-user target.
+func (m *Manager) cacheTarget() (string, error) {
 	if xdg := m.environment("XDG_CACHE_HOME"); xdg != "" {
 		return filepath.Join(xdg, "ze"), nil
 	}
@@ -153,28 +153,28 @@ func (m *Manager) CacheTarget() (string, error) {
 
 // Ensure creates or repairs the links without converting real paths.
 func (m *Manager) Ensure(repointCache bool) (Report, int) {
-	cacheTarget, err := m.CacheTarget()
+	cacheTarget, err := m.cacheTarget()
 	if err != nil {
 		return failureReport(cacheName, err), 1
 	}
 	results := []Result{
-		m.ensureSymlink(filepath.Join(m.Root, tmpName), m.ScratchTarget(), true),
+		m.ensureSymlink(filepath.Join(m.Root, tmpName), m.scratchTarget(), true),
 		m.ensureSymlink(filepath.Join(m.Root, cacheName), cacheTarget, repointCache),
 	}
 	if err := m.ensureSentinel(); err != nil {
 		results = append(results, errorResult(tmpName, err))
 	}
-	return Report{Results: results, Quiet: true}, verdict(results)
+	return Report{Results: results}, verdict(results)
 }
 
 // Migrate selectively moves tmp artifacts and moves the whole cache directory.
 func (m *Manager) Migrate(repointCache bool) (Report, int) {
-	cacheTarget, err := m.CacheTarget()
+	cacheTarget, err := m.cacheTarget()
 	if err != nil {
 		return failureReport(cacheName, err), 1
 	}
 	results := []Result{
-		m.migrateScratchDirs(filepath.Join(m.Root, tmpName), m.ScratchTarget()),
+		m.migrateScratchDirs(filepath.Join(m.Root, tmpName), m.scratchTarget()),
 		m.migrate(filepath.Join(m.Root, cacheName), cacheTarget, repointCache),
 	}
 	if err := m.ensureSentinel(); err != nil {
@@ -213,7 +213,7 @@ func (m *Manager) ensureSymlink(link, target string, autoRepoint bool) Result {
 	var text textbuf.Buffer
 	if err == nil {
 		line := text.Str("SKIP     ").Str(filepath.Base(link)).
-			Str(": a real path exists here; run `make ze-scratch-migrate` to convert it to a symlink").String()
+			Str(": a real path exists here; run `./le scratch migrate` to convert it to a symlink").String()
 		return statusResult("SKIP", line)
 	}
 	if symlinkErr := os.Symlink(target, link); symlinkErr != nil {
@@ -244,7 +244,7 @@ func (m *Manager) ensureExistingSymlink(link, target string, autoRepoint bool) R
 	if !autoRepoint {
 		line := text.Str("MISMATCH ").Str(filepath.Base(link)).Str(" -> ").Str(current).
 			Str(" (expected ").Str(target).
-			Str("); left as is. If this checkout is yours, run: python3 scripts/dev/ensure-links.py --repoint-cache").
+			Str("); left as is. Replace the symlink only after confirming this checkout owns it").
 			String()
 		return statusResult("MISMATCH", line)
 	}

@@ -3,4 +3,4 @@ kind: note
 level:
 stage:
 ---
-`make ze-spec-status` shows the full inventory table. `make ze-spec-status-json` for machine-readable output.
+`./le spec-status` shows the full inventory table. Use `./le spec-status | json` for machine-readable output.

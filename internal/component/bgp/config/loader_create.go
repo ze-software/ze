@@ -298,16 +298,18 @@ func chaosRateFromEnv() float64 {
 // It returns full PeerSettings to ensure reloaded peers are identical to initial load.
 // Uses PeersFromConfigTree which resolves templates and extracts routes directly.
 //
-// Config-read fallback: mirrors the hub's initial-load path. Try the blob store
-// first; if the store is blob-only (gokrazy read-only root, ze-test tmpfs)
-// fall back to a direct filesystem read. Without this, SIGHUP-driven reloads
-// fail with "read file/active/...: file does not exist" whenever the daemon
-// was started with a filesystem path that is not a blob key.
+// Config-read fallback mirrors the hub reload path: candidate, active version,
+// then the direct filesystem path for a file-configured blob store. Reading the
+// candidate is required for transactional commits because promotion happens
+// only after the reactor and every plugin accept the same staged bytes.
 //
 // The reactor parameter is used to update dynamic groups on reload.
 func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadFunc {
 	return func(configPath string) ([]*reactor.PeerSettings, error) {
-		data, err := store.ReadFile(configPath)
+		data, _, hasCandidate, err := storage.ReadCandidateConfig(store, configPath)
+		if err == nil && !hasCandidate {
+			data, err = storage.ReadActiveConfig(store, configPath)
+		}
 		if err != nil && storage.IsBlobStorage(store) {
 			data, err = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
 		}
@@ -315,15 +317,24 @@ func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadF
 			return nil, fmt.Errorf("read config %s: %w", configPath, err)
 		}
 
-		// Parse the config using YANG-derived schema.
+		// Use the daemon loader so hierarchical and set-format candidates take
+		// the same path. The web editor stages set commands.
+		loaded, err := config.LoadConfig(string(data), configPath, nil)
+		if err != nil {
+			return nil, fmt.Errorf("parse config: %w", err)
+		}
+		tree := loaded.Tree
 		schema, err := config.YANGSchema()
 		if err != nil {
 			return nil, fmt.Errorf("YANG schema: %w", err)
 		}
-		p := config.NewParser(schema)
-		tree, err := p.Parse(string(data))
+
+		resolved, err := ResolveBGPTree(tree)
 		if err != nil {
-			return nil, fmt.Errorf("parse config: %w", err)
+			return nil, fmt.Errorf("resolve BGP config: %w", err)
+		}
+		if err := refuseIncompletePeers(schema, resolved); err != nil {
+			return nil, err
 		}
 
 		// Update redistribute rules on reload.

@@ -5,5 +5,5 @@ stage:
 ---
 | Use | Form |
 |-----|------|
-| Iterating right now, from a failure index you just read | `ze-test bgp plugin 145` |
-| A script, a gate subset, a handover, a claim of evidence | `ze-test bgp plugin --pattern <name>` |
+| Iterating right now | Use the stable Go test name with an admitted focused `go test` job |
+| A gate, handover, or evidence claim | Name the owning `./le functional <suite>` action and stable test identity |

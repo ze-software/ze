@@ -67,7 +67,7 @@ EOF_PEER
 
 # One dynamic group and nothing else: the route-server shape. tmpfs rather than
 # stdin because the runner writes daemon.pid and daemon.ready beside the config,
-# and trigger.sh waits on both.
+# and the compiled fixture driver waits on both.
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 bgp {
 	group ix {
@@ -126,16 +126,9 @@ EOF_CONF
 # only has to cover a dial the peer retries every 500ms against a daemon that has
 # already written daemon.ready; too short and the file fails on the missing
 # End-of-RIB rather than passing quietly.
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-sleep 5
-kill -TERM $(cat daemon.pid)
-EOF_TRIGGER
 
 cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture plugin/dynamic-peer-negotiates-configured-families-trigger
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
 
 # The session above really was a DYNAMIC peer's. Without this the wire assertions

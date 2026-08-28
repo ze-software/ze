@@ -19,7 +19,7 @@ const selftestWorkflow = `on:
 jobs:
   audit:
     steps:
-      - run: make ze-interop-test
+      - run: ./le integration interop
 `
 
 const selftestSummary = "# RFC 9999\n\n## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2) {single-polarity: positive; no receiver input exists} {superseded: restated RFC10000-3-1; the successor states the same rule}\n- [ ] [RFC9999-2-2] [MUST NOT] A receiver MUST NOT drop the widget (§2)\n\nCorrection 2026-08-26: The row `RFC9999-2-1` quotes \"A speaker SHOULD send the widget and preserve its state.\".\n"
@@ -34,7 +34,7 @@ func summarySelftestFixture() summaryFixture {
 }
 
 func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error) {
-	requirements, err := ParseSummaryText(fixture.text, "rfc9999", "rfc/short/rfc9999.md")
+	requirements, err := parseSummaryText(fixture.text, "rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 		successorOK = first.Superseded.Disposition == successorRestated
 		successorOK = successorOK && first.Superseded.Target == "RFC10000-3-1"
 	}
-	_, mismatch := ParseChecklistLine(
+	_, mismatch := parseChecklistLine(
 		"- [ ] [RFC9999-3-1] [MUST] A speaker MUST send the widget (§2)",
 		"rfc9999", "rfc/short/rfc9999.md", 1,
 	)
@@ -87,11 +87,11 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 
 func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 	files := map[string]string{
-		".github/workflows/nightly.yml":          selftestWorkflow,
-		"internal/sample/widget_test.go":         "package sample\n// RFC requirement: RFC9999-2-1 positive\nfunc TestWidget() {}\n",
-		"test/plugin/widget.ci":                  "# RFC requirement: RFC9999-2-2 negative\n",
-		"test/editor/widget.et":                  "# RFC requirement: RFC9999-2-3 positive\n",
-		"test/interop/scenarios/widget/check.py": "# RFC requirement: RFC9999-2-4 positive\nprint('widget')\n",
+		".github/workflows/nightly.yml":             selftestWorkflow,
+		"internal/sample/widget_test.go":            "package sample\n// RFC requirement: RFC9999-2-1 positive\nfunc TestWidget() {}\n",
+		"test/plugin/widget.ci":                     "# RFC requirement: RFC9999-2-2 negative\n",
+		"test/editor/widget.et":                     "# RFC requirement: RFC9999-2-3 positive\n",
+		"internal/le/interoplab/bgp/widget_test.go": "package bgp\n// RFC requirement: RFC9999-2-4 positive\nfunc TestInteropWidget() {}\n",
 	}
 	root, err := newSelftestTree("rfc-selftest-carriers-", files)
 	if err != nil {
@@ -99,7 +99,7 @@ func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // temporary fixture checkout
 
-	carriers, err := Carriers(root)
+	carriers, err := carriers(root)
 	if err != nil {
 		return nil, err
 	}
@@ -109,14 +109,14 @@ func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 	}
 
 	wanted := map[string]string{
-		"internal/sample/widget_test.go":         "unit",
-		"test/plugin/widget.ci":                  "functional",
-		"test/editor/widget.et":                  "editor",
-		"test/interop/scenarios/widget/check.py": "interop",
+		"internal/sample/widget_test.go":            "unit",
+		"test/plugin/widget.ci":                     "functional",
+		"test/editor/widget.et":                     "editor",
+		"internal/le/interoplab/bgp/widget_test.go": "interop",
 	}
 	found := map[string]string{}
 	for _, tag := range tags {
-		carrier, held := CarrierFor(tag.File, carriers)
+		carrier, held := carrierFor(tag.File, carriers)
 		if held {
 			found[tag.File] = carrier.Kind
 		}
@@ -125,13 +125,13 @@ func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 	for path, kind := range wanted {
 		allKinds = allKinds && found[path] == kind
 	}
-	interop, interopHeld := CarrierFor("test/interop/scenarios/widget/check.py", carriers)
-	unrun, unrunHeld := CarrierFor("test/nosuite/widget.ci", carriers)
-	_, draftHeld := CarrierFor("test/draft/widget.ci", carriers)
+	interop, interopHeld := carrierFor("internal/le/interoplab/bgp/widget_test.go", carriers)
+	unrun, unrunHeld := carrierFor("test/nosuite/widget.ci", carriers)
+	_, draftHeld := carrierFor("test/draft/widget.ci", carriers)
 
 	return []leroot.SelftestResult{
 		selftestResult("carriers/all-scanners", len(tags) == 4 && allKinds,
-			"the Go, CI, ET, and Python scanners did not all contribute their carrier"),
+			"the Go, CI, and ET scanners did not all contribute their carrier"),
 		selftestResult("carriers/scheduled-interop", interopHeld && interop.Tier == tierNightly,
 			"the scheduled workflow did not grant the interop carrier its nightly tier"),
 		selftestResult("carriers/unrun-refusal", unrunHeld && unrun.Tier == tierUnrun,
@@ -142,7 +142,7 @@ func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 }
 
 func runCoverageSelftest() ([]leroot.SelftestResult, error) {
-	requirements, err := ParseSummaryText(selftestSummary, "rfc9999", "rfc/short/rfc9999.md")
+	requirements, err := parseSummaryText(selftestSummary, "rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func runCoverageSelftest() ([]leroot.SelftestResult, error) {
 	clean := evaluate(requirements, tags, enrolled)
 	missing := evaluate(requirements, tags[:2], enrolled)
 	unknown := evaluate(requirements, append(tags, Tag{RID: "RFC9999-9-9", Polarity: "positive"}), enrolled)
-	rows := RFCCoverageRows(requirements, tags, carriersFor([]string{"plugin"}, map[string]string{}))
+	rows := rfcCoverageRows(requirements, tags, carriersFor([]string{"plugin"}, map[string]string{}))
 	rollupOK := len(rows) == 1
 	if rollupOK {
 		rollupOK = rows[0].Gated == 2 && rows[0].Both == 1 && rows[0].Annotated == 1
@@ -176,12 +176,12 @@ func runCoverageSelftest() ([]leroot.SelftestResult, error) {
 }
 
 func runStatusSelftest() ([]leroot.SelftestResult, error) {
-	rows := ParseStatusLedger("| RFC 9999 | Widgets | Partial | unit tests | one MUST gap |\n")
-	dispositions, err := ParseDispositions("rfc8888 backlog the extraction is owed\n")
+	rows := parseStatusLedger("| RFC 9999 | Widgets | Partial | unit tests | one MUST gap |\n")
+	dispositions, err := parseDispositions("rfc8888 backlog the extraction is owed\n")
 	if err != nil {
 		return nil, err
 	}
-	_, malformed := ParseDispositions("rfc7777 unknown not a disposition\n")
+	_, malformed := parseDispositions("rfc7777 unknown not a disposition\n")
 	gap := Requirement{
 		RFC: "rfc9999", RID: "RFC9999-2-1", Level: "MUST", Text: "MUST send", Section: "2",
 		Annotation: &Annotation{Kind: annotationGap, Reason: "not implemented"},

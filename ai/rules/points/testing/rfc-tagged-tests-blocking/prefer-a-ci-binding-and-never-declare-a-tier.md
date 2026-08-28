@@ -3,10 +3,9 @@ kind: directive
 level: MUST NOT
 stage:
 ---
-- **SHOULD prefer a `.ci` over an interop binding** when a behavior is reachable from both: a `.ci` runs inside `ze-precommit-verify` on every push, interop does not (owner decision, umbrella D3).
+- **SHOULD prefer a `.ci` over an interop binding** when a behavior is reachable from both: a `.ci` runs inside `./le verify current mode full` on every push, interop does not (owner decision, umbrella D3).
 - A requirement whose ONLY evidence is nightly-tier is marked `**nightly-only**` on its ledger row and counted in its own rollup column: it is not merge-gate-proven, and the rollup deliberately never sums the two.
-- **An interop tier is DERIVED; it MUST NOT be declared.** A tree earns `interop/nightly` when a SCHEDULED workflow under `.github/workflows/` names its runner, which `scheduled_workflow_targets()` reads. So adding the job IS the whole fix and `CARRIERS` needs no edit, and deleting the job takes the tier away again rather than leaving a stale claim behind (`ai/rules/evidence.md`).
-- **A tag in `test/interop-l2tp/`, `test/interop-pppoe/`, or any other `check.py` tree is REFUSED** with an error naming the file, because no scheduled workflow runs those suites and a tag nothing executes is an absence of evidence rather than weak evidence. The l2tp and pppoe labs need host kernel modules (`l2tp_ppp`, `pppoe`, `/dev/ppp`) that no runner is yet confirmed to provide, so the sequence stays wire, observe one green run, then the tier follows on its own.
-- **A QEMU sibling is not that pipeline.** `ze-qemu-l2tp-ppp-test` and `ze-qemu-pppoe-accel-test` run `scripts/evidence/effective-*.py`, never the trees' `check.py`, so they execute no tagged carrier and cannot justify a tier for one.
-- **Non-unit evidence is monotonic, per requirement and per tier.** Replacing a `.ci` binding with a unit tag, or with a nightly interop tag, fails `make ze-rfc-check`, and no annotation satisfies it.
-- A `check.py` is TOKENIZED, not line-scanned: a `#` inside a docstring or string literal is not a comment and is not a tag, and an untokenizable `check.py` fails the scan closed.
+- **An interop tier is DERIVED; it MUST NOT be declared.** A native Go test under `internal/le/interoplab/` earns `interop/nightly` when a scheduled workflow names its registered `./le` runner. `internal/le/rfc.Carriers` derives that relation, so adding the job is the whole fix and deleting it removes the tier.
+- **A scenario configuration directory is not an evidence carrier.** RFC tags belong in the native Go checker test that executes the assertion. A fixture name or configuration file cannot claim a tier.
+- **A QEMU sibling is not that pipeline.** The registered QEMU actions execute their own Go packages and cannot justify an interop tier for a checker they never call.
+- **Non-unit evidence is monotonic, per requirement and per tier.** Replacing a `.ci` binding with a unit tag, or with a nightly interop tag, fails `./le rfc check`, and no annotation satisfies it.

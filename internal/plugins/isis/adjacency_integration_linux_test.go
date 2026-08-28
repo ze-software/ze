@@ -9,7 +9,7 @@
 // the in-memory TestISISAdjacencyUp cannot give; it requires CAP_NET_ADMIN (to
 // create the netns/veth) and CAP_NET_RAW (to open the raw socket) and t.Skips
 // when those are absent. It runs under ze-qemu-integration-test (build tag
-// `integration && linux`) and is listed in scripts/evidence/qemu-all-tests.sh.
+// `integration && linux`) and is listed in internal/le/qemu/alltests.go.
 // PREVENTS: a regression where the engine forms adjacencies in-memory but not
 // over a real socket (e.g. wrong multicast MAC, padding that the kernel rejects,
 // or the source-MAC threading breaking the three-way echo).

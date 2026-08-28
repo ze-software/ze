@@ -1,19 +1,8 @@
 name: perf-nightly
 
-# Scheduled (Docker-free) performance-regression check. Runs the SAME
-# `bin/ze-perf track --check` timing check (convergence / throughput / p99) over
-# the committed NDJSON history that `make ze-evidence-perf-record` uses -- referenced, not
-# duplicated. Ported from .woodpecker/perf-nightly.yml.
-#
-# Scheduled-only by design: timing metrics are machine-dependent and noisy across
-# CI hosts, so they must NOT gate push/pull_request merges. The always-run,
-# deterministic allocs/op gate is `make ze-alloc-check`, wired into `make ze-precommit-verify`
-# (and so into verify.yml). The heavy Docker throughput/p99 DUT matrix stays in
-# `make ze-evidence-perf-record`; this job needs no Docker.
-#
-# The cron lives IN this file, so merging it creates the schedule.
-# `workflow_dispatch` is the manual re-trigger.
-
+# Scheduled, Docker-free timing regression evidence. Machine-dependent timing
+# stays outside push and pull-request gates; the deterministic allocation action
+# remains in the native full verifier.
 on:
   schedule:
     - cron: "42 3 * * *"
@@ -28,25 +17,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - name: Install system packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential git make python3
-
-      # Build the ze-perf binary (cmd/ze with the ze_perf tag); Docker-free.
       - name: Build ze-perf
-        run: make ze-perf-build
+        run: CGO_ENABLED=0 go build -tags ze_perf -o bin/ze-perf ./cmd/ze
 
-      # Docker-free timing regression check over stored history. With no history
-      # recorded yet the job reports and passes -- nothing to regress against, and
-      # this scheduled job never blocks a merge.
+      # An empty history is not a regression. Once records exist, the committed
+      # binary owns the comparison and its non-zero verdict fails this job.
       - name: Perf regression check
         run: |
           if [ -s test/perf/history/ze.ndjson ]; then

@@ -356,7 +356,7 @@ gap), NOTE (worth stating). The C-N numbering here is the one referenced through
 
 ### Verified correct (load-bearing claims confirmed, not problems)
 - **kexec verification works WITHOUT Secure Boot:** `kexec_file_load` verifies against the running kernel's `.builtin_trusted_keys`/`.secondary_trusted_keys`; the `.platform` (Secure Boot) keyring is an *additional*, not *required*, source. A cert embedded via `CONFIG_SYSTEM_TRUSTED_KEYS` suffices. The "sign now, Secure Boot later" split is sound (A-4b).
-- **sbsign is correct for the kernel image** (`KEXEC_BZIMAGE_VERIFY_SIG` verifies a PE/COFF Authenticode signature; `scripts/sign-file` is modules-only).
+- **sbsign is correct for the kernel image** (`KEXEC_BZIMAGE_VERIFY_SIG` verifies a PE/COFF Authenticode signature; `internal/le/` is modules-only).
 - **eBPF under integrity (A-1), `LOCKDOWN_LSM_EARLY`+`FORCE_INTEGRITY` forcing integrity (A-6), module-key auto-generation + `MODULE_SIG_ALL` semantics, and the Kconfig symbol names** check out.
 
 ### Findings and resolutions
@@ -418,7 +418,7 @@ gap), NOTE (worth stating). The C-N numbering here is the one referenced through
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Doctor check `doctor-appliance-lockdown` registered + explainable; QEMU evidence green
 - [ ] Registration over hardcoding — doctor check registers and is core-discovered; no core/shared switch added
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

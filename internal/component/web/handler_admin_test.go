@@ -48,7 +48,7 @@ func TestAdminRouteDispatch(t *testing.T) {
 	children := testCommandTree()
 	handler := HandleAdminView(renderer, children)
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/peer/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -161,7 +161,7 @@ func TestAdminCommandExecution(t *testing.T) {
 	dispatch := testDispatcher()
 	handler := HandleAdminExecute(renderer, dispatch)
 
-	req := httptest.NewRequest(http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -205,7 +205,7 @@ func TestCommandResultCardStack(t *testing.T) {
 	handler := HandleAdminExecute(renderer, dispatch)
 
 	// First command.
-	req1 := httptest.NewRequest(http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
+	req1 := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
 	rec1 := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec1, req1)
@@ -214,7 +214,7 @@ func TestCommandResultCardStack(t *testing.T) {
 	body1 := rec1.Body.String()
 
 	// Second command.
-	req2 := httptest.NewRequest(http.MethodPost, "/admin/bgp/rib/clear", http.NoBody)
+	req2 := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/bgp/rib/clear", http.NoBody)
 	rec2 := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec2, req2)
@@ -243,7 +243,7 @@ func TestCommandErrorCard(t *testing.T) {
 	handler := HandleAdminExecute(renderer, dispatch)
 
 	// The test dispatcher returns an error when the command contains "fail".
-	req := httptest.NewRequest(http.MethodPost, "/admin/fail/command", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/fail/command", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -267,7 +267,7 @@ func TestAdminContentNegotiation(t *testing.T) {
 	dispatch := testDispatcher()
 	handler := HandleAdminExecute(renderer, dispatch)
 
-	req := httptest.NewRequest(http.MethodPost, "/admin/peer/192.168.1.1/teardown?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -298,7 +298,7 @@ func TestAdminContentNegotiationView(t *testing.T) {
 	children := testCommandTree()
 	handler := HandleAdminView(renderer, children)
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/peer/?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -332,7 +332,7 @@ func TestAdminExecuteCompletesAfterResponseWrite(t *testing.T) {
 		return resp, nil
 	})
 	handler := HandleAdminExecute(renderer, dispatch)
-	req := httptest.NewRequest(http.MethodPost, "/admin/request/shutdown?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/request/shutdown?format=json", http.NoBody)
 
 	handler(recorder, req)
 
@@ -351,7 +351,7 @@ func TestAdminExecuteMethodNotAllowed(t *testing.T) {
 	dispatch := testDispatcher()
 	handler := HandleAdminExecute(renderer, dispatch)
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/peer/192.168.1.1/teardown", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/192.168.1.1/teardown", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -393,7 +393,7 @@ func TestAdminExecuteNilDispatcher(t *testing.T) {
 
 	handler := HandleAdminExecute(renderer, nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/admin/peer/teardown", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/teardown", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -443,7 +443,7 @@ func TestAdminErrorContentNegotiation(t *testing.T) {
 	dispatch := testDispatcher()
 	handler := HandleAdminExecute(renderer, dispatch)
 
-	req := httptest.NewRequest(http.MethodPost, "/admin/fail/command?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/fail/command?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)

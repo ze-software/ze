@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the checks this gate runs itself
 // Overview: docwiring.go -- the gate that runs them
 //
-// checks.go holds the checks that no other Make target owns. Each check reads a
+// checks.go holds the checks no other native action owns. Each check reads a
 // few files and answers in milliseconds. Thus, the router runs them directly.
 //
 // Every check REPORTS an unreadable file instead of ignoring it. A ratchet that
@@ -54,7 +54,7 @@ var (
 // goSourceRoots are the trees a subsystem name can be declared in.
 var goSourceRoots = [...]string{"internal", "pkg", "cmd"}
 
-// ParseSleepBaseline answers the ceiling in the committed delta ledger. It sums
+// parseSleepBaseline answers the ceiling in the committed delta ledger. It sums
 // signed-integer lines and ignores comments and blanks. The second result is
 // false when no integer line exists, which leaves the ratchet inactive.
 //
@@ -62,7 +62,7 @@ var goSourceRoots = [...]string{"internal", "pkg", "cmd"}
 // can append separate `-N` lines instead of conflicting on one number. A plain
 // integer still parses as one line and one summand. A `+N` line explicitly
 // raises the ceiling.
-func ParseSleepBaseline(text string) (int, bool) {
+func parseSleepBaseline(text string) (int, bool) {
 	total := 0
 	seen := false
 	for line := range strings.SplitSeq(text, "\n") {
@@ -122,7 +122,7 @@ func realCIFiles(root string) ([]string, error) {
 // Sleeps in embedded observers hide real races, and the test API provides
 // deterministic waits. Legacy sleeps are tolerated at the committed baseline;
 // new ones fail the gate.
-func (g *gate) checkSleepRatchet() CheckResult {
+func (g *checker) checkSleepRatchet() CheckResult {
 	if !anyChangedCI(g.report.Changed) {
 		return CheckResult{Skipped: true}
 	}
@@ -139,7 +139,7 @@ func (g *gate) checkSleepRatchet() CheckResult {
 		// pass.
 		return g.readFailure(checkSleepRatchetName, err)
 	}
-	ceiling, active := ParseSleepBaseline(string(raw))
+	ceiling, active := parseSleepBaseline(string(raw))
 	if !active {
 		return CheckResult{Skipped: true}
 	}
@@ -168,7 +168,7 @@ func (g *gate) checkSleepRatchet() CheckResult {
 		// the commit gate charges it to the committing session.
 		g.declareFailureGroup(checkSleepRatchetName, nil,
 			tb.Str("test/**/*.ci holds ").Int(int64(count)).
-				Str(" time.sleep( calls against a ceiling of ").Int(int64(ceiling)).String(), gateRerun)
+				Str(" time.sleep( calls against a ceiling of ").Int(int64(ceiling)).String(), actionRerun)
 		tb.Reset()
 		return CheckResult{
 			Failed:  true,
@@ -193,7 +193,7 @@ func (g *gate) checkSleepRatchet() CheckResult {
 // A blind sleep hides why it remains. A comment on or above each sleep makes
 // that reason auditable. The check covers changed files because a session owns
 // the tests that it changes.
-func (g *gate) checkSleepJustification() CheckResult {
+func (g *checker) checkSleepJustification() CheckResult {
 	changed := changedCI(g.report.Changed)
 	if len(changed) == 0 {
 		return CheckResult{Skipped: true}
@@ -230,7 +230,7 @@ func (g *gate) checkSleepJustification() CheckResult {
 
 	if len(violations) > 0 {
 		g.declareFailureGroup(checkSleepJustificationName, sortedKeys(offenders),
-			"a changed .ci test holds a time.sleep( with no comment saying why", gateRerun)
+			"a changed .ci test holds a time.sleep( with no comment saying why", actionRerun)
 		return CheckResult{Failed: true, Message: "ci-sleep justification FAILED:", Violations: violations}
 	}
 	if checked == 0 {
@@ -263,7 +263,7 @@ func sleepIsJustified(lines []string, idx int) bool {
 // test asserts elapsed time instead of state. The deliverable is that test's
 // fix. Shards remain available when the mechanism is unknown. Thus, this is a
 // phrase check, not a shard ban.
-func (g *gate) checkLoadExcuses() CheckResult {
+func (g *checker) checkLoadExcuses() CheckResult {
 	var shards []string
 	for _, path := range g.report.Changed {
 		if !strings.HasPrefix(path, knownFailuresDir) || !strings.HasSuffix(path, ".md") {
@@ -301,7 +301,7 @@ func (g *gate) checkLoadExcuses() CheckResult {
 
 	if len(violations) > 0 {
 		g.declareFailureGroup(checkLoadExcuseName, sortedKeys(offenders),
-			"a changed known-failures shard blames host load for its red", gateRerun)
+			"a changed known-failures shard blames host load for its red", actionRerun)
 		return CheckResult{Failed: true, Message: "known-failure load excuse FAILED:", Violations: violations}
 	}
 	return CheckResult{Message: tb.Reset().Str("known-failure load excuse OK (").Int(int64(len(shards))).
@@ -323,7 +323,7 @@ func (g *gate) checkLoadExcuses() CheckResult {
 //
 // It covers changed .ci files, like the sleep gates. The source scan is
 // tree-wide so an unrelated edit cannot legitimize an inert key elsewhere.
-func (g *gate) checkLogSubsystemKeys() CheckResult {
+func (g *checker) checkLogSubsystemKeys() CheckResult {
 	if !anyChangedCI(g.report.Changed) {
 		return CheckResult{Skipped: true}
 	}
@@ -393,7 +393,7 @@ func (g *gate) checkLogSubsystemKeys() CheckResult {
 
 	if len(violations) > 0 {
 		g.declareFailureGroup(checkLogSubsystemName, sortedKeys(offenders),
-			"a .ci test sets a ze.log.<subsystem> key that matches no slog subsystem", gateRerun)
+			"a .ci test sets a ze.log.<subsystem> key that matches no slog subsystem", actionRerun)
 		return CheckResult{Failed: true, Message: "ci log-subsystem key FAILED:", Violations: violations}
 	}
 	return CheckResult{Message: tb.Reset().Str("ci log-subsystem key OK (").Int(int64(len(suspects))).
@@ -467,7 +467,7 @@ func hyphenatedSubsystemsInGo(root string) (map[string]bool, error) {
 // It is unconditional in a repository checkout: closure debt is non-local,
 // because deleting or closing a spec orphans references in any source file. A
 // minimal fixture with no go.mod has no Go repository population and skips.
-func (g *gate) checkDesignRefs() CheckResult {
+func (g *checker) checkDesignRefs() CheckResult {
 	if _, err := os.Stat(filepath.Join(g.root, "go.mod")); os.IsNotExist(err) {
 		return CheckResult{Skipped: true}
 	} else if err != nil {
@@ -483,17 +483,17 @@ func (g *gate) checkDesignRefs() CheckResult {
 	}
 
 	g.declareFailureGroup(checkDesignRefsName, findingPaths(g.root, findings),
-		"a `// Design:` reference does not resolve to a durable document", gateRerun)
+		"a `// Design:` reference does not resolve to a durable document", actionRerun)
 	var tb textbuf.Buffer
 	return CheckResult{Failed: true, Output: tb.Join(findings, "\n").Byte('\n').String()}
 }
 
 // readFailure answers the result when a check cannot read its judged tree. It
 // also declares the failure group.
-func (g *gate) readFailure(check string, err error) CheckResult {
+func (g *checker) readFailure(check string, err error) CheckResult {
 	var tb textbuf.Buffer
 	summary := tb.Str(check).Str(" could not read the tree it judges").String()
-	g.declareFailureGroup(check, nil, summary, gateRerun)
+	g.declareFailureGroup(check, nil, summary, actionRerun)
 	tb.Reset()
 	return CheckResult{
 		Failed:  true,
@@ -540,10 +540,10 @@ func sortedKeys(set map[string]bool) []string {
 	return out
 }
 
-// FunctionalTestAdvisory warns when user-facing code changed and no functional
+// functionalTestAdvisory warns when user-facing code changed and no functional
 // test did. It is advisory rather than blocking: a session that changed
 // user-facing behavior with no test change gets a named pointer.
-func FunctionalTestAdvisory(changed []string) string {
+func functionalTestAdvisory(changed []string) string {
 	for _, path := range changed {
 		if strings.HasPrefix(path, "test/") {
 			return ""

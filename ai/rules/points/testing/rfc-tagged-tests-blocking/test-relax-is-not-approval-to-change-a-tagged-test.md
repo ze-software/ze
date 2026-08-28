@@ -26,13 +26,11 @@ file after the diff it explained was gone: 255 of them across 120 test files. Be
 sit 27 `test-relax:` that survived the reform meant to replace them, and 6
 `test-asserts-nothing:`.
 
-Never write a new one. No gate reads one. `_rfc_tagged_change_err`
-(`.claude/hooks/pretool-writeedit.py`) stopped accepting a marker in the edit's own text.
-`rfc_changed_problems` (`scripts/dev/commit_helper.py`) stopped accepting one in a commit.
-Both read `test/rfc-changed.md` instead. The sweep landed the same day: 268 markers across
-125 files, and the 27 `test-relax:` beside them, so no test carrier holds either token.
+Never write a new one. No gate reads one. `writeWeakening` in
+`internal/le/hookruntime/writeedit.go` and `rfcChangedProblems` in
+`internal/le/commit` both read `test/rfc-changed.md` instead.
 `test-asserts-nothing:` is NOT retired and was left alone -- `escapeComment`
-(`scripts/checks/inert_tests.go`) still reads it. Retiring a token is not the same as
+(`internal/le/testhealth/collect.go`) still reads it. Retiring a token is not the same as
 discarding what it said: about one block in six stated a fact about its own test found
 nowhere else, and 57 survive as ordinary comments. Recorded in
 `plan/journal/guard-message-teaches-the-violation.md`.

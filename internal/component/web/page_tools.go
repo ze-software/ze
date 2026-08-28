@@ -79,7 +79,7 @@ func handleToolPingPage(renderer *Renderer, r *http.Request, dispatch CommandDis
 // handlePingSubmit validates ping form params and dispatches the command.
 func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) toolPageData {
 	if err := r.ParseForm(); err != nil {
-		return toolPageData{Error: "Invalid form data."}
+		return toolPageData{Error: invalidFormDataMessage}
 	}
 
 	dest := strings.TrimSpace(r.PostFormValue("destination"))
@@ -151,7 +151,7 @@ func handleToolBGPDecodePage(renderer *Renderer, r *http.Request, dispatch Comma
 // handleBGPDecodeSubmit validates hex input and dispatches the decode command.
 func handleBGPDecodeSubmit(r *http.Request, dispatch CommandDispatcher) toolPageData {
 	if err := r.ParseForm(); err != nil {
-		return toolPageData{Error: "Invalid form data."}
+		return toolPageData{Error: invalidFormDataMessage}
 	}
 
 	hex := strings.TrimSpace(r.PostFormValue("hex"))
@@ -191,7 +191,7 @@ func handleToolMetricsPage(renderer *Renderer, r *http.Request, dispatch Command
 // handleMetricsSubmit validates metric name and dispatches the query command.
 func handleMetricsSubmit(r *http.Request, dispatch CommandDispatcher) toolPageData {
 	if err := r.ParseForm(); err != nil {
-		return toolPageData{Error: "Invalid form data."}
+		return toolPageData{Error: invalidFormDataMessage}
 	}
 
 	name := strings.TrimSpace(r.PostFormValue("name"))
@@ -235,7 +235,7 @@ func handleToolCapturePage(renderer *Renderer, r *http.Request, dispatch Command
 // handleCaptureSubmit validates capture filters and dispatches the command.
 func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) toolPageData {
 	if err := r.ParseForm(); err != nil {
-		return toolPageData{Error: "Invalid form data."}
+		return toolPageData{Error: invalidFormDataMessage}
 	}
 
 	var parts []string

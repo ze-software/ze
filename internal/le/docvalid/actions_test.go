@@ -14,41 +14,22 @@ import (
 	"github.com/ze-software/ze/internal/le/leroot"
 )
 
-// VALIDATES: every action's verb is DERIVED from its Make target.
-// PREVENTS: a verb typed beside a gate name, which is the one way the two can
-// come to disagree.
-func TestEveryVerbIsDerivedFromItsGate(t *testing.T) {
-	for _, a := range actions {
-		want := strings.TrimPrefix(a.gate, "ze-")
-		if a.verb() != want {
-			t.Errorf("%s answers the verb %q, want %q", a.gate, a.verb(), want)
-		}
-		if a.gate == a.verb() {
-			t.Errorf("%s is not a ze- gate name", a.gate)
-		}
-		if a.why == "" {
-			t.Errorf("%s says nothing about what it is for", a.gate)
-		}
-		if a.answer == nil {
-			t.Errorf("%s runs nothing", a.gate)
-		}
-	}
-}
-
-// VALIDATES: the three gates this package claims are the three it can run.
-// PREVENTS: a census that counts a gate no action reaches.
-func TestTheActionTableHoldsTheThreeGates(t *testing.T) {
+// VALIDATES: each native action has one explicit unique verb and implementation.
+func TestActionTableDeclaresThreeNativeVerbs(t *testing.T) {
 	want := map[string]bool{
-		"ze-command-contract-check":     true,
-		"ze-doc-drift-check":            true,
-		"ze-docs-pipe-operators-update": true,
+		"command-contract":      true,
+		"doc-drift":             true,
+		"pipe-operators-update": true,
 	}
 	if len(actions) != len(want) {
 		t.Fatalf("the table holds %d actions", len(actions))
 	}
-	for _, a := range actions {
-		if !want[a.gate] {
-			t.Errorf("the table holds an unclaimed gate: %s", a.gate)
+	for _, action := range actions {
+		if !want[action.verb] {
+			t.Errorf("the table holds an unknown action: %s", action.verb)
+		}
+		if action.why == "" || action.answer == nil {
+			t.Errorf("action %s is incomplete", action.verb)
 		}
 	}
 }
@@ -60,10 +41,10 @@ func TestOnlyTheGeneratorIsMarkedAsWriting(t *testing.T) {
 	writers := make([]string, 0, 1)
 	for _, row := range Actions().Actions {
 		if row.Writes {
-			writers = append(writers, row.Gate)
+			writers = append(writers, row.Verb)
 		}
 	}
-	if len(writers) != 1 || writers[0] != "ze-docs-pipe-operators-update" {
+	if len(writers) != 1 || writers[0] != "pipe-operators-update" {
 		t.Fatalf("the writing actions are %v", writers)
 	}
 }
@@ -84,13 +65,13 @@ func TestBareCommandAnswersTheListing(t *testing.T) {
 	}
 
 	text := list.Text()
-	for _, want := range []string{"docvalid:", "doc-drift-check", "checks", "writes"} {
+	for _, want := range []string{"docvalid:", "doc-drift", "checks", "writes"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the listing does not hold %q:\n%s", want, text)
 		}
 	}
 	for line := range strings.SplitSeq(text, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "docs-pipe-operators-update ") && !strings.Contains(line, "writes") {
+		if strings.HasPrefix(strings.TrimSpace(line), "pipe-operators-update ") && !strings.Contains(line, "writes") {
 			t.Errorf("the generator is not marked as writing: %q", line)
 		}
 	}
@@ -111,16 +92,13 @@ func TestHelpAndTheListingAgreeAboutWhatWrites(t *testing.T) {
 	}
 }
 
-// VALIDATES: an action this command does not hold answers 2, and a value typed
-// after an action that takes none answers 1.
-// PREVENTS: a caller losing the difference between a mistyped word and a gate
-// that ran and failed. commit_helper.py reads those codes apart.
-func TestRefusalsAnswerTheirOwnCodes(t *testing.T) {
+// VALIDATES: malformed command input answers the usage status 2.
+func TestRefusalsAnswerUsageCode(t *testing.T) {
 	if _, code := Answer([]string{"no-such-action"}); code != 2 {
 		t.Errorf("an unknown action answered %d, want 2", code)
 	}
-	if _, code := Answer([]string{"doc-drift-check", "extra"}); code != 1 {
-		t.Errorf("a value after an action answered %d, want 1", code)
+	if _, code := Answer([]string{"doc-drift", "extra"}); code != 2 {
+		t.Errorf("a value after an action answered %d, want 2", code)
 	}
 	if payload, _ := Answer([]string{"no-such-action"}); payload != nil {
 		t.Errorf("a refusal answered a payload: %v", payload)
@@ -152,7 +130,7 @@ func TestEachActionAnswersItsOwnVerdict(t *testing.T) {
 			"# Text Parser\n\nAll functions allocate via `strings.Fields()`.\n")
 		pointAtFixture(t, root)
 
-		payload, code := Answer([]string{"doc-drift-check"})
+		payload, code := Answer([]string{"doc-drift"})
 		if code != 1 {
 			t.Fatalf("a drifting tree answered %d", code)
 		}
@@ -165,7 +143,7 @@ func TestEachActionAnswersItsOwnVerdict(t *testing.T) {
 	t.Run("drift answers 0 over a tree that claims nothing", func(t *testing.T) {
 		pointAtFixture(t, t.TempDir())
 
-		payload, code := Answer([]string{"doc-drift-check"})
+		payload, code := Answer([]string{"doc-drift"})
 		if code != 0 {
 			t.Fatalf("a tree with no document answered %d: %v", code, payload)
 		}
@@ -176,7 +154,7 @@ func TestEachActionAnswersItsOwnVerdict(t *testing.T) {
 		writeDoc(t, root, "cmd/ze/main.go", "package main\n\nfunc main() {}\n")
 		pointAtFixture(t, root)
 
-		payload, code := Answer([]string{"command-contract-check"})
+		payload, code := Answer([]string{"command-contract"})
 		if code != 1 {
 			t.Fatalf("a tree whose commands have no local handler answered %d", code)
 		}
@@ -191,7 +169,7 @@ func TestEachActionAnswersItsOwnVerdict(t *testing.T) {
 		writeDoc(t, root, pipeOperatorReferencePath, "# stale\n")
 		pointAtFixture(t, root)
 
-		payload, code := Answer([]string{"docs-pipe-operators-update"})
+		payload, code := Answer([]string{"pipe-operators-update"})
 		if code != 0 {
 			t.Fatalf("the generator answered %d", code)
 		}

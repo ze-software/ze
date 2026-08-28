@@ -20,14 +20,14 @@ func TestPeerInfoPopulatesStats(t *testing.T) {
 
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
-	peer.IncrUpdatesReceived()
-	peer.IncrUpdatesReceived()
-	peer.IncrUpdatesSent()
-	peer.IncrKeepalivesReceived()
-	peer.IncrKeepalivesReceived()
+	peer.incrUpdatesReceived()
+	peer.incrUpdatesReceived()
+	peer.incrUpdatesSent()
+	peer.incrKeepalivesReceived()
+	peer.incrKeepalivesReceived()
 	peer.incrKeepalivesSent()
-	peer.IncrEORReceived()
-	peer.IncrEORSent()
+	peer.incrEORReceived()
+	peer.incrEORSent()
 	peer.counters.establishedAt.Store(time.Now().Add(-time.Second).UnixNano())
 	peer.state.Store(int32(PeerStateEstablished))
 
@@ -60,7 +60,7 @@ func TestPeerInfoUptimeUsesEstablishedAt(t *testing.T) {
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	// Peer established just now — uptime should be ~0, not ~1 hour
-	peer.SetEstablishedNow()
+	peer.setEstablishedNow()
 
 	r.peers[settings.PeerKey()] = peer
 

@@ -23,28 +23,12 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0047020000002B400101
 EOF_PEER
 
 # Plugin script announces one route through the API.
-tmpfs=wire-edit-api-origin-order.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-
-def main() -> None:
-    ready()
-    send('peer * update text origin igp community [65000:100] large-community [65000:1:2] nhop 10.0.0.9 nlri ipv4/unicast add 10.0.0.7/32')
-    wait_for_ack(expected_count=1)
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external wire-edit-api-origin-order {
-		run ./wire-edit-api-origin-order.run
+		run "ze-test fixture plugin/wire-edit-api-origin-order"
 		encoder json
 	}
 }

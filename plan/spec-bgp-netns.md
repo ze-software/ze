@@ -221,14 +221,14 @@ was retired with the learned corpus, so they need a live design target
     -> Decision (user, 2026-07-16): the default STAYS. Read it to understand why this spec is
     the DEFAULT case: the leaf's own description ("Routing daemons run in this namespace",
     lines 202-205) is the model this spec makes true for BGP.
-- [ ] `mk/test-integration.mk` - line 319: `ZE_QEMU_INTEGRATION_PKGS` is computed by
+- [ ] `internal/le/integration/gates.go` - line 319: `ZE_QEMU_INTEGRATION_PKGS` is computed by
       `grep -rl --include='*.go' '^//go:build integration && linux' internal/ cmd/`
   → Decision: NEW FINDING, verified 2026-07-16. The QEMU integration package list is
     AUTO-DISCOVERED from the build tag, not hand-maintained. A new
     `internal/core/network/netns_integration_linux_test.go` tagged `integration && linux` is
-    picked up by `make ze-qemu-integration-test` with NO Makefile edit. This partially answers
+    picked up by `./le qemu run command "./le qemu all-tests"` with NO the native action tables under `internal/le/` edit. This partially answers
     Q12 (see Open Questions): the rail for the netns BIND exists today. Note
-    `ai/rules/platform-linux.md` step 5 ("Register the package in the Makefile", showing an
+    `ai/rules/platform-linux.md` step 5 ("Register the package in the the native action tables under `internal/le/`", showing an
     explicit `--run` list) is stale for this target; the explicit list is now only
     `./internal/plugins/firewall/vpp/...` on line 325.
 
@@ -238,11 +238,11 @@ was retired with the learned corpus, so they need a live design target
   → Constraint: MANDATORY for this spec; "needs hardware" is not an accepted skip. Two rails
     apply: `//go:build integration && linux` unit tests (auto-discovered, above), and a `.ci`
     that boots a daemon exercising a kernel feature MUST carry `option=needs-linux` so it
-    SKIPs on darwin and runs for real under `make ze-qemu-needs-linux-test` /
-    `make ze-qemu-test-all`.
+    SKIPs on darwin and runs for real under `./le qemu run command "./le qemu all-tests"` /
+    `./le qemu run command "./le qemu all-tests"`.
 - [ ] `ai/rules/architecture.md` - core/component/plugin placement by dependency direction
   → Constraint: `internal/core/` MUST NOT import `internal/component/` or `internal/plugins/`
-    (`scripts/dev/dep_audit.py --check`, `make ze-tier-check`). The netns helper imports only
+    (`internal/le/ --check`, `./le tier check`). The netns helper imports only
     `github.com/vishvananda/netns`, an external dep already imported from core by
     `routewatch_linux.go`. PASSES.
 - [ ] `ai/rules/plugins.md` - the "delete the folder" invariant
@@ -268,7 +268,7 @@ was retired with the learned corpus, so they need a live design target
   reactor surgery was needed is BROKEN (A-2).
 - `github.com/vishvananda/netns v0.0.5` is ALREADY a direct dependency (`go.mod:23`) and
   `internal/test/runner/netns_linux.go` is an in-tree netns idiom to copy.
-- The netns-bind QEMU rail EXISTS and is auto-discovering (`mk/test-integration.mk`). Only
+- The netns-bind QEMU rail EXISTS and is auto-discovering (`internal/le/integration/gates.go`). Only
   the full VPP+LCP end-to-end rail is missing, and it is an image-provisioning problem.
 - A-3 (is pinning bind-scoped or lifetime-scoped?) is a claim about KERNEL semantics, not read
   from ze source. It is unverified and gates the design.
@@ -322,7 +322,7 @@ was retired with the learned corpus, so they need a live design target
 - [ ] `internal/component/vpp/yang/ze-vpp-conf.yang` - lines 199-205: `leaf netns`,
       `type string`, `default "dataplane"`, described as "Network namespace for LCP TAP
       interfaces. Routing daemons run in this namespace."
-- [ ] `mk/test-integration.mk` - lines 319-325: `ZE_QEMU_INTEGRATION_PKGS` is derived by
+- [ ] `internal/le/integration/gates.go` - lines 319-325: `ZE_QEMU_INTEGRATION_PKGS` is derived by
       grepping for `^//go:build integration && linux` under `internal/` and `cmd/`;
       `ze-qemu-integration-test` runs those packages plus an explicit
       `./internal/plugins/firewall/vpp/...`.
@@ -435,7 +435,7 @@ reaches `NewListener` (`listener.go`). The BGP netns value enters via a new conf
       (`ai/rules/repo-maintenance.md`, `ai/rules/plugins.md`)
 - [ ] Core import direction: `internal/core/network` gains only an external import
       (`github.com/vishvananda/netns`), never `internal/component/` or `internal/plugins/`
-      (`ai/rules/architecture.md`, `make ze-tier-check`)
+      (`ai/rules/architecture.md`, `./le tier check`)
 
 ## Risks & Assumptions
 
@@ -461,7 +461,7 @@ R-4, R-5, R-7, R-9, R-10) are the doctor half's rows and stay in the parent.
 |----|------|--------------|----------------------|
 | R-1 | Netns binding requires thread-pinning that fights the Go runtime and destabilizes the listener | Flaky accept loop or wrong-namespace binds under load | Prototype early (Phase 1); consider a bind-only helper that passes the fd back. Reuse the `enterTestNetns` shape rather than inventing one |
 | R-2 | This spec silently invalidates `doctor-vpp-lcp-netns`, leaving a check that warns about a solved problem | The check still fires after BGP can bind in the netns | Treat the check's fate as an explicit AC (AC-3), not an afterthought. NARROW it to a mismatch check, do not delete it |
-| R-6 | Linux-only work lands without QEMU proof | The netns leg is proven only by unit tests | `ai/rules/platform-linux.md` is mandatory. Partially mitigated by a NEW finding: the `integration && linux` rail is auto-discovering (`mk/test-integration.mk`), so the netns BIND is provable today. The residual is the VPP+LCP end-to-end rail (Q12) |
+| R-6 | Linux-only work lands without QEMU proof | The netns leg is proven only by unit tests | `ai/rules/platform-linux.md` is mandatory. Partially mitigated by a NEW finding: the `integration && linux` rail is auto-discovering (`internal/le/integration/gates.go`), so the netns BIND is provable today. The residual is the VPP+LCP end-to-end rail (Q12) |
 | R-8 | **Silent wrong-namespace bind via the MD5/GTSM branch.** `newListenerFactory` (`reactor.go`) rebuilds the factory from scratch when MD5 or GTSM applies. If netns is carried on the factory but that branch is not updated, an MD5 peer's listener binds in the HOST namespace with no error, and BGP peers on the wrong interface | A netns test that passes without MD5 and fails (or worse, silently binds wrong) with MD5 | Netns must be a FIELD threaded through BOTH branches. MANDATORY test: a netns listener test WITH MD5 configured, not only the bare case (AC-9). This is the concrete instance of the Critical Review "a netns bind failure NEVER silently falls back to the host namespace" row |
 | R-11 (NEW) | ~~The spec lands, is correct, and no operator ever uses it: a permanent maintenance surface for a hypothetical user~~ **WITHDRAWN 2026-07-16.** Its premise was A-12 as framed plus a default fix that is not happening. With the default staying `"dataplane"`, the users are every default LCP install, and the maintenance surface serves the shipped config rather than a hypothesis | ~~Nobody asks for it after the default fix lands~~ N/A | ~~Accept deliberately or sequence behind demonstrated work~~ N/A. The honest residual risk is now R-13 |
 | R-13 (NEW, 2026-07-16) | The netns gap is worked around instead of fixed: operators keep setting `vpp.lcp.netns` to `host`/`root` because the doctor warning tells them to, so the isolation model quietly dies in the field and this spec never looks urgent | Deployments and docs that treat the root-reachable override as the normal answer rather than a workaround (`docs/guide/vpp.md` documents it as the way out today) | Word the doctor check and the guide as "BGP cannot follow yet", not "use a root-reachable netns". AC-3 narrows the check to a mismatch once BGP can follow. This risk is the honest counterweight to the raised priority: the workaround is cheap, which is exactly why the gap can persist |
@@ -474,7 +474,7 @@ R-4, R-5, R-7, R-9, R-10) are the doctor half's rows and stay in the parent.
 | A BGP netns config surface (shape pending Q3) plus a listen address | -> | `reactor.config` -> `newListenerFactory` (`reactor.go`) -> `RealListenerFactory{Netns}` (`network.go`) -> `listener.go` | `TestNetnsListenerFactoryBindsInNamedNamespace` |
 | Same, **with MD5 configured on the port** | -> | the MD5/GTSM branch of `newListenerFactory` (`reactor.go`) | `TestNewListenerFactoryCarriesNetnsWithMD5` (R-8: without this row the netns silently vanishes for MD5 peers) |
 | `vpp { lcp { netns X } }` + BGP netns Y (a MISMATCH), `ze doctor` | -> | narrowed `checkVPPLCPNetns` (`doctor.go`) | `test/ui/doctor-vpp-lcp-netns.ci` (rewritten from the parent spec's version; AC-3) |
-| BGP peer establishing over an LCP TAP in a non-root netns | -> | full listener plus reactor accept path (`listener.go`) | `test/ui/bgp-listener-netns.ci` with `option=needs-linux` (runs under `make ze-qemu-needs-linux-test`) |
+| BGP peer establishing over an LCP TAP in a non-root netns | -> | full listener plus reactor accept path (`listener.go`) | `test/ui/bgp-listener-netns.ci` with `option=needs-linux` (runs under `./le qemu run command "./le qemu all-tests"`) |
 
 ## Acceptance Criteria
 
@@ -487,7 +487,7 @@ duplicated. Gaps (AC-4 to AC-7, AC-11) are the doctor half's and stay in the par
 | AC-1 | `vpp.lcp.netns` names a non-root namespace and BGP is configured with a matching listener netns | BGP binds its listener inside that namespace and accepts sessions on the LCP TAP |
 | AC-2 | No netns is configured anywhere (every non-LCP deployment) | Listener behavior is byte-for-byte unchanged; no thread pinning, no new failure mode. `RealListenerFactory{}` with an empty `Netns` takes exactly today's code path (`network.go`) |
 | AC-3 | BGP can bind in the LCP netns | The `doctor-vpp-lcp-netns` warning's fate is explicitly decided: NARROWED to a mismatch check between `vpp.lcp.netns` and the BGP listener netns. It does not silently survive as a stale warning. -> Constraint (user, 2026-07-16): the parent spec ships `test/ui/doctor-vpp-lcp-netns.ci` for the check as it exists TODAY; this AC may REWRITE that `.ci`, and that is ACCEPTED, not a defect |
-| AC-8 | Netns listener on linux | Proven by a QEMU test, not only host unit tests (`ai/rules/platform-linux.md`). Two rails: an `integration && linux` test (auto-discovered per `mk/test-integration.mk`) and a `needs-linux` `.ci` |
+| AC-8 | Netns listener on linux | Proven by a QEMU test, not only host unit tests (`ai/rules/platform-linux.md`). Two rails: an `integration && linux` test (auto-discovered per `internal/le/integration/gates.go`) and a `needs-linux` `.ci` |
 | AC-9 | A netns listener on a port that ALSO carries MD5 peers or a GTSM TTL | The listener binds in the configured namespace AND applies MD5/GTSM. Never one at the cost of the other (R-8; the current `newListenerFactory` would drop the netns) |
 | AC-10 | A configured netns that does not exist, or ze lacks CAP_SYS_ADMIN, or a non-linux build | `Listen` returns a clear error naming the namespace. It NEVER falls back to binding in the host namespace |
 
@@ -516,7 +516,7 @@ duplicated. Gaps (AC-4 to AC-7, AC-11) are the doctor half's and stay in the par
 
 → Constraint: tests needing a namespace need CAP_NET_ADMIN, so they carry
 `//go:build integration && linux` and are auto-discovered by `ze-qemu-integration-test`
-(`mk/test-integration.mk`). Use `t.Skip`, never `t.Fatal`, when the capability is absent
+(`internal/le/integration/gates.go`). Use `t.Skip`, never `t.Fatal`, when the capability is absent
 (`ai/rules/platform-linux.md`). Tests that need no kernel capability (`...EmptyNetnsUnchanged`,
 `TestNewListenerFactoryCarriesNetnsWithMD5`) stay host-runnable.
 
@@ -531,7 +531,7 @@ duplicated. Gaps (AC-4 to AC-7, AC-11) are the doctor half's and stay in the par
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-listener-netns` | `test/ui/bgp-listener-netns.ci` | BGP binds and peers over an interface in a deliberately isolated namespace. `option=needs-linux`: SKIPs on darwin, runs for real under `make ze-qemu-needs-linux-test` | proposed |
+| `bgp-listener-netns` | `test/ui/bgp-listener-netns.ci` | BGP binds and peers over an interface in a deliberately isolated namespace. `option=needs-linux`: SKIPs on darwin, runs for real under `./le qemu run command "./le qemu all-tests"` | proposed |
 | `doctor-vpp-lcp-netns` | `test/ui/doctor-vpp-lcp-netns.ci` | An operator whose BGP netns disagrees with `vpp.lcp.netns` is warned. **Rewritten** from the version the parent spec ships (AC-3, accepted by Thomas 2026-07-16) | proposed (parent ships v1) |
 | BGP over an LCP TAP in a non-root netns | QEMU rail, VPP end NOT identified (Q12) | The full VPP story, end to end | blocked on a VPP image carrying linux-cp |
 
@@ -581,7 +581,7 @@ None deferred. Scope is set above and every AC is assigned.
   2026-07-16): it **STAYS** `"dataplane"`. It is not a bug, no spec owns changing it, and
   changing it would delete the forwarding/management isolation this spec exists to preserve.
   Do not touch it here or anywhere
-- `mk/test-integration.mk` - no edit needed for the netns integration tests
+- `internal/le/integration/gates.go` - no edit needed for the netns integration tests
   (`ZE_QEMU_INTEGRATION_PKGS` at line 319 auto-discovers the build tag)
 
 ### Integration Checklist
@@ -592,7 +592,7 @@ None deferred. Scope is set above and every AC is assigned.
 | YANG validation constraints | [ ] Yes. A namespace name is a `/run/netns/<name>` path component, so constrain `pattern` + `length`; never a bare `type string` (Security Review: input validation) | per `ai/patterns/config-option.md` |
 | Doctor check for runtime dependencies | [ ] Yes, the AC-3 narrowing of an EXISTING check (no new code) | `internal/plugins/iface/vpp/doctor.go`, `internal/core/diagnostic/codes.go` |
 | Functional test | [ ] Yes, two | `test/ui/bgp-listener-netns.ci` (new), `test/ui/doctor-vpp-lcp-netns.ci` (rewritten) |
-| QEMU rail | [ ] Yes, MANDATORY (`ai/rules/platform-linux.md`). The netns-bind rail EXISTS and auto-discovers (`mk/test-integration.mk`); the `.ci` rail is `option=needs-linux`. The VPP+LCP end-to-end rail is NOT identified (Q12) | `internal/core/network/netns_integration_linux_test.go`, `test/ui/bgp-listener-netns.ci` |
+| QEMU rail | [ ] Yes, MANDATORY (`ai/rules/platform-linux.md`). The netns-bind rail EXISTS and auto-discovers (`internal/le/integration/gates.go`); the `.ci` rail is `option=needs-linux`. The VPP+LCP end-to-end rail is NOT identified (Q12) | `internal/core/network/netns_integration_linux_test.go`, `test/ui/bgp-listener-netns.ci` |
 | CLI commands/flags | [ ] No | - |
 | Env var registration | [ ] Only if Q3 resolves to a process-level env setting rather than a YANG leaf | per `ai/rules/config.md` |
 | Prometheus counters | [ ] No | - |
@@ -604,11 +604,11 @@ None deferred. Scope is set above and every AC is assigned.
 | 1 | New user-facing feature? | [ ] Yes (BGP netns binding) | `docs/features.md` |
 | 2 | Config syntax changed? | [ ] Yes, if a netns leaf lands (Q3) | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
 | 6 | Has a user guide page? | [ ] Yes. The guide documents the netns constraint as a hard limit; it becomes a configurable capability | `docs/guide/vpp.md` |
-| 10 | Test infrastructure changed? | [ ] Check. A new `needs-linux` `.ci` and a new integration package are additive, but `ai/rules/platform-linux.md` step 5 is stale for `ze-qemu-integration-test` (the list auto-discovers, `mk/test-integration.mk`) | `docs/functional-tests.md`, `ai/rules/platform-linux.md` |
+| 10 | Test infrastructure changed? | [ ] Check. A new `needs-linux` `.ci` and a new integration package are additive, but `ai/rules/platform-linux.md` step 5 is stale for `ze-qemu-integration-test` (the list auto-discovers, `internal/le/integration/gates.go`) | `docs/functional-tests.md`, `ai/rules/platform-linux.md` |
 | 12 | Internal architecture changed? | [ ] Yes. `network.go`'s package doc and `listener.go`'s `// Design:` anchor both describe listener creation; a namespace concept changes that contract | `docs/architecture/core-design.md` |
 | 15 | Registered diagnostic code changed? | [ ] Yes: `doctor-vpp-lcp-netns` description reworded for the narrowed check | `internal/core/diagnostic/codes.go`, `docs/guide/vpp.md` |
-| 16 | Any changed source file referenced by doc source anchors? | [ ] Grep `docs/` for the changed files. Known: `network.go` anchors `docs/architecture/chaos-web-dashboard.md`; `lcp.go` anchors `docs/research/vpp-deployment-reference.md`; `doctor.go` anchors `ai/rules/repo-maintenance.md`. Run `scripts/dev/check_doc_links.py --design-only` | per grep |
-| 17 | Design doc declared by a changed file's `// Design:` header? | [ ] **No change owed.** `internal/core/diagnostic/codes.go` declares `docs/features/ai-first.md`. That document specifies the `ze explain <code>` contract and states that every diagnostic carries a stable code, naming codes only by example. It holds no enumeration of doctor codes. Row 15 rewords one existing description through that documented mechanism and changes neither the contract nor a list, so the design it declares is unaffected. Recorded because `scripts/dev/spec_doc_anchors.py` requires every declared design doc to be named | `docs/features/ai-first.md` (unaffected) |
+| 16 | Any changed source file referenced by doc source anchors? | [ ] Grep `docs/` for the changed files. Known: `network.go` anchors `docs/architecture/chaos-web-dashboard.md`; `lcp.go` anchors `docs/research/vpp-deployment-reference.md`; `doctor.go` anchors `ai/rules/repo-maintenance.md`. Run `internal/le/doccheck/links.go --design-only` | per grep |
+| 17 | Design doc declared by a changed file's `// Design:` header? | [ ] **No change owed.** `internal/core/diagnostic/codes.go` declares `docs/features/ai-first.md`. That document specifies the `ze explain <code>` contract and states that every diagnostic carries a stable code, naming codes only by example. It holds no enumeration of doctor codes. Row 15 rewords one existing description through that documented mechanism and changes neither the contract nor a list, so the design it declares is unaffected. Recorded because `internal/le/docwiring/sources.go` requires every declared design doc to be named | `docs/features/ai-first.md` (unaffected) |
 
 ## Files to Create
 
@@ -619,7 +619,7 @@ None deferred. Scope is set above and every AC is assigned.
   `md5_other.go` / `ttl_other.go`. A configured netns here MUST be a clear error, never a
   silent host bind (AC-10)
 - `internal/core/network/netns_integration_linux_test.go` - `//go:build integration && linux`.
-  Auto-discovered by `ze-qemu-integration-test` (`mk/test-integration.mk`), no Makefile edit
+  Auto-discovered by `ze-qemu-integration-test` (`internal/le/integration/gates.go`), no the native action tables under `internal/le/` edit
 - `internal/core/network/netns_linux_test.go` - the host-runnable unit tests that need no
   kernel capability
 - `test/ui/bgp-listener-netns.ci` - new functional test, `option=needs-linux`
@@ -634,7 +634,7 @@ None deferred. Scope is set above and every AC is assigned.
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan |
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
-| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 13. /ze-review gate | Review Gate section |
 
@@ -657,7 +657,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    binding thread is unpinned? If NO, the whole design changes (dedicated thread or fd-passing
    helper, R-1) and the phases below are rewritten.
    - Test: `TestNetnsListenerSocketOutlivesThreadUnpin`
-   - Verify: run it under QEMU (`make ze-qemu-integration-test`), not on the host. A darwin
+   - Verify: run it under QEMU (`./le qemu run command "./le qemu all-tests"`), not on the host. A darwin
      pass proves nothing about `setns`
 2. **Phase 2: `RealListenerFactory.Netns` (wiring).** Add the field + `netns_linux.go` /
    `netns_other.go`, reusing the `enterTestNetns` idiom (`internal/test/runner/netns_linux.go`)
@@ -667,7 +667,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
      `TestNetnsListenerFactoryEmptyNetnsUnchanged` (AC-2),
      `TestNetnsListenerFactoryAppliedWithMD5` (AC-9)
    - Files: `internal/core/network/network.go`, `netns_linux.go`, `netns_other.go`
-   - Verify: `make ze-tier-check` still passes (core import direction)
+   - Verify: `./le tier check` still passes (core import direction)
 3. **Phase 3: Config surface + thread it through the reactor.**
    - Add the BGP netns leaf (shape pending Q3), carry it via `config.go` into
      `newListenerFactory` (`reactor.go`) so BOTH branches set `Netns` (R-8)
@@ -681,10 +681,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: re-read `doctor.go` first. The parent spec may have changed it (R-12)
 5. **Phase 5: Functional and QEMU tests.** Prove BGP peers over an interface in a non-root
    netns via `test/ui/bgp-listener-netns.ci` (`option=needs-linux`) under
-   `make ze-qemu-needs-linux-test`. -> Constraint: the VPP+LCP END-TO-END rail is still NOT
+   `./le qemu run command "./le qemu all-tests"`. -> Constraint: the VPP+LCP END-TO-END rail is still NOT
    identified (Q12) and needs a VPP image carrying the linux-cp plugins. Identify it BEFORE
    Phase 2, or Phase 5 becomes an unbounded task discovered at the end.
-6. **Full verification**: `make ze-precommit-verify`
+6. **Full verification**: `./le verify current mode full`
 7. **Complete spec**: learned summary, two-commit closure per `ai/rules/planning.md`.
 
 ### Critical Review Checklist
@@ -696,7 +696,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness (R-8) | `newListenerFactory` sets `Netns` in BOTH branches. Grep the function; a netns test without MD5 does not prove this |
 | Data flow | BGP learns about namespaces, not about VPP or LCP; no VPP spelling in the reactor or in `internal/core/network` |
 | Registration over hardcoding | No new per-feature switch case or factory in a core/shared package; the doctor check stays registered from the owning plugin (`ai/rules/repo-maintenance.md`, `ai/rules/plugins.md`) |
-| Module tiers | `internal/core/network` imports no `internal/component/` or `internal/plugins/` package (`make ze-tier-check`) |
+| Module tiers | `internal/core/network` imports no `internal/component/` or `internal/plugins/` package (`./le tier check`) |
 | YANG validation | The netns leaf has maximum native constraints (`pattern`, `length`); no bare `type string` |
 | Rule: no-workarounds | The netns constraint is fixed at the source, not documented away |
 | Stale check | `doctor-vpp-lcp-netns` does not survive as a warning for a solved problem (AC-3) |
@@ -706,10 +706,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| BGP binds in a named netns | `TestNetnsListenerFactoryBindsInNamedNamespace` passes under `make ze-qemu-integration-test` |
+| BGP binds in a named netns | `TestNetnsListenerFactoryBindsInNamedNamespace` passes under `./le qemu run command "./le qemu all-tests"` |
 | Netns composes with MD5 | `TestNetnsListenerFactoryAppliedWithMD5` + `TestNewListenerFactoryCarriesNetnsWithMD5` both pass |
 | Default deployments unchanged | Existing BGP tests pass with no listener behavior change; `TestNetnsListenerFactoryEmptyNetnsUnchanged` |
-| End-to-end peering over an isolated interface | `test/ui/bgp-listener-netns.ci` passes under `make ze-qemu-needs-linux-test` |
+| End-to-end peering over an isolated interface | `test/ui/bgp-listener-netns.ci` passes under `./le qemu run command "./le qemu all-tests"` |
 | The stale warning is gone | `test/ui/doctor-vpp-lcp-netns.ci` asserts mismatch-only behavior |
 
 ### Security Review Checklist
@@ -727,7 +727,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |---------|----------|
 | Netns bind works in host unit tests but not under QEMU | Back to RESEARCH on thread pinning (A-3); do not weaken the test |
 | Phase 1 prototype shows pinning is lifetime-scoped | STOP. A-3 is broken; present the dedicated-thread and fd-passing options to Thomas before redesigning (R-1) |
-| `make ze-tier-check` fails | The helper reached for a component/plugin import. Redesign; do not baseline the violation |
+| `./le tier check` fails | The helper reached for a component/plugin import. Redesign; do not baseline the violation |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
 
 ## Mistake Log
@@ -870,7 +870,7 @@ Why the shape (field, not wrapper) is forced, not chosen:
 - **The netns leg is linux-only.** `netns_other.go` stubs it; a configured netns on a non-linux
   build must be a clear error, never a silent host bind (AC-10).
 - **The VPP end-to-end rail is not identified.** The netns BIND is provable today
-  (`mk/test-integration.mk`); proving BGP peering over a real VPP LCP TAP needs a VPP image
+  (`internal/le/integration/gates.go`); proving BGP peering over a real VPP LCP TAP needs a VPP image
   carrying the linux-cp plugins, which the followup-vpp-iface work recorded as
   absent from `ligato/vpp-base`. -> Open: Q12.
 - ~~**This spec serves a user population that is not evidenced.** See A-12 and R-11.~~
@@ -891,7 +891,7 @@ Why the shape (field, not wrapper) is forced, not chosen:
 | 5 | Do web / gnmi / looking-glass listeners need this too? | **NEEDS THOMAS / follow-up.** They do NOT go through `network.ListenerFactory` (`web/server.go`, `lg/server.go`, `dnsserver/secure.go` each build listeners directly), so BGP is genuinely special TODAY. If an operator wants the whole box in the dataplane namespace, a process-level netns (Q3) is a better answer than per-service leaves |
 | 6 | What happens to `doctor-vpp-lcp-netns` if BGP can bind in the LCP netns? | **ANSWERED: NARROW, do not delete.** It becomes a mismatch check: warn when `vpp.lcp.netns` and the BGP listener netns disagree. That is a real, permanent hazard, whereas "netns is not root-reachable" becomes false once BGP can follow. AC-3, Behavior-to-change #4, Phase 4 |
 | 7 | Should the `vpp.lcp.netns` default stay "dataplane"? | **ANSWERED: YES, IT STAYS.** -> Decision (user, 2026-07-16). ~~The default is fixed now, as `plan/spec-fixit-vpp-lcp-netns-default.md` (another agent).~~ SUPERSEDED: **that spec was never created and must not be.** The default is deliberate, not a defect: `plan/deferrals.md` records the intent as reachability "without forcing the operator to a root-reachable netns", and `"dataplane"` is IPng's production convention (`54bffb83b`; `docs/research/vpp-deployment-reference.md`). Changing it would delete the isolation model. Q7 is CLOSED, not moved |
-| 12 | What QEMU rail can prove BGP peering over an LCP TAP? | **PARTLY ANSWERED, 2026-07-16.** The netns BIND rail EXISTS: `ZE_QEMU_INTEGRATION_PKGS` (`mk/test-integration.mk`) auto-discovers any package with `//go:build integration && linux`, and a daemon-level `.ci` marked `option=needs-linux` runs under `make ze-qemu-needs-linux-test`. Neither needs a Makefile edit. **The residual, still unanswered:** the VPP+LCP end-to-end rail. The followup-vpp-iface work recorded that real-VPP LCP proof needs a VPP image WITH the linux-cp plugins (`ligato/vpp-base` lacks them), which is an image-provisioning problem on top of a test-rail problem. -> Constraint: identify it before Phase 2 or the netns leg has an unbounded tail |
+| 12 | What QEMU rail can prove BGP peering over an LCP TAP? | **PARTLY ANSWERED, 2026-07-16.** The netns BIND rail EXISTS: `ZE_QEMU_INTEGRATION_PKGS` (`internal/le/integration/gates.go`) auto-discovers any package with `//go:build integration && linux`, and a daemon-level `.ci` marked `option=needs-linux` runs under the retired `ze-qemu-needs-linux-test` (current: `./le qemu run command "./le qemu all-tests"`). Neither needs a retired root Makefile (current producers: internal/le/ native action tables) edit. **The residual, still unanswered:** the VPP+LCP end-to-end rail. The followup-vpp-iface work recorded that real-VPP LCP proof needs a VPP image WITH the linux-cp plugins (`ligato/vpp-base` lacks them), which is an image-provisioning problem on top of a test-rail problem. -> Constraint: identify it before Phase 2 or the netns leg has an unbounded tail |
 
 ## Decisions Needed From Thomas (blocking `ready`)
 
@@ -913,10 +913,10 @@ observe which namespace the socket was created in. See "Interop Tests" for the e
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete (every row has a concrete test name, none deferred)
 - [ ] `/ze-review` gate clean (Review Gate section filled: 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] QEMU integration test for the linux-only netns leg (`ai/rules/platform-linux.md`)
-- [ ] `make ze-tier-check` passes (core import direction)
+- [ ] `./le tier check` passes (core import direction)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`, including A-3 and A-12)
 

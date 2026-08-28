@@ -18,79 +18,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=fib-srv6-kernel-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: fib-kernel processes SRv6-steered route from sysrib event."""
-
-import sys
-import time
-
-from ze_api import API, runtime_fail
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    api.wait_for_post_startup(timeout=5.0)
-
-    # AC-1: Emit route with SRv6 SID.
-    r = dispatch(api, 'request fakefib emit add ipv6/unicast 2001:db8:100::/48 nexthop fc00::1 srv6-sid 2001:db8::1')
-    if r.get('status') != 'done':
-        runtime_fail(f'request fakefib emit srv6 failed: {r}')
-
-    # blind hold: sysrib to fib-kernel delivery is fire-and-forget with no end-to-end "programmed" signal to poll
-    time.sleep(1.0)
-    print('OK AC-1: SRv6 route emitted to fib-kernel via sysrib EventBus', file=sys.stderr)
-
-    # AC-3: Withdraw the SRv6 route.
-    r = dispatch(api, 'request fakefib emit withdraw ipv6/unicast 2001:db8:100::/48')
-    if r.get('status') != 'done':
-        runtime_fail(f'request fakefib emit withdraw failed: {r}')
-
-    # blind hold: sysrib to fib-kernel delivery is fire-and-forget with no end-to-end "programmed" signal to poll
-    time.sleep(1.0)
-    print('OK AC-3: SRv6 route withdrawn', file=sys.stderr)
-
-    # AC-4: Emit route WITHOUT SRv6 SID (plain route, no encap).
-    r = dispatch(api, 'request fakefib emit add ipv4/unicast 10.0.0.0/24 nexthop 192.168.1.1')
-    if r.get('status') != 'done':
-        runtime_fail(f'request fakefib emit plain route failed: {r}')
-
-    # blind hold: sysrib to fib-kernel delivery is fire-and-forget with no end-to-end "programmed" signal to poll
-    time.sleep(1.0)
-    print('OK AC-4: plain route (no SRv6 SID) emitted', file=sys.stderr)
-
-    # The peer asserts ze's End-of-RIB frame, so hold the barrier ze_api
-    # documents for that shape before shutting the daemon down: this peer
-    # attaches a process permitted to send updates, so the initial-sync gate
-    # holds the marker and a prompt shutdown closes the session under it.
-    if not api.wait_peer_eor_sent():
-        runtime_fail('ze did not send the End-of-RIB to the peer before shutdown')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external fib-srv6-kernel-test {
-		run ./fib-srv6-kernel-test.run
+		run "ze-test fixture plugin/fib-srv6-kernel"
 		encoder json
 	}
 	internal bgp-rib {

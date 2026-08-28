@@ -7,7 +7,7 @@
 // and drives >=128 concurrent clients through auth + initial config sync. Run:
 //
 //	go test -tags 'ze_core fleetperf' ./cmd/ze/hub/ -run TestFleetManyClientsPerf -v
-//	make ze-stress-fleet-test
+//	./le integration stress-fleet
 //
 // It lives in package hub (not internal/component/managed as the spec skeleton
 // guessed) because the real hub+TLS+cap harness -- startManagedServer,

@@ -18,17 +18,17 @@ See also: `/ze-status` for current work context, `/ze-doc-update` for broader do
 - Do not mention internal process in the public update: specs, acceptance criteria, review gates, agent sessions, learned summaries, commit-count bragging, or implementation bureaucracy.
 - Write as Zeledon, not as Thomas. Use the project voice. If Thomas must be named, use third person.
 - No em dashes. Use commas, periods, colons, or parentheses.
-- The whole update fits in 3 Discord messages, 4 at the very most. Check with a dry run before showing it to Thomas. Over budget means too many items, so cut items (`scripts/zeledon/STYLE.md`, "How long").
-- A fix gets one line. A new command, field, config leaf, counter or default keeps its full spelling (`scripts/zeledon/STYLE.md`, "How much detail").
-- No repo vocabulary and no raw wire bytes in the post (`scripts/zeledon/STYLE.md`, "Hard rules").
+- The whole update fits in 3 Discord messages, 4 at the very most. Check with `./le weekly source <file>` before showing it to Thomas. Over budget means too many items, so cut items (`website/changes/discord/STYLE.md`, "How long").
+- A fix gets one line. A new command, field, config leaf, counter, or default keeps its full spelling (`website/changes/discord/STYLE.md`, "How much detail").
+- No repository vocabulary and no raw wire bytes in the post (`website/changes/discord/STYLE.md`, "Hard rules").
 - Do not hand-edit generated site pages. Edit the source data or Markdown, then run the generator.
 
 ## Required references
 
 Read these before drafting:
 
-1. `scripts/zeledon/STYLE.md`.
-2. The latest one or two files in `scripts/zeledon/weekly/`. <!-- doc-links: ignore (archive dir created at runtime by post_weekly.py; absent on a clean tree) -->
+1. `website/changes/discord/STYLE.md`.
+2. The latest one or two files in `website/changes/discord/`.
 3. `website/AI.md`, especially `Weekly Update Checklist`.
 4. `website/data/topics.json` for allowed update tags.
 5. The latest `website/changes/posts/*.md` post, to keep format and coverage continuity.
@@ -37,7 +37,7 @@ Website sources are in `website/`; the publishable artifact is generated into `.
 
 ## Phase 1: Establish the week
 
-1. Find the newest archived Discord post in `scripts/zeledon/weekly/` and the newest website post in `website/changes/posts/`. <!-- doc-links: ignore (runtime archive dir created by post_weekly.py) -->
+1. Find the newest archived Discord post in `website/changes/discord/` and the newest website post in `website/changes/posts/`.
 2. Determine the new `covers:` range from the previous post's end date unless Thomas gives a different range.
 3. Gather what shipped during the range:
    - inspect `git log` for the range,
@@ -61,7 +61,7 @@ Read the counts live. Never copy them from a commit message or a previous post.
 |------|--------|
 | Total requirements, MUST-level, how many are checked | the header of `ai/RFC-REQUIREMENTS.md` |
 | MUSTs still owing a test | the "Coverage by RFC" line in the same file |
-| Documents read end to end against their own text, and those not | `make ze-rfc-extraction-status` |
+| Documents read end to end against their own text, and those not | `./le rfc extraction-status` |
 
 State the limit honestly: a green run proves everything on the list, and does
 not yet prove the list is complete. That is why the end-to-end reading is on
@@ -117,31 +117,31 @@ After Thomas approves the exact text:
 1. Run a dry run first:
 
 ```sh
-python3 scripts/zeledon/post_weekly.py website/changes/posts/<covers-start>.md
+le weekly source website/changes/posts/<covers-start>.md
 ```
 
 2. Check the chunk count and text. The tool splits at section boundaries for Discord's message limit.
 3. If Thomas wants a Discord preview, post to test only:
 
 ```sh
-python3 scripts/zeledon/post_weekly.py website/changes/posts/<covers-start>.md --channel ze-test --yes
+le weekly source website/changes/posts/<covers-start>.md channel ze-test confirm
 ```
 
 4. Post to `ze-news` only after approval:
 
 ```sh
-python3 scripts/zeledon/post_weekly.py website/changes/posts/<covers-start>.md --yes
+./le weekly source website/changes/posts/<covers-start>.md confirm
 ```
 
-The posting tool refuses incomplete weeks unless `--force` is used. Do not use `--force` unless Thomas explicitly asks for an in-progress week to be posted. The tool archives the exact posted text to `scripts/zeledon/weekly/<covers-start>-weekly.md` after a successful post.
+The posting tool refuses incomplete weeks unless `force` is used. Do not use `force` unless Thomas explicitly asks for an in-progress week to be posted. The tool archives the exact posted text to `website/changes/discord/<covers-start>-weekly.md` after a successful post.
 
-5. **A run that stops partway has already put messages in the channel.** Read what it printed. It names the chunk that failed and the flag that finishes the post:
+5. **A run that stops partway has already put messages in the channel.** Read what it printed. It names the chunk that failed and the arguments that finish the post:
 
 ```sh
-python3 scripts/zeledon/post_weekly.py website/changes/posts/<covers-start>.md --resume-from <N> --yes
+./le weekly source website/changes/posts/<covers-start>.md resume-from <N> confirm
 ```
 
-Never answer a partial send by running the command again without `--resume-from`. The archive is written only after the last chunk lands, so nothing records the week as posted, and a fresh run sends every chunk that already arrived a second time.
+Never answer a partial send by running the command again without `resume-from`. The archive is written only after the last chunk lands, so nothing records the week as posted, and a fresh run sends every chunk that already arrived a second time.
 
 ## Phase 4: Update the website
 
@@ -155,7 +155,8 @@ In `website/`, apply the checklist from `AI.md`:
 6. Run:
 
 ```sh
-make ze-site-generate
+./le site build
+./le site check
 ```
 
 7. Verify these outputs exist and reference the new week:
@@ -163,8 +164,8 @@ make ze-site-generate
    - `changes/index.html`,
    - `changes/feed.xml`,
    - `index.html` homepage `Latest updates` cards, when the new week is within the rendered latest set.
-8. Do not assume the homepage card count. Read `website/tools/render-index.py` and check `sitelib.latest_blog_posts(N)`. If Thomas expects four cards and the renderer still uses a different number, update the renderer before claiming the homepage is correct.
-9. Link-check the changed site. Reuse an existing local checker if available, otherwise use a temporary script that walks published `*.html` and `*.md` files, excludes `presentations/`, and resolves local `href` and `src` targets.
+8. Do not assume the homepage card count. Read `website/data/whats-new.json` and the staged `../gh-pages/index.html` before claiming the homepage is correct.
+9. Use `./le site check` for the native artifact and page-mirror checks.
 
 ## Phase 5: Report
 
@@ -175,8 +176,7 @@ Report only grounded facts:
 - the Discord archive path,
 - whether `ze-news` was posted,
 - which site files or data files changed,
-- the `make ze-site-generate` result,
-- the link-check result,
+- the `./le site build` and `./le site check` results,
 - any intentionally skipped drift item, with the reason.
 
-Do not say the update is done unless the Discord post, archive, generated site, homepage card, feed, and link check are all accounted for.
+Do not say the update is done unless the Discord post, archive, generated site, homepage card, feed, and native site checks are all accounted for.

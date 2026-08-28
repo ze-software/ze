@@ -49,7 +49,7 @@ suite. The work needs one of two things: a way to change `esp-group` on a live S
 that narrows `ESPGroup` after establishment.
 
 **A second gate applies to carrier 2 only.** No automated caller runs the IPsec interop
-tree, so `make ze-rfc-check` refuses a tagged test placed there. That is
+tree, so `./le rfc check` refuses a tagged test placed there. That is
 `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md`.
 
 ## Re-verified 2026-08-05, and blocked on a design choice
@@ -72,7 +72,7 @@ Picking between them is a design decision about the IKE surface, not something a
 measurement settles, so this stays blocked rather than being guessed at.
 
 **Carrier 2 is blocked twice over.** Even with the seam, no automated caller runs
-the IPsec interop tree, so `make ze-rfc-check` refuses a tagged test placed
+the IPsec interop tree, so `./le rfc check` refuses a tagged test placed
 there. That is `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md`, and it must
 land first or carrier 2 cannot be tagged at all.
 
@@ -175,7 +175,7 @@ as startable.
 <!-- BLOCKING: proves the feature is reachable from its intended entry point.
      Without it the feature exists in isolation: unit tests pass, nothing calls it.
      Every row needs a concrete test name. "Deferred"/"TODO"/empty is rejected
-     by .claude/hooks/validate-spec.sh, which is the point: an unedited row fails. -->
+     by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
@@ -363,7 +363,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -381,7 +381,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

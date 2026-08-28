@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -32,5 +31,5 @@ func init() {
 	// The census counts this gate as ported from here, read out of the action
 	// table rather than from a second hand-typed list. No ClaimForked call: the
 	// nudge reads git and answers in Go, so nothing here starts a script.
-	parity.Claim(area, actions.Gates()...)
+
 }

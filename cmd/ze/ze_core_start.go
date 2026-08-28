@@ -53,12 +53,12 @@ func startUsage() {
 		Summary: "Start the Ze daemon from blob storage, or from an optional config file",
 		Usage:   []string{"ze start [<config-file>] [options]"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Options", Entries: []helpfmt.HelpEntry{
+			{Title: helpOptionsSectionTitle, Entries: []helpfmt.HelpEntry{
 				{Name: "--cli", Desc: "Attach interactive CLI after startup"},
 				{Name: "--web <port>", Desc: "Enable web UI on given port (requires config)"},
-				{Name: "--web-only", Desc: "Start web UI only, no daemon (config editing only)"},
-				{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
-				{Name: "--mcp <port>", Desc: "Enable MCP server on given port"},
+				{Name: flagStartWebOnly, Desc: "Start web UI only, no daemon (config editing only)"},
+				{Name: flagStartInsecureWeb, Desc: "Disable web auth (binds to localhost only)"},
+				{Name: helpMCPPortOption, Desc: "Enable MCP server on given port"},
 				{Name: "--mcp-token <token>", Desc: "Bearer token for MCP authentication"},
 			}},
 			{Title: "Prerequisites", Entries: []helpfmt.HelpEntry{
@@ -126,9 +126,9 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--cli":
+		case flagStartCLI:
 			cliEnabled = true
-		case "--web":
+		case flagStartWeb:
 			if i+1 < len(args) {
 				i++
 				if !validPort(args[i]) {
@@ -140,11 +140,11 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 				fmt.Fprintf(os.Stderr, "error: --web requires a port\n")
 				return 1
 			}
-		case "--web-only":
+		case flagStartWebOnly:
 			webOnly = true
-		case "--insecure-web":
+		case flagStartInsecureWeb:
 			insecureWeb = true
-		case "--mcp":
+		case flagStartMCP:
 			if i+1 < len(args) {
 				i++
 				if !validPort(args[i]) {
@@ -157,7 +157,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 				fmt.Fprintf(os.Stderr, "error: --mcp requires a port\n")
 				return 1
 			}
-		case "--mcp-token":
+		case flagStartMCPToken:
 			if i+1 < len(args) {
 				i++
 				mcpToken = args[i]
@@ -297,7 +297,7 @@ func isManaged(store storage.Storage) bool {
 	if err != nil {
 		return false
 	}
-	return strings.TrimSpace(string(data)) == "true"
+	return strings.TrimSpace(string(data)) == booleanTextTrue
 }
 
 // cmdStartManaged handles ze start for managed clients.

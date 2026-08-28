@@ -117,7 +117,7 @@ func TestForwardPoolOrderingProperty(t *testing.T) {
 
 	// Property 4 -- concurrent dispatch never loses or duplicates a route.
 	// G goroutines dispatch to one worker; the small channel forces the
-	// TryDispatch->DispatchOverflow fallback. Every dispatched id must be
+	// TryDispatch->dispatchOverflow fallback. Every dispatched id must be
 	// delivered to the handler exactly once. Run under -race.
 	t.Run("concurrent_dispatch_exactly_once", func(t *testing.T) {
 		t.Parallel()
@@ -150,7 +150,7 @@ func TestForwardPoolOrderingProperty(t *testing.T) {
 					item := fwdItem{meta: map[string]any{"id": base + k}}
 					// Real caller pattern: non-blocking try, overflow fallback.
 					if !pool.TryDispatch(key, item) {
-						pool.DispatchOverflow(key, item)
+						pool.dispatchOverflow(key, item)
 					}
 				}
 			}(g * perGoroutine)

@@ -77,7 +77,7 @@ func buildWorkbenchListTable(tree *config.Tree, schema *config.Schema, path []st
 		cols = nil
 	}
 	keys := collectListKeys(tree, schema, path)
-	baseURL := "/show/" + textbuf.Join(path, "/") + "/"
+	baseURL := showPathPrefix + textbuf.Join(path, "/") + "/"
 	return buildListTable(tree, schema, path, listNode, keys, cols, baseURL)
 }
 

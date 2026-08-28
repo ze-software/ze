@@ -271,10 +271,10 @@ func (l *L2TP) daemonArgs(name, binaryRel string) []string {
 	binary := tb.Str("/src/").Str(filepath.ToSlash(binaryRel)).String()
 
 	return []string{
-		dockerExec, "--interactive",
+		dockerExec, dockerInteractiveArg,
 		dockerEnv, "ZE_LOG_L2TP=debug",
 		dockerEnv, "ze.l2tp.skip-kernel-probe=true",
-		dockerEnv, "ZE_STORAGE_BLOB=false",
+		dockerEnv, storageBlobDisabledEnv,
 		dockerEnv, "ZE_CONFIG_DIR=/run/l2tp/ze",
 		name,
 		binary,

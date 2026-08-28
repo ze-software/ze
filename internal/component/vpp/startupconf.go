@@ -38,7 +38,7 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 
 	if s.APISocket != "" {
 		b.section("api-segment", func() {
-			b.kv("prefix", "vpp")
+			b.kv("prefix", componentVPP)
 		})
 
 		b.section("socksvr", func() {

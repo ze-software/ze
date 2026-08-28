@@ -45,11 +45,11 @@ const (
 )
 
 const (
-	gateEvidenceVet     = "ze-evidence-vet"
-	gateVulnerability   = "ze-dependency-vulnerability-check"
-	gateUnitCached      = "ze-unit-test-cached"
-	gateUnitRaceChanged = "ze-unit-test-race-changed"
-	gateAlloc           = "ze-alloc-check"
+	actionEvidenceVet     = Area + "/" + VerbEvidenceVet
+	actionVulnerability   = Area + "/" + VerbVulnerability
+	actionUnitCached      = Area + "/" + VerbUnitCached
+	actionUnitRaceChanged = Area + "/" + VerbUnitRaceChanged
+	actionAlloc           = Area + "/" + VerbAlloc
 )
 
 var allocPackages = []string{
@@ -74,7 +74,7 @@ type CommandPlan struct {
 // Plan is the complete command and population contract for one action.
 type Plan struct {
 	Verb         string             `json:"verb"`
-	Gate         string             `json:"gate"`
+	Action       string             `json:"action"`
 	Packages     []string           `json:"packages,omitempty"`
 	Changed      *changed.Selection `json:"changed,omitempty"`
 	Benchtime    string             `json:"benchtime,omitempty"`
@@ -105,7 +105,7 @@ type AllocationVerdict struct {
 // Code is the first child failure or the native allocation verdict.
 type Report struct {
 	Verb         string              `json:"verb"`
-	Gate         string              `json:"gate"`
+	Action       string              `json:"action"`
 	Packages     []string            `json:"packages,omitempty"`
 	Changed      *changed.Selection  `json:"changed,omitempty"`
 	Benchtime    string              `json:"benchtime,omitempty"`
@@ -136,16 +136,6 @@ func productionDependencies() dependencies {
 		getenv:    os.Getenv,
 		ceilings:  allocationCeilings,
 	}
-}
-
-// PlanFor derives the exact population, argv, and declared environment for one
-// action. Population discovery is context-bound and fails closed.
-func PlanFor(ctx context.Context, root, verb string) (Plan, error) {
-	plan, _, code, err := planFor(ctx, root, verb, productionDependencies())
-	if err != nil {
-		return plan, fmt.Errorf("plan %s (code %d): %w", verb, code, err)
-	}
-	return plan, nil
 }
 
 // Run executes one action and returns its structured report and exact verdict.
@@ -280,7 +270,7 @@ func runCommands(ctx context.Context, plan Plan, report Report, execute commandE
 func reportFromPlan(plan Plan) Report {
 	return Report{
 		Verb:         plan.Verb,
-		Gate:         plan.Gate,
+		Action:       plan.Action,
 		Packages:     slices.Clone(plan.Packages),
 		Changed:      cloneSelection(plan.Changed),
 		Benchtime:    plan.Benchtime,
@@ -289,8 +279,8 @@ func reportFromPlan(plan Plan) Report {
 }
 
 func planFor(ctx context.Context, root, verb string, deps dependencies) (Plan, []ChildReport, int, error) {
-	gate, err := gateForVerb(verb)
-	plan := Plan{Verb: verb, Gate: gate}
+	action, err := actionForVerb(verb)
+	plan := Plan{Verb: verb, Action: action}
 	if err != nil {
 		return plan, nil, 2, err
 	}
@@ -319,14 +309,19 @@ func planFor(ctx context.Context, root, verb string, deps dependencies) (Plan, [
 }
 
 func planEvidence(root string, chain gotoolchain.Toolchain, plan Plan) (Plan, []ChildReport, int, error) {
-	const pkg = "./scripts/evidence/..."
-	if err := requireDirectory(root, "scripts/evidence"); err != nil {
-		return plan, nil, 1, err
+	directories := []string{"internal/le/evidence", "internal/le/deployment", "internal/le/qemu"}
+	packages := make([]string, 0, len(directories))
+	for _, directory := range directories {
+		if err := requireDirectory(root, directory); err != nil {
+			return plan, nil, 1, err
+		}
+		packages = append(packages, "./"+directory+"/...")
 	}
-	plan.Packages = []string{pkg}
+	plan.Packages = packages
+	args := append([]string{"go", "vet"}, packages...)
 	plan.Commands = []CommandPlan{commandPlan(
-		gateEvidenceVet,
-		[]string{"go", "vet", pkg},
+		actionEvidenceVet,
+		args,
 		chain,
 		gotoolchain.EnvOptions{GOOS: "linux"},
 	)}
@@ -340,7 +335,7 @@ func planVulnerability(chain gotoolchain.Toolchain, plan Plan, lookPath func(str
 	}
 	plan.Packages = []string{"./..."}
 	plan.Commands = []CommandPlan{commandPlan(
-		gateVulnerability,
+		actionVulnerability,
 		[]string{tool, "./..."},
 		chain,
 		gotoolchain.EnvOptions{GOOS: "linux", GOARCH: "amd64"},
@@ -355,8 +350,8 @@ func planUnitCached(ctx context.Context, root string, chain gotoolchain.Toolchai
 	}
 	plan.Packages = packages
 	plan.Commands = []CommandPlan{
-		commandPlan(planName(gateUnitCached, "full"), chain.GoTest(gotoolchain.TestOptions{}, packages...), chain, gotoolchain.EnvOptions{Procs: true}),
-		commandPlan(planName(gateUnitCached, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true}, "./cmd/ze/hub"), chain, gotoolchain.EnvOptions{Procs: true}),
+		commandPlan(planName(actionUnitCached, "full"), chain.GoTest(gotoolchain.TestOptions{}, packages...), chain, gotoolchain.EnvOptions{Procs: true}),
+		commandPlan(planName(actionUnitCached, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true}, "./cmd/ze/hub"), chain, gotoolchain.EnvOptions{Procs: true}),
 	}
 	return plan, children, 0, nil
 }
@@ -377,8 +372,8 @@ func planUnitRaceChanged(ctx context.Context, root string, chain gotoolchain.Too
 	}
 	options := gotoolchain.EnvOptions{CGO: true, Procs: true}
 	plan.Commands = []CommandPlan{
-		commandPlan(planName(gateUnitRaceChanged, "changed"), chain.GoTest(gotoolchain.TestOptions{Race: true}, plan.Packages...), chain, options),
-		commandPlan(planName(gateUnitRaceChanged, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true, Race: true}, "./cmd/ze/hub"), chain, options),
+		commandPlan(planName(actionUnitRaceChanged, "changed"), chain.GoTest(gotoolchain.TestOptions{Race: true}, plan.Packages...), chain, options),
+		commandPlan(planName(actionUnitRaceChanged, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true, Race: true}, "./cmd/ze/hub"), chain, options),
 	}
 	return plan, children, 0, nil
 }
@@ -406,7 +401,7 @@ func planAlloc(root string, chain gotoolchain.Toolchain, plan Plan, getenv func(
 		text.Str("-benchtime=").Str(benchtime).String())
 	args = append(args, plan.Packages...)
 	plan.Commands = []CommandPlan{commandPlan(
-		planName(gateAlloc, "benchmarks"),
+		planName(actionAlloc, "benchmarks"),
 		chain.GoTest(gotoolchain.TestOptions{}, args...),
 		chain,
 		gotoolchain.EnvOptions{Procs: true},
@@ -555,18 +550,18 @@ func requireDirectory(root, relative string) error {
 	return nil
 }
 
-func gateForVerb(verb string) (string, error) {
+func actionForVerb(verb string) (string, error) {
 	switch verb {
 	case VerbEvidenceVet:
-		return gateEvidenceVet, nil
+		return actionEvidenceVet, nil
 	case VerbVulnerability:
-		return gateVulnerability, nil
+		return actionVulnerability, nil
 	case VerbUnitCached:
-		return gateUnitCached, nil
+		return actionUnitCached, nil
 	case VerbUnitRaceChanged:
-		return gateUnitRaceChanged, nil
+		return actionUnitRaceChanged, nil
 	case VerbAlloc:
-		return gateAlloc, nil
+		return actionAlloc, nil
 	default:
 		return "", fmt.Errorf("unknown %s action %q", Area, verb)
 	}
@@ -640,9 +635,9 @@ func allocationVerdicts(text string, ceilings map[string]int) ([]AllocationVerdi
 	return verdicts, nil
 }
 
-func planName(gate, suffix string) string {
+func planName(action, suffix string) string {
 	var text textbuf.Buffer
-	return text.Str(gate).Byte(':').Str(suffix).String()
+	return text.Str(action).Byte(':').Str(suffix).String()
 }
 
 func allocsFromFields(fields []string) (int, bool) {

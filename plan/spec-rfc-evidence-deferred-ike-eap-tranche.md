@@ -44,15 +44,15 @@ buys. Check whether that review has landed before starting.
   happen is the vacuity trap in `ai/rules/interop-and-goal-validation.md`.
 - Write no `{gap}`. A requirement that cannot be proven at any tier is an owner
   question (`ai/rules/rfc-compliance.md`).
-- Measure by importing `scripts/dev/rfc_requirements.py`. Do not render
+- Measure by importing `internal/le/rfc/rfc.go`. Do not render
   `ai/RFC-REQUIREMENTS.md` to read a number: the regen sweeps other sessions'
   uncommitted tags into your commit.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `scripts/dev/rfc_requirements.py` - `CARRIERS`, `carrier_for`, `functional_suites`
-  → Constraint: a `.ci` in a suite `mk/test-functional.mk` `all_suites` does not name resolves to `TIER_UNRUN` and the scanner refuses the tag.
+- [ ] `internal/le/rfc/rfc.go` - `CARRIERS`, `carrier_for`, `functional_suites`
+  → Constraint: a `.ci` in a suite `internal/le/functional/suites.go` `all_suites` does not name resolves to `TIER_UNRUN` and the scanner refuses the tag.
 - [ ] `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` - the selection rule and the ranking
   → Decision: the rule tests the ORACLE, never the requirement text.
 - [ ] `plan/spec-rfcgate-2-evidence.md` history (spec closed) - the carrier, tier and ratchet machinery
@@ -68,7 +68,7 @@ buys. Check whether that review has landed before starting.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `scripts/dev/rfc_requirements.py` - resolves a test path to a carrier, an evidence kind and an execution tier
+- [ ] `internal/le/rfc/rfc.go` - resolves a test path to a carrier, an evidence kind and an execution tier
 
 **Behavior to preserve:**
 - Every existing `test/ipsec/*.ci` expectation and the `kind/tier` model.
@@ -90,7 +90,7 @@ buys. Check whether that review has landed before starting.
 | Ze ↔ external peer | IKEv2 over UDP | No |
 
 ### Integration Points
-- `scripts/dev/rfc_requirements.py` `scan_ci_tags` - discovers the `# RFC requirement:` lines.
+- `internal/le/rfc/rfc.go` `scan_ci_tags` - discovers the `# RFC requirement:` lines.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -106,7 +106,7 @@ buys. Check whether that review has landed before starting.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The `ipsec` suite boots enough of the IKE stack to observe these obligations at a boundary | `mk/test-functional.mk` `all_suites` names `ipsec` | the cluster needs interop tier, which is nightly and advisory | run the suite and read what it exercises | unvalidated |
+| A-1 | The `ipsec` suite boots enough of the IKE stack to observe these obligations at a boundary | `internal/le/functional/suites.go` `all_suites` names `ipsec` | the cluster needs interop tier, which is nightly and advisory | run the suite and read what it exercises | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -125,7 +125,7 @@ buys. Check whether that review has landed before starting.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `# RFC requirement:` line in a landed `.ci` | → | `scan_ci_tags` then `carrier_for` (`scripts/dev/rfc_requirements.py`) | the landed `.ci` resolves to `functional/verify` |
+| `# RFC requirement:` line in a landed `.ci` | → | `scan_ci_tags` then `carrier_for` (`internal/le/rfc/rfc.go`) | the landed `.ci` resolves to `functional/verify` |
 
 ## Acceptance Criteria
 
@@ -266,7 +266,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -284,7 +284,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

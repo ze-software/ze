@@ -1,8 +1,7 @@
 // Design: docs/architecture/core-design.md -- the Go toolchain environment le runs every build and test under
 //
-// Package gotoolchain is the Go port of scripts/le/devtools/toolchain.py. For
-// every le tool that starts a Go command, it provides the command environment
-// and argv.
+// Package gotoolchain provides the environment and argv for every le action
+// that starts a Go command.
 //
 // The package DERIVES these values from the checkout instead of defining them
 // here. A literal beside the source value in go.mod or feature-gates.txt would
@@ -60,17 +59,16 @@ import (
 	"github.com/ze-software/ze/internal/le/featuretags"
 )
 
-// DefaultTestTimeout is the per-test-binary timeout, overridable the way Make
-// allowed.
+// DefaultTestTimeout is the per-test-binary timeout. The environment can
+// override it.
 const DefaultTestTimeout = "20m"
 
 // coreTag is the build tag every flavor carries. The feature gates are added to
 // it, never substituted for it.
 const coreTag = "ze_core"
 
-// The keys the three run-time knobs are read under. Two carry the alias the
-// Makefile and the Python le already spell, so a caller that exports the old
-// name keeps reaching the same value.
+// The keys the three run-time knobs are read under. Two retain their established
+// environment aliases so existing automation keeps reaching the same value.
 const (
 	// TagsKey specifies more build tags without a manifest change.
 	TagsKey = "ze.tags"
@@ -188,27 +186,51 @@ func New(root string) (Toolchain, error) {
 	}, nil
 }
 
-// goToolchainPin returns the toolchain line of go.mod.
+// goToolchainPin returns the toolchain go.mod pins, preferring an explicit
+// toolchain line and falling back to the go directive.
 //
 // If go.mod is unreadable, goToolchainPin returns an ERROR. The Python
 // implementation returned an empty string in this case. This retained the
 // ambient toolchain and was indistinguishable from a checkout that never
 // declared a pin. As a result, a lost or unreadable go.mod caused the export-data
-// failure that the pin prevents, without a diagnostic. A go.mod that PARSES but
-// declares no toolchain is different. goToolchainPin still returns an empty
-// string for that condition.
+// failure that the pin prevents, without a diagnostic.
+//
+// The go directive is read because a module stating its Go version and no
+// separate toolchain line still pins one: `go 1.27.0` means go1.27.0, and
+// GOTOOLCHAIN accepts that spelling. Reading only the toolchain line left this
+// repository with no pin at all once the toolchain line was dropped, so every le
+// action ran under the ambient toolchain and the export-data protection this
+// package exists to provide was silently off. An empty answer now means go.mod
+// declares neither a toolchain line nor a patch-qualified go directive, and
+// no pin is available.
 func goToolchainPin(root string) (string, error) {
 	raw, err := os.ReadFile(filepath.Join(root, "go.mod")) //nolint:gosec // a build tool reads the checkout it was pointed at
 	if err != nil {
 		return "", err
 	}
+	version := ""
 	for line := range strings.SplitSeq(string(raw), "\n") {
 		parts := strings.Fields(line)
-		if len(parts) >= 2 && parts[0] == "toolchain" {
+		if len(parts) < 2 {
+			continue
+		}
+		if parts[0] == "toolchain" {
 			return parts[1], nil
 		}
+		if parts[0] == "go" && version == "" {
+			version = parts[1]
+		}
 	}
-	return "", nil
+	// Only a patch-qualified directive names a toolchain. Go refuses a language
+	// version: `GOTOOLCHAIN=go1.26` answers "go1.26 is a language version but
+	// not a toolchain version (go1.26.x)", which would break every command this
+	// package launches. A two-component directive therefore yields no pin, and
+	// the export-data protection is unavailable until go.mod states a patch or
+	// a toolchain line.
+	if strings.Count(version, ".") != 2 {
+		return "", nil
+	}
+	return "go" + version, nil
 }
 
 // testProcs answers a quarter of the cores, and never fewer than one.
@@ -220,8 +242,8 @@ func testProcs() int {
 	return procs
 }
 
-// timeoutFromEnv answers the per-test-binary timeout, honoring the alias
-// GO_TEST_TIMEOUT the Makefile exports.
+// timeoutFromEnv answers the per-test-binary timeout, honoring the
+// GO_TEST_TIMEOUT environment alias.
 func timeoutFromEnv() string {
 	if named := env.Get(timeoutEntry.Aliases[0]); named != "" {
 		return named
@@ -237,9 +259,9 @@ func extraTags() []string {
 // lintMemLimit answers the soft heap ceiling a golangci-lint run gets: an
 // eighth of this machine's RAM, floored.
 //
-// ZE_LINT_MEMLIMIT in the environment wins, which is how `make ze-lint
-// ZE_LINT_MEMLIMIT=16GiB` reaches here: GNU make puts a command-line variable
-// into the recipe environment.
+// ZE_LINT_MEMLIMIT in the environment wins, so
+// `ZE_LINT_MEMLIMIT=16GiB ./le verify-lint run` reaches this setting directly.
+// The default is derived below when the caller names no value.
 func lintMemLimit() string {
 	if named := env.Get(memLimitEntry.Aliases[0]); named != "" {
 		return named
@@ -325,10 +347,9 @@ func atoi(s string) (int, bool) {
 
 // LDFlags answers the linker flags every released binary carries.
 //
-// One string, because that is how `go build -ldflags` takes it and how the
-// Makefile's ZE_LDFLAGS spells it. A binary built without these reports an
-// empty version, which is indistinguishable from a binary somebody built by
-// hand.
+// One string, because that is how `go build -ldflags` takes it. A binary built
+// without these reports an empty version, which is indistinguishable from a
+// binary somebody built by hand.
 func (t Toolchain) LDFlags() string {
 	var tb textbuf.Buffer
 	return tb.Str("-X main.version=").Str(t.Version).
@@ -341,12 +362,12 @@ func (t Toolchain) TestTags() string {
 	return joinTags(t.Features, t.ExtraTags)
 }
 
-// CoreTags returns the bare tag set for the compile-out checks.
+// coreTags returns the bare tag set for the compile-out checks.
 //
 // A reduced set excludes modules from compilation and reduces the surface that
 // a gate can see. This reduction is required for those checks and is a defect
 // everywhere else.
-func (t Toolchain) CoreTags() string {
+func (t Toolchain) coreTags() string {
 	return joinTags(nil, t.ExtraTags)
 }
 
@@ -435,13 +456,13 @@ func (t Toolchain) Environment(opts EnvOptions) []string {
 	return append(full, overrides...)
 }
 
-// GoRun returns the argv for `go run` on one script. The argv includes the full
+// goRun returns the argv for `go run` on one script. The argv includes the full
 // feature tag set.
 //
 // Gates that inspect the command surface require the full set. A reduced set
 // excludes modules from compilation. The gate would then report on a smaller
 // product than the one that ships.
-func (t Toolchain) GoRun(script string, args ...string) []string {
+func (t Toolchain) goRun(script string, args ...string) []string {
 	argv := make([]string, 0, 5+len(args))
 	argv = append(argv, "go", "run", "-tags", t.TestTags(), script)
 	return append(argv, args...)
@@ -460,7 +481,7 @@ type TestOptions struct {
 func (t Toolchain) GoTest(opts TestOptions, args ...string) []string {
 	tags := t.TestTags()
 	if opts.Core {
-		tags = t.CoreTags()
+		tags = t.coreTags()
 	}
 	argv := make([]string, 0, 7+len(args))
 	argv = append(argv, "go", "test", "-timeout", t.Timeout, "-tags", tags)

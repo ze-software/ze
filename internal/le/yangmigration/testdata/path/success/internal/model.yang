@@ -1,0 +1,18 @@
+module model {
+  namespace "urn:model";
+  prefix model;
+  extension required { argument path; }
+  container bgp {
+    list peer {
+      key "name";
+      leaf name { type string; }
+      container connection {
+        leaf remote { type string; }
+      }
+      leaf endpoint {
+        type string;
+        model:required "connection/remote/ip";
+      }
+    }
+  }
+}

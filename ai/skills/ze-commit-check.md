@@ -35,34 +35,33 @@ See also: `/ze-commit` (commit without verification), `/ze-precommit-verify` (st
    with MUST on BOTH sides? Fix what they find before you draft the message.
 3. **Verification decision:** Apply `ai/rules/git-safety.md`.
    - If the scope is only `docs/`, `ai/`, `.claude/`, `plan/`, or `README.md`
-     files per the NO row, skip `ze-precommit-verify` entirely and record the skip reason.
-   - Before any verify target, run `scripts/dev/verify-status.sh check`.
-   - If it prints FRESH, MUST NOT run `make ze-precommit-verify` or
-     `make ze-precommit-verify-changed` again. Use the reported timestamp as evidence.
-   - If it prints STALE and `ze-precommit-verify` applies, run `make ze-precommit-verify` once.
-     Do not substitute `make ze-precommit-verify-changed` unless the user explicitly
-     requested a changed-only gate.
+     files per the NO row, skip `./le verify worktree` entirely and record the skip reason.
+   - Before verification, run `./le verify-status check` with one `path <file>` pair per scoped file.
+   - If it prints FRESH, MUST NOT run `./le verify worktree` again. Use the
+     reported timestamp as evidence.
+   - If it prints STALE and verification applies, run `./le verify worktree`
+     once. There is no changed-only spelling.
 4. **Failure handling:** If verification fails, read
    `tmp/ze-verify-failures.log` first, report the blocking failure groups, and
    stop. Do not prepare a commit script for failing code.
 5. **Draft commit message:** Base the subject and body on the scoped changes.
    Do not run `git log` just to imitate style unless the user explicitly asks.
-6. **Generate commit script:** Use `scripts/dev/commit_helper.py create` so the
-   session ID, message file, executable script, ignored-path checks, and
-   `git commit -F` are handled consistently:
+6. **Generate commit script:** Use `./le commit create`; it is the sole staging
+   and commit preparation route and owns the session ID, message file,
+   executable script, ignored-path checks, and `git commit -F`:
 
 ```bash
-scripts/dev/commit_helper.py create \
-  --replace \
-  --subject "type: subject line" \
-  --body "Body explaining why." \
-  --file file1.go \
-  --file file2.go \
-  --file file3_test.go
+./le commit create \
+  replace \
+  subject "type: subject line" \
+  body "Body explaining why." \
+  file file1.go \
+  file file2.go \
+  file file3_test.go
 ```
 
 7. **Run and report:** Run the generated script yourself, with `bash` and the
-   path from the helper's `script=` line (never a path you built from the
+   path from the command's `script=` line (never a path you built from the
    session id), then show the resulting commit SHA(s),
    the included files, verification evidence or skip reason, commit
    subject/body summary, generated message file path, and generated script
@@ -70,9 +69,9 @@ scripts/dev/commit_helper.py create \
 
 ## Rules
 
-- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script by the path its `script=` line printed.
-- Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
-- Always run `scripts/dev/verify-status.sh check` before any verify target. A FRESH PASS is authoritative and forbids rerunning `make ze-precommit-verify` or `make ze-precommit-verify-changed`.
+- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the script from `./le commit create`, then run the exact `script=` path it printed.
+- `./le commit create` is the sole staging and commit route. There is no hand-written fallback.
+- Always run `./le verify-status check` with the scoped paths before verification. A FRESH PASS is authoritative and forbids rerunning `./le verify worktree`.
 - If verification is STALE and required, run one required gate, then proceed from its result. Do not stack extra health checks or speculative gates.
 - Do not run late completeness audits, health checks, recent-commit style reviews, remaining-work tables, or companion-artifact reviews unless the user explicitly asks for them.
 - Step 2's style gate is the ONE exception, and it stays inside its bounds: one grep, one read of the added lines, four questions. It never grows into `/ze-review`.

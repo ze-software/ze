@@ -1,9 +1,8 @@
 // Design: docs/architecture/core-design.md -- the unit-test area as one command
 // Overview: groups.go -- the five package groups and their order
 //
-// A bare `le test-unit` runs all five groups. Named gates run in command-line
-// order. Every sweep runs all selected groups and returns the first failure's
-// exit code, matching scripts/le/gateapp.py.
+// A bare `le test-unit` runs all five groups. Named actions run in command-line
+// order. Every sweep returns the first failure's exit code.
 package testunit
 
 import (
@@ -13,22 +12,20 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-type gateRunner func(string, []string, string, []string) (gaterun.GateReport, int)
-
+type actionRunner func(string, []string, string, []string) (gaterun.ActionReport, int)
 type rootResolver func() (string, error)
 
 type toolchainLoader func(string) (gotoolchain.Toolchain, error)
 
-// table derives dispatch, listing, help, and parity claims from the group table.
-func table(tc gotoolchain.Toolchain, run gateRunner) leaction.Area {
-	gates := Table()
-	actions := make([]leaction.Action, 0, len(gates))
-	for _, gate := range gates {
+// table derives dispatch, listing, and help from the group table.
+func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
+	groups := Table()
+	actions := make([]leaction.Action, 0, len(groups))
+	for _, group := range groups {
 		actions = append(actions, leaction.Action{
-			Gate:   gate.Name,
-			Why:    gate.Why,
-			Forks:  gate.Argv(tc),
-			Answer: runner(tc, gate, run),
+			Verb:   group.Verb,
+			Why:    group.Why,
+			Answer: runner(tc, group, run),
 		})
 	}
 	return leaction.New(Area, actions...)
@@ -36,9 +33,9 @@ func table(tc gotoolchain.Toolchain, run gateRunner) leaction.Area {
 
 // runner executes one group with the race detector's cgo requirement and the
 // test process concurrency cap.
-func runner(tc gotoolchain.Toolchain, gate Gate, run gateRunner) func() (any, int) {
+func runner(tc gotoolchain.Toolchain, group Group, run actionRunner) func() (any, int) {
 	return func() (any, int) {
-		return run(gate.Name, gate.Argv(tc), tc.Root, tc.Environment(gate.EnvOptions()))
+		return run(group.Verb, group.Argv(tc), tc.Root, tc.Environment(group.EnvOptions()))
 	}
 }
 
@@ -46,9 +43,6 @@ func runner(tc gotoolchain.Toolchain, gate Gate, run gateRunner) func() (any, in
 func metadataOnly() leaction.Area {
 	return table(gotoolchain.Toolchain{}, gaterun.Run)
 }
-
-// Gates returns the five Make gate names in execution order.
-func Gates() []string { return metadataOnly().Gates() }
 
 // Actions returns the command surface as structured data.
 func Actions() leaction.List { return metadataOnly().Actions() }
@@ -64,7 +58,7 @@ func Answer(args []string) (any, int) {
 // answer keeps checkout and process seams replaceable by package tests. The
 // production path above always uses the repository root, native Go toolchain,
 // and gaterun subprocess execution.
-func answer(args []string, resolveRoot rootResolver, loadToolchain toolchainLoader, run gateRunner) (any, int) {
+func answer(args []string, resolveRoot rootResolver, loadToolchain toolchainLoader, run actionRunner) (any, int) {
 	root, err := resolveRoot()
 	if err != nil {
 		leaction.ReportError(err)
@@ -76,9 +70,20 @@ func answer(args []string, resolveRoot rootResolver, loadToolchain toolchainLoad
 		return nil, 1
 	}
 
+	return sweep(args, table(tc, run))
+}
+
+// sweep derives the bare command's selection from the same action table that
+// dispatches named selections. Gate identities remain metadata and are never
+// passed back through verb matching.
+func sweep(args []string, command leaction.Area) (any, int) {
 	selected := args
 	if len(selected) == 0 {
-		selected = Gates()
+		rows := command.Actions().Actions
+		selected = make([]string, 0, len(rows))
+		for _, row := range rows {
+			selected = append(selected, row.Verb)
+		}
 	}
-	return table(tc, run).Sweep(selected, leaction.RunEveryAction)
+	return command.Sweep(selected, leaction.RunEveryAction)
 }

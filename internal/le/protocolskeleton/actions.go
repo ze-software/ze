@@ -22,14 +22,11 @@ const area = "protocol-skeleton"
 // behave as declared. It is the script's, unchanged: 1.
 const selftestFailure = 1
 
-// actions is the whole command surface. Only the report is a Make target; the
-// selftest has no gate of its own and carries its verb instead.
+// actions is the whole native command surface. The report and selftest are both
+// explicit verbs.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-protocol-skeleton-report",
-		Why:    "which protocol implementations are still a skeleton rather than a daemon",
-		Answer: runReport,
-	},
+	leaction.Action{Verb: "report", Why: "which protocol implementations are still a skeleton rather than a daemon",
+		Answer: runReport},
 	leaction.Action{
 		Verb: "selftest",
 		Why:  "the classifier still tells the five classes apart, which the advisory's own page cannot show",

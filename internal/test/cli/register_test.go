@@ -13,7 +13,7 @@ import (
 
 // coveredByBigRunner reports whether test/<name> is walked by one of the "big"
 // ze-test runners as a subcommand rather than through registerCIRoot (whose suite
-// name equals its directory, so registry.HasRootHandler covers those). The two
+// name equals its directory, so registry.LookupRoot covers those). The two
 // sources of truth are consumed directly so this guard never re-hardcodes them:
 //
 //   - bgpCIRunnerDirs (cmd_bgp.go): the "ze-test bgp <sub>" dirs
@@ -115,14 +115,14 @@ func TestCIRootsRegistered(t *testing.T) {
 			// discovered by nothing. That is the same silent death this guard
 			// exists to prevent, so each child meets the same predicate.
 			for _, suite := range draftSuiteNames(full) {
-				if registry.HasRootHandler(suite) || coveredByBigRunner(suite) {
+				if registry.LookupRoot(suite) != nil || coveredByBigRunner(suite) {
 					continue
 				}
 				orphans = append(orphans, filepath.Join(draftDirName, suite))
 			}
 			continue
 		}
-		if registry.HasRootHandler(name) || coveredByBigRunner(name) {
+		if registry.LookupRoot(name) != nil || coveredByBigRunner(name) {
 			continue
 		}
 		orphans = append(orphans, name)

@@ -74,9 +74,9 @@ func (e *Engine) externalCommand(args []string, dir string) Command {
 	return Command{Args: args, Dir: dir, Stdout: e.output, Stderr: e.output}
 }
 
-// CheckAll verifies all published artifacts. A non-empty release also verifies
+// checkAll verifies all published artifacts. A non-empty release also verifies
 // that every selected artifact carries that release identity.
-func (e *Engine) CheckAll(release string) (Report, error) {
+func (e *Engine) checkAll(release string) (Report, error) {
 	manifest, indexed, err := e.loadManifest()
 	if err != nil {
 		return Report{}, err
@@ -88,9 +88,9 @@ func (e *Engine) CheckAll(release string) (Report, error) {
 	return Report{Mode: "check", Demos: selected}, err
 }
 
-// ValidationCheckAll runs every scenario validator in manifest order. It stops
+// validationCheckAll runs every scenario validator in manifest order. It stops
 // on the first failure and publishes no artifacts.
-func (e *Engine) ValidationCheckAll() (Report, error) {
+func (e *Engine) validationCheckAll() (Report, error) {
 	manifest, indexed, err := e.loadManifest()
 	if err != nil {
 		return Report{}, err
@@ -149,8 +149,7 @@ func manifestIDs(manifest Manifest) []string {
 }
 
 func (e *Engine) runValidation(manifest Manifest, demo Demo) error {
-	validator := path.Join("/src/demos/terminal", demo.Validate)
-	command := e.containerCommand(manifest.Renderer, validator, demo.isPrivileged())
+	command := e.containerCommand(manifest.Renderer, demo.isPrivileged(), demoBinary("ze-demo"), "validate", demo.Validate)
 	var buffer textbuf.Buffer
 	e.output.Write(buffer.Str("validating ").Str(demo.ID).Str("...\n").Bytes()) //nolint:errcheck // CLI progress output cannot change the validation verdict.
 	return e.withLock(func() error {
@@ -162,7 +161,7 @@ func (e *Engine) runValidation(manifest Manifest, demo Demo) error {
 	})
 }
 
-func (e *Engine) containerCommand(renderer Renderer, entry string, privileged bool) []string {
+func (e *Engine) containerCommand(renderer Renderer, privileged bool, entries ...string) []string {
 	uid := strconv.Itoa(os.Getuid())
 	gid := strconv.Itoa(os.Getgid())
 	scratchRoot := filepath.Join(e.root, "tmp", "terminal-demos")
@@ -199,8 +198,8 @@ func (e *Engine) containerCommand(renderer Renderer, entry string, privileged bo
 		"--volume", artifactVolume,
 		"--workdir", "/src/demos/terminal",
 		renderer.Image,
-		entry,
 	)
+	args = append(args, entries...)
 	if privileged {
 		args = insertArgs(args, 3, "--privileged")
 	}
@@ -309,8 +308,10 @@ func (e *Engine) renderSelected(manifest Manifest, indexed map[string]Demo, sele
 			return err
 		}
 		for _, path := range removed {
-			e.output.Write(buffer.Reset().Str("removed superseded artifact: ").
-				Str(filepath.Base(path)).Byte('\n').Bytes()) //nolint:errcheck // CLI progress output cannot change artifact cleanup.
+			if _, err := e.output.Write(buffer.Reset().Str("removed superseded artifact: ").
+				Str(filepath.Base(path)).Byte('\n').Bytes()); err != nil {
+				return err
+			}
 		}
 	}
 	return e.verifyAssets(manifest, indexed, selected, release, false)
@@ -364,7 +365,7 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 		return ArtifactEntry{}, err
 	}
 	containerSource := path.Join("/src", filepath.ToSlash(relativeSource))
-	command := e.containerCommand(manifest.Renderer, containerSource, demo.isPrivileged())
+	command := e.containerCommand(manifest.Renderer, demo.isPrivileged(), containerSource)
 	imageIndex := indexOf(command, manifest.Renderer.Image)
 	if imageIndex < 0 {
 		return ArtifactEntry{}, errors.New("renderer image is absent from Docker argv")
@@ -583,7 +584,7 @@ func expandCastTimeline(path string, speedup int) error {
 			return fmt.Errorf("%s:%d: not an asciicast event", path, index+2)
 		}
 		event[0] = math.Round(timestamp*float64(speedup)*1_000_000) / 1_000_000
-		encoded, err := pythonJSON(event)
+		encoded, err := artifactJSON(event)
 		if err != nil {
 			return err
 		}
@@ -593,15 +594,15 @@ func expandCastTimeline(path string, speedup int) error {
 	return root.WriteFile(name, data, 0o644) // #nosec G306 -- The asciicast is a public website artifact, not private data.
 }
 
-func pythonJSON(value any) (string, error) {
+func artifactJSON(value any) (string, error) {
 	var buffer textbuf.Buffer
-	if err := appendPythonJSON(&buffer, value); err != nil {
+	if err := appendArtifactJSON(&buffer, value); err != nil {
 		return "", err
 	}
 	return buffer.String(), nil
 }
 
-func appendPythonJSON(buffer *textbuf.Buffer, value any) error {
+func appendArtifactJSON(buffer *textbuf.Buffer, value any) error {
 	switch typed := value.(type) {
 	case nil:
 		buffer.Str("null")
@@ -625,7 +626,7 @@ func appendPythonJSON(buffer *textbuf.Buffer, value any) error {
 			if index > 0 {
 				buffer.Str(", ")
 			}
-			if err := appendPythonJSON(buffer, item); err != nil {
+			if err := appendArtifactJSON(buffer, item); err != nil {
 				return err
 			}
 		}
@@ -646,7 +647,7 @@ func appendPythonJSON(buffer *textbuf.Buffer, value any) error {
 				return err
 			}
 			buffer.Str(string(encoded)).Str(": ")
-			if err := appendPythonJSON(buffer, typed[key]); err != nil {
+			if err := appendArtifactJSON(buffer, typed[key]); err != nil {
 				return err
 			}
 		}

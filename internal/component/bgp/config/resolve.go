@@ -330,43 +330,33 @@ func ttlValueSet(ttl map[string]any, key string) (bool, error) {
 	return n != 0, nil
 }
 
-// CheckRequiredFields validates that all ze:required fields on the peer list schema
-// have non-empty values in every resolved peer map. Called after ResolveBGPTree by
-// callers that need config validation (cmd_validate, PeersFromConfigTree).
-func CheckRequiredFields(schema *config.Schema, bgpTree map[string]any) error {
+type requiredFieldGap struct {
+	peer string
+	path []string
+}
+
+// requiredFieldGaps returns every ze:required field absent after inheritance.
+func requiredFieldGaps(schema *config.Schema, bgpTree map[string]any) []requiredFieldGap {
 	peerMap, ok := bgpTree["peer"].(map[string]any)
 	if !ok {
-		return nil // No peers to validate.
-	}
-
-	// Look up the peer list schema to get Required fields.
-	bgpNode := schema.Get("bgp")
-	if bgpNode == nil {
 		return nil
 	}
-	bgpContainer, ok := bgpNode.(*config.ContainerNode)
+	bgpContainer, ok := schema.Get("bgp").(*config.ContainerNode)
 	if !ok {
 		return nil
 	}
-	peerNode := bgpContainer.Get("peer")
-	if peerNode == nil {
-		return nil
-	}
-	peerListNode, ok := peerNode.(*config.ListNode)
-	if !ok {
-		return nil
-	}
-	if len(peerListNode.Required) == 0 {
+	peerListNode, ok := bgpContainer.Get("peer").(*config.ListNode)
+	if !ok || len(peerListNode.Required) == 0 {
 		return nil
 	}
 
-	// Sort peer names for deterministic error reporting.
 	peerNames := make([]string, 0, len(peerMap))
 	for name := range peerMap {
 		peerNames = append(peerNames, name)
 	}
 	sort.Strings(peerNames)
 
+	var gaps []requiredFieldGap
 	for _, peerName := range peerNames {
 		peer, ok := peerMap[peerName].(map[string]any)
 		if !ok {
@@ -374,13 +364,36 @@ func CheckRequiredFields(schema *config.Schema, bgpTree map[string]any) error {
 		}
 		for _, reqPath := range peerListNode.Required {
 			if !hasNestedValue(peer, reqPath) {
-				configLogger().Warn("incomplete peer definition",
-					"peer", peerName,
-					"missing", textbuf.Join(reqPath, "/"))
+				gaps = append(gaps, requiredFieldGap{peer: peerName, path: reqPath})
 			}
 		}
 	}
+	return gaps
+}
+
+// CheckRequiredFields reports incomplete peers without refusing startup. The
+// editor can therefore start against a work-in-progress configuration.
+func CheckRequiredFields(schema *config.Schema, bgpTree map[string]any) error {
+	for _, gap := range requiredFieldGaps(schema, bgpTree) {
+		configLogger().Warn("incomplete peer definition",
+			"peer", gap.peer,
+			"missing", textbuf.Join(gap.path, "/"))
+	}
 	return nil
+}
+
+// refuseIncompletePeers prevents a reload from replacing working peers with a
+// candidate that the tolerant startup parser would skip.
+func refuseIncompletePeers(schema *config.Schema, bgpTree map[string]any) error {
+	gaps := requiredFieldGaps(schema, bgpTree)
+	if len(gaps) == 0 {
+		return nil
+	}
+	missing := make([]string, 0, len(gaps))
+	for _, gap := range gaps {
+		missing = append(missing, gap.peer+":"+textbuf.Join(gap.path, "/"))
+	}
+	return fmt.Errorf("incomplete peer definition: %s", strings.Join(missing, ", "))
 }
 
 // hasNestedValue checks if a map has a non-empty value at the given path.

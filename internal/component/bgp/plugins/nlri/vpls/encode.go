@@ -63,7 +63,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 				return "", fmt.Errorf("invalid ve-id: %w", err)
 			}
 			veID = uint16(v) //nolint:gosec // validated by ParseUint with bitSize 16
-		case "ve-block-offset":
+		case keyVEBlockOffset:
 			i++
 			if i >= len(args) {
 				return "", errVeBlockOffsetRequiresValue
@@ -73,7 +73,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 				return "", fmt.Errorf("invalid ve-block-offset: %w", err)
 			}
 			veBlockOffset = uint16(v) //nolint:gosec // validated by ParseUint with bitSize 16
-		case "ve-block-size":
+		case keyVEBlockSize:
 			i++
 			if i >= len(args) {
 				return "", errVeBlockSizeRequiresValue
@@ -83,7 +83,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 				return "", fmt.Errorf("invalid ve-block-size: %w", err)
 			}
 			veBlockSize = uint16(v) //nolint:gosec // validated by ParseUint with bitSize 16
-		case "label-base", "label":
+		case keyLabelBase, "label":
 			i++
 			if i >= len(args) {
 				return "", errLabelRequiresValue
@@ -162,19 +162,19 @@ func parseVPLSArgs(args []string) (bgptypes.VPLSRoute, error) {
 		switch key {
 		case "rd":
 			route.RD = value
-		case "ve-block-offset":
+		case keyVEBlockOffset:
 			n, err := strconv.ParseUint(value, 10, 16)
 			if err != nil {
 				return route, fmt.Errorf("invalid ve-block-offset: %s", value)
 			}
 			route.VEBlockOffset = uint16(n)
-		case "ve-block-size":
+		case keyVEBlockSize:
 			n, err := strconv.ParseUint(value, 10, 16)
 			if err != nil {
 				return route, fmt.Errorf("invalid ve-block-size: %s", value)
 			}
 			route.VEBlockSize = uint16(n)
-		case "label-base", "label":
+		case keyLabelBase, "label":
 			n, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
 				return route, fmt.Errorf("invalid label: %s", value)

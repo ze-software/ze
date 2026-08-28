@@ -107,7 +107,7 @@ func deleteLoginMetrics(username string) {
 // Prometheus metrics. Owns per-session series lifecycle: creates on first
 // poll, deletes when the session disappears from snapshots.
 type l2tpStatsPoller struct {
-	reactors []*L2TPReactor
+	reactors []*l2tpReactor
 	interval time.Duration
 	cancel   context.CancelFunc
 	done     chan struct{}
@@ -125,7 +125,7 @@ type ifaceSnapshot struct {
 
 var getStatsFn = iface.GetStats
 
-func newL2TPStatsPoller(reactors []*L2TPReactor, interval time.Duration) *l2tpStatsPoller {
+func newL2TPStatsPoller(reactors []*l2tpReactor, interval time.Duration) *l2tpStatsPoller {
 	return &l2tpStatsPoller{
 		reactors: reactors,
 		interval: interval,

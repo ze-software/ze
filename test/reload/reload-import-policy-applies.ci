@@ -51,110 +51,14 @@ action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
 action=sighup:conn=1:seq=2
 EOF_PEER
 
-# Observer plugin: evaluates one route against peer1's live import chain before
-# and after the reload.
-tmpfs=reload-policy-applies.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify a reloaded import policy is enforced, not just displayed."""
-import json
-import sys
-from ze_api import API, runtime_fail
-
-# ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24.
-# Length 24 inside 10.0.0.0/8 with ge 16 le 24, so both prefix-lists match it and
-# they differ only in the action they take.
-UPDATE_HEX = ('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE9'
-              '40030401010101180A0000')
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'error': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def json_data(result):
-    data = result.get('data', {})
-    if isinstance(data, str):
-        data = json.loads(data)
-    return data
-
-
-def evaluate(api, peer):
-    """Run the route through that peer's CURRENT import chain and return the action."""
-    result = dispatch(api, f'show policy test peer {peer} import update {UPDATE_HEX}')
-    if result.get('status', '') != 'done':
-        return f'error:{result.get("error", "")}'
-    return json_data(result).get('action', '')
-
-
-def import_policy(api):
-    result = dispatch(api, 'show bgp peer peer1 detail')
-    peers = json_data(result).get('peers', {})
-    return json.dumps(peers.get('127.0.0.1', {}).get('import-policy', []))
-
-
-def peer_state(api):
-    result = dispatch(api, 'show bgp peer peer1 detail')
-    peers = json_data(result).get('peers', {})
-    return peers.get('127.0.0.1', {}).get('state', '')
-
-
-def fail(api, message):
-    runtime_fail(message)
-    print(f'FAIL: {message}', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-    sys.exit(1)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # The reload delivers the new chain to the RUNNING peer. Poll the peer's own
-    # view of it, which is bounded: a reload that discarded the edit never arrives
-    # here and the loop reports what it kept seeing.
-    # Bounded well inside the .ci timeout so a reload that discarded the edit
-    # reports THIS message rather than expiring as an unexplained timeout.
-    for _ in range(50):
-        if 'DENY' in import_policy(api):
-            break
-        api.wait_for_event(timeout=0.2)
-    else:
-        fail(api, f'the reloaded import chain never reached the running peer: {import_policy(api)}')
-
-    state = peer_state(api)
-    if state != 'established':
-        fail(api, f'the session must survive an import-policy edit, state={state}')
-
-    # The control: same route, same prefix-list plugin, a chain no edit touched.
-    control = evaluate(api, 'control-peer')
-    if control != 'accept':
-        fail(api, f'the unedited ALLOW chain must still accept the route, got {control}')
-
-    after = evaluate(api, 'peer1')
-    if after != 'reject':
-        fail(api, f'the DENY chain must reject the route after the reload, got {after}')
-
-    print('OK: the edited chain rejects the route the unedited chain accepts', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-main()
-EOF_RUN
+# Native observer: evaluates one route against peer1's live import chain after
+# the reload.
 
 # Initial ze bgp configuration: import chain references prefix-list ALLOW
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external reload-policy-applies {
-		run ./reload-policy-applies.run
+		run "ze-test fixture reload/reload-import-policy-applies"
 		encoder json
 	}
 }
@@ -263,7 +167,7 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external reload-policy-applies {
-		run ./reload-policy-applies.run
+		run "ze-test fixture reload/reload-import-policy-applies"
 		encoder json
 	}
 }

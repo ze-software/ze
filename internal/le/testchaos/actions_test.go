@@ -6,6 +6,7 @@
 package testchaos
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,6 +18,15 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
 )
+
+func TestMain(m *testing.M) {
+	if os.Getenv("TESTCHAOS_GO_FIXTURE") == "1" {
+		_, _ = fmt.Fprintln(os.Stdout, "tool stdout")
+		fmt.Fprintln(os.Stderr, "tool stderr")
+		os.Exit(23)
+	}
+	os.Exit(m.Run())
+}
 
 func chaosFixtureToolchain(t *testing.T) gotoolchain.Toolchain {
 	t.Helper()
@@ -31,22 +41,22 @@ func chaosFixtureToolchain(t *testing.T) gotoolchain.Toolchain {
 	}
 }
 
-// TestChaosGatesKeepExactCommandsAndEnvironments covers the complete boundary
-// to go and golangci-lint. The expected slices include ordering and absence.
-func TestChaosGatesKeepExactCommandsAndEnvironments(t *testing.T) {
+// TestChaosActionsKeepExactCommandsAndEnvironments covers the complete boundary
+// to Go and golangci-lint.
+func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 	tc := chaosFixtureToolchain(t)
 	cache := filepath.Join(tc.Root, "cache", "go-cache")
 	lintCache := filepath.Join(tc.Root, "tmp", "golangci-lint-cache")
 
 	tests := []struct {
 		name      string
-		gate      string
+		verb      string
 		argv      []string
 		overrides []string
 	}{
 		{
 			name: "lint uses argv parallelism and only the memory ceiling",
-			gate: "ze-chaos-lint",
+			verb: "lint",
 			argv: []string{"golangci-lint", "run", "-j", "8", "./internal/chaos/..."},
 			overrides: []string{
 				"GOCACHE=" + cache,
@@ -58,7 +68,7 @@ func TestChaosGatesKeepExactCommandsAndEnvironments(t *testing.T) {
 		},
 		{
 			name: "unit uses every feature tag and the race detector",
-			gate: "ze-chaos-unit-test",
+			verb: "unit",
 			argv: []string{
 				"go", "test", "-timeout", "7m", "-tags",
 				"ze_core ze_bgp ze_web ze_extra", "-race", "./internal/chaos/...",
@@ -73,7 +83,7 @@ func TestChaosGatesKeepExactCommandsAndEnvironments(t *testing.T) {
 		},
 		{
 			name: "CLI uses the required reduced tags without race",
-			gate: "ze-chaos-cli-unit-test",
+			verb: "cli-unit",
 			argv: []string{
 				"go", "test", "-timeout", "7m", "-tags",
 				"ze_core ze_bgp ze_chaos", "./cmd/ze",
@@ -88,96 +98,81 @@ func TestChaosGatesKeepExactCommandsAndEnvironments(t *testing.T) {
 		},
 	}
 
-	gates := Table()
-	if len(gates) != len(tests) {
-		t.Fatalf("Table has %d gates, want %d", len(gates), len(tests))
+	declared := Table()
+	if len(declared) != len(tests) {
+		t.Fatalf("Table has %d actions, want %d", len(declared), len(tests))
 	}
 	for index, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			gate := gates[index]
-			if gate.Name != test.gate {
-				t.Errorf("gate %d is %q, want %q", index, gate.Name, test.gate)
+			action := declared[index]
+			if action.Verb != test.verb {
+				t.Errorf("action %d is %q, want %q", index, action.Verb, test.verb)
 			}
-			if !slices.Equal(gate.Argv(tc), test.argv) {
-				t.Errorf("argv = %q, want %q", gate.Argv(tc), test.argv)
+			if !slices.Equal(action.Argv(tc), test.argv) {
+				t.Errorf("argv = %q, want %q", action.Argv(tc), test.argv)
 			}
-			if !slices.Equal(gate.Overrides(tc), test.overrides) {
-				t.Errorf("environment overrides = %q, want %q", gate.Overrides(tc), test.overrides)
+			if !slices.Equal(action.Overrides(tc), test.overrides) {
+				t.Errorf("environment overrides = %q, want %q", action.Overrides(tc), test.overrides)
 			}
-			if gate.Writes {
-				t.Error("chaos test gate says that it writes the checkout")
+			if action.Writes {
+				t.Error("chaos test action says that it writes the checkout")
 			}
 		})
 	}
 }
 
-// TestAggregateRunUsesTableOrderAndFirstFailureCode proves the old bare-area
+// TestAggregateRunUsesTableOrderAndFirstFailureCode proves the bare-area
 // behavior. All three tools run, and the first failing tool owns the result.
 func TestAggregateRunUsesTableOrderAndFirstFailureCode(t *testing.T) {
 	tc := chaosFixtureToolchain(t)
-	codes := map[string]int{
-		"ze-chaos-lint":          3,
-		"ze-chaos-unit-test":     0,
-		"ze-chaos-cli-unit-test": 9,
-	}
+	codes := map[string]int{"lint": 3, "unit": 0, "cli-unit": 9}
 	var ran []string
-	run := func(gate string, argv []string, dir string, environ []string) (gaterun.GateReport, int) {
-		ran = append(ran, gate)
-		code := codes[gate]
-		return gaterun.GateReport{Gate: gate, Command: slices.Clone(argv), Code: code}, code
+	run := func(action string, argv []string, _ string, _ []string) (gaterun.ActionReport, int) {
+		ran = append(ran, action)
+		code := codes[action]
+		return gaterun.ActionReport{Action: action, Command: slices.Clone(argv), Code: code}, code
 	}
 
 	answer, code := answerWith(tc, run, nil)
 	if code != 3 {
 		t.Errorf("aggregate code = %d, want first failing code 3", code)
 	}
-	wantOrder := []string{"ze-chaos-lint", "ze-chaos-unit-test", "ze-chaos-cli-unit-test"}
+	wantOrder := []string{"lint", "unit", "cli-unit"}
 	if !slices.Equal(ran, wantOrder) {
 		t.Errorf("run order = %q, want %q", ran, wantOrder)
 	}
-
 	sweep, ok := answer.(leaction.Sweep)
 	if !ok {
 		t.Fatalf("answer type = %T, want leaction.Sweep", answer)
 	}
-	wantFailed := []string{"ze-chaos-lint", "ze-chaos-cli-unit-test"}
+	wantFailed := []string{"lint", "cli-unit"}
 	if !slices.Equal(sweep.Failed, wantFailed) {
 		t.Errorf("failed = %q, want %q", sweep.Failed, wantFailed)
 	}
 }
 
-// TestUnitTargetRunsSimulatorThenCLI pins mk/test-chaos.mk's two-gate recipe.
-// The CLI run must stay second because it extends the simulator's unit surface.
-func TestUnitTargetRunsSimulatorThenCLI(t *testing.T) {
+func TestUnitActionsRunSimulatorThenCLI(t *testing.T) {
 	tc := chaosFixtureToolchain(t)
 	var ran []string
-	run := func(gate string, argv []string, dir string, environ []string) (gaterun.GateReport, int) {
-		ran = append(ran, gate)
-		return gaterun.GateReport{Gate: gate, Command: slices.Clone(argv)}, 0
+	run := func(action string, argv []string, _ string, _ []string) (gaterun.ActionReport, int) {
+		ran = append(ran, action)
+		return gaterun.ActionReport{Action: action, Command: slices.Clone(argv)}, 0
 	}
-
-	_, code := answerWith(tc, run, []string{
-		"ze-chaos-unit-test",
-		"ze-chaos-cli-unit-test",
-	})
+	_, code := answerWith(tc, run, []string{"unit", "cli-unit"})
 	if code != 0 {
 		t.Fatalf("unit pair code = %d, want 0", code)
 	}
-	want := []string{"ze-chaos-unit-test", "ze-chaos-cli-unit-test"}
+	want := []string{"unit", "cli-unit"}
 	if !slices.Equal(ran, want) {
 		t.Errorf("unit pair order = %q, want %q", ran, want)
 	}
 }
 
-// TestNamedToolFailureKeepsItsReportAndCode checks the structured output from
-// one action. The child command and its nonstandard code survive unchanged.
 func TestNamedToolFailureKeepsItsReportAndCode(t *testing.T) {
 	tc := chaosFixtureToolchain(t)
 	const failureCode = 17
-	run := func(gate string, argv []string, dir string, environ []string) (gaterun.GateReport, int) {
-		report := gaterun.GateReport{
-			Gate: gate, Command: slices.Clone(argv), Code: failureCode,
-		}
+	run := func(action string, argv []string, dir string, environ []string) (gaterun.ActionReport, int) {
+		report := gaterun.ActionReport{Action: action, Command: slices.Clone(argv), Code: failureCode}
 		if dir != tc.Root {
 			t.Errorf("run directory = %q, want %q", dir, tc.Root)
 		}
@@ -193,58 +188,45 @@ func TestNamedToolFailureKeepsItsReportAndCode(t *testing.T) {
 		return report, failureCode
 	}
 
-	answer, code := answerWith(tc, run, []string{"ze-chaos-cli-unit-test"})
+	answer, code := answerWith(tc, run, []string{"cli-unit"})
 	if code != failureCode {
 		t.Fatalf("answer code = %d, want tool code %d", code, failureCode)
 	}
 	sweep, ok := answer.(leaction.Sweep)
-	if !ok {
-		t.Fatalf("answer type = %T, want leaction.Sweep", answer)
+	if !ok || len(sweep.Ran) != 1 {
+		t.Fatalf("answer = %#v, want one-action sweep", answer)
 	}
-	if len(sweep.Ran) != 1 {
-		t.Fatalf("ran %d actions, want 1", len(sweep.Ran))
-	}
-	report, ok := sweep.Ran[0].Answer.(gaterun.GateReport)
+	report, ok := sweep.Ran[0].Answer.(gaterun.ActionReport)
 	if !ok {
-		t.Fatalf("action answer type = %T, want gaterun.GateReport", sweep.Ran[0].Answer)
+		t.Fatalf("action answer type = %T, want gaterun.ActionReport", sweep.Ran[0].Answer)
 	}
 	wantCommand := []string{
 		"go", "test", "-timeout", "7m", "-tags", "ze_core ze_bgp ze_chaos", "./cmd/ze",
 	}
-	if report.Gate != "ze-chaos-cli-unit-test" {
-		t.Errorf("report gate = %q", report.Gate)
-	}
-	if report.Code != failureCode {
-		t.Errorf("report code = %d, want %d", report.Code, failureCode)
+	if report.Action != "cli-unit" || report.Code != failureCode {
+		t.Errorf("report = %#v", report)
 	}
 	if !slices.Equal(report.Command, wantCommand) {
 		t.Errorf("report command = %q, want %q", report.Command, wantCommand)
 	}
 }
 
-// TestAreaMetadataClaimsExactlyThreeChecks pins the public command surface and
-// the write flags that the listing exposes before composition imports it.
-func TestAreaMetadataClaimsExactlyThreeChecks(t *testing.T) {
-	wantGates := []string{"ze-chaos-lint", "ze-chaos-unit-test", "ze-chaos-cli-unit-test"}
-	if got := Gates(); !slices.Equal(got, wantGates) {
-		t.Errorf("Gates = %q, want %q", got, wantGates)
-	}
+// TestAreaMetadataDeclaresExactlyThreeActions pins the public command surface.
+func TestAreaMetadataDeclaresExactlyThreeActions(t *testing.T) {
+	wantVerbs := []string{"lint", "unit", "cli-unit"}
 	listing := Actions()
 	if listing.Area != Area {
 		t.Errorf("area = %q, want %q", listing.Area, Area)
 	}
-	if len(listing.Actions) != len(wantGates) {
-		t.Fatalf("listing has %d actions, want %d", len(listing.Actions), len(wantGates))
+	if len(listing.Actions) != len(wantVerbs) {
+		t.Fatalf("listing has %d actions, want %d", len(listing.Actions), len(wantVerbs))
 	}
 	for index, row := range listing.Actions {
-		if row.Gate != wantGates[index] {
-			t.Errorf("action %d gate = %q, want %q", index, row.Gate, wantGates[index])
+		if row.Verb != wantVerbs[index] {
+			t.Errorf("action %d verb = %q, want %q", index, row.Verb, wantVerbs[index])
 		}
 		if row.Writes {
-			t.Errorf("action %q says that it writes", row.Gate)
-		}
-		if len(row.Forks) != 0 {
-			t.Errorf("action %q reports an unported script %q", row.Gate, row.Forks)
+			t.Errorf("action %q says that it writes", row.Verb)
 		}
 	}
 }
@@ -260,7 +242,7 @@ func TestUnreadableToolchainStopsBeforeAChildRuns(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	if answer, code := Answer([]string{"ze-chaos-unit-test"}); code == 0 {
+	if answer, code := Answer([]string{"unit"}); code == 0 {
 		t.Fatalf("Answer = %#v, code 0 for a checkout with no feature manifest", answer)
 	}
 }
@@ -281,10 +263,13 @@ func TestExternalToolOutputAndExitCodePassThrough(t *testing.T) {
 	if err := os.Mkdir(bin, 0o700); err != nil {
 		t.Fatalf("make fixture bin: %v", err)
 	}
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatalf("locate test executable: %v", err)
+	}
 	fakeGo := filepath.Join(bin, "go")
-	script := "#!/usr/bin/env python3\nimport sys\nprint('tool stdout')\nprint('tool stderr', file=sys.stderr)\nsys.exit(23)\n"
-	if err := os.WriteFile(fakeGo, []byte(script), 0o700); err != nil {
-		t.Fatalf("write go stand-in: %v", err)
+	if err := os.Symlink(executable, fakeGo); err != nil {
+		t.Fatalf("link go stand-in: %v", err)
 	}
 
 	stdoutPath := filepath.Join(root, "stdout")
@@ -308,9 +293,10 @@ func TestExternalToolOutputAndExitCodePassThrough(t *testing.T) {
 
 	t.Setenv("ZE_REPO_ROOT", root)
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("TESTCHAOS_GO_FIXTURE", "1")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
-	_, code := Answer([]string{"ze-chaos-cli-unit-test"})
+	_, code := Answer([]string{"cli-unit"})
 
 	os.Stdout, os.Stderr = savedStdout, savedStderr
 	if err := stdout.Close(); err != nil {
@@ -333,8 +319,8 @@ func TestExternalToolOutputAndExitCodePassThrough(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read stderr capture: %v", err)
 	}
-	if !strings.Contains(string(gotStderr), "==> ze-chaos-cli-unit-test\n") {
-		t.Errorf("stderr lacks gate announcement: %q", gotStderr)
+	if !strings.Contains(string(gotStderr), "==> cli-unit\n") {
+		t.Errorf("stderr lacks action announcement: %q", gotStderr)
 	}
 	if !strings.Contains(string(gotStderr), "tool stderr\n") {
 		t.Errorf("stderr lacks external tool output: %q", gotStderr)

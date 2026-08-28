@@ -10,51 +10,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: declares a filter and verifies startup completes
-tmpfs=filter-declare-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API, runtime_fail
-
-def main():
-    api = API()
-
-    # Declare a named filter at stage 1
-    api.declare_filter(
-        name='accept-all',
-        direction='import',
-        attributes=['as-path', 'community'],
-        on_error='reject',
-    )
-    api.declare_done()
-
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # If we get here, startup succeeded -- filter declaration was accepted
-    print('OK: filter declaration accepted, startup complete', file=sys.stderr)
-
-    # ze-peer asserts ze's initial-sync End-of-RIB. Block until that frame is on
-    # the wire, or this shutdown closes the session inside the establishment
-    # window and the peer reports the NOTIFICATION instead.
-    if not api.wait_peer_eor_sent():
-        runtime_fail('ze sent no end-of-rib to peer1 before shutdown')
-
-    # Dispatch shutdown
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external filter-declare-test {
-        run ./filter-declare-test.run;
+        run "ze-test fixture plugin/redistribute-declare";
         encoder json;
     }
 }

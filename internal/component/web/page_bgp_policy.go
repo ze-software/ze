@@ -85,7 +85,7 @@ func countRules(filterTree *config.Tree) int {
 // buildBGPPolicyTableData constructs a WorkbenchTableData for the policy page.
 func buildBGPPolicyTableData(entries []policyEntry, addActions ...WorkbenchTableAddAction) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: "Name", Sortable: true},
+		{Key: "name", Label: labelName, Sortable: true},
 		{Key: "type", Label: "Type", Sortable: true},
 		{Key: "rules", Label: "Rule Count", Sortable: true},
 	}
@@ -101,7 +101,7 @@ func buildBGPPolicyTableData(entries []policyEntry, addActions ...WorkbenchTable
 				strconv.Itoa(pe.RuleCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "Edit", URL: "/show/bgp/policy/" + pe.Name + "/"},
+				{Label: labelEdit, URL: "/show/bgp/policy/" + pe.Name + "/"},
 			},
 		})
 	}

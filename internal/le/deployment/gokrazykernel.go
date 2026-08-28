@@ -71,8 +71,8 @@ const KernelVersionFile = "internal/appliance/kernel.version"
 // of the two an appliance is built for.
 var errUnsupportedArch = errors.New("unsupported appliance architecture (expected amd64 or arm64)")
 
-// PinnedKernelVersion answers the kernel release this repository pins.
-func PinnedKernelVersion(tree string) (string, error) {
+// pinnedKernelVersion answers the kernel release this repository pins.
+func pinnedKernelVersion(tree string) (string, error) {
 	body, err := os.ReadFile(filepath.Join(tree, KernelVersionFile)) //nolint:gosec // a path inside the checkout this command was run in
 	if err != nil {
 		return "", err
@@ -230,7 +230,7 @@ func kernelPackageError(context, arch string, problems []string) error {
 	var tb textbuf.Buffer
 	tb.Str("unusable kernel package (").Str(context).Str("):\n  ").
 		Str(strings.Join(problems, "\n  ")).
-		Str("\nrebuild it with: make ze-kernel-build KERNEL_ARCH=").Str(arch).
-		Str(" (about 30 minutes on a cache miss, needs docker)")
+		Str("\nrebuild it with: ./ze appliance kernel --target runtime --arch ").Str(arch).
+		Str(" (about 30 minutes on a cache miss, needs Docker)")
 	return errors.New(tb.String())
 }

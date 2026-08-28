@@ -1,80 +1,10 @@
-# Test (AC-16/AC-17): every build emits a build/kernel.version provenance sidecar
-# recording what was built, and a malformed kernel.version is rejected by run.py
-# before any download/build work. Drives run.py directly with a faked docker.
+# Test (AC-16/AC-17): every native build emits a kernel.version provenance
+# sidecar recording what was built, and malformed or pre-7 versions are rejected
+# before any container work.
 
 option=timeout:value=30s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-work=$PWD
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-out="tmp/kernel/provenance-test"
-cleanup() { rm -rf "$out" "tmp/kernel/badver"; }
-trap cleanup EXIT
-rm -rf "$out"
-
-mkdir -p "$work/fakebin"
-cat > "$work/fakebin/docker" <<'EOF_DOCKER'
-#!/bin/sh
-set -eu
-if [ "$1" = run ]; then
-	# Only a run carrying build.py is a BUILD. run.py issues a second
-	# `docker run ... chown -R <uid>:<gid> /out` to hand the build's output back
-	# to the invoking user, and that run mounts :/out as well. Synthesizing build
-	# output for it rewrites what the build produced.
-	case " $* " in *" /builder/build.py "*) ;; *) exit 0 ;; esac
-	prev=
-	for arg in "$@"; do
-		if [ "$prev" = -v ]; then
-			case "$arg" in
-				*:/out) o=${arg%:/out}; mkdir -p "$o"; printf k > "$o/Image"; printf 'CONFIG_X=y\n' > "$o/config" ;;
-			esac
-		fi
-		prev=$arg
-	done
-fi
-EOF_DOCKER
-chmod +x "$work/fakebin/docker"
-
-# A real build writes the provenance sidecar with the resolved version + target.
-PATH="$work/fakebin:$PATH" python3 tools/kernel-builder/run.py \
-	--target installer --arch amd64 --profile qemu --builder docker \
-	--src-dir tools/installer-kernel --out-dir "$out" --modules no >"$work/run.out" 2>&1
-
-[ -f "$out/kernel.version" ] || { echo "no provenance sidecar emitted" >&2; cat "$work/run.out" >&2; exit 1; }
-grep -q '^version=7' "$out/kernel.version"
-grep -q '^target=installer$' "$out/kernel.version"
-grep -q '^profile=qemu$' "$out/kernel.version"
-
-# A malformed kernel.version is rejected before any build work.
-mkdir -p tmp/kernel
-printf 'not-a-version\n' > tmp/kernel/badver
-if PATH="$work/fakebin:$PATH" python3 tools/kernel-builder/run.py \
-	--target installer --arch amd64 --profile qemu --builder docker \
-	--src-dir tools/installer-kernel --out-dir "$out" --modules no \
-	--version-file tmp/kernel/badver >"$work/bad.out" 2>&1; then
-	echo "malformed version was not rejected" >&2
-	cat "$work/bad.out" >&2
-	exit 1
-fi
-
-# Major < 7 is also rejected (kernel >= 7 required).
-printf '6.12.9\n' > tmp/kernel/badver
-if PATH="$work/fakebin:$PATH" python3 tools/kernel-builder/run.py \
-	--target installer --arch amd64 --profile qemu --builder docker \
-	--src-dir tools/installer-kernel --out-dir "$out" --modules no \
-	--version-file tmp/kernel/badver >"$work/bad2.out" 2>&1; then
-	echo "pre-7 version was not rejected" >&2
-	exit 1
-fi
-
-echo OK
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/kernel-version-provenance
 expect=exit:code=0
 expect=stdout:contains=OK

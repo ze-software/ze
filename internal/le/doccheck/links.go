@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/le/docwiring"
 )
 
-const baselineRel = "scripts/dev/doc_citation_baseline.txt"
+const baselineRel = "internal/le/doccheck/testdata/doc_citation_baseline.txt"
 const baselineGrowthShown = 10
 
 var markdownGlobs = [...]string{
@@ -60,15 +60,15 @@ type brokenReference struct {
 	target string
 }
 
-// LinkReport is the ordered answer of the complete links gate.
-type LinkReport struct {
+// linkReport is the ordered answer of the complete links gate.
+type linkReport struct {
 	Warnings []string `json:"warnings"`
 	Errors   []string `json:"errors"`
 	Summary  string   `json:"summary"`
 }
 
 // Text preserves the producer's warning, fatal, and summary ordering.
-func (r LinkReport) Text() string {
+func (r linkReport) Text() string {
 	var out textbuf.Buffer
 	for _, warning := range r.Warnings {
 		out.Str(warning).Byte('\n')
@@ -86,20 +86,20 @@ func (r LinkReport) Text() string {
 	return out.String()
 }
 
-// CheckLinks runs all five document-link checks over root.
-func CheckLinks(root string, verbose bool) (LinkReport, error) {
+// checkLinks runs all five document-link checks over root.
+func checkLinks(root string, verbose bool) (linkReport, error) {
 	broken, err := checkMarkdown(root, verbose)
 	if err != nil {
-		return LinkReport{}, err
+		return linkReport{}, err
 	}
 	ignoredFindings, err := dropGenerated(root, broken)
 	if err != nil {
-		return LinkReport{}, err
+		return linkReport{}, err
 	}
 
 	designFindings, err := docwiring.DesignReferences(root)
 	if err != nil {
-		return LinkReport{}, fmt.Errorf("checking Design references: %w", err)
+		return linkReport{}, fmt.Errorf("checking Design references: %w", err)
 	}
 	errorsFound := make([]string, 0, len(ignoredFindings)+len(designFindings))
 	errorsFound = append(errorsFound, ignoredFindings...)
@@ -107,21 +107,21 @@ func CheckLinks(root string, verbose bool) (LinkReport, error) {
 
 	nameFindings, err := checkHookNames(root, verbose)
 	if err != nil {
-		return LinkReport{}, fmt.Errorf("checking hook names: %w", err)
+		return linkReport{}, fmt.Errorf("checking hook names: %w", err)
 	}
 	errorsFound = append(errorsFound, nameFindings...)
 
 	sweep, err := sweepTracked(root, verbose)
 	if err != nil {
-		return LinkReport{}, err
+		return linkReport{}, err
 	}
 	baseline, err := loadBaseline(root)
 	if err != nil {
-		return LinkReport{}, err
+		return linkReport{}, err
 	}
 	citationFindings, warnings, err := baselineFindings(root, sweep.dead, baseline, verbose, true)
 	if err != nil {
-		return LinkReport{}, err
+		return linkReport{}, err
 	}
 	errorsFound = append(errorsFound, sweep.unreadable...)
 	errorsFound = append(errorsFound, sweep.markers...)
@@ -129,12 +129,12 @@ func CheckLinks(root string, verbose bool) (LinkReport, error) {
 
 	formatFindings, err := baselineFormatProblems(root)
 	if err != nil {
-		return LinkReport{}, err
+		return linkReport{}, err
 	}
 	errorsFound = append(errorsFound, formatFindings...)
 	growthFindings, err := checkBaselineGrowth(root, baseline)
 	if err != nil {
-		return LinkReport{}, err
+		return linkReport{}, err
 	}
 	errorsFound = append(errorsFound, growthFindings...)
 
@@ -147,7 +147,7 @@ func CheckLinks(root string, verbose bool) (LinkReport, error) {
 		}
 		summary = tb.Byte(')').String()
 	}
-	return LinkReport{Warnings: warnings, Errors: errorsFound, Summary: summary}, nil
+	return linkReport{Warnings: warnings, Errors: errorsFound, Summary: summary}, nil
 }
 
 func markdownCorpus(root string) ([]string, error) {
@@ -325,10 +325,10 @@ func sweepTracked(root string, _ bool) (result trackedSweep, err error) {
 }
 
 func sweepExcluded(rel string) bool {
-	if rel == "scripts/dev/check_doc_links.py" {
+	if rel == "internal/le/doccheck/links.go" {
 		return true
 	}
-	if rel == "scripts/dev/check_doc_links_test.py" {
+	if rel == "internal/le/doccheck/links_test.go" {
 		return true
 	}
 	return false
@@ -383,7 +383,7 @@ func baselineFormatProblems(root string) ([]string, error) {
 			continue
 		}
 		findings = append(findings, tb.Reset().Str(baselineRel).Byte(':').
-			Int(int64(index + 1)).Str(": baseline line has no TAB: ").Str(trimmed).
+			Int(int64(index+1)).Str(": baseline line has no TAB: ").Str(trimmed).
 			Str(" -- write it as `<citing file><TAB><target path>`, or delete it").String())
 	}
 	return findings, nil

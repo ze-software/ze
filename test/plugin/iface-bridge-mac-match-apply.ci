@@ -40,103 +40,20 @@
 #
 # needs-linux:caps=net-admin: creating netdevs, setting a MAC, enslaving a port
 # and assigning an address need CAP_NET_ADMIN, which the verify runner does not
-# have. Runs as root under `make ze-qemu-needs-linux-test`.
+# have. Runs as root under `./le qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the devices zebasel0 and zebabr0, the MAC
 # 02:00:00:00:be:33 and the address block 198.51.100.176/28. No other file under
 # test/ puts any of them in a kernel. The per-test /28 matters because the plugin
-# suite runs 8-wide in ONE namespace (ZE_PLUGIN_PARALLEL, mk/test-functional.mk).
+# suite runs 8-wide in ONE namespace (ZE_PLUGIN_PARALLEL, internal/le/functional/budget.go).
 option=needs-linux:caps=net-admin
 option=timeout:value=30s
 
-tmpfs=iface-bridge-mac-match-apply.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert the mac/match entry's address landed on the port, not nowhere.
-
-The read goes straight to the kernel through `ip -j addr show`, not through a ze
-command, so nothing in the assertion shares a resolver with the code under test.
-"""
-
-import json
-import subprocess
-import sys
-
-from ze_api import API
-from ze_api import runtime_fail
-
-DEVICE = "zebasel0"     # the kernel device carrying the selected MAC
-BRIDGE = "zebabr0"      # the bridge ze builds out of it, which wears that MAC too
-LOGICAL = "zebawan"     # the entry name; no kernel device carries it
-MAC = "02:00:00:00:be:33"
-CIDR = "198.51.100.177/28"
-
-
-def ip_json(*args):
-    result = subprocess.run(["ip", "-j", *args], capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        return None
-    return json.loads(result.stdout or "[]")
-
-
-def addresses_on(device):
-    return [
-        f'{a["local"]}/{a["prefixlen"]}'
-        for entry in (ip_json("addr", "show", device) or [])
-        for a in (entry.get("addr_info") or [])
-    ]
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        links = ip_json("link", "show", DEVICE)
-        if not links:
-            runtime_fail(f'{DEVICE} was not created: the apply never reached the selected device')
-        if links[0].get("address") != MAC:
-            runtime_fail(f'{DEVICE} carries MAC {links[0].get("address")!r}, not {MAC}: '
-                         f'the selector had nothing to bind to')
-        if links[0].get("master") != BRIDGE:
-            runtime_fail(f'{DEVICE} master={links[0].get("master")!r}, want {BRIDGE!r}: '
-                         f'without the enslaving there is no second device to be ambiguous with')
-
-        bridges = ip_json("link", "show", BRIDGE)
-        if not bridges:
-            runtime_fail(f'{BRIDGE} was not created: the apply never reached the bridge')
-        if bridges[0].get("address") != MAC:
-            runtime_fail(f'{BRIDGE} carries MAC {bridges[0].get("address")!r}, not {MAC}: '
-                         f'the kernel did not move the port address onto the bridge, so this '
-                         f'test no longer reproduces the ambiguity it exists to assert')
-
-        found = addresses_on(DEVICE)
-        if CIDR not in found:
-            runtime_fail(f'{DEVICE} carries {found!r}, not {CIDR}: the bridge wearing the '
-                         f'selected MAC made the entry read as ambiguous and dropped its binding')
-
-        if ip_json("link", "show", LOGICAL):
-            runtime_fail(f'a device named {LOGICAL} exists: the apply worked on the logical name')
-
-        print(f'OK: mac/match selector applied {CIDR} to {DEVICE} past the bridge wearing {MAC}',
-              file=sys.stderr)
-    finally:
-        api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-bridge-mac-match-apply {
-		run ./iface-bridge-mac-match-apply.run
+		run "ze-test fixture plugin/iface-bridge-mac-match-apply"
 		encoder json
 	}
 }

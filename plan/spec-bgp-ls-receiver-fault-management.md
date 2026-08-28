@@ -321,7 +321,7 @@ configuration, declaring a peer's BGP-LS role.
 | 13 | Route metadata keys added/changed? | No | no new metadata key |
 | 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | nothing new registers; the ls plugin's registration is unchanged |
-| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | run `python3 scripts/dev/spec_doc_anchors.py plan/spec-bgp-ls-receiver-fault-management.md` at implementation time |
+| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | run `./le spec-citation anchors spec plan/spec-bgp-ls-receiver-fault-management.md` at implementation time |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | verify every BGP-LS example against the new YANG |
 
 ## Implementation Steps
@@ -368,9 +368,9 @@ configuration, declaring a peer's BGP-LS role.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | BGP-LS NLRI is validated | `grep -n 'AFIBGPLS' internal/component/bgp/message/rfc7606.go` names the branch |
-| the four rows are proven | `make ze-rfc-check` exits 0 on rfc9552's 8.2.2 and 8.2.6 rows |
+| the four rows are proven | `./le rfc check` exits 0 on rfc9552's 8.2.2 and 8.2.6 rows |
 | the role enforces itself | `test/decode/bgp-ls-consumer-facing.ci` PASS with no `family-filter` in its config |
-| no false positive against a real peer | `make ze-interop-test` with `bgp-ls-receive-gobgp` PASS |
+| no false positive against a real peer | `./le integration interop` with `bgp-ls-receive-gobgp` PASS |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -430,7 +430,7 @@ classes. The declared role's apply path quotes §8.2.6 and §10.
 - [ ] AC-1..AC-13 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -448,7 +448,7 @@ classes. The declared role's apply path quotes §8.2.6 and §10.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

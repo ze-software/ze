@@ -28,6 +28,8 @@ const (
 	// is waiting.
 	perASNRefreshTimeout = 30 * time.Second
 
+	configRootBGP = "bgp"
+
 	// firstResolveWait bounds how long handleFilterUpdate blocks an IRR-filtered
 	// UPDATE that arrives before the ASN's first background resolution has
 	// finished. It closes the startup-resolution race (the UPDATE waits for the
@@ -136,7 +138,7 @@ func runFilterIRR(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -169,7 +171,7 @@ func runFilterIRR(conn net.Conn) int {
 			{Name: "update bgp irr asn", Description: "Refresh IRR prefix-list for a specific ASN", Args: []string{"<asn>"}},
 			{Name: "update bgp irr as-set", Description: "Refresh IRR prefix-list for a specific AS-SET", Args: []string{"<as-set>"}},
 		},
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-irr plugin failed", "error", err)
 		return 1
@@ -255,8 +257,8 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 
 	// Resolve every enrolled ASN ONCE in the background, NOT inline. configure
 	// runs inside the plugin startup handshake, gated by the engine's stage
-	// barrier; a synchronous first resolution here would make ze-build startup depend
-	// on reaching the IRR server (default RADB), so an unreachable or slow IRR
+	// barrier. A synchronous first resolution here would make ze's startup
+	// depend on reaching the IRR server (default RADB), so an unreachable or slow
 	// server would fail the configure stage and bring the whole BGP plugin set
 	// down -- even for a config that has BGP peers but no IRR import filter.
 	// Startup must never depend on external IRR reachability, so the first

@@ -27,7 +27,7 @@ const (
 	consumerDir  = "assets"
 	htmxPrefix   = "htmx"
 	htmxSuffix   = ".js"
-	explained    = "scripts/dev/htmx-upgrade-explained.txt"
+	explained    = "test/htmx-upgrade-explained.txt"
 )
 
 type scanResult struct {

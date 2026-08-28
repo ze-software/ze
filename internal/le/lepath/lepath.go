@@ -2,7 +2,7 @@
 //
 // Package lepath answers one question for every le tool: which checkout am I
 // working in. The answer is a contract the Python le already publishes
-// (scripts/le/paths.py), and this package states the same contract in Go so the
+// (internal/le/lepath/lepath.go), and this package states the same contract in Go so the
 // two halves of the migration cannot disagree about where the tree is.
 //
 // ZE_REPO_ROOT wins when it is set, because the environment knows things the

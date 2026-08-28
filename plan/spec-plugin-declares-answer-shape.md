@@ -85,7 +85,7 @@ fixes for its own two instances. `show bgp rpki aspa` is the other.
   `show bgp rpki` would either be overwritten by, or overwrite, the empty
   declaration the BGP command plugin writes for every child of `show bgp`,
   depending on which ran last.
-- The published catalog cannot see any of this. `make ze-command-list` and
+- The published catalog cannot see any of this. `./le command-list` and
   `ze help command --json` read the compiled tree in their own process and start
   no plugin, so a declaration that reaches only a running daemon does not reach
   the page. That is recorded in
@@ -358,7 +358,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
 | 13 | Route metadata keys? | No | |
 | 14 | Prometheus counters? | No | |
 | 15 | Registered command or capability changed? | Yes | DONE in `docs/architecture/api/process-protocol.md` and `docs/plugin-development/protocol.md`, which are the two pages that enumerate a Stage 1 declaration. `docs/features/plugins.md` and `docs/plugin-overview.md` are UNAFFECTED: the first lists plugins by name and the second names Stage 1 by its RPC, and neither says what a `CommandDecl` carries |
-| 16 | Changed source file referenced by doc source anchors? | DERIVED | Run `python3 scripts/dev/spec_doc_anchors.py plan/spec-plugin-declares-answer-shape.md` at the start of each phase. Two declared docs are UNAFFECTED. `docs/architecture/core-design.md`, declared by `rs/server.go`, describes the route server's place in the engine; that file gains two declarations stating what its existing answers already hold, and no behavior the doc records changes. `docs/architecture/plugin/rib-storage-design.md`, declared by `adj_rib_in/rib.go`, describes Adj-RIB-In raw hex storage; that file gains two declarations and stores nothing differently |
+| 16 | Changed source file referenced by doc source anchors? | DERIVED | Run `./le spec-citation anchors spec plan/spec-plugin-declares-answer-shape.md` at the start of each phase. Two declared docs are UNAFFECTED. `docs/architecture/core-design.md`, declared by `rs/server.go`, describes the route server's place in the engine; that file gains two declarations stating what its existing answers already hold, and no behavior the doc records changes. `docs/architecture/plugin/rib-storage-design.md`, declared by `adj_rib_in/rib.go`, describes Adj-RIB-In raw hex storage; that file gains two declarations and stores nothing differently |
 | 17 | Existing docs show examples for this area? | Yes | The two Stage 1 wire examples in `docs/architecture/api/process-protocol.md` show a `commands` list with names alone. They stay CORRECT, because the three fields are optional and a plugin that sends none is the case they show. The Go example a plugin author copies is in `docs/plugin-development/commands.md` and in `docs/guide/plugins.md`, and both now carry a declared shape |
 | 18 | Anchored docs the checklist omitted | DERIVED | `spec_doc_anchors.py` names sixteen. Four were judged this phase. `docs/plugin-development/protocol.md`: AFFECTED, it enumerates the Stage 1 field set, so it gains a `CommandDecl` field table. `docs/guide/healthcheck.md` and `docs/guide/rpki.md`: AFFECTED, each shows the command whose answer changed shape. `docs/architecture/api/architecture.md`, `docs/architecture/api/wire-format.md` and `docs/plugin-development/handlers.md`: UNAFFECTED. The first anchors the 5-stage list and the transport table, the second anchors the kebab-case JSON key convention that `address-fields` obeys, and the third anchors the handler input and output types |
 
@@ -461,7 +461,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
 ## Known Limitations
 
 - The published catalog still cannot show a plugin's declaration.
-  `make ze-command-list` and `ze help command --json` read the compiled tree and
+  `./le command-list` and `ze help command --json` read the compiled tree and
   start no plugin, so the wiki page lists a plugin's commands without their
   operators. Recorded in `plan/deferrals/plugin-registers-pipe-operations.md`,
   row 2, and carried forward here.
@@ -484,7 +484,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
 - [ ] AC-1..AC-18 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated, not library-only
 - [ ] Integration and Documentation checklists answered with evidence
 - [ ] Architectural Verification table filled
@@ -502,7 +502,7 @@ additively, and it is not a protocol Ze speaks to another implementation.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-plugin-declares-answer-shape.md` only

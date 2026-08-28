@@ -1,6 +1,6 @@
 # Drain policy for the RFC extraction backlog.
 #
-# Read by check_drain_floor (scripts/dev/rfc_requirements.py) on every `make ze-rfc-check`.
+# Read by internal/le/rfc.Check on every `./le rfc check`.
 # Owned by plan/spec-rfcgate-0-umbrella.md and ultimately by Thomas.
 #
 # THIS FILE CARRIES POLICY ONLY: a start date and a rate. Two fields, nothing else.
@@ -8,7 +8,7 @@
 # it names an RFC it has become the hand-kept registry the 2026-07-29 resolution rejected,
 # and a reviewer should treat such a row as a defect rather than an extension. Who has
 # been signed off is DERIVED from rfc/extraction/*.json and published by
-# `make ze-rfc-extraction-status`; it is never written down twice.
+# `./le rfc extraction-status`; it is never written down twice.
 #
 #   start  YYYY-MM-DD the drain clock begins counting from.
 #   rate   Entries per calendar month. The required floor is

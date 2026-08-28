@@ -10,62 +10,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=dns-lookup-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        resp = dispatch(api, 'show dns lookup localhost type A')
-        status = resp.get('status')
-        if status is None:
-            runtime_fail(f'dns-lookup: dispatch returned no status: {resp}')
-        if status != 'done':
-            runtime_fail(f'dns-lookup: status={status} data={resp.get("data")}')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-
-        if 'name' not in data:
-            runtime_fail(f'dns-lookup: missing "name" in {data}')
-        if data['name'] != 'localhost':
-            runtime_fail(f'dns-lookup: name={data["name"]!r}, expected "localhost"')
-        if 'records' not in data:
-            runtime_fail(f'dns-lookup: missing "records" in {data}')
-        if 'query-time-ms' not in data:
-            runtime_fail(f'dns-lookup: missing "query-time-ms" in {data}')
-
-        print(f'OK: dns lookup name={data["name"]} records={data["records"]}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external dns-lookup-show-test {
-		run ./dns-lookup-show-test.run
+		run "ze-test fixture plugin/dns-lookup-show"
 		encoder json
 	}
 }

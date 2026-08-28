@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/interop.md -- the eight real VPP proof scenarios
 // Overview: vppevidence.go -- the shared container and ordered scenario dispatch
 //
-// Each function below is the Go producer for one function in effective-vpp.py.
+// Each function below is the Go producer for one legacy scenario function.
 // Each query failure is an operating error. A successful query that does not
 // contain the required state is a failed check in the structured report.
 package deployment
@@ -108,7 +108,7 @@ func (v *VPP) runIPsec(container, _ string) (VPPScenarioReport, error) {
 	for _, needle := range []string{
 		tb.Reset().Str("spi ").Uint(VPPIPsecSPI).String(),
 		tb.Reset().Str("spi ").Uint(VPPIPsecInboundSPI).String(),
-		"protocol:esp", "tunnel",
+		"protocol:esp", tunnelObjectName,
 	} {
 		if strings.Contains(summary, needle) {
 			continue

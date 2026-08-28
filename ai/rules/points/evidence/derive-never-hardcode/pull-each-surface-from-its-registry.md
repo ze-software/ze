@@ -10,4 +10,4 @@ stage:
 | CLI `flag.NewFlagSet.Usage` | derived at call time |
 | Help / `--help` output | derived |
 | `.ci` test expectations listing names | test pulls the list |
-| Generated docs | `make ze-inventory` |
+| Generated docs | `./le inventory` |

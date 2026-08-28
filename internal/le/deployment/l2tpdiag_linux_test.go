@@ -62,11 +62,11 @@ func (o *recordingL2TPDiagnosticOps) Socket(domain, kind, protocol int) (int, er
 	return fd, nil
 }
 
-func (o *recordingL2TPDiagnosticOps) SetReusePort(int) error {
+func (o *recordingL2TPDiagnosticOps) setReusePort(int) error {
 	return o.call("setsockopt reuseport")
 }
 
-func (o *recordingL2TPDiagnosticOps) BindIPv4(int, [4]byte, uint16) error {
+func (o *recordingL2TPDiagnosticOps) bindIPv4(int, [4]byte, uint16) error {
 	return o.call("bind udp")
 }
 
@@ -104,28 +104,28 @@ func (o *recordingL2TPDiagnosticOps) Connect(int, []byte) error {
 	return o.call("connect pppox")
 }
 
-func (o *recordingL2TPDiagnosticOps) IoctlGetInt(int, uint) (int, error) {
+func (o *recordingL2TPDiagnosticOps) ioctlGetInt(int, uint) (int, error) {
 	if err := o.call("ioctl get channel"); err != nil {
 		return 0, err
 	}
 	return 7, nil
 }
 
-func (o *recordingL2TPDiagnosticOps) IoctlSetInt(_ int, request uint, _ int) error {
+func (o *recordingL2TPDiagnosticOps) ioctlSetInt(_ int, request uint, _ int) error {
 	if request == pppiocAttChan {
 		return o.call("ioctl attach channel")
 	}
 	return o.call("ioctl connect unit")
 }
 
-func (o *recordingL2TPDiagnosticOps) IoctlGetSetInt(int, uint, int) (int, error) {
+func (o *recordingL2TPDiagnosticOps) ioctlGetSetInt(int, uint, int) (int, error) {
 	if err := o.call("ioctl new unit"); err != nil {
 		return 0, err
 	}
 	return 0, nil
 }
 
-func (o *recordingL2TPDiagnosticOps) OpenPPP() (int, error) {
+func (o *recordingL2TPDiagnosticOps) openPPP() (int, error) {
 	if err := o.call("open /dev/ppp"); err != nil {
 		return 0, err
 	}
@@ -134,12 +134,12 @@ func (o *recordingL2TPDiagnosticOps) OpenPPP() (int, error) {
 	return fd, nil
 }
 
-func (o *recordingL2TPDiagnosticOps) ProcPPPoL2TP() string {
+func (o *recordingL2TPDiagnosticOps) procPPPoL2TP() string {
 	o.calls = append(o.calls, "read /proc/net/pppol2tp")
 	return "producer proc dump\n"
 }
 
-func (o *recordingL2TPDiagnosticOps) DevPPP() string {
+func (o *recordingL2TPDiagnosticOps) devPPPText() string {
 	o.calls = append(o.calls, "stat /dev/ppp")
 	return "  /dev/ppp mode=Dcrw------- size=0\n"
 }

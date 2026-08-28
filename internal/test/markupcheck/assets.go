@@ -18,7 +18,7 @@ import (
 // and which this pattern therefore does not match.
 var assetRef = regexp.MustCompile(`(?:src|href)="([^"]*)"`)
 
-// generatedAssets is the file scripts/codegen/web_assets.go writes. A head
+// generatedAssets is the file internal/le/webassets/webassets.go writes. A head
 // block renders the set that file carries instead of naming each vendored
 // asset itself, so the scan reads it beside the templates. Without it a rename
 // of htmx.min.js would resolve against nothing and no test would say so.
@@ -46,7 +46,7 @@ func namedAssets(path, body string) []string {
 	return found
 }
 
-// AssetFindings returns one message per asset path a source under root names
+// assetFindings returns one message per asset path a source under root names
 // that assets cannot answer, plus the number of paths it resolved. It reads
 // every .templ, and the generated file the head blocks load their vendored
 // assets from.
@@ -58,7 +58,7 @@ func namedAssets(path, body string) []string {
 // prefix is the URL prefix that filesystem is mounted at. A src or href naming
 // some other asset tree is a finding rather than a skip. It resolves against
 // nothing, and a scan that matched its own prefix alone would pass over it.
-func AssetFindings(root, prefix string, assets fs.FS) ([]string, int, error) {
+func assetFindings(root, prefix string, assets fs.FS) ([]string, int, error) {
 	var (
 		findings []string
 		refs     int
@@ -123,7 +123,7 @@ func AssetFindings(root, prefix string, assets fs.FS) ([]string, int, error) {
 func AssertAssetsResolve(t *testing.T, root, prefix string, assets fs.FS, minRefs int) {
 	t.Helper()
 
-	findings, refs, err := AssetFindings(root, prefix, assets)
+	findings, refs, err := assetFindings(root, prefix, assets)
 	if err != nil {
 		t.Fatalf("scan %s for asset references: %v", root, err)
 	}

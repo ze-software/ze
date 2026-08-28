@@ -141,7 +141,7 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 2. **Phase: design** - for the chosen item, re-verify the `file:line` evidence and fill the Data Flow / Wiring / AC sections above.
 3. **Phase: wiring** - register entry points, write the failing wiring test.
 4. **Phase: implement (TDD)** - write test, fail, implement, pass, per work item.
-5. **Full verification** - `make ze-precommit-verify`.
+5. **Full verification** - `./le verify current mode full`.
 6. **Complete spec** - fill audit tables, write `plan/learned/NNN-<name>.md`, two-commit closure.
 
 ## Review Gate
@@ -174,7 +174,7 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 ### Goal Gates (MUST pass)
 - [ ] Every chosen work item has feature code + test
 - [ ] Wiring Test table complete (concrete test names, none deferred)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Registration over hardcoding respected
 
 ### TDD

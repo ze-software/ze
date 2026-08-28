@@ -2,27 +2,16 @@
 // Overview: coverage.go -- the gate map this claim is compared against
 // Overview: coverage_report.go -- the answer these problems are printed in
 //
-// hooktable.go checks the PUBLISHED claim against the bindings.
+// hooktable.go checks the published claim against the native Go checks.
 //
-// `ai/rules/repo-maintenance.md` publishes one table for each PreToolUse
-// dispatcher. Its Check and Enforces columns repeat the binding comments. These
-// copies drifted: four checks had no row, and one row named a deleted function.
-//
-// The table is NOT generated because each row includes authored prose in the
-// Triggers on and What it does cells. A generator would have to edit authored
-// markdown with escaped pipes and trailing HTML comments. This check gives most
-// of the same guarantee. The Check column must match the roster, and Enforces
-// must match bindings at RULE GRANULARITY.
-//
-// Check enumeration requires a read of Python. Go has no Python parser, so this
-// code scans only four shapes: top-level functions, a module CHECKS table,
-// calls from main(), and prefixed names. It fails CLOSED when the scan fails.
-// Otherwise, no check can verify the rows for that dispatcher.
+// `ai/rules/repo-maintenance.md` publishes one table for each hookruntime source
+// that owns registered checks. Its Check and Enforces columns repeat the
+// registry function names and binding comments. The table remains authored
+// because each row also explains its trigger and behavior.
 
 package rules
 
 import (
-	"errors"
 	"regexp"
 	"slices"
 	"strings"
@@ -38,200 +27,11 @@ const (
 )
 
 var (
-	// A `##` to `####` heading naming a dispatcher by its file name opens that
-	// dispatcher's sub-table. The heading is how a table is MATCHED to a
-	// dispatcher, so no list of table locations is kept.
-	dispatchHeading = regexp.MustCompile("^#{2,4}[ \t\n\r\f\v].*`([A-Za-z0-9_-]+\\.py)`")
-	backticked      = regexp.MustCompile("`([^`]+)`")
-	// A check is a top-level `c_` or `check_` function. Every check must also
-	// carry a binding. Thus, even a check without one still needs a row.
-	checkDef = regexp.MustCompile(`(?m)^def ((?:c|check)_[a-z0-9_]+)[ \t\n\r\f\v]*\(`)
-	// A call whose callee is a bare NAME. Its preceding character cannot be a
-	// dot or word character. This excludes `sys.exit(`, as Python's ast.Name
-	// test does.
-	bareCall = regexp.MustCompile(`(^|[^.\w])([A-Za-z_]\w*)[ \t\n\r\f\v]*\(`)
-	// A module-level def, at column zero, async or not.
-	moduleDef = regexp.MustCompile(`(?m)^(?:async )?def ([A-Za-z_]\w*)[ \t\n\r\f\v]*\(`)
-	// One Python identifier and nothing else, which is what an element of the
-	// CHECKS table must be to name a function rather than an expression.
-	pyIdentifier = regexp.MustCompile(`^[A-Za-z_]\w*$`)
+	// A `##` to `####` heading naming a Go source opens that source's
+	// sub-table. The heading is how a table is matched to its checks.
+	sourceHeading = regexp.MustCompile("^#{2,4}[ \t\n\r\f\v].*`(?:internal/le/hookruntime/)?([A-Za-z0-9_-]+\\.go)`")
+	backticked    = regexp.MustCompile("`([^`]+)`")
 )
-
-// dispatcherChecks answers every check in one dispatcher, derived from what
-// that dispatcher RUNS.
-//
-// Four sources form the union because dispatchers use two shapes, and the
-// `c_`/`check_` prefix is not universal:
-//
-//   - The module CHECKS table. It is the dispatch table for two dispatchers.
-//   - Top-level functions that main() calls by name when no CHECKS table exists.
-//     One dispatcher calls two unprefixed gates directly. The scan excludes a
-//     `_`-prefixed name because dispatcher helpers use that form.
-//
-//   - Any `c_` or `check_` function. A function absent from its dispatch table
-//     still needs a row, and the absence must remain visible.
-//   - Any function named by a binding. An unusually shaped check that declares
-//     enforcement still cannot escape the published table.
-//
-// Prefix and binding scans alone missed unprefixed, unbound gates. Two of the
-// three dispatchers already use such gates.
-func dispatcherChecks(text string, bindings []Binding) (map[string]bool, error) {
-	scrubbed, err := scrubPython(text)
-	if err != nil {
-		return nil, err
-	}
-
-	top := map[string]bool{}
-	for _, found := range moduleDef.FindAllStringSubmatch(scrubbed, -1) {
-		top[found[1]] = true
-	}
-
-	out := map[string]bool{}
-	for _, name := range checksTable(scrubbed) {
-		out[name] = true
-	}
-	if len(out) == 0 {
-		for _, name := range callsInMain(scrubbed, top) {
-			out[name] = true
-		}
-	}
-	for _, found := range checkDef.FindAllStringSubmatch(text, -1) {
-		out[found[1]] = true
-	}
-	for _, binding := range bindings {
-		if binding.Check != noCheck {
-			out[binding.Check] = true
-		}
-	}
-	return out, nil
-}
-
-// checksTable answers the bare names listed in a module-level CHECKS tuple or
-// list, which IS the dispatch table where one exists.
-func checksTable(scrubbed string) []string {
-	lines := strings.Split(scrubbed, "\n")
-	var out []string
-	for i, line := range lines {
-		trimmed := strings.TrimRight(line, " \t")
-		if trimmed != "CHECKS = (" && trimmed != "CHECKS = [" {
-			continue
-		}
-		closer := byte(')')
-		if strings.HasSuffix(trimmed, "[") {
-			closer = ']'
-		}
-		for _, body := range lines[i+1:] {
-			if body != "" && body[0] == closer {
-				break
-			}
-			for element := range strings.SplitSeq(body, ",") {
-				if name := strings.TrimSpace(element); pyIdentifier.MatchString(name) {
-					out = append(out, name)
-				}
-			}
-		}
-		break
-	}
-	return out
-}
-
-// callsInMain answers the top-level functions a module's main() calls by name,
-// private ones excluded. It is the fallback for a dispatcher with no CHECKS
-// table.
-func callsInMain(scrubbed string, top map[string]bool) []string {
-	lines := strings.Split(scrubbed, "\n")
-	start := -1
-	for i, line := range lines {
-		if strings.HasPrefix(line, "def main(") {
-			start = i
-			break
-		}
-	}
-	if start < 0 {
-		return nil
-	}
-	end := len(lines)
-	for i := start + 1; i < len(lines); i++ {
-		line := lines[i]
-		if line == "" || line[0] == ' ' || line[0] == '\t' {
-			continue
-		}
-		end = i
-		break
-	}
-
-	seen := map[string]bool{}
-	body := strings.Join(lines[start+1:end], "\n")
-	for _, found := range bareCall.FindAllStringSubmatch(body, -1) {
-		name := found[2]
-		if top[name] && !strings.HasPrefix(name, "_") {
-			seen[name] = true
-		}
-	}
-	return sortedUnique(seen)
-}
-
-// scrubPython replaces each comment and string literal with spaces. It keeps the
-// line structure.
-//
-// This prevents two errors. Calls in docstrings are not calls. Also, an
-// unterminated literal is the only detectable Python syntax error here. Its
-// rejection keeps enumeration fail-closed instead of returning a short roster.
-func scrubPython(text string) (string, error) {
-	out := []byte(text)
-	i := 0
-	for i < len(text) {
-		switch text[i] {
-		case '#':
-			for i < len(text) && text[i] != '\n' {
-				out[i] = ' '
-				i++
-			}
-		case '\'', '"':
-			quote := text[i : i+1]
-			if strings.HasPrefix(text[i:], strings.Repeat(quote, 3)) {
-				quote = strings.Repeat(quote, 3)
-			}
-			end := closingQuote(text, i, quote)
-			if end < 0 {
-				var tb textbuf.Buffer
-				return "", errors.New(tb.Str("unterminated string literal at offset ").
-					Int(int64(i)).String())
-			}
-			for j := i; j < end; j++ {
-				if out[j] != '\n' {
-					out[j] = ' '
-				}
-			}
-			i = end
-		default:
-			i++
-		}
-	}
-	return string(out), nil
-}
-
-// closingQuote answers the offset one past the literal that opens at start with
-// the given quote, or -1 when the literal never closes.
-func closingQuote(text string, start int, quote string) int {
-	for i := start + len(quote); i < len(text); {
-		if text[i] == '\\' {
-			i += 2
-			continue
-		}
-		if strings.HasPrefix(text[i:], quote) {
-			return i + len(quote)
-		}
-		// A single-quoted literal cannot span a line. Answering -1 here rather
-		// than running to the end of the file is what stops one stray quote
-		// swallowing the whole module.
-		if len(quote) == 1 && text[i] == '\n' {
-			return -1
-		}
-		i++
-	}
-	return -1
-}
 
 // cells answers the cells of one markdown table row, in order, stripped. An
 // escaped pipe inside a cell is content rather than a boundary.
@@ -257,16 +57,14 @@ type publishedRow struct {
 	Enforces string
 }
 
-// publishedRows maps each dispatcher filename to its published rows.
-//
-// It reads the first `Check | Enforces` table below that dispatcher's heading.
-// The first non-row line ends the table.
+// publishedRows maps each hookruntime Go source name to its published rows. It
+// reads the first `Check | Enforces` table below that source's heading.
 func publishedRows(docText string) map[string][]publishedRow {
 	out := map[string][]publishedRow{}
 	current := ""
 	collecting := false
 	for number, line := range strings.Split(docText, "\n") {
-		if heading := dispatchHeading.FindStringSubmatch(line); heading != nil {
+		if heading := sourceHeading.FindStringSubmatch(line); heading != nil {
 			current, collecting = heading[1], false
 			continue
 		}
@@ -310,16 +108,12 @@ func ruleStemsNamed(cell string, stems map[string]bool) map[string]bool {
 }
 
 // hookTableProblems answers where the published Hook-to-Rule Mapping differs
-// from the bindings.
+// from the registered native checks and their bindings.
 //
-// It fails closed at each step. A missing dispatcher table and an empty table
-// are both problems. The table must name every check. An empty table names none
-// but appears complete.
-//
-// The Enforces comparison uses RULE granularity because the cell publishes that
-// level. Rebinding a check within the SAME rule leaves the cell correct. The
-// binding comment is the detailed record, and gatedRegressions ratchets it.
-func hookTableProblems(gm GateMap, docText string, sources map[string]string) []string {
+// It fails closed for a missing or empty source table, a stale source/check row,
+// a missing registered check row, and an Enforces cell that disagrees with the
+// function's binding comments at rule granularity.
+func hookTableProblems(gm gateMap, docText string, sources map[string]string) []string {
 	var problems []string
 	var tb textbuf.Buffer
 
@@ -329,21 +123,29 @@ func hookTableProblems(gm GateMap, docText string, sources map[string]string) []
 		stems[stem] = true
 	}
 	tables := publishedRows(docText)
-
-	for _, name := range sortedKeys(sources) {
-		var bindings []Binding
-		for _, binding := range gm.Bindings {
-			if binding.File == name {
-				bindings = append(bindings, binding)
-			}
-		}
-		roster, err := dispatcherChecks(sources[name], bindings)
-		if err != nil {
-			tb.Reset()
-			problems = append(problems, tb.Str(name).Str(": cannot be parsed: ").Err(err).
-				Str("; its checks cannot be enumerated").String())
+	rosters := map[string]map[string]bool{}
+	bindingsByFile := map[string][]Binding{}
+	for _, binding := range gm.Bindings {
+		if binding.Check == noCheck {
 			continue
 		}
+		if rosters[binding.File] == nil {
+			rosters[binding.File] = map[string]bool{}
+		}
+		rosters[binding.File][binding.Check] = true
+		bindingsByFile[binding.File] = append(bindingsByFile[binding.File], binding)
+	}
+	for _, name := range sortedKeys(tables) {
+		if _, exists := sources[name]; !exists || len(rosters[name]) == 0 {
+			tb.Reset()
+			problems = append(problems, tb.Str(rulesRel).Byte('/').Str(docRule).Str(".md: heading `").
+				Str(name).Str("` names no source with registered native checks").String())
+		}
+	}
+
+	for _, name := range sortedKeys(rosters) {
+		roster := rosters[name]
+		bindings := bindingsByFile[name]
 		rows := tables[name]
 		if len(rows) == 0 {
 			tb.Reset()

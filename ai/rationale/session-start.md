@@ -14,7 +14,7 @@ Why: `.claude/rules/session-start.md`
 
 | Rule | Concrete Check |
 |------|----------------|
-| 1 | `scripts/dev/spec-session.sh current` -> read `plan/<name>` |
+| 1 | `internal/le/speclifecycle/session.go current` -> read `plan/<name>` |
 | 2 | Check file digests in per-spec session state; re-read full file only when digest insufficient |
 | 3 | Can you name 3 related files? |
 | 4 | `go test` shows RED before implementation |

@@ -5,8 +5,8 @@
 //
 // ONE action, and it writes. This generator's input is the network rather than
 // the tree, so there is nothing for a check twin to compare a checkout against
-// without asking five registries what they publish today. That is why
-// ze-generated-files-check does not list it and why `make generate` does not run
+// without asking five registries what they publish today. That is why the
+// generated-files checks do not list it and no aggregate native generator runs
 // it: the seed table is refreshed deliberately, not on every build.
 
 package ianaasn

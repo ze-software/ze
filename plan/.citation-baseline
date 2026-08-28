@@ -2,12 +2,12 @@
 #
 # Allow-list, like test/.ci-sleep-baseline: these spec files are cited
 # by a sibling spec but no longer exist on disk (closed/folded). The
-# gate (scripts/dev/spec-citation-check.py) grandfathers them so the
+# gate (internal/le/speccitation/speccitation.go) grandfathers them so the
 # current tree passes; a target that becomes NEWLY absent (e.g. a spec
 # closed while still cited) is not listed here and fails the gate.
 #
 # Shrink this list by cleaning up the citing reference, then removing
-# the entry. Regenerate with: scripts/dev/spec-citation-check.py --write-baseline
+# the entry, then run: ./le spec-citation
 plan/spec-anomaly-1-detect.md
 plan/spec-doctor-coverage.md
 plan/spec-filter-wire-1-protocol.md

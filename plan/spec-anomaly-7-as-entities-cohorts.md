@@ -49,7 +49,7 @@ children 6 and 5 respectively and are consumed, not modified, here.
 
 ### Architecture Docs
 - [ ] `plan/spec-anomaly-0-umbrella.md` - shared framing and the verified constraints for AS work
-  → Constraint: no `detect -> flowexport/enrich` import (fails `make ze-tier-check`, umbrella A-3);
+  → Constraint: no `detect -> flowexport/enrich` import (fails `./le tier check`, umbrella A-3);
     origin-AS must ride the facts surface, stamped by the producer (child 6). This child reads
     `fe.SrcAS` off the already-imported `trafficfeature.FeatureEntry` -- zero new imports.
   → Constraint: R-3 -- AS enrichment is OPTIONAL; the detector must keep scoring (prefix cohorts,
@@ -353,7 +353,7 @@ N/A -- this child adds no wire-protocol behavior. It reads a fact and emits an i
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 7-13 | Critical / Deliverables / Security review, re-verify |
 | 14. Present summary | Executive Summary + learned summary |
 
@@ -380,7 +380,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
    - Tests: `TestPerASNEntityScored`, `TestFreezeLearnASEntity`, `TestASIncidentReportOnly`
    - Files: `detector.go`, `event.go`, `show.go`
 5. **Functional test** -- `test/plugin/anomaly-as-cohort.ci` (gated on child 4/6 for AS-carrying flows).
-6. **Full verification** -- `make ze-precommit-verify`.
+6. **Full verification** -- `./le verify current mode full`.
 7. **Complete spec** -- fill audit tables; learned summary `plan/learned/NNN-anomaly-7-as-entities-cohorts.md`;
    two commits (code+spec+learned, then `git rm` spec).
 
@@ -547,7 +547,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

@@ -450,14 +450,14 @@ func verifyKernelArch(path, arch string) error {
 	case archAMD64:
 		if !x86Magic {
 			if arm64Magic {
-				return fmt.Errorf("kernel %s is arm64 but appliance arch is %s; rebuild with: make -C tools/installer-kernel ARCH=amd64", path, arch)
+				return fmt.Errorf("kernel %s is arm64 but appliance arch is %s; rebuild with: ./ze appliance kernel --target installer --arch amd64", path, arch)
 			}
 			return fmt.Errorf("kernel %s does not look like an x86 bzImage", path)
 		}
 	case archARM64:
 		if !arm64Magic {
 			if x86Magic {
-				return fmt.Errorf("kernel %s is x86 but appliance arch is %s; rebuild with: make -C tools/installer-kernel ARCH=arm64", path, arch)
+				return fmt.Errorf("kernel %s is x86 but appliance arch is %s; rebuild with: ./ze appliance kernel --target installer --arch arm64", path, arch)
 			}
 			return fmt.Errorf("kernel %s does not look like an arm64 Image", path)
 		}

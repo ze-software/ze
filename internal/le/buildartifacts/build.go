@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	hostGate = "ze-host-build"
-	hostTags = "ze_core ze_setup"
+	hostAction = "host"
+	hostTags   = "ze_core ze_setup"
 
 	installerTags = "ze_installer"
 )
@@ -29,7 +29,7 @@ const (
 // Environment contains only the toolchain overrides, not inherited variables
 // that can include credentials.
 type BuildReport struct {
-	Gate        string   `json:"gate"`
+	Action      string   `json:"action"`
 	Command     []string `json:"command"`
 	Environment []string `json:"environment"`
 	Output      string   `json:"output"`
@@ -38,16 +38,23 @@ type BuildReport struct {
 }
 
 type buildPlan struct {
-	gate    string
+	action  string
 	command []string
 	environ gotoolchain.EnvOptions
 	output  string
 }
 
-type buildRunner func(gate string, argv []string, dir string, environ []string) int
+type buildRunner func(action string, argv []string, dir string, environ []string) int
 
 func runHost() (any, int) {
 	return runAtRoot(hostPlan)
+}
+
+// BuildHost builds the native host-side appliance driver in root.
+func BuildHost(root string) (BuildReport, int) {
+	payload, code := runWithRoot(root, hostPlan, streamBuild)
+	report, _ := payload.(BuildReport)
+	return report, code
 }
 
 func runInstaller(arch string) (any, int) {
@@ -81,7 +88,7 @@ func runWithRoot(
 func hostPlan(root string, toolchain gotoolchain.Toolchain) buildPlan {
 	output := filepath.Join(root, "ze-host")
 	return buildPlan{
-		gate: hostGate,
+		action: hostAction,
 		command: []string{
 			"go", "build",
 			"-tags", hostTags,
@@ -99,9 +106,9 @@ func hostPlan(root string, toolchain gotoolchain.Toolchain) buildPlan {
 func installerPlan(_ string, toolchain gotoolchain.Toolchain, arch string) buildPlan {
 	var tb textbuf.Buffer
 	output := tb.Str("bin/ze-installer-").Str(arch).String()
-	gate := tb.Reset().Str("ze-installer-build-").Str(arch).String()
+	action := tb.Reset().Str("installer-").Str(arch).String()
 	return buildPlan{
-		gate: gate,
+		action: action,
 		command: []string{
 			"go", "build",
 			"-tags", installerTags,
@@ -121,9 +128,9 @@ func execute(
 	run buildRunner,
 ) (BuildReport, int) {
 	overrides := toolchain.Overrides(plan.environ)
-	code := run(plan.gate, plan.command, root, toolchain.Environment(plan.environ))
+	code := run(plan.action, plan.command, root, toolchain.Environment(plan.environ))
 	report := BuildReport{
-		Gate:        plan.gate,
+		Action:      plan.action,
 		Command:     plan.command,
 		Environment: overrides,
 		Output:      plan.output,
@@ -133,7 +140,7 @@ func execute(
 	return report, code
 }
 
-func streamBuild(gate string, argv []string, dir string, environ []string) int {
-	_, code := gaterun.Run(gate, argv, dir, environ)
+func streamBuild(action string, argv []string, dir string, environ []string) int {
+	_, code := gaterun.Run(action, argv, dir, environ)
 	return code
 }

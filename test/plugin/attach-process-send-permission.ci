@@ -49,99 +49,6 @@ expect=bgp:conn=1:seq=2:contains=18CB0071
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=send-permission-injector.run:mode=755:terminator=EOF_INJECT
-#!/usr/bin/env python3
-import sys
-
-from ze_api import API, runtime_fail
-
-PERMITTED = "127.0.0.1"
-UNATTACHED = "127.0.0.2"
-ROUTE = "nhop 101.1.101.1 nlri ipv4/unicast add 203.0.113.0/24"
-
-
-def updates_sent(api, peer):
-    """ze's own count of UPDATEs that reached this peer's socket."""
-    row = api.peer_fields(peer).get(peer)
-    if not isinstance(row, dict):
-        runtime_fail(f"SEND-PERMISSION: no detail row for {peer}")
-        return -1
-    return int(row.get("updates-sent", 0) or 0)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    # Declared wide on purpose: only the config can keep this program unfed, so
-    # AC-11's "and is fed nothing by it" is a statement about the missing receive
-    # line rather than about a narrow subscription.
-    api.subscribe(["update", "state"])
-    api.ready()
-
-    # Both sessions up and both markers on the wire. Everything counted after
-    # this point is the announce and nothing else.
-    if not api.wait_peer_eor_sent(expected_peers=2, attempts=60):
-        runtime_fail("SEND-PERMISSION: both peers must send their End-of-RIB first")
-        return
-    before = updates_sent(api, UNATTACHED)
-
-    # AC-9. One command, both peers named.
-    api.send(f"peer * update text {ROUTE}")
-    api.quiesce()
-
-    if updates_sent(api, PERMITTED) < 1:
-        runtime_fail("SEND-PERMISSION: the peer that grants send [ update ] received nothing")
-        return
-    print("SEND-PERMISSION: announce reached the attached peer", file=sys.stderr, flush=True)
-
-    after = updates_sent(api, UNATTACHED)
-    if after != before:
-        runtime_fail(
-            f"SEND-PERMISSION: the unattached peer was sent {after - before} update(s)")
-        return
-    print("SEND-PERMISSION: the unattached peer was sent nothing", file=sys.stderr, flush=True)
-
-    # AC-10. Aimed at the unattached peer alone, the whole command is refused and
-    # the refusal names the peer and this process. The engine reports it either as
-    # an RPC error or as an error response, so both shapes count.
-    refusal = ""
-    try:
-        result = (api._call_engine(
-            "ze-plugin-engine:update-route",
-            {"peer-selector": UNATTACHED, "command": f"update text {ROUTE}"},
-        ) or {}).get("result", {})
-        if isinstance(result, dict) and result.get("status") == "error":
-            refusal = str(result.get("error", ""))
-    except RuntimeError as exc:
-        refusal = str(exc)
-
-    if "send refused" not in refusal:
-        runtime_fail(f"SEND-PERMISSION: the unattached peer accepted an announce: {refusal!r}")
-        return
-    if api.plugin_name not in refusal or UNATTACHED not in refusal:
-        runtime_fail(f"SEND-PERMISSION: the refusal names neither the peer nor the process: {refusal!r}")
-        return
-    print("SEND-PERMISSION: refused for the unattached peer", file=sys.stderr, flush=True)
-
-    # AC-11's other half. The attached peer grants send and no receive, so this
-    # program may announce to it and must be handed nothing by it. Everything the
-    # session produced (state, its own sent UPDATE) has already happened.
-    leaked = api.wait_for_event(timeout=2.0)
-    if leaked is not None:
-        runtime_fail(f"SEND-PERMISSION: a send-only binding was fed an event: {leaked!r}")
-        return
-    print("SEND-PERMISSION: a send-only binding is fed nothing", file=sys.stderr, flush=True)
-
-    api.dispatch("request shutdown")
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_INJECT
 
 expect=stderr:pattern=SEND-PERMISSION: announce reached the attached peer
 expect=stderr:pattern=SEND-PERMISSION: the unattached peer was sent nothing
@@ -154,7 +61,7 @@ expect=stderr:pattern=send refused.*peer=127\.0\.0\.2 process=send-permission-in
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external send-permission-injector {
-		run ./send-permission-injector.run
+		run "ze-test fixture plugin/attach-process-send-permission"
 		encoder json
 	}
 }

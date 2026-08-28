@@ -4,23 +4,24 @@
 // gates.go defines integration, interop, stress, and live gates with their
 // exact native callbacks or external toolchain arguments.
 // Each gate needs infrastructure that is not present on every machine.
-// The requirements include Docker, a network namespace, CAP_NET_ADMIN, root, QEMU, and internet access.
-// For that reason, `make ze-precommit-verify` does not include these gates.
+// The requirements include Docker, a network namespace, CAP_NET_ADMIN, root,
+// QEMU, and internet access. For that reason, `./le verify current mode full`
+// does not include these evidence actions.
 //
-// All QEMU kernel logic remains in Make.
-// Thirteen targets boot ze's runtime kernel through $(ze-qemu-kernel-guard).
-// That guard compares tmp/kernel/vmlinuz with the architecture-and-config cache entry from ze-host.
-// scripts/evidence/qemu_kernel_wiring_test.go derives its target set from those recipes.
-// The guard, its `: ze-host-build` prerequisite, the shared cross-build definition, and their comments form one unit.
-// Moving only some of that unit previously made its reasoning stale, so none of it moved here.
+// The native QEMU area owns kernel staging, guards, boots, and its complete
+// guest suite catalog. internal/le/qemu/alltests_test.go derives its target set
+// from that catalog.
+// Kernel staging and the host build share the same native definitions, so the
+// guest proofs cannot boot an artifact produced by a different configuration.
 //
 // INTEROP_SCENARIO and IPSEC_INTEROP_SCENARIO remain environment selectors.
-// The two native interop callbacks read them before scenario discovery, so the
-// Make and le entry points select the same exact scenario without a script argv.
+// The two native interop callbacks read them before scenario discovery, so
+// `./le integration interop` and `./le integration interop-ipsec` select one
+// exact scenario without a helper argv.
 //
-// Nine neighboring gates are not in this table; each remains owned elsewhere.
-// internal/le/deployment owns seven ze-deployment- gates.
-// internal/le/evidence owns one ze-evidence- gate, and internal/le/qemu owns one ze-qemu- gate.
+// Nine neighboring actions are not in this table. internal/le/deployment owns
+// seven deployment actions, while internal/le/evidence and internal/le/qemu own
+// one each.
 // The L2TP peer proof already uses this gate-family ownership.
 // A duplicate row would make the parity census report drift.
 //
@@ -36,28 +37,27 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-// Area is the word this command is typed as, and the prefix leaction removes
-// from each gate name to derive its verb.
+// Area is the word this command is typed as.
 const Area = "integration"
 
-// goTool is the toolchain command the nine kernel and live test gates run.
+// goTool is the toolchain command the kernel and live actions run.
 const goTool = "go"
 
 // envString is the env registry's word for a string-valued entry.
 const envString = "string"
 
-// Gate defines an integration gate: its Make target, purpose, and native
+// Action defines one integration action: its native verb, purpose, and native
 // callback or external toolchain command. Exactly one of Native and Argv is set.
-type Gate struct {
-	Name   string
+type Action struct {
+	Verb   string
 	Why    string
 	Native func(context.Context, string) (any, int)
 	Argv   func() []string
 }
 
-// NeedsCgo reports whether this gate's external command needs CGO_ENABLED=1.
+// needsCgo reports whether this action's external command needs CGO_ENABLED=1.
 // Native callbacks own their process environment and never request it here.
-func (g Gate) NeedsCgo() bool {
+func (g Action) needsCgo() bool {
 	if g.Argv == nil {
 		return false
 	}
@@ -70,6 +70,13 @@ var (
 		Type:        envString,
 		Default:     "",
 		Description: "one scenario under test/interop/scenarios/; empty runs every scenario",
+		Private:     true,
+	})
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "stress.scenario",
+		Type:        envString,
+		Default:     "",
+		Description: "one scenario in the native BGP stress registry; empty runs all five",
 		Private:     true,
 	})
 	_ = env.MustRegister(env.EnvEntry{
@@ -98,33 +105,40 @@ func fixed(argv ...string) func() []string {
 	return func() []string { return slices.Clone(argv) }
 }
 
-// Table answers every gate this area declares, in the order the listing prints
-// them.
-func Table() []Gate {
-	return []Gate{
+// Table answers every action this area declares, in listing order.
+func Table() []Action {
+	return []Action{
 		// ── Interop ──────────────────────────────────────────────────────
 		{
-			Name:   "ze-interop-test",
+			Verb:   "interop",
 			Native: runGeneralInterop,
 			Why: "BGP interop against the FRR, BIRD and GoBGP containers, every scenario" +
 				" under test/interop/scenarios/. Needs Docker. INTEROP_SCENARIO=<name>" +
 				" runs one of them",
 		},
 		{
-			Name:   "ze-interop-ipsec-test",
+			Verb:   "interop-ipsec",
 			Native: runIPsecInterop,
 			Why: "IKEv2/IPsec interop against strongSwan. Needs Docker and privileged" +
 				" containers. IPSEC_INTEROP_SCENARIO=<name> runs one scenario",
 		},
 		// ── Stress ───────────────────────────────────────────────────────
 		{
-			Name:   "ze-stress-bird-test",
+			Verb:   StressAction,
+			Native: runStressGate,
+			Why: "the complete native BGP stress registry: bulk IPv4, mixed families," +
+				" session flap, BIRD baseline, and 1M-route profiling. Needs root," +
+				" network namespaces, iproute2, ethtool, tcpdump, and BIRD." +
+				" STRESS_SCENARIO=<name> runs one scenario",
+		},
+		{
+			Verb:   "stress-bird",
 			Native: runStressBirdGate,
 			Why: "the BIRD baseline the ze bulk-IPv4 stress numbers are read against." +
 				" Needs root, bird2 and network namespaces",
 		},
 		{
-			Name: "ze-stress-web-test",
+			Verb: "stress-web",
 			Argv: fixed(goTool, "test", "-tags", "ze_core stress", "-race", "-count=1",
 				"-timeout", "300s", "./internal/component/web/",
 				"-run", "TestWebConcurrentEditStress", "-v"),
@@ -133,7 +147,7 @@ func Table() []Gate {
 				" of ze-precommit-verify (R-6)",
 		},
 		{
-			Name: "ze-stress-fleet-test",
+			Verb: "stress-fleet",
 			Argv: fixed(goTool, "test", "-tags", "ze_core fleetperf", "-count=1",
 				"-timeout", "300s", "./cmd/ze/hub/",
 				"-run", "TestFleetManyClientsPerf", "-v"),
@@ -142,43 +156,43 @@ func Table() []Gate {
 		},
 		// ── Live ─────────────────────────────────────────────────────────
 		{
-			Name: "ze-live-rpki-test",
+			Verb: "live-rpki",
 			Argv: fixed(goTool, "test", "-v", "-tags", "live", "-timeout", "180s", "-count=1",
 				"./internal/component/bgp/plugins/rpki/...", "-run", "TestLive"),
 			Why: "the RPKI validator against a real cache. Needs Docker and internet access",
 		},
 		// ── Integration (network namespace) ───────────────────────────────
 		{
-			Name: "ze-integration-iface-test",
+			Verb: "iface",
 			Argv: goTest("120s", "./internal/component/iface/..."),
 			Why: "the iface component against a real kernel: netlink link, address and" +
 				" route programming. Needs CAP_NET_ADMIN",
 		},
 		{
-			Name: "ze-integration-fib-test",
+			Verb: "fib",
 			Argv: goTest("120s", "./internal/plugins/fib/kernel/..."),
 			Why: "the kernel FIB backend: what a route looks like once netlink has it." +
 				" Needs CAP_NET_ADMIN",
 		},
 		{
-			Name: "ze-integration-firewall-test",
+			Verb: "firewall",
 			Argv: goTest("120s", "./internal/plugins/firewall/nft/..."),
 			Why:  "the nft firewall backend against a real nftables ruleset. Needs CAP_NET_ADMIN",
 		},
 		{
-			Name: "ze-integration-traffic-test",
+			Verb: "traffic",
 			Argv: goTest("120s", "./internal/plugins/traffic/netlink/..."),
 			Why: "the traffic-control netlink backend: qdisc and filter programming." +
 				" Needs CAP_NET_ADMIN",
 		},
 		{
-			Name: "ze-integration-gtsm-test",
+			Verb: "gtsm",
 			Argv: goTest("120s", "./internal/core/network/...", "./internal/component/bgp/reactor/..."),
 			Why: "BGP GTSM and TTL-security, which live in a socket option only a Linux" +
 				" kernel can answer for",
 		},
 		{
-			Name: "ze-integration-as112-test",
+			Verb: "as112",
 			Argv: goTest("60s", "./internal/plugins/as112/..."),
 			Why: "the AS112 plugin serving DNS on privileged port 53. Needs" +
 				" CAP_NET_BIND_SERVICE or root",

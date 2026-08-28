@@ -9,115 +9,17 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Plugin 1: declares a doctor check and serves diagnostics via callback
-tmpfs=doctor-provider.run:mode=755:terminator=EOF_PROVIDER
-#!/usr/bin/env python3
-"""Plugin that declares a doctor check and serves diagnostics via callback."""
-
-from ze_api import API
-
-
-def doctor_handler(name):
-    if name == "test-cache-reachable":
-        return [
-            {"code": "doctor-test-cache-down", "severity": "warning", "message": "test cache not responding"},
-        ]
-    return []
-
-
-def main():
-    api = API()
-    api.declare_doctor_check(
-        name="test-cache-reachable",
-        phase="post-config",
-        codes=["doctor-test-cache-down"],
-    )
-    api.on_doctor_check(doctor_handler)
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_shutdown(timeout=30.0)
-
-
-if __name__ == '__main__':
-    main()
-EOF_PROVIDER
 
 # Plugin 2: dispatches show doctor and verifies plugin diagnostics appear
-tmpfs=doctor-checker.run:mode=755:terminator=EOF_CHECKER
-#!/usr/bin/env python3
-"""Plugin that dispatches show doctor and checks for plugin diagnostics."""
-
-import json
-import time
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    result = api.dispatch_until(
-        'show doctor',
-        lambda r: any(
-            d.get('code') == 'doctor-test-cache-down'
-            for d in result_json_data(r, {}).get('diagnostics', [])
-        ),
-    )
-    if result is None or result.get('status') != 'done':
-        status = result.get('status') if result else 'nil'
-        data = result_text_data(result) if result else ''
-        runtime_fail(f'show doctor: status={status} data={data[:200]}')
-
-    try:
-        data = result_json_data(result, {})
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'show doctor json: {exc}: {result_text_data(result)[:200]}')
-        data = {}
-
-    diagnostics = data.get('diagnostics', [])
-    codes = [diag.get('code') for diag in diagnostics]
-    if 'doctor-test-cache-down' not in codes:
-        msgs = [(d.get('code'), d.get('message')) for d in diagnostics]
-        runtime_fail(f'plugin doctor check diagnostic missing: {msgs!r}')
-
-    found = [d for d in diagnostics if d.get('code') == 'doctor-test-cache-down']
-    if found[0].get('severity') != 'warning':
-        runtime_fail(f'wrong severity: {found[0]}')
-    if 'test cache not responding' not in found[0].get('message', ''):
-        runtime_fail(f'wrong message: {found[0]}')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_CHECKER
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external doctor-provider {
-        run ./doctor-provider.run
+        run "ze-test fixture plugin/api-doctor-check-provider"
         encoder json
     }
     external doctor-checker {
-        run ./doctor-checker.run
+        run "ze-test fixture plugin/api-doctor-check-checker"
         encoder json
     }
 }

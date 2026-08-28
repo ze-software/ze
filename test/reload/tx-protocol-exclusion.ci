@@ -64,16 +64,7 @@ bgp {
 EOF_CONF2
 
 # Trigger: rapid double SIGHUP
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-cp config2.conf ze-bgp.conf
-# Send two SIGHUPs in rapid succession
-kill -HUP $(cat daemon.pid)
-kill -HUP $(cat daemon.pid)
-EOF_TRIGGER
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture reload/tx-protocol-exclusion-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

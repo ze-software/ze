@@ -2,13 +2,13 @@
 
 <!-- source: ai/rules/plugins.md -- full rule -->
 <!-- source: internal/component/plugin/all/all.go -- blank imports that wire init() -->
-<!-- source: scripts/codegen/plugin_imports.go -- generates all.go from directory scan -->
+<!-- source: internal/le/pluginimports/actions.go -- Answer -->
 
 ## The Folder Test
 
 Every feature in Ze passes two folder tests:
 
-**Copy test:** copy a plugin folder into the project, run codegen (`make generate`),
+**Copy test:** copy a plugin folder into the project, run codegen (`./le repository generate`),
 and the plugin's commands, YANG schema, and handlers are live. No manual wiring.
 
 **Delete test:** delete a plugin folder, run codegen, and every one of its features
@@ -91,12 +91,12 @@ present in the directory. The only hand-written file is the `.yang` itself.
 This means adding a YANG command schema to a plugin is:
 
 1. Write `ze-<name>-cmd.yang` in the plugin's `yang/` folder
-2. Run `make generate`
+2. Run `./le repository generate`
 3. Done: the codegen produces `embed.go`, `register.go`, and updates `all.go`
 
 ### How Codegen Enables the Folder Test
 
-The codegen (`scripts/codegen/plugin_imports.go`) scans the directory tree for:
+The codegen (`internal/le/pluginimports.Write`) scans the directory tree for:
 
 - Packages containing `yang.RegisterModule` calls -> adds to `all.go` schema imports
 - Packages containing `pluginserver.RegisterRPCs` calls -> adds to `all.go` RPC imports

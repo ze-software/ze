@@ -12,31 +12,7 @@
 # VALIDATES: a plugin-only config reloads on SIGHUP without restarting.
 # PREVENTS: the plugin-only shape losing reload coverage with the orchestrator.
 
-# Shell script to send signals to the daemon
-tmpfs=signal.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-# Wait for daemon.pid to be written by test runner
-for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-    if [ -f daemon.pid ]; then
-        break
-    fi
-    sleep 0.1
-done
-if [ ! -f daemon.pid ]; then
-    echo "daemon.pid not found" >&2
-    exit 1
-fi
-PID=$(cat daemon.pid)
-# daemon.pid is written only after the daemon reports readiness, meaning signal
-# handlers are registered. Brief sleep for safety margin.
-sleep 0.2
-# Send SIGHUP to trigger reload
-kill -HUP "$PID" 2>/dev/null
-# Wait for reload to complete
-sleep 1
-# Send SIGTERM for graceful shutdown
-kill -TERM "$PID" 2>/dev/null
-EOF_SH
+# Native trigger sends signals to the daemon.
 
 # Plugin-only config: no bgp, no interface, no protocol block.
 tmpfs=plugin-only.conf:terminator=EOF_CONF
@@ -45,7 +21,7 @@ plugin {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=./signal.sh
+cmd=background:seq=1:exec=ze-test fixture reload/reload-plugin-only-no-change-trigger
 cmd=foreground:seq=2:exec=ze start plugin-only.conf:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=reloading config

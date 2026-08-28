@@ -14,91 +14,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=diag-capture-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    # Convert an RPC-level failure (e.g. an unwired/unknown command, which makes
-    # _call_engine raise) into a status=error dict so the assertions below fire a
-    # loud runtime_fail instead of crashing the plugin and passing vacuously.
-    try:
-        resp = api._call_engine(
-            'ze-plugin-engine:dispatch-command', {'command': command})
-    except Exception as e:
-        return {'status': 'error', 'error': f'engine call raised: {e}'}
-    if resp is None:
-        return {'status': 'error', 'error': 'engine call returned None'}
-    return resp.get('result', {})
-
-def call(api, command, label):
-    resp = dispatch(api, command)
-    status = resp.get('status')
-    if status is None:
-        runtime_fail(f'{label}: dispatch returned no status: {resp}')
-    if status != 'done':
-        runtime_fail(f'{label}: status={status} data={resp.get("data")}')
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    if not isinstance(data, dict):
-        runtime_fail(f'{label}: expected dict, got {type(data).__name__}')
-    return data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # show capture l2tp -> HandleShowCapture: l2tp subsystem not loaded here, so
-        # result["l2tp"] = "subsystem not running" (capture.go:53-55).
-        show = call(api, 'show capture l2tp', 'show-capture')
-        if show.get('l2tp') != 'subsystem not running':
-            runtime_fail(f'show-capture: expected l2tp="subsystem not running", got {show.get("l2tp")!r}')
-
-        # show capture raw start -> captureRawStart: action=start, started is a list
-        # (capture_raw.go:85-91). No BFD/L2TP/BGP raw provider here -> started == [].
-        start = call(api, 'show capture raw start', 'capture-raw-start')
-        if start.get('action') != 'start':
-            runtime_fail(f'capture-raw-start: expected action=start, got {start.get("action")!r}')
-        started = start.get('started')
-        if not isinstance(started, list):
-            runtime_fail(f'capture-raw-start: expected started list, got {started!r}')
-
-        # show capture raw dump -> captureRawDump: l2tp not running (capture_raw.go:131-133).
-        dump = call(api, 'show capture raw dump', 'capture-raw-dump')
-        if dump.get('l2tp') != 'subsystem not running':
-            runtime_fail(f'capture-raw-dump: expected l2tp="subsystem not running", got {dump.get("l2tp")!r}')
-
-        # show capture raw stop -> captureRawStop: action=stop, stopped is a list
-        # (capture_raw.go:117-123).
-        stop = call(api, 'show capture raw stop', 'capture-raw-stop')
-        if stop.get('action') != 'stop':
-            runtime_fail(f'capture-raw-stop: expected action=stop, got {stop.get("action")!r}')
-        stopped = stop.get('stopped')
-        if not isinstance(stopped, list):
-            runtime_fail(f'capture-raw-stop: expected stopped list, got {stopped!r}')
-
-        print(f'OK: capture round-trip start={start.get("action")} dump-l2tp={dump.get("l2tp")!r} stop={stop.get("action")}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external diag-capture-test {
-		run ./diag-capture-test.run
+		run "ze-test fixture plugin/diag-capture"
 		encoder json
 	}
 }

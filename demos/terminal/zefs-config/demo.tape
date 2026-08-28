@@ -4,10 +4,10 @@ Source common.tape
 Hide
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/zefs-config/config ZE_INIT_INPUT=/src/tmp/terminal-demos/state/zefs-config/init.input ZE_SSH_PASSWORD=secret123 SSHPASS=secret123"
 Enter
-Type "/src/demos/terminal/zefs-config/run.sh prepare"
+Type "ze-demo run zefs-config prepare"
 Enter
 Wait+Screen /terminal demo prepared/
-Type "bash /src/demos/terminal/cards.sh zefs-config intro"
+Type "ze-demo card zefs-config intro"
 Enter
 Show
 Wait+Screen /====/
@@ -33,10 +33,10 @@ Enter
 Sleep 4s
 
 Hide
-Type "/src/demos/terminal/zefs-config/run.sh start"
+Type "ze-demo run zefs-config start"
 Enter
 Wait+Screen /terminal demo ready/
-Type "bash /src/demos/terminal/cards.sh zefs-config ssh"
+Type "ze-demo card zefs-config ssh"
 Enter
 Show
 Sleep 9s
@@ -115,10 +115,10 @@ Wait+Screen /router-id/
 Sleep 7s
 
 Hide
-Type "/src/demos/terminal/zefs-config/run.sh stop"
+Type "ze-demo run zefs-config stop"
 Enter
 Wait+Screen /terminal demo stopped/
-Type "bash /src/demos/terminal/cards.sh zefs-config recap"
+Type "ze-demo card zefs-config recap"
 Enter
 Show
 Sleep 9s

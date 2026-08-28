@@ -1,6 +1,6 @@
 // The consistency gate's checks, driven as FUNCTIONS over fixture trees.
 //
-// The gate's previous test (scripts/lint/consistency_test.go) forked the tool
+// The gate's previous test (internal/le/consistency/consistency_test.go) forked the tool
 // as a subprocess over a fixture tree and matched substrings in its combined
 // output. What that proved, and where each proof now lives:
 //

@@ -148,7 +148,7 @@ func formatUptime(d time.Duration) string {
 // appear directly under bgp/peer and inside bgp/group/*/peer.
 func buildBGPPanel(tree *config.Tree, schema *config.Schema) DashboardBGPPanel {
 	if tree == nil || schema == nil {
-		return DashboardBGPPanel{Empty: true, HintURL: "/show/bgp/peer/"}
+		return DashboardBGPPanel{Empty: true, HintURL: bgpPeerPathPrefix}
 	}
 
 	total := 0
@@ -166,30 +166,30 @@ func buildBGPPanel(tree *config.Tree, schema *config.Schema) DashboardBGPPanel {
 	}
 
 	if total == 0 {
-		return DashboardBGPPanel{Empty: true, HintURL: "/show/bgp/peer/"}
+		return DashboardBGPPanel{Empty: true, HintURL: bgpPeerPathPrefix}
 	}
 
 	return DashboardBGPPanel{
 		Total:   total,
-		HintURL: "/show/bgp/peer/",
+		HintURL: bgpPeerPathPrefix,
 	}
 }
 
 // buildIfacePanel counts configured interfaces from the config tree.
 func buildIfacePanel(tree *config.Tree, schema *config.Schema) DashboardIfacePanel {
 	if tree == nil || schema == nil {
-		return DashboardIfacePanel{Empty: true, HintURL: "/show/iface/"}
+		return DashboardIfacePanel{Empty: true, HintURL: ifacePathPrefix}
 	}
 
 	total := countListKeys(tree, "iface")
 
 	if total == 0 {
-		return DashboardIfacePanel{Empty: true, HintURL: "/show/iface/"}
+		return DashboardIfacePanel{Empty: true, HintURL: ifacePathPrefix}
 	}
 
 	return DashboardIfacePanel{
 		Total:   total,
-		HintURL: "/show/iface/",
+		HintURL: ifacePathPrefix,
 	}
 }
 

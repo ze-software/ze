@@ -10,4 +10,4 @@ stage:
 | Retry / backoff | Check every other caller doing the same I/O |
 | New error-wrapping context | Check every other caller wrapping the same error |
 | Replace direct call with helper | Check every other caller that should use the helper |
-| Change/remove how a binary is invoked (launch form, positional, flag) | Grep EVERY invocation site of the bare token (`\bze <arg>`), not just the framework directive (`exec=ze`): `.ci` `exec=`, embedded `tmpfs=*.sh` bodies, helper `.sh`/`.py`, runner launch code, wrapper scripts, docs. Prove with the FULL suite, never a sample, only it runs the embedded launches (learned 1248) |
+| Change or remove how a binary is invoked | Search EVERY invocation of the bare token, including `.ci` directives, embedded `tmpfs=` bodies, compiled drivers under `internal/test/fixture`, runner launch code, native actions, and docs. Prove the complete affected suite, never a sample (learned 1248) |

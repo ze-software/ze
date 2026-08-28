@@ -198,10 +198,9 @@ Use this for:
   connects to its API socket on startup.
 - **Gokrazy containers:** a sidecar image bundles `vpp` and `ze`; the
   supervisor starts VPP first, then ze with `external true`.
-- **Functional tests:** `bin/ze-test vpp` runs `test/vpp/*.ci` which
-  drive a Python `vpp_stub.py` listening on the API socket instead of
-  a real VPP. See `docs/functional-tests.md` for the harness.
-<!-- source: test/scripts/vpp_stub.py -- Python GoVPP API stub -->
+- **Functional tests:** `./le functional vpp` drives the compiled Go VPP
+  stub instead of a real VPP. See `docs/functional-tests.md` for the harness.
+<!-- source: internal/test/cli/cmd_vpp_stub.go -- runVPPStub -->
 
 ## Configuring VPP
 
@@ -332,7 +331,7 @@ telemetry are in the tree. The remaining phases:
 | Phase | What it adds | Why not yet |
 |-------|--------------|-------------|
 | vpp-3 | MPLS label push / swap / pop driven from BGP labelled unicast | **In tree.** Labels stripped at NLRI parse (SplitLabeled, RFC 8277), stored as FamilyRIB side-data, propagated through bgp-rib and sysRIB BestChangeEntry.Labels, programmed into VPP via IPRouteAddDel with LabelStack (push) or MplsRouteAddDel (swap/pop). 20-bit label range and stack depth 16 validated before GoVPP call. |
-| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (`spec-followup-vpp-iface`, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by `scripts/evidence/effective-vpp-iface.py`; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping `linux_cp_plugin.so`/`linux_nl_plugin.so` (the `ligato/vpp-base` image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. |
+| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (`spec-followup-vpp-iface`, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by `internal/le/deployment.Answer`; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping `linux_cp_plugin.so`/`linux_nl_plugin.so` (the `ligato/vpp-base` image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. |
 <!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip -->
 <!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN -->
 <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API -->

@@ -136,7 +136,7 @@ func trackedGoFiles(root string) ([]string, error) {
 
 	// #nosec G204 -- Git and its tracked-Go-files query are fixed; root only selects the checkout.
 	cmd := exec.CommandContext(ctx, "git", "-C", root, "ls-files", "-z", "--",
-		"internal/", "cmd/", "pkg/", "scripts/", "*.go")
+		"internal/", "cmd/", "pkg/", "*.go")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {

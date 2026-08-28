@@ -1,4 +1,4 @@
-# Test: ze DIALS a tunnel (sends SCCRQ) toward a fixed-port Python LNS peer,
+# Test: ze DIALS a tunnel (sends SCCRQ) toward a fixed-port native Go fixture LNS peer,
 # triggered by the `request l2tp outgoing-call` RPC over the no-auth+token
 # REST API. The peer answers SCCRP; ze verifies the challenge, sends SCCCN,
 # and the tunnel reaches established (initiator side).
@@ -8,180 +8,6 @@
 # open). The peer completes the outgoing call (OCRP/OCCN) only so the RPC
 # returns cleanly; the assertions here are on the tunnel handshake.
 
-tmpfs=initiator-peer.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Fixed-port L2TP LNS peer that answers ze's dialed SCCRQ.
-
-ze is the initiator: it sends SCCRQ, we reply SCCRP (with a Challenge
-Response computed over ze's Challenge), receive SCCCN, then receive the
-outgoing call's OCRQ and answer OCRP+OCCN so the triggering RPC returns.
-The dial is triggered by POSTing `request l2tp outgoing-call` to ze's REST
-API from a background thread while the main thread answers on the wire.
-"""
-import hashlib
-import json
-import socket
-import struct
-import sys
-import threading
-import time
-import urllib.error
-import urllib.request
-from ze_api import wait_until
-
-PEER_PORT = int(sys.argv[1])          # $PORT2: our fixed L2TP UDP port
-REST_PORT = int(sys.argv[2])          # ze REST API TCP port
-SECRET = b"s3cr3t"                    # matches l2tp/remote/shared-secret
-TOKEN = "secret"                      # matches api-server/token
-PEER_TID = 0x0A0A                     # tunnel ID we assign to ze's side
-PEER_SID = 0x0B0B                     # session ID we assign for the call
-REST = "http://127.0.0.1:%d/api/v1" % REST_PORT
-
-rest_result = {}
-
-
-def avp(mandatory, atype, value):
-    flags = 0x8000 if mandatory else 0
-    return struct.pack("!HHH", flags | (6 + len(value)), 0, atype) + value
-
-
-def parse_avps(body):
-    out = {}
-    off = 0
-    while off + 6 <= len(body):
-        word, vendor, atype = struct.unpack("!HHH", body[off:off + 6])
-        length = word & 0x03FF
-        if length < 6 or off + length > len(body):
-            break
-        if vendor == 0:
-            out[atype] = body[off + 6:off + length]
-        off += length
-    return out
-
-
-def ctrl(length, tid, sid, ns, nr):
-    return struct.pack("!HHHHHH", 0xC802, length, tid, sid, ns, nr)
-
-
-def trigger_outgoing_call():
-    """Wait for the REST API, then place the outgoing call (blocks until the
-    call establishes or fails)."""
-    hdrs = {"Authorization": "Bearer " + TOKEN}
-    def _rest_up():
-        try:
-            urllib.request.urlopen(
-                urllib.request.Request(REST + "/commands", headers=hdrs), timeout=2).read()
-            return True
-        except (urllib.error.URLError, ConnectionRefusedError, OSError):
-            return False
-    # // hand-rolled REST-readiness deadline loop -> ze_api.wait_until
-    # (same 40x0.3s budget, ratchet-exempt internal sleep); paced REST polling, not a race.
-    wait_until(_rest_up, attempts=40, delay=0.3)
-    payload = json.dumps(
-        {"command": "request l2tp outgoing-call remote lns1 called 5551234"}
-    ).encode()
-    post_hdrs = dict(hdrs)
-    post_hdrs["Content-Type"] = "application/json"
-    req = urllib.request.Request(REST + "/execute", data=payload, headers=post_hdrs)
-    try:
-        resp = urllib.request.urlopen(req, timeout=25)
-        rest_result["body"] = json.loads(resp.read())
-        rest_result["code"] = resp.getcode()
-    except urllib.error.HTTPError as err:
-        rest_result["error"] = "HTTP %d: %s" % (err.code, err.read().decode("utf-8", "replace"))
-    except Exception as err:  # noqa: BLE001 -- surface any failure to the test
-        rest_result["error"] = str(err)
-
-
-def main():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("127.0.0.1", PEER_PORT))
-    sock.settimeout(0.5)
-
-    caller = threading.Thread(target=trigger_outgoing_call, daemon=True)
-    caller.start()
-
-    ze_tid = None      # ze's local tunnel ID (from SCCRQ Assigned Tunnel ID)
-    ze_sid = None      # ze's local session ID (from OCRQ Assigned Session ID)
-    our_ns = 0         # our control send sequence
-    our_nr = 0         # next ze Ns we expect
-    saw_ocrq = False
-
-    deadline = time.time() + 20
-    while time.time() < deadline:
-        try:
-            data, addr = sock.recvfrom(2048)
-        except socket.timeout:
-            if saw_ocrq:
-                break
-            continue
-        if len(data) < 12:
-            continue
-        _flags, length, _tid, _sid, ns, _nr = struct.unpack("!HHHHHH", data[:12])
-        body = data[12:length]
-        avps = parse_avps(body)
-        if 0 not in avps:
-            continue  # ZLB ACK: nothing to process
-        mt = struct.unpack("!H", avps[0])[0]
-
-        # In-order delivery: advance our_nr only on the next expected Ns.
-        # ze retransmits carry an already-seen Ns; we re-ACK without
-        # reprocessing (loopback preserves order, so this stays simple).
-        new = ns == our_nr
-        if new:
-            our_nr = (our_nr + 1) & 0xFFFF
-
-        if mt == 1 and new:  # SCCRQ
-            ze_tid = struct.unpack("!H", avps[9])[0]
-            challenge = avps.get(11)
-            have = sorted(avps.keys())
-            mandatory_ok = all(a in avps for a in (0, 2, 3, 4, 7, 9, 10))
-            print("OK: SCCRQ received msgtype=1 hostname=%r mandatory_ok=%s "
-                  "challenge=%s tiebreaker=%s avps=%s"
-                  % (avps.get(7), mandatory_ok, challenge is not None,
-                     5 in avps, have), flush=True)
-            resp = b""
-            resp += avp(True, 0, struct.pack("!H", 2))          # SCCRP
-            resp += avp(True, 2, b"\x01\x00")                    # Protocol Version
-            resp += avp(True, 3, struct.pack("!I", 0x3))         # Framing Caps
-            resp += avp(True, 7, b"py-lns")                      # Host Name
-            resp += avp(True, 9, struct.pack("!H", PEER_TID))    # Assigned Tunnel ID
-            resp += avp(True, 10, struct.pack("!H", 8))          # Recv Window
-            if challenge is not None:
-                r1 = hashlib.md5(bytes([2]) + SECRET + challenge).digest()
-                resp += avp(True, 13, r1)                        # Challenge Response
-            pkt = ctrl(12 + len(resp), ze_tid, 0, our_ns, our_nr) + resp
-            our_ns += 1
-            sock.sendto(pkt, addr)
-        elif mt == 7 and new:  # OCRQ (the outgoing call ze auto-places)
-            ze_sid = struct.unpack("!H", avps[14])[0]
-            saw_ocrq = True
-            print("OK: OCRQ received msgtype=7 called=%r ze_sid=%d"
-                  % (avps.get(21), ze_sid), flush=True)
-            ocrp = avp(True, 0, struct.pack("!H", 8)) + avp(True, 14, struct.pack("!H", PEER_SID))
-            sock.sendto(ctrl(12 + len(ocrp), ze_tid, ze_sid, our_ns, our_nr) + ocrp, addr)
-            our_ns += 1
-            occn = (avp(True, 0, struct.pack("!H", 9))
-                    + avp(True, 24, struct.pack("!I", 64000))
-                    + avp(True, 19, struct.pack("!I", 1)))
-            sock.sendto(ctrl(12 + len(occn), ze_tid, ze_sid, our_ns, our_nr) + occn, addr)
-            our_ns += 1
-
-    caller.join(timeout=25)
-    if rest_result.get("error"):
-        print("FAIL: outgoing-call RPC errored: %s" % rest_result["error"], file=sys.stderr)
-        return 1
-    body = rest_result.get("body")
-    if not body or body.get("status") != "done":
-        print("FAIL: outgoing-call RPC did not complete: %r" % body, file=sys.stderr)
-        return 1
-    print("OK: outgoing-call RPC returned status=done (tunnel initiated + call up)", flush=True)
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-EOF_PY
 
 stdin=config:terminator=EOF_CONF
 l2tp {
@@ -217,7 +43,7 @@ option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=python3 initiator-peer.py $PORT2 18092:timeout=30s
+cmd=foreground:seq=2:exec=ze-test fixture l2tp/tunnel-initiate-sccrq $PORT2 18092:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=OK: SCCRQ received msgtype=1
 expect=stdout:contains=challenge=True tiebreaker=True

@@ -117,7 +117,7 @@ func TestDiagnosticExitMappingRejectsTheZeroVerdict(t *testing.T) {
 	}
 }
 
-func TestDiagnosticActionsAreGatelessKeywordCommands(t *testing.T) {
+func TestDiagnosticActionsAreListedKeywordCommands(t *testing.T) {
 	list := Actions()
 	for _, verb := range []string{l2tpPPPoXDiagnosticName, l2tpTunnelDiagnosticName} {
 		found := false
@@ -126,9 +126,6 @@ func TestDiagnosticActionsAreGatelessKeywordCommands(t *testing.T) {
 				continue
 			}
 			found = true
-			if row.Gate != "" || len(row.Forks) != 0 {
-				t.Fatalf("%s is not a native gateless action: %#v", verb, row)
-			}
 		}
 		if !found {
 			t.Fatalf("action %s is not listed", verb)
@@ -137,7 +134,7 @@ func TestDiagnosticActionsAreGatelessKeywordCommands(t *testing.T) {
 }
 
 func TestDiagnosticReportTextIsTheProducerPage(t *testing.T) {
-	report := L2TPDiagnosticReport{Output: "line one\nline two\n"}
+	report := l2tpDiagnosticReport{Output: "line one\nline two\n"}
 	if got := report.Text(); got != report.Output {
 		t.Fatalf("Text() = %q, want %q", got, report.Output)
 	}

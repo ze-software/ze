@@ -4,23 +4,17 @@ Ze commands fall into two categories: **shell commands** that run locally
 and **runtime commands** sent to the running daemon via SSH.
 <!-- source: cmd/ze/main.go -- main dispatch -->
 
-This page explains the command model. For a live, searchable list of every
-command with its description, run `ze help command` (or `ze help command --json`
-for machine-readable output). The wiki's auto-generated
-[command-catalog](https://github.com/ze-software/ze/wiki/command-catalog)
-is produced from this JSON.
+This page explains the command model. For a live list of every command, run
+`ze help command`. `./le wiki-catalog update file <destination>` writes the
+Markdown catalog from the same live registries.
 
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
 [Command Equivalents](https://ze-software.net/reference/command-equivalents/) page.
-It joins `ze help command --json` with the curated vendor mapping in
-`website/data/command-equivalents.json`, so Ze command additions appear as
-unmapped rows until a vendor equivalent is added. For code-tree readers, the
-maintained data and generator are in `website/`:
-[`data/command-equivalents.json`](https://github.com/ze-software/ze/blob/main/website/data/command-equivalents.json)
-and
-[`tools/render-command-equivalents.py`](https://github.com/ze-software/ze/blob/main/website/tools/render-command-equivalents.py).
-<!-- source: website/tools/render-command-equivalents.py -- load_inputs, build_rows -->
+The native renderer joins the live command registry with the curated vendor
+mapping in `website/data/command-equivalents.json`, so a new Ze command appears
+as unmapped until its vendor equivalents are added.
+<!-- source: internal/le/docvalid/command_render.go -- RenderCommandSurfaces -->
 <!-- source: website/data/command-equivalents.json -- vendor mapping -->
 
 ## Conventions
@@ -1314,7 +1308,7 @@ of them declares.
 That bare command answers the seven validation counters and one row for each
 cache server, as siblings. That shape is what leaves `| summary` a half to
 select. The RPKI plugin declares the alias over the plugin Stage 1 channel
-rather than in Go. So `ze help command --json` and `make ze-command-list` do not
+rather than in Go. So `ze help command --json` and `./le command-list` do not
 list it: both read the compiled tree in their own process and start no plugin.
 The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->

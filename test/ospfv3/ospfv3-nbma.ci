@@ -20,37 +20,11 @@ option=needs-linux:caps=net-admin
 # comes up.
 option=netns-link:name=nbma0
 
-tmpfs=ospfv3-nbma.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert the OSPFv3 NBMA config boots the engine cleanly."""
-
-import sys
-
-from ze_api import API
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-    print('OK: OSPFv3 NBMA engine started', file=sys.stderr)
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    _ = resp
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospfv3-nbma {
-		run ./ospfv3-nbma.run
+		run "ze-test fixture ospfv3/ospfv3-nbma"
 		encoder json
 	}
 }

@@ -6,14 +6,14 @@ Type "export STATE=/src/tmp/terminal-demos/state/config-views"
 Enter
 Type "cd $STATE"
 Enter
-Type "/src/demos/terminal/config-views/run.sh prepare"
+Type "ze-demo run config-views prepare"
 Enter
 Wait+Screen /Configuration views prepared/
 Type "cd /src/demos/terminal/config-views"
 Enter
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh config-views intro"
+Type "ze-demo card config-views intro"
 Enter
 Show
 Wait+Screen /====/
@@ -49,7 +49,7 @@ Sleep 5s
 Hide
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh config-views recap"
+Type "ze-demo card config-views recap"
 Enter
 Show
 Sleep 9s

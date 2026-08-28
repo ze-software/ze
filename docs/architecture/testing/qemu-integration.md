@@ -9,10 +9,8 @@ with full kernel capabilities.
 
 ```bash
 # Stage the kernel every QEMU target boots. A hit costs a copy.
-make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
-
-# Run all QEMU integration tests (first run downloads Alpine ISO + Go)
-make ze-qemu-integration-test
+./le build-artifacts host
+./le qemu all-tests
 ```
 
 Prerequisites: `qemu` (`brew install qemu` on macOS).
@@ -23,66 +21,53 @@ the VM in ~15s and runs tests in ~30-60s.
 
 ## Every QEMU target boots the kernel ze ships
 
-The VM runs Alpine userland on **ze's own runtime kernel**, never the kernel
-on the Alpine ISO. Each of the thirteen `qemu-run.py` invocations in
-`mk/test-integration.mk` carries three things together, and a target with one
-but not the others takes `scripts/evidence/qemu_kernel_wiring_test.go` red:
+The VM runs Alpine userland on **ze's own runtime kernel**, never the kernel on
+the Alpine ISO. The host action `./le qemu run` owns the Alpine cache, the QEMU
+lifecycle, both 9p shares, bounded SSH waits, package installation, and cleanup.
+Its `kernel <path>` parameter supplies the staged runtime kernel, and the guest
+release check refuses a boot whose `uname -r` disagrees with
+`internal/appliance/kernel.version`.
 
-| Property | What it does |
-|----------|--------------|
-| `--kernel $(ZE_QEMU_KERNEL)` | hands QEMU `tmp/kernel/vmlinuz` |
-| `$(ze-qemu-kernel-guard)` | proves that file is THIS tree's kernel for THIS architecture, comparing it against the arch-and-config-keyed cache entry |
-| `: ze-host-build` | supplies the `ze-host` binary the guard execs to resolve the cache key |
+The native host action cross-compiles a Linux `cmd/ze` personality with the
+`ze_le` tag before boot. That guest binary runs the selected action. The full
+Linux suite is:
 
-`qemu-run.py` then reads `uname -r` in the booted guest. It refuses to go on
-unless the guest reports the release `internal/appliance/kernel.version` names.
-The guard runs on the host before the VM exists, so it cannot see what QEMU
-actually booted. This is the check that can.
-
-Staging is cheap. `ze-kernel-vmlinuz-stage` materializes from a durable cache
-under `~/.cache/ze` in seconds on a hit, and builds only on a miss. Every QEMU
-target shares that hit. The ~30-minute build is a cold-cache cost, paid once per
-kernel config change. An edit under `tools/kernel-builder/` also invalidates the
-key, because the builder decides what the kernel is.
-
-Until 2026-08-24 seven of the thirteen booted stock Alpine 6.12.13-0-virt. This
-tree named 7.2, and the builder refuses any release less than 7.0. Their
-verdicts were true of Alpine and silently untrue of the product.
-`ze-qemu-debug` was among them. That target exists to reproduce a failure, and
-it reproduced it on a different kernel.
-
-## How It Works
-
-`scripts/evidence/qemu-run.py` boots an Alpine Linux live ISO in QEMU,
-mounts the repository via virtio-9p, installs Go, and runs `go test` with
-`-tags integration` inside the VM via SSH.
-
-A share of the repository hands the guest a symlink as a symlink. So when
-`tmp/` is a symlink to an out-of-tree scratch directory
-(`scripts/dev/ensure-links.py`), `qemu-run.py` adds a second 9p share of the
-link's target and mounts it at the path the link names. Without it
-`/workspace/tmp` dangles in the guest, and every path below it fails to
-resolve: the session's own binaries (`tmp/session/<YYYY-MM-DD>-<id>/bin/ze`,
-`mk/helper-session.mk`) most of all. `scratch_share` decides this and
-`qemu-run.py --selftest` covers both layouts.
-
+```text
+./le qemu run kernel <vmlinuz> packages "<packages>" timeout 3600s \
+  command '<guest-le-binary> le qemu all-tests'
 ```
-macOS                          QEMU Alpine VM
-─────                          ──────────────
-make ze-qemu-integration-test
-  └─ qemu-run.py
-       ├─ boots Alpine ISO      → login as root
-       ├─ virtio-9p mount       → /workspace (repo)
-       ├─ virtio-9p mount       → the tmp/ target, when tmp/ is a symlink
-       ├─ SSH tunnel (port 2222)
-       ├─ installs Go + packages
-       └─ ssh: CGO_ENABLED=0 go test -tags integration ...
-                                   ├─ full root
-                                   ├─ /dev/ptmx (PTY)
-                                   ├─ CAP_NET_ADMIN
-                                   ├─ nftables, netns
-                                   └─ kernel modules
+
+The extra `le` after the guest binary is intentional. The cross-compiled file
+has an architecture-qualified basename, so `cmd/ze` treats it as a Ze
+personality; the `ze_le` crossing selects the same `qemu all-tests` action the
+standalone root launcher exposes. Guest-side VRRP, PPPoE, network-namespace, and
+full-suite work is Go in `internal/le/qemu`, not an interpreted guest driver.
+
+A shared checkout hands the guest a symlink as a symlink. When `tmp/` points
+outside the checkout, `Run.scratchShare` adds a second 9p share for that target.
+<!-- source: internal/le/qemu/run.go -- Run.scratchShare -->
+
+```text
+host                                      QEMU Alpine VM
+────                                      ──────────────
+./le qemu all-tests
+  ├─ cross-compile cmd/ze and the native guest runner
+  └─ boot the staged Ze kernel and execute the registered QEMU actions
+       ├─ boot staged Ze kernel             → verify uname -r
+       ├─ mount checkout and tmp target      → /workspace
+       ├─ install declared packages
+       └─ SSH native guest command           → le qemu all-tests
+                                                ├─ functional suites
+                                                ├─ Linux unit pass
+                                                └─ integration-tagged tests
 ```
+
+Staging remains cache-backed. `ze-kernel-vmlinuz-stage` materializes from
+`~/.cache/ze` on a hit and builds only when the kernel key changes.
+
+<!-- source: internal/le/qemu/run.go -- Run, Plan -->
+<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/qemu/alltests.go -- AllTestsRun.Run -->
 
 ## Writing Integration Tests
 
@@ -95,9 +80,9 @@ Two patterns, choose based on what the test needs:
 | `//go:build linux` | Test imports linux-only types but needs no kernel capabilities | `host/cpu_linux_test.go` |
 | `//go:build integration && linux` | Test needs root, devices, namespaces, ioctls | `iface/config_integration_linux_test.go` |
 
-Tests tagged `integration && linux` only run via `make ze-qemu-integration-test`
-(which passes `-tags integration`). Tests tagged just `linux` also run during
-normal `go test` on any Linux host.
+Tests tagged `integration && linux` run through the applicable `./le qemu`
+action, which supplies `-tags integration`. Tests tagged only `linux` also run
+in native unit groups on a Linux host.
 
 ### File Naming
 
@@ -156,24 +141,20 @@ capabilities.
 
 ### Registering a New Package
 
-Add your package to the `--run` argument in the Makefile:
+Add the package to `integrationPackages` in
+`internal/le/qemu/alltests.go`. If it needs an Alpine package, add that package
+to the owning native action. Do not add a guest script or a second QEMU
+lifecycle.
 
-```makefile
-_ze-qemu-integration-test-impl: ze-host-build
-    $(ze-qemu-kernel-guard)
-    python3 scripts/evidence/qemu-run.py \
-        --kernel $(ZE_QEMU_KERNEL) \
-        --packages "nftables iproute2 iputils-ping kmod iptables" \
-        --run 'CGO_ENABLED=0 go test -tags integration -count=1 -timeout 120s \
-            ./internal/component/iface/... \
-            ./your/new/package/... \           # add here
-            ...'
+For a distinct guest proof, add one action to `internal/le/qemu/actions.go` and
+keep the action callable from Go. The host recipe invokes it through:
+
+```text
+./le qemu run kernel <vmlinuz> packages "<packages>" \
+  command '<guest-le-binary> le qemu <action>'
 ```
 
-The three properties above are not optional in a new target either. Copy them,
-and `scripts/evidence/qemu_kernel_wiring_test.go` stays green.
-
-If your tests need Alpine packages not already listed, add them to `--packages`.
+The host prepares the binary and kernel; the guest action owns only the proof.
 
 ## VM Environment
 
@@ -196,8 +177,8 @@ The Alpine VM provides:
 **VM fails to boot:** Check that `qemu-system-x86_64` (or `qemu-system-aarch64`
 on ARM Macs) is installed. On macOS: `brew install qemu`.
 
-**Tests time out:** Default timeout is 120s. For long-running tests, increase
-the `-timeout` flag in the Makefile `--run` argument.
+**Tests time out:** The default timeout is 120 seconds. Change the timeout in
+the owning action under `internal/le/qemu`.
 
 **Package not found in Alpine:** Check the Alpine package name at
 `https://pkgs.alpinelinux.org/`. Alpine package names sometimes differ from

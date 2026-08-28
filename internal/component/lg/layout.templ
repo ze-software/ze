@@ -6,7 +6,7 @@ package lg
 //
 // The head loads the assets v.Page needs, not the union every page needs: one
 // layout serves every looking-glass page and only the peers page opens an SSE
-// stream. scripts/codegen/web_assets.go derives each set from the markup that
+// stream. internal/le/webassets/webassets.go derives each set from the markup that
 // page reaches, and an unnamed page gets every asset rather than none.
 templ pageLayout(v layoutView, content templ.Component) {
 	<!DOCTYPE html>

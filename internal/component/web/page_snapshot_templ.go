@@ -7,8 +7,10 @@ package web
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
+import (
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
+)
 
 // snapshotPage is the standalone read-only view of one command's JSON. The
 // IS-IS and OSPF neighbor and database pages are the same shell, differing only
@@ -24,7 +26,7 @@ import templruntime "github.com/a-h/templ/runtime"
 //
 // The loop below renders nothing today, and that is the point: the page names
 // no htmx attribute, so pageAssets derives an empty set for it
-// (scripts/codegen/web_assets.go, page_assets.go). It renders the set rather
+// (internal/le/webassets/webassets.go, page_assets.go). It renders the set rather
 // than hand-writing tags, so a component this page starts rendering brings its
 // asset with it.
 func snapshotPage(v snapshotPageData) templ.Component {

@@ -309,6 +309,15 @@ func inPrivateWorkspace(scenario func(string) error) (result error) {
 	if err != nil {
 		return fmt.Errorf("create private workspace: %w", err)
 	}
+	// os.Getwd falls back to the getcwd(2) syscall, which always answers the
+	// kernel's canonical path. On macOS that resolves /var/folders/... to
+	// /private/var/folders/..., so work must already be canonical here or
+	// every comparison against a later os.Getwd() inside scenario disagrees
+	// with the value this function handed out.
+	work, err = filepath.EvalSymlinks(work)
+	if err != nil {
+		return fmt.Errorf("resolve private workspace: %w", err)
+	}
 	defer func() {
 		var cleanupErrors []error
 		if err := os.Chdir(previousDirectory); err != nil {
@@ -343,6 +352,10 @@ func runScenario(output io.Writer, work string) error {
 	}
 	if err := writeFixture(configPath+".draft", "set environment cli format default json\n"); err != nil {
 		return err
+	}
+	resolvedConfigPath, err := filepath.EvalSymlinks(configPath)
+	if err != nil {
+		return fmt.Errorf("resolve config fixture path: %w", err)
 	}
 	if err := seedData("file/active/pipe-local.conf", configPath); err != nil {
 		return err
@@ -391,7 +404,7 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 	if err := requireAnyRow(values, func(row map[string]any) bool {
-		return row["source"] == "fs" && row["path"] == configPath
+		return row["source"] == "fs" && row["path"] == resolvedConfigPath
 	}, "config ls lost its filesystem row: %#v", values); err != nil {
 		return err
 	}

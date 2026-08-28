@@ -1,0 +1,7 @@
+bgp {
+    peer p1 {
+        session {
+            asn 65000
+        }
+    }
+}

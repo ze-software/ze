@@ -10,85 +10,8 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: queries rpki status after RTR sync
-tmpfs=rpki-cache-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, result_json_data, result_text_data, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def eor_on_wire(result):
-    """True once peer1's initial-sync End-of-RIB has been written."""
-    if result.get('status') != 'done':
-        return False
-    data = result_text_data(result, '{}')
-    try:
-        parsed = json.loads(data) if isinstance(data, str) else data
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    if not isinstance(parsed, dict):
-        return False
-    peers = parsed.get('peers', {})
-    if not isinstance(peers, dict):
-        return False
-    return any(isinstance(row, dict) and row.get('eor-sent', 0) >= 1
-               for row in peers.values())
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Let peer1 finish its initial sync before shutting down. The old script
-    # queried RPKI and shut down inside the OPEN handshake, so ze closed the
-    # session before ever sending its End-of-RIB and the peer's expectation was
-    # unreachable by construction. peer1 binds no send [ update ] plugin, so
-    # apiSendCount is 0 and the EOR follows establishment immediately.
-    synced = api.dispatch_until(
-        'show bgp peer peer1 detail', eor_on_wire, attempts=60,
-    )
-    if not eor_on_wire(synced):
-        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
-
-    try:
-        # Query rpki status to verify VRPs loaded.
-        result = api.dispatch_until(
-            'show bgp rpki status',
-            lambda r: result_json_data(r, {}).get('vrp-count-ipv4', 0) >= 1
-            and result_json_data(r, {}).get('sessions', 0) >= 1,
-        )
-        if result.get('status') != 'done':
-            runtime_fail(f'rpki status={result.get("status")}, want done')
-
-        data = result_json_data(result, {})
-        vrp_count = data.get('vrp-count-ipv4', 0)
-        sessions = data.get('sessions', 0)
-
-        if vrp_count < 1:
-            runtime_fail(f'vrp-count-ipv4={vrp_count}, expected >= 1')
-
-        if sessions < 1:
-            runtime_fail(f'sessions={sessions}, expected >= 1')
-
-        print(f'OK: rpki status vrp-count-ipv4={vrp_count} sessions={sessions}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# native test plugin: queries rpki status after RTR sync
+# Native compiled fixture: plugin/rpki-cache-connect
 # ze bgp configuration with RPKI plugin
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -100,7 +23,7 @@ plugin {
 		}
 	}
 	external rpki-cache-test {
-		run ./rpki-cache-test.run
+		run "ze-test fixture plugin/rpki-cache-connect"
 		encoder json
 	}
 	internal rpki {

@@ -1,6 +1,6 @@
-// Design: test/stress/run.py -- the lifecycle and verdict this native gate preserves.
-// Detail: test/stress/harness.py -- namespace, process, BIRD, wait, and cleanup behavior.
-// Related: test/stress/scenarios/04-bulk-ipv4-bird/check.py -- the four route rounds.
+// Design: stress.go -- the aggregate lifecycle and verdict this native gate preserves.
+// Detail: the native namespace, process, BIRD, wait, and cleanup behavior below.
+// Related: stressScenarioRegistry -- the complete five-scenario registry.
 //
 // stressbird.go owns the BIRD baseline scenario as callable Go. BIRD, birdc, ip,
 // ethtool, ss, and bin/ze-test remain external because they are the systems this
@@ -23,14 +23,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
-	// StressBirdGate is the Make gate this runner replaces.
-	StressBirdGate = "ze-stress-bird-test"
+	// StressBirdAction is the native verb this runner serves.
+	StressBirdAction = "stress-bird"
 
 	stressBirdScenario       = "04-bulk-ipv4-bird"
 	stressBirdZeIP           = "172.31.0.2"
@@ -79,7 +79,7 @@ type StressBirdFailure struct {
 
 // StressBirdReport is the structured result of the complete BIRD baseline.
 type StressBirdReport struct {
-	Gate          string                  `json:"gate"`
+	Action        string                  `json:"action"`
 	Scenario      string                  `json:"scenario"`
 	Root          string                  `json:"root"`
 	ZeNamespace   string                  `json:"ze-namespace"`
@@ -105,9 +105,9 @@ func (r StressBirdReport) Text() string {
 	return text.Str("FAIL  ").Str(r.Scenario).Str(": ").Str(r.Failure.Message).String()
 }
 
-// RunStressBird is the action callback the integration composition can wire
+// runStressBirdAction is the action callback the integration composition can wire
 // directly. It resolves the checkout once and returns the scenario's exact code.
-func RunStressBird() (any, int) {
+func runStressBirdAction() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		report := newStressBirdReport("")
@@ -115,12 +115,6 @@ func RunStressBird() (any, int) {
 	}
 	report, code := runStressBird(context.Background(), root, realStressBirdSystem{})
 	return report, code
-}
-
-// RunStressBirdAt runs the native scenario against root. Callers that already
-// resolved the checkout avoid a second filesystem walk.
-func RunStressBirdAt(ctx context.Context, root string) (StressBirdReport, int) {
-	return runStressBird(ctx, root, realStressBirdSystem{})
 }
 
 type stressBirdRound struct {
@@ -138,6 +132,7 @@ var stressBirdRounds = [...]stressBirdRound{
 
 type stressBirdCommand struct {
 	argv       []string
+	dir        string
 	environ    []string
 	outputPath string
 	timeout    time.Duration
@@ -161,7 +156,7 @@ type stressBirdProcess interface {
 // stressBirdSystem has two implementations: the host and the recorder fixtures.
 // It keeps process effects injectable without changing the scenario control flow.
 type stressBirdSystem interface {
-	EUID() int
+	effectiveUID() int
 	LookPath(string) (string, error)
 	FileExists(string) bool
 	PID() int
@@ -280,7 +275,7 @@ func (r *stressBirdRunner) initializeNames() {
 
 func newStressBirdReport(root string) StressBirdReport {
 	return StressBirdReport{
-		Gate: StressBirdGate, Scenario: stressBirdScenario, Root: root,
+		Action: StressBirdAction, Scenario: stressBirdScenario, Root: root,
 		Rounds: make([]StressBirdRoundReport, 0, len(stressBirdRounds)),
 	}
 }
@@ -304,7 +299,7 @@ func failStressBird(
 }
 
 func (r *stressBirdRunner) preflight(ctx context.Context) *StressBirdFailure {
-	if r.system.EUID() != 0 {
+	if r.system.effectiveUID() != 0 {
 		return stressBirdFailure("preflight", 1, "must run as root for network namespaces")
 	}
 
@@ -792,7 +787,7 @@ func commandErrorCode(err error) int {
 
 type realStressBirdSystem struct{}
 
-func (realStressBirdSystem) EUID() int { return os.Geteuid() }
+func (realStressBirdSystem) effectiveUID() int { return os.Geteuid() }
 
 func (realStressBirdSystem) LookPath(name string) (string, error) { return exec.LookPath(name) }
 
@@ -817,6 +812,7 @@ func (realStressBirdSystem) Run(
 	}
 	defer cancel()
 	cmd := exec.CommandContext(commandCtx, command.argv[0], command.argv[1:]...) //nolint:gosec // fixed scenario grammar owns argv
+	cmd.Dir = command.dir
 	cmd.Env = command.environ
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
@@ -845,6 +841,7 @@ func (realStressBirdSystem) Start(
 		return nil, fmt.Errorf("open process log %s: %w", command.outputPath, err)
 	}
 	cmd := exec.CommandContext(ctx, command.argv[0], command.argv[1:]...) //nolint:gosec // fixed scenario grammar owns argv
+	cmd.Dir = command.dir
 	cmd.Env = command.environ
 	cmd.Stdout = output
 	cmd.Stderr = output

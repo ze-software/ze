@@ -19,37 +19,11 @@ option=timeout:value=15s
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 EOF_PEER
 
-tmpfs=test-modify-lp.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Observer for modify local-preference test: clean shutdown."""
-from ze_api import API, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,
-    )
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# Native compiled fixture: plugin/route-modify-localpref
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-modify-lp {
-		run ./test-modify-lp.run
+		run "ze-test fixture plugin/route-modify-localpref"
 		encoder json
 	}
 }

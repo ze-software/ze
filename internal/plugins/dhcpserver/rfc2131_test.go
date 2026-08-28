@@ -3,7 +3,7 @@
 // These tests bind the DHCP server's behavior to the MUST-level requirements of
 // RFC 2131 (rfc/short/rfc2131.md). Each assertion that enforces a requirement
 // carries an `RFC requirement: RFC2131-<section>-<n> <polarity>` tag, which is
-// what scripts/dev/rfc_requirements.py reads.
+// what internal/le/rfc/actions.go reads.
 
 package dhcpserver
 

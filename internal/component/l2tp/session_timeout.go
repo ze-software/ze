@@ -21,7 +21,7 @@ import (
 // RFC 2865 Section 5.28: Idle-Timeout is the maximum idle time in
 // seconds. The session is disconnected when no traffic has been
 // observed for this duration.
-func (r *L2TPReactor) startSessionTimeouts(tid, sid uint16) {
+func (r *l2tpReactor) startSessionTimeouts(tid, sid uint16) {
 	meta := LoadSessionMetadata(tid, sid)
 	if meta == nil {
 		return
@@ -57,12 +57,12 @@ func (r *L2TPReactor) startSessionTimeouts(tid, sid uint16) {
 // runSessionTimeout waits for the session timeout duration then tears
 // down the session. Exits early if ctx is canceled (session torn down
 // by other means).
-func (r *L2TPReactor) runSessionTimeout(tid, sid uint16, timeout time.Duration, ctx context.Context) {
+func (r *l2tpReactor) runSessionTimeout(tid, sid uint16, timeout time.Duration, ctx context.Context) {
 	select {
 	case <-time.After(timeout):
 		r.logger.Info("l2tp: session-timeout expired; tearing down session",
 			"tunnel-id", tid, "session-id", sid, "timeout", timeout)
-		if err := r.TeardownSessionByID(sid); err != nil {
+		if err := r.teardownSessionByID(sid); err != nil {
 			r.logger.Debug("l2tp: session-timeout teardown (session may already be gone)",
 				"session-id", sid, "error", err)
 		}
@@ -78,7 +78,7 @@ func (r *L2TPReactor) runSessionTimeout(tid, sid uint16, timeout time.Duration, 
 // readIfaceRXBytes (netlink on Linux, zero on other platforms).
 // When counters are unavailable (non-Linux, interface gone), the
 // timer fires unconditionally after the idle period.
-func (r *L2TPReactor) runIdleTimeout(tid, sid uint16, idleTimeout time.Duration, iface string, ctx context.Context) {
+func (r *l2tpReactor) runIdleTimeout(tid, sid uint16, idleTimeout time.Duration, iface string, ctx context.Context) {
 	lastRX := readIfaceRXBytes(iface)
 	ticker := time.NewTicker(idleTimeout)
 	defer ticker.Stop()
@@ -93,7 +93,7 @@ func (r *L2TPReactor) runIdleTimeout(tid, sid uint16, idleTimeout time.Duration,
 			}
 			r.logger.Info("l2tp: idle-timeout expired; tearing down session",
 				"tunnel-id", tid, "session-id", sid, "idle-timeout", idleTimeout, "interface", iface)
-			if err := r.TeardownSessionByID(sid); err != nil {
+			if err := r.teardownSessionByID(sid); err != nil {
 				r.logger.Debug("l2tp: idle-timeout teardown (session may already be gone)",
 					"session-id", sid, "error", err)
 			}

@@ -13,51 +13,11 @@ option=needs-linux:caps=net-admin
 option=netns-link:name=eth0
 option=netns-link:name=eth1
 
-tmpfs=ospf-multiaf.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert each RFC 5838 address family runs an independent OSPFv3 engine instance."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    rows = result_json_data(dispatch(api, 'show ospf ipv6'), None) or []
-    instances = {r.get('address-family'): r.get('instance-id') for r in rows if isinstance(r, dict)}
-    if instances.get('ipv6-unicast') != 0 or instances.get('ipv4-unicast') != 64:
-        runtime_fail(f"expected two independent AF instances (v6u@0, v4u@64), got {rows!r}")
-    if len(instances) != 2:
-        runtime_fail(f"expected exactly 2 AF instances, got {sorted(instances)}")
-
-    print('OK: two independent OSPFv3 AF engine instances', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-multiaf {
-		run ./ospf-multiaf.run
+		run "ze-test fixture ospf/ospf-multiaf"
 		encoder json
 	}
 }

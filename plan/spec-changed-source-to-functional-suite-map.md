@@ -16,13 +16,13 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 `ai/rules/testing.md` states that the affected population is not the edited
 population. For GO PACKAGES that is already handled: `changed-pkgs.sh`
-(`scripts/dev/changed-pkgs.sh`) unions uncommitted changes, commits made since
+(`internal/le/`) unions uncommitted changes, commits made since
 the last green verify, and the reverse dependencies that import them.
 
 The gap is functional suites. That script emits Go package directories, and
 nothing maps a changed directory to the `.ci`, `.et` or `.wb` suites written to
 prove that component works. So an edit under a component with a dedicated suite
-runs `make ze-lint-changed` and the package unit tests, goes green, and never
+runs `./le changed scope` and the package unit tests, goes green, and never
 runs the suite that exists for it.
 
 Goal: a declarative map from source path glob to the functional suites covering
@@ -45,7 +45,7 @@ nothing repeats the problem it exists to fix.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `scripts/dev/changed-pkgs.sh` - unions working tree, since-green commits, and reverse deps, and emits Go package directories only
+- [ ] `internal/le/` - unions working tree, since-green commits, and reverse deps, and emits Go package directories only
 
 **Behavior to preserve:**
 - <to be filled>
@@ -85,13 +85,13 @@ nothing repeats the problem it exists to fix.
 ### Functional Tests
 
 Tooling only, no daemon code. The driving surface is
-`scripts/dev/changed-pkgs.sh` and its Go-hosted test, which must prove that an
+`internal/le/` and its Go-hosted test, which must prove that an
 edit under a mapped directory selects its suite and that an unmapped directory
 is reported rather than passed over.
 
 ## Files to Modify
 
-- `scripts/dev/changed-pkgs.sh` - <what changes>
+- `internal/le/` - <what changes>
 
 ## Implementation Steps
 
@@ -102,7 +102,7 @@ is reported rather than passed over.
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `make ze-precommit-verify` green
+- [ ] `./le verify current mode full` green
 
 ### Integration Checklist
 - [ ] <to be filled>

@@ -221,8 +221,8 @@ func TestTheAreaDispatchesItsTwoGates(t *testing.T) {
 	if _, code = Answer([]string{"nonesuch"}); code != 2 {
 		t.Errorf("an unknown action answers %d, want 2", code)
 	}
-	if _, code = Answer([]string{"check", "internal"}); code != 1 {
-		t.Errorf("a value after an action answers %d, want 1", code)
+	if _, code = Answer([]string{"check", "internal"}); code != 2 {
+		t.Errorf("a value after an action answers %d, want 2", code)
 	}
 }
 
@@ -230,7 +230,7 @@ func TestTheAreaDispatchesItsTwoGates(t *testing.T) {
 // runs.
 // PREVENTS: a config parser that silently ignores what an operator wrote. This
 // is where TestNoNativeTypeConfigCoercion and TestConfigStringCoercionSelftest
-// (scripts/checks/config_string_coercion_test.go) now live: the first forked the
+// (internal/le/configcoercion/configcoercion_test.go) now live: the first forked the
 // script and asserted the tree passes and the verdict reads OK, and the second
 // forked --selftest for the same two facts. TestSelftestAnswersOneResultPerCase
 // and TestEachSelftestFixtureDrawsWhatItDeclares carry the second one, per

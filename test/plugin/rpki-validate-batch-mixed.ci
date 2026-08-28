@@ -10,6 +10,7 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=linger:value=true
 option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65001:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.0.2.0/24:origin-as=65001:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.0.3.0/24:origin-as=65999:next-hop=10.0.0.1
@@ -18,72 +19,7 @@ option=update:value=send-route:prefix=192.168.1.0/24:origin-as=65001:next-hop=10
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies batch produces correct accept/reject per route
-tmpfs=rpki-batch-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Poll adj-rib-in until the three accepted routes land (the invalid one is
-    # never installed). Deterministic replacement for a blind time.sleep.
-    def _three_accepted(r):
-        d = result_text_data(r)
-        return '10.0.1.0/24' in d and '10.0.2.0/24' in d and '192.168.1.0/24' in d
-
-    try:
-        # Query adj-rib-in for received routes (poll until accepted routes land)
-        result = api.dispatch_until('show bgp rib received', _three_accepted, attempts=40)
-        if result.get('status') != 'done':
-            print(f'FAIL: rib query failed: status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-
-        data = result_text_data(result)
-
-        # 10.0.1.0/24: Valid (ASN 65001 matches VRP) - must be installed
-        if '10.0.1.0/24' not in data:
-            print(f'FAIL: 10.0.1.0/24 (Valid) not in adj-rib-in: {data}', file=sys.stderr)
-            sys.exit(1)
-
-        # 10.0.2.0/24: Valid (ASN 65001 matches VRP) - must be installed
-        if '10.0.2.0/24' not in data:
-            print(f'FAIL: 10.0.2.0/24 (Valid) not in adj-rib-in: {data}', file=sys.stderr)
-            sys.exit(1)
-
-        # 10.0.3.0/24: Invalid (ASN 65999 != VRP ASN 65001) - must NOT be installed
-        if '10.0.3.0/24' in data:
-            print(f'FAIL: 10.0.3.0/24 (Invalid) should have been rejected: {data}', file=sys.stderr)
-            sys.exit(1)
-
-        # 192.168.1.0/24: NotFound (no covering VRP) - must be installed
-        if '192.168.1.0/24' not in data:
-            print(f'FAIL: 192.168.1.0/24 (NotFound) not in adj-rib-in: {data}', file=sys.stderr)
-            sys.exit(1)
-
-        print('OK: batch validation correct: 2 Valid accepted, 1 Invalid rejected, 1 NotFound accepted', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/rpki-validate-batch-mixed.
 
 # ze bgp configuration with RPKI plugin + VRP covering 10.0.0.0/8 max /24 for AS 65001
 stdin=ze-bgp:terminator=EOF_CONF
@@ -96,7 +32,7 @@ plugin {
 		}
 	}
 	external rpki-batch-test {
-		run ./rpki-batch-test.run
+		run "ze-test fixture plugin/rpki-validate-batch-mixed"
 		encoder json
 	}
 	internal rpki {

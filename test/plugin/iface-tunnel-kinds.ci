@@ -48,80 +48,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=iface-tunnel-kinds-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert every modeled tunnel kind left a link on the running kernel."""
-
-import json
-import sys
-
-from ze_api import API, dispatch, runtime_fail, result_text_data
-
-# One row per kind in tunnelKindNames (internal/component/iface/tunnel.go).
-# The name is what `show interface` reports; the kind is what the config asked
-# for, and it is carried here so a missing link names the kind that is absent.
-WANTED = {
-    'tkgre': 'gre',
-    'tkgretap': 'gretap',
-    'tkip6gre': 'ip6gre',
-    'tkip6gretap': 'ip6gretap',
-    'tkipip': 'ipip',
-    'tksit': 'sit',
-    'tkip6tnl': 'ip6tnl',
-    'tkipip6': 'ipip6',
-    'tkvxlan': 'vxlan',
-}
-
-
-def decoded(resp, label):
-    status = resp.get('status')
-    if status != 'done':
-        runtime_fail(f'{label}: status={status} data={result_text_data(resp)}')
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    return data
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        every = decoded(dispatch(api, 'show interface'), 'interface-all')
-        if not isinstance(every, list) or not every:
-            runtime_fail(f'interface-all: expected a non-empty list, got {every!r}')
-
-        present = {i.get('name') for i in every if isinstance(i, dict)}
-        missing = sorted(
-            f'{name} ({kind})' for name, kind in WANTED.items()
-            if name not in present)
-        if missing:
-            runtime_fail(
-                f'the kernel built no link for {len(missing)} of '
-                f'{len(WANTED)} tunnel kinds: {", ".join(missing)}; '
-                f'`show interface` reported {sorted(present)}')
-
-        print(f'OK: all {len(WANTED)} tunnel kinds created: '
-              f'{sorted(WANTED)}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-tunnel-kinds-test {
-		run ./iface-tunnel-kinds-test.run
+		run "ze-test fixture plugin/iface-tunnel-kinds"
 		encoder json
 	}
 }

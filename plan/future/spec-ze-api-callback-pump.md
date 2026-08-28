@@ -184,7 +184,7 @@ behavior.
    - Verify: AC-1, AC-4, AC-5
 4. **Phase: Migrate exactly one fixture, and prove it still discriminates**
    - Verify: AC-2, and A-2
-5. **Phase: `make ze-functional-plugin-test`, entire**
+5. **Phase: `./le functional plugin`, entire**
    - Verify: AC-3
 
 ## Checklist
@@ -192,7 +192,7 @@ behavior.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
@@ -202,7 +202,7 @@ behavior.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] **Commit A:** code + tests + spec
 - [ ] **Commit B:** `git rm plan/<spec>` only
 

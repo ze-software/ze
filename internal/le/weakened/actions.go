@@ -1,8 +1,10 @@
-// Design: scripts/le/application/repository.py -- weakened-test gate declarations
+// Design: docs/architecture/testing/test-health.md -- weakened-test gate declarations
 // Related: weakened.go -- the live check; selftest.go -- the fixture proof.
 package weakened
 
 import (
+	"os"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
@@ -11,24 +13,23 @@ import (
 const area = "test-weakened"
 
 var actions = leaction.New(area,
+	leaction.Action{Verb: "check", Why: "test/weakened.md still parses for the commit gate. Whether a commit is " +
+		"covered is a question about THAT commit's paths and a verify stage has none, " +
+		"so this checks the one thing true for every session in a shared checkout: a " +
+		"header that drifted would leave commit_helper.py reading no rows",
+		Answer: checkAnswer},
+	leaction.Action{Verb: "selftest", Why: "on a fixture repository whose answer is known, the checker still refuses a " +
+		"weakening with no row and accepts the same weakening once a row names it",
+		Answer: selftestAnswer},
 	leaction.Action{
-		Gate: "ze-test-weakened-check",
-		Why: "test/weakened.md still parses for the commit gate. Whether a commit is " +
-			"covered is a question about THAT commit's paths and a verify stage has none, " +
-			"so this checks the one thing true for every session in a shared checkout: a " +
-			"header that drifted would leave commit_helper.py reading no rows",
-		Answer: checkAnswer,
-	},
-	leaction.Action{
-		Gate: "ze-test-weakened-selftest",
-		Why: "on a fixture repository whose answer is known, the checker still refuses a " +
-			"weakening with no row and accepts the same weakening once a row names it",
-		Answer: selftestAnswer,
+		Verb:   "proposed",
+		Why:    "judge one bounded stdin JSON Write/Edit/MultiEdit proposal against weakening and RFC approval ledgers",
+		Writes: false,
+		Answer: proposedAnswer,
 	},
 )
 
 // Gates answers the exact gate names claimed by this area.
-func Gates() []string { return actions.Gates() }
 
 // Actions answers the root action area as structured data.
 func Actions() leaction.List { return actions.Actions() }
@@ -55,5 +56,19 @@ func checkAnswer() (any, int) {
 
 func selftestAnswer() (any, int) {
 	report := SelfTest()
+	return report, report.ExitCode()
+}
+
+func proposedAnswer() (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	report, err := Proposed(root, os.Stdin)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
 	return report, report.ExitCode()
 }

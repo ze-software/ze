@@ -7,7 +7,7 @@
 // A verdict is DATA here, so it goes to the payload and the payload renders to
 // stdout: `le web-assets check | json` then carries the verdict a script can
 // read. That stream change is the one deliberate difference in this port, and
-// scripts/codegen/parity_test.go compares the two streams together.
+// internal/le/parity/parity_test.go compares the two streams together.
 
 package webassets
 
@@ -33,8 +33,7 @@ type CheckReport struct {
 	Stale string `json:"stale,omitempty"`
 }
 
-// Text renders the verdict in the words the script printed, and renders nothing
-// when every file agrees, which is what the script printed on a pass.
+// Text renders the native verdict, and renders nothing when every file agrees.
 func (r CheckReport) Text() string {
 	if r.Stale == "" {
 		return ""
@@ -43,7 +42,7 @@ func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
 
 	return tb.Str("web_assets: ").Str(r.Stale).
-		Str(" is stale: it disagrees with the markup its package renders; run: make generate\n").String()
+		Str(" is stale: it disagrees with the markup its package renders; run: ./le web-assets write\n").String()
 }
 
 // WriteReport is what `le web-assets write` answers.

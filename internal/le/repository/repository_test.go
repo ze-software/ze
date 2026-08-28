@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -51,7 +52,7 @@ func TestASourceAnchorWithALineNumberIsReported(t *testing.T) {
 		"docs/a.md":       "<!-- source: internal/a/x.go:42 -- why -->\n",
 		"internal/a/x.go": "package a\n",
 	})
-	findings, err := CheckSourceAnchorLineNumbers(root)
+	findings, err := checkSourceAnchorLineNumbers(root)
 	if err != nil {
 		t.Fatalf("checking: %v", err)
 	}
@@ -82,7 +83,7 @@ func TestOnlyAnInRepositoryAnchorIsResolved(t *testing.T) {
 		}, "\n"),
 		"internal/a/x.go": "package a\n",
 	})
-	findings, err := CheckSourceAnchorStalePaths(root)
+	findings, err := checkSourceAnchorStalePaths(root)
 	if err != nil {
 		t.Fatalf("checking: %v", err)
 	}
@@ -101,7 +102,7 @@ func TestTheLineSuffixIsStrippedBeforeTheFileIsLookedFor(t *testing.T) {
 		"docs/a.md":       "<!-- source: internal/a/x.go:42 -- why -->\n",
 		"internal/a/x.go": "package a\n",
 	})
-	findings, err := CheckSourceAnchorStalePaths(root)
+	findings, err := checkSourceAnchorStalePaths(root)
 	if err != nil {
 		t.Fatalf("checking: %v", err)
 	}
@@ -119,7 +120,7 @@ func TestDocumentsAreOrderedByPathComponent(t *testing.T) {
 		"docs/a-b/x.md": "<!-- source: internal/gone2.go -- -->\n",
 		"docs/a/x.md":   "<!-- source: internal/gone1.go -- -->\n",
 	})
-	findings, err := CheckSourceAnchorStalePaths(root)
+	findings, err := checkSourceAnchorStalePaths(root)
 	if err != nil {
 		t.Fatalf("checking: %v", err)
 	}
@@ -145,7 +146,7 @@ func TestAnUnreadableDocumentIsAnError(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a mode-000 file, so this case cannot be staged")
 	}
-	if _, err := CheckSourceAnchorStalePaths(root); err == nil {
+	if _, err := checkSourceAnchorStalePaths(root); err == nil {
 		t.Fatal("an unreadable document was passed over, so a lower finding count is what passing looks like")
 	}
 }
@@ -177,7 +178,7 @@ func TestOnlyAnInProgressSpecsAcceptanceCriteriaAreRead(t *testing.T) {
 		"plan/notes.md":       inProgress,
 	})
 
-	findings, err := CheckSpecACCompleteness(root)
+	findings, err := checkSpecACCompleteness(root)
 	if err != nil {
 		t.Fatalf("checking: %v", err)
 	}
@@ -201,7 +202,7 @@ func TestARegisteredCommandNeedsACITestNamingIt(t *testing.T) {
 		"internal/plugins/x/cmd.go": "package x\nfunc init(){ MustRegisterRootHandler(\"show thing\", nil) \n MustRegisterRootHandler(\"hide thing\", nil) }\n",
 		"test/ui/a.ci":              "command=show thing\n",
 	})
-	findings, err := CheckCLIHandlerCoverage(root, []string{"internal/plugins/x/cmd.go"})
+	findings, err := checkCLIHandlerCoverage(root, []string{"internal/plugins/x/cmd.go"})
 	if err != nil {
 		t.Fatalf("checking: %v", err)
 	}
@@ -229,6 +230,17 @@ func TestAnExportedSymbolNeedsACallerOutsideItsPackage(t *testing.T) {
 	want := "exported symbol Orphan has no cross-package non-test caller"
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("findings %q, want exactly %q -- OrphanRelated must not count as a caller of Orphan", got, want)
+	}
+}
+
+func TestDeclarationScanIgnoresSourceTextInsideStrings(t *testing.T) {
+	root := tree(t, map[string]string{
+		"internal/a/x.go":               "package a\n\nconst fixture = `func Fake() {}\ntype FakeType struct{}`\n\nfunc Orphan() {}\n",
+		"internal/a/testdata/broken.go": "package a\nfunc Broken( {\n",
+	})
+	got := messages(t, root, []string{"internal/a/x.go", "internal/a/testdata/broken.go"})
+	if len(got) != 1 || !strings.Contains(got[0], "Orphan") {
+		t.Fatalf("findings %q, want only the real exported declaration", got)
 	}
 }
 
@@ -490,7 +502,7 @@ func TestAGRPCRegistrationExemptsItsOwnReceiversMethods(t *testing.T) {
 // PREVENTS: the list being read as a package-wide exemption, which is what its
 // own comment forbids.
 func TestTheInterfaceDispatchAllowlistIsExact(t *testing.T) {
-	site := DispatchSite{Package: "internal/component/api/grpc", Receiver: "transportCompletionStatsHandler"}
+	site := dispatchSite{Package: "internal/component/api/grpc", Receiver: "transportCompletionStatsHandler"}
 	methods, ok := InterfaceDispatchMethods[site]
 	if !ok {
 		t.Fatal("the one dispatch site is gone")
@@ -561,7 +573,7 @@ func TestTheReportIsStructuredData(t *testing.T) {
 // equal to the script's for the wrong reason.
 func TestThePageIsColoredUnconditionally(t *testing.T) {
 	clean := Report{Findings: []Finding{}}
-	want := colorGreen + "ze-repository-check: all checks passed" + colorReset + "\n"
+	want := colorGreen + "./le repository: all checks passed" + colorReset + "\n"
 	if got := clean.Text(); got != want {
 		t.Errorf("clean page %q", got)
 	}
@@ -575,9 +587,9 @@ func TestThePageIsColoredUnconditionally(t *testing.T) {
 	}
 	page := red.Text()
 	for _, want := range []string{
-		colorRed + "ze-repository-check: 1 issue(s) found" + colorReset + "\n",
+		colorRed + "./le repository: 1 issue(s) found" + colorReset + "\n",
 		"  " + colorRed + "[ISSUE] internal/a/x.go:3: one" + colorReset + "\n",
-		colorYellow + "ze-repository-check: 1 warning(s)" + colorReset + "\n",
+		colorYellow + "./le repository: 1 warning(s)" + colorReset + "\n",
 		"  " + colorYellow + "[WARN] docs/a.md: two" + colorReset + "\n",
 	} {
 		if !strings.Contains(page, want) {
@@ -661,24 +673,22 @@ func TestAnEmptyChangedSetRunsNeitherChangedFileCheck(t *testing.T) {
 	}
 }
 
-// VALIDATES: the two actions are the two gates, and the area holds nothing else.
-// PREVENTS: a gate silently leaving the command surface, which would take its
-// parity claim with it while the census still counted it.
-func TestTheAreaHoldsTheTwoGates(t *testing.T) {
-	gates := actions.Gates()
-	if len(gates) != 2 || gates[0] != "ze-repository-check" || gates[1] != "ze-repository-tree-check" {
-		t.Fatalf("gates %q", gates)
-	}
+// VALIDATES: repository checks and generation use native action names.
+// PREVENTS: losing a repository action during routing changes.
+func TestTheAreaPublishesNativeActions(t *testing.T) {
 	list := Actions()
-	if len(list.Actions) != 2 {
-		t.Fatalf("actions %+v, want two", list.Actions)
+	want := []string{"check", "tree-check", "generate", "generated-check"}
+	if len(list.Actions) != len(want) {
+		t.Fatalf("actions %+v", list.Actions)
 	}
-	if list.Actions[0].Verb != "check" || list.Actions[1].Verb != "tree-check" {
-		t.Fatalf("verbs %q and %q", list.Actions[0].Verb, list.Actions[1].Verb)
+	for index, row := range list.Actions {
+		if row.Verb != want[index] {
+			t.Fatalf("action %d = %+v, want %q", index, row, want[index])
+		}
 	}
 	for _, row := range list.Actions {
-		if row.Writes {
-			t.Errorf("%s claims to write, and neither gate does", row.Verb)
+		if row.Writes != (row.Verb == "generate") {
+			t.Errorf("%s writes=%v", row.Verb, row.Writes)
 		}
 	}
 }
@@ -691,8 +701,8 @@ func TestTheAreaRefusesAnUnknownActionApartFromAValue(t *testing.T) {
 	if _, code := Answer([]string{"nope"}); code != 2 {
 		t.Errorf("an unknown action answered %d, want 2", code)
 	}
-	if _, code := Answer([]string{"check", "internal/a"}); code != 1 {
-		t.Errorf("a value after an action answered %d, want 1", code)
+	if _, code := Answer([]string{"check", "internal/a"}); code != 2 {
+		t.Errorf("a value after an action answered %d, want 2", code)
 	}
 }
 
@@ -794,5 +804,38 @@ func TestADeletedChangedFileContributesNothing(t *testing.T) {
 	root := tree(t, map[string]string{"go.mod": "module example.com/m\n"})
 	if got := messages(t, root, []string{"internal/a/gone.go", "internal/plugins/x/gone.go"}); len(got) != 0 {
 		t.Fatalf("findings %q, want none", got)
+	}
+}
+
+// VALIDATES: repository generation runs every declared native action and
+// reports each failure instead of stopping at the first stale artifact.
+// PREVENTS: one broken generator hiding the remaining stale artifacts.
+func TestGenerationRunsEveryAction(t *testing.T) {
+	calls := make([]string, 0, 3)
+	actions := []generationAction{
+		{area: "a", verb: "one", answer: func(args []string) (any, int) {
+			calls = append(calls, args[0])
+			return nil, 0
+		}},
+		{area: "b", verb: "two", answer: func(args []string) (any, int) {
+			calls = append(calls, args[0])
+			return nil, 2
+		}},
+		{area: "c", verb: "three", answer: func(args []string) (any, int) {
+			calls = append(calls, args[0])
+			return nil, 0
+		}},
+	}
+
+	payload, code := runGeneration("check", actions)
+	if code != 1 {
+		t.Fatalf("runGeneration exited %d, want 1", code)
+	}
+	if !slices.Equal(calls, []string{"one", "two", "three"}) {
+		t.Fatalf("calls = %v", calls)
+	}
+	report := payload.(generationReport)
+	if len(report.Steps) != 3 || report.Steps[1].Code != 2 {
+		t.Fatalf("report = %#v", report)
 	}
 }

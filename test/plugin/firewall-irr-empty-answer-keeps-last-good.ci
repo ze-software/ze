@@ -36,62 +36,11 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=20s
 
-tmpfs=firewall-irr-empty-answer.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify an empty IRR answer keeps the last known good prefixes."""
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    if result.get('status') != 'done':
-        runtime_fail(f'initial update failed: {result}')
-    data = result_json_data(result, {})
-    learned_v4 = data.get('ipv4-count', 0)
-    learned_v6 = data.get('ipv6-count', 0)
-    if learned_v4 < 1:
-        runtime_fail(f'expected v4 prefixes on the first refresh, got {learned_v4}')
-
-    # The server now answers "key not found" for every query.
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    if result.get('status') == 'done':
-        runtime_fail('a refresh that learned nothing reported success')
-
-    result = api.dispatch_until_done('show firewall irr')
-    if result.get('status') != 'done':
-        runtime_fail(f'show failed: {result}')
-    shown = result_json_data(result, {})
-    entries = [e for e in shown.get('entries', []) if e.get('name') == 'AS-TEST']
-    if not entries:
-        runtime_fail(f'AS-TEST missing from show output: {shown}')
-    entry = entries[0]
-    if entry.get('ipv4-count') != learned_v4 or entry.get('ipv6-count') != learned_v6:
-        runtime_fail(f'prefixes lost to the empty answer: {entry}')
-    if entry.get('status') != 'stale':
-        runtime_fail(f'entry status = {entry.get("status")}, want stale: {entry}')
-    if 'stale-since' not in entry:
-        runtime_fail(f'stale entry does not say since when: {entry}')
-
-    print(f'OK: kept v4={learned_v4} v6={learned_v6} prefixes, reported stale', file=sys.stderr)
-
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-empty-answer-test {
-		run ./firewall-irr-empty-answer.run
+		run "ze-test fixture plugin/firewall-irr-empty-answer-keeps-last-good"
 		encoder json
 	}
 }

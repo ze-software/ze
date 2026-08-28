@@ -2,7 +2,7 @@
 // Related: lejob.go -- the admission this command drives
 //
 // `le job run label <label> command <argv...>` restates the command line of
-// scripts/dev/ze-run.sh in the grammar that every other le command uses. This
+// internal/le/lejob/answer.go in the grammar that every other le command uses. This
 // grammar requires a closed keyword before every value (ai/rules/cli.md). The
 // shell accepted its label and command as bare positionals. The port changed
 // only this aspect.
@@ -36,7 +36,7 @@ const usageLine = "usage: le job run label <label> command <argv...>"
 //
 // The exit code belongs to the JOB, and this command returns it unchanged. The
 // discovery-index check exits 0 for fresh, 3 for stale and 1 when the generator
-// itself fails. scripts/dev/commit_helper.py blocks on 3 but treats 1 as a
+// itself fails. internal/le/commit/actions.go blocks on 3 but treats 1 as a
 // warning.
 func Answer(args []string) (any, int) {
 	if len(args) == 0 {

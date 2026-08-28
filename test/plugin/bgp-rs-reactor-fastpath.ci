@@ -91,18 +91,6 @@ expect=bgp:conn=2:seq=2:contains=40020A02020000FDE80000FDE940030401010101
 EOF_PEER
 
 # Observer: shut down cleanly after forwarding completes.
-tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-# // the observer's synchronous `show bgp` eor-sent poll +
-# `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
-# (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
-# A more robust rewrite, not a relaxation: same "wait until the RS replayed to every
-# peer" semantics, no expect/action/reject assertion removed. The old poll's dispatch
-# RPC could stall ~30s under load and strand the shutdown until ze was killed.
-from ze_api import API
-
-API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -113,7 +101,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external shutdown-after-up {
-		run ./shutdown-after-up.run
+		run "ze-test fixture plugin/bgp-rs-reactor-fastpath"
 		encoder json
 	}
 }

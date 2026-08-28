@@ -3,7 +3,7 @@
 // actions.go is the Python area, ported. `le generate ze-vendor-web-sync`
 // selected one gate out of an area's GateSet; `le vendor-web sync` selects one
 // action out of the table below. The three fields the Gate carried travel with
-// it: the Make target it still is, the reason `--list` printed, and whether it
+// it: the retired Make target, the reason `--list` printed, and whether it
 // WRITES.
 //
 // The dispatch, the listing, the help line and the two refusals live in
@@ -29,22 +29,13 @@ const area = "vendor-web"
 // actions is the whole command surface. A fourth gate would be a row here and
 // nothing else.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-vendor-web-check",
-		Why:    "each consumer asset copy matches third_party/web/. It reads two directory trees and no network, so it runs in an offline CI and an offline checkout",
-		Answer: func() (any, int) { return runCheck(false) },
-	},
-	leaction.Action{
-		Gate:   "ze-vendor-web-sync",
-		Why:    "copy third_party/web/ into each consumer package that embeds it",
+	leaction.Action{Verb: "check", Why: "each consumer asset copy matches third_party/web/. It reads two directory trees and no network, so it runs in an offline CI and an offline checkout",
+		Answer: func() (any, int) { return runCheck(false) }},
+	leaction.Action{Verb: "sync", Why: "copy third_party/web/ into each consumer package that embeds it",
 		Writes: true,
-		Answer: runSync,
-	},
-	leaction.Action{
-		Gate:   "ze-vendor-web-update-report",
-		Why:    "ask the npm registry for newer versions of the vendored web assets. This is where the network query lives, and it is why check has none",
-		Answer: func() (any, int) { return runCheck(true) },
-	},
+		Answer: runSync},
+	leaction.Action{Verb: "update-report", Why: "ask the npm registry for newer versions of the vendored web assets. This is where the network query lives, and it is why check has none",
+		Answer: func() (any, int) { return runCheck(true) }},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line

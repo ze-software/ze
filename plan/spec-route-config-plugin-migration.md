@@ -357,7 +357,7 @@ code for any of these four families.
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8-14. Standard | Per template |
 
@@ -407,7 +407,7 @@ Migrate one family at a time. Each family is an independently mergeable unit. Or
    - Verify: build clean, no references
 
 9. **Functional tests** -- existing .ci tests pass
-10. **Full verification** -- `make ze-precommit-verify`
+10. **Full verification** -- `./le verify current mode full`
 11. **Complete spec** -- learned summary, two-commit closure
 
 ### Critical Review Checklist
@@ -652,7 +652,7 @@ plugin dispatch. `test/encode/{flow-encode,flow-redirect,simple-flow,flow-rate-p
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered

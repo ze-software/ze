@@ -1,20 +1,11 @@
 // Design: docs/architecture/core-design.md -- an le area, as one command
 //
-// Package leaction ports the Python `le` AREA once. `le generate
-// ze-web-assets-check` selected one gate from a GateSet. `le web-assets check`
-// selects one action from an Area. Three Gate fields travel with the action:
-// the existing Make target, the reason that `--list` printed, and whether it
-// WRITES. The port added a fourth field for the argv of a script that the action
-// still starts. internal/le/parity uses that argv to distinguish a converted gate
-// from a gate whose driver has not moved.
-// An action that takes values also declares their closed keyword grammar here.
+// Package leaction defines the action table shared by native le areas. An
+// action carries its verb, purpose, write behavior, and closed keyword grammar.
 //
-// It exists because ONE package registers ONE root command
-// (internal/le/register_test.go, TestLeRegistersOneRootAndNoToolRoots) while a
-// tool directory often holds several gates. Six tool packages meet that today,
-// so the dispatch, the listing, the help line and the two refusals are stated
-// here rather than copied into each of them: a second copy is where the six
-// begin to disagree about which action writes.
+// One package registers one root command, while an area can expose several
+// related actions. Dispatch, listing, help, and refusals read this table so
+// those surfaces cannot disagree.
 //
 // What this package does NOT do is render an action's answer. An action answers
 // structured data and leroot renders it, so `| json`, `| yaml` and `| table`
@@ -24,11 +15,11 @@ package leaction
 import (
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
 // Parameter declares one closed keyword after an action. Value names the value
 // that must follow it. An empty Value makes the keyword a boolean switch.
 type Parameter struct {
@@ -46,34 +37,14 @@ func (a Arguments) Has(keyword string) bool {
 	return ok
 }
 
-
-// Action is one thing an area can do. It is scripts/le/devtools/gate.py Gate,
-// with the argv replaced by the function the port made callable.
+// Action is one callable row in an area's command table.
 type Action struct {
-	// Gate is the Make target this action still is, unchanged. Every shim,
-	// doc, rule and journal row spells it, so it stays the identity and the
-	// verb is a rendering of it. It is empty for an action no Make target
-	// names, and Verb then carries the word instead.
-	Gate string
-	// Verb is the word a developer types, for an action with no Make target of
-	// its own. It MUST be empty when Gate is set: the verb is derived there,
-	// and typing it beside the gate name is how the two come to disagree.
+	// Verb is the word a developer types.
 	Verb string
-	// Why is what the action is for, printed by the listing and by help.
+	// Why is what the action is for, printed by the listing and help.
 	Why string
-	// Writes says this action changes the tree. It is the fact a reader must
-	// not have to look up, so the listing prints it and help repeats it.
+	// Writes says this action changes the tree.
 	Writes bool
-	// Forks is the command line that this action starts when another program
-	// does the work. It is empty when the action does the work in Go.
-	// internal/le/parity uses that absence to distinguish a CONVERTED gate from a
-	// gate with a new command but a script driver.
-	//
-	// The argv, rather than a boolean, keeps the census honest. A flag records
-	// its author's belief. The argv records what runs. Thus, `go test` is
-	// converted, and `python3 scripts/evidence/effective-vpp.py` is forked.
-	// Nobody classifies the same action twice.
-	Forks []string
 	// Parameters declares the closed keyword grammar for an argument-aware
 	// action. Existing actions leave it empty and use Answer.
 	Parameters []Parameter
@@ -83,56 +54,6 @@ type Action struct {
 	AnswerArgs func(Arguments) (any, int)
 }
 
-// scriptSuffixes lists the extensions of programs that this repository carries
-// as source rather than compiling. An action that starts one has a gate whose
-// command exists, but whose WORK has not been ported.
-//
-// Scripts and labs under test/ use these two extensions. internal/le/parity counts
-// both extensions as code that remains to move.
-var scriptSuffixes = [...]string{".py", ".sh"}
-
-// forksAScript reports whether an argv starts a script this repository carries.
-//
-// This property is DERIVED from the argv instead of declared beside it. The
-// script in `python3 scripts/evidence/effective-vpp.py` is in position two. The
-// script in `sudo VERBOSE= SESSION_TIMEOUT= python3 test/stress/run.py` is in
-// position five. Thus, the function reads every argument, not only the first.
-// An argv of `go test ...` names no script and is converted work.
-func forksAScript(argv []string) bool {
-	for _, arg := range argv {
-		for _, suffix := range scriptSuffixes {
-			if strings.HasSuffix(arg, suffix) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// ForksAScript reports whether an argv starts a repository script. The census
-// uses this rule to distinguish a converted gate from one whose driver has not
-// moved.
-//
-// The function is exported so a tool that is NOT an area uses the SAME rule.
-// internal/le/docwiring publishes the command lines that it still starts. It asks
-// this function whether any command represents an outstanding port. A second
-// predicate would define "ported" twice, and those definitions would drift.
-func ForksAScript(argv []string) bool { return forksAScript(argv) }
-
-// forkedArgv answers the argv that the listing publishes for one action. It
-// returns the command when that command is a script. It returns nothing when Go
-// does the work.
-//
-// The listing does not print `go test -tags integration ...`. That action does
-// its own work with the toolchain. A reader who wants it runs the verb. The
-// listing shows only work that has NOT moved.
-func forkedArgv(act Action) []string {
-	if !forksAScript(act.Forks) {
-		return nil
-	}
-	return slices.Clone(act.Forks)
-}
-
 // Area is one tool package's whole command surface: the name it is typed as,
 // and the actions under it.
 type Area struct {
@@ -140,22 +61,16 @@ type Area struct {
 	actions []Action
 }
 
-// New declares an area. It panics on a table that could not be dispatched,
-// because such a table is a Ze defect at init rather than anything an operator
-// typed: an action with neither a gate nor a verb has no word to type, an
-// action with both has two spellings of one word, and two actions sharing a
-// verb make one of them unreachable. The panic fires during init(), so the
-// stack names the offending package on the frame above.
+// New declares an area. It panics on a table that cannot be dispatched,
+// because such a table is a Ze defect at init rather than operator input.
 func New(name string, actions ...Action) Area {
 	area := Area{name: name, actions: actions}
 
 	seen := make(map[string]bool, len(actions))
 	for _, act := range actions {
 		switch {
-		case act.Gate == "" && act.Verb == "":
-			panic("BUG: leaction.New: an action needs a Gate or a Verb; see the init frame above for the area")
-		case act.Gate != "" && act.Verb != "":
-			panic("BUG: leaction.New: an action carries a Gate and a Verb, so its word has two spellings")
+		case act.Verb == "":
+			panic("BUG: leaction.New: an action needs a Verb; see the init frame above for the area")
 		case (act.Answer == nil) == (act.AnswerArgs == nil):
 			panic("BUG: leaction.New: an action needs exactly one Answer or AnswerArgs")
 		case act.Answer != nil && len(act.Parameters) != 0:
@@ -195,62 +110,16 @@ func New(name string, actions ...Action) Area {
 // name.
 func (a Area) Name() string { return a.name }
 
-// Gates answers the Make target of every action that has one, in table order.
-// internal/le/parity claims them from the same table the dispatch reads, so a gate
-// cannot be counted as ported by a command that does not run it.
-func (a Area) Gates() []string {
-	gates := make([]string, 0, len(a.actions))
-	for _, act := range a.actions {
-		if act.Gate != "" {
-			gates = append(gates, act.Gate)
-		}
-	}
-	return gates
-}
-
-// ForkedGates answers the Make targets of actions whose work remains in scripts.
-// The targets use table order.
-//
-// internal/le/parity subtracts these targets from the area claims. Thus, it counts
-// and NAMES a gate reached by a Go command that starts a Python driver as
-// claimed but not converted. It does not count the gate as ported. Every gate
-// here also appears in Gates() because the area serves it. A developer who
-// types the verb gets the proof, but the work is not migrated.
-func (a Area) ForkedGates() []string {
-	gates := make([]string, 0, len(a.actions))
-	for _, act := range a.actions {
-		if act.Gate != "" && forksAScript(act.Forks) {
-			gates = append(gates, act.Gate)
-		}
-	}
-	return gates
-}
-
 // verbOf answers the word a developer types for one action.
-//
-// For an action a Make target names, it is the gate name with the area's own
-// prefix removed, which is what Gate.short did: `le web-assets
-// ze-web-assets-check` says web-assets twice, and the area is already chosen by
-// then.
 func (a Area) verbOf(act Action) string {
-	if act.Gate == "" {
-		return act.Verb
-	}
-	var tb textbuf.Buffer
-	return strings.TrimPrefix(act.Gate, tb.Str("ze-").Str(a.name).Byte('-').String())
+	return act.Verb
 }
 
-// Row is one row of the bare command's answer. It says what to type, whether the
-// action writes, which Make target remains, and why the action exists.
+// Row is one row of the bare command's answer.
 type Row struct {
 	Verb   string `json:"verb"`
 	Writes bool   `json:"writes"`
-	Gate   string `json:"gate,omitempty"`
 	Why    string `json:"why"`
-	// Forks is the script that this action still starts. A listing reader uses
-	// this field to distinguish Go proofs from drivers that the migration has
-	// not reached. The reader does not need to consult the table.
-	Forks []string `json:"forks,omitempty"`
 }
 
 // List is what `le <area>` answers when no action is named. It is the area
@@ -266,8 +135,7 @@ func (a Area) Actions() List {
 	list := List{Area: a.name, Actions: make([]Row, 0, len(a.actions))}
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
-			Verb: a.verbOf(act), Writes: act.Writes, Gate: act.Gate, Why: act.Why,
-			Forks: forkedArgv(act),
+			Verb: act.Verb, Writes: act.Writes, Why: act.Why,
 		})
 	}
 	return list
@@ -334,7 +202,7 @@ func (a Area) Answer(args []string) (any, int) {
 			parsed, err := parseArguments(act.Parameters, args[1:])
 			if err != nil {
 				ReportError(err)
-				return nil, 1
+				return nil, 2
 			}
 			return act.AnswerArgs(parsed)
 		}
@@ -377,7 +245,7 @@ func (a Area) refuseValue(verb, got string) int {
 	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(a.name).Byte(' ').Str(verb).Str(" takes no arguments, got ").Quoted(got).String()) //nolint:errcheck // CLI output
 	tb.Reset()
 	fmt.Fprintln(os.Stderr, tb.Str("usage: le ").Str(a.name).Byte(' ').Str(verb).Str(" [| json | yaml | table]").String()) //nolint:errcheck // CLI output
-	return 1
+	return 2
 }
 
 // parseArguments validates one action's closed keyword grammar. It consumes a
@@ -431,22 +299,20 @@ type SweepPolicy int
 
 const (
 	// StopAtFirstFailure runs nothing after a failure. This is the policy of
-	// scripts/le/application/functional.py. It exists for the pair
+	// internal/le/functional/actions.go. It exists for the pair
 	// `docker-exec-selftest` and `docker-exec-check`. The selftest proves that
 	// the scan's verdicts fire. A scan after a failed selftest would report
 	// findings from a checker just shown to be broken.
 	StopAtFirstFailure SweepPolicy = iota
 	// RunEveryAction runs the whole selection and names every failure. It is
-	// what scripts/le/gateapp.py does, because the point of a sweep is to hand
+	// what internal/le/leaction/leaction.go does, because the point of a sweep is to hand
 	// back the whole list rather than one problem per invocation.
 	RunEveryAction
 )
 
-// SweepRow is one action that a sweep ran. It records what was typed, the
-// remaining Make target, the exit code, and the payload.
+// SweepRow is one action that a sweep ran.
 type SweepRow struct {
 	Verb   string `json:"verb"`
-	Gate   string `json:"gate,omitempty"`
 	Code   int    `json:"code"`
 	Answer any    `json:"answer,omitempty"`
 }
@@ -458,31 +324,19 @@ type Sweep struct {
 	Failed []string   `json:"failed"`
 }
 
-// Text renders the closing line the Python area printed: the failures by name,
-// or the count that passed. Each action's own output has already streamed to
-// the terminal by the time this is read.
+// Text renders the failures by name, or the count that passed. Each action's
+// own output has already streamed to the terminal by the time this is read.
 func (s Sweep) Text() string {
 	var tb textbuf.Buffer
 	tb.Byte('\n')
 	if len(s.Failed) > 0 {
 		return tb.Str("Failed: ").Join(s.Failed, ", ").Byte('\n').String()
 	}
-	return tb.Str(s.Area).Str(": ").Int(int64(len(s.Ran))).Str(" gate(s) passed.\n").String()
+	return tb.Str(s.Area).Str(": ").Int(int64(len(s.Ran))).Str(" action(s) passed.\n").String()
 }
 
-// Sweep runs the actions named in args, in order, and answers the FIRST failing
-// action's own exit code.
-//
-// This rule is why Sweep lives here instead of in each area. The
-// discovery-index check exits 0 for fresh, 3 for stale, and 1 for a generator
-// failure. scripts/dev/commit_helper.py blocks on 3 but only warns on 1. A sweep
-// that returned 1 for every failure would have the defect that mk/check-rules.mk
-// warns about. The first code wins because a reader can act on it. A later
-// action's 1 says nothing about the first action's 3.
-//
-// Every name is resolved BEFORE anything runs. Running the good half of a
-// mistyped command line leaves the caller holding a refusal over a tree that
-// was half swept.
+// Sweep runs the actions named in args, in order, and answers the first failing
+// action's own exit code. Every name is resolved before anything runs.
 func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 	chosen := make([]Action, 0, len(args))
 	for _, name := range args {
@@ -504,7 +358,7 @@ func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 	for _, act := range chosen {
 		verb := a.verbOf(act)
 		answer, got := act.Answer()
-		sweep.Ran = append(sweep.Ran, SweepRow{Verb: verb, Gate: act.Gate, Code: got, Answer: answer})
+		sweep.Ran = append(sweep.Ran, SweepRow{Verb: verb, Code: got, Answer: answer})
 		if got == 0 {
 			continue
 		}

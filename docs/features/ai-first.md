@@ -4,7 +4,7 @@
 <!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/repo-maintenance.md -- Current Discovery Surfaces -->
-<!-- source: mk/report-inventory.mk -- ze-inventory and documentation targets -->
+<!-- source: internal/le/inventory/register.go -- inventory command registration -->
 
 Ze is built around a single command and discovery surface. Commands,
 configuration nodes, RPCs, events, and plugin metadata are registered once, then
@@ -44,9 +44,9 @@ Generates a command reference from the live binary. The output is assembled
 from the plugin registry, YANG schemas, and RPC registrations -- it cannot go stale because
 it is generated from code, not written by hand.
 
-`ze help command` is the human-facing catalog: every command with its description,
-filterable by keyword. The `--json` form is consumed by `make ze-wiki-update` to
-regenerate the wiki command catalog.
+`ze help command` is the human-facing catalog. The native
+`./le wiki-catalog update file <destination>` action renders the corresponding
+Markdown from the live registries.
 
 ## Structured Diagnostics
 
@@ -81,25 +81,25 @@ only the skill relevant to the current task.
 
 ## Development-Time Discovery
 
-Feature, tooling, self-check, verification, and test-infrastructure changes must
-update their discovery path in the same work. The standard path is
+Feature, tooling, self-check, verification, and test-infrastructure changes
+must update their discovery path in the same work. The standard path is
 `ai/rules/repo-maintenance.md` for policy, `ai/INDEX.md` for keyword lookup,
-`ai/NAVIGATION.md` for task routing, and the relevant make target or docs page
-for verification and usage.
+`ai/NAVIGATION.md` for task routing, and the relevant native action or docs
+page for verification and usage.
 
 <!-- source: ai/rules/repo-maintenance.md -- Required Discovery Artifacts -->
 
-Agents should use the existing inventory and verification surfaces before
-inventing new ones: `make ze-inventory`, `make ze-command-list`,
-`make ze-doc-verify`, `make ze-doc-index-update`, and `make ze-doc-wiring-check`.
+Agents should use the existing inventory and verification surfaces:
+`./le inventory`, `./le command-list`, `./le doc-check verify`,
+`./le docs-to-code update`, and `./le doc-wiring`.
 
-Commit preparation uses `scripts/dev/commit_helper.py`: agents pass the vetted
+Commit preparation uses `internal/le/commit.Answer`: agents pass the vetted
 subject, body, and explicit file list, and the helper creates the session ID,
 message file, executable user-run script, ignored-path checks, and `git commit -F`
 flow.
-<!-- source: scripts/dev/commit_helper.py -- commit helper CLI and its commit gates -->
+<!-- source: internal/le/commit/actions.go -- Answer -->
 
-<!-- source: mk/check-docs.mk -- quick reference and targets -->
+<!-- source: internal/le/doccheck/actions.go -- Actions -->
 
 ## MCP Transport
 

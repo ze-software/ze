@@ -19,7 +19,7 @@ const chaosCapturedPageFloor = 2
 // load the asset of every htmx attribute it renders.
 //
 // The dashboard writes its markup in Go, so no component graph exists to walk.
-// scripts/codegen/web_assets.go therefore gives its one page every asset the
+// internal/le/webassets/webassets.go therefore gives its one page every asset the
 // package renders, and this reads the captured bytes back to prove the set is
 // enough.
 //

@@ -88,59 +88,11 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F00
 expect=bgp:conn=1:seq=1:contains=01180A0100
 EOF_UNFILTERED
 
-# Observer: announces the route to both peers and holds the daemon up until each
-# peer's outcome has been read from the daemon.
-tmpfs=export-flowspec.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Announce one ipv4/flow route to a filtered peer and an unfiltered one."""
-import sys
-from ze_api import API, runtime_fail
-
-FILTERED = '127.0.0.1'
-UNFILTERED = '127.0.0.2'
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Both peers assert the marker first and the route second, so the announce
-    # goes on the far side of the initial sync. Inside that window the order on
-    # the wire would be decided by how promptly the host scheduled the daemon.
-    if not api.wait_peer_eor_sent(expected_peers=2):
-        runtime_fail('ze never sent its initial-sync End-of-RIB to both peers')
-
-    # THE SUBJECT: one FlowSpec route, offered to both peers by one command.
-    api.send('peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 '
-             'nlri ipv4/flow add destination-ipv4 10.1.0.0/24 protocol tcp destination-port 80')
-
-    # The control, read from the daemon: the route reached the peer with no
-    # export filter. Without it the rejection below holds for a daemon that
-    # announced nothing at all.
-    api.assert_peer_received_beyond_eor(UNFILTERED, minimum=1, expected_peers=2)
-    print('OK: the unfiltered peer was sent the ipv4/flow route', file=sys.stderr)
-
-    # THE SUBJECT, read from the daemon: nothing beyond the End-of-RIB reached
-    # the filtered peer. Its wire rejection is the other half of the same claim.
-    api.assert_peer_received_only_eor(FILTERED, expected_peers=2)
-    print('OK: the filtered peer was sent nothing beyond its End-of-RIB', file=sys.stderr)
-
-    api.dispatch('request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external export-flowspec {
-		run ./export-flowspec.run
+		run "ze-test fixture plugin/filter-family-export-flowspec"
 		encoder json
 	}
 }

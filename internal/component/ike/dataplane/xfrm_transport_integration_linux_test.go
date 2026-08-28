@@ -7,8 +7,8 @@
 // error, so a unit test with a fake backend cannot tell the two apart. Only a real kernel
 // read-back can.
 //
-// Auto-enrolled in the QEMU integration run via the derived `integration && linux`
-// package list (ZE_QEMU_INTEGRATION_PKGS, mk/test-integration.mk).
+// Auto-enrolled in the native QEMU integration run through the derived
+// `integration && linux` package list.
 
 //go:build integration && linux
 

@@ -51,7 +51,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 - [ ] `ai/rules/testing.md` - fuzz test conventions
   → Constraint: seed corpora are inline `f.Add(...)` with VALIDATES/PREVENTS/SECURITY doc comments (repo convention; no testdata/fuzz seed dirs exist)
 - [ ] `ai/rules/repo-maintenance.md` - new targets must reach the fuzz enumeration
-  → Constraint: `mk/test-fuzz.mk` enumerates targets individually (multi-target packages cannot use `-fuzz=.`); every new target MUST be added there or it never runs in `ze-fuzz-test`
+  → Constraint: `internal/le/fuzz/actions.go` enumerates targets individually (multi-target packages cannot use `-fuzz=.`); every new target MUST be added there or it never runs in `ze-fuzz-test`
 - [ ] `ai/rules/performance.md` - decode-under-fuzz must respect wire package norms
   → Constraint: fuzz targets call producers as-is; no test-only decode wrappers that would diverge from production paths
 
@@ -83,7 +83,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 - [ ] `internal/component/bgp/wireu/mpwire_test.go` - `FuzzParseNLRIs` :603 varies `hasAddPath` :612 across 4 families :617-630 -- THE precedent
 - [ ] `internal/core/bgp/capability/capability.go` - `Parse` :177, `ParseFromOptionalParams` :847: no Fuzz* in the package at all
 - [ ] `internal/core/bgp/attribute` mpnlri - `ParseMPReachNLRI` (`mpnlri.go`), `ParseMPUnreachNLRI` (:532): not fuzzed
-- [ ] `mk/test-fuzz.mk` - `ze-fuzz-test` runs each target at `-fuzztime=10s -timeout=60s`; `ze-fuzz-test-one FUZZ= PKG= TIME=` for one target
+- [ ] `internal/le/fuzz/actions.go` - `ze-fuzz-test` runs each target at `-fuzztime=10s -timeout=60s`; `ze-fuzz-test-one FUZZ= PKG= TIME=` for one target
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - Existing fuzz targets keep their names and seeds (corpus continuity); widening adds
@@ -97,8 +97,8 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `make ze-fuzz-test` (all targets, enumerated in `mk/test-fuzz.mk`);
-  `make ze-fuzz-test-one FUZZ=<target> PKG=<pkg>` for one.
+- `./le fuzz run` (all targets, enumerated in `internal/le/fuzz/actions.go`);
+  `FUZZ=<target> PKG=<pkg> ./le fuzz run` for one.
 
 ### Transformation Path
 1. Fuzz engine mutates (data []byte, context args: asn4 bool, hasAddPath bool, family index int, extended bool as applicable per target).
@@ -113,7 +113,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 | Synthetic negotiation ↔ EncodingContext | production `NewEncodingContext` path only | [ ] |
 
 ### Integration Points
-- `mk/test-fuzz.mk` target enumeration -- every new target added.
+- `internal/le/fuzz/actions.go` target enumeration -- every new target added.
 - Context construction (`internal/core/bgp/context/negotiated.go,:31` + `context.go`) is no longer an integration point: the UPDATE-with-context target that needed it is dropped (see AC-3).
 
 ### Architectural Verification
@@ -134,7 +134,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | New target added but not enumerated in mk/test-fuzz.mk -- never runs | target absent from `make ze-fuzz-test` output | AC-4 asserts the enumeration; grep-based check in the same commit |
+| R-1 | New target added but not enumerated in internal/le/fuzz/actions.go -- never runs | target absent from `./le fuzz run` output | AC-4 asserts the enumeration; grep-based check in the same commit |
 | R-2 | Renaming/widening an existing target orphans its accumulated corpus | corpus counters reset | prefer adding sibling targets over renaming; per-target decision recorded at implementation |
 | R-3 | Fuzz-found decode crashes arrive as a flood once new surfaces open | multiple failures in first runs | each finding becomes a seed + fix per `ai/rules/completion.md`; findings are the point, not a risk to avoid -- budget review time |
 
@@ -142,8 +142,8 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| make ze-fuzz-test | → | new/widened targets in the enumeration | enumeration includes every Fuzz* (AC-4 grep check) |
-| make ze-fuzz-test-one FUZZ=FuzzParseCapabilities | → | capability.Parse under fuzz | FuzzParseCapabilities seed run |
+| ./le fuzz run | → | new/widened targets in the enumeration | enumeration includes every Fuzz* (AC-4 grep check) |
+| ./le fuzz run FUZZ=FuzzParseCapabilities | → | capability.Parse under fuzz | FuzzParseCapabilities seed run |
 
 ## Acceptance Criteria
 
@@ -152,7 +152,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 | AC-1 | `FuzzParseAttributes` (or sibling target) | asn4 is a fuzz argument; seeds cover true AND false; `canonicalizeASPath` 2-byte branch (`attrparse.go`) reachable |
 | AC-2 | EVPN NLRI target (the only listed family parser taking an add-path arg) | `FuzzParseEVPN` fuzzes `addpath` as an argument (or a sibling `*AddPath` target exists) with both-polarity seeds against `ParseEVPN(data, addpath)` (`internal/component/bgp/plugins/nlri/evpn/types.go`). Per-family add-path FRAMING is already covered upstream: `FuzzParseNLRIs` (`mpwire_test.go`) fuzzes `hasAddPath` over `ParseNLRIs(data, fam, hasAddPath)` (`mpwire.go`), which strips the path-id framing before the per-family parser. mup/rtc/mvpn/vpls/flowspec/ls parsers take no add-path arg, so nothing to widen there |
 | AC-3 | Uncovered context-consuming surfaces | New targets exist: `capability.Parse`, `ParseFromOptionalParams`, `ParseMPReachNLRI`, `ParseMPUnreachNLRI`. NO whole-UPDATE-with-context target: `UnpackUpdate(data)` (`internal/component/bgp/message/update.go`) takes no context and `Update.Len(_ *EncodingContext)` (`update.go`) ignores its context arg, so no production entry decodes a full UPDATE against a negotiated context (a reconstructed one would be the test-only decode wrapper `buffer-first` forbids). Context-branching decode is covered by the widened `FuzzParseAttributes` (asn4, AC-1) plus the new MP_REACH/MP_UNREACH targets |
-| AC-4 | `mk/test-fuzz.mk` | Enumeration lists every Fuzz* target in the affected packages; a grep check proves no orphan |
+| AC-4 | `internal/le/fuzz/actions.go` | Enumeration lists every Fuzz* target in the affected packages; a grep check proves no orphan |
 | AC-5 | Each varied dimension | Inline seeds pin both polarities with VALIDATES/PREVENTS comments per repo convention |
 
 ## Fuzz Target Matrix (added 2026-07-10 at design gate, per user request)
@@ -185,7 +185,7 @@ feasibility reference; they are no longer tied to a shipping target.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Developer runs `make ze-fuzz-test` | enumeration -> all targets incl. new surfaces at 10s each | AC-4 grep + target run |
+| 1 | Developer runs `./le fuzz run` | enumeration -> all targets incl. new surfaces at 10s each | AC-4 grep + target run |
 | 2 | Fuzzer finds a decode crash under asn4=false | failing input minimized -> seed + fix | regression seed committed with the fix |
 
 ## 🧪 TDD Test Plan
@@ -206,7 +206,7 @@ feasibility reference; they are no longer tied to a shipping target.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N/A -- fuzz targets are unit-level by nature; `make ze-fuzz-test` is the executable gate (functional-test-gate: no user-facing behavior changes) | - | - | |
+| N/A -- fuzz targets are unit-level by nature; `./le fuzz run` is the executable gate (functional-test-gate: no user-facing behavior changes) | - | - | |
 
 ### Interop Tests (MANDATORY for protocol features)
 - N/A: no wire behavior change; fuzzing exercises existing decode paths.
@@ -214,7 +214,7 @@ feasibility reference; they are no longer tied to a shipping target.
 ## Files to Modify
 - `internal/component/bgp/plugins/rib/storage/attrparse_fuzz_test.go` - asn4 as fuzz arg (AC-1)
 - `internal/component/bgp/plugins/nlri/evpn/types_fuzz_test.go` - add-path dimension for `FuzzParseEVPN` (AC-2); mup/rtc/mvpn/vpls/flowspec/ls unchanged (no add-path arg; framing covered by `FuzzParseNLRIs`)
-- `mk/test-fuzz.mk` - enumerate new targets (AC-4)
+- `internal/le/fuzz/actions.go` - enumerate new targets (AC-4)
 
 ## Files to Create
 - `internal/core/bgp/capability/capability_fuzz_test.go` - FuzzParseCapabilities, FuzzParseFromOptionalParams (AC-3)
@@ -247,7 +247,7 @@ feasibility reference; they are no longer tied to a shipping target.
 | 7 | Wire format changed? | No | none |
 | 8 | Plugin SDK/protocol changed? | No | none |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | decode robustness, not support-level change |
-| 10 | Test infrastructure changed? | Yes | fuzz-target documentation where `mk/test-fuzz.mk` conventions live (named at implementation per discovery-updates) |
+| 10 | Test infrastructure changed? | Yes | fuzz-target documentation where `internal/le/fuzz/actions.go` conventions live (named at implementation per discovery-updates) |
 | 11 | Affects daemon comparison? | No | fuzz depth is not a comparison row |
 | 12 | Internal architecture changed? | No | none |
 | 13 | Route metadata keys added/changed? | No | none |
@@ -259,13 +259,13 @@ feasibility reference; they are no longer tied to a shipping target.
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** - A-1 context-construction unit test; new empty
-   fuzz targets registered in mk/test-fuzz.mk enumeration (AC-4 grep check red)
+   fuzz targets registered in internal/le/fuzz/actions.go enumeration (AC-4 grep check red)
 2. **Phase: widen existing targets** - asn4 arg (AC-1), add-path per family (AC-2),
    both-polarity seeds (AC-5); per-target rename-vs-sibling decision recorded (R-2)
 3. **Phase: new surfaces** - capability, MP_REACH/MP_UNREACH (AC-3); no UPDATE-with-context target (dropped -- see AC-3)
 4. **Phase: soak + coverage check** - A-2/A-3 measurements recorded in this spec;
    findings triaged per R-3
-5. `make ze-precommit-verify`, learned summary, two-commit closure
+5. `./le verify current mode full`, learned summary, two-commit closure
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -273,12 +273,12 @@ feasibility reference; they are no longer tied to a shipping target.
 | Completeness | AC-1..AC-5 with file:line |
 | Correctness | targets call production producers with production signatures; no wrappers |
 | Rule: no-workarounds | fuzz findings fixed at the decode source, never by weakening the target |
-| Enumeration | every Fuzz* in affected packages present in mk/test-fuzz.mk (AC-4) |
+| Enumeration | every Fuzz* in affected packages present in internal/le/fuzz/actions.go (AC-4) |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Widened + new fuzz targets | `rg 'func Fuzz' <packages>` matches mk/test-fuzz.mk enumeration |
+| Widened + new fuzz targets | `rg 'func Fuzz' <packages>` matches internal/le/fuzz/actions.go enumeration |
 | Both-polarity seeds | `rg 'f.Add' <fuzz files>` shows true/false pairs per varied arg |
 
 ### Security Review Checklist
@@ -315,8 +315,8 @@ feasibility reference; they are no longer tied to a shipping target.
   (`Arbitrary`-derived DecodeCxt, `fuzz/fuzz_targets/bgp/message_decode.rs:7-12`).
 - Sibling spec `plan/spec-fixit-parser-fuzz-gaps.md` (BMP receiver TLV / RADIUS VSA /
   DHCP server packet) is COMPLEMENTARY, not a conflict: disjoint packages and disjoint
-  fuzz-target names, so no `mk/test-fuzz.mk` target collision. The only shared touch is
-  the `mk/test-fuzz.mk` enumeration and the `docs/functional-tests.md` fuzz-target COUNT
+  fuzz-target names, so no `internal/le/fuzz/actions.go` target collision. The only shared touch is
+  the `internal/le/fuzz/actions.go` enumeration and the `docs/functional-tests.md` fuzz-target COUNT
   (already stale). If both specs land, that count must SUM both specs' additions.
 
 ## Key Design Decisions
@@ -429,7 +429,7 @@ feasibility reference; they are no longer tied to a shipping target.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (fuzz targets + make enumeration)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

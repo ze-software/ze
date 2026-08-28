@@ -5,7 +5,7 @@ stage:
 ---
 | Symptom | Fix |
 |---------|-----|
-| `time.Sleep` / `time.sleep(` then assert | poll the condition: `wait_until`, `dispatch_until`, `wait_for_event` (`test/scripts/ze_api.py`) |
+| `time.Sleep` then assert | poll the condition with `fixture.Poll`, using `fixture.Dispatch` when the state comes from the engine |
 | fixed deadline for startup, teardown or reconnect | wait on the readiness signal the daemon emits. If none exists, ADD one: a missing signal is a product gap, not a test problem |
 | "at most N events in a window" | count between two state transitions, not between two clock reads |
 | assert immediately after a command returns | wait for the effect to be observable, then assert |

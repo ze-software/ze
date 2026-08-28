@@ -62,7 +62,7 @@ func TestRelaySink_MatchedDialsRemote(t *testing.T) {
 			Remotes: []Remote{{Name: "lns1", Address: remoteAddr}},
 			Relays:  []RelayBinding{{Service: "wholesale", Remote: "lns1"}},
 		},
-		reactors: []*L2TPReactor{r},
+		reactors: []*l2tpReactor{r},
 		logger:   slog.Default(),
 	}
 

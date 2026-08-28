@@ -9,120 +9,14 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: registers commands (one hidden), then verifies system command list
-tmpfs=completion-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def handle_command(command, args):
-    """Handle execute-command callback from the engine."""
-    if command == 'show test-completion visible':
-        return {'status': 'done', 'data': json.dumps({'result': 'visible-ok'})}
-    if command == 'show test-completion hidden':
-        return {'status': 'done', 'data': json.dumps({'result': 'hidden-ok'})}
-    return {'status': 'error', 'data': json.dumps({'error': f'unknown: {command}'})}
-
-def main():
-    api = API()
-
-    # Register two commands: one visible, one hidden.
-    api._commands = [
-        {'name': 'show test-completion visible', 'description': 'Visible command'},
-        {'name': 'show test-completion hidden', 'description': 'Hidden command', 'hidden': True},
-    ]
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.on_execute_command(handle_command)
-    api.ready()
-    print('DEBUG: ready done, waiting for post_startup', file=sys.stderr)
-    api.wait_for_post_startup(timeout=5.0)
-    print('DEBUG: post_startup done, dispatching system command list', file=sys.stderr)
-
-    # Verify system command list includes our commands with correct hidden flags
-    result = dispatch(api, 'system command list')
-    print(f'DEBUG: dispatch result keys={list(result.keys()) if isinstance(result, dict) else type(result)}', file=sys.stderr)
-    print(f'DEBUG: data type={type(result.get("data", ""))}, data[:200]={str(result.get("data", ""))[:200]}', file=sys.stderr)
-    if result.get('status') != 'done':
-        runtime_fail(f'system command list status={result.get("status")}')
-        return
-
-    data = result.get('data', {})
-    if isinstance(data, str):
-        data = json.loads(data)
-    commands = data.get('commands', [])
-
-    visible_found = False
-    hidden_found = False
-    hidden_marked = False
-
-    print(f'DEBUG: commands count={len(commands)}', file=sys.stderr)
-    for cmd in commands:
-        value = cmd.get('value', '')
-        if value == 'show test-completion visible':
-            visible_found = True
-            if cmd.get('hidden', False):
-                runtime_fail('visible command marked as hidden')
-                return
-        if value == 'show test-completion hidden':
-            hidden_found = True
-            if cmd.get('hidden', False):
-                hidden_marked = True
-
-    if not visible_found:
-        runtime_fail('visible plugin command not in system command list')
-        return
-
-    if not hidden_found:
-        runtime_fail('hidden plugin command not in system command list')
-        return
-
-    if not hidden_marked:
-        runtime_fail('hidden plugin command not marked as hidden')
-        return
-
-    # self-dispatch of own commands causes callback re-entrancy deadlock in
-    # single-threaded Python plugin; command dispatch covered by unit tests and other .ci tests
-    # Verify command count includes our 2 registered commands (among the ~290 builtins)
-    if len(commands) < 100:
-        runtime_fail(f'too few commands: {len(commands)}')
-        return
-
-    # Verify no duplicate entries for our commands
-    visible_count = sum(1 for c in commands if c.get('value') == 'show test-completion visible')
-    hidden_count = sum(1 for c in commands if c.get('value') == 'show test-completion hidden')
-    if visible_count != 1:
-        runtime_fail(f'expected 1 visible entry, got {visible_count}')
-        return
-    if hidden_count != 1:
-        runtime_fail(f'expected 1 hidden entry, got {hidden_count}')
-        return
-
-    print('OK: plugin commands in system command list, hidden flag correct, no duplicates', file=sys.stderr)
-    print('DEBUG: requesting shutdown', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    print('DEBUG: shutdown dispatched, waiting', file=sys.stderr)
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native test plugin registers one visible and one hidden command, then validates
+# their exact shared-registry entries.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external completion-test {
-        run ./completion-test.run
+        run "ze-test fixture plugin/plugin-command-completion"
         encoder json
     }
 }

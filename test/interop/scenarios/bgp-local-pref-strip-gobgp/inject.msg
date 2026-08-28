@@ -35,7 +35,7 @@ option=timeout:value=300s
 #
 # Ze sends a KEEPALIVE every 5 s at the 15 s hold ze.conf sets, so four of them
 # is a 20 s wait. FRR and GoBGP both reach Established inside that on the lab
-# bridge, and check.py waits on each session besides.
+# bridge, and the internal/le/interoplab/bgp checker waits on each session besides.
 #
 # EACH PREFIX IS ANNOUNCED ONCE. A re-announce used to sit at the end of this
 # file to hide a Ze defect: the announce reached nobody and logged `BUG:
@@ -62,7 +62,8 @@ action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A3602
 
-# Hold the session open while check.py polls both daemons. A peer whose script
+# Hold the session open while the internal/le/interoplab/bgp checker polls both daemons. A peer
+# whose script
 # is exhausted exits, and its session dropping makes Ze withdraw the relayed
 # routes before the check runs. Twenty KEEPALIVEs at 5 s give the check 100 s,
 # and the runner tears the lab down as soon as the check returns.

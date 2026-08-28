@@ -1,14 +1,8 @@
-// Design: docs/architecture/core-design.md -- the ste area, as one command
+// Design: docs/architecture/core-design.md -- the ste area
 // Overview: ste.go -- the checker behind each action
 //
-// actions.go ports the Python area. `le check-docs ze-ste-check` selected one
-// GateSet gate. `le ste check` selects one action from the table below. Each
-// action retains the Gate's Make target, `--list` reason, and WRITES value. None
-// writes because this tool only reads and reports prose.
-//
-// The dispatch, the listing, the help line and the two refusals live in
-// internal/le/leaction. What stays here is the TABLE, and the ONE argument form
-// leaction does not cover.
+// The action table owns dispatch, listing, help, and write metadata. The check
+// action also accepts the scoped `file <path>` form.
 package ste
 
 import (
@@ -23,34 +17,20 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// area is the word this tool is typed as, and the prefix leaction removes from
-// each gate name to derive the verb.
+// area is the word this tool is typed as.
 const area = "ste"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-ste-check",
-		Why: "no ASD-STE100 habit grew against HEAD in a changed file. HEAD is the baseline, " +
-			"so legacy prose stays until someone rewrites it, no baseline file exists to re-bless, " +
-			"and the one way to green is to fix the prose",
-		Answer: func() (any, int) { return checkAnswer(nil) },
-	},
-	leaction.Action{
-		Gate:   "ze-ste-review",
-		Why:    "every ASD-STE100 finding in the tree, with file:line and the fix",
-		Answer: reviewAnswer,
-	},
-	leaction.Action{
-		Gate:   "ze-ste-review-changed",
-		Why:    "the same findings, over the files this working tree changed",
-		Answer: changedAnswer,
-	},
+	leaction.Action{Verb: "check", Why: "no ASD-STE100 habit grew against HEAD in a changed file. HEAD is the baseline, " +
+		"so legacy prose stays until someone rewrites it, no baseline file exists to re-bless, " +
+		"and the one way to green is to fix the prose",
+		Answer: func() (any, int) { return checkAnswer(nil) }},
+	leaction.Action{Verb: "review", Why: "every ASD-STE100 finding in the tree, with file:line and the fix",
+		Answer: reviewAnswer},
+	leaction.Action{Verb: "review-changed", Why: "the same findings, over the files this working tree changed",
+		Answer: changedAnswer},
 )
-
-// Gates answers the Make targets this area claims, which is what the census
-// counts and what register.go declares.
-func Gates() []string { return actions.Gates() }
 
 // Actions answers the command surface as data.
 func Actions() leaction.List { return actions.Actions() }
@@ -58,15 +38,14 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// fileKeyword types the scoped-gate value. CLI grammar requires a selector kind
-// before a free-form value. A path is such a value (ai/rules/cli.md).
+// fileKeyword types the scoped-check value. CLI grammar requires a selector
+// kind before a free-form path (ai/rules/cli.md).
 const fileKeyword = "file"
 
 // Answer is the `le ste` command.
 //
-// Only `check` accepts values. It gates named files from ONE commit, as the
-// commit helper requires. Several sessions share this checkout, so working-tree
-// attribution is incorrect. All other actions go to leaction, which refuses
+// Only `check` accepts values. It checks named files from one commit, as the
+// commit helper requires. All other actions go to leaction, which refuses
 // values after verbs that accept none.
 func Answer(args []string) (any, int) {
 	if len(args) > 1 && args[0] == "check" {
@@ -82,8 +61,7 @@ func Answer(args []string) (any, int) {
 
 // namedFiles reads `file <path>` repeated, and refuses anything else.
 //
-// Argument count is the bound because each keyword consumes one later word. A
-// keyword without a value is a refusal, not a default file set for the gate.
+// Argument count is bounded because each keyword consumes one later word.
 func namedFiles(args []string) ([]string, error) {
 	var named []string
 	for index := 0; index < len(args); index++ {
@@ -143,7 +121,7 @@ func checkAnswer(named []string) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	report := NewGateReport(growth, examined)
+	report := newCheckReport(growth, examined)
 	return report, report.Code()
 }
 
@@ -210,5 +188,5 @@ func reviewFiles(root string, files []string) (any, int) {
 		findings = append(findings, found...)
 	}
 
-	return NewReviewReport(findings, reviewed, skipped), 0
+	return newReviewReport(findings, reviewed, skipped), 0
 }

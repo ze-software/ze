@@ -4,10 +4,12 @@
 # halves of RFC 4271 Section 5.1.2's condition on one session:
 #
 #   1. The ADVERTISEMENT. Ze forwards it to FRR and MUST prepend its own AS
-#      (Section 5.1.2 b). check.py asserts FRR reports AS_PATH "65001 65004".
+#      (Section 5.1.2 b). the internal/le/interoplab/bgp checker asserts FRR reports AS_PATH "65001
+#      65004".
 #
 #   2. The WITHDRAWAL. It advertises no route, so the prepend does not arise and
-#      Section 4.3 says the message "will not include path attributes". check.py
+#      Section 4.3 says the message "will not include path attributes". the
+#      internal/le/interoplab/bgp checker
 #      asserts FRR raised no attribute error over it and kept the session.
 #
 # ASN is pinned via inject-args (--asn 65004); NEXT_HOP is 172.30.0.9 (this
@@ -37,7 +39,8 @@ expect=bgp:conn=1:seq=1:contains=180A1400
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEC400304AC1E0009180A0A00
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# BARRIER 2 -- give check.py a window to observe the advertisement before it is
+# BARRIER 2 -- give the internal/le/interoplab/bgp checker a window to observe the advertisement
+# before it is
 # withdrawn. Ze sends a KEEPALIVE every 30s (a third of the 90s hold), so two of
 # them are 30-60s during which FRR holds the route. Withdrawing sooner would race
 # the positive assertion, and a positive assertion that loses that race is
@@ -50,7 +53,8 @@ expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 # of this scenario.
 action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A0A000000
 
-# Hold the session open while check.py finishes. A peer whose script is exhausted
+# Hold the session open while the internal/le/interoplab/bgp checker finishes. A peer whose script
+# is exhausted
 # exits, and its session dropping would make Ze withdraw the route for the wrong
 # reason -- which is exactly how an absence assertion passes vacuously.
 expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304

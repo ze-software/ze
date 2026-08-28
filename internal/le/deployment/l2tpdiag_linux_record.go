@@ -1,10 +1,10 @@
-//go:build linux && ze_test
+//go:build linux && zetest
 
 // Design: test/draft/ui/le-l2tp-diagnostics-answers.ci -- built-binary syscall recording
 // Related: l2tpdiag_linux_ops.go -- the real Linux boundary
 //
-// This file compiles only into a ze_test binary. Production builds compile the
-// real syscall boundary in l2tpdiag_linux_ops.go instead.
+// This file compiles only with the narrow zetest seam tag. The le personality
+// stays distinct from the ze-test command personality.
 
 package deployment
 
@@ -85,11 +85,11 @@ func (o *recordedL2TPDiagnosticOps) Socket(domain, _, _ int) (int, error) {
 	return fd, nil
 }
 
-func (o *recordedL2TPDiagnosticOps) SetReusePort(int) error {
+func (o *recordedL2TPDiagnosticOps) setReusePort(int) error {
 	return o.record("setsockopt reuseport", nil)
 }
 
-func (o *recordedL2TPDiagnosticOps) BindIPv4(_ int, address [4]byte, port uint16) error {
+func (o *recordedL2TPDiagnosticOps) bindIPv4(_ int, address [4]byte, port uint16) error {
 	payload := []byte{address[0], address[1], address[2], address[3], byte(port >> 8), byte(port)}
 	return o.record("bind udp", payload)
 }
@@ -124,28 +124,28 @@ func (o *recordedL2TPDiagnosticOps) Connect(_ int, address []byte) error {
 	return o.record("connect pppox", address)
 }
 
-func (o *recordedL2TPDiagnosticOps) IoctlGetInt(int, uint) (int, error) {
+func (o *recordedL2TPDiagnosticOps) ioctlGetInt(int, uint) (int, error) {
 	if err := o.record("ioctl get channel", nil); err != nil {
 		return 0, err
 	}
 	return 7, nil
 }
 
-func (o *recordedL2TPDiagnosticOps) IoctlSetInt(_ int, request uint, _ int) error {
+func (o *recordedL2TPDiagnosticOps) ioctlSetInt(_ int, request uint, _ int) error {
 	if request == pppiocAttChan {
 		return o.record("ioctl attach channel", nil)
 	}
 	return o.record("ioctl connect unit", nil)
 }
 
-func (o *recordedL2TPDiagnosticOps) IoctlGetSetInt(int, uint, int) (int, error) {
+func (o *recordedL2TPDiagnosticOps) ioctlGetSetInt(int, uint, int) (int, error) {
 	if err := o.record("ioctl new unit", nil); err != nil {
 		return 0, err
 	}
 	return 0, nil
 }
 
-func (o *recordedL2TPDiagnosticOps) OpenPPP() (int, error) {
+func (o *recordedL2TPDiagnosticOps) openPPP() (int, error) {
 	if err := o.record("open /dev/ppp", nil); err != nil {
 		return 0, err
 	}
@@ -154,7 +154,7 @@ func (o *recordedL2TPDiagnosticOps) OpenPPP() (int, error) {
 	return fd, nil
 }
 
-func (o *recordedL2TPDiagnosticOps) ProcPPPoL2TP() string {
+func (o *recordedL2TPDiagnosticOps) procPPPoL2TP() string {
 	if err := o.record("read /proc/net/pppol2tp", nil); err != nil {
 		var tb textbuf.Buffer
 		return tb.Str("  (record /proc/net/pppol2tp: ").Err(err).Str(")\n").String()
@@ -162,7 +162,7 @@ func (o *recordedL2TPDiagnosticOps) ProcPPPoL2TP() string {
 	return "recorded pppol2tp state\n"
 }
 
-func (o *recordedL2TPDiagnosticOps) DevPPP() string {
+func (o *recordedL2TPDiagnosticOps) devPPPText() string {
 	if err := o.record("stat /dev/ppp", nil); err != nil {
 		var tb textbuf.Buffer
 		return tb.Str("  (record /dev/ppp: ").Err(err).Str(")\n").String()
@@ -181,4 +181,3 @@ func (o *recordedL2TPDiagnosticOps) Link(name string) (diagnosticLink, error) {
 func (o *recordedL2TPDiagnosticOps) Operations() []string {
 	return append([]string(nil), o.calls...)
 }
-

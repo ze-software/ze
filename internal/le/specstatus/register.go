@@ -25,10 +25,7 @@ func init() {
 	// before the tool reads the tree (ai/rules/cli.md).
 	leroot.RegisterShape("spec-status", command.ShapeMap)
 
-	// NO parity.Claim. `le gates --json` declares 156 gates and none of them is
-	// this tool: `ze-spec-status` and `ze-spec-status-json` are Make targets in
-	// mk/report-inventory.mk that run `go run scripts/status/spec_status.go`
-	// directly, never through the Python `le`. The census therefore cannot move
-	// for this port, and claiming a gate the census does not hold is red.
-	// internal/le/weekly carries the same note for the same reason.
+	// NO parity.Claim. The retired spec-status Make targets were not part of the
+	// gate census, so this native command must not claim a row the census did not
+	// hold.
 }

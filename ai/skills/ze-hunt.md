@@ -14,8 +14,8 @@ traps*, *Testing traps*, and *Multi-source-of-truth traps* sections). Each hunt
 below maps to one recorded trap. When that file gains a new pattern, add a
 matching hunt here -- the document is the registry, this skill is the detector.
 
-See also: `/ze-review` and `/ze-review-deep` (diff review, not whole-tree),
-`/ze-find-alloc` (allocation audit), `make ze-mutation-test-changed` (grade the suite).
+See also: `/ze-review` and `/ze-review-deep` (diff review),
+`/ze-find-alloc` (allocation audit), and `/ze-mutation-fix` (grade a package's suite).
 
 ## When to use
 
@@ -185,12 +185,10 @@ Name the cheapest mechanical gate that would retire the top class permanently
 
 Grep catches the recorded *shapes*. To find unknown bugs, escalate:
 
-- `make ze-mutation-pkg-test PKG=<dir>` -- surviving mutants reveal untested logic
-  (where bugs hide). Start with wire codec, FSM, RIB.
-- `make ze-fuzz-test` on wire/NLRI/attribute decoders, long duration, MRT-seeded
-  corpus -- the highest-severity untrusted-input surface.
-- `test/interop/` + `ze-functional-exabgp-test` -- differential testing vs FRR/BIRD/ExaBGP.
-- `make ze-unit-reactor-test-race` + `ze-chaos` seed sweep -- concurrency.
+- `go run github.com/sivchari/gomu/cmd/gomu run --workers 2 --timeout 120 --threshold 0 --output json --incremental=false --fail-on-gate=false <dir>`: surviving mutants reveal untested logic. Start with wire codecs, FSMs, and RIB code.
+- `./le fuzz` on wire, NLRI, and attribute decoders with an MRT-seeded corpus.
+- `./le integration interop` and `./le functional exabgp-test` for differential testing against FRR, BIRD, and ExaBGP.
+- `go test -race -count=20 ./internal/component/bgp/reactor/...` plus `./le test-chaos` for concurrency.
 
 For a large scope, run the independent hunts as parallel subagents (one per
 subsystem or per hunt) and have a second agent adversarially verify each

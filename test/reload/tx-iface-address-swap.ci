@@ -8,7 +8,7 @@
 # net.ipv4.conf.<dev>.promote_secondaries is 1. The reload reported success and
 # left the interface with NO address at all.
 #
-# The fence is the `ip addr show` readback in driver.sh below: it asserts the NEW
+# The fence is the `ip addr show` readback in the native driver below: it asserts the NEW
 # address is present AND the old one is gone. A daemon that merely survives the
 # reload does not pass -- the pre-fix daemon survived it and reported success.
 #
@@ -106,38 +106,9 @@ EOF_CONF2
 # everything down ~50ms after the SIGHUP, before a 0.1s poll loop had run even
 # once, and addr-after.txt was never written ("read failed: ... no such file").
 # Foreground, the runner waits for this script, so the readback cannot be raced.
-tmpfs=driver.sh:mode=755:terminator=EOF_DRIVER
-#!/bin/sh
-set -e
-# poll interval; each loop breaks as soon as the condition it names is true
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-# The initial apply must have landed before the swap, otherwise the reload has
-# nothing to renumber and the test would pass vacuously.
-while ! ip -4 addr show zswap0 2>/dev/null | grep -q '10\.77\.0\.1/24'; do sleep 0.1; done
-cp config2.conf ze-bgp.conf
-kill -HUP "$(cat daemon.pid)"
-# Poll for the renumber rather than sleeping on it: the reload is a transaction
-# whose settlement wait is event-driven, so its duration is not a fixed number.
-i=0
-while [ $i -lt 100 ]; do
-	if ip -4 addr show zswap0 2>/dev/null | grep -q '10\.77\.0\.2/24'; then
-		break
-	fi
-	i=$((i + 1))
-	# poll interval; the loop breaks as soon as the new address appears
-	sleep 0.1
-done
-# Unconditional readback: on the pre-fix tree the loop above times out with the
-# device carrying NO address, and that empty capture is what fails the
-# expectations below. Writing it only on success would turn the bug into a
-# missing file instead of a visible wrong state.
-ip -4 addr show zswap0 > addr-after.txt 2>&1
-kill -TERM "$(cat daemon.pid)"
-EOF_DRIVER
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=sh driver.sh:timeout=30s
+cmd=foreground:seq=2:exec=ze-test fixture reload/tx-iface-address-swap-driver:timeout=30s
 
 # The daemon must report the reload as applied, and the interface must actually
 # carry the new address afterwards. The second assertion is the one that fails

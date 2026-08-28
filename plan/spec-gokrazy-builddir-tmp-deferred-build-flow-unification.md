@@ -24,7 +24,7 @@ appliance database, which remains genuinely divergent:
 
 | Concern | make path | Go path |
 |---------|-----------|---------|
-| database seeding | shell: `ze init --force --yes --seed`, per-`CERTNAME` TLS cert cache, `ze data write file/template/ze.conf` (`mk/build-gokrazy.mk`) | `assembleZeFS` from an appliance directory (`internal/appliance/cmd_assemble.go`) |
+| database seeding | shell: `ze init --force --yes --seed`, per-`CERTNAME` TLS cert cache, `ze data write file/template/ze.conf` (`internal/appliance/cmd_build.go`) | `assembleZeFS` from an appliance directory (`internal/appliance/cmd_assemble.go`) |
 | external database | `ZEFS=/path` copies one in | no equivalent |
 | output | fixed `tmp/gokrazy/ze.img` | timestamped under `AppliancePath` |
 | encryption, manifest, checksum, GPT-discovered mkfs offsets | absent | present |
@@ -33,7 +33,7 @@ The D-1 audit in the source spec found the Go path is a strict superset on every
 step the two share, and that the make path hardcodes `/perm` offsets which will
 rot silently if the partition layout changes.
 
-Decide whether `make ze-gokrazy-build` should become a thin wrapper over
+Decide whether `ze appliance build` should become a thin wrapper over
 `ze appliance build` (retiring the shell seeding, the hardcoded offsets, and the
 duplicated mkfs/debugfs work) or whether the two are deliberately different
 products. If they converge, `ZEFS=` and the `CERTNAME` cert cache must survive in
@@ -44,7 +44,7 @@ some form: they are developer conveniences with no Go equivalent today.
 Found while closing `spec-gokrazy-init-bump`. Its deferral shard
 `plan/deferrals/gokrazy-init-bump.md` carries the row that homes this work here.
 
-The credential injection at `mk/build-gokrazy.mk` runs `debugfs -w -R "mkdir ze"` and
+The credential injection at `internal/appliance/cmd_build.go` runs `debugfs -w -R "mkdir ze"` and
 `debugfs -w -R "write ... ze/database.zefs"`, each with `2>/dev/null`. Measured
 on e2fsprogs 1.47.0: `debugfs` exits **0 even when the command fails**, and it
 reports the failure only on stderr, which those two redirections discard. An
@@ -64,7 +64,7 @@ missing outright; the silent failure of a tool that IS present is what remains.
 
 #### FIXED 2026-08-05
 
-`mk/build-gokrazy.mk` now reads the database back out of the image and compares it
+`internal/appliance/cmd_build.go` now reads the database back out of the image and compares it
 byte for byte against the source, failing the build on any mismatch. Content
 comparison rather than `stat` output, so it does not depend on debugfs field
 formatting and it catches a truncated write as well as an absent one.
@@ -89,7 +89,7 @@ OK                        <- the assertion does not false-positive
 ```
 
 The convergence question this spec exists for is untouched. Whether
-`make ze-gokrazy-build` becomes a thin wrapper over `ze appliance build` is still open,
+`ze appliance build` becomes a thin wrapper over `ze appliance build` is still open,
 and if it does, this assertion goes with the shell seeding it guards.
 
 Two further items deferred out of the same source spec (recorded in its
@@ -97,8 +97,8 @@ Two further items deferred out of the same source spec (recorded in its
 removes; this spec is their home):
 
 - ~~**Gate the tracked builddir `go.sum` files against the root module.**~~
-  **DONE 2026-08-05.** `scripts/dev/gokrazy_gosum_check.py`, run by
-  `make ze-gokrazy-gosum-check` and a prerequisite of `make ze-gokrazy-build`, so the
+  **DONE 2026-08-05.** `internal/le/`, run by
+  `./le gokrazy-gosum` and a prerequisite of `ze appliance build`, so the
   image cannot be built over a drift.
 
   It fires on ONE condition, the only one that cannot be legitimate: the same
@@ -137,7 +137,7 @@ removes; this spec is their home):
   longer runs in `builddir` (every build copies it into a prepared instance under
   project `tmp/`), so the name does misdescribe its role as a pinned module
   manifest. That is upstream's name to change, not ze's. The header comment of
-  `mk/build-gokrazy.mk` already tells a reader where builds actually run.
+  `internal/appliance/cmd_build.go` already tells a reader where builds actually run.
 
 ## Required Reading
 
@@ -173,7 +173,7 @@ removes; this spec is their home):
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- The gokrazy make target (`mk/build-gokrazy.mk`, `ze-gokrazy-build` recipe): operator supplies USER/PASS, or ZEFS, or neither.
+- The gokrazy make target (`internal/appliance/cmd_build.go`, `ze-gokrazy-build` recipe): operator supplies USER/PASS, or ZEFS, or neither.
 - `ze appliance build <name>` (`internal/appliance/cmd_build.go`, `buildOne`): operator builds a named appliance created by `ze appliance init`.
 - Both converge on the shared preparer and gok. Only the seeding above them differs.
 
@@ -228,7 +228,7 @@ removes; this spec is their home):
 <!-- Every row MUST have a test name. "Deferred" / "TODO" / empty = spec cannot be marked done. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| The gokrazy make target with USER/PASS | → | whichever seeding path survives the decision | `ze-deployment-gokrazy-l2tp-ppp-test` |
+| The gokrazy make target with USER/PASS | → | whichever seeding path survives the decision | `./le deployment gokrazy-l2tp-ppp-test` |
 | `ze appliance build <name>` | → | `assembleZeFS` | `TestAssembleProducesZeFS` |
 
 ## Acceptance Criteria
@@ -315,7 +315,7 @@ removes; this spec is their home):
 | ExaBGP compat encoding tests (.ci + .conf) | [ ] | `test/exabgp-compat/encoding/`, `test/exabgp-compat/etc/` | [ ] |
 | Exhaustive switch audit (`grep 'case.*SAFI' internal/`) | [ ] | all switches on SAFI | [ ] |
 | Snapshot tests (all_test.go plugin names + wire methods) | [ ] | `plugin/all/all_test.go` | [ ] |
-| Config surface guards (reservedPeerNames, command_ownership) | [ ] | `bgp/config/resolve.go`, `scripts/checks/` | [ ] |
+| Config surface guards (reservedPeerNames, command_ownership) | [ ] | `bgp/config/resolve.go`, `internal/le/` | [ ] |
 | Functional decode tests (.ci per AFI) | [ ] | `test/decode/` | [ ] |
 | Functional encode tests (.ci round-trip) | [ ] | `test/encode/` | [ ] |
 | Interop scenario + existing interop config audit | [ ] | `test/interop/scenarios/` | [ ] |
@@ -382,7 +382,7 @@ removes; this spec is their home):
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan — check what exists |
 | 3. Wiring phase | Wiring Test table — register entry points, write failing wiring tests |
 | 4. Implement (TDD) | Implementation phases below (write-test-fail-implement-pass per phase) |
-| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Fix every issue from critical review |
 | 8. Re-verify | Re-run stage 5 |
@@ -416,7 +416,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: tests fail → implement → tests pass → wiring test passes
 4. **Functional tests** → Create after feature works. Cover user-visible behavior.
 5. **RFC refs** → Add `// RFC NNNN Section X.Y` comments (protocol work only)
-6. **Full verification** → `make ze-precommit-verify` (lint + all ze tests except fuzz)
+6. **Full verification** → `./le verify current mode full` (lint + all ze tests except fuzz)
 7. **Complete spec** → Fill audit tables, write learned summary to `plan/learned/NNN-<name>.md`. TWO commits: commit A saves code + tests + spec + learned summary; commit B does `git rm` of the spec. BLOCKING: summary is part of commit A, not a follow-up.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -518,7 +518,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 
 ### Documentation Updates
 - [Docs updated, with source anchors named, or "None" with grep evidence]
-- [If docs were changed: `make ze-doc-verify` result]
+- [If docs were changed: `./le doc-check verify` result]
 
 ### Deviations from Plan
 - [Differences from original plan and why]
@@ -628,7 +628,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

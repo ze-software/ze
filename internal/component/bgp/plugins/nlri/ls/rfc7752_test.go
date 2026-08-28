@@ -1,4 +1,4 @@
-// RFC: rfc/short/rfc7752.md — BGP-LS obligations gated by make ze-rfc-check
+// RFC: rfc/short/rfc7752.md — BGP-LS obligations gated by `./le rfc check`
 //
 // Ze is a BGP-LS consumer and transit speaker: it decodes AFI 16388 NLRI and
 // the type-29 attribute, and forwards received UPDATEs verbatim. It originates

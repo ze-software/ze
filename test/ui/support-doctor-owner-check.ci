@@ -1,4 +1,5 @@
 # Test: ze support --module doctor includes owner-registered runtime dependency checks
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
 # VALIDATES: command-surface-ownership Phase 6 -- support's doctor collector
 #            uses the registered doctor provider, including owner checks.
 # PREVENTS: support archives omitting owner-registered doctor diagnostics while
@@ -13,49 +14,6 @@ plugin {
 }
 EOF_CONF
 
-tmpfs=support-doctor-owner-check.py:mode=755:terminator=EOF_SCRIPT
-#!/usr/bin/env python3
-import json
-import subprocess
-import sys
-import tarfile
-
-proc = subprocess.run(
-    ["ze", "support", "--module", "doctor", "--json", "--output", ".", "missing-plugin.conf"],
-    text=True,
-    capture_output=True,
-    check=False,
-)
-if proc.returncode != 0:
-    print(proc.stderr, file=sys.stderr)
-    sys.exit(proc.returncode)
-
-try:
-    manifest = json.loads(proc.stdout)
-except json.JSONDecodeError as exc:
-    print(f"support json decode failed: {exc}: {proc.stdout[:200]}", file=sys.stderr)
-    sys.exit(1)
-
-archive_path = manifest.get("archive-path")
-if not archive_path:
-    print(f"support manifest missing archive-path: {manifest}", file=sys.stderr)
-    sys.exit(1)
-
-with tarfile.open(archive_path, "r:gz") as archive:
-    member = archive.extractfile("doctor.json")
-    if member is None:
-        print("support archive missing doctor.json", file=sys.stderr)
-        sys.exit(1)
-    doctor = json.load(member)
-
-codes = [diag.get("code") for diag in doctor.get("diagnostics", [])]
-if "doctor-plugin-missing" not in codes:
-    print(f"support doctor.json missing owner-registered plugin check: codes={codes!r}", file=sys.stderr)
-    sys.exit(1)
-
-print("OK support doctor owner check")
-EOF_SCRIPT
-
-cmd=foreground:seq=1:exec=./support-doctor-owner-check.py:timeout=15s
+cmd=foreground:seq=1:exec=ze-test fixture ui/support-doctor-owner-check:timeout=15s
 expect=exit:code=0
 expect=stdout:contains=OK support doctor owner check

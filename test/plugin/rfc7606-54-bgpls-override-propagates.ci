@@ -18,6 +18,7 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
 option=timeout:value=20s
+option=linger:value=true
 option=bind:value=0.0.0.0
 option=conn_map:value=remote-ip
 
@@ -40,12 +41,6 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 expect=bgp:conn=2:seq=1:contains=0001000B020000000000000000000000630004DEADBEEF
 EOF_PEER
 
-tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-from ze_api import API
-
-API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -56,7 +51,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external shutdown-after-up {
-		run ./shutdown-after-up.run
+		run "ze-test fixture plugin/rfc7606-54-bgpls-override-propagates"
 		encoder json
 	}
 }

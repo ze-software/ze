@@ -104,7 +104,7 @@ ALONE under blob with a fresh blob directory, each writing a real blob of about
 The residual 17 failures under a per-test `ze.config.dir` are NOT explained, and
 that experiment is not a design to build on.
 
-`make ze-functional-parse-test` was 312/312 with the pins removed, but that
+the retired `ze-functional-parse-test` (current: `./le functional parse`) was 312/312 with the pins removed, but that
 green is close to vacuous: its blob came out at 37 bytes, a bare header, where
 the reload suite's reached 12.6 KB.
 
@@ -380,7 +380,7 @@ N-A. Storage backend selection reaches no wire and no RFC obligation.
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -398,7 +398,7 @@ N-A. Storage backend selection reaches no wire and no RFC obligation.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

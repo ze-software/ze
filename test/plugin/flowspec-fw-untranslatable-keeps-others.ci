@@ -37,83 +37,6 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0048020000003140010
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E150001850401020304000B01180A0100038184058150C010088006000000000000
 EOF_PEER
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Assert the enforceable route lands even after an unenforceable one arrived."""
-import os
-import signal
-import subprocess
-import sys
-import urllib.error
-import urllib.request
-
-from ze_api import wait_until
-
-PORT = "$PORT2"  # substituted by the runner, same value as the telemetry block
-REFUSED = 'ze_flowspec_rules_refused_total{reason="unknown-protocol"}'
-
-if not wait_until(
-    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-    attempts=400,
-    delay=0.05,
-):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-state = {"ruleset": "", "metrics": ""}
-
-
-def reconciled():
-    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
-    state["ruleset"] = snap.stdout
-    # The locally configured table proves other owners still reach the kernel;
-    # the sctp rule proves the reconcile did not stop when the refused route
-    # arrived. nft prints the lowered value as `meta l4proto 132` and reserves
-    # its symbolic names for the protocols its own inet_proto table carries, so
-    # both spellings are accepted rather than one being asserted.
-    return "ze_fslocal" in state["ruleset"] and (
-        "l4proto 132" in state["ruleset"] or "l4proto sctp" in state["ruleset"]
-    )
-
-
-ok = wait_until(reconciled, attempts=200, delay=0.1)
-
-
-def refusal_counted():
-    """True once the bridge has published its refusal of the first route.
-
-    This is a BARRIER, not a nicety. The daemon is killed below as soon as the
-    kernel carries the sctp rule, and the refusal of the FIRST route leaves no
-    kernel trace at all, so the stderr assertion at the foot of this file was
-    racing the kill: it failed on one QEMU run in five while every kernel
-    assertion passed. The CounterVec child exists only after the label set is
-    used, so this waits on the refusal itself rather than on a delay.
-    """
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/metrics", timeout=2) as resp:
-            body = resp.read().decode()
-    except (urllib.error.URLError, OSError):
-        return False
-    state["metrics"] = body
-    return REFUSED in body
-
-
-counted = wait_until(refusal_counted, attempts=200, delay=0.1)
-
-sys.stdout.write(state["ruleset"])
-for line in state["metrics"].split("\n"):
-    if line.startswith("ze_flowspec"):
-        print(line)
-
-os.kill(pid, signal.SIGTERM)
-
-if not ok:
-    sys.exit("the reconcile did not survive the untranslatable FlowSpec route")
-if not counted:
-    sys.exit("the refused route never reached ze_flowspec_rules_refused_total")
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -184,7 +107,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=35s
+cmd=foreground:seq=3:exec=ze-test fixture plugin/flowspec-fw-untranslatable-keeps-others $PORT2:timeout=35s
 expect=exit:code=0
 # Another owner's ruleset is still in the kernel.
 expect=stdout:contains=table inet ze_fslocal

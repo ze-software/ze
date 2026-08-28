@@ -399,3 +399,193 @@ func classPath(name string) string {
 	var tb textbuf.Buffer
 	return tb.Str(journalPrefix).Str(name).Str(markdownExt).String()
 }
+
+// specStems parses the canonical Spec-cell vocabulary. The boolean distinguishes
+// an unreadable key from a row that explicitly names no spec.
+func specStems(cell string) ([]string, bool) {
+	text := strings.TrimSpace(cell)
+	if strings.HasSuffix(text, ")") {
+		if open := strings.LastIndexByte(text, '('); open >= 0 {
+			note := text[open+1 : len(text)-1]
+			if !strings.ContainsAny(note, "()") {
+				text = strings.TrimSpace(text[:open])
+			}
+		}
+	}
+	stems := make([]string, 0)
+	seen := make(map[string]bool)
+	for token := range strings.SplitSeq(text, ",") {
+		token = strings.TrimSpace(token)
+		switch strings.ToLower(token) {
+		case "", "-", "none", "n/a":
+			continue
+		}
+		if !validSpecStem(token) {
+			return nil, false
+		}
+		if !seen[token] {
+			seen[token] = true
+			stems = append(stems, token)
+		}
+	}
+	return stems, true
+}
+func validSpecStem(stem string) bool {
+	for index, character := range []byte(stem) {
+		if character >= 'A' && character <= 'Z' ||
+			character >= 'a' && character <= 'z' ||
+			character >= '0' && character <= '9' ||
+			index != 0 && (character == '.' || character == '_' || character == '-') {
+			continue
+		}
+		return false
+	}
+	return stem != ""
+}
+
+// specEvidence parses one journal shard with the canonical row parser. The
+// boolean is false when any table row is malformed, and no stem is returned.
+func specEvidence(contents string) ([]string, bool) {
+	rows := journalRows(contents)
+	stems := make([]string, 0)
+	seen := make(map[string]bool)
+	for _, row := range rows {
+		if row.malformed {
+			return nil, false
+		}
+		rowStems, valid := specStems(row.cells[1])
+		if !valid {
+			return nil, false
+		}
+		for _, stem := range rowStems {
+			if seen[stem] {
+				continue
+			}
+			seen[stem] = true
+			stems = append(stems, stem)
+		}
+	}
+	return stems, true
+}
+
+// AddedSpecEvidence returns spec stems named by rows added or rewritten in the
+// selected worktree shards. Byte-level table reformatting does not count: rows
+// are paired by their five canonical cells against HEAD before new stems are read.
+func AddedSpecEvidence(tree string, paths []string) ([]string, []string, error) {
+	headPaths, err := classFilesAtHead(tree)
+	if err != nil {
+		return nil, nil, err
+	}
+	atHead := make(map[string]bool, len(headPaths))
+	for _, path := range headPaths {
+		atHead[path] = true
+	}
+	stems := make([]string, 0)
+	seen := make(map[string]bool)
+	malformed := make([]string, 0)
+	for _, path := range paths {
+		current, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(path)))
+		if err != nil {
+			return nil, nil, fmt.Errorf("read journal shard %s: %w", path, err)
+		}
+		currentRows, valid := evidenceRows(string(current))
+		if !valid {
+			malformed = append(malformed, path)
+			continue
+		}
+		headRows := []journalRow(nil)
+		if atHead[path] {
+			answer := runGit(tree, "show", headObject(path))
+			if answer.startErr != nil || answer.code != 0 {
+				return nil, nil, gitReadError("read "+headObject(path), answer)
+			}
+			headRows, valid = evidenceRows(string(answer.stdout))
+			if !valid {
+				malformed = append(malformed, path)
+				continue
+			}
+		}
+		held := make(map[[5]string]int, len(headRows))
+		for _, row := range headRows {
+			held[row.cells]++
+		}
+		for _, row := range currentRows {
+			if held[row.cells] != 0 {
+				held[row.cells]--
+				continue
+			}
+			rowStems, _ := specStems(row.cells[1])
+			for _, stem := range rowStems {
+				if !seen[stem] {
+					seen[stem] = true
+					stems = append(stems, stem)
+				}
+			}
+		}
+	}
+	sort.Strings(malformed)
+	return stems, malformed, nil
+}
+
+func evidenceRows(contents string) ([]journalRow, bool) {
+	rows := journalRows(contents)
+	for _, row := range rows {
+		if row.malformed {
+			return nil, false
+		}
+		if _, valid := specStems(row.cells[1]); !valid {
+			return nil, false
+		}
+	}
+	return rows, true
+}
+
+// HeadSpecEvidence returns the committed journal rows that name a spec stem.
+// The map value is the journal shard carrying the evidence. A malformed shard
+// contributes no evidence and is named separately so callers fail closed.
+func HeadSpecEvidence(tree string) (map[string]string, []string, error) {
+	paths, err := classFilesAtHead(tree)
+	if err != nil {
+		return nil, nil, err
+	}
+	classes, err := readClasses(tree, paths)
+	if err != nil {
+		return nil, nil, err
+	}
+	evidence := make(map[string]string)
+	malformed := make([]string, 0)
+	for _, class := range classes {
+		path := classPath(class.name)
+		valid := true
+		for _, row := range class.rows {
+			if row.malformed {
+				valid = false
+				break
+			}
+		}
+		if !valid {
+			malformed = append(malformed, path)
+			continue
+		}
+		classEvidence := make([]string, 0)
+		for _, row := range class.rows {
+			rowStems, readable := specStems(row.cells[1])
+			if !readable {
+				valid = false
+				break
+			}
+			classEvidence = append(classEvidence, rowStems...)
+		}
+		if !valid {
+			malformed = append(malformed, path)
+			continue
+		}
+		for _, stem := range classEvidence {
+			if _, exists := evidence[stem]; !exists {
+				evidence[stem] = path
+			}
+		}
+	}
+	sort.Strings(malformed)
+	return evidence, malformed, nil
+}

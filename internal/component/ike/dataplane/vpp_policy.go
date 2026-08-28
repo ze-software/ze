@@ -366,7 +366,7 @@ func (b *vppBackend) spdIDs() (map[uint32]bool, error) {
 // SPD, is decided in VPP's own source, which is not in this tree. That producer is a
 // foreign system, so running it is the only evidence (ai/rules/evidence.md, "Claims
 // About the State of the Project"), and the AC-7 deployment run
-// (scripts/evidence/effective-vpp.py, run_ipsec_evidence) has one API client only, so
+// (internal/le/deployment/vppevidence.go, run_ipsec_evidence) has one API client only, so
 // it does not settle it. What IS checked is that the SPD exists after the add
 // (ensureSPD reads the list back), which catches an add VPP dropped and not an add
 // that landed on somebody else's database.
@@ -537,7 +537,7 @@ func vppSPDAction(a SPAction) (ipsec_types.IpsecSpdAction, error) {
 // The hardcoded 100 that stood here gave every policy the IKE bypass rank.
 //
 // MEASURED on VPP v26.06 in the AC-7 deployment run
-// (scripts/evidence/effective-vpp.py, run_ipsec_evidence). Two outbound policies go
+// (internal/le/deployment/vppevidence.go, run_ipsec_evidence). Two outbound policies go
 // into one chain and `show ipsec spd` prints it in stored order. The IKE bypass
 // (Ze 100, VPP -100) is listed AHEAD of the Child SA policy (Ze 2000, VPP -2000), and
 // two policies added afterwards at VPP priority 7 and 8 sort ahead of both, highest

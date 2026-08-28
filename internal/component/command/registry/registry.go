@@ -28,6 +28,7 @@ package registry
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"sync"
@@ -86,6 +87,10 @@ type RuntimeContext struct {
 	// as an opaque value the owner type-asserts to storage.Storage. Nil when
 	// the process did not wire storage (some test harnesses).
 	ResolveStorage func() any
+	// Out and ErrOut override process stdout and stderr for an in-process
+	// dispatcher. Nil selects the process writers.
+	Out    io.Writer
+	ErrOut io.Writer
 	// Plugins is the --plugin list parsed from global flags, in order.
 	Plugins []string
 	// ConfigOverride is the -f file override, empty when unset.
@@ -274,15 +279,6 @@ func LookupRoot(name string) RootHandler {
 	mu.RLock()
 	defer mu.RUnlock()
 	return rootHandlers[name]
-}
-
-// HasRootHandler reports whether an owner-backed handler is registered for the
-// exact root name. Intended for tests and enforcement checks.
-func HasRootHandler(name string) bool {
-	mu.RLock()
-	_, ok := rootHandlers[name]
-	mu.RUnlock()
-	return ok
 }
 
 // Runtime storage resolver for local command handlers.

@@ -177,7 +177,7 @@ per-protected-LSP detour LSP signaling, and detour **merging** (RFC 4090 Section
 5. **Detour merging** - merge detours for the same protected LSP that meet at a node (RFC 4090 Section 6.2).
 6. **Notify + re-optimization** - reuse mpls-4's `reoptimizeOnNotify` unchanged.
 7. **ze-to-ze interop** - extend `interop_test.go` with a one-to-one local-repair scenario.
-8. **Verify + close** - `make ze-precommit-verify`; learned summary; two-commit closure.
+8. **Verify + close** - `./le verify current mode full`; learned summary; two-commit closure.
 
 ## Gate Before Implementation
 
@@ -216,7 +216,7 @@ End-to-End User Stories before `/ze-implement`.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (no unused DETOUR codec)
 
 ### TDD

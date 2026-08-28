@@ -79,12 +79,12 @@ func (r Report) Text() string {
 	var tb textbuf.Buffer
 	tb.SetColor(true)
 	if len(r.Findings) == 0 {
-		return tb.Colored(colorGreen).Str("ze-repository-check: all checks passed").
+		return tb.Colored(colorGreen).Str("./le repository: all checks passed").
 			Colored(colorReset).Byte('\n').String()
 	}
 
 	if r.Issues > 0 {
-		tb.Colored(colorRed).Str("ze-repository-check: ").Int(int64(r.Issues)).
+		tb.Colored(colorRed).Str("./le repository: ").Int(int64(r.Issues)).
 			Str(" issue(s) found").Colored(colorReset).Byte('\n')
 		for _, finding := range r.Findings {
 			if finding.Severity != severityIssue {
@@ -95,7 +95,7 @@ func (r Report) Text() string {
 	}
 
 	if r.Warnings > 0 {
-		tb.Colored(colorYellow).Str("ze-repository-check: ").Int(int64(r.Warnings)).
+		tb.Colored(colorYellow).Str("./le repository: ").Int(int64(r.Warnings)).
 			Str(" warning(s)").Colored(colorReset).Byte('\n')
 		for _, finding := range r.Findings {
 			if finding.Severity != severityWarn {

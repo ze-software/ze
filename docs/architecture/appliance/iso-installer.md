@@ -57,11 +57,11 @@ mismatch between the kernel and the appliance config is rejected at build time.
 
 ## Evidence
 
-`scripts/evidence/effective-install-iso-qemu.py` proves the whole chain: ISO
+`internal/le/qemu.Answer` proves the whole chain: ISO
 boot, image write, no PXE ZeFS injection, power off rather than reboot, and an
 SSH login on the installed disk with the embedded credentials.
 
-<!-- source: scripts/evidence/effective-install-iso-qemu.py -- end-to-end ISO proof -->
+<!-- source: internal/le/qemu/actions.go -- Answer -->
 
 ## Related
 

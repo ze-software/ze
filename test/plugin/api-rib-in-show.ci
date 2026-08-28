@@ -9,74 +9,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for show bgp rib received
-tmpfs=rib-in-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Wait for peer1's initial sync (the EOR this test's ze-peer expects) to
-    # reach the wire, BEFORE asserting anything or shutting down. Without this
-    # barrier the peer's EOR expectation is unreachable by construction: the
-    # script can complete and dispatch `request shutdown` inside the OPEN
-    # handshake window, closing the session under the peer, which then reports
-    # `failed: connection closed before completion`.
-    #
-    # // the `'established' in <detail json>` check removed here was
-    # VACUOUS, not coverage: every peer row carries the key
-    # `connections-established` (cmd/peer/peer.go:238), so the substring matched
-    # on the FIRST poll -- before any session existed -- and the barrier returned
-    # instantly, gating nothing. It is replaced by a STRICTLY STRONGER wait on
-    # the per-peer `eor-sent` counter (peer.go:217; peer_stats.go IncrEORSent
-    # increments it only once peer_initial_sync.go's sendInitialRoutes has written
-    # AND flushed the EOR to the peer's socket), which cannot return before the
-    # asserted frame is on the wire,
-    # and by runtime_fail instead of the sys.exit(1) observer antipattern the
-    # runner ignores (ai/rules/testing.md, Observer-Exit Antipattern).
-    if not api.wait_peer_eor_sent('peer1', attempts=40):
-        runtime_fail('peer1 initial-sync EOR never reached the wire')
-    # Complement, not a substitute: quiesce drains the forward pool, but its
-    # bgp-peer-sync quiescer skips a peer that has not begun its initial sync
-    # (reactor_api.go peersSynced), so it returns instantly before establishment.
-    api.quiesce()
-
-    try:
-        result = dispatch(api, 'show bgp rib received')
-        if result.get('status') != 'done':
-            print(f'FAIL: rib show-in status={result.get("status")} data={result.get("data")}', file=sys.stderr)
-            sys.exit(1)
-        print('OK: show bgp rib received dispatched', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native test plugin: exercises dispatch-command for show bgp rib received
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rib-in-show-test {
-		run ./rib-in-show-test.run
+		run "ze-test fixture plugin/api-rib-in-show"
 		encoder json
 	}
 	internal bgp-rib {

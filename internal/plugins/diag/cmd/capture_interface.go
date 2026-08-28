@@ -37,6 +37,7 @@ const (
 
 	captureFormatPcap = "pcap"
 	captureFormatText = "text"
+	captureFormatKey  = "format"
 
 	linkTypeEthernet uint32 = 1
 )
@@ -94,7 +95,7 @@ func parseCaptureArgs(args []string) (captureArgs, error) {
 			}
 			ca.snapLen = n
 			i += 2
-		case "format":
+		case captureFormatKey:
 			if i+1 >= len(args) {
 				return ca, errCaptureFormatRequiresVal
 			}

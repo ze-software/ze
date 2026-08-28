@@ -3,13 +3,13 @@
 // Package trackedbuild COMPILES the repository as git holds it, which is the
 // one population no other check in this repository compiles.
 //
-// `make ze-build`, the pre-commit gate, the changed-file lint and the test
-// targets all build and run the WORKING TREE, so they see uncommitted and
-// untracked files. A commit that lands a CONSUMER while its PRODUCER stays
-// uncommitted is therefore green for the session that wrote it and broken for
-// anybody who builds what git contains. On 2026-08-04 four commits broke
-// `make ze-build` at HEAD that way in one day (7abe8a07e, 025a74b72, aa1b7a4d4,
-// fa372140b), each with every gate green at the moment it was made.
+// The daemon build, the native verify gate, changed-file lint, and test actions
+// all build and run the WORKING TREE, so they see uncommitted and untracked
+// files. A commit that lands a CONSUMER while its PRODUCER stays uncommitted is
+// therefore green for the session that wrote it and broken for anybody who
+// builds what git contains. On 2026-08-04 four commits broke the daemon build at
+// HEAD that way (7abe8a07e, 025a74b72, aa1b7a4d4, fa372140b), each with every
+// gate green at the moment it was made.
 //
 // The mechanism: extract the commit with `git archive`, then build the
 // extracted tree. `git archive` is preferred over `git worktree add --detach`
@@ -36,15 +36,15 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // The four run-time inputs the script took as flags. They are environment
 // entries because every action of an le area takes a keyword and no value of
 // its own: the tree is the checkout and the rendering is a pipe operator.
 //
-// RevKey carries the alias REV, which is the spelling every Make invocation and
-// the Python le already use, so `REV=<sha> le repository-tracked-build check`
-// keeps working unchanged.
+// RevKey carries the retained REV environment alias, so
+// `REV=<sha> ./le repository-tracked-build check` keeps working.
 const (
 	RevKey      = "ze.tracked.build.rev"
 	KeepKey     = "ze.tracked.build.keep"
@@ -69,9 +69,8 @@ var revEntry = env.MustRegister(env.EnvEntry{
 	Type:        "string",
 	Default:     "HEAD",
 	Description: "the commit this gate compiles; a past sha reproduces a break that has already landed",
-	// REV is what the Makefile and the Python le already spell, and keeping it
-	// is what makes `make ze-repository-tracked-build-check REV=<sha>` mean the
-	// same thing after the swap as before it.
+	// REV is retained as an environment alias so
+	// `REV=<sha> ./le repository-tracked-build check` reproduces a past build.
 	Aliases: []string{"REV"},
 	// Private keeps the key out of `ze env list`. It names a build-host commit
 	// and an operator has nothing to do with it.
@@ -117,14 +116,14 @@ type Options struct {
 	Deadline time.Duration
 }
 
-// DefaultOptions answers what the environment asked for, and the reason a
+// defaultOptions answers what the environment asked for, and the reason a
 // declared value could not be used.
 //
 // env.Get resolves an alias to its canonical key first and falls back to the
 // spelling it was handed, so asking by the ALIAS reads ZE_TRACKED_BUILD_REV and
 // then bare REV, in that order.
-func DefaultOptions() (Options, error) {
-	return OptionsFrom(
+func defaultOptions() (Options, error) {
+	return optionsFrom(
 		env.Get(revEntry.Aliases[0]),
 		env.Get(keepEntry.Key),
 		env.Get(floorEntry.Key),
@@ -132,13 +131,13 @@ func DefaultOptions() (Options, error) {
 	)
 }
 
-// OptionsFrom is the parse, apart from where the values came from.
+// optionsFrom is the parse, apart from where the values came from.
 //
-// It is exported for the same reason the other ported gates split theirs:
-// internal/core/env caches the whole environment on its first read, so a test
-// that sets a variable afterwards would be reading a value that is no longer
-// there. An empty string means the field keeps its default.
-func OptionsFrom(rev, keep, floor, deadline string) (Options, error) {
+// The split keeps environment reads out of tests: internal/core/env caches the
+// whole environment on its first read, so a test that sets a variable afterwards
+// would be reading a value that is no longer there. An empty string means the
+// field keeps its default.
+func optionsFrom(rev, keep, floor, deadline string) (Options, error) {
 	options := Options{Rev: "HEAD", PackageFloor: DefaultPackageFloor, Deadline: DefaultDeadline}
 
 	if trimmed := strings.TrimSpace(rev); trimmed != "" {
@@ -214,10 +213,10 @@ func Run(ctx context.Context, repo string, options Options) (Report, int, error)
 	if err := extract(ctx, absRepo, commit, dir); err != nil {
 		return Report{}, 2, err
 	}
-	if err := SanityCheck(ctx, absRepo, commit, dir); err != nil {
+	if err := sanityCheck(ctx, absRepo, commit, dir); err != nil {
 		return Report{}, 2, err
 	}
-	features, err := FeatureTags(dir)
+	features, err := featureTags(dir)
 	if err != nil {
 		return Report{}, 2, err
 	}
@@ -295,20 +294,19 @@ func resolveRev(ctx context.Context, repo, rev string) (string, error) {
 // system temp directory: this repository keeps its scratch inside the checkout
 // on purpose.
 func scratchTree(ctx context.Context, repo string) (string, error) {
-	base := filepath.Join(repo, "tmp")
-	//nolint:gosec // repo is the checkout le resolved, and the script name is this file's own literal
-	out, err := exec.CommandContext(ctx, filepath.Join(repo, "scripts", "dev", "session-scratch.sh")).Output()
-	if err == nil {
-		if rel := strings.TrimSpace(string(out)); rel != "" {
-			base = filepath.Join(repo, rel)
-		}
+	if err := ctx.Err(); err != nil {
+		return "", fmt.Errorf("resolve tracked-build scratch: %w", err)
+	}
+	paths, err := lepath.ResolveSession(repo, true)
+	if err != nil {
+		return "", fmt.Errorf("resolve tracked-build scratch: %w", err)
 	}
 
 	// The pid keeps two runs in ONE session apart, and the directory is cleared
 	// first. `tar -x` overwrites archived paths but never removes extras, so a
 	// reused non-empty directory CAN put a file back into the view that the
 	// commit under test deleted.
-	dir := filepath.Join(base, "tracked-build", strconv.Itoa(os.Getpid()))
+	dir := filepath.Join(repo, paths.Scratch, "tracked-build", strconv.Itoa(os.Getpid()))
 	if err := os.RemoveAll(dir); err != nil {
 		return "", fmt.Errorf("clear scratch %s: %w", dir, err)
 	}
@@ -369,18 +367,18 @@ func extract(ctx context.Context, repo, commit, dest string) error {
 	return nil
 }
 
-// SanityCheck fails CLOSED. A build with nothing to compile would report a
+// sanityCheck fails CLOSED. A build with nothing to compile would report a
 // clean commit for a tree that never existed.
 //
 // What the COMMIT owes is asked of GIT, never of the working tree: the working
 // tree is the population this gate exists to distrust, and a vendor/ that is
 // present on disk but absent from the commit is exactly the shape of break
 // being hunted.
-func SanityCheck(ctx context.Context, repo, commit, dest string) error {
+func sanityCheck(ctx context.Context, repo, commit, dest string) error {
 	if _, err := os.Stat(filepath.Join(dest, "go.mod")); err != nil {
 		return fmt.Errorf("the extracted tree has no go.mod, so nothing would be compiled: %w", err)
 	}
-	tracked, err := CommitHasPath(ctx, repo, commit, "vendor/modules.txt")
+	tracked, err := commitHasPath(ctx, repo, commit, "vendor/modules.txt")
 	if err != nil {
 		return err
 	}
@@ -393,7 +391,7 @@ func SanityCheck(ctx context.Context, repo, commit, dest string) error {
 	return nil
 }
 
-// CommitHasPath reports whether the commit's tree holds a path.
+// commitHasPath reports whether the commit's tree holds a path.
 //
 // `git ls-tree` rather than `git cat-file -e`, because the two report absence
 // differently: `cat-file -e <sha>:<absent path>` exits 128, the same code it
@@ -402,7 +400,7 @@ func SanityCheck(ctx context.Context, repo, commit, dest string) error {
 // and reserves a nonzero exit for a real failure. That distinction matters: an
 // error read as "absent" would SKIP the partial-extraction check above and
 // quietly restore the fail-open this guard exists to close.
-func CommitHasPath(ctx context.Context, repo, commit, path string) (bool, error) {
+func commitHasPath(ctx context.Context, repo, commit, path string) (bool, error) {
 	cmd := exec.CommandContext(ctx, "git", "-C", repo, "ls-tree", "--name-only", commit, "--", path) //nolint:gosec // commit is a resolved sha, path is a constant
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -413,10 +411,9 @@ func CommitHasPath(ctx context.Context, repo, commit, path string) (bool, error)
 	return strings.TrimSpace(string(out)) != "", nil
 }
 
-// FeatureTags reads the feature manifest FROM THE EXTRACTED TREE, so the tag
-// set is the one that commit declared, expanded exactly as the Makefile expands
-// it.
-func FeatureTags(dest string) ([]string, error) {
+// featureTags reads the feature manifest FROM THE EXTRACTED TREE, so the native
+// toolchain expands the tag set that commit declared.
+func featureTags(dest string) ([]string, error) {
 	raw, err := os.ReadFile(filepath.Join(dest, "feature-gates.txt")) //nolint:gosec // fixed in-repo path
 	if err != nil {
 		return nil, fmt.Errorf("read feature-gates.txt from the extracted tree: %w", err)
@@ -436,9 +433,9 @@ func FeatureTags(dest string) ([]string, error) {
 }
 
 // setBuildCache points the extracted tree's builds at the repository's own
-// build cache, so a second run of this gate is seconds rather than a minute.
-// The Makefile exports it, so a run under make inherits the value; a standalone
-// run reconstructs the same path.
+// build cache, so a second run of this gate is seconds rather than a minute. A
+// caller-supplied GOCACHE wins; otherwise this function reconstructs the native
+// default path.
 func setBuildCache(repo string) error {
 	if os.Getenv("GOCACHE") != "" {
 		return nil

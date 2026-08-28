@@ -29,144 +29,16 @@
 #
 # needs-linux: every step programs real netlink links (dummy interface + 802.1Q VLAN) and
 # requires CAP_NET_ADMIN, so the SKIPPED-on-darwin runner cannot exercise it. Run via
-# `make ze-qemu-needs-linux-test` (boots a root QEMU VM). zeens0/1/2 are uniquely named
+# `./le qemu all-tests` (boots a root QEMU VM). zeens0/1/2 are uniquely named
 # throwaways in the VM's default namespace, deleted in the finally block (idempotent on
 # rerun).
 option=needs-linux:caps=net-admin
 
-tmpfs=iface-ensure-rollback.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert ze:ensure-exists auto-creates parents and rolls back only what it created.
-
-Every command goes through ze-plugin-engine:dispatch-command exactly as an operator
-command does; every effect is read back through `show interface name <n> detail`
-(-> iface.GetInterface -> linkToInfo), never from the command's own response, so a
-handler that reports success without touching the kernel still fails the test.
-
-All waiting is dispatch_until/dispatch_until_done from ze_api (payload predicates).
-There is deliberately no time.sleep here: the .ci sleep ratchet
-(ai/rules/ci-sleep-justification.md) is at its cap and a blind sleep would hide the
-very race this test exists to observe.
-"""
-
-import sys
-
-from ze_api import API
-from ze_api import runtime_fail
-
-PARENT_OK = "zeens0"       # auto-created parent, leaf succeeds
-PARENT_PRE = "zeens1"      # operator-created parent, leaf fails -> must SURVIVE
-PARENT_ROLL = "zeens2"     # auto-created parent, leaf fails -> must be ROLLED BACK
-
-GOOD_VID = 100
-BAD_VID = 9999             # outside 1-4094; handleUnitAdd rejects after the chain ran
-
-
-def detail(api, name):
-    """Dispatch one detail read and return its result dict (for failure diagnostics)."""
-    resp = api.dispatch(f'show interface name {name} detail') or {}
-    return resp.get('result', {}) or {}
-
-
-def assert_present(api, name, why):
-    res = api.dispatch_until_done(f'show interface name {name} detail')
-    if res.get('status') != 'done':
-        runtime_fail(
-            f'{why}: expected {name} to exist, but `show interface name {name} '
-            f'detail` reported status={res.get("status")!r} error={res.get("error")!r}')
-    return res
-
-
-def assert_absent(api, name, why):
-    res = api.dispatch_until(
-        f'show interface name {name} detail',
-        lambda r: r.get('status') == 'error')
-    if res.get('status') != 'error':
-        runtime_fail(
-            f'{why}: expected {name} to be absent, but `show interface name {name} '
-            f'detail` reported status={res.get("status")!r} data={res.get("data")!r} '
-            f'(last read {detail(api, name)!r})')
-
-
-def expect_done(api, command):
-    res = api.dispatch_until_done(command)
-    if res.get('status') != 'done':
-        runtime_fail(
-            f'{command!r}: expected status=done, got status={res.get("status")!r} '
-            f'error={res.get("error")!r}')
-    return res
-
-
-def expect_error(api, command):
-    """Dispatch once and require the command to FAIL (no retry: it must not succeed)."""
-    resp = api.dispatch(command) or {}
-    res = resp.get('result', {}) or {}
-    if res.get('status') != 'error':
-        runtime_fail(
-            f'{command!r}: expected status=error (VLAN {BAD_VID} is outside 1-4094), '
-            f'got status={res.get("status")!r} data={res.get("data")!r}')
-    return res
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # --- A. compound create auto-creates the parent, leaf succeeds ---------------
-        assert_absent(api, PARENT_OK, 'precondition')
-        expect_done(api, f'create interface dummy name {PARENT_OK} unit {GOOD_VID}')
-
-        info = assert_present(api, PARENT_OK, 'A: ensure-exists must auto-create the parent')
-        assert_present(api, f'{PARENT_OK}.{GOOD_VID}', 'A: the leaf unit must be created too')
-        print(
-            f'OK A: {PARENT_OK} auto-created by the ensure chain and '
-            f'{PARENT_OK}.{GOOD_VID} created by the leaf (detail status={info.get("status")})',
-            file=sys.stderr)
-
-        # --- B. pre-existing parent must SURVIVE a failing leaf ----------------------
-        assert_absent(api, PARENT_PRE, 'precondition')
-        expect_done(api, f'create interface dummy name {PARENT_PRE}')
-        assert_present(api, PARENT_PRE, 'B: operator-created parent must exist first')
-
-        expect_error(api, f'create interface dummy name {PARENT_PRE} unit {BAD_VID}')
-        assert_present(
-            api, PARENT_PRE,
-            'B: rollback deleted a PRE-EXISTING parent it did not create '
-            '(wasCreated must report false and arm no rollback)')
-        print(
-            f'OK B: {PARENT_PRE} survived a failed compound create (no rollback armed '
-            f'for a parent the chain did not create)', file=sys.stderr)
-
-        # --- C. auto-created parent must be ROLLED BACK on a failing leaf ------------
-        assert_absent(api, PARENT_ROLL, 'precondition')
-        expect_error(api, f'create interface dummy name {PARENT_ROLL} unit {BAD_VID}')
-        assert_absent(
-            api, PARENT_ROLL,
-            'C: rollback did NOT delete the auto-created parent after the leaf failed')
-        print(
-            f'OK C: {PARENT_ROLL} rolled back after the leaf failed; no half-created '
-            f'interface left behind', file=sys.stderr)
-    finally:
-        for name in (f'{PARENT_OK}.{GOOD_VID}', PARENT_OK, PARENT_PRE, PARENT_ROLL):
-            api.dispatch(f'delete interface name {name}')
-        api.dispatch('request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-ensure-rollback {
-		run ./iface-ensure-rollback.run
+		run "ze-test fixture plugin/iface-ensure-rollback"
 		encoder json
 	}
 }

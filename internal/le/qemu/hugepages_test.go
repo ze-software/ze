@@ -142,13 +142,13 @@ func TestAReservationThatIsNotAQuantityIsAnError(t *testing.T) {
 // PREVENTS: a prerequisite probe that looks for the wrong binary, which would
 // skip on a machine that has QEMU.
 func TestEachArchitectureNamesItsOwnEmulator(t *testing.T) {
-	if got := QemuBinary(ArchARM64); got != "qemu-system-aarch64" {
+	if got := qemuBinary(ArchARM64); got != "qemu-system-aarch64" {
 		t.Errorf("arm64 names %q", got)
 	}
-	if got := QemuBinary(ArchAMD64); got != "qemu-system-x86_64" {
+	if got := qemuBinary(ArchAMD64); got != "qemu-system-x86_64" {
 		t.Errorf("amd64 names %q", got)
 	}
-	if host := HostArch(); host != ArchAMD64 && host != ArchARM64 {
+	if host := hostArch(); host != ArchAMD64 && host != ArchARM64 {
 		t.Errorf("the host architecture is %q, want one of the two the appliance accepts", host)
 	}
 }

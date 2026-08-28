@@ -5,12 +5,11 @@ stage:
 ---
 | Suite | Where it runs | Blocking? |
 |-------|---------------|-----------|
-| `make ze-precommit-verify` (unit + functional + static gates) | `.github/workflows/verify.yml`, push + pull_request | yes |
-| `ze-fuzz-test` | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
-| `ze-integration-test` (non-QEMU kernel suites) | `.github/workflows/evidence-nightly.yml`, scheduled, `sudo` (root) | advisory |
-| `ze-qemu-needs-linux-test` (Linux-only `.ci` functional surface) | `.github/workflows/qemu-nightly.yml`, job `needs-linux`, scheduled | advisory |
-| `ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test`, `ze-qemu-vrrp-keepalived-test` (routing-protocol interop labs) | `.github/workflows/qemu-nightly.yml`, job `protocol-labs`, scheduled | advisory |
-| `ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test`, `ze-qemu-traffic-usage-test` (access-protocol and traffic labs) | `.github/workflows/qemu-nightly.yml`, job `runtime-kernel-labs`, scheduled | advisory |
-| `ze-interop-test`, `ze-interop-ipsec-test` (Docker interop trees) | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
-| `ze-qemu-integration-test` (Go `integration && linux` packages) | `make ze-evidence-release-verify` only, by hand | -- |
-| `ze-qemu-test-all` (full suite in the VM) | nothing; `manualQemuTargets` records why | -- |
+| `./le verify worktree` (unit + functional + static gates) | `.github/workflows/verify.yml`, push + pull_request | yes |
+| `./le fuzz` | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
+| `./le integration` actions | `.github/workflows/evidence-nightly.yml`, scheduled; root where required | advisory |
+| `./le qemu run ... command '<native action>'` for the Linux-only functional surface | `.github/workflows/qemu-nightly.yml`, job `needs-linux`, scheduled | advisory |
+| `./le qemu` routing-protocol actions inside `./le qemu run` | `.github/workflows/qemu-nightly.yml`, job `protocol-labs`, scheduled | advisory |
+| `./le qemu` access-protocol actions inside `./le qemu run` | `.github/workflows/qemu-nightly.yml`, job `runtime-kernel-labs`, scheduled | advisory |
+| `./le integration interop`, `./le integration interop-ipsec` | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
+| `./le qemu all-tests` inside the runtime-kernel guest | `.github/workflows/qemu-nightly.yml`, job `needs-linux`, scheduled | advisory |

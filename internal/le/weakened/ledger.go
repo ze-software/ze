@@ -1,4 +1,4 @@
-// Design: scripts/dev/check_weakened_tests.py -- the per-commit weakening ledger
+// Design: docs/architecture/testing/test-health.md -- the per-commit weakening ledger
 // Related: weakened.go -- pairing parsed rows with HEAD/worktree findings.
 package weakened
 
@@ -79,6 +79,21 @@ func parseLedger(contents, path string) ([]Row, []string) {
 		rows = append(rows, Row{Name: name, Reason: reason, Line: line})
 	}
 	return rows, problems
+}
+
+// ParseLedger parses either per-commit test ledger with the one canonical
+// two-column table contract.
+func ParseLedger(contents, path string) ([]Row, []string) {
+	return parseLedger(contents, path)
+}
+
+// RowMatches reports whether a ledger name covers one package/test pair. It
+// carries no Path, so a path-scoped row (see scopedRowMatches in
+// weakened.go) never matches through this entry point; callers inside this
+// package that need scoped rows to match call rowMatches directly with a
+// Finding carrying Path.
+func RowMatches(rowName, packageName, testName string) bool {
+	return rowMatches(rowName, Finding{Package: packageName, Name: testName})
 }
 
 func tableCells(line string) ([]string, bool) {

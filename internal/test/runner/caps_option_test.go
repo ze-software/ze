@@ -80,7 +80,7 @@ func TestNeedsLinuxNetAdminSkipsWithoutCapability(t *testing.T) {
 	if r.SkipReason == "" {
 		t.Fatal("caps=net-admin ran without CAP_NET_ADMIN: the test will hang instead of skipping")
 	}
-	if !strings.Contains(r.SkipReason, "ze-qemu-needs-linux-test") {
+	if !strings.Contains(r.SkipReason, "./le qemu all-tests") {
 		t.Fatalf("skip reason %q does not name the runner that can run this test", r.SkipReason)
 	}
 }

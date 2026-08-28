@@ -1,40 +1,9 @@
-# Test (AC-11): the cdn.kernel.org URL + vN.x series construction lives in exactly
-# one shared helper (tools/kernel-builder/ksource.py) imported by both build.py
-# and qemu-build.py.
+# Test (AC-11): the compiled worker owns kernel source acquisition and uses the
+# same native build path for runtime and installer outputs.
 
 option=timeout:value=20s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-# The kernel CDN URL appears in exactly one SOURCE file (exclude compiled
-# __pycache__/*.pyc, which may carry strings from a pre-refactor build.py).
-files=$(grep -rl --include='*.py' 'cdn.kernel.org' tools/kernel-builder 2>/dev/null | sort -u || true)
-if [ "$files" != "tools/kernel-builder/ksource.py" ]; then
-	echo "cdn.kernel.org URL must live only in ksource.py, found in:" >&2
-	printf '%s\n' "$files" >&2
-	exit 1
-fi
-
-# The series ("v<major>.x") construction lives in the helper.
-grep -q 'def series' tools/kernel-builder/ksource.py
-
-# Both consumers import the helper.
-grep -q 'import ksource' tools/kernel-builder/build.py
-grep -q 'import ksource' tools/kernel-builder/qemu-build.py
-
-# The helper exposes the URL builder both consumers use.
-grep -q 'def tarball_url' tools/kernel-builder/ksource.py
-grep -q 'ksource.tarball_url' tools/kernel-builder/build.py
-grep -q 'ksource.tarball_url' tools/kernel-builder/qemu-build.py
-
-printf 'OK\n'
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/kernel-tarball-dedup
 expect=exit:code=0
 expect=stdout:contains=OK

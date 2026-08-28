@@ -19,70 +19,11 @@
 # always-available half: a tunnel + ERO config reaches the engine and the
 # tunnel/session show commands dispatch.
 
-tmpfs=rsvpte-reroute.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show rsvp-te tunnel` / `show rsvp-te session` dispatch as arrays."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def done_array(api, command):
-    r = dispatch(api, command)
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"{command}: expected done, got status={r.get('status')} "
-            f"data={result_text_data(r)[:200]}")
-    arr = result_json_data(r, None)
-    if not isinstance(arr, list):
-        runtime_fail(f"{command}: expected list, got {arr!r}")
-    return arr
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Both ingress-tunnel and full-session views must dispatch through the engine
-    # and return arrays. Any ingress tunnel reported must carry a positive
-    # ero-hops count, since the config supplies a two-hop explicit route -- which
-    # is what we assert when an LSP is present.
-    tunnels = done_array(api, 'show rsvp-te tunnel')
-    for t in tunnels:
-        if t.get('ero-hops', 0) < 1:
-            runtime_fail(f"show rsvp-te tunnel: expected ERO hops, got {t!r}")
-
-    done_array(api, 'show rsvp-te session')
-
-    print('OK: rsvp-te tunnel + session show dispatched for an ERO tunnel',
-          file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external rsvpte-reroute {
-		run ./rsvpte-reroute.run
+		run "ze-test fixture rsvpte/rsvpte-reroute"
 		encoder json
 	}
 }

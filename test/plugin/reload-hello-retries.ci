@@ -20,89 +20,12 @@ option=timeout:value=20s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=reload-hello-retries.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Dispatch show l2tp config before and after SIGHUP, assert hello-retries change.
-
-Handshake with trigger.sh:
-  1. Observer reads initial config (hello-retries=1), creates
-     `observer.initial-ok` marker.
-  2. trigger.sh waits for that marker, swaps the config, SIGHUPs,
-     creates `reload.done`.
-  3. Observer polls `reload.done`, then polls show l2tp config until
-     hello-retries changes (or times out).
-"""
-
-import json
-import os
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def read_retries(api, label):
-    r = api.dispatch_until_done('show l2tp config', attempts=40, delay=0.1)
-    if r is None or r.get('status') != 'done':
-        runtime_fail(f'{label}: show l2tp config: status={r.get("status") if r else "nil"}')
-    try:
-        cfg = result_json_data(r, {})
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'{label}: json: {exc}')
-        return 0
-    return cfg.get('hello-retries')
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    before = read_retries(api, 'before')
-    if before != 1:
-        runtime_fail(f'before SIGHUP: hello-retries={before!r} want 1')
-
-    with open('observer.initial-ok', 'w') as f:
-        f.write('ok')
-
-    if not api.wait_until(lambda: os.path.exists('reload.done'), attempts=100, delay=0.1):
-        runtime_fail('trigger.sh never created reload.done marker')
-
-    r = api.dispatch_until(
-        'show l2tp config',
-        lambda res: res.get('status') == 'done'
-        and result_json_data(res, {}).get('hello-retries') == 4,
-        attempts=50,
-        delay=0.1,
-    )
-    after = result_json_data(r, {}).get('hello-retries') if r.get('status') == 'done' else None
-    if after != 4:
-        runtime_fail(f'after SIGHUP: hello-retries={after!r} want 4 (reload did not apply)')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
-# The second config text that trigger.sh copies over ze-bgp.conf before
-# SIGHUP. Only hello-retries changes (1 -> 4).
+# The second config text that the compiled `plugin/reload-hello-retries` fixture
+# driver copies over ze-bgp.conf before SIGHUP. Only hello-retries changes (1 -> 4).
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external reload-hello-retries-test {
-		run ./reload-hello-retries.run
+		run "ze-test fixture plugin/reload-hello-retries"
 		encoder json
 	}
 }
@@ -155,22 +78,11 @@ bgp {
 }
 EOF_CONF2
 
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-# Wait for daemon to register signal handlers AND the observer to
-# complete its initial read, then swap config and SIGHUP.
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-while [ ! -f observer.initial-ok ]; do sleep 0.1; done
-cp config2.conf ze-bgp.conf
-kill -HUP $(cat daemon.pid)
-touch reload.done
-EOF_TRIGGER
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external reload-hello-retries-test {
-		run ./reload-hello-retries.run
+		run "ze-test fixture plugin/reload-hello-retries"
 		encoder json
 	}
 }
@@ -224,7 +136,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture plugin/reload-hello-retries-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=l2tp reload: hello-retries updated

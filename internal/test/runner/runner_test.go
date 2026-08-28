@@ -255,10 +255,9 @@ func TestValidateLoggingSyslog(t *testing.T) {
 // ZE-OBSERVER-FAIL sentinel check forces the test to fail regardless of
 // explicit expect/reject directives.
 //
-// VALIDATES: ze_api.runtime_fail() output in ze's relayed stderr fails the
-//
-//	test, closing the silent-false-positive hole where a Python
-//	observer's sys.exit(1) never reached the runner.
+// VALIDATES: fixture.ReportFailure output in ze's relayed stderr fails the
+// test, closing the silent-false-positive hole where an observer requested a
+// clean daemon shutdown after reporting an assertion failure.
 //
 // PREVENTS: regression to the "observer exit code ignored" state documented
 //

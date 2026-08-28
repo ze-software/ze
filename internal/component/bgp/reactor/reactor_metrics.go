@@ -261,7 +261,7 @@ func (r *Reactor) updatePeriodicMetrics() {
 		m.forwardWorkersActive.Set(float64(r.fwdPool.WorkerCount()))
 
 		// AC-18: pool utilization ratio
-		m.poolUsedRatio.Set(r.fwdPool.PoolUsedRatio())
+		m.poolUsedRatio.Set(r.fwdPool.poolUsedRatio())
 
 		// AC-17: per-destination overflow depth
 		for peer, depth := range r.fwdPool.overflowDepths() {

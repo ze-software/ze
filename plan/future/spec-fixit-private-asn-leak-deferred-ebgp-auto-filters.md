@@ -512,7 +512,7 @@ below.) The ordering below is what the trace already justifies:
    `ai/rules/no-layering.md`, if prepend moves, the old implementation is deleted, not left
    beside the new one.
 5. **Functional + interop tests** → a real FRR/BIRD peer sees no LOCAL_PREF and a correct AS_PATH
-6. **Full verification** → `make ze-precommit-verify`
+6. **Full verification** → `./le verify current mode full`
 7. **Complete spec** → audit tables, learned summary, two-commit closure
 
 ### Failure Routing
@@ -530,7 +530,7 @@ below.) The ordering below is what the trace already justifies:
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
 

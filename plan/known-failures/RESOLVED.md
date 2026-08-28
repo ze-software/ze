@@ -4,7 +4,7 @@ Verbatim archive of resolved and struck-through known-failure entries,
 moved out of `plan/known-failures.md` when it was sharded into
 `plan/known-failures/`. Entries here are never edited; they exist as
 history so a cleared red is not simply forgotten. `collect_known_failures`
-(`scripts/dev/testing_health.py`) counts every `### ` entry in this file as
+(the retired `scripts/dev/testing_health.py` (current producer: `internal/le/testhealth/testhealth.go`)) counts every `### ` entry in this file as
 resolved.
 
 ## Struck-through (resolved in place, were not yet under `## Resolved`)
@@ -237,7 +237,7 @@ fix. If it returns, re-open with the daemon stderr rather than reusing this entr
 ### ~~`ze-test install` kernel tests (1-6, 20-31, 39, 40) -- broken by the isolated-binary layout~~ -- RESOLVED 2026-07-25: fixed by `ebf0dfbad`, shard was stale
 
 The shard (2026-07-22) predates the fix. `ebf0dfbad` (2026-07-24, "fix(test):
-install kernel suite green in isolated ze-precommit-verify layout") changed the 20 `.ci`
+install kernel suite green in isolated ./le verify current mode full layout") changed the 20 `.ci`
 files to resolve the repo as `${ZE_REPO_ROOT:-$(... command -v ze ...)}`, so the
 runner-exported `ZE_REPO_ROOT` (`internal/test/runner/runner_exec_util.go`)
 wins over the binary-neighbour derivation the shard blamed. Verified 2026-07-25
@@ -344,21 +344,22 @@ Disproven 2026-07-15 on the same macOS host, by running the four tests both ways
 | `go test ./internal/component/doctor/ -run '...'` | FAIL (all 4) |
 | `go test -tags "ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt)" ./internal/component/doctor/ -run '...'` | **PASS (all 4)** |
 
-Root cause: bare `go test` omits the feature gates the Makefile always supplies
-(`Makefile:51` `ZE_FEATURES` from `feature-gates.txt`; `Makefile:65`
-`GO_TEST_TAGS = ze_core $(ZE_FEATURES) $(ZE_TAGS)`). Without `ze_web`/`ze_ssh`/
-`ze_rest` the listeners the checks expect never register, so `checkListeners`
-correctly reports nothing and the assertions fail. The host was never at fault.
+Root cause: bare `go test` omitted the feature gates. The retired Makefile
+supplied `ZE_FEATURES` and `GO_TEST_TAGS`; the current replacement is
+`internal/le/gotoolchain`, which derives the tag set from `feature-gates.txt`.
+Without `ze_web`, `ze_ssh`, and `ze_rest`, the listeners the checks expected
+never registered, so `checkListeners` correctly reported nothing. The host was
+never at fault.
 
-**Lesson: bare `go test` is NOT equivalent to `make ze-unit-test` in this repo.**
-Feature-gated plugins compile out (`//go:build ze_isis`, `ze_ospf`, `ze_web`, ...),
-so a bare run produces phantom reds. Reproduce a red with the Makefile tags before
-logging it here.
+**Lesson: bare `go test` is not equivalent to the native repository test actions.**
+Feature-gated plugins compile out (`//go:build ze_isis`, `ze_ospf`, `ze_web`, ...).
+Reproduce with `./le verify-deps unit-cached` or the owning
+`./le test-unit <group>` action before logging a failure here.
 
 ### ~~`internal/component/config/schema/cli` `TestCmdMethods`~~ -- FIXED 2026-07-15
 
-This one was REAL (it failed with the Makefile tags too, unlike the two
-disproven entries above) and the diagnosis here was correct.
+This one was real: it also failed through the native tagged test toolchain,
+unlike the two disproven entries above, and the diagnosis here was correct.
 
 Confirmed pre-existing 2026-07-15 by `git archive HEAD` into a scratch tree and
 running the test there: it failed identically on committed `HEAD`
@@ -378,7 +379,7 @@ than a silent bump; converting these four counts to a snapshot remains open for
 whoever next touches that file.
 
 **A SECOND test had the same stale-`quiesce` root cause** and was only found when
-`make ze-precommit-verify` finally ran (2026-07-15): `internal/core/ipc` `TestExtractRPCs/system-api`
+`./le verify current mode full` finally ran (2026-07-15): `internal/core/ipc` `TestExtractRPCs/system-api`
 (`yang_test.go`) asserts `ElementsMatch` against its own hardcoded
 `wantRPCs` list, which also predated `ze-system:quiesce`. Fixed by adding the
 entry. Two hardcoded copies of the same list drifted from one added RPC, which is
@@ -409,8 +410,8 @@ tests fail. "In this build" was the clue -- it was literally a different build.
 
 Note the failure mode this created: the entry named a specific producing
 component as broken, and a later session "re-confirmed" it by repeating the same
-flawed invocation. Symptom-matching a red does not attribute it. Reproduce with
-the Makefile tags first.
+flawed invocation. Symptom-matching a red does not attribute it. Reproduce
+through the native test actions first.
 
 ### ~~`internal/chaos/inprocess` `TestInProcessChaosReconnect`~~ -- FIXED 2026-07-16: the runner stopped virtual time while the system still needed it
 
@@ -453,7 +454,7 @@ neither may virtual time.
 
 Verified: 3/3 PASS in **3.70s** -- matching the 3.69s measured at `8f5f2ff4b`
 (2026-07-08, before the regression), vs 92.00s broken. Full `./internal/chaos/...`
-tree green; the target test 2/2 green under `-race`. `make ze-lint-changed`: 0 issues.
+tree green; the target test 2/2 green under `-race`. `./le changed scope`: 0 issues.
 
 Two lessons worth keeping. (1) This was logged as non-deterministic but failed
 **3/3 in BOTH modes** -- a deterministic red, which this file's own scope rule says
@@ -585,9 +586,9 @@ rerun surfaced the missing second stack, which pinned TWO distinct bugs:
    flake -- with no transit topology the async run resolves the link back down.
 
 Verified: `go test -race ./internal/plugins/ospf` full package PASS; the reported
-test x50 and all `Virtual*` x10 PASS under `-race`; `make ze-lint-changed` green.
+test x50 and all `Virtual*` x10 PASS under `-race`; `./le changed scope` green.
 
-### 2026-07-07 -- `ze-tier-check` `routeinstall` unclassified non-engine placement -> moved to core
+### 2026-07-07 -- `./le tier check` `routeinstall` unclassified non-engine placement -> moved to core
 
 **Resolved 2026-07-07.** Root cause: `internal/plugins/routeinstall` (added by
 `f5057cd2a`, learned 1070) is a pure client-side library -- no `sdk.NewWithConn`,
@@ -597,7 +598,7 @@ plugin tier. It was NOT a flaky/environmental failure and should never have been
 parked here; a deterministic structural gate red means the tree is broken. Fixed
 by moving it to `internal/core/rib/routeinstall` (beside `locrib`, its in-process
 twin), which is outside the audited areas, so no manifest row or fake registration
-is needed. `ze-tier-check` + `TestEnginePlacement` green. To stop this class from
+is needed. `./le tier check` + `TestEnginePlacement` green. To stop this class from
 being waved through again, `commit_helper.py` now refuses to treat a deterministic
 structural gate as a bypassable known-red (see `ai/rules/git-safety.md`).
 
@@ -626,10 +627,10 @@ also pass.
 
 **Resolved 2026-07-01.** `install/26` kernel-runtime-deps TOCTOU race was a
 shared-path collision: it read/created `tmp/kernel/build/vmlinuz` while
-`ze-kernel-overlay` (which runs `make ze-kernel-build`) moved/removed that same dir,
+`ze-kernel-overlay` (which runs `ze appliance kernel`) moved/removed that same dir,
 so a concurrent `out.stat()` threw `FileNotFoundError`. Fixed by redirecting the
 test's build-output artifact to a per-test dir: `make -q -C gokrazy/kernel
-OUT="$work/out"` (the Makefile's `OUT :=` at `gokrazy/kernel/Makefile:19` loses
+OUT="$work/out"` (the retired Makefile (current producers: `internal/le/` native action tables)'s `OUT :=` at `gokrazy/kernel/Makefile:19` loses
 to a command-line override), with the fake vmlinuz created/touched there and the
 `out.stat()` hardened with try/except. The mtime dependency graph the test
 exercises is unchanged: prerequisites are repo-relative source paths, not `OUT`.
@@ -740,7 +741,7 @@ mandatory on every ipv4/unicast NLRI. The expected hex in
 internally inconsistent. Fixed the fixture (user-authorized per
 `ai/rules/testing.md`) to ze's correct output. Encode suite now 53/53.
 
-### 2026-06-17 -- `ze-functional-exabgp-test` (was "10/40 product bugs") -> 40/40 PASS
+### 2026-06-17 -- `./le functional exabgp-test` (was "10/40 product bugs") -> 40/40 PASS
 
 **Resolved 2026-06-17.** The "10 distinct encoding bugs" was a mis-diagnosis.
 Verified non-deterministic: failure set changed every run (e.g. run A
@@ -797,7 +798,7 @@ Environment deps (skip-env tagged): policy-routes-show, wireguard-invalid.
 
 **Resolved 2026-06-10.** Namespace-aware subscribe + event polling.
 
-### 2026-06-11 -- `make ze-doc-wiring-check` command validation drift
+### 2026-06-11 -- `./le doc-wiring` command validation drift
 
 **Resolved 2026-06-11.** Wiring, doc, and inventory gates all green.
 
@@ -857,7 +858,7 @@ Fix: `option=needs-linux` now accepts `caps=net-admin`, gated on the effective
 capability read from `/proc/self/status` (`internal/test/runner/caps_linux.go`),
 not on uid 0 -- a setcap'd binary holds the capability without being root, and a
 restricted container may lack it while being root. The seven tests declare it and
-now SKIP with a reason naming `make ze-qemu-needs-linux-test`, where they run for
+now SKIP with a reason naming `./le qemu run command "./le qemu all-tests"`, where they run for
 real as root. An unknown `caps=` value is a parse error, so a typo cannot silently
 disable the gate. Guarded by `TestNeedsLinux*` in
 `internal/test/runner/caps_option_test.go`, which injects the probe so BOTH
@@ -869,7 +870,7 @@ Only the seven that actually fail were marked; the four sibling iface tests that
 pass unprivileged still run.
 
 **What this does NOT claim.** These seven now execute in no automated pipeline:
-CI runs `make ze-precommit-verify` unprivileged (so they skip), and no workflow invokes
+CI runs `./le verify current mode full` unprivileged (so they skip), and no workflow invokes
 `ze-qemu-needs-linux-test` -- `ai/rules/platform-linux.md` already records the QEMU
 suites as run by "NOTHING automated". The change converts an opaque hang into an
 honest skip; it does not give these tests a gate. Two follow-ups, both recorded in

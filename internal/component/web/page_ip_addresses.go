@@ -39,8 +39,8 @@ func buildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProto
 	columns := []WorkbenchTableColumn{
 		{Key: "address", Label: "Address", Sortable: true},
 		{Key: "network", Label: "Network", Sortable: true},
-		{Key: "interface", Label: "Interface", Sortable: true},
-		{Key: "family", Label: "Protocol", Sortable: true},
+		{Key: "interface", Label: labelInterface, Sortable: true},
+		{Key: "family", Label: labelProtocol, Sortable: true},
 	}
 
 	var rows []WorkbenchTableRow

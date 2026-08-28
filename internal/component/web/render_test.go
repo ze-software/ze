@@ -589,7 +589,7 @@ func TestAssetHandler(t *testing.T) {
 
 	handler := r.AssetHandler()
 
-	req := httptest.NewRequest(http.MethodGet, "/style.css", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/style.css", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)

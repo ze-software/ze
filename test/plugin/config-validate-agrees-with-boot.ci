@@ -20,29 +20,15 @@
 # internal/component/config/probe.go turns the plugin_internal and plugin_two
 # rows red with "expected 'external', got internal" -- the pre-fix error.
 
-tmpfs=test-validate-boot-agreement.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-# Each shape is written, validated, and (when valid) booted. A shape whose two
-# verdicts disagree fails the test and prints both.
-set -u
-
-FAILED=0
-
-# --- the table -------------------------------------------------------------
-# One directory per shape holds its config and its two logs.
-
-mkdir -p shapes
-
-cat > shapes/plugin_internal.conf <<'ZECONF'
+tmpfs=shapes/plugin_internal.conf:terminator=EOF_PLUGIN_INTERNAL
 plugin {
 	internal static {
 		use static
 	}
 }
-ZECONF
-EXPECT_plugin_internal=valid
+EOF_PLUGIN_INTERNAL
 
-cat > shapes/plugin_two.conf <<'ZECONF'
+tmpfs=shapes/plugin_two.conf:terminator=EOF_PLUGIN_TWO
 plugin {
 	internal static {
 		use static
@@ -51,117 +37,27 @@ plugin {
 		use routing-table
 	}
 }
-ZECONF
-EXPECT_plugin_two=valid
+EOF_PLUGIN_TWO
 
-# The `env {}` block was the deleted runtime's own syntax and has no YANG home;
-# its two documented keys live under `environment` (ze-hub-conf.yang). This
-# shape is the behaviour change, pinned: `env {}` beside `plugin {}` used to
-# route to the orchestrator, which read the block once and discarded it, so the
-# daemon came up on a config the validator had always rejected. It is refused
-# at boot now, and validate is what refuses it.
-cat > shapes/legacy_env.conf <<'ZECONF'
+# The `env {}` block was the deleted runtime's own syntax and has no YANG home.
+# It must be refused by both validation and boot.
+tmpfs=shapes/legacy_env.conf:terminator=EOF_LEGACY_ENV
 env {
 	log-level debug
 }
 plugin {
 }
-ZECONF
-EXPECT_legacy_env=invalid
+EOF_LEGACY_ENV
 
-cat > shapes/unknown_internal.conf <<'ZECONF'
+tmpfs=shapes/unknown_internal.conf:terminator=EOF_UNKNOWN_INTERNAL
 plugin {
 	internal bogus {
 		use no-such-plugin
 	}
 }
-ZECONF
-EXPECT_unknown_internal=invalid
+EOF_UNKNOWN_INTERNAL
 
-SHAPES="plugin_internal plugin_two legacy_env unknown_internal"
-
-# --- boot_ok: run `ze - < conf` and report whether the daemon came up -------
-# Returns 0 when the daemon printed its running banner, 1 when it exited first.
-#
-# "hub: started" was the deleted orchestrator's banner. It is matched here so
-# the question stays "did A daemon come up", not "did the one daemon come up":
-# without it, a shape that boots the second runtime reads as "did not boot" and
-# the row goes green for the wrong reason. No code prints it any more.
-boot_ok() {
-	conf=$1
-	log=$2
-	ze - < "$conf" > "$log" 2>&1 &
-	pid=$!
-	rc=1
-	i=0
-	while [ "$i" -lt 100 ]; do
-		if grep -qE 'Ze running|hub: started' "$log" 2>/dev/null; then
-			rc=0
-			break
-		fi
-		kill -0 "$pid" 2>/dev/null || break
-		sleep 0.1
-		i=$((i + 1))
-	done
-	kill -TERM "$pid" 2>/dev/null
-	wait "$pid" 2>/dev/null
-	return $rc
-}
-
-# --- run the table ---------------------------------------------------------
-
-for shape in $SHAPES; do
-	conf="shapes/$shape.conf"
-	eval "want=\$EXPECT_$shape"
-
-	ze config validate "$conf" > "shapes/$shape.validate.log" 2>&1
-	vrc=$?
-
-	if [ "$want" = valid ] && [ "$vrc" -ne 0 ]; then
-		echo "FAIL[$shape]: expected the validator to accept this shape" >&2
-		cat "shapes/$shape.validate.log" >&2
-		FAILED=1
-		continue
-	fi
-	if [ "$want" = invalid ] && [ "$vrc" -eq 0 ]; then
-		echo "FAIL[$shape]: expected the validator to reject this shape" >&2
-		FAILED=1
-		continue
-	fi
-
-	if boot_ok "$conf" "shapes/$shape.boot.log"; then
-		booted=yes
-	else
-		booted=no
-	fi
-
-	if [ "$want" = valid ] && [ "$booted" = no ]; then
-		echo "FAIL[$shape]: validate accepted it, boot refused it" >&2
-		echo "--- boot log ---" >&2
-		cat "shapes/$shape.boot.log" >&2
-		FAILED=1
-		continue
-	fi
-	if [ "$want" = invalid ] && [ "$booted" = yes ]; then
-		echo "FAIL[$shape]: validate rejected it, boot accepted it" >&2
-		FAILED=1
-		continue
-	fi
-
-	echo "OK[$shape]: validate=$want boot=$booted" >&2
-done
-
-# The one shape the bug report named, called out on its own so a regression is
-# greppable in the suite log rather than hidden in a table row.
-if grep -q "expected 'external'" shapes/plugin_internal.boot.log 2>/dev/null; then
-	echo "FAIL: the deleted hub parser is back on the boot path" >&2
-	FAILED=1
-fi
-
-exit $FAILED
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-validate-boot-agreement.sh:timeout=60s
+cmd=foreground:seq=1:exec=ze-test fixture plugin/config-validate-agrees-with-boot:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK[plugin_internal]: validate=valid boot=yes
 expect=stderr:contains=OK[plugin_two]: validate=valid boot=yes

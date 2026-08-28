@@ -117,7 +117,7 @@ var selftestCases = []selftestCase{
 		check: func(env selftestEnv) string {
 			// A tree with no manifest must be refused rather than answered with
 			// an empty tag set, which would build every flavor feature-free.
-			if _, err := FeatureTags(env.bare); err == nil {
+			if _, err := featureTags(env.bare); err == nil {
 				return "FeatureTags accepted a tree with no feature-gates.txt"
 			}
 			return ""
@@ -126,7 +126,7 @@ var selftestCases = []selftestCase{
 	{
 		name: "go-mod-required",
 		check: func(env selftestEnv) string {
-			if err := SanityCheck(env.ctx, env.dir, "HEAD", env.bare); err == nil {
+			if err := sanityCheck(env.ctx, env.dir, "HEAD", env.bare); err == nil {
 				return "SanityCheck accepted a tree with no go.mod"
 			}
 			return ""
@@ -164,7 +164,7 @@ var selftestCases = []selftestCase{
 			// vendor/ would fail in a shallow clone, a non-vendored checkout,
 			// or when run from another directory, none of which says anything
 			// about the guard.
-			tracked, err := CommitHasPath(env.ctx, env.probe, "HEAD", "vendor/modules.txt")
+			tracked, err := commitHasPath(env.ctx, env.probe, "HEAD", "vendor/modules.txt")
 			if err != nil {
 				var tb textbuf.Buffer
 				return tb.Str("CommitHasPath over the probe repository: ").Err(err).String()
@@ -173,7 +173,7 @@ var selftestCases = []selftestCase{
 				return "CommitHasPath did not find vendor/modules.txt in a commit that holds it, " +
 					"so the partial-extraction guard is disarmed"
 			}
-			absent, err := CommitHasPath(env.ctx, env.probe, "HEAD", "no/such/path.txt")
+			absent, err := commitHasPath(env.ctx, env.probe, "HEAD", "no/such/path.txt")
 			if err != nil {
 				var tb textbuf.Buffer
 				return tb.Str("CommitHasPath over an absent path: ").Err(err).String()
@@ -183,7 +183,7 @@ var selftestCases = []selftestCase{
 			}
 			// env.dir holds go.mod but no vendor/, which is the partial
 			// extraction.
-			if err := SanityCheck(env.ctx, env.probe, "HEAD", env.dir); err == nil {
+			if err := sanityCheck(env.ctx, env.probe, "HEAD", env.dir); err == nil {
 				return "SanityCheck accepted a tree with no vendor/ against a commit that tracks it"
 			}
 			return ""

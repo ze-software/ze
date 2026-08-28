@@ -22,71 +22,11 @@
 # This functional test covers the always-available half: config -> admission
 # state visible via show.
 
-tmpfs=rsvpte-bw.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert per-interface bandwidth from config is reflected in admission state."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = dispatch(api, 'show rsvp-te interface')
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"show rsvp-te interface: expected done, got status={r.get('status')} "
-            f"data={result_text_data(r)[:200]}")
-    ifaces = result_json_data(r, None)
-    if not isinstance(ifaces, list):
-        runtime_fail(f"show rsvp-te interface: expected list, got {ifaces!r}")
-
-    lo = next((i for i in ifaces if i.get('name') == 'lo'), None)
-    if lo is None:
-        runtime_fail(f"show rsvp-te interface: missing 'lo': {ifaces!r}")
-    # The configured limits must round-trip into admission, and with no LSP
-    # signaled nothing is reserved yet, so available == reservable. This is the
-    # per-interface bandwidth accounting we assert.
-    if lo.get('max-bandwidth') != 10e9:
-        runtime_fail(f"lo max-bandwidth={lo.get('max-bandwidth')!r}, want 10e9")
-    if lo.get('max-reservable') != 8e9:
-        runtime_fail(f"lo max-reservable={lo.get('max-reservable')!r}, want 8e9")
-    if lo.get('reserved-bandwidth') != 0:
-        runtime_fail(f"lo reserved-bandwidth={lo.get('reserved-bandwidth')!r}, want 0")
-    if lo.get('available-bandwidth') != 8e9:
-        runtime_fail(f"lo available-bandwidth={lo.get('available-bandwidth')!r}, want 8e9")
-
-    print('OK: rsvp-te per-interface bandwidth parsed into admission state',
-          file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external rsvpte-bw {
-		run ./rsvpte-bw.run
+		run "ze-test fixture rsvpte/rsvpte-bandwidth"
 		encoder json
 	}
 }

@@ -27,7 +27,8 @@ verb. They serve different consumers and never meet.
 | Brief and Detail are separate functions | they map to the summary and the detail command; a detail-only enricher leaves Brief nil instead of writing a no-op |
 | Keys are emitted in alphabetical order | deterministic output for `\| json` and for debugging, matching the `registry.All()` convention |
 | `Enrich()` recovers from a panic | a network OS must not lose a show command because one enricher has a defect |
-| `Register` returns an error, `MustRegister` panics | the hook forbids a direct panic carrying dynamic content, so the panic lives in one named wrapper |
+| `Register` returns an error, `MustRegister` panics | the native write hook forbids a direct panic carrying dynamic content, so the panic lives in one named wrapper |
+<!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
 
 A web handler that dispatches a command gets the enriched output already. A web
 handler that uses the service locator calls `show.Enrich()` itself.

@@ -65,7 +65,7 @@ rules both out by name.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc7296.md` line 676 - the requirement itself
-  → Constraint: `RFC7296-2.4-2` is SHOULD-level, ungated and untagged. `rfc/enrolled.txt` line 167 records 227 rows for RFC 7296, 222 of them gated; this row is one of the 5 SHOULD-level rows that are ungated and untagged, so `make ze-rfc-check` reports it uncovered rather than green over a violation. Nothing today claims false conformance.
+  → Constraint: `RFC7296-2.4-2` is SHOULD-level, ungated and untagged. `rfc/enrolled.txt` line 167 records 227 rows for RFC 7296, 222 of them gated; this row is one of the 5 SHOULD-level rows that are ungated and untagged, so `./le rfc check` reports it uncovered rather than green over a violation. Nothing today claims false conformance.
 - [ ] `rfc/full/rfc7296.txt` Section 2.4, lines 1519-1621 - the source text
   → Constraint: the governing sentences are quoted verbatim below. Read them, not the summary paraphrase: the paraphrase adds "only check when traffic to send", which the RFC states as motivation rather than as the SHOULD.
 
@@ -139,7 +139,7 @@ also drops "or any of its Child SAs", which is the hard half of the requirement.
 | 222 of its 227 rows are gated; 5 are SHOULD-level, ungated and untagged | same line |
 | `RFC7296-2.4-2` is one of those 5 | `ai/RFC-REQUIREMENTS.md` line 3787: `\| RFC7296-2.4-2 \| SHOULD \| 2.4 \| -- \| -- \| \|`, both evidence columns empty |
 | No test carries the tag in either polarity | a repository-wide search for the id finds it only in `rfc/short/rfc7296.md`, `ai/RFC-REQUIREMENTS.md`, `plan/deferrals/fixit-ike-dpd-cleartext.md` and `skip-blocked.md`. No `.go` and no `.ci` |
-| The gate therefore reports it uncovered, not green | `make ze-rfc-check` does not gate SHOULD-level rows |
+| The gate therefore reports it uncovered, not green | `./le rfc check` does not gate SHOULD-level rows |
 
 **Consequence for this spec.** Nothing today claims false conformance, so no
 public claim has to be retracted. Implementing the behavior means ADDING a
@@ -294,7 +294,7 @@ Path B, the Child SA liveness signal that does not exist:
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The Linux kernel updates `Statistics.UseTime` and `Statistics.Packets` on the **inbound** SAD state when an ESP packet is received, not only on output | Inferred from `saInfoFromState` reading both from the dump, and from `show vpn ipsec sa` advertising `packets-in` as a real number. **Not verified against kernel behavior** | The whole Child SA half of S-4 loses its signal, and only Option A remains reachable | A `_linux_test.go` integration test under `make ze-qemu-integration-test`: install a Child SA, send traffic through it, dump the SAD, assert the inbound SPI's `PacketsCurrent` rose and `UsedAt` moved | unvalidated |
+| A-1 | The Linux kernel updates `Statistics.UseTime` and `Statistics.Packets` on the **inbound** SAD state when an ESP packet is received, not only on output | Inferred from `saInfoFromState` reading both from the dump, and from `show vpn ipsec sa` advertising `packets-in` as a real number. **Not verified against kernel behavior** | The whole Child SA half of S-4 loses its signal, and only Option A remains reachable | A `_linux_test.go` integration test under `./le qemu run command "./le qemu all-tests"`: install a Child SA, send traffic through it, dump the SAD, assert the inbound SPI's `PacketsCurrent` rose and `UsedAt` moved | unvalidated |
 | A-2 | `UsedAt` has one-second resolution and `PacketsCurrent` is monotonic within an SA's life | `unixOrZero` (`xfrm_linux.go`) converts epoch SECONDS and maps 0 to the zero time | A sub-second DPD interval cannot be driven off `UsedAt`. A delta of `PacketsCurrent` becomes the only usable signal | Same integration test as A-1 | unvalidated |
 | A-3 | A full SAD dump per peer per second is too expensive to ship, so any polling design shares one dump | `ListSAs` (`xfrm_linux.go`) dumps `FAMILY_ALL` and filters in userspace; `maintainSA`'s ticker is 1 second per peer session (`established.go` line 158) | The design can be simpler than assumed and no sharing is needed | A benchmark, or a measured QEMU run with N peers | unvalidated |
 | A-4 | `out.peerAlive` is set only for messages that satisfy S-4's "fresh, i.e., not retransmitted" | `handleOwnedInbound` (`inbound.go`): the out-of-window arm returns an empty outcome at line 146 and the cached-retransmit arm at line 102 | Crediting liveness on a replay would let an attacker mask a dead peer, which is the failure the existing comments say they prevent | Read the three return sites; the existing `rfc7296_retransmit_test.go` and `rfc7296_invalidmsgid_test.go` already assert `!out.peerAlive` on those paths | unvalidated |
@@ -428,8 +428,8 @@ a strict improvement to coverage and needs no permission.
 **Known constraint.** `test/ipsec/` holds no `needs-linux` `.ci` today, so the
 existing suite runs without a real XFRM dataplane. A functional test of the
 Child SA observation path therefore needs either a `needs-linux` `.ci` run under
-`make ze-qemu-needs-linux-test`, or a `_linux_test.go` integration test under
-`make ze-qemu-integration-test` alongside the existing
+`./le qemu run command "./le qemu all-tests"`, or a `_linux_test.go` integration test under
+`./le qemu run command "./le qemu all-tests"` alongside the existing
 `child_policy_delete_integration_linux_test.go` and
 `xfrm_readback_integration_linux_test.go`.
 
@@ -569,7 +569,7 @@ liveness.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -589,7 +589,7 @@ liveness.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

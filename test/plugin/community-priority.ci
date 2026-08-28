@@ -22,6 +22,7 @@ option=env:var=ze.log.bgp.plugin:value=info
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=linger:value=true
 # Role capability: drop ze-peer's default (mirrored Provider) then add Customer (0x03).
 # Without the drop, ze sees two Role capabilities and rejects "multiple different".
 option=open:value=drop-capability:code=9
@@ -30,65 +31,11 @@ option=open:value=add-capability:code=9:hex=03
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 EOF_PEER
 
-# Python test plugin: verify both plugins active and community tagged
-tmpfs=test-priority.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify filter priority: community (Policy) and role (Annotation) both active."""
-import json
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Verify route accepted (not rejected by either filter). Poll adj-rib-in until
-    # the received route lands: the community filter tags rather than rejects, so
-    # the route reaches adj-rib-in. Deterministic replacement for a blind settle
-    # sleep; the `total < 0` guard below stays authoritative.
-    result = api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', -1) >= 1,
-    )
-    data = result_json_data(result, {})
-    total = data.get('total-routes', -1)
-
-    if total < 0:  # rpki validation gate may hold route; count is unreliable
-        msg = f'adj-rib-in query failed, got total={total}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    # Verify community was tagged via the production log assertion at the
-    # bottom of this file; this dispatch remains for diagnostic context.
-    result = dispatch(api, 'show bgp rib received community 65000:300')
-    if result.get('status') not in ('done', 'error'):  # rpc succeeded if any known status
-        msg = f'rib show community rpc failed: status={result.get("status")}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    print('OK: both filters active, priority ordering correct', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze configuration: role + community filter both active
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-priority {
-		run ./test-priority.run
+		run "ze-test fixture plugin/community-priority"
 		encoder json
 	}
 	internal bgp-rib {
@@ -142,6 +89,9 @@ bgp {
 		attach process bgp-rib {
 			receive [ update state refresh ]
 			send [ update ]
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

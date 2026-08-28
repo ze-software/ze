@@ -42,7 +42,7 @@ closure commit, not before it.
 - `plan/journal/helper-bypassed-by-an-open-coded-copy.md`
 - `plan/journal/identifier-reused-after-its-owner-is-gone.md`
 
-A full `make ze-precommit-verify` started 2026-08-19T13:16:07Z was still running at
+A full `./le verify current mode full` started 2026-08-19T13:16:07Z was still running at
 handover. Its result rewrites `tmp/ze-verify-failures.json`, which every later commit
 is judged against. Read it before assuming a red is yours.
 
@@ -57,7 +57,7 @@ is judged against. Read it before assuming a red is yours.
    is proven and mechanical.
 3. **Two untriaged fixit specs**, both appeared from other sessions during this one:
    `plugin-concurrency-is-pinned-to-a-ci-constant`, `shutdown-waits-out-a-deadlock`.
-4. **`make ze-interop-ipsec-test`, full run.** Thirteen IPsec scenarios now start an
+4. **`./le integration interop-ipsec`, full run.** Thirteen IPsec scenarios now start an
    SSH listener they did not before (`6f3c26068`). Only that suite proves it changed
    nothing, and it has not run. Do this before closing `fixit-ipsec-interop-cli-credentials`.
 5. **`stored-route-relay-hardening` I-2, I-3, I-4, I-6.** Only I-1 landed. I-3 is a
@@ -98,7 +98,7 @@ is judged against. Read it before assuming a red is yours.
 - `internal/plugins/iface/vpp/{ifacevpp.go,mirror.go}` — `CreateDummy`, `recordMirror`
 - `internal/component/resolve/irr/{client.go,store/store.go}` — `RefreshPrefixes`
 - `internal/core/dnsserver/{handler.go,metrics.go}` — `send`, the write-failure counter
-- `scripts/dev/review_gate.py` — `cmd_record`, the three refusals
+- the retired `scripts/dev/review_gate.py` (current producer: `internal/le/speclifecycle/review.go`) — `cmd_record`, the three refusals
 
 ## The pattern this session found, which matters more than any single fix
 
@@ -118,8 +118,8 @@ signal in the corpus) and `plan/journal/concurrent-session-corruption.md`.
 
 ## Gate friction worth reporting to the owner, who is reviewing gates
 - `commit_helper.py`'s structural-red refusal asserts those gates "never fail for flaky
-  or environmental reasons". Both of this session's did: `ze-lint` lost golangci-lint's
-  single-instance lock to a concurrent session, and `ze-staticcheck-feature-matrix-check`
+  or environmental reasons". Both of this session's did: `./le verify-lint run` lost golangci-lint's
+  single-instance lock to a concurrent session, and `./le staticcheck-feature-matrix check`
   exceeded its 25-minute deadline on a loaded box. The message then reports a
   structurally broken tree that is not broken.
 - `check_weakened_tests.py` cannot follow a `t.Helper()` extraction or a cross-file
@@ -129,7 +129,7 @@ signal in the corpus) and `plan/journal/concurrent-session-corruption.md`.
 
 ## Then
 ```
-scripts/dev/verify-status.sh check
+./le verify-status check
 ```
 FRESH means the 13:16Z run finished and its record is current; judge every red against
 `tmp/ze-verify-failures.log` before charging it to your own work. Then pick one spec and

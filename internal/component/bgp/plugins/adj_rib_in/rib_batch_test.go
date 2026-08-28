@@ -394,6 +394,9 @@ func TestBatchValidateMatchesIndividual(t *testing.T) {
 
 // TestBatchValidateTypedMatchesString verifies the typed bridge path produces
 // identical state to the string-based batchValidateCommand path.
+//
+// RFC requirement: RFC6811-2-1 positive -- an Invalid lookup result stays
+// Invalid when policy accepts the route into Adj-RIB-In.
 func TestBatchValidateTypedMatchesString(t *testing.T) {
 	prefixes := []string{"10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"}
 
@@ -417,7 +420,7 @@ func TestBatchValidateTypedMatchesString(t *testing.T) {
 	stringArgs := []string{
 		"a", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1",
 		"r", "10.0.0.1", "ipv4/unicast", "10.0.1.0/24", "1", "0",
-		"a", "10.0.0.1", "ipv4/unicast", "10.0.2.0/24", "2", "2",
+		"a", "10.0.0.1", "ipv4/unicast", "10.0.2.0/24", "2", "3",
 		"r", "10.0.0.1", "ipv4/unicast", "10.0.3.0/24", "3", "0",
 	}
 	_, stringData, err := stringPath.handleCommand("request bgp adj-rib-in batch-validate", stringArgs, "")
@@ -427,7 +430,7 @@ func TestBatchValidateTypedMatchesString(t *testing.T) {
 	typedDecisions := []rpc.ValidationDecision{
 		{Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", PathID: 0, ValState: 1},
 		{Accept: false, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", PathID: 1},
-		{Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.2.0/24", PathID: 2, ValState: 2},
+		{Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.2.0/24", PathID: 2, ValState: ValidationInvalid},
 		{Accept: false, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.3.0/24", PathID: 3},
 	}
 	typedResult, err := typedPath.handleBatchValidateTyped(typedDecisions)
@@ -460,14 +463,14 @@ func TestBatchValidateTypedMatchesString(t *testing.T) {
 	}
 }
 
-// TestBatchValidateTypedRejectsInvalidState verifies the typed handler
-// rejects accepts with invalid validation state (parity with parseValidationState).
+// TestBatchValidateTypedRejectsInvalidState verifies that the typed handler
+// rejects internal/non-RFC validation states.
 func TestBatchValidateTypedRejectsInvalidState(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 
 	decisions := []rpc.ValidationDecision{
-		{Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", PathID: 0, ValState: 3},
+		{Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", PathID: 0, ValState: ValidationPending},
 	}
 	_, err := r.handleBatchValidateTyped(decisions)
 	require.Error(t, err)

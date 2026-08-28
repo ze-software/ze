@@ -75,12 +75,12 @@ func init() {
 4. Update all consumers to import from owning component's events sub-package
 5. Delete domain files from core/events/ (bgp.go, interface.go, sysctl.go, etc.)
 6. Update events_test.go TestMain to import from sub-packages
-7. Use `scripts/dev/replace.py` for bulk replacements
-8. `make ze-precommit-verify`
+7. Use `./le source-rewrite replace` (`internal/le/sourcerewrite`) for deterministic bulk replacements
+8. `./le verify current mode full`
 
 ## Verification
 
 ```
 go vet ./internal/...
-make ze-precommit-verify
+./le verify current mode full
 ```

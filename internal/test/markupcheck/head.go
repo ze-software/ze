@@ -14,7 +14,7 @@ import (
 )
 
 // The two vendored files a rendered attribute can need. The names repeat what
-// scripts/codegen/web_assets.go carries, and the repetition is the point: that
+// internal/le/webassets/webassets.go carries, and the repetition is the point: that
 // generator over-approximates from the sources while this reads the captured
 // output, so neither may take its answer from the other.
 const (

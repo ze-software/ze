@@ -19,15 +19,12 @@ import (
 const area = "web-assets"
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-web-assets-check",
-		Why: "each page_assets.go agrees with the markup its package renders. The generator walks" +
-			" the templ component graph from each page, so a component that gains hx-sse:connect" +
-			" changes the set for every page reaching it. A stale file leaves a page missing an" +
-			" extension it now needs, which is invisible everywhere but the browser: the page" +
-			" renders and does nothing",
-		Answer: runCheckHere,
-	},
+	leaction.Action{Verb: "check", Why: "each page_assets.go agrees with the markup its package renders. The generator walks" +
+		" the templ component graph from each page, so a component that gains hx-sse:connect" +
+		" changes the set for every page reaching it. A stale file leaves a page missing an" +
+		" extension it now needs, which is invisible everywhere but the browser: the page" +
+		" renders and does nothing",
+		Answer: runCheckHere},
 	leaction.Action{
 		Verb:   "write",
 		Why:    "rewrite each package's per-page asset sets from the markup it renders",

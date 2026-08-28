@@ -18,53 +18,6 @@
 
 option=needs-linux:caps=net-admin
 
-tmpfs=setup.py:mode=755:terminator=EOF_SETUP
-#!/usr/bin/env python3
-import subprocess, sys
-# Idempotent: a stale surfprotect from a prior crashed run would
-# otherwise make `nft add table` fail with EEXIST.
-subprocess.call(["nft", "delete", "table", "inet", "surfprotect"],
-                stderr=subprocess.DEVNULL)
-subprocess.check_call(["nft", "add", "table", "inet", "surfprotect"])
-subprocess.check_call(["nft", "add", "chain", "inet", "surfprotect", "input"])
-subprocess.check_call(["nft", "add", "rule", "inet", "surfprotect", "input", "ip", "saddr", "10.0.0.1", "accept"])
-EOF_SETUP
-
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import os, signal, subprocess, sys
-
-from ze_api import wait_until
-
-try:
-    if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-                      attempts=200, delay=0.05):
-        sys.exit("daemon readiness files missing")
-
-    with open("daemon.pid") as f:
-        pid = int(f.read().strip())
-
-    # Poll until ze_fw10_003 is programmed instead of sleep(0.5); surfprotect was
-    # created by setup.py BEFORE ze started, so it is already present.
-    _z = {}
-    def _prog():
-        try:
-            _z["s"] = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_003"], text=True, stderr=subprocess.DEVNULL)
-            return True
-        except subprocess.CalledProcessError:
-            return False
-    if not wait_until(_prog, attempts=100, delay=0.05):
-        sys.exit("ze_fw10_003 never programmed")
-    ze_table = _z["s"]
-    surf_table = subprocess.check_output(["nft", "list", "table", "inet", "surfprotect"], text=True)
-    sys.stdout.write("ZE:\n" + ze_table + "\nSURF:\n" + surf_table)
-
-    os.kill(pid, signal.SIGTERM)
-finally:
-    subprocess.call(["nft", "delete", "table", "inet", "surfprotect"],
-                    stderr=subprocess.DEVNULL)
-EOF_PY
-
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
 	backend nft;
@@ -86,9 +39,9 @@ EOF_CONF
 
 option=env:var=ze.log.firewall:value=info
 
-cmd=foreground:seq=1:exec=python3 setup.py:timeout=5s
+cmd=foreground:seq=1:exec=ze-test fixture firewall/firewall-coexistence-setup:timeout=5s
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=3:exec=ze-test fixture firewall/firewall-coexistence:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=firewall config applied
 expect=stdout:contains=table inet ze_fw10_003

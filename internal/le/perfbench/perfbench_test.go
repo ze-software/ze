@@ -50,7 +50,7 @@ func TestIsHotAcceptsOnlyMeasuredGoFiles(t *testing.T) {
 		{"", false},
 	}
 	for _, tc := range cases {
-		if got := IsHot(tc.path); got != tc.want {
+		if got := isHot(tc.path); got != tc.want {
 			t.Errorf("IsHot(%q) = %v, want %v", tc.path, got, tc.want)
 		}
 	}
@@ -140,7 +140,7 @@ func TestChangedHotReadsAllThreeWorkingTreeQueriesAndTheCommittedRange(t *testin
 		"diff --name-only " + base + "..HEAD":  "internal/core/bgp/wire.go\ndocs/guide.md\n",
 	})
 
-	hot, err := run.ChangedHot(base)
+	hot, err := run.changedHot(base)
 	if err != nil {
 		t.Fatalf("ChangedHot: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestChangedHotReadsAllThreeWorkingTreeQueriesAndTheCommittedRange(t *testin
 func TestChangedHotReportsAGitItCouldNotRun(t *testing.T) {
 	run, _ := runnerWith(t, map[string]string{})
 
-	hot, err := run.ChangedHot("")
+	hot, err := run.changedHot("")
 	if err == nil {
 		t.Fatalf("a git that answered nothing was read as a clean tree: %v", hot)
 	}

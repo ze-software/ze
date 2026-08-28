@@ -27,7 +27,7 @@ ARG ZE_BUILD_DATE
 ARG ZE_TAGS
 
 # The default-on tags are DERIVED from feature-gates.txt, the single source of
-# truth Makefile ZE_FEATURES and test/interop/Dockerfile.ze read the same way. A
+# truth the deployment and interop images read the same way. A
 # hand-written list here is what makes the two images drift, and `ze_bgp` is one
 # of the gates: without it ze rejects the `bgp` config root as an unknown
 # top-level keyword, so a lab node would start with no BGP at all.

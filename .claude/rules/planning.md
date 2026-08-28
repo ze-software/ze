@@ -5,14 +5,14 @@ Extends `ai/rules/planning.md` with Claude Code session management.
 ## Spec Selection Tracking
 
 Each session records the spec it is working on in its OWN per-session marker via
-`scripts/dev/spec-session.sh`. There is no shared file, so many agents editing
+`./le spec-session`. There is no shared file, so many agents editing
 main concurrently never collide -- nothing to append, nothing to remove.
 
 | Action | Command |
 |--------|---------|
-| Claim the spec you are about to work on | `scripts/dev/spec-session.sh claim <spec-file>` |
-| Read this session's claimed spec | `scripts/dev/spec-session.sh current` |
-| Release the claim when the spec is closed | `scripts/dev/spec-session.sh release` |
+| Claim the spec you are about to work on | `./le spec-session claim spec <spec-file>` |
+| Read this session's claimed spec | `./le spec-session current` |
+| Release the claim when the spec is closed | `./le spec-session release` |
 
 `claim` also auto-transitions a `ready` spec to `in-progress`. The marker drives
 the per-session state file name and post-compaction recovery.
@@ -20,7 +20,9 @@ the per-session state file name and post-compaction recovery.
 ## Plan File Location
 
 Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`.
-The `claude-plans` check in `.claude/hooks/pretool-writeedit.py` enforces this.
+The `claude-plans` check in the native `pretool-writeedit` action
+(`./le hook-check pretool-writeedit`, `internal/le/hookruntime/writeedit.go`)
+enforces this.
 
 ## /ze-review Gate (Completion Checklist)
 

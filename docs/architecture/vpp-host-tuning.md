@@ -50,7 +50,6 @@ symptom is a check that produces no diagnostic end to end.
 
 ## Test placement
 
-A Linux-tagged test with no `integration` tag runs under `make ze-unit-test` on
-a Linux host, because that target is a plain `go test ./...`. Adding such a
-package to `ze-qemu-integration-test`, which builds with `-tags integration`,
-does nothing.
+A Linux-tagged test with no `integration` tag runs in the native unit groups on
+a Linux host. Adding it to `./le qemu all-tests`, which builds with
+`-tags integration`, does not change the unit population.

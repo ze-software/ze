@@ -17,13 +17,13 @@ unknown in it.
 |------|-------|
 | `website/tools/render-cli-catalog.py` consumes per-command `operators` and groups them by `available` (`with-rows` renders as "With rows") | YES, in the WORKING TREE |
 | The same file in HEAD | ZERO occurrences of `operators` or `with-rows`. The support is entirely uncommitted: 217 insertions, 9 deletions |
-| Does it actually render correctly against today's JSON | **NOT VERIFIED.** Rendering refuses a `zetest` binary by design, so it needs `make ze-build` first, and that is where we stopped |
-| `scripts/dev/gen_wiki_commands.py` (the wiki half) | DONE and committed in `a1507c0c2`. It holds no operator list and derives each entry from the catalog |
+| Does it actually render correctly against today's JSON | **NOT VERIFIED.** Rendering refuses a `zetest` binary by design, so it needs `go build -o bin/ze ./cmd/ze` first, and that is where we stopped |
+| `internal/le/wikicatalog/render.go` (the wiki half) | DONE and committed in `a1507c0c2`. It holds no operator list and derives each entry from the catalog |
 
 **First thing to do on restart:**
 
 ```
-make ze-build
+go build -o bin/ze ./cmd/ze
 cd website/tools && python3 render-cli-catalog.py
 ```
 
@@ -127,7 +127,7 @@ holds zero rows and should not be left behind as an empty file.
 
 ## 6. Blockers, and one claim of mine that was wrong
 
-- **`make ze-doc-verify` and `ze-lint-changed` are RED for reasons outside this
+- **`./le doc-check verify` and `./le changed scope` are RED for reasons outside this
   work.** A source anchor in `docs/guide/web-interface.md` broken by another
   session's uncommitted edit to `cmd/ze/hub/aaa_authenticator_web.go`;
   `ai/PACKAGE-MAP.md` stale from their untracked `internal/core/configorder`
@@ -136,7 +136,7 @@ holds zero rows and should not be left behind as an empty file.
   references, 5 of them stranded by the `8f3a80bf9` closure. Regenerating
   PACKAGE-MAP would carry their packages into your commit. Leave it.
 - **Verification debt: 654 open, 272 cleared. It IS clearable — run
-  `make ze-verify-debt-clear`.** I first reported this as "648 open, zero ever
+  the retired `ze-verify-debt-clear` (current: `./le commit debt-clear`).** I first reported this as "648 open, zero ever
   cleared, structurally unclearable". That was WRONG in both halves and the
   correction is worth more than the original claim, so it stays here in full.
 
@@ -160,7 +160,7 @@ holds zero rows and should not be left behind as an empty file.
   The lesson is the one I had just handed another session and then walked into:
   **a true premise chain does not make a conclusion measured.** I diagnosed the
   tree I was standing in rather than the gate the clearing pass actually runs,
-  and `make ze-verify-debt-clear` would have settled it in under a minute.
+  and `./le commit debt-clear` would have settled it in under a minute.
 
   What survives: debt is attributed per session and NOTHING SCHEDULES A
   CLEARING RUN. 28 shards holding 654 open rows is what the pre-`047f64f53`

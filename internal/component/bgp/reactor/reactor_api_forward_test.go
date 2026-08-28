@@ -110,16 +110,16 @@ func eorWire(fam family.Family) []byte {
 // opQueue. sendInitialRoutes owns the per-family EoR for such a peer; sending
 // here would race ahead of the still-queued route NLRI (RFC 4724 ordering).
 //
-// VALIDATES: while ShouldQueue()==true, AnnounceEOR succeeds but flushes nothing
+// VALIDATES: while shouldQueue()==true, AnnounceEOR succeeds but flushes nothing
 // to the wire (the peer is skipped, its EoR deferred to sendInitialRoutes).
 // PREVENTS: regression of the guard -- without it the EoR is flushed here,
 // landing on the wire ahead of the queued routes.
 func TestAnnounceEOR_SkipsPeerInInitialRouteSync(t *testing.T) {
 	adapter, peer, conn := newEORGuardPeer(t)
 
-	// Simulate "initial route sync in progress" -> ShouldQueue() == true.
+	// Simulate "initial route sync in progress" -> shouldQueue() == true.
 	peer.sendingInitialRoutes.Store(1)
-	require.True(t, peer.ShouldQueue(), "precondition: peer must be in initial-sync state")
+	require.True(t, peer.shouldQueue(), "precondition: peer must be in initial-sync state")
 
 	err := adapter.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.OperatorSender())
 	require.NoError(t, err)
@@ -131,12 +131,12 @@ func TestAnnounceEOR_SkipsPeerInInitialRouteSync(t *testing.T) {
 // initial-sync window, not unconditional. A normally-established peer (no
 // opQueue, not syncing) is sent the EoR, which lands on the wire.
 //
-// VALIDATES: while ShouldQueue()==false, AnnounceEOR flushes the exact End-of-RIB.
+// VALIDATES: while shouldQueue()==false, AnnounceEOR flushes the exact End-of-RIB.
 // PREVENTS: an over-broad guard that silently drops every external EoR.
 func TestAnnounceEOR_SendsWhenNotInInitialSync(t *testing.T) {
 	adapter, peer, conn := newEORGuardPeer(t)
 
-	require.False(t, peer.ShouldQueue(), "precondition: peer must NOT be in initial-sync state")
+	require.False(t, peer.shouldQueue(), "precondition: peer must NOT be in initial-sync state")
 
 	err := adapter.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.OperatorSender())
 	require.NoError(t, err)

@@ -37,8 +37,8 @@ const binNameZePeer = "ze-peer"
 const TestPluginBuildTag = "zetest"
 
 // featureGatesFile is the feature-gate manifest (repo-relative): the single
-// source of truth for compile-out-able features, shared with the Makefile,
-// the generator, and dep_audit.py. See ai/rules/plugins.md.
+// source of truth for compile-out-able features, written by
+// `./le feature-tags write`. See ai/rules/plugins.md.
 const featureGatesFile = "feature-gates.txt"
 
 // TestBuildTags returns ZE_TAGS plus the tags for functional test builds.
@@ -46,8 +46,8 @@ const featureGatesFile = "feature-gates.txt"
 // the provision plugin (install remote) and appliance tooling. zetest adds
 // test-only plugins on top. The default-on per-feature compile-out tags
 // (ze_lg, ze_ssh, ze_web, ...) are read from feature-gates.txt so the
-// functional-test ze binary exercises the same feature set as `make ze-build`
-// (ZE_FEATURES) without a hand-maintained list. See plan/spec-feature-gate-0-umbrella.md.
+// functional-test ze binary exercises the same feature set as the native Go
+// builders without a hand-maintained list. See plan/spec-feature-gate-0-umbrella.md.
 func TestBuildTags() string {
 	tags := zeTagsFromEnv()
 	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup")
@@ -55,8 +55,8 @@ func TestBuildTags() string {
 	return textbuf.Join(tags, ",")
 }
 
-// testHelperBuildTags returns the tags for the ze-test helper binary, mirroring
-// the Makefile's `ze_test $(ZE_FEATURES) $(ZE_TAGS)`.
+// testHelperBuildTags returns the tags for the ze-test helper binary, using the
+// same generated feature manifest as the daemon build.
 //
 // The feature-gate tags are NOT optional decoration here. ze-test links the
 // engine's own plugin registry so `ze-test plugin-external <name>` can run a
@@ -85,9 +85,9 @@ func zeTagsFromEnv() []string {
 }
 
 // featureGateTags reads the default-on feature tags from feature-gates.txt (the
-// first column of each non-comment line), deduplicated. Mirrors ZE_FEATURES in
-// the Makefile. Returns nil if the manifest cannot be read (the build would then
-// fail loudly on the first feature schema, the same signal as before).
+// first column of each non-comment line), deduplicated. Returns nil if the
+// manifest cannot be read (the build then fails loudly on the first missing
+// feature schema).
 func featureGateTags() []string {
 	root, ok := findRepoRoot()
 	if !ok {
@@ -181,8 +181,8 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 	// are attributable and go with that session's directory when the operator
 	// removes it, instead of accumulating as unowned $TMPDIR/ze-functional-*
 	// dirs. They do not "die with the session": nothing under tmp/session/ is
-	// removed automatically, and `make ze-session-clean BEFORE=<YYYY-MM-DD>` is
-	// the route. EnsureScratchRoot returns "" when no
+	// removed automatically, and `./le session reap` removes directories whose
+	// owners are provably gone. EnsureScratchRoot returns "" when no
 	// session is active, which is exactly what MkdirTemp reads as "use the
 	// system temp dir" -- so a human or CI run is unchanged.
 	tmpDir, err := os.MkdirTemp(sessionpath.EnsureScratchRoot(baseDir), "ze-functional-*")
@@ -262,9 +262,9 @@ func (r *Runner) Cleanup() {
 // until this existed -- is wrong twice over:
 //
 //   - A cross-compiled binary carries its target in the name
-//     (ze-linux-arm64, mk/test-integration.mk ZE_QEMU_BIN), and ZE_BIN points
-//     at it directly, so there is no bare `ze` in that directory at all. A test
-//     doing subprocess(["ze", ...]) then resolves whatever unrelated `ze` is
+//     (for example ze-linux-arm64 from the native QEMU builder), and ZE_BIN
+//     points at it directly, so there is no bare `ze` in that directory at all.
+//     A test doing subprocess(["ze", ...]) then resolves whatever unrelated `ze` is
 //     left in bin/ from some earlier build.
 //   - Driving the QEMU VM from a darwin host, one directory holds BOTH
 //     architectures (ze is darwin, ze-linux-arm64 is the VM's). The VM picked
@@ -329,7 +329,7 @@ func (r *Runner) Build(ctx context.Context) error {
 
 	r.display.buildStatus(true, nil)
 
-	// Build ze (with version ldflags matching Makefile convention)
+	// Build ze with the repository's version ldflags.
 	now := time.Now()
 	var tb textbuf.Buffer
 	ldflags := tb.Str("-X main.version=").Str(now.Format("06.01.02")).Str(" -X main.buildDate=").Str(now.UTC().Format("2006-01-02T15:04:05Z")).String()
@@ -386,8 +386,8 @@ func (r *Runner) verifyPrebuilt() error {
 	// Session scoping exists to stop one session's BUILD overwriting another's
 	// binary; reading a binary someone already built clobbers nothing. So when
 	// the session's own bin/ holds nothing, accept a pre-built set from the
-	// shared bin/ -- that is where `make ze-build` off-session and every cross-compile
-	// put it, and reporting it "missing" would break ZE_TEST_NO_BUILD for anyone
+	// shared bin/, where manual and cross-compiles place it. Reporting it
+	// "missing" would break ZE_TEST_NO_BUILD for anyone
 	// who did exactly what the flag asks.
 	//
 	// Both binaries move together, to ONE directory: .ci tests exec `ze` and
@@ -468,7 +468,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	// debug loop ai/rules/testing.md tells people to use.
 	r.concurrency = min(parallel, len(selected))
 
-	load := SnapshotHostLoad()
+	load := snapshotHostLoad()
 
 	pr := NewParallelRunner[*Record](r.colors)
 	pr.setDisplay(r.display)

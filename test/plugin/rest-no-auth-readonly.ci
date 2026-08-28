@@ -8,93 +8,11 @@ option=timeout:value=25s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=rest-readonly-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import urllib.error
-import urllib.request
-from ze_api import API
-
-REST_PORT = 18086
-BASE_URL = f'http://127.0.0.1:{REST_PORT}/api/v1'
-
-def wait_for_rest(api, url, timeout=10):
-    def _ok():
-        try:
-            urllib.request.urlopen(url, timeout=2).read()
-            return True
-        except (urllib.error.URLError, ConnectionRefusedError, OSError):
-            return False
-    return api.wait_until(_ok, attempts=max(1, int(timeout / 0.5)), delay=0.5)
-
-def post_json(url, payload):
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode(),
-        headers={'Content-Type': 'application/json'},
-    )
-    return urllib.request.urlopen(req, timeout=5)
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        if not wait_for_rest(api, f'{BASE_URL}/commands'):
-            print('FAIL: REST API did not respond', file=sys.stderr)
-            sys.exit(1)
-
-        resp = post_json(f'{BASE_URL}/execute', {'command': 'show version'})
-        body = json.loads(resp.read())
-        if body.get('status') != 'done':
-            print(f'FAIL: read command status={body.get("status")}', file=sys.stderr)
-            sys.exit(1)
-        print('OK: no-auth REST read command allowed', file=sys.stderr)
-
-        try:
-            post_json(f'{BASE_URL}/execute', {'command': 'request reload'}).read()
-            print('FAIL: no-auth REST write command succeeded', file=sys.stderr)
-            sys.exit(1)
-        except urllib.error.HTTPError as err:
-            if err.code != 403:
-                print(f'FAIL: write command status={err.code}, want 403', file=sys.stderr)
-                sys.exit(1)
-        print('OK: no-auth REST write command denied', file=sys.stderr)
-
-        try:
-            req = urllib.request.Request(f'{BASE_URL}/config/sessions', data=b'', method='POST')
-            urllib.request.urlopen(req, timeout=5).read()
-            print('FAIL: no-auth REST config session succeeded', file=sys.stderr)
-            sys.exit(1)
-        except urllib.error.HTTPError as err:
-            if err.code != 403:
-                print(f'FAIL: config session status={err.code}, want 403', file=sys.stderr)
-                sys.exit(1)
-        print('OK: no-auth REST config session denied', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rest-readonly-test {
-		run ./rest-readonly-test.run
+		run "ze-test fixture plugin/rest-no-auth-readonly"
 		encoder json
 	}
 }

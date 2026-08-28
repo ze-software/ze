@@ -43,7 +43,7 @@
 #
 # Gated option=needs-linux:caps=net-admin: peer-a programs real XFRM state, so this SKIPs
 # on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root in the QEMU
-# VM, where `fsuite ipsec` in scripts/evidence/qemu-all-tests.sh executes the suite.
+# VM, where `fsuite ipsec` in internal/le/qemu/alltests.go executes the suite.
 
 option=needs-linux:caps=net-admin
 # Serialize against every other real-XFRM ipsec test. `ip xfrm state` and
@@ -54,101 +54,6 @@ option=env:var=ze_test_ike_port:value=$PORT2
 option=timeout:value=120s
 option=env:var=ze_log_ike:value=info
 
-tmpfs=reload.py:mode=755:terminator=EOF_RELOAD
-#!/usr/bin/env python3
-"""Watch a traffic-selector edit travel from a config file to the kernel.
-
-Three facts are read from `ip xfrm`, in order: the tunnel installs a policy naming the
-WIDE prefix, the operator's edit lands (config file rewritten, SIGHUP sent), and the
-kernel then holds a policy naming the NARROW prefix with no policy naming the wide one.
-
-The ESP SPIs are read across the same three points. A restart is what applies the edit
-(RFC 7296 Section 2.9.2), so the replacement states must be a different pair: a kernel
-still holding the original SPIs would mean the tunnel never came back.
-"""
-import os
-import re
-import shutil
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-# The three halves of the negotiated selector. WIDE_LOCAL is what the peer starts with,
-# NARROW_LOCAL is what the operator edits it to, and REMOTE is unchanged by the edit.
-WIDE_LOCAL = "198.51.100.0/25"
-NARROW_LOCAL = "198.51.100.0/26"
-REMOTE = "198.51.100.128/25"
-
-
-def run(*cmd):
-    out = subprocess.run(cmd, capture_output=True, text=True)
-    if out.returncode != 0:
-        sys.exit(f"{' '.join(cmd)} failed: {out.stderr.strip()}")
-    return out.stdout
-
-
-def spis():
-    """Every ESP SPI the kernel currently holds a state for."""
-    return frozenset(re.findall(r"\bspi (0x[0-9a-fA-F]+)", run("ip", "xfrm", "state")))
-
-
-def policies(local):
-    """This tunnel's policy selectors that name `local`, one normalised string each.
-
-    The selector line carries the addresses, the protocol and the ports; the `dir` line
-    that follows says which direction it is. Matching is on a whole FIELD, so the wide
-    prefix and the narrow prefix inside it never match each other.
-    """
-    found = []
-    selector = None
-    for line in run("ip", "xfrm", "policy").splitlines():
-        fields = line.split()
-        if not fields:
-            continue
-        if fields[0] == "src":
-            selector = " ".join(fields) if (local in fields and REMOTE in fields) else None
-        elif selector is not None and fields[0] == "dir":
-            found.append(f"{selector} | {fields[1]}")
-            selector = None
-    return frozenset(found)
-
-
-if not wait_until(lambda: len(spis()) >= 2 and len(policies(WIDE_LOCAL)) >= 2,
-                  attempts=400, delay=0.25):
-    sys.exit(f"the tunnel never reached the kernel: states={sorted(spis())} "
-             f"policies={sorted(policies(WIDE_LOCAL))}")
-wide_spis, wide_policies = spis(), policies(WIDE_LOCAL)
-print("INSTALLED-WIDE:", " | ".join(sorted(wide_policies)))
-print("INSTALLED-SPIS:", " ".join(sorted(wide_spis)))
-
-# The operator's edit: the peer's traffic-selector block now names the /26, and nothing
-# else in the file changed. SIGHUP is the commit.
-if not wait_until(lambda: os.path.exists("daemon.pid"), attempts=200, delay=0.05):
-    sys.exit("daemon.pid never appeared, so there is no daemon to reload")
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-shutil.copy("config2.conf", "ze-bgp.conf")
-os.kill(pid, signal.SIGHUP)
-print("RELOADED: sent SIGHUP to pid", pid)
-
-# The edit reaches the kernel. The peer restarts, re-initiates, and the replacement Child
-# SA programs the narrowed scope. The wide policies must be gone: a policy that stays is
-# traffic the operator asked ze to stop protecting.
-if not wait_until(lambda: len(policies(NARROW_LOCAL)) >= 2 and not policies(WIDE_LOCAL),
-                  attempts=400, delay=0.25):
-    print("WIDE-SURVIVED: the reload did not reach the kernel")
-    print("  wide:  ", " | ".join(sorted(policies(WIDE_LOCAL))))
-    print("  narrow:", " | ".join(sorted(policies(NARROW_LOCAL))))
-    sys.exit(1)
-print("NARROWED:", " | ".join(sorted(policies(NARROW_LOCAL))))
-
-if spis() & wide_spis:
-    print("SPIS-SURVIVED: the original states outlived the restart:", " ".join(sorted(spis() & wide_spis)))
-    sys.exit(1)
-print("RESTARTED:", " ".join(sorted(spis())))
-EOF_RELOAD
 
 # peer-a's config AFTER the operator's edit. The ONLY difference from the peer-a block
 # below is the local prefix of traffic-selector 1: /25 became /26.
@@ -299,7 +204,7 @@ EOF_PEER_A
 
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b:name=peer-b
 cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
-cmd=foreground:seq=3:exec=python3 reload.py:timeout=110s
+cmd=foreground:seq=3:exec=ze-test fixture ipsec/peer-reload-applies-selectors:timeout=110s
 # signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
 # release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
 # them in the kernel for the rest of the suite, where ipsec-teardown-leaves-nothing.ci

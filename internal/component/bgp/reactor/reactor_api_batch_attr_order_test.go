@@ -20,7 +20,7 @@ import (
 // Attribute type-code ordering on the announce rails.
 //
 // An announce reaches the wire through one of two builders, and which one runs is
-// decided by Peer.ShouldQueue() (reactor_api_batch.go): a route injected while the
+// decided by Peer.shouldQueue() (reactor_api_batch.go): a route injected while the
 // destination peer is still draining its initial sync is queued and later drained
 // through buildRIBRouteUpdate (peer_rib_routes.go), while the same route injected
 // after establishment is built by buildBatchAnnounceUpdate. Nothing in the route
@@ -302,7 +302,7 @@ func TestAnnounceQueuedRail_AscendingTypeCodeOrder(t *testing.T) {
 
 // TestAnnounceRailsAgreeByteForByte is the invariant the intermittent failure was
 // really about: the encoding of a route must not depend on which builder ran, and
-// which builder runs is decided by Peer.ShouldQueue() -- by scheduling.
+// which builder runs is decided by Peer.shouldQueue() -- by scheduling.
 //
 // VALIDATES: buildBatchAnnounceUpdate and buildRIBRouteUpdate produce identical
 // path-attribute bytes for the same route.

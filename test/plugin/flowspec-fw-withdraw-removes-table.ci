@@ -68,111 +68,6 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E40010
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0026020000000F800F0C0001850801180A0200058151
 EOF_PEER
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Read the enforced state, then end the session and read the empty one."""
-import os
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-if not wait_until(
-    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-    attempts=400,
-    delay=0.05,
-):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    daemon_pid = int(f.read().strip())
-
-state = {"ruleset": ""}
-
-
-def ruleset():
-    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
-    state["ruleset"] = snap.stdout
-    return snap.stdout
-
-
-def flowspec_tables():
-    """Every kernel table whose name carries "flowspec", prefixed or not."""
-    return [
-        line.strip()
-        for line in ruleset().splitlines()
-        if line.strip().startswith("table ") and "flowspec" in line
-    ]
-
-
-def settled():
-    """The kept route is enforced and the withdrawn one is not.
-
-    Both facts are waited for together. The peer sends three UPDATEs back to
-    back, so a read that only asks for the kept route can land between the
-    second reconcile and the third and see the withdrawn route still installed.
-    Waiting for the pair makes the read race-free and still fails, by timeout,
-    when the withdraw never reaches the kernel.
-    """
-    text = ruleset()
-    return (
-        "table inet ze_flowspec" in text
-        and "10.1.0.0/24" in text
-        and "10.2.0.0/24" not in text
-    )
-
-
-def stop(message):
-    sys.stdout.write(state["ruleset"])
-    os.kill(daemon_pid, signal.SIGTERM)
-    sys.exit(message)
-
-
-# Phase 1: the announce and the withdraw both reach the kernel. The peer stays
-# up, so this state does not move under the reads below.
-if not wait_until(settled, attempts=300, delay=0.1):
-    stop("the kernel never reached one rule for the kept route and none for the withdrawn one")
-
-installed = state["ruleset"]
-
-copies = installed.count("10.1.0.0/24")
-if copies != 1:
-    stop("the kept route is installed %d times, want 1" % copies)
-
-# Phase 2: end the session. That withdraws the route ze still held, which is
-# the last one this peer gave it.
-#
-# The peer runs as `ze-test peer ...` (runner_exec.go: "ze-peer is now ze-test
-# peer"), so it is matched on its first argument rather than on a binary name.
-# The runner's own process carries "bgp" there and is never matched.
-peer_pids = []
-for entry in os.listdir("/proc"):
-    if not entry.isdigit():
-        continue
-    try:
-        with open("/proc/%s/cmdline" % entry, "rb") as handle:
-            argv = handle.read().decode("utf-8", "replace").split("\0")
-    except OSError:
-        continue
-    if len(argv) > 1 and argv[1] == "peer":
-        peer_pids.append(int(entry))
-
-if not peer_pids:
-    stop("no peer process to stop, so the last withdraw never happened")
-
-for peer_pid in peer_pids:
-    os.kill(peer_pid, signal.SIGTERM)
-
-gone = wait_until(lambda: flowspec_tables() == [], attempts=300, delay=0.1)
-
-sys.stdout.write(installed)
-sys.stdout.write(state["ruleset"])
-os.kill(daemon_pid, signal.SIGTERM)
-
-if not gone:
-    sys.exit("a FlowSpec table survives the last withdraw: " + repr(flowspec_tables()))
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -212,7 +107,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=55s
+cmd=foreground:seq=3:exec=ze-test fixture plugin/flowspec-fw-withdraw-removes-table:timeout=55s
 expect=exit:code=0
 # The kept route was in the kernel under the prefixed name before the session
 # ended. The driver prints that snapshot first.

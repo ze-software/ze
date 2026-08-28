@@ -19,81 +19,12 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=monitor-traceroute-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    # Convert an RPC-level failure (e.g. an unwired/unknown command, which makes
-    # _call_engine raise) into a status=error dict so the assertions below fire a
-    # loud runtime_fail instead of crashing the plugin and passing vacuously.
-    try:
-        resp = api._call_engine(
-            'ze-plugin-engine:dispatch-command', {'command': command})
-    except Exception as e:
-        return {'status': 'error', 'error': f'engine call raised: {e}'}
-    if resp is None:
-        return {'status': 'error', 'error': 'engine call returned None'}
-    return resp.get('result', {})
-
-def check_happy_path(resp, label):
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    if not isinstance(data, dict):
-        runtime_fail(f'{label}: expected dict, got {type(data).__name__}')
-    hops = data.get('hops')
-    if not isinstance(hops, list) or len(hops) == 0:
-        runtime_fail(f'{label}: expected non-empty hops array, got {hops!r}')
-    hop = hops[0]
-    for field in ('ttl', 'addr', 'rtt-ms'):
-        if field not in hop:
-            runtime_fail(f'{label}: missing field {field!r} in hop: {hop}')
-    if hop.get('ttl') != 1:
-        runtime_fail(f'{label}: expected first hop ttl=1, got {hop.get("ttl")!r}')
-    if hop.get('addr') != '127.0.0.1':
-        runtime_fail(f'{label}: expected first hop addr=127.0.0.1, got {hop.get("addr")!r}')
-    print(f'OK: {label} (privileged) hops={len(hops)}', file=sys.stderr)
-
-def run_probe(api, command, label):
-    resp = dispatch(api, command)
-    status = resp.get('status')
-    if status == 'done':
-        check_happy_path(resp, label)
-    elif status == 'error':
-        err = resp.get('error') or result_text_data(resp)
-        if 'CAP_NET_RAW' not in (err or ''):
-            runtime_fail(f'{label}: unexpected error (want CAP_NET_RAW): {err!r}')
-        print(f'OK: {label} wired; raw ICMP needs CAP_NET_RAW: {err}', file=sys.stderr)
-    else:
-        runtime_fail(f'{label}: unexpected status={status!r} resp={resp}')
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        run_probe(api, 'monitor traceroute 127.0.0.1 max-hops 1', 'monitor-traceroute')
-        run_probe(api, 'show probe-round 127.0.0.1 max-hops 1', 'probe-round')
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer exercises both traceroute command paths.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external monitor-traceroute-test {
-		run ./monitor-traceroute-test.run
+		run "ze-test fixture plugin/monitor-traceroute"
 		encoder json
 	}
 }

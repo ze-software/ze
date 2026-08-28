@@ -5,7 +5,7 @@ stage:
 ---
 **A summary whose forward Meta row names a successor MUST carry a
 `{superseded: ...}` marker on EVERY requirement line it declares.**
-`check_superseded` (`scripts/dev/rfc_requirements.py`) refuses the summary
+`check_superseded` (`internal/le/rfc/rfc.go`) refuses the summary
 otherwise. The row used to be prose nobody read. Seven summaries declare
 themselves obsoleted, six of them enrolled, and the gate treated all seven as
 current documents. A reader who opened one of their 230 requirement lines saw a

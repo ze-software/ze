@@ -20,7 +20,7 @@
 // injected seam. The proof IS the argv that reaches docker, so a test that
 // replaced docker with a function would be testing a different program; the
 // tests put a recording docker on PATH instead, and the Python original is
-// compared through the same recording (scripts/evidence/l2tp_parity_test.go).
+// compared through the same recording (internal/le/deployment/l2tp_test.go).
 package deployment
 
 import (
@@ -38,6 +38,14 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+const (
+	goBuildTagsArg         = "-tags"
+	dockerInteractiveArg   = "--interactive"
+	storageBlobDisabledEnv = "ZE_STORAGE_BLOB=false"
+	tunnelObjectName       = "tunnel"
+	reportValueUnspecified = "unspecified"
 )
 
 // LogTailLines is how many of a daemon's last output lines a failed run

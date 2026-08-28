@@ -14,62 +14,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=metrics-name-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def reached_handler(api, cmd):
-    """Return 'done' or 'no-registry' if cmd routed to handleShowMetricsQuery;
-    fail otherwise (a broken rename would not reach the handler)."""
-    r = dispatch(api, cmd)
-    status = r.get('status')
-    blob = json.dumps(r)
-    if status == 'done':
-        data = result_text_data(r)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-        if not isinstance(data, dict) or 'series' not in data or 'metric' not in data:
-            runtime_fail(f'metrics-name: {cmd!r} done but bad shape {data!r}')
-        return 'done'
-    if status == 'error' and 'metrics not available' in blob:
-        return 'no-registry'
-    runtime_fail(f'metrics-name: {cmd!r} did not reach handler: {blob}')
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # Both the named and no-name forms must resolve to the handler.
-        got = reached_handler(api, 'show metrics name go_goroutines')
-        reached_handler(api, 'show metrics name')
-        print(f'OK: show metrics name reaches handler ({got})', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external metrics-name-show-test {
-		run ./metrics-name-show-test.run
+		run "ze-test fixture plugin/metrics-name-show"
 		encoder json
 	}
 }

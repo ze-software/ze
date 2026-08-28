@@ -21,76 +21,13 @@ expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010201
 EOF_PEER
 
-# Python plugin script
-tmpfs=refresh.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""
-Plugin that waits for peer UP, then sends a route.
-Uses ze_api library for YANG RPC communication.
-"""
-
-import json
-import sys
-import time
-
-from ze_api import API
-
-
-def main() -> None:
-    api = API()
-
-    # Stage 1: Empty declaration
-    api.declare_done()
-
-    # Stage 2: Receive config
-    api.wait_for_config(timeout=10.0)
-
-    # Stage 3: No capabilities
-    api.capability_done()
-
-    # Stage 4: Receive registry
-    api.wait_for_registry(timeout=10.0)
-
-    # Subscribe to state events atomically with ready
-    api.subscribe(['state'])
-
-    # Stage 5: Ready (includes subscription)
-    api.ready()
-
-    # Wait for state=up event
-    start = time.time()
-    while time.time() - start < 5:
-        line = api.read_line(0.5)
-        if line is None:
-            continue
-
-        # Parse JSON event
-        try:
-            event = json.loads(line)
-        except (json.JSONDecodeError, TypeError):
-            continue
-
-        # Check for state=up (bgp.message.type = "state", bgp.state = "up")
-        bgp = event.get('bgp', {})
-        msg = bgp.get('message', {})
-        if msg.get('type') == 'state' and bgp.get('state') == 'up':
-            # Send route with all required attributes matching expected hex
-            api.send('peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
-            break
-
-    # Wait for shutdown
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# native plugin script
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run ./refresh.run
+		run "ze-test fixture plugin/refresh"
 		encoder json
 	}
 	internal bgp-rib {

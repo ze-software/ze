@@ -26,9 +26,6 @@ func init() {
 	// the shape cannot support BEFORE a publication starts (ai/rules/cli.md).
 	leroot.RegisterShape("weekly", command.ShapeMap)
 
-	// No parity.Claim here, and that absence is a fact rather than an
-	// oversight: `./le gates --json` declares 156 gates and none of them is
-	// this tool. scripts/zeledon is an operator tool the ze-weekly-update
-	// skill runs, not a gate any Make target reaches, so the census counts it
-	// under script-files and has no gate to move (internal/le/parity, Take).
+	// No parity.Claim: the weekly publishing action has no census gate or
+	// retained Make target.
 }

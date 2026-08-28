@@ -135,7 +135,7 @@ wiring-completeness ## Wiring Completeness
   where-wiring-is-checked-in-each-phase
   checking-wiring-at-completion-means-gates-failed
   mechanical-check-mandatory-before-claiming-done
-  the-changed-file-wiring-gate-inside-ze-verify
+  the-changed-file-wiring-gate-inside-native-verify
   what-the-wiring-gate-checks
   how-to-review-one-new-exported-symbol
   the-dead-symbol-grep

@@ -386,9 +386,9 @@ func TestPrefixCountInstalledRefusalByAnotherFamilyRestoresAWithdrawal(t *testin
 }
 
 // TestPrefixCountInstalledStopsGrowingAtTheMaximum bounds what one refused
-// message can make ze-build allocate. A Go map keeps its buckets after its entries
-// go, so a peer that could make ze-build insert a whole message before ze threw it
-// away would leave that memory behind on every try.
+// message can make ze allocate. A Go map keeps its buckets after its entries go,
+// so a peer that could make ze insert a whole message before throwing it away
+// would leave that memory behind on every try.
 //
 // The bound is not observable through checkPrefixLimits: the rollback empties the
 // set either way, and the NOTIFICATION carries the configured upper bound rather

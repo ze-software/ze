@@ -19,13 +19,10 @@ import (
 const area = "feature-tags"
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-feature-tags-check",
-		Why: "the four files derived from feature-gates.txt are current: .golangci.yml," +
-			" gokrazy/ze/config.json, docs/guide/quickstart.md and .github/workflows/codeql.yml." +
-			" A stale one leaves a gated package unlinted, unshipped, or unanalysed",
-		Answer: runCheckHere,
-	},
+	leaction.Action{Verb: "check", Why: "the four files derived from feature-gates.txt are current: .golangci.yml," +
+		" gokrazy/ze/config.json, docs/guide/quickstart.md and .github/workflows/codeql.yml." +
+		" A stale one leaves a gated package unlinted, unshipped, or unanalysed",
+		Answer: runCheckHere},
 	leaction.Action{
 		Verb:   "write",
 		Why:    "rewrite the four derived tag lists from feature-gates.txt",

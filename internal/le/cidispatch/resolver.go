@@ -46,12 +46,12 @@ type Surface struct {
 // Keys answers every registered command path, lowercased and sorted.
 func (s Surface) Keys() []string { return s.keys }
 
-// NewSurface builds the command surface from the linked registry plus the
+// newSurface builds the command surface from the linked registry plus the
 // plugin command declarations found under tree.
-func NewSurface(tree string) (Surface, error) {
-	loader, err := yangloader.DefaultLoader()
+func newSurface(tree string) (Surface, error) {
+	loader, err := commandLoader(tree)
 	if err != nil {
-		return Surface{}, fmt.Errorf("load YANG: %w", err)
+		return Surface{}, err
 	}
 	wireToPaths := yangloader.WireMethodToPaths(loader)
 	pathToArgDefs := yangloader.PathToArgDefs(loader)
@@ -66,8 +66,8 @@ func NewSurface(tree string) (Surface, error) {
 		dispatcher.RegisterWithOptions(path, nil, "", pluginserver.RegisterOptions{ArgDefs: defs})
 	}
 
-	for _, rpc := range pluginserver.AllBuiltinRPCs() {
-		for _, path := range wireToPaths[rpc.WireMethod] {
+	for _, paths := range wireToPaths {
+		for _, path := range paths {
 			register(path, pathToArgDefs[path])
 		}
 	}
@@ -118,6 +118,40 @@ func NewSurface(tree string) (Surface, error) {
 	return Surface{dispatcher: dispatcher, keys: keys}, nil
 }
 
+func commandLoader(tree string) (*yangloader.Loader, error) {
+	loader := yangloader.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		return nil, fmt.Errorf("load embedded YANG: %w", err)
+	}
+	root := filepath.Join(tree, "internal")
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == "testdata" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".yang") ||
+			entry.Name() == "ze-extensions.yang" || entry.Name() == "ze-types.yang" {
+			return nil
+		}
+		if err := loader.AddModuleFromFile(path); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("load command YANG from %s: %w", root, err)
+	}
+	if err := loader.Resolve(); err != nil {
+		return nil, fmt.Errorf("resolve command YANG: %w", err)
+	}
+	return loader, nil
+}
+
 // Resolves reports whether the dispatcher could route cmd.
 //
 // It asks the REAL dispatcher through already-exported API only: every command
@@ -129,21 +163,6 @@ func NewSurface(tree string) (Surface, error) {
 func (s Surface) Resolves(cmd string) bool {
 	_, err := s.dispatcher.Dispatch(nil, cmd)
 	return !errors.Is(err, pluginserver.ErrUnknownCommand)
-}
-
-// sendRewriteResolves models the ONE rewrite ze_api performs on the caller's
-// behalf: API.send() turns `peer <sel> <lifecycle-action>` into `request peer
-// <sel> <action>` before dispatching (test/scripts/ze_api.py, send and
-// _is_peer_action). Tests written against that helper legitimately spell the
-// peer form, so resolving the pre-rewrite string is what the gate must do --
-// otherwise it reports teardown-cmd.ci and teardown-msg.ci as dead when they
-// are correct.
-func (s Surface) sendRewriteResolves(emitter, cmd string) bool {
-	if emitter != "send" || !strings.HasPrefix(cmd, "peer ") {
-		return false
-	}
-	var tb textbuf.Buffer
-	return s.Resolves(tb.Str("request ").Str(cmd).String())
 }
 
 // prefixKnown reports whether prefix is the start of some registered command,
@@ -188,6 +207,9 @@ func pluginCommandDecls(tree string) (names, unreadable []string, err error) {
 		walkErr := filepath.WalkDir(filepath.Join(tree, root), func(path string, entry os.DirEntry, err error) error {
 			if err != nil {
 				return err
+			}
+			if entry.IsDir() && entry.Name() == "testdata" {
+				return filepath.SkipDir
 			}
 			if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 				return nil
@@ -273,6 +295,9 @@ func stringConstsByDir(tree string, fset *token.FileSet) (map[string]map[string]
 		err := filepath.WalkDir(filepath.Join(tree, root), func(path string, entry os.DirEntry, err error) error {
 			if err != nil {
 				return err
+			}
+			if entry.IsDir() && entry.Name() == "testdata" {
+				return filepath.SkipDir
 			}
 			if entry.IsDir() || !strings.HasSuffix(path, ".go") {
 				return nil

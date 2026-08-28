@@ -51,7 +51,7 @@ func markers(body string) string {
 	for _, source := range sources {
 		page.WriteString("<!-- BEGIN GENERATED: arch-")
 		page.WriteString(source.Name)
-		page.WriteString(" (scripts/dev/arch_map.py) -->\n")
+		page.WriteString(" (internal/le/archmap/archmap.go) -->\n")
 		page.WriteString(body)
 		page.WriteString("<!-- END GENERATED: arch-")
 		page.WriteString(source.Name)
@@ -152,7 +152,7 @@ func TestTheMarkerLinesSurviveTheRewriteWhole(t *testing.T) {
 		t.Fatalf("Render: %v", err)
 	}
 	for _, source := range sources {
-		begin := "<!-- BEGIN GENERATED: arch-" + source.Name + " (scripts/dev/arch_map.py) -->"
+		begin := "<!-- BEGIN GENERATED: arch-" + source.Name + " (internal/le/archmap/archmap.go) -->"
 		if !strings.Contains(rendered, begin) {
 			t.Errorf("the rewrite truncated the marker line for arch-%s:\n%s", source.Name, rendered)
 		}

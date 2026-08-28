@@ -34,7 +34,7 @@ func TestHandleIndex(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleIndex(w, req)
@@ -76,7 +76,7 @@ func TestHandlePeers(t *testing.T) {
 	d.state.Peers[0].Status = PeerUp
 	d.state.Peers[3].Status = PeerDown
 
-	req := httptest.NewRequest(http.MethodGet, "/peers", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peers", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handlePeers(w, req)
@@ -113,7 +113,7 @@ func TestHandlePeersStatusFilter(t *testing.T) {
 	d.state.Peers[0].Status = PeerUp
 	d.state.Peers[1].Status = PeerDown
 
-	req := httptest.NewRequest(http.MethodGet, "/peers?status=up", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peers?status=up", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handlePeers(w, req)
@@ -143,7 +143,7 @@ func TestHandlePeerDetail(t *testing.T) {
 	d.state.Peers[2].ChaosCount = 3
 	d.state.Active.Promote(2, PriorityHigh, time.Now())
 
-	req := httptest.NewRequest(http.MethodGet, "/peer/2", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peer/2", http.NoBody)
 	req.SetPathValue("id", "2")
 	w := httptest.NewRecorder()
 
@@ -172,7 +172,7 @@ func TestHandlePeerDetailNotFound(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/peer/999", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peer/999", http.NoBody)
 	req.SetPathValue("id", "999")
 	w := httptest.NewRecorder()
 
@@ -1011,7 +1011,7 @@ func TestWebDashboardClose(t *testing.T) {
 // to be embedded and non-empty.
 //
 // The set is read, not repeated. page_assets.go is derived from the markup
-// (scripts/codegen/web_assets.go), so a vendored file that is renamed moves the
+// (internal/le/webassets/webassets.go), so a vendored file that is renamed moves the
 // set, and a consumer copy the sync never wrote fails here.
 //
 // VALIDATES: every asset path the dashboard's head renders resolves in the

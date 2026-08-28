@@ -147,12 +147,12 @@ end.
 - [ ] `internal/plugins/meta/cmd/help.go` - `handleBgpCommandHelp`,
       `pipeFilterHelp`. Help reports a command's pipe FILTERS. It reports no
       aliases at all.
-- [ ] `scripts/inventory/commands.go` - the source of `make ze-command-list`. It
+- [ ] `internal/le/commandlist/commandlist.go` - the source of `./le command-list`. It
       is a `go run` program with a blank import of `internal/component/plugin/all`,
       so it sees the in-process registrations of the compiled tree and starts no
       external plugin.
 - [ ] `cmd/ze/help_command.go` - `collectCommands`, `extractPipes`. The source of
-      `ze help command --json`, which `make ze-wiki-commands-update` pipes into the
+      `ze help command --json`, which `./le wiki-catalog update` pipes into the
       wiki. It reads the YANG command tree and the local command registry in its
       own process, and reports a command's pipe FILTERS from the in-process
       registry. It reaches no running daemon.
@@ -470,7 +470,7 @@ CLI pipe alias.
 | 13 | Route metadata keys added/changed? | No | No route metadata is read or written |
 | 14 | Prometheus counters added/changed? | No | No counter is added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/features/plugins.md`, for the new command and the new declaration |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: run `python3 scripts/dev/spec_doc_anchors.py plan/spec-plugin-registers-pipe-operations.md` at implementation time. The declared owners of the files listed above are `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/api/ipc_protocol.md` and `docs/architecture/plugin/rib-storage-design.md`, and all four are named in Files to Modify |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: run `./le spec-citation anchors spec plan/spec-plugin-registers-pipe-operations.md` at implementation time. The declared owners of the files listed above are `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/api/ipc_protocol.md` and `docs/architecture/plugin/rib-storage-design.md`, and all four are named in Files to Modify |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/rpki.md` shows the RPKI command examples. Verify each against the handler after the change |
 
 ## Implementation Steps
@@ -521,9 +521,9 @@ CLI pipe alias.
      pure selection over them
 
 6. **Phase: Documentation** - the channel is discoverable by the next author
-   - Tests: `make ze-doc-verify`
+   - Tests: `./le doc-check verify`
    - Files: every row of the Documentation Update Checklist answered Yes
-   - Verify: `python3 scripts/dev/spec_doc_anchors.py` reports no unnamed owner
+   - Verify: `./le spec-citation anchors spec plan/<this-spec>.md` reports no unnamed owner
 
 ### Critical Review Checklist
 
@@ -552,8 +552,8 @@ CLI pipe alias.
 | Removal by owner exists and is called twice | `grep -rn "UnregisterPluginAliases" internal/` returns the rollback call site and the stop call site |
 | The Python plugin client can declare one | `grep -n "declare_pipe" test/scripts/ze_api.py` |
 | Every functional test exists | `ls test/plugin/plugin-pipe-alias*.ci test/plugin/rpki-pipe-summary.ci`. `test/ui/plugin-pipe-alias-completion.ci` is NOT among them, for the reason the Phase 4 Record gives | <!-- doc-links: ignore (fixture never written: no client in the tree drives the daemon-hosted TUI, and no daemon-side completion surface offers a pipe operator) -->
-| The RPKI conversion works | `make ze-functional-plugin-test` covering `rpki-pipe-summary.ci` |
-| The gate is green | `make ze-precommit-verify` |
+| The RPKI conversion works | `./le functional plugin` covering `rpki-pipe-summary.ci` |
+| The gate is green | `./le verify current mode full` |
 
 ### Security Review Checklist
 
@@ -775,8 +775,8 @@ it.
 | Completion in the interactive CLI a plain ssh client with a pty reaches | Running daemon. `bubbletea.Middleware` in `internal/component/ssh/ssh.go` hosts the model, built by `buildSessionModelFactory` in `cmd/ze/hub/session_factory.go`, and `pipeExtras` reads `AliasesForCommand` in that process | Yes, with no change |
 | Completion in `ze cli` with no command argument | The CLIENT process. `runInteractiveSession` (`internal/component/cli/client/main.go`) runs its own `tea.NewProgram`, and `executeOperationalCommand` (`internal/component/cli/model_mode.go`) resolves the chain there before it sends anything | No. CORRECTED in phase 4: the plan recorded this surface as needing no change, and it needs a channel that does not exist. The compiled-in aliases work there, which is what hid it |
 | `command help "<name>"` | Running daemon. The meta command plugin answers it from the dispatcher and the registries | Only after a change. The handler reports a command's pipe FILTERS and no aliases. That gap exists for in-tree aliases today, and this spec closes it for both |
-| `make ze-command-list` | Own process. `scripts/inventory/commands.go` is a `go run` program that blank-imports the compiled plugin set | No, and it cannot |
-| `ze help command --json`, and the wiki catalog `make ze-wiki-commands-update` builds from it | Own process. `collectCommands` reads the YANG command tree and the local command registry, and `extractPipes` reads the in-process pipe filter registry | No, and it cannot |
+| `./le command-list` | Own process. `internal/le/commandlist/commandlist.go` is a `go run` program that blank-imports the compiled plugin set | No, and it cannot |
+| `ze help command --json`, and the wiki catalog `./le wiki-catalog update` builds from it | Own process. `collectCommands` reads the YANG command tree and the local command registry, and `extractPipes` reads the in-process pipe filter registry | No, and it cannot |
 
 So the running daemon is the ONLY discovery surface for a plugin's alias, and
 `command help` is the only one that answers a question about a named command
@@ -817,9 +817,9 @@ surface is scoped out and recorded in Known Limitations.
 
 ## Known Limitations
 
-- Neither `make ze-command-list` nor `ze help command --json` can report a
+- Neither `./le command-list` nor `ze help command --json` can report a
   plugin's pipe alias. Both read the compiled tree in their own process and start
-  no plugin, so the published wiki catalog `make ze-wiki-commands-update` builds
+  no plugin, so the published wiki catalog `./le wiki-catalog update` builds
   lists a plugin's commands without its aliases. The running daemon is the only
   discovery surface, through completion and `command help`. Giving the catalog a
   daemon-backed source is a change to the inventory tooling and is recorded in the
@@ -875,7 +875,7 @@ untouched, and only the shape of the command that reports them changes.
 - [ ] AC-1..AC-15 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `pkg/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -895,7 +895,7 @@ untouched, and only the shape of the command that reports them changes.
 ### Closure
 
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-plugin-registers-pipe-operations.md` only (commit A preserves the spec in history)
@@ -911,7 +911,7 @@ spawned (`ai/rules/planning.md`, "Independence is a property of the CONTEXT").
 | Round | Scope |
 |-------|-------|
 | 1 | The whole diff: six phase commits, the audit row, every changed Go file, every `.ci`, every doc, the deferral shard and the two journal rows |
-| 2 | Only the prose round 1 corrected: `docs/architecture/api/commands.md`, this spec, the deferral shard. Re-run `make ze-doc-verify` |
+| 2 | Only the prose round 1 corrected: `docs/architecture/api/commands.md`, this spec, the deferral shard. Re-run `./le doc-check verify` |
 
 Round 2 found nothing further, and every round-1 finding below is either fixed
 or recorded with its owner. The loop ends there: a round whose findings are all
@@ -921,12 +921,12 @@ record defects is the last round.
 
 | Check | Result |
 |-------|--------|
-| `make ze-functional-plugin-test` | 686/686 PASS. The five tests this spec owns pass: `plugin-pipe-alias`, `plugin-pipe-alias-collision`, `plugin-pipe-alias-help`, `plugin-pipe-alias-namespaced`, `rpki-pipe-summary` |
-| `make ze-unit-pkg-test` over `command`, `plugin/server`, `bgp/plugins/rpki`, `plugins/meta/cmd` | green |
-| `make ze-repository-check` | all checks passed |
-| `make ze-doc-verify` | passed, before and after the round-1 doc correction |
-| `python3 scripts/dev/audit-test-relaxation.py 91203b8aa^` | clean, 13 test files examined |
-| `python3 scripts/dev/spec_doc_anchors.py` | exit 0 |
+| `./le functional plugin` | 686/686 PASS. The five tests this spec owns pass: `plugin-pipe-alias`, `plugin-pipe-alias-collision`, `plugin-pipe-alias-help`, `plugin-pipe-alias-namespaced`, `rpki-pipe-summary` |
+| `go test -race ./...` over `command`, `plugin/server`, `bgp/plugins/rpki`, `plugins/meta/cmd` | green |
+| `./le repository check` | all checks passed |
+| `./le doc-check verify` | passed, before and after the round-1 doc correction |
+| `./le commit audit base 91203b8aa^` | clean, 13 test files examined |
+| `./le spec-citation anchors spec plan/<this-spec>.md` | exit 0 |
 
 ### Mutations run by this review, not trusted from a Phase Record
 
@@ -954,7 +954,7 @@ alias against alias, OVERLAPPING paths for alias against filter.
 | N-2 | NOTE | Sixteen Status cells in the TDD Test Plan and the Functional Tests table were blank for tests that exist and pass | FIXED |
 | N-3 | NOTE | R-6's mitigation said the missing pipe-FILTER channel is "Recorded in the deferral shard". No row existed, and none was owed: nothing is deferred, the channel does not exist | FIXED, the claim is corrected |
 | N-4 | NOTE | Known Limitations and the Phase 6 Record both name the deferral shard as the home for a daemon-backed command catalog. The shard carried one row, for the column order | FIXED, the row is written |
-| N-5 | NOTE | `check_cross_package_wiring` reports `ColumnsForCommand` (`internal/component/command/column_order.go`) has no cross-package non-test caller, because this spec touched that file. It has two in-package callers, `render_records.go` and `completer.go`, so it is not dead. Pre-existing and outside `ze-precommit-verify`, the same class the Phase 1 Record recorded for `AliasesForCommand` | not fixed. Unexporting it is a separate edit with its own callers to check |
+| N-5 | NOTE | `check_cross_package_wiring` reports `ColumnsForCommand` (`internal/component/command/column_order.go`) has no cross-package non-test caller, because this spec touched that file. It has two in-package callers, `render_records.go` and `completer.go`, so it is not dead. Pre-existing and outside `./le verify current mode full`, the same class the Phase 1 Record recorded for `AliasesForCommand` | not fixed. Unexporting it is a separate edit with its own callers to check |
 | N-6 | NOTE | `audit-test-relaxation.py origin/main` reports one WEAKENED file, `internal/component/bgp/reactor/peer_initial_sync_test.go`, carrying RFC 2545 and RFC 4724 tags. `git log` charges it to `478dd21a5`, which is not in this spec's range. Scoped to `91203b8aa^` the audit is clean | not fixed. It belongs to the session that wrote `478dd21a5`, and reported to the owner |
 | N-7 | NOTE | `handleBgpCommandComplete` (`internal/plugins/meta/cmd/help.go`) still reads `Dispatcher().Commands()`, the builtin table alone, so `show command complete` offers no command any plugin declares. Phase 4 fixed exactly this for `handleBgpCommandHelp` beside it and left the completer | not fixed. Pre-existing, and the phase that owns discovery recorded the surface gap it did close |
 | N-8 | NOTE | `overviewCommand` always writes `"cache-servers":[]`, while `statusCommand` omits the key when no session exists. The two answers disagree about how "no cache server" is spelled | not fixed. `\| summary` drops the key either way, and no test pins either spelling |
@@ -1012,10 +1012,10 @@ proven to discriminate by disabling `registerPluginPipes`.
 
 | Statement | What happened |
 |-----------|---------------|
-| Phase 1 Verify: "The functional test fails because the validator refuses everything and the registration is a stub" | Not taken. A red `.ci` in `test/plugin/` reddens `make ze-precommit-verify` for every session in the checkout (`ai/rules/testing.md`, "Draft a Functional Test Before It Is Live"). Phase 1 wires the happy path far enough for `test/plugin/plugin-pipe-alias.ci` to pass, and the refusals stay with phase 2 |
+| Phase 1 Verify: "The functional test fails because the validator refuses everything and the registration is a stub" | Not taken. A red `.ci` in `test/plugin/` reddens `./le verify current mode full` for every session in the checkout (`ai/rules/testing.md`, "Draft a Functional Test Before It Is Live"). Phase 1 wires the happy path far enough for `test/plugin/plugin-pipe-alias.ci` to pass, and the refusals stay with phase 2 |
 | "`test/scripts/ze_api.py` gains the matching declaration method" | The declaration method was not enough. A Python plugin could declare a command and could not ANSWER one with data, so there was no payload for a selection to cut. `on_execute_command` was added beside `declare_pipe`. Recorded in `plan/journal/unwired-feature.md` |
 | Files to Modify names `pkg/plugin/sdk/sdk.go` | No change was needed. The SDK passes `Registration` straight to the wire, so the type alias is the whole SDK surface |
-| Discovery is phase 4 | `python3 scripts/dev/validate.py` reports that `AliasesForCommand` (`internal/component/command/alias.go`) has no cross-package non-test caller. It predates this spec and phase 1 only exposed it by touching the file. Phase 4 is the fix: `internal/plugins/meta/cmd/help.go` is the caller it is missing. The finding reds no gate, because `check_cross_package_wiring` is deliberately outside `ze-precommit-verify` (`Makefile`, `ze-repository-tree-check`) |
+| Discovery is phase 4 | `./le verify-lint rundocwiring/checks.go` reports that `AliasesForCommand` (`internal/component/command/alias.go`) has no cross-package non-test caller. It predates this spec and phase 1 only exposed it by touching the file. Phase 4 is the fix: `internal/plugins/meta/cmd/help.go` is the caller it is missing. The finding reds no gate, because `check_cross_package_wiring` is deliberately outside `./le verify current mode full` (`internal/le/` native action tables, `./le repository tree-check`) |
 
 ## Phase 2 Record: Validation and refusal (2026-08-21)
 
@@ -1041,7 +1041,7 @@ were missing.
 | Two plugins cannot collide on one exact path at all. `PluginRegistry.Register` refuses a command another plugin declared, and it runs before the alias registration, so the second plugin fails on the COMMAND and never reaches its alias | R-4's startup-order residual is unreachable, and so is the "second plugin" of the `plugin-pipe-alias-collision` row. The reachable exact-path collision is a plugin against an IN-TREE alias, which is what the functional test drives |
 | A refused plugin is torn down before it can act on the error the driver relays. The Python client recorded that it had started and never recorded the refusal | The operator's surface for a refusal is the daemon log, and the functional test reads it there |
 | AC-14 and its test `TestPipeAliasArgumentRefused` sit in no phase's test list | Nothing proves that an argument after a PLUGIN-registered alias is refused. `TestAliasTakesNoArgument` proves it for an in-tree one |
-| `scripts/dev/stress-repro.py` reads `bin/ze` and `bin/ze-test`, which a session-scoped build does not write | The load proof for the new functional test was six concurrent runs of the suite selector instead |
+| `internal/le/stressrepro/run.go` reads `bin/ze` and `bin/ze-test`, which a session-scoped build does not write | The load proof for the new functional test was six concurrent runs of the suite selector instead |
 
 ### What phase 2 deliberately does not do
 
@@ -1171,7 +1171,7 @@ answered Yes is done.
 | 10 | Test infrastructure changed | `docs/functional-tests.md` `#### Declaring a pipe alias` |
 | 12 | Internal architecture changed | Same as row 4 |
 | 15 | Registered plugin or command changed | `docs/plugin-overview.md` and `docs/features/plugins.md`, both `bgp-rpki` rows |
-| 16 | Source anchors on changed files | `python3 scripts/dev/spec_doc_anchors.py plan/spec-plugin-registers-pipe-operations.md` exits 0. The four declared owners were already named in Files to Modify |
+| 16 | Source anchors on changed files | `./le spec-citation anchors spec plan/spec-plugin-registers-pipe-operations.md` exits 0. The four declared owners were already named in Files to Modify |
 | 17 | Existing examples for this area | `docs/guide/rpki.md` command table gained the three commands it never listed, and the seven counter names were read from `summaryFieldNames` |
 
 ### What phase 6 measured that the plan did not say
@@ -1182,7 +1182,7 @@ answered Yes is done.
 | `docs/architecture/plugin/rib-storage-design.md` is the declared design document of `rpki.go` and carries no RPKI content at all | Nothing was added there. Filing the RPKI command surface under a RIB storage design would put it where no reader looks. The spec names the file, which is what `spec_doc_anchors.py` asks for, and the RPKI command surface is documented in `docs/guide/rpki.md` and `docs/architecture/api/commands.md` |
 | `docs/guide/cli.md` carries a second RPKI command table, a duplicate of the one in `docs/guide/rpki.md`. Neither listed the bare command, `show bgp rpki aspa` or `request bgp rpki validate` | Both tables now list the seven commands. The alias is described once, in `docs/guide/rpki.md`, and `docs/guide/cli.md` points at it |
 | `docs/architecture/cli/command-completion.md` says nothing about pipe operators at all. It covers command-path completion alone | Left as it is. The alias completion story is one cut, and it is made in `docs/architecture/api/commands.md` "Discovery" beside the surfaces it compares |
-| `plan/journal/gate-verdict-depends-on-the-machine.md:35` carries a dead path reference that `make ze-doc-links-check` reports. It belongs to another session and is not part of this spec | Not carried. Reported to the owner instead |
+| `plan/journal/gate-verdict-depends-on-the-machine.md:35` carries a dead path reference that `./le doc-check links` reports. It belongs to another session and is not part of this spec | Not carried. Reported to the owner instead |
 
 ### What phase 6 deliberately does not do
 

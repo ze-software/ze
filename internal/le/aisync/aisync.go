@@ -147,13 +147,13 @@ func (m Mirror) markdownIn(dir string) ([]string, error) {
 	return names, nil
 }
 
-// GenerateInto writes every mirror under dest, keeping the repository-relative
+// generateInto writes every mirror under dest, keeping the repository-relative
 // layout.
 //
 // dest is the checkout for a sync and a scratch tree for a check. Thus, both
 // answers come from ONE generator. A check cannot judge the tree against a
 // second implementation of the sync output.
-func (m Mirror) GenerateInto(dest string, skills, agents []string) error {
+func (m Mirror) generateInto(dest string, skills, agents []string) error {
 	for _, name := range skills {
 		body, err := m.source(skillSources, name)
 		if err != nil {
@@ -215,7 +215,7 @@ func (m Mirror) Sync() (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	if err := m.GenerateInto(m.Root, skills, agents); err != nil {
+	if err := m.generateInto(m.Root, skills, agents); err != nil {
 		return Report{}, err
 	}
 	return Report{Mode: modeSync, Skills: skills, Agents: agents}, nil
@@ -234,9 +234,8 @@ func (m Mirror) Preview() (Report, error) {
 // every path the two disagree about.
 //
 // It WRITES NOTHING into the checkout. The fresh copy goes to a scratch tree
-// that every exit path removes. A hook runs this check at every session start
-// (.claude/hooks/session-start.sh). A check that touches the judged tree is not
-// read-only.
+// that every exit path removes. The native hook runtime runs this check at
+// session start. A check that touches the judged tree is not read-only.
 func (m Mirror) Check() (Report, error) {
 	skills, agents, err := m.sources()
 	if err != nil {
@@ -249,7 +248,7 @@ func (m Mirror) Check() (Report, error) {
 	}
 	defer os.RemoveAll(scratch) //nolint:errcheck // a scratch tree this run owns
 
-	if err := m.GenerateInto(scratch, skills, agents); err != nil {
+	if err := m.generateInto(scratch, skills, agents); err != nil {
 		return Report{}, err
 	}
 

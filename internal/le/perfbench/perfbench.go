@@ -2,8 +2,7 @@
 // Detail: report.go -- what the nudge answers
 // Detail: actions.go -- the two things this area does
 //
-// Package perfbench ports scripts/dev/perf-suggest.py.
-// It reports BGP dataplane changes since the last performance run.
+// Package perfbench reports BGP dataplane changes since the last performance run.
 // The command is a nudge, not a gate, and always exits 0.
 // It does not block a build.
 //
@@ -29,13 +28,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// area is both this command's name and the prefix leaction removes from a gate name.
-// The gate is ze-perf-suggestion-report, so the perf-bench prefix does not match.
-// Its verb therefore keeps the complete name used by every Make target and document.
+// area names the command namespace.
 const area = "perf-bench"
 
-// recordVerb writes the marker. It is a verb rather than a gate because no Make
-// target names it: the perf recipes call it directly, before and after a run.
+// recordVerb writes the marker after a performance run.
 const recordVerb = "record"
 
 // HotPathPrefixes are the packages the Docker perf DUT actually measures (BGP
@@ -129,8 +125,8 @@ func (r *Runner) gitHere(args ...string) (string, bool) {
 	return string(out), err == nil
 }
 
-// IsHot reports whether a path is a perf-sensitive Go file.
-func IsHot(path string) bool {
+// isHot reports whether a path is a perf-sensitive Go file.
+func isHot(path string) bool {
 	if !strings.HasSuffix(path, ".go") {
 		return false
 	}
@@ -214,7 +210,7 @@ func (r *Runner) Baseline() (string, Origin) {
 	return "", OriginWorkingTree
 }
 
-// ChangedHot answers the hot-path Go files changed in the working tree, or
+// changedHot answers the hot-path Go files changed in the working tree, or
 // committed since base, sorted and without duplicates.
 //
 // Suggest also needs the resolved baseline for its message.
@@ -224,7 +220,7 @@ func (r *Runner) Baseline() (string, Origin) {
 // The script used an empty string for both a failed command and an empty result.
 // Missing git or an unreadable repository CAN therefore silence this advisory.
 // That silence hides the regression that the nudge exists to expose.
-func (r *Runner) ChangedHot(base string) ([]string, error) {
+func (r *Runner) changedHot(base string) ([]string, error) {
 	queries := [][]string{
 		{diffQuery, nameOnly},
 		{diffQuery, "--cached", nameOnly},
@@ -243,7 +239,7 @@ func (r *Runner) ChangedHot(base string) ([]string, error) {
 			return nil, errors.New(tb.Str("git ").Join(query, " ").Str(" could not read ").Str(r.Root).String())
 		}
 		for line := range strings.SplitSeq(out, "\n") {
-			if line != "" && IsHot(line) {
+			if line != "" && isHot(line) {
 				seen[line] = true
 			}
 		}
@@ -261,7 +257,7 @@ func (r *Runner) ChangedHot(base string) ([]string, error) {
 // advisory, and a caller that started blocking on it would be a different tool.
 func (r *Runner) Suggest() (Report, int) {
 	base, origin := r.Baseline()
-	hot, err := r.ChangedHot(base)
+	hot, err := r.changedHot(base)
 	if err != nil {
 		return Report{Baseline: base, Origin: origin, Error: err.Error()}, 0
 	}

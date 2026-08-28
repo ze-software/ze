@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: plan/spec-le-is-a-ze-binary.md -- step 10 guest-side evidence ports
-// Producer: scripts/evidence/netns_qemu.py.
+// Replaces the former netns Python guest driver.
 package qemu
 
 import (
@@ -177,7 +177,7 @@ func prepareNetnsState(ctx context.Context) error {
 		return fmt.Errorf("inspect /dev/ppp: %w", err)
 	}
 	if !inThrowawayGuest() {
-		return errors.New("refusing to chmod 0666 /dev/ppp: this is not the QEMU evidence VM, and the widened node would persist for every local user. Run: make ze-qemu-pppoe-test")
+		return errors.New("refusing to chmod 0666 /dev/ppp: this is not the QEMU evidence VM, and the widened node would persist for every local user. Run: ./le qemu pppoe-test")
 	}
 	result, err = guestRun(ctx, "", []string{"sh", "-c", "chmod 0666 /dev/ppp"}, nil)
 	if err != nil {
@@ -274,12 +274,12 @@ func runEveryNetnsSuite(ctx context.Context, binaries netnsBinaries, suites []st
 	return results
 }
 
-func runNetnsGuest(ctx context.Context, suites []string) (GuestLabReport, error) {
+func runNetnsGuest(ctx context.Context, suites []string) (guestLabReport, error) {
 	lab := "netns"
 	if len(suites) == 1 && suites[0] == netnsPPPoE {
 		lab = "pppoe-netns"
 	}
-	report := GuestLabReport{Lab: lab, Selected: append([]string(nil), suites...), Verdict: VerdictUnspecified}
+	report := guestLabReport{Lab: lab, Selected: append([]string(nil), suites...), Verdict: VerdictUnspecified}
 	// Selection and file existence are checked before setcap, chmod, nft, or any
 	// suite process. A bad closed name can therefore produce no partial effects.
 	if err := validateNetnsSelection(suites); err != nil {

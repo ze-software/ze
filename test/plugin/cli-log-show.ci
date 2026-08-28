@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes
-# 2. Python plugin dispatches "show log levels" via dispatch-command
+# 2. native fixture plugin dispatches "show log levels" via dispatch-command
 # 3. Verifies response contains levels map with subsystem entries
 # 4. Shuts down daemon
 #
@@ -18,75 +18,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for show log levels
-tmpfs=log-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: bgp log levels via dispatch-command."""
-
-import json
-import sys
-import time
-
-from ze_api import API, result_text_data
-
-
-def dispatch(api, command):
-    """Call dispatch-command and return result dict."""
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for BGP session to establish
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Test: bgp log levels should return subsystem levels
-    r = dispatch(api, 'show log levels')
-    status = r.get('status')
-    if status != 'done':
-        print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
-        sys.exit(1)
-
-    data_str = result_text_data(r, '{}')
-    try:
-        data = json.loads(data_str) if isinstance(data_str, str) else data_str
-    except (json.JSONDecodeError, TypeError):
-        data = {}
-
-    levels = data.get('levels', {})
-    if not isinstance(levels, dict):
-        print(f'FAIL: levels not a dict, data={data}', file=sys.stderr)
-        sys.exit(1)
-
-    count = data.get('count', 0)
-    if count < 1:
-        print(f'FAIL: expected at least 1 subsystem, got count={count}', file=sys.stderr)
-        sys.exit(1)
-
-    print(f'OK: log levels returned {count} subsystems', file=sys.stderr)
-
-    # Shutdown daemon
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# native fixture test plugin: exercises dispatch-command for show log levels
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external log-show-test {
-		run ./log-show-test.run
+		run "ze-test fixture plugin/cli-log-show"
 		encoder json
 	}
 }

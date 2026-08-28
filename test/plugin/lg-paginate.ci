@@ -12,67 +12,13 @@ option=timeout:value=25s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: injects 15 distinct prefixes to peer 10.0.1.1, then stays alive
-tmpfs=lg-paginate.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Inject 15 distinct prefixes to a single peer for pagination testing."""
-import sys
-from ze_api import API
-from ze_api import runtime_fail
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def inject(api, peer, prefix, nhop, aspath):
-    cmd = f'request bgp rib inject {peer} ipv4/unicast {prefix} origin igp nhop {nhop} aspath {aspath}'
-    result = dispatch(api, cmd)
-    if result.get('status') != 'done':
-        # runtime_fail emits the ZE-OBSERVER-FAIL sentinel the runner detects;
-        # a bare sys.exit(1) here is the banned silent-false-pass pattern.
-        runtime_fail(f'{cmd} -> {result}')
-        sys.exit(1)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    peer = '10.0.1.1'
-    for i in range(15):
-        inject(api, peer, f'10.20.{i}.0/24', peer, '2914,65100')
-
-    print('OK: 15 routes injected', file=sys.stderr)
-
-    # // the previous hand-rolled idle loop (a forever 10s-sleep
-    # cycle) never exited when the daemon shut down, so the orphaned
-    # observer held ze's inherited output pipe open and the runner's
-    # cmd.Wait() blocked forever (the pipe-hold hang documented in
-    # mk/test-functional.mk). wait_for_shutdown() is the ze_api primitive for
-    # exactly this: block until the engine goes away, then exit so the pipe
-    # closes and the runner can finish the test.
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer injects 15 distinct prefixes and stays attached until shutdown.
 
 # ze bgp configuration with LG enabled
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external lg-paginate {
-		run ./lg-paginate.run
+		run "ze-test fixture plugin/lg-paginate"
 		encoder json
 	}
 	internal bgp-rib {

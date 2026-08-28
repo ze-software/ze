@@ -13,8 +13,7 @@
 # from a fixed base (marks.go fwmarkBase = 0x50000), so any two tests using
 # `table 100` build the byte-identical `mark 0x50000 table 100` rule.
 #
-# The suite therefore assumes ONE daemon at a time. `make ze-netns-test` gives
-# each test its own netns and runs -p 1; scripts/evidence/qemu-all-tests.sh has
+# each test its own netns and runs -p 1; internal/le/qemu/alltests.go has
 # no netns, so it runs this suite -p 1. Do NOT raise the parallelism: concurrent
 # tests read each other's ze_pr rules, lose the ip-rule add with EEXIST, or find
 # ze_pr already deleted by a peer's shutdown. All six failed that way on
@@ -26,74 +25,6 @@
 # b54540f25 made it a filter chain (translate.go) and the table now loads in QEMU.
 
 option=needs-linux:caps=net-admin
-
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import os, signal, sys
-from ze_api import wait_for_daemon_ready, wait_for_output
-
-# // two WAITS replaced, no assertion touched. The hand-rolled
-# daemon-readiness for-loop became ze_api.wait_for_daemon_ready (same 200x0.05s
-# budget, ratchet-exempt internal sleep), and the blind post-apply settle became
-# ze_api.wait_for_output. Every expect= below is unchanged and still evaluated
-# against a real `nft list table` readback; the driver is shorter only because
-# the loops moved into the shared helpers.
-pid = wait_for_daemon_ready()
-
-
-def rule_lines(dump):
-    """The chain's RULE lines only -- structure and the base-chain decl removed.
-
-    Same filter as the re-emit loop below, and it must stay that way: gating the
-    wait on a line the re-emit loop would discard means waiting for something
-    the test never asserts on.
-    """
-    return [
-        s
-        for s in (line.strip() for line in dump.splitlines())
-        if s and s not in ("{", "}") and not s.startswith(("table ", "chain ", "type "))
-    ]
-
-
-# Was a blind 0.5s "settle". ze_pr is programmed by applyPolicies ->
-# firewall.ApplyAll() (internal/plugins/policyroute/register.go:200), which this
-# driver cannot observe from outside the daemon, so it waited on a clock sized
-# for a fast native host. This config declares two rules (bypass-dst accept,
-# block-quic drop) and both expectations below need both, so the wait gates on
-# BOTH rather than on the table merely existing.
-# attempts=100 (5s), not the 200 default: this driver already spent up to 10s on
-# the readiness wait and the whole test is capped at 10s, so a full-budget second
-# wait would be cut short by the harness and report an opaque test-level timeout
-# instead of the assertion message below.
-out = wait_for_output(
-    ["nft", "list", "table", "inet", "ze_pr"],
-    lambda dump: len(rule_lines(dump)) >= 2,
-    attempts=100,
-)
-sys.stdout.write(out)
-
-# Re-emit the RULE lines under a marker so the verdict expectations below can
-# assert on an actual rule and never on the base-chain declaration. That line,
-#     type filter hook prerouting priority mangle; policy accept;
-# ALWAYS contains the word "accept" for every possible policy config, because
-# translate.go hardcodes `Policy: firewall.PolicyAccept` on the ze_pr base chain
-# (internal/plugins/policyroute/translate.go:51, lowered at
-# internal/plugins/firewall/nft/lower_linux.go:148). A bare
-# `expect=stdout:contains=accept` therefore matched the chain policy and could
-# never fail -- it passed whether or not the accept rule was ever programmed.
-# The same trap made test/policy/policy-reload unpassable in the opposite direction.
-# Matching "RULE ...accept" is also independent of WHERE nft renders the verdict
-# on the line, which a line-anchored regex would not be.
-#
-# // this loop's inline filter is now the rule_lines() helper defined
-# above, called here instead of duplicated. Byte-identical predicate, same lines
-# emitted; the point is that the WAIT above and this RE-EMIT can no longer drift
-# apart, which would mean gating on a line the test never asserts on.
-for _s in rule_lines(out):
-    sys.stdout.write("RULE " + _s + "\n")
-
-os.kill(pid, signal.SIGTERM)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
@@ -135,7 +66,7 @@ option=env:var=ze.log.policy.routes:value=info
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+cmd=foreground:seq=2:exec=ze-test fixture policy/policy-boot-apply:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=policy routes applied
 expect=stdout:contains=table inet ze_pr

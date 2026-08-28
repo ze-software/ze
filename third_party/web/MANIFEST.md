@@ -1,7 +1,7 @@
 # Vendored Web Assets
 
 Third-party web assets used by Ze's web interfaces.
-Source of truth: files in this directory. Consumer copies are synced via `scripts/vendor/sync_web.go`.
+Source of truth: files in this directory. Consumer copies are synced by `internal/le/vendorweb`.
 
 ## Assets
 
@@ -25,37 +25,30 @@ htmx 2 is gone from this tree. Its core and its `sse.js` were deleted in the
 same change that served htmx 4 (`ai/rules/no-layering.md`): two versions in the
 tree is the state where a page silently loads the wrong one. A page loads the
 extension only when it streams, and the per-page sets are derived
-(`scripts/codegen/web_assets.go`).
+(`internal/le/webassets`).
 
 ## Vendor directories
 
 A directory under `third_party/web/` is the unit a consumer subscribes to. A
 consumer that holds one file of a directory MUST hold every file of that
-directory, and `scripts/vendor/check_web.go` reads the two trees that way. An
+directory, and `./le vendor-web check` reads the two trees that way. An
 asset for one consumer only gets its own directory, as `swagger-ui/` does. A
 directory that reaches no consumer is a problem too: it says the sync was never
 told to copy it.
 
-## Vendored tools (not served, not synced)
+## Upgrade scanner provenance
 
-A FILE at the top level of `third_party/web/` is a third-party tool, not an
-asset. `scripts/vendor/check_web.go` reads directories only, so a top-level file
-subscribes no consumer and drifts nowhere.
+Ze's native Go upgrade scanner in `internal/le/htmxupgrade/` transcribes the
+rules and behavior of htmx's 4.0.0-beta6 upgrade checker:
 
-| Tool | Version | Source | Vendored |
-|------|---------|--------|----------|
-| htmx-upgrade-check.py | 4.0.0-beta6 | https://unpkg.com/htmx.org@4.0.0-beta6/dist/scripts/upgrade-check.py | 2026-08-15 |
+- Upstream source: https://unpkg.com/htmx.org@4.0.0-beta6/dist/scripts/upgrade-check.py
+- Upstream source SHA-256: `9633ce96b7d16d8ef2c11a6da91a6f0adcea891bec663e005249aea39df7a58b`
+- Native rule-contract SHA-256: `889b22c7c227548392f8567e65a7472beb9243516a97c399a5e35c5b6402fcf8`
 
-`htmx-upgrade-check.py` is htmx's own htmx 2 to htmx 4 scanner, byte-identical
-to the file in the npm package. It builds a DOM, so it reports the inheritance
-carriers a text search cannot see. `make ze-htmx-upgrade-check` runs it through
-`scripts/dev/htmx_upgrade_check.py`, which derives the packages to scan from the
-Consumers table below: every `assets/` directory holding an htmx core file.
-
-It is vendored rather than fetched at gate time for the reason every other file
-here is: a gate that downloads its own judge cannot run offline, and cannot be
-reproduced from what git holds. The beta5 and beta6 scanners differ, so the
-version above is the version the cutover ships.
+The upstream source is provenance only. Ze neither vendors nor executes it.
+The compiled tables, DOM inheritance fixtures, parser boundaries, issue order,
+and exact report rows are checked by `internal/le/htmxupgrade/htmxupgrade_test.go`,
+so both upgrade actions remain offline and deterministic.
 
 ## Consumers
 
@@ -69,18 +62,18 @@ version above is the version the cutover ships.
 ## Sync
 
 ```bash
-make ze-vendor-web-sync            # copy from third_party/web/ to every consumer
-make generate                      # runs the same sync, with the other generators
-make ze-vendor-web-check           # gate: each consumer copy matches its source
-make ze-vendor-web-update-report   # ask the npm registry for newer versions
-make ze-htmx-upgrade-check         # gate: no unexplained htmx 4 upgrade issue
-make ze-htmx-upgrade-report        # print every htmx 4 upgrade issue
+./le vendor-web sync           # copy from third_party/web/ to every consumer
+./le repository generate       # runs the same sync, with the other generators
+./le vendor-web check          # gate: each consumer copy matches its source
+./le vendor-web update-report  # ask the npm registry for newer versions
+./le htmx-upgrade check        # gate: no unexplained htmx 4 upgrade issue
+./le htmx-upgrade report       # print every htmx 4 upgrade issue
 ```
 
 The consumer copies are generated files and they stay tracked in git. `//go:embed`
-reads them at compile time, and `make ze-repository-tracked-build-check` compiles what git
-holds, so a build with no `make` run must find them.
+reads them at compile time, and `./le repository-tracked-build check` compiles what git
+holds, so a build that runs no generator must find them.
 
-`make ze-vendor-web-check` is a stage of `make ze-precommit-verify` and a
-prerequisite of `ze-generated-files-check`. It exits non-zero when a copy
+`./le vendor-web check` is a stage of `./le verify current mode full` and a
+prerequisite of `./le repository generated-check`. It exits non-zero when a copy
 differs or is absent. It queries no registry, so it runs with no network.

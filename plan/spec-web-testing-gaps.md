@@ -28,8 +28,8 @@ Ranked by what each one would catch, not by cost.
 | # | Gap | Evidence | Verified by |
 |---|-----|----------|-------------|
 | G-1 | Nothing asserts that an out-of-band target EXISTS on the page meant to receive it. A swap aimed at an absent element does nothing, silently | `#cli-prompt`, `#cli-path-bar` and `#breadcrumb-bar` are swapped into nothing. Each appears only in fixtures that are themselves out-of-band responses, every one carrying `hx-swap-oob`, and in no page fixture. The layout renders `#breadcrumb` instead. Dead before the cutover and dead after | main thread, against the rendered fixtures |
-| G-2 | `attributePattern` in `scripts/codegen/web_assets.go` is `\s(hx-[a-z:-]+)=`, whose class holds no digit. Any htmx attribute carrying a digit is invisible to the per-page asset generator and to the check that reads its output | `hx-status:4xx` is the live case: htmx 4 supports it, and the generator cannot see it. The report that found it counted three copies of that regex | main thread read the producer; the three-copy count is the phase's |
-| G-3 | `make ze-repository-tracked-build-check` compiles what git holds with `go build`, which compiles no `_test.go`. A commit that breaks only tests leaves HEAD red and the check green | It bit twice in one day. Once when this session deleted a directory three test files still embedded, and once when a closure found four uncommitted files leaving HEAD red on a test-only failure | main thread, both incidents |
+| G-2 | `attributePattern` in `internal/le/webassets/webassets.go` is `\s(hx-[a-z:-]+)=`, whose class holds no digit. Any htmx attribute carrying a digit is invisible to the per-page asset generator and to the check that reads its output | `hx-status:4xx` is the live case: htmx 4 supports it, and the generator cannot see it. The report that found it counted three copies of that regex | main thread read the producer; the three-copy count is the phase's |
+| G-3 | `./le repository-tracked-build check` compiles what git holds with `go build`, which compiles no `_test.go`. A commit that breaks only tests leaves HEAD red and the check green | It bit twice in one day. Once when this session deleted a directory three test files still embedded, and once when a closure found four uncommitted files leaving HEAD red on a test-only failure | main thread, both incidents |
 | G-4 | The htmx upgrade gate keys on file plus category, so a NEW issue of an explained category in an already-explained file passes silently | 16 explained rows exist. The trade was deliberate: no defect-bearing category has an explained row anywhere, so a new event or extension issue still reds. It is still a hole for inheritance | reported by the closure that made the trade |
 | G-5 | Two chaos targets cannot discriminate a dead stream. `#stats` and `#events` carry a 500ms poll BESIDE their SSE swap, so they refresh whether or not the stream works. Any future test written against them is vacuous | Found while choosing a target for the streaming proof, which used the toast container instead because no poll fills it | reported by the SSE phase |
 | G-6 | The `.wb` runner cannot kill a server mid-test, so no automated browser proof exists for the branch that fires when a request gets no answer at all | Measured by hand on chaos, and covered by a unit test. No acceptance criterion rests on it | reported by the error-surface phase |
@@ -60,7 +60,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/codegen/web_assets.go` - `attributePattern` is the G-2 producer, and the generator's whole view of a template's htmx usage passes through it.
+- [ ] `internal/le/webassets/webassets.go` - `attributePattern` is the G-2 producer, and the generator's whole view of a template's htmx usage passes through it.
 - [ ] `internal/component/web/testdata/golden/` - the rendered fixtures that prove G-1: an out-of-band target that appears in no page fixture is swapped into nothing.
 
 **Behavior to preserve:**
@@ -73,7 +73,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `make generate` and `make ze-precommit-verify`, for the checks that would carry these invariants.
+- `./le repository generate` and `./le verify current mode full`, for the checks that would carry these invariants.
 
 ### Transformation Path
 1. To be filled by the implementing session.
@@ -84,7 +84,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 | Source scan ↔ rendered fixture | the two directions that already verify the asset sets | No |
 
 ### Integration Points
-- `scripts/codegen/web_assets.go` and the markup checks that read its output.
+- `internal/le/webassets/webassets.go` and the markup checks that read its output.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -121,7 +121,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-precommit-verify` | → | the check that closes G-1 | to be named by the implementing session |
+| `./le verify current mode full` | → | the check that closes G-1 | to be named by the implementing session |
 
 ## Acceptance Criteria
 
@@ -147,7 +147,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 | to be named | `test/web/*.wb` | an out-of-band swap reaches a target the page actually renders | |
 
 ## Files to Modify
-- `scripts/codegen/web_assets.go` - the G-2 pattern
+- `internal/le/webassets/webassets.go` - the G-2 pattern
 - the markup checks that read the fixtures - the G-1 invariant
 
 ## Files to Create
@@ -240,7 +240,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -258,7 +258,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

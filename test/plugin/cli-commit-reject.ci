@@ -10,180 +10,12 @@ option=tcp_connections:value=1
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=cli-reject-plugin.run:mode=755:terminator=EOF_PLUGIN
-#!/usr/bin/env python3
-import sys
-from ze_api import API
 
-
-def candidate_has_rejected_router_id(params):
-    for section in params.get('sections', []):
-        if section.get('root') != 'bgp':
-            continue
-        if '2.2.2.2' in section.get('data', ''):
-            return True
-    return False
-
-
-def main():
-    api = API()
-    api.declare_config('bgp')
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-
-    def verify(params):
-        if candidate_has_rejected_router_id(params):
-            print('OK: rejecting candidate router-id 2.2.2.2', file=sys.stderr)
-            return {'status': 'error', 'error': 'reject router-id 2.2.2.2'}
-        return {'status': 'ok'}
-
-    api.on_config_verify(verify)
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-    api.wait_for_shutdown(timeout=30.0)
-
-
-if __name__ == '__main__':
-    main()
-EOF_PLUGIN
-
-tmpfs=drive-cli-reject.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import fcntl
-import os
-import pty
-import select
-import signal
-import struct
-import subprocess
-import sys
-import termios
-import time
-
-from ze_api import wait_until
-
-PORT = '$PORT2'
-
-def run(cmd, **kwargs):
-    result = subprocess.run(cmd, **kwargs)
-    if result.returncode != 0:
-        stdout = result.stdout.decode(errors='replace') if result.stdout else ''
-        stderr = result.stderr.decode(errors='replace') if result.stderr else ''
-        print(f'FAIL: {cmd} exited {result.returncode}\n{stdout}\n{stderr}', file=sys.stderr)
-        sys.exit(1)
-    return result
-
-def wait_for_daemon(env):
-    # // replaced a hand-rolled daemon-readiness deadline loop with
-    # ze_api.wait_until (same 50x0.2s budget, ratchet-exempt internal sleep); the
-    # 0.2s poll delay here was pacing over `show version`, not race-hiding.
-    last = ['']
-    def ready():
-        result = subprocess.run(
-            ['ze', 'cli', '-c', 'show version'],
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        if result.returncode == 0:
-            return True
-        last[0] = (result.stdout + result.stderr).decode(errors='replace')
-        return False
-    if not wait_until(ready, attempts=50, delay=0.2):
-        print(f'FAIL: daemon did not become reachable: {last[0]}', file=sys.stderr)
-        sys.exit(1)
-
-def read_available(fd, deadline):
-    chunks = []
-    while time.time() < deadline:
-        ready, _, _ = select.select([fd], [], [], 0.1)
-        if not ready:
-            continue
-        try:
-            data = os.read(fd, 4096)
-        except OSError:
-            break
-        if not data:
-            break
-        chunks.append(data)
-    return b''.join(chunks).decode(errors='replace')
-
-def write_command(master, command, transcript):
-    try:
-        os.write(master, (command + '\r').encode())
-    except OSError as exc:
-        print(f'FAIL: config editor closed before command {command!r}: {exc}\n{transcript}', file=sys.stderr)
-        sys.exit(1)
-    return transcript + read_available(master, time.time() + 2.5)
-
-def drive_editor(env):
-    master, slave = pty.openpty()
-    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 30, 120, 0, 0))
-    proc = subprocess.Popen(
-        ['ze', 'config', 'edit', '-f', 'cli-commit-reject.conf'],
-        stdin=slave,
-        stdout=slave,
-        stderr=slave,
-        env=env,
-        close_fds=True,
-    )
-    os.close(slave)
-    transcript = read_available(master, time.time() + 1.5)
-    transcript = write_command(master, 'set bgp router-id 2.2.2.2', transcript)
-    transcript = write_command(master, 'commit', transcript)
-    transcript = write_command(master, 'errors', transcript)
-    transcript = write_command(master, 'discard all', transcript)
-    transcript = write_command(master, 'quit', transcript)
-
-    deadline = time.time() + 8
-    while proc.poll() is None and time.time() < deadline:
-        transcript += read_available(master, time.time() + 0.2)
-    if proc.poll() is None:
-        proc.send_signal(signal.SIGTERM)
-        proc.wait(timeout=2)
-        print(f'FAIL: config editor did not exit\n{transcript}', file=sys.stderr)
-        sys.exit(1)
-    if proc.returncode != 0:
-        print(f'FAIL: config editor exited {proc.returncode}\n{transcript}', file=sys.stderr)
-        sys.exit(1)
-    return transcript
-
-def main():
-    client_dir = os.path.abspath('client-db')
-    os.makedirs(client_dir, exist_ok=True)
-    env = os.environ.copy()
-    env['ZE_CONFIG_DIR'] = client_dir
-    env['ZE_SSH_PASSWORD'] = 'testpass'
-    env['NO_COLOR'] = '1'
-    env['TERM'] = 'xterm'
-    init_input = f'admin\ntestpass\n127.0.0.1\n{PORT}\n\n'.encode()
-    run(['ze', 'init'], input=init_input, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    wait_for_daemon(env)
-    transcript = drive_editor(env)
-    if 'commit failed:' not in transcript or 'and reloaded' in transcript:
-        pending = subprocess.run(
-            ['ze', 'config', 'validate', '--pending', '--json', 'cli-commit-reject.conf'],
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        pending_output = (pending.stdout + pending.stderr).decode(errors='replace')
-        print(f'FAIL: config editor did not report transactional commit failure\n{transcript}', file=sys.stderr)
-        print(f'PENDING VALIDATE ({pending.returncode}):\n{pending_output}', file=sys.stderr)
-        sys.exit(1)
-    run(['ze', 'cli', '-c', 'show version'], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print('OK: CLI commit rejected candidate and daemon stayed reachable', file=sys.stderr)
-
-if __name__ == '__main__':
-    main()
-EOF_PY
 
 tmpfs=cli-commit-reject.conf:terminator=EOF_CONF
 plugin {
     external cli-reject-plugin {
-        run ./cli-reject-plugin.run
+        run "ze-test fixture plugin/cli-commit-reject-plugin"
         encoder json
     }
 }
@@ -241,7 +73,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start cli-commit-reject.conf:timeout=30s
-cmd=foreground:seq=3:exec=./drive-cli-reject.py:timeout=30s
+cmd=foreground:seq=3:exec=ze-test fixture plugin/cli-commit-reject-driver $PORT2:timeout=30s
 expect=exit:code=0
 expect=file:path=meta/config/active:exists=true
 expect=file:path=meta/config/candidate:absent=true

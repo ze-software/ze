@@ -9,84 +9,14 @@ cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python plugin script with full 5-stage protocol
-tmpfs=registration.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Full 5-stage registration protocol test.
-
-Tests the explicit 5-stage API rather than the simple ready() convenience.
-Validates each stage completes successfully before proceeding.
-"""
-
-import json
-import sys
-import time
-from ze_api import API, runtime_fail
-
-def main() -> None:
-    api = API()
-
-    # Stage 1: Declaration
-    api.declare_rfc(4271)
-    api.declare_encoding('text')
-    api.declare_family('ipv4', 'unicast')
-    api.declare_command('show test-plugin registration')
-    api.declare_done()
-
-    # Stage 2: Receive config (discard for this test)
-    api.wait_for_config(timeout=5.0)
-
-    # Stage 3: No capabilities to declare
-    api.capability_done()
-
-    # Stage 4: Receive registry
-    api.wait_for_registry(timeout=5.0)
-
-    # Stage 5: Signal ready
-    api.ready()
-
-    # Stage 1 declared a command. Only the engine's own command list proves that
-    # declaration reached the registry, so assert the name is there. Without this
-    # the declaration is unobserved: the EOR below is emitted by sendInitialRoutes
-    # whether or not any command registered, so it cannot stand in as the proof.
-    api.wait_for_post_startup(timeout=5.0)
-    resp = api._call_engine('ze-plugin-engine:dispatch-command',
-                            {'command': 'system command list'})
-    result = (resp or {}).get('result', {})
-    if result.get('status') != 'done':
-        runtime_fail(f'system command list status={result.get("status")}')
-        return
-    data = result.get('data', {})
-    if isinstance(data, str):
-        data = json.loads(data)
-    names = [c.get('value', '') for c in data.get('commands', [])]
-    if 'show test-plugin registration' not in names:
-        runtime_fail('declared command missing from the engine command list')
-        return
-
-    # Normal operation - send EOR to verify registration worked.
-    # AnnounceEOR (internal/component/bgp/reactor/reactor_api_forward.go) skips a
-    # peer that has not reached Established and reports "no established peers to
-    # send to" when none matched. Unlike a route announce, an EOR is never queued
-    # ahead of the session: RFC 4724 Section 2 makes the marker the property of
-    # the producer that knows the initial dump is complete. So the session is the
-    # barrier this send needs, not the ack that follows it.
-    if not api.wait_peers_established(expected_peers=1):
-        raise RuntimeError('peer never reached established')
-    api.send('peer * update text nlri ipv4/unicast eor')
-    api.wait_for_ack(expected_count=1)
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# native plugin script with full 5-stage protocol
 
 # ze bgp configuration
 # Note: graceful-restart NOT enabled - we send EOR manually from plugin
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external test-plugin {
-        run ./registration.run
+        run "ze-test fixture plugin/registration"
         encoder json
     }
 }

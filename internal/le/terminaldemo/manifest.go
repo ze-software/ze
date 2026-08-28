@@ -183,7 +183,6 @@ func (e *Engine) validateDemo(demo *Demo) error {
 		{filepath.Join(e.root, "docs", demo.Page), "page"},
 		{filepath.Join(e.demoRoot, demo.Source), sourceLabel},
 		{filepath.Join(e.demoRoot, filepath.Dir(demo.Source), transcriptFilename), transcriptLabel},
-		{filepath.Join(e.demoRoot, demo.Validate), "validator"},
 	}
 	for _, check := range checks {
 		if regularFile(check.path) {
@@ -242,14 +241,10 @@ func assetNames(kind string) ([]string, error) {
 func (e *Engine) sourceDigest(demo Demo) (string, error) {
 	shared := []string{
 		filepath.Join(e.demoRoot, "common.tape"),
-		filepath.Join(e.demoRoot, "cards.sh"),
 		filepath.Join(e.demoRoot, "Dockerfile"),
-		filepath.Join(e.demoRoot, "container-entrypoint.sh"),
-		filepath.Join(e.demoRoot, "demo-lock.sh"),
-		filepath.Join(e.demoRoot, "validate-common.sh"),
-		filepath.Join(e.demoRoot, "pty-session.py"),
-		filepath.Join(e.demoRoot, "render.py"),
-		filepath.Join(e.demoRoot, "screen.py"),
+	}
+	for _, relative := range nativeRecorderSources {
+		shared = append(shared, filepath.Join(e.root, filepath.FromSlash(relative)))
 	}
 	files := append([]string(nil), shared...)
 	sourceDir := filepath.Join(e.demoRoot, filepath.Dir(demo.Source))
@@ -277,6 +272,24 @@ func (e *Engine) sourceDigest(demo Demo) (string, error) {
 	}
 	contract := renderContract(false, demo)
 	return e.digestPaths(contract, files)
+}
+
+var nativeRecorderSources = []string{
+	"cmd/ze-terminal-pty/main.go",
+	"demos/terminal/cmd/ze-demo/main.go",
+	"internal/le/terminaldemo/cards.json",
+	"internal/le/terminaldemo/entrypoint.go",
+	"internal/le/terminaldemo/lock.go",
+	"internal/le/terminaldemo/manifest.go",
+	"internal/le/terminaldemo/pty.go",
+	"internal/le/terminaldemo/render.go",
+	"internal/le/terminaldemo/runtime.go",
+	"internal/le/terminaldemo/scenarios.go",
+	"internal/le/terminaldemo/scenarios_network.go",
+	"internal/le/terminaldemo/scenarios_routing.go",
+	"internal/le/terminaldemo/screen.go",
+	"internal/le/terminaldemo/types.go",
+	"internal/le/terminaldemo/validate_runtime.go",
 }
 
 func (e *Engine) definitionDigest(demo Demo) (string, error) {
@@ -352,8 +365,8 @@ func hashFile(path string) (string, error) {
 	return hex.EncodeToString(digest.Sum(nil)), nil
 }
 
-func (e *Engine) loadArtifactManifest(manifest Manifest) (ArtifactManifest, error) {
-	var generated ArtifactManifest
+func (e *Engine) loadArtifactManifest(manifest Manifest) (artifactManifest, error) {
+	var generated artifactManifest
 	err := readJSON(e.artifactRoot, "manifest.json", &generated)
 	if err == nil {
 		if generated.Schema == manifestSchema && generated.Demos != nil {
@@ -361,12 +374,12 @@ func (e *Engine) loadArtifactManifest(manifest Manifest) (ArtifactManifest, erro
 		}
 	}
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return ArtifactManifest{}, err
+		return artifactManifest{}, err
 	}
-	return ArtifactManifest{Schema: manifestSchema, Renderer: manifest.Renderer, Demos: map[string]ArtifactEntry{}}, nil
+	return artifactManifest{Schema: manifestSchema, Renderer: manifest.Renderer, Demos: map[string]ArtifactEntry{}}, nil
 }
 
-func (e *Engine) writeArtifactManifest(generated ArtifactManifest) error {
+func (e *Engine) writeArtifactManifest(generated artifactManifest) error {
 	if err := os.MkdirAll(e.artifactRoot, 0o755); err != nil { // #nosec G301 -- Public website artifacts must be traversable by the web server.
 		return err
 	}
@@ -378,7 +391,7 @@ func (e *Engine) writeArtifactManifest(generated ArtifactManifest) error {
 	return os.WriteFile(e.artifactManifestPath, data, 0o644) // #nosec G306 -- The manifest is a public website artifact, not private data.
 }
 
-func artifactJSONValue(generated ArtifactManifest) map[string]any {
+func artifactJSONValue(generated artifactManifest) map[string]any {
 	demos := make(map[string]any, len(generated.Demos))
 	for demoID, entry := range generated.Demos {
 		assets := make(map[string]any, len(entry.Assets))
@@ -410,7 +423,7 @@ func artifactJSONValue(generated ArtifactManifest) map[string]any {
 }
 
 func (e *Engine) verifyAssets(manifest Manifest, indexed map[string]Demo, selected []string, release string, definitionOnly bool) error {
-	var generated ArtifactManifest
+	var generated artifactManifest
 	if err := readJSON(e.artifactRoot, "manifest.json", &generated); err != nil {
 		return err
 	}

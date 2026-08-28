@@ -1,7 +1,7 @@
 # gr-marker-expired - verify expired GR marker produces cold start (R=0)
 #
 # Flow:
-# 1. Shell script creates an expired GR marker (timestamp in the past)
+# 1. Compiled fixture creates an expired GR marker (timestamp in the past)
 # 2. Ze starts with GR capability (restart-time=120) and filesystem storage
 # 3. Ze reads marker, finds it expired, discards it (no RestartUntil set)
 # 4. Ze connects to ze-peer, session establishes with R=0 (cold start)
@@ -9,15 +9,6 @@
 # VALIDATES: AC-4 -- startup with expired marker produces R=0, marker removed.
 # PREVENTS: Stale marker causing R=1 after restart window expired.
 
-# Shell script to create expired marker before ze starts
-tmpfs=create-expired-marker.sh:mode=755:terminator=EOF_MARKER
-#!/bin/sh
-set -e
-mkdir -p meta/bgp
-# Past timestamp (September 9, 2001): 1000000000 = 0x000000003B9ACA00
-# 8-byte big-endian int64 UNIX seconds (octal: \x not portable in /bin/sh)
-printf '\000\000\000\000\073\232\312\000' > meta/bgp/gr-marker
-EOF_MARKER
 
 # Use filesystem storage so the on-disk marker file is actually read by ze.
 # With default blob storage, ze looks inside database.zefs (binary-relative),
@@ -30,6 +21,9 @@ option=env:var=ze.storage.blob:value=false
 
 # Enable GR subsystem logging to confirm marker is NOT detected as valid
 option=env:var=ze.log.bgp.gr:value=info
+tmpfs=.gr-marker-workdir:terminator=EOF_WORKDIR
+expired
+EOF_WORKDIR
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -111,9 +105,9 @@ bgp {
 EOF_CONF
 
 # Process orchestration:
-# 1. Create expired marker file (foreground, completes instantly)
+# 1. Create expired marker file through the compiled fixture
 # 2. Start ze-peer (background, waits for connection)
 # 3. Start ze with expired marker (foreground, discards marker on startup)
-cmd=foreground:seq=1:exec=./create-expired-marker.sh
+cmd=foreground:seq=1:exec=ze-test fixture plugin/gr-marker-expired-create
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s

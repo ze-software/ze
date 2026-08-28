@@ -12,40 +12,13 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["1.2.0.0/25"],"next-hop":"101.1.101.1"}]}
 EOF_PEER
 
-# Python plugin script
-tmpfs=announce.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-
-def main() -> None:
-    ready()
-
-    messages = [
-        'peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24',
-        'peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.2.0.0/25',
-    ]
-
-    for message in messages:
-        send(message)
-
-    # Wait for ACKs (may be disabled in config)
-    wait_for_ack(expected_count=2)
-
-    # Wait for shutdown signal
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native plugin route driver.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external add-remove {
-		run ./announce.run
+		run "ze-test fixture plugin/plugin-announce"
 		encoder json
 	}
 }

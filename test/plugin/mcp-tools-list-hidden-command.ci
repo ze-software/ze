@@ -21,37 +21,8 @@
 # registers nothing. Without it a daemon that starts no plugin passes the reject
 # and proves nothing.
 
-# Python test plugin: registers one visible and one hidden command, then holds
-# the process open. A plugin that exits triggers UnregisterAll, which removes
-# both commands before the MCP client can read tools/list.
-tmpfs=mcpgate-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Register one visible and one hidden command, then wait for shutdown."""
-import sys
-from ze_api import API
-
-def main():
-    api = API()
-
-    # declare_command sends the name alone, so the command list is built here to
-    # carry the hidden flag that CommandDecl defines (pkg/plugin/rpc/types.go).
-    api._commands = [
-        {'name': 'show mcpgate visible',
-         'description': 'visible probe command'},
-        {'name': 'show mcpgate concealed',
-         'description': 'concealed probe command', 'hidden': True},
-    ]
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    print('OK: declared one visible and one hidden command', file=sys.stderr)
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native fixture registers one visible and one hidden command and remains
+# attached until daemon shutdown.
 
 # wait-tool polls tools/list until the tool exists, so the test waits for the
 # plugin registration instead of a fixed duration. The tool name comes from the
@@ -64,7 +35,7 @@ EOF_MCP
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external mcpgate-test {
-		run ./mcpgate-test.run
+		run "ze-test fixture plugin/mcp-tools-list-hidden-command"
 		encoder json
 	}
 }

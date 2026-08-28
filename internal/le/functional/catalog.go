@@ -2,8 +2,8 @@
 // Overview: suites.go -- the table this renders
 //
 // catalog.go prevents a port from hiding data from two external guards.
-// The rerun-target guard reads scripts/status/verify_run_test.go.
-// The .ci evidence tier reads scripts/dev/rfc_requirements.py.
+// The rerun-target guard reads internal/le/verify/verify_test.go.
+// The .ci evidence tier reads internal/le/rfc/actions.go.
 // Both previously read `all_suites="..."` from a Makefile recipe.
 // A recipe that delegates to a program provides no suite names.
 // Without this catalog, both guards CAN pass over an empty population.
@@ -21,13 +21,20 @@ import "slices"
 type SuiteRow struct {
 	Name           string   `json:"name"`
 	Gating         bool     `json:"gating"`
-	Target         string   `json:"target"`
+	Action         string   `json:"action"`
 	Rerun          string   `json:"rerun"`
 	Budget         string   `json:"budget"`
 	BudgetVariable string   `json:"budget-variable"`
 	Command        []string `json:"command"`
 	Why            string   `json:"why"`
 }
+
+// GatingNames answers the authoritative gating run list in declaration order.
+//
+// The copy makes the exported answer read-only: RFC evidence classification and
+// other consumers can inspect the catalogue without receiving the mutable slice
+// the runner owns.
+func GatingNames() []string { return slices.Clone(Gating) }
 
 // Catalog answers every suite, in declaration order.
 func Catalog() []SuiteRow {
@@ -36,7 +43,7 @@ func Catalog() []SuiteRow {
 		rows = append(rows, SuiteRow{
 			Name:           suite.Name,
 			Gating:         slices.Contains(Gating, suite.Name),
-			Target:         suite.Target(),
+			Action:         suite.Name,
 			Rerun:          suite.Rerun(),
 			Budget:         suite.Budget(),
 			BudgetVariable: suite.BudgetVar(),

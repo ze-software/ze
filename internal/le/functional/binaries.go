@@ -34,9 +34,11 @@ package functional
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -88,8 +90,8 @@ type BinarySet struct {
 	Canonical bool
 }
 
-// ZeTestPath is the harness binary a suite is run through.
-func (b BinarySet) ZeTestPath() string { return filepath.Join(b.Dir, ZeTest) }
+// zeTestPath is the harness binary a suite is run through.
+func (b BinarySet) zeTestPath() string { return filepath.Join(b.Dir, ZeTest) }
 
 // Environment is the Go environment plus what freezes the runner against this
 // set. A canonical run adds nothing.
@@ -104,65 +106,78 @@ func (b BinarySet) Environment(tc gotoolchain.Toolchain) []string {
 	base = append(base, "ZE_TEST_NO_BUILD=1",
 		tb.Str("ZE_BIN=").Str(filepath.Join(b.Dir, "ze")).String())
 	tb.Reset()
-	return append(base, tb.Str("ZE_TEST_BIN=").Str(b.ZeTestPath()).String())
+	return append(base, tb.Str("ZE_TEST_BIN=").Str(b.zeTestPath()).String())
 }
 
-// ScratchDir answers this session's own directory, or tmp off-session.
+// scratchDir answers this session's own directory, or tmp when ZE_SCRATCH_DIR
+// explicitly names the off-session path.
 //
-// LOOKED UP, never recomputed. scripts/dev/session-scratch.sh is the one shell
-// implementation of the rule, shared with the hooks, and make and Go each
-// implement it for their own callers (mk/helper-session.mk,
-// internal/test/sessionpath). Asking it beats writing a fourth copy, and it
-// prints <session>/scratch, whose parent is the directory wanted here.
-//
-// ZE_SCRATCH_DIR in the environment wins, so a make recipe that already
-// resolved it hands the answer over rather than paying for it twice.
-func ScratchDir(root string) string {
-	if named := env.Get("ze.scratch.dir"); named != "" {
-		return filepath.Join(root, named)
+// The native resolver looks up an existing dated directory before naming a new
+// one. ZE_SCRATCH_DIR wins when a make recipe already resolved it. A malformed
+// named path or an identity resolution failure is returned rather than silently
+// routing the run to checkout-wide tmp.
+func scratchDir(root string) (string, error) {
+	if named := strings.TrimSpace(env.Get("ze.scratch.dir")); named != "" {
+		cleaned := filepath.Clean(named)
+		if filepath.IsAbs(cleaned) || cleaned == "." || cleaned == ".." ||
+			strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("functional: unsafe ZE_SCRATCH_DIR %q", named)
+		}
+		return filepath.Join(root, cleaned), nil
 	}
 	printed, err := sessionScratch(root)
-	if err != nil || printed == "" {
-		return filepath.Join(root, "tmp")
+	if err != nil {
+		return "", err
 	}
-	return filepath.Dir(filepath.Join(root, printed))
+	if printed == "" {
+		return "", errors.New("functional: session scratch resolver returned an empty path")
+	}
+	return filepath.Dir(filepath.Join(root, printed)), nil
 }
 
 // canonicalBinDir is where the session's own binaries live: <session>/bin, or
 // bin off-session.
-func canonicalBinDir(root string) string {
-	if env.Get("ze.session.id") != "" {
-		return filepath.Join(ScratchDir(root), "bin")
+func canonicalBinDir(root string) (string, error) {
+	if env.Get("ze.session.id") == "" && os.Getenv("CLAUDE_CODE_SESSION_ID") == "" {
+		return filepath.Join(root, "bin"), nil
 	}
-	return filepath.Join(root, "bin")
+	scratch, err := scratchDir(root)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(scratch, "bin"), nil
 }
 
-// CoverRoot answers the absolute coverage root, or the empty string when
+// coverRoot answers the absolute coverage root, or the empty string when
 // ZE_COVER is off.
 //
 // A .ci with tmpfs= runs its process from the per-test directory.
 // Thus, a relative GOCOVERDIR resolves against that directory.
 // The emit then fails and prints "coverage meta-data emit failed" on the child's stderr.
 // That result loses coverage data and changes stderr that a .ci can assert on.
-func CoverRoot(root string) string {
+func coverRoot(root string) (string, error) {
 	if !covering() {
-		return ""
+		return "", nil
 	}
-	return filepath.Join(ScratchDir(root), "scratch", "covdata")
+	scratch, err := scratchDir(root)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(scratch, "scratch", "covdata"), nil
 }
 
 // covering reports whether this run records coverage.
 func covering() bool { return env.Get("ze.cover") != "" }
 
-// BuildCommands answers the builds one isolated set needs, in order.
+// buildCommands answers the builds one isolated set needs, in order.
 //
 // The DUT build mirrors runner.TestBuildTags (internal/test/runner/runner.go).
 // It includes the zetest plugins, full command surface, and default feature gates.
 // It omits version ldflags so `ze show version` prints "ze dev"
-// (test/parse/cli-version-show.ci). The ze-stripped tags match the Makefile rule.
-// The chaos dashboard is a second cmd/ze build with its own tags.
-// It sits beside the ze binary where cmd_web.go expects it.
-func BuildCommands(tc gotoolchain.Toolchain, binaries string, chaos bool) [][]string {
+// (test/parse/cli-version-show.ci). The stripped and chaos builds use the native
+// tag sets declared here. The chaos dashboard sits beside the ze binary where
+// cmd_web.go expects it.
+func buildCommands(tc gotoolchain.Toolchain, binaries string, chaos bool) [][]string {
 	cover := []string{}
 	if covering() {
 		cover = []string{"-cover"}
@@ -207,21 +222,24 @@ func tagString(tc gotoolchain.Toolchain, parts ...string) string {
 	return tb.String()
 }
 
-// BinaryRoot answers the throwaway root this invocation builds into, and
+// binaryRoot answers the throwaway root this invocation builds into, and
 // whether to remove it.
 //
 // An explicit ZE_SUFFIX gives the run a stable name and keeps its directory.
 // Otherwise, the name contains the PID and run label.
 // This prevents concurrent invocations and suites on one command line from deleting each other's binaries.
-func BinaryRoot(root, label string) (dir string, remove bool) {
-	scratch := ScratchDir(root)
+func binaryRoot(root, label string) (dir string, remove bool, err error) {
+	scratch, err := scratchDir(root)
+	if err != nil {
+		return "", false, err
+	}
 	if suffix := env.Get("ze.suffix"); suffix != "" {
 		var tb textbuf.Buffer
-		return filepath.Join(scratch, tb.Str("testbin-").Str(suffix).String()), false
+		return filepath.Join(scratch, tb.Str("testbin-").Str(suffix).String()), false, nil
 	}
 	var tb textbuf.Buffer
 	name := tb.Str("testbin-pid-").Str(strconv.Itoa(os.Getpid())).Byte('-').Str(label).String()
-	return filepath.Join(scratch, name), true
+	return filepath.Join(scratch, name), true, nil
 }
 
 // ErrBuildFailed says one of the builds an isolated set needs did not succeed.
@@ -235,10 +253,17 @@ var ErrBuildFailed = errors.New("functional: the isolated test binaries could no
 // A set therefore survives a missed cleanup but leaves with its session.
 func Prepare(tc gotoolchain.Toolchain, label string, chaos bool) (BinarySet, error) {
 	if env.Get("ze.test.canonical") != "" {
-		return BinarySet{Dir: canonicalBinDir(tc.Root), Canonical: true}, nil
+		dir, err := canonicalBinDir(tc.Root)
+		if err != nil {
+			return BinarySet{}, err
+		}
+		return BinarySet{Dir: dir, Canonical: true}, nil
 	}
 
-	root, remove := BinaryRoot(tc.Root, label)
+	root, remove, err := binaryRoot(tc.Root, label)
+	if err != nil {
+		return BinarySet{}, err
+	}
 	binaries := filepath.Join(root, "bin")
 	if err := os.MkdirAll(binaries, 0o750); err != nil {
 		return BinarySet{}, err
@@ -249,7 +274,7 @@ func Prepare(tc gotoolchain.Toolchain, label string, chaos bool) (BinarySet, err
 		Str("/ (ze, ze-test, ze-stripped)...").String())
 
 	environ := tc.Environment(gotoolchain.EnvOptions{})
-	for _, argv := range BuildCommands(tc, binaries, chaos) {
+	for _, argv := range buildCommands(tc, binaries, chaos) {
 		if gaterun.Stream(argv, tc.Root, environ) != 0 {
 			if remove {
 				removeTree(root)

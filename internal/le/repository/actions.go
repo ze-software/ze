@@ -20,16 +20,14 @@ const area = "repository"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-repository-check",
-		Why:    "all five repository checks over your own tree: source anchors, cross-package wiring, CLI handler coverage and spec AC completeness",
-		Answer: runCheck,
-	},
-	leaction.Action{
-		Gate:   "ze-repository-tree-check",
-		Why:    "the three TREE-WIDE checks alone, which is what ze-precommit-verify runs: an EMPTY changed set is what selects them, because the two changed-file checks would otherwise judge another session's half-written files",
-		Answer: runTreeCheck,
-	},
+	leaction.Action{Verb: "check", Why: "all five repository checks over your own tree: source anchors, cross-package wiring, CLI handler coverage and spec AC completeness",
+		Answer: runCheck},
+	leaction.Action{Verb: "tree-check", Why: "the three tree-wide checks without the two changed-file checks",
+		Answer: runTreeCheck},
+	leaction.Action{Verb: "generate", Why: "refresh every deterministic repository artifact from its canonical Go source",
+		Writes: true, Answer: runGenerate},
+	leaction.Action{Verb: "generated-check", Why: "verify every deterministic repository artifact without writing",
+		Answer: runGeneratedCheck},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line

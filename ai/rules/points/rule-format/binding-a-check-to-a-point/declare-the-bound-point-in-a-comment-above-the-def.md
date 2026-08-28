@@ -3,4 +3,4 @@ kind: note
 level:
 stage:
 ---
-A hook check declares the point it enforces with one comment directly above its `def`. Only a blank line or another comment can sit between the comment and the `def`.
+A native hook check declares the point it enforces with a `// ze point:` line in the Go function's doc comment. The function MUST be a top-level function named in `nativeHookActions`; a binding on an unwired function and a registered check with no binding both fail the gate map.

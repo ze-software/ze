@@ -10,85 +10,12 @@
 option=env:var=ze.log.bgp:value=info
 option=timeout:value=20s
 
-tmpfs=rr-status.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Poll until the RR subsystem reports running instead of a blind settle sleep.
-    def _rr_running(r):
-        if r.get('status') != 'done':
-            return False
-        d = result_text_data(r, '{}')
-        try:
-            p = json.loads(d) if isinstance(d, str) else d
-        except (json.JSONDecodeError, TypeError, ValueError):
-            return False
-        return isinstance(p, dict) and bool(p.get('running'))
-
-    result = api.dispatch_until('show rr status', _rr_running)
-    status = result.get('status')
-    if status != 'done':
-        print(f'FAIL: show rr status status={status} data={result.get("data")}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    data = result_text_data(result, '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    if not isinstance(parsed, dict) or not parsed.get('running'):
-        print(f'FAIL: expected {{"running":true}}, got: {data}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    print('PASS: show rr status returned running=true', file=sys.stderr, flush=True)
-
-    # Drain any pending callbacks (e.g. post-startup) queued during the
-    # first dispatch, so the second dispatch-command RPC does not race
-    # with an unacknowledged callback on the TLS mux.
-    api.read_line(timeout=0.1)
-
-    result = dispatch(api, 'show rr peers')
-    status = result.get('status')
-    if status != 'done':
-        print(f'FAIL: show rr peers status={status} data={result.get("data")}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    data = result_text_data(result, '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    peers = parsed.get('peers', []) if isinstance(parsed, dict) else parsed
-    if not isinstance(peers, list):
-        print(f'FAIL: expected peer list, got: {data}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    print(f'PASS: show rr peers returned {len(peers)} peer(s)', file=sys.stderr, flush=True)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/rr-status-show.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external rr-status-test {
-        run ./rr-status.run;
+        run "ze-test fixture plugin/rr-status-show";
         encoder json;
     }
 }

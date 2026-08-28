@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check session-start",
             "timeout": 5
           }
         ]
@@ -19,17 +19,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/compaction-reminder.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check compaction-reminder",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/verify-claim-reminder.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check verify-claim-reminder",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/delegation-reminder.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check delegation-reminder",
             "timeout": 5
           }
         ]
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-until-lsp.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check block-until-lsp",
             "timeout": 5,
             "blocking": true
           }
@@ -52,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-bash.py",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check pretool-bash",
             "timeout": 30,
             "blocking": true
           }
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-writeedit.py",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check pretool-writeedit",
             "timeout": 30,
             "blocking": true
           }
@@ -74,7 +74,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-agent-skill.py",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check pretool-agent-skill",
             "timeout": 30,
             "blocking": true
           }
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-compact-save.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check pre-compact-save",
             "timeout": 5
           }
         ]
@@ -99,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-premature-stop.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check block-premature-stop",
             "timeout": 10,
             "blocking": true
           }
@@ -110,7 +110,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/rule-coverage-report.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check rule-coverage-report",
             "timeout": 15
           }
         ]
@@ -120,7 +120,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end-summary.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check session-end-summary",
             "timeout": 5
           }
         ]
@@ -130,7 +130,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end-deferrals.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check session-end-deferrals",
             "timeout": 5
           }
         ]
@@ -142,7 +142,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/subagent-context.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check subagent-context",
             "timeout": 5
           }
         ]
@@ -154,7 +154,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/mark-lsp-invoked.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check mark-lsp-invoked",
             "timeout": 5
           }
         ]
@@ -164,7 +164,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/mark-source-read.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check mark-source-read",
             "timeout": 5
           }
         ]
@@ -174,7 +174,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/mark-agent-spawned.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check mark-agent-spawned",
             "timeout": 5
           }
         ]
@@ -184,7 +184,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-spec.sh",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check validate-spec",
             "timeout": 10,
             "blocking": true
           }
@@ -195,7 +195,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/posttool-writeedit.py",
+            "command": "$CLAUDE_PROJECT_DIR/le hook-check posttool-writeedit",
             "timeout": 90,
             "blocking": true
           }

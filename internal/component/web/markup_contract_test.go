@@ -3,20 +3,19 @@ package web
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
-	osexec "os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/a-h/templ"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/le/webassets"
 )
 
 // The tests here hold the markup contracts no single component owns. Each one
@@ -650,9 +649,9 @@ var (
 //
 // No browser runs here, and none is available to run. The .wb harness drives
 // HTTP and executes no script. agent-browser is an interactive tool with no
-// hook in make ze-precommit-verify. What a browser adds over this is layout and event
-// order. It would also catch a selector that matches the wrong element, which
-// no component here can produce.
+// hook in `./le verify current mode full`. What a browser adds over this is
+// layout and event order. It would also catch a selector matching the wrong
+// element, which no component here can produce.
 func TestErrorDrawerWiringHoldsTogether(t *testing.T) {
 	var panel, item, oob strings.Builder
 	require.NoError(t, errorPanel().Render(context.Background(), &panel))
@@ -721,9 +720,6 @@ func TestErrorDrawerWiringHoldsTogether(t *testing.T) {
 	assert.Positive(t, lookups, "no selector was checked; the patterns have stopped matching")
 }
 
-// webAssetsGeneratorTimeout bounds the generator subprocess.
-const webAssetsGeneratorTimeout = 60 * time.Second
-
 // webPackagePrefix is how the generator names a template of this package. The
 // key is the source file's path from the repository root, because that is what
 // the generator walks and what a reader greps for.
@@ -776,26 +772,9 @@ func derivedPageAssets(t *testing.T) map[string][]string {
 	root, err := filepath.Abs("../../..")
 	require.NoError(t, err, "resolve the repository root")
 
-	ctx, cancel := context.WithTimeout(context.Background(), webAssetsGeneratorTimeout)
-	defer cancel()
-
-	cmd := osexec.CommandContext(ctx, "go", "run",
-		filepath.Join(root, "scripts", "codegen", "web_assets.go"), "--json")
-	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-
-	var out, errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-
-	require.NoErrorf(t, cmd.Run(),
-		"scripts/codegen/web_assets.go --json must print the per-page asset sets: %s", errOut.String())
-
-	derived := map[string][]string{}
-	require.NoErrorf(t, json.Unmarshal(out.Bytes(), &derived),
-		"read the derived per-page asset sets: %s", out.String())
-
-	return derived
+	sets, err := webassets.Pages(root)
+	require.NoError(t, err, "derive the per-page asset sets")
+	return map[string][]string(sets)
 }
 
 // vendorHTMXDir holds the served library, from this package's directory. It is
@@ -938,7 +917,7 @@ func webPageFixtures(t *testing.T) []webPageFixture {
 }
 
 // zeSurfaceDirs are the three packages that serve a page of their own, from the
-// repository root. scripts/codegen/web_assets.go names the same three. The
+// repository root. internal/le/webassets/webassets.go names the same three. The
 // repetition is deliberate: a checker that read its population from the
 // generator could not report a surface the generator forgot.
 var zeSurfaceDirs = []string{

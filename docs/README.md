@@ -14,7 +14,7 @@ This directory contains user guides, feature inventories, implementation referen
 | API and wire reference | `architecture/api/`, `architecture/wire/` | YANG RPC schemas, parser/encoder code | External command, plugin IPC, text, JSON, and BGP wire contracts |
 | Plugin development | `plugin-overview.md`, `plugin-development/` | Plugin registry, SDK, RPC packages | How built-in and external plugins are registered, started, and called |
 | ExaBGP migration | `exabgp/`, `config-migration.md` | Migration command and compatibility bridge | Mapping from ExaBGP concepts to Ze |
-| Contributing and tests | `contributing/`, `functional-tests.md` | Test runner and Make targets | How documentation and behavior are tested |
+| Contributing and tests | `contributing/`, `functional-tests.md` | Native `./le` actions and Go test runners | How documentation and behavior are tested |
 | Research and background | `research/` | Historical notes and external references | Design input, not a current behavior contract unless explicitly source-anchored |
 | Assets | `logo/`, diagrams | Generated or static assets | Images and presentation material |
 
@@ -48,10 +48,10 @@ This directory contains user guides, feature inventories, implementation referen
 
 | Surface | Check |
 |---------|-------|
-| Registered plugins | `bin/ze --plugins` |
-| All commands | `bin/ze help command` (filterable, `--json` for tooling) |
-| Root CLI verbs | `bin/ze help ai` |
-| Daemon API endpoints | `bin/ze help ai api` (`ze-show:*`, `ze-set:*`, ...) |
-| YANG modules | `bin/ze schema list` |
-| Config validity | `bin/ze config validate <file>` |
+| Registered plugins | `./ze --plugins` |
+| All commands | `./ze help command` (filterable, `--json` for tooling) |
+| Root CLI verbs | `./ze help ai` |
+| Daemon API endpoints | `./ze help ai api` (`ze-show:*`, `ze-set:*`, ...) |
+| YANG modules | `./ze schema list` |
+| Config validity | `./ze config validate <file>` |
 | Feature status | `docs/features.md` plus source anchors |

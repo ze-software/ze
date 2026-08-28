@@ -224,7 +224,7 @@ the LAN feature.
 
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed and approved before implementation
-- [ ] `make ze-standard-test` passes (after implementation)
+- [ ] `./le verify current mode full` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 
 ### Quality Gates (SHOULD pass)

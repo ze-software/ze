@@ -55,8 +55,8 @@ Three directories, three roles:
 | `component/` | Subsystem implementations + config YANG (data model) | `core/`, other `component/` |
 | `plugins/` | User-facing command surfaces: command YANG, RPC handlers, CLI registration | `core/`, `component/` |
 
-**The folder test:** copying a plugin folder in and running `make generate`
-MUST make its commands live. Deleting it and running `make generate` MUST
+**The folder test:** copying a plugin folder in and running `./le repository generate`
+MUST make its commands live. Deleting it and running `./le repository generate` MUST
 make them vanish. No manual wiring. This is the same invariant as the "delete the folder" proximity test
 below, applied to the entire user-facing surface.
 
@@ -308,9 +308,9 @@ replay, so its withdrawals never reach the peer.
 ## Registration Metadata Feeds Generated Docs
 
 The website plugin catalog in `../gh-pages/docs/features/plugins/` is
-generated from `registry.Registration` fields via
-`../gh-pages/tools/extract-plugin-registry.py` and
-`../gh-pages/tools/render-plugin-catalog.py`. When adding or changing a
+generated from `registry.Registration` fields by `./le site build`.
+`internal/le/sitebuild` owns the website catalog producer. When adding or
+changing a
 plugin, treat `Name`, `Description`, `ConfigRoots`, `Dependencies`,
 `OptionalDependencies`, and `YANG` as public catalog data.
 
@@ -565,7 +565,7 @@ depending on which side of the hub it lives on).
 ```
 [ ] Create internal/plugins/<name>/<name>.go (package-level logger with SetLogger)
 [ ] Create internal/plugins/<name>/register.go (init() → registry.Register())
-[ ] Run make generate (regenerates all.go)
+[ ] Run ./le repository generate (regenerates all.go)
 [ ] Update TestAllPluginsRegistered expected count
 [ ] Add YANG schema if config support (schema/ subdir)
 [ ] Add EventTypes if plugin produces custom event types (e.g., ["update-rpki"])
@@ -628,7 +628,7 @@ engine state; it MUST go through DirectBridge/DispatchCommand instead. This
 compiles and works when the plugin happens to run internal, then silently
 no-ops when it runs external (the call mutates the subprocess's own
 disconnected copy of that package's state). See "Process Boundary" below,
-gated by `make ze-plugin-boundary-check`.
+gated by `./le plugin-boundary check`.
 
 ## Structured Event Delivery (DirectBridge)
 
@@ -787,7 +787,7 @@ plugin's commands.
 #### How to carve a command into its owner
 
 1. **Handler:** add `func init() { pluginserver.RegisterRPCs(...) }` + the handler in the owner package. If the owner package is already blank-imported (it has a `register.go` found by the generator's `pluginDirs`, or sits in `rpcDirs`), the registration links with NO generator or manual-island change. The handler imports only `plugin` + `pluginserver` (+ the owner's own API), so it does not create an import cycle.
-2. **Schema (container merge, NOT `augment`):** add `<owner>/yang/ze-<x>-cmd.yang`, a standalone module that re-declares the path from the root: `container show { container <x> { ... ze:command "ze-show:<x>"; } }`. The YANG loader unions same-named top-level containers across all registered modules, so the owner module needs no `import`/`augment` of the central schema and has no base-module coupling. Give it a unique `namespace`/`prefix` and `import ze-extensions`. Add the embed var + `yang.RegisterModule` call. A NEW `<owner>/yang/` package whose `register.go` imports `config/yang` is auto-discovered, so run `go run scripts/codegen/plugin_imports.go` to refresh `internal/component/plugin/all/all.go`.
+2. **Schema (container merge, NOT `augment`):** add `<owner>/yang/ze-<x>-cmd.yang`, a standalone module that re-declares the path from the root: `container show { container <x> { ... ze:command "ze-show:<x>"; } }`. The YANG loader unions same-named top-level containers across all registered modules, so the owner module needs no `import`/`augment` of the central schema and has no base-module coupling. Give it a unique `namespace`/`prefix` and `import ze-extensions`. Add the embed var + `yang.RegisterModule` call. A NEW `<owner>/yang/` package whose `register.go` imports `config/yang` is auto-discovered, so run `go run internal/le/pluginimports/pluginimports.go` to refresh `internal/component/plugin/all/all.go`.
 3. **Schema location:** the command YANG MUST live in `<owner>/yang/` (top level, sibling of `cli`/`cmd`), and MUST NOT be nested under `<owner>/cmd/yang`.
 4. **Both halves of the invariant:** the owner `yang/` gets a presence test asserting its command tokens ARE declared; the central verb schema test bans the moved tokens (below).
 
@@ -854,7 +854,7 @@ generic `Model.viewFactories` store, with no per-feature field. Consumers iterat
 three typed setters. The `TestModelHasNoPerFeatureViewField` reflection guard
 (`internal/component/cli/model_test.go`) fails if a per-feature field returns.
 
-General test for any spec: **a new feature must not require editing a `switch`, `case`, field list, or factory in a core or shared package: it registers and is discovered.** This is the "Registration over hardcoding" review item carried by `plan/TEMPLATE.md` and warned for by `.claude/hooks/validate-spec.sh`.
+General test for any spec: **a new feature must not require editing a `switch`, `case`, field list, or factory in a core or shared package: it registers and is discovered.** This is the "Registration over hardcoding" review item carried by `plan/TEMPLATE.md` and checked during spec review.
 
 ### Mechanical Check
 
@@ -914,10 +914,10 @@ Do not copy-paste the severity choice between plugins: judge each one on what ac
 
 ### The mechanical check
 
-`make ze-plugin-boundary-check` (wired into `ze-precommit-verify`/`ze-precommit-verify-changed`) runs `scripts/checks/plugin_process_boundary.go`: it scans every package under the generator's plugin search roots, derived at runtime from `scripts/codegen/plugin_imports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list, for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
-<!-- source: scripts/checks/plugin_process_boundary.go -- loadScanRootsFrom -->
+`./le plugin-boundary check` (wired into `./le verify current mode full`/`./le verify current mode changed`) runs `internal/le/pluginboundary/pluginboundary.go`: it scans every package under the generator's plugin search roots, derived at runtime from `internal/le/pluginimports/pluginimports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list, for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
+<!-- source: internal/le/pluginboundary/pluginboundary.go -- loadScanRootsFrom -->
 
-Add a new entry to `scripts/checks/plugin_process_boundary.go`'s `dangerousCalls` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.
+Add a new entry to `internal/le/pluginboundary/pluginboundary.go`'s `dangerousCalls` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.
 
 ## Registration-Based Dispatch
 
@@ -988,10 +988,9 @@ surface `ze_mpls`, ExaBGP bridge `ze_exabgp`). The manifest is the inventory;
 this list is illustrative.
 
 Read this before touching `feature-gates.txt`, `cmd/ze/hub/service_registry.go`,
-a `register_<x>.go` / `service_<x>.go` file, an `*_infra.go` seam, the
-`ZE_FEATURES` Makefile var, `.golangci.yml` build-tags, `TestBuildTags`,
-`scripts/codegen/plugin_imports.go` `featureTags`, or `scripts/dev/dep_audit.py`
-`DISABLEABLE`.
+a `register_<x>.go` or `service_<x>.go` file, an `*_infra.go` seam,
+`internal/le/gotoolchain`, `.golangci.yml` build tags, `TestBuildTags`,
+`internal/le/pluginimports`, or `internal/le/tier`.
 
 Companion rule: `ai/rules/architecture.md` (disable-ability + the gate). Inside
 this file: "Plugin Self-Containment" (the delete-the-folder invariant) and
@@ -1003,8 +1002,8 @@ A feature is compile-out-able **only when nothing always-on (untagged, non-test)
 imports its package** for ANY reason: lifecycle OR a borrowed helper. Always-on
 code reaches it ONLY through build-tag-gated registration. A single direct
 `import` from untagged code pins the package into every binary and defeats the
-compile-out. `scripts/dev/dep_audit.py --check` (run by `make ze-precommit-verify`, target
-`ze-tier-check`) fails on any such importer.
+compile-out. `internal/le/tier/tier.go --check` (run by `./le verify worktree`, target
+`./le tier check`) fails on any such importer.
 
 If always-on code needs a non-lifecycle helper the feature happens to export
 (e.g. web exported cert generation to the installer), **extract that helper to an
@@ -1030,16 +1029,16 @@ DERIVES from this file**. Do NOT hand-edit a parallel list:
 
 | Consumer | Role | Mechanism |
 |----------|------|-----------|
-| `Makefile` `ZE_FEATURES` | default-on tags for `ze` / `ze-appliance` | derives: `$(shell awk ...)` |
-| `internal/test/runner` `TestBuildTags` | tags for the functional-test `ze` | derives: reads the file |
-| `scripts/codegen/plugin_imports.go` `featureTags` | gates `<pkg>` and `<pkg>/yang` into `all_<tag>.go` | derives: `loadFeatureTags` |
-| `scripts/dev/dep_audit.py` `DISABLEABLE` | no always-on import of `<pkg>` | derives: `load_feature_gates` |
-| `scripts/dev/stress-repro.py` `race_tags` | full-feature race build | derives: `_feature_gate_tags()` |
-| `.golangci.yml` `build-tags` | lint the feature-on build | **generated** by `feature_tags.go` |
-| `gokrazy/ze/config.json` `GoBuildTags` | appliance image build tags | **generated** by `feature_tags.go` |
-| `docs/guide/quickstart.md` `go install` cmd | install without cloning the repo | **generated** by `feature_tags.go` |
+| `internal/le/gotoolchain` | feature tags for native builds and tests | reads `feature-gates.txt` |
+| `internal/test/runner` `TestBuildTags` | tags for the functional-test daemon | reads `feature-gates.txt` |
+| `internal/le/pluginimports` | gated composition imports | reads `feature-gates.txt` |
+| `internal/le/tier` | disable-able package import checks | reads `feature-gates.txt` |
+| `./le stress-repro run` | full-feature race build | uses the native Go toolchain configuration |
+| `.golangci.yml` `build-tags` | lint feature-on build | generated by `./le feature-tags write` |
+| `gokrazy/ze/config.json` `GoBuildTags` | appliance image tags | generated by `./le feature-tags write` |
+| `docs/guide/quickstart.md` `go install` command | install without cloning | generated by `./le feature-tags write` |
 
-**No consumer is hand-maintained.** The three static files that cannot read the manifest at runtime (`.golangci.yml` `build-tags`, `gokrazy/ze/config.json` `GoBuildTags`, `docs/guide/quickstart.md`'s `go install -tags '...'` command) are GENERATED from it by `scripts/codegen/feature_tags.go` (run by `make generate`, surgical byte-stable edits). Their tag lists MUST NOT be hand-edited: add the gate to `feature-gates.txt` and run `make generate`. Three gates catch drift: the `scripts/codegen` unit test `feature_tags.go --check`, `dep_audit.py --check` (golangci), and `internal/appliance` `TestGokrazyConfigMatchesApplianceBuildTags` (gokrazy).
+**No consumer is hand-maintained.** The four static files that cannot read the manifest at runtime (`.golangci.yml`, `gokrazy/ze/config.json`, `docs/guide/quickstart.md`, and `.github/workflows/codeql.yml`) are generated by `internal/le/featuretags`. Their tag lists MUST NOT be hand-edited: add the gate to `feature-gates.txt`, run `./le feature-tags write`, then `./le feature-tags check`.
 
 ### Procedure: add a feature gate
 
@@ -1047,13 +1046,13 @@ DERIVES from this file**. Do NOT hand-edit a parallel list:
 2. **Pick the shape** (see below): construction registry, or a seam.
 3. **Add lines** to `feature-gates.txt` for every owned package that MUST vanish: the main package (`ze_<x> internal/component/<x>`) plus sidecars such as command-schema packages under `internal/plugins/<x>-cmd`.
 4. **Create the gated files** for your shape (`service_<x>.go` + `register_<x>.go`, or an `*_infra.go` seam + gated registration). All carry `//go:build ze_<x>`. Feature-only helpers live INSIDE a gated file, or a no-feature build flags them U1000-unused.
-5. `make generate`. This emits `all_ze_<x>.go` (plugin_imports) AND regenerates the three static tag lists from the manifest (`feature_tags.go`: `.golangci.yml` `build-tags`, `gokrazy/ze/config.json` `GoBuildTags`, `docs/guide/quickstart.md`). Those files' tag lists MUST NOT be hand-edited. Then `make ze-precommit-verify-changed`.
+5. `./le repository generate`. This emits `all_ze_<x>.go` (plugin_imports) AND regenerates the three static tag lists from the manifest (`feature_tags.go`: `.golangci.yml` `build-tags`, `gokrazy/ze/config.json` `GoBuildTags`, `docs/guide/quickstart.md`). Those files' tag lists MUST NOT be hand-edited. Then `./le verify worktree`.
 6. Write present/absent build-tag tests: `cmd/ze/hub/build_tag_<x>_present_test.go` (`//go:build ze_<x>`) and `_absent_test.go` (`//go:build !ze_<x>`); an absent test asserts via `go tool nm` that zero feature symbols are linked.
 
 That is the whole list. Step 3 (edit `feature-gates.txt`) is the ONLY manifest
-declaration point. Everything else follows: the Makefile, the runner, the generators,
-dep_audit, and stress-repro all derive from it, and `feature_tags.go` (via
-`make generate`) regenerates the three static tag lists. There is nothing to hand-sync.
+declaration point. The native runner, `internal/le/pluginimports`,
+`internal/le/featuretags`, tier checks, and stress tooling all derive from it.
+`./le repository generate` refreshes every generated consumer. There is nothing to hand-sync.
 
 ### Two registration shapes
 
@@ -1061,7 +1060,7 @@ dep_audit, and stress-repro all derive from it, and `feature_tags.go` (via
 
 **Seam (ssh, gNMI).** A seam SHOULD be used when the listener registry genuinely cannot express the construction shape. ssh is built inside shared daemon startup, interleaved with always-on AAA/authz/accounting, and owns an interactive session, so it uses `ssh_infra.go` (`sshBuild` / `sshWirePostStart` / `sshBuildStandalone`). gNMI has richer constructor dependencies, a reload notification hook, and no listener live-migration contract, so it uses `gnmi_infra.go` (`gnmiBuild` / `gnmiReloadNotify`). Always-on code calls the seam if non-nil; with the tag off the vars stay nil and the feature is skipped. A seam SHOULD be used ONLY when the registry genuinely does not fit; the registry SHOULD be preferred.
 
-**Core-level seam (telemetry).** When more than one start site in *different components* needs to reach a gated feature, the seam var MUST NOT live in the hub; it MUST live in the always-on leaf both sites already import. The Prometheus exporter (`ze_telemetry`) is started from the hub standalone path *and* the bgp reactor path (`internal/component/bgp/config`), so its hook `metrics.StartExporter` lives in `internal/core/metrics`; the hub's gated `register_telemetry.go` wires the gated `internal/component/telemetry/exporter` (and its `collector` sidecar) into it. The metric COLLECTION API (registry + the `NopRegistry` dummy) stays in that same always-on leaf so dependents keep working when the exporter is gated: only the part nothing always-on imports (the HTTP exporter) MUST be gated, never the collection API. A core leaf MAY hold a nil-able hook var set by a gated component init; `make ze-tier-check` stays green (a value, not an import).
+**Core-level seam (telemetry).** When more than one start site in *different components* needs to reach a gated feature, the seam var MUST NOT live in the hub; it MUST live in the always-on leaf both sites already import. The Prometheus exporter (`ze_telemetry`) is started from the hub standalone path *and* the bgp reactor path (`internal/component/bgp/config`), so its hook `metrics.StartExporter` lives in `internal/core/metrics`; the hub's gated `register_telemetry.go` wires the gated `internal/component/telemetry/exporter` (and its `collector` sidecar) into it. The metric COLLECTION API (registry + the `NopRegistry` dummy) stays in that same always-on leaf so dependents keep working when the exporter is gated: only the part nothing always-on imports (the HTTP exporter) MUST be gated, never the collection API. A core leaf MAY hold a nil-able hook var set by a gated component init; `./le tier check` stays green (a value, not an import).
 
 **Plugin compile-out (routing protocols).** When the feature is already a self-registering plugin discovered by the generator (`register.go` -> `plugin/all`), there is NO new `register_<x>.go` or seam: gating is purely *blank-import partitioning*. Each owned dir MUST be listed as its own `feature-gates.txt` line under the shared tag, because a protocol spans several discovered dirs (engine + `transport` + `cli` + the `*-cmd` command schema), for example:
 
@@ -1072,7 +1071,7 @@ ze_ospf  internal/plugins/ospf/transport
 ze_ospf  internal/plugins/ospf/v3/transport
 ```
 
-The plugin's `.go` files are NOT source-tagged; `make generate` moves their blank
+The plugin's `.go` files are NOT source-tagged; `./le repository generate` moves their blank
 imports into `all_<tag>.go` and dead-code elimination drops the unreferenced
 packages when the tag is off (A-1: nothing always-on imports a protocol). Mind the
 **two composition roots**: the generated `all.go` AND the hand-written
@@ -1086,7 +1085,7 @@ protocol-specific: `ze_vrrp` (first-hop redundancy; the `vrrp` plugin + its `tra
 sidecar, two manifest lines, no `cli` package) is that single-plugin case, gated purely
 by blank-import partitioning like ldp/rsvpte. Routing protocols are also the first gated
 packages that are `sdk.NewWithConn` *engines* and multi-package features whose
-sub-packages import each other, so `dep_audit.py` (a) counts the generated
+sub-packages import each other, so `./le tier check` (a) counts the generated
 `all_<tag>.go` as a registration importer (an engine's blank import there is not a
 "feature depends on it" tier violation) and (b) skips same-tag importers in the
 disableable check (the engine importing its own `transport` sub-package is
@@ -1124,7 +1123,7 @@ the single historic `all_<tag>.go` file.
 ### Banned
 
 - A hand-maintained second list of gate tags or gated packages MUST NOT exist anywhere. Declare the gate ONCE in `feature-gates.txt`; derive the rest.
-- An always-on (untagged, non-test) `import` of a gated feature package MUST NOT exist. Route through the registry or a seam. `dep_audit.py --check` enforces this.
+- An always-on (untagged, non-test) `import` of a gated feature package MUST NOT exist. Route through the registry or a seam. `./le tier check` enforces this.
 - A feature type MUST NOT appear in an always-on signature (`*zeweb.WebServer`, etc.). Use `Reconfigurable` or another always-on interface.
 - A feature's borrowed helper MUST NOT be left in the feature package when always-on code needs it. Extract to `internal/core/*` first.
 - A gate MUST NOT be added without present/absent build-tag tests and an `nm` symbol check.

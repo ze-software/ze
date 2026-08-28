@@ -3,7 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-1. You MUST run the gate the commit owes: `make ze-precommit-verify` when it carries Go,
+1. You MUST run the gate the commit owes: `./le verify worktree` when it carries Go,
    and the narrow gate owning each changed surface (the table below) when it does not.
 2. You MUST ATTRIBUTE every red you saw, by the table above: name the file, and say
    whose it is. `git status --porcelain` plus a modification time settles it in seconds.

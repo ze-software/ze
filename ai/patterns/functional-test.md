@@ -8,7 +8,7 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `ai/rules/testing.
 | Rule | When it applies |
 |------|----------------|
 | `ai/rules/testing.md` (Editor Tests) | TUI/editor testing uses `.et` format, not `.ci` |
-| `ai/rules/testing.md` (Observer-Exit Antipattern) | Python observers in `.ci` MUST use `runtime_fail`, not `sys.exit(1)` |
+| `ai/rules/testing.md` (Observer failures) | Compiled Go fixtures MUST return an error when an assertion fails |
 | `ai/rules/testing.md` | Test-first: write the test before the feature code |
 | `ai/rules/completion.md` | Every user-facing feature needs a `.ci` test |
 | Full navigation: `ai/INDEX.md` | |
@@ -50,28 +50,28 @@ All `ze-test` suites use the same selection contract after the suite name:
 `--list` prints `N/TOTAL id name` with one-based ids; runs print one completion
 line per test plus periodic progress.
 
-| Directory | Runner command | Make target |
-|-----------|---------------|-------------|
-| `test/encode/` | `ze-test bgp encode [--all|--start N|N...]` | `make ze-functional-encode-test` |
-| `test/plugin/` | `ze-test bgp plugin [--all|--start N|N...]` | `make ze-functional-plugin-test` |
-| `test/decode/` | `ze-test bgp decode [--all|--start N|N...]` | `make ze-functional-decode-test` |
-| `test/parse/` | `ze-test bgp parse [--all|--start N|N...]` | `make ze-functional-parse-test` |
-| `test/reload/` | `ze-test bgp reload [--all|--start N|N...]` | `make ze-functional-reload-test` |
-| `test/ui/` | `ze-test ui [--all|--start N|N...]` | `make ze-functional-ui-test` |
-| `test/editor/` | `ze-test editor [--all|--start N|N...]` | `make ze-functional-editor-test` |
-| `test/web/` | `ze-test web [--all|--start N|N...]` | `make ze-functional-web-test` |
-| `test/managed/` | `ze-test managed [--all|--start N|N...]` | `make ze-functional-managed-test` |
-| `test/l2tp/` | `ze-test l2tp [--all|--start N|N...]` | `make ze-functional-l2tp-test` |
-| `test/firewall/` | `ze-test firewall [--all|--start N|N...]` | `make ze-functional-firewall-test` |
-| `test/policy/` | `ze-test policy [--all|--start N|N...]` | `make ze-functional-policy-test` |
-| `test/static/` | `ze-test static [--all|--start N|N...]` | `make ze-functional-static-test` |
-| `test/traffic/` | `ze-test traffic [--all|--start N|N...]` | `make ze-functional-traffic-test` |
-| `test/flow-export/` | `ze-test flow-export [--all|--start N|N...]` | `make ze-functional-flow-export-test` |
-| `test/vpp/` | `ze-test vpp [--all|--start N|N...]` | `make ze-functional-vpp-test` |
-| `test/l2tp-wire/` | `ze-test l2tp-wire [--all|--start N|N...]` | `make ze-functional-l2tp-wire-test` |
-| `test/exabgp-compat/` | `ze-test exabgp [--all|--start N|N...]` | `make ze-functional-exabgp-test` |
+| Directory | Runner command | Native action |
+|-----------|----------------|---------------|
+| `test/encode/` | `ze-test bgp encode [--all|--start N|N...]` | `./le functional encode` |
+| `test/plugin/` | `ze-test bgp plugin [--all|--start N|N...]` | `./le functional plugin` |
+| `test/decode/` | `ze-test bgp decode [--all|--start N|N...]` | `./le functional decode` |
+| `test/parse/` | `ze-test bgp parse [--all|--start N|N...]` | `./le functional parse` |
+| `test/reload/` | `ze-test bgp reload [--all|--start N|N...]` | `./le functional reload` |
+| `test/ui/` | `ze-test ui [--all|--start N|N...]` | `./le functional ui` |
+| `test/editor/` | `ze-test editor [--all|--start N|N...]` | `./le functional editor` |
+| `test/web/` | `ze-test web [--all|--start N|N...]` | `./le functional web` |
+| `test/managed/` | `ze-test managed [--all|--start N|N...]` | `./le functional managed` |
+| `test/l2tp/` | `ze-test l2tp [--all|--start N|N...]` | `./le functional l2tp` |
+| `test/firewall/` | `ze-test firewall [--all|--start N|N...]` | `./le functional firewall` |
+| `test/policy/` | `ze-test policy [--all|--start N|N...]` | `./le functional policy` |
+| `test/static/` | `ze-test static [--all|--start N|N...]` | `./le functional static` |
+| `test/traffic/` | `ze-test traffic [--all|--start N|N...]` | `./le functional traffic` |
+| `test/flow-export/` | `ze-test flow-export [--all|--start N|N...]` | `./le functional flow-export` |
+| `test/vpp/` | `ze-test vpp [--all|--start N|N...]` | `./le functional vpp` |
+| `test/l2tp-wire/` | `ze-test l2tp-wire [--all|--start N|N...]` | `./le functional l2tp-wire` |
+| `test/exabgp-compat/` | `ze-test exabgp [--all|--start N|N...]` | `./le functional exabgp-test` |
 
-Gated suites (in `make ze-functional-test`): encode, plugin, parse, decode, reload,
+Gated suites (in `./le functional`): encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, web, install. Non-gated suites
 (run manually): static, traffic, flow-export, vpp, l2tp-wire, chaos, chaos-web, exabgp.
 
@@ -80,7 +80,7 @@ ui, editor, managed, l2tp, firewall, policy, web, install. Non-gated suites
 ```
 # Comment describing the test
 
-# 1. Embedded files (config, scripts)
+# 1. Embedded files (config and fixture input)
 tmpfs=<path>[:mode=<octal>]:terminator=<TERM>
 <content>
 <TERM>
@@ -150,9 +150,9 @@ Two more rules travel with a barrier in an observer.
 | Rule | Why |
 |------|-----|
 | A per-peer counter is a LIFETIME total, so wait for `base + N`, or for a threshold that accounts for what establishment already counted | `updates-sent` counts the initial-sync End-of-RIB as well, because the sent branch of `onMessageReceived` (`internal/component/bgp/reactor/reactor_notify.go`) sees only `msgtype.TypeUPDATE`. A threshold of 1 is reached before any route is sent |
-| `quiesce()` and `wait_for_ack()` are barriers for routes AFTER establishment, never for establishment itself | The quiescer skips a peer that has not started its initial sync, so it returns at once while the session is still opening. Use `wait_peer_eor_sent()` for that window |
+| Quiesce and acknowledgement barriers cover routes AFTER establishment, never establishment itself | The quiescer skips a peer that has not started initial sync. A compiled observer MUST poll `eor-sent` first, as the helpers under `internal/test/fixture` do |
 
-<!-- source: test/scripts/ze_api.py -- read_line, wait_peer_counter, wait_peer_eor_sent -->
+<!-- source: internal/test/fixture/fixture.go -- Dispatch, Poll, Observe -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- IncrUpdatesSent on the sent branch -->
 
 ## Minimal CLI Test Template
@@ -267,9 +267,9 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 ## Running Tests
 
 ```bash
-make ze-functional-test     # All functional tests
-make ze-unit-test           # Unit tests only
-make ze-precommit-verify              # Everything except fuzz (two-pass: cached + race-on-changed)
+./le functional                 # All gated functional tests
+./le test-unit                  # Component-group unit tests
+./le verify current mode full   # Full current-checkout verification
 ```
 
 ## Checklist
@@ -283,5 +283,5 @@ make ze-precommit-verify              # Everything except fuzz (two-pass: cached
 [ ] If testing JSON: expect=json with all non-volatile fields
 [ ] If testing CLI: expect=exit:code + expect=stdout:contains
 [ ] If testing error: expect=stderr:contains or pattern
-[ ] Test runs successfully with make ze-functional-test
+[ ] Test runs successfully with ./le functional
 ```

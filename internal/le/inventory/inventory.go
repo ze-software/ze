@@ -31,9 +31,10 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 
 	// The blank import triggers every plugin, YANG and RPC registration, so
 	// the inventory reports the product rather than a subset of it.

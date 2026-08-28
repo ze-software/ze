@@ -159,7 +159,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | AC-4 | A peer offers a session ticket | ze resumes, and the resumed session derives a correct MSK |
 | AC-5 | A stapled OCSP response is present, and absent | ze honours Section 5.4 in both cases |
 | AC-6 | An anonymous NAI | ze accepts it per Section 2.1.8 |
-| AC-7 | `make ze-rfc-check` | RFC 9190 is enrolled, and no gated MUST carries `{gap}` or `{not-applicable}` for a feature this spec built |
+| AC-7 | `./le rfc check` | RFC 9190 is enrolled, and no gated MUST carries `{gap}` or `{not-applicable}` for a feature this spec built |
 | AC-8 | Scenarios eap-tls and eap-tls13 | both green at every phase boundary |
 
 ## End-to-End User Stories
@@ -241,7 +241,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 3. Resumption and NewSessionTicket.
 4. OCSP stapling and revocation.
 5. Anonymous and privacy-friendly NAIs.
-6. Write `rfc/extraction/rfc9190.json` by hand and run `make ze-rfc-check`.
+6. Write `rfc/extraction/rfc9190.json` by hand and run `./le rfc check`.
 7. Move the row from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`, add the status row.
 8. Raise 5.10-1 with Thomas if it still cannot be classified honestly.
 
@@ -262,8 +262,8 @@ carried no such table, which `/ze-implement` needs before it may run.
 
 ## Goal Gates
 
-- `make ze-precommit-verify` passes.
-- `make ze-rfc-check` shows RFC 9190 enrolled, with no annotation covering a
+- `./le verify current mode full` passes.
+- `./le rfc check` shows RFC 9190 enrolled, with no annotation covering a
   feature this spec built.
 - Scenarios eap-tls and eap-tls13 green, plus the new resumption scenario.
 
@@ -291,4 +291,4 @@ before claiming.
 - [ ] A-1 validated against strongSwan's source before Section 2.5 lands
 - [ ] Scenarios eap-tls and eap-tls13 green at every phase boundary
 - [ ] `rfc/extraction/rfc9190.json` hand-classified
-- [ ] `make ze-rfc-check` green with RFC 9190 enrolled
+- [ ] `./le rfc check` green with RFC 9190 enrolled

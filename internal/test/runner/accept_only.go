@@ -279,7 +279,7 @@ func writeAcceptOnlyBaseline(repoRoot string) error {
 	b.Str("# One repo-relative path per line: each test whose ONLY assertion is\n")
 	b.Str("# expect=exit:code=0 (proves ACCEPTED, not that the config parsed to the\n")
 	b.Str("# CORRECT tree). The lint (internal/test/runner/accept_only_lint_test.go,\n")
-	b.Str("# run under `make ze-unit-test`) FAILS on a NEW unannotated accept-only .ci\n")
+	b.Str("# run under `./le verify-deps unit-cached`) FAILS on a NEW unannotated accept-only .ci\n")
 	b.Str("# not listed here, and on a STALE entry (one that was strengthened,\n")
 	b.Str("# annotated, or removed). Strengthen a test with a readback assertion, or\n")
 	b.Str("# annotate it `# accept-only: <reason>` when a unit test covers the value;\n")

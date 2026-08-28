@@ -1,4 +1,4 @@
-// Design: scripts/dev/check_weakened_tests.py -- HEAD/worktree comparison and pairing
+// Design: docs/architecture/testing/test-health.md -- HEAD/worktree comparison and pairing
 // Related: ledger.go -- the fail-closed contract reader.
 // Related: detector.go, scope.go -- verdict production and unit naming.
 package weakened
@@ -19,13 +19,22 @@ import (
 
 const cannotRunPrefix = "check could not run: "
 
+// RenamePair is one old/new test path pair from the prospective commit's
+// isolated index. Score is Git's similarity percentage.
+type RenamePair struct {
+	OldPath string `json:"old-path"`
+	NewPath string `json:"new-path"`
+	Score   int    `json:"score"`
+}
+
 // Request is the exact change population the check judges. Paths and Removed
 // come from one commit, not from a scan of the shared worktree.
 type Request struct {
-	Root    string   `json:"root"`
-	Paths   []string `json:"paths,omitempty"`
-	Removed []string `json:"removed,omitempty"`
-	Anchor  string   `json:"anchor,omitempty"`
+	Root        string       `json:"root"`
+	Paths       []string     `json:"paths,omitempty"`
+	Removed     []string     `json:"removed,omitempty"`
+	RenamePairs []RenamePair `json:"rename-pairs,omitempty"`
+	Anchor      string       `json:"anchor,omitempty"`
 }
 
 // Finding is one weakened unit and the ordered detector verdicts for it.
@@ -51,6 +60,16 @@ type Result struct {
 // Check performs either the live no-path shape check or one exact HEAD/worktree
 // comparison. Every fixture and the command action use this function.
 func Check(request Request) Result {
+	return check(request, true)
+}
+
+// CheckCommit judges a prospective commit. When ledgerCarried is false, rows
+// present only in the shared worktree cannot accept the commit's weakening.
+func CheckCommit(request Request, ledgerCarried bool) Result {
+	return check(request, ledgerCarried)
+}
+
+func check(request Request, ledgerCarried bool) Result {
 	result := Result{Contract: ContractPath}
 	if request.Root == "" {
 		var text textbuf.Buffer
@@ -77,7 +96,9 @@ func Check(request Request) Result {
 			result.PathsJudged++
 		}
 	}
-	findings, errors := weakenedTests(request.Root, request.Paths, request.Removed, result.Anchor)
+	findings, errors := weakenedTests(
+		request.Root, request.Paths, request.Removed, request.RenamePairs, result.Anchor,
+	)
 	result.Findings = findings
 	if len(errors) != 0 {
 		result.Problems = errors
@@ -87,6 +108,16 @@ func Check(request Request) Result {
 		return result
 	}
 
+	if !ledgerCarried {
+		result.Problems = unmatchedProblems(nil, findings)
+		var text textbuf.Buffer
+		result.Problems = append(result.Problems, text.Str("this commit weakens ").
+			Int(int64(len(findings))).Str(" test(s) and does not carry ").
+			Str(ContractPath).Str(". The row is in the working tree only, so git history ").
+			Str("would hold the weakening with no reason beside it. Name the file too:\n    file ").
+			Str(ContractPath).String())
+		return result
+	}
 	rows, exists, readProblem := loadLedger(request.Root)
 	if readProblem != "" {
 		result.Problems = []string{readProblem}
@@ -107,8 +138,50 @@ func Check(request Request) Result {
 	}
 	parsed, parseProblems := parseLedger(rows, ContractPath)
 	result.Rows = len(parsed)
-	result.Problems = slices.Concat(parseProblems, unmatchedProblems(parsed, findings))
+	result.Problems = slices.Concat(parseProblems,
+		liveScopeProblems(request.Removed, parsed, findings), unmatchedProblems(parsed, findings))
 	return result
+}
+
+// liveScopeProblems refuses a path scope that covers a path this commit keeps.
+//
+// A scoped row states one reason for every finding under a path, which is
+// honest only when the commit RETIRES that path: `scripts/**` covers a tree
+// this commit deletes, so nothing can be weakened there again. Over a live
+// tree the same row is an escape hatch. `internal/le/**` would parse, match
+// every finding under the tooling tree, and accept each one silently, and no
+// leftover-row pressure would remove it because it keeps matching.
+//
+// The test is the commit's own removal list rather than the filesystem: a
+// retired tree still has a directory on disk until git prunes it, and a
+// finding for a file this commit merely edits is exactly what must not be
+// swallowed.
+func liveScopeProblems(removed []string, rows []Row, findings []Finding) []string {
+	retired := make(map[string]bool, len(removed))
+	for _, path := range removed {
+		retired[path] = true
+	}
+	problems := make([]string, 0)
+	var text textbuf.Buffer
+	for _, row := range rows {
+		if !isScopedRowName(row.Name) {
+			continue
+		}
+		for _, finding := range findings {
+			scoped, matches := scopedRowMatches(row.Name, finding)
+			if !scoped || !matches || retired[finding.Path] {
+				continue
+			}
+			problems = append(problems, text.Reset().Str(ContractPath).Byte(':').
+				Int(int64(row.Line)).Str(" scopes ").Str(row.Name).
+				Str(", which covers ").Str(finding.Path).
+				Str(", a path this commit keeps. A path scope states one reason for every ").
+				Str("finding under it, which is honest only for a path the commit retires. ").
+				Str("Name that test instead.").String())
+			break
+		}
+	}
+	return problems
 }
 
 // ExitCode preserves the producer's three-way verdict: clean, problem, or no
@@ -157,7 +230,12 @@ func (r Result) Text() string {
 	return page.String()
 }
 
-func weakenedTests(root string, paths, removed []string, anchor string) ([]Finding, []string) {
+func weakenedTests(
+	root string,
+	paths, removed []string,
+	renamePairs []RenamePair,
+	anchor string,
+) ([]Finding, []string) {
 	findings := make([]Finding, 0)
 	problems := make([]string, 0)
 	seen := make(map[string]bool, len(paths)+len(removed))
@@ -166,35 +244,67 @@ func weakenedTests(root string, paths, removed []string, anchor string) ([]Findi
 	for _, path := range removed {
 		removedSet[path] = true
 	}
+	for _, pair := range renamePairs {
+		if seen[pair.OldPath] || seen[pair.NewPath] {
+			problems = append(problems, text.Reset().Str(cannotRunPrefix).
+				Str("rename path appears in more than one pair, so no rename was compared").String())
+			continue
+		}
+		seen[pair.OldPath] = true
+		seen[pair.NewPath] = true
+		pairFindings, problem := comparePath(root, pair.OldPath, pair.NewPath, anchor)
+		if problem != "" {
+			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
+			continue
+		}
+		findings = append(findings, pairFindings...)
+	}
 	for _, path := range slices.Concat(paths, removed) {
 		if seen[path] || !isTestPath(path) {
 			continue
 		}
 		seen[path] = true
-		oldText, problem := baselineText(root, path, anchor)
+		newPath := path
+		if removedSet[path] {
+			newPath = ""
+		}
+		pathFindings, problem := comparePath(root, path, newPath, anchor)
 		if problem != "" {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
 			continue
 		}
-		if strings.TrimSpace(oldText) == "" {
-			continue
-		}
-		newText := ""
-		if !removedSet[path] {
-			newText = worktreeText(root, path)
-		}
-		packageDir := filepath.Dir(path)
-		packageName := filepath.Base(packageDir)
-		if packageDir == "." {
-			packageName = ""
-		}
-		for _, verdict := range weakenedUnits(path, oldText, newText) {
-			findings = append(findings, Finding{
-				Path: path, Package: packageName, Name: verdict.name, Details: verdict.details,
-			})
-		}
+		findings = append(findings, pathFindings...)
 	}
 	return findings, problems
+}
+
+func comparePath(root, oldPath, newPath, anchor string) ([]Finding, string) {
+	oldText, problem := baselineText(root, oldPath, anchor)
+	if problem != "" {
+		return nil, problem
+	}
+	if strings.TrimSpace(oldText) == "" {
+		return nil, ""
+	}
+	newText := ""
+	path := oldPath
+	if newPath != "" {
+		path = newPath
+		newText = worktreeText(root, newPath)
+	}
+	packageDir := filepath.Dir(path)
+	packageName := filepath.Base(packageDir)
+	if packageDir == "." {
+		packageName = ""
+	}
+	verdicts := weakenedUnits(path, oldText, newText)
+	findings := make([]Finding, 0, len(verdicts))
+	for _, verdict := range verdicts {
+		findings = append(findings, Finding{
+			Path: path, Package: packageName, Name: verdict.name, Details: verdict.details,
+		})
+	}
+	return findings, ""
 }
 
 func baselineText(root, path, anchor string) (string, string) {
@@ -208,12 +318,16 @@ func baselineText(root, path, anchor string) (string, string) {
 		return "", text.Reset().Str(anchor).
 			Str(" does not resolve to a commit, so nothing was compared").String()
 	}
-	present, started := gitStatus(root, "cat-file", "-e",
-		text.Reset().Str(anchor).Byte(':').Str(path).Slice())
+	present, missingDetail, presentCode, started := gitCapture(root, "ls-tree", "--name-only",
+		anchor, "--", path)
 	if !started {
 		return "", "git could not start, so nothing was compared"
 	}
-	if present != 0 {
+	if presentCode != 0 {
+		return "", text.Reset().Str("git ls-tree ").Str(anchor).Str(" -- ").Str(path).
+			Str(" failed: ").Str(strings.TrimSpace(missingDetail)).String()
+	}
+	if strings.TrimSpace(present) == "" {
 		return "", ""
 	}
 	stdout, stderr, code, started := gitCapture(root, "show",
@@ -297,7 +411,12 @@ func unmatchedProblems(rows []Row, findings []Finding) []string {
 				String())
 			continue
 		}
-		if len(hits) > 1 {
+		// A scoped row matching many findings is the feature, not an
+		// ambiguity: that is what lets one row explain a whole retired tree.
+		// Only an exact-name row matching more than one finding is a
+		// collision (the same test name in two packages), and only that
+		// shape needs the operator to write one qualified row per package.
+		if len(hits) > 1 && !isScopedRowName(row.Name) {
 			text.Reset().Str(ContractPath).Byte(':').Int(int64(row.Line)).
 				Str(" names ").Str(row.Name).
 				Str(", which this commit weakens in ").Int(int64(len(hits))).Str(" packages: ")
@@ -314,6 +433,11 @@ func unmatchedProblems(rows []Row, findings []Finding) []string {
 			}
 			problems = append(problems, text.String())
 		}
+		// A finding claimed by both a scoped row and an exact row is not an
+		// error: each row's hits are computed independently over the full
+		// finding population, so neither row can be made to look empty (and
+		// so fail the leftover-row check) by the other row's existence, and
+		// the finding is simply claimed twice, which claimed[] treats as one.
 		for _, hit := range hits {
 			claimed[hit] = true
 		}
@@ -336,11 +460,39 @@ func unmatchedProblems(rows []Row, findings []Finding) []string {
 }
 
 func rowMatches(rowName string, finding Finding) bool {
+	if scoped, matches := scopedRowMatches(rowName, finding); scoped {
+		return matches
+	}
 	at := strings.LastIndexByte(rowName, '.')
 	if at < 0 {
 		return finding.Name == rowName
 	}
 	return finding.Name == rowName[at+1:] && finding.Package == rowName[:at]
+}
+
+// scopedRowMatches reports whether rowName is a path-scoped row and, if it
+// is, whether it covers finding.Path. A row Name containing a slash is
+// always a path scope, never a test name: a Go test identifier can never
+// contain one, and a package-qualified name (pkg.Name) never does either, so
+// the two grammars cannot collide. Two forms: a bare path
+// ("internal/le/pylint/pylint_test.go") matches that one file exactly, for a
+// migration that retires a whole file's worth of findings under one honest
+// reason; a path ending "/**" ("scripts/**") matches every finding whose
+// Path sits inside that tree, for a migration that retires the tree itself.
+func scopedRowMatches(rowName string, finding Finding) (scoped bool, matches bool) {
+	if !strings.Contains(rowName, "/") {
+		return false, false
+	}
+	if tree, isTree := strings.CutSuffix(rowName, "/**"); isTree {
+		return true, strings.HasPrefix(finding.Path, tree+"/")
+	}
+	return true, finding.Path == rowName
+}
+
+// isScopedRowName reports whether name uses the path-scope grammar rather
+// than the exact test-name grammar. See scopedRowMatches.
+func isScopedRowName(name string) bool {
+	return strings.Contains(name, "/")
 }
 
 func rowToWrite(finding Finding, qualify bool) string {

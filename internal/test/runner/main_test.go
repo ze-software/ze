@@ -10,7 +10,7 @@ import (
 // ZE_QEMU_LINUX_ONLY is a RUNTIME FILTER for real .ci suite runs: parseAndAdd
 // stamps SkipReason = "ZE_QEMU_LINUX_ONLY (not option=needs-linux)" on every
 // record that is not option=needs-linux (record_parse.go:246). That is correct
-// for `make ze-qemu-needs-linux-test`, and wrong for a unit test that builds a
+// for `./le qemu all-tests`, and wrong for a unit test that builds a
 // Record and asserts on its SkipReason -- the record is skipped before the
 // assertion ever describes anything.
 //

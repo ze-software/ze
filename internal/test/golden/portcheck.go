@@ -30,7 +30,7 @@ import (
 // a later port names its own commit and reuses the same instrument.
 const PrePortRef = "80f0b8b57"
 
-// portRef overrides PrePortRef. `make ze-templ-port-check REF=<sha>` passes it.
+// portRef overrides PrePortRef. The native port-check action passes it.
 var portRef = flag.String("port-ref", "",
 	"the git ref holding the fixtures a port is compared against, empty for golden.PrePortRef")
 
@@ -62,10 +62,9 @@ const (
 // comparison cannot be repeated by a reader, and it cannot fail on the next
 // change. This one takes the ref as a parameter and reads the fixtures on disk,
 // so nothing here holds a copy that outlives the port.
-//
-// The fixtures on disk are the current render. make ze-web-golden-check
+// The fixtures on disk are the current render. Native golden verification
 // re-renders every unit and compares it against them byte for byte. A fixture
-// that has drifted from the code fails there, before it is read here.
+// that has drifted from the code fails before it is read here.
 //
 // Three verdicts, and only one of them passes in silence.
 //

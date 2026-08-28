@@ -107,7 +107,7 @@ func TestRuleFilesDropsTheGeneratedArtifacts(t *testing.T) {
 		t.Fatalf("fixture: %v", err)
 	}
 
-	found, err := RuleFiles(dir)
+	found, err := ruleFiles(dir)
 	if err != nil {
 		t.Fatalf("RuleFiles: %v", err)
 	}

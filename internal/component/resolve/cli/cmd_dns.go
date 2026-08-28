@@ -87,13 +87,13 @@ func dnsUsage() {
 		Summary: "DNS record queries",
 		Usage:   []string{"ze resolve dns [--server <host>] <operation> <hostname|address>"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Operations", Entries: []helpfmt.HelpEntry{
+			{Title: usageSectionOperations, Entries: []helpfmt.HelpEntry{
 				{Name: "a <hostname>", Desc: "IPv4 address records"},
 				{Name: "aaaa <hostname>", Desc: "IPv6 address records"},
 				{Name: "txt <hostname>", Desc: "TXT records"},
 				{Name: "ptr <address>", Desc: "Reverse DNS (PTR) records"},
 			}},
-			{Title: "Flags", Entries: []helpfmt.HelpEntry{
+			{Title: usageSectionFlags, Entries: []helpfmt.HelpEntry{
 				{Name: "--server <host>", Desc: "DNS server (default: system DNS)"},
 				{Name: "--dnssec <mode>", Desc: "DNSSEC validation: off|permissive|strict (default off)"},
 			}},

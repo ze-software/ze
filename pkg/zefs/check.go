@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const entryStatusParseError = "parse-error"
+
 // EntryStatus describes the integrity state of a single store entry.
 type EntryStatus struct {
 	Key    string
@@ -105,7 +107,7 @@ func Check(path string) (*CheckReport, error) {
 		if nameErr != nil {
 			report.Entries = append(report.Entries, EntryStatus{
 				Key:    "<offset " + strconv.Itoa(off) + ">",
-				Status: "parse-error",
+				Status: entryStatusParseError,
 				Error:  "entry name: " + nameErr.Error(),
 			})
 			report.CorruptEntries++
@@ -117,7 +119,7 @@ func Check(path string) (*CheckReport, error) {
 		if valueErr != nil {
 			report.Entries = append(report.Entries, EntryStatus{
 				Key:    string(nameData),
-				Status: "parse-error",
+				Status: entryStatusParseError,
 				Error:  "entry data: " + valueErr.Error(),
 			})
 			report.CorruptEntries++
@@ -195,7 +197,7 @@ func Repair(srcPath, dstPath string) (*RepairReport, error) {
 		if nameErr != nil {
 			report.Skipped = append(report.Skipped, EntryStatus{
 				Key:    "<offset " + strconv.Itoa(off) + ">",
-				Status: "parse-error",
+				Status: entryStatusParseError,
 				Error:  nameErr.Error(),
 			})
 			report.SkippedCount++
@@ -206,7 +208,7 @@ func Repair(srcPath, dstPath string) (*RepairReport, error) {
 		if valueErr != nil {
 			report.Skipped = append(report.Skipped, EntryStatus{
 				Key:    string(nameData),
-				Status: "parse-error",
+				Status: entryStatusParseError,
 				Error:  valueErr.Error(),
 			})
 			report.SkippedCount++
@@ -219,7 +221,7 @@ func Repair(srcPath, dstPath string) (*RepairReport, error) {
 		if !fs.ValidPath(key) || key == "." {
 			report.Skipped = append(report.Skipped, EntryStatus{
 				Key:    key,
-				Status: "parse-error",
+				Status: entryStatusParseError,
 				Error:  "invalid key",
 			})
 			report.SkippedCount++
@@ -229,7 +231,7 @@ func Repair(srcPath, dstPath string) (*RepairReport, error) {
 		if writeErr := wl.WriteFile(key, valueData, 0); writeErr != nil {
 			report.Skipped = append(report.Skipped, EntryStatus{
 				Key:    key,
-				Status: "parse-error",
+				Status: entryStatusParseError,
 				Error:  writeErr.Error(),
 			})
 			report.SkippedCount++

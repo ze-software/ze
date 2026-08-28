@@ -94,7 +94,7 @@ audit snapshot and implementation.
 ### Integration Points
 - 47 importer files - import path + qualifier rewrite to `packet`
 - former `message.` qualifiers inside wireu files (e.g. split.go) - dropped (now intra-package)
-- `scripts/dev/protocol_skeleton_report.py`, `ai/rules/go-standards.md`, `ai/rules/protocol.md`, `ai/PACKAGE-MAP.md` - rule-surface sync
+- `internal/le/protocolskeleton/protocolskeleton.go`, `ai/rules/go-standards.md`, `ai/rules/protocol.md`, `ai/PACKAGE-MAP.md` - rule-surface sync
 
 ### Architectural Verification
 - [ ] No bypassed layers
@@ -111,8 +111,8 @@ audit snapshot and implementation.
 | A-1 | Zero identifier clashes between the two packages | comm audit 2026-07-08 (exported 60+81 vs 24+7; unexported 108 vs 34; tests included) | clash needs a rename first; fold design holds otherwise | rerun both comm audits at start | confirmed (2026-07-08 snapshot; MUST rerun at start) |
 | A-2 | Only doc.go and errors.go collide by filename | directory-listing comm 2026-07-08 | more file renames in the move | rerun listing comm at start | confirmed (2026-07-08 snapshot) |
 | A-3 | wireu -> message is the only cross-import between the pair | import grep 2026-07-08 (split.go; no reverse edge) | cycle would block the fold | grep both directions at start | confirmed (2026-07-08 snapshot) |
-| A-4 | 17 doc anchors point into `bgp/wireu` | anchor grep 2026-07-08 | doc-test reveals more | `make ze-doc-verify` after sweep | confirmed (2026-07-08 snapshot) |
-| A-5 | spec-rename-2 closed; destination is `bgp/packet` | Depends field | fold target absent | `make ze-spec-status` + `ls internal/component/bgp/packet` at start | unvalidated (checked at start) |
+| A-4 | 17 doc anchors point into `bgp/wireu` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc-check verify` after sweep | confirmed (2026-07-08 snapshot) |
+| A-5 | spec-rename-2 closed; destination is `bgp/packet` | Depends field | fold target absent | `./le spec-status` + `ls internal/component/bgp/packet` at start | unvalidated (checked at start) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -134,11 +134,11 @@ audit snapshot and implementation.
 |-------|-------------------|-------------------|
 | AC-1 | after fold | `internal/component/bgp/wireu/` does not exist; its files live in `internal/component/bgp/packet/` with package clause `packet`; `errors.go` collision resolved (e.g. `errors_update.go`); doc.go content merged into the destination doc.go |
 | AC-2 | repo-wide grep for the old import path and `wireu.` qualifier | zero hits in code and living docs (plan/learned history exempt) |
-| AC-3 | `scripts/dev/protocol_skeleton_report.py` | summary `legacy 1` (only `bgp/reactor`); `--selftest` OK with ("bgp","wireu") fixtures removed |
-| AC-4 | `make ze-doc-verify` | green after the 17-anchor + prose sweep |
+| AC-3 | `internal/le/protocolskeleton/protocolskeleton.go` | summary `legacy 1` (only `bgp/reactor`); `--selftest` OK with ("bgp","wireu") fixtures removed |
+| AC-4 | `./le doc-check verify` | green after the 17-anchor + prose sweep |
 | AC-5 | rule surfaces | go-standards.md glossary `wireu` row removed (decision recorded as superseded); protocol.md BGP row updated |
 | AC-6 | fuzz | `FuzzRewriteASPath` seed corpus found and passing from its new location |
-| AC-7 | `make ze-precommit-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
+| AC-7 | `./le verify current mode full` | green, including regenerated `ai/PACKAGE-MAP.md` |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -152,7 +152,7 @@ audit snapshot and implementation.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | all wireu tests move with their files | `internal/component/bgp/packet/*_test.go` | behavior identical post-fold | |
-| report selftest (fail-first: flip ("bgp","wireu") fixture expectations before the table edit) | `scripts/dev/protocol_skeleton_report.py` | exception retired | |
+| report selftest (fail-first: flip ("bgp","wireu") fixture expectations before the table edit) | `internal/le/protocolskeleton/protocolskeleton.go` | exception retired | |
 | fuzz seed pass | `FuzzRewriteASPath` from new corpus path | corpus moved correctly | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -180,7 +180,7 @@ audit snapshot and implementation.
 - 47 importer files - import path + `wireu.` -> `packet.` qualifiers (~193 lines)
 - `ai/rules/go-standards.md` - glossary `wireu` row removed
 - `ai/rules/protocol.md` - BGP probe row updated
-- `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS ("bgp","wireu") removed; selftest fixtures updated
+- `internal/le/protocolskeleton/protocolskeleton.go` - LEGACY_EXCEPTIONS ("bgp","wireu") removed; selftest fixtures updated
 - docs holding the 17 anchors (incl. `docs/architecture/wire/messages.md`) - anchor + prose sweep
 - `ai/PACKAGE-MAP.md` - regenerated
 
@@ -210,7 +210,7 @@ audit snapshot and implementation.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 17 anchors; gated by `make ze-doc-verify` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 17 anchors; gated by `./le doc-check verify` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -225,7 +225,7 @@ audit snapshot and implementation.
 | 2. Audit | rerun A-1..A-5 (clash audits are phase 1, BLOCKING) |
 | 3. Wiring phase | Wiring Test table (existing chains) |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 6-9. Reviews + fixes | Critical Review Checklist below |
 | 10. Deliverables review | Deliverables Checklist below |
 | 11. Security review | Security Review Checklist below |
@@ -239,18 +239,18 @@ audit snapshot and implementation.
    - Files: this spec (annotations)
    - Verify: A-1, A-2, A-3 re-confirmed; A-5 confirmed
 2. **Phase: report selftest fail-first** — flip ("bgp","wireu") fixtures; paste the red.
-   - Tests: `scripts/dev/protocol_skeleton_report.py --selftest`
-   - Files: `scripts/dev/protocol_skeleton_report.py`
+   - Tests: `internal/le/protocolskeleton/protocolskeleton.go --selftest`
+   - Files: `internal/le/protocolskeleton/protocolskeleton.go`
    - Verify: red proves fixture teeth
 3. **Phase: the fold** — git mv files + testdata; package clause; drop `message.` qualifiers inside moved files; resolve doc.go/errors.go collisions; rewrite the 47 importers; remove the exceptions row.
-   - Tests: `go build ./...`, `make ze-unit-test`, fuzz seed pass, report `--selftest` green
+   - Tests: `go build ./...`, `./le test-unit`, fuzz seed pass, report `--selftest` green
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
 4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 17 anchors + prose, PACKAGE-MAP regen.
-   - Tests: `make ze-doc-verify`
+   - Tests: `./le doc-check verify`
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
-5. **Full verification** — `make ze-precommit-verify`; AC-7.
+5. **Full verification** — `./le verify current mode full`; AC-7.
 6. **Complete spec** — audit tables, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -355,7 +355,7 @@ Not applicable: existing `// RFC 4271/4760/7911` comments move verbatim with the
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| one codec package, zero behavior change | functional test | (fill: `make ze-precommit-verify` output + old-path greps + report summary) |
+| one codec package, zero behavior change | functional test | (fill: `./le verify current mode full` output + old-path greps + report summary) |
 
 ## Review Gate
 
@@ -403,7 +403,7 @@ Not applicable: existing `// RFC 4271/4760/7911` comments move verbatim with the
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

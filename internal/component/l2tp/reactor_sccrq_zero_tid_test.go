@@ -17,7 +17,7 @@ import (
 // testClock, its constructor and buildLogReactorWithClock all live in
 // reactor_test.go; only the HELLO interval and the empty shared secret are
 // chosen here, and neither reaches the path under test.
-func buildZeroTIDReactor(t *testing.T, clk *testClock) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+func buildZeroTIDReactor(t *testing.T, clk *testClock) (*UDPListener, *l2tpReactor, *lockedBuffer, func()) {
 	t.Helper()
 	ln, r, logs, stop := buildLogReactorWithClock(t, clk, 60*time.Second, "")
 	require.NotZero(t, ln.Addr().Port(), "the listener is bound before the first send")
@@ -295,7 +295,7 @@ func TestUnassociatedStopCCNIsCaptured(t *testing.T) {
 // tunnel.
 // PREVENTS: allocateLocalTID returning tidNoTunnel after wrap-around.
 func TestAllocateLocalTIDSkipsTidNoTunnel(t *testing.T) {
-	r := &L2TPReactor{
+	r := &l2tpReactor{
 		logger:           slog.Default(),
 		tunnelsByLocalID: make(map[uint16]*L2TPTunnel),
 		tunnelsByPeer:    make(map[peerKey]*L2TPTunnel),

@@ -9,15 +9,14 @@ import (
 	"io/fs"
 	"net/netip"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 const (
@@ -145,9 +144,6 @@ func needsIPv6(root string) (bool, error) {
 			return err
 		}
 		if entry.IsDir() {
-			if entry.Name() == "__pycache__" {
-				return filepath.SkipDir
-			}
 			return nil
 		}
 		data, readErr := scenarioRoot.ReadFile(relative)
@@ -210,14 +206,8 @@ func renderScenario(source, target string, network interoplab.Network) error {
 			return err
 		}
 		if entry.IsDir() {
-			if entry.Name() == "__pycache__" {
-				return filepath.SkipDir
-			}
 			targetRelative := filepath.FromSlash(relative)
 			return os.MkdirAll(filepath.Join(target, targetRelative), 0o750)
-		}
-		if strings.HasSuffix(entry.Name(), ".pyc") {
-			return nil
 		}
 		data, readErr := sourceRoot.ReadFile(relative)
 		if readErr != nil {
@@ -262,9 +252,9 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		return interoplab.Mount{Source: source, Target: target, ReadOnly: true}
 	}
 
-	if path := filepath.Join(scenario, "bmp-collector.py"); regularFile(path) {
+	if configContains(filepath.Join(scenario, "ze.conf"), "bmp {") {
 		peers = append(peers, interoplab.PeerConfig{Name: "bmp", Container: containerName("bmp", suffix), Image: "ze", Host: 6,
-			Mounts: []interoplab.Mount{mount(path, "/bmp-collector.py")}, Arguments: []string{"--entrypoint", "python3"}, Command: []string{"/bmp-collector.py"}})
+			Arguments: []string{"--entrypoint", "ze-test"}, Command: []string{"interop-bgp", "bmp-collector"}})
 	}
 	if path := filepath.Join(scenario, "inject.msg"); regularFile(path) {
 		arguments, err := readArguments(scenario, "inject-args")
@@ -293,18 +283,6 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	}
 
 	zeMounts := []interoplab.Mount{mount(filepath.Join(scenario, "ze.conf"), "/etc/ze/bgp.conf")}
-	entries, err := os.ReadDir(scenario)
-	if err != nil {
-		return nil, err
-	}
-	for _, entry := range entries {
-		if entry.IsDir() || entry.Name() == "check.py" || entry.Name() == "check.sh" {
-			continue
-		}
-		if strings.HasSuffix(entry.Name(), ".py") || strings.HasSuffix(entry.Name(), ".sh") {
-			zeMounts = append(zeMounts, mount(filepath.Join(scenario, entry.Name()), path.Join("/etc/ze", entry.Name())))
-		}
-	}
 	peers = append(peers, interoplab.PeerConfig{Name: "ze", Container: containerName("ze", suffix), Image: "ze", Host: 2,
 		Mounts: zeMounts, Capabilities: []string{"NET_ADMIN"}, Arguments: ipv6Sysctls(),
 		Environment: []interoplab.EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: strconv.Itoa(int(timeout / time.Second))}},
@@ -324,13 +302,14 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			return nil, readErr
 		}
 		command := []string{
-			"/speaker/engine.py",
+			"interop-bgp",
+			"speaker",
 			"--connect",
 			rendered.Reset().Str(networkHostAddress(network, 2)).Str(":179").String(),
 		}
 		command = append(command, arguments...)
 		peers = append(peers, interoplab.PeerConfig{Name: speaker.name, Container: containerName(speaker.name, suffix), Image: "ze", Host: speaker.host,
-			Mounts: []interoplab.Mount{mount(filepath.Join(producer, "speaker"), "/speaker")}, Arguments: []string{"--entrypoint", "python3"}, Command: command})
+			Arguments: []string{"--entrypoint", "ze-test"}, Command: command})
 	}
 	if path := filepath.Join(scenario, "frr.conf"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: "frr", Container: containerName("frr", suffix), Image: "frr", Host: 3,
@@ -359,6 +338,11 @@ func ipv6Sysctls() []string {
 func regularFile(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.Mode().IsRegular()
+}
+
+func configContains(path, token string) bool {
+	data, err := os.ReadFile(path)
+	return err == nil && strings.Contains(string(data), token)
 }
 
 func readArguments(directory, name string) ([]string, error) {

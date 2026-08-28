@@ -271,7 +271,7 @@ func TestExtractBindAddresses(t *testing.T) {
 // uses: a config-declared local address reaches the probe only when this host is
 // meant to carry it (loopbackCandidate), and a globally scoped address is
 // skipped. The suite's own second IPv6 address is fd00::2
-// (scripts/le/application/setup.py), so this one is absent both on a host that has run
+// (internal/le/devsetup/setup.go), so this one is absent both on a host that has run
 // `./le setup` and on one that has not. A host that did carry it would redden
 // the cases below rather than hide them.
 const absentULA = "fd00:7e57:c0de::1"

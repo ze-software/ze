@@ -1,15 +1,15 @@
 # Extraction sign-offs
 
 One file per RFC, `rfc/extraction/<stem>.json`. Written as an unclassified skeleton by
-`make ze-rfc-extraction-create STEM=<stem>`, classified by hand, and re-checked by
-`make ze-rfc-check` on every run.
+`./le rfc extraction-create STEM=<stem>`, classified by hand, and re-checked by
+`./le rfc check` on every run.
 
 Spec: `plan/spec-rfcgate-1-extraction.md`. Rule: `ai/rules/rfc-compliance.md`,
 "Extraction Completeness".
 
 ## What this artifact is
 
-Every other check in `scripts/dev/rfc_requirements.py` judges the requirements a summary
+Every other check in `internal/le/rfc.Answer` judges the requirements a summary
 **lists**. None of them can see an obligation nobody wrote down, so a green gate is
 bounded by what was extracted, and until this artifact existed nothing anywhere bounded
 what a summary **missed**.
@@ -79,7 +79,7 @@ Every figure above is derived by driving this module's own parser over `rfc/enro
 -- `derive_inventory(stem, gated)` per stem, register taken from the returned inventory,
 and the 23 selected by `keyword_sites == 0` with their gated totals summed from
 `gated_counts` -- never retyped from a previous run.
-<!-- source: scripts/dev/rfc_requirements.py — derive_inventory, derive_register, gated_counts, source_keyword_count -->
+<!-- source: internal/le/rfc.Answer — derive_inventory, derive_register, gated_counts, source_keyword_count -->
 
 **Three denominators, all correct; do not reconcile them into one number.** Each one reads
 the same source text and answers a different question.
@@ -129,7 +129,7 @@ the rule.
 A fourth counter, `source_prose_keyword_count`, counts the same words in LOWERCASE. It is
 the evidence a pre-2119 document offers instead of capitalised keywords, it renders in the
 ledger beside the raw count, and no gate reads it.
-<!-- source: scripts/dev/rfc_requirements.py -- _sites_for, _BOILERPLATE_RE, _split_off_boilerplate, source_keyword_count, source_obligation_keyword_count, source_prose_keyword_count -->
+<!-- source: internal/le/rfc.Answer -- _sites_for, _BOILERPLATE_RE, _split_off_boilerplate, source_keyword_count, source_obligation_keyword_count, source_prose_keyword_count -->
 
 *(Corrected 2026-07-29: this paragraph previously read "168 gated MUSTs", which is neither
 denominator's answer. Re-measured against the producing code, `ai/rules/writing.md`
@@ -180,7 +180,7 @@ of `rfc/short/rfc7296.md` and into `plan/spec-ipsec-remote-access.md` and
 `binds-another-role` onto such a site would assert Ze plays no IRAS or IPComp role, while
 two specs exist to implement exactly those roles.
 
-A pointer with no tripwire is a shrug with a longer name, so `make ze-rfc-check` re-reads
+A pointer with no tripwire is a shrug with a longer name, so `./le rfc check` re-reads
 the claim on every run and REFUSES the sign-off when:
 
 | Condition | Where |
@@ -210,7 +210,7 @@ show a reviewer. `_git_baseline_extractions` counts `disposition == "excluded"` 
 blob and never reads the kind, so one definition on both sides also keeps the comparison
 from splitting across two parsers. The relocated SUBSET is then published on its own, in
 `ai/RFC-REQUIREMENTS.md` below the table and as `relocated` in
-`make ze-rfc-extraction-status`, because a homed obligation and a dismissed sentence are
+`./le rfc extraction-status`, because a homed obligation and a dismissed sentence are
 not the same fact. That line is derived, so it appears exactly when a relocation exists.
 
 ### Section skip kinds (closed set)

@@ -4,6 +4,6 @@ level:
 stage:
 ---
 That is the whole list. Step 3 (edit `feature-gates.txt`) is the ONLY manifest
-declaration point. Everything else follows: the Makefile, the runner, the generators,
-dep_audit, and stress-repro all derive from it, and `feature_tags.go` (via
-`make generate`) regenerates the three static tag lists. There is nothing to hand-sync.
+declaration point. The native runner, `internal/le/pluginimports`,
+`internal/le/featuretags`, tier checks, and stress tooling all derive from it.
+`./le repository generate` refreshes every generated consumer. There is nothing to hand-sync.

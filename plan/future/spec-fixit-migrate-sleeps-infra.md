@@ -103,7 +103,7 @@ The original framing assumed each was left for lack of **new test-synchronizatio
 The audit disproved that: the signals mostly already exist. Each remaining sleep was left for a
 **per-test reason** that only surfaces on attempting + running the conversion. Verification splits
 hard by platform: 83/91 plugin sleeps are host-runnable on darwin; the rest (8 plugin + ~155
-non-plugin) are `needs-linux` and verifiable ONLY via `make ze-qemu-needs-linux-test` (which this
+non-plugin) are `needs-linux` and verifiable ONLY via `./le qemu run command "./le qemu all-tests"` (which this
 dev host does not run).
 
 Scope confirmed by user (2026-07-14): "write a spec for the ones you deferred/kept so we can
@@ -154,7 +154,7 @@ already converted `rbac-web`, so the web suite was not new ground here.
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x]. Capture insights as -> Decision: / -> Constraint: annotations. -->
 - [ ] `docs/architecture/testing/ci-format.md` — `.ci` directive catalog; the engine-step executor is the Go-side extension target for a runner-level "wait for daemon stderr pattern" primitive (P2).
-- [ ] `ai/rules/platform-linux.md` — QEMU integration is mandatory for linux-only code; the linux-only converted tests (firewall/traffic/policy/vpp/fib-kernel) are verified via `make ze-qemu-needs-linux-test`, not the darwin host.
+- [ ] `ai/rules/platform-linux.md` — QEMU integration is mandatory for linux-only code; the linux-only converted tests (firewall/traffic/policy/vpp/fib-kernel) are verified via `./le qemu run command "./le qemu all-tests"`, not the darwin host.
 - [ ] `ai/rules/testing.md` — every converted behavior keeps its required functional test.
 
 ### RFC Summaries (MUST for protocol work)
@@ -248,7 +248,7 @@ already converted `rbac-web`, so the web suite was not new ground here.
 | AC-5 | **P5 reject-fence** | a documented sentinel-route pattern (+ helper) proving a reject decision completed without a positive edge; converts prefix-filter-reject, prefix-filter-chain-order, community-match-reject, aspath-filter-reject, aspath-length-reject, role-otc-ingress-reject, rpki-validate-reject, rpki-maxlength, rpki-as-set, rfc7606-withdraw; each 3x |
 | AC-6 | **P6 redistribute/control-message signal** | a fast outbound-sent signal that redistribute UPDATEs and KEEPALIVE/ROUTE-REFRESH increment (or a forward-pool barrier that returns promptly); converts bgp-redistribute-* (5), api-raw, api-route-refresh; each 3x |
 | AC-7 | **P7 RS inbound-anchor** | anchor on the RS's inbound view before quiescing outbound; converts bgp-rs-* (6), remove-private-as-export, remove-private-as-replace-peer; each 3x |
-| AC-8 | **P8 QEMU verification** | every linux-only conversion (P2/P3/P4 + ospf/l2tp linux tests) passes `make ze-qemu-needs-linux-test` |
+| AC-8 | **P8 QEMU verification** | every linux-only conversion (P2/P3/P4 + ospf/l2tp linux tests) passes `./le qemu run command "./le qemu all-tests"` |
 | AC-9 | **P9 KEEP re-examination + ratchet** | peer-driver pacing (l2tp handshake) assessed for determinism; standalone stderr backoffs moved to `select` where clean; genuine deliberate timers documented and kept; `test/.ci-sleep-baseline` lowered as each piece lands (target: only documented deliberate timers remain) |
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -303,7 +303,7 @@ Infra (production/test-support) files, each additive:
 |-------------------|---------|------|
 | Test infra docs | yes | `docs/architecture/testing/ci-format.md`, `ai/rules/testing.md` |
 | Discovery updates | yes (new primitives/gates) | `ai/INDEX.md` per `ai/rules/repo-maintenance.md` |
-| QEMU verification | yes | `make ze-qemu-needs-linux-test` for linux-only conversions |
+| QEMU verification | yes | `./le qemu run command "./le qemu all-tests"` for linux-only conversions |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File |
@@ -321,7 +321,7 @@ Infra (production/test-support) files, each additive:
 |-------|---------|
 | Audit | deferrals.md rows + this spec's AC table |
 | Implement | P1..P9, each piece as a phase |
-| Verify | 3x host per converted test + `make ze-qemu-needs-linux-test` for linux-only |
+| Verify | 3x host per converted test + `./le qemu run command "./le qemu all-tests"` for linux-only |
 | Close | ratchet lowered per piece; two-commit closure |
 
 ### Implementation Phases
@@ -383,11 +383,11 @@ Infra (production/test-support) files, each additive:
 <!-- LIVE -->
 - The remaining sleeps are an infrastructure gap, not a per-test one. Grouping by infra piece (P1..P8) makes each independently shippable and lets host-verifiable pieces (P1/P5/P6/P7) land before the QEMU-gated ones (P2/P3/P4).
 - **AUDIT REVISION (2026-07-14):** The spec's core premise ("build the signal, conversion is mechanical") is largely wrong. The signals mostly ALREADY exist (`updates-sent` counter for P6, `show fib kernel` for P4). The real remaining difficulty is a reproducible engine BEHAVIOR: an external observer that issues engine RPCs (dispatch/quiesce/show-poll) during BGP establishment can prevent a single-peer session from coming up (`connections-established` stays 0), so deterministic waits that must observe establishment cannot be added without either (a) root-causing that behavior or (b) proving it absent per-config. `redistribute-as112-announce.ci` (2-peer) is unaffected, so it is config-dependent and subtle.
-- **Host/QEMU split (verified 2026-07-14):** Of 91 remaining `test/plugin` sleeps, 83 are NOT `option=needs-linux` (host-runnable on darwin); only 8 (ddos/flowexport/trafficusage external-warns) need linux. Of 155 non-plugin sleeps, most are linux-only (firewall 48, l2tp 24, static 17, traffic 16, vpp 14, policy 13) and can only be verified via `make ze-qemu-needs-linux-test`, which this darwin host does not run.
+- **Host/QEMU split (verified 2026-07-14):** Of 91 remaining `test/plugin` sleeps, 83 are NOT `option=needs-linux` (host-runnable on darwin); only 8 (ddos/flowexport/trafficusage external-warns) need linux. Of 155 non-plugin sleeps, most are linux-only (firewall 48, l2tp 24, static 17, traffic 16, vpp 14, policy 13) and can only be verified via retired `ze-qemu-needs-linux-test` (current: `./le qemu run command "./le qemu all-tests"`), which this darwin host does not run.
 - **Reject-fence via injected counted message (PROVEN 2026-07-14, rfc7606-withdraw):** to prove an UNCOUNTED engine action was processed (a malformed treat-as-withdraw UPDATE returns in `session_read.go` `processMessage` at 163-171 BEFORE the `onMessageReceived` callback that drives `IncrUpdatesReceived` at `reactor_notify.go`), inject a well-formed COUNTED message (an empty EOR) right after it in the SAME `seq` group on the peer connection. ze processes a connection in TCP order on one session-read goroutine, so the counted message's `updates-received` increment is a deterministic fence proving the uncounted action already ran. The observer waits on `updates-received` instead of sleeping. This realizes the "reject-fence sentinel" decision (Key Design Decisions) concretely, WITHOUT any production change. It applies to any shape where the peer sends the uncounted message on a connection the test drives.
 - **Infra-gated shape (no pollable signal, injected-message technique does NOT apply):** reload-listener-rejected, as112-external-refuses, cos-external-warns prove a rejection/warning observable ONLY as a relayed-stderr line (checked runner-side via `expect=stderr:contains=`), driven by a standalone `wait.py` with no ze_api connection to poll and no peer connection to inject a fence on. Their correctness is ALREADY timing-independent (the runner's stderr expect waits up to the test timeout); only the secondary observer-side check keeps a sleep, and making it deterministic needs a NEW production signal (a plugin-visible reload-processed / external-plugin-exit event). These are the genuine P5 reject-fence INFRA cases.
 - **Session conversions landed 2026-07-14 (baseline 226 -> 204):** rfc7606-withdraw (EOR-fence, 9e2bb1821); remove-private-as x2 (receiver `updates-sent` over the RS fast path per `reactor_notify.go`, 16cd29d00); l2tp teardown/show x10 (raw-L2TP driver: pre-ICRQ `sleep(0.05)` -> ICRQ retransmit-until-ICRP(AVP 14) retry loop mirroring the file's SCCRQ loop, plus dropped redundant pre-SCCRQ settle sleeps; 15 sleeps; 8cf13f1c1); cli-commit x2 + rbac-web (hand-rolled readiness poll loops -> `ze_api.wait_until`, ratchet-exempt; 4 sleeps; de83367f0). 22 sleeps removed, each verified 3x+ standalone and concurrently against the prebuilt binary (the tree does not build: a concurrent session broke `internal/component/iface`, so commits used `--unverified`/`--stale-index-ok`).
-- **Remaining 204, by category + owner:** QEMU-gated needs-linux bulk (~150; requires `make ze-qemu-needs-linux-test`, unavailable on darwin); P0-blocked redistribute (7 tests + api-raw/route-refresh) -> `plan/spec-fixit-redistribute-establishment-stall.md`; infra-gated reject-fence cases (reload-listener-rejected, as112/cos-external) -> `plan/spec-fixit-reject-fence-observability.md`; a deliberate-window timer (concurrent-config-commit `sleep(3)` IS the concurrency race window, keep); raw-protocol pacing left as-is (bfd-* 0.05 BFD control loop, exabgp-bridge-sdk startup with no clear readiness signal). Blind-converting the QEMU bulk without a Linux env is explicitly NOT done: unverified sleep conversions would violate this spec's own verification principle. <!-- doc-links: ignore (spec closed and removed) -->
+- **Remaining 204, by category + owner:** QEMU-gated needs-linux bulk (~150; requires `./le qemu run command "./le qemu all-tests"`, unavailable on darwin); P0-blocked redistribute (7 tests + api-raw/route-refresh) -> `plan/spec-fixit-redistribute-establishment-stall.md`; infra-gated reject-fence cases (reload-listener-rejected, as112/cos-external) -> `plan/spec-fixit-reject-fence-observability.md`; a deliberate-window timer (concurrent-config-commit `sleep(3)` IS the concurrency race window, keep); raw-protocol pacing left as-is (bfd-* 0.05 BFD control loop, exabgp-bridge-sdk startup with no clear readiness signal). Blind-converting the QEMU bulk without a Linux env is explicitly NOT done: unverified sleep conversions would violate this spec's own verification principle. <!-- doc-links: ignore (spec closed and removed) -->
 
 ## Core Insight
 
@@ -434,7 +434,7 @@ Baseline: 246 -> 223. Remaining 223 are categorized in Design Insights (QEMU-gat
 
 **The blocker was the HOST, and it is gone.** Every "cannot verify here" note above
 says *darwin*. This session ran on Linux with passwordless sudo, `nft`, `tc`,
-`setcap` and QEMU present, so `ZE_NETNS_SUITES` (`mk/test-integration.mk` --
+`setcap` and QEMU present, so `ZE_NETNS_SUITES` (`internal/le/integration/gates.go` --
 firewall, policy, ospf, ospfv3) runs NATIVELY, each test in its own netns, with a
 host-safety check on the nft table set. That is a real verification vehicle for
 exactly the buckets P1 and P3 name. Nothing in the analysis below rests on a skip.
@@ -481,11 +481,11 @@ built and run:
 | drop set elements (nft/lower_linux.go) | only the set-element test fails | exactly firewall 009 |
 Plus three mutations of the helpers themselves against their new unit tests in
 `test/scripts/ze_api_test.py` (wired into `go test` via
-`scripts/dev/python_tests_test.go`), each red.
+`internal/le/`), each red.
 
-**Found while verifying, deferred:** `make ze-netns-test` reports
+**Found while verifying, deferred:** `./le qemu netns-test` reports
 `ddos-local-withdraw` as failing, and that is the TARGET's defect. It depends on
-`$(ZEBIN_ZE)`, the production binary, which `mk/test-integration.mk` says has
+`$(ZEBIN_ZE)`, the production binary, which `internal/le/integration/gates.go` says has
 "neither zetest nor ze_test" -- so the `ddos/fake` node the test configures does
 not exist and the daemon dies with `unknown field in ddos: fake`. Against a
 zetest-tagged DUT the same test passes in 653ms. The target also cannot run
@@ -537,7 +537,7 @@ unhomed:**
 - Concurrent `ze-test web` PROCESSES share browser sessions. The session name is
   `test.Nick` (`zeTestRunWebTest`), which is derived from the file path, so two
   runs of the same test in one checkout drive one browser page and stomp each
-  other. This makes `scripts/dev/stress-repro.py` unusable against the web suite,
+  other. This makes `internal/le/stressrepro/run.go` unusable against the web suite,
   and it is a live hazard for two agents in a shared checkout.
 ### Bugs Found/Fixed
 ### Documentation Updates
@@ -562,7 +562,7 @@ unhomed:**
 | Goal | Evidence Type | Concrete Evidence |
 |------|---------------|-------------------|
 | remaining convertible sleeps eliminated | ratchet + functional | (fill per piece) |
-| linux-only conversions verified | QEMU | (fill: make ze-qemu-needs-linux-test) |
+| linux-only conversions verified | QEMU | (fill: ./le qemu run command "./le qemu all-tests") |
 | only deliberate timers remain | audit | (fill) |
 
 ## Checklist
@@ -570,8 +570,8 @@ unhomed:**
 Migration-adapted TDD (each converted `.ci` IS its own functional test; infra pieces have unit tests):
 - [ ] Tests written — infra pieces (P2/P4/P6) get unit tests; each converted `.ci` keeps its exact assertions.
 - [ ] Tests FAIL — infra unit tests are red-first (TDD); a converted `.ci` that FAILS surfaces a real race, fixed at the source (never a re-added sleep).
-- [ ] Tests PASS — each converted test 3x green (host) or via `make ze-qemu-needs-linux-test` (linux-only).
-- [ ] make ze-standard-test / `bin/ze-test <suite> --all` + QEMU — affected suites green before each piece's commit.
+- [ ] Tests PASS — each converted test 3x green (host) or via `./le qemu run command "./le qemu all-tests"` (linux-only).
+- [ ] `./le verify current mode full`, the affected native functional suites, and QEMU are green before each piece's commit.
 
 ## Review Gate
 ### Run 1 (initial)

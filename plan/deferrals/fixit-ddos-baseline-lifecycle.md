@@ -49,7 +49,7 @@ not persist window, multiplier or floor, so a config change applies on restore.
 That is the right shape and the staleness field should join it rather than
 replace it.
 
-**Owning gate:** `make ze-unit-pkg-test PKG=./internal/plugins/ddos/detect` for the
-unit level, then `make ze-functional-plugin-test` for the thirteen `ddos-*.ci` fixtures. A
+**Owning gate:** `go test -race ./internal/plugins/ddos/detect` for the
+unit level, then `./le functional plugin` for the thirteen `ddos-*.ci` fixtures. A
 latch fix needs a new fixture that drives a sustained step change and asserts the
 detector returns to idle, which is the assertion that would fail today.

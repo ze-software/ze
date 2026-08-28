@@ -2,23 +2,23 @@
 // Overview: rules.go -- the corpus every action here reads
 // Detail: lint.go -- the format linter, render.go -- the render and the round trip
 // Detail: coverage_report.go -- the gate map's answer
+// Detail: session_coverage.go -- the transcript rule-miss detector
 // Detail: index.go -- the rule index
 // Detail: artifacts.go -- the two digest artifacts and the payload they cost
 // Detail: router.go -- the routing measurement
 //
-// actions.go ports the Python area. `le check-rules ze-rules-lint` selected one
-// gate from a GateSet. `le rules lint` selects one action from the table below.
-// The Gate's three fields remain: its Make target, its `--list` reason, and
-// whether it WRITES.
+// actions.go ports the retired rules area. `le rules lint` now selects one
+// action from the table below, while retired gate metadata remains only for the
+// migration census.
 //
 // The dispatch, the listing, the help line and the two refusals live in
 // internal/le/leaction. What stays here is the TABLE, because the table is the only
 // part of an area that is about the rule corpus.
 //
-// The table is COMPLETE and contains all eleven `ze-rules-*` gates. Five came
-// from rules_lint.py and rules_points.py. Six came from rules_index.py,
-// rules_condensed.py, and rules_router.py. All scripts use one area because each
-// verb omits the area's prefix from its gate name.
+// The table contains the eleven `ze-rules-*` gates and one hook-facing action.
+// Five gates came from rules_lint.py and rules_points.py. Six came from
+// rules_index.py, rules_condensed.py, and rules_router.py. Transcript coverage
+// declares its native verb directly.
 
 package rules
 
@@ -35,76 +35,56 @@ import (
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-rules-lint",
-		Why: "every rule carries the **When:** / **Severity:** metadata block " +
-			"(ai/rules/rule-format.md), so tooling parses triggers rather than guessing them",
-		Answer: lintAnswer,
-	},
-	leaction.Action{
-		Gate:   "ze-rules-render-check",
-		Why:    "the rendered ai/rules/*.md agree with ai/rules/points/",
-		Answer: func() (any, int) { return renderAnswer(true) },
-	},
-	leaction.Action{
-		Gate:   "ze-rules-render-update",
-		Why:    "render ai/rules/points/ into ai/rules/*.md",
+	leaction.Action{Verb: "lint", Why: "every rule carries the **When:** / **Severity:** metadata block " +
+		"(ai/rules/rule-format.md), so tooling parses triggers rather than guessing them",
+		Answer: lintAnswer},
+	leaction.Action{Verb: "render-check", Why: "the rendered ai/rules/*.md agree with ai/rules/points/",
+		Answer: func() (any, int) { return renderAnswer(true) }},
+	leaction.Action{Verb: "render-update", Why: "render ai/rules/points/ into ai/rules/*.md",
 		Writes: true,
-		Answer: func() (any, int) { return renderAnswer(false) },
-	},
-	leaction.Action{
-		Gate: "ze-rules-points-roundtrip-check",
-		Why: "every rendered rule can be split back into points byte-identically; " +
-			"a lossy split is silent instruction loss",
-		Answer: roundTripAnswer,
-	},
-	leaction.Action{
-		Gate: "ze-rules-gate-map-report",
-		Why: "which rule point each hook check enforces. Gated and ungated are " +
-			"MEASUREMENTS and exit 0: an ungated point is a rule no machine enforces yet. " +
-			"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
-			"now, a rule holding fewer points than HEAD with no row in ai/rules/points/RETIRED.md, " +
-			"and a rationale or excepted-by naming nothing",
-		Answer: coverageAnswer,
-	},
-	leaction.Action{
-		Gate: "ze-rules-index-check",
-		Why: "ai/rules/INDEX.md names every rule and its trigger, so an agent can " +
-			"tell which rule covers a topic without opening all of them",
-		Answer: func() (any, int) { return indexAnswer(true) },
-	},
-	leaction.Action{
-		Gate:   "ze-rules-index-update",
-		Why:    "regenerate ai/rules/INDEX.md from each rule's own heading and trigger",
+		Answer: func() (any, int) { return renderAnswer(false) }},
+	leaction.Action{Verb: "points-roundtrip-check", Why: "every rendered rule can be split back into points byte-identically; " +
+		"a lossy split is silent instruction loss",
+		Answer: roundTripAnswer},
+	leaction.Action{Verb: "gate-map-report", Why: "which rule point each hook check enforces. Gated and ungated are " +
+		"MEASUREMENTS and exit 0: an ungated point is a rule no machine enforces yet. " +
+		"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
+		"now, a rule holding fewer points than HEAD with no row in ai/rules/points/RETIRED.md, " +
+		"and a rationale or excepted-by naming nothing",
+		Answer: coverageAnswer},
+	leaction.Action{Verb: "index-check", Why: "ai/rules/INDEX.md names every rule and its trigger, so an agent can " +
+		"tell which rule covers a topic without opening all of them",
+		Answer: func() (any, int) { return indexAnswer(true) }},
+	leaction.Action{Verb: "index-update", Why: "regenerate ai/rules/INDEX.md from each rule's own heading and trigger",
 		Writes: true,
-		Answer: func() (any, int) { return indexAnswer(false) },
-	},
-	leaction.Action{
-		Gate: "ze-rules-condensed-check",
-		Why: "ai/rules/TRIGGERS.md and ai/rules/CORE.md agree with the rules they are " +
-			"derived from; a stale trigger index routes a session to a rule that moved",
-		Answer: func() (any, int) { return condensedAnswer(true) },
-	},
-	leaction.Action{
-		Gate:   "ze-rules-condensed-update",
-		Why:    "regenerate the trigger index and the always-on core from one parse of ai/rules/",
+		Answer: func() (any, int) { return indexAnswer(false) }},
+	leaction.Action{Verb: "condensed-check", Why: "ai/rules/TRIGGERS.md and ai/rules/CORE.md agree with the rules they are " +
+		"derived from; a stale trigger index routes a session to a rule that moved",
+		Answer: func() (any, int) { return condensedAnswer(true) }},
+	leaction.Action{Verb: "condensed-update", Why: "regenerate the trigger index and the always-on core from one parse of ai/rules/",
 		Writes: true,
-		Answer: func() (any, int) { return condensedAnswer(false) },
-	},
+		Answer: func() (any, int) { return condensedAnswer(false) }},
+	leaction.Action{Verb: "payload-report", Why: "what a session loads before it reads anything else, measured against the " +
+		"token budget. A MEASUREMENT, except that a payload file which is not there " +
+		"fails: an absent file is not a smaller one",
+		Answer: payloadAnswer},
+	leaction.Action{Verb: "router-report", Why: "which blocking rule no past task description would surface. A MEASUREMENT " +
+		"and exit 0: each name it prints is a candidate for the always-on core. " +
+		"An unreadable precedence ladder FAILS, because the core this subtracts is " +
+		"derived from it",
+		Answer: routerAnswer},
 	leaction.Action{
-		Gate: "ze-rules-payload-report",
-		Why: "what a session loads before it reads anything else, measured against the " +
-			"token budget. A MEASUREMENT, except that a payload file which is not there " +
-			"fails: an absent file is not a smaller one",
-		Answer: payloadAnswer,
-	},
-	leaction.Action{
-		Gate: "ze-rules-router-report",
-		Why: "which blocking rule no past task description would surface. A MEASUREMENT " +
-			"and exit 0: each name it prints is a candidate for the always-on core. " +
-			"An unreadable precedence ladder FAILS, because the core this subtracts is " +
-			"derived from it",
-		Answer: routerAnswer,
+		Verb:   "coverage-report",
+		Why:    "which blocking rule matched this session's edited file types but was never read",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: "quiet"},
+			{Keyword: "transcript", Value: "path"},
+			{Keyword: "session", Value: "id"},
+			{Keyword: "rules-dir", Value: "path"},
+			{Keyword: "no-append"},
+		},
+		AnswerArgs: coverageReportAnswer,
 	},
 )
 
@@ -201,7 +181,7 @@ func coverageAnswer() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report.WriteDiagnosis()
+	report.writeDiagnosis()
 	if report.Failed() {
 		return report, 1
 	}

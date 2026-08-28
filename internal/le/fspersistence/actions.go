@@ -18,16 +18,10 @@ const area = "fs-persistence"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-fs-persistence-check",
-		Why:    "no runtime code persists daemon state with a raw filesystem write, so appliance state lives inside the managed zefs store and survives a reimage",
-		Answer: runCheck,
-	},
-	leaction.Action{
-		Gate:   "ze-fs-persistence-selftest",
-		Why:    "the guard itself still flags a write and still leaves a read alone, proved against eight fixtures rather than against the tree it judges",
-		Answer: runSelftest,
-	},
+	leaction.Action{Verb: "check", Why: "no runtime code persists daemon state with a raw filesystem write, so appliance state lives inside the managed zefs store and survives a reimage",
+		Answer: runCheck},
+	leaction.Action{Verb: "selftest", Why: "the guard itself still flags a write and still leaves a read alone, proved against eight fixtures rather than against the tree it judges",
+		Answer: runSelftest},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line

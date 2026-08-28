@@ -172,7 +172,7 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 }
 
 // TestGokrazyConfigMatchesApplianceBuildTags asserts the gokrazy image builds
-// cmd/ze with the same tag set as the Makefile ze-appliance-build target
+// cmd/ze with the same tag set as the native appliance build
 // ("ze_core ze_appliance $(ZE_FEATURES)"): the ze_core base, the ze_appliance
 // on-device mode tag, and every default-on feature gate declared in
 // feature-gates.txt -- the single source of truth from which ZE_FEATURES is
@@ -228,7 +228,7 @@ func TestGokrazyConfigMatchesApplianceBuildTags(t *testing.T) {
 }
 
 // readFeatureGateTags returns the unique build-tag column from feature-gates.txt
-// (the single source of truth; Makefile ZE_FEATURES derives from the same file).
+// (the single source of truth; native feature-tag derivation derives from the same file).
 // Blank lines and '#' comments are ignored. Mirrors the reader in
 // internal/test/runner so both stay in sync with the manifest format.
 func readFeatureGateTags(t *testing.T) []string {

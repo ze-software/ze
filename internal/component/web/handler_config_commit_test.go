@@ -40,7 +40,7 @@ var hostileRedirectHeaders = []struct {
 func TestParentFromCurrentURLRejectsProtocolRelative(t *testing.T) {
 	for _, tc := range hostileRedirectHeaders {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/config/discard/", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config/discard/", http.NoBody)
 			req.Header.Set("HX-Current-URL", tc.header)
 
 			assertSameOriginPath(t, parentFromCurrentURL(req))
@@ -53,7 +53,7 @@ func TestParentFromCurrentURLRejectsProtocolRelative(t *testing.T) {
 func TestParentFromCurrentURLSanitizesReferer(t *testing.T) {
 	for _, tc := range hostileRedirectHeaders {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/config/discard/", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config/discard/", http.NoBody)
 			req.Header.Set("Referer", tc.header)
 
 			assertSameOriginPath(t, parentFromCurrentURL(req))
@@ -75,7 +75,7 @@ func TestParentFromCurrentURLKeepsLegitimateParent(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/config/discard/", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config/discard/", http.NoBody)
 			req.Header.Set("HX-Current-URL", tc.header)
 
 			assert.Equal(t, tc.want, parentFromCurrentURL(req))
@@ -162,7 +162,7 @@ func assertSameOriginPath(t *testing.T, target string) {
 func TestBackToRefererOrShowIsSameOrigin(t *testing.T) {
 	for _, tc := range hostileRedirectHeaders {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/config/set/", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config/set/", http.NoBody)
 			req.Header.Set("Referer", tc.header)
 
 			assertSameOriginPath(t, backToRefererOrShow(req))
@@ -173,7 +173,7 @@ func TestBackToRefererOrShowIsSameOrigin(t *testing.T) {
 // VALIDATES: a legitimate Referer still returns its path.
 // PREVENTS: The shared guard flattening every post-form redirect to the fallback.
 func TestBackToRefererOrShowKeepsLegitimatePath(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/config/set/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config/set/", http.NoBody)
 	req.Header.Set("Referer", "https://ze.example/show/bgp/peer/")
 
 	if got := backToRefererOrShow(req); got != "/show/bgp/peer/" {
@@ -233,7 +233,7 @@ func TestConfigChangesHidesTheCommitBarFromAReadOnlySession(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			handler := HandleConfigChanges(mgr, renderer, tc.authorizer)
 
-			req := httptest.NewRequest(http.MethodGet, "/config/changes", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/changes", http.NoBody)
 			req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))
 			rec := httptest.NewRecorder()
 

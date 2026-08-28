@@ -51,9 +51,9 @@ const (
 // leaves every selector spelling resolving `show bgp` instead.
 // `show bgp peer` is a prefix of both, so one entry covers the branch.
 //
-// `make ze-command-list` reports only part of this list, so building it from
-// the inventory leaves paths inheriting. The inventory walks AllBuiltinRPCs and
-// the streaming prefixes alone (scripts/inventory/commands.go), and reports
+// `./le command-list` reports only part of this list, so building it from the
+// inventory leaves paths inheriting. The inventory walks AllBuiltinRPCs and the
+// streaming prefixes alone (internal/le/commandlist/register.go), and reports
 // neither of these two kinds:
 //
 //   - `show bgp decode` and `show bgp encode`, offline handlers the CLI

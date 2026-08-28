@@ -3,26 +3,21 @@ version: "2"
 
 run:
   timeout: 10m
-  # The worker cap is NOT set here. It is `-j $(GO_TEST_PROCS)`, passed by
-  # ZE_LINT_RUN in the Makefile, because it MUST be a quarter of the cores on
-  # whatever machine is running and YAML cannot divide.
+  # The worker cap is not static YAML. `./le verify-lint run` passes `-j` from
+  # internal/le/gotoolchain, which assigns one quarter of the machine's cores.
   #
-  # It was `concurrency: 8` until 2026-08-21. 8 is a quarter of 32, which was
-  # the box it was measured on, and a HALF of the 16-core machine Ze is also
-  # developed on. Every other heavy job derives its share (GO_TEST_PROCS,
-  # Makefile), and ZE_RUN_SLOTS divides the box by that share to decide how many
-  # jobs run at once -- so a linter taking twice its declared share made the
-  # slot arithmetic under-count it. Four slots each running a lint was 32
-  # workers on 16 cores, which is the oversubscription the cap exists to stop.
-  # Observed: one run at 708% CPU with 18 threads, its sibling pinned at
-  # 3.97 GiB against the 4 GiB GOMEMLIMIT.
+  # The former `concurrency: 8` matched one 32-core host and consumed half of a
+  # 16-core development machine. The shared job admission calculation depends
+  # on each process honoring the same CPU share. Observed before the dynamic
+  # cap: one run used 708% CPU with 18 threads while a sibling sat at 3.97 GiB
+  # against a 4 GiB GOMEMLIMIT.
   #
   # A hardcoded number cannot follow the machine. Do not put one back.
   #
-  # The memory half of the ceiling is GOMEMLIMIT, set by ZE_LINT in the
-  # Makefile: golangci-lint v2.10.1 accepts no memory key (`golangci-lint config
-  # verify` rejects every spelling, and `run -h` lists no memory flag), so the
-  # Go runtime env var is the only place it can go.
+  # internal/le/gotoolchain also sets GOMEMLIMIT to one eighth of host memory,
+  # with a floor, because golangci-lint v2.10.1 has no memory setting. The
+  # `ZE_LINT_MEMLIMIT` environment variable overrides it when a run needs a
+  # measured exception.
   # See plan/spec-shared-machine-job-admission.md, AC-1.
   # Lint the feature-rich shipped build (ze + ze-appliance feature set): ze_core
   # plus every default-on per-feature compile-out tag. This gives the
@@ -30,11 +25,9 @@ run:
   # prevents their registry callers (e.g. registerService) from being reported
   # as unused.
   #
-  # This list is static YAML (golangci-lint cannot read feature-gates.txt), so it
-  # is the ONE feature-gate consumer that does not self-derive. It MUST equal
-  # ze_core + every gate tag in feature-gates.txt; `dep_audit.py --check` fails on
-  # drift. When you add a gate to feature-gates.txt, add its tag here too.
-  # See ai/rules/plugins.md.
+  # golangci-lint cannot read feature-gates.txt, so `./le feature-tags write`
+  # derives this list from the manifest. Do not edit it by hand.
+  # `./le feature-tags check` rejects drift. See ai/rules/plugins.md.
   build-tags:
     - ze_core
     - ze_lg

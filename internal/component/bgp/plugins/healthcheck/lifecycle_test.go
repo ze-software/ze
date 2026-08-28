@@ -46,7 +46,7 @@ func newTestManager() *probeManager {
 			return statusDone, nil, nil
 		},
 	}
-	// These tests drive the manager directly instead of through RunHealthcheckPlugin,
+	// These tests drive the manager directly instead of through runHealthcheckPlugin,
 	// so nothing delivers the OnAllPluginsReady callback that normally releases the
 	// probe loops (see waitReady). Release it here: the startup handshake this gate
 	// protects does not exist in a unit test.

@@ -12,88 +12,12 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=subscriber-summary-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Dispatch `show subscriber` on an idle ze daemon and assert empty state."""
-
-import json
-import time
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = api.dispatch_until_done('show subscriber')
-    if r is None or r.get('status') != 'done':
-        status = r.get('status') if r else 'nil'
-        data = result_text_data(r) if r else ''
-        runtime_fail(f'show subscriber: status={status} data={data[:200]}')
-
-    try:
-        summary = result_json_data(r, {})
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'show subscriber json: {exc}: {result_text_data(r)[:200]}')
-        summary = {}
-
-    if summary.get('total') != 0:
-        runtime_fail(f'show subscriber total={summary.get("total")!r} want 0')
-    if summary.get('pppoe') != 0:
-        runtime_fail(f'show subscriber pppoe={summary.get("pppoe")!r} want 0')
-    if summary.get('l2tp') != 0:
-        runtime_fail(f'show subscriber l2tp={summary.get("l2tp")!r} want 0')
-    sessions = summary.get('sessions', [])
-    if len(sessions) != 0:
-        runtime_fail(f'show subscriber sessions={len(sessions)} want 0')
-
-    # Probe `show subscriber id detail` with a missing ID is rejected. The
-    # mandatory `id` selector is enforced by the dispatcher, so a missing value
-    # surfaces as a dispatch-level rejection (RuntimeError) rather than a handler
-    # status; either form counts as the expected rejection.
-    rejected = False
-    try:
-        r2 = dispatch(api, 'show subscriber id detail')
-        rejected = r2.get('status') == 'error'
-    except RuntimeError:
-        rejected = True
-    if not rejected:
-        runtime_fail('show subscriber id detail (no id): expected rejection')
-
-    # Probe `show subscriber id <id> detail` with unknown ID returns error.
-    r3 = dispatch(api, 'show subscriber id nonexistent-id detail')
-    if r3.get('status') != 'error':
-        runtime_fail(f'show subscriber detail nonexistent-id: expected status=error got {r3.get("status")!r}')
-    msg = result_text_data(r3)
-    if 'not found' not in msg:
-        runtime_fail(f'show subscriber detail nonexistent-id: error must say not found; got {msg!r}')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/subscriber-summary-show.
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external subscriber-summary-show-test {
-		run ./subscriber-summary-show.run
+		run "ze-test fixture plugin/subscriber-summary-show"
 		encoder json
 	}
 }

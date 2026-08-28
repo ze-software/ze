@@ -13,8 +13,7 @@ package trackedbuild
 type Flavor struct {
 	Name string `json:"name"`
 	// Tags are the literal build tags, minus the feature tags. Features says
-	// whether the expansion of the feature manifest is appended, as the
-	// Makefile does.
+	// whether the expansion of the feature manifest is appended.
 	Tags     []string `json:"tags"`
 	Features bool     `json:"features"`
 	// GOOS pins the target operating system when the flavor's own code is
@@ -53,8 +52,8 @@ const (
 	coreDispatch = "ze_core_dispatch.go"
 )
 
-// buildMatrix is a REPRESENTATIVE set, not the full matrix the Makefile can
-// build, and the choice is a cost decision: about 45 seconds warm, against a
+// buildMatrix is a REPRESENTATIVE set, not every build the native toolchain can
+// produce. The choice is a cost decision: about 45 seconds warm, against a
 // 25-minute pre-commit gate.
 //
 // Included: every flavor whose failure stops a person or the test suite from
@@ -73,7 +72,7 @@ var buildMatrix = Matrix{
 		Features:    true,
 		Anchor:      zeCommand,
 		AnchorFiles: []string{coreDispatch, "setup_features_distro.go"},
-		Why:         "bin/ze, the daemon `make ze-build` builds. All four 2026-08-04 breaks were here",
+		Why:         "bin/ze, the daemon build produced by the native Go toolchain. All four 2026-08-04 breaks were here",
 	},
 	{
 		Name:        "test-runner",
@@ -96,7 +95,7 @@ var buildMatrix = Matrix{
 		Tags:        []string{"ze_setup"},
 		Anchor:      zeCommand,
 		AnchorFiles: []string{"setup_dispatch.go", "setup_features_setup.go"},
-		Why:         "bin/ze-setup, the Makefile's ze-setup-build target: a disjoint cmd/ze dispatch",
+		Why:         "bin/ze-setup, the setup-flavor build: a disjoint cmd/ze dispatch",
 	},
 	{
 		Name:   "host",
@@ -105,7 +104,7 @@ var buildMatrix = Matrix{
 		// setup_dispatch.go is `ze_setup && !ze_core`, so this flavor takes the
 		// core dispatch instead. That difference is the reason the row exists.
 		AnchorFiles: []string{coreDispatch, "setup_features_setup.go"},
-		Why:         "ze-host, the `ze appliance ...` build driver (mk/build-gokrazy.mk)",
+		Why:         "ze-host, the `ze appliance ...` build driver produced by internal/le/buildartifacts",
 	},
 	{
 		Name:        "installer",
@@ -116,10 +115,6 @@ var buildMatrix = Matrix{
 		Why:         "cmd/ze-installer, the installer initrd's PID 1 (linux-only)",
 	},
 }
-
-// BuildMatrix answers the flavors this gate compiles, in table order. The
-// caller receives the table itself: it is read, never edited.
-func BuildMatrix() Matrix { return buildMatrix }
 
 // buildPackages is the pattern every flavor is built over.
 const buildPackages = "./..."

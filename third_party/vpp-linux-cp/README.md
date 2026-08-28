@@ -105,7 +105,7 @@ it here with a row explaining which question it answers. Do not vendor the tree
 **Why v25.10 and not master, and not `stable/2306`:** a release tag is immutable,
 where a branch tip moves under you and makes "the commit we vendored"
 unanswerable a week later. v25.10 is also the version ze actually validates
-against: `scripts/evidence/effective-vpp-iface.py` drives `ligato/vpp-base`, and
+against: `./le deployment vpp-iface-test` drives `ligato/vpp-base`, and
 the vendored GoVPP binapi is the 25.10 revision
 (`internal/plugins/iface/vpp/wireguard.go:17`). A reference copy should match the
 VPP the project tests against, not an arbitrary older branch. The netns

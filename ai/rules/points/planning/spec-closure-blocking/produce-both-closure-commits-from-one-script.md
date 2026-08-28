@@ -4,10 +4,10 @@ level: MUST
 stage:
 ---
 The helper-generated commit script MUST produce two commits:
-1. **Commit A (implementation + spec):** `scripts/dev/commit_helper.py create --replace`
+1. **Commit A (implementation + spec):** `./le commit create replace`
    with `--file` for all code, tests, docs, journal row,
    AND the spec file itself (with all edits from implementation).
-2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
+2. **Commit B (spec closure):** `./le commit create append remove plan/<spec>` only.
    If the spec has a deferral shard AND every row in it is terminal,
    `--remove plan/deferrals/<spec-stem>.md` in the SAME commit B: deferrals are
    sharded per source ("Central Log", below). **A shard still holding a

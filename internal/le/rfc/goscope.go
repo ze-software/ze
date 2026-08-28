@@ -1,34 +1,33 @@
 // Design: docs/architecture/core-design.md -- the tagged unit, defined once
 // Overview: rfc.go -- the types, the paths and the closed sets every reader here shares
 //
-// goscope.go is scripts/dev/rfc_tagged_scope.py, ported: the single definition
-// of "the tagged unit", the text one `RFC requirement:` tag governs.
+// goscope.go is the single definition of "the tagged unit", the text one
+// `RFC requirement:` tag governs.
 //
-// The Python module STAYS where it is, and this is not a second copy of a rule.
-// `.claude/hooks/pretool-writeedit.py` imports it to widen an edit hunk to its
-// enclosing unit, a hook cannot call Go, and the gate must not import from
-// `.claude/`. What moves here is the half the GATE needs -- which top-level
-// function encloses a tag, and what that function's text is -- and
-// TestTheTwoTaggedScopeReadersAgree compares the two over every tagged file in
-// the checkout, so a drift reddens rather than re-sealing a verdict against a
-// hash the other half does not compute.
-//
-// Offsets here are BYTE offsets where the Python's are CHARACTER offsets.
-// Nothing compares one against the other: every offset is produced and consumed
-// inside this file, and the substrings the two languages cut are the same bytes.
+// Native hooks, commit preparation, spec lifecycle checks, and the RFC gate
+// consume the exported functions below. Offsets are byte offsets and remain
+// inside this package from production through consumption.
 package rfc
 
 import (
+	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
-// How a fingerprint key resolved. `func` is one top-level Go function span;
-// `file` is the whole file. Recorded so a reader can tell a narrow answer from
-// the fallback, and so a file-scoped verdict is never read as an unresolved one.
+// ScopeKind states how a tagged unit or path is resolved.
+type ScopeKind string
+
+// ScopeGo means a path admits function-span resolution; ScopeFunc and ScopeFile
+// describe the unit a particular lookup selected.
 const (
-	scopeFunc = "func"
-	scopeFile = "file"
+	ScopeGo   ScopeKind = "go"
+	ScopeFunc ScopeKind = "func"
+	ScopeFile ScopeKind = "file"
+
+	scopeFunc = string(ScopeFunc)
+	scopeFile = string(ScopeFile)
 )
 
 // The three shapes the span finder reads. Go is the only carrier with a
@@ -43,6 +42,34 @@ var (
 
 // goScoped reports whether this path's unit is a Go function span.
 func goScoped(path string) bool { return strings.HasSuffix(path, ".go") }
+
+var tagCarrierSuffixes = [...]string{"_test.go", ".ci", ".et"}
+
+// ScopeReader answers how a path's tagged unit can be resolved.
+//
+// Go files admit top-level function spans. Every other shape is file scoped by
+// declaration, which can over-trigger a re-read but cannot leave changed
+// evidence looking fresh.
+func ScopeReader(path string) ScopeKind {
+	if goScoped(path) {
+		return ScopeGo
+	}
+	return ScopeFile
+}
+
+// IsTagCarrier reports whether the RFC scanner treats path as test evidence.
+func IsTagCarrier(path string) bool {
+	if strings.HasPrefix(filepath.ToSlash(path), "internal/le/interoplab/") &&
+		strings.HasSuffix(path, ".go") {
+		return true
+	}
+	for _, suffix := range tagCarrierSuffixes {
+		if strings.HasSuffix(path, suffix) {
+			return true
+		}
+	}
+	return false
+}
 
 // span is one top-level func as a half-open [doc comment, past closing brace)
 // range of the file it was found in.
@@ -196,4 +223,157 @@ func (s *scopeIndex) funcTexts(content, name string) []string {
 		}
 	}
 	return found
+}
+
+// FunctionUnit is one top-level Go function, including its contiguous doc
+// comment and ending immediately after its closing brace.
+type FunctionUnit struct {
+	Name string `json:"name"`
+	Text string `json:"text"`
+}
+
+// FunctionUnits answers every top-level Go function in file order.
+func FunctionUnits(content string) []FunctionUnit {
+	spans := goFuncSpans(content)
+	units := make([]FunctionUnit, 0, len(spans))
+	for _, one := range spans {
+		text := content[one.begin:one.end]
+		units = append(units, FunctionUnit{Name: funcNameIn(text), Text: text})
+	}
+	return units
+}
+
+// functionNameAt answers the top-level Go function enclosing a 1-based line.
+// An empty answer means the whole file is the unit.
+func functionNameAt(path, content string, line int) string {
+	return newScopeIndex().funcNameAt(path, content, line)
+}
+
+// functionText answers the text of the one top-level function declared name.
+//
+// It refuses absent and duplicate names alike. Two receiver methods can share
+// a name in one file, and picking either would fingerprint text nobody chose.
+func functionText(content, name string) (string, bool) {
+	found := newScopeIndex().funcTexts(content, name)
+	if len(found) != 1 {
+		return "", false
+	}
+	return found[0], true
+}
+
+// TaggedUnit is the text one RFC tag governs and how it was resolved.
+type TaggedUnit struct {
+	Text  string    `json:"text"`
+	Scope ScopeKind `json:"scope"`
+}
+
+// UnitAt answers the tagged unit at a 1-based line.
+//
+// A line outside exactly one Go function resolves to the whole file. A narrow
+// guess could leave changed evidence falsely fresh; file scope can only ask for
+// an extra re-read.
+func UnitAt(path, content string, line int) TaggedUnit {
+	if ScopeReader(path) != ScopeGo {
+		return TaggedUnit{Text: content, Scope: ScopeFile}
+	}
+	at := lineOffset(content, line)
+	var hit span
+	found := 0
+	for _, one := range goFuncSpans(content) {
+		if one.begin <= at && at < one.end {
+			hit = one
+			found++
+		}
+	}
+	if found != 1 {
+		return TaggedUnit{Text: content, Scope: ScopeFile}
+	}
+	return TaggedUnit{Text: content[hit.begin:hit.end], Scope: ScopeFunc}
+}
+
+// EditHunk is the old text one edit replaces and whether every occurrence is
+// replaced.
+type EditHunk struct {
+	Old        string `json:"old"`
+	ReplaceAll bool   `json:"replace-all"`
+}
+
+// tagScope widens edit hunks to the text whose RFC tags govern them.
+//
+// The false answer means no widening is needed. An unlocatable hunk, a hunk
+// outside every function, or a tag outside every function returns the whole
+// file, because every narrower answer would be a guess.
+func tagScope(path, content string, hunks []EditHunk, tag *regexp.Regexp) (string, bool) {
+	if len(hunks) == 0 || tag == nil || !tag.MatchString(content) {
+		return "", false
+	}
+	if ScopeReader(path) != ScopeGo {
+		return content, true
+	}
+
+	spans := goFuncSpans(content)
+	for _, at := range tag.FindAllStringIndex(content, -1) {
+		inside := false
+		for _, one := range spans {
+			if one.begin <= at[0] && at[0] < one.end {
+				inside = true
+				break
+			}
+		}
+		if !inside {
+			return content, true
+		}
+	}
+
+	picked := map[span]bool{}
+	for _, hunk := range hunks {
+		if hunk.Old == "" {
+			continue
+		}
+		found := false
+		start := strings.Index(content, hunk.Old)
+		for start >= 0 {
+			found = true
+			end := start + len(hunk.Old)
+			hit := false
+			for _, one := range spans {
+				if one.begin < end && start < one.end {
+					picked[one] = true
+					hit = true
+				}
+			}
+			if !hit {
+				return content, true
+			}
+			if !hunk.ReplaceAll {
+				break
+			}
+			next := strings.Index(content[start+1:], hunk.Old)
+			if next < 0 {
+				break
+			}
+			start += next + 1
+		}
+		if !found {
+			return content, true
+		}
+	}
+	if len(picked) == 0 {
+		return "", false
+	}
+	ordered := make([]span, 0, len(picked))
+	for one := range picked {
+		ordered = append(ordered, one)
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		if ordered[i].begin != ordered[j].begin {
+			return ordered[i].begin < ordered[j].begin
+		}
+		return ordered[i].end < ordered[j].end
+	})
+	units := make([]string, 0, len(ordered))
+	for _, one := range ordered {
+		units = append(units, content[one.begin:one.end])
+	}
+	return strings.Join(units, "\n"), true
 }

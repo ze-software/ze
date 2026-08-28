@@ -184,9 +184,9 @@ func readLines(tree, rel string) ([]string, error) {
 	return strings.Split(text, "\n"), nil
 }
 
-// CheckSourceAnchorLineNumbers reports every documentation source anchor whose
+// checkSourceAnchorLineNumbers reports every documentation source anchor whose
 // path carries a line number.
-func CheckSourceAnchorLineNumbers(tree string) ([]Finding, error) {
+func checkSourceAnchorLineNumbers(tree string) ([]Finding, error) {
 	docs, err := markdownUnder(tree, "docs")
 	if err != nil {
 		return nil, err
@@ -217,14 +217,14 @@ func CheckSourceAnchorLineNumbers(tree string) ([]Finding, error) {
 	return findings, nil
 }
 
-// CheckSourceAnchorStalePaths reports every documentation source anchor naming
+// checkSourceAnchorStalePaths reports every documentation source anchor naming
 // an in-repository file that no longer exists.
 //
 // An anchor outside the repository names a SIBLING checkout. Whether it
 // resolves depends on the reader's checkout layout, not documentation age. The
 // check ignores home-relative paths, absolute paths, URLs, and `../` climbs
 // because all have that property.
-func CheckSourceAnchorStalePaths(tree string) ([]Finding, error) {
+func checkSourceAnchorStalePaths(tree string) ([]Finding, error) {
 	docs, err := markdownUnder(tree, "docs")
 	if err != nil {
 		return nil, err
@@ -273,9 +273,9 @@ func isExternalAnchor(anchorPath string) bool {
 	return !strings.Contains(anchorPath, "/")
 }
 
-// CheckSpecACCompleteness reports every acceptance criterion of an in-progress
+// checkSpecACCompleteness reports every acceptance criterion of an in-progress
 // spec whose Demonstrated By column is empty.
-func CheckSpecACCompleteness(tree string) ([]Finding, error) {
+func checkSpecACCompleteness(tree string) ([]Finding, error) {
 	dir := filepath.Join(tree, "plan")
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -333,9 +333,9 @@ func CheckSpecACCompleteness(tree string) ([]Finding, error) {
 	return findings, nil
 }
 
-// CheckCLIHandlerCoverage reports every CLI command a changed file registers
+// checkCLIHandlerCoverage reports every CLI command a changed file registers
 // that no .ci test mentions.
-func CheckCLIHandlerCoverage(tree string, changed []string) ([]Finding, error) {
+func checkCLIHandlerCoverage(tree string, changed []string) ([]Finding, error) {
 	var cliFiles []string
 	for _, rel := range changed {
 		if !strings.HasSuffix(rel, ".go") || strings.HasSuffix(rel, "_test.go") {
@@ -429,11 +429,11 @@ func Run(ctx context.Context, tree string, changed []string) (Report, error) {
 	}
 
 	steps := []func() ([]Finding, error){
-		func() ([]Finding, error) { return CheckSourceAnchorLineNumbers(tree) },
-		func() ([]Finding, error) { return CheckSourceAnchorStalePaths(tree) },
-		func() ([]Finding, error) { return CheckCrossPackageWiring(ctx, tree, changed) },
-		func() ([]Finding, error) { return CheckSpecACCompleteness(tree) },
-		func() ([]Finding, error) { return CheckCLIHandlerCoverage(tree, changed) },
+		func() ([]Finding, error) { return checkSourceAnchorLineNumbers(tree) },
+		func() ([]Finding, error) { return checkSourceAnchorStalePaths(tree) },
+		func() ([]Finding, error) { return checkCrossPackageWiring(ctx, tree, changed) },
+		func() ([]Finding, error) { return checkSpecACCompleteness(tree) },
+		func() ([]Finding, error) { return checkCLIHandlerCoverage(tree, changed) },
 	}
 	for _, step := range steps {
 		findings, err := step()

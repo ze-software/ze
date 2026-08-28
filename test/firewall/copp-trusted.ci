@@ -6,63 +6,6 @@
 
 option=needs-linux:caps=net-admin
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Wait for ze to apply CoPP with trusted-source, snapshot nft state."""
-import os
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-# // hand-rolled daemon-readiness for-loop -> ze_api.wait_until (same
-# 200x0.05s budget, ratchet-exempt internal sleep); paced marker polling, not a race.
-if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-                  attempts=200, delay=0.05):
-    print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
-    sys.exit(1)
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# Deterministic replacement for sleep(0.5): poll until Apply() programmed the object.
-_out = {}
-def _ready():
-    try:
-        _out["s"] = subprocess.check_output(["nft", "list", "table", "inet", "ze_copp"], text=True, stderr=subprocess.DEVNULL)
-        return True
-    except subprocess.CalledProcessError:
-        return False
-if not wait_until(_ready, attempts=100, delay=0.05):
-    sys.exit("firewall object never programmed")
-out = _out["s"]
-sys.stdout.write(out)
-
-# Verify ordering: trusted accept appears before limit.
-# The source-address match carries its `meta nfproto ipv4` guard, so nft
-# recovers the field and renders the cooked `ip saddr 192.0.2.0/24`. Without
-# that guard the same rule prints raw as `@nh,96,32 & 0xffffff00 ==
-# 0xc0000200`, and it also matches IPv6 packets, because an inet chain applies
-# the raw network-header offset to both families.
-lines = out.splitlines()
-trusted_line = None
-limit_line = None
-for i, line in enumerate(lines):
-    if "ip saddr 192.0.2.0/24" in line and "accept" in line:
-        trusted_line = i
-    if "limit rate" in line:
-        limit_line = i
-if trusted_line is not None and limit_line is not None:
-    if trusted_line < limit_line:
-        print("ORDER_OK: trusted before limit", file=sys.stderr)
-    else:
-        print("ORDER_FAIL: trusted after limit", file=sys.stderr)
-        sys.exit(1)
-
-os.kill(pid, signal.SIGTERM)
-EOF_PY
-
 stdin=ze-bgp:terminator=EOF_CONF
 control-plane-protection {
     bgp {
@@ -75,7 +18,7 @@ EOF_CONF
 option=env:var=ze.log.copp:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+cmd=foreground:seq=2:exec=ze-test fixture firewall/copp-trusted:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=ORDER_OK
 # The nfproto guard is what lets nft render the trusted source cooked.

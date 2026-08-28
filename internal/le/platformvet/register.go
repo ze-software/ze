@@ -8,7 +8,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -24,5 +23,5 @@ func init() {
 	leroot.RegisterShape(area, command.ShapeMap)
 
 	// Claims come from the same action table that dispatches both platforms.
-	parity.Claim(area, Gates()...)
+
 }

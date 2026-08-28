@@ -485,7 +485,7 @@ func TestParseInvalidInterfaceRef(t *testing.T) {
 //
 // It does NOT go through makePeerTree. That helper is shared with rfc7296_test.go, whose
 // file header carries an RFC-requirement tag outside every func span, and `tag_scope`
-// (scripts/dev/rfc_tagged_scope.py) widens tagged-test scope to the WHOLE file when a tag
+// (internal/le/rfc/goscope.go) widens tagged-test scope to the WHOLE file when a tag
 // sits there. Growing that helper's peerOpts to carry these leaves would drag an
 // RFC-tagged file into a change that has nothing to do with RFC 7296 Section 2.15, and the
 // commit would owe a test/rfc-changed.md row for it. A local builder costs less.

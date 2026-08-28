@@ -16,24 +16,25 @@ Ze builds two container images. They carry the same binary and differ in the bas
 The sizes are `docker image ls` values measured on 2026-08-14. Use the deployment image everywhere except a lab. The lab image carries a shell and `ip` because containerlab and netlab drive a node from the outside. They run `sh` and `ip` inside the container to assign the addresses the topology declares, and a scratch base has neither. For the lab image see [netlab](netlab.md).
 <!-- source: docker/Dockerfile -- FROM scratch, ENTRYPOINT ["/ze"] -->
 <!-- source: docker/Dockerfile.lab -- FROM alpine:3.21, apk add tini iproute2, ENTRYPOINT ["tini", "--", "ze"] -->
-<!-- source: Makefile -- ze-docker-build, ze-docker-lab-build, ZE_LAB_IMAGE, ZE_LAB_TAG -->
+<!-- source: docker/Dockerfile -- default feature-tag derivation and deployment image -->
 
 ## Build the deployment image
 
 ```bash
-make ze-docker-build
+docker build -t ze:latest -f docker/Dockerfile .
 ```
 
-This produces `ze:<YY.MM.DD>` and `ze:latest`. Override the image name or tag:
+Choose another repository or tag with the normal Docker tag argument:
 
 ```bash
-make ze-docker-build ZE_DOCKER_IMAGE=myregistry/ze ZE_DOCKER_TAG=v1
+docker build -t myregistry/ze:v1 -f docker/Dockerfile .
 ```
 
-Both recipes derive their build tags from `feature-gates.txt`, the same list `make ze-build` uses, so the container runs the feature set the shipped binary runs. `ZE_TAGS` adds tags on top of that list. It does not replace it:
+The Dockerfile derives the default tag set from `feature-gates.txt`.
+`ZE_TAGS` adds tags on top of that set:
 
 ```bash
-make ze-docker-build ZE_TAGS=maprib
+docker build --build-arg ZE_TAGS=maprib -t ze:maprib -f docker/Dockerfile .
 ```
 
 That command builds the default feature set plus `maprib`.
@@ -42,11 +43,12 @@ That command builds the default feature set plus `maprib`.
 ## Build the lab image
 
 ```bash
-make ze-docker-lab-build
+docker build -t netlab/ze:latest -f docker/Dockerfile.lab .
 ```
 
-This produces `netlab/ze:latest`. `ZE_LAB_IMAGE` and `ZE_LAB_TAG` override the name and the tag. The image runs `ze` under `tini`, which forwards SIGHUP and SIGTERM to the daemon. SIGHUP is the config-push contract a lab tool uses. See [netlab](netlab.md).
-<!-- source: Makefile -- ze-docker-lab-build, ZE_LAB_IMAGE ?= netlab/ze, ZE_LAB_TAG ?= latest -->
+This produces `netlab/ze:latest`. The image runs `ze` under `tini`, which
+forwards SIGHUP and SIGTERM. See [netlab](netlab.md).
+<!-- source: docker/Dockerfile.lab -- image contents and entrypoint -->
 
 ## Run
 

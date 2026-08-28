@@ -44,11 +44,11 @@ one. A negative result is the evidence the landed gate currently lacks.
 
 **Blocking prerequisite: `test/qemu/` does not exist.** The scenario has no home
 yet, and choosing one is the first design question. The repository does carry a
-QEMU harness family: driver scripts under `scripts/evidence/` (for example
+QEMU harness family: driver scripts under `internal/le/` (for example
 `effective-vpp-hugepages-qemu.py`, which builds a host `ze`, initializes an
 appliance, builds the gokrazy image, boots it under QEMU and asserts through the
 Ze CLI over SSH), driven from `.ci` files in `test/appliance/` and
-`test/install/`, with `scripts/evidence/netns_qemu.py` for namespace isolation.
+`test/install/`, with `internal/le/qemu/netns.go` for namespace isolation.
 R-1 of the parent spec says to reuse that harness rather than build a new one.
 Whether this scenario lands beside it or in a new `test/qemu/` tree is for the
 design phase to answer.
@@ -94,7 +94,7 @@ design phase to answer.
   `lcp-auto-subint`
 - [ ] `internal/component/iface/yang/ze-iface-conf.yang` - the
   `ze:backend "netlink"` annotation this spec can remove
-- [ ] `scripts/evidence/effective-vpp-hugepages-qemu.py` - the closest existing
+- [ ] `internal/le/qemu/hugepages.go` - the closest existing
   QEMU driver: host build, appliance init, image build, boot, CLI over SSH
 - [ ] `test/appliance/vpp-hugepages-qemu.ci` - how such a driver is wrapped as a
   functional test, including the explicit timeout and the PASS/SKIP contract
@@ -135,7 +135,7 @@ design phase to answer.
 ### Integration Points
 - `ValidateBackendFeatures` (`internal/component/config/backend_gate.go`) - the
   gate whose verdict this measurement can reverse.
-- The QEMU driver family under `scripts/evidence/` - where the run lives.
+- The QEMU driver family under `internal/le/` - where the run lives.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -151,7 +151,7 @@ design phase to answer.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A QEMU guest can be given a NIC that VPP takes over, with a second endpoint on the same link to send advertisements | the existing appliance QEMU drivers boot a gokrazy image with VPP present, and `scripts/evidence/netns_qemu.py` isolates namespaces | the measurement needs different infrastructure, and the spec must say what | build the topology and confirm VPP owns the NIC and the tap exists | unvalidated |
+| A-1 | A QEMU guest can be given a NIC that VPP takes over, with a second endpoint on the same link to send advertisements | the existing appliance QEMU drivers boot a gokrazy image with VPP present, and `internal/le/qemu/netns.go` isolates namespaces | the measurement needs different infrastructure, and the spec must say what | build the topology and confirm VPP owns the NIC and the tap exists | unvalidated |
 | A-2 | A negative result is trustworthy: no address appeared because the packets never arrived, not because the sender was silent or the sysctl never landed | the run can assert both independently | a negative result proves nothing, and the landed gate stays unevidenced | assert the sender transmitted and the two sysctl keys read back on the tap, before reading the address | unvalidated |
 | A-3 | The tap's kernel behavior under `accept-ra` is the same as any other device's | RFC 4861 and the kernel treat the tap as an ordinary interface | the measurement answers a question about taps rather than about VPP | run the same assertions on the netlink backend as a control | unvalidated |
 | A-4 | The result generalizes from the parent NIC to a VLAN sub-interface | `lcp-auto-subint` creates the sub-interface tap, and the sub-interface is a `unit` entry reaching the same leaf | the two disagree and each needs its own verdict | run the scenario a second time on a VLAN sub-interface | unvalidated |
@@ -233,7 +233,7 @@ and the de-numbering that landed in `9aaa03e3d`).
 
 ## Files to Create
 - the `vpp-slaac-tap` driver, beside the existing QEMU drivers under
-  `scripts/evidence/` unless the design phase places it elsewhere
+  `internal/le/` unless the design phase places it elsewhere
 - the `.ci` that wraps it, with an explicit timeout and a PASS/SKIP contract
 
 ### Integration Checklist
@@ -270,7 +270,7 @@ and the de-numbering that landed in `9aaa03e3d`).
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `internal/component/iface/yang/ze-iface-conf.yang` is anchored from `docs/features/interfaces.md`, named above. Re-derive with `python3 scripts/dev/spec_doc_anchors.py plan/spec-vpp-slaac-tap-premise.md` once the file list is final |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `internal/component/iface/yang/ze-iface-conf.yang` is anchored from `docs/features/interfaces.md`, named above. Re-derive with `./le spec-citation anchors spec plan/spec-vpp-slaac-tap-premise.md` once the file list is final |
 | 17 | Existing docs show config/CLI/API examples for this area? | | re-check every `autoconf` and `accept-ra` mention in `docs/` against whichever verdict this spec produces |
 
 ## Implementation Steps
@@ -354,7 +354,7 @@ the RFC 4862 requirement the host cannot meet without the packets.
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -372,7 +372,7 @@ the RFC 4862 requirement the host cannot meet without the packets.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

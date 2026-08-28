@@ -20,78 +20,12 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=mpls-forwarding-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    # Convert an RPC-level failure (e.g. an unwired/unknown command, which makes
-    # _call_engine raise) into a status=error dict so the assertions below fire a
-    # loud runtime_fail instead of crashing the plugin and passing vacuously.
-    try:
-        resp = api._call_engine(
-            'ze-plugin-engine:dispatch-command', {'command': command})
-    except Exception as e:
-        return {'status': 'error', 'error': f'engine call raised: {e}'}
-    if resp is None:
-        return {'status': 'error', 'error': 'engine call returned None'}
-    return resp.get('result', {})
-
-def as_dict(resp, label):
-    status = resp.get('status')
-    if status is None:
-        runtime_fail(f'{label}: dispatch returned no status: {resp}')
-    if status != 'done':
-        runtime_fail(f'{label}: status={status} data={resp.get("data")} error={resp.get("error")}')
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    if not isinstance(data, dict):
-        runtime_fail(f'{label}: expected dict, got {type(data).__name__}: {data!r}')
-    return data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # --- base: `show mpls forwarding` (no args) returns the empty table ---
-        data = as_dict(dispatch(api, 'show mpls forwarding'), 'mpls-forwarding')
-        if 'entries' not in data:
-            runtime_fail(f'mpls-forwarding: missing "entries" key in {data}')
-        entries = data['entries']
-        if not isinstance(entries, list):
-            runtime_fail(f'mpls-forwarding: "entries" is not a list: {type(entries).__name__} {entries!r}')
-        # No MPLS routes are installed on the normal runner, so the table is empty.
-        if len(entries) != 0:
-            runtime_fail(f'mpls-forwarding: expected empty entries on a no-MPLS host, got {entries!r}')
-
-        # --- `limit N` keyword is accepted and still returns the structured table ---
-        data2 = as_dict(dispatch(api, 'show mpls forwarding limit 5'), 'mpls-forwarding-limit')
-        entries2 = data2.get('entries')
-        if not isinstance(entries2, list):
-            runtime_fail(f'mpls-forwarding-limit: "entries" is not a list: {entries2!r}')
-
-        print(f'OK: show mpls forwarding entries={len(entries)} (empty table on no-MPLS host)', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer validates the empty forwarding table and limit argument.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external mpls-forwarding-show-test {
-		run ./mpls-forwarding-show-test.run
+		run "ze-test fixture plugin/mpls-forwarding-show"
 		encoder json
 	}
 }

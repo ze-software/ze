@@ -1,4 +1,4 @@
-// Design: test/interop-pppoe/scenarios/01-pppoe-chap-ipv4/check.py.
+// Design: typed Ze client checks against an independent accel-ppp concentrator.
 // Related: scenarios.go -- accel-ppp starts before the Ze client.
 package pppoe
 

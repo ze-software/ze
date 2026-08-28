@@ -1,9 +1,9 @@
 // Related: gaterun.go -- the run these tests drive from its entry point
 //
-// VALIDATES: spec-le-is-a-ze-binary AC-8 at its smallest -- the code a gate
-// exits with is the code the caller sees, never a flattened 1.
+// VALIDATES: the code an action exits with is the code the caller sees, never
+// a flattened 1.
 // PREVENTS: a sweep that cannot tell "never ran" from "ran and failed", which
-// is the distinction scripts/dev/commit_helper.py reads when it blocks on 3 and
+// is the distinction internal/le/commit/actions.go reads when it blocks on 3 and
 // stays warn-only on 1.
 
 package gaterun
@@ -34,16 +34,15 @@ func TestStreamReportsACommandThatCouldNotStart(t *testing.T) {
 	}
 }
 
-// TestRunCarriesTheGateAndItsCommandIntoTheAnswer validates AC-7 for a forked
-// gate. The output streams to the terminal. Therefore, the payload identifies
-// the gate, its command, and its decision.
-func TestRunCarriesTheGateAndItsCommandIntoTheAnswer(t *testing.T) {
-	report, code := Run("ze-probe-check", []string{"sh", "-c", "exit 3"}, t.TempDir(), os.Environ())
+// TestRunCarriesTheActionAndCommandIntoTheAnswer validates structured execution
+// metadata while output streams directly to the terminal.
+func TestRunCarriesTheActionAndCommandIntoTheAnswer(t *testing.T) {
+	report, code := Run("probe", []string{"sh", "-c", "exit 3"}, t.TempDir(), os.Environ())
 	if code != 3 {
 		t.Errorf("Run answered %d, want the command's own 3", code)
 	}
-	if report.Gate != "ze-probe-check" || report.Code != 3 {
-		t.Errorf("the report is %+v, want the gate name and its code", report)
+	if report.Action != "probe" || report.Code != 3 {
+		t.Errorf("the report is %+v, want the action name and its code", report)
 	}
 	if len(report.Command) != 3 {
 		t.Errorf("the report carries %v, want the whole command", report.Command)

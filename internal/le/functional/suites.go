@@ -22,7 +22,7 @@ import (
 const Area = "functional"
 
 // ZeTest is the name the isolated set carries and every .ci execs by. A suite's
-// command opens with it, and CommandLine swaps in the binary this run built.
+// command opens with it, and commandLine swaps in the binary this run built.
 const ZeTest = "ze-test"
 
 // Suite defines what one functional suite runs and why it is separate.
@@ -35,31 +35,24 @@ type Suite struct {
 	Args   []string
 	Why    string
 	Scaled bool
+	// Warm compiles packages that this suite's .ci commands build inside
+	// their own deadlines before the suite starts.
+	Warm bool
 	// Chaos says this suite starts the chaos dashboard, so the isolated set it
 	// runs against needs a second compile of cmd/ze beside the ze binary.
 	Chaos bool
 }
 
-// Target is the Make target that runs this suite alone. It is the identity
-// every shim, doc, rule and journal row spells.
-func (s Suite) Target() string {
-	var tb textbuf.Buffer
-	return tb.Str("ze-").Str(Area).Byte('-').Str(s.Name).Str("-test").String()
-}
-
 // Rerun is the command a failure report tells the reader to type.
-//
-// This is the counterpart of functionalSuiteRerun (scripts/status/verify_run.go).
-// A failure group is not actionable when its rerun is empty or names an unknown Make target.
 func (s Suite) Rerun() string {
 	var tb textbuf.Buffer
-	return tb.Str("make ").Str(s.Target()).String()
+	return tb.Str("./le functional ").Str(s.Name).String()
 }
 
 // Command is the suite's own command: the bare binary name and its arguments.
 //
 // The name rather than a path, because the path depends on which isolated set
-// this run built. CommandLine substitutes it.
+// this run built. commandLine substitutes it.
 func (s Suite) Command() []string {
 	argv := make([]string, 0, len(s.Args)+3)
 	argv = append(argv, ZeTest)
@@ -119,7 +112,7 @@ const (
 // Gating is the run list, in the order the gating run runs them.
 //
 // It is also the progress denominator and the population from which every
-// .ci's verify tier is derived (scripts/dev/rfc_requirements.py,
+// .ci's verify tier is derived (internal/le/rfc/actions.go,
 // functional_suites). A suite missing from here runs only when it is named.
 var Gating = []string{
 	suiteEncode,
@@ -166,7 +159,10 @@ var Suites = []Suite{
 		Name: suiteReload, Args: []string{bgpVerb, "reload", allTests, "-p", "1"},
 		Why: "config reload; serial, because it shares the kernel routing table with managed",
 	},
-	{Name: suiteUi, Args: []string{"ui", allTests}, Why: "CLI and completion, against ze-stripped"},
+	{
+		Name: suiteUi, Args: []string{"ui", allTests, "-p", "8"},
+		Why: "CLI and completion, bounded because native le fixtures compile Go tools during their deadlines",
+	},
 	{Name: suiteEditor, Args: []string{"editor", allTests}, Why: "the TUI editor (.et files)"},
 	{
 		Name: suiteManaged, Args: []string{"managed", allTests, "-p", "1"},
@@ -184,8 +180,8 @@ var Suites = []Suite{
 	{Name: suiteLdp, Args: []string{"ldp", allTests}, Why: "LDP"},
 	{Name: suiteRsvpte, Args: []string{"rsvpte", allTests}, Why: "RSVP-TE"},
 	{Name: suiteIsis, Args: []string{"isis", allTests}, Why: "IS-IS config and doctor"},
-	{Name: suiteOspf, Args: []string{"ospf", allTests}, Why: "OSPF config and doctor"},
-	{Name: suiteOspfv3, Args: []string{"ospfv3", allTests}, Why: "OSPFv3 config and doctor"},
+	{Name: suiteOspf, Args: []string{"ospf", allTests}, Warm: true, Why: "OSPF config and doctor"},
+	{Name: suiteOspfv3, Args: []string{"ospfv3", allTests}, Warm: true, Why: "OSPFv3 config and doctor"},
 	{
 		Name: suiteWeb, Args: []string{"web", allTests}, Chaos: true,
 		Why: "the web UI; the only suite that starts the chaos dashboard (option=server:kind=chaos)",
@@ -228,11 +224,10 @@ var Suites = []Suite{
 	},
 }
 
-// SuiteNamed answers the suite called name, by its bare name or by its Make
-// target.
+// SuiteNamed answers the suite called name.
 func SuiteNamed(name string) (Suite, bool) {
 	for _, suite := range Suites {
-		if name == suite.Name || name == suite.Target() {
+		if name == suite.Name {
 			return suite, true
 		}
 	}
@@ -246,7 +241,7 @@ var ErrNoSuchSuite = errors.New("functional: the gating run names a suite this a
 //
 // GatingSuites refuses a name that has no suite.
 // This refusal is the purpose of the function.
-// run_gating (scripts/le/application/functional.py) instead removes an unresolved name.
+// run_gating (internal/le/functional/actions.go) instead removes an unresolved name.
 // A typo CAN therefore remove a suite from both the run and the denominator.
 func GatingSuites(gating []string, suites []Suite) ([]Suite, error) {
 	chosen := make([]Suite, 0, len(gating))

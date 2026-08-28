@@ -3,7 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-**An interop scenario directory MUST be NAMED and MUST NOT carry a numeric prefix, and a spec planning a future scenario MUST name it too** (owner directive, 2026-08-24). The directory name is the scenario's identity: `run.py` filters on it by exact equality, an operator types it after `IPSEC_INTEROP_SCENARIO=`, and specs, journal rows and code comments cite it.
+**An interop scenario directory MUST be NAMED and MUST NOT carry a numeric prefix, and a spec planning a future scenario MUST name it too** (owner directive, 2026-08-24). The directory name is the scenario's identity: `internal/le/interoplab.Discover` matches it exactly, the native `./le integration` action accepts it through its scenario selector, and specs, journal rows and code comments cite it.
 
 A number adds nothing a name does not carry, and it goes stale in two ways a
 name cannot: a deleted scenario leaves a hole no reader can tell from a

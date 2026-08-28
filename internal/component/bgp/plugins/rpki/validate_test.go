@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // TestValidateValid verifies Valid state when origin AS matches a covering VRP.
@@ -218,4 +220,33 @@ func TestExtractOriginASSet(t *testing.T) {
 	rawHex := hex.EncodeToString(asPath)
 	result := extractOriginAS(rawHex)
 	assert.Equal(t, OriginNone, result)
+}
+
+// RFC requirement: RFC6811-2-1 positive -- the structured UPDATE path derives
+// the origin from the final segment before it sets the validation state.
+// RFC requirement: RFC6811-2-1 negative -- AS_SET does not use its last member
+// as the origin AS, and an empty path does not become NONE.
+func TestRPKIOriginASFromASPathRFC6811(t *testing.T) {
+	const localAS uint32 = 64512
+	tests := []struct {
+		name string
+		path *attribute.ASPath
+		want uint32
+	}{
+		{name: "empty", path: &attribute.ASPath{}, want: localAS},
+		{name: "sequence", path: &attribute.ASPath{Segments: []attribute.ASPathSegment{{
+			Type: attribute.ASSequence, ASNs: []uint32{65000, 65001},
+		}}}, want: 65001},
+		{name: "set", path: &attribute.ASPath{Segments: []attribute.ASPathSegment{{
+			Type: attribute.ASSet, ASNs: []uint32{65001},
+		}}}, want: OriginNone},
+		{name: "confederation", path: &attribute.ASPath{Segments: []attribute.ASPathSegment{{
+			Type: attribute.ASConfedSequence, ASNs: []uint32{65001},
+		}}}, want: localAS},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, rpkiOriginASFromASPath(test.path, localAS))
+		})
+	}
 }

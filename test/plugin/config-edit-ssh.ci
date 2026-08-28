@@ -31,76 +31,11 @@ option=timeout:value=15s
 # reaching Established would test BGP, which is not this test's subject.
 EOF_PEER
 
-# Python test plugin: verifies SSH server is reachable
-tmpfs=config-edit-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: SSH command execution via daemon."""
-
-import socket
-import sys
-from ze_api import API
-
-
-def _port_open(host, port):
-    try:
-        socket.create_connection((host, port), timeout=2).close()
-        return True
-    except OSError:
-        return False
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for the SSH server to bind its listener (deterministic replacement for a
-    # blind settle sleep): poll until port 2222 accepts a connection.
-    api.wait_until(lambda: _port_open('127.0.0.1', 2222))
-
-    # Verify SSH port is reachable (daemon has SSH listener)
-    try:
-        s = socket.create_connection(('127.0.0.1', 2222), timeout=2)
-        s.close()
-        print('OK: SSH port reachable', file=sys.stderr)
-    except (ConnectionRefusedError, OSError) as e:
-        # Port 2222 might not be bound in test — check via dispatch
-        print(f'NOTE: SSH port not on 2222 ({e}), checking via dispatch', file=sys.stderr)
-
-    # Dispatch a read-only command to verify executor path
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': 'show bgp peer list'})
-    status = resp.get('result', {}).get('status')
-    if status != 'done':
-        print(f'FAIL: dispatch status={status}', file=sys.stderr)
-        sys.exit(1)
-
-    print('OK: command dispatch works', file=sys.stderr)
-
-    # Shutdown.
-    # // synchronous `request shutdown` dispatch -> shutdown_fire_and_forget.
-    # No assertion changed; this is teardown only. A synchronous dispatch races ze's
-    # own socket close: when the close wins (routine under load) _call_engine blocks
-    # for its 30s TLS read timeout (ze_api.py:341) then raises "no response for
-    # ze-plugin-engine:dispatch-command" (ze_api.py:347), failing a test whose
-    # assertions have all already passed. wait_for_shutdown observes the close
-    # itself, which is the condition this teardown actually wants.
-    api.shutdown_fire_and_forget()
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze bgp configuration with SSH
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external config-edit-test {
-		run ./config-edit-test.run
+		run "ze-test fixture plugin/config-edit-ssh $PORT2"
 		encoder json
 	}
 }
@@ -118,7 +53,7 @@ environment {
 		enabled true
 		server main {
 			ip 127.0.0.1;
-			port 2222;
+			port $PORT2;
 		}
 	}
 }

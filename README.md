@@ -45,7 +45,7 @@ IPv4/IPv6 unicast and multicast are built into the engine. See [Feature Inventor
 
 ### Build Only What You Run
 
-Thirty-six subsystems compile out behind `ze_<feature>` build tags, the BGP engine among them. If you leave a tag off, that code is not in the binary at all, which keeps the image small and the attack surface with it, and a config which selects a subsystem you compiled out is rejected as unknown rather than silently ignored. `make ze-build` builds everything and `make ze-stripped-build` keeps only the SSH management plane. The list of gates is declared once, in `feature-gates.txt`, and every consumer derives from it.
+Thirty-six subsystems compile out behind `ze_<feature>` build tags, the BGP engine among them. If you leave a tag off, that code is not in the binary at all, which keeps the image small and the attack surface with it, and a config which selects a subsystem you compiled out is rejected as unknown rather than silently ignored. Build a custom binary with `go build -tags`, as shown below. The list of gates is declared once in `feature-gates.txt`; `./le feature-tags write` updates every derived tag list.
 
 ```bash
 CGO_ENABLED=0 go build -tags 'ze_core ze_ssh ze_ospf' ./cmd/ze   # an OSPF-only router, no BGP
@@ -94,7 +94,7 @@ The config, the plugins and the hardware are yours. There is no per-instance lic
 
 ```bash
 git clone https://github.com/ze-software/ze.git && cd ze
-make build              # produces bin/ze
+CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' -o bin/ze ./cmd/ze
 bin/ze init             # set up SSH credentials (once)
 bin/ze config import router.conf  # or: ze config edit
 bin/ze start

@@ -21,10 +21,11 @@ import (
 )
 
 // defaultVPPBinary is the default path to the VPP executable.
-const defaultVPPBinary = "/usr/bin/vpp"
-
-// defaultConfDir is the default directory for VPP configuration files.
-const defaultConfDir = "/etc/vpp"
+const (
+	componentVPP     = "vpp"
+	defaultVPPBinary = "/usr/bin/vpp"
+	defaultConfDir   = "/etc/vpp"
+)
 
 func init() {
 	_ = events.RegisterNamespace(vppevents.Namespace,
@@ -32,11 +33,11 @@ func init() {
 	)
 
 	reg := registry.Registration{
-		Name:                    "vpp",
+		Name:                    componentVPP,
 		Description:             "VPP data plane lifecycle management",
 		Features:                "yang",
 		YANG:                    vppyang.ZeVPPConfYANG,
-		ConfigRoots:             []string{"vpp"},
+		ConfigRoots:             []string{componentVPP},
 		InProcessConfigVerifier: verifyVPPConfig,
 		RunEngine:               runVPPEngine,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -64,7 +65,7 @@ func init() {
 
 func verifyVPPConfig(sections []sdk.ConfigSection) error {
 	for _, s := range sections {
-		if s.Root != "vpp" {
+		if s.Root != componentVPP {
 			continue
 		}
 		parsed, err := ParseConfigSection(s.Data)
@@ -85,7 +86,7 @@ func runVPPEngine(conn net.Conn) int {
 	lg := logger()
 	lg.Debug("vpp plugin starting")
 
-	p := sdk.NewWithConn("vpp", conn)
+	p := sdk.NewWithConn(componentVPP, conn)
 	defer func() { _ = p.Close() }()
 
 	// Initialize settings to the disabled default so OnStarted can run
@@ -104,7 +105,7 @@ func runVPPEngine(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
-			if s.Root != "vpp" {
+			if s.Root != componentVPP {
 				continue
 			}
 			parsed, err := ParseConfigSection(s.Data)
@@ -146,7 +147,7 @@ func runVPPEngine(conn net.Conn) int {
 	defer cancel()
 	rc := 0
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"vpp"},
+		WantsConfig: []string{componentVPP},
 	}); err != nil {
 		lg.Error("vpp plugin failed", "error", err)
 		rc = 1

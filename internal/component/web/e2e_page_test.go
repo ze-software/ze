@@ -26,7 +26,7 @@ func TestE2E_FragmentHandlerRendersHTMX(t *testing.T) {
 	handler := HandleFragment(renderer, schema, tree, nil, false)
 
 	// Full page request to /show/ (root)
-	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -56,7 +56,7 @@ func TestE2E_FragmentHandlerRendersHTMX(t *testing.T) {
 	require.Contains(t, string(result), "peer")
 
 	// HTMX partial request (sidebar click)
-	req2 := httptest.NewRequest(http.MethodGet, "/fragment/detail?path=bgp", http.NoBody)
+	req2 := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/fragment/detail?path=bgp", http.NoBody)
 	req2.Header.Set("HX-Request", "true")
 	rec2 := httptest.NewRecorder()
 	handler.ServeHTTP(rec2, req2)

@@ -30,69 +30,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=cos-dynamic-session.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Dispatch show class-of-service and verify profiles loaded at runtime."""
-
-import json
-import time
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # // poll loop centralized into api.dispatch_until_done (ci-sleep
-    # ratchet); behavior and the status assertion below are unchanged.
-    r = api.dispatch_until_done('show class-of-service')
-    if r.get('status') != 'done':
-        status = r.get('status') if r else 'nil'
-        data = result_text_data(r) if r else ''
-        runtime_fail(f'show class-of-service: status={status} data={data[:200]}')
-
-    profiles = result_json_data(r, [])
-    if not isinstance(profiles, list):
-        runtime_fail(f'expected list, got {type(profiles).__name__}')
-    names = {p.get('name') for p in profiles}
-
-    if 'residential' not in names:
-        runtime_fail(f'residential profile missing; got {names}')
-    if 'business' not in names:
-        runtime_fail(f'business profile missing; got {names}')
-
-    for p in profiles:
-        if p.get('name') == 'residential':
-            egress_map = {e['from']: e['to'] for e in p.get('egress', [])}
-            if egress_map.get(6) != 6:
-                runtime_fail(f'residential egress[6] want 6 got {egress_map.get(6)}')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external cos-dynamic-session-test {
-        run ./cos-dynamic-session.run
+        run "ze-test fixture plugin/cos-dynamic-session"
     }
 }
 

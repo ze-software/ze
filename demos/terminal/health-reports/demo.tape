@@ -5,17 +5,17 @@ Set WaitTimeout 60s
 Hide
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/health-reports/config ZE_INIT_INPUT=/src/tmp/terminal-demos/state/health-reports/init.input ZE_SSH_PASSWORD=secret123 SSHPASS=secret123"
 Enter
-Type "/src/demos/terminal/health-reports/run.sh prepare"
+Type "ze-demo run health-reports prepare"
 Enter
 Wait+Screen /Health reports demo prepared/
 Type "ze init < $ZE_INIT_INPUT >/dev/null"
 Enter
-Type "/src/demos/terminal/health-reports/run.sh start"
+Type "ze-demo run health-reports start"
 Enter
 Wait+Screen /Health reports demo ready/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh health-reports intro"
+Type "ze-demo card health-reports intro"
 Enter
 Show
 Wait+Screen /====/
@@ -60,12 +60,12 @@ Sleep 3s
 Sleep 3s
 
 Hide
-Type "/src/demos/terminal/health-reports/run.sh stop"
+Type "ze-demo run health-reports stop"
 Enter
 Wait+Screen /Health reports demo stopped/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh health-reports recap"
+Type "ze-demo card health-reports recap"
 Enter
 Show
 Sleep 9s

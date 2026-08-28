@@ -98,7 +98,7 @@ Each row is a decision for Thomas. None is settled here.
 | Q-4 | **A second serializer already disagrees.** `internal/exabgp/migration/migrate_serialize.go` (`SerializeTree`, `serializeTreeIndent`) prints ze config text with its own rules: alphabetical key order, and quoting only when the value holds a space. `config.Serialize` uses YANG schema order and `quoteIfNeeded` quotes on space, tab, quote, apostrophe, brace, `;`, and `#`. Which one survives? | Two producers of one language is the layering this spec exists to remove. `ai/rules/no-layering.md`: delete the loser, do not wrap it |
 | Q-5 | **Comment preservation.** The tokenizer discards comments, so the tree carries none and the formatter deletes every comment in the file. Is comment preservation in scope? | This is where most formatters get hard. It decides whether `ze config fmt -w` is a tool an operator may run on a live file. Measured, see Current Behavior |
 | Q-6 | **Idempotence and round-trip.** Format twice equals format once. Parse, format, parse again yields the same tree. Are these the acceptance properties? | They are the two properties that make a formatter testable without a golden file per construct. Neither is asserted anywhere today |
-| Q-7 | **The surface.** `ze config fmt` and its `--check` mode exist. Does the gate run them, over which population, and does it live in `make ze-doc-verify`, in `make ze-doc-wiring-check`, or in a new target? | `ai/rules/repo-maintenance.md` owns whether a docs gate is worth building, and its Current Discovery Surfaces table lists the changed-file-aware gates that already exist. `ai/rules/cli.md` owns the grammar, and `config fmt` already satisfies action before identifier |
+| Q-7 | **The surface.** `ze config fmt` and its `--check` mode exist. Does the gate run them, over which population, and does it live in `./le doc-check verify`, in `./le doc-wiring`, or in a new target? | `ai/rules/repo-maintenance.md` owns whether a docs gate is worth building, and its Current Discovery Surfaces table lists the changed-file-aware gates that already exist. `ai/rules/cli.md` owns the grammar, and `config fmt` already satisfies action before identifier |
 | Q-8 | **Elided and partial examples.** `docs/guide/plugins.md` shows `attach process rib { ... }` with a literal ellipsis, and `docs/guide/flowspec-route-reflector.md` shows a full block inside a markdown table cell rather than a fenced block. How does the gate see a fragment that was never meant to be a whole config? | A gate that reads only fenced blocks misses both. A gate that reads everything must be told how an intentional fragment declares itself. **Two constraints are already decided. They were retired into this cell from `ai/rules/points/writing/documentation/` on 2026-08-16.** First, the gate MUST read what ze's own parser recognizes as a config attempt, and it MUST carry an opt-OUT that states its reason on the block. A gate over every fenced block in `docs/` fires mostly on deliberate excerpts, an estimated four in five, because they start mid-tree or carry a placeholder. An opt-IN marker inverts the failure: every example that is already refused stays unmarked and uncaught, which is the `rpki.md` case exactly. Second, whoever proposes the gate MUST state that annotation cost, and MUST NOT sell the gate. Somebody annotates the excerpts one time, and each new excerpt pays one line |
 | Q-9 | **Options.** `gofmt` normalizes with no configuration, and that is the reason it won. Does `ze config fmt` stay option-free? | Every style option is a second canonical form, so it is a second thing the gate must accept. The existing flags select an action, not a style: none of `-w`, `--check`, `--diff` changes the output text |
 
@@ -241,7 +241,7 @@ Each row is a decision for Thomas. None is settled here.
 <!-- BLOCKING: proves the feature is reachable from its intended entry point.
      Without it the feature exists in isolation: unit tests pass, nothing calls it.
      Every row needs a concrete test name. "Deferred"/"TODO"/empty is rejected
-     by .claude/hooks/validate-spec.sh, which is the point: an unedited row fails. -->
+     by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `ze config fmt --check <file>` | → | `cmdFmt` in `internal/component/config/cli/cmd_fmt.go` | `test-config-fmt-check-exit-one` |
@@ -316,7 +316,7 @@ Each row is a decision for Thomas. None is settled here.
 - `test/parse/cli-config-fmt.ci` - the current functional test, which asserts too little
 
 ## Files to Create
-- `mk/*.mk` or an existing gate script - the check chosen at Q-7 (confirm the file during design)
+- `internal/le/` or an existing gate script - the check chosen at Q-7 (confirm the file during design)
 - `test/parse/*.ci` - the functional tests named in the plan above
 
 ### Integration Checklist
@@ -455,7 +455,7 @@ N/A. No RFC governs ze configuration syntax.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -473,7 +473,7 @@ N/A. No RFC governs ze configuration syntax.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

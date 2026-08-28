@@ -34,7 +34,7 @@ it is named here is so a later reader does not assume this whole file was parked
 
 ## Task
 
-`ZE_PLUGIN_PARALLEL ?= 8` and `ZE_ENCODE_PARALLEL ?= 8` (`mk/test-functional.mk`)
+`ZE_PLUGIN_PARALLEL ?= 8` and `ZE_ENCODE_PARALLEL ?= 8` (`internal/le/functional/suites.go`)
 are constants chosen for a 4-vCPU CI runner and applied unchanged to every host.
 On a 32-core box that costs the `plugin` suite about 400 seconds per run.
 
@@ -43,7 +43,7 @@ On a 32-core box that costs the `plugin` suite about 400 seconds per run.
 4-vCPU hosted runner". It is a measured survivable figure for the smallest host
 this project builds on, pinned as the value for the largest.
 
-**Measured**, `make ze-functional-plugin-test ZE_PLUGIN_PARALLEL=N`, seven runs
+**Measured**, the retired `ze-functional-plugin-test ZE_PLUGIN_PARALLEL=N` (current: `./le functional plugin`), seven runs
 on a 32-core box, against the suite's 4545s sum of per-test medians:
 
 | N | suite | speedup | parallel efficiency | pass |
@@ -94,13 +94,13 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 
 **Key insights:**
 - `ParallelTimeoutHeadroom = 3` already absorbs contention for the runner's per-test budget, when concurrency > 1. The MCP deadline is the shape it cannot reach, because it lives inside the test binary.
-- Nothing in `internal/test/` reads `GO_TEST_PROCS` or `ZE_RUN_SLOTS`: grep returns zero. A suite sizes for the whole box while `scripts/dev/ze-run.sh` admitted the job on a quarter-box budget. This spec does not close that; it is recorded as a limitation.
+- Nothing in `internal/test/` reads `GO_TEST_PROCS` or `ZE_RUN_SLOTS`: grep returns zero. A suite sizes for the whole box while `internal/le/lejob/lejob.go` admitted the job on a quarter-box budget. This spec does not close that; it is recorded as a limitation.
 - 90 tests report SKIP on this host (`ospf` alone 29 of 82), which is why `ospf` finishes 74 tests in 45s against a 2653s sum of medians recorded elsewhere. A suite measured only here is not measured everywhere.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `mk/test-functional.mk` - `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL`, the per-suite `run_suite` lines
+- [ ] `internal/le/functional/suites.go` - `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL`, the per-suite `run_suite` lines
 - [ ] `internal/test/cli/cmd_bgp.go` - the `-p` flag default for the five bgp-runner suites
 - [ ] `internal/test/runner/parallel.go` - `SuiteConcurrencyFloor`, `DefaultSuiteConcurrency`, `ParallelTimeoutHeadroom`, `parallelFactor`
 - [ ] `internal/test/cli/cmd_mcp.go`, `internal/test/cli/cmd_mcp_client.go` - the 10s readiness deadline and `waitReady`
@@ -119,7 +119,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `make ze-functional-plugin-test`, `make ze-functional-encode-test`, and the aggregate `ze-functional-test`.
+- `./le functional plugin`, `./le functional encode`, and the aggregate `./le functional`.
 
 ### Transformation Path
 1. The makefile computes the suite's `-p` and passes it.
@@ -177,7 +177,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 |-------------|---|--------------|------|
 | an MCP test under concurrency | → | the scaled readiness deadline | `TestMCPReadinessScalesWithConcurrency`, `mcp-ready-under-load.ci` |
 | the runner exec'ing any `cmd=` child | → | `ze.test.parallel-factor` in its environment | `TestParallelFactorEnvPublishesTheRunnerFactor`, `mcp-parallel-factor-published.ci` |
-| `make ze-functional-plugin-test` | → | the derived `ZE_PLUGIN_PARALLEL` | `test_plugin_concurrency_is_derived_not_pinned` |
+| `./le functional plugin` | → | the derived `ZE_PLUGIN_PARALLEL` | `test_plugin_concurrency_is_derived_not_pinned` |
 | a 4-vCPU host | → | the floor | `test_small_host_keeps_the_floor` |
 | `reload`, `managed` | → | their recorded serial setting | `test_serial_suites_stay_serial` |
 
@@ -186,7 +186,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | The MCP readiness wait runs under concurrency > 1 | Its deadline is widened by the same factor the runner applies to a per-test budget, not replaced by a larger constant |
-| AC-2 | `make ze-functional-plugin-test` at the derived value, repeated at least three times | `MCP server not ready` appears zero times across every repeat |
+| AC-2 | `./le functional plugin` at the derived value, repeated at least three times | `MCP server not ready` appears zero times across every repeat |
 | AC-3 | A host with 4 cores | `ZE_PLUGIN_PARALLEL` and `ZE_ENCODE_PARALLEL` are still 8. CI is unchanged |
 | AC-4 | `plugin` and `encode`, before and after, same host | Each is measured SEPARATELY and neither regresses. `encode` is not assumed to follow `plugin` |
 | AC-5 | The derived value on this 32-core host | It is at most the core count, and the spec says what 32 concurrent daemons cost when four such jobs are admitted at once |
@@ -202,10 +202,10 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 | `TestMCPReadinessScalesWithConcurrency` | `internal/test/cli/cmd_mcp_test.go` | AC-1 (consumer) | PASS. Reverting the scaling reports `after 150ms` for the 3x case |
 | `TestParallelFactorEnvPublishesTheRunnerFactor` | `internal/test/runner/runner_exec_util_test.go` | AC-1 (producer) | PASS. Publishing a constant makes one of its two cases disagree |
 | `TestDefaultSuiteConcurrencyIsBounded` | `internal/test/runner/parallel_test.go` | AC-8 | PASS. It already pinned `max(SuiteConcurrencyFloor, 2*NumCPU)` exactly, so a second test asserting the same expression would be a duplicate. Its doc comment now carries this spec's reason for leaving the value alone |
-| `TestSuiteConcurrencyDerivation.test_plugin_concurrency_is_derived_not_pinned` | `scripts/dev/functional_suite_test.py` | AC-3, AC-5 | PASS |
-| `TestSuiteConcurrencyDerivation.test_small_host_keeps_the_floor` | `scripts/dev/functional_suite_test.py` | AC-3 | PASS. Also holds the make floor equal to `runner.SuiteConcurrencyFloor` |
-| `TestSuiteConcurrencyDerivation.test_serial_suites_stay_serial` | `scripts/dev/functional_suite_test.py` | AC-6 | PASS |
-| `TestSuiteConcurrencyDerivation.test_explicit_parallel_wins` | `scripts/dev/functional_suite_test.py` | AC-7 | PASS |
+| `TestSuiteConcurrencyDerivation.test_plugin_concurrency_is_derived_not_pinned` | `internal/le/` | AC-3, AC-5 | PASS |
+| `TestSuiteConcurrencyDerivation.test_small_host_keeps_the_floor` | `internal/le/` | AC-3 | PASS. Also holds the make floor equal to `runner.SuiteConcurrencyFloor` |
+| `TestSuiteConcurrencyDerivation.test_serial_suites_stay_serial` | `internal/le/` | AC-6 | PASS |
+| `TestSuiteConcurrencyDerivation.test_explicit_parallel_wins` | `internal/le/` | AC-7 | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -229,7 +229,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 
 ## Files to Modify
 - `internal/test/cli/cmd_mcp.go`, `internal/test/cli/cmd_mcp_client.go` - the readiness deadline
-- `mk/test-functional.mk` - `ZE_PLUGIN_PARALLEL` and `ZE_ENCODE_PARALLEL` derived
+- `internal/le/functional/suites.go` - `ZE_PLUGIN_PARALLEL` and `ZE_ENCODE_PARALLEL` derived
 - `docs/functional-tests.md` - how a suite's concurrency is chosen, and why the floor exists
 
 ## Files to Create
@@ -341,7 +341,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -359,7 +359,7 @@ not cover. Left alone; a separate measurement would be needed to touch it.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

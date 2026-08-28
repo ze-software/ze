@@ -15,49 +15,11 @@ option=needs-linux:caps=net-admin
 # provision the dummy link inside the per-test netns.
 option=netns-link:name=eth1
 
-tmpfs=ospf-multiaf-v4-route.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert the IPv4-unicast-over-OSPFv3 instance runs when IPv4 redistribution is configured."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    rows = result_json_data(dispatch(api, 'show ospf ipv6'), None) or []
-    v4u = next((r for r in rows if isinstance(r, dict) and r.get('address-family') == 'ipv4-unicast'), None)
-    if v4u is None or v4u.get('instance-id') != 64:
-        runtime_fail(f"IPv4-unicast-over-OSPFv3 instance not running at instance 64: {rows!r}")
-
-    print('OK: IPv4-unicast-over-OSPFv3 instance running for redistribution', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-multiaf-v4-route {
-		run ./ospf-multiaf-v4-route.run
+		run "ze-test fixture ospf/ospf-multiaf-v4-route"
 		encoder json
 	}
 }

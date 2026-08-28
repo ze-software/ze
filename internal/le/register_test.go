@@ -46,11 +46,11 @@ func TestCompositionEqualsLiveRegisteringPackagePopulation(t *testing.T) {
 }
 
 func TestLeRegistersOneRootAndNoToolRoots(t *testing.T) {
-	if !registry.HasRootHandler("le") {
+	if registry.LookupRoot("le") == nil {
 		t.Fatal("internal/le registered no le root")
 	}
 	for _, tool := range commandsAtStart {
-		if registry.HasRootHandler(tool.Name) {
+		if registry.LookupRoot(tool.Name) != nil {
 			t.Errorf("tool %q is also a top-level root", tool.Name)
 		}
 		if tool.Meta.Description == "" || tool.Meta.Mode == "" || tool.Meta.Section == "" {

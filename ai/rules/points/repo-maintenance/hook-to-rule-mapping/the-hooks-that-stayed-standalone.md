@@ -3,4 +3,4 @@ kind: note
 level:
 stage:
 ---
-Still standalone (single-purpose or deliberately not folded): `block-until-lsp.sh`, `validate-spec.sh` (see note below), `mark-lsp-invoked.sh`, `mark-source-read.sh`, and the session-lifecycle hooks. The Stop hook also shells out to `scripts/dev/spec-closure-check.py` (the spec-closure detector; also usable directly as `--list`).
+The session and lifecycle actions remain separate from the four registered check groups because they return hook protocol output directly rather than a check verdict. They still run in the native process through `runLifecycleHook`; `nativeHookActions` owns the Bash, Write/Edit, post-write, and Task/Agent check rosters.

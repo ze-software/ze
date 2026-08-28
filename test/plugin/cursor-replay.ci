@@ -11,120 +11,12 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Plugin: send cursor commands and verify they succeed
-tmpfs=cursor-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Send cursor init, delta, inherit, del, and done commands.
-
-Each send() is synchronous via the YANG RPC. If the engine rejects
-any cursor command, _call_engine raises RuntimeError and the test
-fails with a non-zero exit.
-"""
-import json
-import sys
-from ze_api import API, result_text_data, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def eor_on_wire(result):
-    """True once peer1's initial-sync End-of-RIB has been written."""
-    if result.get('status') != 'done':
-        return False
-    data = result_text_data(result, '{}')
-    try:
-        parsed = json.loads(data) if isinstance(data, str) else data
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    if not isinstance(parsed, dict):
-        return False
-    peers = parsed.get('peers', {})
-    if not isinstance(peers, dict):
-        return False
-    return any(isinstance(row, dict) and row.get('eor-sent', 0) >= 1
-               for row in peers.values())
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Replaying the cursor before peer1 is up drops every command with "no
-    # established peers to send to" -- the exact silent drop this test claims
-    # to prevent -- so wait for the session first. Waiting on the eor-sent
-    # counter rather than on state=established is deliberate and load-bearing:
-    #   * it makes the peer's seq=1 End-of-RIB expectation reachable at all
-    #     (the old script shut down mid-handshake, so no EOR was ever sent);
-    #   * it orders the replay AFTER the EOR, so each cursor UPDATE is a
-    #     post-EOR incremental rather than an initial-sync route drained ahead
-    #     of the EOR (RFC 4724: EOR terminates the initial sync).
-    # A state=established poll is NOT sufficient: this peer's only
-    # update-sending plugin is cursor-test, and peer_run.go counts every
-    # send [ update ] binding as an expected "plugin session ready" signaller
-    # while only bgp-rib ever signals, so waitForAPISync burns its full 2s
-    # timeout and the EOR trails establishment (known-open design gap recorded
-    # in 5c4421541). eor-sent is the observable that survives that gap.
-    synced = api.dispatch_until(
-        'show bgp peer peer1 detail', eor_on_wire, attempts=60,
-    )
-    if not eor_on_wire(synced):
-        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
-
-    commands = [
-        # Init: full attributes + NLRIs
-        'peer * update cursor origin igp as-path [65001 65002] med 100 '
-        'local-preference 200 next-hop 10.0.0.1 '
-        'nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24',
-        # Delta: only AS_PATH changed
-        'peer * update cursor as-path [65001 65003] '
-        'nlri ipv4/unicast add 10.1.0.0/24',
-        # Inherit: NLRIs only, all attrs from cursor
-        'peer * update cursor nlri ipv4/unicast add 10.2.0.0/24 10.2.1.0/24',
-        # Del: remove MED
-        'peer * update cursor del med '
-        'nlri ipv4/unicast add 10.3.0.0/24',
-        # Done: clear cursor state
-        'peer * update cursor done',
-    ]
-
-    for i, cmd in enumerate(commands):
-        try:
-            api.send(cmd)
-        except RuntimeError as e:
-            print(f'FAIL: cursor command {i} rejected: {e}', file=sys.stderr)
-            dispatch(api, 'request shutdown')
-            api.wait_for_shutdown()
-            sys.exit(1)
-
-    print(f'OK: all {len(commands)} cursor commands accepted', file=sys.stderr)
-
-    # No quiesce barrier here on purpose: ze-peer is in check mode, so it closes
-    # the connection the moment its expectations are met (peer.go:256). peer1 is
-    # therefore already tearing down by this point, its opQueue can never drain,
-    # and the barrier would only wedge for its full 10s bound before failing.
-    # The EOR this test asserts is already on the wire before the replay starts.
-    # // removes a pre-shutdown quiesce added earlier in this same
-    # // session (never committed coverage); it is unreachable by construction
-    # // against a check-mode peer that has already left. No original assertion
-    # // is dropped: the seq=1 EOR expectation it was meant to serve now passes.
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external cursor-test {
-		run ./cursor-test.run
+		run "ze-test fixture plugin/cursor-replay"
 		encoder json
 	}
 }

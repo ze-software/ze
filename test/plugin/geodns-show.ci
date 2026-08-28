@@ -15,54 +15,6 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=geodns-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        resp = dispatch(api, 'show geodns')
-        status = resp.get('status')
-        if status != 'done':
-            runtime_fail(f'geodns: status={status} data={resp.get("data")}')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-        if not isinstance(data, dict):
-            runtime_fail(f'geodns: expected dict, got {type(data).__name__}')
-        if 'enabled' not in data:
-            runtime_fail(f'geodns: missing "enabled" in {data}')
-        if data.get('enabled') is not True:
-            runtime_fail(f'geodns: expected enabled=true, got {data.get("enabled")}')
-        if 'listeners' not in data:
-            runtime_fail(f'geodns: missing "listeners" in {data}')
-
-        print(f'OK: geodns enabled={data["enabled"]} listeners={data["listeners"]}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 service {
@@ -87,7 +39,7 @@ service {
 
 plugin {
 	external geodns-show-test {
-		run ./geodns-show-test.run
+		run "ze-test fixture plugin/geodns-show"
 		encoder json
 	}
 }

@@ -84,7 +84,7 @@ that reads as a valid answer.
 **Behavior to preserve:**
 - `state_changed` and `last_error` keep their current values and empty-string semantics for a peer that never transitioned or never errored (`summary.go, 63-65`).
 - The producer keeps omitting count keys when the RIB plugin is absent. The fix belongs at the consumer; do not make the producer fake a 0.
-- `cmd/peer` gains no compile-time edge to `bgp/plugins/rib` (`make ze-plugin-boundary-check` stays green).
+- `cmd/peer` gains no compile-time edge to `bgp/plugins/rib` (`./le plugin-boundary check` stays green).
 - Family-scoped counts under a family-filtered summary (`rib_commands.go`).
 - `/routes/filtered/{name}` and `/routes/noexport/{name}` keep returning empty lists until the filtered-storage spec lands.
 
@@ -206,7 +206,7 @@ compatibility is covered by the functional test above.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
 

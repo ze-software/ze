@@ -19,6 +19,8 @@ import (
 
 var dynamicHandler *cosHandler
 
+const configRootClassOfService = "class-of-service"
+
 func init() {
 	coreCos.RegisterResolver(resolveCoSForUnit)
 
@@ -27,7 +29,7 @@ func init() {
 		Description:             "802.1p class-of-service profile definitions",
 		Features:                "yang",
 		YANG:                    yang.ZeCosConfYANG,
-		ConfigRoots:             []string{"class-of-service"},
+		ConfigRoots:             []string{configRootClassOfService},
 		InProcessConfigVerifier: verifyCoSConfig,
 		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -98,7 +100,7 @@ func showProfiles() any {
 func verifyCoSConfig(sections []sdk.ConfigSection) error {
 	coreCos.Clear()
 	for _, sec := range sections {
-		if sec.Root != "class-of-service" {
+		if sec.Root != configRootClassOfService {
 			continue
 		}
 		if err := parseAndRegisterProfiles(sec.Data); err != nil {
@@ -149,7 +151,7 @@ func runPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, sec := range sections {
-			if sec.Root != "class-of-service" {
+			if sec.Root != configRootClassOfService {
 				continue
 			}
 			if err := parseAndRegisterProfiles(sec.Data); err != nil {
@@ -169,7 +171,7 @@ func runPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"class-of-service"},
+		WantsConfig:  []string{configRootClassOfService},
 		VerifyBudget: 1,
 		Commands: []sdk.CommandDecl{
 			{Name: "show class-of-service"},

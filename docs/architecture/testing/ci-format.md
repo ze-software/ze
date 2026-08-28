@@ -89,7 +89,7 @@ The verify debugging protocol identifies a functional failure with:
 
 | Field | Source | Purpose |
 |-------|--------|---------|
-| Suite label | `ze-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `ze-functional-test` |
+| Suite label | `ze-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `./le functional` |
 | Test id | One-based decimal id printed by `--list` and per-test result lines | Exact single-test rerun scope |
 | Run number | `N/TOTAL` printed by `--list` and per-test result lines | Human progress marker for long suites |
 | CI file path | Parsed `.ci` source path | Full test definition and embedded fixtures |
@@ -280,10 +280,8 @@ tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 
 ### Mode Defaults
 
-| Pattern | Default |
-|---------|---------|
-| `*.py`, `*.sh`, `*.pl`, `*.rb`, `*.bash`, `*.zsh` | 0755 |
-| Everything else | 0644 |
+Files default to `0644`. Use an explicit `mode=` only when the test needs a
+different permission.
 
 ### Terminator Rules
 
@@ -291,7 +289,7 @@ tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 - Must be unique within file (no two Tmpfs blocks can share terminator)
 - Alphanumeric and underscore only: `[A-Za-z0-9_]+`
 - Matched exactly (no whitespace trimming)
-- Recommended: `EOF_<PURPOSE>` (e.g., `EOF_CONF`, `EOF_PY`)
+- Recommended: `EOF_<PURPOSE>` (for example, `EOF_CONF`)
 
 ### Example
 
@@ -306,10 +304,6 @@ peer test-peer {
 }
 EOF_CONF
 
-tmpfs=plugin.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-print('{"ready": true}')
-EOF_PY
 
 option=file:path=peer.conf
 option=asn:value=65533
@@ -356,9 +350,9 @@ option=<type>:key=value[:key=value...]
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-test-all`. `caps=` declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on `operation not permitted`. Tokens: `net-admin` (privileged network configuration: creating interfaces, bringing links up, netlink, nftables), `net-raw` (raw/packet sockets: `resolve ping` and traceroute build ICMP through `net.ListenPacket("ip4:icmp", ...)`, which the kernel refuses unprivileged), `bpf` (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. `TestCIPrivilegedIPDeclaresNetAdmin` (`internal/test/runner/caps_declaration_lint_test.go`) refuses a `.ci` that runs an iproute2 mutation without `net-admin`. It sees iproute2 only, so `nft`, `tc` and a raw socket are still yours to declare. See `ai/rules/platform-linux.md`. |
-| `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an OPTIONAL heavyweight artifact the test cannot run without, and SKIPs (visibly, naming the path and the `hint` command) when it is absent. For prerequisites a checkout does not carry: the appliance module cache, where `gokrazy/modcache/.gitignore` ignores everything except the vendored gokrazy init source, so the pinned `rtr7/kernel` module and its 15 MB `vmlinuz` exist only after `make ze-gokrazy-deps-download`. The path is resolved against the repo root (each test runs in its own temp dir) and must be repo-relative with no `..`; a malformed value is a parse error on every platform. Deliberately a SKIP and not an `exit 0`: `test/install/ze-kernel-overlay.ci` read the pinned `vmlinuz` with no guard and failed `shasum: ... No such file or directory` on every CI run, and hiding that behind a silent pass would swap a red for a green bar over a test that ran nothing. |
-| `netns-link` | `name=<if>[:address=<cidr>]` | Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Needed when a test matches or routes through an interface the daemon never creates itself: a policy-routing next-hop needs a connected route to resolve its gateway, and an active OSPF interface needs a real link, since `enterTestNetns` brings up only loopback. **The option is a prerequisite, so declaring it makes the test SKIP outside netns mode** (`ZE_TEST_NETNS`, set by `make ze-netns-test` and `make ze-qemu-netns-test`): nothing else may create the link (the names are real host interfaces such as `eth0`/`eth1`), so running anyway would test a daemon whose interface does not exist. In particular these tests do NOT run under `make ze-qemu-needs-linux-test` even though they also carry `needs-linux`. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, and `bpf`; an unavailable capability produces a visible skip. |
+| `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
+| `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le qemu netns-test` path because the named link must never be created on the host. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
@@ -594,10 +588,9 @@ them may surface real defects; tracked in `plan/known-failures/`.
 **Daemon readiness (`ze` only):** a `ze` daemon launched **either** foreground or
 background is told (via `ZE_READY_FILE`) to write `daemon.ready` once startup
 completes, and the runner publishes its PID to `daemon.pid` in the tmpfs directory.
-Tests poll both files -- directly or through a `driver.py` helper -- before
-signalling the daemon (`action=sighup`/`action=sigterm`) or asserting on it. This
-handshake is armed only for `ze` daemons: `ze-peer` and helper scripts never get
-`ZE_READY_FILE` and never have their PID written to `daemon.pid`.
+Tests poll both files directly or through a compiled driver in
+`internal/test/fixture` before signaling the daemon or asserting on it. The
+readiness handshake is armed only for Ze daemons.
 <!-- source: internal/test/runner/runner_exec.go -- process orchestration -->
 
 ### Example (Decode Test)
@@ -657,8 +650,8 @@ and FreeBSD, the test runner adds loopback aliases via the `SIOCAIFADDR` ioctl.
 IPv6 works differently, because a host carries exactly one IPv6 loopback
 address. A fixture that needs a second one uses `fd00::2`, which is unique-local
 (RFC 4193) and never globally routable. `./le setup` adds it, and
-`./le setup --check` reports whether it is there. The runner never adds it:
-the ioctl returns EPERM to an unprivileged process, and `make ze-precommit-verify` runs as
+`./le setup check` reports whether it is there. The runner never adds it:
+the ioctl returns EPERM to an unprivileged process, and `./le verify current mode full` runs as
 an ordinary user. A test that binds an address this host does not carry fails at
 once with `loopback_address_missing` and the command to run, rather than timing
 out on a bind that could not succeed.
@@ -673,7 +666,7 @@ it binds anything, and `./le setup` adds no such address.
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
-<!-- source: scripts/le/devtools/system.py -- LOOPBACK_IPV6, loopback_addresses, apply_loopback -->
+<!-- source: internal/le/devsetup/actions.go -- Answer -->
 
 ## Expectations
 
@@ -1292,7 +1285,7 @@ binding a listening socket and the test can only pass vacuously.
 | Want | Do |
 |------|----|
 | Assert the wire exchange | Add `expect=bgp:conn=N:seq=N:hex=...` (or an `action=send/notification/rewrite/close/sighup/sigterm`) to the peer block |
-| A peer that is only a dial target for ze (routes injected via API, assertions made by a `.run` plugin or `http=`) | Run it as `ze-peer --mode sink` -- sink/echo/inject peers legitimately declare nothing |
+| A peer that is only a dial target for ze (routes injected through an external process plugin, assertions made by that plugin or `http=`) | Run it as `ze-peer --mode sink` -- sink/echo/inject peers legitimately declare nothing |
 
 `expect=json` still works, but only **in addition to** a consumed directive: it
 cannot make the peer listen.

@@ -72,7 +72,7 @@ entire package, because every test drove a Failure. `doneMethod` and
 `TestSuccessIdentifierMatchesResponse` exist because of that survivor. One mutant
 per CLAIM, and "both terminal packets" is two claims.
 
-`make ze-rfc-check` green: 2950 gated MUST-level requirements, 3264 tags resolved.
+`./le rfc check` green: 2950 gated MUST-level requirements, 3264 tags resolved.
 Step 6 needed no edit. `rfc3748` was already enrolled, so `check_new_summaries`
 does not fire, and the gate's own status checks passed, which is what would have
 caught a `docs/features/rfc-status.md` disagreement.
@@ -112,7 +112,7 @@ Do not close this spec by answering step 4 unilaterally in either direction.
 
 **Constraint.** `rfc3748` enrolment status must be read before step 2: enrolling a
 summary that declares gated MUSTs is itself gated by `check_new_summaries`, and adding a
-gated row to an enrolled RFC without both polarities reds `make ze-rfc-check`.
+gated row to an enrolled RFC without both polarities reds `./le rfc check`.
 
 ## A second item, same file, same layer
 
@@ -221,7 +221,7 @@ line before doing it.
 <!-- BLOCKING: proves the feature is reachable from its intended entry point.
      Without it the feature exists in isolation: unit tests pass, nothing calls it.
      Every row needs a concrete test name. "Deferred"/"TODO"/empty is rejected
-     by .claude/hooks/validate-spec.sh, which is the point: an unedited row fails. -->
+     by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
@@ -409,7 +409,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -427,7 +427,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

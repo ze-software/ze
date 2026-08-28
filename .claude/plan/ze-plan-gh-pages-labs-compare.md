@@ -91,13 +91,13 @@ exact command, and a link to the real source for anyone who wants the detail.
 
 | Page | Proves | Source (cited) | Command |
 |------|--------|-----------------|---------|
-| `labs/l2tp-interop/` | Ze as LNS against real `xl2tpd`/`pppd` LAC; FRR proves BGP redistribution of a subscriber /32 from a live PPP session | `docs/architecture/testing/l2tp-interop.md`, `test/interop-l2tp/lab.py` | `make ze-deployment-docker-l2tp-ppp-test` (Docker); `make ze-qemu-l2tp-ppp-test` (QEMU, needs `tmp/kernel/vmlinuz`, `mk/test-integration.mk`) |
-| `labs/pppoe-interop/` | Ze's PPPoE client against real `accel-ppp`, "the dominant open-source BRAS/AC"; explains why L2TP-vs-accel-ppp isn't buildable (both LNS-only) | `docs/architecture/testing/pppoe-interop.md` | `make ze-deployment-docker-pppoe-accel-test`; `make ze-qemu-pppoe-accel-test` (`mk/test-integration.mk`) |
-| `labs/ipsec-interop/` | Ze as IKE initiator against real strongSwan/charon, FRR redistribute scenarios | `test/interop-ipsec/lab.py` docstring, `Makefile:467` (no long-form design doc exists for this one -- page stays modest, doesn't invent rationale beyond what's written) | `make ze-interop-ipsec-test` (`IPSEC_INTEROP_SCENARIO=name` optional) |
-| `labs/vlan-qos/` | 802.1p PCP tagging/classification actually on the wire (AF_PACKET capture + nftables counters), not just kernel-state acceptance. Existing README already has an honest "Limitations" section (veth/software only, single-tag only, no throughput assertions) -- reuse verbatim | `test/vlan-qos-lab/README.md` | `sudo ./test/vlan-qos-lab/run.sh` (`--selftest` for CI-style smoke) |
-| `labs/looking-glass-graph/` | A realistic UK topology (AS65000 ring + edges, real external ASNs NTT/Cogent/Cloudflare/Akamai) populating the Looking Glass topology graph -- the one lab that's actually browsable/visual today | `test/plugin/lg-graph-lab/run.sh`, `lg-lab.py` | `./test/plugin/lg-graph-lab/run.sh [lg-port]`, then browse the printed URL |
-| `labs/appliance-install/` | The installer boots and completes for real in QEMU across HTTP/PXE, ISO, and Ventoy-on-FAT paths, plus failure-path/fault/pin/rescue scenarios | Docstrings of `scripts/evidence/effective-install-qemu.py`, `-iso-qemu.py`, `-ventoy-qemu.py`, `-scenarios-qemu.py`; `docs/guide/ze-install.md` for the operator-supplied-kernel requirement | `make ze-qemu-install-test`, `ze-qemu-install-iso-test`, `ze-qemu-install-ventoy-test`, `ze-qemu-install-scenarios-test` (`mk/test-integration.mk`) |
-| `labs/vpp-dataplane/` | Ze programs FIB, traffic, and firewall into a real VPP daemon via GoVPP; backs the production performance numbers already quoted in `docs/guide/vpp.md` (IPng Networks AS8298) | `scripts/evidence/effective-vpp.py` docstring, `docs/guide/vpp.md` | `make ze-deployment-vpp-test` (`mk/test-integration.mk`) |
+| `labs/l2tp-interop/` | Ze as LNS against real `xl2tpd`/`pppd`; FRR proves BGP redistribution of a subscriber /32 from a live PPP session | `docs/architecture/testing/l2tp-interop.md`, `internal/le/interoplab/l2tp`, `internal/le/deployment` | `./le deployment docker-l2tp-ppp-test`; `./le deployment gokrazy-l2tp-ppp-test` |
+| `labs/pppoe-interop/` | Ze's PPPoE client against real `accel-ppp` | `docs/architecture/testing/pppoe-interop.md`, `internal/le/interoplab/pppoe` | `./le deployment docker-pppoe-accel-test`; `./le qemu pppoe-accel-test` |
+| `labs/ipsec-interop/` | Ze as IKE initiator against real strongSwan/charon, with FRR redistribution scenarios | `internal/le/interoplab/ipsec` | `./le integration interop-ipsec` |
+| `labs/vlan-qos/` | Historical 802.1p PCP tagging and classification proof | `website/labs/vlan-qos/` | The retired shell lab has no current native action, so the page must not publish a runnable command |
+| `labs/looking-glass-graph/` | A UK topology populates the Looking Glass graph | `internal/le/interoplab/bgp/lg_lab.go` | `./le integration interop` includes the registered BGP scenarios |
+| `labs/appliance-install/` | The installer boots and completes in QEMU across HTTP/PXE, ISO, Ventoy-on-FAT, and failure scenarios | `internal/le/qemu/install.go`, `install_iso.go`, `install_ventoy.go`, `install_scenarios.go`; `docs/guide/ze-install.md` | `./le qemu install-test`, `install-iso-test`, `install-ventoy-test`, `install-scenarios-test` |
+| `labs/vpp-dataplane/` | Ze programs FIB, traffic, and firewall into a real VPP daemon via GoVPP | `internal/le/deployment/vppevidence.go`, `docs/guide/vpp.md` | `./le deployment vpp-test` |
 
 ## Comparison page (`compare/index.html`)
 
@@ -216,26 +216,20 @@ literally proving the installer/image chain); `labs/l2tp-interop/`,
 `looking-glass-graph/` all run the `ze` binary directly in Docker/netns/QEMU,
 not the gokrazy appliance image, so they tag `Daemon`.
 
-## General-purpose doc-to-HTML renderer (added mid-implementation)
+## General-purpose document and site renderer (current cutover)
 
-User steer: generalize the markdown-rendering approach beyond a one-off for
-Compare -- build it like the existing presentation tooling
-(`presentations/tools/bundle-html.py`), as a reusable script, so any doc
-content can be published to the site and refreshed with one command when the
-source `.md` changes in the main repo.
+The earlier design used `presentations/tools/bundle-html.py` and proposed
+`tools/render-doc.py`. Both Python producers are retired. `internal/le/sitebuild`
+now owns site staging, native page rendering, presentation activity, and
+standalone talk bundles.
 
-Design chosen over the earlier "fetch client-side at runtime" idea: a Python
-script `tools/render-doc.py` (new `gh-pages/tools/`, sibling to
-`presentations/tools/`) that reads a source markdown file (from the main
-worktree, e.g. `../main/docs/comparison.md`), converts it (GFM tables
-required) to HTML, wraps it in the site's shared page shell (header/nav/
-footer, `assets/site.css`), and writes the output page. This is preferred
-over a live cross-origin fetch (e.g. raw.githubusercontent.com) because it
-matches the existing repo convention (Python scripts the maintainer runs
-manually, committed output, same workflow as `bundle-html.py`) and avoids a
-runtime dependency on GitHub's raw-content CORS/availability. "Keep it up to
-date" = re-run the script after editing the source `.md`, then commit --
-same discipline as regenerating an inlined presentation.
+`./le site build` stages the publishable artifact in `../gh-pages`.
+`./le site bundle input <html-file>` produces a self-contained presentation,
+and `./le site check` refuses source-only files or missing public Markdown
+mirrors in the staged artifact.
+
+The first comparison use remains `compare/index.html`, generated from the
+canonical comparison source during the native build.
 
 First use: `compare/index.html`, generated from `compare/comparison.md` (the
 gh-pages-local copy seeded from `docs/comparison.md`'s tables plus the new
@@ -314,12 +308,8 @@ two-path callout. Both closed:
 
 ## Verification
 
-- Every new page loads and links resolve (no 404s) when served locally, e.g.
-  `python3 -m http.server` from `gh-pages/` and click through nav, teaser
-  cards, and footer.
-- `index.html` renders identically before/after the CSS extraction (visual
-  diff / manual check) -- the extraction must be behavior-preserving.
-- Every command shown on a lab page is copy-pasted verbatim from the
-  `Makefile`/`mk/*.mk` targets cited above, not retyped from memory.
+- Every new page loads and links resolve in the `../gh-pages` artifact produced by `./le site build`; drive the staged pages with the browser.
+- `index.html` renders identically before and after a CSS extraction. Confirm this visually.
+- Every command shown on a lab page comes from the bare `./le <area>` inventory and its Go producer, never from the retired Make and script paths.
 - Spot-check that no page states a capability, prerequisite, or command that
   isn't backed by the citations in the table above.

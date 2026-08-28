@@ -23,7 +23,7 @@ import (
 // emitted a fixed order coded into a function body, the batch rail merge-inserted
 // into a byte block with findAttrInsertPosition, and the queued rail interleaved
 // range passes around an attrWriter. Which rail ran was decided by
-// Peer.ShouldQueue -- by scheduling -- so one route could reach the wire as two
+// Peer.shouldQueue -- by scheduling -- so one route could reach the wire as two
 // different byte strings.
 //
 // This file removes the choice. An announce names a BASE (the caller's verbatim

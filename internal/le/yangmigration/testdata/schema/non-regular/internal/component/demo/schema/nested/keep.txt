@@ -1,0 +1,1 @@
+nested entries make a merge or rename ambiguous

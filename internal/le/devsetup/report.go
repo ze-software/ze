@@ -1,8 +1,7 @@
 // Design: docs/architecture/core-design.md -- the vocabulary a setup report is written in
 //
-// report.go is a Go port of scripts/le/console.py. It defines the `State` that a
-// step reached, the `Outcome` it returned, and the `Report` that determines the
-// verdict.
+// This file defines the `State` that a step reached, the `Outcome` it returned,
+// and the `Report` that determines the verdict.
 //
 // ONE VALUE CARRIES THE LABEL AND THE VERDICT. The previous shell version used
 // four parallel lists in one loop. It manually added entries beside each print
@@ -173,7 +172,7 @@ func (r *Report) Summarize() int {
 	return 0
 }
 
-// CheckVerdict records the final verdict of a probe-only run and returns the
+// checkVerdict records the final verdict of a probe-only run and returns the
 // exit code.
 //
 // A probe changes nothing. Therefore, PENDING here never means "this run changed
@@ -183,7 +182,7 @@ func (r *Report) Summarize() int {
 // fail the run, but the report keeps them separate because their corrections
 // differ. If the report calls a plugin a missing tool, the reader goes to the
 // tool table, which does not install it.
-func (r *Report) CheckVerdict() int {
+func (r *Report) checkVerdict() int {
 	r.Note("")
 
 	missing := r.having(StateMissing)

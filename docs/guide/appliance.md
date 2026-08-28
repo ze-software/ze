@@ -1,6 +1,6 @@
 # VM Appliance
 
-Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org/). The default target is x86_64. The legacy Make workflow uses `GOKRAZY_ARCH=arm64` for native Apple Silicon QEMU images; the structured `ze appliance build` workflow uses `image.arch` in `appliance.json`. At runtime, the appliance is minimal: Linux kernel, gokrazy init, and Ze as the only application, with no package manager, no general shell (except authenticated emergency serial console), no unused distro daemons, and automatic process supervision.
+Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org/). The default target is x86_64, and `image.arch` in `appliance.json` selects another architecture for `ze appliance build`. At runtime, the appliance is minimal: Linux kernel, gokrazy init, and Ze as the only application, with no package manager, no general shell (except authenticated emergency serial console), no unused distro daemons, and automatic process supervision.
 
 Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 <!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
@@ -40,32 +40,30 @@ sudo apt-get install -y e2fsprogs qemu-system-x86   # Debian, Ubuntu
 sudo dnf install -y e2fsprogs qemu-system-x86       # Fedora
 ```
 
-The build needs BOTH `mkfs.ext4` and `debugfs` from e2fsprogs: it formats
-`/perm` with the first and injects the seed database with the second. The build
-finds them by itself, in `/usr/sbin`, `/sbin`, `/usr/local/sbin`, then the
-homebrew Cellar, and it takes the first directory holding both. Pass
-`make ze-gokrazy-build E2FS=/path/to/sbin` to name the directory instead. An empty
-`E2FS=` is not an override and does not resume the search.
-<!-- source: mk/build-gokrazy.mk -- E2FS autodetect and the ze-gokrazy-build e2fsprogs guard -->
+The build needs `mkfs.ext4`, `debugfs`, and `e2fsck` from e2fsprogs. The native
+builder resolves each tool independently from the Homebrew keg, standard sbin
+directories, and `PATH`.
+<!-- source: internal/appliance/cmd_build.go -- resolveE2FSTool -->
 
 For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
 plus `xorriso`.
 `ze appliance iso` checks those tools before it stages an ISO.
 <!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder -->
 
-The gokrazy build tool (`gok`) is vendored in the repo at `vendor/github.com/gokrazy/` and built automatically by Make. No separate install needed.
-<!-- source: cmd/ze-gok/main.go -- vendored gok tool -->
+The vendored gokrazy command lives at `cmd/ze-gok`; the appliance builder calls
+it in process. No separate gokrazy installation or first-party script is
+required.
+<!-- source: internal/appliance/cmd_build.go -- runGokInProcess -->
 
 ## First-time setup
 
-After cloning the repo, download gokrazy system packages (Linux kernel, init, serial console) into the Go module cache. This is a one-time ~42MB download. The exact versions are pinned in `gokrazy/ze/builddir/*/go.mod` (tracked in git, verified by go.sum).
+Initialize the named appliance before its first build:
 
 ```bash
-make ze-gokrazy-deps-download
+ze appliance init edge-01
 ```
 
-After this, builds work offline.
-<!-- source: gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod -- pinned kernel version -->
+The build resolves pinned system packages through the Go module graph.
 <!-- source: gokrazy/ze/builddir/github.com/gokrazy/gokrazy/go.mod -- pinned gokrazy version -->
 
 ## Runtime Kernel Requirements
@@ -91,9 +89,9 @@ Each symbol has a producer in Ze rather than a test that wanted it.
 
 `CONFIG_NET_UDP_TUNNEL`, `CONFIG_WIREGUARD` and `CONFIG_TUN` are `=y` in the
 config fragment and are not pinned in a manifest.
-<!-- source: gokrazy/kernel/runtime.require -- the runtime pin list -->
-<!-- source: gokrazy/kernel/kernel.require -- the base pin list -->
-<!-- source: tools/kernel-builder/build.py -- enforce_required_symbols -->
+<!-- source: gokrazy/kernel/runtime.require -- runtime requirements -->
+<!-- source: gokrazy/kernel/kernel.require -- base requirements -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- EnforceRequiredSymbols -->
 
 ## L2TP Kernel Support
 
@@ -106,45 +104,33 @@ Build the repo-local kernel before building an appliance intended to terminate
 L2TP subscribers:
 
 ```bash
-make ze-kernel-build                                   # default runtime build: docker, amd64
-make ze-kernel-build KERNEL_BUILDER=qemu               # force the shared QEMU backend
-make ze-kernel-build KERNEL_ARCH=arm64                 # runtime arm64 kernel
-make ze-kernel-build KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
-make ze-gokrazy-build USER=admin PASS=secret
+ze appliance kernel --target runtime --arch amd64
+ze appliance build edge-01
 ```
 
-On Apple Silicon, use a native arm64 VM image to avoid x86_64 emulation while
-still building the kernel with the same L2TP/PPP options:
+Select the QEMU builder or arm64 explicitly when needed:
 
 ```bash
-make ze-kernel-build KERNEL_ARCH=arm64                 # default builder is docker
-make ze-kernel-build KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
-make ze-gokrazy-build GOKRAZY_ARCH=arm64 USER=admin PASS=secret
-make ze-gokrazy-run GOKRAZY_ARCH=arm64 GOKRAZY_QEMU_ACCEL=hvf
+ze appliance kernel --target runtime --arch arm64 --builder qemu
+ze appliance build edge-arm64
 ```
 
-`make ze-kernel-build` delegates to `gokrazy/kernel/Makefile`, which calls the single
-shared driver `tools/kernel-builder/run.py`. The driver reads the kernel version
-from `internal/appliance/kernel.version`, selects the Docker backend by default
-(or the QEMU backend with `KERNEL_BUILDER=qemu`), resolves the tracked
-`gokrazy/kernel/kernel.config` + `runtime.config` fragments (plus the shared
-`# ze-include: efi-console` console fragment) and matching `.require` manifests,
-and emits `vmlinuz`, `lib/modules/`, and DTBs. `make ze-kernel-build` then assembles
-those into an out-of-tree kernel package (`tmp/kernel/pkg`, a copy of the pinned
-`rtr7/kernel` module with our artifacts overlaid) and points `gok` at it via a
-`go.mod` `replace`. The pinned module cache is never mutated in place and there
-is no backup to restore; `make ze-kernel-clean` drops the `replace` and removes
-`tmp/kernel`.
-<!-- source: mk/build-gokrazy.mk -- ze-kernel-build -->
-<!-- source: gokrazy/kernel/Makefile -- all -->
-<!-- source: tools/kernel-builder/run.py -- main -->
+`ze appliance kernel` calls the Go driver in
+`internal/appliance/kernelbuilder`. The driver reads
+`internal/appliance/kernel.version`, selects Docker or QEMU, resolves the
+tracked config fragments and `.require` manifests, and writes the runtime
+kernel tree. The Go worker enforces every required symbol before the artifact
+can be used.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 On a Linux runner with QEMU, `xl2tpd`, `pppd`, `/dev/ppp`, and PPPoL2TP kernel
 support, the deployment proof target builds an L2TP-enabled appliance image and
 drives a real LAC against it:
 
 ```bash
-make ze-deployment-gokrazy-l2tp-ppp-test
+./le deployment gokrazy-l2tp-ppp-test
 ```
 
 The proof image is built from a temporary gokrazy instance config so the normal
@@ -156,73 +142,42 @@ and an L2TP-capable kernel: skip-build bypasses the proof's own kernel
 resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
 crash-loops at first boot instead of serving.
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
-<!-- source: mk/build-gokrazy.mk -- ze-kernel-build -->
-<!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- appliance L2TP proof -->
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
+<!-- source: internal/le/deployment/actions.go -- Answer -->
 
 ## Build an image
 
-First build (creates SSH credentials and a TLS certificate):
+Create a named appliance once, then build it:
 
 ```bash
-make ze-gokrazy-build USER=admin PASS=secret
+ze appliance init edge-01
+ze appliance build edge-01
 ```
 
-Subsequent rebuilds reuse the existing database (same credentials, same TLS cert):
+The named appliance keeps its config and secrets between builds. The build
+assembles its ZeFS database, builds the disk image through vendored gokrazy,
+formats the persistent partition, injects the database, and writes the build
+manifest.
 
 ```bash
-make ze-gokrazy-build
+ze appliance show edge-01
+ze appliance config edge-01 --merged
 ```
 
-To use a database from a running instance or another machine:
-
-```bash
-make ze-gokrazy-build ZEFS=/path/to/database.zefs
-```
-
-To build with a different first-boot template without editing
-`gokrazy/ze/ze.conf`:
-
-```bash
-make ze-gokrazy-build USER=admin PASS=secret GOKRAZY_TEMPLATE=tmp/my-ze.conf
-```
-
-The legacy Make first build:
-
-1. Builds `bin/ze` for the host
-2. Runs `ze init --seed` with credentials and generates a self-signed TLS certificate. `--seed` skips baking the build host's discovered interfaces into the active config; otherwise that active config would hold the wrong host's NICs and shadow the seed template, leaving the appliance without web/L2TP. The appliance instead builds its active config at first boot from the template merged with its own on-device discovery.
-3. Cross-compiles Ze for linux/`GOKRAZY_ARCH` and builds a 2GB disk image
-4. Formats the persistent `/perm` partition
-5. Injects `database.zefs` (credentials + TLS cert) into `/perm/ze/`
-
-The database is kept at `tmp/gokrazy/init/database.zefs` between builds. Browsers
-that trust the certificate on first use will not prompt again after image
-rebuilds. Structured `ze appliance build` also writes a build manifest into
-`/perm/ze/build.json`; the legacy `make ze-gokrazy-build` flow does not.
-
-The image lands at `tmp/gokrazy/ze.img`.
-<!-- source: mk/build-gokrazy.mk -- ze-gokrazy-build -->
+<!-- source: internal/appliance/main.go -- applianceCommands -->
+<!-- source: internal/appliance/cmd_build.go -- runBuild, buildOne -->
 
 ## Test in QEMU
 
 ```bash
-make ze-gokrazy-run
+ze appliance run edge-01
 ```
 
-This boots the image with these legacy Make forwards:
-
-| Host URL / command | Guest service |
-|--------------------|---------------|
-| `https://localhost:28080/` | Ze web UI (8080) |
-| `https://localhost:28080/gokrazy/` | Gokrazy management UI proxied by Ze |
-| `ssh -p 2222 admin@localhost` | Ze SSH CLI (22) |
-
-Quit QEMU with **Ctrl-A X**.
-
-The Gokrazy management UI shows process status, stdout/stderr ring buffers, and
-resource usage. In appliance mode it is exposed under Ze's authenticated web UI
-at `/gokrazy/`; the proxy reads Gokrazy's password from the same password-file
-locations Gokrazy uses when it needs to inject upstream Basic Auth.
-<!-- source: mk/build-gokrazy.mk -- ze-gokrazy-run -->
+The command boots the named image in QEMU. Quit QEMU with **Ctrl-A X**.
+The Gokrazy management UI is exposed through Ze's authenticated web UI at
+`/gokrazy/`; the proxy reads Gokrazy's password from its standard password-file
+locations.
+<!-- source: internal/appliance/cmd_run.go -- runRun -->
 <!-- source: internal/component/web/register_gokrazy.go -- /gokrazy route -->
 <!-- source: internal/core/gokrazyutil/gokrazyutil.go -- ReadPassword -->
 
@@ -251,16 +206,12 @@ The machine boots to a serial console (115200 baud). Ze starts automatically, ge
 
 ### Seed config
 
-The initial Ze config is stored as the seed template in `gokrazy/ze/ze.conf`.
-Legacy Make writes that file into `file/template/ze.conf` in ZeFS during
-`make ze-gokrazy-build`; structured `ze appliance assemble` uses the same default when
-no base or per-appliance overlay config is present. Because `make ze-gokrazy-build`
-runs `ze init --seed`, the seed DB has no `file/active/ze.conf` to shadow the
-template, so the template becomes the effective config on first boot (`ze
-appliance assemble` never wrote an active config, so it was already correct).
+The initial Ze config is stored as the seed template in
+`gokrazy/ze/ze.conf`. `ze appliance assemble` uses it when no base or
+per-appliance overlay exists. The seed database holds no active config that can
+shadow the template, so the appliance builds its effective config on first
+boot.
 <!-- source: gokrazy/ze/ze.conf -- seed template -->
-<!-- source: mk/build-gokrazy.mk -- GOKRAZY_TEMPLATE write, ze init --seed -->
-<!-- source: internal/plugins/init/main.go -- runInit seed skips file/active write -->
 <!-- source: internal/appliance/cmd_assemble.go -- resolveSeedConfig -->
 
 ```bash
@@ -275,9 +226,8 @@ set environment ntp enabled false
 set interface dhcp-auto true
 ```
 
-To change the seed config, edit `gokrazy/ze/ze.conf`, pass
-`GOKRAZY_TEMPLATE=/path/to/ze.conf` to the legacy Make workflow, or use the
-structured workflow's `config-base` and per-appliance `ze.conf` files.
+To change the seed config, edit `gokrazy/ze/ze.conf`, or use the structured
+workflow's `config-base` and per-appliance `ze.conf` files.
 
 ### Runtime config
 
@@ -302,7 +252,7 @@ Ze's environment is set in `gokrazy/ze/config.json` under `PackageConfig`:
 Gokrazy supports atomic A/B partition updates over the network:
 
 ```bash
-bin/ze-setup appliance push <name>
+ze appliance push <name>
 ```
 
 This pushes the most recent image to the device. The system reboots into the new version. If the update fails mid-flight, the previous root partition is still intact.
@@ -347,10 +297,11 @@ cmd/ze-serial-shell/        # serial console login gate (replaces serial-busybox
   main.go                   # gokrazy wrapper: symlink + DontStartOnBoot
   _gokrazy/                 # renamed busybox extrafiles per arch
 cmd/ze-gok/
-  main.go                   # gok wrapper (built by make bin/gok)
+  main.go                   # vendored gokrazy command wrapper
 ```
 
-The gok build tool source is vendored in the main `vendor/github.com/gokrazy/` directory. The `builddir/` files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after `make ze-gokrazy-deps-download`.
+The gok source is vendored under `vendor/github.com/gokrazy/`. The small
+`builddir/` modules pin the system-package versions.
 
 ### Builds never run from this directory
 
@@ -362,43 +313,33 @@ copy, and the copy is deleted afterwards.
 
 <!-- source: internal/appliance/instance/prepare.go -- Prepare, copyBuildDir, absolutizeReplaces -->
 
-Both entry points do this: `ze appliance build` through `resolveBuildParentDir`,
-and `make ze-gokrazy-build` through `bin/gok`, which rewrites `--parent_dir` before gok
-sees it. As a result a build leaves the working tree unchanged, two builds in one
-checkout use isolated prepared instances, and a build that would have to resolve
-packages over the network fails instead of silently using unpinned versions. The
-one shared mutable path left is `tmp/kernel/pkg`: every `make ze-kernel-build` rewrites
-it (starting with a delete), so concurrent kernel materializations for different
-architectures do collide there. The L2TP boot proof therefore consumes a per-run
-copy of the package, never the shared path.
+`ze appliance build` prepares an isolated copy through
+`resolveBuildParentDir`. A build leaves the working tree unchanged, and two
+builds in one checkout use separate prepared instances.
 
 <!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
-<!-- source: cmd/ze-gok/main.go -- prepareArgs -->
+<!-- source: internal/appliance/instance/prepare.go -- Prepare -->
 
-To build against a locally built kernel, pass it per build:
+Build a verified local runtime kernel before the image when required:
 
 ```
-make ze-kernel-build                                   # builds tmp/kernel/pkg
-make ze-gokrazy-build KERNEL_PKG=tmp/kernel/pkg USER=admin PASS=secret
+ze appliance kernel --target runtime --arch amd64
+ze appliance build edge-01
 ```
 
-The `replace` is written into the prepared copy only, so nothing needs reverting
-afterwards and a later build without `KERNEL_PKG` uses the pinned kernel.
-
-<!-- source: mk/build-gokrazy.mk -- KERNEL_PKG, ze-kernel-build -->
+The kernel replacement is written into the prepared copy only, so nothing in
+the source tree needs to be reverted.
 <!-- source: internal/appliance/instance/prepare.go -- replaceKernel -->
 
 
-## ze-setup binary
+## Build-host command
 
-Appliance build commands (`ze appliance`) and PXE provisioning (`ze install
-remote`) are part of the `ze-setup` binary. This keeps build-host tooling out
-of the on-device `ze` binary.
-
-Build ze-setup from the repo root:
+Appliance build commands (`ze appliance`) and PXE provisioning
+(`ze install remote`) are registered in the Ze binary. Build it from the
+repository root when it is not already installed:
 
 ```bash
-make bin/ze-setup          # produces bin/ze-setup
+go build -tags ze_setup -o bin/ze ./cmd/ze
 ```
 
 ## Building and installing an appliance (end to end)
@@ -445,62 +386,38 @@ page count is `size / page-size` (so `size` must be a whole multiple of
 kernel profile (both surfaced by `ze doctor`).
 <!-- source: internal/appliance/config.go -- ImageConfig.Hugepages, validateImageMemory -->
 
-Build the full ISO in one command:
+Build the full ISO through the structured appliance actions:
 
 ```bash
-make ze-iso-build-full CONFIG=prod.json SSH_PASSWORD='choose-a-strong-one'
+ze appliance init --config prod.json prod
+ze appliance kernel prod
+ze appliance initrd
+ze appliance build prod
+ze appliance iso prod
 ```
 
-This runs the entire pipeline: init, kernel build, initrd, disk image, and ISO.
-The appliance name is derived from the config filename (`prod.json` creates
-appliance `prod`). Subsequent builds with the same config reinitialize from
-scratch.
-
-Rebuild after code changes (appliance config unchanged):
-
-```bash
-make ze-iso-build NAME=prod
-```
-
-Set up PXE boot (optional, after the ISO build):
-
-```bash
-make ze-pxe-build NAME=prod
-```
-
-See `make help-deploy` for all variables (`APPLIANCE_BUILDER`, `PXE_DIR`, etc.).
-<!-- source: mk/build-appliance.mk -- ze-iso-build-full, ze-iso-build, ze-pxe-build -->
+The named appliance retains its config and secrets for subsequent builds.
 
 ### Manual steps
 
-The Makefile targets call these `ze-setup` commands under the hood. Run them
-individually when you need finer control:
+Use the same commands individually when you need to inspect an intermediate
+artifact:
 
 ```bash
-# 1. Build bin/ze-setup
-make bin/ze-setup
+# Create the appliance with config and secrets.
+ze appliance init --config prod.json prod
 
-# 2. Create an appliance with its config and secrets
-env ze.appliance.ssh.password='choose-a-strong-one' \
-  bin/ze-setup appliance init --config prod.json prod
+# Check and prepare ISO prerequisites.
+ze appliance iso --check
+ze appliance kernel prod
+ze appliance initrd
 
-# 3. Optional readiness check for ISO prerequisites
-bin/ze-setup appliance iso --check
+# Build the disk image and installer ISO.
+ze appliance build prod
+ze appliance iso prod
 
-# 4. Prepare ISO prerequisites
-bin/ze-setup appliance kernel prod                # download or build the installer kernel
-bin/ze-setup appliance initrd                    # download or build the installer initrd
-
-# 5. Build the full disk image (gokrazy + ZeFS credentials)
-bin/ze-setup appliance build prod
-
-# 6. Build the bootable installer ISO
-bin/ze-setup appliance iso prod
-
-# 7. Install: either boot the ISO on the target machine, or PXE provision
-#    Option A: copy the ISO to a USB stick or mount in a VM
-#    Option B: serve over the network with PXE
-bin/ze-setup install remote \
+# Provision the resulting image over the network when needed.
+ze install remote \
   --interface eth0 \
   --network 10.0.0.0/24 \
   --image ~/.config/ze/appliances/prod/ze-*.img \
@@ -527,13 +444,13 @@ encrypted at rest, and a TLS certificate.
 ### Quick start
 
 ```bash
-bin/ze-setup appliance init lab                  # interactive wizard
-bin/ze-setup appliance build lab                 # full image (assemble + gok + ext4)
-bin/ze-setup appliance kernel lab                 # download or build installer kernel
-bin/ze-setup appliance initrd                    # download or build installer initrd
-bin/ze-setup appliance iso lab                   # bootable installer ISO from latest image
-bin/ze-setup appliance list                      # show all appliances
-bin/ze-setup appliance show lab                  # config summary + cert expiry
+ze appliance init lab                  # interactive wizard
+ze appliance build lab                 # full image
+ze appliance kernel lab                # installer kernel
+ze appliance initrd                    # installer initrd
+ze appliance iso lab                   # bootable installer ISO
+ze appliance list                      # show all appliances
+ze appliance show lab                  # config summary and cert expiry
 ```
 
 ### Appliance directory
@@ -564,19 +481,19 @@ Secrets are encrypted at rest with Argon2id + XChaCha20-Poly1305 when an encrypt
 <!-- source: internal/appliance/agent.go -- passphrase agent -->
 
 ```bash
-bin/ze-setup appliance unlock                    # start agent (prompts for passphrase)
-bin/ze-setup appliance unlock --duration 15m     # auto-expire after 15 minutes
-bin/ze-setup appliance unlock --stop             # stop agent
+ze appliance unlock                    # start agent
+ze appliance unlock --duration 15m     # auto-expire after 15 minutes
+ze appliance unlock --stop             # stop agent
 ```
 
 ### Day-2 operations
 
 ```bash
-bin/ze-setup appliance passwd lab                # rotate SSH password
-bin/ze-setup appliance replace-cert lab          # regenerate self-signed cert
-bin/ze-setup appliance replace-cert lab --cert ca.pem --key ca.key   # use CA-signed cert
-bin/ze-setup appliance rekey lab                 # change encryption passphrase
-bin/ze-setup appliance clone lab lab2            # copy config (not secrets)
+ze appliance passwd lab
+ze appliance replace-cert lab
+ze appliance replace-cert lab --cert ca.pem --key ca.key
+ze appliance rekey lab
+ze appliance clone lab lab2
 ```
 
 `replace-cert` validates the material before it writes anything. It refuses a
@@ -651,27 +568,22 @@ The ISO build requires an installer kernel, an initrd, `grub-mkstandalone`, and
 missing. The `kernel` and `initrd` commands handle downloading or building these
 artifacts automatically:
 
-    bin/ze-setup appliance iso --check               # report readiness
-    bin/ze-setup appliance kernel lab                 # reads arch/profile from appliance config
-    bin/ze-setup appliance kernel --profile hardware lab   # explicit hardware profile
-    bin/ze-setup appliance kernel --builder qemu --arch arm64 lab
-    bin/ze-setup appliance kernel --target runtime    # build the verified runtime kernel tree
-    bin/ze-setup appliance initrd                    # download or build initrd
-    bin/ze-setup appliance iso lab                   # build ISO
+    ze appliance iso --check
+    ze appliance kernel lab
+    ze appliance kernel --profile hardware lab
+    ze appliance kernel --builder qemu --arch arm64 lab
+    ze appliance kernel --target runtime
+    ze appliance initrd
+    ze appliance iso lab
 
-`ze appliance kernel` defaults to `--target installer` (the monolithic PXE
-`Image`); `--target runtime` builds the gokrazy runtime kernel tree (modules +
-`vmlinuz`) from `gokrazy/kernel/` with the runtime requirement floor enforced.
-The command reports the target it built (`kernel ready: ... (target=installer,
-profile=qemu, version=7.2)`). The installer target tries cache first, then a
-configured prebuilt-artifact URL if `ze.appliance.kernel.url` is set, then local
-build. Every local build runs through the shared driver
-`tools/kernel-builder/run.py`, which selects Docker when available and falls back
-to QEMU; use `--builder docker` or `--builder qemu` to force one path. Resolved
-installer artifacts are cached under `$XDG_CACHE_HOME/ze/` (default
-`~/.cache/ze/`) and copied to `build/kernel/` when appropriate.
+`ze appliance kernel` defaults to the installer target. `--target runtime`
+builds the gokrazy runtime kernel tree and enforces the runtime requirement
+floor. The installer target tries the cache, then an optional configured
+artifact URL, then the local Go driver. The driver selects Docker when
+available and otherwise QEMU; `--builder docker` and `--builder qemu` force one
+backend. Resolved artifacts are cached under `$XDG_CACHE_HOME/ze/`.
 <!-- source: internal/appliance/cmd_kernel.go -- runKernel, kernelTargetFor -->
-<!-- source: tools/kernel-builder/run.py -- main -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
 
 `ze appliance initrd` uses the same cache, optional configured URL, then local
 build pattern for the initrd artifact. The download URL has no built-in release
@@ -694,32 +606,21 @@ the ISO elsewhere. The output path must not overwrite the selected `.img`, and
 the image filename must stay within `[A-Za-z0-9._-]` so the initrd can pass it
 on the kernel command line. By default, `ze appliance iso` resolves a matching
 installer kernel from the cache, or from `build/kernel/Image` only when its
-variant metadata matches the appliance arch/profile/version. `ze appliance
-kernel` and `make -C tools/installer-kernel` both delegate to
-`tools/kernel-builder/`; pass `--kernel` to keep multiple kernels side by side.
+variant metadata matches the appliance architecture, profile, and version.
+Pass `--kernel` to select a specific installer kernel.
 
-The `make -C tools/installer-kernel` build is incremental. It rebuilds when a
-config fragment, a builder file, the Makefile, or
-`internal/appliance/kernel.version` is newer than `build/kernel/Image`. It also
-rebuilds when the requested arch, profile, or builder is different from the last
-build, which it records in `build/kernel/.request`. A repeated build with the
-same request does no work. `make -C gokrazy/kernel` carries the same record for
-the runtime kernel, where an amd64 `vmlinuz` and an arm64 one live at one path.
-
-`ze appliance kernel` is keyed on the cache instead. It deletes both records the
-Makefile writes, `.request` and `.variant`, on every run. The next `make`
-therefore rebuilds rather than trust a record it did not write. `ze appliance
-iso` does not read the replaced image as the profile the old record named.
+The kernel cache key includes target, architecture, profile, config, and
+version. Repeating the same request reuses the verified artifact; a different
+request gets a separate cache entry.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
 <!-- source: internal/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
-<!-- source: tools/installer-kernel/Makefile -- all -->
 
-    bin/ze-setup appliance build lab
-    bin/ze-setup appliance kernel --builder docker --profile hardware lab
-    bin/ze-setup appliance iso lab
-    bin/ze-setup appliance iso --image ze-20260601-120000.img lab
-    bin/ze-setup appliance iso --output /path/to/lab.iso lab
-    bin/ze-setup appliance iso --kernel build/kernel/Image lab
-
+    ze appliance build lab
+    ze appliance kernel --builder docker --profile hardware lab
+    ze appliance iso lab
+    ze appliance iso --image ze-20260601-120000.img lab
+    ze appliance iso --output /path/to/lab.iso lab
+    ze appliance iso --kernel build/kernel/Image lab
 The ISO is an installer envelope around the existing raw gokrazy image. The image
 is gzip-compressed inside the ISO to reduce media size (a 2 GiB image with ~100
 MiB of content compresses to roughly 100 MiB). The installer initrd decompresses
@@ -741,7 +642,7 @@ confuse the source selection. With multiple fixed disks, pass a whole disk path
 such as `/dev/vda` at ISO creation time:
 <!-- source: internal/install/disk/detect.go -- findTargetDisk; internal/install/disk/iso.go -- media-id match -->
 
-    bin/ze-setup appliance iso --target /dev/vda lab
+    ze appliance iso --target /dev/vda lab
 
 After the installer writes the disk in ISO mode, it powers off instead of
 rebooting. Remove the installer media, then power the target back on so the
@@ -766,10 +667,10 @@ is not supported.
 
 Push a built image to a running gokrazy device via its HTTPS update endpoint:
 
-    bin/ze-setup appliance push lab
-    bin/ze-setup appliance push --image ze-20260427-143022.img lab   # rollback to older image
-    bin/ze-setup appliance push --all                                # all devices with address
-    bin/ze-setup appliance push --all --parallel 4                   # 4 concurrent uploads
+    ze appliance push lab
+    ze appliance push --image ze-20260427-143022.img lab
+    ze appliance push --all
+    ze appliance push --all --parallel 4
 
 Push uses the update token (from `secrets/update.token`) for HTTP basic auth, and verifies the device TLS certificate against the stored `cert.pem`. No system CA pool is consulted.
 <!-- source: internal/appliance/cmd_push.go -- loadDeviceTLS, authTransport -->
@@ -782,14 +683,14 @@ network request starts.
 
 Preview the effective configuration (base + overlay merged) without building:
 
-    bin/ze-setup appliance config lab --merged
+    ze appliance config lab --merged
 
 Push a config change to a running device without rebuilding the image:
 
-    bin/ze-setup appliance config-push lab
-    bin/ze-setup appliance config-push --dry-run lab    # preview only, no SSH connection
-    bin/ze-setup appliance config-push --all            # all addressed devices
-    bin/ze-setup appliance config-push --all --parallel 4
+    ze appliance config-push lab
+    ze appliance config-push --dry-run lab
+    ze appliance config-push --all
+    ze appliance config-push --all --parallel 4
 
 Config-push uses SSH (operator's key via ssh-agent) to upload the merged config to the device, which validates and applies it. No secrets are transmitted over SSH.
 <!-- source: internal/appliance/cmd_config_push.go -- configPushOne -->
@@ -832,7 +733,7 @@ config was saved. If the window completes, the active config hash is written to
 
 Initialize multiple appliances from a JSON manifest:
 
-    bin/ze-setup appliance init --batch manifest.json
+    ze appliance init --batch manifest.json
 
 Manifest format (array of entries):
 
@@ -852,21 +753,21 @@ Export creates an encrypted archive of an appliance directory for offsite backup
 
 Export a single appliance:
 
-    bin/ze-setup appliance export lab
+    ze appliance export lab
     # creates lab.ze.enc in the current directory
 
 Export all appliances:
 
-    bin/ze-setup appliance export --all
+    ze appliance export --all
     # creates appliances-YYYYMMDD-HHMMSS.ze.enc
 
 Import restores from an archive:
 
-    bin/ze-setup appliance import lab.ze.enc
+    ze appliance import lab.ze.enc
 
 Import to a different bastion (migration):
 
-    bin/ze-setup appliance import lab.ze.enc --dir /path/to/new/bastion
+    ze appliance import lab.ze.enc --dir /path/to/new/bastion
 
 Archives are always encrypted using the same Argon2id + XChaCha20-Poly1305 scheme as secrets at rest. The archive passphrase can differ when provided separately from the secrets passphrase. `import --force` overwrites files present in the archive, but it does not delete extra files already present in existing appliance directories.
 <!-- source: internal/appliance/crypto.go -- Encrypt, Decrypt -->

@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: scripts/evidence/l2tp-pppox-diag/main.go -- syscall and ioctl boundary
+// Design: docs/labs/l2tp-interop.md -- syscall and ioctl boundary
 // Related: l2tpdiag_linux.go -- operation order and report construction
 
 package deployment
@@ -42,12 +42,12 @@ func (o *systemL2TPDiagnosticOps) Socket(domain, kind, protocol int) (int, error
 	return unix.Socket(domain, kind, protocol)
 }
 
-func (o *systemL2TPDiagnosticOps) SetReusePort(fd int) error {
+func (o *systemL2TPDiagnosticOps) setReusePort(fd int) error {
 	o.record("setsockopt reuseport")
 	return unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_REUSEPORT, 1)
 }
 
-func (o *systemL2TPDiagnosticOps) BindIPv4(fd int, address [4]byte, port uint16) error {
+func (o *systemL2TPDiagnosticOps) bindIPv4(fd int, address [4]byte, port uint16) error {
 	o.record("bind udp")
 	return unix.Bind(fd, &unix.SockaddrInet4{Port: int(port), Addr: address})
 }
@@ -76,7 +76,7 @@ func (o *systemL2TPDiagnosticOps) Connect(fd int, address []byte) error {
 	return nil
 }
 
-func (o *systemL2TPDiagnosticOps) IoctlGetInt(fd int, request uint) (int, error) {
+func (o *systemL2TPDiagnosticOps) ioctlGetInt(fd int, request uint) (int, error) {
 	o.record("ioctl get channel")
 	var value int32
 	//nolint:gosec // G103: value is local and this PPP ioctl takes an int pointer.
@@ -87,7 +87,7 @@ func (o *systemL2TPDiagnosticOps) IoctlGetInt(fd int, request uint) (int, error)
 	return int(value), nil
 }
 
-func (o *systemL2TPDiagnosticOps) IoctlSetInt(fd int, request uint, value int) error {
+func (o *systemL2TPDiagnosticOps) ioctlSetInt(fd int, request uint, value int) error {
 	if request == pppiocAttChan {
 		o.record("ioctl attach channel")
 	} else {
@@ -102,7 +102,7 @@ func (o *systemL2TPDiagnosticOps) IoctlSetInt(fd int, request uint, value int) e
 	return nil
 }
 
-func (o *systemL2TPDiagnosticOps) IoctlGetSetInt(fd int, request uint, value int) (int, error) {
+func (o *systemL2TPDiagnosticOps) ioctlGetSetInt(fd int, request uint, value int) (int, error) {
 	o.record("ioctl new unit")
 	argument := int32(value)
 	//nolint:gosec // G103: argument is local and this PPP ioctl updates an int pointer.
@@ -113,7 +113,7 @@ func (o *systemL2TPDiagnosticOps) IoctlGetSetInt(fd int, request uint, value int
 	return int(argument), nil
 }
 
-func (o *systemL2TPDiagnosticOps) OpenPPP() (int, error) {
+func (o *systemL2TPDiagnosticOps) openPPP() (int, error) {
 	o.record("open /dev/ppp")
 	file, err := os.OpenFile(devPPP, os.O_RDWR, 0)
 	if err != nil {
@@ -126,7 +126,7 @@ func (o *systemL2TPDiagnosticOps) OpenPPP() (int, error) {
 	return int(file.Fd()), nil
 }
 
-func (o *systemL2TPDiagnosticOps) ProcPPPoL2TP() string {
+func (o *systemL2TPDiagnosticOps) procPPPoL2TP() string {
 	var call textbuf.Buffer
 	o.record(call.Str("read ").Str(procPPPoL2TPPath).String())
 	data, err := os.ReadFile(procPPPoL2TPPath)
@@ -144,7 +144,7 @@ func procPPPoL2TPDiagnosticText(data []byte, err error) string {
 	return string(data)
 }
 
-func (o *systemL2TPDiagnosticOps) DevPPP() string {
+func (o *systemL2TPDiagnosticOps) devPPPText() string {
 	var call textbuf.Buffer
 	o.record(call.Str("stat ").Str(devPPP).String())
 	info, err := os.Stat(devPPP)

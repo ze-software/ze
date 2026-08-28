@@ -42,7 +42,7 @@ func (r Report) Text() string {
 	case r.Written:
 		tb.Str("regenerated")
 	case r.Stale:
-		tb.Str("are stale -- run: make ze-generated-files-update")
+		tb.Str("are stale -- run: ./le arch-map update")
 	default:
 		tb.Str("up to date")
 	}

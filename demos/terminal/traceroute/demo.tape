@@ -4,10 +4,10 @@ Source common.tape
 Hide
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/traceroute/config ZE_SSH_PASSWORD=secret123 SSHPASS=secret123"
 Enter
-Type "/src/demos/terminal/traceroute/run.sh start"
+Type "ze-demo run traceroute start"
 Enter
 Wait+Screen /terminal demo ready/
-Type "bash /src/demos/terminal/cards.sh traceroute intro"
+Type "ze-demo card traceroute intro"
 Enter
 Show
 Wait+Screen /====/
@@ -39,10 +39,10 @@ Escape
 Sleep 3s
 
 Hide
-Type "/src/demos/terminal/traceroute/run.sh stop"
+Type "ze-demo run traceroute stop"
 Enter
 Wait+Screen /terminal demo stopped/
-Type "bash /src/demos/terminal/cards.sh traceroute recap"
+Type "ze-demo card traceroute recap"
 Enter
 Show
 Sleep 9s

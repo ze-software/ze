@@ -1,40 +1,36 @@
 // Related: treehash.go -- the fingerprint these tests drive from its entry point
 //
-// VALIDATES: spec-le-is-a-ze-binary AC-11 for the tree hash of
-// scripts/dev/ze-run.sh. A job records the tree that it judges. A second asker
-// shares that job's verdict only when the two hashes match. Therefore, this
-// implementation and the shell half must compute the same number for the same
-// checkout. Otherwise, no job can attach across the migration.
-// PREVENTS: a port that attaches with a different hash. Such a port would
-// certify one session's commit with a run that never saw its code. The
-// full_verify_coverage certificate in scripts/dev/commit_helper.py reads it.
+// VALIDATES: the native tree hash includes the commit, tracked diff, and sorted
+// untracked-file fingerprints required by job admission and verify certificates.
+// PREVENTS: attachment to a run that never saw the asker's tree.
 
 package lejob
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
-
-	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-// TestTreeHashMatchesTheShellOverAFixtureTree runs both implementations. The
-// tree contains each hash input: a committed file, a changed committed file, an
-// untracked file, and an ignored file.
-func TestTreeHashMatchesTheShellOverAFixtureTree(t *testing.T) {
+// TestTreeHashMatchesTheFixtureTranscript builds the specified byte stream
+// independently from TreeHash and compares the resulting digest.
+func TestTreeHashMatchesTheFixtureTranscript(t *testing.T) {
 	repo := fixtureRepo(t)
 
-	shell := shellTreeHash(t, repo)
-	if got := TreeHash(repo); got != shell {
-		t.Errorf("TreeHash = %s, the shell says %s", got, shell)
+	want := fixtureTreeHash(t, repo)
+	if got := TreeHash(repo); got != want {
+		t.Errorf("TreeHash = %s, fixture transcript says %s", got, want)
 	}
 }
 
-// TestTreeHashSeesEveryChangeTheShellSees is the discrimination half: a hash
-// that agreed with the shell by answering a constant would pass the test above.
-func TestTreeHashSeesEveryChangeTheShellSees(t *testing.T) {
+// TestTreeHashSeesEveryFixtureChange is the discrimination half: a hash that
+// answered a constant would pass no matter how its transcript was assembled.
+func TestTreeHashSeesEveryFixtureChange(t *testing.T) {
 	repo := fixtureRepo(t)
 	before := TreeHash(repo)
 
@@ -54,9 +50,8 @@ func TestTreeHashSeesEveryChangeTheShellSees(t *testing.T) {
 		if seen[got] {
 			t.Errorf("%s: the hash did not move", step.name)
 		}
-		seen[got] = true
-		if shell := shellTreeHash(t, repo); got != shell {
-			t.Errorf("%s: TreeHash = %s, the shell says %s", step.name, got, shell)
+		if want := fixtureTreeHash(t, repo); got != want {
+			t.Errorf("%s: TreeHash = %s, fixture transcript says %s", step.name, got, want)
 		}
 	}
 }
@@ -79,16 +74,41 @@ func TestTreeHashIgnoresWhatGitIgnores(t *testing.T) {
 	}
 }
 
-// TestTreeHashOutsideARepositoryIsStillAnAnswer pins what the shell does when
-// git cannot answer: NO_HEAD stands in for the commit, and the hash is over
-// that. A caller still gets a value, and it is the same value the shell gets.
+// TestTreeHashOutsideARepositoryIsStillAnAnswer pins the NO_HEAD stand-in.
 func TestTreeHashOutsideARepositoryIsStillAnAnswer(t *testing.T) {
 	dir := t.TempDir()
-	if got := TreeHash(dir); got == "" || got == Unknown {
-		t.Errorf("TreeHash outside a repository = %q, want a hash of the NO_HEAD stream", got)
+	wantBytes := sha256.Sum256([]byte("NO_HEAD\n"))
+	want := hex.EncodeToString(wantBytes[:])
+	if got := TreeHash(dir); got != want {
+		t.Errorf("TreeHash outside a repository = %q, want %q", got, want)
 	}
-	if shell := shellTreeHash(t, dir); TreeHash(dir) != shell {
-		t.Errorf("TreeHash = %s outside a repository, the shell says %s", TreeHash(dir), shell)
+}
+
+// TestDirtyManifestMatchesTheStateFileFixture pins the per-path half of the
+// verification certificate. It covers changed, untracked, ignored, and deleted
+// paths.
+func TestDirtyManifestMatchesTheStateFileFixture(t *testing.T) {
+	repo := fixtureRepo(t)
+	manifest := DirtyManifest(repo)
+
+	for _, rel := range []string{"changed.txt", "untracked.txt"} {
+		want, err := fileHash(filepath.Join(repo, rel))
+		if err != nil {
+			t.Fatalf("hash fixture %s: %v", rel, err)
+		}
+		if got := manifest[rel]; got != want {
+			t.Errorf("manifest[%q] = %q, want %q", rel, got, want)
+		}
+	}
+	if _, exists := manifest[filepath.Join("tmp", "ignored.txt")]; exists {
+		t.Error("the dirty manifest included an ignored path")
+	}
+
+	if err := os.Remove(filepath.Join(repo, "changed.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if got := DirtyManifest(repo)["changed.txt"]; got != "MISSING" {
+		t.Errorf("deleted path fingerprint = %q, want MISSING", got)
 	}
 }
 
@@ -114,22 +134,39 @@ func fixtureRepo(t *testing.T) string {
 	return dir
 }
 
-// shellTreeHash answers what scripts/dev/verify-status.sh says about one tree.
-// It is the other implementation, and the whole reason these tests exist.
-func shellTreeHash(t *testing.T, dir string) string {
+// fixtureTreeHash assembles the specified hash transcript independently of the
+// production helpers. Every Git command succeeds in fixtureRepo.
+func fixtureTreeHash(t *testing.T, dir string) string {
 	t.Helper()
-	root, err := lepath.Root()
-	if err != nil {
-		t.Fatalf("locate checkout: %v", err)
+	sum := sha256.New()
+	for _, args := range [][]string{
+		{"rev-parse", "HEAD"},
+		{"diff", "HEAD"},
+	} {
+		if _, err := sum.Write(runGitOutput(t, dir, args...)); err != nil {
+			t.Fatal(err)
+		}
 	}
-	script := filepath.Join(root, "scripts", "dev", "verify-status.sh")
-	cmd := exec.CommandContext(t.Context(), "bash", script, "tree_hash")
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("verify-status.sh tree_hash in %s: %v", dir, err)
+	untracked := strings.Split(strings.TrimSuffix(string(runGitOutput(t, dir, "ls-files", "-o", "--exclude-standard")), "\n"), "\n")
+	sort.Strings(untracked)
+	for _, rel := range untracked {
+		if rel == "" {
+			continue
+		}
+		if _, err := sum.Write([]byte(rel + "\n")); err != nil {
+			t.Fatal(err)
+		}
+		content, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
+		fingerprint := "MISSING"
+		if err == nil {
+			digest := sha256.Sum256(content)
+			fingerprint = hex.EncodeToString(digest[:])
+		}
+		if _, err := sum.Write([]byte(fingerprint + "\n")); err != nil {
+			t.Fatal(err)
+		}
 	}
-	return string(trimNewline(out))
+	return hex.EncodeToString(sum.Sum(nil))
 }
 
 // git runs one git command in a fixture tree.
@@ -140,6 +177,17 @@ func runGit(t *testing.T, dir string, args ...string) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v in %s: %v: %s", args, dir, err, out)
 	}
+}
+
+func runGitOutput(t *testing.T, dir string, args ...string) []byte {
+	t.Helper()
+	cmd := exec.CommandContext(t.Context(), "git", args...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %v in %s: %v", args, dir, err)
+	}
+	return out
 }
 
 // write puts one file in a fixture tree, making its directory when it has to.

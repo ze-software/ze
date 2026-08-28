@@ -62,52 +62,6 @@ reject=bgp:conn=1:pattern=180A0100
 reject=bgp:conn=1:pattern=180A0200
 EOF_EXTERNAL
 
-tmpfs=wellknown-noadv.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Pin the exact route count each destination was sent, then shut down."""
-import sys
-from ze_api import API, runtime_fail
-
-EXTERNAL = '127.0.0.3'
-INTERNAL = '127.0.0.2'
-
-
-def real_updates(api, peer):
-    """UPDATEs written to peer, End-of-RIB markers excluded (see relay-withdraw-reflector)."""
-    return api.peer_counter('updates-sent', peer=peer) - api.peer_counter('eor-sent', peer=peer)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    api.quiesce()
-
-    # Internal: 10.2.0.0/24 and the fence. NOT 10.1.0.0/24.
-    if not api.wait_until(lambda: real_updates(api, INTERNAL) >= 2, attempts=40):
-        runtime_fail('internal peer was not sent the subconfed route and the fence')
-    if real_updates(api, INTERNAL) != 2:
-        runtime_fail('internal peer was sent a route NO_ADVERTISE forbids')
-    print('OK: internal peer received exactly the subconfed route and the fence', file=sys.stderr)
-
-    # External: the fence alone.
-    if not api.wait_until(lambda: real_updates(api, EXTERNAL) >= 1, attempts=40):
-        runtime_fail('external peer was not sent the fence route')
-    if real_updates(api, EXTERNAL) != 1:
-        runtime_fail('external peer was sent a route a well-known community forbids')
-    print('OK: external peer received the fence and nothing else', file=sys.stderr)
-
-    api.dispatch('request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -118,7 +72,7 @@ plugin {
 		use bgp-rs
 	}
 	external wellknown-noadv {
-		run ./wellknown-noadv.run
+		run "ze-test fixture plugin/wellknown-no-advertise-egress"
 		encoder json
 	}
 }

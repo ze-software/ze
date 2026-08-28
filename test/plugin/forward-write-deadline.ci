@@ -18,64 +18,13 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A0000
 EOF_PEER
 
-# Python test plugin: sends a route and verifies forward pool is operational
-tmpfs=deadline-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-import time
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # Hold the End-of-RIB barrier BEFORE announcing. The peer asserts the
-        # marker and the route as two ordered frames, and only this barrier fixes
-        # that order: this peer attaches a process permitted to send updates, so
-        # the initial-sync gate holds the marker (peer_run.go apiSendCount) and an
-        # announce dispatched inside that window overtakes it.
-        if not api.wait_peer_eor_sent():
-            print('FAIL: ze did not send the End-of-RIB to the peer', file=sys.stderr)
-            sys.exit(1)
-        # Send a route announcement -- exercises the forward path which uses write deadline
-        result = dispatch(api, 'peer * update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24')
-        status = result.get('status', '')
-        print(f'update status={status}', file=sys.stderr)
-        if status not in ('done', 'error'):
-            print(f'FAIL: unexpected status={status}', file=sys.stderr)
-            sys.exit(1)
-        # Hold the daemon up until the route has reached the peer's socket, so
-        # shutdown cannot close the session under the frame seq=2 asserts.
-        if not api.wait_until(lambda: api.peer_counter('updates-sent') >= 2, attempts=40):
-            print('FAIL: the announced route never reached the peer', file=sys.stderr)
-            sys.exit(1)
-        print('OK: forward path operational with write deadline', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# compiled Go test plugin: sends a route and verifies forward pool is operational
 
 # ze bgp configuration -- sets a custom write deadline via env var
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external deadline-test {
-		run ./deadline-test.run
+		run "ze-test fixture plugin/forward-write-deadline"
 		encoder json
 	}
 }

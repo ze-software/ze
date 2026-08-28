@@ -141,7 +141,7 @@ func TestWebCLIBarDeleteRemovesListEntry(t *testing.T) {
 	require.NotNil(t, peerEntries(t, mgr, "alice")["london"], "precondition: peer exists")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/cli", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/cli", http.NoBody)
 	handleCLIDelete(rec, req, []string{"bgp", "peer"}, []string{"london"}, &Renderer{}, mgr, "alice")
 
 	assert.Nil(t, peerEntries(t, mgr, "alice")["london"],

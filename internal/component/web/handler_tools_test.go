@@ -64,8 +64,8 @@ func dispatchPayload(out string) plugin.ResponseData {
 // exercise alternate routes if registration changes in a follow-up.
 //
 //nolint:unparam // target kept as a parameter so individual tests can
-func toolsRequest(target string, form url.Values, username string) *http.Request {
-	r := httptest.NewRequest(http.MethodPost, target, strings.NewReader(form.Encode()))
+func toolsRequest(t *testing.T, target string, form url.Values, username string) *http.Request {
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, target, strings.NewReader(form.Encode()))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	r.RemoteAddr = "10.0.0.5:54321"
 	if username != "" {
@@ -95,7 +95,7 @@ func TestHandleRelatedToolRun_DispatchesResolvedCommand(t *testing.T) {
 		"context_path": {"bgp/peer/thomas"},
 	}
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, toolsRequest("/tools/related/run", form, "alice"))
+	handler.ServeHTTP(rec, toolsRequest(t, "/tools/related/run", form, "alice"))
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "peer 10.0.0.1 detail", disp.command)
@@ -124,7 +124,7 @@ func TestHandleRelatedToolRun_DoesNotTrustCommandFormValue(t *testing.T) {
 		"command": {"rm -rf /"},
 	}
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, toolsRequest("/tools/related/run", form, "alice"))
+	handler.ServeHTTP(rec, toolsRequest(t, "/tools/related/run", form, "alice"))
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "peer 10.0.0.1 detail", disp.command, "command must come from YANG, not the form")
@@ -150,7 +150,7 @@ func TestHandleRelatedToolRun_UnknownTool(t *testing.T) {
 		"context_path": {"bgp/peer/thomas"},
 	}
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, toolsRequest("/tools/related/run", form, "alice"))
+	handler.ServeHTTP(rec, toolsRequest(t, "/tools/related/run", form, "alice"))
 
 	assert.GreaterOrEqual(t, rec.Code, 400)
 	assert.Less(t, rec.Code, 500)
@@ -178,7 +178,7 @@ func TestHandleRelatedToolRun_ConfirmRequired(t *testing.T) {
 		"context_path": {"bgp/peer/thomas"},
 	}
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, toolsRequest("/tools/related/run", form, "alice"))
+	handler.ServeHTTP(rec, toolsRequest(t, "/tools/related/run", form, "alice"))
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Empty(t, disp.command, "first POST must not dispatch")
@@ -187,7 +187,7 @@ func TestHandleRelatedToolRun_ConfirmRequired(t *testing.T) {
 	// Second POST with confirm=true -> dispatch.
 	form.Set("confirm", "true")
 	rec2 := httptest.NewRecorder()
-	handler.ServeHTTP(rec2, toolsRequest("/tools/related/run", form, "alice"))
+	handler.ServeHTTP(rec2, toolsRequest(t, "/tools/related/run", form, "alice"))
 
 	assert.Equal(t, http.StatusOK, rec2.Code)
 	assert.Equal(t, "request peer 10.0.0.1 teardown", disp.command)
@@ -211,7 +211,7 @@ func TestHandleRelatedToolRun_StripsANSI(t *testing.T) {
 		"context_path": {"bgp/peer/thomas"},
 	}
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, toolsRequest("/tools/related/run", form, "alice"))
+	handler.ServeHTTP(rec, toolsRequest(t, "/tools/related/run", form, "alice"))
 
 	body := rec.Body.String()
 	assert.NotContains(t, body, "\x1b", "raw ANSI escape must not reach overlay")
@@ -239,7 +239,7 @@ func TestHandleRelatedToolRun_TruncatesAtBufferLimit(t *testing.T) {
 		"context_path": {"bgp/peer/thomas"},
 	}
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, toolsRequest("/tools/related/run", form, "alice"))
+	handler.ServeHTTP(rec, toolsRequest(t, "/tools/related/run", form, "alice"))
 
 	body := rec.Body.String()
 	assert.Less(t, len(body), 5*1024*1024, "response must not contain the entire 5 MiB payload")
@@ -263,7 +263,7 @@ func TestHandleRelatedToolRun_DispatchError(t *testing.T) {
 		"context_path": {"bgp/peer/thomas"},
 	}
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, toolsRequest("/tools/related/run", form, "alice"))
+	handler.ServeHTTP(rec, toolsRequest(t, "/tools/related/run", form, "alice"))
 
 	assert.NotEqual(t, http.StatusInternalServerError, rec.Code, "errors must not surface as 500")
 	body := rec.Body.String()
@@ -285,7 +285,7 @@ func TestHandleRelatedToolRun_RequiresAuthentication(t *testing.T) {
 	}
 	// No username on the context.
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, toolsRequest("/tools/related/run", form, ""))
+	handler.ServeHTTP(rec, toolsRequest(t, "/tools/related/run", form, ""))
 
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	assert.Empty(t, disp.command)
@@ -315,7 +315,7 @@ func runCSRFCase(t *testing.T, h csrfHeaders) (*httptest.ResponseRecorder, *fake
 		"tool_id":      {"peer-detail"},
 		"context_path": {"bgp/peer/thomas"},
 	}
-	req := toolsRequest("/tools/related/run", form, "alice")
+	req := toolsRequest(t, "/tools/related/run", form, "alice")
 	if h.host != "" {
 		req.Host = h.host
 	}
@@ -508,7 +508,7 @@ func TestRequireSameOriginRejectsCrossOriginMutation(t *testing.T) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))
-	req := httptest.NewRequest(http.MethodPost, "http://router.local/config/set/bgp/", strings.NewReader(""))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://router.local/config/set/bgp/", strings.NewReader(""))
 	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))
 	req.Host = "router.local"
 	req.Header.Set("Origin", "https://evil.example")
@@ -526,7 +526,7 @@ func TestRequireSameOriginAllowsReadOnlyGET(t *testing.T) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))
-	req := httptest.NewRequest(http.MethodGet, "http://router.local/show/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://router.local/show/", http.NoBody)
 	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))
 	req.Host = "router.local"
 	req.Header.Set("Origin", "https://evil.example")
@@ -697,7 +697,7 @@ func TestHandlePingSubmit_PassesPacketSize(t *testing.T) {
 		"timeout":     {"5"},
 	}
 
-	data := handlePingSubmit(toolsRequest("/show/tools/ping/", form, "thomas"), disp.dispatch())
+	data := handlePingSubmit(toolsRequest(t, "/show/tools/ping/", form, "thomas"), disp.dispatch())
 
 	assert.Empty(t, data.Error)
 	assert.Equal(t, "show ping 192.0.2.1 count 3 size 1400 timeout 5s", disp.command)
@@ -718,7 +718,7 @@ func TestHandlePingSubmit_OmitsSizeWhenBlank(t *testing.T) {
 		"timeout":     {"5"},
 	}
 
-	data := handlePingSubmit(toolsRequest("/show/tools/ping/", form, "thomas"), disp.dispatch())
+	data := handlePingSubmit(toolsRequest(t, "/show/tools/ping/", form, "thomas"), disp.dispatch())
 
 	assert.Empty(t, data.Error)
 	assert.Equal(t, "show ping 192.0.2.1 count 3 timeout 5s", disp.command)
@@ -739,7 +739,7 @@ func TestHandlePingSubmit_RejectsOutOfRangeSize(t *testing.T) {
 				"size":        {size},
 			}
 
-			data := handlePingSubmit(toolsRequest("/show/tools/ping/", form, "thomas"), disp.dispatch())
+			data := handlePingSubmit(toolsRequest(t, "/show/tools/ping/", form, "thomas"), disp.dispatch())
 
 			assert.Contains(t, data.Error, "Packet size must be")
 			assert.Empty(t, disp.command, "must not dispatch on invalid input")

@@ -12,9 +12,9 @@ import (
 // VALIDATES: The three verbs reach the checkout that the environment names.
 // Each verb answers the exit code that its caller reads. Every unreadable or
 // unwritable path is an error rather than a silent partial sync.
-// PREVENTS: A swap from pointing `make ze-ai-skills-sync` and the session hook
-// at a command whose verbs answer the wrong codes. It also prevents the shell
-// failure class where a copy does not occur but the run reports success.
+// PREVENTS: A swap from pointing `./le ai skills-sync` and the session hook at
+// a command whose verbs answer the wrong codes. It also prevents a copy failure
+// from reporting success.
 
 // useCheckout points every verb in this test at one checkout.
 //

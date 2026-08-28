@@ -25,7 +25,7 @@ func BindMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
-	labels := []string{"collector", "protocol"}
+	labels := []string{"collector", protocolKey}
 	m := &exportMetrics{
 		datagramsTotal:  reg.CounterVec("ze_flowexport_datagrams_total", "Flow export datagrams sent", labels),
 		bytesTotal:      reg.CounterVec("ze_flowexport_bytes_total", "Flow export bytes sent", labels),

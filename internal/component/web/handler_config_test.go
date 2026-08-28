@@ -559,7 +559,7 @@ func postConfigRequest(t *testing.T, urlPath string, formData url.Values, userna
 	t.Helper()
 
 	body := formData.Encode()
-	req := httptest.NewRequest(http.MethodPost, urlPath, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, urlPath, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// Inject the authenticated username into the request context so
@@ -785,7 +785,7 @@ func TestWebShowUnaffectedByRBAC(t *testing.T) {
 	require.NoError(t, err)
 	handler := handleConfigViewForTest(renderer, schema, config.NewTree())
 
-	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))
 	rec := httptest.NewRecorder()
 
@@ -1176,7 +1176,7 @@ func TestHandleConfigCommitGET(t *testing.T) {
 
 	handler := handleConfigCommit(mgr, renderer)
 
-	req := httptest.NewRequest(http.MethodGet, "/config/commit/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/commit/", http.NoBody)
 	ctx := context.WithValue(req.Context(), ctxKeyUsername, "alice")
 	req = req.WithContext(ctx)
 	rec := httptest.NewRecorder()
@@ -1517,7 +1517,7 @@ func TestConfigFormKeepsASecretTheOperatorDidNotTouch(t *testing.T) {
 	require.Equal(t, storedSecret, stored, "the first save must store the value")
 
 	// The page the operator now reads carries the placeholder, not the secret.
-	page := httptest.NewRequest(http.MethodGet, "/show/api/", http.NoBody)
+	page := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/api/", http.NoBody)
 	content, handled := renderPageContent(renderer, page, []string{segAPI}, mgr.Tree("alice"), schema, nil, nil, nil)
 	require.True(t, handled, "the workbench must serve the API page")
 	require.NotContains(t, string(content), storedSecret, "the secret must not reach the browser")

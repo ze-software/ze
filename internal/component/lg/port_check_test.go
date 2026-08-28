@@ -43,7 +43,7 @@ const (
 // The eight below are one deliberate change: pageLayout stopped loading the
 // SSE extension on every page. It loads the assets of the page it wraps
 // instead, and only the peers page opens a stream. The sets are derived from
-// the markup each page reaches (scripts/codegen/web_assets.go, page_assets.go).
+// the markup each page reaches (internal/le/webassets/webassets.go, page_assets.go).
 const lgPortPageAssets = "the head loads what this page needs, and this page opens no SSE stream"
 
 // The seven below are the htmx 4 cutover (spec-web-htmx4-cutover). htmx 2 is

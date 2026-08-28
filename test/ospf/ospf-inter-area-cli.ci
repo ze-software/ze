@@ -8,65 +8,11 @@
 # Live FRR/QEMU kernel convergence remains owned by spec-ospf-13.
 option=skip-os:value=darwin
 
-tmpfs=ospf-inter-area-cli.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert OSPF ABR show commands dispatch through the daemon command path."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def assert_list(api, command):
-    result = dispatch(api, command)
-    if result.get('status') != 'done':
-        runtime_fail(
-            f"{command}: expected done, got status={result.get('status')} "
-            f"data={result_text_data(result)[:200]}")
-    data = result_json_data(result, None)
-    if data is None:
-        data = []
-    if not isinstance(data, list):
-        runtime_fail(f"{command}: expected list, got {data!r}")
-    return data
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    assert_list(api, 'show ospf border-routers')
-    assert_list(api, 'show ospf route')
-    spf = assert_list(api, 'show ospf spf')
-    if len(spf) < 2:
-        runtime_fail(f"show ospf spf: expected two configured areas, got {spf!r}")
-    print('OK: OSPF inter-area CLI dispatch OK', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-inter-area-cli {
-		run ./ospf-inter-area-cli.run
+		run "ze-test fixture ospf/ospf-inter-area-cli"
 		encoder json
 	}
 }

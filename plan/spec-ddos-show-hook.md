@@ -342,7 +342,7 @@ None deferred yet. Scope is set at DESIGN.
 | 2. Audit | Files to Modify, TDD Test Plan |
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
-| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 13. /ze-review gate | Review Gate section |
 
@@ -438,7 +438,7 @@ None deferred yet. Scope is set at DESIGN.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete (every row has a concrete test name, none deferred)
 - [ ] `/ze-review` gate clean (Review Gate section filled: 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)

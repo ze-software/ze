@@ -1,78 +1,8 @@
-# Test (AC-9/AC-10): make ze-kernel-build assembles the runtime kernel out-of-tree and
-# never mutates the pinned rtr7/kernel modcache in place nor creates a
-# .ze-pinned-kernel backup.
-#
-# // spec-gokrazy-builddir-tmp (AC-7/AC-8) removed the tracked-go.mod
-# replace this test used to REQUIRE. ze-kernel-build now writes NO state at all: the
-# package is selected per build with `make ze-gokrazy-build KERNEL_PKG=...`, and
-# ze-gok injects the replace into its prepared COPY of the instance. The
-# assertions below are correspondingly STRONGER, not weaker: where this used to
-# demand a relative replace in a tracked file, it now demands that no replace is
-# written to a tracked file at all, and additionally proves the kernel still
-# reaches the build through KERNEL_PKG.
+# Test: the compiled worker uses isolated work/output directories and does not
+# mutate the repository module cache.
 
 option=timeout:value=30s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
-
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-dry=$(make -n ze-kernel-build KERNEL_ARCH=amd64 2>&1)
-
-# ze-kernel-build writes NO replace into any tracked go.mod. A build step that edits a
-# tracked file is a cross-commit hazard in a checkout shared by several sessions,
-# and it used to persist until the operator remembered ze-kernel-clean.
-case "$dry" in
-	*"mod edit -replace=github.com/rtr7/kernel"*) echo "ze-kernel-build writes a replace into the tracked builddir go.mod" >&2; printf '%s\n' "$dry" >&2; exit 1 ;;
-	*) : ;;
-esac
-case "$dry" in
-	*"tmp/kernel/pkg"*) : ;;
-	*) echo "ze-kernel-build does not assemble the out-of-tree package" >&2; exit 1 ;;
-esac
-
-# The kernel still reaches the image build, now as an explicit per-build
-# parameter. Without this the test above would pass for a ze-kernel-build that had
-# simply stopped wiring the kernel up at all.
-builddry=$(make -n ze-gokrazy-build KERNEL_PKG=tmp/kernel/pkg 2>&1)
-case "$builddry" in
-	*"ze.gok.kernel-package=tmp/kernel/pkg"*) : ;;
-	*) echo "KERNEL_PKG does not reach the image build" >&2; printf '%s\n' "$builddry" >&2; exit 1 ;;
-esac
-
-# ...and omitting it builds the pin rather than silently reusing a previous one.
-pindry=$(make -n ze-gokrazy-build 2>&1)
-case "$pindry" in
-	*"ze.gok.kernel-package=tmp/kernel/pkg"*) echo "a kernel package leaked into a build that did not ask for one" >&2; exit 1 ;;
-	*) : ;;
-esac
-
-# No legacy backup, and no in-place write of our kernel INTO the modcache entry.
-case "$dry" in
-	*".ze-pinned-kernel"*) echo "ze-kernel-build still references the legacy .ze-pinned-kernel backup" >&2; exit 1 ;;
-	*) : ;;
-esac
-if printf '%s\n' "$dry" | grep -Eq 'cp[^\n]*modcache/github.com/rtr7/kernel@[^ ]*/(vmlinuz|lib)'; then
-	echo "ze-kernel-build mutates the pinned modcache in place" >&2
-	printf '%s\n' "$dry" >&2
-	exit 1
-fi
-
-# ze-kernel-clean keeps a one-time migration that drops a replace left in the
-# tracked go.mod by the pre-2026-07-23 flow. Builds no longer create one, but a
-# checkout that ran the old ze-kernel-build still carries it.
-cleandry=$(make -n ze-kernel-clean 2>&1)
-case "$cleandry" in
-	*"mod edit -dropreplace=github.com/rtr7/kernel"*) : ;;
-	*) echo "ze-kernel-clean lost the migration that clears a stale tracked replace" >&2; printf '%s\n' "$cleandry" >&2; exit 1 ;;
-esac
-
-printf 'OK\n'
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/ze-kernel-no-modcache-mutation
 expect=exit:code=0
 expect=stdout:contains=OK

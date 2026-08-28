@@ -17,78 +17,11 @@ EOF_PEER
 
 # Test plugin: enable the fast path early, then confirm the peer's announced
 # route was read through the Change.Forward handle (forwarded > 0).
-tmpfs=bgp-rs-fastpath.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import re
-import sys
-import time
-from ze_api import API, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def forwarded_count(api):
-    data = result_text_data(dispatch(api, 'request bgp rib fastpath status'))
-    m = re.search(r'"forwarded":\s*(\d+)', data)
-    return (int(m.group(1)) if m else 0), data
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Enable before the BGP session with the peer establishes and the route
-    # arrives (the TCP + OPEN + KEEPALIVE handshake gives ample lead time).
-    result = dispatch(api, 'request bgp rib fastpath enable')
-    if result.get('status') != 'done':
-        print(f'FAIL: enable status={result.get("status")} data={result.get("data")}', file=sys.stderr)
-        sys.exit(1)
-
-    data = result_text_data(result)
-    if '"enabled":true' not in data.replace(' ', ''):
-        print(f'FAIL: fast path not enabled: {data}', file=sys.stderr)
-        sys.exit(1)
-
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Wait for the peer's announced route to be read via the Forward handle.
-    deadline = time.time() + 12.0
-    n = 0
-    data = ''
-    while time.time() < deadline:
-        n, data = forwarded_count(api)
-        if n > 0:
-            break
-        # poll interval: the loop is bounded by the deadline above and breaks on the first forwarded byte
-        time.sleep(0.2)
-
-    if n == 0:
-        print(f'FAIL: fast path read no forward-handle bytes (forwarded=0): {data[:300]}', file=sys.stderr)
-        sys.exit(1)
-
-    print(f'OK: fast path read {n} forwarded UPDATE(s) via Change.Forward', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external bgp-rs-fastpath {
-		run ./bgp-rs-fastpath.run
+		run "ze-test fixture plugin/bgp-rs-fastpath"
 		encoder json
 	}
 	internal bgp-rib {

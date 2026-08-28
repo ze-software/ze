@@ -36,11 +36,12 @@ deployments. A gokrazy appliance has its own update mechanism.
 
 ## Trap
 
-The manifest's Go field is named `Ver` while its JSON tag stays `"version"`. A
-pre-write hook rejects the `"version":` pattern in config-package files, because
-a version number in a config struct is nearly always a mistake. This manifest is
-a wire-protocol response, not config, so the tag is correct and the field name
-carries the workaround.
+The manifest's Go field is named `Ver` while its JSON tag stays `"version"`. The
+native write hook rejects the `"version":` pattern in config-package files,
+because a version number in a config struct is nearly always a mistake. This
+manifest is a wire-protocol response, not config, so the tag is correct and the
+field name carries the workaround.
+<!-- source: internal/le/hookruntime/writeedit.go -- writeFilePatterns -->
 
 ## Related
 

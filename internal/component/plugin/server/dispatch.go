@@ -754,7 +754,7 @@ func (s *Server) cleanupProcess(proc *process.Process) {
 	proc.RunRuntimeCleanupOnce(func() {
 		// Unregister all commands and cancel pending requests from this process.
 		if s.dispatcher != nil {
-			s.dispatcher.Registry().UnregisterAll(proc)
+			s.dispatcher.Registry().unregisterAll(proc)
 			s.dispatcher.Pending().CancelAll(proc)
 		}
 

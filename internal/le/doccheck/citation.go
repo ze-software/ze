@@ -23,17 +23,17 @@ var (
 
 var knownRoots = map[string]bool{
 	"ai": true, ".claude": true, ".codex": true, ".agents": true,
-	".github": true, "scripts": true, "internal": true, "cmd": true,
-	"pkg": true, "test": true, "plan": true, "docs": true, "mk": true,
-	"rfc": true, "tools": true, "etc": true, "examples": true, "api": true,
-	"contrib": true, "gokrazy": true, "third_party": true, "parked": true,
-	"vendor": true, "rules": true, "patterns": true,
+	".github": true, "internal": true, "cmd": true, "pkg": true,
+	"test": true, "plan": true, "docs": true, "rfc": true, "tools": true,
+	"etc": true, "examples": true, "api": true, "contrib": true,
+	"gokrazy": true, "third_party": true, "parked": true, "vendor": true,
+	"rules": true, "patterns": true,
 }
 
 var rootFiles = map[string]bool{
-	"Makefile": true, "CLAUDE.md": true, "AGENTS.md": true, "README.md": true,
+	"CLAUDE.md": true, "AGENTS.md": true, "README.md": true,
 	"go.mod": true, "go.sum": true, ".gitignore": true, ".golangci.yml": true,
-	"tools.go": true, "LICENSE": true, "SECURITY.md": true, "CONTRIBUTING.md": true,
+	"LICENSE": true, "SECURITY.md": true, "CONTRIBUTING.md": true,
 }
 
 var placeholderMarkers = [...]string{"<", ">", "$", "*", "NNN", "...", ".."}

@@ -227,7 +227,7 @@ The wire emission needs a PPP session, a PPP session needs the kernel PPPoL2TP
 channel, and that needs CAP_NET_ADMIN. That rules it out on an unprivileged dev
 host, NOT in a `.ci`: `option=needs-linux` tests run in QEMU as root, which is
 what `radius-acct-wire` uses. It therefore SKIPs on the dev host and runs under
-`make ze-qemu-needs-linux-test`, giving the obligation verify-tier evidence
+`./le qemu run command "./le qemu all-tests"`, giving the obligation verify-tier evidence
 rather than interop-tier only. Its LAC peer drives the tunnel, an ICCN carrying
 proxy LCP AVPs, and IPCP, so ze reaches a real assigned address.
 
@@ -247,7 +247,7 @@ implementation. Both are kept: they catch different failure shapes.
 ## Files to Modify
 - `rfc/short/rfc2866.md` - Section 4.1 section and the gated MUST `RFC2866-4.1-1`
 - `rfc/short/rfc2869.md` - Section 5.17 section, attribute-87 row, `RFC2869-5.17-1`
-- `ai/RFC-REQUIREMENTS.md` - regenerated once (derived; `make ze-rfc-index-update`)
+- `ai/RFC-REQUIREMENTS.md` - regenerated once (derived; `./le rfc index-update`)
 - `internal/component/radius/dict.go` - `AttrNASPortID` (87)
 - `internal/component/l2tp/plugins/authradius/handler.go` - `buildAccessRequestAttrs`
 - `internal/component/l2tp/plugins/authradius/acct.go` - attrs 8 and 87, `subscriberIPv4`
@@ -364,7 +364,7 @@ session could verify a pppoe lab fix.
 | One session yields one port identity | interop run: `Accounting-Start carries the same NAS-Port-Id` |
 | The gated path proves the wire, not only the Docker lab | `test/l2tp/radius-acct-wire.ci` PASSes in QEMU (`ze-qemu-debug`, suite id 10) and SKIPs on the unprivileged host; the ledger binds it to `RFC2866-4.1-1` as functional/verify evidence |
 | The tests would fail if the code were removed | nine unit mutations each turned the owning tests red: drop attr 8; report the NAS address instead; accept a non-IPv4 value; drop attr 87 from accounting; drop attr 87 from auth; drop the format validation; resolve the session's NAS-Port-Id from empty facts; take the session address from the wrong payload field; make the nas-identifier guard never fire. Two interop mutations each turned the scenario red, and two `.ci` mutations (remove the YANG leaf, stop validating) each turned the owning `.ci` red |
-| Nothing regressed | `make ze-unit-pkg-test` green for `./internal/component/radius`, `./internal/component/l2tp/plugins/authradius` and `./internal/component/l2tp`; `make ze-lint-changed` 0 issues; `make ze-cli-grammar-check` and `make ze-yang-glue-check` OK |
+| Nothing regressed | `go test -race ./...` green for `./internal/component/radius`, `./internal/component/l2tp/plugins/authradius` and `./internal/component/l2tp`; `./le changed scope` 0 issues; `./le cli-grammar` and `./le yang-glue check` OK |
 
 ## Review Gate
 
@@ -374,7 +374,7 @@ session could verify a pppoe lab fix.
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
 | 1 | ISSUE | Every RFC anchor the change adds cites a section its summary does not carry: `rfc2869.md` has no attribute 87 row, `rfc2866.md` no Section 4.1. The obligations are implemented and tested but unextracted | `rfc/short/rfc2866.md`, `rfc/short/rfc2869.md` | fixed: `rfc2866.md` gains a Section 4.1 section and the gated MUST `RFC2866-4.1-1`; `rfc2869.md` gains a Section 5.17 section, the attribute-87 table row, and the SHOULD `RFC2869-5.17-1`. `rfc_requirements.py --check` reports neither |
-| 2 | ISSUE | Neither new test file carries an `RFC requirement:` tag, so `make ze-rfc-check` cannot see the MUST | `acct_address_test.go` | fixed: `RFC2866-4.1-1` carries two positive and two negative tags. The derived ledger is regenerated ONCE at the end of the work, not after each edit |
+| 2 | ISSUE | Neither new test file carries an `RFC requirement:` tag, so `./le rfc check` cannot see the MUST | `acct_address_test.go` | fixed: `RFC2866-4.1-1` carries two positive and two negative tags. The derived ledger is regenerated ONCE at the end of the work, not after each edit |
 | 3 | ISSUE | `TestAcctFramedIPAddressFromSessionEvent` was vacuous: its comment claimed the wire value follows the session event, but it hand-built the session and never called `onSessionIPAssigned`. Deleting `peerAddr: payload.PeerAddr` left every test green | `acct_address_test.go` | fixed: replaced by `TestSessionEventDrivesAddressAndPortID`, which drives `onSessionIPAssigned` against a live accounting server and asserts the stored session and the built packet |
 | 4 | ISSUE | NAS-Port-Id was re-resolved from live config per packet, so a mid-session reload moved the text and broke the join the feature exists to provide | `acct.go` `buildAcctPacket`, `setClient` | fixed: resolved once in `onSessionIPAssigned` and stored on `acctSession.nasPortID`, as `acctSessID` already was. `buildAcctPacket` no longer reads config or takes the lock |
 | 5 | ISSUE | No gated test proves emission: both `.ci` files only run `ze config validate`, and the wire proof runs under the Docker interop target | `test/l2tp/radius-nas-port-id*.ci` | fixed: `test/l2tp/radius-acct-wire.ci` (`needs-linux:caps=net-admin`) drives a real kernel PPP session in QEMU and asserts on what the RADIUS server decoded. It binds `RFC2866-4.1-1` at functional/verify tier. Two mutants (drop the template, move the pool address) were run beside it in the VM and both failed, so neither assertion is vacuous |
@@ -404,7 +404,7 @@ session could verify a pppoe lab fix.
 
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed and approved before implementation
-- [ ] `make ze-standard-test` passes (after implementation)
+- [ ] `./le verify current mode full` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 
 ### Quality Gates (SHOULD pass)

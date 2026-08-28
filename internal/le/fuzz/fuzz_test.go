@@ -1,4 +1,4 @@
-// The fuzz port's contract, carried over from scripts/le/fuzz_test.py case for
+// The fuzz port's contract, carried over from internal/le/fuzz/fuzz_test.go case for
 // case.
 //
 // VALIDATES: spec-le-is-a-ze-binary AC-11 -- discovery finds the same targets

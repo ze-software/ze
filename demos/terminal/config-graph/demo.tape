@@ -6,7 +6,7 @@ Type "cd /src/demos/terminal/config-graph"
 Enter
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh config-graph intro"
+Type "ze-demo card config-graph intro"
 Enter
 Show
 Wait+Screen /====/

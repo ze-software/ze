@@ -72,8 +72,8 @@ documentation ## Documentation
   write-every-config-example-on-several-lines
   every-config-example-must-parse
   validation
-  run-make-ze-doc-test-after-editing-any-file-under-docs
-  ze-doc-test-runs-on-demand-not-inside-ze-verify
+  run-native-doc-check-after-editing-any-file-under-docs
+  native-doc-check-runs-on-demand-not-inside-native-verify
   not-documentation
   where-non-documentation-text-is-covered
 comparison-honesty ## Comparison Honesty

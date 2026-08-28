@@ -10,9 +10,9 @@
 // of the process. The receiver then makes the kernel clone every bare ESP packet on the
 // box, which taxes the fast path this design exists to preserve.
 //
-// Auto-enrolled in the QEMU integration run through the derived `integration && linux`
-// package list (mk/test-integration.mk, ZE_QEMU_INTEGRATION_PKGS). It needs CAP_NET_ADMIN
-// for the state and policy, and CAP_NET_RAW for the ESP form sockets, so it skips rather
+// Auto-enrolled in the native QEMU integration run through the derived
+// `integration && linux` package list. It needs CAP_NET_ADMIN for the state and
+// policy, and CAP_NET_RAW for the ESP form sockets, so it skips rather
 // than fails where it has neither.
 
 //go:build integration && linux

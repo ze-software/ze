@@ -4,10 +4,8 @@
 // One package, one register.go, one init(). Adding a tool to le is this file
 // plus a blank import in internal/le/register.go, and nothing else.
 //
-// This area makes no parity claim because no Make target named the script.
-// It is not one of the 156 Python gates, so this verb removes no gate from that census.
-// It instead removes a shell file from the separate script census.
-// That count changes when scripts/dev/worktree_update.sh is deleted during the swap.
+// This area makes no migration-census claim because the retired helper had no
+// Make target and was not one of the Python registry's gates.
 
 package worktree
 

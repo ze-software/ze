@@ -3,7 +3,6 @@ kind: directive
 level: MUST
 stage:
 ---
-**Review MUST still run on Opus 5, and that half is unchanged.** `review_gate.py record`
-refuses to record a review performed off it, and `.claude/hooks/pretool-agent-skill.py`
-refuses to spawn one. Those remain, because a review's worth depends on the
-judgment behind it in a way that writing a test does not.
+**Review MUST run on Opus 5.** `./le spec-session review record` refuses an
+off-tier artifact, and the native agent-skill hook in
+`internal/le/hookruntime/agent.go` refuses the spawn.

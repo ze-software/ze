@@ -3,7 +3,7 @@
 Rows the spec names in its Known Limitations, homed here so they outlive it. The
 spec closes four MUST-level rows of `rfc/short/rfc9552.md`; these are the
 SHOULD-level neighbours it deliberately leaves, and a SHOULD is not gated by
-`make ze-rfc-check`, so nothing else would record them.
+`./le rfc check`, so nothing else would record them.
 
 | Date | Source | What | Reason | Destination | Status |
 |------|--------|------|--------|-------------|--------|

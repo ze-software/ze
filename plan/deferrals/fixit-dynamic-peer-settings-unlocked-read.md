@@ -16,7 +16,7 @@ stores it (`ai/rules/planning.md`).
 (`internal/component/bgp/reactor/peer_settings_negotiation_test.go`) reproduces it
 when its concurrent writer is `peer.resolveDynamicPeerSettings(session)` instead of
 `peer.applyHotSwappableSettings(other, hotSwappableSettings)`. Run under
-`make ze-unit-reactor-test-race`. The committed form of that test uses the locked writer on
+`go test -race ./internal/component/bgp/reactor/...`. The committed form of that test uses the locked writer on
 purpose, so it reports the read it was written for rather than this one.
 
 Observed, with the dynamic writer in place:

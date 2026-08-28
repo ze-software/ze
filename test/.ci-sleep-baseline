@@ -8,7 +8,7 @@
 # down and a net rise (count above the sum) fails the gate. A `+N` line raises
 # the ceiling and is the explicit-approval knob.
 #
-# Parsed by scripts/dev/verify_wiring_docs.py::parse_sleep_baseline.
+# Parsed by internal/le/docwiring/actions.go::parse_sleep_baseline.
 125
 -11
 -12
@@ -20,16 +20,15 @@
 -1
 # test/policy/*.ci: the whole suite, 12 -> 0 (spec-fixit-migrate-sleeps-infra
 # P1+P3). Each driver's hand-rolled daemon-readiness loop became
-# ze_api.wait_for_daemon_ready, and each blind post-apply "settle" became
-# ze_api.wait_for_output -- a bounded poll on the same kernel readback the test
-# already asserts on. The remaining poll-interval sleeps did not disappear; they
-# moved into those two helpers, which the gate does not count because it scans
-# test/**/*.ci, not test/scripts/ze_api.py.
+# `waitDaemon` and `policyTableOutput` in
+# internal/test/fixture/netfilter_fixture.go. The remaining poll-interval sleeps
+# did not disappear; they moved into those native helpers, which the gate does
+# not count because it scans test/**/*.ci rather than Go fixture helpers.
 #
 # 006 reaches 0 too: its wait_rules() now delegates to the shared helper while
 # keeping its own 12s deadline, derived per call from the budget still remaining.
 #
-# Verified on Linux via `make ze-netns-test ZE_NETNS_SUITES=policy` (not the
+# Verified on Linux via `./le qemu netns-test suites policy` (not the
 # darwin host this spec was previously stalled on): 3x 6/6, and two source
 # mutations prove the waits are not vacuous -- skipping firewall.ApplyAll fails
 # all 6, while skipping rm.applyAll (ip rules only) fails exactly 002 and 005,
@@ -52,13 +51,12 @@
 # source mutation proves non-vacuity: dropping set elements in
 # nft/lower_linux.go:191-192 fails exactly test 9 and nothing else.
 #
-# NOTE for whoever runs these next: `make ze-netns-test` reports
-# ddos-local-withdraw as FAILING, and that is the target's own defect, not the
-# test's. It depends on $(ZEBIN_ZE) (mk/test-integration.mk:137), the PRODUCTION
-# binary, which mk/test-integration.mk:439 documents as carrying "neither zetest
-# nor ze_test" -- so the ddos/fake config node this test needs does not exist and
-# the daemon dies with "unknown field in ddos: fake". With a zetest-tagged DUT
-# the same test passes in 653ms.
+# NOTE for whoever runs these next: `./le qemu netns-test` reports
+# ddos-local-withdraw as FAILING, and that is the action's own defect rather
+# than the test's. `internal/le/qemu/netns_linux.go` selects the production
+# binary, which carries neither zetest nor ze_test, so the ddos/fake config node
+# this test needs does not exist and the daemon dies with "unknown field in
+# ddos: fake". With a zetest-tagged DUT the same test passes in 653ms.
 -8
 
 # test/plugin/bgp-redistribute-{filtered-out,metrics}.ci: the blind 2s "drain"
@@ -76,16 +74,17 @@
 # this removal PAYS FOR a rise it did not cause. 6ec2a10bc added
 # test/plugin/llgr-egress-state-unloaded.ci, a copy of this observer carrying the
 # same three sleeps, and took the count from 79 to 82 with no baseline line. That
-# file is RFC-tagged (RFC9494-4.3-3), so .claude/hooks/pretool-writeedit.py
-# refuses an unapproved edit to it; its three sleeps stay until Thomas approves
-# the same conversion there. Count and ceiling are both 79 again.
-#   The 0.25s best-route poll became dispatch_until on the same predicate, whose
-#     interval lives in ze_api and is not counted.
-#   The 1.5s "let the reflection land" became wait_peer_eor_sent(2) plus a poll
-#     on obsn's own updates-sent minus eor-sent -- the two writes obsn's expect
-#     rules read, counted by IncrUpdatesSent after the bytes reach the socket.
-#   The 2.0s "let the readvertise land" became the same counter, baselined
-#     before mark-stale and waited past it.
+# file is RFC-tagged (RFC9494-4.3-3), so the native write hook in
+# internal/le/hookruntime/writeedit.go refuses an unapproved edit; the three
+# sleeps stay until Thomas approves the same conversion there. Count and ceiling
+# are both 79 again.
+#   The best-route wait now uses `pollCommand09` on the same predicate in
+#     internal/test/fixture/plugin_fixture_09_bgp.go.
+#   The reflection wait now uses `Poll`, `bgpEORSent09`, and the observed peer's
+#     updates-sent minus eor-sent counter, the same values the fixture asserts
+#     after bytes reach the socket.
+#   The readvertise wait uses that counter again, baselined before mark-stale and
+#     required to advance afterward.
 #
 # The conversion exposed what the sleeps were hiding, and the fix is in the test
 # fixture, not in the waits: the source ze-peer is check-mode, so it closed the

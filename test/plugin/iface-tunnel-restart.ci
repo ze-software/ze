@@ -61,190 +61,12 @@
 # Creating links needs CAP_NET_ADMIN, not merely Linux (ai/rules/platform-linux.md).
 option=needs-linux:caps=net-admin
 
-tmpfs=iface-tunnel-restart-boot.run:mode=755:terminator=EOF_BOOT
-#!/usr/bin/env python3
-"""First run: assert the tunnel was created, and record its kernel ifindex."""
-
-import sys
-
-from ze_api import API, runtime_fail
-
-NAME = 'trs0'
-IFINDEX_FILE = 'restart-ifindex'
 
 
-def kernel_ifindex():
-    """Read the ifindex the kernel holds for NAME, through sysfs.
-
-    sysfs rather than `show interface`: the second run reads it the same way,
-    and neither reading goes through the code under test.
-    """
-    path = '/sys/class/net/' + NAME + '/ifindex'
-    try:
-        with open(path) as handle:
-            return handle.read().strip()
-    except OSError as exc:
-        runtime_fail(f'first run: {path}: {exc}: the kernel holds no netdev '
-                     f'named {NAME}, so the tunnel was never created')
-        return ''
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    # Checked, not discarded: this returns False both on timeout and when the
-    # daemon is already shutting down, and either one means this run records no
-    # ifindex. Saying so here names the cause while ze is still alive to relay
-    # the sentinel; the seq=2 barrier is what catches the case where it is not.
-    if not api.wait_for_post_startup(timeout=5.0):
-        runtime_fail('first run: post-startup never arrived, so the tunnel was '
-                     'never read and pass 2 has no ifindex to compare against')
-
-    index = kernel_ifindex()
-    with open(IFINDEX_FILE, 'w') as handle:
-        handle.write(index)
-    print(f'OK: tunnel restart pass 1 created {NAME} ifindex {index}',
-          file=sys.stderr)
-
-    # No shutdown request: the runner stops this daemon with cmd=stop, which is
-    # what makes the second run start against a process the OS has torn down.
-    api.wait_for_shutdown(timeout=30.0)
-
-
-if __name__ == '__main__':
-    main()
-EOF_BOOT
-
-tmpfs=iface-tunnel-restart-check.run:mode=755:terminator=EOF_CHECK
-#!/usr/bin/env python3
-"""Second run: assert the apply kept the netdev the first run created."""
-
-import json
-import sys
-
-from ze_api import API, dispatch, runtime_fail, result_text_data
-
-NAME = 'trs0'
-IFINDEX_FILE = 'restart-ifindex'
-
-
-def decoded(resp, label):
-    status = resp.get('status')
-    if status != 'done':
-        runtime_fail(f'{label}: status={status} data={result_text_data(resp)}')
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    return data
-
-
-def kernel_ifindex():
-    path = '/sys/class/net/' + NAME + '/ifindex'
-    try:
-        with open(path) as handle:
-            return handle.read().strip()
-    except OSError as exc:
-        runtime_fail(f'second run: {path}: {exc}: the netdev the first run '
-                     f'created did not survive the restart')
-        return ''
-
-
-def recorded_ifindex():
-    """Read the ifindex pass 1 wrote, naming what is missing when it is not there.
-
-    Without the except, a missing file raises FileNotFoundError, which unwinds
-    through main's finally and is reported as a traceback carrying a bare
-    filename -- the reader then has to know which run writes that file and why
-    it might not have. The seq=2 barrier makes "pass 1 was merely late"
-    unreachable here; what is left is a pass 1 that failed for a reason of its
-    own, and this message says which run owes the file.
-    """
-    try:
-        with open(IFINDEX_FILE) as handle:
-            return handle.read().strip()
-    except OSError as exc:
-        runtime_fail(f'second run: {IFINDEX_FILE}: {exc}: the first run never '
-                     f'recorded {NAME}, so this run has nothing to compare '
-                     f'against')
-        return ''
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        before = recorded_ifindex()
-        if not before:
-            runtime_fail('the first run recorded an empty ifindex, so this run '
-                         'has nothing to compare against')
-
-        after = kernel_ifindex()
-        if after != before:
-            runtime_fail(f'{NAME} ifindex {before} -> {after}: the apply '
-                         f'replaced the netdev instead of keeping it, so every '
-                         f'flow crossing the tunnel was broken by the restart')
-
-        # ze's own read must agree with the kernel: the interface is still
-        # there AND the daemon can see it.
-        every = decoded(dispatch(api, 'show interface'), 'interface-all')
-        if not isinstance(every, list) or not every:
-            runtime_fail(f'interface-all: expected a non-empty list, got {every!r}')
-        present = {i.get('name') for i in every if isinstance(i, dict)}
-        if NAME not in present:
-            runtime_fail(f'{NAME} is in the kernel and absent from `show '
-                         f'interface`, which reported {sorted(present)}')
-
-        print(f'OK: tunnel restart pass 2 kept {NAME} same ifindex {after}',
-              file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_CHECK
-
-# Barrier: hold the stop step until pass 1 has recorded the ifindex.
-tmpfs=iface-tunnel-restart-wait.sh:terminator=EOF_WAIT
-#!/bin/sh
-# Poll, do not spin. `[` is a builtin, so a busy loop would fork nothing, and it
-# would still starve the daemon it waits for on the two-vCPU QEMU VM this test
-# runs in. `sleep 0.1` under /bin/sh is what the other needs-linux barrier in
-# that VM uses (test/reload/tx-iface-tunnel-create.ci).
-#
-# The test is `-s`, non-empty: the observer creates the file and then writes the
-# index into it, so an empty file means the write has not landed yet.
-#
-# 0.1s x 121 bounds the wait at ~12 seconds. The bound comes from the engine,
-# not from taste: postStartupTimeout (internal/component/plugin/server/
-# startup.go) abandons the post-startup delivery after 10 seconds, so a file
-# that has not appeared by then can never appear. Waiting a little past that
-# makes this barrier outlive the delivery it waits on, and it fails HERE, with
-# the message below, rather than as an opaque outer timeout.
-i=0
-while [ "$i" -le 120 ]; do
-	if [ -s restart-ifindex ]; then
-		echo "OK: tunnel restart pass 1 recorded ifindex $(cat restart-ifindex)"
-		exit 0
-	fi
-	i=$((i + 1))
-	sleep 0.1
-done
-echo "pass 1 recorded no ifindex in restart-ifindex: its observer never reached the sysfs read, so pass 2 has nothing to compare against" >&2
-ls -la . >&2
-exit 1
-EOF_WAIT
+# Barrier: the compiled fixture polls restart-ifindex 121 times at 100ms.
+# The file must be non-empty because pass 1 creates it before writing the
+# kernel ifindex. The ~12s bound outlives the engine's 10s post-startup
+# delivery timeout, so failure is reported here rather than as an outer timeout.
 
 # First run's config. The interface stanza is byte-identical to the second
 # run's: only the observer differs, so the restart applies one tunnel config
@@ -252,7 +74,7 @@ EOF_WAIT
 stdin=boot:terminator=EOF_BOOT_CONF
 plugin {
 	external iface-tunnel-restart-boot {
-		run ./iface-tunnel-restart-boot.run
+		run "ze-test fixture plugin/iface-tunnel-restart-boot"
 		encoder json
 	}
 }
@@ -275,7 +97,7 @@ EOF_BOOT_CONF
 stdin=restart:terminator=EOF_RESTART_CONF
 plugin {
 	external iface-tunnel-restart-check {
-		run ./iface-tunnel-restart-check.run
+		run "ze-test fixture plugin/iface-tunnel-restart-check"
 		encoder json
 	}
 }
@@ -295,7 +117,7 @@ interface {
 EOF_RESTART_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=boot:name=ze1
-cmd=foreground:seq=2:exec=sh iface-tunnel-restart-wait.sh
+cmd=foreground:seq=2:exec=ze-test fixture plugin/iface-tunnel-restart-wait
 cmd=stop:seq=3:name=ze1:signal=term
 # 30s, not the 20s this carried before the seq=2 barrier: the barrier is allowed
 # ~12s of its own, and the budget it sits inside has to leave room for that plus

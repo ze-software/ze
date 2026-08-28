@@ -7,7 +7,7 @@ no test, lint or verify gate was run.
 
 ## Method, so this can be re-run
 
-Searched `cmd/`, `internal/`, `pkg/` and `scripts/evidence/`, excluding
+Searched `cmd/`, `internal/`, `pkg/` and the retired `scripts/evidence/` (current producer: `internal/le/`), excluding
 `_test.go` anywhere and `internal/test/`, with two greps from the repo root:
 
 ```
@@ -18,6 +18,9 @@ grep -rn --include='*.go' -E 'os\.StartProcess|syscall\.ForkExec|unix\.Exec|Fork
     cmd/ internal/ pkg/ scripts/evidence/ | grep -v '_test\.go' | grep -v 'internal/test/'
 ```
 
+These are historical commands over the retired tree. The current first-party
+evidence producers live under `internal/le/deployment/` and `internal/le/qemu/`.
+
 The second grep is what caught `internal/component/config/cli/cmd_edit.go`,
 which forks through `os.StartProcess` and never touches `os/exec`. Every hit
 was then read in place and traced to its enclosing function and, where a
@@ -27,16 +30,16 @@ wrapper was found, to its call sites: `internal/appliance/cmd_build.go`
 each ONE finding with several call sites, not one finding per caller.
 
 Excluded by the audit's scope and by the rule itself: `_test.go` files,
-`test/`, `internal/test/`, `.ci` / `.et` / `.wb` fixtures, `Makefile`, `mk/`,
-`scripts/dev/`, `scripts/checks/`, `scripts/codegen/`, `scripts/status/`,
+`test/`, `internal/test/`, `.ci` / `.et` / `.wb` fixtures, the retired `Makefile` (current producers: `internal/le/` native action tables), the retired `mk/` (current producer: `internal/le/`),
+the retired `scripts/dev/` (current producer: `internal/le/`), the retired `scripts/checks/` (current producer: `internal/le/`), the retired `scripts/codegen/` (current producer: `internal/le/`), the retired `scripts/status/` (current producer: `internal/le/`),
 `vendor/`, `third_party/`, `docs/` and `plan/`. The Python and shell drivers
-under `scripts/evidence/` (`qemu-run.py`, `effective-*.py`,
+under the retired `scripts/evidence/` (current producer: `internal/le/`) (`qemu-run.py`, `effective-*.py`,
 `effective-verify.sh`) are also excluded: they are the harness that produces
 evidence on a developer machine, not Go code Ze ships.
 
-The two Go diagnostics under `scripts/evidence/` are already clean.
-`scripts/evidence/l2tp-tunnel-diag/main.go` and
-`scripts/evidence/l2tp-pppox-diag/main.go` both build their netlink and
+The two Go diagnostics under the retired `scripts/evidence/` (current producer: `internal/le/`) are already clean.
+the retired `scripts/evidence/l2tp-tunnel-diag/main.go` (current producer: `internal/le/deployment/l2tpdiag_linux.go`) and
+the retired `scripts/evidence/l2tp-pppox-diag/main.go` (current producer: `internal/le/deployment/l2tpdiag_linux.go`) both build their netlink and
 PPPoL2TP requests by hand through `vishvananda/netlink`, `netlink/nl` and
 `golang.org/x/sys/unix`; neither imports `os/exec`. Nothing to do there.
 
@@ -54,7 +57,7 @@ PPPoL2TP requests by hand through `vishvananda/netlink`, `netlink/nl` and
 | Fork sites on an operator CLI / installer path | 21 |
 | Fork sites on a `ze doctor` path | 2 |
 | Fork sites in harness code that lives under `internal/` | 4 |
-| Fork sites in `scripts/evidence/` Go | 0 |
+| Fork sites in the retired `scripts/evidence/` (current producer: `internal/le/`) Go | 0 |
 | Findings with no native Go path | 5 |
 
 Distinct binaries: `modprobe`, `sh`, `wg`, `vppctl`, `systemctl`, `getent`,
@@ -83,7 +86,7 @@ Ordered most severe first. "Ships as" says which path the fork is on.
 | 8 | `internal/plugins/iface/vpp/doctor.go:382` `vppctlShowPlugins` | `vppctl show plugins` | `ze doctor` | GoVPP `vlib.CliInband` / plugin-info over the same connector | High |
 | 9 | `internal/component/vpp/dpdk_linux.go:18` `loadModuleLinux` (wrapper `internal/component/vpp/dpdk.go:207` `loadModule`, call site `dpdk.go:198`) | `modprobe vfio-pci`, `modprobe vfio_iommu_type1` | daemon runtime, DPDK NIC bind | `unix.FinitModule`; `/sys/module` for the already-loaded case | Medium |
 | 10 | `internal/component/config/system/console_linux.go:130` `gettyActive` (resolution at `:51` `ApplyConsole`) | `systemctl is-active --quiet serial-getty@<dev>.service` | daemon runtime, system config apply (`cmd/ze/hub/main_system.go:116,185`) | `os.Stat("/run/systemd/system")` to detect systemd, then D-Bus, or drop the check: the same file already owns the tty through `unix.IoctlSetTermios` | Medium |
-| 11 | `internal/core/hostload/hostload.go:67` `processCount` and `hostload_darwin.go:16` `readLoadAvg1` | `sh -c "ps -eo comm \| grep -c ..."`, `sysctl -n vm.loadavg` | `internal/core/`, but the only consumers are `internal/test/runner` and `scripts/status` | walk `/proc/*/comm` with `os.ReadFile` on Linux; `unix.SysctlRaw("vm.loadavg")` on darwin. `hostload_linux.go` already reads `/proc/loadavg` this way | Medium |
+| 11 | `internal/core/hostload/hostload.go:67` `processCount` and `hostload_darwin.go:16` `readLoadAvg1` | `sh -c "ps -eo comm \| grep -c ..."`, `sysctl -n vm.loadavg` | `internal/core/`, but the only consumers are `internal/test/runner` and the retired `scripts/status` (current producer: `internal/le/`) | walk `/proc/*/comm` with `os.ReadFile` on Linux; `unix.SysctlRaw("vm.loadavg")` on darwin. `hostload_linux.go` already reads `/proc/loadavg` this way | Medium |
 | 12 | `internal/component/bgp/cli/decode_plugin.go:86` `invokePluginDecodeRequest`, `:285` `invokePluginSubprocess`, `:208` `invokePluginPath` | `$0 plugin <name> --decode`, `<plugin path> --decode` | operator CLI, `ze decode` | `invokePluginInProcess` at `decode_plugin.go:341` already does this in-process and is the test-mode fallback | Medium |
 | 13 | `internal/plugins/systemd/main.go:139` `realServiceOps.run`, `:149` `.output`, `:128` `.lookPath` (17 call sites in `cmd_install.go`, `cmd_uninstall.go`) | `systemctl daemon-reload/enable/start/stop/disable`, `getent passwd\|group`, `groupadd`, `addgroup`, `useradd`, `adduser`, `userdel`, `deluser`, `groupdel`, `delgroup`, `chown` | installer CLI, `ze systemd install/uninstall` on a systemd host | `getent` -> `os/user.Lookup`/`LookupGroup`; `chown` -> `os.Chown`; `systemctl` -> D-Bus. User and group creation has no clean native path | Medium |
 | 14 | `internal/appliance/cmd_build.go:108` `runExternal` (call sites `cmd_build.go:396,419,425`, `diskverify.go:75,96,100`), `cmd_iso.go:787,802` `runISOBuilder`, `cmd_kernel.go:550` `defaultKernelBuild`, `cmd_initrd.go:150` `defaultInitrdMakeBuild`, `cmd_run.go:111` `launchQEMU` | `mkfs.ext4`, `debugfs`, `e2fsck`, `mount`, `umount`, `grub-mkstandalone`, `xorriso`, `python3`, `go build`, `qemu-system-*` | build-host CLI, `ze appliance build/iso/kernel/initrd/run` | mostly none, see "no native path" below. `mkfs.ext4` + `debugfs` are replaceable by a Go ext4 writer; the rest are not | Medium |
@@ -269,7 +272,7 @@ cmd := exec.CommandContext(ctx, "sh", "-c", shellCmd)
 and `hostload_darwin.go:16` forks `sysctl -n vm.loadavg`.
 
 Its only importers are `internal/test/runner/hostload.go` and
-`scripts/status/verify_run.go`, both harness, so the practical risk is nil. But
+the retired `scripts/status/verify_run.go` (current producer: `internal/le/verify/run.go`), both harness, so the practical risk is nil. But
 it lives in `internal/core/`, which is unambiguously governed by the rule, and
 it is the only `sh -c` string-concatenation pipeline in `internal/core/`.
 

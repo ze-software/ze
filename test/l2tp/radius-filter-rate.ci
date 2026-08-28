@@ -5,173 +5,7 @@
 # and establishes tunnel. Rate application is covered by unit tests
 # (PPP requires kernel modules for session-up event).
 
-tmpfs=mock-radius.py:mode=755:terminator=EOF_RADIUS
-#!/usr/bin/env python3
-"""Mock RADIUS server: returns Access-Accept with Filter-Id and
-Acct-Interim-Interval in the response attributes."""
-import hashlib
-import os
-import socket
-import struct
-import sys
 
-RADIUS_PORT = int(os.environ.get("RADIUS_PORT", "11812"))
-SHARED_KEY = os.environ.get("RADIUS_KEY", "testing123").encode()
-
-ATTR_FILTER_ID = 11
-ATTR_ACCT_INTERIM_INTERVAL = 85
-
-def radius_attr(attr_type, value):
-    return struct.pack("!BB", attr_type, 2 + len(value)) + value
-
-def response_auth(code, ident, length, req_auth, attrs, secret):
-    h = hashlib.md5()
-    h.update(bytes([code, ident]))
-    h.update(struct.pack("!H", length))
-    h.update(req_auth)
-    h.update(attrs)
-    h.update(secret)
-    return h.digest()
-
-def main():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("127.0.0.1", RADIUS_PORT))
-    sock.settimeout(30.0)
-    print(f"RADIUS mock listening on 127.0.0.1:{RADIUS_PORT}", flush=True)
-
-    while True:
-        try:
-            data, addr = sock.recvfrom(4096)
-        except socket.timeout:
-            break
-        if len(data) < 20:
-            continue
-        code = data[0]
-        ident = data[1]
-        req_auth = data[4:20]
-
-        if code == 1:  # Access-Request
-            attrs = b""
-            attrs += radius_attr(ATTR_FILTER_ID, b"rate:20mbit/5mbit")
-            attrs += radius_attr(ATTR_ACCT_INTERIM_INTERVAL, struct.pack("!I", 120))
-            resp = bytearray(20 + len(attrs))
-            resp[0] = 2  # Access-Accept
-            resp[1] = ident
-            struct.pack_into("!H", resp, 2, 20 + len(attrs))
-            resp[20:] = attrs
-            auth = response_auth(2, ident, 20 + len(attrs), req_auth, attrs, SHARED_KEY)
-            resp[4:20] = auth
-            sock.sendto(bytes(resp), addr)
-            print(f"RADIUS: Access-Accept sent with Filter-Id=rate:20mbit/5mbit, Acct-Interim=120", flush=True)
-        elif code == 4:  # Accounting-Request
-            resp = bytearray(20)
-            resp[0] = 5  # Accounting-Response
-            resp[1] = ident
-            struct.pack_into("!H", resp, 2, 20)
-            auth = response_auth(5, ident, 20, req_auth, b"", SHARED_KEY)
-            resp[4:20] = auth
-            sock.sendto(bytes(resp), addr)
-
-if __name__ == "__main__":
-    sys.exit(main())
-EOF_RADIUS
-
-tmpfs=l2tp-peer.py:mode=755:terminator=EOF_PEER
-#!/usr/bin/env python3
-"""Minimal L2TP peer: establish tunnel to verify RADIUS filter-rate config."""
-import hashlib
-import os
-import socket
-import struct
-import sys
-import time
-
-if len(sys.argv) < 2:
-    print("usage: l2tp-peer.py <port>", file=sys.stderr)
-    sys.exit(2)
-
-TARGET = ("127.0.0.1", int(sys.argv[1]))
-SECRET = os.environ.get("TEST_SECRET", "s3cr3t").encode("utf-8")
-PEER_TID = 0x0602
-PEER_CHALLENGE = bytes.fromhex("aabbccddeeff00112233445566778899")
-
-def avp(mandatory, attr_type, value):
-    flags = 0x8000 if mandatory else 0
-    return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
-
-def build_sccrq():
-    body = b""
-    body += avp(True, 0, struct.pack("!H", 1))
-    body += avp(True, 2, b"\x01\x00")
-    body += avp(True, 3, struct.pack("!I", 0x3))
-    body += avp(True, 4, struct.pack("!I", 0x0))
-    body += avp(True, 7, b"py-filterrate")
-    body += avp(True, 9, struct.pack("!H", PEER_TID))
-    body += avp(True, 10, struct.pack("!H", 8))
-    body += avp(True, 11, PEER_CHALLENGE)
-    total = 12 + len(body)
-    hdr = struct.pack("!HHHHHH", 0xC802, total, 0, 0, 0, 0)
-    return hdr + body
-
-def build_scccn(dest_tid, ns, nr, response):
-    body = b""
-    body += avp(True, 0, struct.pack("!H", 3))
-    body += avp(True, 13, response)
-    total = 12 + len(body)
-    hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, 0, ns, nr)
-    return hdr + body
-
-def parse_avps(body):
-    out = {}
-    off = 0
-    while off + 6 <= len(body):
-        word, vendor, atype = struct.unpack("!HHH", body[off:off+6])
-        length = word & 0x03FF
-        if length < 6 or off + length > len(body):
-            break
-        if vendor == 0:
-            out[atype] = body[off+6:off+length]
-        off += length
-    return out
-
-def main():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("127.0.0.1", 0))
-    sock.settimeout(0.25)
-    sccrq = build_sccrq()
-    sccrp = None
-    for _ in range(20):
-        try:
-            sock.sendto(sccrq, TARGET)
-            data, _ = sock.recvfrom(1500)
-            sccrp = data
-            break
-        except (socket.timeout, ConnectionRefusedError, OSError):
-            continue
-    if sccrp is None:
-        print("ERROR: no SCCRP received", file=sys.stderr)
-        return 1
-    _, length, _, _, _, _ = struct.unpack("!HHHHHH", sccrp[:12])
-    avps = parse_avps(sccrp[12:length])
-    our_challenge = avps.get(11)
-    tid_bytes = avps.get(9)
-    if our_challenge is None or tid_bytes is None:
-        print("ERROR: SCCRP missing Challenge or Assigned Tunnel ID", file=sys.stderr)
-        return 1
-    local_tid = struct.unpack("!H", tid_bytes)[0]
-    digest = hashlib.md5(bytes([3]) + SECRET + our_challenge).digest()
-    sock.settimeout(1.0)
-    sock.sendto(build_scccn(local_tid, 1, 1, digest), TARGET)
-    try:
-        sock.recvfrom(1500)
-    except (socket.timeout, OSError):
-        pass
-    print("OK: tunnel established with RADIUS filter-rate config")
-    return 0
-
-if __name__ == "__main__":
-    sys.exit(main())
-EOF_PEER
 
 stdin=config:terminator=EOF_CONF
 l2tp {
@@ -181,7 +15,7 @@ l2tp {
         radius {
             server radius1 {
                 address 127.0.0.1
-                port 11812
+                port $PORT2
                 shared-key testing123
             }
             timeout 5
@@ -212,12 +46,12 @@ option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.log.l2tp.auth.radius:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 option=env:var=TEST_SECRET:value=s3cr3t
-option=env:var=RADIUS_PORT:value=11812
+option=env:var=RADIUS_PORT:value=$PORT2
 option=env:var=RADIUS_KEY:value=testing123
 
-cmd=background:seq=1:exec=python3 mock-radius.py
+cmd=background:seq=1:exec=ze-test fixture l2tp/radius-filter-rate/radius
 cmd=background:seq=2:exec=ze -:stdin=config
-cmd=foreground:seq=3:exec=python3 l2tp-peer.py $PORT:timeout=10s
+cmd=foreground:seq=3:exec=ze-test fixture l2tp/radius-filter-rate $PORT:timeout=10s
 expect=exit:code=0
 expect=stdout:contains=OK: tunnel established with RADIUS filter-rate config
 expect=stderr:contains=l2tp-pool: configured

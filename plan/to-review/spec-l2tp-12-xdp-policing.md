@@ -77,7 +77,7 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 ### Architecture Docs
 - [ ] `ai/patterns/plugin.md` -- plugin file structure
   -> Constraint: register.go with init(), atomic logger, RunXxxPlugin(conn), CLIHandler closure
-  -> Constraint: run `make generate` after creating plugin to update all.go
+  -> Constraint: run `./le repository generate` after creating plugin to update all.go
 - [ ] `ai/rules/plugins.md` -- plugin design rules
   -> Constraint: plugin name hyphen-form (l2tp-policing); YANG required for plugins with config
   -> Constraint: proximity principle: all code in `internal/plugins/l2tppolicing/`
@@ -322,7 +322,7 @@ unavailable.
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan -- check what exists |
 | 3. Implement (TDD) | Implementation phases below |
 | 4. /ze-review gate | Review Gate section |
-| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Fix every issue from critical review |
 | 8. Re-verify | Re-run stage 5 |
@@ -369,13 +369,13 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 7. **Phase: documentation + functional tests**
    - Tests: `test-l2tp-policing-config`
    - Files: `test/plugin/l2tp-policing-config.ci`, `docs/guide/l2tp.md`, `docs/guide/plugins.md`
-   - Verify: `make ze-functional-test` passes
+   - Verify: `./le functional` passes
 
-8. **Phase: make generate** -- update all.go (blank import). cilium/ebpf is already in `go.mod` (added by `trafficusage`); do NOT add it again.
+8. **Phase: ./le repository generate** -- update all.go (blank import). cilium/ebpf is already in `go.mod` (added by `trafficusage`); do NOT add it again.
    - Files: `internal/component/plugin/all/all.go` (and `go.mod`/`go.sum` only if a newer minor is genuinely required)
-   - Verify: `make generate`, `make ze-lint` pass; `git diff go.mod` is empty unless a version bump was justified
+   - Verify: `./le repository generate`, `./le verify-lint run` pass; `git diff go.mod` is empty unless a version bump was justified
 
-9. **Full verification** -- `make ze-precommit-verify`
+9. **Full verification** -- `./le verify current mode full`
 10. **Complete spec** -- Fill audit tables, write learned summary
 
 ### Critical Review Checklist (/implement stage 6)
@@ -563,7 +563,7 @@ Section 3 (header format) for T-bit and tunnel/session ID extraction.
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

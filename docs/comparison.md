@@ -397,7 +397,7 @@ covers EVPN, MPLS, SR, SRv6, VRF, VXLAN, VLAN, LAG and STP. Ze declares none of 
 IS-IS is the one place where the ze daemon declares a protocol the BIRD daemon does
 not.
 
-Every ze key is rendered and parsed by `make ze-netlab-render-check`. No key is
+Every ze key is rendered and parsed by `./le netlab render-check`. No key is
 validated against netlab's own integration tests, because a live lab was never started
 here. Ze's artifacts are in this repository at `contrib/netlab/` and are not upstream
 yet.

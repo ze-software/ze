@@ -13,7 +13,7 @@
 1. This spec file.
 2. `.claude/rules/planning.md` and `ai/rules/completion.md`.
 3. `plan/spec-release-evidence-gate.md` and `plan/spec-release-audit-0-umbrella.md`.
-4. `Makefile:48-56,115-153`, `mk/test-release.mk`, and `internal/core/version/version.go`.
+4. `internal/le/` native action tables, `internal/le/evidence/evidence.go`, and `internal/core/version/version.go`.
 5. `internal/plugins/init/main.go,158-340`, `internal/plugins/systemd/cmd_install.go`, `internal/plugins/systemd/unit.go`, and `internal/component/doctor/checks_platform.go`.
 6. `internal/component/config/system/selfupdate.go,672-719` and `cmd/ze/update_serve.go`.
 7. `.github/workflows/codeql.yml`, `.github/workflows/pages.yml`, and `.woodpecker/verify.yml`.
@@ -117,7 +117,7 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 
 **Key insights:**
 - GitHub Releases are the correct direct-download surface. GitHub Packages does not provide APT/RPM repositories, and GitHub Pages is unsuitable for package traffic.
-- The existing release build embeds wall-clock values (`Makefile:53-56`), while runtime release comparison accepts only the eight-character `YY.MM.DD` identity (`internal/core/version/version.go`). Release tooling must use the source commit timestamp and keep nightly channel identity outside the embedded release.
+- The existing release build embeds wall-clock values (`internal/le/` native action tables), while runtime release comparison accepts only the eight-character `YY.MM.DD` identity (`internal/core/version/version.go`). Release tooling must use the source commit timestamp and keep nightly channel identity outside the embedded release.
 - The package-sized product is one statically linked `ze` distro binary plus service/account declarations, completion scripts, install-method marker, license, and metadata. Repository source/key trust is an external ordered bootstrap pair; appliance and host-tool outputs have separate producer contracts.
 - Fresh package installation cannot safely call the interactive init flow. The current init path requires a username and plaintext password (`internal/plugins/init/main.go`) and discovers host interfaces (`internal/plugins/init/main.go`). Package bootstrap needs an explicit noninteractive mode with username `admin`, at least 256 bits of CSPRNG entropy, and only loopback management config.
 - The current doctor service check reads only `/etc/systemd/system/ze.service` (`internal/component/doctor/checks_platform.go`), so it would miss a package-owned vendor unit. It must discover the effective unit through systemd with a bounded call.
@@ -132,9 +132,9 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 - [ ] `internal/plugins/init/main.go` - current interactive/piped bootstrap flow (full line ranges below).
 - [ ] `internal/component/doctor/checks_platform.go` - current systemd unit check (full line ranges below).
 - [ ] `internal/component/config/system/selfupdate.go` - current in-place self-update behavior (full line ranges below).
-- [ ] `Makefile:48-56,93-168` - derives feature tags from `feature-gates.txt`, uses wall-clock version/build date, and builds all local binaries.
-- [ ] `mk/test-release.mk` - composes the release evidence matrix but performs no packaging, signing, or publishing.
-- [ ] `.woodpecker/verify.yml:1-19` - runs `make ze-precommit-verify` on pushes and pull requests.
+- [ ] `internal/le/` native action tables - derives feature tags from `feature-gates.txt`, uses wall-clock version/build date, and builds all local binaries.
+- [ ] `internal/le/evidence/evidence.go` - composes the release evidence matrix but performs no packaging, signing, or publishing.
+- [ ] `.woodpecker/verify.yml:1-19` - runs `./le verify current mode full` on pushes and pull requests.
 - [ ] `.github/workflows/codeql.yml` - GitHub security analysis only.
 - [ ] `.github/workflows/pages.yml` - GitHub Pages publication only.
 - [ ] `internal/core/version/version.go` - compares eight-character CalVer releases lexically and exposes build metadata.
@@ -157,16 +157,16 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 **Current outputs:**
 - No repository-defined release tag trigger, nightly build schedule, GitHub Release creation, native package definition, APT/RPM repository, artifact signing, SBOM publication, release retention, or automated Codeberg/GitHub mirroring exists.
 - The current GitHub repository has no published releases or tags as observed on 2026-07-10.
-- Local `make build` produces multiple binaries; only `bin/ze` is the normal distro daemon (`Makefile:115-153`).
+- Local `make build` produces multiple binaries; only `bin/ze` is the normal distro daemon (`internal/le/` native action tables).
 
 **Behavior to preserve:**
 - Codeberg remains the canonical development source and GitHub remains the official public repository/download surface (`README.md`).
-- The normal release binary uses `ze_core`, `ze_distro`, and every gate derived from `feature-gates.txt` (`Makefile:48-51,118-120`).
+- The normal release binary uses `ze_core`, `ze_distro`, and every gate derived from `feature-gates.txt` (`internal/le/` native action tables).
 - Runtime embedded release remains exactly `YY.MM.DD`; no `v` prefix or nightly suffix reaches `main.version`.
 - The package service remains `ze.service`, runs as `ze:ze`, starts `/usr/bin/ze start`, uses `/etc/ze`, sets `/run/ze`, and retains the existing capability and hardening contract from `buildUnitFile`.
 - Existing `database.zefs`, active configuration, credentials, and `/etc/ze` survive upgrades and normal package removal.
 - Existing interactive `ze init`, source installation, `ze install systemd`, standalone/source self-update, appliance, and developer build paths keep their behavior; only package-marked installs select the mutation-blocking update backend.
-- `make ze-precommit-verify` remains the fast pre-commit gate; heavy release and package evidence stays in explicit release targets.
+- `./le verify current mode full` remains the fast pre-commit gate; heavy release and package evidence stays in explicit release targets.
 
 **Behavior to change:**
 - Authorized signed tags and the daily schedule produce complete release bundles for Linux `amd64` and `arm64`.
@@ -205,7 +205,7 @@ Boundaries Crossed section further below.)
 
 ### Integration Points
 (Summary; the full list is in the second Integration Points section further below.)
-- `mk/test-release.mk` evidence matrix - consumed as the release evidence category source.
+- `internal/le/evidence/evidence.go` evidence matrix - consumed as the release evidence category source.
 - `internal/plugins/init` (`ze init --automatic`) - the package-safe bootstrap entry point.
 - `internal/plugins/systemd` unit contract - vendor unit parity for the packaged service.
 - `internal/component/config/system` self-update backend - the package-managed mutation guard.
@@ -243,7 +243,7 @@ Boundaries Crossed section further below.)
 
 ### Evidence Path
 
-1. Protected default-branch `release-build.yml` calls `release-evidence.yml` only through local reusable `workflow_call`, passing required channel, release identity, candidate ref/SHA, caller workflow path/digest/run ID/attempt, and required-set version. `release-evidence.yml` has no PR, push, schedule, or manual trigger; it rejects a non-protected caller/ref or candidate-controlled workflow revision, checks out only the passed candidate as test input, and runs `make ze-evidence-release-verify` on the dedicated reset runner.
+1. Protected default-branch `release-build.yml` calls `release-evidence.yml` only through local reusable `workflow_call`, passing required channel, release identity, candidate ref/SHA, caller workflow path/digest/run ID/attempt, and required-set version. `release-evidence.yml` has no PR, push, schedule, or manual trigger; it rejects a non-protected caller/ref or candidate-controlled workflow revision, checks out only the passed candidate as test input, and runs the retired `ze-evidence-release-verify` (current: `./le evidence release-candidate`) on the dedicated reset runner.
 2. Stable mandatory category IDs are exactly: `verify`, `chaos`, `fuzz`, `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop`, `functional-extra`, `perf`, `qemu`, `vpp-deployment`, `live`, `release-policy`, `release-repro`, `package-deb-amd64`, `package-deb-arm64`, `package-rpm-amd64`, `package-rpm-arm64`, `package-vm-deb`, `package-vm-rpm`, and `repository-tamper`. None may be skipped.
 3. Stable evidence also includes `mutation` as its only advisory category. It must execute and record either pass or advisory-fail; it may not be skipped and cannot substitute for a mandatory category.
 4. Nightly mandatory and allowed IDs are exactly: `verify`, `release-policy`, `release-repro`, `package-deb-amd64`, `package-deb-arm64`, `package-rpm-amd64`, `package-rpm-arm64`, `package-vm-deb`, `package-vm-rpm`, and `repository-tamper`; mutation is not a nightly category. VM categories use the nightly smoke profile, while stable uses full lifecycle.
@@ -469,7 +469,7 @@ Upgrade and downgrade run the newly installed binary's read-only state/config va
 
 Unexpected symlinks, devices, set-id bits, world-writable paths, undeclared files, or wrong owner/mode fail package tests.
 
-The production entry point `packaging/repository/install-ze-repository.sh` supports only `install [deb|rpm|auto]` and `remove [deb|rpm|auto]`, requires root, working OS CA trust, a verified HTTPS-capable `curl`, `gpg`, and the native APT or RPM key/query tools, and has no package dependency on Ze. `auto` succeeds only when exactly one supported native family is detected and rejects absent or ambiguous managers. The checked-in script is published under its digest as an immutable bootstrap object with a signed checksum and the exact immutable URL/digest in GitHub release/docs; documentation downloads it without piping to a shell, verifies the signed checksum and out-of-band direct-release fingerprint, then executes the local file. Install downloads the fingerprinted current/next key bundle and matching reviewed source template from `bootstrap.packages.ze-software.net` into root-only temporary files, verifies exact out-of-band primary fingerprints and closed URI/`Signed-By`/`gpgkey` fields, installs the key file/imports first, and renames the source/repo file last. Any failure before the last rename leaves no active Ze source; cleanup removes temporary files but may retain a harmless verified key. Remove renames/removes the source first, proves APT/DNF no longer selects Ze, then removes only the exact expected key file/import fingerprints. It refuses unknown arguments, paths, roots, pre-existing conflicting files, tool failures, fingerprint drift, and partial trust state. `make ze-release-repository-bootstrap-test` and all six package profiles invoke this same script with local signed fixtures and failure injection at every operation; they prove there is never an active source with missing trust, package lifecycle never mutates the pair, and refresh plus reinstall works after package removal.
+The production entry point `packaging/repository/install-ze-repository.sh` supports only `install [deb|rpm|auto]` and `remove [deb|rpm|auto]`, requires root, working OS CA trust, a verified HTTPS-capable `curl`, `gpg`, and the native APT or RPM key/query tools, and has no package dependency on Ze. `auto` succeeds only when exactly one supported native family is detected and rejects absent or ambiguous managers. The checked-in script is published under its digest as an immutable bootstrap object with a signed checksum and the exact immutable URL/digest in GitHub release/docs; documentation downloads it without piping to a shell, verifies the signed checksum and out-of-band direct-release fingerprint, then executes the local file. Install downloads the fingerprinted current/next key bundle and matching reviewed source template from `bootstrap.packages.ze-software.net` into root-only temporary files, verifies exact out-of-band primary fingerprints and closed URI/`Signed-By`/`gpgkey` fields, installs the key file/imports first, and renames the source/repo file last. Any failure before the last rename leaves no active Ze source; cleanup removes temporary files but may retain a harmless verified key. Remove renames/removes the source first, proves APT/DNF no longer selects Ze, then removes only the exact expected key file/import fingerprints. It refuses unknown arguments, paths, roots, pre-existing conflicting files, tool failures, fingerprint drift, and partial trust state. the retired `ze-release-repository-bootstrap-test` (current: `./le evidence release-candidate`) and all six package profiles invoke this same script with local signed fixtures and failure injection at every operation; they prove there is never an active source with missing trust, package lifecycle never mutates the pair, and refresh plus reinstall works after package removal.
 
 ### Repository Layout and Versioning
 
@@ -571,13 +571,13 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 
 ### Integration Points
 
-- `feature-gates.txt` and `Makefile:48-51` remain the only source of default feature tags.
-- `Makefile:53-56` accepts explicit release metadata from the release builder while preserving local defaults.
+- `feature-gates.txt` and `internal/le/` native action tables remain the only source of default feature tags.
+- `internal/le/` native action tables accepts explicit release metadata from the release builder while preserving local defaults.
 - `internal/plugins/init/main.go` owns automatic bootstrap and reuses existing zefs keys, bcrypt, and atomic rename.
 - `internal/plugins/systemd/unit.go` remains the operational source for service semantics; a parity test prevents package/vendor unit drift.
 - `internal/component/doctor/checks_platform.go` discovers the effective systemd unit with a bounded call and preserves test overrides.
 - `internal/component/config/system` detects package ownership, prevents in-place mutation, and exposes a doctor diagnostic for incompatible `auto-apply`.
-- `mk/test-release.mk` adds package/repository evidence to the existing release matrix.
+- `internal/le/evidence/evidence.go` adds package/repository evidence to the existing release matrix.
 - GitHub Actions builds and attests; separate VPS mirror/publisher identities own forge dispatch, final signing, repository activation, and retention.
 
 ### Architectural Verification
@@ -646,25 +646,25 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | `ze init --automatic` | -> | init automatic bootstrap/state validator | `test/install/package-bootstrap.ci`; six named `TestRunAutomatic*` symbols |
 | `ze doctor --json` and `ze explain` | -> | bounded systemctl query plus registered update diagnostic | `test/install/package-doctor-unit.ci`; `TestDoctorSystemctlShow`; `TestDoctorPackageManagedUpdate` |
 | `show system update` and every firmware check/download/apply/restart/rollback command | -> | `ActiveBackend` package-managed dispatcher plus package-aware YANG help | guard `.ci`; `TestPackageManagedShowSystemUpdate`; `TestFirmwareHandlersPackageManaged`; `TestFirmwareCommandHelpPackageManaged`; both booted VM full profiles |
-| Downloaded `install-ze-repository.sh install|remove` | -> | fingerprint/checksum verification and atomic external source/key pair lifecycle | `make ze-release-repository-bootstrap-test`; all six package full profiles |
-| `make ze-release-build CHANNEL=stable REF=<sha>` | -> | deterministic builder/input manifest/packages | `make ze-release-repro-test CHANNEL=stable REF=<sha>` |
+| Downloaded `install-ze-repository.sh install|remove` | -> | fingerprint/checksum verification and atomic external source/key pair lifecycle | `./le evidence release-candidate`; all six package full profiles |
+| `./le evidence release-candidate` | -> | deterministic builder/input manifest/packages | `./le evidence release-candidate` |
 | Signed Codeberg stable tag | -> | mirror journal, ambiguous-dispatch reconciliation, trusted build/attest/archive/publish | `MirrorPolicyTest.test_ambiguous_dispatch_reconciliation`; staging `stable` and `stable-dispatch-ambiguity` |
-| Protected daily schedule, changed source | -> | nightly build/tag/repositories | `make ze-release-staging-test SCENARIO=nightly-changed` |
-| Protected daily schedule, unchanged source | -> | exact skip path | `make ze-release-staging-test SCENARIO=nightly-unchanged` |
-| Failed scheduled nightly native re-run or three overlapping dates | -> | independent queued runs, original date/SHA/attempt lineage, durable one-per-date selection | `make ze-release-staging-test SCENARIO=nightly-concurrency-rerun` |
-| Protected `workflow_call` evidence | -> | tokenless candidate runner, canonical artifact names, isolated recorder result/check | `WorkflowPolicyTest.test_evidence_reusable_caller_and_token_isolation`; `EvidenceRecorderPolicyTest.test_check_result_routing`; `make ze-release-policy-test` |
+| Protected daily schedule, changed source | -> | nightly build/tag/repositories | `./le evidence release-candidate` |
+| Protected daily schedule, unchanged source | -> | exact skip path | `./le evidence release-candidate` |
+| Failed scheduled nightly native re-run or three overlapping dates | -> | independent queued runs, original date/SHA/attempt lineage, durable one-per-date selection | the retired `ze-release-staging-test SCENARIO=nightly-concurrency-rerun` (current: `./le evidence release-candidate`) |
+| Protected `workflow_call` evidence | -> | tokenless candidate runner, canonical artifact names, isolated recorder result/check | `WorkflowPolicyTest.test_evidence_reusable_caller_and_token_isolation`; `EvidenceRecorderPolicyTest.test_check_result_routing`; `./le evidence release-candidate` |
 | GitHub `workflow_run` | -> | exact canonical current-attempt triplet, API IDs, protected-workflow/candidate identities, custom provenance/SPDX | `ArtifactTransportPolicyTest.test_current_attempt_name_id_matrix`; staging `attestation-main-advance`; three `AttestationPolicyTest` symbols |
 | Stable APT install | -> | Signed-By/InRelease/by-hash/DEB/bootstrap/service | `effective-package-install.py --family deb --distro debian-12 --arch amd64 --profile full` |
 | Stable DNF install | -> | mirrorlist/combined repodata/signed RPM/bootstrap/service | `effective-package-install.py --family rpm --distro rocky-9 --arch amd64 --profile full` |
 | Nightly opt-in and immediate stable return | -> | native EVR plus explicit downgrade | all six package commands; `ReleaseModelTest.test_native_version_order_and_downgrade` |
 | Booted Debian VM | -> | full service/lifecycle/failure/update-guard path | `effective-package-vm.py --family deb --distro debian-12 --arch amd64 --profile full` |
 | Booted RPM VM | -> | full service/lifecycle/failure/update-guard path | `effective-package-vm.py --family rpm --distro rocky-9 --arch amd64 --profile full` |
-| Direct GitHub verification | -> | outer set, signatures, release-specific verification, final-attestation archive | `make ze-release-public-test RELEASE=<id> NETWORK=primary`; independent monitor variant; `PublisherStateTest.test_final_attestation_archive_barrier` |
-| Publisher retry/activation/replay | -> | durable strict APT-then-RPM state | `make ze-release-staging-test SCENARIO=failures`; `SCENARIO=freshness-replay`; negative RPM-before-APT unit |
+| Direct GitHub verification | -> | outer set, signatures, release-specific verification, final-attestation archive | `./le evidence release-candidate`; independent monitor variant; `PublisherStateTest.test_final_attestation_archive_barrier` |
+| Publisher retry/activation/replay | -> | durable strict APT-then-RPM state | the retired `ze-release-staging-test SCENARIO=failures` (current: `./le evidence release-candidate`); `SCENARIO=freshness-replay`; negative RPM-before-APT unit |
 | Nightly retention timer/broker | -> | activation-epoch-plus-lock plan, fresh clock, exact delete sessions, nightly-only deletion | both `RetentionPolicyTest` symbols; both `CredentialPolicyTest` symbols; staging `retention` and `storage-isolation` |
 | Trusted VPS clock | -> | chrony-gated tag/sign/prune/mint/child/activation | `MonitorPolicyTest.test_trusted_clock_freezes_authorization`; `CredentialPolicyTest.test_stale_clock_before_each_mint`; staging `monitoring` |
 | Monitor and restore | -> | thresholds/alerts/freeze plus input/final/final-attestation/refresh recovery | staging `monitoring`, `backup-restore`, and `archive-failures` |
-| `make ze-release-repository-tamper-test` | -> | clean-keyring APT/RPM/package/metadata/key/fingerprint rejection | `RepositoryTamperTest.test_clean_keyring_matrix`; mandatory `repository-tamper` evidence |
+| `./le evidence release-candidate` | -> | clean-keyring APT/RPM/package/metadata/key/fingerprint rejection | `RepositoryTamperTest.test_clean_keyring_matrix`; mandatory `repository-tamper` evidence |
 | Stable dependency and first-canary gate | -> | exact candidate closure plus six public GitHub/APT/RPM network legs | `DependencyClosurePolicyTest.test_exact_candidate_closure`; `ActivationPolicyTest.test_dependency_canary_completion_gate`; public `canary-failures` scenario |
 
 ## Acceptance Criteria
@@ -751,57 +751,57 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | `TestFirmwareHandlersPackageManaged` | `internal/plugins/update-cmd/cmd/firmware_test.go` | Real check/download/apply/restart/rollback handler responses | |
 | `TestPackageManagedShowSystemUpdate` | `internal/plugins/update-cmd/cmd/show_test.go` | Both marker values cross `handleShowSystemUpdate` with exact guidance fields/literals | |
 | `TestFirmwareCommandHelpPackageManaged` | `internal/plugins/update-cmd/yang/self_containment_test.go` | Command help states apt/dnf backends do not contact, stage, restart, or roll back | |
-| `ReleaseModelTest.test_stable_date_policy` | `scripts/release/test_model.py` | Calendar, trusted UTC boundary, strict high-water, one stable/date | |
-| `ReleaseModelTest.test_nightly_identity` | `scripts/release/test_model.py` | Actual UTC date, resume identity, one/day, SHA, embedded release | |
-| `ReleaseModelTest.test_native_version_order_and_downgrade` | `scripts/release/test_model.py` | dpkg/rpm EVR and explicit APT/DNF return commands | |
-| `ArtifactModelTest.test_names_and_architectures` | `scripts/release/test_model.py` | Go/DEB/RPM mapping and canonical names | |
-| `ReleaseBuildTest.test_smoke` | `scripts/release/test_build.py` | Full feature set, extended version, tar/DEB/RPM binary parity | |
-| `ReleaseBuildTest.test_rejects_cross_architecture_substitution` | `scripts/release/test_build.py` | Wrong Go/DEB/RPM architecture and binary digest substitution reject | |
-| `ReleaseBuildTest.test_all_unsigned_output_classes` | `scripts/release/test_build.py` | Policy inventory names and compares every unsigned output class required by AC-7 | |
-| `InputManifestTest.test_closed_safe_set` | `scripts/release/test_manifest.py` | Missing/extra/unsafe path/type/mode and input schema | |
-| `ReleaseEnvelopeTest.test_non_self_referential_closure` | `scripts/release/test_manifest.py` | Payload set, four envelope names, checksum exclusions, outer set | |
-| `ReleaseEnvelopeTest.test_rejects_payload_envelope_tamper_matrix` | `scripts/release/test_manifest.py` | Every missing/extra/tampered payload, aggregate attestation, envelope, and checksum case | |
-| `EvidencePolicyTest.test_exact_stable_and_nightly_sets` | `scripts/release/test_evidence.py` | Required/advisory categories and manifest schema | |
-| `EvidencePolicyTest.test_rejects_missing_duplicate_skip_stale` | `scripts/release/test_evidence.py` | Every publisher evidence rejection class | |
-| `WorkflowPolicyTest.test_evidence_reusable_caller_and_token_isolation` | `scripts/release/test_evidence.py` | workflow_call-only trusted revision, candidate SHA, API artifact ID, recorder split, no persisted token | |
-| `EvidenceRecorderPolicyTest.test_check_result_routing` | `scripts/release/test_evidence.py` | Exact check name/App/external ID, recorder-result schema, evidence API ID routing, and all stale/wrong/duplicate negatives | |
-| `DependencyClosurePolicyTest.test_exact_candidate_closure` | `scripts/release/test_evidence.py` | Exact policy set, candidate SHA, ancestor commits, zero findings, evidence digests, and missing/partial/stale/unknown negatives | |
-| `MirrorPolicyTest.test_trusted_dispatch_and_ref_denials` | `scripts/release/test_mirror.py` | Fast-forward, tag/date/allowlist, rulesets, exact dispatch, denied refs | |
-| `MirrorPolicyTest.test_ambiguous_dispatch_reconciliation` | `scripts/release/test_mirror.py` | Prepared/submitted/ambiguous journal, lost response, delayed/duplicate run selection, no premature high-water advance | |
-| `AttestationPolicyTest.test_workflow_candidate_identity_races` | `scripts/release/test_attestation.py` | Stable tag ancestor, dispatch `head_sha`, later main advance, API artifact ID outside manifest | |
-| `AttestationPolicyTest.test_subject_predicate_pairing` | `scripts/release/test_attestation.py` | Per-binary custom provenance/SPDX pairs and aggregate closed subject | |
-| `AttestationPolicyTest.test_rejects_forged_statement_matrix` | `scripts/release/test_attestation.py` | Wrong/missing/duplicate subject, predicate, attester, run/attempt, ref/SHA, artifact, architecture | |
-| `ArtifactTransportPolicyTest.test_current_attempt_name_id_matrix` | `scripts/release/test_attestation.py` | Complete protected current triplet, allowed partial historical rerun subsets, swapped/duplicate/cross-run/cross-attempt name-ID rejection | |
-| `PublisherStateTest.test_idempotent_transitions` | `scripts/release/test_publish.py` | Durable resume, no repeated build/sign/upload, strict APT-then-RPM path, APT failure keeps both old, RPM failure keeps new APT/old RPM, RPM-before-APT rejection | |
-| `PublisherStateTest.test_replay_and_rollback_authorization` | `scripts/release/test_publish.py` | Generation/predecessor/high-water/emergency action | |
-| `PublisherStateTest.test_release_visibility_flags` | `scripts/release/test_publish.py` | Stable/nightly `prerelease` and `make_latest` request/API fields plus latest endpoint remains stable | |
-| `PublisherStateTest.test_final_attestation_archive_barrier` | `scripts/release/test_publish.py` | Release-specific verifier, locked record, restore, tamper/failure block, and idempotent resume from published GitHub | |
-| `PublicCanaryPolicyTest.test_all_leg_failures_freeze` | `scripts/release/test_publish.py` | Primary/independent GitHub/APT/RPM failures block completion/docs/subsequent release until all six pass | |
-| `ActivationPolicyTest.test_dependency_canary_completion_gate` | `scripts/release/test_publish.py` | Exact dependency closure plus all public canary results are mandatory completion inputs | |
-| `RepositoryPolicyTest.test_apt_activation_and_freshness` | `scripts/release/test_repository.py` | By-hash, InRelease-last, Date/Valid-Until/future skew/refresh | |
-| `RepositoryPolicyTest.test_rpm_combined_snapshot` | `scripts/release/test_repository.py` | One repodata, both arches, one-line mirrorlist, 16-minute cache bound | |
-| `RepositoryTamperTest.test_clean_keyring_matrix` | `scripts/release/test_repository.py` | APT Release/InRelease/Packages/DEB/date/key/fingerprint and RPM signature/repomd/XML/metadata/arch/key/fingerprint tamper matrix | |
-| `StoragePolicyTest.test_bucket_authority_and_locks` | `scripts/release/test_storage.py` | Five buckets, three custom domains, prefix locks, denied stable/bootstrap/cross-bucket actions | |
-| `StoragePolicyTest.test_stable_delete_and_private_route_denials` | `scripts/release/test_storage.py` | Stable/bootstrap lock deletion and all public access to private archives reject | |
-| `CredentialPolicyTest.test_exact_delete_sessions` | `scripts/release/test_credentials.py` | Parent isolation, five-minute TTL, exact objects, delete-only actions, all read/list/write/cross-bucket denials | |
-| `CredentialPolicyTest.test_stale_clock_before_each_mint` | `scripts/release/test_credentials.py` | Healthy signed plan followed by stale/malformed clock yields no session, child, forge, or object deletion | |
-| `RetentionPolicyTest.test_metadata_first_and_stable_exclusion` | `scripts/release/test_retention.py` | Metadata first, activation epoch plus lock/grace, exact plan, stable exclusion | |
-| `RetentionPolicyTest.test_activation_epoch_and_delayed_staging` | `scripts/release/test_retention.py` | Both object lock and `public_activated_at+37d`, delayed activation, exact threshold, unfinished publication exclusion | |
-| `PackagePolicyTest.test_identity_unit_service_and_failure_matrix` | `scripts/release/test_package_policy.py` | Identity/mask/service-state/native failure transaction tables | |
-| `PackageTransactionTest.test_all_stages_hooks_and_crash_reconciliation` | `scripts/release/test_package_policy.py` | Every forward stage, DEB argument/unwind branch, RPM hook, crash point, service-call reconciliation | |
-| `PackageTransactionTest.test_debian_abort_state_machine` | `scripts/release/test_package_policy.py` | Every closed install/upgrade abort stage, dpkg-state predicate, container edge, and before/after crash | |
-| `PackageTransactionTest.test_rpm_reinstall_bridge` | `scripts/release/test_package_policy.py` | Fresh and upgrade `%post` failures preserve original journal through exact DNF reinstall and terminal-removal crash | |
-| `PackagePolicyTest.test_payload_allowlist_negative_matrix` | `scripts/release/test_package_policy.py` | Missing/extra/type/owner/mode/dependency/scriptlet/trust/preset/marker/transaction negatives | |
-| `RepositoryBootstrapPolicyTest.test_atomic_install_remove_failures` | `scripts/release/test_package_policy.py` | Production bootstrap script dependencies, key-first/source-last, source-first/key-last, and every failure point | |
-| `PackagePolicyTest.test_upgrade_policy_digest_matrix` | `scripts/release/test_package_policy.py` | Unit-level AC-15 state/unit/credential/drop-in digests and at-most-one action invariant | |
-| `PackagePolicyTest.test_removal_repository_pair_matrix` | `scripts/release/test_package_policy.py` | Unit-level AC-17 remove/purge/erase state and external pair preservation | |
-| `PackageMatrixPolicyTest.test_required_cells_and_cases` | `scripts/release/test_package_policy.py` | Unit-level AC-21 exact six container/two VM cells and required case inventory | |
-| `DocumentationPolicyTest.test_user_and_operator_contract` | `scripts/release/test_docs.py` | Unit-level AC-35 required commands, trust ordering, limits, and recovery sections | |
-| `KeyPolicyTest.test_domain_rotation_revocation` | `scripts/release/test_keys.py` | Separate primaries, overlap, expiry, freeze, revocation, clean keyrings | |
-| `MonitorPolicyTest.test_thresholds_dedup_freeze_recovery` | `scripts/release/test_monitor.py` | Every cadence/threshold/webhook/dedup/recovery/freeze transition | |
-| `MonitorPolicyTest.test_trusted_clock_freezes_authorization` | `scripts/release/test_monitor.py` | chrony normal/offset/stale/leap/stratum/malformed/command-failure thresholds | |
+| `ReleaseModelTest.test_stable_date_policy` | `internal/le/evidence/` | Calendar, trusted UTC boundary, strict high-water, one stable/date | |
+| `ReleaseModelTest.test_nightly_identity` | `internal/le/evidence/` | Actual UTC date, resume identity, one/day, SHA, embedded release | |
+| `ReleaseModelTest.test_native_version_order_and_downgrade` | `internal/le/evidence/` | dpkg/rpm EVR and explicit APT/DNF return commands | |
+| `ArtifactModelTest.test_names_and_architectures` | `internal/le/evidence/` | Go/DEB/RPM mapping and canonical names | |
+| `ReleaseBuildTest.test_smoke` | `internal/le/evidence/` | Full feature set, extended version, tar/DEB/RPM binary parity | |
+| `ReleaseBuildTest.test_rejects_cross_architecture_substitution` | `internal/le/evidence/` | Wrong Go/DEB/RPM architecture and binary digest substitution reject | |
+| `ReleaseBuildTest.test_all_unsigned_output_classes` | `internal/le/evidence/` | Policy inventory names and compares every unsigned output class required by AC-7 | |
+| `InputManifestTest.test_closed_safe_set` | `internal/le/evidence/` | Missing/extra/unsafe path/type/mode and input schema | |
+| `ReleaseEnvelopeTest.test_non_self_referential_closure` | `internal/le/evidence/` | Payload set, four envelope names, checksum exclusions, outer set | |
+| `ReleaseEnvelopeTest.test_rejects_payload_envelope_tamper_matrix` | `internal/le/evidence/` | Every missing/extra/tampered payload, aggregate attestation, envelope, and checksum case | |
+| `EvidencePolicyTest.test_exact_stable_and_nightly_sets` | `internal/le/evidence/` | Required/advisory categories and manifest schema | |
+| `EvidencePolicyTest.test_rejects_missing_duplicate_skip_stale` | `internal/le/evidence/` | Every publisher evidence rejection class | |
+| `WorkflowPolicyTest.test_evidence_reusable_caller_and_token_isolation` | `internal/le/evidence/` | workflow_call-only trusted revision, candidate SHA, API artifact ID, recorder split, no persisted token | |
+| `EvidenceRecorderPolicyTest.test_check_result_routing` | `internal/le/evidence/` | Exact check name/App/external ID, recorder-result schema, evidence API ID routing, and all stale/wrong/duplicate negatives | |
+| `DependencyClosurePolicyTest.test_exact_candidate_closure` | `internal/le/evidence/` | Exact policy set, candidate SHA, ancestor commits, zero findings, evidence digests, and missing/partial/stale/unknown negatives | |
+| `MirrorPolicyTest.test_trusted_dispatch_and_ref_denials` | `internal/le/evidence/` | Fast-forward, tag/date/allowlist, rulesets, exact dispatch, denied refs | |
+| `MirrorPolicyTest.test_ambiguous_dispatch_reconciliation` | `internal/le/evidence/` | Prepared/submitted/ambiguous journal, lost response, delayed/duplicate run selection, no premature high-water advance | |
+| `AttestationPolicyTest.test_workflow_candidate_identity_races` | `internal/le/evidence/` | Stable tag ancestor, dispatch `head_sha`, later main advance, API artifact ID outside manifest | |
+| `AttestationPolicyTest.test_subject_predicate_pairing` | `internal/le/evidence/` | Per-binary custom provenance/SPDX pairs and aggregate closed subject | |
+| `AttestationPolicyTest.test_rejects_forged_statement_matrix` | `internal/le/evidence/` | Wrong/missing/duplicate subject, predicate, attester, run/attempt, ref/SHA, artifact, architecture | |
+| `ArtifactTransportPolicyTest.test_current_attempt_name_id_matrix` | `internal/le/evidence/` | Complete protected current triplet, allowed partial historical rerun subsets, swapped/duplicate/cross-run/cross-attempt name-ID rejection | |
+| `PublisherStateTest.test_idempotent_transitions` | `internal/le/evidence/` | Durable resume, no repeated build/sign/upload, strict APT-then-RPM path, APT failure keeps both old, RPM failure keeps new APT/old RPM, RPM-before-APT rejection | |
+| `PublisherStateTest.test_replay_and_rollback_authorization` | `internal/le/evidence/` | Generation/predecessor/high-water/emergency action | |
+| `PublisherStateTest.test_release_visibility_flags` | `internal/le/evidence/` | Stable/nightly `prerelease` and `make_latest` request/API fields plus latest endpoint remains stable | |
+| `PublisherStateTest.test_final_attestation_archive_barrier` | `internal/le/evidence/` | Release-specific verifier, locked record, restore, tamper/failure block, and idempotent resume from published GitHub | |
+| `PublicCanaryPolicyTest.test_all_leg_failures_freeze` | `internal/le/evidence/` | Primary/independent GitHub/APT/RPM failures block completion/docs/subsequent release until all six pass | |
+| `ActivationPolicyTest.test_dependency_canary_completion_gate` | `internal/le/evidence/` | Exact dependency closure plus all public canary results are mandatory completion inputs | |
+| `RepositoryPolicyTest.test_apt_activation_and_freshness` | `internal/le/evidence/` | By-hash, InRelease-last, Date/Valid-Until/future skew/refresh | |
+| `RepositoryPolicyTest.test_rpm_combined_snapshot` | `internal/le/evidence/` | One repodata, both arches, one-line mirrorlist, 16-minute cache bound | |
+| `RepositoryTamperTest.test_clean_keyring_matrix` | `internal/le/evidence/` | APT Release/InRelease/Packages/DEB/date/key/fingerprint and RPM signature/repomd/XML/metadata/arch/key/fingerprint tamper matrix | |
+| `StoragePolicyTest.test_bucket_authority_and_locks` | `internal/le/evidence/` | Five buckets, three custom domains, prefix locks, denied stable/bootstrap/cross-bucket actions | |
+| `StoragePolicyTest.test_stable_delete_and_private_route_denials` | `internal/le/evidence/` | Stable/bootstrap lock deletion and all public access to private archives reject | |
+| `CredentialPolicyTest.test_exact_delete_sessions` | `internal/le/evidence/` | Parent isolation, five-minute TTL, exact objects, delete-only actions, all read/list/write/cross-bucket denials | |
+| `CredentialPolicyTest.test_stale_clock_before_each_mint` | `internal/le/evidence/` | Healthy signed plan followed by stale/malformed clock yields no session, child, forge, or object deletion | |
+| `RetentionPolicyTest.test_metadata_first_and_stable_exclusion` | `internal/le/evidence/` | Metadata first, activation epoch plus lock/grace, exact plan, stable exclusion | |
+| `RetentionPolicyTest.test_activation_epoch_and_delayed_staging` | `internal/le/evidence/` | Both object lock and `public_activated_at+37d`, delayed activation, exact threshold, unfinished publication exclusion | |
+| `PackagePolicyTest.test_identity_unit_service_and_failure_matrix` | `internal/le/evidence/` | Identity/mask/service-state/native failure transaction tables | |
+| `PackageTransactionTest.test_all_stages_hooks_and_crash_reconciliation` | `internal/le/evidence/` | Every forward stage, DEB argument/unwind branch, RPM hook, crash point, service-call reconciliation | |
+| `PackageTransactionTest.test_debian_abort_state_machine` | `internal/le/evidence/` | Every closed install/upgrade abort stage, dpkg-state predicate, container edge, and before/after crash | |
+| `PackageTransactionTest.test_rpm_reinstall_bridge` | `internal/le/evidence/` | Fresh and upgrade `%post` failures preserve original journal through exact DNF reinstall and terminal-removal crash | |
+| `PackagePolicyTest.test_payload_allowlist_negative_matrix` | `internal/le/evidence/` | Missing/extra/type/owner/mode/dependency/scriptlet/trust/preset/marker/transaction negatives | |
+| `RepositoryBootstrapPolicyTest.test_atomic_install_remove_failures` | `internal/le/evidence/` | Production bootstrap script dependencies, key-first/source-last, source-first/key-last, and every failure point | |
+| `PackagePolicyTest.test_upgrade_policy_digest_matrix` | `internal/le/evidence/` | Unit-level AC-15 state/unit/credential/drop-in digests and at-most-one action invariant | |
+| `PackagePolicyTest.test_removal_repository_pair_matrix` | `internal/le/evidence/` | Unit-level AC-17 remove/purge/erase state and external pair preservation | |
+| `PackageMatrixPolicyTest.test_required_cells_and_cases` | `internal/le/evidence/` | Unit-level AC-21 exact six container/two VM cells and required case inventory | |
+| `DocumentationPolicyTest.test_user_and_operator_contract` | `internal/le/evidence/` | Unit-level AC-35 required commands, trust ordering, limits, and recovery sections | |
+| `KeyPolicyTest.test_domain_rotation_revocation` | `internal/le/evidence/` | Separate primaries, overlap, expiry, freeze, revocation, clean keyrings | |
+| `MonitorPolicyTest.test_thresholds_dedup_freeze_recovery` | `internal/le/evidence/` | Every cadence/threshold/webhook/dedup/recovery/freeze transition | |
+| `MonitorPolicyTest.test_trusted_clock_freezes_authorization` | `internal/le/evidence/` | chrony normal/offset/stale/leap/stratum/malformed/command-failure thresholds | |
 
-All Python unit symbols run through `make ze-release-unit-test`, defined as `python3 -m unittest discover -s scripts/release -p 'test_*.py'`; Go symbols run through focused package targets in `mk/release.mk`. `make ze-release-policy-test` runs both plus actionlint, manifest/schema validation, GitHub permission policy, package shell lint, and generated-file drift checks.
+All Python unit symbols run through `./le evidence release-candidate`, defined as `python3 -m unittest discover -s internal/le/ -p 'test_*.py'`; Go symbols run through focused package targets in `internal/le/evidence/evidence.go`. `./le evidence release-candidate` runs both plus actionlint, manifest/schema validation, GitHub permission policy, package shell lint, and generated-file drift checks.
 
 ### Boundary Tests
 
@@ -835,21 +835,21 @@ All Python unit symbols run through `make ze-release-unit-test`, defined as `pyt
 
 | Exact command/test | Location | End-user/operator scenario | Status |
 |--------------------|----------|----------------------------|--------|
-| `make ze-release-install-functional-test` (`bin/ze-test install --all`) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
+| `./le evidence release-candidate` (`bin/ze-test install --all`) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
 | same exact install-suite command | `test/install/package-doctor-unit.ci` | Effective unit/drop-in/query diagnostics and `ze explain` | |
 | same exact install-suite command | `test/install/package-self-update-guard.ci` | Real update handlers cannot stage/mutate packaged binary | |
-| `make ze-functional-ui-test` (`bin/ze-test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
-| `make ze-release-repository-bootstrap-test` | `packaging/repository/install-ze-repository.sh`; `scripts/release/test_package_policy.py` | Same production install/remove script, local signed fixtures, tool/conflict/fingerprint/failure matrix | |
-| `effective-package-install.py --family deb --distro debian-12 --arch amd64 --profile full` | `scripts/evidence/` | Full DEB container/native-manager lifecycle | |
+| `./le functional ui` (`bin/ze-test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
+| `./le evidence release-candidate` | `packaging/repository/install-ze-repository.sh`; `internal/le/evidence/` | Same production install/remove script, local signed fixtures, tool/conflict/fingerprint/failure matrix | |
+| `effective-package-install.py --family deb --distro debian-12 --arch amd64 --profile full` | `internal/le/` | Full DEB container/native-manager lifecycle | |
 | `effective-package-install.py --family deb --distro ubuntu-24.04 --arch amd64 --profile full` | same | Ubuntu DEB policy/lifecycle | |
 | `effective-package-install.py --family deb --distro debian-12 --arch arm64 --profile full` | same | Native arm64 DEB payload/repository/lifecycle | |
 | `effective-package-install.py --family rpm --distro rocky-9 --arch amd64 --profile full` | same | Rocky RPM lifecycle/failure/reinstall | |
 | `effective-package-install.py --family rpm --distro fedora-current --arch amd64 --profile full` | same | Pinned Fedora current RPM lifecycle | |
 | `effective-package-install.py --family rpm --distro rocky-9 --arch arm64 --profile full` | same | Native arm64 RPM combined repository | |
-| `effective-package-vm.py --family deb --distro debian-12 --arch amd64 --profile full` | `scripts/evidence/` | Booted install, active/inactive/disabled/masked upgrade, failures, remove/reinstall/purge | |
+| `effective-package-vm.py --family deb --distro debian-12 --arch amd64 --profile full` | `internal/le/` | Booted install, active/inactive/disabled/masked upgrade, failures, remove/reinstall/purge | |
 | `effective-package-vm.py --family rpm --distro rocky-9 --arch amd64 --profile full` | same | Booted install, state matrix, failures, erase/reinstall | |
-| `effective-release-repro.py --channel stable --architectures amd64,arm64` | `scripts/evidence/` | Two isolated builds and exact binary/package/archive parity | |
-| `effective-release-staging.py --scenario stable` | `scripts/evidence/` | Stable journal-selected dispatch through dependency closure, all archives, immutable release, strict repository activation | |
+| `effective-release-repro.py --channel stable --architectures amd64,arm64` | `internal/le/` | Two isolated builds and exact binary/package/archive parity | |
+| `effective-release-staging.py --scenario stable` | `internal/le/` | Stable journal-selected dispatch through dependency closure, all archives, immutable release, strict repository activation | |
 | `effective-release-staging.py --scenario stable-dispatch-ambiguity` | same | Before-send, accepted-response-lost, rejected, delayed, duplicate-run journal reconciliation | |
 | `effective-release-staging.py --scenario dependency-closure` | same | Exact candidate closure success and missing/partial/stale/wrong-SHA/skipped/unknown rejection | |
 | `effective-release-staging.py --scenario stable-policy-negatives` | same | Future/stale/duplicate/moved/invalid stable tags all reject before dispatch | |
@@ -861,16 +861,16 @@ All Python unit symbols run through `make ze-release-unit-test`, defined as `pyt
 | `effective-release-staging.py --scenario manifest-architecture-negatives` | same | Forged closed manifest/artifact identity and cross-architecture substitutions reject | |
 | `effective-release-staging.py --scenario failures` | same | Every durable/final-action/activation transition and retry | |
 | `effective-release-staging.py --scenario freshness-replay` | same | APT expiry/future rejection, DNF cache bound, publisher replay rejection | |
-| `make ze-release-repository-tamper-test` (`python3 -m unittest scripts.release.test_repository.RepositoryTamperTest.test_clean_keyring_matrix`) | `scripts/release/` | Exact clean-keyring APT/RPM metadata/package/date/architecture/key/fingerprint mutations | |
+| `./le evidence release-candidate` (`python3 -m unittest scripts.release.test_repository.RepositoryTamperTest.test_clean_keyring_matrix`) | `internal/le/` | Exact clean-keyring APT/RPM metadata/package/date/architecture/key/fingerprint mutations | |
 | `effective-release-staging.py --scenario key-rotation` | same | Every trust-domain overlap/revocation/freeze | |
 | `effective-release-staging.py --scenario storage-isolation` | same | Bucket locks and denied stable/bootstrap/cross-bucket operations | |
 | `effective-release-staging.py --scenario retention` | same | Both lock and activation-epoch 30+7-day pruning, delayed staging, unfinished exclusion, stale-broker denial, stable denial | |
 | `effective-release-staging.py --scenario backup-restore` | same | Input, final, final-attestation, and refresh clean restore | |
 | `effective-release-staging.py --scenario archive-failures` | same | Every archive class missing/tampered/unlocked/unrestorable case blocks its exact transition and resumes idempotently | |
 | `effective-release-staging.py --scenario monitoring` | same | Thresholds, webhook, dedup, freeze, recovery, including healthy-plan-to-stale-broker denial | |
-| `effective-release-public.py --release <id> --network primary` | `scripts/evidence/` | `gh release verify`/`verify-asset`, stable/nightly visibility/latest fields, public APT/RPM install | |
+| `effective-release-public.py --release <id> --network primary` | `internal/le/` | `gh release verify`/`verify-asset`, stable/nightly visibility/latest fields, public APT/RPM install | |
 | `effective-release-public.py --release <id> --network independent` | GitHub `release-monitor.yml` | Independent release-specific verification plus generation/signature/install probe | |
-| `effective-release-public.py --release <id> --scenario canary-failures` | `scripts/evidence/` | Six isolated primary/independent GitHub/APT/RPM failures each freeze completion/docs/next publication, then all-leg recovery | |
+| `effective-release-public.py --release <id> --scenario canary-failures` | `internal/le/` | Six isolated primary/independent GitHub/APT/RPM failures each freeze completion/docs/next publication, then all-leg recovery | |
 
 ### AC-to-Test Matrix
 
@@ -910,7 +910,7 @@ All Python unit symbols run through `make ze-release-unit-test`, defined as `pyt
 | AC-32 | both retention units; both credential units; staging `retention` |
 | AC-33 | stable-delete/private-route unit; both retention units; staging `storage-isolation` |
 | AC-34 | both monitor units plus stale-clock credential unit; staging `monitoring` |
-| AC-35 | `DocumentationPolicyTest.test_user_and_operator_contract`; `make ze-doc-verify`; both successful public probes executing guide commands |
+| AC-35 | `DocumentationPolicyTest.test_user_and_operator_contract`; `./le doc-check verify`; both successful public probes executing guide commands |
 | AC-36 | `DependencyClosurePolicyTest.test_exact_candidate_closure`; `ActivationPolicyTest.test_dependency_canary_completion_gate`; public canary-failures scenario; all evidence/staging/successful public modes; signed first-public-canary record |
 
 ### Interop Tests
@@ -924,8 +924,8 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 
 ## Files to Modify
 
-- `Makefile` - include release targets and accept explicit deterministic metadata without changing local defaults.
-- `mk/test-release.mk` - versioned exact stable/nightly required sets, new release/package categories, canonical evidence manifest, no mandatory skip.
+- `internal/le/` native action tables - include release targets and accept explicit deterministic metadata without changing local defaults.
+- `internal/le/evidence/evidence.go` - versioned exact stable/nightly required sets, new release/package categories, canonical evidence manifest, no mandatory skip.
 - `internal/plugins/init/main.go`, `register.go`, and `main_test.go` - automatic bootstrap, safe existing-state validation, injected entropy/error seams, CLI help.
 - `internal/plugins/systemd/unit.go` and `unit_test.go` - canonical service semantics and vendor-unit parity.
 - `internal/component/doctor/checks_platform.go` - exact bounded `systemctl show` contract and package-managed auto-apply diagnostic.
@@ -954,7 +954,7 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 | Diagnostic registry | Yes | New registered `doctor-service-query` and `doctor-update-package-managed`; unit/`.ci`/`ze explain` coverage |
 | New daemon runtime dependency | No | Packages require systemd/CA certificates; Go daemon adds no external library/process dependency |
 | Prometheus metrics | No | Publisher metrics are external operational state, not daemon telemetry |
-| Release evidence | Yes | `mk/test-release.mk` and release evidence workflow |
+| Release evidence | Yes | `internal/le/evidence/evidence.go` and release evidence workflow |
 | Make help/discovery | Yes | Release targets, tool index, architecture/runbook links, script inventories |
 | Generated code/docs | Yes | Run the owning generators after command, script, and documentation changes |
 
@@ -977,7 +977,7 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 | 13 | Route metadata changed? | No | No route data |
 | 14 | Prometheus counters changed? | No | External publisher monitor uses its own operational contract |
 | 15 | Runtime inventory changed? | Yes | Update generated command/diagnostic/package maps as required |
-| 16 | Changed source referenced by docs? | Yes | Refresh source anchors for Makefile, init, systemd, doctor, config-system, and release scripts |
+| 16 | Changed source referenced by docs? | Yes | Refresh source anchors for the native action tables under `internal/le/`, init, systemd, doctor, config-system, and release scripts |
 | 17 | Existing docs show examples? | Yes | Quickstart, Ubuntu install, installation, operations, self-update, command reference |
 | 18 | Operator infrastructure changed? | Yes | Provisioning, key ceremony, App scopes, backup/restore, monitoring, failure recovery |
 
@@ -988,7 +988,7 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 - `.github/workflows/release-attest.yml` - non-executing `workflow_run` custom upstream provenance and SPDX attestations.
 - `.github/workflows/release-evidence.yml` - reusable exact-SHA candidate execution with no persisted token plus isolated protected recorder/check job.
 - `.github/workflows/release-monitor.yml` - hourly read-only independent public probe.
-- `mk/release.mk` - exact unit/repro/policy/repository-bootstrap/repository-tamper/staging/public targets and Make help.
+- `internal/le/evidence/evidence.go` - exact unit/repro/policy/repository-bootstrap/repository-tamper/staging/public targets and Make help.
 - `internal/component/config/system/backend_package_managed.go`, `backend_package_managed_test.go` - registered marker-selected backend.
 - `internal/component/doctor/checks_platform_systemd_test.go` - injected exact systemctl/diagnostic tests.
 - `internal/plugins/update-cmd/cmd/firmware_test.go` - real handler package-backend tests.
@@ -1009,12 +1009,12 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 - `packaging/publisher/ze-release-prune.service`, `.timer`, `ze-release-credential-broker@.service` - daily metadata-first orchestration plus root-only local exact-object delete-credential mint and sandboxed child.
 - `packaging/publisher/ze-release-monitor.service`, `.timer` - five-minute clock/readiness/freshness/archive monitor.
 - `packaging/publisher/ze-release.conf.example` - non-secret endpoints/paths plus credential names.
-- `scripts/release/model.py`, `manifest.py`, `build.py`, `attestation.py`, `evidence.py`, `dependencies.py` - identity/build, protected artifact/check routing, dependency closure, and versioned input/evidence/attestation contracts.
-- `scripts/release/repository.py`, `storage.py`, `credentials.py`, `mirror.py`, `publish.py`, `retention.py`, `monitor.py` - repositories/tamper validation, five-bucket/prefix-lock policy, brokered credentials, forge dispatch journal/publisher state, pruning/alerts.
-- `scripts/release/preflight.py`, `install_publisher.py` - infrastructure/API/clock/dependency/canary denied probes and idempotent VPS deployment without private material.
-- `scripts/release/test_model.py`, `test_build.py`, `test_manifest.py`, `test_evidence.py`, `test_mirror.py`, `test_attestation.py`, `test_repository.py`, `test_storage.py`, `test_credentials.py`, `test_publish.py`, `test_retention.py`, `test_package_policy.py`, `test_keys.py`, `test_monitor.py`, `test_docs.py` - exact Python unit suites.
-- `scripts/evidence/effective-package-install.py`, `effective-package-vm.py` - six native-manager cells and two full booted-systemd lifecycles.
-- `scripts/evidence/effective-release-repro.py`, `effective-release-staging.py`, `effective-release-public.py` - reproducibility, all staged scenarios, public dual-network canary.
+- `internal/le/evidence/`, `manifest.py`, `build.py`, `attestation.py`, `evidence.py`, `dependencies.py` - identity/build, protected artifact/check routing, dependency closure, and versioned input/evidence/attestation contracts.
+- `internal/le/evidence/`, `storage.py`, `credentials.py`, `mirror.py`, `publish.py`, `retention.py`, `monitor.py` - repositories/tamper validation, five-bucket/prefix-lock policy, brokered credentials, forge dispatch journal/publisher state, pruning/alerts.
+- `internal/le/evidence/`, `install_publisher.py` - infrastructure/API/clock/dependency/canary denied probes and idempotent VPS deployment without private material.
+- `internal/le/evidence/`, `test_build.py`, `test_manifest.py`, `test_evidence.py`, `test_mirror.py`, `test_attestation.py`, `test_repository.py`, `test_storage.py`, `test_credentials.py`, `test_publish.py`, `test_retention.py`, `test_package_policy.py`, `test_keys.py`, `test_monitor.py`, `test_docs.py` - exact Python unit suites.
+- `internal/le/deployment/`, `effective-package-vm.py` - six native-manager cells and two full booted-systemd lifecycles.
+- `internal/le/deployment/`, `effective-release-staging.py`, `effective-release-public.py` - reproducibility, all staged scenarios, public dual-network canary.
 - `test/install/package-bootstrap.ci`, `package-doctor-unit.ci`, `package-self-update-guard.ci`, `test/ui/init-automatic-help.ci` - end-user command wiring.
 - `docs/guide/package-install.md` - trust/repo/install/nightly/downgrade/lifecycle/recovery guide.
 - `docs/architecture/release-distribution.md` - producers, trust, evidence, buckets, state, freshness/replay boundary.
@@ -1030,7 +1030,7 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 | 2. Audit | Current Behavior, Files to Modify/Create, external tool lock |
 | 3. Wiring phase | Wiring Test table, new Make targets, workflow dry-run entry points, failing bootstrap `.ci` |
 | 4. Implement TDD | Phases below |
-| 5. Full verification | Focused tests, package matrix, QEMU VM, `make ze-precommit-verify`, exact release evidence |
+| 5. Full verification | Focused tests, package matrix, QEMU VM, `./le verify current mode full`, exact release evidence |
 | 6. Critical review | Critical Review Checklist |
 | 7. Fix issues | Every blocker/issue |
 | 8. Re-verify | Repeat exact affected and full gates |
@@ -1201,7 +1201,7 @@ Each phase uses test-first development and ends with a self-critical review.
 
 | Question | Answer |
 |----------|--------|
-| Simplicity: is this the minimum system that meets the goal? | Yes. GitHub owns direct immutable downloads and attestations; object storage serves standard static repositories; nFPM only assembles packages; short-lived scripts/timers replace an always-running package service. The extra private archive, state journal, and monitor exist because signed publication is not recoverable or safely operable without them. |
+| Simplicity: is this the minimum system that meets the goal? | Yes. GitHub owns direct immutable downloads and attestations; object storage serves standard static repositories; nFPM only assembles packages; short-lived internal/le/ replace an always-running package service. The extra private archive, state journal, and monitor exist because signed publication is not recoverable or safely operable without them. |
 | Uniformity: does this match Ze's existing producers and ownership? | Yes. `feature-gates.txt`/Make remain the build source, init owns zefs bootstrap, systemd owns unit semantics, config-system owns updater mutation, doctor owns readiness diagnostics, and release evidence extends the existing Make category model. No second runtime config or plugin communication mechanism is introduced. |
 | Performance: does this harm Ze runtime constraints? | No. Release work is offline. Runtime changes are cold-path startup/command checks for a small package marker and a bounded doctor subprocess. No wire hot path, per-update allocation, or daemon polling loop changes. |
 
@@ -1270,7 +1270,7 @@ Not applicable. This spec does not add or change a network protocol.
 
 ### Documentation Updates
 
-- Fill during implementation with source anchors and `make ze-doc-verify` evidence.
+- Fill during implementation with source anchors and `./le doc-check verify` evidence.
 
 ### Deviations from Plan
 
@@ -1401,8 +1401,8 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] `spec-release-evidence-gate.md` is complete and exact stable evidence passes.
 - [ ] `spec-release-audit-0-umbrella.md` and blocking child findings are complete.
 - [ ] `/ze-review-spec` and final `/ze-review` are clean.
-- [ ] `make ze-precommit-verify` and `make ze-lint-changed` pass.
-- [ ] `make ze-evidence-release-verify` passes with no mandatory skip on the exact stable SHA.
+- [ ] `./le verify current mode full` and `./le changed scope` pass.
+- [ ] `./le evidence release-candidate` passes with no mandatory skip on the exact stable SHA.
 - [ ] Package container and booted QEMU VM matrices pass for required distro/architecture/policy cases.
 - [ ] Staging stable/nightly/attestation-race/failure/freshness/storage/key-rotation/retention/monitoring/restore exercises pass.
 - [ ] Infrastructure preflight, dependency closure, raw/API-policy denials, five-bucket/three-domain prefix locks and brokered credentials, clock/monitor thresholds, input/final/final-attestation/refresh archive inventory, and clean-room restore pass.
@@ -1437,7 +1437,7 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] Tests fail for the intended missing behavior.
 - [ ] Tests pass after implementation.
 - [ ] Tests FAIL first and Tests PASS after, with output pasted per phase (`ai/rules/testing.md`).
-- [ ] `make ze-standard-test` passes (lint + all ze tests) in addition to the release gates above.
+- [ ] `./le verify current mode full` passes (lint + all ze tests) in addition to the release gates above.
 - [ ] Boundary tests cover syntax/trusted date/clock, entropy, doctor deadline/output, SHA, size, path/envelope, workflow artifact/evidence sets, cache/freshness, retention credentials/batches, key/monitor thresholds, scriptlet count, storage/architecture/generation, and one-per-day limits.
 - [ ] Functional tests cover every user/operator entry point and every AC maps to exact evidence.
 - [ ] Six native package-manager cells and two full booted-systemd lifecycle tests pass.

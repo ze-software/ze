@@ -13,9 +13,9 @@ COPY . .
 # The `start` root command (which the lab launches ze with) and every
 # compile-out-able feature are tag-gated, so an UNTAGGED build has neither: it
 # answers `start` with "unknown command" and would not carry PPPoE even if it
-# booted. Derive the default-on tags from feature-gates.txt -- the same single
-# source of truth Makefile ZE_FEATURES, test/interop/Dockerfile.ze and
-# test/interop-l2tp/Dockerfile.ze read -- so this image cannot drift from the
+# booted. Derive the default-on tags from feature-gates.txt, the same source
+# consumed by the native build adapters, test/interop/Dockerfile.ze, and
+# test/interop-l2tp/Dockerfile.ze, so this image cannot drift from the
 # shipped binary's feature set.
 #
 # This was the third of the three interop images to carry the untagged build.

@@ -34,87 +34,11 @@ option=timeout:value=15s
 # content -- its editor/SSH assertions and expect=exit:code=0 are what it proves.
 EOF_PEER
 
-# Python test plugin: verifies SSH server starts with config wiring
-tmpfs=ssh-session-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: SSH server starts with config editing support."""
-
-import socket
-import sys
-from ze_api import API
-
-
-def dispatch(api, command):
-    """Call dispatch-command and return result dict."""
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def _ssh_banner_ok(host, port):
-    try:
-        s = socket.create_connection((host, port), timeout=2)
-        banner = s.recv(256)
-        s.close()
-        return b'SSH' in banner
-    except (OSError, TimeoutError):
-        return False
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for the SSH server to accept a connection and emit its SSH banner
-    # (deterministic replacement for a blind settle sleep).
-    api.wait_until(lambda: _ssh_banner_ok('127.0.0.1', 2223))
-
-    # Verify SSH port is reachable (server started with config wiring)
-    ssh_ok = False
-    for port in [2223]:
-        try:
-            s = socket.create_connection(('127.0.0.1', port), timeout=2)
-            # Read SSH banner to confirm it's actually an SSH server
-            banner = s.recv(256)
-            s.close()
-            if b'SSH' in banner:
-                ssh_ok = True
-                print(f'OK: SSH server listening on port {port}', file=sys.stderr)
-                break
-        except (ConnectionRefusedError, OSError, TimeoutError):
-            continue
-
-    if not ssh_ok:
-        print('FAIL: SSH server not reachable on expected port', file=sys.stderr)
-        sys.exit(1)
-
-    # Verify daemon is operational via dispatch
-    r = dispatch(api, 'show bgp peer list')
-    status = r.get('status')
-    if status != 'done':
-        print(f'FAIL: dispatch status={status}', file=sys.stderr)
-        sys.exit(1)
-
-    print('OK: SSH server running with config editing support', file=sys.stderr)
-
-    # Shutdown
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze bgp configuration with SSH and authentication
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external ssh-session-test {
-		run ./ssh-session-test.run
+		run "ze-test fixture plugin/config-edit-ssh-session $PORT2"
 		encoder json
 	}
 }
@@ -132,7 +56,7 @@ environment {
 		enabled true
 		server main {
 			ip 127.0.0.1;
-			port 2223;
+			port $PORT2;
 		}
 	}
 }

@@ -130,7 +130,7 @@ func (p *Peer) runBFDSubscriber(
 				// RFC 4271 Event 8 (AutomaticStop): the local system, not the operator,
 				// decided to stop this peer, so the ConnectRetryCounter must count the
 				// attempt rather than be zeroed (fsm/connect_retry_counter.go).
-				if err := p.TeardownAutomatic(message.NotifyCeaseBFDDown, "BFD detected forwarding path down"); err != nil {
+				if err := p.teardownAutomatic(message.NotifyCeaseBFDDown, "BFD detected forwarding path down"); err != nil {
 					peerLogger().Debug("bfd-driven teardown failed",
 						"peer", p.settings.Address, "err", err)
 				}

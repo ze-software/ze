@@ -12,9 +12,9 @@ import (
 // newReactorForSnapshot builds a reactor with no listener, suitable for
 // driving Snapshot / teardown tests without UDP. The listener pointer is
 // left nil; snapshot code guards against it.
-func newReactorForSnapshot(t *testing.T) *L2TPReactor {
+func newReactorForSnapshot(t *testing.T) *l2tpReactor {
 	t.Helper()
-	return &L2TPReactor{
+	return &l2tpReactor{
 		logger: slog.Default(),
 		params: reactorParams{
 			Clock: func() time.Time { return time.Unix(1000, 0).UTC() },
@@ -29,7 +29,7 @@ func newReactorForSnapshot(t *testing.T) *L2TPReactor {
 
 // insertEstablishedTunnel wires a tunnel in the Established state with
 // optional sessions, so snapshot tests can assert against a known shape.
-func insertEstablishedTunnel(t *testing.T, r *L2TPReactor, localTID, remoteTID uint16, peer netip.AddrPort, sessions ...*L2TPSession) {
+func insertEstablishedTunnel(t *testing.T, r *l2tpReactor, localTID, remoteTID uint16, peer netip.AddrPort, sessions ...*L2TPSession) {
 	t.Helper()
 	tun := newTunnel(localTID, remoteTID, peer,
 		ReliableConfig{MaxRetransmit: 3, RTimeout: time.Second, RTimeoutCap: 4 * time.Second, RecvWindow: 4},
@@ -134,11 +134,11 @@ func TestLookupTunnelAndSession(t *testing.T) {
 func TestTeardownUnknownIDReturnsError(t *testing.T) {
 	r := newReactorForSnapshot(t)
 
-	err := r.TeardownTunnelByID(999)
+	err := r.teardownTunnelByID(999)
 	require.ErrorIs(t, err, ErrTunnelNotFound)
 	require.Contains(t, err.Error(), "999")
 
-	err = r.TeardownSessionByID(999)
+	err = r.teardownSessionByID(999)
 	require.ErrorIs(t, err, ErrSessionNotFound)
 	require.Contains(t, err.Error(), "999")
 }
@@ -147,8 +147,8 @@ func TestTeardownUnknownIDReturnsError(t *testing.T) {
 func TestTeardownRejectsZeroID(t *testing.T) {
 	r := newReactorForSnapshot(t)
 
-	require.ErrorIs(t, r.TeardownTunnelByID(0), ErrInvalidID)
-	require.ErrorIs(t, r.TeardownSessionByID(0), ErrInvalidID)
+	require.ErrorIs(t, r.teardownTunnelByID(0), ErrInvalidID)
+	require.ErrorIs(t, r.teardownSessionByID(0), ErrInvalidID)
 }
 
 // VALIDATES: FormatFraming renders RFC 2661 bitmap values the CLI

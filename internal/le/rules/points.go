@@ -4,7 +4,7 @@
 // Detail: render.go -- the read side, which turns a point tree back into a rule
 // Detail: coverage.go -- the join that reads these points by id
 //
-// points.go is the split-and-render half of scripts/dev/rules_points.py.
+// points.go is the split-and-render half of internal/le/rules/points.go.
 //
 // Each instruction becomes a checked-in file whose PATH is its id. The rendered
 // ai/rules/<rule>.md comes from those files. Thus, agents read the same bytes as
@@ -186,9 +186,9 @@ func (s Split) IDs() []string {
 	return out
 }
 
-// ManifestSection is one section line of a manifest: the directory, the
+// manifestSectionSpec is one section line of a manifest: the directory, the
 // heading, and the point slugs under it.
-type ManifestSection struct {
+type manifestSectionSpec struct {
 	Slug    string
 	Heading string
 	Tight   bool
@@ -267,7 +267,7 @@ func blockRanges(lines []string, start int) [][2]int {
 // sectionHeadings answers all `##` headings outside fenced blocks, in order.
 //
 // It derives them independently from RENDERED bytes. blockRanges decides the
-// same issue during the split. RenderDir compares both answers. A heading
+// same issue during the split. renderDir compares both answers. A heading
 // swallowed by the splitter is invisible to other gates because rendered bytes
 // remain equal. Agreement between these derivations is the available evidence.
 func sectionHeadings(lines []string) []string {
@@ -504,9 +504,9 @@ func verifyPartition(lines []string, split Split) error {
 	return nil
 }
 
-// SplitRule partitions one rendered rule into a header and an ordered list of
+// splitRule partitions one rendered rule into a header and an ordered list of
 // points.
-func SplitRule(text, stem string) (Split, error) {
+func splitRule(text, stem string) (Split, error) {
 	var split Split
 	lines, err := bodyLines(text, stem)
 	if err != nil {
@@ -597,7 +597,7 @@ func SplitRule(text, stem string) (Split, error) {
 //
 // A section emits its heading line from the MANIFEST, verbatim, then its
 // points' bodies. Every block is separated by exactly one blank line, which is
-// the property blockRanges and SplitRule between them guarantee. A tight
+// the property blockRanges and splitRule between them guarantee. A tight
 // section is the one exception, and it is recorded rather than guessed.
 func RenderText(header map[string]string, sections []Section) string {
 	var tb textbuf.Buffer
@@ -666,16 +666,16 @@ func frontmatter(text, what string) (map[string]string, []string, error) {
 	return fields, lines[end+1:], nil
 }
 
-// FormatPoint renders one point as a file: a frontmatter header, then the body
+// formatPoint renders one point as a file: a frontmatter header, then the body
 // verbatim.
 //
-// FormatPoint always writes kind, level, and stage, including empty values. The
+// formatPoint always writes kind, level, and stage, including empty values. The
 // split derives all three. An absent line would make the write lossy.
 //
 // It writes rationale and excepted-by ONLY when they carry a value. The split
 // cannot derive these fields. An empty line would falsely claim that the point
 // was examined but has no link.
-func FormatPoint(point Point) string {
+func formatPoint(point Point) string {
 	var tb textbuf.Buffer
 	head := []string{delim}
 	for _, field := range [][2]string{
@@ -702,8 +702,8 @@ func FormatPoint(point Point) string {
 	return tb.Join(head, "\n").Byte('\n').String()
 }
 
-// ParsePoint reads one point file. It is the inverse of FormatPoint.
-func ParsePoint(text, slug string) (Point, error) {
+// parsePoint reads one point file. It is the inverse of formatPoint.
+func parsePoint(text, slug string) (Point, error) {
 	var tb textbuf.Buffer
 	fields, body, err := frontmatter(text, slug)
 	if err != nil {
@@ -741,13 +741,13 @@ func ParsePoint(text, slug string) (Point, error) {
 	}, nil
 }
 
-// ExceptionRefs answers the point ids an `excepted-by` value names, in the
+// exceptionRefs answers the point ids an `excepted-by` value names, in the
 // order it names them.
 //
 // An empty element is dropped instead of kept as an empty ref. A trailing comma
 // is a separator typo, not a claim about a point. An empty ref would make the
 // gate fail with a message that names nothing.
-func ExceptionRefs(raw string) []string {
+func exceptionRefs(raw string) []string {
 	var out []string
 	for ref := range strings.SplitSeq(raw, ",") {
 		if trimmed := strings.TrimSpace(ref); trimmed != "" {
@@ -757,9 +757,9 @@ func ExceptionRefs(raw string) []string {
 	return out
 }
 
-// FormatManifest renders the manifest: the rule's spine in the header, the
+// formatManifest renders the manifest: the rule's spine in the header, the
 // whole tree as body.
-func FormatManifest(split Split) string {
+func formatManifest(split Split) string {
 	var tb textbuf.Buffer
 	head := []string{delim}
 	for _, field := range [][2]string{
@@ -790,13 +790,13 @@ func FormatManifest(split Split) string {
 	return tb.Join(head, "\n").Byte('\n').String()
 }
 
-// ParseManifest reads a manifest into its header fields and its ordered section
+// parseManifest reads a manifest into its header fields and its ordered section
 // tree.
 //
 // A body line that matches neither shape is an error, not a skip. A skipped line
 // is an instruction that stops appearing in rendered output. This design exists
 // to prevent that failure.
-func ParseManifest(text, stem string) (map[string]string, []ManifestSection, error) {
+func parseManifest(text, stem string) (map[string]string, []manifestSectionSpec, error) {
 	var tb textbuf.Buffer
 	where := tb.Str(stem).Str("/").Str(manifestName).String()
 	fields, body, err := frontmatter(text, where)
@@ -822,7 +822,7 @@ func ParseManifest(text, stem string) (map[string]string, []ManifestSection, err
 		}
 	}
 
-	var sections []ManifestSection
+	var sections []manifestSectionSpec
 	for number, line := range body {
 		if point := manifestPoint.FindStringSubmatch(line); point != nil {
 			if len(sections) == 0 {
@@ -842,7 +842,7 @@ func ParseManifest(text, stem string) (map[string]string, []ManifestSection, err
 				Str(": ").Str(pyRepr(line)).
 				Str(" is neither a section line ('<dir-slug> ## Heading') nor an indented point slug").String())
 		}
-		sections = append(sections, ManifestSection{
+		sections = append(sections, manifestSectionSpec{
 			Slug: section[2], Heading: section[3], Tight: section[1] != "",
 		})
 	}
@@ -868,9 +868,9 @@ func refuseStale(stem, where string, stale []string) error {
 		Str(", which this split does not produce; remove them by hand or split into a clean directory").String())
 }
 
-// WriteSplit writes the manifest, then one file per point under
+// writeSplit writes the manifest, then one file per point under
 // `<stem>/<section>/`.
-func WriteSplit(split Split, outDir string) error {
+func writeSplit(split Split, outDir string) error {
 	ruleDir := filepath.Join(outDir, split.Stem)
 	if err := os.MkdirAll(ruleDir, 0o750); err != nil {
 		return err
@@ -897,7 +897,7 @@ func WriteSplit(split Split, outDir string) error {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(ruleDir, manifestName), []byte(FormatManifest(split)), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(ruleDir, manifestName), []byte(formatManifest(split)), 0o600); err != nil {
 		return err
 	}
 	var tb textbuf.Buffer
@@ -934,7 +934,7 @@ func WriteSplit(split Split, outDir string) error {
 		for _, point := range section.Points {
 			tb.Reset()
 			path := filepath.Join(sectionDir, tb.Str(point.Slug).Str(".md").String())
-			if err := os.WriteFile(path, []byte(FormatPoint(point)), 0o600); err != nil {
+			if err := os.WriteFile(path, []byte(formatPoint(point)), 0o600); err != nil {
 				return err
 			}
 		}

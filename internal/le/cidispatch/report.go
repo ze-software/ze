@@ -1,4 +1,4 @@
-// Design: docs/architecture/cli/command-namespacing.md -- the call-site gate's answer
+// Design: docs/architecture/cli/command-namespacing.md -- call-site checks
 //
 // report.go holds what `le ci-dispatch check` ANSWERS, apart from what produced
 // it.
@@ -12,20 +12,18 @@ package cidispatch
 
 import "github.com/ze-software/ze/internal/core/textbuf"
 
-// The two kinds a finding can be. They are the script's own spellings, and they
-// are what `| match dead` selects on.
+// The two kinds a finding can be. They are what `| match dead` selects.
 const (
 	// KindDead is a command string the dispatcher answers ErrUnknownCommand
 	// for. The migration deleted its key.
 	KindDead = "dead"
 	// KindUnverifiable is a computed command with no static prefix to check.
-	// It fails as loudly as a dead one: staying silent on a string the gate
-	// could not read is the same blind spot in a new place.
+	// It fails as loudly as a dead one because an unread command is not proof
+	// that the call site is valid.
 	KindUnverifiable = "unverifiable"
 )
 
-// Finding is one emitter that does not resolve, and it is one ROW of the
-// check's answer. The keys are the script's, unchanged.
+// Finding is one emitter that does not resolve and one row of the answer.
 type Finding struct {
 	File    string `json:"file"`
 	Line    int    `json:"line"`
@@ -35,8 +33,7 @@ type Finding struct {
 	Detail  string `json:"detail,omitempty"`
 }
 
-// Report is the whole answer of one check. The keys are the script's --json
-// document, unchanged.
+// Report is the whole structured answer of one check.
 type Report struct {
 	SchemaVersion   int       `json:"schema-version"`
 	CommandsKnown   int       `json:"commands-known"`
@@ -52,14 +49,14 @@ func (r Report) Valid() bool { return len(r.Findings) == 0 }
 // entry per finding, then the verdict. It ends in a newline.
 func (r Report) Text() string {
 	var tb textbuf.Buffer
-	tb.Str("# Dispatch Command Call-Site Gate\n\n")
+	tb.Str("# Dispatch Command Call-Site Check\n\n")
 	tb.Str("Registered commands: ").Int(int64(r.CommandsKnown)).Byte('\n')
 	tb.Str("Emitters checked:    ").Int(int64(r.EmittersChecked)).Byte('\n')
 	tb.Str("Pass-through (var):  ").Int(int64(r.PassThrough)).Byte('\n')
 	tb.Byte('\n')
 
 	if len(r.Findings) == 0 {
-		tb.Str("ci-dispatch-check: OK\n")
+		tb.Str("ci-dispatch check: OK\n")
 		return tb.String()
 	}
 
@@ -77,7 +74,7 @@ func (r Report) Text() string {
 		tb.Str("    ").Str(finding.Detail).Byte('\n')
 	}
 	tb.Byte('\n')
-	tb.Str("ci-dispatch-check: FAIL (").Int(int64(dead)).
+	tb.Str("ci-dispatch check: FAIL (").Int(int64(dead)).
 		Str(" dead, ").Int(int64(unverifiable)).Str(" unverifiable)\n")
 	return tb.String()
 }

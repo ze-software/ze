@@ -36,54 +36,11 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=20s
 
-tmpfs=firewall-irr-update.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify update firewall irr fetches and caches IRR data."""
-import json
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Fetch IRR data for AS-SET (mock server knows AS-TEST).
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    status = result.get('status', '')
-    if status != 'done':
-        runtime_fail(f'update firewall irr as-set: status={status}')
-
-    data = result_json_data(result, {})
-    if 'ipv4-count' not in data:
-        runtime_fail(f'update response missing ipv4-count: {data}')
-
-    v4 = data.get('ipv4-count', 0)
-    if v4 < 1:
-        runtime_fail(f'expected at least 1 v4 prefix, got {v4}')
-
-    print(f'OK: update firewall irr as-set AS-TEST: v4={v4}', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-update-test {
-		run ./firewall-irr-update.run
+		run "ze-test fixture plugin/firewall-irr-update"
 		encoder json
 	}
 }

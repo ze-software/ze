@@ -23,79 +23,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=bfd-json-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify `show bfd sessions` returns valid structured JSON, not a pre-serialized string."""
-
-import json
-import sys
-import time
-
-from ze_api import API, runtime_fail, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = api.dispatch_until_done('show bfd sessions')
-    if r is None or r.get('status') != 'done':
-        status = r.get('status') if r else 'nil'
-        runtime_fail(f'show bfd sessions: status={status}')
-
-    raw = result_text_data(r)
-    if not raw:
-        runtime_fail('show bfd sessions: empty data')
-
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'show bfd sessions: invalid JSON: {exc}: {raw[:200]}')
-        return
-
-    if not isinstance(parsed, list):
-        runtime_fail(f'show bfd sessions: expected list, got {type(parsed).__name__}')
-
-    if len(parsed) < 1:
-        runtime_fail(f'show bfd sessions: expected at least 1 session, got {len(parsed)}')
-
-    for s in parsed:
-        if not isinstance(s, dict):
-            runtime_fail(f'show bfd sessions: element is {type(s).__name__}, not dict')
-            continue
-        for key in ('peer', 'state', 'mode', 'local-discriminator'):
-            if key not in s:
-                runtime_fail(f'show bfd sessions: missing field {key} in {s.get("peer", "?")}')
-
-    # Verify no double-encoding (string containing escaped JSON)
-    if raw.startswith('"') and raw.endswith('"'):
-        runtime_fail(f'show bfd sessions: data is double-encoded string: {raw[:100]}')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
 	external bfd-json-show-test {
-		run ./bfd-json-show.run
+		run "ze-test fixture plugin/bfd-json-show"
 		encoder json
 	}
 }

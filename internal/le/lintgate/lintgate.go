@@ -62,6 +62,7 @@ type LintPlan struct {
 	Coverage       Coverage   `json:"coverage"`
 	TaglessConfig  string     `json:"tagless-config,omitempty"`
 	NeedsTagless   bool       `json:"-"`
+	reportCoverage bool
 	configContents []byte
 }
 
@@ -229,14 +230,42 @@ func commandStartError(err error) error {
 	return err
 }
 
-// Plan derives every flavor package scope and the tracked-file coverage answer.
-// An empty command population or empty tracked population is an error, never a
-// successful lint over nothing.
+// Plan derives the full-tree flavor package scope and tracked-file coverage
+// answer.
 func (r *Runner) Plan() (LintPlan, error) {
+	return r.plan([]string{packageRoot}, true)
+}
+
+// planScope derives the same ordered matrix over the package patterns supplied
+// by a scoped verify run. Coverage is meaningful only when that scope is
+// exactly ./..., matching the former producer's explicit --scope ./... route.
+func (r *Runner) planScope(patterns []string) (LintPlan, error) {
+	reportCoverage := len(patterns) == 1 && patterns[0] == packageRoot
+	return r.plan(patterns, reportCoverage)
+}
+
+func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) {
+	features := make([]string, 0, len(r.configTags))
+	for _, tag := range r.configTags {
+		if tag != "ze_core" {
+			features = append(features, tag)
+		}
+	}
+	flavors := flavorMatrix(features)
+	passes := make([]PassPlan, 0, len(basePasses())+len(flavors))
+	if len(patterns) == 0 {
+		for _, flavor := range basePasses() {
+			passes = append(passes, r.passPlan(flavor, nil, true))
+		}
+		for _, flavor := range flavors {
+			passes = append(passes, r.passPlan(flavor, nil, true))
+		}
+		return LintPlan{Passes: passes}, nil
+	}
+
 	seen := make(map[string]bool)
-	passes := make([]PassPlan, 0, len(basePasses())+len(flavorMatrix(nil)))
 	for _, flavor := range basePasses() {
-		packages, files, err := r.goList(flavor)
+		packages, files, err := r.goList(flavor, patterns)
 		if err != nil {
 			return LintPlan{}, err
 		}
@@ -246,17 +275,11 @@ func (r *Runner) Plan() (LintPlan, error) {
 		for path := range files {
 			seen[path] = true
 		}
-		passes = append(passes, r.passPlan(flavor, []string{packageRoot}, false))
+		passes = append(passes, r.passPlan(flavor, patterns, false))
 	}
 
-	features := make([]string, 0, len(r.configTags))
-	for _, tag := range r.configTags {
-		if tag != "ze_core" {
-			features = append(features, tag)
-		}
-	}
-	for _, flavor := range flavorMatrix(features) {
-		packages, files, err := r.goList(flavor)
+	for _, flavor := range flavors {
+		packages, files, err := r.goList(flavor, patterns)
 		if err != nil {
 			return LintPlan{}, err
 		}
@@ -279,14 +302,19 @@ func (r *Runner) Plan() (LintPlan, error) {
 		passes = append(passes, r.passPlan(flavor, scope, len(scope) == 0))
 	}
 
-	coverage, err := r.coverage(seen)
-	if err != nil {
-		return LintPlan{}, err
+	var coverage Coverage
+	if reportCoverage {
+		var err error
+		coverage, err = r.coverage(seen)
+		if err != nil {
+			return LintPlan{}, err
+		}
 	}
 	plan := LintPlan{
 		Passes:         passes,
 		Coverage:       coverage,
 		TaglessConfig:  filepath.Join(r.root, filepath.FromSlash(taglessDir), taglessName+strconv.Itoa(os.Getpid())+".yml"),
+		reportCoverage: reportCoverage,
 		configContents: slices.Clone(r.config),
 	}
 	for index := range plan.Passes {
@@ -299,9 +327,10 @@ func (r *Runner) Plan() (LintPlan, error) {
 	return plan, nil
 }
 
-func (r *Runner) goList(flavor Flavor) (map[string]map[string]bool, map[string]bool, error) {
+func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string]bool, map[string]bool, error) {
 	tags := r.effectiveTags(flavor)
-	argv := []string{"go", "list", "-e", "-tags", strings.Join(tags, " "), "-f", listTemplate, packageRoot}
+	argv := []string{"go", "list", "-e", "-tags", strings.Join(tags, " "), "-f", listTemplate}
+	argv = append(argv, patterns...)
 	environment := r.toolchain.Environment(gotoolchain.EnvOptions{
 		MemLimit: true,
 		GOOS:     flavor.GOOS,
@@ -581,11 +610,18 @@ func deriveTaglessConfig(config []byte) ([]byte, error) {
 	return []byte(output.String()), nil
 }
 
-// Run executes every non-empty pass in matrix order and returns the first
-// failure code. Empty flavor scopes are recorded as skipped and never handed to
-// golangci-lint.
+// Run executes the full-tree matrix and returns the first failure code. Empty
+// flavor scopes are recorded as skipped and never handed to golangci-lint.
 func (r *Runner) Run() (Report, int) {
-	plan, err := r.Plan()
+	return r.runPlan(r.Plan())
+}
+
+// runScope executes the matrix over exactly the supplied package patterns.
+func (r *Runner) runScope(patterns []string) (Report, int) {
+	return r.runPlan(r.planScope(patterns))
+}
+
+func (r *Runner) runPlan(plan LintPlan, err error) (Report, int) {
 	if err != nil {
 		report := Report{Code: cannotPlan, Error: err.Error()}
 		if writeErr := writeLintf(os.Stderr, "lint: %v\n", err); writeErr != nil {
@@ -598,6 +634,13 @@ func (r *Runner) Run() (Report, int) {
 
 func (r *Runner) execute(plan LintPlan) (Report, int) {
 	report := Report{Passes: make([]PassResult, 0, len(plan.Passes)), Coverage: plan.Coverage}
+	reportCoverage := plan.reportCoverage ||
+		plan.Coverage.Population != 0 ||
+		plan.Coverage.Selected != 0 ||
+		len(plan.Coverage.Blind) != 0 ||
+		len(plan.Coverage.Unexpected) != 0 ||
+		len(plan.Coverage.Healed) != 0 ||
+		plan.Coverage.Code != 0
 	var errorText textbuf.Buffer
 	if plan.NeedsTagless {
 		derived, err := deriveTaglessConfig(plan.configContents)
@@ -664,13 +707,13 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 		}
 	}
 
-	if outputReady {
+	if outputReady && reportCoverage {
 		if err := renderCoverage(plan.Coverage); err != nil {
 			recordLintOutputError(&report, "write lint coverage", err)
 			outputReady = false
 		}
 	}
-	if plan.Coverage.Code != 0 && report.Code == 0 {
+	if reportCoverage && plan.Coverage.Code != 0 && report.Code == 0 {
 		report.Code = plan.Coverage.Code
 	}
 	if outputReady && len(flavorFailures) != 0 {
@@ -735,7 +778,7 @@ func renderCoverage(coverage Coverage) error {
 		}
 	}
 	if len(coverage.Unexpected) != 0 {
-		return writeLintf(os.Stderr, "lint_flavors: %d tracked Go file(s) are linted by nothing. Add the flavor that selects them, or state the reason in RESIDUE (scripts/dev/lint_flavors.py).\n", len(coverage.Unexpected))
+		return writeLintf(os.Stderr, "lint_flavors: %d tracked Go file(s) are linted by nothing. Add the flavor that selects them, or state the reason in RESIDUE (internal/le/lintgate/matrix.go).\n", len(coverage.Unexpected))
 	}
 	if len(coverage.Healed) != 0 {
 		return writeLintf(os.Stderr, "lint_flavors: %d RESIDUE entr(y|ies) are now linted: %s. Delete the entry -- a stated remainder that is no longer a remainder hides the next one.\n", len(coverage.Healed), strings.Join(coverage.Healed, ", "))

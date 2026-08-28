@@ -71,7 +71,7 @@ Four unrelated per-packet metadata types were reported: `transport.Inbound`
 
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - component isolation and where a shared transport would belong
-- [ ] `ai/rules/architecture.md` - tier rules. A shared receive path is a candidate `internal/core` leaf, and its placement decides whether `make ze-tier-check` passes
+- [ ] `ai/rules/architecture.md` - tier rules. A shared receive path is a candidate `internal/core` leaf, and its placement decides whether `./le tier check` passes
 - [ ] `ai/rules/no-layering.md` - delete X before implementing Y
 - [ ] `ai/rules/goroutine-lifecycle.md` - long-lived workers, never per-packet goroutines
 - [ ] `ai/rules/platform-linux.md` - a packet-socket path is Linux-only and needs QEMU integration tests
@@ -299,7 +299,7 @@ Four unrelated per-packet metadata types were reported: `transport.Inbound`
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -317,7 +317,7 @@ Four unrelated per-packet metadata types were reported: `transport.Inbound`
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

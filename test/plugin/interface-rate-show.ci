@@ -11,73 +11,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=interface-rate-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API, dispatch, runtime_fail, result_text_data
-
-# The name the second assertion looks up. Held here so the dispatch string
-# below stays a literal: the dispatch-command gate reads those strings
-# statically and reports an f-string as unverifiable.
-MISSING_IFACE = 'zz-not-an-interface0'
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # `show interface rate` now has its own wire method, ze-show:interface-rate,
-        # so the dispatcher hands handleShowInterfaceRateCmd the tokens after the
-        # key rather than eating "rate" as part of it
-        # (internal/component/iface/cmd/show_interface.go). While the four
-        # subcommands shared ze-show:interface they were alias paths of it, and
-        # this reached showInterfaceAll instead: with no iface backend in this
-        # config that surfaced as "no backend loaded", which is what the assertion
-        # below used to require. The rate tracker is what is absent now.
-        resp = dispatch(api, 'show interface rate')
-        status = resp.get('status')
-        if status is None:
-            runtime_fail(f'interface-rate: dispatch returned no status: {resp}')
-        data = result_text_data(resp)
-        if 'unknown command' in str(data):
-            runtime_fail(f'interface-rate: command does not resolve: {data}')
-        if 'rate tracker not running' not in str(data):
-            runtime_fail(f'unexpected error message: {data}')
-        print(f'OK: show interface rate resolves: {data}', file=sys.stderr)
-
-        # The named form. Its own wire method hands handleShowInterfaceRateCmd
-        # the tokens after the key, so the name must reach iface.GetRate and an
-        # unknown one must come back as a refusal naming it -- not a crash, and
-        # not the bare form's answer. That last part is what makes this
-        # discriminating: an argument dropped anywhere between the wire method
-        # and handleShowInterfaceRate turns this reply into the
-        # 'rate tracker not running' asserted above.
-        resp = dispatch(api, 'show interface rate zz-not-an-interface0')
-        if resp.get('unresolvable'):
-            runtime_fail(f'interface-rate {MISSING_IFACE}: named form does not resolve: {result_text_data(resp)}')
-        if resp.get('status') != 'error':
-            runtime_fail(f'interface-rate {MISSING_IFACE}: expected error status, got {resp.get("status")}: {result_text_data(resp)}')
-        data = result_text_data(resp)
-        if f'interface not found: {MISSING_IFACE}' not in str(data):
-            runtime_fail(f'interface-rate {MISSING_IFACE}: expected a refusal naming the interface, got: {data}')
-        print(f'OK: show interface rate {MISSING_IFACE} refused gracefully: {data}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external interface-rate-show-test {
-		run ./interface-rate-show-test.run
+		run "ze-test fixture plugin/interface-rate-show"
 		encoder json
 	}
 }

@@ -9,87 +9,12 @@
 #           error joined into a section-fatal error and static's OnConfigure
 #           failed, dropping EVERY static route (the good one included).
 #
-# Requires a Linux kernel (netlink route programming, and a static daemon cannot
-# boot on darwin -- the interface component has no OS-default backend there):
-# gated needs-linux:caps=net-admin, validated under QEMU (make ze-qemu-needs-linux-test). The
-# discrimination (good programmed, bad skipped) needs a real kernel FIB; the unit
-# tests in internal/plugins/static/isolation_test.go carry the algorithm.
-
-# caps=net-admin because setup.py below runs `ip link add`. Without the
-# declaration an unprivileged Linux host does not skip: it runs, the `ip`
-# calls are refused, and the test FAILS for a capability the host never had
-# (internal/test/runner/record_parse.go, option=needs-linux).
+# Requires Linux and CAP_NET_ADMIN: the assertion distinguishes a programmed
+# route from a skipped route in the real kernel FIB. The native setup fixture
+# creates the connected subnet for the good gateway; the bad gateway remains
+# deliberately unreachable. The capability declaration makes an unprivileged
+# host skip instead of failing the `ip` operations.
 option=needs-linux:caps=net-admin
-
-tmpfs=setup.py:mode=755:terminator=EOF_SETUP
-#!/usr/bin/env python3
-# Create a dummy interface carrying 192.168.1.0/24 so the GOOD route's gateway
-# 192.168.1.1 resolves. The BAD route's gateway 198.18.0.1 is deliberately in
-# no connected subnet, so RouteReplace fails ENETUNREACH -- the runtime-
-# unresolvable case under test. Idempotent: "exists" errors are ignored.
-#
-# The BAD gateway must be an address NO other test configures, because the QEMU
-# run shares one root namespace and an interface outlives the test that made it.
-# It was 203.0.113.1 and that premise was false: test/plugin/ddos-transit-
-# forward-drop.ci puts 203.0.113.1/24 on zdd0, so the gateway resolved, the
-# route was programmed, and this test failed the first time the static suite
-# ran anywhere. 198.18.0.0/15 is RFC 2544 benchmark space and is claimed by no
-# .ci in this repository. Before changing it, measure the replacement the same
-# way: `grep -rl <prefix> test/` must find nothing.
-import subprocess
-def ip(*args):
-    subprocess.run(["ip", *args], stderr=subprocess.DEVNULL)
-ip("link", "add", "zeiso0", "type", "dummy")
-ip("addr", "add", "192.168.1.2/24", "dev", "zeiso0")
-ip("link", "set", "zeiso0", "up")
-EOF_SETUP
-
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import os, signal, subprocess, sys
-
-from ze_api import wait_until
-
-if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-                  attempts=200, delay=0.05):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# // `ze cli show static` needs an SSH server + auth the static config
-# does not declare. Verify the kernel FIB directly -- the daemon programs
-# proto=static routes via netlink, so `ip route` is the faithful source of truth.
-# The GOOD route (10.0.0.0/8) must appear; the BAD route (172.16.0.0/12, skipped)
-# must NOT. Poll until the good route lands.
-_seen = {}
-def _good_programmed():
-    _seen["s"] = subprocess.run(["ip", "route", "show", "table", "all"],
-                                capture_output=True, text=True).stdout
-    return "10.0.0.0/8" in _seen["s"]
-if not wait_until(_good_programmed, attempts=100, delay=0.1):
-    sys.exit("good static route not programmed into kernel (per-route isolation broken?):\n%s"
-             % _seen.get("s", ""))
-
-# The skipped route must be absent from the FIB -- it was never programmed.
-if "172.16.0.0/12" in _seen["s"]:
-    sys.exit("unresolvable route 172.16.0.0/12 was programmed, expected skipped:\n%s" % _seen["s"])
-
-# Emit markers for the expect checks: the good route is present, the bad absent.
-sys.stdout.write("GOOD-ROUTE-PROGRAMMED 10.0.0.0/8\n")
-sys.stdout.write("BAD-ROUTE-SKIPPED 172.16.0.0/12\n")
-
-os.kill(pid, signal.SIGTERM)
-# Wait for the daemon to exit so rm.shutdown() removes the routes before the next
-# test (kernel tables are shared).
-def _dead():
-    try:
-        os.kill(pid, 0)
-        return False
-    except OSError:
-        return True
-wait_until(_dead, attempts=100, delay=0.05)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 static {
@@ -110,9 +35,9 @@ EOF_CONF
 
 option=env:var=ze.log.static:value=info
 
-cmd=foreground:seq=1:exec=python3 setup.py
+cmd=foreground:seq=1:exec=ze-test fixture static/static-per-route-isolation-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=3:exec=ze-test fixture static/static-per-route-isolation:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=static routes loaded
 expect=stderr:contains=static: route skipped, kept rest of section

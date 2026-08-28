@@ -8,28 +8,13 @@ cmd=api:conn=1:seq=1:text=peer as1 update text origin igp local-preference 100 n
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
 EOF_PEER
 
-# Python plugin: sends update using ASN selector
-tmpfs=peer-selector-asn.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-from ze_api import flush, ready, wait_for_shutdown
-
-def main() -> None:
-    ready()
-
-    # Select peer by ASN "as1"
-    flush('peer as1 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24\n')
-
-    wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native plugin sends the update using the ASN selector.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external peer-selector-asn {
-		run ./peer-selector-asn.run
+		run "ze-test fixture plugin/peer-selector-asn"
 		encoder json
 	}
 }

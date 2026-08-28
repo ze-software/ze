@@ -88,7 +88,7 @@ must use encapsulation when a NAT is detected. The second sentence is why
 the alternating case needs a NAT-free path.
 
 The `(§2.23)` citation on each row is load-bearing. `parse_checklist_line`
-(`scripts/dev/rfc_requirements.py`) validates that a row identifier's section segment
+(`internal/le/rfc/rfc.go`) validates that a row identifier's section segment
 agrees with its citation.
 
 ### The four routes, and what each costs
@@ -347,7 +347,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | `ipsec-esp-form-change` | `test/ipsec/ipsec-esp-form-change.ci` | The peer changes form on an established SA, and traffic keeps flowing | NOT writable at this tier; see "What is NOT done" |
 | `ipsec-esp-form-vpp-reject` | `test/ipsec/ipsec-esp-form-vpp-reject.ci` | An operator selects VPP and gets a clear refusal | dropped: AC-5 is not-applicable by measurement |
 
-The `ipsec` suite runs inside `ze-precommit-verify` (`mk/test-functional.mk` and `:217`), so a
+The `ipsec` suite runs inside `./le verify current mode full` (`internal/le/functional/suites.go` and `:217`), so a
 `.ci` there earns a verify tier.
 
 ### QEMU Integration Tests
@@ -380,8 +380,8 @@ flips exactly one row of the truth table.
    (`encap_integration_linux_test.go`).
 
 **The probe's package is already selected automatically.** `ZE_QEMU_INTEGRATION_PKGS`
-(`mk/test-integration.mk`) greps for the `integration && linux` build tag, so the file
-needs no Makefile edit. **Nothing runs that target automatically**
+(`internal/le/integration/gates.go`) greps for the `integration && linux` build tag, so the file
+needs no the native action tables under `internal/le/` edit. **Nothing runs that target automatically**
 (`ai/rules/platform-linux.md`), so phase 1 must run it by hand and paste the output.
 
 ### Interop Tests (Scope: protocol)
@@ -391,7 +391,7 @@ needs no Makefile edit. **Nothing runs that target automatically**
 | `esp-form-change` | `test/interop-ipsec/scenarios/` | strongSwan | A live Child SA whose peer sends the form Ze's kernel state refuses keeps traffic flowing both ways, and is neither rekeyed nor deleted | done, PASSING, RED under mutation |
 
 **These scenarios cannot carry an RFC tag.** `test/interop-ipsec/` is declared `TIER_UNRUN`
-(`scripts/dev/rfc_requirements.py`), so a tag there is refused. Compliance evidence must be
+(`internal/le/rfc/rfc.go`), so a tag there is refused. Compliance evidence must be
 unit tier or functional tier. Write that reason into each scenario header.
 
 The lab runs strongSwan from Alpine 3.21 (`test/interop-ipsec/Dockerfile.strongswan:5`).
@@ -506,11 +506,11 @@ choice. Phase 2 is the wiring phase the template asks for.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Every assumption answered | Read the Assumptions table. No row is `unvalidated` |
-| The dual-form QEMU test exists and passes | `make ze-qemu-integration-test`, output pasted |
+| The dual-form QEMU test exists and passes | `./le qemu run command "./le qemu all-tests"`, output pasted |
 | The route decision is recorded | Key Design Decisions names the chosen route and each rejected route |
 | The `.ci` tests exist | `ls test/ipsec/ipsec-esp-form-change.ci` |
 | The disclosure is updated | `grep -n "form change" docs/features/rfc-status.md` |
-| The tagged tests still gate | `make ze-rfc-check` |
+| The tagged tests still gate | `./le rfc check` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -581,7 +581,7 @@ The QEMU package supports exactly ONE namespace probe per test BINARY. Run alone
 three probes pass. Run together, the first passes and every later one reports that no
 counter moved. It is not caused by the new probes: the PRE-EXISTING
 `TestEncapKernelBindsOneESPFormPerState` under `-count=2` passes its first iteration and
-fails its second, with no new code involved. `make ze-qemu-integration-test` runs the whole
+fails its second, with no new code involved. `./le qemu run command "./le qemu all-tests"` runs the whole
 package, so this must be fixed or the target reads red for a product reason that does not
 exist.
 
@@ -746,7 +746,7 @@ reaches it. That is why the interop scenario is a deliverable and not a nicety.
 
 ### One flaky QEMU reading, tried and not reproduced
 
-`make ze-qemu-integration-test` over this package failed ONCE on
+the retired `ze-qemu-integration-test` (current: `./le qemu run command "./le qemu all-tests"`) over this package failed ONCE on
 `TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated` with "expected exactly one
 counter to move, got []", meaning the injected datagram reached no counter at all. It
 is recorded rather than fixed because the mechanism was tried and did not reproduce,
@@ -819,12 +819,12 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
 
 | Item | State |
 |------|-------|
-| `test/ipsec/ipsec-esp-form-change.ci` | NOT written, and NOT writable at functional tier. Three findings block it, each measured. (1) The suite runs unprivileged in the host namespace (`mk/test-functional.mk`, `ze-functional-ipsec-test`), and every ipsec `.ci` selects `ze.test.ike.dataplane=noop`, which installs nothing in the kernel. (2) The `.ci` framework has no ESP injector and no packet observer: `RunEngineSteps` (`internal/test/runner/engine_steps.go`) only dispatches CLI commands, and the whole IKE command surface is show, monitor and clear. (3) The dual-form path needs a TEMPLATED inbound state, which needs `sa.NATDetected \|\| sa.localPort == 4500` (`engine/child.go`), and two loopback ze daemons produce neither. A `.ci` here could assert only that no rekey happened, which is the absence-assertion vacuity trap in `ai/rules/interop-and-goal-validation.md`. AC-4's proof is the QEMU probe plus scenario esp-form-change instead |
+| `test/ipsec/ipsec-esp-form-change.ci` | NOT written, and NOT writable at functional tier. Three findings block it, each measured. (1) The suite runs unprivileged in the host namespace (`internal/le/functional/suites.go`, `ze-functional-ipsec-test`), and every ipsec `.ci` selects `ze.test.ike.dataplane=noop`, which installs nothing in the kernel. (2) The `.ci` framework has no ESP injector and no packet observer: `RunEngineSteps` (`internal/test/runner/engine_steps.go`) only dispatches CLI commands, and the whole IKE command surface is show, monitor and clear. (3) The dual-form path needs a TEMPLATED inbound state, which needs `sa.NATDetected \|\| sa.localPort == 4500` (`engine/child.go`), and two loopback ze daemons produce neither. A `.ci` here could assert only that no rekey happened, which is the absence-assertion vacuity trap in `ai/rules/interop-and-goal-validation.md`. AC-4's proof is the QEMU probe plus scenario esp-form-change instead |
 | `test/interop-ipsec/scenarios/esp-form-change/` | WRITTEN and PASSING, and RED under mutation. It is the proof of AC-4 against a real peer |
 | `test/ipsec/ipsec-esp-encap-no-nat.ci` | NOT written, blocked by the same three findings. User story 1 needs the peer to encapsulate, which two loopback ze daemons never do. Its reachable home is a new interop scenario `esp-encap-no-nat` using strongSwan's `encap = yes`, which fakes NAT-D at IKE_SA_INIT and is a valid vici key in 5.9.14 |
 | `test/ipsec/ipsec-esp-form-vpp-reject.ci` | NOT written, and it must NOT be. AC-5 is not-applicable by measurement: VPP's inbound lookup is encapsulation-blind, so one VPP SA already takes both forms and there is nothing to refuse (`dataplane/vpp.go`). A test asserting a refusal would assert behaviour that must not exist. This confirms the 2026-08-02 audit's "drop the planned `ipsec-esp-form-vpp-reject.ci`" |
-| `scripts/evidence/qemu-all-tests.sh` has no `fsuite ipsec` line | Discovered 2026-08-03. A `needs-linux` `.ci` in `test/ipsec/` would skip natively AND never run in QEMU, so it would be dead coverage. This is why option (1) above cannot be routed around with `option=needs-linux:caps=net-admin` |
-| `ai/RFC-REQUIREMENTS.md` regeneration | NOT run. `make ze-rfc-index-update` is REQUIRED after moving or renaming a tagged test, and one test was renamed. The main thread directed that the ledger not be regenerated while it is stale from another session |
+| `internal/le/qemu/alltests.go` has no `fsuite ipsec` line | Discovered 2026-08-03. A `needs-linux` `.ci` in `test/ipsec/` would skip natively AND never run in QEMU, so it would be dead coverage. This is why option (1) above cannot be routed around with `option=needs-linux:caps=net-admin` |
+| `ai/RFC-REQUIREMENTS.md` regeneration | NOT run. `./le rfc index-update` is REQUIRED after moving or renaming a tagged test, and one test was renamed. The main thread directed that the ledger not be regenerated while it is stale from another session |
 | Throughput of the re-presented form | Not measured. R-1 stands for the bare form on a templated SA |
 
 ## Known Limitations
@@ -834,7 +834,7 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
   the interface a VPP SPD binds to.
 - The interop scenarios cannot carry an RFC tag, because `test/interop-ipsec/` is
   `TIER_UNRUN`. Compliance evidence stays at unit tier or functional tier.
-- `make ze-qemu-integration-test` is not automated anywhere. Every QEMU result in this spec
+- `./le qemu run command "./le qemu all-tests"` is not automated anywhere. Every QEMU result in this spec
   is produced by hand and pasted.
 
 ## RFC Documentation (Scope: protocol)
@@ -853,14 +853,14 @@ on its header rules.
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Deferral shard resolved: no live row without a destination
-- [ ] `make ze-qemu-integration-test` RUN by hand, output pasted
+- [ ] `./le qemu run command "./le qemu all-tests"` RUN by hand, output pasted
 - [ ] The owner authorized every edit to a tagged RFC test, in writing
 
 ### TDD
@@ -873,7 +873,7 @@ on its header rules.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

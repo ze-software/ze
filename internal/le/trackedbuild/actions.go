@@ -22,16 +22,10 @@ const area = "repository-tracked-build"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-repository-tracked-build-check",
-		Why:    "the tree GIT HOLDS compiles in every shipped flavor, which is the one population every other gate misses because they all build the working tree",
-		Answer: runCheck,
-	},
-	leaction.Action{
-		Gate:   "ze-repository-tracked-build-selftest",
-		Why:    "the two vacuity guards still fire. `go build ./...` exits 0 over a pattern that matched nothing buildable, so a flavor compiling zero packages would otherwise report success",
-		Answer: runSelftest,
-	},
+	leaction.Action{Verb: "check", Why: "the tree GIT HOLDS compiles in every shipped flavor, which is the one population every other gate misses because they all build the working tree",
+		Answer: runCheck},
+	leaction.Action{Verb: "selftest", Why: "the two vacuity guards still fire. `go build ./...` exits 0 over a pattern that matched nothing buildable, so a flavor compiling zero packages would otherwise report success",
+		Answer: runSelftest},
 	leaction.Action{
 		// No Make target names this one: it is the script's --matrix, and it
 		// exists so a reader can see WHICH flavors a run compiles without
@@ -53,7 +47,7 @@ func Subs() string { return actions.Subs() }
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 // runMatrix is the `le repository-tracked-build matrix` action.
-func runMatrix() (any, int) { return BuildMatrix(), 0 }
+func runMatrix() (any, int) { return buildMatrix, 0 }
 
 // runCheck is the `le repository-tracked-build check` action.
 //
@@ -66,7 +60,7 @@ func runCheck() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	options, err := DefaultOptions()
+	options, err := defaultOptions()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

@@ -6,7 +6,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -22,5 +21,5 @@ func init() {
 	leroot.RegisterShape(Area, command.ShapeDoc)
 
 	// Every claim comes from the table that dispatches the action.
-	parity.Claim(Area, Gates()...)
+
 }

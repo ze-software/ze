@@ -75,9 +75,9 @@ func (r *webRequest) build(t *testing.T) (*http.Request, *httptest.ResponseRecor
 	}
 	var req *http.Request
 	if bodyReader != nil {
-		req = httptest.NewRequest(r.method, r.path, bodyReader)
+		req = httptest.NewRequestWithContext(t.Context(), r.method, r.path, bodyReader)
 	} else {
-		req = httptest.NewRequest(r.method, r.path, http.NoBody)
+		req = httptest.NewRequestWithContext(t.Context(), r.method, r.path, http.NoBody)
 	}
 	for k, v := range r.headers {
 		req.Header.Set(k, v)

@@ -5,7 +5,7 @@
 // Detail: vppevidencereport.go -- the structured result of each scenario
 // Related: vppiface.go -- the shared VPP container and command machinery
 //
-// This runner ports effective-vpp.py without starting it. One VPP container is
+// This runner ports the legacy effective-VPP harness without starting it. One VPP container is
 // shared by eight ordered scenarios. A proof failure stops the sequence because
 // the next scenario would inherit state that the failed scenario did not prove.
 package deployment
@@ -37,13 +37,13 @@ const (
 	vppFirewallLine   = "firewall config applied"
 )
 
-// VPP is one run of the eight deployment scenarios from effective-vpp.py. It
+// VPP is one run of the eight legacy deployment scenarios. It
 // embeds the existing VPP runner because both proofs use the same image,
 // container, sockets, vppctl path, daemon settings, and bounded process helpers.
 //
 // Not safe for concurrent use.
 type VPP struct {
-	*VPPIface
+	*vppIface
 	iface string
 }
 
@@ -52,9 +52,9 @@ type vppEvidenceRunStep struct {
 	run  func(string, string) (VPPScenarioReport, error)
 }
 
-// NewVPP answers the real VPP deployment run over tree.
-func NewVPP(tree string) *VPP {
-	return &VPP{VPPIface: NewVPPIface(tree)}
+// newVPP answers the real VPP deployment run over tree.
+func newVPP(tree string) *VPP {
+	return &VPP{vppIface: newVPPIface(tree)}
 }
 
 // Run performs all eight scenarios and returns the completed report.
@@ -150,12 +150,12 @@ func (v *VPP) buildBinaries() error {
 	var tb textbuf.Buffer
 	testTags := tb.Str("ze_test").Byte(' ').Join(tags, " ").String()
 	if err := v.runBuild([]string{
-		"build", "-tags", testTags, "-o", filepath.Join(v.Tree, vppTestRel(v.Goarch)), "./cmd/ze",
+		"build", goBuildTagsArg, testTags, "-o", filepath.Join(v.Tree, vppTestRel(v.Goarch)), "./cmd/ze",
 	}, errors.New("go build ze-test (-tags ze_test ./cmd/ze) failed")); err != nil {
 		return err
 	}
 	return v.runBuild([]string{
-		"test", "-c", "-tags", "ze_core ze_vpp integration",
+		"test", "-c", goBuildTagsArg, "ze_core ze_vpp integration",
 		"-o", filepath.Join(v.Tree, vppIPsecProbeRel(v.Goarch)),
 		"./internal/component/ike/dataplane",
 	}, errors.New("go test -c ./internal/component/ike/dataplane failed"))
@@ -368,7 +368,7 @@ func (v *VPP) evidenceDaemonArgs(container, configFile string, port int) []strin
 	binary := tb.Str("/src/").Str(filepath.ToSlash(daemonRel(v.Goarch))).String()
 	config := tb.Reset().Str(vppMount).Byte('/').Str(configFile).String()
 	argv := []string{
-		dockerExec, "--interactive",
+		dockerExec, dockerInteractiveArg,
 		dockerEnv, "ZE_LOG_VPP=info",
 		dockerEnv, "ZE_LOG_FIB_VPP=debug",
 		dockerEnv, "ZE_LOG_TRAFFIC=debug",
@@ -376,7 +376,7 @@ func (v *VPP) evidenceDaemonArgs(container, configFile string, port int) []strin
 		dockerEnv, "ZE_LOG_FIREWALL=debug",
 		dockerEnv, "ZE_LOG_FIREWALL_VPP=debug",
 		dockerEnv, "ZE_LOG_BGP=info",
-		dockerEnv, "ZE_STORAGE_BLOB=false",
+		dockerEnv, storageBlobDisabledEnv,
 		dockerEnv, "ZE_CONFIG_DIR=/run/vpp/ze",
 	}
 	if port != 0 {

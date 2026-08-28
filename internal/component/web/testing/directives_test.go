@@ -121,7 +121,7 @@ func TestLoginActionDrivesLoginForm(t *testing.T) {
 // VALIDATES: action=wait-until:path=..:contains=.. becomes a wait-until action
 // step with path and contains.
 // PREVENTS: the directive parsing as a bare kind with its keys dropped, which
-// would make WaitUntil return its missing-parameter error at run time instead of
+// would make waitUntil return its missing-parameter error at run time instead of
 // waiting on anything.
 func TestParseWaitUntilDirective(t *testing.T) {
 	tc, err := ParseWBFile("action=wait-until:path=/config/diff:contains=Review changes (0)")
@@ -144,7 +144,7 @@ func TestParseWaitUntilDirective(t *testing.T) {
 // page again. A wait that sampled the DOM once could only ever report the state
 // that was true before the action it follows.
 //
-// VALIDATES: WaitUntil re-opens the path until the served HTML contains the wanted
+// VALIDATES: waitUntil re-opens the path until the served HTML contains the wanted
 // text, then returns nil.
 // PREVENTS: a single-sample wait passing on a stale readback, and a wait that
 // re-reads the same loaded page forever.
@@ -152,8 +152,8 @@ func TestWaitUntilRefetchesUntilTheServerReportsTheState(t *testing.T) {
 	logPath := installFlippingAgentBrowser(t, 3)
 	b := newBrowser("https://127.0.0.1:1234")
 
-	if err := b.WaitUntil("/config/diff", "ready"); err != nil {
-		t.Fatalf("WaitUntil: %v", err)
+	if err := b.waitUntil("/config/diff", "ready"); err != nil {
+		t.Fatalf("waitUntil: %v", err)
 	}
 
 	opens := 0
@@ -178,17 +178,17 @@ func TestWaitUntilRejectsMissingParameters(t *testing.T) {
 	installFlippingAgentBrowser(t, 1)
 	b := newBrowser("https://127.0.0.1:1234")
 
-	if err := b.WaitUntil("", "ready"); err == nil {
-		t.Error("WaitUntil with no path returned nil, want an error")
+	if err := b.waitUntil("", "ready"); err == nil {
+		t.Error("waitUntil with no path returned nil, want an error")
 	}
-	if err := b.WaitUntil("/config/diff", ""); err == nil {
-		t.Error("WaitUntil with no contains returned nil, want an error")
+	if err := b.waitUntil("/config/diff", ""); err == nil {
+		t.Error("waitUntil with no contains returned nil, want an error")
 	}
 }
 
 // installFlippingAgentBrowser installs a fake agent-browser that serves
 // "<html>pending</html>" until the flip-th `open`, then "<html>ready</html>". It
-// models the only thing WaitUntil is for: a server state that changes between two
+// models the only thing waitUntil is for: a server state that changes between two
 // fetches of the same path.
 func installFlippingAgentBrowser(t *testing.T, flip int) string {
 	t.Helper()

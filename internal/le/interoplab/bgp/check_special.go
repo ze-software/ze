@@ -19,8 +19,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 const (
@@ -30,16 +30,32 @@ const (
 )
 
 var specialCheckers = map[string]interoplab.Checker{
-	"bfd-frr":                            checkBFDFailover,
-	"show-rib-under-frr-load":            checkShowRIBUnderFRRLoad,
-	"bgp-addpath-rail-agreement-speaker": checkAddPathRailAgreement,
-	"bgp-wire-edit-api-origin-bird":      checkWireEditAPIOriginBIRD,
-	"bgp-relay-withdraw-reflector-frr":   checkReflectorWithdrawal,
-	"bgp-holdtime-deadpeer-frr":          checkHoldtimeDeadPeer,
-	"isis-purge-reorig-frr":              checkISISOwnLSPPurge,
-	"ospf-lfa-frr":                       checkOSPFLFA,
-	"ospf-ti-lfa-frr":                    checkOSPFTILFA,
-	"bgp-max-prefix-per-family-frr":      checkMaxPrefixPerFamily,
+	"bfd-frr":                               checkBFDFailover,
+	"show-rib-under-frr-load":               checkShowRIBUnderFRRLoad,
+	"bgp-addpath-rail-agreement-speaker":    checkAddPathRailAgreement,
+	"bgp-addpath-readvertise-collision-frr": checkAddPathReadvertiseCollision,
+	"bgp-local-pref-strip-gobgp":            checkLocalPrefStrip,
+	"bgp-med-across-as-gobgp":               checkMEDAcrossAS,
+	"bgp-med-remove-configured-gobgp":       checkMEDRemovalConfiguration,
+	"bgp-wire-edit-api-origin-bird":         checkWireEditAPIOriginBIRD,
+	"bgp-relay-withdraw-reflector-frr":      checkReflectorWithdrawal,
+	"bgp-relay-withdraw-shape-frr":          checkRelayWithdrawalShape,
+	"bgp-rfc2545-linklocal-nexthop-frr":     checkRFC2545NextHops,
+	"bgp-rfc7606-relay-shape-frr":           checkRFC7606MixedUpdate,
+	"bgp-rfc7606-typed-nlri-discard":        checkRFC7606TypedNLRIDiscard,
+	"bgp-rfc7999-blackhole-frr":             checkRFC7999Blackhole,
+	"bgp-role-otc-withdraw-frr":             checkOTCWithdrawal,
+	"bgp-route-server-frr":                  checkRouteServerASPath,
+	"bgp-self-nexthop-withheld-frr":         checkSelfNextHopWithheld,
+	"bgp-wellknown-noexport-frr":            checkNoExportBoundary,
+	"bgp-holdtime-deadpeer-frr":             checkHoldtimeDeadPeer,
+	"isis-p2p-frr":                          checkISISDynamicHostname,
+	"isis-purge-reorig-frr":                 checkISISOwnLSPPurge,
+	"no-family-peer-eor-frr":                checkNoFamilyEndOfRIB,
+	"ospf-lfa-frr":                          checkOSPFLFA,
+	"ospf-stub-nssa-frr":                    checkNSSADefault,
+	"ospf-ti-lfa-frr":                       checkOSPFTILFA,
+	"bgp-max-prefix-per-family-frr":         checkMaxPrefixPerFamily,
 }
 
 func checkBFDFailover(ctx context.Context, check *interoplab.CheckContext) (resultErr error) {
@@ -111,6 +127,10 @@ func requireBFDTeardownBudget(elapsed time.Duration) error {
 	return nil
 }
 
+// RFC requirement: RFC4456-8-1 positive -- Ze sets ORIGINATOR_ID on a route it reflects between two clients, observed on the wire by the receiving peer, so the identifier is set when a route IS reflected.
+// RFC requirement: RFC4456-8-1 negative -- Ze creates no ORIGINATOR_ID on the withdrawal of that same route, asserted byte-exact on the wire, because the clause's condition ("reflects a route") is not met.
+// RFC requirement: RFC4456-8-2 positive -- the same reflected route carries a CLUSTER_LIST, prepended with Ze's configured cluster-id.
+// RFC requirement: RFC4456-8-2 negative -- and the withdrawal carries none, for the same reason, in the same byte-exact assertion.
 func checkReflectorWithdrawal(ctx context.Context, check *interoplab.CheckContext) error {
 	if !check.Network.IPv4.IsValid() {
 		return errors.New("route-reflector scenario has no selected IPv4 network")

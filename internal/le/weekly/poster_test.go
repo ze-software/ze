@@ -32,10 +32,10 @@ func resetEnvCache(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 }
 
-// sweep builds a Poster over a temporary posts directory, and answers both.
-func sweep(t *testing.T, rec *recorder, slept *[]time.Duration, today string) (*Poster, string) {
+// sweep builds a publisher over a temporary posts directory, and answers both.
+func sweep(t *testing.T, rec *recorder, slept *[]time.Duration, today string) (*publisher, string) {
 	t.Helper()
-	p := &Poster{
+	p := &publisher{
 		Channel:    "ze-test",
 		Send:       rec.send,
 		DiscordSh:  filepath.Join(t.TempDir(), "discord.sh"),
@@ -392,8 +392,8 @@ func TestAFailedPostReportsWhatDidLand(t *testing.T) {
 
 	report, err := p.Run(Options{Confirm: true, Source: source})
 
-	if _, ok := errors.AsType[*SendFailed](err); !ok {
-		t.Fatalf("Run err = %v, want a *SendFailed", err)
+	if _, ok := errors.AsType[*sendFailed](err); !ok {
+		t.Fatalf("Run err = %v, want a *sendFailed", err)
 	}
 	messages := report.Posts[0].Messages
 	if len(messages) != 2 {

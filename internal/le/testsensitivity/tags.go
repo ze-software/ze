@@ -1,25 +1,21 @@
-// Design: docs/architecture/testing/test-health.md -- which build tags a test can be run under
+// Design: docs/architecture/testing/test-health.md -- reachable test build tags
 //
-// tags.go answers one question: is a `//go:build` constraint SATISFIABLE by
-// something this repository can actually run?
-//
-// The tag universe is DERIVED from the make files and the feature manifest,
-// never hardcoded: a new gated feature must not silently make its tests
-// orphans, and deleting a target must surface the tests it stranded.
+// The tag universe is derived from the same feature manifest the native Go
+// toolchain uses. A file is an orphan when no native test tag assignment can
+// satisfy its build constraint.
 
 package testsensitivity
 
 import (
-	"fmt"
 	"go/ast"
 	"go/build/constraint"
 	"go/token"
 	"maps"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
+
+	"github.com/ze-software/ze/internal/le/featuretags"
+	"github.com/ze-software/ze/internal/le/lintgate"
 )
 
 // projectTag matches the build tags this repository owns. Non-project tags
@@ -28,131 +24,34 @@ import (
 // actually controls.
 var projectTag = regexp.MustCompile(`^ze_[a-z0-9_]+$`)
 
-// goTestTagsRE finds `go test ... -tags 'a b c'` (or -tags a) in the make files.
-var goTestTagsRE = regexp.MustCompile(`go test[^\n]*?-tags[ =]'([^']*)'|go test[^\n]*?-tags[ =]([a-zA-Z0-9_,]+)`)
-
-// makeVarRE finds `NAME = value` and `NAME := value` so $(GO_TEST_TAGS)
-// expands.
-var makeVarRE = regexp.MustCompile(`(?m)^([A-Z_][A-Z0-9_]*)\s*[:?]?=\s*(.*)$`)
-
 // maxFreeTags bounds the brute-force satisfiability search. Real constraints
 // carry a handful of tags; anything larger is assumed satisfiable rather than
 // reported, because a guard must not manufacture a finding it did not actually
 // prove.
 const maxFreeTags = 16
 
-// TagUniverse derives the set of project tags that some `go test -tags`
-// invocation in the make files supplies, expanding make variables
-// (GO_TEST_TAGS, ZE_FEATURES, ...) and the feature-gate manifest.
-func TagUniverse(root string) (map[string]bool, error) {
-	vars := map[string]string{}
-	var sources []string
-
-	mks, err := filepath.Glob(filepath.Join(root, "mk", "*.mk"))
+// tagUniverse returns every project tag the native action population supplies.
+func tagUniverse(root string) (map[string]bool, error) {
+	features, err := featuretags.DaemonTags(root)
 	if err != nil {
-		return nil, fmt.Errorf("glob mk/*.mk: %w", err)
+		return nil, err
 	}
-	makefiles := make([]string, 0, 1+len(mks))
-	makefiles = append(makefiles, filepath.Join(root, "Makefile"))
-	makefiles = append(makefiles, mks...)
-
-	for _, path := range makefiles {
-		raw, readErr := os.ReadFile(path) //nolint:gosec // fixed in-repo paths
-		if readErr != nil {
-			if path == filepath.Join(root, "Makefile") {
-				return nil, fmt.Errorf("read %s: %w", path, readErr)
-			}
-			continue
-		}
-		text := string(raw)
-		sources = append(sources, text)
-		for _, match := range makeVarRE.FindAllStringSubmatch(text, -1) {
-			if _, seen := vars[match[1]]; !seen {
-				vars[match[1]] = match[2]
-			}
-		}
-	}
-
-	// ZE_FEATURES is defined as `$(shell awk ... feature-gates.txt)`, which this
-	// parser cannot execute, so its value is supplied here from the manifest it
-	// reads. Crucially this is bound as a make VARIABLE, not injected straight
-	// into the universe: a tag reaches the universe only if some `go test -tags`
-	// line actually references it.
-	//
-	// Seeding the universe from the manifest directly (the earlier version) made
-	// the guard unable to fail. Deleting `$(ZE_FEATURES)` from GO_TEST_TAGS
-	// would have stranded every feature-gated test, and the gate would still
-	// have reported zero orphans -- fail-open on exactly the regression it
-	// exists to catch.
-	gates, err := os.ReadFile(filepath.Join(root, "feature-gates.txt")) //nolint:gosec // fixed in-repo path
-	if err != nil {
-		return nil, fmt.Errorf("read feature-gates.txt: %w", err)
-	}
-	var manifest []string
-	for line := range strings.SplitSeq(string(gates), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) > 0 && projectTag.MatchString(fields[0]) {
-			manifest = append(manifest, fields[0])
-		}
-	}
-	sort.Strings(manifest)
-	vars["ZE_FEATURES"] = strings.Join(manifest, " ")
-
-	universe := map[string]bool{}
-	for _, text := range sources {
-		for _, match := range goTestTagsRE.FindAllStringSubmatch(text, -1) {
-			spec := match[1]
-			if spec == "" {
-				spec = match[2]
-			}
-			for _, tag := range ExpandTags(spec, vars, 0) {
-				if projectTag.MatchString(tag) {
-					universe[tag] = true
-				}
-			}
+	universe := make(map[string]bool)
+	for _, tag := range lintgate.ReachableProjectTags(features) {
+		if projectTag.MatchString(tag) {
+			universe[tag] = true
 		}
 	}
 	return universe, nil
 }
 
-// ExpandTags splits a -tags spec into tags, resolving $(VAR) references against
-// the make variables. It is depth-bounded so a self-referential variable cannot
-// loop.
-func ExpandTags(spec string, vars map[string]string, depth int) []string {
-	if depth > 4 {
-		return nil
-	}
-	var out []string
-	for _, field := range strings.FieldsFunc(spec, func(r rune) bool { return r == ' ' || r == ',' || r == '\t' }) {
-		if strings.HasPrefix(field, "$(") && strings.HasSuffix(field, ")") {
-			name := strings.TrimSuffix(strings.TrimPrefix(field, "$("), ")")
-			if value, ok := vars[name]; ok {
-				out = append(out, ExpandTags(value, vars, depth+1)...)
-			}
-			continue
-		}
-		if strings.ContainsAny(field, "$()'\"") {
-			continue
-		}
-		out = append(out, field)
-	}
-	return out
-}
-
-// TagOrphan reports whether a file's //go:build expression is UNSATISFIABLE
-// given what the make files can supply, and the tags that make it so.
+// TagOrphan reports whether a file's //go:build expression is unsatisfiable
+// with the tags native tests can supply.
 //
-// This is a satisfiability question, not a single evaluation, and getting that
-// wrong is the obvious trap: evaluating once with "every available tag is on"
-// wrongly condemns every negated constraint. `//go:build !linux` (the non-Linux
-// stubs) and `//go:build ze_core && !ze_web` (the compile-out checks that
-// GO_TEST_CORE_TAGS exists to run) are both reachable, and both look dead to a
-// single evaluation.
-//
-// The model: a project tag absent from the universe can only ever be false,
-// because nothing passes it. Every other tag is free, since different targets
-// pass different tag sets. The file is an orphan only when no assignment of the
-// free tags satisfies the expression.
+// This is a satisfiability question rather than one fixed evaluation. A project
+// tag absent from the universe is always false; every available tag is free
+// because different native actions can select different tag sets. The file is
+// an orphan only when no assignment of the free tags satisfies the expression.
 func TagOrphan(file *ast.File, universe map[string]bool) (bool, []string) {
 	for _, group := range file.Comments {
 		for _, comment := range group.List {

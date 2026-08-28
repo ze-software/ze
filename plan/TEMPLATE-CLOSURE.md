@@ -24,7 +24,7 @@
 
 ### Documentation Updates
 - [docs updated, naming each source anchor, or "None" with the grep that proves it]
-- [`make ze-doc-verify` result if docs changed]
+- [`./le doc-check verify` result if docs changed]
 
 ### Deviations from Plan
 - [what differed from the spec and why]
@@ -83,7 +83,7 @@
 ## Deferrals Resolved
 
 <!-- Closure must leave no dangling row: deferral_unassigned_problems in
-     scripts/dev/commit_helper.py WARNS (it does not block) on a live row with no
+     internal/le/commit/prepare.go WARNS (it does not block) on a live row with no
      destination -- act on the warning here, because nothing else will.
      The spec's own shard is git rm'd at closure ONLY when every row in it is
      terminal; a shard still holding a live row outlives its source spec and
@@ -102,7 +102,7 @@
      reasoning about code you just wrote.
 
      The machine-checked artifact is the deliverable, not this table:
-     scripts/dev/review_gate.py record --spec <spec> --rounds <N> ... then check.
+     internal/le/speclifecycle/review.go record --spec <spec> --rounds <N> ... then check.
      --rounds is the pass count and is required; more than five needs
      --rounds-reason naming the PRODUCT defect a later round found, AND
      --owner-authorised carrying Thomas's word, because more than five passes
@@ -133,7 +133,7 @@
      the evidence. For each row run a command (ls, grep, go test -run) now.
 
      EVERY sub-table needs at least one data row: pre_commit_verification_gaps
-     in scripts/dev/commit_helper.py checks them one by one and names the empty
+     in internal/le/commit/prepare.go checks them one by one and names the empty
      ones. A row in Files Exist is not evidence for AC Verified.
      Not acceptable: "already checked", "should work", a pointer to the audit. -->
 

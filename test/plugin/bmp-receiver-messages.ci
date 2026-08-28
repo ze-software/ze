@@ -11,99 +11,6 @@
 option=env:var=ze.log.bgp.bmp:value=info
 option=timeout:value=15s
 
-tmpfs=bmp-client.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""BMP test client: sends Initiation + Peer Up + Peer Down, then shuts down."""
-import socket
-import struct
-import time
-from ze_api import API
-
-def bmp_header(msg_type, length):
-    return struct.pack('!BIB', 3, length, msg_type)
-
-def bmp_initiation():
-    name = b'test-router'
-    desc = b'ze ci test'
-    name_tlv = struct.pack('!HH', 2, len(name)) + name
-    desc_tlv = struct.pack('!HH', 1, len(desc)) + desc
-    payload = name_tlv + desc_tlv
-    return bmp_header(4, 6 + len(payload)) + payload
-
-def bgp_open(asn):
-    marker = b'\xff' * 16
-    body = struct.pack('!BHHIB', 4, asn, 90, 0x01020304, 0)
-    length = 19 + len(body)
-    return marker + struct.pack('!HB', length, 1) + body
-
-def bmp_peer_header(peer_as=65001):
-    ph = struct.pack('!BB', 0, 0)
-    ph += struct.pack('!Q', 0)
-    ph += b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 1])
-    ph += struct.pack('!II', peer_as, 0x01020304)
-    ph += struct.pack('!II', int(time.time()), 0)
-    return ph
-
-def bmp_peer_up():
-    ph = bmp_peer_header()
-    local_addr = b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 100])
-    ports = struct.pack('!HH', 179, 54321)
-    sent_open = bgp_open(65000)
-    recv_open = bgp_open(65001)
-    payload = ph + local_addr + ports + sent_open + recv_open
-    return bmp_header(3, 6 + len(payload)) + payload
-
-def bmp_peer_down(reason=5):
-    ph = bmp_peer_header()
-    payload = ph + struct.pack('!B', reason)
-    return bmp_header(2, 6 + len(payload)) + payload
-
-def dispatch(api, command):
-    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
-
-def _list(api, command, key):
-    r = dispatch(api, command).get('result', {})
-    return r.get('data', {}).get(key, []) or []
-
-def wait_until(api, pred, cycles=100):
-    for _ in range(cycles):
-        if pred():
-            return True
-        api.wait_for_event(timeout=0.2)
-    return False
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    api.wait_for_post_startup(timeout=5.0)
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(('127.0.0.1', $PORT2))
-    # BMP is a TCP stream framed by per-message length headers, so ze processes
-    # these in order without inter-message pacing.
-    sock.sendall(bmp_initiation())
-    sock.sendall(bmp_peer_up())
-    sock.sendall(bmp_peer_down())
-    # Deterministic replacement for the pacing sleeps: peer-down is the last
-    # message, so once the monitored peer shows up:false, initiation + peer-up
-    # (FIFO before it) are processed and logged too.
-    if not wait_until(api, lambda: any(
-            p.get('peer-as') == 65001 and not p.get('up', True) for p in _list(api, 'show bmp peers', 'peers'))):
-        api.fail('bmp peer-down never reflected in show bmp peers')
-    sock.close()
-    # Wait until ze observes the TCP close and ends the session (router removed).
-    wait_until(api, lambda: not _list(api, 'show bmp sessions', 'sessions'))
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 environment {
@@ -117,7 +24,7 @@ environment {
 }
 plugin {
     external bmp-client {
-        run ./bmp-client.run;
+        run "ze-test fixture plugin/bmp-receiver-messages $PORT2;"
         encoder json;
     }
 }

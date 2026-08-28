@@ -9,8 +9,8 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-// Checkers returns the complete typed checker registry for test/interop/scenarios.
-func Checkers() map[string]interoplab.Checker {
+// checkers returns the complete typed checker registry for test/interop/scenarios.
+func checkers() map[string]interoplab.Checker {
 	checkers := make(map[string]interoplab.Checker, len(scenarioOperations))
 	for name := range scenarioOperations {
 		scenarioName := name
@@ -94,13 +94,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRRoute, argument: "10.10.0.0/24"},
 		{kind: opFRRSession, argument: "172.30.0.2"},
 	},
-	"bgp-addpath-readvertise-collision-frr": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opGoBGPSession, argument: "172.30.0.2"},
-		{kind: opExec, peer: "gobgp", command: []string{"gobgp", "global", "rib", "add", "10.99.0.0/24", "-a", "ipv4", "nexthop", "172.30.0.5"}},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opGoBGPSession, argument: "172.30.0.2"},
-	},
 	"bgp-community-frr": {
 		{kind: opFRRSession, argument: "172.30.0.2"},
 		{kind: opFRRRoute, argument: "10.10.0.0/24"},
@@ -183,11 +176,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opGoBGPRoute, argument: "2001:db8:3::/48", family: "ipv6 unicast"},
 		{kind: opGoBGPSession, argument: "172.30.0.2"},
 	},
-	"bgp-local-pref-strip-gobgp": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opGoBGPSession, argument: "172.30.0.2"},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-	},
 	"bgp-max-prefix-cease-frr": {
 		{kind: opWaitLogContains, peer: "ze", contains: []string{"prefix count exceeded maximum"}, timeout: 90 * time.Second},
 		{kind: opWaitAbsent, peer: "frr", command: []string{"vtysh", "-c", "show bgp neighbor 172.30.0.2"}, absent: []string{"BGP state = Established"}, proof: []string{"BGP neighbor is"}, timeout: 30 * time.Second},
@@ -198,19 +186,10 @@ var scenarioOperations = map[string][]operation{
 	"bgp-md5-auth-frr": {
 		{kind: opFRRSession, argument: "172.30.0.2"},
 	},
-	"bgp-med-across-as-gobgp": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opGoBGPSession, argument: "172.30.0.2"},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-	},
 	"bgp-med-ibgp-post-selection-removal-gobgp": {
 		{kind: opFRRSession, argument: "172.30.0.2"},
 		{kind: opGoBGPSession, argument: "172.30.0.2"},
 		{kind: opGoBGPRoute, argument: "10.62.0.0/24"},
-	},
-	"bgp-med-remove-configured-gobgp": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opGoBGPSession, argument: "172.30.0.2"},
 	},
 	"bgp-multihop-ebgp-bird": {
 		{kind: opBIRDSession, argument: "ze_peer"},
@@ -251,12 +230,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRRouteAbsent, argument: "10.10.0.0/24", timeout: 90 * time.Second},
 		{kind: opFRRSession, argument: "172.30.0.2"},
 	},
-	"bgp-relay-withdraw-shape-frr": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opFRRRoute, argument: "10.10.0.0/24", timeout: 60 * time.Second},
-		{kind: opFRRRouteAbsent, argument: "10.10.0.0/24", timeout: 90 * time.Second},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-	},
 	"bgp-remove-private-as-as4path-frr": {
 		{kind: opFRRSession, argument: "172.30.0.2"},
 		{kind: opBIRDSession, argument: "ze_peer"},
@@ -275,30 +248,8 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: "172.30.0.2"},
 		{kind: opGoBGPSession, argument: "172.30.0.2"},
 	},
-	"bgp-rfc2545-linklocal-nexthop-frr": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opFRRRoute, argument: "2001:db8:5601::/48", family: "ipv6 unicast"},
-		{kind: opFRRRoute, argument: "2001:db8:5602::/48", family: "ipv6 unicast"},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-	},
-	"bgp-rfc7606-relay-shape-frr": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opFRRRoute, argument: "10.0.0.0/24"},
-		{kind: opFRRNoAS, argument: "10.0.0.0/24", absent: []string{"65001"}},
-		{kind: opFRRRoute, argument: "203.0.113.0/24"},
-		{kind: opFRRRouteAbsent, argument: "198.51.100.0/24", timeout: 30 * time.Second},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-	},
 	"bgp-rfc7606-speaker-dup-attr": {
 		{kind: opWaitLogFields, peer: "speaker", timeout: 120 * time.Second, fields: map[string]string{"established": "yes", "result": "PASS"}, minimum: map[string]int{"route-bearing-updates": 1}},
-	},
-	"bgp-rfc7606-typed-nlri-discard": {
-		{kind: opWaitLogFields, peer: "speaker", timeout: 120 * time.Second, fields: map[string]string{"established": "yes", "result": "PASS"}, minimum: map[string]int{"route-bearing-updates": 1, "evpn-nlri": 1}},
-	},
-	"bgp-rfc7999-blackhole-frr": {
-		{kind: opExec, peer: "ze", command: []string{"ip", "-4", "route", "show"}},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opBIRDSession, argument: "ze_peer"},
 	},
 	"bgp-role-frr": {
 		{kind: opFRRSession, argument: "172.30.0.2"},
@@ -308,13 +259,6 @@ var scenarioOperations = map[string][]operation{
 	"bgp-role-gobgp": {
 		{kind: opGoBGPSession, argument: "172.30.0.2"},
 		{kind: opDelayRequireContains, peer: "gobgp", command: []string{"gobgp", "neighbor", "172.30.0.2"}, contains: []string{"Established"}, delay: 5 * time.Second},
-	},
-	"bgp-role-otc-withdraw-frr": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opFRRRoute, argument: "10.10.0.0/24", timeout: 60 * time.Second},
-		{kind: opRequireContains, peer: "frr", command: []string{"vtysh", "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{"10.10.0.0/24", "OTC", "65001"}},
-		{kind: opFRRRouteAbsent, argument: "10.10.0.0/24", timeout: 90 * time.Second},
-		{kind: opFRRSession, argument: "172.30.0.2"},
 	},
 	"bgp-route-reflection-frr": {
 		{kind: opFRRSession, argument: "172.30.0.2"},
@@ -332,14 +276,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRRoute, argument: "10.10.1.0/24"},
 		{kind: opFRRRoute, argument: "10.10.2.0/24"},
 		{kind: opFRRSession, argument: "172.30.0.2"},
-	},
-	"bgp-route-server-frr": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opBIRDSession, argument: "ze_peer"},
-		{kind: opBIRDRoute, argument: "10.99.0.0/24"},
-		{kind: opBIRDNoAS, argument: "10.99.0.0/24", absent: []string{"65001"}},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opBIRDSession, argument: "ze_peer"},
 	},
 	"bgp-route-withdrawal-frr": {
 		{kind: opFRRSession, argument: "172.30.0.2"},
@@ -386,11 +322,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRRoute, argument: "10.10.1.0/24"},
 		{kind: opFRRRoute, argument: "10.10.2.0/24"},
 	},
-	"bgp-self-nexthop-withheld-frr": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opFRRRoute, argument: "10.12.0.0/24", timeout: 60 * time.Second},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-	},
 	"bgp-send-community-suppress-frr": {
 		{kind: opFRRSession, argument: "172.30.0.2"},
 		{kind: opBIRDSession, argument: "ze_peer"},
@@ -423,16 +354,6 @@ var scenarioOperations = map[string][]operation{
 	"bgp-vpn-gobgp": {
 		{kind: opGoBGPSession, argument: "172.30.0.2"},
 	},
-	"bgp-wellknown-noexport-frr": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opBIRDSession, argument: "ze_peer"},
-		{kind: opFRRRoute, argument: "10.11.0.0/24"},
-		{kind: opBIRDRoute, argument: "10.11.0.0/24"},
-		{kind: opBIRDRoute, argument: "10.10.0.0/24"},
-		{kind: opFRRRouteAbsent, argument: "10.10.0.0/24"},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opBIRDSession, argument: "ze_peer"},
-	},
 	"bmp-frr": {
 		{kind: opFRRSession, argument: "172.30.0.2"},
 		{kind: opFRRRoute, argument: "10.44.0.0/24"},
@@ -453,16 +374,8 @@ var scenarioOperations = map[string][]operation{
 	"isis-lan-dis-frr": {
 		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show isis neighbor"}, contains: []string{"Up"}, timeout: 90 * time.Second},
 	},
-	"isis-p2p-frr": {
-		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show isis neighbor"}, contains: []string{"Up"}, timeout: 90 * time.Second},
-	},
 	"isis-redist-frr": {
 		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show isis neighbor"}, contains: []string{"Up"}, timeout: 60 * time.Second},
-	},
-	"no-family-peer-eor-frr": {
-		{kind: opFRRSession, argument: "172.30.0.2"},
-		{kind: opFRRRoute, argument: "10.10.0.0/24"},
-		{kind: opFRRSession, argument: "172.30.0.2"},
 	},
 	"ospf-auth-frr": {
 		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show ip ospf neighbor"}, contains: []string{"Full"}, timeout: 90 * time.Second},
@@ -545,9 +458,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show ip ospf neighbor"}, contains: []string{"Full"}, timeout: 90 * time.Second},
 	},
 	"ospf-sr-frr": {
-		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show ip ospf neighbor"}, contains: []string{"Full"}, timeout: 90 * time.Second},
-	},
-	"ospf-stub-nssa-frr": {
 		{kind: opWaitContains, peer: "frr", command: []string{"vtysh", "-c", "show ip ospf neighbor"}, contains: []string{"Full"}, timeout: 90 * time.Second},
 	},
 	"ospf-te-frr": {

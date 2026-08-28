@@ -152,7 +152,7 @@ func TestWriteTo(t *testing.T) {
 test content
 EOF_CONF
 
-tmpfs=scripts/plugin.py:terminator=EOF_PY
+tmpfs=test/fixtures/plugin.py:terminator=EOF_PY
 #!/usr/bin/env python3
 print("hello")
 EOF_PY
@@ -173,12 +173,12 @@ EOF_PY
 	require.NoError(t, err)
 	assert.Equal(t, fs.FileMode(0o644), info.Mode().Perm())
 
-	// Check scripts/plugin.py (subdirectory)
-	content, err = os.ReadFile(filepath.Join(tmpDir, "scripts", "plugin.py")) //nolint:gosec // Test file path
+	// Check test/fixtures/plugin.py (subdirectory)
+	content, err = os.ReadFile(filepath.Join(tmpDir, "test", "fixtures", "plugin.py")) //nolint:gosec // Test file path
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "print(\"hello\")")
 
-	info, err = os.Stat(filepath.Join(tmpDir, "scripts", "plugin.py"))
+	info, err = os.Stat(filepath.Join(tmpDir, "test", "fixtures", "plugin.py"))
 	require.NoError(t, err)
 	assert.Equal(t, fs.FileMode(0o755), info.Mode().Perm())
 }
@@ -513,13 +513,13 @@ func TestTmpfsResolve(t *testing.T) {
 	v := &Tmpfs{
 		OtherLines: []string{
 			"cmd:ze bgp validate tmpfs//peer.conf",
-			"cmd:ze bgp run tmpfs//scripts/plugin.py",
+			"cmd:ze bgp run tmpfs//test/fixtures/plugin.py",
 		},
 	}
 
 	resolved := v.resolveTmpfsPaths()
 	assert.Equal(t, "cmd:ze bgp validate peer.conf", resolved[0])
-	assert.Equal(t, "cmd:ze bgp run scripts/plugin.py", resolved[1])
+	assert.Equal(t, "cmd:ze bgp run test/fixtures/plugin.py", resolved[1])
 }
 
 // TestCleanup verifies temp directory removal.

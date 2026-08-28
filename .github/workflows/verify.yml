@@ -1,46 +1,8 @@
 name: verify
 
-# The fast merge gate: every stage of `make ze-precommit-verify` (unit + functional +
-# static gates) on every push and pull request, fanned out over one runner per shard.
-# Ported from .woodpecker/verify.yml when the validation moved off Codeberg's shared
-# Woodpecker runners onto GitHub Actions (the repo is pushed to both codeberg.org and
-# github.com/ze-software/ze; GitHub is where CI now runs).
-#
-# The stage list is NOT reproduced here: it lives in `stagesForMode`
-# (scripts/status/verify_run.go) and nowhere else. Each shard READS that list at run
-# time with `make ze-precommit-verify-list` and keeps every Nth line, so a stage added
-# to that function lands in a shard with no second file to edit, and a gate absent
-# from it still runs nowhere. To read the live list: `make ze-precommit-verify-list`.
-# See docs/functional-tests.md.
-#
-# Why a shard selects its own stages, rather than a setup job generating a matrix from
-# the same command: a generated matrix carries the stage NAMES through the workflow,
-# and a name in the YAML is the second list this design exists to refuse
-# (plan/spec-fixit-verify-stage-ssot.md deleted two duplicate Makefile stage lists for
-# that reason). Here the YAML holds a count and an arithmetic rule, and nothing else.
-#
-# Why shard at all: the full sequential run measured 4418s on a 32-core dev box
-# (tmp/verify/run-20260818T214315Z), and a standard GitHub runner has far fewer cores,
-# so it pays more. A GitHub job is its own machine, so fanning out here takes nothing
-# from anybody -- unlike the dev box, which several sessions share.
-#
-# Why six: round-robin over the live list puts the three heaviest stages on three
-# different runners -- ze-functional-test (1472s), ze-staticcheck-feature-matrix-check
-# (874s) and ze-unit-test-race-changed (638s) on that same run. The heaviest shard
-# holds 1492s of stage time against the 1472s floor that ze-functional-test alone
-# sets, so more shards would buy nothing until that suite is itself split. Balance is
-# a property of the current list ORDER and is re-measurable; coverage is not a
-# property of anything, so TestWorkflowShardsCoverEveryStage asserts it instead.
-#
-# Every shard installs every tool and takes a full clone. That is what makes a shard
-# interchangeable, which is what lets a NEW stage land on any of them without anyone
-# editing this file. The cost is paying the setup steps once per shard in machine
-# time. It is not paid in wall clock: the shards run on separate machines.
-#
-# scripts/dev/github_workflows_test.go pins this workflow's shape (push +
-# pull_request, the union of the shards is the whole stage list, never a
-# heavy/scheduled suite).
-
+# The fast merge gate. The native verifier owns the ordered stage population;
+# this workflow only applies the round-robin shard rule. A new verifier action
+# therefore reaches CI without a second stage catalog here.
 on:
   push:
   pull_request:
@@ -52,34 +14,18 @@ jobs:
   verify:
     name: verify (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    # Bounded well above the heaviest shard measured on the dev box (1492s of stage
-    # time) and well below the 360-minute default this job used to inherit, so a
-    # wedged stage fails in bounded time instead of holding a runner for six hours.
     timeout-minutes: 120
     strategy:
-      # A red shard MUST NOT cancel its siblings. Canceling them would leave their
-      # stages unrun and unreported, which is exactly the "a gate stops running and
-      # nobody notices" failure the union test exists to refuse.
+      # A red shard must not cancel siblings whose stages have not run yet.
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4, 5, 6]
     env:
       SHARD_INDEX: ${{ matrix.shard }}
-      # strategy.job-total IS the size of the matrix above, so the shard count is
-      # stated once. An empty or zero value makes awk divide by zero below and fails
-      # the step, rather than selecting nothing and reporting a green shard.
       SHARD_TOTAL: ${{ strategy.job-total }}
     steps:
-      # fetch-depth: 0 is load-bearing, not a convenience. actions/checkout
-      # defaults to a shallow clone, and `collect_adoption`
-      # (scripts/dev/testing_health.py) answers UNKNOWN in one on purpose:
-      # git attributes every file to the graft commit, so package age -- the
-      # whole point of the metric -- cannot be derived. `do_check` compares
-      # every metric status, so the committed `ok` never matched CI's
-      # `unknown` and ze-generated-files-check was red on EVERY run, with a
-      # diagnostic ("regenerate and commit") that could not fix it: regenerating
-      # in a full clone reproduces the `ok` already committed. Every shard takes
-      # the full clone because any shard can hold that stage.
+      # Every shard is interchangeable. The full clone is required by repository
+      # history checks, and any action can land on any shard.
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -95,75 +41,51 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential curl git iproute2 iptables nftables \
-            python3 python3-venv util-linux
+            build-essential curl git iproute2 iptables nftables util-linux
 
-      # A BGP session needs a different address at each end: RFC 4271 Section
-      # 5.1.3 forbids a peer its own address as NEXT_HOP, and ze withholds such a
-      # route (originatedNextHopIsPeerOwn, internal/component/bgp/reactor/
-      # forward_next_hop.go). IPv4 fixtures spend 127.0.0.0/8, which Linux routes
-      # to lo already. IPv6 gives a host exactly ::1, so the second address is
-      # real configuration, and adding it needs CAP_NET_ADMIN -- which the stage
-      # step below does not have. fd00::/8 is unique-local (RFC 4193), never
-      # globally routable, so a fixture cannot leak a packet onto a real network.
-      # Same address, same reason, on a developer machine:
-      # `./le setup` (scripts/le/devtools/system.py, loopback_addresses).
-      #
-      # This runs after the apt step because `ip` comes from iproute2 there.
+      # IPv6 fixtures need a peer address distinct from ::1. This step needs the
+      # runner's administrative privilege and must precede every possible shard.
       - name: Add the loopback address the functional suite binds
         run: sudo ip -6 addr add fd00::2/128 dev lo
 
-      # Node comes from setup-node, NOT apt: the runner's own Node gives npm a
-      # user-writable global prefix, so `npm install -g` below works without sudo.
-      # apt's `nodejs npm` land a root-owned /usr prefix and would EACCES a bare
-      # `npm install -g` -- and agent-browser is load-bearing (the .wb web suite
-      # hard-fails without it, failing the shard that holds ze-functional-test).
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-
       - name: Install Go verification tools
         run: |
-          CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+          CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
           CGO_ENABLED=0 go install honnef.co/go/tools/cmd/staticcheck@2026.1
+          CGO_ENABLED=0 go install golang.org/x/vuln/cmd/govulncheck@v1.4.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      # Web suite (.wb tests) requires agent-browser; without it the suite fails
-      # hard under the verify gate instead of silently skipping.
+      # Browser fixtures fail rather than skip when this dependency is absent.
       - name: Install agent-browser
         run: |
           npm install -g agent-browser
           agent-browser install --with-deps
 
-      - name: Run this shard's verify stages
+      - name: Run this shard's native verify actions
         env:
-          # execStage (scripts/status/verify_run.go) exports this for every stage it
-          # runs, and the functional runner reads it (VerifyModeEnabled,
-          # internal/test/runner/parallel.go) to turn a silent environment skip into a
-          # hard failure. A shard that omitted it would run a WEAKER gate than the
-          # runner does, and would look green for it.
+          # Native verification exports this for every action. The functional
+          # runner uses it to turn an environment skip into a hard failure.
           ZE_VERIFY_MODE: "1"
           STAGE_LIST: ${{ runner.temp }}/verify-stages.txt
           SHARD_LIST: ${{ runner.temp }}/verify-shard-stages.txt
         run: |
-          set -euo pipefail
-          # ZE_VERIFY_MODE carries two unrelated meanings: "1" to the suites above,
-          # and a MODE NAME to this target ($(or $(ZE_VERIFY_MODE),ze-precommit-verify)
-          # in the Makefile). Name the mode on the command line, where it overrides the
-          # environment, so the step's own env cannot make the list target ask for a
-          # mode called "1".
-          # `| tee` rather than a redirection, for two reasons: the list lands in the
-          # log where a failing shard can be read against it, and `set -o pipefail`
-          # above still fails the step when make does.
-          make ze-precommit-verify-list ZE_VERIFY_MODE=ze-precommit-verify | tee "$STAGE_LIST"
-          test -s "$STAGE_LIST"
+          set -uo pipefail
+          ./le verify list mode full | tee "$STAGE_LIST" || exit $?
+          test -s "$STAGE_LIST" || exit 1
           awk -v i="$SHARD_INDEX" -v n="$SHARD_TOTAL" 'NR % n == i % n' "$STAGE_LIST" > "$SHARD_LIST"
-          test -s "$SHARD_LIST"
-          # One `make` per stage, exactly as execStage runs them, and every stage runs
-          # even after one fails: xargs continues past a failing command and exits 123,
-          # so the shard reports every red it found rather than only the first.
-          xargs -a "$SHARD_LIST" -n1 -t make --no-print-directory
+          test -s "$SHARD_LIST" || exit 1
+
+          # Keep running after a red action so the shard reports every failure.
+          status=0
+          while IFS=/ read -r -a action; do
+            printf '==> ./le'
+            printf ' %q' "${action[@]}"
+            printf '\n'
+            ./le "${action[@]}" || status=$?
+          done < "$SHARD_LIST"
+          exit "$status"

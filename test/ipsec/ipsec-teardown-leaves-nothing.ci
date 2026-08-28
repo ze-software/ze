@@ -28,7 +28,7 @@
 #
 # Gated option=needs-linux:caps=net-admin: the responder programs real XFRM state, so
 # it SKIPs on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root
-# in the QEMU VM, where `fsuite ipsec` in scripts/evidence/qemu-all-tests.sh executes
+# in the QEMU VM, where `fsuite ipsec` in internal/le/qemu/alltests.go executes
 # the suite.
 
 option=needs-linux:caps=net-admin
@@ -44,81 +44,7 @@ option=env:var=ze_test_ike_port:value=$PORT2
 option=timeout:value=90s
 option=env:var=ze_log_ike:value=info
 
-tmpfs=cycle.py:mode=755:terminator=EOF_CYCLE
-#!/usr/bin/env python3
-"""Watch one tunnel reach the kernel and then leave it.
 
-The kernel is the synchronisation point, not a log line: the responder's two XFRM
-states appear when the Child SA is installed, and they leave when the operator clear
-(the command= steps below, dispatched inside that same daemon) ends the owner loop.
-"""
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-
-def spis():
-    out = subprocess.run(["ip", "xfrm", "state"], capture_output=True, text=True).stdout
-    return frozenset(
-        fields[i + 1]
-        for line in out.splitlines()
-        for fields in [line.split()]
-        for i, f in enumerate(fields)
-        if f == "spi" and i + 1 < len(fields)
-    )
-
-
-if not wait_until(lambda: len(spis()) >= 2, attempts=240, delay=0.25):
-    sys.exit(f"tunnel never reached the kernel: ip xfrm state holds {sorted(spis())}")
-installed = spis()
-print("INSTALLED:", " ".join(sorted(installed)))
-
-# Teardown 1: the states of THAT SA leave the kernel. Asserted as "gone", never as
-# "the table is empty", so a reconnect that beats this poll cannot make it pass for
-# the wrong reason.
-if not wait_until(lambda: not (spis() & installed), attempts=240, delay=0.25):
-    sys.exit(f"the operator clear left the installed SA in the kernel: {sorted(installed)}")
-print("TORN-DOWN:", " ".join(sorted(installed)))
-
-EOF_CYCLE
-
-tmpfs=residue.py:mode=755:terminator=EOF_RESIDUE
-#!/usr/bin/env python3
-"""Assert both daemons gave the kernel back everything they took.
-
-Runs after cmd=stop has reaped both, so nothing is left that could still be
-mid-teardown. Every residue is PRINTED rather than counted, because the useful
-failure names what stayed behind: a child state, a child policy, or one of the four
-node-wide IKE bypass policies per family.
-"""
-import subprocess
-import sys
-
-
-def lines(*cmd):
-    out = subprocess.run(cmd, capture_output=True, text=True)
-    if out.returncode != 0:
-        sys.exit(f"{' '.join(cmd)} failed: {out.stderr.strip()}")
-    return out.stdout
-
-
-# /proc/net/raw carries one line per IPv4 raw socket, and its local_address port
-# field holds the protocol: 0032 is 50, IPPROTO_ESP. That is the socket pair the ESP
-# form receiver opens (dataplane/espform_linux.go), so a surviving one is a watched
-# SPI that no Forget released.
-raw = [l for l in open("/proc/net/raw").read().splitlines()[1:] if ":0032 " in l]
-states = [l for l in lines("ip", "xfrm", "state").splitlines() if l.startswith("src")]
-policies = [l for l in lines("ip", "xfrm", "policy").splitlines() if l.startswith("src")]
-
-if states or policies or raw:
-    print("RESIDUE: states=%d policies=%d esp-sockets=%d" % (len(states), len(policies), len(raw)))
-    print(lines("ip", "xfrm", "state"), end="")
-    print(lines("ip", "xfrm", "policy"), end="")
-    print("\n".join(raw))
-    sys.exit(1)
-print("RESIDUE: none")
-EOF_RESIDUE
 
 # ── Responder daemon (background, REAL xfrm, engine-steps executor): binds 127.0.0.2 ──
 #
@@ -236,18 +162,18 @@ cmd=background:seq=1:exec=ze -:stdin=responder:name=responder
 # just execs, so the daemon still gets the signal cmd=stop sends. The bare `ze` resolves
 # through the shim the runner puts first on the child PATH (Runner.setupBinShims).
 cmd=background:seq=2:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator:name=initiator
-cmd=foreground:seq=3:exec=python3 cycle.py:timeout=70s
+cmd=foreground:seq=3:exec=ze-test fixture ipsec/teardown-leaves-nothing/cycle:timeout=70s
 # signal=term, not the default kill: the release under test runs on the way out of
 # runEngine, and a SIGKILLed process runs nothing at all. The runner reaps each
 # process before the next step, so the residue check below sees a settled kernel.
 cmd=stop:seq=4:name=initiator:signal=term
 cmd=stop:seq=5:name=responder:signal=term
-cmd=foreground:seq=6:exec=python3 residue.py
+cmd=foreground:seq=6:exec=ze-test fixture ipsec/teardown-leaves-nothing/residue
 
 # The operator clear, dispatched inside the responder. It ends the
 # owner loop, which removes this Child SA's two states and two policies from the kernel
 # (established.go cleanupChild -> child.go removeChildSA -> dataplane RemoveSA /
-# RemovePolicy), and that removal is what cycle.py above waits to see. aes-cbc appears
+# RemovePolicy), and that removal is what native fixture above waits to see. aes-cbc appears
 # in the SA row only once IKE_AUTH has completed, so it is a real establishment gate.
 command=show vpn ipsec sa | json
 expect=output:contains=aes-cbc:timeout=40

@@ -21,13 +21,13 @@ Audit against three baselines:
 
 - ~2.05M lines of Go in 8,700 tracked files; 2,414 test files; 2,360 files under `test/`
 - 253 docs pages; 88 files in `ai/rules/`; 145 top-level `plan/` specs (134 active: 18 in-progress, 26 ready, 48 design, 40 skeleton, 2 blocked); 1,155 learned entries
-- CI: Woodpecker `verify.yml` (718 bytes), GitHub Actions codeql + pages; real gate machinery in `mk/*.mk` (12 fragments) and `scripts/dev/`
+- CI at the audit date used Woodpecker `verify.yml` and GitHub Actions. The retired `mk/*.mk` and `scripts/dev/` gate machinery now lives under `internal/le` and runs through `./le verify`.
 - Working tree at audit time: 90 uncommitted files, 14 unpushed commits on main
 
 ## Ground rules
 
-- Strictly read-only: no code changes, no commits, no heavy gates rerun (no `make ze-precommit-verify`).
-- Agents may run cheap read-only commands (grep, git log, single-package `go vet`); no full builds or test suites. Cheap analysis scripts allowed with a short timeout, abandoned if slow.
+- Strictly read-only: no code changes, no commits, no heavy gates rerun (no `./le verify current mode full`).
+- Agents may run cheap read-only commands (grep, git log, single-package `go vet`); no full builds or test suites. Current cheap analysis runs through the named `./le` action.
 - Every finding must cite the producing code as `file:line` (`ai/rules/evidence.md`); uncited claims are dropped or labeled unverified.
 - BLOCKER/HIGH findings must survive adversarial verification (Phase 2) before entering the report.
 
@@ -55,7 +55,7 @@ Audit against three baselines:
 
 ## Dimensions 4-10 outcome (2026-07-16)
 
-Report: `tmp/repo-audit-dimensions-4-10-2026-07-16.md`. Dominant theme across 6 of 7 dims: **gate theatre** — heavy tooling exists (fuzz/mutation/perf/alloc/doc-links/integration/QEMU/govulncheck-worthy) but CI runs only `make ze-precommit-verify`, whose stage list omits most. Two BLOCKERs: (1) CI depth — no integration/QEMU/fuzz/mutation/interop in any CI [verified: grep .woodpecker+.github = none]; (2) uncommitted/unpushed — 53 unpushed commits + ~15 untracked planning-only specs, one an untracked dependency of a committed spec [verified: git]. HIGHs: ISIS/OSPF fuzzers written-but-not-enumerated; no govulncheck gate; doc gates dark + 16 broken discovery-index refs; verify-stage-list drift + ze-yang-glue-check unwired; spec citation rot + done-but-unclosed + 65 skeletons. One genuine code bug: LDP Hello-starvation (register.go, read reaches ReadFromUDP only after 5s hello ticker) [verified: direct read]. Resolved: peer_contract.go test-masking lead REFUTED (hole closed, peer_contract.go). Side effect: docs_to_code.py regenerated ai/DOCS-TO-CODE.md in working tree.
+Report: `tmp/repo-audit-dimensions-4-10-2026-07-16.md`. Dominant theme across 6 of 7 dims: **gate theatre** — heavy tooling exists (fuzz/mutation/perf/alloc/doc-links/integration/QEMU/govulncheck-worthy) but CI runs only `./le verify current mode full`, whose stage list omits most. Two BLOCKERs: (1) CI depth — no integration/QEMU/fuzz/mutation/interop in any CI [verified: grep .woodpecker+.github = none]; (2) uncommitted/unpushed — 53 unpushed commits + ~15 untracked planning-only specs, one an untracked dependency of a committed spec [verified: git]. HIGHs: ISIS/OSPF fuzzers written-but-not-enumerated; no govulncheck gate; doc gates dark + 16 broken discovery-index refs; verify-stage-list drift + ./le yang-glue check unwired; spec citation rot + done-but-unclosed + 65 skeletons. One genuine code bug: LDP Hello-starvation (register.go, read reaches ReadFromUDP only after 5s hello ticker) [verified: direct read]. Resolved: peer_contract.go test-masking lead REFUTED (hole closed, peer_contract.go). Side effect: docs_to_code.py regenerated ai/DOCS-TO-CODE.md in working tree.
 
 Each agent returns a fixed schema: 2-3 genuine strengths; findings ranked by severity, each with `file:line` citation(s), concrete failure scenario, suggested fix; and its single highest-leverage recommendation. Max ~12 findings per agent, quality over quantity.
 
@@ -122,14 +122,14 @@ component-edge direction check is not already planned:
 
 | Finding | Severity | Note |
 |---------|----------|------|
-| H6 no component→component / component→plugins dependency-direction gate | HIGH | Triple-confirmed (both arch passes + verifier V5) that `dep_audit.py` gates only the core direction today. Needs the component-edge gate — verify it is in the umbrella's Phase scope; if not, add a child spec. |
+| H6 no component→component / component→plugins dependency-direction gate | HIGH | Triple-confirmed at the time by the retired `dep_audit.py`. Its current producer is `internal/le/tier/gates.go`, reached through `./le tier check`. Verify umbrella scope before adding a child spec. |
 | bfd → diag functional edge breaks removal invariant | MEDIUM | Becomes a tracked baseline row once the component-edge gate lands; fix = invert the seam to `bfd/api` atomic.Pointer. |
 | config → bgp coupling; editor engine in `cli`; sysrib → rib global setter; web → feature-component imports; BGP spelling in the generic plugin framework; MRT hand-wired in hub; protocol validators hardcoded in central config; `internal/core/diagnostic` mis-tiered + yang_glue regen | MEDIUM | All facets of the component-boundary domain the umbrella owns. Route as umbrella child specs. |
 
 ### Deliberately deferred (LOW, per scope decision)
 
 hold-time-0 spurious log; wireu display-path decoders (ParsePrefixes bound, NextHop RFC 5549);
-verify stage-naming inconsistency + `ze-yang-glue-check` has no automatic caller; SSH client
+verify stage-naming inconsistency + `./le yang-glue check` has no automatic caller; SSH client
 host-key TOFU; SSH server username-in-log bounding.
 
 ### Coverage check
@@ -141,4 +141,4 @@ was silently dropped.
 ## Open knobs (defaults applied for the fable run)
 
 1. BGP core depth: single agent (not split reactor vs wire) — default kept.
-2. Cheap analysis gates (`make ze-tier-check`, `dep_audit.py`): agents may attempt with a short timeout, abandon if slow — conservative default.
+2. Cheap analysis gates use `./le tier check`; it replaced the retired `dep_audit.py`. Agents may attempt them with a short timeout and abandon them if slow.

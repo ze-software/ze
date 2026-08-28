@@ -17,48 +17,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: sends stop via dispatch-command
-tmpfs=signal-stop-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: daemon stop via dispatch-command."""
-
-import sys
-import time
-from ze_api import API
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for BGP session
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Send shutdown command
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    status = resp.get('result', {}).get('status')
-    if status != 'done':
-        print(f'FAIL: shutdown status={status}', file=sys.stderr)
-        sys.exit(1)
-
-    print('OK: daemon shutdown dispatched', file=sys.stderr)
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/signal-stop-ssh.
 
 # ze bgp configuration with SSH
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external signal-stop-test {
-		run ./signal-stop-test.run
+		run "ze-test fixture plugin/signal-stop-ssh"
 		encoder json
 	}
 }

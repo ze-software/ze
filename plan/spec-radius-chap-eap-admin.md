@@ -246,7 +246,7 @@ Points to complete:
 | 2. Audit | Files to Modify; answer O-1..O-4 first |
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `make ze-precommit-verify` |
+| 5. Full verification | `./le verify current mode full` |
 | 13. /ze-review gate | Review Gate section |
 
 ### Implementation Phases
@@ -275,7 +275,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: (fill after O-2)
 6. **Functional tests** → the two `.ci`
 7. **RFC refs** → `// RFC 2865 Section 5.3` / `// RFC 2866` / `// RFC 3579` comments
-8. **Full verification** → `make ze-precommit-verify`
+8. **Full verification** → `./le verify current mode full`
 9. **Complete spec** → learned summary, two commits
 
 ### Critical Review Checklist (/implement stage 6)
@@ -436,7 +436,7 @@ MUST document: validation rules, error conditions, state transitions, any MUST/M
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)

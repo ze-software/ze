@@ -10,7 +10,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -41,5 +40,5 @@ func init() {
 	// The census counts all three gates as ported from here, in the same init()
 	// that registers the command. A claim whose command never registered is
 	// red, so the count cannot fall for a tool nothing can reach.
-	parity.Claim(area, "ze-command-contract-check", "ze-doc-drift-check", "ze-docs-pipe-operators-update")
+
 }

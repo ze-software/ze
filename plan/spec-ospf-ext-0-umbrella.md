@@ -482,7 +482,7 @@ directly.
 5. **Phase: Segment Routing** -- ext-5; IPv4 half once ext-3 + ext-4 are done, IPv6 half adding its own v3 RI + RFC 8362 LSAs first.
 6. **Phase: TI-LFA / LFA** -- ext-6 (both AFs), once ext-5 is done.
 7. **Phase: L3VPN DN bit (gated)** -- ext-13 (IPv4), LAST, only once MPLS-L3VPN/VRF infrastructure exists.
-8. **Per-child verification + interop** -- `make ze-precommit-verify` + FRR `ospfd` / `ospf6d` scenarios, owned by each child.
+8. **Per-child verification + interop** -- `./le verify current mode full` + FRR `ospfd` / `ospf6d` scenarios, owned by each child.
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this umbrella |
@@ -724,7 +724,7 @@ and `rfc/short/rfc5838.md` / `rfc/short/rfc4552.md` (consumed by ext-15 / ext-16
 - [ ] End-to-End User Stories each map to a child + a downstream test
 - [ ] Wiring Test table complete (umbrella-level; detailed wiring per child)
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes (downstream, per child)
+- [ ] `./le verify current mode full` passes (downstream, per child)
 - [ ] Feature code integrated (`internal/plugins/ospf/` + `internal/plugins/ospf/v3/`) (downstream, per child)
 - [ ] Documentation Update Checklist answered (per child as each lands)
 - [ ] Critical Review passes

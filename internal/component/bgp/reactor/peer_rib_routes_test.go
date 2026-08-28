@@ -24,7 +24,7 @@ import (
 // sendUpdateWithSplit and transmitted.
 //
 // The batch rail's equivalent guards live in reactor_api_batch_capacity_test.go.
-// Which rail encodes a given route is decided by Peer.ShouldQueue(), i.e. by
+// Which rail encodes a given route is decided by Peer.shouldQueue(), i.e. by
 // scheduling, so both rails need the same bound or the daemon's memory safety
 // depends on timing.
 

@@ -20,6 +20,11 @@ import (
 )
 
 const (
+	reportFieldRemoteVersion  = "remote"
+	reportFieldRunningVersion = "running"
+)
+
+const (
 	updateSource       = "system"
 	updateCode         = "update-available"
 	updateSubject      = "firmware"
@@ -160,7 +165,7 @@ func (uc *UpdateChecker) check(ctx context.Context) {
 	if available {
 		report.RaiseWarning(updateSource, updateCode, updateSubject,
 			"newer firmware available: "+remoteVer+" (running "+running+")",
-			map[string]any{"remote": remoteVer, "running": running})
+			map[string]any{reportFieldRemoteVersion: remoteVer, reportFieldRunningVersion: running})
 	} else {
 		report.ClearWarning(updateSource, updateCode, updateSubject)
 	}

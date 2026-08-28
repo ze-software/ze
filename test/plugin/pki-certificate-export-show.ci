@@ -10,103 +10,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=pki-export-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def check_status(label, resp):
-    status = resp.get('status')
-    if status is None:
-        runtime_fail(f'{label}: dispatch returned no status: {resp}')
-    if status != 'done':
-        runtime_fail(f'{label}: status={status} error={resp.get("error")}')
-    return resp.get('data', '')
-
-def parse_data(label, data):
-    if isinstance(data, str) and data:
-        return json.loads(data)
-    if isinstance(data, dict):
-        return data
-    runtime_fail(f'{label}: expected dict, got {type(data).__name__}')
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # Test 1: show pki certificate dev-1 pem
-        resp = dispatch(api, 'show pki certificate name dev-1 pem')
-        data = parse_data('pem', check_status('pem', resp))
-        pem_str = data.get('pem', '')
-        if 'BEGIN CERTIFICATE' not in pem_str:
-            runtime_fail(f'pem: missing certificate header')
-        if 'PRIVATE KEY' in pem_str:
-            runtime_fail(f'pem: should not contain private key')
-        print(f'OK: pki certificate pem returned {len(pem_str)} bytes', file=sys.stderr)
-
-        # Test 2: show pki certificate dev-1 bundle pem
-        resp = dispatch(api, 'show pki certificate name dev-1 bundle pem')
-        data = parse_data('bundle', check_status('bundle', resp))
-        bundle_str = data.get('pem', '')
-        if 'BEGIN CERTIFICATE' not in bundle_str:
-            runtime_fail(f'bundle: missing certificate')
-        if 'BEGIN PRIVATE KEY' not in bundle_str:
-            runtime_fail(f'bundle: missing private key')
-        cert_pos = bundle_str.index('BEGIN CERTIFICATE')
-        key_pos = bundle_str.index('BEGIN PRIVATE KEY')
-        if cert_pos > key_pos:
-            runtime_fail(f'bundle: certificate must appear before key')
-        print(f'OK: pki certificate bundle pem returned {len(bundle_str)} bytes', file=sys.stderr)
-
-        # Test 3: show pki certificate dev-1 fingerprint (default sha256)
-        resp = dispatch(api, 'show pki certificate name dev-1 fingerprint')
-        data = parse_data('fingerprint', check_status('fingerprint', resp))
-        fp = data.get('fingerprint', '')
-        algo = data.get('algorithm', '')
-        if algo != 'sha256':
-            runtime_fail(f'fingerprint: expected sha256, got {algo}')
-        if ':' not in fp:
-            runtime_fail(f'fingerprint: expected colon-separated, got {fp}')
-        # SHA-256 = 64 hex chars + 31 colons = 95 chars
-        if len(fp) != 95:
-            runtime_fail(f'fingerprint: expected length 95, got {len(fp)}')
-        print(f'OK: pki certificate fingerprint = {fp}', file=sys.stderr)
-
-        # Test 4: show pki certificate test-ca pem (CA cert)
-        resp = dispatch(api, 'show pki certificate name test-ca pem')
-        data = parse_data('ca-pem', check_status('ca-pem', resp))
-        ca_pem = data.get('pem', '')
-        if 'BEGIN CERTIFICATE' not in ca_pem:
-            runtime_fail(f'ca-pem: missing certificate header')
-        print(f'OK: pki ca certificate pem returned {len(ca_pem)} bytes', file=sys.stderr)
-
-        # Test 5: bundle pem rejects CA certs
-        resp = dispatch(api, 'show pki certificate name test-ca bundle pem')
-        if resp.get('status') != 'error':
-            runtime_fail(f'ca-bundle: expected error for CA cert, got {resp.get("status")}')
-        print(f'OK: pki bundle correctly rejects CA cert', file=sys.stderr)
-
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer validates PEM, bundle, fingerprint, and CA refusal contracts.
 
 stdin=ze-bgp:terminator=EOF_CONF
 pki {
@@ -123,7 +27,7 @@ pki {
 
 plugin {
     external pki-export-show-test {
-        run ./pki-export-show-test.run
+        run "ze-test fixture plugin/pki-certificate-export-show"
         encoder json
     }
 }

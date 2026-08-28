@@ -23,7 +23,7 @@ var (
 	ErrInvalidID = errors.New("l2tp: invalid id (must be 1..65535)")
 )
 
-// TeardownTunnelByID sends a StopCCN Result Code 6 (administrative
+// teardownTunnelByID sends a StopCCN Result Code 6 (administrative
 // shutdown) for the tunnel with the given local TID. The tunnel's
 // sessions are cleared and any kernel resources drained the same way
 // peer-initiated StopCCN does. Returns ErrTunnelNotFound when the TID
@@ -32,7 +32,7 @@ var (
 // Caller MUST NOT hold tunnelsMu; this method acquires it internally
 // and releases it before writing to the UDP socket (matching the
 // existing reactor pattern).
-func (r *L2TPReactor) TeardownTunnelByID(localTID uint16) error {
+func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
 	if localTID == 0 {
 		return ErrInvalidID
 	}
@@ -69,12 +69,12 @@ func (r *L2TPReactor) TeardownTunnelByID(localTID uint16) error {
 	return nil
 }
 
-// TeardownSessionByID sends a CDN Result Code 3 (administrative) for
+// teardownSessionByID sends a CDN Result Code 3 (administrative) for
 // the first session with the given local SID found on any tunnel.
 // Returns ErrSessionNotFound when no session carries the SID.
 //
 // Caller MUST NOT hold tunnelsMu.
-func (r *L2TPReactor) TeardownSessionByID(localSID uint16) error {
+func (r *l2tpReactor) teardownSessionByID(localSID uint16) error {
 	if localSID == 0 {
 		return ErrInvalidID
 	}
@@ -120,7 +120,7 @@ func (r *L2TPReactor) TeardownSessionByID(localSID uint16) error {
 // with zero live tunnels returns 0 and is not an error.
 //
 // Caller MUST NOT hold tunnelsMu.
-func (r *L2TPReactor) TeardownAllTunnels() int {
+func (r *l2tpReactor) TeardownAllTunnels() int {
 	r.tunnelsMu.Lock()
 	tids := make([]uint16, 0, len(r.tunnelsByLocalID))
 	for tid := range r.tunnelsByLocalID {
@@ -130,7 +130,7 @@ func (r *L2TPReactor) TeardownAllTunnels() int {
 
 	n := 0
 	for _, tid := range tids {
-		if err := r.TeardownTunnelByID(tid); err == nil {
+		if err := r.teardownTunnelByID(tid); err == nil {
 			n++
 		} else if !errors.Is(err, ErrTunnelNotFound) {
 			r.logger.Warn("l2tp: teardown-all per-tunnel failure",
@@ -145,7 +145,7 @@ func (r *L2TPReactor) TeardownAllTunnels() int {
 // of sessions actually torn down.
 //
 // Caller MUST NOT hold tunnelsMu.
-func (r *L2TPReactor) TeardownAllSessions() int {
+func (r *l2tpReactor) TeardownAllSessions() int {
 	r.tunnelsMu.Lock()
 	type key struct {
 		tid uint16
@@ -172,7 +172,7 @@ func (r *L2TPReactor) TeardownAllSessions() int {
 // TeardownAllSessions. Distinct from TeardownSessionByID because the
 // latter walks every tunnel looking for the SID; here the caller
 // already knows the tuple.
-func (r *L2TPReactor) teardownSessionOnTunnel(localTID, localSID uint16) error {
+func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16) error {
 	r.tunnelsMu.Lock()
 	t, ok := r.tunnelsByLocalID[localTID]
 	if !ok {

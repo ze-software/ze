@@ -14,7 +14,7 @@ See also, for the pool/buffer/lazy principles: `ai/rules/performance.md`, `ai/ru
 **Before any spec: READ source, document current behavior, preserve by default.**
 **Before modifying a file, check what else needs to change. Changes to certain file types have predictable ripple effects.**
 **Trace full data flow before writing or reviewing specs.**
-**Where a Go package lives under `internal/` is decided by dependency direction, not by size or age. Three tiers, two mechanical axes. New code MUST land in the correct tier; an engine in the wrong tier fails `make ze-precommit-verify`.**
+**Where a Go package lives under `internal/` is decided by dependency direction, not by size or age. Three tiers, two mechanical axes. New code MUST land in the correct tier; an engine in the wrong tier fails `./le verify worktree`.**
 **Persist runtime state through the managed zefs store, never as a loose file.**
 **Ze differs from typical Go projects in specific, load-bearing ways. An AI trained on standard Go patterns will default to the wrong approach unless it reads the divergence tables below. Each entry names the standard approach, the Ze approach, the rule that governs it, and a one-line reason.**
 
@@ -24,13 +24,13 @@ Complete before writing any code, tests, or documentation.
 
 **You MUST complete this checklist before writing code.**
 - [ ] 1. Read pattern cookbook (touching CLI/web/plugin/config/tests): read `ai/patterns/<domain>.md`. See `ai/INDEX.md` "I Want To..."
-- [ ] 2. Grep/Glob for existing implementations, extend if found. Hook `check-existing-patterns.sh` blocks `Write` of a new `.go` under `internal/` when the first type name exists elsewhere. Grep `^type Foo ` first
+- [ ] 2. Grep/Glob for existing implementations and extend one when found. Search `^type Foo ` before writing a new type
 - [ ] 3. Know source files: use digests if available; read + write digest if not
 - [ ] 4. Verify file paths exist (Glob/Grep)
 - [ ] 5. Wiring-first check: for every new feature, name the user entry point (CLI command, web route, config leaf, plugin event) and the function where it will be registered. If the entry point doesn't exist yet, it is Phase 1. If it does, name the function you will modify. "Library code someone will call" is not an answer.
 - [ ] 6. Buffer-first check (wire encoding): `ai/rules/performance.md`
 - [ ] 7. Lazy-first check: can the consumer use existing wire methods? "Design Principles" below, "Lazy over eager"
-- [ ] 8. Bulk-edit check: >2 files with same pattern? Change ONE, test, confirm, THEN `scripts/dev/replace.py` (preview before `--apply`). Never assume
+- [ ] 8. Bulk-edit check: >2 files with same pattern? Change ONE, test, confirm, THEN `./le source-rewrite replace` (preview before `--apply`). Never assume
 - [ ] 9. Sibling call-site audit: adding a guard/fallback/retry to ONE call site? Grep ALL callers; apply same change in the same commit
 - [ ] 10. Discovery update check: adding or changing a feature, tool, self-check, verification gate, or test infrastructure? Name the docs/rules/index updates now. See `ai/rules/repo-maintenance.md`
 
@@ -52,7 +52,7 @@ Complete before writing any code, tests, or documentation.
 | Retry / backoff | Check every other caller doing the same I/O |
 | New error-wrapping context | Check every other caller wrapping the same error |
 | Replace direct call with helper | Check every other caller that should use the helper |
-| Change/remove how a binary is invoked (launch form, positional, flag) | Grep EVERY invocation site of the bare token (`\bze <arg>`), not just the framework directive (`exec=ze`): `.ci` `exec=`, embedded `tmpfs=*.sh` bodies, helper `.sh`/`.py`, runner launch code, wrapper scripts, docs. Prove with the FULL suite, never a sample, only it runs the embedded launches (learned 1248) |
+| Change or remove how a binary is invoked | Search EVERY invocation of the bare token, including `.ci` directives, embedded `tmpfs=` bodies, compiled drivers under `internal/test/fixture`, runner launch code, native actions, and docs. Prove the complete affected suite, never a sample (learned 1248) |
 
 ```
 fn="store.ReadFile"
@@ -206,7 +206,7 @@ Decision:
 
 ### Non-engine category manifest
 
-The source of truth for intentional non-engine placements outside `internal/core/` is `scripts/dev/tier_non_engine_categories.txt`. It is a human-readable manifest consumed by `scripts/dev/dep_audit.py --check`; do not hide new exceptions in Python code.
+The source of truth for intentional non-engine placements outside `internal/core/` is `internal/le/tier/testdata/tier_non_engine_categories.txt`. It is non-code data consumed by `./le tier check`; do not hide new exceptions in Go code.
 
 Each row is:
 
@@ -231,12 +231,12 @@ Decide the tier by the two axes and the non-engine categories BEFORE you pick a 
 
 **You MUST pick the directory from these rules:**
 - 1. Pure library, no `sdk.NewWithConn`, no plugin lifecycle, no component domain owner -> `internal/core/<x>`.
-- 2. Framework or host-service infrastructure -> classify it in `scripts/dev/tier_non_engine_categories.txt` and keep it under `internal/component/<x>` unless this rule says setup-package placement belongs under `internal/plugins/<x>`.
+- 2. Framework or host-service infrastructure -> classify it in `internal/le/tier_non_engine_categories.txt` and keep it under `internal/component/<x>` unless this rule says setup-package placement belongs under `internal/plugins/<x>`.
 - 3. Domain library -> keep it with the owning domain only when the manifest names the domain category. Today that means BNG and VPN; AAA, traffic, firewall, and CoS stay flat.
 - 4. Engine that other plugins will depend on -> `internal/component/<x>`.
 - 5. Engine that is a self-contained leaf feature -> `internal/plugins/<x>`.
 
-**A sub-plugin of an existing subsystem (e.g. a BGP capability or NLRI codec) MUST go under that subsystem's own plugin namespace (`internal/component/bgp/plugins/<x>`), not at the top level. Those nested namespaces are listed in the generator's `pluginDirs` (`scripts/codegen/plugin_imports.go`).**
+**A sub-plugin of an existing subsystem (e.g. a BGP capability or NLRI codec) MUST go under that subsystem's own plugin namespace (`internal/component/bgp/plugins/<x>`), not at the top level. Those nested namespaces are listed in the generator's `pluginDirs` (`internal/le/pluginimports/pluginimports.go`).**
 
 ### Scope of enforcement
 
@@ -247,35 +247,35 @@ The gate enforces engine placement mechanically and enforces ambiguous non-engin
 >
 > A non-engine package outside `internal/core/` MUST either be classified by the
 > existing registration mechanics or have a manifest row in
-> `scripts/dev/tier_non_engine_categories.txt`.
+> `internal/le/tier_non_engine_categories.txt`.
 
 The "wired as a plugin" signal is mechanical: the advisory reads composition roots (generated `all.go`, gated `all_<tag>.go`, `cmd/ze` dispatch companions, and `cmd/ze/setup_features_*.go`) to tell registered packages from genuine core candidates. It catches every shape: `registry.Register`, `RegisterRPCs`, `RegisterBackend`, doctor checks, `*-cmd` verb providers, and setup-feature commands. BGP codec/type packages are being split separately; `ike/dataplane` stays under component until its VPP backend is split from the interface package. There is **no permanent allowlist**.
 
-`scripts/dev/dep_audit.py --check` enforces the engine-placement rule, the non-engine category manifest, the **core import-direction rule** (`internal/core/` MUST NOT import `internal/component/` or `internal/plugins/`; grandfathered pairs live in the shrink-only `scripts/dev/core_import_baseline.txt` with a fix route each, and new pairs and stale rows both fail), the disable-ability rule, and golangci build-tag drift. It runs in `make ze-precommit-verify` (target `ze-tier-check`). It:
+`./le tier check` enforces engine placement, the non-engine manifest, core import direction, disable-ability, and build-tag drift. Grandfathered pairs remain non-code data in `internal/le/tier/testdata/core_import_baseline.txt`; new pairs and stale rows both fail.
 
 **`dep-audit` MUST behave as follows:**
-- parses `pluginDirs` from `scripts/codegen/plugin_imports.go` to exclude nested sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
+- parses `pluginDirs` from `internal/le/pluginimports/pluginimports.go` to exclude nested sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
 - treats generated `all.go` files, gated `all_<tag>.go` files, `cmd/ze` dispatch/import companions, and `cmd/ze/setup_features_*.go` as registration importers, not functional dependencies;
 - fails (exit 2) on any **new** misplaced engine, naming the dir and its required tier, pointing here;
 - fails on a **stale** engine baseline entry (one no longer misplaced), forcing cleanup;
-- fails (exit 2) on any illegal, stale, or missing row in `scripts/dev/tier_non_engine_categories.txt`;
+- fails (exit 2) on any illegal, stale, or missing row in `internal/le/tier_non_engine_categories.txt`;
 - fails (exit 2) if a `DISABLEABLE` feature is imported by always-on (untagged, non-test) code, naming the file and the build tag it needs.
 
 ### Disable-ability (compile-out)
 
 Axis B also decides whether a feature can be **compiled out** of the binary. A feature is compile-out-able exactly when nothing always-compiled depends on it: it is reached ONLY through build-tag-gated registration. A direct functional `import` from always-on (untagged) code pins the package into every binary and defeats the compile-out; only a blank/gated registration import can be dropped by a build tag.
 
-Two shapes exist. **Listener services** (looking-glass: `ze_lg`, web: `ze_web`, MCP: `ze_mcp`) plug into the construction registry (`cmd/ze/hub/service_registry.go`): a gated `service_<x>.go` + `register_<x>.go` registers a factory and any listener-migrator wiring the hub iterates. MCP fits because its `MCPServerHandle` is already `Reconfigurable` + `Shutdown`; the command metadata it shares with the always-on API is kept neutral (`command_meta.go`) so API does not pull mcp back into every binary. Web also has a nil-able standalone seam (`web_infra.go`) for `ze start --web` so the always-on CLI path does not import `internal/component/web`. **Dedicated seams** cover services whose construction shape does not fit the registry: ssh (`ze_ssh`) uses `ssh_infra.go` for the shared startup and standalone paths; gNMI (`ze_gnmi`) uses `gnmi_infra.go` for rich constructor inputs plus the reload notification hook; the REST/gRPC API uses `api_infra.go` with TWO independent hooks (`ze_rest` / `ze_grpc`) so an operator can ship gRPC-without-REST or vice-versa, sharing an always-on engine/session builder (`buildAPIShared`). The shared `api-server { token }` YANG base stays always-on and each transport's `rest{}`/`grpc{}` container is contributed by a gated YANG module (`internal/component/api/rest/yang`, `internal/component/api/grpc/yang`) via Ze's same-named-container merge, so a compiled-out transport's config block is rejected as unknown. Telemetry (`ze_telemetry`) is the first **core-level** seam: its hook `metrics.StartExporter` lives in always-on `internal/core/metrics` (not the hub) because two start sites in different components, the hub standalone path and the bgp reactor path (`internal/component/bgp/config`), both read it; the hub's gated `register_telemetry.go` wires the gated `internal/component/telemetry/exporter` (and its Netdata `collector` sidecar) into the seam. Only the Prometheus HTTP exporter compiles out; the metric COLLECTION registry (`PrometheusRegistry`, `Registry`, the `NopRegistry` dummy) stays always-on so the ~60 packages that record `ze_*` metrics keep working with the exporter gated. Both shapes gate their direct package and YANG schema imports into generated `all_ze_<feature>.go` files via `plugin_imports.go`. `make ze-build` / `ze-appliance` pass the default-on feature tags (`ZE_FEATURES` in the Makefile); `ze-stripped` omits them for a smaller, hardened binary. The tag-to-package fact is stated once in `feature-gates.txt` and every consumer derives from it; `ai/rules/plugins.md` holds that workflow.
+Two construction shapes keep compile-out features out of always-on code. **Listener services** such as looking-glass, web, and MCP register factories in `cmd/ze/hub/service_registry.go`; dedicated seams such as `ssh_infra.go`, `gnmi_infra.go`, `api_infra.go`, and the core metrics hook carry inputs that do not fit that registry. Each gated service keeps its direct package and YANG imports behind the matching `ze_<feature>` build tag. `feature-gates.txt` is the source of truth, `./le feature-tags write` updates static consumers, and `./le feature-tags check` refuses drift.
 
-**Rule:** a compile-out-able feature (gated by `//go:build ze_<feature>`) MUST NOT be directly imported by always-on code. Reach it through the construction registry or a seam (`ssh_infra.go` / `gnmi_infra.go` style) in another gated file. `dep_audit.py` enumerates these gated packages (`DISABLEABLE`); the gate flags any always-on, non-test importer. Gates are declared in ONE place: `<tag> <pkg>` lines in the repo-root `feature-gates.txt` manifest. A feature MAY reuse one tag for sidecar packages that MUST vanish with it. `ZE_FEATURES` (Makefile), `TestBuildTags()` (`internal/test/runner`), `featureTags` (`plugin_imports.go`), and `DISABLEABLE` (`dep_audit.py`) all DERIVE from it; only `.golangci.yml` build-tags is edited by hand (static YAML), and `dep_audit.py --check` fails on its drift. Full procedure and the two registration shapes: `ai/rules/plugins.md`.
+**Rule:** a compile-out-able feature (gated by `//go:build ze_<feature>`) MUST NOT be directly imported by always-on code. Reach it through the construction registry or a seam (`ssh_infra.go` / `gnmi_infra.go` style) in another gated file. Gates are declared in ONE place as `<tag> <pkg>` rows in `feature-gates.txt`. A feature MAY reuse one tag for sidecar packages that MUST vanish with it. `./le tier check` derives the disable-able package set and refuses every always-on, non-test importer. `./le feature-tags check` refuses drift in the generated static consumers. Full procedure and the two registration shapes: `ai/rules/plugins.md`.
 
 ### Migration baseline (transitional, NOT an allowlist)
 
-`scripts/dev/tier_migration_baseline.txt` holds the engines that are currently in the wrong tier and scheduled to move (child specs `spec-tiers-2`/`-3`). Each row is annotated with the child spec that removes it. The gate fails on new violations and on stale entries, so the file can only shrink. **An empty baseline = full engine-placement enforcement with zero exceptions.** Regenerate after a move with `scripts/dev/dep_audit.py --write-baseline`.
+`internal/le/tier/testdata/tier_migration_baseline.txt` is non-code data listing engines scheduled to move. The native tier gate fails on new violations and stale entries, so the file can only shrink. An empty baseline means zero exceptions.
 
 ## Data Flow Tracing
 
-The four subsection names below are the required section names of a spec's Data Flow section (`plan/TEMPLATE.md`, checked by `.claude/hooks/validate-spec.sh`).
+The four subsection names below are required in a spec's Data Flow section (`plan/TEMPLATE.md`, checked by `hookValidateSpec` in `internal/le/hookruntime/lifecycle.go`).
 
 ### Entry Point
 
@@ -320,16 +320,16 @@ The four subsection names below are the required section names of a spec's Data 
 | New leaf/container | Config parser that reads the tree (grep `GetContainer`, `GetChild` for the path) |
 | New leaf/container | Validator if validation rules apply |
 | New leaf/container | CLI completion if the command references the schema |
-| Renamed path | `scripts/dev/yang_move.py` handles slash paths, set commands, brace blocks, GetContainer chains |
+| Renamed path | `./le yang-migration path-refactor` handles slash paths, set commands, brace blocks, GetContainer chains |
 | New `environment/` leaf | `env.MustRegister()` in the component's config loader |
 | New `ze:listener` | Conflict detection via `FindListenerConflict` |
-| New `ze:command` | RPC handler + `make ze-doc-verify` |
+| New `ze:command` | RPC handler + `./le doc-check verify` |
 
 #### Registration (`register.go`, `init()`)
 
 | What changed | Also update |
 |---|---|
-| New plugin | `make generate` (updates `all.go`), `TestAllPluginsRegistered` count |
+| New plugin | `./le repository generate` (updates `all.go`), `TestAllPluginsRegistered` count |
 | New family | `family.MustRegister()`, NLRI decoder/encoder registration |
 | New capability | Capability codec registration |
 | New event type | `Registration.EventTypes` field |
@@ -345,33 +345,33 @@ The four subsection names below are the required section names of a spec's Data 
 | New `make([]byte, N)` on wire path | Pool-backed alternative (`ai/rules/performance.md`) |
 | New `fmt.Sprintf` | Append-based alternative (`ai/rules/performance.md`) |
 | Guard/fallback added | Sibling call-site audit ("Sibling Call-Site Audit" above) |
-| Error return ignored | Hook `block-ignored-errors.sh` will reject |
+| Error return ignored | `./le verify-lint run` reports the errcheck finding |
 
 #### Functional Test (`*.ci`)
 
 | What changed | Also check |
 |---|---|
 | New test file | Correct directory (`ai/rules/testing.md` test directories table) |
-| Python observer | No `sys.exit(1)`, use `runtime_fail` (`ai/rules/testing.md` observer section) |
+| Compiled observer | Return an error from the failing `internal/test/fixture` callback (`ai/rules/testing.md` compiled observer section) |
 | Config in `tmpfs=` | Parse test validates syntax |
 
 #### Go Source to Documentation
 
-**When changing code, you MUST check `ai/CODE-TO-DOCS.md` for docs that reference the file. You MUST update any claims that are now wrong. Regenerate: `make ze-doc-index-update`.**
+**When changing code, you MUST check `ai/CODE-TO-DOCS.md` for docs that reference the file. You MUST update any claims that are now wrong. Regenerate: `./le docs-to-code index-update`.**
 
 #### Documentation (`docs/`)
 
 | What changed | Also check |
 |---|---|
 | New factual claim | Source anchor: `<!-- source: path -- symbol -->` |
-| Feature count/list | `make ze-doc-verify` validates against live registry |
+| Feature count/list | `./le doc-check verify` validates against live registry |
 | Changed config syntax | `docs/guide/configuration.md` and `docs/architecture/config/syntax.md` |
 
 #### Spec (`plan/spec-*.md`)
 
 | What changed | Also check |
 |---|---|
-| Status change | per-session marker via `scripts/dev/spec-session.sh` |
+| Status change | per-session marker via `./le spec-session` |
 | AC added/removed | Wiring test table, audit table |
 | Design decision | Annotate with `-> Decision:` for post-compaction recovery |
 
@@ -433,7 +433,7 @@ Not every `os.WriteFile` is state. These stay raw and are allowlisted in the gua
 
 ### Gate
 
-`make ze-fs-persistence-check` (in `make ze-precommit-verify` / `ze-precommit-verify-changed`) runs `scripts/checks/direct_fs_persistence.go`: it flags any non-allowlisted raw filesystem write in the scanned trees. A new legitimate non-state writer needs an allowlist entry (with a reason); genuine state must move to `statestore`.
+`./le fs-persistence check` (in `./le verify worktree` / `./le verify current mode changed`) runs `internal/le/fspersistence/fspersistence.go`: it flags any non-allowlisted raw filesystem write in the scanned trees. A new legitimate non-state writer needs an allowlist entry (with a reason); genuine state must move to `statestore`.
 
 ## Ze Divergences from Standard Go
 
@@ -481,10 +481,10 @@ Not every `os.WriteFile` is state. These stay raw and are allowlisted in the gua
 
 | Standard Go | Ze | Rule | Why |
 |---|---|---|---|
-| `go test ./...` for verification | `make ze-precommit-verify` (two-pass + functional + exabgp) | `ai/rules/testing.md` | 349 packages; cached full + race on changed groups |
+| `go test ./...` for verification | `./le verify worktree` (two-pass + functional + exabgp) | `ai/rules/testing.md` | 349 packages; cached full + race on changed groups |
 | Unit tests prove correctness | Unit tests + `.ci` functional tests (both required) | `ai/rules/completion.md` | Unit proves algorithm; `.ci` proves user can reach the feature |
 | `testify/assert` | Standard library `testing` | (convention) | No test framework dependencies |
-| `go test -race` once | `make ze-unit-reactor-test-race` (`-race -count=20`) for reactor code | `ai/rules/testing.md` | Rare schedules need repeated runs to surface |
+| `go test -race` once | `go test -race -count=20 ./internal/component/bgp/reactor/...` for reactor code | `ai/rules/testing.md` | Rare schedules need repeated runs to surface |
 
 ### CLI / Commands
 
@@ -495,13 +495,13 @@ Not every `os.WriteFile` is state. These stay raw and are allowlisted in the gua
 | Format output as string | Return structured JSON, format via pipe operators | `ai/rules/cli.md` | `\| json`, `\| table`, `\| match`, `\| resolve`, etc. |
 | Hardcode help text | Derive from registry/schema | `ai/rules/evidence.md` | Single source of truth; no stale enumerations |
 
-### Scripts / Tooling
+### Native Tooling
 
 | Standard Go | Ze | Rule | Why |
 |---|---|---|---|
-| Shell scripts for tooling | Python only | `ai/rules/go-standards.md` | Shell is fragile for complex orchestration |
-| `/tmp` for scratch files | Project `tmp/` (gitignored) | `ai/rules/testing.md` | `go test ./...` walks `/tmp`; project tmp is isolated |
-| `git add -A && git commit` | Commit via script the user triggers | `CLAUDE.md` prohibitions | Sessions share staging; cross-commits result |
+| Ad-hoc scripts for tooling | Native Go package with a registered `./le` action | `ai/rules/go-standards.md` | One typed implementation serves local and CI callers |
+| `/tmp` for scratch files | Per-session directory from `./le session scratch ensure` | `ai/rules/commands.md` | Concurrent sessions do not share names |
+| `git add -A && git commit` | `./le commit create`, then the generated script | `ai/rules/git-safety.md` | The declared file population is checked before staging |
 
 ## Server-Rendered Markup
 
@@ -518,8 +518,8 @@ Not every `os.WriteFile` is state. These stay raw and are allowlisted in the gua
 | `TestTemplatesAvoidInlineScriptAndStyle` | `internal/test/markupcheck`, `AssertNoInlineScriptOrStyle` | an inline `<script>` block, an inline `style=`, an `on*` handler, an `hx-on` attribute |
 | `TestTemplAssetsResolve` | `internal/test/markupcheck`, `AssertAssetsResolve` | a `src` or `href` the served filesystem does not hold, and one naming an asset tree the package does not serve |
 | `TestWebViewDataIsTyped`, `TestLGViewDataIsTyped` | `internal/test/templcheck`, `AssertTyped` | a component parameter that is a map, a named map, a bare `any`, or a struct wrapping any of them |
-| `make ze-templ-output-check` | `Makefile` | a `*_templ.go` its `.templ` source no longer produces |
-| `make ze-web-golden-check` | `Makefile` | a rendered byte that moved with no fixture behind it |
+| `./le doc-check templ-output` | `internal/le/doccheck` and `internal/le/docwiring` | a `*_templ.go` its `.templ` source no longer produces |
+| `go test ./internal/component/web ./internal/component/lg` | `internal/test/golden` and the package capture tests | a rendered byte that moved with no fixture behind it |
 
 ## Architecture Summary
 
@@ -592,7 +592,7 @@ Binary: update hex attr set 400101... nlri ipv4/unicast add 180a00
 **You MAY read more about placement here:**
 - `ai/rules/plugins.md`: the delete-the-folder invariant.
 - `ai/rules/plugins.md`: registration patterns, Proximity Principle.
-- `scripts/dev/dep_audit.py`: the reverse-dependency report + the placement gate.
+- `internal/le/tier/tier.go`: the reverse-dependency report + the placement gate.
 - `spec-tiers-0-umbrella` (in git history): the taxonomy, the reorganization plan, and the hardening analysis.
 
 ## Rationale

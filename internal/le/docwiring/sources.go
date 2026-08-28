@@ -37,61 +37,51 @@ const wiringTarget = "wiring"
 // run past this bound is a hung index lock rather than a slow query.
 const gitTimeout = 2 * time.Minute
 
-// makefile is the shared path for several predicates. It contains generator and
-// documentation recipes, so a change can alter any related answer.
-const makefile = "Makefile"
+// templCheckerSource is the Go owner of the orphan and freshness scope checks.
+const templCheckerSource = "internal/le/docwiring/templ.go"
 
-// targetOrder is the order selected checks run in. It is fixed so a diff
-// selecting the same set twice reads the same both times.
-var targetOrder = [...]string{
+// actionOrder is the deterministic order selected checks run in.
+var actionOrder = [...]string{
 	wiringTarget,
-	"ze-command-contract-check",
-	"ze-command-ownership-check",
-	"ze-doc-verify",
-	"ze-doc-index-check",
-	"ze-discovery-index-check",
-	"ze-digest-check",
-	"ze-inventory-json",
-	"ze-command-list-json",
-	"ze-plugin-imports-check",
-	"ze-templ-output-check",
-	"ze-functional-docker-exec-check",
-	"ze-spec-citation-check",
+	"docvalid/command-contract",
+	"command-ownership",
+	"doc-check/verify",
+	"docs-to-code/index-check",
+	"discovery-index/check",
+	"digest",
+	"inventory",
+	"command-list",
+	"plugin-imports/check",
+	"doc-check/templ-output",
+	"spec-citation/anchors",
 }
 
-// SelectedTargets answers the checks this diff needs, in targetOrder.
-//
-// An unreadable changed file reaches the caller as an error, not an unselected
-// path. Otherwise, the router CAN select no gate for that file. The change
-// would then receive no judgment while the run still looks clean.
-func SelectedTargets(root string, changed []string) ([]string, error) {
+// selectedActions answers the checks this diff needs, in actionOrder.
+func selectedActions(root string, changed []string) ([]string, error) {
 	selected := make(map[string]bool)
 	for _, path := range changed {
-		if IsWiringSource(path) {
+		if isWiringSource(path) {
 			selected[wiringTarget] = true
 		}
 		if isTemplSource(path) {
-			selected["ze-templ-output-check"] = true
-		}
-		if isDockerExecSource(path) {
-			selected["ze-functional-docker-exec-check"] = true
+			selected["doc-check/templ-output"] = true
 		}
 		if isPlanSource(path) {
-			selected["ze-spec-citation-check"] = true
+			selected["spec-citation/anchors"] = true
 		}
 		if isCommandOwnershipSource(path) {
-			selected["ze-command-ownership-check"] = true
+			selected["command-ownership"] = true
 		}
 
 		for _, rule := range []struct {
 			match   func(string, string) (bool, error)
 			targets []string
 		}{
-			{isCommandSource, []string{"ze-command-contract-check"}},
-			{isDocSource, []string{"ze-doc-verify", "ze-doc-index-check"}},
-			{isDiscoverySource, []string{"ze-discovery-index-check"}},
-			{isDigestSource, []string{"ze-digest-check"}},
-			{isInventorySource, []string{"ze-inventory-json", "ze-command-list-json", "ze-plugin-imports-check"}},
+			{isCommandSource, []string{"docvalid/command-contract"}},
+			{isDocSource, []string{"doc-check/verify", "docs-to-code/index-check"}},
+			{isDiscoverySource, []string{"discovery-index/check"}},
+			{isDigestSource, []string{"digest"}},
+			{isInventorySource, []string{"inventory", "command-list", "plugin-imports/check"}},
 		} {
 			hit, err := rule.match(root, path)
 			if err != nil {
@@ -107,7 +97,7 @@ func SelectedTargets(root string, changed []string) ([]string, error) {
 	}
 
 	out := make([]string, 0, len(selected))
-	for _, target := range targetOrder {
+	for _, target := range actionOrder {
 		if selected[target] {
 			out = append(out, target)
 		}
@@ -115,9 +105,9 @@ func SelectedTargets(root string, changed []string) ([]string, error) {
 	return out, nil
 }
 
-// IsWiringSource reports a non-test Go file under a tree the wiring check
+// isWiringSource reports a non-test Go file under a tree the wiring check
 // judges.
-func IsWiringSource(path string) bool {
+func isWiringSource(path string) bool {
 	return strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") &&
 		(strings.HasPrefix(path, "internal/") || strings.HasPrefix(path, "cmd/"))
 }
@@ -125,14 +115,16 @@ func IsWiringSource(path string) bool {
 // isTemplSource reports a change that must re-run the templ generated-output
 // freshness gate.
 //
-// A .templ file is a source, and a *_templ.go file is its output. A change to
-// either can make the pair stale. The Makefile is included because it defines
-// the shared scope of generation and checking. A scope edit CAN omit a whole
-// directory. The orphan checker is also included because templ keeps orphaned
-// files and only that script reports them.
+// A .templ file is a source, and a *_templ.go file is its output. The Go
+// checker is included because its scope decides which pairs are judged.
 func isTemplSource(path string) bool {
-	return path == makefile || path == "scripts/dev/templ_orphan_check.py" ||
-		strings.HasSuffix(path, ".templ") || strings.HasSuffix(path, "_templ.go")
+	if path == templCheckerSource {
+		return true
+	}
+	if strings.HasSuffix(path, ".templ") {
+		return true
+	}
+	return strings.HasSuffix(path, "_templ.go")
 }
 
 // isPlanSource reports a change that must run the spec citation freshness gate.
@@ -140,7 +132,7 @@ func isTemplSource(path string) bool {
 // baseline. Spec closure removes a spec file, so the gate detects a dangling
 // citation from a sibling spec.
 func isPlanSource(path string) bool {
-	if path == "scripts/dev/spec-citation-check.py" || path == "plan/.citation-baseline" {
+	if path == "internal/le/speccitation/anchors.go" || path == "plan/.citation-baseline" {
 		return true
 	}
 	if !strings.HasSuffix(path, ".md") {
@@ -149,29 +141,11 @@ func isPlanSource(path string) bool {
 	return strings.HasPrefix(path, "plan/spec-") || strings.HasPrefix(path, "plan/learned/")
 }
 
-// isDockerExecSource reports a change that must run the fail-open call-site
-// ratchet. Sources include Python under test/, the checker, and the committed
-// floor.
-//
-// Each can change the count. A scenario adds a call site. A lab adds a WRAPPER,
-// which changes the derived fail-open set and can reclassify untouched files.
-// The checker excludes the gitignored draft incubator, so drafts do not fail an
-// unrelated session's ratchet.
-func isDockerExecSource(path string) bool {
-	if path == "scripts/dev/docker_exec_checked.py" || path == "test/health/docker-exec-baseline.json" {
-		return true
-	}
-	if !strings.HasPrefix(path, "test/") || !strings.HasSuffix(path, ".py") {
-		return false
-	}
-	return !strings.HasPrefix(path, "test/draft/")
-}
-
 // isCommandOwnershipSource reports a change that must run the command ownership
 // gate. Sources include the checker, registry, shim, owner register.go files,
 // and the ze dispatch and central-registration files.
 func isCommandOwnershipSource(path string) bool {
-	if path == "scripts/checks/command_ownership.go" || path == "cmd/ze/main.go" {
+	if path == "internal/le/commandownership/register.go" || path == "cmd/ze/main.go" {
 		return true
 	}
 	if strings.HasPrefix(path, "internal/component/command/registry/") {
@@ -197,7 +171,7 @@ var commandMarkers = [...]string{
 // isCommandSource reports a change that must re-run the command contract gate.
 func isCommandSource(root, path string) (bool, error) {
 	switch path {
-	case "scripts/docvalid/commands.go", "scripts/inventory/commands.go",
+	case "internal/le/docvalid/actions.go", "internal/le/commandlist/register.go",
 		"internal/component/config/yang/command.go",
 		"internal/component/plugin/server/command.go":
 		return true, nil
@@ -217,11 +191,8 @@ func isCommandSource(root, path string) (bool, error) {
 // isDocSource reports a change that must re-run the documentation gates.
 func isDocSource(root, path string) (bool, error) {
 	switch path {
-	case "scripts/docvalid/doc_drift.go", "scripts/docvalid/commands.go",
-		"scripts/dev/code_to_docs.py", "ai/CODE-TO-DOCS.md":
-		return true, nil
-	}
-	if path == makefile || strings.HasPrefix(path, "mk/") {
+	case "internal/le/docvalid/actions.go",
+		"internal/le/docstocode/codetodocs.go", "ai/CODE-TO-DOCS.md":
 		return true, nil
 	}
 	if (strings.HasPrefix(path, "docs/") || path == "README.md") && strings.HasSuffix(path, ".md") {
@@ -306,7 +277,7 @@ func isDigestSource(root, path string) (bool, error) {
 	if strings.HasPrefix(path, "ai/digests/") && strings.HasSuffix(path, ".md") {
 		return true, nil
 	}
-	if path == "scripts/dev/digest_check.py" {
+	if path == "internal/le/digest/register.go" {
 		return true, nil
 	}
 	if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
@@ -341,11 +312,8 @@ var registryMarkers = [...]string{
 // isInventorySource reports a change that must re-run the inventory gates.
 func isInventorySource(root, path string) (bool, error) {
 	switch path {
-	case makefile, "mk/report-inventory.mk", "scripts/codegen/plugin_imports.go",
+	case "internal/le/inventory/inventory.go", "internal/le/pluginimports/pluginimports.go",
 		"internal/component/plugin/all/all.go":
-		return true, nil
-	}
-	if strings.HasPrefix(path, "scripts/inventory/") {
 		return true, nil
 	}
 	if strings.HasSuffix(path, ".yang") && strings.HasPrefix(path, "internal/") {
@@ -457,14 +425,13 @@ func gitLines(root string, argv []string) ([]string, error) {
 	return lines, scanner.Err()
 }
 
-// TargetOrder answers the check order. It derives from the selection table, so
-// a Python comparison cannot accidentally use a second copy.
-func TargetOrder() []string { return slices.Clone(targetOrder[:]) }
+// actionOrderList answers the native check order.
+func actionOrderList() []string { return slices.Clone(actionOrder[:]) }
 
-// CommandMarkers answers the spellings that make a Go file part of the command
+// commandMarkersList answers the spellings that make a Go file part of the command
 // surface.
-func CommandMarkers() []string { return slices.Clone(commandMarkers[:]) }
+func commandMarkersList() []string { return slices.Clone(commandMarkers[:]) }
 
-// RegistryMarkers answers the spellings that make a register.go part of the
+// registryMarkersList answers the spellings that make a register.go part of the
 // runtime inventory.
-func RegistryMarkers() []string { return slices.Clone(registryMarkers[:]) }
+func registryMarkersList() []string { return slices.Clone(registryMarkers[:]) }

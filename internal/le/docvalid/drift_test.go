@@ -72,7 +72,7 @@ func TestDriftReadsAnInteropFloorClaim(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			for _, s := range []string{"a", "b", "c"} {
-				writeDoc(t, root, filepath.Join("test", "interop", "scenarios", s, "check.py"), "def check():\n    pass\n")
+				writeDoc(t, root, filepath.Join("test", "interop", "scenarios", s, "check.go"), "package scenario\n")
 			}
 			writeDoc(t, root, "docs/DESIGN.md", "# Design\n\n"+tc.claim+"\n")
 
@@ -92,8 +92,8 @@ func TestDriftReadsAnInteropFloorClaim(t *testing.T) {
 // against, which is what made an accurate page read as drift.
 func TestDriftDoesNotCountACacheDirectoryAsAScenario(t *testing.T) {
 	root := t.TempDir()
-	for _, s := range []string{"a", "b", ".ruff_cache"} {
-		writeDoc(t, root, filepath.Join("test", "interop", "scenarios", s, "check.py"), "x\n")
+	for _, s := range []string{"a", "b", ".cache"} {
+		writeDoc(t, root, filepath.Join("test", "interop", "scenarios", s, "check.go"), "package scenario\n")
 	}
 	writeDoc(t, root, "docs/DESIGN.md", "# Design\n\n2 interop scenarios run here.\n")
 
@@ -320,7 +320,7 @@ func TestDriftComparesThePublishedOperatorTable(t *testing.T) {
 		t.Fatalf("a stale operator table was accepted: %v", messages(report))
 	}
 
-	written, err := WriteGenerated(root)
+	written, err := writeGenerated(root)
 	if err != nil {
 		t.Fatalf("write the generated table: %v", err)
 	}
@@ -338,7 +338,6 @@ func TestDriftComparesThePublishedOperatorTable(t *testing.T) {
 // absence as an empty functional population.
 func TestDriftDerivesSuitesWithoutAnLESubprocess(t *testing.T) {
 	root := t.TempDir()
-	writeDoc(t, root, "Makefile", "ze-functional-test - Run ze functional tests (bgp, web)\n")
 	writeDoc(t, root, "docs/functional-tests.md", "The functional test target runs 2 suites: bgp, web.\n")
 
 	report := Drift(root)
@@ -349,10 +348,8 @@ func TestDriftDerivesSuitesWithoutAnLESubprocess(t *testing.T) {
 		}
 		files[issue.File] = true
 	}
-	for _, want := range []string{makefileName, functionalTestsDoc} {
-		if !files[want] {
-			t.Errorf("%s was not compared with the native suite catalog: %v", want, messages(report))
-		}
+	if !files[functionalTestsDoc] {
+		t.Errorf("%s was not compared with the native suite catalog: %v", functionalTestsDoc, messages(report))
 	}
 }
 

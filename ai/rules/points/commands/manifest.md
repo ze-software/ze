@@ -5,8 +5,8 @@ severity: blocking
 related: testing, platform-linux, git-safety
 ---
 directives ## Directives
-  run-commands-through-make-and-never-poll
-  heavy-jobs-are-admitted-by-make-never-typed-raw
+  run-commands-through-native-actions-and-never-poll
+  heavy-jobs-are-admitted-by-native-actions-never-typed-raw
   bash-must-not-edit-a-governed-document
 cgo-free-builds ## CGO-Free Builds
   ze-is-cgo-free
@@ -19,7 +19,7 @@ one-owner-runs-the-suites ## One Owner Runs The Suites
   sample-tests-before-aggregate-suite
 bare-go-test-lies-always-pass-the-feature-tags ## Bare `go test` Lies -- Always Pass The Feature Tags
   bare-go-test-omits-the-feature-build-tags
-  prefer-a-make-target-or-pass-the-tags-yourself
+  prefer-a-native-action-or-pass-the-tags-yourself
   go-test-invocation-carrying-the-feature-tags
   a-git-archive-scratch-tree-has-the-same-trap
   phantom-reds-have-cost-real-debugging-time
@@ -36,21 +36,21 @@ write-ad-hoc-scratch-under-your-per-session-dir ## Write Ad-Hoc Scratch Under Yo
 your-binaries-live-in-this-session-s-directory ## Your Binaries Live In This Session's Directory -- Ask For The Path
   every-binary-is-built-in-this-session-s-directory
   never-hardcode-bin-ze-ask-for-the-path
-  use-make-ze-path-to-get-the-binary
+  use-the-owning-native-action-to-build-test-binaries
   why-the-binaries-live-with-the-session
   the-session-store-is-seeded-on-the-first-build
   why-test-binaries-live-in-a-private-bin
 never-launch-a-functional-suite-by-running-the-runner-binary ## Never Launch a Functional Suite By Running The Runner Binary
   running-the-runner-binary-gives-a-false-red
-  the-make-target-builds-a-zetest-tagged-pair
+  the-native-action-builds-a-zetest-tagged-pair
   the-same-trap-as-bare-go-test-one-layer-out
   how-to-run-a-suite-one-test-or-a-vm-test
   the-runner-s-failure-hints-repeat-the-bad-launch
 the-bash-hook-matches-your-command-text-including-search ## The Bash Hook Matches Your Command Text, Including Search Patterns
   the-hook-matches-the-command-string-not-intent
   a-grep-whose-pattern-spells-a-banned-verb
-  scan-with-python-never-work-around-the-hook
-  python-scan-that-keeps-the-verb-off-the-command-line
+  scan-with-grep-tool-never-work-around-the-hook
+  grep-tool-scan-that-keeps-the-verb-out-of-bash
   why-the-hook-is-coarse-on-purpose
 no-fork-loops ## No Fork Loops
   bad
@@ -61,7 +61,7 @@ no-fork-loops ## No Fork Loops
   batch-with-xargs-or-find-exec-when-a-loop-is-needed
   find-exec-batching-many-files-into-one-call
   scope
-  the-ban-covers-every-bash-call-and-script
+  the-ban-covers-every-bash-call
 no-poll-loops ## No Poll Loops
   what-to-do-for-each-kind-of-wait
 lint-gate ## Lint Gate
@@ -69,9 +69,9 @@ lint-gate ## Lint Gate
   the-per-edit-hook-only-sees-changed-lines
   the-rule
   run-the-lint-gate-before-claiming-go-work-done
-  make-ze-lint-changed
+  run-native-changed-lint
   never-invoke-golangci-lint-directly
-  what-ze-lint-changed-covers-and-what-it-costs
+  what-native-changed-lint-covers-and-costs
   fix-every-lint-issue-before-claiming-done
   when-to-run
   lint-moments-and-the-action-each-one-needs

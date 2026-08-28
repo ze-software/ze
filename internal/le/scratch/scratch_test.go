@@ -1,6 +1,7 @@
 package scratch
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -8,6 +9,10 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/env"
+
+	"github.com/ze-software/ze/internal/le/leaction"
 )
 
 // VALIDATES: tmp and cache targets use the producer's exact environment and checkout formulas.
@@ -16,13 +21,13 @@ func TestTargetsMatchTheProducer(t *testing.T) {
 	root := "/work/main"
 	manager := New(root, []string{"TMPDIR=/scratch", "HOME=/home/alice", "XDG_CACHE_HOME=/durable"})
 	const wantID = "main-f2af6c097ab83376"
-	if got := CheckoutID(root); got != wantID {
+	if got := checkoutID(root); got != wantID {
 		t.Fatalf("checkout id = %q, want %q", got, wantID)
 	}
-	if got := manager.ScratchTarget(); got != filepath.Join(string(filepath.Separator), "scratch", "ze", CheckoutID(root)) {
+	if got := manager.scratchTarget(); got != filepath.Join(string(filepath.Separator), "scratch", "ze", checkoutID(root)) {
 		t.Errorf("scratch target = %q", got)
 	}
-	cache, err := manager.CacheTarget()
+	cache, err := manager.cacheTarget()
 	if err != nil {
 		t.Fatalf("cache target: %v", err)
 	}
@@ -31,7 +36,7 @@ func TestTargetsMatchTheProducer(t *testing.T) {
 	}
 
 	manager.Environ = []string{"HOME=/home/alice"}
-	cache, err = manager.CacheTarget()
+	cache, err = manager.cacheTarget()
 	if err != nil {
 		t.Fatalf("home cache target: %v", err)
 	}
@@ -49,11 +54,11 @@ func TestEnsureCreatesBothLinksAndIsIdempotent(t *testing.T) {
 		t.Fatalf("first ensure exit = %d, results = %#v", code, first.Results)
 	}
 	wantFirst := []string{
-		"created  tmp -> " + manager.ScratchTarget(),
+		"created  tmp -> " + manager.scratchTarget(),
 		"created  cache -> " + mustCacheTarget(t, manager),
 	}
 	assertLines(t, first, wantFirst)
-	assertLink(t, filepath.Join(manager.Root, "tmp"), manager.ScratchTarget())
+	assertLink(t, filepath.Join(manager.Root, "tmp"), manager.scratchTarget())
 	assertLink(t, filepath.Join(manager.Root, "cache"), mustCacheTarget(t, manager))
 
 	second, code := manager.Ensure(false)
@@ -61,10 +66,118 @@ func TestEnsureCreatesBothLinksAndIsIdempotent(t *testing.T) {
 		t.Fatalf("second ensure exit = %d", code)
 	}
 	wantSecond := []string{
-		"ok       tmp -> " + manager.ScratchTarget(),
+		"ok       tmp -> " + manager.scratchTarget(),
 		"ok       cache -> " + mustCacheTarget(t, manager),
 	}
 	assertLines(t, second, wantSecond)
+}
+
+// VALIDATES: links-ensure keeps its ordinary human-readable output unless quiet is named.
+// PREVENTS: prerequisite silence becoming the default interactive behavior.
+func TestEnsureActionDefaultOutput(t *testing.T) {
+	manager := fixtureManager(t)
+	var stderr strings.Builder
+	report, code := answerEnsure(manager, nil, &stderr)
+	if code != 0 {
+		t.Fatalf("ensure exit = %d, results = %#v", code, report.Results)
+	}
+	want := strings.Join([]string{
+		"created  tmp -> " + manager.scratchTarget(),
+		"created  cache -> " + mustCacheTarget(t, manager),
+	}, "\n") + "\n"
+	if report.Quiet || report.Text() != want {
+		t.Fatalf("report = %#v, text = %q, want default text %q", report, report.Text(), want)
+	}
+	if stderr.String() != "" {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+// VALIDATES: links-ensure quiet performs the same writes and returns a structured silent report.
+// PREVENTS: clean prerequisites either becoming noisy or discarding their machine-readable answer.
+func TestEnsureActionQuietOutputAndStructure(t *testing.T) {
+	manager := fixtureManager(t)
+	var stderr strings.Builder
+	report, code := answerEnsure(manager, leaction.Arguments{"quiet": ""}, &stderr)
+	if code != 0 {
+		t.Fatalf("quiet ensure exit = %d, results = %#v", code, report.Results)
+	}
+	if !report.Quiet || report.Text() != "" || stderr.String() != "" {
+		t.Fatalf("quiet report = %#v, text = %q, stderr = %q", report, report.Text(), stderr.String())
+	}
+	assertLink(t, filepath.Join(manager.Root, tmpName), manager.scratchTarget())
+	assertLink(t, filepath.Join(manager.Root, cacheName), mustCacheTarget(t, manager))
+
+	body, err := json.Marshal(report)
+	if err != nil {
+		t.Fatalf("marshal quiet report: %v", err)
+	}
+	var decoded Report
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		t.Fatalf("unmarshal quiet report: %v", err)
+	}
+	if !decoded.Quiet || !slices.Equal(decoded.Results, report.Results) {
+		t.Fatalf("decoded report = %#v, want %#v", decoded, report)
+	}
+}
+
+// VALIDATES: quiet suppresses ordinary success only; filesystem errors remain on stderr with exit 1.
+// PREVENTS: clean silently ignoring an ensure failure and continuing against broken scratch paths.
+func TestEnsureActionQuietErrorStillSpeaks(t *testing.T) {
+	manager := fixtureManager(t)
+	scratchBase := filepath.Dir(filepath.Dir(manager.scratchTarget()))
+	writeFile(t, scratchBase, "blocks target directory", 0o600)
+
+	var stderr strings.Builder
+	report, code := answerEnsure(manager, leaction.Arguments{"quiet": ""}, &stderr)
+	if code != 1 {
+		t.Fatalf("quiet ensure exit = %d, want 1; results = %#v", code, report.Results)
+	}
+	if !report.Quiet || len(report.Results) != 2 || !report.Results[0].Stderr ||
+		report.Results[0].Status != "REFUSE" {
+		t.Fatalf("error report = %#v", report)
+	}
+	wantError := report.Results[0].Line + "\n"
+	if stderr.String() != wantError {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), wantError)
+	}
+	wantStdout := report.Results[1].Line + "\n"
+	if report.Text() != wantStdout {
+		t.Fatalf("flagged quiet stdout = %q, want %q", report.Text(), wantStdout)
+	}
+}
+
+// VALIDATES: `le scratch links-ensure quiet` dispatches against the checkout and environment fixture.
+// PREVENTS: clean routing a plausible spelling that never reaches the path-maintenance action.
+func TestEnsureActionFixturePaths(t *testing.T) {
+	// managerHere (actions.go) resolves ZE_REPO_ROOT through
+	// filepath.EvalSymlinks before hashing it into the checkout ID, so the
+	// fixture root must already be canonical or the two spellings of the same
+	// directory (t.TempDir()'s /var/folders/... form on macOS versus its
+	// resolved /private/var/folders/... form) hash to different targets.
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve temp dir: %v", err)
+	}
+	root := filepath.Join(base, "checkout")
+	if err := os.Mkdir(root, 0o755); err != nil {
+		t.Fatalf("mkdir checkout: %v", err)
+	}
+	t.Setenv("ZE_REPO_ROOT", root)
+	t.Setenv("TMPDIR", filepath.Join(base, "scratch"))
+	t.Setenv("HOME", filepath.Join(base, "home"))
+	t.Setenv("XDG_CACHE_HOME", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	answer, code := Answer([]string{"links-ensure", "quiet"})
+	report, ok := answer.(Report)
+	if code != 0 || !ok || !report.Quiet || report.Text() != "" {
+		t.Fatalf("quiet action = (%#v, %d), want silent structured report", answer, code)
+	}
+	manager := New(root, os.Environ())
+	assertLink(t, filepath.Join(root, tmpName), manager.scratchTarget())
+	assertLink(t, filepath.Join(root, cacheName), mustCacheTarget(t, manager))
 }
 
 // VALIDATES: a real tmp directory is never converted by the ensure action, and gets the exact sentinel.
@@ -82,7 +195,7 @@ func TestEnsureRefusesARealDirectoryAndWritesTheSentinel(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("ensure exit = %d", code)
 	}
-	want := "SKIP     tmp: a real path exists here; run `make ze-scratch-migrate` to convert it to a symlink"
+	want := "SKIP     tmp: a real path exists here; run `./le scratch migrate` to convert it to a symlink"
 	if report.Results[0].Line != want || !report.Results[0].Stderr {
 		t.Fatalf("tmp result = %#v, want stderr %q", report.Results[0], want)
 	}
@@ -123,14 +236,14 @@ func TestMigrateMovesSelectiveTmpAndWholeCache(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("migrate exit = %d, results = %#v", code, report.Results)
 	}
-	wantTmp := "migrated tmp: moved 1; qemu -> " + manager.ScratchTarget()
+	wantTmp := "migrated tmp: moved 1; qemu -> " + manager.scratchTarget()
 	wantCache := "migrated cache: moved 1 entries -> " + mustCacheTarget(t, manager) + "; now a symlink"
 	assertLines(t, report, []string{wantTmp, wantCache})
-	assertLink(t, filepath.Join(tmp, "qemu"), filepath.Join(manager.ScratchTarget(), "qemu"))
+	assertLink(t, filepath.Join(tmp, "qemu"), filepath.Join(manager.scratchTarget(), "qemu"))
 	if got := readFile(t, filepath.Join(tmp, "commit-session-id-work")); got != "session" {
 		t.Fatalf("session file = %q", got)
 	}
-	if got := readFile(t, filepath.Join(manager.ScratchTarget(), "qemu", "image", "disk")); got != "qemu" {
+	if got := readFile(t, filepath.Join(manager.scratchTarget(), "qemu", "image", "disk")); got != "qemu" {
 		t.Fatalf("migrated qemu file = %q", got)
 	}
 	assertLink(t, cache, mustCacheTarget(t, manager))
@@ -238,7 +351,7 @@ func TestEnsureLeavesAMismatchedCacheLinkAlone(t *testing.T) {
 		t.Fatalf("ensure exit = %d", code)
 	}
 	want := "MISMATCH cache -> " + hostTarget + " (expected " + mustCacheTarget(t, manager) +
-		"); left as is. If this checkout is yours, run: python3 scripts/dev/ensure-links.py --repoint-cache"
+		"); left as is. Replace the symlink only after confirming this checkout owns it"
 	if report.Results[1].Line != want {
 		t.Fatalf("cache result = %q, want %q", report.Results[1].Line, want)
 	}
@@ -259,7 +372,7 @@ func TestSelectiveMigrationRefusesTheSameDevice(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("migrate exit = %d, want 1", code)
 	}
-	want := "REFUSE   tmp: " + manager.ScratchTarget() +
+	want := "REFUSE   tmp: " + manager.scratchTarget() +
 		" is on the same device, so moving there frees nothing. Point TMPDIR at a directory on another drive and retry"
 	if report.Results[0].Line != want {
 		t.Fatalf("tmp result = %q, want %q", report.Results[0].Line, want)
@@ -292,7 +405,7 @@ func TestMigrationMoveErrorFailsClosed(t *testing.T) {
 	if got := readFile(t, filepath.Join(source, "image")); got != "source" {
 		t.Fatalf("source after failed move = %q", got)
 	}
-	if pathExists(filepath.Join(manager.ScratchTarget(), "qemu")) {
+	if pathExists(filepath.Join(manager.scratchTarget(), "qemu")) {
 		t.Fatal("failed move published a target")
 	}
 }
@@ -340,21 +453,18 @@ func TestMoveEntryAcrossDevicesPreservesMetadata(t *testing.T) {
 	}
 }
 
-// VALIDATES: both actions retain their exact gate identities and writes flags.
-// PREVENTS: the parity census claiming an unregistered spelling or help calling a write a check.
-func TestActionsClaimBothWritingGates(t *testing.T) {
+// VALIDATES: both scratch actions publish their native names and write flags.
+// PREVENTS: help calling a writing action a check.
+func TestActionsPublishBothWrites(t *testing.T) {
 	list := Actions()
-	if len(list.Actions) != 2 {
+	want := []string{"links-ensure", "migrate"}
+	if len(list.Actions) != len(want) {
 		t.Fatalf("actions = %#v", list.Actions)
 	}
-	want := []string{"ze-scratch-links-ensure", "ze-scratch-migrate"}
 	for index, action := range list.Actions {
-		if action.Gate != want[index] || !action.Writes {
-			t.Errorf("action %d = %#v, want gate %q and writes", index, action, want[index])
+		if action.Verb != want[index] || !action.Writes {
+			t.Errorf("action %d = %#v, want %q and writes", index, action, want[index])
 		}
-	}
-	if !slices.Equal(actions.Gates(), want) {
-		t.Errorf("claimed gates = %v, want %v", actions.Gates(), want)
 	}
 }
 
@@ -382,7 +492,7 @@ func forceDifferentDevices(manager *Manager) {
 
 func mustCacheTarget(t *testing.T, manager *Manager) string {
 	t.Helper()
-	target, err := manager.CacheTarget()
+	target, err := manager.cacheTarget()
 	if err != nil {
 		t.Fatalf("cache target: %v", err)
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 // VALIDATES: the Go peer decodes the same Access-Request fields and emits a valid Access-Accept shape.
-// PREVENTS: replacing the Python peer with a logger that never participates on the RADIUS wire.
+// PREVENTS: replacing the independent peer with a logger that never participates on the RADIUS wire.
 func TestHandleAccessRequest(t *testing.T) {
 	packet := make([]byte, packetHeaderOctets)
 	packet[0] = codeAccessRequest

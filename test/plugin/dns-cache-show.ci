@@ -10,101 +10,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=dns-cache-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def response_data(command, resp):
-    status = resp.get('status')
-    if status is None:
-        runtime_fail(f'{command}: dispatch returned no status: {resp}')
-    if status != 'done':
-        runtime_fail(f'{command}: status={status} data={resp.get("data")}')
-
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-
-    if not isinstance(data, dict):
-        runtime_fail(f'{command}: expected dict, got {type(data).__name__}')
-    return data
-
-def check_shape(api, command, expected_keys):
-    data = response_data(command, dispatch(api, command))
-    missing = sorted(set(expected_keys) - set(data))
-    unexpected = sorted(set(data) - set(expected_keys))
-    if missing or unexpected:
-        runtime_fail(
-            f'{command}: missing keys={missing} unexpected keys={unexpected} data={data}')
-    print(f'OK: {command} returned keys {sorted(data)}', file=sys.stderr)
-    return data
-
-def check_number(data, command, key):
-    if not isinstance(data.get(key), (int, float)):
-        runtime_fail(f'{command}: {key}={data.get(key)!r}, expected number')
-
-def check_entries(data, command):
-    if not isinstance(data.get('count'), int):
-        runtime_fail(f'{command}: count={data.get("count")!r}, expected int')
-    if not isinstance(data.get('entries'), list):
-        runtime_fail(f'{command}: entries={data.get("entries")!r}, expected list')
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        stats = check_shape(api, 'show dns cache stats', [
-            'capacity',
-            'entries',
-            'evictions',
-            'expired',
-            'hit-rate',
-            'hits',
-            'miss-rate',
-            'misses',
-        ])
-        for key in stats:
-            check_number(stats, 'show dns cache stats', key)
-
-        listed = check_shape(api, 'show dns cache list', ['count', 'entries'])
-        check_entries(listed, 'show dns cache list')
-
-        record = check_shape(api, 'show dns cache record localhost', [
-            'count',
-            'entries',
-            'filter',
-        ])
-        check_entries(record, 'show dns cache record localhost')
-        if record.get('filter') != 'localhost':
-            runtime_fail(
-                f'show dns cache record localhost: filter={record.get("filter")!r}, expected localhost')
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external dns-cache-show-test {
-		run ./dns-cache-show-test.run
+		run "ze-test fixture plugin/dns-cache-show"
 		encoder json
 	}
 }

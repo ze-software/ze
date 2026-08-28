@@ -246,7 +246,7 @@ func TestTheApplianceIsBootedOnTheLabsTap(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	run := NewGokrazyL2TP(t.TempDir())
+	run := newGokrazyL2TP(t.TempDir())
 	argv, err := run.qemuArgs("/tmp/ze.img")
 	if err != nil {
 		t.Skipf("this machine has no qemu for %s: %v", run.Arch, err)
@@ -276,7 +276,7 @@ func TestAnUnbootableArchitectureIsRefused(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	run := NewGokrazyL2TP(t.TempDir())
+	run := newGokrazyL2TP(t.TempDir())
 	run.Arch = "riscv64"
 	if _, err := run.qemuArgs("/tmp/ze.img"); err == nil {
 		t.Error("an architecture this proof cannot boot produced a machine")
@@ -317,7 +317,7 @@ func TestTheApplianceInterfaceIsReadOutOfItsConsole(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	run := NewGokrazyL2TP(t.TempDir())
+	run := newGokrazyL2TP(t.TempDir())
 	run.Progress = nil
 	base := pppBaseline{ns: run.Lab.Namespace, links: map[string]bool{}}
 
@@ -376,7 +376,7 @@ func TestTheDHCPServerReservesTheApplianceAddress(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	run := NewGokrazyL2TP(t.TempDir())
+	run := newGokrazyL2TP(t.TempDir())
 	lab := run.Lab
 
 	// The test reads the argv from the failure because the code starts the server
@@ -409,7 +409,7 @@ func TestTheApplianceTemplateConfiguresTheProofsPool(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	template := NewGokrazyL2TP(t.TempDir()).applianceTemplate()
+	template := newGokrazyL2TP(t.TempDir()).applianceTemplate()
 	for _, want := range []string{
 		"set l2tp enabled true",
 		"set l2tp pool ipv4 gateway " + L2TPPPPLocalAddr,
@@ -435,7 +435,7 @@ func TestThePeerDialsTheApplianceFromAShortPath(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	run := NewGokrazyL2TP(t.TempDir())
+	run := newGokrazyL2TP(t.TempDir())
 	dir := t.TempDir()
 	if err := run.writePeerInputs(dir); err != nil {
 		t.Fatalf("write the peer inputs: %v", err)

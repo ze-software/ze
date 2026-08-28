@@ -35,7 +35,9 @@ directory's `crash`, then `/perm/ze/crash`, `/var/lib/ze/crash` and
 setting would mean a crash file goes missing whenever nobody set one.
 
 **`HandlePanic` and `os.Exit(2)` live in `cmd/ze/main.go`, not in the library**,
-because the repo hooks block `panic()` and `os.Exit()` outside a main file.
+because the native write hook blocks `panic()` and `os.Exit()` outside a main
+file.
+<!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
 
 ## Constraints
 

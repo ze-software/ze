@@ -20,26 +20,26 @@ verification debt clearable by running the gate rather than by editing a table.
 Six sessions share this checkout and it carries 248 uncommitted files. Three
 mechanisms turn that into a permanent block:
 
-1. **Freshness is whole-tree.** `tree_hash` (`scripts/dev/verify-status.sh`)
+1. **Freshness is whole-tree.** `tree_hash` (`internal/le/verifystatus/answer.go`)
    folds `HEAD`, the whole `git diff HEAD`, and every untracked file into one
    number. Any byte written by any session flips it.
 2. **A concurrent edit voids the whole run.** `writeVerifyStatus`
-   (`scripts/status/verify_run.go`) compares the tree hash before and after the
+   (`internal/le/verify/run.go`) compares the tree hash before and after the
    run and writes `treeMovedSentinel` when they differ. No tree hashes to
    `tree-moved-during-run`, so the record reports STALE for ever. The live
    `tmp/ze-verify.status` holds exactly that after a 79 minute run.
-3. **Every escape is permanent.** `record_debt` (`scripts/dev/commit_helper.py`)
+3. **Every escape is permanent.** `record_debt` (`internal/le/commit/prepare.go`)
    writes a row per override into `plan/verification-debt/<session>.md`, and
    `open_debt_rows` refuses `--push` while one row is open. The ledger holds 232
    open and 22 cleared rows, and no script writes `cleared`.
 
 The scoped answer already exists and has no production caller. `dirty_manifest`
-and `manifest_scoped` (`scripts/dev/verify-status.sh`) record a per-path
+and `manifest_scoped` (`internal/le/verifystatus/answer.go`) record a per-path
 fingerprint of everything differing from HEAD, and `verify-status.sh check
 <PATH>...` compares only the named paths. The function's own comment states the
 reason: "The commit is scoped to a file list; the evidence must be scopeable to
 the same list, or a session can never hold evidence about its own code".
-`verify_status` (`scripts/dev/commit_helper.py`) calls `[str(script), "check"]`
+`verify_status` (`internal/le/commit/prepare.go`) calls `[str(script), "check"]`
 with no paths.
 
 `plan/journal/concurrent-rfc-gate-stale.md` records nine occurrences of this
@@ -54,15 +54,15 @@ class since 2026-07-30.
   → Constraint: the helper's refusals are the enforcement point; changing them changes the contract every session reads
 
 **Key insights:**
-- `STRUCTURAL_GATES` (`scripts/dev/commit_helper.py`) is the set `--unverified` cannot wave through, because a structural red means the tree is broken rather than flaky. Scoping must not weaken that: a structural red inside the session's own paths still blocks.
+- `STRUCTURAL_GATES` (`internal/le/commit/prepare.go`) is the set `--unverified` cannot wave through, because a structural red means the tree is broken rather than flaky. Scoping must not weaken that: a structural red inside the session's own paths still blocks.
 - `TRACKED_BUILD_GATE` is exempt by design and the owner ruled on it on 2026-08-04. Leave it alone.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/dev/verify-status.sh` - `tree_hash` (whole-tree), `dirty_manifest` (per-path), `manifest_scoped` (compares named paths), the `check` command with and without arguments
-- [ ] `scripts/status/verify_run.go` - `writeVerifyStatus`, `computeTreeHash`, `treeMovedSentinel`, `runVerify`'s `startHash`
-- [ ] `scripts/dev/commit_helper.py` - `verify_status`, `structural_gate_reds`, `STRUCTURAL_GATES`, `record_debt`, `debt_owed`, `open_debt_rows`, `DEBT_FLAGS`
+- [ ] `internal/le/verifystatus/answer.go` - `tree_hash` (whole-tree), `dirty_manifest` (per-path), `manifest_scoped` (compares named paths), the `check` command with and without arguments
+- [ ] `internal/le/verify/run.go` - `writeVerifyStatus`, `computeTreeHash`, `treeMovedSentinel`, `runVerify`'s `startHash`
+- [ ] `internal/le/commit/prepare.go` - `verify_status`, `structural_gate_reds`, `STRUCTURAL_GATES`, `record_debt`, `debt_owed`, `open_debt_rows`, `DEBT_FLAGS`
 - [ ] `plan/verification-debt/*.md` - the row format and the reasons recorded
 
 **Behavior to preserve:**
@@ -80,7 +80,7 @@ class since 2026-07-30.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `scripts/dev/commit_helper.py create --file <path> ...`, which already knows the exact file list the commit will carry.
+- `internal/le/commit/prepare.go create --file <path> ...`, which already knows the exact file list the commit will carry.
 
 ### Transformation Path
 1. `runVerify` records `startHash` and the start manifest, then runs the stages.
@@ -92,31 +92,31 @@ class since 2026-07-30.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Verify runner ↔ status file | `tmp/ze-verify.status`, `tmp/ze-verify-manifest.txt` | Yes: `TestWriteVerifyStatusRecordsMovedPathsNotSentinel` (`scripts/status/verify_run_test.go`) writes the pair and reads it back through `verify-status.sh` |
-| Status file ↔ commit helper | `verify-status.sh check <paths>` exit code | Yes: `TestVerifyStatusScope` (`scripts/dev/commit_helper_test.py`) and `test/runner/verify-scope-freshness-scoped.ci` |
-| Failure index ↔ commit helper | `tmp/ze-verify-failures.json` | Yes: `TestStructuralRedAttribution` and `TestDebtNotChargedForForeignRed` (`scripts/dev/commit_helper_test.py`) |
+| Verify runner ↔ status file | `tmp/ze-verify.status`, `tmp/ze-verify-manifest.txt` | Yes: `TestWriteVerifyStatusRecordsMovedPathsNotSentinel` (`internal/le/verify/verify_test.go`) writes the pair and reads it back through `verify-status.sh` |
+| Status file ↔ commit helper | `verify-status.sh check <paths>` exit code | Yes: `TestVerifyStatusScope` (`internal/le/`) and `test/runner/verify-scope-freshness-scoped.ci` |
+| Failure index ↔ commit helper | `tmp/ze-verify-failures.json` | Yes: `TestStructuralRedAttribution` and `TestDebtNotChargedForForeignRed` (`internal/le/`) |
 
 ### Integration Points
 - `manifest_scoped` - already implemented, needs a caller.
-- `failureGroup.Related` (`scripts/status/verify_run.go`) - already carries related paths per failure group, and is the natural attribution source.
+- `failureGroup.Related` (`internal/le/verify/run.go`) - already carries related paths per failure group, and is the natural attribution source.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Yes | `verify_status` (`scripts/dev/commit_helper.py`) asks `verify-status.sh check <paths>` and reads its exit code. It never opens `tmp/ze-verify.status` or `tmp/ze-verify-manifest.txt` itself, so the status script stays the only reader of both |
-| No unintended coupling (components stay isolated) | Yes, with one literal carried on both sides | The Go runner and the shell script cannot import each other, so the FILE FORMAT is the contract: `movedDuringRun` (`scripts/status/verify_run.go`) and `MOVED_MARKER` (`scripts/dev/verify-status.sh`) spell the same word, and each carries a comment naming the other. No symbol crosses |
-| No duplicated functionality (extends existing, does not recreate) | No, and the duplication is deliberate | `manifest_scoped` and `dirty_manifest` (`scripts/dev/verify-status.sh`) already existed and only gained a caller. But `computeDirtyManifest` (`scripts/status/verify_run.go`) is a second implementation of `dirty_manifest`, in Go, and says so in its own comment. The runner needs the fingerprint the stages READ, which is taken at run start and no later shell call can recover. `computeTreeHash` was already a mirror of `tree_hash` before this spec |
+| No bypassed layers (data flows through the intended path) | Yes | `verify_status` (`internal/le/commit/prepare.go`) asks `verify-status.sh check <paths>` and reads its exit code. It never opens `tmp/ze-verify.status` or `tmp/ze-verify-manifest.txt` itself, so the status script stays the only reader of both |
+| No unintended coupling (components stay isolated) | Yes, with one literal carried on both sides | The Go runner and the shell script cannot import each other, so the FILE FORMAT is the contract: `movedDuringRun` (`internal/le/verify/run.go`) and `MOVED_MARKER` (`internal/le/verifystatus/answer.go`) spell the same word, and each carries a comment naming the other. No symbol crosses |
+| No duplicated functionality (extends existing, does not recreate) | No, and the duplication is deliberate | `manifest_scoped` and `dirty_manifest` (`internal/le/verifystatus/answer.go`) already existed and only gained a caller. But `computeDirtyManifest` (`internal/le/verify/run.go`) is a second implementation of `dirty_manifest`, in Go, and says so in its own comment. The runner needs the fingerprint the stages READ, which is taken at run start and no later shell call can recover. `computeTreeHash` was already a mirror of `tree_hash` before this spec |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | No wire encoding and no hot path. Every file this spec touches is shell, Python, or a once-per-run Go writer |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `DEBT_GATE_RUNNERS` (`scripts/dev/commit_helper.py`) is a table keyed through `dict(DEBT_FLAGS)`, so a new override adds one row and a reworded gate cell cannot orphan an entry. `clear_debt` looks the runner up; it holds no branch per gate |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `DEBT_GATE_RUNNERS` (`internal/le/commit/prepare.go`) is a table keyed through `dict(DEBT_FLAGS)`, so a new override adds one row and a reworded gate cell cannot orphan an entry. `clear_debt` looks the runner up; it holds no branch per gate |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A stage's verdict about path P is unaffected by an edit to path Q outside P's package and importers | The stages are per-package linters, per-package tests, and whole-tree structural checks | A scoped FRESH hides a real red | The structural gates keep a whole-tree scope; only the per-package stages scope | **BROKEN IN PART, 2026-08-19, and the basis was wrong in two ways.** (1) NO stage is per-package: `stagesForMode` (`scripts/status/verify_run.go`) returns whole-tree `make` targets for both modes, and this spec narrowed no stage. What narrowed is the FRESHNESS question alone -- `manifest_scoped` (`scripts/dev/verify-status.sh`) compares the named paths' manifest rows, so the claim a scoped FRESH supports is "the paths this commit carries are byte-identical to the ones the run read", never "a stage re-ran over P alone". (2) The exclusion names the wrong direction. P's importers cannot change P's own compile or test verdict; P's DEPENDENCIES can, and the row does not exclude them. So an uncommitted Q that P imports, edited after the pass, leaves a verdict about P that was produced against a Q the checkout no longer holds. That residual is not new and is not closed by scoping: the local tree is never the tree CI builds, and `ze-repository-tracked-build-check` closes it after the commit by compiling what git holds. The structural half of the mitigation DOES hold, by `structural_gate_reds` (`scripts/dev/commit_helper.py`): a red charges unless every one of its groups named files and every one is foreign, and a red with no scope charges unconditionally |
+| A-1 | A stage's verdict about path P is unaffected by an edit to path Q outside P's package and importers | The stages are per-package linters, per-package tests, and whole-tree structural checks | A scoped FRESH hides a real red | The structural gates keep a whole-tree scope; only the per-package stages scope | **BROKEN IN PART, 2026-08-19, and the basis was wrong in two ways.** (1) NO stage is per-package: `stagesForMode` (`internal/le/verify/run.go`) returns whole-tree `make` targets for both modes, and this spec narrowed no stage. What narrowed is the FRESHNESS question alone -- `manifest_scoped` (`internal/le/verifystatus/answer.go`) compares the named paths' manifest rows, so the claim a scoped FRESH supports is "the paths this commit carries are byte-identical to the ones the run read", never "a stage re-ran over P alone". (2) The exclusion names the wrong direction. P's importers cannot change P's own compile or test verdict; P's DEPENDENCIES can, and the row does not exclude them. So an uncommitted Q that P imports, edited after the pass, leaves a verdict about P that was produced against a Q the checkout no longer holds. That residual is not new and is not closed by scoping: the local tree is never the tree CI builds, and `./le repository-tracked-build check` closes it after the commit by compiling what git holds. The structural half of the mitigation DOES hold, by `structural_gate_reds` (`internal/le/commit/prepare.go`): a red charges unless every one of its groups named files and every one is foreign, and a red with no scope charges unconditionally |
 | A-2 | `failureGroup.Related` already names enough paths to attribute a red | `classifyStage` populates it per failure kind | Attribution needs a new producer per stage | Read `classifyStage` and its group builders before designing AC-4 | **BROKEN IN PART, 2026-08-19.** `Related` carries a FILE PATH only in `classifyLint`. `classifyVet` carries a package pattern (`./pkg/...`), which attributes to a directory. `classifyWiringDocs` carries a check name (`"wiring"`, or the sub-target), `classifyFunctional` a suite name, `classifyExabgp` test names, and `genericGroup` the stage's own name. AC-4 is answerable for lint and vet, and is NOT answerable for the rest from today's data. See the Decision below |
-| A-3 | Clearing a debt row by re-running the owed gate is cheap enough to be used | The owed gates are named per row | Clearing costs another full hour and nobody runs it | Measure one clear against `tmp/.ze-verify-duration.txt` | **CONFIRMED, 2026-08-19, and the reason is amortization rather than a cheap gate.** `clear_debt` runs each DISTINCT gate once per pass, not once per row, so the 222 open rows naming `ze-precommit-verify` or the structural set are judged by one run of it. That run is the recorded 924-3889s (`tmp/.ze-verify-duration.txt`, 4 runs, 2026-08-18/19). The `discovery-index freshness` gate is 8.8s measured over HEAD and covers 16 rows. The 32 `independent critical review` rows have no runnable gate at any price and stay open by design |
+| A-3 | Clearing a debt row by re-running the owed gate is cheap enough to be used | The owed gates are named per row | Clearing costs another full hour and nobody runs it | Measure one clear against `tmp/.ze-verify-duration.txt` | **CONFIRMED, 2026-08-19, and the reason is amortization rather than a cheap gate.** `clear_debt` runs each DISTINCT gate once per pass, not once per row, so the 222 open rows naming `./le verify current mode full` or the structural set are judged by one run of it. That run is the recorded 924-3889s (`tmp/.ze-verify-duration.txt`, 4 runs, 2026-08-18/19). The `discovery-index freshness` gate is 8.8s measured over HEAD and covers 16 rows. The 32 `independent critical review` rows have no runnable gate at any price and stay open by design |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -140,7 +140,7 @@ class since 2026-07-30.
 | `commit_helper.py create --file X` | → | `verify_status(repo, paths)` | `test_verify_status_passes_commit_paths` |
 | `verify-status.sh check A B` | → | `manifest_scoped` | `test_check_scoped_ignores_unnamed_paths` |
 | a concurrent edit during a run | → | `writeVerifyStatus` moved-path record | `TestWriteVerifyStatusRecordsMovedPathsNotSentinel` |
-| `make ze-verify-debt-clear` | → | the clearing entry point | `test_debt_clear_reruns_the_owed_gate` |
+| `./le commit debt-clear` | → | the clearing entry point | `test_debt_clear_reruns_the_owed_gate` |
 
 ## Acceptance Criteria
 
@@ -152,7 +152,7 @@ class since 2026-07-30.
 | AC-4 | A structural gate is red, its failure group carries FILE PATHS, and every one lies outside the commit's file list | The helper does not charge a debt row for that gate |
 | AC-5 | A structural gate is red and any path in its failure group lies inside the commit's file list | The helper refuses, as today |
 | AC-4b | A structural gate is red and its failure group carries no path at all (a check name, a suite name, or the stage's own name) | The helper charges the debt row, as today, and names WHICH group it could not attribute |
-| AC-6 | An open debt row names a gate that now passes over the committed code | `make ze-verify-debt-clear` re-runs that gate, records its exit, and sets the row to `cleared` only on exit 0 |
+| AC-6 | An open debt row names a gate that now passes over the committed code | `./le commit debt-clear` re-runs that gate, records its exit, and sets the row to `cleared` only on exit 0 |
 | AC-7 | An open debt row names a gate that is still red | The clearing target leaves the row open and prints the gate's output |
 
 ## 🧪 TDD Test Plan
@@ -160,12 +160,12 @@ class since 2026-07-30.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestWriteVerifyStatusRecordsMovedPathsNotSentinel` | `scripts/status/verify_run_test.go` | AC-3: a concurrent edit records paths, never an unmatchable value | |
-| `TestStagesForModeMatchesGolden` | `scripts/status/verify_run_test.go` | The stage list stays single-sourced | |
-| `test_verify_status_passes_commit_paths` | `scripts/dev/commit_helper_test.py` | AC-1, AC-2: the helper scopes to its own file list | |
-| `test_check_scoped_ignores_unnamed_paths` | `scripts/dev/verify_status_test.py` | The scoped compare reads only named paths | |
-| `test_debt_not_charged_for_foreign_red` | `scripts/dev/commit_helper_test.py` | AC-4, AC-5: attribution decides the charge | |
-| `test_debt_clear_reruns_the_owed_gate` | `scripts/dev/commit_helper_test.py` | AC-6, AC-7: clearing runs the gate and honors its exit | green, with `TestDebtClear`'s nine other cases |
+| `TestWriteVerifyStatusRecordsMovedPathsNotSentinel` | `internal/le/verify/verify_test.go` | AC-3: a concurrent edit records paths, never an unmatchable value | |
+| `TestStagesForModeMatchesGolden` | `internal/le/verify/verify_test.go` | The stage list stays single-sourced | |
+| `test_verify_status_passes_commit_paths` | `internal/le/` | AC-1, AC-2: the helper scopes to its own file list | |
+| `test_check_scoped_ignores_unnamed_paths` | `internal/le/` | The scoped compare reads only named paths | |
+| `test_debt_not_charged_for_foreign_red` | `internal/le/` | AC-4, AC-5: attribution decides the charge | |
+| `test_debt_clear_reruns_the_owed_gate` | `internal/le/` | AC-6, AC-7: clearing runs the gate and honors its exit | green, with `TestDebtClear`'s nine other cases |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -180,8 +180,8 @@ class since 2026-07-30.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `verify-scope-freshness-scoped` | `test/runner/verify-scope-freshness-scoped.ci` | A developer's record stays FRESH for their own paths while a second writer edits an unrelated file | green in `make ze-functional-runner-test` (3/3). Drives the real `verify-status.sh` over a throwaway git repo it builds itself, so the shared `tmp/ze-verify.status` is never touched. Discriminates: with the scoped arm of `check` removed, seq=2 fails with "AC-1: scoped check refused my untouched path: STALE: tree changed since last PASS" |
-| `verify-scope-debt-clear` | `test/runner/verify-scope-debt-clear.ci` | A developer clears a debt row, and the clearing re-runs the owed gate rather than trusting the edit | green in `make ze-functional-runner-test` (3/3). Drives `commit_helper.py debt-clear` against two throwaway repos whose only `make` target is the one the row owes, one exiting 0 and one exiting 3, and binds `make ze-verify-debt-clear` to that entry point by reading its recipe with `make -n`. Discriminates: with the gate's exit trusted rather than read, AC-6 fails on "the owed gate did not run" and AC-7 on "cleared 1 row(s), 0 still open" |
+| `verify-scope-freshness-scoped` | `test/runner/verify-scope-freshness-scoped.ci` | A developer's record stays FRESH for their own paths while a second writer edits an unrelated file | green in `./le functional runner` (3/3). Drives the real `verify-status.sh` over a throwaway git repo it builds itself, so the shared `tmp/ze-verify.status` is never touched. Discriminates: with the scoped arm of `check` removed, seq=2 fails with "AC-1: scoped check refused my untouched path: STALE: tree changed since last PASS" |
+| `verify-scope-debt-clear` | `test/runner/verify-scope-debt-clear.ci` | A developer clears a debt row, and the clearing re-runs the owed gate rather than trusting the edit | green in the retired `ze-functional-runner-test` (current: `./le functional runner`) (3/3). Drives `commit_helper.py debt-clear` against two throwaway repos whose only `make` target is the one the row owes, one exiting 0 and one exiting 3, and binds the retired `ze-verify-debt-clear` (current: `./le commit debt-clear`) to that entry point by reading its recipe with `make -n`. Discriminates: with the gate's exit trusted rather than read, AC-6 fails on "the owed gate did not run" and AC-7 on "cleared 1 row(s), 0 still open" |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -189,15 +189,15 @@ class since 2026-07-30.
 | N-A | - | - | Scope is tooling. No wire-visible behavior changes | |
 
 ## Files to Modify
-- `scripts/dev/verify-status.sh` - the scoped `check` path, already implemented, gains its contract test
-- `scripts/status/verify_run.go` - `writeVerifyStatus` records moved paths instead of the sentinel
-- `scripts/dev/commit_helper.py` - `verify_status` takes paths; red attribution; the debt clearing entry point
-- `Makefile` - the `ze-verify-debt-clear` target
+- `internal/le/verifystatus/answer.go` - the scoped `check` path, already implemented, gains its contract test
+- `internal/le/verify/run.go` - `writeVerifyStatus` records moved paths instead of the sentinel
+- `internal/le/commit/prepare.go` - `verify_status` takes paths; red attribution; the debt clearing entry point
+- `internal/le/` native action tables - the `ze-verify-debt-clear` target
 - `ai/rules/precommit-verify.md` - the judging rule changes, so its text does too
 - `ai/rules/git-safety.md` - the commit path's verify gate description
 
 ## Files to Create
-- `scripts/dev/verify_status_test.py` - the scoped-compare contract
+- `internal/le/` - the scoped-compare contract
 - `test/runner/verify-scope-freshness-scoped.ci` - end-to-end scoped freshness
 - `test/runner/verify-scope-debt-clear.ci` - end-to-end debt clearing
 - `docs/architecture/testing/verify-freshness-scope.md` - the scoped-freshness contract
@@ -208,10 +208,10 @@ run every command inside it, because `verify-status.sh` resolves
 directory and several sessions read the real pair.
 
 One step of the debt-clearing scenario is out of a `.ci`'s reach and is proven a
-different way. Running `make ze-verify-debt-clear` for real would enter this
+different way. Running `./le commit debt-clear` for real would enter this
 repository's own gates from inside a running functional suite: the target's
-runner for the commonest owed gate is `gate_command("make", "ze-precommit-verify")`
-(`scripts/dev/commit_helper.py`), which is the hour-long run. The test therefore
+runner for the commonest owed gate is `gate_command("make", "./le verify current mode full")`
+(`internal/le/commit/prepare.go`), which is the hour-long run. The test therefore
 reads the target's recipe with `make -n`, which prints it without executing it
 (the recipe holds no `$(MAKE)`), asserts that the recipe runs
 `commit_helper.py debt-clear`, and then drives that entry point for real against
@@ -260,23 +260,23 @@ can assert without paying for the gates.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- make the scoped path reachable and prove it is not yet honored
    - Tests: `test_verify_status_passes_commit_paths`, `test_check_scoped_ignores_unnamed_paths`
-   - Files: `scripts/dev/commit_helper.py`, `scripts/dev/verify_status_test.py`
+   - Files: `internal/le/commit/prepare.go`, `internal/le/`
    - Verify: the tests fail because `verify_status` still calls `check` with no paths
 2. **Phase: Scoped freshness** -- `verify_status` takes the commit's file list and passes it through
    - Tests: as above, plus `verify-scope-freshness-scoped.ci`
-   - Files: `scripts/dev/commit_helper.py`
+   - Files: `internal/le/commit/prepare.go`
    - Verify: AC-1 and AC-2 both hold
 3. **Phase: Moved-path record** -- replace the whole-run sentinel with a per-path record
    - Tests: `TestWriteVerifyStatusRecordsMovedPathsNotSentinel`
-   - Files: `scripts/status/verify_run.go`, `scripts/dev/verify-status.sh`
+   - Files: `internal/le/verify/run.go`, `internal/le/verifystatus/answer.go`
    - Verify: AC-3 holds, and a run whose tree moved still answers about the paths that did not
 4. **Phase: Red attribution** -- charge debt only for reds inside the session's own paths
    - Tests: `test_debt_not_charged_for_foreign_red`
-   - Files: `scripts/dev/commit_helper.py`
+   - Files: `internal/le/commit/prepare.go`
    - Verify: AC-4 and AC-5 both hold
 5. **Phase: Debt clearing** -- a make target that re-runs the owed gate
    - Tests: `test_debt_clear_reruns_the_owed_gate`, `verify-scope-debt-clear.ci`
-   - Files: `Makefile`, `scripts/dev/commit_helper.py`
+   - Files: `internal/le/` native action tables, `internal/le/commit/prepare.go`
    - Verify: AC-6 and AC-7 both hold, and the 232 open rows are re-judged rather than deleted
 6. **Phase: Rules** -- update `ai/rules/precommit-verify.md` and `ai/rules/git-safety.md` to state the new judging rule
 
@@ -293,9 +293,9 @@ can assert without paying for the gates.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Scoped freshness reaches the helper | `grep -n 'check' scripts/dev/commit_helper.py` shows the path list passed |
-| The sentinel no longer voids a run | `grep -c treeMovedSentinel scripts/status/verify_run.go` |
-| Debt is clearable | `make ze-verify-debt-clear` re-judges the open rows |
+| Scoped freshness reaches the helper | `grep -n 'check' internal/le/commit/prepare.go` shows the path list passed |
+| The sentinel no longer voids a run | `grep -c treeMovedSentinel internal/le/verify/run.go` |
+| Debt is clearable | `./le commit debt-clear` re-judges the open rows |
 | The ledger shrinks | `grep -c '| open |' plan/verification-debt/*.md` |
 
 ### Security Review Checklist
@@ -329,9 +329,9 @@ can assert without paying for the gates.
 
 ## Known Limitations
 - A stage that genuinely reads the whole tree still needs a still tree. This spec does not make those stages scoped; sub-spec 2 decides which of them can be.
-- `ze-doc-wiring-check` IS attributable, and it was the gate 65 of the 95 open structural debt rows name. Reading the stage's prose could never attribute it: `classifyWiringDocs` matches a check NAME, and `main()` in `scripts/dev/verify_wiring_docs.py` runs four sub-checks that print `<path>:<line>: ...` beside two that name no file of ours, so capturing the four alone would let a log carrying a foreign wiring issue AND a ratchet failure drop the whole gate. Sub-spec 6 (`plan/spec-verify-scope-6-wiring-docs-attribution.md`) made the PRODUCER declare its groups instead: `declare_failure_group` prints one group per failure, with `PATH_BEARING_KIND = "files"` when the failure names paths and `subcheck` when it judges a population, so the ci-sleep ratchet and each delegated target still charge the committing session while a wiring red names its files.
-- A structural red is attributed only where its group's `kind` is one `PATH_BEARING_GROUP_KINDS` (`scripts/dev/commit_helper.py`) holds. A producer that adds a kind gets no attribution until that set is taught to read it, so its reds are charged rather than dropped. That is the deliberate direction, and it costs a producer one line in the allowlist.
-- The moved-path record compares the run's START and END snapshots, so an edit that begins and ends between them is invisible in both its shapes, and no acceptance criterion covers either. `docs/architecture/testing/verify-freshness-scope.md` names them, and `TestWriteVerifyStatusRecordsMovedPathsNotSentinel` (`scripts/status/verify_run_test.go`) drives the second. The whole-tree hash has the identical hole, and closing either needs a third observation of the tree.
+- `./le doc-wiring` IS attributable, and it was the gate 65 of the 95 open structural debt rows name. Reading the stage's prose could never attribute it: `classifyWiringDocs` matches a check NAME, and `main()` in `internal/le/docwiring/wiring.go` runs four sub-checks that print `<path>:<line>: ...` beside two that name no file of ours, so capturing the four alone would let a log carrying a foreign wiring issue AND a ratchet failure drop the whole gate. Sub-spec 6 (`plan/spec-verify-scope-6-wiring-docs-attribution.md`) made the PRODUCER declare its groups instead: `declare_failure_group` prints one group per failure, with `PATH_BEARING_KIND = "files"` when the failure names paths and `subcheck` when it judges a population, so the ci-sleep ratchet and each delegated target still charge the committing session while a wiring red names its files.
+- A structural red is attributed only where its group's `kind` is one `PATH_BEARING_GROUP_KINDS` (`internal/le/commit/prepare.go`) holds. A producer that adds a kind gets no attribution until that set is taught to read it, so its reds are charged rather than dropped. That is the deliberate direction, and it costs a producer one line in the allowlist.
+- The moved-path record compares the run's START and END snapshots, so an edit that begins and ends between them is invisible in both its shapes, and no acceptance criterion covers either. `docs/architecture/testing/verify-freshness-scope.md` names them, and `TestWriteVerifyStatusRecordsMovedPathsNotSentinel` (`internal/le/verify/verify_test.go`) drives the second. The whole-tree hash has the identical hole, and closing either needs a third observation of the tree.
 
 ## Checklist
 
@@ -339,7 +339,7 @@ can assert without paying for the gates.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -357,7 +357,7 @@ can assert without paying for the gates.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

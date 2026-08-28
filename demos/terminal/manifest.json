@@ -3,7 +3,7 @@
   "renderer": {
     "name": "ze-demo",
     "version": "3",
-    "image": "ze-terminal-demo-render-all:debian-13-playwright-1.55.0-firacode-6.002-notosans-2.015-liberation-2.1.5",
+    "image": "./le terminal-demo render-all:debian-13-playwright-1.55.0-firacode-6.002-notosans-2.015-liberation-2.1.5",
     "platform": "linux/native"
   },
   "gallery-page": "guide/terminal-demonstrations.md",
@@ -18,7 +18,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "cli-dashboard/demo.tape",
-      "validate": "cli-dashboard/validate.sh",
+      "validate": "cli-dashboard",
       "realtime": true
     },
     {
@@ -31,7 +31,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "zefs-config/demo.tape",
-      "validate": "zefs-config/validate.sh",
+      "validate": "zefs-config",
       "realtime": true
     },
     {
@@ -44,7 +44,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "rbac/demo.tape",
-      "validate": "rbac/validate.sh"
+      "validate": "rbac"
     },
     {
       "id": "traceroute",
@@ -58,7 +58,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "traceroute/demo.tape",
-      "validate": "traceroute/validate.sh"
+      "validate": "traceroute"
     },
     {
       "id": "launcher",
@@ -70,7 +70,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "launcher/demo.tape",
-      "validate": "launcher/validate.sh"
+      "validate": "launcher"
     },
     {
       "id": "web-config",
@@ -83,7 +83,7 @@
       "kind": "browser",
       "engine": "Playwright 1.55.0",
       "source": "web-config/demo.cjs",
-      "validate": "web-config/validate.sh"
+      "validate": "web-config"
     },
     {
       "id": "commit-confirmed",
@@ -96,7 +96,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "commit-confirmed/demo.tape",
-      "validate": "commit-confirmed/validate.sh"
+      "validate": "commit-confirmed"
     },
     {
       "id": "rpki",
@@ -108,7 +108,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "rpki/demo.tape",
-      "validate": "rpki/validate.sh"
+      "validate": "rpki"
     },
     {
       "id": "irr-filter",
@@ -120,7 +120,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "irr-filter/demo.tape",
-      "validate": "irr-filter/validate.sh"
+      "validate": "irr-filter"
     },
     {
       "id": "rib-fib",
@@ -133,7 +133,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "rib-fib/demo.tape",
-      "validate": "rib-fib/validate.sh"
+      "validate": "rib-fib"
     },
     {
       "id": "health-reports",
@@ -145,7 +145,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "health-reports/demo.tape",
-      "validate": "health-reports/validate.sh"
+      "validate": "health-reports"
     },
     {
       "id": "config-views",
@@ -157,7 +157,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "config-views/demo.tape",
-      "validate": "config-views/validate.sh"
+      "validate": "config-views"
     },
     {
       "id": "bfd-failover",
@@ -170,7 +170,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "bfd-failover/demo.tape",
-      "validate": "bfd-failover/validate.sh",
+      "validate": "bfd-failover",
       "realtime": true
     },
     {
@@ -184,7 +184,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "ospf-adjacency/demo.tape",
-      "validate": "ospf-adjacency/validate.sh"
+      "validate": "ospf-adjacency"
     },
     {
       "id": "traffic-anomaly",
@@ -197,7 +197,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "traffic-anomaly/demo.tape",
-      "validate": "traffic-anomaly/validate.sh"
+      "validate": "traffic-anomaly"
     },
     {
       "id": "vrrp-failover",
@@ -210,7 +210,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "vrrp-failover/demo.tape",
-      "validate": "vrrp-failover/validate.sh"
+      "validate": "vrrp-failover"
     },
     {
       "id": "host-inventory",
@@ -222,7 +222,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "host-inventory/demo.tape",
-      "validate": "host-inventory/validate.sh"
+      "validate": "host-inventory"
     },
     {
       "id": "config-graph",
@@ -234,7 +234,7 @@
       "kind": "terminal",
       "engine": "Ze recorder",
       "source": "config-graph/demo.tape",
-      "validate": "config-graph/validate.sh"
+      "validate": "config-graph"
     }
   ]
 }

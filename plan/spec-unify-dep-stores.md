@@ -12,7 +12,7 @@
 The repo commits its Go dependencies TWICE, in two different formats:
 
 - `vendor/` — a flat, one-version-per-package tree, read only by `-mod=vendor`, tied to the
-  root module's `go.mod`. Used to build `bin/gok` (`mk/build-gokrazy.mk`, `-mod=vendor`) and the
+  root module's `go.mod`. Used to build `bin/gok` (`internal/appliance/cmd_build.go`, `-mod=vendor`) and the
   rest of the repo.
 - `gokrazy/modcache/` — a committed, versioned `pkg@vX.Y.Z` GOMODCACHE (60+ tracked files),
   read by normal module resolution (`GOMODCACHE=$(CURDIR)/gokrazy/modcache`), used by the
@@ -43,7 +43,7 @@ stages. Collapse to ONE committed store.
 
 ## MANDATORY first step (before any code)
 
-**Version-alignment audit.** The unification is reasoned from Go tooling behavior + Makefile
+**Version-alignment audit.** The unification is reasoned from Go tooling behavior + the native action tables under `internal/le/`
 wiring, NOT a byte-level audit. Before touching anything, verify the exact module versions the
 root module and every `gokrazy/ze/builddir/*/go.mod` pin actually resolve against the single
 committed `gokrazy/modcache`, and that `bin/gok` builds reproducibly with `-mod=mod` against
@@ -80,7 +80,7 @@ compiles the ze code that uses it (`cmd/ze-gok`, `internal/appliance/updater`,
 (`20260703063348`), `updater`/`internal` -> Jun 2026, + transitive bumps. Every ze consumer
 compiles with ZERO code changes and the appliance unit tests pass. Bonus: it fixes a real latent
 mismatch (`gok`/`tools` were April while building the July `gokrazy@20260703` init; now aligned).
-Committed on compile+unit-test strength (user-authorized); full `make ze-gokrazy-build` image build +
+Committed on compile+unit-test strength (user-authorized); full `ze appliance build` image build +
 QEMU boot with the July `gok` is to be **verified separately**.
 
 **Step 2 (image build reads `vendor/`) is BLOCKED and NOT pursued.** Verified empirically: `go mod
@@ -95,13 +95,13 @@ status quo is worth changing.
 ## Required Reading
 
 - `ai/rules/platform-linux.md` — the vendored-init bump runbook and modcache cache-permission rules
-- `mk/build-gokrazy.mk` — how `bin/gok` and the image build consume the two stores today
+- `internal/appliance/cmd_build.go` — how `bin/gok` and the image build consume the two stores today
 - `spec-relocate-scratch-and-cache` (closed) — must land first (Depends)
 
 ## Current Behavior
 
 **Source files read:** (during the 2026-07-18 audit + spike recorded above)
-- [x] `mk/build-gokrazy.mk` — `bin/gok` built with `-mod=vendor` from the root module
+- [x] `internal/appliance/cmd_build.go` — `bin/gok` built with `-mod=vendor` from the root module
 - [x] `gokrazy/ze/builddir/*/go.mod` — independently-pinned builddir modules read `GOMODCACHE=$(CURDIR)/gokrazy/modcache`
 - [x] `gokrazy/modcache/.gitignore` — whitelists only `gokrazy/gokrazy@*/**`; everything else is downloaded, not committed
 - [x] `.gitignore:1` — "Dependencies are vendored and committed" (the property step 2 would reverse)
@@ -113,7 +113,7 @@ status quo is worth changing.
 ## Data Flow
 
 ### Entry Point
-- `make ze-gokrazy-build` (image build) and the `bin/gok` build in `mk/build-gokrazy.mk` — both are build-time consumers of the committed dependency stores; there is no runtime data flow.
+- `ze appliance build` (image build) and the `bin/gok` build in `internal/appliance/cmd_build.go` — both are build-time consumers of the committed dependency stores; there is no runtime data flow.
 
 ### Transformation Path
 1. Root-module builds resolve deps from `vendor/` via `-mod=vendor`.
@@ -128,7 +128,7 @@ status quo is worth changing.
 | Builddir modules -> modcache | versioned `pkg@vX.Y.Z` GOMODCACHE layout |
 
 ### Integration Points
-- `mk/build-gokrazy.mk` build targets; `scripts` around `ze-gokrazy-deps-download`; `.gitignore` whitelists.
+- `internal/appliance/cmd_build.go` build targets; `scripts` around `ze-gokrazy-deps-download`; `.gitignore` whitelists.
 
 ## Wiring Test
 
@@ -136,7 +136,7 @@ Build tooling only — no daemon feature, no new runtime entry point; existing t
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| `make ze-gokrazy-build` | -> | unified dependency store (step 2, if pursued) | `make ze-gokrazy-build` full image build + QEMU boot via `scripts/evidence/qemu-run.py` |
+| `ze appliance build` | -> | unified dependency store (step 2, if pursued) | `ze appliance build` full image build + QEMU boot via `internal/le/qemu/run.go` |
 
 ## 🧪 TDD Test Plan
 
@@ -144,7 +144,7 @@ Build tooling only — no daemon feature, no new runtime entry point; existing t
 
 | Test | File | Validates |
 |------|------|-----------|
-| existing appliance unit tests (no new Go code; change is Makefile/go.mod wiring) | `internal/appliance/...` | consumers still compile and pass against the bumped/unified store |
+| existing appliance unit tests (no new Go code; change is the native action tables under `internal/le/`go.mod wiring) | `internal/appliance/...` | consumers still compile and pass against the bumped/unified store |
 
 ### Functional Tests
 - N/A — no daemon behavior changes; existing test suite covers the build consumers.
@@ -153,13 +153,13 @@ Build tooling only — no daemon feature, no new runtime entry point; existing t
 
 | File | Change |
 |------|--------|
-| `mk/build-gokrazy.mk` | (step 2, if pursued) point `bin/gok` build at the unified store |
+| `internal/appliance/cmd_build.go` | (step 2, if pursued) point `bin/gok` build at the unified store |
 | `gokrazy/modcache/.gitignore` | (step 2, if pursued) adjust whitelists for the generated cache |
 
 ## Implementation Steps
 
 1. (DONE 2026-07-18) Bump the gokrazy stack to one mutually-consistent snapshot.
-2. Verify separately: full `make ze-gokrazy-build` image build + QEMU boot with the July `gok` (outstanding from step 1).
+2. Verify separately: full `ze appliance build` image build + QEMU boot with the July `gok` (outstanding from step 1).
 3. DECISION GATE (Thomas): is replacing the zero-duplication status quo with a vendor-derived generated modcache worth the machinery? If no, close this spec as cancelled.
 4. If yes: build the generation step (kernel `replace => tmp/kernel/pkg` pattern extended), then flip `bin/gok` to `-mod=mod` against it.
 
@@ -167,5 +167,5 @@ Build tooling only — no daemon feature, no new runtime entry point; existing t
 
 - [ ] Tests written (build-level: the QEMU boot evidence run is the test for this spec)
 - [ ] Tests FAIL before the change where applicable (N/A for the step-1 bump, already landed)
-- [ ] Tests PASS: `make ze-gokrazy-build` image build + QEMU boot green
-- [ ] `make ze-standard-test` / `make ze-precommit-verify` green before any commit
+- [ ] Tests PASS: `ze appliance build` image build + QEMU boot green
+- [ ] `./le verify current mode full` green before any commit

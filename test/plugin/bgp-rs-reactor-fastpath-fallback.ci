@@ -73,50 +73,6 @@ EOF_PEER
 # receiver forward event (the exact frame conn=2 expects), then fire-and-forget
 # the shutdown -- send `request shutdown` WITHOUT waiting on its RPC response,
 # which ze may never send if it closes the connection first.
-tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-
-from ze_api import API
-
-
-def forward_sent_to_receiver(ev):
-    # A sent-direction UPDATE carrying the announced prefix: ze has put the exact
-    # frame conn=2 expects on the wire. The sent EORs carry no NLRI, and the
-    # received copy from the source is direction=received, so this matches only
-    # the forward to the receiver. wait_for_event decodes the event JSON and
-    # passes the dict, so navigate it (str(dict) would use single quotes and never
-    # match a double-quoted needle).
-    if not isinstance(ev, dict):
-        return False
-    if ev.get('bgp', {}).get('message', {}).get('direction') != 'sent':
-        return False
-    return '10.0.0.0/24' in json.dumps(ev)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    # Subscribe over the async callback channel. Event delivery is pushed by the
-    # engine; unlike a command dispatch it cannot stall waiting on a response.
-    api.subscribe(['update'])
-    api.ready()
-    # Block until the forwarded route has been sent to the receiver. A timeout
-    # here is harmless: the fast-path forward happens independently of this
-    # observer, so on timeout the route is already delivered and we still exit.
-    api.wait_for_event(timeout=30.0, predicate=forward_sent_to_receiver)
-    # Fire-and-forget shutdown (fd arg is ignored in TLS mode).
-    api._send_rpc(0, api._next_id(), 'ze-plugin-engine:dispatch-command',
-                  {'command': 'request shutdown'})
-    api.wait_for_shutdown(timeout=15.0)
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -124,7 +80,7 @@ plugin {
 		use bgp-rs
 	}
 	external shutdown-after-up {
-		run ./shutdown-after-up.run
+		run "ze-test fixture plugin/bgp-rs-reactor-fastpath-fallback"
 		encoder json
 	}
 }

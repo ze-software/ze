@@ -137,7 +137,7 @@ func TestPeerReconnect(t *testing.T) {
 	settings.Port = uint16(addr.Port) //nolint:gosec // Port fits in uint16
 
 	peer := NewPeer(settings)
-	peer.SetReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
+	peer.setReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
 
 	peer.Start()
 
@@ -414,9 +414,9 @@ func TestPeerOpQueueOrdering(t *testing.T) {
 	peer.mu.RUnlock()
 }
 
-// TestPeerShouldQueue verifies ShouldQueue returns correct state.
+// TestPeerShouldQueue verifies shouldQueue returns correct state.
 //
-// VALIDATES: ShouldQueue returns true when not established, when initial routes
+// VALIDATES: shouldQueue returns true when not established, when initial routes
 // are in progress, or when opQueue is non-empty. Returns false only when
 // established AND no initial routes running AND queue empty.
 //
@@ -429,35 +429,35 @@ func TestPeerShouldQueue(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Not established → should queue
-	require.True(t, peer.ShouldQueue(), "should queue when not established")
+	require.True(t, peer.shouldQueue(), "should queue when not established")
 
 	// Simulate established state. setState closes the initial-sync gate as it
 	// publishes Established (peer.go), so the peer queues until its sync ends.
 	peer.setState(PeerStateEstablished)
-	require.True(t, peer.ShouldQueue(), "should queue while the initial sync is still owed")
+	require.True(t, peer.shouldQueue(), "should queue while the initial sync is still owed")
 
 	// What sendInitialRoutes does when its drain and End-of-RIB are done.
 	peer.sendingInitialRoutes.Store(0)
-	require.False(t, peer.ShouldQueue(), "should not queue when established with empty queue")
+	require.False(t, peer.shouldQueue(), "should not queue when established with empty queue")
 
 	// Queue has items → should queue (preserves insertion order)
 	route := testRoute("10.0.0.0/8")
 	peer.QueueAnnounce(route)
-	require.True(t, peer.ShouldQueue(), "should queue when opQueue non-empty")
+	require.True(t, peer.shouldQueue(), "should queue when opQueue non-empty")
 
 	// Clear queue, still established → should not queue
 	peer.mu.Lock()
 	peer.opQueue = peer.opQueue[:0]
 	peer.mu.Unlock()
-	require.False(t, peer.ShouldQueue(), "should not queue after clearing opQueue")
+	require.False(t, peer.shouldQueue(), "should not queue after clearing opQueue")
 
 	// Initial routes in progress → should queue
 	peer.sendingInitialRoutes.Store(1)
-	require.True(t, peer.ShouldQueue(), "should queue when sendingInitialRoutes flag set")
+	require.True(t, peer.shouldQueue(), "should queue when sendingInitialRoutes flag set")
 
 	// Clear flag → should not queue
 	peer.sendingInitialRoutes.Store(0)
-	require.False(t, peer.ShouldQueue(), "should not queue after flag cleared")
+	require.False(t, peer.shouldQueue(), "should not queue after flag cleared")
 }
 
 // TestPeerTeardownQueuesWhenNotConnected verifies teardown is queued when no session.
@@ -1256,7 +1256,7 @@ func TestPeerPauseReadingDelegates(t *testing.T) {
 // TestPeerTeardownQueuesMessage verifies that Teardown preserves the RFC 8203
 // shutdown communication message in the operation queue.
 //
-// VALIDATES: Teardown with a non-empty message stores the message in the queued PeerOp.
+// VALIDATES: Teardown with a non-empty message stores the message in the queued peerOp.
 //
 // PREVENTS: Shutdown communication message being silently dropped when queued.
 func TestPeerTeardownQueuesMessage(t *testing.T) {

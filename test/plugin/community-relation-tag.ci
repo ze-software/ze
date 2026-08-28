@@ -22,6 +22,7 @@ option=env:var=ze.log.bgp.reactor.session:value=debug
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=linger:value=true
 # ze-peer mirrors a role capability by default. Drop it and advertise nothing,
 # so resolvePeerRole must fall back to the CONFIG complement. That is the case
 # RFC 9234 Section 4.2 names as the expected early-adopter one, and it is the
@@ -35,57 +36,11 @@ option=open:value=drop-capability:code=9
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 EOF_PEER
 
-# Python test plugin: the stored route must carry the derived relation community.
-tmpfs=test-relation.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify the RFC 8195 relation tag: 65000:3:4 written for a provider."""
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Poll until the route lands, rather than sleeping blind.
-    result = api.dispatch_until('show bgp adj-rib-in status',
-                                lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1)
-    total = result_json_data(result, {}).get('total-routes', -1)
-    if total < 0:
-        msg = f'adj-rib-in query failed, got total={total}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    # 4 is "learned from a provider". A wrong parameter would be a wrong
-    # statement about the relationship, so the value is asserted, not its shape.
-    result = dispatch(api, 'show bgp rib received large-community 65000:3:4')
-    if result.get('status') != 'done':
-        msg = f'relation tag 65000:3:4 absent, status={result.get("status")}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    print('OK: relation community 65000:3:4 written on ingress', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze configuration: one eBGP peer declared a transit provider, tagging on.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-relation {
-		run ./test-relation.run
+		run "ze-test fixture plugin/community-relation-tag"
 		encoder json
 	}
 	internal bgp-rib {
@@ -135,6 +90,9 @@ bgp {
 		attach process bgp-rib {
 			receive [ update state refresh ]
 			send [ update ]
+		}
+		attach process bgp-adj-rib-in {
+			receive [ update-received state ]
 		}
 	}
 }

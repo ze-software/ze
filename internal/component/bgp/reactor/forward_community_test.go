@@ -160,7 +160,7 @@ func TestForwardSendsNothingToRefusedClientWithoutWithdrawal(t *testing.T) {
 // exact conflation the sentinel's own contract forbids: a read-buffer exhaustion or a
 // stopped pool would then read as a clean policy suppression.
 //
-// The forward pool is stopped, so TryDispatch and DispatchOverflow both refuse and
+// The forward pool is stopped, so TryDispatch and dispatchOverflow both refuse and
 // dispatchedCount stays 0 (reactor_api_forward.go, "pool stopped").
 func TestForwardRefusedClientWithWithdrawalIsNotCountedSuppressed(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)

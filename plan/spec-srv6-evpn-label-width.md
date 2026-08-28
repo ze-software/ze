@@ -196,7 +196,7 @@ transposed value are lost.
 - [ ] AC-1..AC-3 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated (or N/A confirmed)

@@ -61,7 +61,7 @@ func loginMain() int {
 	}
 	defer db.Close() //nolint:errcheck // read-only access
 
-	if disabled, disErr := db.ReadFile(zefs.KeyInstanceAdminDisabled.Pattern); disErr == nil && string(disabled) == "true" {
+	if disabled, disErr := db.ReadFile(zefs.KeyInstanceAdminDisabled.Pattern); disErr == nil && string(disabled) == booleanTextTrue {
 		fmt.Fprintln(os.Stderr, "local admin login disabled") //nolint:errcheck // serial console output
 		return 1
 	}

@@ -103,9 +103,9 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 			continue
 		}
 		// During initial route sync, sendInitialRoutes owns EoR ordering: it
-		// drains the opQueue (announces/withdraws queued via ShouldQueue) and
+		// drains the opQueue (announces/withdraws queued via shouldQueue) and
 		// then emits a per-family EoR for every negotiated family (RFC 4724,
-		// peer_initial_sync.go). Announce/withdraw already honor ShouldQueue();
+		// peer_initial_sync.go). Announce/withdraw already honor shouldQueue();
 		// AnnounceEOR was the one route-op that wrote directly, so a plugin or
 		// route-server EoR could race ahead of the still-queued route NLRI and
 		// reach the wire first. Skip here -- the reactor's own EoR covers this
@@ -124,34 +124,33 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 		// guard that neither denies nor speaks does not exist). Cold path: once
 		// per EoR command per peer, never per UPDATE. No counter is added -- the
 		// package's only EoR counters are eorSent/eorReceived, whose documented
-		// contract (peer_stats.go IncrEORSent) is "markers that reached the
-		// socket", and both operators and test/scripts/ze_api.py
-		// wait_peer_eor_sent read them as exactly that. A suppression must not
-		// touch them.
-		if peer.ShouldQueue() {
+		// contract (peer_stats.go incrEORSent) is "markers that reached the
+		// socket". Operators and compiled functional observers read them as
+		// exactly that. A suppression must not touch them.
+		if peer.shouldQueue() {
 			logEORSuppressed(peer, fam)
 			sentCount++
 			continue
 		}
-		// Second gate, and NOT a replacement for the first. ShouldQueue keeps the
+		// Second gate, and NOT a replacement for the first. shouldQueue keeps the
 		// ORDER right (this EoR must not overtake still-queued route NLRI); the
 		// claim keeps the COUNT right (RFC 4724 Section 2: one End-of-RIB per
 		// family per session). They fire in different windows: once initial sync
-		// clears ShouldQueue, sendInitialRoutes has already sent and claimed this
+		// clears shouldQueue, sendInitialRoutes has already sent and claimed this
 		// family, so a route-server replay finishing later used to sail through
 		// and put a second identical marker on the wire. Claiming here is also the
 		// recovery path -- if the initial-sync send failed it released the claim,
 		// so this producer legitimately takes it.
-		if !peer.ClaimInitialSyncEOR(fam) {
+		if !peer.claimInitialSyncEOR(fam) {
 			sentCount++
 			continue
 		}
 		if err := peer.SendUpdate(update); err != nil {
 			// Release, or the family stays marked and the peer never gets it.
-			peer.ReleaseInitialSyncEOR(fam)
+			peer.releaseInitialSyncEOR(fam)
 			errs = append(errs, err)
 		} else {
-			peer.IncrEORSent()
+			peer.incrEORSent()
 			sentCount++
 		}
 	}
@@ -164,12 +163,12 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 }
 
 // logEORSuppressed records an End-of-RIB that AnnounceEOR declined to send, and
-// says which of the three ShouldQueue conditions caused it.
+// says which of the three shouldQueue conditions caused it.
 //
 // One message covering all three would have to hedge, and the obvious wording --
 // "the marker will be emitted when the drain completes" -- is FALSE in two of
 // them: sendInitialRoutes iterates nc.Families() only, so a family that is not
-// negotiated never gets a marker at all; and when ShouldQueue is true merely
+// negotiated never gets a marker at all; and when shouldQueue is true merely
 // because route operations are still queued after the sync finished, the marker
 // was already sent rather than pending. ai/rules/cli.md requires the
 // "what to do next" leg to be TRUE, not merely present.
@@ -1017,7 +1016,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			// drainOverflow releases it when the sync ends, on this same
 			// predicate (peer.go forwardOrderHold, forward_pool.go overflowHeld).
 			if dst := pending[i].item.peer; dst != nil && dst.forwardOrderHold() {
-				if a.r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item) {
+				if a.r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item) {
 					a.r.fwdPool.recordOverflowed(srcAddr)
 					dispatchedCount++
 				}
@@ -1026,11 +1025,11 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			if a.r.fwdPool.TryDispatch(pending[i].key, pending[i].item) {
 				a.r.fwdPool.recordForwarded(srcAddr)
 				dispatchedCount++
-			} else if a.r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item) {
+			} else if a.r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item) {
 				a.r.fwdPool.recordOverflowed(srcAddr)
 				dispatchedCount++
 			}
-			// DispatchOverflow false = pool stopped; done() already called (releasing cache ref).
+			// dispatchOverflow false = pool stopped; done() already called (releasing cache ref).
 		}
 	}
 

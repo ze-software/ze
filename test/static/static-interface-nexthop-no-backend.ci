@@ -9,7 +9,6 @@
 #
 # Requires a Linux kernel (netlink route programming, and a static daemon cannot
 # boot on darwin -- the interface component has no OS-default backend there):
-# gated needs-linux, validated under QEMU (make ze-qemu-needs-linux-test).
 #
 # Why this does NOT assert "no interface backend loaded", which it used to:
 # that branch (internal/plugins/static/backend_linux.go:106) is guarded by
@@ -24,39 +23,6 @@
 # no-backend precondition directly.
 
 option=needs-linux
-
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import os, signal, subprocess, sys
-
-from ze_api import wait_until
-
-if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-                  attempts=200, delay=0.05):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# The daemon came up despite the unresolvable next-hop: that IS the per-route
-# isolation guarantee. The skipped route must never reach the kernel FIB.
-routes = subprocess.run(["ip", "route", "show", "table", "all"],
-                        capture_output=True, text=True).stdout
-if "tun404" in routes:
-    sys.exit("route via unresolvable tun404 was programmed, expected skipped:\n%s" % routes)
-
-sys.stdout.write("DAEMON-UP-WITH-ROUTE-SKIPPED\n")
-
-os.kill(pid, signal.SIGTERM)
-# Wait for the daemon to exit before the next test (kernel tables are shared).
-def _dead():
-    try:
-        os.kill(pid, 0)
-        return False
-    except OSError:
-        return True
-wait_until(_dead, attempts=100, delay=0.05)
-EOF_PY
 
 # The "default" table resolves without a routing-table stanza (it is the
 # built-in main table), so this config reaches resolveNexthopIndex for tun404
@@ -74,7 +40,7 @@ EOF_CONF
 option=env:var=ze.log.static:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=2:exec=ze-test fixture static/static-interface-nexthop-no-backend:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=tun404
 expect=stderr:contains=static: route skipped, kept rest of section

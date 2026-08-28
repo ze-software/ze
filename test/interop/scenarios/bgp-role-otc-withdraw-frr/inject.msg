@@ -4,11 +4,13 @@
 # halves of the same rule on one session:
 #
 #   1. The ADVERTISEMENT. Ze forwards it to FRR and must add the OTC Attribute
-#      (RFC 9234 Section 5 egress rule 1: FRR is a Customer). check.py asserts FRR
+#      (RFC 9234 Section 5 egress rule 1: FRR is a Customer). the internal/le/interoplab/bgp checker
+#      asserts FRR
 #      reports OTC 65001 on the route.
 #
 #   2. The WITHDRAWAL. It advertises no route, so rule 1's condition is not met
-#      and no OTC may be added. check.py asserts FRR's own decode of that UPDATE
+#      and no OTC may be added. the internal/le/interoplab/bgp checker asserts FRR's own decode of
+#      that UPDATE
 #      reports no path attributes.
 #
 # ASN is pinned via inject-args (--asn 65004); NEXT_HOP is 172.30.0.9 (this
@@ -38,7 +40,8 @@ expect=bgp:conn=1:seq=1:contains=180A1400
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEC400304AC1E0009180A0A00
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# BARRIER 2 -- give check.py a window to observe the advertisement before it is
+# BARRIER 2 -- give the internal/le/interoplab/bgp checker a window to observe the advertisement
+# before it is
 # withdrawn. Ze sends a KEEPALIVE every 30s (a third of the 90s hold), so two of
 # them are 30-60s during which FRR holds the stamped route. Withdrawing sooner
 # would race the positive assertion, and a positive assertion that loses that
@@ -49,7 +52,8 @@ expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 # (2) Withdraw 10.10.0.0/24: withdrawnLen=4, attrLen=0, no path attributes.
 action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A0A000000
 
-# Hold the session open while check.py finishes. A peer whose script is exhausted
+# Hold the session open while the internal/le/interoplab/bgp checker finishes. A peer whose script
+# is exhausted
 # exits, and its session dropping would make Ze withdraw the route for the wrong
 # reason -- which is exactly how an absence assertion passes vacuously.
 expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304

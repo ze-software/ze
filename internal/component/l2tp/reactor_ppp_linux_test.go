@@ -339,7 +339,7 @@ func TestL2TPReactorPPPEventInformationalIgnored(t *testing.T) {
 
 // newUnstartedReactorWithLogs is like newUnstartedReactor but returns
 // the lockedBuffer so callers can assert on log output.
-func newUnstartedReactorWithLogs(t *testing.T) (*L2TPReactor, *lockedBuffer, func()) {
+func newUnstartedReactorWithLogs(t *testing.T) (*l2tpReactor, *lockedBuffer, func()) {
 	t.Helper()
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))

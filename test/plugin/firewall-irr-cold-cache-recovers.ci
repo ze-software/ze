@@ -50,69 +50,11 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=30s
 
-tmpfs=firewall-irr-cold-cache.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify a cold IRR cache costs one table, and that an update recovers it."""
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # The table that needs no IRR set must be in the kernel already: one absent
-    # supplier is not the whole firewall's problem.
-    result = api.dispatch_until(
-        'show firewall ruleset lan',
-        lambda res: res.get('status') == 'done',
-        attempts=50,
-        delay=0.1,
-    )
-    if result.get('status') != 'done':
-        runtime_fail(f'lan was not programmed while wan waited for its IRR set: {result}')
-
-    # The table that names the unregistered set is the only one held back.
-    result = api.dispatch_until_done('show firewall ruleset wan')
-    if result.get('status') == 'done':
-        runtime_fail(f'wan was programmed with a rule naming a set nobody registered: {result}')
-
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    if result.get('status') != 'done':
-        runtime_fail(f'update failed: {result}')
-    if result_json_data(result, {}).get('ipv4-count', 0) < 1:
-        runtime_fail(f'no prefixes cached for AS-TEST: {result}')
-
-    result = api.dispatch_until(
-        'show firewall ruleset wan',
-        lambda res: res.get('status') == 'done' and 'from-as-test' in str(result_json_data(res, {})),
-        attempts=50,
-        delay=0.1,
-    )
-    if result.get('status') != 'done':
-        runtime_fail(f'wan is still unprogrammed after the prefixes were fetched: {result}')
-    dumped = str(result_json_data(result, {}))
-    if 'from-as-test' not in dumped:
-        runtime_fail(f'the IRR term is not in the kernel ruleset: {dumped}')
-    if 'from-as-test_v6' not in dumped:
-        runtime_fail(f'the IPv6 twin of the term is missing: {dumped}')
-
-    print('OK: lan stayed programmed, and the update brought wan back', file=sys.stderr)
-
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-cold-cache-test {
-		run ./firewall-irr-cold-cache.run
+		run "ze-test fixture plugin/firewall-irr-cold-cache-recovers"
 		encoder json
 	}
 }

@@ -39,72 +39,11 @@ expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F00000240050400000064C
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"community":["nopeer"],"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.2"}]}
 EOF_PEER
 
-# Python observer plugin: drive `fakeas112 emit add asn 112 community nopeer`.
-tmpfs=as112-community-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-from ze_api import API, runtime_fail
-from ze_api import result_json_data
-
-
-def dispatch(api, command):
-    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
-
-
-def peer_field(api, field, default):
-    result = dispatch(api, 'show bgp peer peer1 detail').get('result', {})
-    if result.get('status') != 'done':
-        return default
-    data = result_json_data(result, {})
-    return data.get('peers', {}).get('127.0.0.1', {}).get(field, default)
-
-
-def wait_peer(api, predicate, what, cycles=100):
-    for _ in range(cycles):
-        if predicate():
-            return
-        api.wait_for_event(timeout=0.2)
-    runtime_fail(f'timeout waiting for {what}')
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Deterministic sync (no fixed sleeps): session established + initial EOR
-    # sent, then baseline the sent-update counter (EOR counts into it).
-    wait_peer(api, lambda: peer_field(api, 'state', '') == 'established',
-              'peer1 established')
-    wait_peer(api, lambda: peer_field(api, 'eor-sent', 0) >= 1,
-              'initial EOR sent')
-    base = peer_field(api, 'updates-sent', 0)
-
-    resp = dispatch(api, 'request fakeas112 emit add asn 112 community nopeer')
-    result = resp.get('result', {})
-    if result.get('status') != 'done':
-        runtime_fail(f'request fakeas112 emit failed: {result}')
-        return
-
-    # The covering-prefix UPDATE is on the wire once the engine counts it;
-    # TCP FIFO delivers it to the peer before the shutdown that follows.
-    wait_peer(api, lambda: peer_field(api, 'updates-sent', 0) >= base + 1,
-              'covering-prefix UPDATE sent')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external as112-community-test {
-		run ./as112-community-test.run
+		run "ze-test fixture plugin/redistribute-as112-community"
 		encoder json
 	}
 	internal redistribute-orchestrator {

@@ -19,7 +19,7 @@ func TestExtractPortalKey(t *testing.T) {
 		{"/portal/l2tp", "l2tp"},
 	}
 	for _, tt := range tests {
-		r := httptest.NewRequest("GET", tt.path, http.NoBody)
+		r := httptest.NewRequestWithContext(t.Context(), "GET", tt.path, http.NoBody)
 		got := extractPortalKey(r)
 		if got != tt.want {
 			t.Errorf("extractPortalKey(%q) = %q, want %q", tt.path, got, tt.want)
@@ -34,7 +34,7 @@ func TestHandlePortal_UnknownService(t *testing.T) {
 	}
 	handler := HandlePortal(renderer, UIModeFinder)
 
-	r := httptest.NewRequest("GET", "/portal/nonexistent", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/portal/nonexistent", http.NoBody)
 	w := httptest.NewRecorder()
 	handler(w, r)
 
@@ -65,7 +65,7 @@ func TestHandlePortal_RegisteredService(t *testing.T) {
 	}
 	handler := HandlePortal(renderer, UIModeFinder)
 
-	r := httptest.NewRequest("GET", "/portal/test-svc", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/portal/test-svc", http.NoBody)
 	w := httptest.NewRecorder()
 	handler(w, r)
 
@@ -91,7 +91,7 @@ func TestHandlePortal_EmptyKey_Redirects(t *testing.T) {
 	}
 	handler := HandlePortal(renderer, UIModeFinder)
 
-	r := httptest.NewRequest("GET", "/portal/", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/portal/", http.NoBody)
 	w := httptest.NewRecorder()
 	handler(w, r)
 

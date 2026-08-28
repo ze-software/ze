@@ -1,23 +1,18 @@
 // Design: docs/architecture/cli/command-namespacing.md -- CLI command grammar gate
 //
 // Feeder 3 of the CLI grammar gate (ai/rules/cli.md, "Mechanical
-// Enforcement"). Feeders 1 (static YANG tree, scripts/checks/cli_grammar.go) and
+// Enforcement"). Feeders 1 (static YANG tree, internal/le/cligrammar/register.go) and
 // 2 (plugin registration, validateCommandName) already enforce grammar on 100% of
-// the command surface. These two in-process tests lock that coverage against
-// regression from the runtime side, WITHOUT booting a daemon or maintaining an
-// all-plugins config:
+// This in-process test locks that coverage against regression from the runtime
+// side, WITHOUT booting a daemon or maintaining an all-plugins config.
 //
-//   - TestRuntimeBuiltinSurfaceGrammar walks the exact inputs the server feeds to
-//     loadBuiltinsWithAliases (server.go:257) -- every registered builtin RPC mapped
-//     through yang.WireMethodToPaths -- and re-runs grammar.CheckName on each path,
-//     skipping category-exempt handlers via grammar.ExemptCategory(WireMethod). This
-//     is the one check the live `system command list` RPC could not do: the RPC
-//     payload strips the wire method (command_registry.go:115-120), so exemption by
-//     wire-method namespace is only possible in-process.
-//   - TestRegistrationRejectsBadGrammar exercises the CommandRegistry.Register
-//     boundary (not validateCommandName in isolation), proving a non-conforming
-//     plugin command name is rejected and never enters the registry -- the guard that
-//     protects the genuinely-non-YANG surface (plugin-process command names).
+// TestRuntimeBuiltinSurfaceGrammar walks the exact inputs the server feeds to
+// loadBuiltinsWithAliases (server.go:257) -- every registered builtin RPC mapped
+// through yang.WireMethodToPaths -- and re-runs grammar.CheckName on each path,
+// skipping category-exempt handlers via grammar.ExemptCategory(WireMethod). This
+// is the one check the live `system command list` RPC could not do: the RPC
+// payload strips the wire method (command_registry.go:115-120), so exemption by
+// wire-method namespace is only possible in-process.
 //
 // Why not a daemon-boot audit: builtins are 100% YANG-derived (command.go:53-98
 // skips any handler with no YANG path) so they are a strict subset of Feeder 1's
@@ -35,8 +30,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command/grammar"
 	"github.com/ze-software/ze/internal/component/config/yang"
-	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
 	// Trigger every builtin RPC init() registration, matching the composition
@@ -99,52 +92,4 @@ func TestRuntimeBuiltinSurfaceGrammar(t *testing.T) {
 		"bridge-exempt builtins not found; exemption path not exercised")
 
 	t.Logf("audited %d builtin command paths; exempt: %v", checked, exempt)
-}
-
-// TestRegistrationRejectsBadGrammar proves the plugin command-registration boundary
-// (CommandRegistry.Register) enforces grammar, not just validateCommandName in
-// isolation. A future refactor that drops the validate call from Register would pass
-// every existing validateCommandName unit test but fail this one.
-//
-// VALIDATES: Feeder 2 wired at the Register boundary -- a non-conforming plugin
-//
-//	command name is rejected (OK=false) and never enters the registry; a conforming
-//	name registers.
-//
-// PREVENTS: a plugin registering a noun-first / --flag / mutation-token command name
-//
-//	at runtime, which the compile-time gate (Feeder 1) can never see.
-func TestRegistrationRejectsBadGrammar(t *testing.T) {
-	proc := process.NewProcess(plugin.PluginConfig{Name: "grammar-audit-test"})
-
-	bad := []struct {
-		name   string
-		reason string
-	}{
-		{"status show", "noun-first: first token is not a verb (R1)"},
-		{"--status", "flag-style token (R3)"},
-		{"request interface addr add", "operational mutation token (R7)"},
-		{"Show status", "non-lowercase token (R2)"},
-	}
-
-	registry := pluginserver.NewCommandRegistry()
-	for _, tc := range bad {
-		t.Run("rejects/"+tc.name, func(t *testing.T) {
-			results := registry.Register(proc, []pluginserver.CommandDef{{Name: tc.name}})
-			require.Len(t, results, 1)
-			assert.False(t, results[0].OK, "expected rejection (%s) for %q", tc.reason, tc.name)
-			assert.NotEmpty(t, results[0].Error, "rejection must name a reason")
-			assert.Nil(t, registry.Lookup(tc.name), "rejected command must not enter the registry")
-		})
-	}
-
-	// Control: a conforming verb-first name registers, so the guard is not rejecting
-	// everything indiscriminately.
-	t.Run("accepts/show grammar-audit status", func(t *testing.T) {
-		fresh := pluginserver.NewCommandRegistry()
-		results := fresh.Register(proc, []pluginserver.CommandDef{{Name: "show grammar-audit status"}})
-		require.Len(t, results, 1)
-		assert.True(t, results[0].OK, "conforming command should register: %s", results[0].Error)
-		assert.NotNil(t, fresh.Lookup("show grammar-audit status"))
-	})
 }

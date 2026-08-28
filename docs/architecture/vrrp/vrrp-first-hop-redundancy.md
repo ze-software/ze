@@ -285,14 +285,14 @@ No sync groups, no unicast peers, no priority tracking.
   netns: read `/proc/thread-self/net/igmp` to observe a `setns`ed thread's
   multicast joins.
 - `go test -update` on the plugin-name golden without the feature build tags
-  deletes other plugins' methods from the snapshot. Regenerate through the
-  Makefile, which sets `GO_TEST_TAGS`.
+  deletes other plugins' methods from the snapshot. Regenerate with
+  `./le repository generate`, which supplies the feature tags.
 
 ## Interop evidence
 
-<!-- source: scripts/evidence/effective-vrrp-keepalived.py -- keepalived interop driver -->
+<!-- source: internal/le/qemu/actions.go -- Answer -->
 
-`make ze-qemu-vrrp-keepalived-test` runs against keepalived 2.3.1 in a QEMU netns
+`./le qemu vrrp-keepalived-test` runs against keepalived 2.3.1 in a QEMU netns
 lab and covers v3 IPv4 election, node-death failover by priority 0 and by
 timeout, preempt, and virtual-MAC ownership, where the observer resolves the VIP
 to `00:00:5e:00:01:{vrid}`.

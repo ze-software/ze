@@ -15,48 +15,13 @@ action=notification:conn=1:seq=2:text=Peer Reset
 action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003047F0000014005040000006410640A
 EOF_PEER
 
-# Python plugin script
-tmpfs=reconnect.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""
-Test: ZeBGP reconnects after peer sends NOTIFICATION
-
-Flow:
-1. ZeBGP connects to test peer
-2. This script sends route1 via API
-3. Test peer receives route1 + EOR, sends NOTIFICATION
-4. ZeBGP reconnects
-5. Test peer sends "done" route to ZeBGP (test completes)
-"""
-
-import time
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-
-def main() -> None:
-    ready()
-
-    # Send one route - triggers connection A
-    send('peer * update text nhop 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16')
-    # Wait for ACK
-    wait_for_ack(expected_count=1)
-
-    # Test peer will send NOTIFICATION after receiving route1 + EOR
-    # ZeBGP will reconnect, test peer will send "done" route
-    # Wait for shutdown signal from test harness
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# native plugin script
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run ./reconnect.run
+		run "ze-test fixture plugin/reconnect"
 		encoder json
 	}
 	internal bgp-rib {

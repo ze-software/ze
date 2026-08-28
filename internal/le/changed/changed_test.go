@@ -12,11 +12,9 @@ import (
 // VALIDATES: the selection that sizes a test run fails CLOSED. A git query that
 // cannot answer, and a package directory that cannot be resolved, are errors --
 // never an empty selection.
-// PREVENTS: the regression where scripts/dev/changed-groups.sh answers nothing
-// and exits 0 for a git that fails or a `go list` that fails, and
-// mk/test-unit.mk:123 reads that as "No changed .go files -- skipping
-// changed-group pass". The race-instrumented pass then runs no test and the
-// target reports success.
+// PREVENTS: the regression where internal/le/changed answers nothing and exits
+// 0 for a git or `go list` failure. The native changed-group pass would then run
+// no test and report success.
 
 // recorder is a command runner that answers from a table and remembers what it
 // was asked. Every case that asserts a COUNT reads it, because "the two halves
@@ -43,7 +41,7 @@ const (
 )
 
 func TestAPppFileIsClaimedByTheL2tpGroupThatCoversIt(t *testing.T) {
-	group, mapped := GroupOf("internal/component/l2tp/ppp/session.go")
+	group, mapped := groupOf("internal/component/l2tp/ppp/session.go")
 	if !mapped {
 		t.Fatal("a ppp file was claimed by no group")
 	}
@@ -74,7 +72,7 @@ func TestNoGroupPrefixSitsInsideAnother(t *testing.T) {
 }
 
 func TestAPathNoPrefixClaimsIsNotGrouped(t *testing.T) {
-	if group, mapped := GroupOf("internal/le/changed/changed.go"); mapped {
+	if group, mapped := groupOf("internal/le/changed/changed.go"); mapped {
 		t.Errorf("internal/le path claimed by group %q, want no group", group.Name)
 	}
 }
@@ -224,22 +222,22 @@ func TestTheGroupListingAndThePackageListingRenderOneSelection(t *testing.T) {
 		Rest:   []string{"./internal/le/changed"},
 	}
 
-	names := GroupNames{Selection: selection}.Text()
+	names := groupNames{Selection: selection}.Text()
 	if names != "bgp\nrest\n" {
 		t.Errorf("group listing is %q, want \"bgp\\nrest\\n\"", names)
 	}
 
-	packages := GroupPackages{Selection: selection}.Text()
+	packages := groupPackages{Selection: selection}.Text()
 	if packages != "./internal/component/bgp/...\n./internal/le/changed\n" {
 		t.Errorf("package listing is %q", packages)
 	}
 }
 
 func TestAnEmptySelectionRendersNothing(t *testing.T) {
-	if text := (GroupNames{}).Text(); text != "" {
+	if text := (groupNames{}).Text(); text != "" {
 		t.Errorf("empty group listing is %q, want the empty string", text)
 	}
-	if text := (GroupPackages{}).Text(); text != "" {
+	if text := (groupPackages{}).Text(); text != "" {
 		t.Errorf("empty package listing is %q, want the empty string", text)
 	}
 	if !(Selection{}).Empty() {
@@ -251,10 +249,12 @@ func TestAnEmptySelectionRendersNothing(t *testing.T) {
 // listing printed and gets a refusal.
 func TestEveryVerbOfTheAreaIsReachable(t *testing.T) {
 	list := Actions()
-	if len(list.Actions) != 3 {
-		t.Fatalf("%d actions, want exactly 3: %v", len(list.Actions), list.Actions)
+	if len(list.Actions) != 4 {
+		t.Fatalf("%d actions, want exactly 4: %v", len(list.Actions), list.Actions)
 	}
-	want := map[string]bool{"groups": false, "group-packages": false, "packages": false}
+	want := map[string]bool{
+		"groups": false, "group-packages": false, "packages": false, "scope": false,
+	}
 	for _, row := range list.Actions {
 		if _, known := want[row.Verb]; !known {
 			t.Errorf("unexpected verb %q", row.Verb)

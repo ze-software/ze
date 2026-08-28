@@ -20,6 +20,8 @@ import (
 
 var authInstance = newLocalAuth()
 
+const configRootL2TP = "l2tp"
+
 func init() {
 	l2tp.RegisterAuthHandler(authInstance.handle)
 
@@ -28,7 +30,7 @@ func init() {
 		Description:             "Static local user list for L2TP PPP authentication",
 		Features:                "yang",
 		YANG:                    yang.ZeL2TPAuthLocalConfYANG,
-		ConfigRoots:             []string{"l2tp"},
+		ConfigRoots:             []string{configRootL2TP},
 		InProcessConfigVerifier: verifyLocalAuthConfig,
 		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -50,7 +52,7 @@ func init() {
 
 func verifyLocalAuthConfig(sections []sdk.ConfigSection) error {
 	for _, sec := range sections {
-		if sec.Root != "l2tp" {
+		if sec.Root != configRootL2TP {
 			continue
 		}
 		if _, err := parseUsersFromJSON(sec.Data); err != nil {
@@ -72,7 +74,7 @@ func runPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, sec := range sections {
-			if sec.Root != "l2tp" {
+			if sec.Root != configRootL2TP {
 				continue
 			}
 			users, err := parseUsersFromJSON(sec.Data)
@@ -106,7 +108,7 @@ func runPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"l2tp"},
+		WantsConfig:  []string{configRootL2TP},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 	}); err != nil {
@@ -132,7 +134,7 @@ func parseUsersFromJSON(data string) (map[string]userEntry, error) {
 func parseUsersFromTree(tree map[string]any) (map[string]userEntry, error) {
 	users := make(map[string]userEntry)
 
-	l2tpBlock, ok := tree["l2tp"].(map[string]any)
+	l2tpBlock, ok := tree[configRootL2TP].(map[string]any)
 	if !ok {
 		return users, nil
 	}

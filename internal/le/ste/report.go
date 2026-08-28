@@ -18,9 +18,9 @@ const (
 	reviewHeaderPad = "  habit                    "
 )
 
-// ReviewReport is the whole-tree or changed-file review: every finding, and the
+// reviewReport is the whole-tree or changed-file review: every finding, and the
 // counts that say where they are.
-type ReviewReport struct {
+type reviewReport struct {
 	DocumentsReviewed int `json:"documents-reviewed"`
 	DocumentsSkipped  int `json:"documents-skipped"`
 	// Counts is surface, then habit slug, then the count. Totals is the same
@@ -31,8 +31,8 @@ type ReviewReport struct {
 	Findings []Finding                 `json:"findings"`
 }
 
-// NewReviewReport tallies findings into a report.
-func NewReviewReport(findings []Finding, reviewed, skipped int) ReviewReport {
+// newReviewReport tallies findings into a report.
+func newReviewReport(findings []Finding, reviewed, skipped int) reviewReport {
 	counts := make(map[string]map[string]int, len(surfaces))
 	for _, surface := range surfaces {
 		counts[surface] = make(map[string]int, len(habitNames))
@@ -56,7 +56,7 @@ func NewReviewReport(findings []Finding, reviewed, skipped int) ReviewReport {
 	if findings == nil {
 		findings = []Finding{}
 	}
-	return ReviewReport{
+	return reviewReport{
 		DocumentsReviewed: reviewed, DocumentsSkipped: skipped,
 		Counts: counts, Totals: totals, Findings: findings,
 	}
@@ -64,7 +64,7 @@ func NewReviewReport(findings []Finding, reviewed, skipped int) ReviewReport {
 
 // Text renders the review for a person: the findings grouped by habit, then the
 // count table, then where the rule lives.
-func (r ReviewReport) Text() string {
+func (r reviewReport) Text() string {
 	var tb textbuf.Buffer
 
 	byHabit := make(map[string][]Finding, len(habitNames))
@@ -123,52 +123,44 @@ func (r ReviewReport) Text() string {
 	return tb.String()
 }
 
-// GateReport is the ratchet's answer: what grew, and how many documents were
-// examined to find out.
-type GateReport struct {
+// CheckReport is the ratchet's answer: what grew and how many documents were
+// examined.
+type CheckReport struct {
 	FilesExamined int      `json:"files-examined"`
 	Growth        []Growth `json:"growth"`
 }
 
-// NewGateReport declares the gate's answer.
-func NewGateReport(growth []Growth, examined int) GateReport {
+// newCheckReport declares the check's answer.
+func newCheckReport(growth []Growth, examined int) CheckReport {
 	if growth == nil {
 		growth = []Growth{}
 	}
-	return GateReport{FilesExamined: examined, Growth: growth}
+	return CheckReport{FilesExamined: examined, Growth: growth}
 }
 
-// Code answers the gate's exit status.
-//
-// The script assigns code 3 to a grown habit. This distinguishes the verdict
-// from usage errors, and the commit helper reads that code.
-func (g GateReport) Code() int {
-	if len(g.Growth) == 0 {
+// Code answers the check's exit status. Code 3 distinguishes a grown habit from
+// usage errors.
+func (r CheckReport) Code() int {
+	if len(r.Growth) == 0 {
 		return 0
 	}
 	return exitHabitGrew
 }
 
-// exitHabitGrew is the gate's failure code. argparse uses 2 for usage errors.
-// Treating 2 as "habit grew" would report usage text as a prose finding and
-// block the commit.
 const exitHabitGrew = 3
 
 // Text renders the growth or the one-line pass for a person.
-func (g GateReport) Text() string {
+func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
-	if len(g.Growth) == 0 {
-		return tb.Str("ste_check: OK -- no habit grew in ").Int(int64(g.FilesExamined)).
+	if len(r.Growth) == 0 {
+		return tb.Str("ste check: OK -- no habit grew in ").Int(int64(r.FilesExamined)).
 			Str(" changed document(s)\n").String()
 	}
 
-	tb.Str("ste_check: FAIL -- an ASD-STE100 habit grew in a file you changed\n\n")
-	for _, row := range g.Growth {
+	tb.Str("ste check: FAIL -- an ASD-STE100 habit grew in a file you changed\n\n")
+	for _, row := range r.Growth {
 		tb.Str("  ").Str(row.File).Str(": habit ").Int(int64(row.Number)).Byte(' ').
 			Str(row.Habit).Str(": ").Int(int64(row.Was)).Str(" -> ").Int(int64(row.Now)).
-			// Use `Byte('+')` instead of a string ending in plus. c_string_concat
-			// would interpret a plus beside the closing quote as concatenation.
-			// The output bytes stay unchanged.
 			Str(" (").Byte('+').Int(int64(row.Now - row.Was)).Str(")\n")
 		for _, finding := range row.Findings {
 			tb.Str("      ").Int(int64(finding.Line)).Str(": ").Str(finding.Detail).
@@ -176,7 +168,7 @@ func (g GateReport) Text() string {
 		}
 	}
 	tb.Str("\nRewrite the prose. HEAD is the baseline, so only your own new text counts.").
-		Str("\nWhole-tree report: make ze-ste-review").
+		Str("\nWhole-tree report: ./le ste review").
 		Str(ruleLine).Byte('\n')
 	return tb.String()
 }

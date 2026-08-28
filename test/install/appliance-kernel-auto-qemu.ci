@@ -1,57 +1,10 @@
-# Test: run.py owns the docker-first / qemu-fallback builder auto-selection that Go
-# used to do. When docker is unavailable, the auto path selects qemu; when docker
-# is available, it selects docker.
-#
-# // kernel-build-consolidation moved builder auto-selection out of Go
-# (selectBuilder) into tools/kernel-builder/run.py. The old test faked Go's
-# docker/qemu *CheckFn; this asserts run.py's select_builder directly, which is
-# where the docker-first/qemu-fallback behaviour now lives.
+# Test: the native kernel driver owns docker-first / qemu-fallback builder
+# selection. Docker wins when both are available, QEMU is the fallback, and
+# absence of both backends is an error.
 
 option=timeout:value=20s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-python3 - <<'PY'
-import sys
-sys.path.insert(0, "tools/kernel-builder")
-import run
-
-# Auto-select with docker available -> docker (docker-first).
-run.docker_available = lambda: True
-run.qemu_available = lambda arch: True
-assert run.select_builder("", "arm64") == "docker", "auto should prefer docker"
-
-# Auto-select with docker unavailable, qemu available -> qemu fallback.
-run.docker_available = lambda: False
-run.qemu_available = lambda arch: True
-assert run.select_builder("", "arm64") == "qemu", "auto should fall back to qemu"
-
-# Explicit qemu honoured.
-assert run.select_builder("qemu", "arm64") == "qemu"
-# Explicit docker honoured.
-run.docker_available = lambda: True
-assert run.select_builder("docker", "amd64") == "docker"
-
-# No builder available -> fatal (SystemExit 2).
-run.docker_available = lambda: False
-run.qemu_available = lambda arch: False
-try:
-    run.select_builder("", "arm64")
-    raise SystemExit("expected no-builder failure")
-except SystemExit as e:
-    if e.code != 2:
-        raise
-print("PYOK")
-PY
-
-printf 'OK\n'
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/appliance-kernel-auto-qemu
 expect=exit:code=0
 expect=stdout:contains=OK

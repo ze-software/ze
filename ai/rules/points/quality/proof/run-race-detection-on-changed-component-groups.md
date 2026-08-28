@@ -3,4 +3,4 @@ kind: note
 level:
 stage:
 ---
-Race coverage: `ze-precommit-verify` runs `-race` on component groups with changed `.go` files (two-pass strategy). For reactor concurrency changes, also run `make ze-unit-reactor-test-race` (`-race -count=20`).
+Race coverage: `./le verify current mode full` runs `-race` on component groups with changed `.go` files. For reactor concurrency changes, also run `go test -race -count=20 ./internal/component/bgp/reactor/...`.

@@ -103,11 +103,11 @@ Verification and citation are two decisions, and this rule owns the first.
 
 **A line number is correct only when the line IS the fact, and then it MUST appear in a fenced block as quoted output; it MUST NOT appear in prose.**
 
-**A citation into another project MUST name the file and the SYMBOL too, and a forge permalink's `#L` anchor is a line number wearing a URL.** You MUST link the file at a pinned tag and put the function in the link text: `[bgp_io.c \`bgp_write\`](https://.../bgp_io.c)`. `c_line_number_ref` in `.claude/hooks/pretool-writeedit.py` refuses a bare anchor.
+**A citation into another project MUST name the file and the symbol.** Link the file at a pinned tag and put the function in the link text. The native prose checks in `internal/le/hookruntime/writeedit.go` refuse a bare line anchor.
 
 **A pinned tag MUST NOT be treated as making a line number safe.** A citation can be written against a different version, and nothing detects when the dependency moves.
 
-**A line number in a document MUST NOT appear unless a GENERATOR maintains it (owner directive, 2026-08-03). Hand-typing one MUST NOT be done, because nothing refreshes it and nothing can tell it has gone wrong.** `rfc/requirements/rfc7606.md` is the working example: its `file.go:line` entries are derived from `RFC requirement:` tags on every `make ze-rfc-index-update`, so they move when the tests move. One such file exists per RFC, and `ai/RFC-REQUIREMENTS.md` is the index over them. A file earns this by declaring `GENERATED ... do not edit` in its first ten lines, and `c_line_number_ref` reads that declaration rather than a list of filenames.
+**A line number in a document MUST NOT appear unless a GENERATOR maintains it (owner directive, 2026-08-03). Hand-typing one MUST NOT be done, because nothing refreshes it and nothing can tell it has gone wrong.** `rfc/requirements/rfc7606.md` is the working example: its `file.go:line` entries are derived from `RFC requirement:` tags on every `./le rfc index-update`, so they move when the tests move. One such file exists per RFC, and `ai/RFC-REQUIREMENTS.md` is the index over them. A file earns this by declaring `GENERATED ... do not edit` in its first ten lines, and `c_line_number_ref` reads that declaration rather than a list of filenames.
 
 **So a location is either derived or absent. There is no third option.** If you want a document to point at a line, you MUST write the generator that keeps it current; if you will not write the generator, you MUST name the symbol and stop.
 
@@ -116,9 +116,9 @@ Verification and citation are two decisions, and this rule owns the first.
 **You MUST name the symbol BEFORE removing a location, and MUST NOT do so after.** Two citations into one file collapse into the same link once their anchors go, and the distinction the anchor carried is lost with no way to recover it.
 
 A pasted line number proves nothing about what you read, and it goes stale at the
-next edit (`ai/rules/writing.md`). The `c_line_number_ref` check in
-`.claude/hooks/pretool-writeedit.py` blocks new ones in `ai/`, `docs/`, `plan/`,
-and `.claude/` markdown.
+next edit (`ai/rules/writing.md`). The `writePointLanguage` check in
+`internal/le/hookruntime/writeedit.go` blocks new line-number citations in
+repository prose.
 
 ### Mechanical check
 
@@ -152,34 +152,20 @@ Before claiming code behaves a certain way, or recommending work premised on it:
 
 ### Mechanical backstop
 
-The `design-without-lsp` check in `.claude/hooks/pretool-writeedit.py` blocks
-writing a `plan/spec-*.md` or `plan/design-*.md` file unless this session has
-investigated implementation source within the last 30 minutes. It catches the
-case where a spec is authored for a behavioral claim that was never traced to
-the producing code.
+The native design-evidence check in `internal/le/hookruntime/writeedit.go`
+blocks a spec unless the session has investigated the implementation source it
+names within the freshness window. It catches a behavioral claim that was never
+traced to producing code.
 
-**WHICH source counts is the spec's own subject, read off its `## Files to
-Modify` and `## Files to Create` lists.** A spec about a Python tool, a shell
-hook, a YANG model, or the make wiring is grounded by reading THAT file. A spec
-about the daemon still needs a `.go`. Reading an unrelated file of another
-language grounds nothing, so the gate refuses it.
+**The source that counts is the spec's own subject, read from its Files to
+Modify and Files to Create lists.** A spec about a Go producer, a YANG model,
+or a build configuration is grounded by reading that producer. An unrelated
+file grounds nothing.
 
-**The kind is the file's EXTENSION, anywhere in the tree, so the way past a
-block is always to read a file the spec itself names.** `.go`, `.py`, `.sh`,
-`.yang`, the `Makefile` and `*.mk` each name one kind. The gate derives what a
-spec demands and `.claude/hooks/mark-source-read.sh` records what a Read
-supplies. The two accept the same set. Reading an unrelated file manufactures
-the evidence that the gate exists to demand.
-
-**EVERY kind the list names must be read, and each on its own 30-minute clock.**
-A spec naming a reactor `.go` beside an `mk/*.mk` makes claims about both, so
-one of them cannot stand for the other. Any-of would put the choice of what
-counts as evidence in the author's hands: list a cheap file beside the expensive
-one, read the cheap one. A newest-across-kinds clock would do the same thing
-over time, renewing a stale Go read every time the `.mk` is opened.
-
-**The LSP tool is gopls, so it is evidence of Go and of nothing else.** An
-LSP-only session does not ground a spec about Python, shell, YANG or the build.
+**Every source kind named by the spec must be read on its own freshness clock.**
+`hookSourceRead` in `internal/le/hookruntime/lifecycle.go` records accepted
+reads, and the Write/Edit gate consumes the same session markers. The LSP route
+grounds Go symbols only.
 
 **A window of under 20 lines does not count as reading the producer.** A whole
 file counts whatever its length, because a 12-line file read entire IS the
@@ -447,7 +433,7 @@ bug behind different front doors.
 | CLI `flag.NewFlagSet.Usage` | derived at call time |
 | Help / `--help` output | derived |
 | `.ci` test expectations listing names | test pulls the list |
-| Generated docs | `make ze-inventory` |
+| Generated docs | `./le inventory` |
 
 **If the lookup is awkward, you MUST add a `List()` accessor. You MUST NOT paste the list twice.**
 

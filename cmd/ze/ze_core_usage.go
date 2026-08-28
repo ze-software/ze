@@ -46,21 +46,21 @@ func zeUsage() {
 	sections[0].Entries = append(sections[0].Entries, verbEntries...)
 
 	sections = append(sections, helpfmt.HelpSection{
-		Title: "Options",
+		Title: helpOptionsSectionTitle,
 		Entries: []helpfmt.HelpEntry{
 			{Name: "-d, --debug", Desc: "Enable debug logging (sets ze.log=debug for all subsystems)"},
 			{Name: "-f <file>", Desc: "Use filesystem directly, bypass blob store"},
 			{Name: "--plugin <name>", Desc: "Load plugin before starting (repeatable)"},
 			{Name: "--plugins", Desc: "List available internal plugins"},
 			{Name: "--web <port>", Desc: "Start web server on given port"},
-			{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
-			{Name: "--mcp <port>", Desc: "Start MCP server on 127.0.0.1:<port>"},
+			{Name: flagStartInsecureWeb, Desc: "Disable web auth (binds to localhost only)"},
+			{Name: helpMCPPortOption, Desc: "Start MCP server on 127.0.0.1:<port>"},
 			{Name: "--mcp-token <token>", Desc: "Bearer token for MCP authentication"},
 			{Name: "--pprof <addr:port>", Desc: "Start pprof HTTP server (e.g. :6060)"},
 			{Name: "--color", Desc: "Force colored output (even when not a TTY)"},
 			{Name: "--no-color", Desc: "Disable colored output (also: NO_COLOR env var, TERM=dumb)"},
 			{Name: "-V, --version", Desc: "Show version and exit"},
-			{Name: "--extended-version", Desc: "Show extended version (commit, go, os/arch)"},
+			{Name: flagExtendedVersion, Desc: "Show extended version (commit, go, os/arch)"},
 		},
 	})
 

@@ -10,4 +10,4 @@ stage:
 | nftables integration test | `internal/plugins/firewall/nft/integration_linux_test.go` |
 | Route watch integration | `internal/core/routewatch/integration_linux_test.go` |
 | PTY/termios integration | `internal/component/config/system/console_integration_linux_test.go` |
-| QEMU runner script | `scripts/evidence/qemu-run.py` |
+| QEMU runner script | `internal/le/qemu/run.go` |

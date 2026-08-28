@@ -2,10 +2,8 @@
 // routes, and machine state that is not a binary.
 //
 // Each case that needs an external command sets the Shell seam and does not
-// start a process. This is the Go equivalent of the mock.patch.object that the
-// Python tests used. The three system-state steps use their apply branches
-// only HERE. scripts/le/setup_parity_test.go compares the two halves on a real
-// machine, so it must not change either half.
+// start a process. The three system-state steps use their apply branches only
+// here.
 
 package devsetup
 
@@ -14,6 +12,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -133,7 +132,7 @@ func TestTheVerdictIsDerivedFromTheOutcomes(t *testing.T) {
 			for _, outcome := range one.outcomes {
 				check.Add(outcome)
 			}
-			if got := check.CheckVerdict(); got != one.check {
+			if got := check.checkVerdict(); got != one.check {
 				t.Errorf("a check run answered %d, want %d", got, one.check)
 			}
 		})
@@ -146,16 +145,16 @@ func TestTheVerdictIsDerivedFromTheOutcomes(t *testing.T) {
 func TestACheckRunNamesAPendingStepApartFromAMissingTool(t *testing.T) {
 	report := &Report{}
 	report.Add(Outcome{Name: "go", State: StateMissing})
-	report.Add(Outcome{Name: "pyright-lsp-installed", State: StatePending})
+	report.Add(Outcome{Name: "gopls-lsp-installed", State: StatePending})
 
-	if got := report.CheckVerdict(); got != 1 {
+	if got := report.checkVerdict(); got != 1 {
 		t.Fatalf("the verdict is %d", got)
 	}
 	page := report.Text()
 	if !strings.Contains(page, "Missing required tools: go") {
 		t.Errorf("the missing tool is not named:\n%s", page)
 	}
-	if !strings.Contains(page, "Needs a step only you can take: pyright-lsp-installed") {
+	if !strings.Contains(page, "Needs a step only you can take: gopls-lsp-installed") {
 		t.Errorf("the pending step is not named apart:\n%s", page)
 	}
 }
@@ -182,7 +181,7 @@ func TestTheReportEncodesItsOutcomes(t *testing.T) {
 
 func TestTheStaticcheckPinIsCarriedIntoTheInstall(t *testing.T) {
 	var found []Tool
-	for _, tool := range RequiredTools() {
+	for _, tool := range requiredTools() {
 		if tool.Name == "staticcheck" {
 			found = append(found, tool)
 		}
@@ -236,14 +235,13 @@ func TestAnAbsentStaticcheckIsNeverRun(t *testing.T) {
 }
 
 func TestProbeAnyNeedsOneNameAndTheDefaultNeedsEvery(t *testing.T) {
-	rec := rootShell("pyright")
+	rec := rootShell("qemu-system-x86_64")
 	setup := &Setup{Shell: rec.shell()}
-
-	both := Tool{Name: "pyright", Probe: []string{"pyright", "pyright-langserver"}}
+	both := Tool{Name: "qemu", Probe: []string{"qemu-system-x86_64", "qemu-system-aarch64"}}
 	if setup.Probe(both) {
 		t.Error("a tool needing two binaries reported present with one")
 	}
-	either := Tool{Name: "pyright", Probe: []string{"pyright", "pyright-langserver"}, ProbeAny: true}
+	either := Tool{Name: "qemu", Probe: both.Probe, ProbeAny: true}
 	if !setup.Probe(either) {
 		t.Error("a tool needing either binary reported absent with one")
 	}
@@ -272,7 +270,7 @@ func TestE2fsprogsIsSearchedByDirectory(t *testing.T) {
 		Shell: rootShell().shell(),
 		Env:   func(key string) string { return map[string]string{homebrewPrefixKey: prefix}[key] },
 	}
-	dirs := setup.E2fsprogsDirs()
+	dirs := setup.e2fsprogsDirs()
 	if !slices.Contains(dirs, half) {
 		t.Errorf("the keg-only directory is not searched: %v", dirs)
 	}
@@ -324,7 +322,7 @@ func TestGoplsMustAnswerWithSymbols(t *testing.T) {
 			rec := rootShell()
 			rec.present["gopls"] = one.present
 			setup := &Setup{Root: root, Shell: rec.shell(), Gopls: func() Result { return one.answer }}
-			if got := setup.GoplsHealth().Health; got != one.want {
+			if got := setup.goplsHealth().Health; got != one.want {
 				t.Errorf("the health is %s, want %s", got, one.want)
 			}
 		})
@@ -336,64 +334,36 @@ func TestGoplsMustAnswerWithSymbols(t *testing.T) {
 func TestGoplsHasNothingToProbeWithoutItsFile(t *testing.T) {
 	rec := rootShell("gopls")
 	setup := &Setup{Root: t.TempDir(), Shell: rec.shell()}
-	if got := setup.GoplsHealth().Health; got != HealthNA {
+	if got := setup.goplsHealth().Health; got != HealthNA {
 		t.Errorf("the health is %s, want %s", got, HealthNA)
 	}
 }
 
-// TestPyrightIsJudgedOnItsSummaryNotItsExitCode verifies the difference from
-// gopls. pyright exits 1 when it finds a type error. Thus, the exit code shows
-// whether the CODE is clean, not whether the SERVER worked.
-func TestPyrightIsJudgedOnItsSummaryNotItsExitCode(t *testing.T) {
-	rec := rootShell("pyright")
-	setup := &Setup{
-		Root:  t.TempDir(),
-		Shell: rec.shell(),
-		Pyright: func() Result {
-			return Result{Code: 1, Out: `{"summary": {"filesAnalyzed": 1}}`}
-		},
+func TestLanguageServerProbeUsesGoServerTable(t *testing.T) {
+	plugins := lspPlugins()
+	if len(plugins) != 1 || plugins[0].Binary != toolGopls ||
+		!slices.Equal(plugins[0].Extensions, []string{".go"}) {
+		t.Fatalf("LSP plugins = %#v, want one gopls entry", plugins)
 	}
-	if got := setup.PyrightHealth().Health; got != HealthOK {
-		t.Errorf("a server that found a type error is %s, want %s", got, HealthOK)
-	}
-}
-
-func TestAPyrightReplyBehindABootstrapPreambleIsStillARepl(t *testing.T) {
-	// nodeenv prints a Python dict repr, single quotes, in front of a reply
-	// that is otherwise valid JSON. Decoding the whole stream fails, and setup
-	// then reds on exactly the fresh box it exists to prepare.
-	out := "{'python': '/x/bin/python'}\ninstalling node\n{\"summary\": {\"filesAnalyzed\": 3}}\n"
-	summary, ok := PyrightSummary(out)
-	if !ok {
-		t.Fatalf("no summary found in %q", out)
-	}
-	if summary["filesAnalyzed"] != float64(3) {
-		t.Errorf("the summary is %v", summary)
-	}
-}
-
-func TestPyrightThatAnalysedNothingIsBroken(t *testing.T) {
-	rec := rootShell("pyright")
-	setup := &Setup{
-		Root:    t.TempDir(),
-		Shell:   rec.shell(),
-		Pyright: func() Result { return Result{Out: `{"summary": {"filesAnalyzed": 0}}`} },
-	}
-	if got := setup.PyrightHealth().Health; got != HealthBroken {
-		t.Errorf("a server that analyzed nothing is %s, want %s", got, HealthBroken)
+	rec := rootShell(toolGopls)
+	setup := &Setup{Root: "/repo", Shell: rec.shell()}
+	setup.runGoplsProbe()
+	want := [][]string{{toolGopls, "symbols", goplsProbeFile}}
+	if !reflect.DeepEqual(rec.calls, want) {
+		t.Errorf("server probes ran %v, want %v", rec.ran(), want)
 	}
 }
 
 func TestAnAbsentServerIsSkippedAndABrokenOneIsMissing(t *testing.T) {
-	absent := visitServer("gopls-answers", ServerAnswer{Health: HealthAbsent, Detail: "x"})
+	absent := visitServer("gopls-answers", serverAnswer{Health: HealthAbsent, Detail: "x"})
 	if absent.State != StateSkipped {
 		t.Errorf("an absent server is %s: one missing server would be two failures", absent.State)
 	}
-	broken := visitServer("gopls-answers", ServerAnswer{Health: HealthBroken, Detail: "x"})
+	broken := visitServer("gopls-answers", serverAnswer{Health: HealthBroken, Detail: "x"})
 	if broken.State != StateMissing {
 		t.Errorf("a broken server is %s: installing it again does not repair it", broken.State)
 	}
-	na := visitServer("gopls-answers", ServerAnswer{Health: HealthNA, Detail: "no file"})
+	na := visitServer("gopls-answers", serverAnswer{Health: HealthNA, Detail: "no file"})
 	if na.State != StatePresent || !strings.HasPrefix(na.Detail, "n/a: ") {
 		t.Errorf("a question that does not apply is %s (%s)", na.State, na.Detail)
 	}
@@ -401,11 +371,51 @@ func TestAnAbsentServerIsSkippedAndABrokenOneIsMissing(t *testing.T) {
 
 // --- The harness plugins ----------------------------------------------------
 
+func TestLSPPluginTablePopulation(t *testing.T) {
+	want := []lspPlugin{{
+		Plugin:     "gopls-lsp",
+		Binary:     toolGopls,
+		Extensions: []string{".go"},
+		Why:        "every LSP call on a .go file is refused without it",
+	}}
+	got := lspPlugins()
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("LSP server table changed:\ngot:  %#v\nwant: %#v", got, want)
+	}
+	if command := got[0].installCommand(); command != "/plugin install gopls-lsp@claude-plugins-official" {
+		t.Errorf("gopls install command = %q", command)
+	}
+}
+
+func TestEveryLSPServerHasOneRequiredInstallRoute(t *testing.T) {
+	// VALIDATES: Each server producer names one required tool installation row.
+	// PREVENTS: The server and tool tables drifting apart.
+	for _, plugin := range lspPlugins() {
+		var matches []Tool
+		for _, tool := range requiredTools() {
+			if slices.Contains(tool.Probe, plugin.Binary) {
+				matches = append(matches, tool)
+			}
+		}
+		if len(matches) != 1 {
+			t.Errorf("%s binary %q occurs in %d required tool rows", plugin.Plugin, plugin.Binary, len(matches))
+			continue
+		}
+		tool := matches[0]
+		if !tool.installableBy(ManagerBrew) {
+			t.Errorf("%s has no cross-platform install route on macOS", plugin.Plugin)
+		}
+		if !tool.installableBy(ManagerApt) {
+			t.Errorf("%s has no cross-platform install route on Linux", plugin.Plugin)
+		}
+	}
+}
+
 func TestAnAbsentPluginRecordMeansNothingIsInstalled(t *testing.T) {
 	setup := &Setup{Home: t.TempDir()}
-	missing := setup.MissingLSPPlugins()
-	if len(missing) != len(LSPPlugins()) {
-		t.Errorf("%d of %d plugins are missing", len(missing), len(LSPPlugins()))
+	missing := setup.missingLSPPlugins()
+	if len(missing) != len(lspPlugins()) {
+		t.Errorf("%d of %d plugins are missing", len(missing), len(lspPlugins()))
 	}
 }
 
@@ -421,8 +431,8 @@ func TestAnInstalledPluginIsNotReported(t *testing.T) {
 	}
 
 	setup := &Setup{Home: home}
-	missing := setup.MissingLSPPlugins()
-	if len(missing) != 1 || missing[0].Plugin != "pyright-lsp" {
+	missing := setup.missingLSPPlugins()
+	if len(missing) != 0 {
 		t.Errorf("the missing set is %v", missing)
 	}
 }
@@ -432,12 +442,11 @@ func TestAnInstalledPluginIsNotReported(t *testing.T) {
 func TestAMissingPluginIsPendingRatherThanMissing(t *testing.T) {
 	setup := &Setup{Home: t.TempDir()}
 	report := &Report{}
-	outcome := setup.visitLspPlugin(report, LSPPlugins()[1], setup.MissingLSPPlugins())
-
+	outcome := setup.visitLspPlugin(report, lspPlugins()[0], setup.missingLSPPlugins())
 	if outcome.State != StatePending {
 		t.Errorf("a missing plugin is %s, want %s", outcome.State, StatePending)
 	}
-	if !strings.Contains(report.Text(), "/plugin install pyright-lsp@claude-plugins-official") {
+	if !strings.Contains(report.Text(), "/plugin install gopls-lsp@claude-plugins-official") {
 		t.Errorf("the install command is not named:\n%s", report.Text())
 	}
 }
@@ -465,22 +474,19 @@ func TestThePackageManagerIsGatedOnThePlatform(t *testing.T) {
 	for name, one := range cases {
 		t.Run(name, func(t *testing.T) {
 			setup := &Setup{GOOS: one.goos, Shell: rootShell(one.present...).shell()}
-			if got := setup.DetectPackageManager(); got != one.want {
+			if got := setup.detectPackageManager(); got != one.want {
 				t.Errorf("the manager is %q, want %q", got, one.want)
 			}
 		})
 	}
 }
 
-func TestTheCrossPlatformRoutesWinOverThePackageManager(t *testing.T) {
-	rec := rootShell("go", "pipx", "apt-get")
+func TestGoInstallRouteWinsOverThePackageManager(t *testing.T) {
+	rec := rootShell("go", "apt-get")
 	setup := &Setup{Shell: rec.shell()}
 	installer := setup.NewInstaller(ManagerApt, &Report{})
-
-	installer.Install(Tool{Name: "gopls", GoInstall: "x@latest", Apt: "golang-gopls"})
-	installer.Install(Tool{Name: "ruff", PipxInstall: "ruff", Apt: "python3-ruff"})
-
-	want := []string{"go install x@latest", "pipx install --force ruff"}
+	installer.Install(Tool{Name: "gopls", GoInstall: goplsTarget, Apt: "golang-gopls"})
+	want := []string{"go install -mod=vendor " + goplsTarget}
 	if !slices.Equal(rec.ran(), want) {
 		t.Errorf("it ran %v, want %v", rec.ran(), want)
 	}
@@ -546,7 +552,7 @@ func TestNoRouteToRootNamesTheCommandAndRunsNothing(t *testing.T) {
 
 func TestAToolWithNoRouteIsSkippedRatherThanMissing(t *testing.T) {
 	colima := Tool{Name: "colima", Probe: []string{"colima"}, Brew: "colima"}
-	if colima.InstallableBy(ManagerApt) {
+	if colima.installableBy(ManagerApt) {
 		t.Error("a brew-only tool claims an apt route")
 	}
 	setup := &Setup{Shell: rootShell().shell()}
@@ -556,38 +562,31 @@ func TestAToolWithNoRouteIsSkippedRatherThanMissing(t *testing.T) {
 	}
 }
 
-// TestAnInstallThatLandsOffPathIsPending verifies the discrepancy between the
-// two modes that this module removes. The install run previously reported
-// [installed] and exited 0, while check mode on the same box exited 1.
-func TestAnInstallThatLandsOffPathIsPending(t *testing.T) {
-	rec := rootShell("pipx")
+func TestAGoInstallThatLandsOffPathIsPending(t *testing.T) {
+	rec := rootShell("go")
 	report := &Report{}
 	setup := &Setup{Shell: rec.shell()}
 	installer := setup.NewInstaller(ManagerApt, report)
-
-	tool := Tool{Name: "uv", Probe: []string{"uv"}, PipxInstall: "uv", Required: true}
+	tool := Tool{Name: "gopls", Probe: []string{"gopls"}, GoInstall: goplsTarget, Required: true}
 	outcome := setup.visitTool(report, tool, ManagerApt, installer)
-
 	if outcome.State != StatePending {
 		t.Errorf("a tool installed off PATH is %s, want %s", outcome.State, StatePending)
 	}
-	if !strings.Contains(report.Text(), "~/.local/bin, which pipx uses") {
+	if !strings.Contains(report.Text(), "~/go/bin") {
 		t.Errorf("the PATH fix is not named:\n%s", report.Text())
 	}
 }
 
 // --- Vendoring --------------------------------------------------------------
 
-// TestAFailedVendorFailsTheRun is the fail-open the port closes. The script
-// discards vendor_go_deps()'s answer, so a failed `go mod vendor` still ends
-// "Setup complete" with exit 0 while the tree will not build.
+// TestAFailedVendorFailsTheRun proves a failed `go mod vendor` makes setup fail.
 func TestAFailedVendorFailsTheRun(t *testing.T) {
 	rec := rootShell("go")
 	rec.answers["go mod vendor"] = Result{Code: 1, Err: "inconsistent vendoring\n"}
 	report := &Report{}
 	setup := &Setup{Root: t.TempDir(), Shell: rec.shell()}
 
-	if setup.VendorGoDeps(report) {
+	if setup.vendorGoDeps(report) {
 		t.Fatal("a failed `go mod vendor` reported success")
 	}
 	if !strings.Contains(report.Text(), "inconsistent vendoring") {
@@ -597,8 +596,84 @@ func TestAFailedVendorFailsTheRun(t *testing.T) {
 
 func TestVendoringWithoutGoIsAFailureRatherThanASkip(t *testing.T) {
 	setup := &Setup{Root: t.TempDir(), Shell: rootShell().shell()}
-	if setup.VendorGoDeps(&Report{}) {
+	if setup.vendorGoDeps(&Report{}) {
 		t.Error("vendoring with no go reported success")
+	}
+}
+
+func TestVendoringDownloadsEveryApplianceModule(t *testing.T) {
+	root := t.TempDir()
+	for _, module := range []string{"github.com/gokrazy/gokrazy", "github.com/rtr7/kernel"} {
+		path := filepath.Join(root, "gokrazy", "ze", "builddir", filepath.FromSlash(module), "go.mod")
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("module fixture\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rec := rootShell("go")
+	if !(&Setup{Root: root, Shell: rec.shell()}).vendorGoDeps(&Report{}) {
+		t.Fatal("native dependency setup failed")
+	}
+	got := rec.ran()
+	if !slices.Equal(got, []string{
+		"go mod tidy", "go mod vendor", "go mod download all", "go mod download all",
+	}) {
+		t.Fatalf("commands = %v", got)
+	}
+}
+
+func TestVendoringReappliesOwnedVendorPatches(t *testing.T) {
+	root := t.TempDir()
+	for _, relative := range vendorPatchPaths {
+		path := filepath.Join(root, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("fixture patch\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rec := rootShell("go", "git")
+	for _, relative := range vendorPatchPaths {
+		rec.answers["git apply --reverse --check "+relative] = Result{Code: 1, Err: "not applied"}
+	}
+	if !(&Setup{Root: root, Shell: rec.shell()}).vendorGoDeps(&Report{}) {
+		t.Fatal("vendoring with applicable owned patches failed")
+	}
+	want := []string{"go mod tidy", "go mod vendor"}
+	for _, relative := range vendorPatchPaths {
+		want = append(want,
+			"git apply --reverse --check "+relative,
+			"git apply --check "+relative,
+			"git apply "+relative,
+		)
+	}
+	if got := rec.ran(); !slices.Equal(got, want) {
+		t.Fatalf("commands = %v, want %v", got, want)
+	}
+}
+
+func TestVendoringFailsWhenAnOwnedPatchCannotApply(t *testing.T) {
+	root := t.TempDir()
+	relative := vendorPatchPaths[0]
+	path := filepath.Join(root, filepath.FromSlash(relative))
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("fixture patch\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rec := rootShell("go", "git")
+	rec.answers["git apply --reverse --check "+relative] = Result{Code: 1, Err: "not applied"}
+	rec.answers["git apply --check "+relative] = Result{Code: 1, Err: "does not apply"}
+	report := &Report{}
+	if (&Setup{Root: root, Shell: rec.shell()}).vendorGoDeps(report) {
+		t.Fatal("vendoring accepted an owned patch that could not apply")
+	}
+	if !strings.Contains(report.Text(), "does not apply") {
+		t.Fatalf("patch failure is not reported:\n%s", report.Text())
 	}
 }
 
@@ -615,7 +690,7 @@ func TestAnUnreadableUsernsKnobIsNotAnAnswer(t *testing.T) {
 	}
 
 	setup := &Setup{UsernsProc: knob, Shell: rootShell().shell()}
-	state, err := setup.UsernsState()
+	state, err := setup.usernsState()
 	if err == nil {
 		t.Fatalf("an unreadable knob answered %s with no error", state)
 	}
@@ -628,13 +703,13 @@ func TestAnUnreadableUsernsKnobIsNotAnAnswer(t *testing.T) {
 }
 
 func TestTheUsernsStatesReadTheKnob(t *testing.T) {
-	for body, want := range map[string]Userns{"1\n": UsernsRestricted, "0\n": UsernsOK} {
+	for body, want := range map[string]userns{"1\n": usernsRestricted, "0\n": usernsOK} {
 		knob := filepath.Join(t.TempDir(), "restrict")
 		if err := os.WriteFile(knob, []byte(body), 0o600); err != nil {
 			t.Fatalf("write: %v", err)
 		}
 		setup := &Setup{UsernsProc: knob}
-		got, err := setup.UsernsState()
+		got, err := setup.usernsState()
 		if err != nil || got != want {
 			t.Errorf("%q answered %s (%v), want %s", body, got, err, want)
 		}
@@ -643,9 +718,9 @@ func TestTheUsernsStatesReadTheKnob(t *testing.T) {
 
 func TestAKernelWithNoSuchKnobHasNothingToDo(t *testing.T) {
 	setup := &Setup{UsernsProc: filepath.Join(t.TempDir(), "absent")}
-	state, err := setup.UsernsState()
-	if err != nil || state != UsernsNA {
-		t.Errorf("an absent knob answered %s (%v), want %s", state, err, UsernsNA)
+	state, err := setup.usernsState()
+	if err != nil || state != usernsNA {
+		t.Errorf("an absent knob answered %s (%v), want %s", state, err, usernsNA)
 	}
 }
 
@@ -662,7 +737,7 @@ func TestLiftingTheRestrictionWritesTheDropInAndTheRunningValue(t *testing.T) {
 	report := &Report{}
 	setup := &Setup{UsernsProc: knob, Shell: rec.shell()}
 
-	if setup.ApplyUserns(report) {
+	if setup.applyUserns(report) {
 		t.Error("it claimed success while the knob still reads 1")
 	}
 	want := []string{
@@ -697,8 +772,8 @@ func TestAProbeOnlyRunNeverAppliesSystemState(t *testing.T) {
 
 func TestKvmTellsApartTheThreeWaysItIsNotUsable(t *testing.T) {
 	absent := &Setup{KvmDev: filepath.Join(t.TempDir(), "kvm"), Shell: rootShell().shell()}
-	if got := absent.KvmState(); got != KvmNA {
-		t.Errorf("no device answered %s, want %s", got, KvmNA)
+	if got := absent.kvmState(); got != kvmNA {
+		t.Errorf("no device answered %s, want %s", got, kvmNA)
 	}
 
 	device := filepath.Join(t.TempDir(), "kvm")
@@ -710,12 +785,12 @@ func TestKvmTellsApartTheThreeWaysItIsNotUsable(t *testing.T) {
 	}
 
 	member := &Setup{KvmDev: device, KvmGroupMember: func() bool { return true }, Shell: rootShell().shell()}
-	if got := member.KvmState(); got != KvmPendingLogin {
-		t.Errorf("a member with a stale session answered %s, want %s", got, KvmPendingLogin)
+	if got := member.kvmState(); got != kvmPendingLogin {
+		t.Errorf("a member with a stale session answered %s, want %s", got, kvmPendingLogin)
 	}
 	outsider := &Setup{KvmDev: device, KvmGroupMember: func() bool { return false }, Shell: rootShell().shell()}
-	if got := outsider.KvmState(); got != KvmNoGroup {
-		t.Errorf("a non-member answered %s, want %s", got, KvmNoGroup)
+	if got := outsider.kvmState(); got != kvmNoGroup {
+		t.Errorf("a non-member answered %s, want %s", got, kvmNoGroup)
 	}
 }
 
@@ -727,7 +802,7 @@ func TestJoiningTheKvmGroupNamesTheUser(t *testing.T) {
 		User:           func() string { return "thomas" },
 		KvmGroupMember: func() bool { return true },
 	}
-	if !setup.ApplyKvm(&Report{}) {
+	if !setup.applyKvm(&Report{}) {
 		t.Error("the group database lists the user and it reported failure")
 	}
 	if !slices.Equal(rec.ran(), []string{"usermod -aG kvm thomas"}) {
@@ -737,13 +812,13 @@ func TestJoiningTheKvmGroupNamesTheUser(t *testing.T) {
 
 func TestLoopbackIsIPv6OnlyOnLinuxAndBothOnDarwin(t *testing.T) {
 	linux := &Setup{GOOS: "linux"}
-	if !slices.Equal(linux.LoopbackAddresses(), []string{LoopbackIPv6}) {
-		t.Errorf("linux wants %v", linux.LoopbackAddresses())
+	if !slices.Equal(linux.loopbackAddresses(), []string{LoopbackIPv6}) {
+		t.Errorf("linux wants %v", linux.loopbackAddresses())
 	}
 	darwin := &Setup{GOOS: "darwin"}
 	want := []string{"127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", LoopbackIPv6}
-	if !slices.Equal(darwin.LoopbackAddresses(), want) {
-		t.Errorf("darwin wants %v", darwin.LoopbackAddresses())
+	if !slices.Equal(darwin.loopbackAddresses(), want) {
+		t.Errorf("darwin wants %v", darwin.loopbackAddresses())
 	}
 }
 
@@ -773,11 +848,11 @@ func TestOnlyTheMissingAddressesAreAdded(t *testing.T) {
 		Bindable: func(addr string) bool { return carried[addr] },
 	}
 
-	missing := setup.MissingLoopback()
+	missing := setup.missingLoopback()
 	if !slices.Equal(missing, []string{"127.0.0.4", "127.0.0.5"}) {
 		t.Fatalf("the missing set is %v", missing)
 	}
-	setup.ApplyLoopback(&Report{}, missing)
+	setup.applyLoopback(&Report{}, missing)
 	want := []string{"ifconfig lo0 alias 127.0.0.4", "ifconfig lo0 alias 127.0.0.5"}
 	if !slices.Equal(rec.ran(), want) {
 		t.Errorf("it ran %v, want %v", rec.ran(), want)
@@ -786,28 +861,83 @@ func TestOnlyTheMissingAddressesAreAdded(t *testing.T) {
 
 // --- The tool table ---------------------------------------------------------
 
-// TestTheApplianceRowsCarryTheDoctorsDependencies verifies what the script's
-// APPLIANCE_CHECKS asserted about the tool table. Its rows contain the three
-// appliance dependencies and the probes that the doctor reports.
+// TestTheApplianceRowsCarryTheDoctorsDependencies verifies that the
+// authoritative tool rows carry each appliance dependency, its probe, and the
+// doctor check that consumes it.
 func TestTheApplianceRowsCarryTheDoctorsDependencies(t *testing.T) {
 	byName := map[string]Tool{}
-	for _, tool := range AllTools() {
+	for _, tool := range allTools() {
 		byName[tool.Name] = tool
 	}
 
-	for name, probe := range map[string][]string{
-		"grub":      {"grub-mkstandalone", "grub2-mkstandalone"},
-		"xorriso":   {"xorriso"},
-		"e2fsprogs": {"mkfs.ext4", "debugfs"},
+	for name, want := range map[string]struct {
+		probe  []string
+		doctor string
+	}{
+		"grub":      {[]string{"grub-mkstandalone", "grub2-mkstandalone"}, "appliance-grub"},
+		"xorriso":   {[]string{"xorriso"}, "appliance-xorriso"},
+		"e2fsprogs": {[]string{"mkfs.ext4", "debugfs"}, "appliance-e2fsprogs"},
 	} {
 		tool, ok := byName[name]
 		if !ok {
 			t.Errorf("the tool table has no %s row, so setup installs nothing the appliance needs", name)
 			continue
 		}
-		if !slices.Equal(tool.Probe, probe) {
-			t.Errorf("%s probes %v, want %v", name, tool.Probe, probe)
+		if !slices.Equal(tool.Probe, want.probe) {
+			t.Errorf("%s probes %v, want %v", name, tool.Probe, want.probe)
 		}
+		if tool.DoctorCheck != want.doctor {
+			t.Errorf("%s names doctor check %q, want %q", name, tool.DoctorCheck, want.doctor)
+		}
+	}
+}
+
+func TestToolTablePopulationAndInstallRoutes(t *testing.T) {
+	groups := []struct {
+		name     string
+		tools    []Tool
+		names    []string
+		required bool
+	}{
+		{
+			name:     "required",
+			tools:    requiredTools(),
+			names:    strings.Fields("go git protobuf jq golangci-lint staticcheck goimports gopls qemu e2fsprogs xorriso grub"),
+			required: true,
+		},
+		{
+			name:  "optional",
+			tools: optionalTools(),
+			names: strings.Fields("sshpass docker colima xl2tpd ppp"),
+		},
+	}
+	seen := make(map[string]bool)
+	for _, group := range groups {
+		t.Run(group.name, func(t *testing.T) {
+			names := make([]string, 0, len(group.tools))
+			for _, tool := range group.tools {
+				names = append(names, tool.Name)
+				if tool.Required != group.required {
+					t.Errorf("%s has Required=%t, want %t", tool.Name, tool.Required, group.required)
+				}
+				if tool.Name == "" || len(tool.Probe) == 0 {
+					t.Errorf("incomplete tool row: %#v", tool)
+				}
+				if seen[tool.Name] {
+					t.Errorf("tool %q occurs more than once", tool.Name)
+				}
+				seen[tool.Name] = true
+				if !tool.installableBy(ManagerBrew) && !tool.installableBy(ManagerApt) {
+					t.Errorf("%s has no supported installation route", tool.Name)
+				}
+				if tool.GoInstall != "" && (tool.Brew != "" || tool.Apt != "") {
+					t.Errorf("%s mixes its preferred go install route with a package-manager route", tool.Name)
+				}
+			}
+			if !slices.Equal(names, group.names) {
+				t.Errorf("tool population or order changed: got %v, want %v", names, group.names)
+			}
+		})
 	}
 }
 
@@ -820,26 +950,8 @@ func TestTheGrubPackageFollowsTheHostArchitecture(t *testing.T) {
 		"x86_64":  "grub-efi-amd64-bin",
 		"riscv64": "grub-efi-amd64-bin",
 	} {
-		if got := GrubAptPackage(machine); got != want {
+		if got := grubAptPackage(machine); got != want {
 			t.Errorf("%s installs %s, want %s", machine, got, want)
 		}
-	}
-}
-
-// TestPipxComesBeforeEveryToolThatInstallsThroughIt pins an ordering the table
-// cannot state: a pipx install is skipped while pipx is not there yet.
-func TestPipxComesBeforeEveryToolThatInstallsThroughIt(t *testing.T) {
-	pipx := -1
-	for i, tool := range RequiredTools() {
-		if tool.Name == "pipx" {
-			pipx = i
-			continue
-		}
-		if tool.PipxInstall != "" && pipx == -1 {
-			t.Errorf("%s installs through pipx and comes before the pipx row", tool.Name)
-		}
-	}
-	if pipx == -1 {
-		t.Fatal("the required table has no pipx row")
 	}
 }

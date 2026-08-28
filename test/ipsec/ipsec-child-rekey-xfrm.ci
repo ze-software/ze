@@ -29,7 +29,7 @@
 #
 # Gated option=needs-linux:caps=net-admin: peer-a programs real XFRM state, so this SKIPs
 # on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root in the QEMU
-# VM, where `fsuite ipsec` in scripts/evidence/qemu-all-tests.sh executes the suite.
+# VM, where `fsuite ipsec` in internal/le/qemu/alltests.go executes the suite.
 
 option=needs-linux:caps=net-admin
 # Serialize against every other real-XFRM ipsec test. `ip xfrm state` and
@@ -44,86 +44,6 @@ option=env:var=ze_test_ike_port:value=$PORT2
 option=timeout:value=120s
 option=env:var=ze_log_ike:value=info
 
-tmpfs=rekey.py:mode=755:terminator=EOF_REKEY
-#!/usr/bin/env python3
-"""Watch one Child SA rekey happen in the kernel rather than in a log line.
-
-Three facts are read from `ip xfrm`, in order: the first pair of states arrives, a
-SECOND pair arrives beside it (the make-before-break replacement), and the first pair
-leaves when the peer's Delete retires it. The policy selectors are compared across all
-three, because the policy is what a rekey must NOT move.
-"""
-import re
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-# The two halves of the negotiated selector. Every policy this tunnel installs names one
-# of them, and nothing else on the box does.
-LOCAL_NET = "192.0.2.0/25"
-REMOTE_NET = "192.0.2.128/25"
-
-
-def run(*cmd):
-    out = subprocess.run(cmd, capture_output=True, text=True)
-    if out.returncode != 0:
-        sys.exit(f"{' '.join(cmd)} failed: {out.stderr.strip()}")
-    return out.stdout
-
-
-def spis():
-    """Every ESP SPI the kernel currently holds a state for."""
-    return frozenset(re.findall(r"\bspi (0x[0-9a-fA-F]+)", run("ip", "xfrm", "state")))
-
-
-def policies():
-    """This tunnel's policy selectors, one normalised string per policy.
-
-    The selector line carries the addresses, the protocol and the ports; the `dir` line
-    that follows says which direction it is. A port that changed sides, or a policy that
-    was removed with the pair it was shared with, changes this set.
-    """
-    found = []
-    selector = None
-    for line in run("ip", "xfrm", "policy").splitlines():
-        fields = line.split()
-        if not fields:
-            continue
-        if fields[0] == "src":
-            selector = " ".join(fields) if (LOCAL_NET in fields or REMOTE_NET in fields) else None
-        elif selector is not None and fields[0] == "dir":
-            found.append(f"{selector} | {fields[1]}")
-            selector = None
-    return frozenset(found)
-
-
-if not wait_until(lambda: len(spis()) >= 2 and len(policies()) >= 2, attempts=400, delay=0.25):
-    sys.exit(f"the tunnel never reached the kernel: states={sorted(spis())} policies={sorted(policies())}")
-first_spis, first_policies = spis(), policies()
-print("INSTALLED:", " ".join(sorted(first_spis)))
-print("POLICIES:", " | ".join(sorted(first_policies)))
-
-# The rekey. peer-b's short ESP lifetime soft-expires, peer-b sends CREATE_CHILD_SA, and
-# peer-a answers it: new states appear beside the old ones. Before the orientation fix
-# peer-a refused this exchange with TS_UNACCEPTABLE, so no second pair ever arrived.
-if not wait_until(lambda: len(spis() - first_spis) >= 2, attempts=400, delay=0.25):
-    sys.exit(f"no replacement states arrived: the rekey never completed. states={sorted(spis())}")
-print("REKEYED:", " ".join(sorted(spis() - first_spis)))
-
-# The retirement. peer-b deletes the SA it rekeyed, and peer-a removes those two states.
-# Its POLICIES are shared with the replacement and must survive.
-if not wait_until(lambda: not (spis() & first_spis), attempts=400, delay=0.25):
-    sys.exit(f"the retired states stayed in the kernel: {sorted(first_spis)}")
-print("RETIRED:", " ".join(sorted(first_spis)))
-
-if policies() != first_policies:
-    print("POLICY-MOVED: the rekey changed the installed selectors")
-    print("  before:", " | ".join(sorted(first_policies)))
-    print("  after: ", " | ".join(sorted(policies())))
-    sys.exit(1)
-print("POLICY-STABLE:", " | ".join(sorted(policies())))
-EOF_REKEY
 
 # ── peer-b (background, noop dataplane, SHORT esp lifetime): binds 127.0.0.2 ──
 # It responds to the IKE SA and drives the Child SA rekey. Its dataplane is the noop one
@@ -227,7 +147,7 @@ EOF_PEER_A
 
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b:name=peer-b
 cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
-cmd=foreground:seq=3:exec=python3 rekey.py:timeout=110s
+cmd=foreground:seq=3:exec=ze-test fixture ipsec/child-rekey-xfrm:timeout=110s
 # signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
 # release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
 # them in the kernel for the rest of the suite, where ipsec-teardown-leaves-nothing.ci

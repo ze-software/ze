@@ -23,7 +23,7 @@ func TestConfigDownloadHandler(t *testing.T) {
 	require.NoError(t, err)
 	handler := HandleConfigDownload(mgr, recorder)
 
-	req := httptest.NewRequest(http.MethodGet, "/config/download", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/download", http.NoBody)
 	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))
 	req.RemoteAddr = "192.0.2.5:1111"
 	rec := httptest.NewRecorder()
@@ -48,7 +48,7 @@ func TestConfigDownloadRequiresAuth(t *testing.T) {
 	mgr, _ := newHandlerTestManager(t)
 	handler := HandleConfigDownload(mgr, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/config/download", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/download", http.NoBody)
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -70,7 +70,7 @@ func TestConfigDownloadRouteGatedByEditAuthz(t *testing.T) {
 	download := HandleConfigDownload(mgr, recorder)
 
 	newReq := func() *http.Request {
-		req := httptest.NewRequest(http.MethodGet, "/config/download", http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/download", http.NoBody)
 		req.RemoteAddr = "192.0.2.5:1111"
 		return req.WithContext(withUsername(req.Context(), "bob"))
 	}

@@ -10,14 +10,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-)
-
-const (
-	parityProducer  = "scripts/dev/hook-parity-check.py"
-	fixtureProducer = "scripts/dev/hook-fixture-check.py"
 )
 
 func readCheckoutFile(root, relative string) ([]byte, error) {
@@ -37,8 +31,8 @@ type Result struct {
 	Message string `json:"message,omitempty"`
 }
 
-// GoldenCase is one producer row in original order. ExpectedCode comes from the
-// embedded Python golden; NativeCode comes from the translated Go rule.
+// GoldenCase is one typed dispatcher fixture in authoritative order.
+// NativeCode is the translated Go rule's verdict.
 type GoldenCase struct {
 	Table        string `json:"table"`
 	Name         string `json:"name"`
@@ -47,23 +41,43 @@ type GoldenCase struct {
 	Passed       bool   `json:"passed"`
 }
 
-// Population records the producer rows consumed by the native selftest.
+// MessageExpectation is one exact output contract and its comparison mode.
+type MessageExpectation struct {
+	Match string `json:"match"`
+	Text  string `json:"text"`
+}
+
+// FixtureCase is one typed behavioral assertion. ExpectedExit is -1 when the
+// assertion has no process exit contract.
+type FixtureCase struct {
+	Category     string               `json:"category"`
+	Name         string               `json:"name"`
+	Producer     string               `json:"producer"`
+	ExpectedExit int                  `json:"expected-exit"`
+	Messages     []MessageExpectation `json:"messages,omitempty"`
+	Site         int                  `json:"site"`
+	Variant      int                  `json:"variant"`
+}
+
+// Population records the typed rows consumed by the native selftest.
 type Population struct {
 	Bash            int `json:"bash"`
 	WriteEdit       int `json:"write-edit"`
 	Weakening       int `json:"weakening"`
 	PostWriteEdit   int `json:"post-write-edit"`
+	FixtureSites    int `json:"fixture-sites"`
 	FixtureChecks   int `json:"fixture-checks"`
 	FixtureSections int `json:"fixture-sections"`
 }
 
-// Report is the structured answer of ze-unit-hook-test. Results retain producer
+// Report is the structured answer of ze-unit-hook-test. Results retain catalog
 // order, and Code is the first failing child code rather than a flattened one.
 type Report struct {
-	Population Population   `json:"population"`
-	Golden     []GoldenCase `json:"golden"`
-	Results    []Result     `json:"results"`
-	Code       int          `json:"code"`
+	Population Population    `json:"population"`
+	Golden     []GoldenCase  `json:"golden"`
+	Fixtures   []FixtureCase `json:"fixtures"`
+	Results    []Result      `json:"results"`
+	Code       int           `json:"code"`
 }
 
 // Text renders the selftest summary while keeping the report available to data
@@ -80,8 +94,8 @@ func (r Report) Text() string {
 		Int(int64(len(r.Results))).Str(" passed\n").String()
 }
 
-// Run evaluates all golden rows and all behavioral fixture categories. Missing
-// files, populations, categories, and outputs are failures rather than skips.
+// Run evaluates all typed dispatcher rows and behavioral fixture categories.
+// Missing hook files, populations, categories, and outputs fail closed.
 func Run(root string) (Report, int) {
 	if root == "" {
 		result := Result{
@@ -89,15 +103,19 @@ func Run(root string) (Report, int) {
 		}
 		return Report{Results: []Result{result}, Code: result.Code}, result.Code
 	}
-	report := Report{Results: make([]Result, 0, 4+len(fixtureCategories))}
+	report := Report{
+		Results: make([]Result, 0, len(parityCatalog)+len(fixtureCategories)+2),
+	}
 	parityResults, population, golden := runParity(root)
 	report.Population = population
 	report.Golden = golden
 	report.Results = append(report.Results, parityResults...)
 
 	fixtureResults, fixtureChecks := runFixtures(root)
+	report.Population.FixtureSites = len(fixtureSites)
 	report.Population.FixtureChecks = fixtureChecks
 	report.Population.FixtureSections = len(fixtureCategories)
+	report.Fixtures = fixtureCases()
 	report.Results = append(report.Results, fixtureResults...)
 
 	for _, result := range report.Results {
@@ -111,12 +129,44 @@ func Run(root string) (Report, int) {
 	return report, report.Code
 }
 
-// CategoryNames returns the complete fixture category population in producer
+// categoryNames returns the complete fixture category population in catalog
 // order. A caller receives a copy and cannot alter the selftest table.
-func CategoryNames() []string {
+func categoryNames() []string {
 	names := make([]string, 0, len(fixtureCategories))
 	for _, category := range &fixtureCategories {
 		names = append(names, category.name)
 	}
-	return slices.Clone(names)
+	return names
+}
+
+func fixtureCases() []FixtureCase {
+	cases := make([]FixtureCase, 0, len(fixtureCatalog))
+	for _, fixture := range fixtureCatalog {
+		row := FixtureCase{
+			Category:     fixture.category,
+			Name:         fixture.name,
+			Producer:     fixtureProducerName(fixture.category),
+			ExpectedExit: fixture.expectedExit,
+			Messages:     make([]MessageExpectation, 0, len(fixture.messages)),
+			Site:         fixture.site,
+			Variant:      fixture.variant,
+		}
+		for _, message := range fixture.messages {
+			row.Messages = append(row.Messages, MessageExpectation{
+				Match: message.match,
+				Text:  message.text,
+			})
+		}
+		cases = append(cases, row)
+	}
+	return cases
+}
+
+func fixtureProducerName(categoryName string) string {
+	for _, category := range &fixtureCategories {
+		if category.name == categoryName {
+			return category.runner
+		}
+	}
+	return ""
 }

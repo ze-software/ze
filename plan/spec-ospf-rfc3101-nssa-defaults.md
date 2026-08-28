@@ -20,8 +20,8 @@ Type-3 summary import. Ze implements neither obligation for OSPFv3, and until
 2026-08-02 implemented neither for OSPFv2.
 
 An uncommitted change in the working tree implements the OSPFv2 half. It is
-proven: OSPF unit tests pass, `make ze-lint-changed` reports 0 issues, and
-`make ze-interop-test INTEROP_SCENARIO=ospf-stub-nssa-frr` passes against FRR
+proven: OSPF unit tests pass, `./le changed scope` reports 0 issues, and
+`./le integration interop INTEROP_SCENARIO=ospf-stub-nssa-frr` passes against FRR
 and discriminates against HEAD. It also removed two `{gap}` annotations from
 `rfc/short/rfc3101.md` and rewrote the `docs/features/rfc-status.md` RFC 3101
 row to claim both requirements are implemented and tested.
@@ -88,8 +88,8 @@ conformance row become true as written.
 
 **Key insights:** (minimal context to resume after compaction)
 - The OSPFv2 half of this work is ALREADY WRITTEN and uncommitted in the working tree, and
-  is proven: OSPF unit tests pass, `make ze-lint-changed` reports 0 issues, and
-  `make ze-interop-test INTEROP_SCENARIO=ospf-stub-nssa-frr` passes against FRR and fails
+  is proven: OSPF unit tests pass, `./le changed scope` reports 0 issues, and
+  `./le integration interop INTEROP_SCENARIO=ospf-stub-nssa-frr` passes against FRR and fails
   when the production change is reverted.
 - The receive-side install gates ALREADY cover OSPFv3 with no new code: `ExternalInput` is
   built once in the shared computer and `v6Strategy.ComputeExternal` delegates to the shared
@@ -234,7 +234,7 @@ Two entry points, one per direction.
 | A-4 | FRR 10.3.1 originates a Type-7 default only when it is an ABR, in both families | `ospfd` grammar read from the pinned image plus one-hop upstream evidence; `ospf6d` carries `ospf6_abr_nssa_type_7_default_create` / `_delete` / `ospf6_abr_nssa_type_7_defaults`, all ABR-named. Read in the main thread | The peer would originate without a backbone area and the scenario topology could be simpler | Both interop scenarios give the FRR side its own backbone area; the LSA appearing in Ze's LSDB validates it | confirmed |
 | A-5 | FRR `ospf6d` can originate an OSPFv3 Type-7 default | Confirmed in the main thread from the pinned image: `area <A.B.C.D\|(0-4294967295)> nssa [{default-information-originate [{metric (0-16777214)\|metric-type (1-2)}]\|no-summary ...}]`, help string "Originate Type 7 default into NSSA area" | The OSPFv3 receive-side gates would need crafted-LSA injection through `inject_v3.go` instead of a real peer | The OSPFv3 two-ABR interop scenario originating the default | confirmed |
 | A-7 | An FRR ABR's Type-7 default is P-clear, so it is exactly the LSA RFC3101-2.4-4 requires Ze to refuse | RFC 3101 Section 2.4 requires the P-bit clear on an ABR-originated Type-7 default, and FRR is presumed conformant | The negative direction of RFC3101-2.4-4 needs an injected P-clear default rather than a peer-originated one | Assert the received LSA's P-bit in the scenario before asserting Ze refuses it | unvalidated |
-| A-6 | A `.ci` under `test/ospf/` earns verify-tier evidence | `mk/test-functional.mk` `all_suites` contains `ospf` and `ospfv3`. Read in the main thread | The new functional tests would resolve `unrun` and their RFC tags would be refused | `make ze-rfc-check` accepting the new tags | confirmed |
+| A-6 | A `.ci` under `test/ospf/` earns verify-tier evidence | `internal/le/functional/suites.go` `all_suites` contains `ospf` and `ospfv3`. Read in the main thread | The new functional tests would resolve `unrun` and their RFC tags would be refused | `./le rfc check` accepting the new tags | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -242,9 +242,9 @@ Two entry points, one per direction.
 | R-1 | A v6 NSSA default is purged by an unrelated redistribution withdrawal, because `v6ExternalSelfTypes` includes `LSTypeNSSA` and `v6WithdrawExternal` builds its keep-set only from `redistV6` and `translations` | A redistributed external is withdrawn and the NSSA default vanishes with it | Add the default's `SelfLSARef` to that keep-set, and add a unit test that withdraws an unrelated external then asserts the default survives |
 | R-2 | THREE sites compute ABR status independently and on different clocks: `isAreaBorderRouter` inside `lsdb.OriginateFromTopology` (which sets the advertised Router-LSA B-bit), `ospfspf.IsABR` in `applyNSSADefaults` (live interface state, 1 Hz tick), and `IsABR` in `spf/computer.go` (SPF-result presence). A no-summary NSSA can briefly hold neither default across a backbone transition, and Ze can advertise B=1 while originating no default | Transient absence of any default in a backbone flap test; or a Router-LSA with the B-bit set while no default LSA exists | Owner decision 2026-08-02: UNIFY. Make the Router-LSA B-bit determination the single producer and have both default-route consumers read it, so what Ze advertises and what Ze originates cannot disagree |
 | R-3 | The meaning of `nssa { default-originate }` changed: it is now inert on an ABR. An operator upgrading gets a default they did not configure, and a leaf that silently stops doing what its old description said | An operator reports an unexpected `0.0.0.0/0` in an NSSA | Document in `docs/guide/ospf.md` and the YANG description, and call it out at closure as an operator-visible change |
-| R-4 | `ai/RFC-REQUIREMENTS.md` regeneration is entangled with a concurrent session's uncommitted rfc9190 work, so `make ze-rfc-index-update` would sweep foreign changes into this commit | `make ze-rfc-check` stays red on the staleness violation | Owner action: sequence the regeneration against the other session rather than running it blind |
+| R-4 | `ai/RFC-REQUIREMENTS.md` regeneration is entangled with a concurrent session's uncommitted rfc9190 work, so `./le rfc index-update` would sweep foreign changes into this commit | `./le rfc check` stays red on the staleness violation | Owner action: sequence the regeneration against the other session rather than running it blind |
 | R-5 | The evidence ratchet keys on `kind/tier`, so substituting a verify-tier `.ci` binding for a nightly-tier interop one fires it even at unchanged tag count | `check_evidence_ratchet` fails on a requirement whose evidence kind changed | Every new binding ADDS; no existing tag is moved or retargeted |
-| R-6 | `option=netns-link` tests skip outside `ZE_TEST_NETNS`, so a daemon-driving OSPF `.ci` runs under `make ze-netns-test` but not under `ze-qemu-needs-linux-test` | The new `.ci` passes locally but contributes no evidence in the tier that was expected | Confirm in DESIGN which suite the functional evidence must land in, and pick the option set accordingly |
+| R-6 | `option=netns-link` tests skip outside `ZE_TEST_NETNS`, so a daemon-driving OSPF `.ci` runs under the retired `ze-netns-test` (current: `./le qemu netns-test`) but not under `ze-qemu-needs-linux-test` | The new `.ci` passes locally but contributes no evidence in the tier that was expected | Confirm in DESIGN which suite the functional evidence must land in, and pick the option set accordingly |
 
 ## Blast Radius
 
@@ -279,7 +279,7 @@ Two entry points, one per direction.
 | AC-8 | A router that is NOT an NSSA border router receiving a P-clear Type-7 default | Does install a default route from it, proving the gate is scoped to border routers |
 | AC-9 | An operator configuring an NSSA ABR with no `nssa { default-originate }` leaf | The running daemon's `show ospf database nssa-external` reports the self-originated default |
 | AC-10 | An operator setting `nssa { default-originate true }` on an internal NSSA router with no usable forwarding address | The daemon originates no Type-7 default (RFC3101-2.4-2) |
-| AC-11 | `make ze-rfc-check` over the tree | RFC3101-2.4-4, 2.4-5, 2.5-1 and 2.7-2 each carry positive and negative tagged evidence, and the Section 2.7 MUST NOT carries a checklist id with both polarities |
+| AC-11 | `./le rfc check` over the tree | RFC3101-2.4-4, 2.4-5, 2.5-1 and 2.7-2 each carry positive and negative tagged evidence, and the Section 2.7 MUST NOT carries a checklist id with both polarities |
 | AC-12 | A reader of `docs/features/rfc-status.md` and `docs/guide/ospf.md` | Both state the NSSA default behaviour for BOTH address families, carry source anchors, and the Remaining count agrees with the real `{gap}` count |
 | AC-13 | Any reachable router state, including mid-transition, with at least one attached NSSA | What Ze ADVERTISES and what Ze ORIGINATES agree: whenever the self Router-LSA carries the B-bit, every attached NSSA holds its required default (Type-7 for a regular NSSA, Type-3 or `::/0` for a no-summary one), and whenever the B-bit is clear, Ze originates no border-router default in any area. The single-producer refactor is the means of achieving this, not the assertion |
 | AC-14 | A backbone interface transitioning down then up on a router attached to a no-summary NSSA | The area never holds zero defaults as a result of the two consumers disagreeing. Any remaining absence is bounded by the single producer's own update, not by a race between producers |
@@ -424,7 +424,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 3. **Phase: Policy extraction** -- lift the address-family-neutral default decision out of `applyNSSADefaults`
    - Tests: the whole existing OSPFv2 suite must stay green, unchanged, including the discriminating FRR interop
    - Files: `internal/plugins/ospf/nssa.go`
-   - Verify: `make ze-interop-test INTEROP_SCENARIO=ospf-stub-nssa-frr` still passes. No OSPFv2 assertion is edited in this phase; if one needs editing, the extraction changed behaviour and is wrong. The extracted decision takes ABR status as an INPUT from phase 2's single producer, never recomputing it
+   - Verify: `./le integration interop INTEROP_SCENARIO=ospf-stub-nssa-frr` still passes. No OSPFv2 assertion is edited in this phase; if one needs editing, the extraction changed behaviour and is wrong. The extracted decision takes ABR status as an INPUT from phase 2's single producer, never recomputing it
 4. **Phase: OSPFv3 origination** -- the v6 default, its LSID and its keep-set
    - Tests: `TestOSPFv3NSSADefaultSurvivesUnrelatedWithdrawal`, `TestOSPFv3NSSADefaultLSIDDoesNotCollide`, `TestOSPFv3NSSADefaultForwardingAddressDeterministic`
    - Files: `origination_v6_nssa.go`, `origination_v6_external.go`
@@ -446,7 +446,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
    - Files: `test/interop/scenarios/`
    - Verify: each scenario FAILS when the corresponding production change is reverted. Record which revert was used for each, per `ai/rules/interop-and-goal-validation.md`
 9. **Phase: RFC ledger and docs**
-   - Tests: `make ze-rfc-check`, `make ze-doc-verify`, `make ze-repository-check`
+   - Tests: `./le rfc check`, `./le doc-check verify`, `./le repository check`
    - Files: `rfc/short/rfc3101.md`, `docs/features/rfc-status.md`, `docs/guide/ospf.md`, `docs/architecture/wire/ospfv3.md`, `docs/features.md`, `docs/guide/configuration.md`, `docs/comparison.md`, `docs/functional-tests.md`, `docs/architecture/core-design.md`
    - Verify: every new binding ADDS rather than substitutes, so `check_evidence_ratchet` stays green (R-5)
 
@@ -454,8 +454,8 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 
 | # | Action | Why it is the owner's |
 |---|--------|----------------------|
-| O-1 | Supply the `rfc-test-change-approved:` token for `internal/plugins/ospf/nssa_ac14_16_test.go` and `internal/plugins/ospf/spf/area_type_test.go`, which `scripts/dev/audit-test-relaxation.py` reports as `[WEAKENED]` | The gate reserves RFC-tagged test edits to the owner. Coverage was verified intact by review: no RFC3101-3.2-2 or 2.7-1 assertion was lost |
-| O-2 | Sequence the `ai/RFC-REQUIREMENTS.md` regeneration against the concurrent session | `make ze-rfc-index-update` would sweep that session's uncommitted rfc9190 work into this commit (R-4) |
+| O-1 | Supply the `rfc-test-change-approved:` token for `internal/plugins/ospf/nssa_ac14_16_test.go` and `internal/plugins/ospf/spf/area_type_test.go`, which `internal/le/weakened/audit.go` reports as `[WEAKENED]` | The gate reserves RFC-tagged test edits to the owner. Coverage was verified intact by review: no RFC3101-3.2-2 or 2.7-1 assertion was lost |
+| O-2 | Sequence the `ai/RFC-REQUIREMENTS.md` regeneration against the concurrent session | `./le rfc index-update` would sweep that session's uncommitted rfc9190 work into this commit (R-4) |
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -476,11 +476,11 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 | No 0x0007 LSA from a v6 engine | `TestOSPFv3NSSADefaultUsesV6Producer` |
 | OSPFv3 no-summary NSSA gets `::/0` | `TestOSPFv3NSSANoSummaryDefaultInjection` |
 | Default survives unrelated withdrawal | `TestOSPFv3NSSADefaultSurvivesUnrelatedWithdrawal` |
-| Both gate polarities proven against FRR | `make ze-interop-test INTEROP_SCENARIO=ospf-nssa-two-abr-frr` and the v6 twin |
-| Functional coverage of the daemon | `make ze-functional-test` covering the `ospf` and `ospfv3` suites |
-| RFC ledger consistent | `make ze-rfc-check` exits 0 for rfc3101 (the rfc9190 and staleness violations are O-2's, not this spec's) |
-| Docs consistent | `make ze-doc-verify`, `make ze-repository-check` |
-| No test weakened | `python3 scripts/dev/audit-test-relaxation.py` clean for OSPF paths, or O-1 token supplied |
+| Both gate polarities proven against FRR | `./le integration interop INTEROP_SCENARIO=ospf-nssa-two-abr-frr` and the v6 twin |
+| Functional coverage of the daemon | `./le functional` covering the `ospf` and `ospfv3` suites |
+| RFC ledger consistent | `./le rfc check` exits 0 for rfc3101 (the rfc9190 and staleness violations are O-2's, not this spec's) |
+| Docs consistent | `./le doc-check verify`, `./le repository check` |
+| No test weakened | `./le test-weakened check` clean for OSPF paths, or O-1 token supplied |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -505,7 +505,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 
 **The RFC requirement checklist has no address-family dimension, and that is the
 structural reason this defect was invisible.** A requirement id such as RFC3101-2.4-5
-is per-RFC, not per-family. `make ze-rfc-check` treats it as satisfied once a tagged
+is per-RFC, not per-family. `./le rfc check` treats it as satisfied once a tagged
 test exists in both polarities, so a test exercising only the OSPFv2 path marks the
 obligation proven for OSPFv3 as well. Attempting to record the truth with a
 family-scoped `{gap}` is actively refused: the checker reports "annotated {gap} but IS
@@ -561,7 +561,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -579,7 +579,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

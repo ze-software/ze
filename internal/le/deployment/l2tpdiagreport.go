@@ -1,5 +1,5 @@
-// Design: scripts/evidence/l2tp-pppox-diag/main.go -- the full PPPoL2TP diagnostic vocabulary
-// Related: scripts/evidence/l2tp-tunnel-diag/main.go -- the tunnel-only diagnostic vocabulary
+// Design: docs/labs/l2tp-interop.md -- the full PPPoL2TP diagnostic vocabulary
+// Related: internal/le/deployment/l2tpdiag_linux.go -- the tunnel-only diagnostic vocabulary
 // Detail: l2tpdiag_linux.go -- the Linux operations that fill this report
 //
 // Both L2TP diagnostics answer one report type. Text preserves the producer's
@@ -35,8 +35,8 @@ type L2TPDiagnosticDump struct {
 	Note     string `json:"note,omitempty"`
 }
 
-// L2TPDiagnosticReport is the shared answer of both L2TP diagnostics.
-type L2TPDiagnosticReport struct {
+// l2tpDiagnosticReport is the shared answer of both L2TP diagnostics.
+type l2tpDiagnosticReport struct {
 	Diagnostic string                 `json:"diagnostic"`
 	Verdict    L2TPDiagnosticVerdict  `json:"verdict,omitempty"`
 	Dumps      []L2TPDiagnosticDump   `json:"dumps"`
@@ -46,7 +46,7 @@ type L2TPDiagnosticReport struct {
 }
 
 // Text preserves the complete terminal page of the source diagnostic.
-func (r L2TPDiagnosticReport) Text() string { return r.Output }
+func (r l2tpDiagnosticReport) Text() string { return r.Output }
 
 // diagnosticExitCode maps the proof vocabulary to the process contract.
 func diagnosticExitCode(verdict L2TPDiagnosticVerdict, err error) int {

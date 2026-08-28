@@ -9,15 +9,17 @@
 package functional
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // TestEveryGatingNameIsASuite verifies that each run-list name has a recipe.
@@ -28,12 +30,55 @@ func TestEveryGatingNameIsASuite(t *testing.T) {
 		t.Fatalf("the gating list names a suite this area does not hold: %v", err)
 	}
 	if got := len(Gating); got != 24 {
-		t.Errorf("the gating run declares %d suites, want the 24 mk/test-functional.mk ran", got)
+		t.Errorf("the native gating run declares %d suites, want 24", got)
+	}
+}
+
+func TestCIGoTestPackagesAreDerivedFromTheFixtureCorpus(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "test", "nested"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	fixture := "cmd=foreground:seq=1:exec=go test -v ./internal/z -run TestZ:timeout=20s\n" +
+		"cmd=foreground:seq=2:exec=go test ./internal/a:timeout=20s\n" +
+		"cmd=foreground:seq=3:exec=go test ./internal/z\n"
+	if err := os.WriteFile(filepath.Join(root, "test", "nested", "warm.ci"), []byte(fixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ciGoTestPackages(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"./internal/a", "./internal/z"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("packages = %v, want %v", got, want)
+	}
+}
+
+func TestCIGoTestWarmupRefusesAnEmptyPopulation(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "test"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ciGoTestPackages(root); err == nil {
+		t.Fatal("an empty .ci Go package population was accepted")
+	}
+}
+
+func TestIndividualOSPFSuitesWarmTheirCIBuilds(t *testing.T) {
+	for _, name := range []string{suiteOspf, suiteOspfv3} {
+		suite, ok := SuiteNamed(name)
+		if !ok {
+			t.Fatalf("suite %s is not declared", name)
+		}
+		if !suite.Warm {
+			t.Errorf("suite %s does not warm .ci Go packages", name)
+		}
 	}
 }
 
 // TestAnUnknownGatingNameIsRefused covers a former fail-open path.
-// run_gating (scripts/le/application/functional.py) removes an unresolved name from its run list.
+// run_gating (internal/le/functional/actions.go) removes an unresolved name from its run list.
 // A typo CAN therefore remove a suite and its denominator entry while the report still passed.
 func TestAnUnknownGatingNameIsRefused(t *testing.T) {
 	if _, err := GatingSuites([]string{"encode", "nope"}, Suites); err == nil {
@@ -152,8 +197,8 @@ func TestParallelIsFlooredAndOverridable(t *testing.T) {
 	}
 }
 
-// TestScaledSuitesCarryTheDerivedConcurrency pins which suites take it. Neither
-// figure transfers to the other 22, which keep the runner's own default.
+// TestScaledSuitesCarryTheDerivedConcurrency pins which suites take the
+// machine-derived figure. Suites with fixed concurrency keep their fixed value.
 func TestScaledSuitesCarryTheDerivedConcurrency(t *testing.T) {
 	t.Setenv("ZE_SUITE_CORES", "16")
 	env.ResetCache()
@@ -166,13 +211,29 @@ func TestScaledSuitesCarryTheDerivedConcurrency(t *testing.T) {
 	}
 }
 
+// TestUISuiteBoundsNativeToolBuilds keeps concurrent fixture compiles from
+// starving the daemons whose startup deadlines the same suite checks.
+func TestUISuiteBoundsNativeToolBuilds(t *testing.T) {
+	for _, suite := range Suites {
+		if suite.Name != suiteUi {
+			continue
+		}
+		want := []string{ZeTest, "ui", allTests, "-p", "8"}
+		if got := suite.Command(); !slices.Equal(got, want) {
+			t.Fatalf("UI suite command = %v, want %v", got, want)
+		}
+		return
+	}
+	t.Fatal("UI suite is missing")
+}
+
 // TestCommandLineWrapsEverySuiteInTimeout verifies that the runner can report a kill.
 // Only `timeout` signals the whole process group, including a stuck grandchild that holds an output pipe.
 func TestCommandLineWrapsEverySuiteInTimeout(t *testing.T) {
 	env.ResetCache()
 	set := BinarySet{Dir: filepath.Join("nowhere", "bin")}
 	for _, suite := range Suites {
-		argv := CommandLine(suite, set)
+		argv := commandLine(suite, set)
 		if argv[0] != "timeout" {
 			t.Fatalf("suite %s runs %q first, want timeout", suite.Name, argv[0])
 		}
@@ -183,8 +244,8 @@ func TestCommandLineWrapsEverySuiteInTimeout(t *testing.T) {
 			t.Errorf("suite %s: timeout was given %q while the report reads %q",
 				suite.Name, argv[2], suite.Budget())
 		}
-		if argv[3] != set.ZeTestPath() {
-			t.Errorf("suite %s runs %q, want the isolated %q", suite.Name, argv[3], set.ZeTestPath())
+		if argv[3] != set.zeTestPath() {
+			t.Errorf("suite %s runs %q, want the isolated %q", suite.Name, argv[3], set.zeTestPath())
 		}
 	}
 }
@@ -205,8 +266,8 @@ func TestCatalogDerivesGatingFromTheRunList(t *testing.T) {
 		if row.Gating {
 			gating++
 		}
-		if row.Rerun != "make "+row.Target {
-			t.Errorf("suite %s reruns with %q, which is not its own target", row.Name, row.Rerun)
+		if row.Rerun != "./le functional "+row.Action {
+			t.Errorf("suite %s reruns with %q, which is not its own action", row.Name, row.Rerun)
 		}
 		if row.Why == "" {
 			t.Errorf("suite %s states no reason, so --list renders it blank", row.Name)
@@ -248,10 +309,10 @@ func TestRecordReportsAKillAsAKill(t *testing.T) {
 func TestTheKillPublishesAFailureGroupWithARerun(t *testing.T) {
 	env.ResetCache()
 	plugin, _ := SuiteNamed("plugin")
-	line := FailureGroupLine(plugin, "summary text")
+	line := failureGroupLine(plugin, "summary text")
 	for _, want := range []string{
 		`"group-id":"suite-budget:plugin"`, `"kind":"timeout"`,
-		`"rerun":"make ze-functional-plugin-test"`, `"parallel":"stage"`,
+		`"rerun":"./le functional plugin"`, `"parallel":"stage"`,
 	} {
 		if !strings.Contains(line, want) {
 			t.Errorf("the declared failure group carries no %s: %s", want, line)
@@ -268,11 +329,11 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load the toolchain: %v", err)
 	}
-	commands := BuildCommands(tc, filepath.Join("out", "bin"), true)
+	commands := buildCommands(tc, filepath.Join("out", "bin"), true)
 	if len(commands) != 4 {
 		t.Fatalf("a chaos build needs 4 commands, got %d", len(commands))
 	}
-	if len(BuildCommands(tc, filepath.Join("out", "bin"), false)) != 3 {
+	if len(buildCommands(tc, filepath.Join("out", "bin"), false)) != 3 {
 		t.Error("a build with no chaos dashboard still compiled four binaries")
 	}
 
@@ -293,6 +354,18 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	}
 }
 
+func TestWebSessionBuildsChaosForBareAndAliasVerbs(t *testing.T) {
+	for _, verb := range []string{"web", "web-test"} {
+		current := newSession(gotoolchain.Toolchain{}, []string{verb})
+		if !current.chaos {
+			t.Errorf("%q did not request the chaos dashboard binary", verb)
+		}
+		if current.label != suiteWeb {
+			t.Errorf("%q label = %q, want %q", verb, current.label, suiteWeb)
+		}
+	}
+}
+
 // repoRootForTest answers the checkout these tests run in.
 func repoRootForTest(t *testing.T) string {
 	t.Helper()
@@ -301,6 +374,119 @@ func repoRootForTest(t *testing.T) string {
 		t.Fatalf("resolve the checkout: %v", err)
 	}
 	return root
+}
+
+// VALIDATES: the functional runner consumes the same native session path as
+// every other le area, without creating scratch during a lookup.
+// PREVENTS: restoring the shell subprocess or silently routing one runner to
+// the checkout-wide tmp directory.
+func TestFunctionalScratchUsesTheNativeSessionPath(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "functional-fixture")
+	t.Setenv("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "")
+	t.Setenv("ZE_SCRATCH_DIR", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	got, err := sessionScratch(root)
+	if err != nil {
+		t.Fatalf("resolve functional scratch: %v", err)
+	}
+	wantDir := filepath.Join(
+		"tmp", "session", time.Now().Format("2006-01-02")+"-functional-fixture")
+	wantScratch := filepath.Join(wantDir, "scratch")
+	if got != wantScratch {
+		t.Errorf("sessionScratch = %q, want %q", got, wantScratch)
+	}
+	gotDir, err := scratchDir(root)
+	if err != nil {
+		t.Fatalf("resolve functional session directory: %v", err)
+	}
+	if gotDir != filepath.Join(root, wantDir) {
+		t.Errorf("scratchDir = %q, want %q", gotDir, filepath.Join(root, wantDir))
+	}
+	if _, err := os.Stat(filepath.Join(root, wantScratch)); !os.IsNotExist(err) {
+		t.Errorf("functional lookup created scratch: %v", err)
+	}
+}
+
+// VALIDATES: ZE_SCRATCH_DIR keeps its make-compatible whitespace semantics but
+// cannot redirect functional artifacts outside the checkout.
+// PREVENTS: a malformed inherited value bypassing the native resolver and
+// turning cleanup into an arbitrary-path removal.
+func TestScratchDirValidatesTheNamedEnvironmentPath(t *testing.T) {
+	root := t.TempDir()
+	cases := map[string]struct {
+		named   string
+		want    string
+		wantErr bool
+	}{
+		"trimmed relative path": {
+			named: "  tmp/session/named  ",
+			want:  filepath.Join(root, "tmp", "session", "named"),
+		},
+		"absolute path": {
+			named:   filepath.Join(root, "elsewhere"),
+			wantErr: true,
+		},
+		"parent traversal": {
+			named:   filepath.Join("..", "elsewhere"),
+			wantErr: true,
+		},
+	}
+	for name, one := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("ZE_SCRATCH_DIR", one.named)
+			env.ResetCache()
+			t.Cleanup(env.ResetCache)
+
+			got, err := scratchDir(root)
+			if one.wantErr {
+				if err == nil {
+					t.Fatalf("scratchDir accepted unsafe ZE_SCRATCH_DIR %q as %q", one.named, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("scratchDir with ZE_SCRATCH_DIR %q: %v", one.named, err)
+			}
+			if got != one.want {
+				t.Errorf("scratchDir = %q, want %q", got, one.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: a failure in the native session resolver reaches Prepare, the
+// production caller that chooses and creates the isolated binary directory.
+// PREVENTS: restoring the former root/tmp fallback after session ownership
+// could not be established.
+func TestPreparePropagatesSessionResolutionFailure(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "functional-broken-state")
+	t.Setenv("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "")
+	t.Setenv("ZE_SCRATCH_DIR", "")
+	t.Setenv("ZE_SUFFIX", "")
+	t.Setenv("ZE_TEST_CANONICAL", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	if err := os.Mkdir(filepath.Join(root, "tmp"), 0o750); err != nil {
+		t.Fatalf("create tmp fixture: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(root, "tmp", "session"), []byte("not a directory"), 0o600,
+	); err != nil {
+		t.Fatalf("create malformed session root: %v", err)
+	}
+
+	set, err := Prepare(gotoolchain.Toolchain{Root: root}, "fixture", false)
+	if err == nil {
+		t.Fatal("Prepare accepted a session resolver failure")
+	}
+	if set != (BinarySet{}) {
+		t.Errorf("Prepare returned a binary set after resolver failure: %#v", set)
+	}
 }
 
 // TestARunThatNeverStartedAnswersNoReport pins the difference between an empty
@@ -316,7 +502,7 @@ func TestARunThatNeverStartedAnswersNoReport(t *testing.T) {
 	Gating = []string{"no-such-suite"}
 	defer func() { Gating = saved }()
 
-	answer, code := RunGating(gotoolchain.Toolchain{})
+	answer, code := runGating(gotoolchain.Toolchain{})
 	if code == 0 {
 		t.Error("a run list naming no suite was accepted")
 	}

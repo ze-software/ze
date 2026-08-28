@@ -43,7 +43,7 @@ types. It has the right structure and cannot run until that module is vendored.
 
 The pinned `github.com/vishvananda/netlink` release lacks three XFRM
 corrections. Ze records them in
-`scripts/dev/patches/netlink-xfrm-fixes.patch`:
+`internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch`:
 
 - The state reader decodes `XFRMA_REPLAY_ESN_VAL`, restores the replay window,
   and reports the `XFRM_STATE_ESN` flag.
@@ -58,13 +58,13 @@ replaces that directory. Run this command from the repository root after every
 vendor refresh:
 
 ```sh
-git apply scripts/dev/patches/netlink-xfrm-fixes.patch
+git apply internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch
 ```
 
 `TestNetlinkXFRMPatchApplied` uses `git apply --reverse --check` to require the
-exact corrections, with their context lines. It runs in `./scripts/dev`, which
-`ZE_PACKAGES` covers, so `make ze-unit-test` runs it as a `ze-precommit-verify` stage.
-`make ze-unit-pkg-test PKG=./scripts/dev` is the narrow way to run it alone.
+exact corrections with their context lines. It lives in
+`internal/le/vendorpatch`; run it alone with
+`go test ./internal/le/vendorpatch -run TestNetlinkXFRMPatchApplied`.
 
 ## Traps this code exists to avoid
 

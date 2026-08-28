@@ -1,11 +1,11 @@
 ---
-name: ze-precommit-verify
+name: ze-verify
 description: Verify
 ---
 
 # Verify
 
-Run `make ze-precommit-verify` and report results clearly.
+Run `./le verify worktree` and report results clearly.
 
 See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after passing)
 
@@ -34,14 +34,13 @@ phase itself.
 
 ## Steps
 
-1. **Check for running verify:** If `tmp/.ze-verify.lock` exists and the PID inside is alive, another session is already running verify. Do NOT start a second run. Instead:
-   - Report "ze-precommit-verify already running (pid N), waiting for it to finish"
-   - Wait for it to complete (the make target handles this automatically)
-   - Read `tmp/ze-verify.log` for the results
-2. **Run verification:** Execute `make ze-precommit-verify` in the **foreground**, giving the call the largest timeout your harness allows. Never kill it for being slow. Output is auto-captured to `tmp/ze-verify.log`.
-   - **Do NOT use `run_in_background`. Do NOT write a polling loop (`until ... sleep 2; done`, `pgrep`, `stat`).** The foreground Bash return IS the completion signal. A polling loop becomes "the running task" and swallows the real completion notification. See `ai/rules/precommit-verify.md` "Running The Gate".
-   - Custom log path: `make ze-precommit-verify ZE_VERIFY_LOG=tmp/ze-verify-myname.log`
-   - `ze-precommit-verify` runs `-race` on changed component groups (two-pass strategy). For reactor concurrency changes, also run `make ze-unit-reactor-test-race`.
+1. **Check freshness:** Run `./le verify-status check`. A FRESH answer forbids
+   rerunning the gate. A STALE answer names why verification is owed.
+2. **Run verification:** Execute `./le verify worktree` in the foreground,
+   giving the call the largest timeout the harness allows. Never poll or kill a
+   slow live run. Native job admission queues or attaches equivalent work.
+   `commit <revision>` selects a commit other than HEAD; `keep` retains a red
+   worktree for inspection.
 3. **Parse results:** On failure, search the log:
    - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log`
    - Also check exit code
@@ -76,14 +75,12 @@ phase itself.
 
 ## Fallback
 
-A slow run is not a failed run, so a timeout is never the trigger for this.
-`verify-lock.sh` either waits or breaks a stuck holder itself, so contention is
-not a trigger either. Fall back only when the run exits non-zero for a reason
-that is not a test failure: a broken build cache, a missing tool, a wedged
-environment. Then run the stages separately:
-1. `make ze-lint`
-2. `make ze-unit-test-cached` then `make ze-unit-test-race-changed`
-3. `make ze-functional-test`
+A slow run and admission contention are not failures. Fall back to individual
+native stages only when the worktree action cannot run for an environmental
+reason:
+1. `./le verify-lint run`
+2. `./le test-unit`
+3. `./le functional`
 
 Report whichever stages completed and which one stopped the run. This gives partial results instead of no results.
 

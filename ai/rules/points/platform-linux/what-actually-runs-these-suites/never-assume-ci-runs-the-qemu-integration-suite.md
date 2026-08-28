@@ -3,4 +3,4 @@ kind: directive
 level: MUST NOT
 stage:
 ---
-**`ze-qemu-integration-test` is NOT automated:** its only caller is `make ze-evidence-release-verify` (`mk/test-release.mk`), which a person runs before a release. Its own cost keeps it out. You MUST NOT assume CI catches a broken Go `integration && linux` package for you.
+**QEMU evidence is scheduled and advisory.** `.github/workflows/qemu-nightly.yml` drives `./le qemu run` with Ze's runtime kernel and invokes `./le qemu all-tests` inside the guest. You MUST NOT treat it as a blocking push gate or skip the focused QEMU proof for your change.

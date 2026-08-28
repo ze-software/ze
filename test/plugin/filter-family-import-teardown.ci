@@ -18,40 +18,11 @@ option=timeout:value=15s
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064C010080800000000000001800E150001850401020304000B01180A0100038106058150
 EOF_PEER
 
-# Observer: wait for filter dispatch + teardown then clean shutdown
-tmpfs=test-family-teardown.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Observer for family-filter tear-down test: clean shutdown after dispatch."""
-import time
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for the daemon to process the imported route / tear-down (ci-sleep
-    # ratchet: event-driven instead of a fixed sleep); times out cleanly.
-    api.wait_for_event(timeout=5.0)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-family-teardown {
-		run ./test-family-teardown.run
+		run "ze-test fixture plugin/filter-family-import-teardown"
 		encoder json
 	}
 }

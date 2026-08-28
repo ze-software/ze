@@ -25,7 +25,7 @@ same tree level. No `traffic` root existed to be `traffic-control`'s sibling,
 which is exactly why the gate stayed green over four violations.
 
 The gate now has four feeders: the static YANG check, plugin registration, the
-runtime guard, and this root-namespace check. `make ze-cli-grammar-check` prints
+runtime guard, and this root-namespace check. `./le cli-grammar` prints
 the number of roots checked.
 
 ## Decision: the fixture test lives with the pure function

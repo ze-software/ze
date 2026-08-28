@@ -100,7 +100,7 @@ func TestGokrazyRouteBuildProxies(t *testing.T) {
 	}
 
 	h := findRoute(t, "/gokrazy/").Build(RouteDeps{})
-	req := httptest.NewRequest(http.MethodGet, "/gokrazy/status", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/gokrazy/status", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 

@@ -26,56 +26,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies lifecycle dispatch works
-tmpfs=gr-cli-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: verify lifecycle dispatch infrastructure for restart/stop."""
-
-import sys
-import time
-from ze_api import API, runtime_fail
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait until the dispatcher command registry is frozen. This is NOT a session
-    # barrier and never was: the post-startup fan-out runs BEFORE StartPeers
-    # (plugin/server/startup.go:220-223), so it returns while peer1 is still
-    # opening. The comment here used to claim it waited for establishment.
-    api.wait_for_post_startup(timeout=5.0)
-
-    # The real barrier. This test's ze-peer asserts the initial-sync EOR frame,
-    # so the daemon must not be shut down before that frame is on the wire;
-    # otherwise the peer reports `failed: connection closed before completion`
-    # and whether that happens is decided by host scheduling alone.
-    # wait_peer_eor_sent polls the per-peer `eor-sent` counter (cmd/peer/peer.go:217;
-    # peer_stats.go IncrEORSent increments it only once peer_initial_sync.go's
-    # sendInitialRoutes has written AND flushed the EOR to the peer's socket), so
-    # it waits on the asserted state, not on a duration.
-    if not api.wait_peer_eor_sent('peer1', attempts=40):
-        runtime_fail('peer1 initial-sync EOR never reached the wire')
-
-    # Verify daemon lifecycle dispatch works (same mechanism restart uses)
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    status = resp.get('result', {}).get('status')
-    if status != 'done':
-        print(f'FAIL: daemon shutdown status={status}', file=sys.stderr)
-        sys.exit(1)
-
-    print('OK: lifecycle dispatch works', file=sys.stderr)
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# compiled Go test plugin: verifies lifecycle dispatch works
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
@@ -84,7 +35,7 @@ plugin {
 		use bgp-gr
 	}
 	external gr-cli-test {
-		run ./gr-cli-test.run
+		run "ze-test fixture plugin/gr-cli-restart"
 		encoder json
 	}
 }

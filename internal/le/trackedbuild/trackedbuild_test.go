@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -83,10 +84,10 @@ func TestThePackageFloorRefusesAShrunkTree(t *testing.T) {
 func TestTheSanityGuardsRefuseAnUnbuildableTree(t *testing.T) {
 	env := fixture(t)
 
-	if _, err := FeatureTags(env.bare); err == nil {
+	if _, err := featureTags(env.bare); err == nil {
 		t.Error("FeatureTags accepted a tree with no feature manifest")
 	}
-	tags, err := FeatureTags(env.dir)
+	tags, err := featureTags(env.dir)
 	if err != nil {
 		t.Fatalf("FeatureTags refused the fixture: %v", err)
 	}
@@ -94,10 +95,10 @@ func TestTheSanityGuardsRefuseAnUnbuildableTree(t *testing.T) {
 		t.Errorf("FeatureTags answered %v, want the fixture's one tag", tags)
 	}
 
-	if err := SanityCheck(env.ctx, env.dir, "HEAD", env.bare); err == nil {
+	if err := sanityCheck(env.ctx, env.dir, "HEAD", env.bare); err == nil {
 		t.Error("SanityCheck accepted a tree with no go.mod")
 	}
-	if err := SanityCheck(env.ctx, env.probe, "HEAD", env.dir); err == nil {
+	if err := sanityCheck(env.ctx, env.probe, "HEAD", env.dir); err == nil {
 		t.Error("SanityCheck accepted a tree with no vendor directory against a commit that tracks one")
 	}
 }
@@ -108,15 +109,15 @@ func TestTheSanityGuardsRefuseAnUnbuildableTree(t *testing.T) {
 func TestCommitHasPathAnswersBothPolarities(t *testing.T) {
 	env := fixture(t)
 
-	tracked, err := CommitHasPath(env.ctx, env.probe, "HEAD", "vendor/modules.txt")
+	tracked, err := commitHasPath(env.ctx, env.probe, "HEAD", "vendor/modules.txt")
 	if err != nil || !tracked {
 		t.Errorf("a tracked path answered (%v, %v), want (true, nil)", tracked, err)
 	}
-	absent, err := CommitHasPath(env.ctx, env.probe, "HEAD", "no/such/path.txt")
+	absent, err := commitHasPath(env.ctx, env.probe, "HEAD", "no/such/path.txt")
 	if err != nil || absent {
 		t.Errorf("an absent path answered (%v, %v), want (false, nil)", absent, err)
 	}
-	if _, err := CommitHasPath(env.ctx, env.bare, "HEAD", "go.mod"); err == nil {
+	if _, err := commitHasPath(env.ctx, env.bare, "HEAD", "go.mod"); err == nil {
 		t.Error("a directory that is not a git repository answered no error")
 	}
 }
@@ -154,7 +155,7 @@ func TestTheSelftestPassesOverItsOwnFixtures(t *testing.T) {
 // PREVENTS: a run bounded by a value nobody could parse, or judged against a
 // floor nobody could read.
 func TestABadOptionIsRefused(t *testing.T) {
-	options, err := OptionsFrom("", "", "", "")
+	options, err := optionsFrom("", "", "", "")
 	if err != nil {
 		t.Fatalf("the defaults were refused: %v", err)
 	}
@@ -162,7 +163,7 @@ func TestABadOptionIsRefused(t *testing.T) {
 		t.Errorf("the defaults are %+v", options)
 	}
 
-	options, err = OptionsFrom(" 7abe8a07e ", "true", "5", "90s")
+	options, err = optionsFrom(" 7abe8a07e ", "true", "5", "90s")
 	if err != nil {
 		t.Fatalf("a declared set was refused: %v", err)
 	}
@@ -177,7 +178,7 @@ func TestABadOptionIsRefused(t *testing.T) {
 		"a deadline that is not positive": {"", "", "", "-1s"},
 		"a keep that is not a boolean":    {"", "maybe", "", ""},
 	} {
-		if _, err := OptionsFrom(args[0], args[1], args[2], args[3]); err == nil {
+		if _, err := optionsFrom(args[0], args[1], args[2], args[3]); err == nil {
 			t.Errorf("%s was accepted", name)
 		}
 	}
@@ -205,7 +206,7 @@ func TestBothAnswersAreStructuredData(t *testing.T) {
 		}
 	}
 
-	matrixRaw, err := json.Marshal(BuildMatrix())
+	matrixRaw, err := json.Marshal(buildMatrix)
 	if err != nil {
 		t.Fatalf("the matrix does not encode: %v", err)
 	}
@@ -276,7 +277,7 @@ func TestALoweredFloorIsSaidOutLoud(t *testing.T) {
 // PREVENTS: a flavor whose anchor is a package alone, which resolves under any
 // tag set and ties the result back to nothing.
 func TestEveryFlavorNamesATagGatedAnchorFile(t *testing.T) {
-	for _, flavor := range BuildMatrix() {
+	for _, flavor := range buildMatrix {
 		if flavor.Name == "" || flavor.Anchor == "" || flavor.Why == "" {
 			t.Errorf("flavor %+v is missing a name, an anchor or a reason", flavor)
 		}
@@ -287,15 +288,15 @@ func TestEveryFlavorNamesATagGatedAnchorFile(t *testing.T) {
 			t.Errorf("flavor %s names no anchor file, so its tags tie back to nothing", flavor.Name)
 		}
 	}
-	if len(BuildMatrix()) < 6 {
-		t.Errorf("the matrix holds %d flavors, want the six shipped ones", len(BuildMatrix()))
+	if len(buildMatrix) < 6 {
+		t.Errorf("the matrix holds %d flavors, want the six shipped ones", len(buildMatrix))
 	}
 }
 
 // VALIDATES: the area dispatches its three actions and refuses the two
 // mistakes.
-// PREVENTS: a verb that drifts from its gate name, which would leave the Make
-// target pointing at nothing after the swap.
+// PREVENTS: a verb that drifts from its registered native action and becomes
+// unreachable.
 func TestTheAreaDispatchesItsActions(t *testing.T) {
 	payload, code := Answer([]string{"matrix"})
 	if code != 0 {
@@ -307,8 +308,8 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 	if _, code := Answer([]string{"nope"}); code != 2 {
 		t.Errorf("an unknown action answers %d, want 2", code)
 	}
-	if _, code := Answer([]string{"check", "value"}); code != 1 {
-		t.Errorf("a value after an action answers %d, want 1", code)
+	if _, code := Answer([]string{"check", "value"}); code != 2 {
+		t.Errorf("a value after an action answers %d, want 2", code)
 	}
 
 	verbs := Actions()
@@ -322,15 +323,14 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 	}
 }
 
-// VALIDATES: the scratch tree is emptied before extraction.
-// PREVENTS: a reused directory putting a file back into the view that the
-// commit under test deleted -- `tar -x` overwrites archived paths but never
-// removes extras.
-func TestTheScratchTreeIsEmptiedBeforeUse(t *testing.T) {
-	root, err := lepath.Root()
-	if err != nil {
-		t.Fatalf("resolve the repository root: %v", err)
-	}
+// VALIDATES: the tracked-build consumer creates its tree under the shared
+// native session scratch path and empties a reused process directory.
+// PREVENTS: a subprocess fallback, or a stale extracted file putting a path
+// back into the commit view after that commit deleted it.
+func TestTheScratchTreeUsesTheNativeSessionPathAndIsEmptied(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "tracked-fixture")
+	t.Setenv("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
@@ -338,7 +338,14 @@ func TestTheScratchTreeIsEmptiedBeforeUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create the scratch tree: %v", err)
 	}
-	t.Cleanup(func() { os.RemoveAll(dir) }) //nolint:errcheck // temp fixture
+	want := filepath.Join(
+		root,
+		"tmp", "session", time.Now().Format("2006-01-02")+"-tracked-fixture",
+		"scratch", "tracked-build", strconv.Itoa(os.Getpid()),
+	)
+	if dir != want {
+		t.Fatalf("scratchTree = %q, want native path %q", dir, want)
+	}
 
 	stale := filepath.Join(dir, "stale.txt")
 	if err := os.WriteFile(stale, []byte("x"), 0o600); err != nil {
@@ -353,5 +360,27 @@ func TestTheScratchTreeIsEmptiedBeforeUse(t *testing.T) {
 	}
 	if _, err := os.Stat(stale); err == nil {
 		t.Error("a stale file survived, so a deleted path could be put back into the view")
+	}
+}
+
+// VALIDATES: tracked-build reports a native session resolver failure instead
+// of extracting the commit into a checkout-wide or system temporary directory.
+// PREVENTS: a malformed session root making concurrent sessions share one
+// fallback tree.
+func TestTheScratchTreePropagatesSessionResolutionFailure(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "tracked-broken-state")
+	t.Setenv("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "")
+	if err := os.Mkdir(filepath.Join(root, "tmp"), 0o750); err != nil {
+		t.Fatalf("create tmp fixture: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(root, "tmp", "session"), []byte("not a directory"), 0o600,
+	); err != nil {
+		t.Fatalf("create malformed session root: %v", err)
+	}
+
+	if dir, err := scratchTree(context.Background(), root); err == nil {
+		t.Fatalf("scratchTree accepted resolver failure and returned %q", dir)
 	}
 }

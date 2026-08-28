@@ -1,9 +1,8 @@
-// VALIDATES: spec-le-is-a-ze-binary AC-5, AC-7, and AC-11. Function calls build
-// the structured gate map. The map refuses every gated-to-ungated route that
-// leaves the other gates green.
-// PREVENTS: incorrect parsing of dispatcher checks. Published counts state what
-// the repository enforces. A missed check hides an unguarded rule. A dropped
-// binding causes the same false pass.
+// VALIDATES: spec-le-is-a-ze-binary AC-5, AC-7, and AC-11. Native Go hook
+// sources produce the structured gate map. The map refuses every
+// gated-to-ungated route that leaves the other gates green.
+// PREVENTS: missing, unwired, dangling, regressed, or unpublished native hook
+// bindings from silently shortening rule coverage.
 
 package rules
 
@@ -15,227 +14,195 @@ import (
 	"testing"
 )
 
-// dispatcherSource has the shape of the two large PreToolUse dispatchers. It
-// contains a CHECKS table, bindings above checks, and one check that binds none.
-const dispatcherSource = `#!/usr/bin/env python3
-"""A dispatcher. def c_in_a_docstring() is not a check."""
-import sys
+const nativeSource = `package hookruntime
 
+type hookCheck func()
+type hookAction struct { checks []hookCheck }
 
-# ze point: alpha/section/first
-def c_first(ctx):
-    return None
+var nativeHookActions = map[string]hookAction{
+	"pretool-x": {
+		checks: []hookCheck{firstCheck, secondCheck, unboundCheck},
+	},
+}
 
+// ze point: alpha/section/first
+func firstCheck() {}
 
-# ze point: alpha/section/second
-# ze point: alpha/section/first
-def check_second(ctx):
-    return None
+// ze point: alpha/section/second
+// ze point: alpha/section/first
+func secondCheck() {}
 
-
-# ze point: none -- there is nothing written to bind
-def c_third(ctx):
-    return None
-
-
-# ze point: alpha/section/gone
-def c_fourth(ctx):
-    return None
-
-
-CHECKS = (
-    c_first,
-    check_second,
-    c_third,
-    c_fourth,
-)
-
-
-def main():
-    return 0
+// ze point: none -- there is nothing written to bind
+func unboundCheck() {}
 `
 
-func TestABindingBindsTheNextTopLevelDef(t *testing.T) {
-	bindings := parseBindings(dispatcherSource, "pretool-x.py")
+func TestABindingBelongsToItsGoFunctionDocComment(t *testing.T) {
+	file, err := parseHookFile(nativeSource, "runtime.go")
+	if err != nil {
+		t.Fatalf("parseHookFile: %v", err)
+	}
 	got := map[string][]string{}
-	for _, binding := range bindings {
+	for _, binding := range file.bindings {
 		got[binding.Check] = append(got[binding.Check], binding.Ref)
 	}
-	if strings.Join(got["c_first"], ",") != "alpha/section/first" {
-		t.Errorf("c_first bound %v", got["c_first"])
+	if strings.Join(got["firstCheck"], ",") != "alpha/section/first" {
+		t.Errorf("firstCheck bound %v", got["firstCheck"])
 	}
-	if strings.Join(got["check_second"], ",") != "alpha/section/second,alpha/section/first" {
-		t.Errorf("check_second bound %v", got["check_second"])
+	if strings.Join(got["secondCheck"], ",") != "alpha/section/second,alpha/section/first" {
+		t.Errorf("secondCheck bound %v", got["secondCheck"])
 	}
-	if len(got["c_third"]) != 1 || got["c_third"][0] != "" {
-		t.Errorf("c_third bound %v, want the none declaration", got["c_third"])
+	if len(got["unboundCheck"]) != 1 || got["unboundCheck"][0] != "" {
+		t.Errorf("unboundCheck bound %v, want the none declaration", got["unboundCheck"])
 	}
-	for _, binding := range bindings {
-		if binding.Check == "c_third" && binding.Reason != "there is nothing written to bind" {
+	for _, binding := range file.bindings {
+		if binding.Check == "unboundCheck" &&
+			binding.Reason != "there is nothing written to bind" {
 			t.Errorf("the none declaration lost its reason: %q", binding.Reason)
 		}
 	}
 }
 
-func TestABindingAboveNoCheckIsReportedNotDropped(t *testing.T) {
-	// A comment that names a point and gates nothing is a claim, and claims are
-	// what this design removes.
-	source := "# ze point: alpha/section/first\nx = 1\n\n\n# ze point:\ndef c_bare(ctx):\n    pass\n"
-	bindings := parseBindings(source, "pretool-x.py")
-	if len(bindings) != 2 {
-		t.Fatalf("parseBindings found %d bindings: %+v", len(bindings), bindings)
-	}
-	if bindings[0].Check != noCheck {
-		t.Errorf("the orphan binding was attributed to %q", bindings[0].Check)
-	}
-	// An EMPTY payload is kept as a ref no point matches, so a bare marker
-	// fails as dangling instead of vanishing.
-	if bindings[1].Ref != emptyRef {
-		t.Errorf("the empty binding is %q, want %s", bindings[1].Ref, emptyRef)
-	}
-}
+func TestABindingOutsideAFunctionDocCommentIsNotAttached(t *testing.T) {
+	source := `package hookruntime
+// ze point: alpha/section/first
+var value = 1
 
-func TestATypoInABindingFailsAsDangling(t *testing.T) {
-	// Dropping an unparsable payload would let a typo un-gate a check with
-	// nothing going red.
-	bindings := parseBindings("# ze point: none but no reason\ndef c_x(ctx):\n    pass\n", "pretool-x.py")
-	if len(bindings) != 1 || bindings[0].Ref != "none but no reason" {
-		t.Fatalf("parseBindings = %+v", bindings)
-	}
-}
-
-func TestTheDispatcherRosterReadsWhatItRuns(t *testing.T) {
-	bindings := parseBindings(dispatcherSource, "pretool-x.py")
-	roster, err := dispatcherChecks(dispatcherSource, bindings)
-	if err != nil {
-		t.Fatalf("dispatcherChecks: %v", err)
-	}
-	for _, want := range []string{"c_first", "check_second", "c_third", "c_fourth"} {
-		if !roster[want] {
-			t.Errorf("the roster misses %s: %v", want, sortedKeys(roster))
-		}
-	}
-	// A def named only inside a docstring is not a check, and Python's ast
-	// would never see one.
-	if roster["c_in_a_docstring"] {
-		t.Errorf("the roster read a docstring: %v", sortedKeys(roster))
-	}
-}
-
-func TestADispatcherWithNoChecksTableReadsItsMain(t *testing.T) {
-	// One dispatcher calls its two gates directly and neither carries the
-	// prefix, so reading only the prefix would leave both invisible.
-	source := `import sys
-
-
-def verdict(prompt):
-    return None
-
-
-def style_guide_reminder(prompt):
-    return None
-
-
-def _helper(x):
-    return x
-
-
-def main() -> int:
-    hit = verdict("x")
-    reminder = style_guide_reminder("x")
-    value = _helper(1)
-    sys.stderr.write("no")
-    return 0
+// ze point:
+func bareCheck() {}
 `
-	roster, err := dispatcherChecks(source, nil)
+	file, err := parseHookFile(source, "runtime.go")
 	if err != nil {
-		t.Fatalf("dispatcherChecks: %v", err)
+		t.Fatalf("parseHookFile: %v", err)
 	}
-	if !roster["verdict"] || !roster["style_guide_reminder"] {
-		t.Errorf("the roster misses an unprefixed gate: %v", sortedKeys(roster))
+	if len(file.bindings) != 2 {
+		t.Fatalf("parseHookFile found %d bindings: %+v", len(file.bindings), file.bindings)
 	}
-	// A `_`-prefixed name has declared itself private ON PURPOSE, and an
-	// attribute call is not a bare name at all.
-	if roster["_helper"] || roster["write"] {
-		t.Errorf("the roster read a private helper or an attribute call: %v", sortedKeys(roster))
+	found := map[string]Binding{}
+	for _, binding := range file.bindings {
+		found[binding.Check] = binding
 	}
-}
-
-func TestADispatcherThatCannotBeScannedIsRefused(t *testing.T) {
-	// A dispatcher whose checks cannot be enumerated is one whose rows nobody
-	// can check, so the reader fails closed rather than answering a short
-	// roster.
-	if _, err := dispatcherChecks("x = 'unterminated\n", nil); err == nil {
-		t.Error("dispatcherChecks accepted an unterminated literal")
+	if found[noCheck].Ref != "alpha/section/first" {
+		t.Errorf("the orphan binding was lost: %+v", file.bindings)
 	}
-	if _, err := dispatcherChecks("x = '''unterminated\nstill\n", nil); err == nil {
-		t.Error("dispatcherChecks accepted an unterminated triple quote")
+	if found["bareCheck"].Ref != emptyRef {
+		t.Errorf("the empty binding is %q, want %s", found["bareCheck"].Ref, emptyRef)
 	}
 }
 
-func TestAnUnwiredDispatcherIsRefusedInBothDirections(t *testing.T) {
-	// Each direction removes a check from the join while the report still says
-	// "no dangling bindings". A registered command without a file removes its
-	// bindings. An unregistered dispatcher contains checks that never run.
-	write := func(t *testing.T, files map[string]string) string {
-		t.Helper()
-		root := t.TempDir()
-		for rel, body := range files {
-			path := filepath.Join(root, filepath.FromSlash(rel))
-			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-				t.Fatalf("fixture: %v", err)
-			}
-			if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-				t.Fatalf("fixture: %v", err)
-			}
+func TestATypoInAGoBindingFailsAsDangling(t *testing.T) {
+	file, err := parseHookFile("package hookruntime\n// ze point: none but no reason\nfunc check() {}\n", "runtime.go")
+	if err != nil {
+		t.Fatalf("parseHookFile: %v", err)
+	}
+	if len(file.bindings) != 1 || file.bindings[0].Ref != "none but no reason" {
+		t.Fatalf("bindings = %+v", file.bindings)
+	}
+}
+
+func writeHookTree(t *testing.T, files map[string]string) string {
+	t.Helper()
+	root := t.TempDir()
+	for name, body := range files {
+		path := filepath.Join(root, filepath.FromSlash(hookRuntimeRel), name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatalf("fixture: %v", err)
 		}
-		return root
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatalf("fixture: %v", err)
+		}
 	}
-	settings := func(name string) string {
-		return `{"hooks": {"PreToolUse": [{"matcher": "Write", "hooks": [{"type": "command",` +
-			` "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/` + name + `"}]}]}}` + "\n"
+	return root
+}
+
+func TestTheNativeActionRegistryFailsClosed(t *testing.T) {
+	good := writeHookTree(t, map[string]string{"runtime.go": nativeSource})
+	sources, problems := nativeHookSources(good)
+	if len(sources) != 1 || len(problems) != 0 {
+		t.Fatalf("a wired native registry was refused: %v / %v", sortedKeys(sources), problems)
 	}
 
-	wired := write(t, map[string]string{
-		".claude/settings.json":      settings("pretool-a.py"),
-		".claude/hooks/pretool-a.py": "def c_x(ctx):\n    pass\n",
-	})
-	paths, problems := dispatchers(wired)
-	if len(paths) != 1 || len(problems) != 0 {
-		t.Fatalf("a wired dispatcher was refused: %v / %v", paths, problems)
+	cases := []struct {
+		name    string
+		source  string
+		problem string
+	}{
+		{
+			"registered check missing a binding",
+			strings.Replace(nativeSource,
+				"// ze point: alpha/section/first\nfunc firstCheck", "func firstCheck", 1),
+			"registered check firstCheck has no",
+		},
+		{
+			"bound check absent from the registry",
+			nativeSource + "\n// ze point: alpha/section/first\nfunc strayCheck() {}\n",
+			"binding on unwired check strayCheck",
+		},
+		{
+			"registry names no function",
+			strings.Replace(nativeSource, "firstCheck, secondCheck", "missingCheck, secondCheck", 1),
+			"check missingCheck names no top-level",
+		},
+		{
+			"registry is absent",
+			"package hookruntime\n// ze point: alpha/section/first\nfunc firstCheck() {}\n",
+			"nativeHookActions: native hook action registry is missing",
+		},
+		{
+			"Go cannot be parsed",
+			"package hookruntime\nfunc broken(\n",
+			"cannot be parsed",
+		},
 	}
+	for _, tc := range cases {
+		root := writeHookTree(t, map[string]string{"runtime.go": tc.source})
+		_, problems := nativeHookSources(root)
+		if !containsString(problems, tc.problem) {
+			t.Errorf("%s: problems %v do not mention %q", tc.name, problems, tc.problem)
+		}
+	}
+}
 
-	missing := write(t, map[string]string{".claude/settings.json": settings("pretool-a.py")})
-	if _, problems := dispatchers(missing); len(problems) != 1 ||
-		!strings.Contains(problems[0], "which does not exist") {
-		t.Errorf("a registered file that is absent was accepted: %v", problems)
+func containsString(lines []string, fragment string) bool {
+	for _, line := range lines {
+		if strings.Contains(line, fragment) {
+			return true
+		}
 	}
+	return false
+}
 
-	unwired := write(t, map[string]string{
-		".claude/settings.json":      settings("pretool-a.py"),
-		".claude/hooks/pretool-a.py": "def c_x(ctx):\n    pass\n",
-		".claude/hooks/pretool-b.py": "def c_y(ctx):\n    pass\n",
-	})
-	if _, problems := dispatchers(unwired); len(problems) != 1 ||
-		!strings.Contains(problems[0], "so its checks never fire") {
-		t.Errorf("a dispatcher no entry runs was accepted: %v", problems)
+func TestCurrentNativeHookChecksAreBound(t *testing.T) {
+	root := filepath.Clean("../../..")
+	sources, problems := nativeHookSources(root)
+	if len(problems) != 0 {
+		t.Fatalf("native hook roster: %v", problems)
 	}
-
-	// An unreadable settings.json is a failure rather than an empty roster: an
-	// empty roster reads as "no dispatchers exist", which is never true here.
-	if _, problems := dispatchers(t.TempDir()); len(problems) != 1 ||
-		!strings.Contains(problems[0], "the dispatcher roster is unknown") {
-		t.Errorf("an absent settings.json answered an empty roster: %v", problems)
+	gateMap, err := buildGateMap(sources,
+		filepath.Join(root, filepath.FromSlash(pointsRel)), root)
+	if err != nil {
+		t.Fatalf("buildGateMap: %v", err)
 	}
-	broken := write(t, map[string]string{".claude/settings.json": "{not json\n"})
-	if _, problems := dispatchers(broken); len(problems) != 1 ||
-		!strings.Contains(problems[0], "the dispatcher roster is unknown") {
-		t.Errorf("a malformed settings.json answered an empty roster: %v", problems)
+	if len(gateMap.Dangling) != 0 {
+		t.Fatalf("native hook bindings name missing points: %+v", gateMap.Dangling)
 	}
-	empty := write(t, map[string]string{".claude/settings.json": "{}\n"})
-	if _, problems := dispatchers(empty); len(problems) != 1 ||
-		!strings.Contains(problems[0], "must not report success") {
-		t.Errorf("settings.json with no PreToolUse entry was accepted: %v", problems)
+	fragments := []string{
+		"bash-pretool-native-go.md", "the-bash-checks-and-what-each-one-blocks.md",
+		"write-edit-pretool-native-go.md", "the-write-edit-checks-and-what-each-one-blocks.md",
+		"agent-skill-pretool-native-go.md", "the-task-agent-checks-and-what-each-one-blocks.md",
+		"posttooluse-checks-run-after-the-tool-completes.md", "the-posttooluse-checks-and-what-each-one-does.md",
+	}
+	var published strings.Builder
+	for _, name := range fragments {
+		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(pointsRel),
+			docRule, "hook-to-rule-mapping", name))
+		if err != nil {
+			t.Fatalf("published fragment %s: %v", name, err)
+		}
+		published.Write(body)
+		published.WriteByte('\n')
+	}
+	if problems := hookTableProblems(gateMap, published.String(), sources); len(problems) != 0 {
+		t.Fatalf("published native hook rows: %v", problems)
 	}
 }
 
@@ -247,22 +214,43 @@ func TestAnEscapedPipeInsideACellIsContent(t *testing.T) {
 	}
 }
 
-func TestThePublishedTableIsReadUnderItsHeading(t *testing.T) {
-	doc := "## The `pretool-x.py` dispatcher\n\n" + tableHead + " Triggers on |\n" +
+func TestThePublishedTableIsReadUnderItsGoSourceHeading(t *testing.T) {
+	doc := "## Bash (`internal/le/hookruntime/bash.go`)\n\n" + tableHead + " Triggers on |\n" +
 		"|---|---|---|\n" +
-		"| `c_first` | `alpha.md` | always |\n" +
-		"| `c_third` | nothing | always |\n" +
+		"| `firstCheck` | `alpha.md` | always |\n" +
+		"| `unboundCheck` | nothing | always |\n" +
 		"\nprose after the table\n" +
-		"| `c_never` | `alpha.md` | not a row |\n"
-	rows := publishedRows(doc)["pretool-x.py"]
+		"| `neverCheck` | `alpha.md` | not a row |\n"
+	rows := publishedRows(doc)["bash.go"]
 	if len(rows) != 2 {
 		t.Fatalf("publishedRows found %d rows: %+v", len(rows), rows)
 	}
-	if rows[0].Check != "c_first" || rows[0].Enforces != "`alpha.md`" {
+	if rows[0].Check != "firstCheck" || rows[0].Enforces != "`alpha.md`" {
 		t.Errorf("the first row is %+v", rows[0])
 	}
-	if rows[1].Check != "c_third" {
+	if rows[1].Check != "unboundCheck" {
 		t.Errorf("the second row is %+v", rows[1])
+	}
+}
+
+func TestPublishedRowsMustMatchNativeBindings(t *testing.T) {
+	gm := gateMap{
+		Points: map[string]string{"alpha/section/first": kindDirective},
+		Bindings: []Binding{
+			{File: "bash.go", Check: "firstCheck", Ref: "alpha/section/first"},
+			{File: "bash.go", Check: "unboundCheck", Reason: "none"},
+		},
+	}
+	doc := "## Bash (`bash.go`)\n\n" + tableHead + " Triggers on |\n" +
+		"|---|---|---|\n" +
+		"| `firstCheck` | `alpha.md` | always |\n" +
+		"| `unboundCheck` | no rule | always |\n"
+	if problems := hookTableProblems(gm, doc, map[string]string{"bash.go": "package hookruntime\n"}); len(problems) != 0 {
+		t.Fatalf("matching published rows were refused: %v", problems)
+	}
+	missing := strings.Replace(doc, "| `firstCheck` | `alpha.md` | always |\n", "", 1)
+	if problems := hookTableProblems(gm, missing, map[string]string{"bash.go": "package hookruntime\n"}); !containsString(problems, "firstCheck") {
+		t.Fatalf("a missing published row passed: %v", problems)
 	}
 }
 
@@ -343,14 +331,14 @@ func TestTheCorpusRatchetReportsIdentityNotACount(t *testing.T) {
 }
 
 func TestARenamedPointCannotBeLaunderedIntoDeclaredNone(t *testing.T) {
-	gm := GateMap{
+	gm := gateMap{
 		Points: map[string]string{"alpha/s/live": kindDirective},
 		Gated:  map[string][]Binding{},
 		Unbound: []Binding{
-			{File: "pretool-x.py", Check: "c_first", Reason: "moved on"},
+			{File: "bash.go", Check: "firstCheck", Reason: "moved on"},
 		},
 	}
-	baseline := map[string]map[string]bool{"c_first": {"alpha/s/renamed": true}}
+	baseline := map[string]map[string]bool{"firstCheck": {"alpha/s/renamed": true}}
 
 	got := unboundRegressions(gm, baseline, nil)
 	if len(got) != 1 || !strings.Contains(got[0], "named alpha/s/renamed at HEAD, declares `none` now") {
@@ -361,18 +349,18 @@ func TestARenamedPointCannotBeLaunderedIntoDeclaredNone(t *testing.T) {
 		t.Errorf("a declared retirement was still a regression: %v", got)
 	}
 	// A PARTIAL declaration still lost a gate.
-	baseline["c_first"]["alpha/s/other"] = true
+	baseline["firstCheck"]["alpha/s/other"] = true
 	if got := unboundRegressions(gm, baseline, map[string]bool{"alpha/s/renamed": true}); len(got) != 1 {
 		t.Errorf("a partial declaration excused the whole check: %v", got)
 	}
 }
 
 func TestAPointGatedAtHeadAndGatedByNothingNowFails(t *testing.T) {
-	gm := GateMap{
+	gm := gateMap{
 		Points: map[string]string{"alpha/s/live": kindDirective},
 		Gated:  map[string][]Binding{},
 	}
-	baseline := map[string]map[string]bool{"c_first": {"alpha/s/live": true, "alpha/s/deleted": true}}
+	baseline := map[string]map[string]bool{"firstCheck": {"alpha/s/live": true, "alpha/s/deleted": true}}
 	got := gatedRegressions(gm, baseline)
 	// A point that no longer EXISTS is outside this gate. Its instruction can
 	// leave through a rule-content diff that a reader sees in review.
@@ -439,13 +427,13 @@ func TestAPointCannotExceptItself(t *testing.T) {
 }
 
 func TestTheGateMapReadingNothingIsNeverAPass(t *testing.T) {
-	empty := fillCoverage(GateMap{}, true, true)
+	empty := fillCoverage(gateMap{}, true, true)
 	if !empty.Failed() || len(empty.Empty) != 1 ||
 		!strings.Contains(empty.Empty[0], "no points under ai/rules/points/") {
 		t.Fatalf("an empty corpus passed: %+v", empty)
 	}
-	noBindings := fillCoverage(GateMap{Points: map[string]string{"a/s/p": kindDirective}}, true, true)
-	if !noBindings.Failed() || !strings.Contains(noBindings.Empty[0], "no `# ze point:` binding") {
+	noBindings := fillCoverage(gateMap{Points: map[string]string{"a/s/p": kindDirective}}, true, true)
+	if !noBindings.Failed() || !strings.Contains(noBindings.Empty[0], "no `// ze point:` binding") {
 		t.Fatalf("a corpus with no binding passed: %+v", noBindings)
 	}
 }
@@ -453,15 +441,15 @@ func TestTheGateMapReadingNothingIsNeverAPass(t *testing.T) {
 func TestAMissingBaselinePrintsItsAbsenceRatherThanAZero(t *testing.T) {
 	// A ratchet that ran against nothing must say so: a zero printed over a
 	// comparison that never ran is the permissive answer the guard refuses.
-	gm := GateMap{
+	gm := gateMap{
 		Points:   map[string]string{"a/s/p": kindDirective},
-		Bindings: []Binding{{File: "pretool-x.py", Check: "c_x", Ref: "a/s/p"}},
-		Gated:    map[string][]Binding{"a/s/p": {{Check: "c_x", Ref: "a/s/p"}}},
+		Bindings: []Binding{{File: "bash.go", Check: "firstCheck", Ref: "a/s/p"}},
+		Gated:    map[string][]Binding{"a/s/p": {{Check: "firstCheck", Ref: "a/s/p"}}},
 	}
 	report := fillCoverage(gm, false, false)
 	page := report.Text()
 	if !strings.Contains(page, "REGRESSED: no HEAD baseline") {
-		t.Errorf("the page does not say the dispatcher ratchet did not run: %s", page)
+		t.Errorf("the native source ratchet absence is not reported: %s", page)
 	}
 	if !strings.Contains(page, "SHRUNK: no HEAD point baseline") {
 		t.Errorf("the page does not say the corpus ratchet did not run: %s", page)
@@ -474,7 +462,7 @@ func TestAMissingBaselinePrintsItsAbsenceRatherThanAZero(t *testing.T) {
 func TestTheCoverageAnswerIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	report := CoverageReport{
 		Points: 1, Bindings: 1,
-		Gated:            []GatedPoint{{Ref: "a/s/p", Checks: []string{"c_x"}}},
+		Gated:            []GatedPoint{{Ref: "a/s/p", Checks: []string{"firstCheck"}}},
 		MissingRationale: []MissingLink{{Ref: "a/s/p", Target: "x.md", Why: "no such record"}},
 	}
 	raw, err := json.Marshal(&report)
@@ -490,8 +478,7 @@ func TestTheCoverageAnswerIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 			t.Errorf("the payload has no %s key: %s", key, raw)
 		}
 	}
-	// The VALUES carry Python check names, which are snake_case by their own
-	// convention, so only the keys are read here.
+	// The values carry Go function names; only JSON keys are checked here.
 	var decoded map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		t.Fatalf("decoding the report: %v", err)

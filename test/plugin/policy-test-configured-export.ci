@@ -9,74 +9,6 @@ option=timeout:value=20s
 option=bind:value=0.0.0.0
 EOF_PEER
 
-tmpfs=policy-test-export.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Valid BGP UPDATE: marker(16) + len=0x003E(62) + type=2 + body
-    # ORIGIN=IGP, AS_PATH=[64496 64512 64497], NEXT_HOP=1.1.1.1, LOCAL_PREF=100, NLRI=10.0.0.0/24
-    update_hex = 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020E02030000FBF00000FC000000FBF14003040101010140050400000064180A0000'
-
-    result = dispatch(api, f'show policy test peer receiver-peer export update {update_hex}')
-    status = result.get('status', '')
-    if status == 'error':
-        # The daemon now supports the dry-run; an error here is a real
-        # regression in command wiring or reactor dispatch, so fail.
-        error = result.get('error', '')
-        runtime_fail(f'dry-run returned error: {error}')
-        print(f'FAIL: dry-run returned error: {error}', file=sys.stderr)
-        sys.exit(1)
-
-    if status != 'done':
-        runtime_fail(f'unexpected status: {status}')
-        print(f'FAIL: unexpected status: {status}', file=sys.stderr)
-        sys.exit(1)
-
-    data = result.get('data', {})
-    if isinstance(data, str):
-        data = json.loads(data)
-    if not isinstance(data, dict):
-        runtime_fail(f'data is not a dict: {type(data)}')
-        print(f'FAIL: data is not a dict: {type(data)}', file=sys.stderr)
-        sys.exit(1)
-
-    direction = data.get('direction', '')
-    if direction != 'export':
-        runtime_fail(f'direction = {direction}, want export')
-        print(f'FAIL: direction = {direction}, want export', file=sys.stderr)
-        sys.exit(1)
-
-    action = data.get('action', '')
-    if action not in ('accept', 'modify', 'reject'):
-        runtime_fail(f'unexpected action: {action}')
-        print(f'FAIL: unexpected action: {action}', file=sys.stderr)
-        sys.exit(1)
-
-    print(f'OK: show policy test export returned action={action} direction={direction}')
-    print(f'OK: trace entries: {len(data.get("trace", []))}')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -84,7 +16,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-test-export {
-		run ./policy-test-export.run
+		run "ze-test fixture plugin/policy-test-configured-export"
 		encoder json
 	}
 }

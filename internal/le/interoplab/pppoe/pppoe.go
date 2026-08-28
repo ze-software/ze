@@ -1,4 +1,4 @@
-// Design: test/interop-pppoe/run.py -- accel-ppp and pppd Docker interop gate.
+// Design: native accel-ppp and pppd Docker interop gate.
 // Related: scenarios.go -- typed container plans for both PPPoE roles.
 // Related: check_client.go -- Ze client assertions against accel-ppp.
 // Related: check_ac.go -- Ze access-concentrator assertions against pppd.
@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -44,7 +45,7 @@ const (
 	zeConfigPath       = "/etc/ze/ze.conf"
 )
 
-// Options carries the producer's exact scenario selector and build controls.
+// Options carries the native scenario selector and image-build controls.
 type Options struct {
 	Scenario string
 	NoBuild  bool
@@ -63,8 +64,12 @@ func Run(ctx context.Context, options Options) interoplab.SuiteReport {
 // RunAt runs the native PPPoE interop suite against root.
 func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteReport {
 	environment := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{
-		SuffixVariable: "ZE_PPPOE_INTEROP_SUFFIX",
+		SelectorVariable: "ZE_PPPOE_INTEROP_SCENARIO",
+		SuffixVariable:   "ZE_PPPOE_INTEROP_SUFFIX",
 	})
+	if options.Scenario == "" {
+		options.Scenario = environment.Selector
+	}
 	if options.Suffix == "" {
 		options.Suffix = environment.Suffix
 	}
@@ -107,6 +112,16 @@ func checkers() map[string]interoplab.Checker {
 		"01-pppoe-chap-ipv4":   checkZeClient,
 		"02-ze-ac-pppd-client": checkZeAccessConcentrator,
 	}
+}
+
+// ScenarioNames returns every typed PPPoE scenario in lexical selection order.
+func ScenarioNames() []string {
+	names := make([]string, 0, len(checkers()))
+	for name := range checkers() {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func imageBuilds(root string) []interoplab.ImageBuild {

@@ -41,7 +41,7 @@ func TestSnapshotViewJSON(t *testing.T) {
 	var got string
 	h := testSnapshotHandlers(`[{"k":42}]`, &got)
 	v := viewSpec{command: "show test neighbor", title: "T Neighbors", streamPath: "/t/stream", eventName: "neighbors"}
-	req := httptest.NewRequest("GET", "/t?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/t?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.handleView(v)(rec, req)
 
@@ -59,7 +59,7 @@ func TestSnapshotViewJSON(t *testing.T) {
 func TestSnapshotViewHTML(t *testing.T) {
 	h := testSnapshotHandlers(`[]`, nil)
 	v := viewSpec{command: "show test", title: "T Neighbors", streamPath: "/t/stream", eventName: "neighbors"}
-	req := httptest.NewRequest("GET", "/t", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/t", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.handleView(v)(rec, req)
 
@@ -82,8 +82,8 @@ func TestSSESnapshotNewlineSafety(t *testing.T) {
 	// snapshot reaches the SSE writer and the frame stays one intact event.
 	h := testSnapshotHandlers("{\n\"k\":1}", nil)
 	v := viewSpec{command: "show test", title: "T", streamPath: "/t/stream", eventName: "neighbors"}
-	ctx, cancel := context.WithCancel(context.Background())
-	req := httptest.NewRequest("GET", "/t/stream", http.NoBody).WithContext(ctx)
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/t/stream", http.NoBody).WithContext(ctx)
 	rec := httptest.NewRecorder()
 
 	done := make(chan struct{})
@@ -116,7 +116,7 @@ func TestSSESnapshotNewlineSafety(t *testing.T) {
 func TestSnapshotViewNoDispatch(t *testing.T) {
 	h := &snapshotHandlers{errNoDispatch: errors.New("no dispatch"), unavailableMsg: "test engine unavailable"}
 	v := viewSpec{command: "show test", title: "T", streamPath: "/t/stream", eventName: "e"}
-	req := httptest.NewRequest("GET", "/t?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/t?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.handleView(v)(rec, req)
 	if rec.Code != 503 {

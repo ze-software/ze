@@ -12,111 +12,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=system-kernel-log-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def eor_on_wire(result):
-    """True once peer1's initial-sync End-of-RIB has been written."""
-    if result.get('status') != 'done':
-        return False
-    data = result_text_data(result, '{}')
-    try:
-        parsed = json.loads(data) if isinstance(data, str) else data
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    if not isinstance(parsed, dict):
-        return False
-    peers = parsed.get('peers', {})
-    if not isinstance(peers, dict):
-        return False
-    return any(isinstance(row, dict) and row.get('eor-sent', 0) >= 1
-               for row in peers.values())
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # peer1 is scaffolding: it hosts this observer plugin and has nothing to do
-    # with the kernel log. It is still a real BGP session, and the peer block
-    # above asserts its initial-sync End-of-RIB, so wait for that EOR to reach
-    # the wire before this script's work leads to `request shutdown`. Without
-    # the wait the assertion is reachable only by luck -- the observer finished
-    # first, ze closed the session inside the OPEN handshake, and ze-peer
-    # reported "connection closed before completion". Same gate, same reason, as
-    # l2tp-sessions-show.ci. No plugin binds send [ update ] here, so
-    # apiSendCount is 0 and the EOR follows establishment immediately.
-    synced = api.dispatch_until(
-        'show bgp peer peer1 detail', eor_on_wire, attempts=60,
-    )
-    if not eor_on_wire(synced):
-        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        resp = dispatch(api, 'show system kernel-log count 5')
-        status = resp.get('status')
-        if status is None:
-            runtime_fail(f'kernel-log: dispatch returned no status: {resp}')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and 'not available on this platform' in data:
-            print(f'OK: kernel-log not available on this platform (expected on non-Linux)', file=sys.stderr)
-            return
-
-        # Third outcome, and the one this test used to fail on: Linux, handler
-        # present, kernel says no. /dev/kmsg is world-readable but a reader
-        # without CAP_SYSLOG is refused while kernel.dmesg_restrict=1 -- the
-        # default on Debian/Ubuntu and on the GitHub runners, so CI reached this
-        # branch on EVERY run. That is a property of the HOST, not of ze, and the
-        # dispatch path under test (command -> ze-show:system-kernel-log ->
-        # handleShowSystemKernelLog -> a structured response) is fully exercised
-        # by getting here. Matched on the handler's own prefix
-        # (kmsgDeniedPrefix, internal/plugins/host-cmd/cmd/show_kernel_log_linux.go)
-        # rather than on 'error', so any OTHER error still fails the test.
-        if isinstance(data, str) and 'kernel log unavailable' in data:
-            print(f'OK: kernel-log refused by host policy: {data}', file=sys.stderr)
-            return
-
-        if status != 'done':
-            runtime_fail(f'kernel-log: status={status} data={data}')
-
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-
-        if 'entries' not in data:
-            runtime_fail(f'kernel-log: missing "entries" in {data}')
-        if 'count' not in data:
-            runtime_fail(f'kernel-log: missing "count" in {data}')
-
-        print(f'OK: kernel-log returned count={data["count"]}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external system-kernel-log-show-test {
-		run ./system-kernel-log-show-test.run
+		run "ze-test fixture plugin/system-kernel-log-show"
 		encoder json
 	}
 }

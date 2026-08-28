@@ -60,7 +60,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - [ ] `ai/rules/completion.md` - every exported symbol has a non-test caller.
   → Decision: this spec is the first production caller of `ListSAs`, and of `ownerOf` in `internal/component/ike/dataplane/policy_owner.go`.
 - [ ] `ai/rules/platform-linux.md` - Linux-only code ships with QEMU tests.
-  → Constraint: `//go:build integration && linux` files are auto-enrolled by `ZE_QEMU_INTEGRATION_PKGS` (`mk/test-integration.mk`), which greps for that build line, so a new file in an already-enrolled package needs no Makefile edit.
+  → Constraint: `//go:build integration && linux` files are auto-enrolled by `ZE_QEMU_INTEGRATION_PKGS` (`internal/le/integration/gates.go`), which greps for that build line, so a new file in an already-enrolled package needs no the native action tables under `internal/le/` edit.
 - [ ] `ai/rules/plugins.md` - removing the plugin removes the feature.
   → Constraint: the commands, their YANG, and their handlers stay in `internal/component/ike/`. `xfrmAvailable` (`internal/plugins/ospf/doctor_ipsec_linux.go`) is unexported and belongs to OSPF. Duplicate its two-line probe in the ike package rather than creating a cross-plugin dependency.
 
@@ -97,7 +97,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - [ ] `internal/appliance/kernelreq.go` - `runtimeKernelRequirements` lists `CONFIG_MODULES`, `CONFIG_PPP`, `CONFIG_PPPOE`, `CONFIG_L2TP`, `CONFIG_PPPOL2TP`, `CONFIG_L2TP_V3`. `enforceKernelRequirements` unions the profile manifests with this floor and fails the build when a symbol is not `=y`.
 - [ ] `gokrazy/kernel/kernel.config` - holds `CONFIG_XFRM_USER=y`. No fragment holds `CONFIG_INET_ESP` or `CONFIG_XFRM_STATISTICS`.
 - [ ] `test/interop-ipsec/lab.py` - `ze_xfrm_state`, `ze_xfrm_policy`, `wait_xfrm_sa`, `check_xfrm_sa_count`, `xfrm_sa_bytes_by_spi`, and `assert_esp_accepted` all run iproute2 through `docker_exec_quiet`. There is no helper that runs a `ze` CLI command.
-- [ ] `scripts/evidence/qemu-all-tests.sh` - 23 `fsuite` lines. None of them is `ipsec`.
+- [ ] `internal/le/qemu/alltests.go` - 23 `fsuite` lines. None of them is `ipsec`.
 - [ ] `gokrazy/ze/config.json` - image packages are `cmd/ze-serial-shell` and `cmd/ze`, plus gokrazy `randomd` and `heartbeat`.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
@@ -162,9 +162,9 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | A-1 | `netlink.XfrmState.Statistics` is populated by a plain `XfrmStateList` dump, without a per-SA `XFRM_MSG_GETSA` round trip | vendored `xfrm_state_linux.go` declares `Statistics XfrmStateStats` on the dump-parsed struct | the byte counters need a second netlink call per SA, which changes the handler and the interop assertions | `TestXFRMReadbackCountersAdvance` sends traffic through a known SA and asserts the counter rises | **confirmed** 2026-08-03: `XfrmStateList` parses every dump message through `parseXfrmState` and then `xfrmStateFromXfrmUsersaInfo` (vendored `xfrm_state_linux.go`), which calls `curToStats` into `state.Statistics`. The same function fills `Mode`, `Reqid`, `ReplayWindow`, `Limits` and `Selector`. No second round trip |
 | A-2 | `policy_owner.go` lands on main before this spec is implemented | the file is untracked in the working tree at the time of writing | the policy view drops its Owner column and `ownerOf` stays unwired | grep for `ownerOf` on main before starting Phase 3 | **confirmed** 2026-08-03: the file is tracked, and `policyOwners.ownerOf` exists in `internal/component/ike/dataplane/policy_owner.go`. Phase 3's stop condition does not fire |
 | A-3 | An appliance kernel with `CONFIG_XFRM_USER=y` lists nothing for `xfrm_user` in `/proc/modules`, so `checkKernelModules` reports a false error today | `loadedKernelModules` reads `/proc/modules`, which lists loaded modules only; built-in code never appears there | the module check is correct and only the ESP floor is missing | run `ze doctor` in QEMU against an IPsec config on the appliance kernel and observe the diagnostic | **confirmed at source** 2026-08-03: `readLoadedModules` (`internal/component/doctor/checks_linux.go`) parses `/proc/modules` alone, and `checkKernelModules` in the same file appends `xfrm_user` and `xfrm_algo`. Observing the diagnostic on a built-in kernel still needs QEMU |
-| A-4 | A `.ci` under `option=needs-linux:caps=net-admin` can run the real xfrm backend once `fsuite ipsec` is added to the QEMU runner | `ikeDataplaneName()` defaults to `xfrm` when no override is set; other suites already run with that option | the kernel-level `.ci` has no home and the evidence must come from the Go integration tier alone | add the `fsuite` line and run `make ze-qemu-integration-test` | unvalidated. `scripts/evidence/qemu-all-tests.sh` carries 23 `fsuite` lines and none is `ipsec`; `caps=net-admin` is already used by several `test/reload/*.ci`. Settled only by a QEMU run |
+| A-4 | A `.ci` under `option=needs-linux:caps=net-admin` can run the real xfrm backend once `fsuite ipsec` is added to the QEMU runner | `ikeDataplaneName()` defaults to `xfrm` when no override is set; other suites already run with that option | the kernel-level `.ci` has no home and the evidence must come from the Go integration tier alone | add the `fsuite` line and run `./le qemu run command "./le qemu all-tests"` | unvalidated. `internal/le/qemu/alltests.go` carries 23 `fsuite` lines and none is `ipsec`; `caps=net-admin` is already used by several `test/reload/*.ci`. Settled only by a QEMU run |
 | A-5 | `XfrmPolicyList` returns the policies IKE installs at `if_id 0`, so the SPD dump is not limited to xfrm-interface peers | `GetXFRMInfo` (`internal/plugins/iface/netlink/xfrm_linux.go`) filters the same call by `Ifid`, which implies the unfiltered call returns all of them | the SPD dump misses site-to-site policies, which is most of them | `TestXFRMReadbackPolicyNoIfID` installs a policy with `IfID` zero and asserts the dump returns it | unvalidated. Settled only by a real kernel, and not upgraded on inference |
-| A-6 | Returning `ErrNotSupported` from the noop backend does not break an existing functional test | no `.ci` calls `ListSAs` today, because no production caller exists | a `.ci` goes red and the change needs a different shape | `make ze-precommit-verify` after Phase 1 | **confirmed** 2026-08-03: `make ze-functional-ipsec-test` is 13/13 with the change in place, including the new `ipsec-dataplane-show.ci`. Earlier runs of the same suite showed 1 to 3 reds that did not reproduce (privileged UDP 500 bind, NAT-T 4500 contention under parallelism); those are load-sensitive and independent of this change |
+| A-6 | Returning `ErrNotSupported` from the noop backend does not break an existing functional test | no `.ci` calls `ListSAs` today, because no production caller exists | a `.ci` goes red and the change needs a different shape | `./le verify current mode full` after Phase 1 | **confirmed** 2026-08-03: the retired `ze-functional-ipsec-test` (current: `./le functional ipsec`) is 13/13 with the change in place, including the new `ipsec-dataplane-show.ci`. Earlier runs of the same suite showed 1 to 3 reds that did not reproduce (privileged UDP 500 bind, NAT-T 4500 contention under parallelism); those are load-sensitive and independent of this change |
 | A-7 | A kernel policy row from `XfrmPolicyList` inverts back to the `policySelectorKey` that `ownerOf` compares, losslessly, for every policy Ze itself installs | `xfrmSelectorPort` (`internal/component/ike/dataplane/xfrm_linux.go`) REFUSES any port mask other than 0 or `0xffff`, so Ze installs two port shapes and both invert; every other key field (src, dst, dir, upper proto, ifindex, if_id) appears verbatim on `netlink.XfrmPolicy` | the owner join is unsound and the Owner column must be dropped rather than guessed | `TestPolicyOwnerJoinRoundTrips` covers both port shapes and the wildcard prefix | **confirmed** 2026-08-03, by reading `xfrmSelectorPort` and the vendored `parseXfrmPolicy` |
 
 ### Risks
@@ -304,7 +304,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - `internal/appliance/kernelreq.go` - add the ESP symbols to `runtimeKernelRequirements`
 - `gokrazy/kernel/runtime.config` - set the ESP and XFRM statistics symbols
 - `gokrazy/kernel/runtime.require` - list the bare symbols
-- `scripts/evidence/qemu-all-tests.sh` - add the `fsuite ipsec` line
+- `internal/le/qemu/alltests.go` - add the `fsuite ipsec` line
 - `test/interop-ipsec/lab.py` - add the `ze_cli` helper beside `ze_xfrm_state`
 - `docs/guide/ipsec.md` - document the new commands and add a troubleshooting section
 - `docs/guide/command-reference.md` - the three new commands
@@ -365,7 +365,7 @@ command grammar has advertised since 2026-06-03 and never emitted.
 1. **Phase: Wiring (MANDATORY FIRST)** - register the three commands as stubs and prove they are reachable
    - Tests: `TestShowDataplaneSARegistered`, `TestShowDataplanePolicyRegistered`, `TestShowDataplaneDriftRegistered`, `ipsec-dataplane-show.ci`
    - Files: `internal/component/ike/yang/ze-ipsec-cmd.yang`, `internal/component/ike/yang/cmd_schema_test.go`, `internal/component/ike/cmd/show_dataplane.go`, `internal/component/ike/cmd/show_ipsec.go`
-   - Verify: `make ze-command-contract-check` passes (it fails a `ze:command` with no handler and a handler with no `ze:command`), and the wiring tests fail on the stub bodies
+   - Verify: `./le docvalid command-contract` passes (it fails a `ze:command` with no handler and a handler with no `ze:command`), and the wiring tests fail on the stub bodies
 2. **Phase: Dataplane read contract** - widen the interface and close the fail-open backends
    - Tests: `TestNoopListSAsNotSupported`, `TestVPPListSAsNotSupported`, `TestXFRMReadbackShowsInstalledSA`, `TestXFRMReadbackIfIDFilter`, `TestXFRMReadbackPolicyNoIfID`
    - Files: `dataplane.go`, `xfrm_linux.go`, `xfrm_other.go`, `vpp.go`, `noop.go`, `xfrm_readback_integration_linux_test.go`
@@ -388,11 +388,11 @@ command grammar has advertised since 2026-06-03 and never emitted.
    - Verify: the kernel floor change and the config fragment change land together, or the appliance build fails
 7. **Phase: Kernel-level and interop evidence** - prove it against a real kernel and a real peer
    - Tests: `ipsec-show-dataplane-kernel.ci`, scenario `dataplane-readback`
-   - Files: `scripts/evidence/qemu-all-tests.sh`, `test/interop-ipsec/lab.py`, `test/interop-ipsec/scenarios/dataplane-readback/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
+   - Files: `internal/le/qemu/alltests.go`, `test/interop-ipsec/lab.py`, `test/interop-ipsec/scenarios/dataplane-readback/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
    - Verify: revert the read handler and confirm the interop assertion fails. An SPI set that is empty on both sides is the vacuity trap, so assert non-empty before asserting equality
 8. **Phase: Documentation** - every row of the Documentation checklist marked Yes
    - Files: as listed in that checklist
-   - Verify: `make ze-doc-verify` and `make ze-repository-check`
+   - Verify: `./le doc-check verify` and `./le repository check`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -412,14 +412,14 @@ command grammar has advertised since 2026-06-03 and never emitted.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Three commands registered and reachable | `bin/ze cli -c 'show vpn ipsec dataplane sa'` returns a response, and `make ze-command-contract-check` passes |
+| Three commands registered and reachable | `bin/ze cli -c 'show vpn ipsec dataplane sa'` returns a response, and `./le docvalid command-contract` passes |
 | `ListSAs` has a production caller | grep for `ListSAs` outside `_test.go` returns a handler |
 | `ListPolicies` exists on every backend | `go build ./...` with the `ze_vpp` tag set and unset |
 | Byte counters present | `test/ipsec/ipsec-show-sa-counters.ci` passes |
 | Doctor check registered | `bin/ze doctor --json <conf>` lists the code, and `ze explain doctor-ipsec-xfrm-unavailable` resolves |
-| Kernel floor enforced | `make ze-appliance-kernel` fails when the ESP symbol is removed from the fragment |
-| QEMU suite wired | `rg 'fsuite ipsec' scripts/evidence/qemu-all-tests.sh` matches |
-| Interop scenario passes | `make ze-interop-ipsec-test` includes `dataplane-readback` |
+| Kernel floor enforced | `ze appliance kernel` fails when the ESP symbol is removed from the fragment |
+| QEMU suite wired | `rg 'fsuite ipsec' internal/le/qemu/alltests.go` matches |
+| Interop scenario passes | `./le integration interop-ipsec` includes `dataplane-readback` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -462,7 +462,7 @@ a delegated agent. Phases 7 and 8 are OPEN.
 
 Still to do, none of it started:
 - `test/ipsec/ipsec-show-dataplane-kernel.ci` and `test/ipsec/ipsec-show-sa-counters.ci`
-- the `fsuite ipsec` line in `scripts/evidence/qemu-all-tests.sh`, and a QEMU run
+- the `fsuite ipsec` line in `internal/le/qemu/alltests.go`, and a QEMU run
 - the `ze_cli` helper in `test/interop-ipsec/lab.py` and scenario `dataplane-readback`
 - the two Prometheus gauges named in the Integration Checklist
 - Phase 8 documentation, except `docs/architecture/testing/ci-format.md` which is done
@@ -510,7 +510,7 @@ and RFC 4303 Section 2.1 for the reserved SPI values the selector rejects.
 - [ ] AC-1..AC-13 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -528,7 +528,7 @@ and RFC 4303 Section 2.1 for the reserved SPI values the selector rejects.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

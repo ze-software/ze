@@ -241,7 +241,7 @@ func TestOne(t *testing.T) {
 	_ = 1
 }
 
-// RFC requirement: RFC9999-2-1 positive -- hoisted above the doc comment
+// ` + rfcTagMarker + ` RFC9999-2-1 positive -- hoisted above the doc comment
 var table = []int{1}
 
 // TestTwo does another.
@@ -325,8 +325,8 @@ func TestAnUnreadableFileFingerprintsAsUnequalRatherThanRefused(t *testing.T) {
 func TestTwoTagsInOneFunctionMintTwoKeys(t *testing.T) {
 	const content = `package widget
 
-// RFC requirement: RFC9999-2-1 positive -- one
-// RFC requirement: RFC9999-2-1 negative -- two
+// ` + rfcTagMarker + ` RFC9999-2-1 positive -- one
+// ` + rfcTagMarker + ` RFC9999-2-1 negative -- two
 func TestBoth(t *testing.T) {}
 `
 	index := newScopeIndex()
@@ -342,7 +342,7 @@ func TestBoth(t *testing.T) {}
 
 func TestAnAbsentAuditRecordIsAnEmptyAnswerRatherThanARefusal(t *testing.T) {
 	tree := t.TempDir()
-	found, err := LoadAudit(tree, "rfc9999")
+	found, err := loadAudit(tree, "rfc9999")
 	if err != nil {
 		t.Fatalf("an absent record was refused: %v", err)
 	}
@@ -364,7 +364,7 @@ func TestTheResealPageNamesWhatItDidAndWhatItRefused(t *testing.T) {
 	for _, want := range []string{
 		"refused rfc9999 RFC9999-2-2: stale-unit, a human must re-read it\n",
 		"re-stamped rfc9999 RFC9999-2-1\n",
-		"re-sealed 1 shifted verdict(s); 1 refused. The ledger now needs: make ze-rfc-index-update\n",
+		"re-sealed 1 shifted verdict(s); 1 refused. The ledger now needs: ./le rfc index-update\n",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the page does not carry %q:\n%s", want, page)

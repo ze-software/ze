@@ -161,10 +161,10 @@ func RunDecode(input io.Reader, output io.Writer) int {
 // vplsToJSON converts a parsed VPLS NLRI to a JSON-friendly map.
 func vplsToJSON(v *VPLS) map[string]any {
 	return map[string]any{
-		"rd":              v.RD().String(),
-		"ve-id":           v.VEID(),
-		"ve-block-offset": v.VEBlockOffset(),
-		"ve-block-size":   v.VEBlockSize(),
-		"label-base":      v.LabelBase(),
+		"rd":             v.RD().String(),
+		"ve-id":          v.VEID(),
+		keyVEBlockOffset: v.VEBlockOffset(),
+		keyVEBlockSize:   v.VEBlockSize(),
+		keyLabelBase:     v.LabelBase(),
 	}
 }

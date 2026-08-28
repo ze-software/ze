@@ -195,11 +195,11 @@ func dup(b []byte) []byte {
 func prfIDToName(id PRFID) string {
 	switch id {
 	case PRF_HMAC_SHA2_256:
-		return "sha256"
+		return hashNameSHA256
 	case PRF_HMAC_SHA2_384:
-		return "sha384"
+		return hashNameSHA384
 	case PRF_HMAC_SHA2_512:
-		return "sha512"
+		return hashNameSHA512
 	default:
 		return ""
 	}

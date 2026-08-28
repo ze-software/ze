@@ -802,8 +802,8 @@ func TestPeerDownClearsPending(t *testing.T) {
 
 // TestParseValidationState verifies all valid and invalid state values.
 //
-// VALIDATES: parseValidationState accepts "1" and "2", rejects all others.
-// PREVENTS: Invalid validation states being accepted.
+// VALIDATES: parseValidationState accepts all three RFC 6811 lookup results.
+// PREVENTS: An Invalid route that policy accepts losing its validation state.
 func TestParseValidationState(t *testing.T) {
 	tests := []struct {
 		input   string
@@ -812,8 +812,8 @@ func TestParseValidationState(t *testing.T) {
 	}{
 		{"1", ValidationValid, false},
 		{"2", ValidationNotFound, false},
+		{"3", ValidationInvalid, false},
 		{"0", 0, true},
-		{"3", 0, true},
 		{"4", 0, true},
 		{"abc", 0, true},
 		{"", 0, true},

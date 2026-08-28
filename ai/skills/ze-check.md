@@ -12,7 +12,7 @@ See also: `/ze-commit` (commit without verification), `/ze-commit-check` (commit
 ## Steps
 
 1. **Verify (if Go code changed):** Check if any `.go` files are modified. If yes:
-   run `make ze-precommit-verify` (foreground, largest timeout your harness allows). If it fails, report all failures from
+   run `./le verify worktree` (foreground, largest timeout your harness allows). If it fails, report all failures from
    `tmp/ze-verify-failures.log`. If no `.go` files changed: skip.
 2. **Show scope:** Run `git status` and `git diff --stat` to identify all changed files.
 
@@ -74,10 +74,11 @@ does the target file exist? If not: **BROKEN INDEX LINK**.
 For each memory file that references a specific file path, function, or type:
 does it still exist? Skip preference/feedback memories.
 
-### 4e. Hook script existence
+### 4e. Native hook registration
 
-For each hook in `.claude/settings.json` referencing `$CLAUDE_PROJECT_DIR/.claude/hooks/`:
-does the script exist? If not: **MISSING HOOK SCRIPT**.
+Run `./le hook-check unit`, then compare the configured hook kinds with the
+actions listed by `./le hook-check`. A configured kind with no native action is
+**MISSING HOOK ACTION**.
 
 ### 4f. Wiring check
 

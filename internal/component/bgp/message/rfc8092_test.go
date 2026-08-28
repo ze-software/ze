@@ -9,7 +9,7 @@ import (
 // RFC 8092 (BGP Large Communities) validation at the RFC 7606 UPDATE-error boundary. These
 // tests live in their own file, not in rfc7606_test.go, so a change here does not restale the
 // /ze-rfc-audit verdicts recorded for RFC 7606 (audit fingerprints are per whole file,
-// scripts/dev/rfc_requirements.py tagged_unit_shas).
+// internal/le/rfc/actions.go tagged_unit_shas).
 
 // TestRFC8092LargeCommunityMalformedLength drives ValidateUpdateRFC7606 over a LARGE_COMMUNITY
 // whose length is not a multiple of 12.

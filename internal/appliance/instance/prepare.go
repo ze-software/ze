@@ -68,7 +68,7 @@ type Options struct {
 	// Deliberately an explicit parameter rather than a probe for a well-known
 	// directory: a probe would silently give every later build a custom kernel
 	// for as long as that directory existed, which is the trap the previous
-	// tracked-go.mod approach fell into (it needed `make ze-kernel-clean` to
+	// tracked-go.mod approach fell into (it needed `native kernel builds` to
 	// undo, and nothing enforced that).
 	KernelPackage string
 }

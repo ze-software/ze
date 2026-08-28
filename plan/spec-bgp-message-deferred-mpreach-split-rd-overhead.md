@@ -120,7 +120,7 @@ query and a write can never come to different answers, for every SAFI.
 | A-1 | `(*MPReachNLRI).Len()` counts exactly the octets `WriteTo` writes | `internal/core/bgp/attribute/mpnlri.go`: `Len`, `nextHopLen`, `nextHopOctets` and `WriteTo` share `nextHopOctets` | the new overhead is wrong for some SAFI and chunks are mis-sized in the other direction | `TestSplitUpdate_VPNChunksFitMaxMessageSize` measures the ENCODED chunk, not a re-derived number | confirmed 2026-08-23: `WriteTo` sets the Length of Next Hop octet from `nextHopLen()`, writes the RD under `SAFIVPN`, skips an address with no wire form, then writes Reserved(1) and the NLRI. Its `pos - off` matches `Len()` term for term |
 | A-2 | Each chunk carries the parent's AFI, SAFI and next hops, so one overhead figure is right for every chunk | `SplitMPReachNLRIWithAddPath` builds each chunk with `attribute.NewMPReachNLRI` from the parent's fields | one chunk could need more overhead than the budget allowed | the size assertion runs over EVERY chunk, not the first | confirmed 2026-08-23: each chunk is built by `attribute.NewMPReachNLRI(mp.AFI, mp.SAFI, nhs, chunk)` from the parent's fields, and each new test asserts over every chunk in the returned slice |
 | A-3 | The splitter is the only remaining site that derives an MP_REACH next-hop size from the address family | grep of `Is4()` over `internal/component/bgp` and `internal/core/bgp`: the one size derivation is the loop in `SplitMPReachNLRIWithAddPath` | the same defect stays live on another rail | re-run the grep at implementation time and record the hits in the commit message | confirmed 2026-08-23: `grep -rn "Is4()" internal/component/bgp internal/core/bgp` re-run. Every other hit chooses a BRANCH (which attribute to add, which encode path to take, which prefix to match), never a byte count. The one size derivation was the loop in `SplitMPReachNLRIWithAddPath`, and it is gone |
-| A-4 | No existing test pins a VPN chunk count that the smaller NLRI space changes | `TestSplitMPReachNLRI_VPN` asserts chunk count greater than one and NLRI preservation only | an existing test goes red and the fix looks like a regression | run `make ze-unit-pkg-test PKG=./internal/component/bgp/message` before and after the edit | confirmed 2026-08-23: before the edit only the four NEW tests failed; after it the whole package passes, with no existing assertion edited. `TestSplitMPReachNLRI_VPN` still splits at `maxAttrSize` 100 and still preserves its NLRI |
+| A-4 | No existing test pins a VPN chunk count that the smaller NLRI space changes | `TestSplitMPReachNLRI_VPN` asserts chunk count greater than one and NLRI preservation only | an existing test goes red and the fix looks like a regression | run `go test -race ./internal/component/bgp/message` before and after the edit | confirmed 2026-08-23: before the edit only the four NEW tests failed; after it the whole package passes, with no unrelated expectation change |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -195,12 +195,12 @@ given. That gap is what makes the test discriminate.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A, not applicable: no `.ci` can reach this path today | `test/` | A `.ci` would have to make ze-build re-split a SAFI 128 UPDATE, which needs an ingress UPDATE larger than the destination's ceiling. The bulk injector that builds such an UPDATE, `option=update:value=send-bulk` (`internal/test/peer/expect.go`), emits unicast prefixes only, and the announce rail's builders never hand the splitter an UPDATE above the peer's own maximum. Extending the injector to VPN NLRI is test infrastructure, not this fix; it is recorded under Known Limitations. `TestSplitUpdate_VPNChunksFitMaxMessageSize` drives the same entry point the daemon calls, `Splitter.Split`, with the same 4096-octet ceiling | confirmed 2026-08-23, with one correction to the reason. `parseBulkSpec` derives the family from the prefix (`internal/test/peer/inject.go`), so the injector reaches IPv6 unicast through MP_REACH too (`buildV6Unicast`, AFI 2 SAFI 1), not IPv4 alone. It has no SAFI 128 path, so the conclusion is unchanged: no `.ci` reaches a VPN split |
+| N-A, not applicable: no `.ci` can reach this path today | `test/` | A `.ci` would have to the retired make ze-build (current: go build -o bin/ze ./cmd/ze) re-split a SAFI 128 UPDATE, which needs an ingress UPDATE larger than the destination's ceiling. The bulk injector that builds such an UPDATE, `option=update:value=send-bulk` (`internal/test/peer/expect.go`), emits unicast prefixes only, and the announce rail's builders never hand the splitter an UPDATE above the peer's own maximum. Extending the injector to VPN NLRI is test infrastructure, not this fix; it is recorded under Known Limitations. `TestSplitUpdate_VPNChunksFitMaxMessageSize` drives the same entry point the daemon calls, `Splitter.Split`, with the same 4096-octet ceiling | confirmed 2026-08-23, with one correction to the reason. `parseBulkSpec` derives the family from the prefix (`internal/test/peer/inject.go`), so the injector reaches IPv6 unicast through MP_REACH too (`buildV6Unicast`, AFI 2 SAFI 1), not IPv4 alone. It has no SAFI 128 path, so the conclusion is unchanged: no `.ci` reaches a VPN split |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `bgp-vpn-frr` (existing, run as a regression check) | `test/interop/scenarios/` | FRR | The VPNv4 encode rail still produces UPDATEs FRR accepts, with the RD intact and the session stable. Command: `make ze-interop-test INTEROP_SCENARIO=bgp-vpn-frr` | PASS 2026-08-23: session Established, ipv4/vpn negotiated, 10.99.0.0/24 and 10.99.1.0/24 present at FRR, RD 65001:100 verified, session stable |
+| `bgp-vpn-frr` (existing, run as a regression check) | `test/interop/scenarios/` | FRR | The VPNv4 encode rail still produces UPDATEs FRR accepts, with the RD intact and the session stable. Command: `./le integration interop INTEROP_SCENARIO=bgp-vpn-frr` | PASS 2026-08-23: session Established, ipv4/vpn negotiated, 10.99.0.0/24 and 10.99.1.0/24 present at FRR, RD 65001:100 verified, session stable |
 | No new scenario | `test/interop/scenarios/` | - | The change IS wire-visible: chunk boundaries move under SAFI 128, and today an over-size UPDATE would draw a NOTIFICATION from the peer. A scenario that reached it would have to negotiate RFC 8654 extended messages on the ingress session and a 4096-octet ceiling on the egress one. No scenario in `test/interop/scenarios/` negotiates extended messages, and the peer-side injector cannot yet build a VPN UPDATE above 4096 octets, so a scenario written today would split nothing and pass with the defect in place. That is the vacuity trap `ai/rules/interop-and-goal-validation.md` names, so the proof is placed at the splitter entry point instead | confirmed 2026-08-23: the injector has no SAFI 128 path (`internal/test/peer/inject.go` builds IPv4 unicast or AFI 2 SAFI 1), so no new scenario is written |
 
 ## Files to Modify
@@ -252,7 +252,7 @@ given. That gap is what makes the test discriminate.
 1. **Phase: Wiring (MANDATORY FIRST)** -- prove the entry point reaches the defect before changing it
    - Tests: `TestSplitUpdate_VPNChunksFitMaxMessageSize`, `TestSplitMPReachNLRI_VPNChunkFitsMaxAttrSize`
    - Files: `internal/component/bgp/message/update_split_test.go`
-   - Verify: run `make ze-unit-pkg-test PKG=./internal/component/bgp/message`. Both tests MUST FAIL against the unchanged splitter, and the failure MUST be the size assertion: a chunk `Len()` above the `maxAttrSize` given (47 against 40 for the fixture in the TDD table), and an emitted `Update.Len(nil)` above 4096. Paste that output. A failure for any other reason (a parse error, a chunk count, a panic) means the fixture is wrong, not the code: fix the fixture and repeat
+   - Verify: run `go test -race ./internal/component/bgp/message`. Both tests MUST FAIL against the unchanged splitter, and the failure MUST be the size assertion: a chunk `Len()` above the `maxAttrSize` given (47 against 40 for the fixture in the TDD table), and an emitted `Update.Len(nil)` above 4096. Paste that output. A failure for any other reason (a parse error, a chunk count, a panic) means the fixture is wrong, not the code: fix the fixture and repeat
 2. **Phase: Overhead derivation** -- one source for the encoded size
    - Tests: the two above, plus `TestSplitMPReachNLRI_VPNIPv6NextHopChunkFitsMaxAttrSize` and `TestSplitMPReachNLRI_VPNOverheadTooLargeCountsRD`
    - Files: `internal/component/bgp/message/update_split.go`
@@ -263,9 +263,9 @@ given. That gap is what makes the test discriminate.
    - Files: none. Revert the one-line change in the working tree, re-run the package, capture the red, restore the fix, re-run the package, capture the green
    - Verify: paste both outputs into the commit message. `ai/rules/interop-and-goal-validation.md` requires the reverted-red evidence, and a test that stays green with the fix reverted is worth nothing
 4. **Phase: Land it** -- gates, commit, stop
-   - Tests: `make ze-unit-pkg-test PKG=./internal/component/bgp/message`, then `make ze-lint-changed`
+   - Tests: `go test -race ./internal/component/bgp/message`, then `./le changed scope`
    - Files: the two files above, plus this spec and the deferral shard row
-   - Verify: prepare the commit with `scripts/dev/commit_helper.py create`, run the script it prints, then `make ze-repository-tracked-build-check` because the commit carries Go. Set this spec's Status to `verification` in the same commit and STOP: `Handoff | verify` gives the close to a later Opus 5 session
+   - Verify: prepare the commit with `internal/le/commit/prepare.go create`, run the script it prints, then `./le repository-tracked-build check` because the commit carries Go. Set this spec's Status to `verification` in the same commit and STOP: `Handoff | verify` gives the close to a later Opus 5 session
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -281,10 +281,10 @@ given. That gap is what makes the test discriminate.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The family-derived loop is gone | `grep -n "Is4()" internal/component/bgp/message/update_split.go` returns nothing |
-| Four new tests exist and run | `make ze-unit-pkg-test PKG=./internal/component/bgp/message` names each of them in a `-run` filter and passes |
+| Four new tests exist and run | `go test -race ./internal/component/bgp/message` names each of them in a `-run` filter and passes |
 | The chunk-size property holds at the daemon's own entry point | `TestSplitUpdate_VPNChunksFitMaxMessageSize` asserts `Update.Len(nil)` at or below 4096 for EVERY emitted chunk |
 | Non-VPN behavior unchanged | The existing split tests pass unedited; no assertion in them is relaxed |
-| The VPN encode rail still interoperates | `make ze-interop-test INTEROP_SCENARIO=bgp-vpn-frr` passes |
+| The VPN encode rail still interoperates | `./le integration interop INTEROP_SCENARIO=bgp-vpn-frr` passes |
 | The deferral row is resolved | `plan/deferrals/fixit-mpreach-split-undercounts-rd.md` names this spec as its Destination |
 
 ### Security Review Checklist
@@ -326,7 +326,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 | Site | Comment to carry |
 |------|------------------|
 | The overhead derivation in `SplitMPReachNLRIWithAddPath` | RFC 4760 Section 3 for the attribute layout, and for the 8-octet RD in front of a VPN next hop, RFC 4364 Section **4.3.2** and RFC 4659 Section 3.2.1.1, stating that the count comes from the attribute so the two can never disagree. Correction 2026-08-23: this row said Section 4.3.4, which is "How VPN-IPv4 NLRI Is Carried in BGP" and states the NLRI encoding, not the next hop. Section 4.3.2 is the one that says a VPN-IPv4 next hop "is encoded as a VPN-IPv4 address with an RD of 0". Ten existing comments carry the same wrong section and are recorded in `plan/journal/reference-checked-claim-unchecked.md` |
-| `TestSplitUpdate_VPNChunksFitMaxMessageSize` | The tag `// RFC requirement: RFC8654-4-2 positive` followed by what the test holds, in the form `scripts/dev/rfc_tagged_scope.py` reads. The requirement is already listed in `rfc/short/rfc8654.md` and already carries both polarities over the builder rail; this adds the splitter rail as evidence and removes no kind, so the evidence ratchet is unaffected |
+| `TestSplitUpdate_VPNChunksFitMaxMessageSize` | The tag `// RFC requirement: RFC8654-4-2 positive` followed by what the test holds, in the form `internal/le/` reads. The requirement is already listed in `rfc/short/rfc8654.md` and already carries both polarities over the builder rail; this adds the splitter rail as evidence and removes no kind, so the evidence ratchet is unaffected |
 
 ## Checklist
 
@@ -334,7 +334,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes, or the scoped gates plus an attribution are recorded per `ai/rules/git-safety.md` for a shared checkout
+- [ ] `./le verify current mode full` passes, or the scoped gates plus an attribution are recorded per `ai/rules/git-safety.md` for a shared checkout
 - [ ] Feature code integrated (`internal/*`), not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -352,7 +352,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

@@ -355,7 +355,7 @@ func TestOpenHeaderEqualCoversEveryOpenField(t *testing.T) {
 // peer whose settings are being written on another goroutine.
 //
 // VALIDATES: reconcilePeersJournaled (reactor_api.go) reads the running peer's
-// settings through Peer.SettingsSnapshot (peer.go), which takes p.mu. That read is
+// settings through Peer.settingsSnapshot (peer.go), which takes p.mu. That read is
 // a WHOLE-STRUCT read -- peerSettingsEqual, then the c := *current copy and the
 // Capabilities read inside peerSettingsSwapPlan (peer_settings_apply.go) -- so the
 // per-field accessors do not serve it and the live pointer must not be used.
@@ -369,9 +369,9 @@ func TestOpenHeaderEqualCoversEveryOpenField(t *testing.T) {
 // its own and would report ITS race rather than this one
 // (plan/deferrals/fixit-dynamic-peer-settings-unlocked-read.md).
 //
-// DISCRIMINATION: this test asserts nothing by itself. It is a RACE DETECTOR test,
-// and it is evidence only under -race (make ze-unit-reactor-test-race). Reverting
-// SettingsSnapshot to Settings in reconcilePeersJournaled makes it report the write
+// DISCRIMINATION: this test asserts nothing by itself. It is a RACE DETECTOR
+// test, and it is evidence only under `./le test-unit bgp`. Reverting
+// settingsSnapshot to Settings in reconcilePeersJournaled makes it report the write
 // below against the read in the reconcile.
 func TestReloadDecisionReadsPeerSettingsUnderLock(t *testing.T) {
 	current := negotiationSettings(capIPv4())

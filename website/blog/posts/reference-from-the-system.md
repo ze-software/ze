@@ -110,7 +110,7 @@ RFC sentence
   -> public support row
 ```
 
-`make ze-rfc-index-update` performs the joins. It combines the summary, extraction result, test tags and gap annotations. It writes one ledger per RFC under `rfc/requirements/` and the global index at `ai/RFC-REQUIREMENTS.md`.
+`./le rfc index-update` performs the joins. It combines the summary, extraction result, test tags and gap annotations. It writes one ledger per RFC under `rfc/requirements/` and the global index at `ai/RFC-REQUIREMENTS.md`.
 
 | Layer | File or page | Job | Failure it catches |
 |---|---|---|---|

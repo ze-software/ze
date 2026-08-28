@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the one writer of rfc/audit/
 // Overview: rfc.go -- the types, the paths and the closed sets every reader here shares
 //
-// reseal.go is `make ze-rfc-reseal`: the ONLY thing that writes rfc/audit/
+// reseal.go is `./le rfc reseal`: the ONLY thing that writes rfc/audit/
 // without a human editing it. freshness.go says which verdicts merely
 // shifted, and audit.go holds the schema a re-stamp must still satisfy.
 //
@@ -19,6 +19,7 @@ package rfc
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -26,7 +27,7 @@ import (
 
 // resealNote is what the re-stamp records about itself, on every file it
 // rewrites.
-const resealNote = "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the " +
+const resealNote = "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the " +
 	"SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each " +
 	"tagged test -- were byte-identical to the tree, and only the file around them had moved (a " +
 	"line shift, a sibling test, an import rewrite). Nothing about what any of these tests " +
@@ -69,23 +70,36 @@ func (r ResealReport) Text() string {
 	}
 	return tb.Str("re-sealed ").Int(int64(len(r.Resealed))).Str(" shifted verdict(s); ").
 		Int(int64(len(r.Refused))).
-		Str(" refused. The ledger now needs: make ze-rfc-index-update\n").String()
+		Str(" refused. The ledger now needs: ./le rfc index-update\n").String()
 }
 
-// Reseal re-stamps every SHIFTED verdict in the checkout and answers what it
+// resealTree re-stamps every SHIFTED verdict in the checkout and answers what it
 // did.
+func resealTree(tree string) (ResealReport, error) {
+	return reseal(tree, nil, resealNote)
+}
+
+// ResealWithProof re-stamps mechanically shifted verdicts after the caller
+// independently proves every named file changed only in its allowed way.
 //
-// The module's caller-supplied `prove` predicate is not here. It is the rename
-// tool's, it can only ever make the re-seal stricter, and it is what unlocks
-// the transitional case of a verdict with no recorded units. The gate never
-// passes one, and the step that ports scripts/dev/rename_module_path.py adds it
-// back with its consumer rather than leaving a parameter no caller supplies.
-func Reseal(tree string) (ResealReport, error) {
+// The predicate can only make resealing stricter. It also admits the
+// transitional stale-unit verdict with no recorded units, because that legacy
+// record has no unit fingerprint to compare and therefore needs the caller's
+// independent per-file proof. A false proof refuses only the verdict that names
+// the file.
+func ResealWithProof(tree string, prove func(string) bool, note string) (ResealReport, error) {
+	if note == "" {
+		note = resealNote
+	}
+	return reseal(tree, prove, note)
+}
+
+func reseal(tree string, prove func(string) bool, note string) (ResealReport, error) {
 	collected, err := Collect(tree)
 	if err != nil {
 		return ResealReport{}, err
 	}
-	audits, err := LoadAudits(tree, collected.Enrolled)
+	audits, err := loadAudits(tree, collected.Enrolled)
 	if err != nil {
 		return ResealReport{}, err
 	}
@@ -99,6 +113,7 @@ func Reseal(tree string) (ResealReport, error) {
 	}
 	reader := newSourceReader(tree)
 	index := newScopeIndex()
+	proven := map[string]bool{}
 
 	report := ResealReport{Resealed: []string{}, Refused: []string{}}
 	for _, rfcStem := range sortedSet(collected.Enrolled) {
@@ -119,25 +134,63 @@ func Reseal(tree string) (ResealReport, error) {
 			if state.State == FreshState {
 				continue
 			}
-			var line textbuf.Buffer
-			if state.State != ShiftedState {
-				report.Refused = append(report.Refused, line.Str(rfcStem).Byte(' ').
+			transitional := state.State == StaleUnitState && len(verdictFingerprintKeys(verdict["units"])) == 0
+			if state.State != ShiftedState && !(transitional && prove != nil) {
+				var message textbuf.Buffer
+				report.Refused = append(report.Refused, message.Str(rfcStem).Byte(' ').
 					Str(req.RID).Str(": ").Str(state.State).
 					Str(", a human must re-read it").String())
 				continue
 			}
-			verdict["tests"] = anyMap(taggedUnitSHAs(byRID[req.RID], reader, index))
+			fresh := taggedUnitSHAs(byRID[req.RID], reader, index)
+			if prove != nil {
+				files := map[string]bool{}
+				for _, key := range verdictFingerprintKeys(verdict["tests"]) {
+					files[keyFile(key)] = true
+				}
+				for key := range fresh {
+					files[keyFile(key)] = true
+				}
+				var unproven []string
+				for _, rel := range sortedSet(files) {
+					held, checked := proven[rel]
+					if !checked {
+						held = prove(rel)
+						proven[rel] = held
+					}
+					if !held {
+						unproven = append(unproven, rel)
+					}
+				}
+				if len(unproven) > 0 {
+					var message textbuf.Buffer
+					report.Refused = append(report.Refused, message.Str(rfcStem).Byte(' ').
+						Str(req.RID).Str(": more than the caller's proof changed in ").
+						Str(strings.Join(unproven, ", ")).String())
+					continue
+				}
+			}
+			verdict["tests"] = anyMap(fresh)
+			var message textbuf.Buffer
 			report.Resealed = append(report.Resealed,
-				line.Str(rfcStem).Byte(' ').Str(req.RID).String())
+				message.Str(rfcStem).Byte(' ').Str(req.RID).String())
 			touched = true
 		}
 		if touched {
-			if err := writeAudit(tree, rfcStem, audit, resealNote); err != nil {
+			if err := writeAudit(tree, rfcStem, audit, note); err != nil {
 				return ResealReport{}, err
 			}
 		}
 	}
 	return report, nil
+}
+
+func verdictFingerprintKeys(value any) []string {
+	fingerprints, isMap := value.(map[string]any)
+	if !isMap {
+		return nil
+	}
+	return sortedKeysOf(fingerprints)
 }
 
 // anyMap widens a fingerprint map so it can sit back in the decoded document

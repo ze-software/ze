@@ -48,7 +48,7 @@ func printAIHelp(args []string) int {
 // renderAIHelp writes the reference to w and returns the exit code (non-zero on
 // a write error). Split from printAIHelp so tests can drive a failing writer.
 func renderAIHelp(w io.Writer, args []string) int {
-	if slices.Contains(args, "--json") {
+	if slices.Contains(args, flagJSON) {
 		return printAIHelpJSON(w)
 	}
 
@@ -497,7 +497,7 @@ func printServices(rw *helpfmt.RenderWriter) {
 	// CLI flag mapping: service name -> flag syntax.
 	cliFlags := map[string]string{
 		"web": "--web <port>  --web-only  --insecure-web",
-		"mcp": "--mcp <port>",
+		"mcp": helpMCPPortOption,
 	}
 
 	for _, svc := range services {

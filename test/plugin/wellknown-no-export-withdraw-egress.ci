@@ -83,58 +83,6 @@ EOF_PEER
 
 # Observer: hold the daemon up until the fence has been written to the external
 # destination, which proves the mixed UPDATE ahead of it was already decided.
-tmpfs=wellknown-withdraw.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Sequence shutdown behind the fence route reaching the external destination."""
-import sys
-from ze_api import API, runtime_fail
-
-EXTERNAL = '127.0.0.3'
-INTERNAL = '127.0.0.2'
-
-
-def real_updates(api, peer):
-    """UPDATEs written to peer, End-of-RIB markers excluded.
-
-    updates-sent counts every UPDATE written, the initial-sync EoR included
-    (IncrUpdatesSent, reactor/reactor_notify.go sees only the message type).
-    eor-sent is the separate marker counter, so the difference is route traffic.
-    """
-    return api.peer_counter('updates-sent', peer=peer) - api.peer_counter('eor-sent', peer=peer)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # quiesce FIRST so the polls behind it are a safety net rather than the
-    # mechanism: it drains the forward pool in one RPC.
-    api.quiesce()
-
-    # The internal peer gets three: the withdrawal, the announcement, the fence.
-    if not api.wait_until(lambda: real_updates(api, INTERNAL) >= 3, attempts=40):
-        runtime_fail('internal peer was not sent both halves and the fence')
-    print('OK: internal peer received both halves and the fence', file=sys.stderr)
-
-    # The external peer gets two: the withdrawal and the fence. Two, not three: three
-    # would mean the announcement leaked, which the reject rule also catches on the wire.
-    if not api.wait_until(lambda: real_updates(api, EXTERNAL) >= 2, attempts=40):
-        runtime_fail('external peer was not sent the withdrawal and the fence')
-    if real_updates(api, EXTERNAL) != 2:
-        runtime_fail('external peer was sent more than the withdrawal and the fence')
-    print('OK: external peer received the withdrawal and the fence, nothing else', file=sys.stderr)
-
-    api.dispatch('request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -145,7 +93,7 @@ plugin {
 		use bgp-rs
 	}
 	external wellknown-withdraw {
-		run ./wellknown-withdraw.run
+		run "ze-test fixture plugin/wellknown-no-export-withdraw-egress"
 		encoder json
 	}
 }

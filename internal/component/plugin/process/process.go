@@ -760,7 +760,7 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 			continue
 		}
 		// Build args: plugin name + original attrs
-		args := []any{"plugin", p.config.Name}
+		args := []any{reportSourcePlugin, p.config.Name}
 		if len(attrs) > 0 {
 			args = append(args, slog.Group("original", attrs...))
 		}

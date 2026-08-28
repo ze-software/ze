@@ -51,7 +51,7 @@ func TestPeerRunRecoversPanic(t *testing.T) {
 	settings.Port = 179
 
 	peer := NewPeer(settings)
-	peer.SetReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
+	peer.setReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
 	peer.SetDialer(panicDialer{})
 
 	ctx, cancel := context.WithCancel(context.Background())

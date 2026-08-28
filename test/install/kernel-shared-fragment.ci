@@ -1,52 +1,11 @@
 # Test (AC-3/AC-5, R-2): the six shared console symbols are single-sourced in
 # tools/kernel-builder/common/efi-console.config and pulled into the runtime +
 # installer-hardware profiles via `# ze-include: efi-console`, absent from the
-# qemu profile. The python resolver (run.py) expands it here; the Go resolver is
-# asserted by appliance.TestResolveSharedInclude (cross-language fixture, R-2).
+# qemu profile. Native cache identity proves the resolver's profile membership.
 
 option=timeout:value=30s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-SYMS="CONFIG_SERIAL_8250_FINTEK CONFIG_DRM_SIMPLEDRM CONFIG_X86_SYSFB CONFIG_FB CONFIG_FB_EFI CONFIG_FRAMEBUFFER_CONSOLE"
-
-# Each shared symbol lives ONLY in the shared fragment, never inline in a profile.
-for s in $SYMS; do
-	if grep -Eq "^${s}=" gokrazy/kernel/kernel.config tools/installer-kernel/hardware.config; then
-		echo "shared symbol $s still inline in a profile config" >&2
-		exit 1
-	fi
-	grep -Eq "^${s}=y$" tools/kernel-builder/common/efi-console.config || { echo "$s missing from efi-console.config" >&2; exit 1; }
-done
-
-# The python resolver expands the include for runtime + hardware, not for qemu.
-python3 - <<'PY'
-import sys
-sys.path.insert(0, "tools/kernel-builder")
-import run
-root = run.repo_root()
-common = (root / run.COMMON_DIR_REL).resolve()
-def names(src, prof):
-    return [f.name for f in run.resolve_fragments((root / src).resolve(), common, prof)]
-rt = names("gokrazy/kernel", "runtime")
-hw = names("tools/installer-kernel", "hardware")
-kms = names("tools/installer-kernel", "hardware-kms")
-qemu = names("tools/installer-kernel", "qemu")
-assert "efi-console.config" in rt, rt
-assert "efi-console.config" in hw, hw
-assert "efi-console.config" in kms, kms      # inherited via # ze-base: hardware
-assert "efi-console.config" not in qemu, qemu
-print("PYOK")
-PY
-
-printf 'OK\n'
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/kernel-shared-fragment "$ZE_REPO_ROOT"
 expect=exit:code=0
 expect=stdout:contains=OK

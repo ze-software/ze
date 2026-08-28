@@ -2,11 +2,11 @@
 stdin=config:terminator=EOF_CONF
 plugin {
 	external my-process {
-		run ./syslog-1.py
+		run "ze-test interop-bgp exabgp-api syslog"
 		encoder json
 	}
 	external my-second-process {
-		run ./stderr-1.py
+		run "ze-test interop-bgp exabgp-api stderr"
 		encoder json
 	}
 }

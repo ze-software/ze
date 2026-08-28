@@ -3,67 +3,6 @@
 # VALIDATES: AC-2, AC-5 -- cached config allows startup without hub.
 # PREVENTS: Managed client refusing to start when hub is down but cache exists.
 
-tmpfs=test-cached-boot.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
 
-touch daemon.ready
-
-INIT_DIR=$(mktemp -d)
-DB="$INIT_DIR/database.zefs"
-trap 'rm -rf "$INIT_DIR"' EXIT
-
-# Init with --managed and instance name
-printf 'admin\nsecret123\n127.0.0.1\n2222\nedge-01\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init --managed
-
-# Write a cached config (simulating previous successful fetch)
-cat > "$INIT_DIR/edge-01.conf" <<'CONF'
-bgp {
-    peer p1 {
-        connection {
-            remote {
-                ip 127.0.0.1
-            }
-            local {
-                ip 127.0.0.1
-            }
-        }
-        session {
-            asn {
-                local 65000
-                remote 65001
-            }
-            router-id 1.2.3.4
-        }
-    }
-}
-plugin {
-    hub {
-        server local {
-            ip 127.0.0.1;
-            port 1790;
-            secret "local-secret-that-is-at-least-32ch";
-        }
-    }
-}
-CONF
-ze data --path "$DB" import "$INIT_DIR/edge-01.conf"
-
-# Verify config exists in blob
-ze data --path "$DB" ls 2>&1 | grep -q "edge-01.conf" || {
-    echo "FAIL: cached config not in blob" >&2
-    exit 1
-}
-
-# Validate the cached config parses
-ze data --path "$DB" cat file/active/edge-01.conf | ze config validate - 2>&1 || {
-    echo "FAIL: cached config validation failed" >&2
-    exit 1
-}
-
-echo "OK: cached config written and valid for managed boot" >&2
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-cached-boot.sh:timeout=10s
+cmd=foreground:seq=1:exec=ze-test fixture managed/client-cached-boot:timeout=10s
 expect=exit:code=0

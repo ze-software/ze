@@ -1,4 +1,4 @@
-// Design: test/interop-pppoe/lab.py -- fail-closed peer queries and bounded waits.
+// Design: fail-closed peer queries and bounded PPPoE observations.
 // Related: check_client.go -- accel-ppp checker.
 // Related: check_ac.go -- pppd checker.
 package pppoe

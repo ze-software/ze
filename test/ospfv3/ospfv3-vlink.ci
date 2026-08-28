@@ -16,53 +16,11 @@
 option=needs-linux:caps=net-admin
 option=netns-link:name=eth0
 
-tmpfs=ospfv3-vlink.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert the OSPF plugin stays alive after booting a v6 virtual-link config."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # The plugin RPC is alive after booting the v6 virtual-link config (no crash on the
-    # virtual-link manager wiring).
-    r = dispatch(api, 'show ospf')
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"show ospf: expected done after booting a v6 vlink config, got "
-            f"status={r.get('status')} data={result_text_data(r)[:200]}")
-
-    print('OK: OSPFv3 virtual-link config booted the daemon cleanly', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospfv3-vlink {
-		run ./ospfv3-vlink.run
+		run "ze-test fixture ospfv3/ospfv3-vlink"
 		encoder json
 	}
 }

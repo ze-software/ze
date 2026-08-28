@@ -29,7 +29,7 @@ import (
 	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
 	"github.com/ze-software/ze/internal/component/plugin"
 
-	// plugin/all is GENERATED (scripts/codegen/plugin_imports.go) and blank-
+	// plugin/all is GENERATED (internal/le/pluginimports/pluginimports.go) and blank-
 	// imports every schema, RPC command, and plugin package -- including the
 	// verb/cmd packages this file used to enumerate by hand. Never re-add
 	// per-package blank imports here; regenerate with `make generate`.
@@ -476,7 +476,7 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 
 	// This emitter has no command of its own: the daemon resolves the operator's
 	// text against the registry and answers an unknown one.
-	// ze-dispatch-check: dynamic -- command is the operator's own typed input
+	// le-ci-dispatch: dynamic -- command is the operator's own typed input
 	_, err := c.stream(c.creds, commandWithFormat(command, format), out)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

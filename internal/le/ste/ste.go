@@ -9,8 +9,8 @@
 // Detail: report.go -- the three answers, as payloads
 // Detail: actions.go -- the three actions, as one command
 //
-// Package ste ports scripts/dev/ste_check.py. It reviews repository prose
-// against ASD-STE100 Simplified Technical English, Issue 9.
+// Package ste reviews repository prose against ASD-STE100 Simplified Technical
+// English, Issue 9.
 //
 // `ai/rules/writing.md` requires Simplified Technical English for Ze prose. It
 // defines six habits that this package detects:

@@ -11,128 +11,6 @@ option=env:var=ze.log.bgp.bmp:value=info
 option=env:var=ze.log.bgp.rib:value=info
 option=timeout:value=20s
 
-tmpfs=bmp-disconnect.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""BMP disconnect test: injects route, disconnects, verifies withdrawal."""
-import json
-import socket
-import struct
-import sys
-import time
-from ze_api import API, result_text_data, result_json_data, rib_rows_by_peer
-
-def bmp_header(msg_type, length):
-    return struct.pack('!BIB', 3, length, msg_type)
-
-def bmp_initiation():
-    name = b'test-router'
-    name_tlv = struct.pack('!HH', 2, len(name)) + name
-    return bmp_header(4, 6 + len(name_tlv)) + name_tlv
-
-def bgp_open(asn):
-    marker = b'\xff' * 16
-    body = struct.pack('!BHHIB', 4, asn, 90, 0x01020304, 0)
-    length = 19 + len(body)
-    return marker + struct.pack('!HB', length, 1) + body
-
-def bmp_peer_header(peer_as=65001):
-    ph = struct.pack('!BB', 0, 0)
-    ph += struct.pack('!Q', 0)
-    ph += b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 1])
-    ph += struct.pack('!II', peer_as, 0x01020304)
-    ph += struct.pack('!II', int(time.time()), 0)
-    return ph
-
-def bmp_peer_up():
-    ph = bmp_peer_header()
-    local_addr = b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 100])
-    ports = struct.pack('!HH', 179, 54321)
-    sent_open = bgp_open(65000)
-    recv_open = bgp_open(65001)
-    payload = ph + local_addr + ports + sent_open + recv_open
-    return bmp_header(3, 6 + len(payload)) + payload
-
-def bgp_update_announce(prefix_bytes, prefix_len):
-    marker = b'\xff' * 16
-    withdrawn_len = struct.pack('!H', 0)
-    origin = struct.pack('!BBB', 0x40, 1, 1) + b'\x00'
-    as_path = struct.pack('!BBB', 0x40, 2, 0)
-    next_hop = struct.pack('!BBB', 0x40, 3, 4) + bytes([10, 0, 0, 100])
-    attrs = origin + as_path + next_hop
-    attr_len = struct.pack('!H', len(attrs))
-    nlri = bytes([prefix_len]) + prefix_bytes
-    body = withdrawn_len + attr_len + attrs + nlri
-    length = 19 + len(body)
-    return marker + struct.pack('!HB', length, 2) + body
-
-def bmp_route_monitoring():
-    ph = bmp_peer_header()
-    update = bgp_update_announce(bytes([10, 0, 0]), 24)
-    payload = ph + update
-    return bmp_header(0, 6 + len(payload)) + payload
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    api.wait_for_post_startup(timeout=5.0)
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(('127.0.0.1', $PORT2))
-    sock.sendall(bmp_initiation())
-    sock.sendall(bmp_peer_up())
-    sock.sendall(bmp_route_monitoring())
-
-    # Verify route exists before disconnect. Poll show bmp rib until the injected
-    # route lands: BMP ingest over the raw socket is async, so this replaces the
-    # blind inter-send + settle sleeps with a deterministic payload poll.
-    result = api.dispatch_until(
-        'show bmp rib',
-        lambda r: bool(rib_rows_by_peer(result_json_data(r, {}))),
-    )
-    data = result_text_data(result, '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    rib_in = rib_rows_by_peer(parsed)
-    if not rib_in:
-        print(f'FAIL: no routes before disconnect, got: {data}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    # Disconnect (TCP close triggers withdraw-router)
-    sock.close()
-
-    # Verify routes are withdrawn. Poll until adj-rib-in drains (the withdraw is
-    # async on session teardown); the route was present just above, so this is not
-    # vacuous. Replaces a blind sleep(2.0) settle.
-    result = api.dispatch_until(
-        'show bmp rib',
-        lambda r: not rib_rows_by_peer(result_json_data(r, {})),
-    )
-    data = result_text_data(result, '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    rib_in = rib_rows_by_peer(parsed)
-    if rib_in:
-        print(f'FAIL: routes still present after disconnect: {data}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    print('PASS: BMP routes withdrawn after session disconnect', file=sys.stderr, flush=True)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 environment {
@@ -146,7 +24,7 @@ environment {
 }
 plugin {
     external bmp-disconnect {
-        run ./bmp-disconnect.run;
+        run "ze-test fixture plugin/bmp-lg-disconnect $PORT2;"
         encoder json;
     }
 }

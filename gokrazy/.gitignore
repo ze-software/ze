@@ -1,5 +1,5 @@
 # Built images
 *.img
 
-# Module cache is managed by make ze-gokrazy-deps-download.
+# Module cache is managed by `./le setup install`.
 # Gokrazy init source is whitelisted in modcache/.gitignore.

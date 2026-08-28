@@ -19,7 +19,7 @@ reachable from `/ze-status` as actionable until now, which is what a triage of e
 
 242 gated MUST-level requirements cannot be proven at verify tier at all,
 because no functional suite boots their subsystem: BFD 98, VRRP 80, dhcpserver
-28, geodns 18, dnsserver 18. `mk/test-functional.mk` `all_suites` names no
+28, geodns 18, dnsserver 18. `internal/le/functional/suites.go` `all_suites` names no
 `bfd`, `vrrp` or `dhcp` suite, so `carrier_for` resolves any `.ci` written there
 to `TIER_UNRUN` and the scanner REFUSES the tag. No test fixes this on its own.
 
@@ -36,7 +36,7 @@ because two of them lower what Ze proves:
 
 | Route | What it costs | What it buys |
 |-------|---------------|--------------|
-| Add a verify-tier suite per subsystem | new suite infrastructure per subsystem, and the runtime it adds to `make ze-precommit-verify` | every one of the 242 becomes provable on every push |
+| Add a verify-tier suite per subsystem | new suite infrastructure per subsystem, and the runtime it adds to `./le verify current mode full` | every one of the 242 becomes provable on every push |
 | Accept nightly-only tier for these | a tier that is scheduled and advisory, not merge-gating | reachable today for VRRP, which has `ze-qemu-vrrp-keepalived-test`; the others have no nightly path either |
 | Leave them unit-only by decision | the obligation stays proven at the wrong altitude | nothing new to build |
 
@@ -46,22 +46,22 @@ bookkeeping.
 
 ### Constraints
 
-- `functional_suites()` (`scripts/dev/rfc_requirements.py`) reads
-  `mk/test-functional.mk` `all_suites` and fails closed when it cannot. A suite
+- `functional_suites()` (`internal/le/rfc/rfc.go`) reads
+  `internal/le/functional/suites.go` `all_suites` and fails closed when it cannot. A suite
   that is not named there confers no tier, however good its tests are.
 - VRRP is the one subsystem with any automated path today
   (`ze-qemu-vrrp-keepalived-test`, nightly). BFD, dhcpserver, geodns and
   dnsserver have none.
 - Counts are a 2026-08-02 snapshot. Re-measure by importing
-  `scripts/dev/rfc_requirements.py`; do not render `ai/RFC-REQUIREMENTS.md` to
+  `internal/le/rfc/rfc.go`; do not render `ai/RFC-REQUIREMENTS.md` to
   read a number.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `scripts/dev/rfc_requirements.py` - `CARRIERS`, `carrier_for`, `functional_suites`
+- [ ] `internal/le/rfc/rfc.go` - `CARRIERS`, `carrier_for`, `functional_suites`
   → Constraint: `TIER_UNRUN` is a refusal, and it is the correct interim state rather than a defect.
-- [ ] `mk/test-functional.mk` - `all_suites`
+- [ ] `internal/le/functional/suites.go` - `all_suites`
   → Constraint: this list is the tier gate.
 - [ ] `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md` - the sibling problem for interop trees
   → Decision: that spec gives an existing runner an automated caller; this one asks whether a runner should exist at all.
@@ -78,7 +78,7 @@ bookkeeping.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `scripts/dev/rfc_requirements.py` - refuses a tag whose suite `all_suites` does not name
+- [ ] `internal/le/rfc/rfc.go` - refuses a tag whose suite `all_suites` does not name
 
 **Behavior to preserve:**
 - The `TIER_UNRUN` refusal. It keeps false evidence out and must not be softened to make these 242 look proven.
@@ -102,7 +102,7 @@ bookkeeping.
 | Test tree ↔ ledger | `scan_tree` over `.ci` tags | Yes, by the refusal this spec exists to answer |
 
 ### Integration Points
-- `mk/test-functional.mk` `all_suites` - the list any new suite must join.
+- `internal/le/functional/suites.go` `all_suites` - the list any new suite must join.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -124,7 +124,7 @@ bookkeeping.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A new suite is added and `make ze-precommit-verify` grows past its budget | verify wall time rises | measure the added runtime per suite before adding the second |
+| R-1 | A new suite is added and `./le verify current mode full` grows past its budget | verify wall time rises | measure the added runtime per suite before adding the second |
 | R-2 | The refusal is softened instead of answered, and 242 requirements gain a tier they do not have | a change to `CARRIERS` or `functional_suites` with no new runner | the tier must follow a runner, never precede it |
 
 ## Blast Radius
@@ -133,13 +133,13 @@ bookkeeping.
 |----------|--------|
 | What breaks if this is wrong? | Route 2 or 3 leaves 242 MUSTs proven at the wrong altitude, which is a public claim outrunning its evidence. Route 1 grows the merge gate |
 | How is it reverted? | Route 1 by removing the suite from `all_suites`, which the enrolment ratchet will then flag |
-| Who else touches this path? | Any session working `scripts/dev/rfc_requirements.py` or `mk/test-functional.mk` |
+| Who else touches this path? | Any session working `internal/le/rfc/rfc.go` or `internal/le/functional/suites.go` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| a `.ci` in a newly added suite | → | `functional_suites` then `carrier_for` (`scripts/dev/rfc_requirements.py`) | the tag is accepted rather than refused as `TIER_UNRUN` |
+| a `.ci` in a newly added suite | → | `functional_suites` then `carrier_for` (`internal/le/rfc/rfc.go`) | the tag is accepted rather than refused as `TIER_UNRUN` |
 
 ## Acceptance Criteria
 
@@ -158,7 +158,7 @@ bookkeeping.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `scripts/dev/rfc_requirements_test.py` | `scripts/dev/` | a newly named suite resolves to a real tier | |
+| `internal/le/` | `internal/le/` | a newly named suite resolves to a real tier | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -176,8 +176,8 @@ bookkeeping.
 | `ze-qemu-vrrp-keepalived-test` | `test/` | keepalived | the one existing nightly path, for VRRP only | |
 
 ## Files to Modify
-- `mk/test-functional.mk` - `all_suites`, if route 1 is chosen.
-- `scripts/dev/rfc_requirements.py` - `CARRIERS`, only after a runner exists.
+- `internal/le/functional/suites.go` - `all_suites`, if route 1 is chosen.
+- `internal/le/rfc/rfc.go` - `CARRIERS`, only after a runner exists.
 
 ## Files to Create
 - `test/<subsystem>/*.ci` - if route 1 is chosen.
@@ -278,7 +278,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -296,7 +296,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

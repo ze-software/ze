@@ -9,7 +9,7 @@ package policyroute
 // nothing to reject. The check that the generic build needs lives in
 // netlinkint_linux_generic.go; keeping it out of here is what lets the full
 // kernel-legal table range stay usable on the targets Ze actually ships
-// (mk/build-appliance.mk:103-104 builds linux/amd64 and linux/arm64 only).
+// (`internal/appliance/config.go` accepts linux/amd64 and linux/arm64 only).
 //
 // The per-architecture split is not cosmetic. It is also what makes the
 // conversion analysable: CodeQL derives a file's int width from its build

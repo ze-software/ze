@@ -88,7 +88,7 @@ func TestHandleWorkbench_DashboardRendersOverview(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -117,7 +117,7 @@ func TestWorkbenchWebServiceRoute(t *testing.T) {
 	assert.NoError(t, schemaErr)
 
 	handler := HandleWorkbench(renderer, schema, config.NewTree(), nil, true)
-	req := httptest.NewRequest(http.MethodGet, "/show/web/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/web/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -144,7 +144,7 @@ func TestBGPPeerDetailRoute(t *testing.T) {
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
 	// The table at /show/bgp/peer/ lists all peers.
-	tableReq := httptest.NewRequest(http.MethodGet, "/show/bgp/peer/", http.NoBody)
+	tableReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/peer/", http.NoBody)
 	tableRec := httptest.NewRecorder()
 	handler.ServeHTTP(tableRec, tableReq)
 	assert.Equal(t, http.StatusOK, tableRec.Code)
@@ -154,7 +154,7 @@ func TestBGPPeerDetailRoute(t *testing.T) {
 	assert.Contains(t, tableHTML, "peer-b")
 
 	// The detail at /show/bgp/peer/peer-a/ is scoped to peer-a only.
-	detailReq := httptest.NewRequest(http.MethodGet, "/show/bgp/peer/peer-a/", http.NoBody)
+	detailReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/peer/peer-a/", http.NoBody)
 	detailRec := httptest.NewRecorder()
 	handler.ServeHTTP(detailRec, detailReq)
 	assert.Equal(t, http.StatusOK, detailRec.Code)
@@ -183,7 +183,7 @@ func TestWorkbenchNavAllRoutes(t *testing.T) {
 	for _, def := range sections() {
 		for _, child := range def.children {
 			t.Run(def.key+"_"+child.Key, func(t *testing.T) {
-				req := httptest.NewRequest(http.MethodGet, child.URL, http.NoBody)
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, child.URL, http.NoBody)
 				rec := httptest.NewRecorder()
 				handler.ServeHTTP(rec, req)
 
@@ -206,7 +206,7 @@ func TestFaviconHandlerServesAsset(t *testing.T) {
 	renderer, err := NewRenderer()
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/favicon.ico", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/favicon.ico", http.NoBody)
 	rec := httptest.NewRecorder()
 	renderer.FaviconHandler().ServeHTTP(rec, req)
 
@@ -254,7 +254,7 @@ func TestWorkbenchHidesCommitBarForReadOnly(t *testing.T) {
 	tree := config.NewTree()
 
 	ro := HandleWorkbench(renderer, schema, tree, nil, false, WithAuthorizer(fakeAuthorizer{allowEdit: false}))
-	roReq := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	roReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	roReq = roReq.WithContext(withUsername(roReq.Context(), "bob"))
 	roRec := httptest.NewRecorder()
 	ro.ServeHTTP(roRec, roReq)
@@ -265,7 +265,7 @@ func TestWorkbenchHidesCommitBarForReadOnly(t *testing.T) {
 	assert.NotContains(t, roHTML, `id="commit-bar"`, "read-only user must not see the commit bar")
 
 	admin := HandleWorkbench(renderer, schema, tree, nil, false, WithAuthorizer(fakeAuthorizer{allowEdit: true}))
-	adminReq := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	adminReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	adminReq = adminReq.WithContext(withUsername(adminReq.Context(), "admin"))
 	adminRec := httptest.NewRecorder()
 	admin.ServeHTTP(adminRec, adminReq)

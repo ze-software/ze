@@ -41,7 +41,7 @@ const (
 
 const webUsageHeader = `Usage: ze-test web [options] [test-ids...]
 
-Run web browser functional tests (.wb files) in parallel.
+Run web browser functional tests in parallel.
 Requires: agent-browser CLI. The ze binary is resolved like every other suite
 (ZE_BIN, else this session's bin/, else built here).
 
@@ -386,10 +386,9 @@ func zeTestWantsChaos(tests []*zeTestWebTest) bool {
 // a plain run uses this session's bin/. One rule reaches both, and it cannot
 // pick up a stale chaos binary from the other tree.
 //
-// The build is skipped under ZE_TEST_NO_BUILD, which is the flow's promise that
-// the caller built the set already (mk/test-functional.mk, ZE_ALT_CHAOS_BUILD).
-// A miss there is an error rather than a build: building would defeat the
-// isolation the flag exists to give.
+// The build is skipped under ZE_TEST_NO_BUILD, the native functional flow's
+// promise that the caller built the isolated set already. A miss there is an
+// error rather than a build: building would defeat the isolation the flag gives.
 func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error) {
 	chaosPath := filepath.Join(filepath.Dir(zeBin), "ze-chaos")
 
@@ -402,7 +401,7 @@ func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error
 			return filepath.Join(dir, "ze-chaos"), nil
 		}
 
-		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (build it with `make ze-chaos-build`)", chaosPath)
+		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (unset ZE_TEST_NO_BUILD or run the native functional action that prepared this suite)", chaosPath)
 	}
 
 	cmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_chaos ze_bgp", "-o", chaosPath, "./cmd/ze") //nolint:gosec // paths from internal runner
@@ -616,10 +615,10 @@ func zeTestStartChaosServer(ctx context.Context, bins zeTestWebBinaries, listenA
 	return srv, nil
 }
 
-// zeTestReadyTimeout bounds a server start. Under `make ze-precommit-verify` the web
-// suite overlaps the -race unit stage, and a forked daemon can take well over
-// 30s just to bind under that CPU starvation, so the budget scales by the same
-// contention headroom the runner applies to per-test budgets. A standalone run
+// zeTestReadyTimeout bounds a server start. Under
+// `./le verify current mode full`, the web suite overlaps the -race unit stage,
+// and a forked daemon can take well over 30s just to bind under CPU starvation,
+// so the budget scales by the contention headroom applied to per-test budgets. A standalone run
 // keeps the tight 30s so a genuine "server never starts" still surfaces fast.
 func zeTestReadyTimeout() time.Duration {
 	ready := 30 * time.Second

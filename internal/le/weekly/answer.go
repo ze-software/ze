@@ -2,7 +2,7 @@
 // Detail: poster.go -- what the parsed options drive
 //
 // answer.go is the boundary between the operator and the publication: it reads
-// the grammar, fills every seam a Poster has from this machine, and answers the
+// the grammar, fills every seam a publisher has from this machine, and answers the
 // engine.
 //
 // The command has ONE action, publishing the weekly update, so every word after
@@ -39,14 +39,9 @@ import (
 const PostsDirRel = "website/changes/posts"
 
 // ArchiveDirRel is where a published week is recorded, relative to the
-// checkout.
-//
-// The archive is what marks a week as published, so this path MUST stay the one
-// the Python tool writes for as long as both implementations can run: two
-// implementations reading two directories would publish the same week twice.
-// The migration that removes scripts/ owes this path a new home, and moving it
-// before that migration is what would cause the duplicate.
-const ArchiveDirRel = "scripts/zeledon/weekly"
+// checkout. The archive is the duplicate-publication guard, so the producer and
+// the weekly skill MUST read and write this one directory.
+const ArchiveDirRel = "website/changes/discord"
 
 // channels are the Discord channels this tool will post to. ze-test is the
 // rehearsal channel, and anything else is a typo -- which here means a message
@@ -71,10 +66,10 @@ func Answer(args []string) (any, int) {
 		return nil, 1
 	}
 
-	discordSh := FindDiscordSh()
-	poster := &Poster{
+	discordSh := resolveDiscordSh()
+	poster := &publisher{
 		Channel:    opts.Channel,
-		Send:       ExecSender(discordSh),
+		Send:       execSender(discordSh),
 		DiscordSh:  discordSh,
 		Sleep:      time.Sleep,
 		Today:      today(),

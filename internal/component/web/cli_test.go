@@ -188,7 +188,7 @@ func runTerminalCommand(t *testing.T, handler http.HandlerFunc, command string) 
 
 	body := url.Values{"command": {command}}
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli/terminal", body)
+	r := authedRequest(t, http.MethodPost, "/cli/terminal", body)
 	handler.ServeHTTP(w, r)
 
 	require.Equal(t, http.StatusOK, w.Code)
@@ -202,7 +202,7 @@ func runTerminalCommandForm(t *testing.T, handler http.HandlerFunc, values url.V
 	t.Helper()
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli/terminal", values)
+	r := authedRequest(t, http.MethodPost, "/cli/terminal", values)
 	handler.ServeHTTP(w, r)
 
 	require.Equal(t, http.StatusOK, w.Code)
@@ -223,13 +223,13 @@ func (f *fakeCommandCompleter) Complete(input string) []contract.Completion {
 }
 
 // authedRequest creates a request with a username in context for handler tests.
-func authedRequest(method, target string, body url.Values) *http.Request {
+func authedRequest(t *testing.T, method, target string, body url.Values) *http.Request {
 	var r *http.Request
 	if body != nil {
-		r = httptest.NewRequest(method, target, strings.NewReader(body.Encode()))
+		r = httptest.NewRequestWithContext(t.Context(), method, target, strings.NewReader(body.Encode()))
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	} else {
-		r = httptest.NewRequest(method, target, http.NoBody)
+		r = httptest.NewRequestWithContext(t.Context(), method, target, http.NoBody)
 	}
 
 	r = r.WithContext(context.WithValue(r.Context(), ctxKeyUsername, "testuser"))
@@ -250,7 +250,7 @@ func TestCLIBarEditUpdatesContext(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -277,7 +277,7 @@ func TestCLIBarSetUpdatesNotification(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	r.Header.Set("HX-Request", "true")
 	handler.ServeHTTP(w, r)
 
@@ -301,7 +301,7 @@ func TestCLIBarShowRendersOutput(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -322,7 +322,7 @@ func TestCLIBarTopClearsContext(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -344,7 +344,7 @@ func TestCLIBarUpNavigates(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -360,7 +360,7 @@ func TestCLIBarAutocomplete(t *testing.T) {
 	handler := HandleCLIComplete(completer, nil, nil)
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodGet, "/cli/complete?input=ed", nil)
+	r := authedRequest(t, http.MethodGet, "/cli/complete?input=ed", nil)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -399,7 +399,7 @@ func TestTerminalModeToggle(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli/mode", body)
+	r := authedRequest(t, http.MethodPost, "/cli/mode", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -424,7 +424,7 @@ func TestTerminalModeCommand(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli/terminal", body)
+	r := authedRequest(t, http.MethodPost, "/cli/terminal", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -485,14 +485,14 @@ func TestCLICompleteOperationalMode(t *testing.T) {
 	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cmdComp, mgr, schema)
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodGet, "/cli/complete?input=sh&mode=operational", nil)
+	r := authedRequest(t, http.MethodGet, "/cli/complete?input=sh&mode=operational", nil)
 	handler.ServeHTTP(w, r)
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "sh", cmdComp.seenInput)
 	assert.Contains(t, w.Body.String(), `"show"`)
 
 	w = httptest.NewRecorder()
-	r = authedRequest(http.MethodGet, "/cli/complete?input=run+sh&mode=config", nil)
+	r = authedRequest(t, http.MethodGet, "/cli/complete?input=run+sh&mode=config", nil)
 	handler.ServeHTTP(w, r)
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "sh", cmdComp.seenInput)
@@ -521,7 +521,7 @@ func TestCLICompleteOperationalIncludesPluginCommand(t *testing.T) {
 	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cli.NewCommandCompleter(tree), mgr, schema)
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodGet, "/cli/complete?input=show+myplugin+&mode=operational", nil)
+	r := authedRequest(t, http.MethodGet, "/cli/complete?input=show+myplugin+&mode=operational", nil)
 	handler.ServeHTTP(w, r)
 	require.Equal(t, http.StatusOK, w.Code)
 
@@ -555,7 +555,7 @@ func TestCLIBarRBACDeny(t *testing.T) {
 		"path":    {"bgp"},
 	}
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
@@ -573,7 +573,7 @@ func TestTerminalModeRBACDeny(t *testing.T) {
 
 	body := url.Values{"command": {"set router-id 10.0.0.2"}}
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli/terminal", body)
+	r := authedRequest(t, http.MethodPost, "/cli/terminal", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
@@ -698,7 +698,7 @@ func TestTerminalPipes(t *testing.T) {
 
 			body := url.Values{"command": {tt.command}}
 			w := httptest.NewRecorder()
-			r := authedRequest(http.MethodPost, "/cli/terminal", body)
+			r := authedRequest(t, http.MethodPost, "/cli/terminal", body)
 			handler.ServeHTTP(w, r)
 
 			assert.Equal(t, http.StatusOK, w.Code)
@@ -766,7 +766,7 @@ func TestTerminalCompareTargets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			body := url.Values{"command": {tt.command}}
 			w := httptest.NewRecorder()
-			r := authedRequest(http.MethodPost, "/cli/terminal", body)
+			r := authedRequest(t, http.MethodPost, "/cli/terminal", body)
 			handler.ServeHTTP(w, r)
 
 			assert.Equal(t, http.StatusOK, w.Code)
@@ -912,7 +912,7 @@ func TestIntegratedModeRestore(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli/mode", body)
+	r := authedRequest(t, http.MethodPost, "/cli/mode", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -935,7 +935,7 @@ func TestCLIBarRequiresAuth(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	// No auth context.
-	r := httptest.NewRequest(http.MethodPost, "/cli", strings.NewReader(body.Encode()))
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/cli", strings.NewReader(body.Encode()))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	handler.ServeHTTP(w, r)
 
@@ -956,7 +956,7 @@ func TestCLIBarCommandTooLong(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -975,7 +975,7 @@ func TestCLIBarUnknownCommand(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -991,7 +991,7 @@ func TestCLIBarMethodNotAllowed(t *testing.T) {
 	handler := HandleCLICommand(mgr, schema, renderer)
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodGet, "/cli", nil)
+	r := authedRequest(t, http.MethodGet, "/cli", nil)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
@@ -1015,7 +1015,7 @@ func TestCLIBarDelete(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	// Non-HTMX delete redirects via htmxRedirect (303 See Other).
@@ -1042,7 +1042,7 @@ func TestCLIBarCommit(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -1065,7 +1065,7 @@ func TestCLIBarDiscard(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	r := authedRequest(http.MethodPost, "/cli", body)
+	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
 	// Non-HTMX discard redirects via htmxRedirect (303 See Other).

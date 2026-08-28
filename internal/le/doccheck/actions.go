@@ -22,7 +22,6 @@ const area = "doc-check"
 
 type action struct {
 	verb string
-	gate string
 	why  string
 	run  func(string) (any, int)
 }
@@ -30,19 +29,16 @@ type action struct {
 var actions = [...]action{
 	{
 		verb: "links",
-		gate: "ze-doc-links-check",
 		why:  "instruction links, tracked citations, suppression reasons, and Design references resolve",
 		run:  runLinks,
 	},
 	{
 		verb: "verify",
-		gate: "ze-doc-verify",
 		why:  "the complete ordered documentation gate passes",
 		run:  docwiring.Verify,
 	},
 	{
 		verb: "templ-output",
-		gate: "ze-templ-output-check",
 		why:  "generated templ output matches its sources",
 		run:  docwiring.TemplOutput,
 	},
@@ -51,7 +47,6 @@ var actions = [...]action{
 // ActionRow is one callable documentation action.
 type ActionRow struct {
 	Verb string `json:"verb"`
-	Gate string `json:"gate"`
 	Why  string `json:"why"`
 }
 
@@ -65,7 +60,7 @@ type ActionList struct {
 func Actions() ActionList {
 	list := ActionList{Area: area, Actions: make([]ActionRow, 0, len(actions))}
 	for _, one := range actions {
-		list.Actions = append(list.Actions, ActionRow{Verb: one.verb, Gate: one.gate, Why: one.why})
+		list.Actions = append(list.Actions, ActionRow{Verb: one.verb, Why: one.why})
 	}
 	return list
 }
@@ -119,9 +114,9 @@ func Answer(args []string) (any, int) {
 }
 
 func runLinks(root string) (any, int) {
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
-		return ErrorReport{Error: err.Error()}, 2
+		return errorReport{Error: err.Error()}, 2
 	}
 	if len(report.Errors) > 0 {
 		return report, 1
@@ -129,13 +124,13 @@ func runLinks(root string) (any, int) {
 	return report, 0
 }
 
-// ErrorReport is an operational failure that prevented a complete judgement.
-type ErrorReport struct {
+// errorReport is an operational failure that prevented a complete judgement.
+type errorReport struct {
 	Error string `json:"error"`
 }
 
 // Text renders the failure for a person.
-func (r ErrorReport) Text() string {
+func (r errorReport) Text() string {
 	var out textbuf.Buffer
 	return out.Str("error: ").Str(r.Error).Byte('\n').String()
 }

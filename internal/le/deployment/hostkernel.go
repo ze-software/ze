@@ -166,7 +166,7 @@ func ensureKernelSupport(what string) error {
 		return errors.New("missing PPPoL2TP kernel support: expected /proc/net/pppol2tp or l2tp_ppp module")
 	}
 
-	if out, ok := hostText("ip", "l2tp", ipShow, "tunnel"); !ok {
+	if out, ok := hostText("ip", "l2tp", ipShow, tunnelObjectName); !ok {
 		return errors.New(tb.Str("ip l2tp cannot access the kernel L2TP Generic Netlink family: ").
 			Str(strings.TrimSpace(out)).String())
 	}

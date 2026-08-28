@@ -22,7 +22,7 @@
 # available") -- the daemon fails before the external ddos-detect subprocess
 # ever gets a chance to run. option=needs-linux below; not executable on the
 # darwin dev host, but confirmed PASSING under
-# `make ze-qemu-needs-linux-test` (real QEMU Linux VM).
+# `./le qemu all-tests` (real QEMU Linux VM).
 #
 # // replaced the blind 4.0s sleep + wait.py hold with the
 # await=stderr fence below. Coverage is REPLACED, not weakened: the

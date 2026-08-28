@@ -3,7 +3,7 @@ kind: note
 level:
 stage:
 ---
-The commit gate `deferral_unassigned_problems` (`scripts/dev/commit_helper.py`)
+The commit gate `deferral_unassigned_problems` (`internal/le/commit`)
 folds over every shard in `plan/deferrals/` and WARNS, it surfaces, it does not
 block, on any LIVE deferral (any non-terminal Status, see Status Vocabulary) that
 names no destination or names a spec file that does not exist, and on any row it

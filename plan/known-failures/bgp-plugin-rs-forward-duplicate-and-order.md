@@ -14,7 +14,7 @@ NOT caused by the module rename. The rename rewrote import paths only; no `.ci`
 file under `test/plugin/` changed (`git diff --stat -- test/plugin/` was empty at
 the time of both failures), and no daemon logic changed. 380 passes 3/3 in
 isolation and reproduces on invocation 23 of 60 under
-`scripts/dev/stress-repro.py "bgp plugin" --test 380 --any-failure`; captured at
+the retired `scripts/dev/stress-repro.py "bgp plugin" --test 380 --any-failure` (current producer: `internal/le/stressrepro/run.go`); captured at
 `tmp/stress-repro/bgp-plugin-380-20260725-150311.log` (scratch, not durable).
 
 Pre-existing by the tests' own record: the header of
@@ -132,8 +132,8 @@ Measured margin between `replay ownership declared` and the first
 | **under `stress-repro` load, test 254** | **849 ms** |
 
 **Both symptoms nevertheless still reproduce, so neither was caused by this race
-alone.** Post-fix `scripts/dev/stress-repro.py "bgp plugin" --test N --any-failure
---iterations 60`: 380 reproduced on invocation 10, 254 on invocation 5 (and again
+alone.** Post-fix the retired `scripts/dev/stress-repro.py "bgp plugin" --test N --any-failure
+--iterations 60` (current producer: `internal/le/stressrepro/run.go`): 380 reproduced on invocation 10, 254 on invocation 5 (and again
 on 10 with ownership logging on).
 
 The 254 capture `tmp/stress-repro/bgp-plugin-254-20260725-220325.log` is the

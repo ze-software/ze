@@ -24,9 +24,9 @@ Statuses: `skeleton` -> `design` -> `ready` -> `in-progress` -> closed.
 
 `skeleton` is the one status allowed to carry template placeholders: a deferral
 holder fills `## Task` and leaves the rest for whoever picks the work up
-(`ai/rules/planning.md`). From `design` onward the placeholder guards in
-`.claude/hooks/validate-spec.sh` block, because the author is then claiming those
-sections are written.
+(`ai/rules/planning.md`). From `design` onward the native validation hook in
+`internal/le/hookruntime/lifecycle.go` blocks placeholders, because the author
+is then claiming those sections are written.
 
 A spec that passes its Review Gate is not done until it is **deleted** from
 `plan/`: closure is two commits (commit A: code + spec + the problem record;
@@ -39,5 +39,5 @@ commit B: `git rm` the spec). The problem record is a row in
 - `/ze-status` shows a cross-project attention view (statuses, stalls).
 - `/ze-spec` creates or evolves a spec; `/ze-implement` executes one;
   `/ze-review` runs the completion gate.
-- Each session records its spec in its own marker via
-  `scripts/dev/spec-session.sh` (see `.claude/rules/planning.md`).
+- Each session records its spec with `./le spec-session claim spec <stem>`
+  (see `ai/rules/planning.md`).

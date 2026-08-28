@@ -10,69 +10,6 @@
 
 option=needs-linux:caps=net-admin
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Verify the ze table survives a SIGKILL (crash) under the default
-flush-on-shutdown=true."""
-import atexit
-import os
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-# The table this test proves survives a crash is a REAL `policy drop` base chain
-# at hook input, and by design nothing in ze removes it. Under `make ze-netns-test`
-# the per-test netns is destroyed at teardown so the leak is invisible; in a shared
-# namespace (the QEMU VM, scripts/evidence/qemu-all-tests.sh) it would outlive this
-# test and drop every later packet that is not tcp dport 22 -- for the rest of the
-# VM run, across every suite that follows. Reap it on ANY exit path. This runs
-# after the AFTER_CRASH assertion below, so the persistence check is unaffected:
-# the test still proves the table survived the SIGKILL, it just no longer leaves a
-# landmine behind for the next suite.
-atexit.register(lambda: subprocess.call(
-    ["nft", "delete", "table", "inet", "ze_fwcrash"], stderr=subprocess.DEVNULL))
-
-if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-                  attempts=200, delay=0.05):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# Poll until the table is programmed instead of sleep(0.5).
-def _present():
-    try:
-        subprocess.check_output(["nft", "list", "table", "inet", "ze_fwcrash"], text=True, stderr=subprocess.DEVNULL)
-        return True
-    except subprocess.CalledProcessError:
-        return False
-if not wait_until(_present, attempts=100, delay=0.05):
-    sys.exit("BEFORE_CRASH: table missing")
-print("BEFORE_CRASH: table present", file=sys.stderr)
-
-# SIGKILL: a crash. No shutdown code runs, so the table must remain.
-os.kill(pid, signal.SIGKILL)
-# Poll until the process has exited instead of the sleep-paced loop.
-def _dead():
-    try:
-        os.kill(pid, 0)
-        return False
-    except OSError:
-        return True
-wait_until(_dead, attempts=100, delay=0.05)
-
-try:
-    subprocess.check_output(
-        ["nft", "list", "table", "inet", "ze_fwcrash"],
-        text=True, stderr=subprocess.STDOUT)
-    print("AFTER_CRASH: table persisted (OK)", file=sys.stderr)
-except subprocess.CalledProcessError:
-    print("AFTER_CRASH: table removed (FAIL)", file=sys.stderr)
-    sys.exit(1)
-EOF_PY
-
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
 	backend nft;
@@ -95,7 +32,7 @@ EOF_CONF
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=2:exec=ze-test fixture firewall/flush-crash:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=BEFORE_CRASH: table present
 expect=stderr:contains=AFTER_CRASH: table persisted

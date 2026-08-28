@@ -11,54 +11,8 @@ option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65001:next-hop=10.0.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies rpki event has per-prefix states
-tmpfs=rpki-event-multi-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.subscribe(['rpki direction received'])
-    api.ready()
-
-    def _match(evt):
-        if not isinstance(evt, dict):
-            return False
-        bgp = evt.get('bgp', {})
-        if bgp.get('message', {}).get('type') != 'rpki':
-            return False
-        rpki = bgp.get('rpki', {})
-        if not isinstance(rpki, dict) or rpki.get('status') == 'unavailable':
-            return False
-        # 10.0.1.0/24 from AS 65001 with VRP 10.0.0.0/8,24,65001 -> valid
-        return rpki.get('ipv4/unicast', {}).get('10.0.1.0/24') == 'valid'
-
-    try:
-        if api.wait_for_event(timeout=12.0, predicate=_match) is None:
-            print('FAIL: no rpki event with valid state for prefix', file=sys.stderr)
-            sys.exit(1)
-
-        print('OK: rpki event has per-prefix validation states', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# native test plugin: verifies rpki event has per-prefix states
+# Native compiled fixture: plugin/rpki-event-multi
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	hub {
@@ -69,7 +23,7 @@ plugin {
 		}
 	}
 	external rpki-event-multi-test {
-		run ./rpki-event-multi-test.run
+		run "ze-test fixture plugin/rpki-event-multi"
 		encoder json
 	}
 	internal rpki {

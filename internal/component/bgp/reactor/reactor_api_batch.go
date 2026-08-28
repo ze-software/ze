@@ -129,7 +129,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			continue
 		}
 
-		if !peer.ShouldQueue() {
+		if !peer.shouldQueue() {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
 			if nc == nil || !nc.Has(batch.Family) {
@@ -316,7 +316,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 	}
 
 	for _, peer := range peers {
-		if !peer.ShouldQueue() {
+		if !peer.shouldQueue() {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
 			if nc == nil || !nc.Has(batch.Family) {
@@ -756,7 +756,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 	// local-preference crossed the AS boundary on every announce to an external peer
 	// that had finished its initial sync. The queued rail writes LOCAL_PREF only
 	// under `if isIBGP` and was right; this makes the two agree by construction
-	// rather than leaving the answer to Peer.ShouldQueue.
+	// rather than leaving the answer to Peer.shouldQueue.
 	switch {
 	case localPrefAllowed:
 		if !hasCode(attribute.AttrLocalPref) {
@@ -1060,7 +1060,7 @@ func (a *reactorAPIAdapter) SendRoutes(sel *selector.Selector, routes []*rib.Rou
 			for _, f := range families {
 				eor := message.BuildEOR(f)
 				if err := peer.SendUpdate(eor); err == nil {
-					peer.IncrEORSent()
+					peer.incrEORSent()
 					totalResult.UpdatesSent++
 				}
 			}

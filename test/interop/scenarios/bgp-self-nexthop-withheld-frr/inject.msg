@@ -8,7 +8,8 @@
 #
 # ORDER IS LOAD-BEARING. The withheld prefix is sent FIRST, so by the time FRR
 # logs its decode of the second one, the first has already been through the same
-# rail and the same fan-out. check.py's absence assertion is then about a
+# rail and the same fan-out. the internal/le/interoplab/bgp checker's absence assertion is then
+# about a
 # decision Ze has made, not about a message still in flight.
 #
 # ASN is pinned via inject-args (--asn 65004).
@@ -42,7 +43,8 @@ action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 # End-of-RIB, so Ze's initial-sync bookkeeping toward this peer completes.
 action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Hold the session open while check.py finishes. A peer whose script is exhausted
+# Hold the session open while the internal/le/interoplab/bgp checker finishes. A peer whose script
+# is exhausted
 # exits, and its session dropping would make Ze withdraw both routes -- which is
 # exactly how an absence assertion passes vacuously. Ze sends a KEEPALIVE every
 # 30s (a third of the 90s hold), so four of them hold the session for 2-4 minutes.

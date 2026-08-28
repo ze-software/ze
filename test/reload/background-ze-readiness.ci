@@ -1,50 +1,16 @@
 # Test: The runner emits daemon.pid + daemon.ready for a BACKGROUND ze daemon.
-# VALIDATES: spec-netlink-ci-harness AC-1 (Fix A) -- driver.py-style suites
+# VALIDATES: spec-netlink-ci-harness AC-1 (Fix A) -- native-driver suites
 #            (firewall/policy/static) launch `ze` as cmd=background and poll
 #            daemon.pid/daemon.ready. The runner must produce those files for a
 #            background ze daemon exactly as it already does for foreground ze.
 # PREVENTS: regression to the pre-Fix-A state where background ze got neither
-#           ZE_READY_FILE nor a daemon.pid write, so every driver.py that polled
+#           ZE_READY_FILE nor a daemon.pid write, so every native driver that polled
 #           for readiness timed out by construction.
 #
 # No CAP_NET_ADMIN / netns needed: a plain BGP daemon with no peer reaches
 # WaitForStartupComplete and writes the readiness file, so this guards Fix A on
 # every platform (no skip-os).
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Assert the runner produced daemon.pid + daemon.ready for the background ze,
-then read the pid and SIGTERM the daemon so the test exits promptly.
-
-wait_for_daemon_ready (test/scripts/ze_api.py) IS the assertion: it holds for the
-same two files this test exists to guard, parses the pid inside its predicate so
-an empty daemon.pid cannot read as ready, and raises TimeoutError naming which
-file was missing. The message below stays because the failure it reports is this
-test's whole subject."""
-import os
-import signal
-import sys
-
-from ze_api import wait_for_daemon_ready
-
-try:
-    pid = wait_for_daemon_ready()
-except TimeoutError as exc:
-    print("ERROR: daemon.pid/daemon.ready never appeared for background ze: %s" % exc,
-          file=sys.stderr)
-    sys.exit(1)
-
-# daemon.pid must hold the ze daemon's pid, never this driver's own pid. If the
-# runner clobbered it with a helper-script pid, killing it would signal ourselves
-# (a mysterious exit -1) -- assert loudly instead.
-if pid == os.getpid():
-    print("ERROR: daemon.pid holds the driver's own pid, not the ze daemon",
-          file=sys.stderr)
-    sys.exit(1)
-
-print("background ze readiness files present; daemon pid=%d" % pid)
-os.kill(pid, signal.SIGTERM)
-EOF_PY
 
 # Minimal valid daemon config (copied from signal-stop.ci, proven valid on the
 # current parser). One peer, outbound-only to 127.0.0.1; no ze-peer runs, so the
@@ -82,6 +48,6 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze start ze-bgp.conf
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=20s
+cmd=foreground:seq=2:exec=ze-test fixture reload/background-ze-readiness:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=background ze readiness files present

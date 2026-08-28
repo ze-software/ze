@@ -43,104 +43,24 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D0104FDE8005A010
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030600
 EOF_PEER
 
-tmpfs=watch-down.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Wait for the peer to go DOWN after the refused OPEN, then stop the daemon.
-
-This is not just a shutdown trigger. Waiting on the state event asserts the
-half of the fix the wire bytes cannot show: that refusing the OPEN also drives
-the FSM out of Established, which is what runs the peer-closed cascade
-(peer_run.go's `from == fsm.StateEstablished` branch -> notifyPeerClosed ->
-SessionStateDown). An earlier version of the fix sent exactly the same Cease on
-the wire while skipping that transition entirely, leaving a dead peer marked up
-with its routes retained; this test would have stayed red for it.
-"""
-
-import sys
-
-from ze_api import API, runtime_fail
-
-
-def peer_state(event, want):
-    """True when event is a BGP state event reporting `want`.
-
-    Shape read from a working observer (test/plugin/plugin-refresh.ci): the event is
-    {"bgp": {"message": {"type": "state"}, "state": "up"|"down"}}.
-    """
-    if not isinstance(event, dict):
-        return False
-    bgp = event.get('bgp') or {}
-    message = bgp.get('message') or {}
-    return message.get('type') == 'state' and bgp.get('state') == want
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Established first, so a down seen below is the teardown under test and not
-    # a pre-establishment blip.
-    # POLLED, not event-driven. The refused OPEN is injected the moment the
-    # session establishes, so the up->down window is a few milliseconds and an
-    # observer waiting on the event stream races it (measured: "peer never
-    # reached up" while the Cease was demonstrably already on the wire).
-    # Polling the peer table is level-triggered and cannot miss the transition.
-    # // the peer-state assertions here are REMOVED, not weakened,
-    # and they never ran green. This file was authored in this same session, so
-    # they were an authoring attempt rather than existing coverage. They are
-    # racy by construction: the refused OPEN is injected the instant the session
-    # establishes, so "established" lasts a few milliseconds. An event-stream
-    # observer missed it ("peer never reached up") and a 250ms poll missed it
-    # too ("peer never established"), both while the Cease was demonstrably on
-    # the wire. Keeping them would ship a flaky test.
-    #
-    # The gate is the `expect=bgp:` NOTIFICATION above: a byte-exact match on
-    # Cease (code 6) the daemon must produce through its real read path, which
-    # is what this .ci exists to cover and what the unit tests cannot reach.
-    # Non-vacuous by construction: with handleOpen's state gate removed no
-    # NOTIFICATION is sent at all, so the expectation cannot match. The
-    # FSM-transition half is asserted by the unit tests, which can inspect the
-    # session object directly (TestSecondOpenOnEstablishedSessionIsRefused
-    # checks the session leaves Established AND that s.negotiated is not
-    # rebuilt; TestSecondOpenInOpenConfirmIsRefused covers the other state).
-    # Wait for the session-drop COUNTER rather than for a state, because state
-    # is the thing that is transient here. A peer that has been established and
-    # then torn down has a non-zero drop count, and a counter is monotonic: it
-    # cannot be missed by polling the way a millisecond-long state can.
-    attempts = 60
-    delay = 0.25
-    dropped = api.dispatch_until(
-        'show bgp',
-        lambda _r: any(
-            int(row.get('session-drops', 0) or 0) > 0
-            for row in api.peer_fields().values()
-        ),
-        attempts=attempts, delay=delay)
-    if dropped is None:
-        runtime_fail('no session drop recorded after the refused OPEN')
-    print('OK: session dropped after the second OPEN was refused',
-          file=sys.stderr)
-
-    print('OK: peer went down after the second OPEN was refused', file=sys.stderr)
-
-    api._call_engine('ze-plugin-engine:dispatch-command',
-                     {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer polls the monotonic session-drop counter after the exact Cease
+# frame has been observed.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external watch-down {
-		run ./watch-down.run
+		run "ze-test fixture plugin/open-in-established"
 		encoder json
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
 	}
 }
 

@@ -7,5 +7,5 @@ stage:
 - MUST return exit codes; MUST NOT call `os.Exit()` in handlers
 - `-` means stdin (read) / stdout (write): MUST read/write a user-supplied path through
   `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), MUST NOT make a raw
-  `os` call. `make ze-dash-stdio-check` fails any command that bypasses it. `--json` for JSON output
+  `os` call. `./le dash-stdio check` fails any command that bypasses it. `--json` for JSON output
 - Repeatable flags MUST use `stringSlice` with `String()` + `Set()`

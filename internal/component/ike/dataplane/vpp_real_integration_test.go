@@ -1,6 +1,6 @@
 // VALIDATES: this backend against a REAL VPP. It connects to a running VPP's binary
 // API socket, installs one AEAD SA and two policies, and reports the ids VPP gave
-// them. scripts/evidence/effective-vpp.py runs it inside a privileged container and
+// them. internal/le/deployment/vppevidence.go runs it inside a privileged container and
 // then asserts through vppctl that VPP holds what was asked for (make
 // ze-deployment-vpp-test). It is the spec's AC-7.
 // PREVENTS: a green unit suite standing in for a working backend. Every unit test
@@ -55,7 +55,7 @@ var (
 func TestVPPRealDataplaneInstalls(t *testing.T) {
 	socket := os.Getenv(realVPPSocketEnv)
 	if socket == "" {
-		t.Skipf("%s is unset: this test programs a running VPP (make ze-deployment-vpp-test)", realVPPSocketEnv)
+		t.Skipf("%s is unset: this test programs a running VPP (`./le deployment vpp-test`)", realVPPSocketEnv)
 	}
 	swIfIndex, err := strconv.Atoi(os.Getenv(realVPPIfIndexEnv))
 	if err != nil {

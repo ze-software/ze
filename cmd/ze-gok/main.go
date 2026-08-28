@@ -21,7 +21,7 @@ var _ = env.MustRegister(env.EnvEntry{Key: "ze.gok.debug", Type: "bool", Descrip
 // The out-of-tree kernel is selected per build, never by leftover state. It is
 // an env var rather than a YANG leaf because it is a developer knob for testing
 // a locally built kernel, not something an operator sets on an appliance
-// (ai/rules/config.md). `make ze-kernel-build` prints the exact command.
+// (ai/rules/config.md). `./ze appliance kernel --target runtime` prints the exact command.
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.gok.kernel-package", Type: "string", Description: "Path to an out-of-tree kernel package to build the appliance image against (default: the pinned github.com/rtr7/kernel)"})
 
 const (
@@ -174,8 +174,8 @@ func main() {
 	// resolve over the network to a NEWER version than the pins choose -- the exact
 	// ship-a-different-kernel failure the prepared instance exists to prevent. off
 	// turns that into a loud "module lookup disabled" error, enforcing the offline
-	// build contract (mk/build-gokrazy.mk header). Explicit GOPROXY wins, so
-	// ze-gokrazy-deps-download (a separate target that needs the network) is unaffected.
+	// build contract (internal/appliance/cmd_build.go header). Explicit GOPROXY wins, so
+	// ./le setup install (a separate target that needs the network) is unaffected.
 	if os.Getenv("GOPROXY") == "" {
 		if err := os.Setenv("GOPROXY", "off"); err != nil {
 			fmt.Fprintf(os.Stderr, "ze-gok: setenv: %v\n", err)

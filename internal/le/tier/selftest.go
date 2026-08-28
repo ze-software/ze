@@ -91,9 +91,9 @@ func engineImporting(pkg, imported string) string {
 	return tb.Str(blankImport(pkg, imported)).Str("func R(){ sdk.NewWithConn() }\n").String()
 }
 
-// PlacementFixture answers the first fixture checkout: engine placement, the
+// placementFixture answers the first fixture checkout: engine placement, the
 // wired-versus-core classification, and the disableable-import audit.
-func PlacementFixture() map[string]string {
+func placementFixture() map[string]string {
 	var tb textbuf.Buffer
 	nested := tb.Str(nestedFixtureRoot).Str("/sub/r.go").String()
 
@@ -171,9 +171,9 @@ func PlacementFixture() map[string]string {
 	}
 }
 
-// ManifestFixture answers the second fixture checkout: the feature-gate
+// manifestFixture answers the second fixture checkout: the feature-gate
 // manifest and the lint build-tag list.
-func ManifestFixture() map[string]string {
+func manifestFixture() map[string]string {
 	return map[string]string{
 		FeatureGatesManifest: "# header comment\nze_alpha   internal/component/alpha\nze_beta    internal/component/beta\n",
 		Golangci: strings.Join([]string{
@@ -183,8 +183,8 @@ func ManifestFixture() map[string]string {
 	}
 }
 
-// CoreFixture answers the third fixture checkout: the core import direction.
-func CoreFixture() map[string]string {
+// coreFixture answers the third fixture checkout: the core import direction.
+func coreFixture() map[string]string {
 	return map[string]string{
 		"go.mod": "module example.com/m\n",
 		// A core-to-core import is never a violation.
@@ -235,14 +235,14 @@ func runPlacementCases() ([]leroot.SelftestResult, error) {
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // temp fixture
 
-	if err := writeFixture(root, PlacementFixture()); err != nil {
+	if err := writeFixture(root, placementFixture()); err != nil {
 		return nil, err
 	}
-	edges, err := CollectEdges(root, fixtureModule)
+	edges, err := collectEdges(root, fixtureModule)
 	if err != nil {
 		return nil, err
 	}
-	misplaced, err := EngineMisplacements(root, fixtureModule, edges)
+	misplaced, err := engineMisplacements(root, fixtureModule, edges)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +283,7 @@ func runPlacementCases() ([]leroot.SelftestResult, error) {
 // runWiringCases proves the wired-versus-core determination reads every
 // composition root.
 func runWiringCases(root string, edges Edges) ([]leroot.SelftestResult, error) {
-	engines, err := EngineSubsystems(root)
+	engines, err := engineSubsystems(root)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +325,7 @@ func runWiringCases(root string, edges Edges) ([]leroot.SelftestResult, error) {
 func runDisableableCases(root string, edges Edges) []leroot.SelftestResult {
 	gates := map[string]string{"internal/component/widget": "ze_widget"}
 	flagged := make(map[string]bool)
-	for _, violation := range DisableableViolations(root, fixtureModule, edges, gates) {
+	for _, violation := range disableableViolations(root, fixtureModule, edges, gates) {
 		flagged[violation.Importer] = true
 	}
 
@@ -365,7 +365,7 @@ func runGateSequence(root string, edges Edges, misplaced map[string]string) ([]l
 		caseResult("empty-baseline-fails", code == 2, "an empty baseline passed while the tree holds a new misplacement"),
 	}
 
-	if err := WriteBaseline(root, misplaced); err != nil {
+	if err := writeBaseline(root, misplaced); err != nil {
 		return nil, err
 	}
 	code, err = quietCheck(root, edges)
@@ -431,11 +431,11 @@ func runManifestCases() ([]leroot.SelftestResult, error) {
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // temp fixture
 
-	if err := writeFixture(root, ManifestFixture()); err != nil {
+	if err := writeFixture(root, manifestFixture()); err != nil {
 		return nil, err
 	}
 
-	gates, err := LoadFeatureGates(root)
+	gates, err := loadFeatureGates(root)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +448,7 @@ func runManifestCases() ([]leroot.SelftestResult, error) {
 			"the feature-gate manifest did not parse into its two gates"),
 	}
 
-	tags, err := ParseGolangciBuildTags(root)
+	tags, err := parseGolangciBuildTags(root)
 	if err != nil {
 		return nil, err
 	}
@@ -484,20 +484,20 @@ func runCoreCases() ([]leroot.SelftestResult, error) {
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // temp fixture
 
-	if err := writeFixture(root, CoreFixture()); err != nil {
+	if err := writeFixture(root, coreFixture()); err != nil {
 		return nil, err
 	}
-	edges, err := CollectEdges(root, fixtureModule)
+	edges, err := collectEdges(root, fixtureModule)
 	if err != nil {
 		return nil, err
 	}
 
-	want := []CorePair{
+	want := []corePair{
 		{File: "internal/core/bad/uses.go", Package: "internal/component/thing"},
 		{File: "internal/core/bad/uses_test.go", Package: "internal/plugins/thingp"},
 	}
 	results := []leroot.SelftestResult{
-		caseResult("core-direction-violations", samePairs(CoreDirectionViolations(fixtureModule, edges), want),
+		caseResult("core-direction-violations", samePairs(coreDirectionViolations(fixtureModule, edges), want),
 			"the upward imports out of internal/core are not the two the fixture declares"),
 	}
 
@@ -531,7 +531,7 @@ func runCoreCases() ([]leroot.SelftestResult, error) {
 	}); err != nil {
 		return nil, err
 	}
-	edges, err = CollectEdges(root, fixtureModule)
+	edges, err = collectEdges(root, fixtureModule)
 	if err != nil {
 		return nil, err
 	}
@@ -549,7 +549,7 @@ func runCoreCases() ([]leroot.SelftestResult, error) {
 		"internal/core/gone/x.go\tinternal/component/thing\thand-fixable: stale fixture\n"); err != nil {
 		return nil, err
 	}
-	edges, err = CollectEdges(root, fixtureModule)
+	edges, err = collectEdges(root, fixtureModule)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +602,7 @@ func sameMap(left, right map[string]string) bool {
 }
 
 // samePairs reports whether two pair slices hold the same pairs.
-func samePairs(left, right []CorePair) bool {
+func samePairs(left, right []corePair) bool {
 	if len(left) != len(right) {
 		return false
 	}

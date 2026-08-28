@@ -22,88 +22,20 @@
 #
 # needs-linux:caps=net-admin: creating a netdev and assigning an address needs
 # CAP_NET_ADMIN, which the verify runner does not have. Runs as root under
-# `make ze-qemu-needs-linux-test`.
+# `./le qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the device zeosnsel0 and the address block
 # 198.51.100.112/28. No other file under test/ puts either in a kernel. The
 # per-test /28 matters because the plugin suite runs 8-wide in ONE namespace
-# (ZE_PLUGIN_PARALLEL, mk/test-functional.mk).
+# (ZE_PLUGIN_PARALLEL, internal/le/functional/budget.go).
 option=needs-linux:caps=net-admin
 option=timeout:value=30s
 
-tmpfs=iface-osname-alias-apply.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert the aliased entry's settings landed on the kernel device, not on its
-logical name.
-
-The read goes straight to the kernel through `ip -j addr show`, not through a ze
-command, so nothing in the assertion shares a resolver with the code under test.
-"""
-
-import json
-import subprocess
-import sys
-
-from ze_api import API
-from ze_api import runtime_fail
-
-DEVICE = "zeosnsel0"     # the kernel device the alias names
-LOGICAL = "zeosnwan"     # the entry name; no kernel device carries it
-CIDR = "198.51.100.113/28"
-MTU = 1400
-
-
-def ip_json(*args):
-    result = subprocess.run(["ip", "-j", *args], capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        return None
-    return json.loads(result.stdout or "[]")
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        links = ip_json("link", "show", DEVICE)
-        if not links:
-            runtime_fail(f'{DEVICE} was not created: the apply never reached the aliased device')
-        link = links[0]
-        if link.get("mtu") != MTU:
-            runtime_fail(f'{DEVICE} mtu={link.get("mtu")!r}, want {MTU}: the entry MTU did not follow the alias')
-        if "UP" not in (link.get("flags") or []):
-            runtime_fail(f'{DEVICE} flags={link.get("flags")!r}: the admin-up did not follow the alias')
-
-        addrs = ip_json("addr", "show", DEVICE) or []
-        found = [
-            f'{a["local"]}/{a["prefixlen"]}'
-            for entry in addrs for a in (entry.get("addr_info") or [])
-        ]
-        if CIDR not in found:
-            runtime_fail(f'{DEVICE} carries {found!r}, not {CIDR}: the address did not follow the alias')
-
-        if ip_json("link", "show", LOGICAL):
-            runtime_fail(f'a device named {LOGICAL} exists: the apply worked on the logical name')
-
-        print(f'OK: os-name alias applied {CIDR}, mtu {MTU} and admin-up to {DEVICE}', file=sys.stderr)
-    finally:
-        api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-osname-alias-apply {
-		run ./iface-osname-alias-apply.run
+		run "ze-test fixture plugin/iface-osname-alias-apply"
 		encoder json
 	}
 }

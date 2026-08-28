@@ -9,11 +9,9 @@
 # PREVENTS:  regression where the YANG `bind-v6` leaf is ignored
 #            or the Dual path silently falls back to IPv4 only.
 #
-# Method: a Python orchestrator launches ze with a v6 single-hop
-# session and a top-level `bfd { bind-v6 true }` leaf, waits for
-# the lifecycle log lines (including the new ipv6=true field), and
-# SIGTERMs cleanly. Rings v4/v6 port conflict is avoided because
-# each test gets its own ze.bfd.test-parallel=true (SO_REUSEPORT).
+# Method: a compiled driver launches ze with a v6 single-hop session,
+# waits for the lifecycle lines including ipv6=true, then terminates it
+# cleanly.
 
 option=env:var=ze.bfd.test-parallel:value=true
 # BFD listens on the RFC 5881 / RFC 5883 FIXED ports, so every concurrently
@@ -28,92 +26,8 @@ option=env:var=ze.bfd.test-parallel:value=true
 option=exclusive:group=bfd-ports
 
 
-tmpfs=test-bfd-ipv6.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Drive ze with a v6 pinned session and assert the dual-bind path."""
 
-import os
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_for_stderr_lines
-
-REQUIRED = [
-    "bfd plugin starting",
-    "bfd pinned session created",
-    "ipv6=true",
-    "bfd plugin running",
-]
-
-CONFIG = """environment {
-}
-
-bfd {
-\tenabled true;
-\tbind-v6 true;
-\tprofile fast {
-\t\tdetect-multiplier 3
-\t\tdesired-min-tx-us 100000
-\t\trequired-min-rx-us 100000
-\t}
-\tsingle-hop-session 2001:db8::9 {
-\t\tprofile fast
-\t}
-}
-"""
-
-
-def main() -> int:
-    env = os.environ.copy()
-    env["ze.log.bfd"] = "debug"
-    env["ze.bfd.test-parallel"] = "true"
-
-    proc = subprocess.Popen(
-        ["ze", "-"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=env,
-    )
-    assert proc.stdin is not None
-    proc.stdin.write(CONFIG)
-    proc.stdin.close()
-
-    captured = wait_for_stderr_lines(proc, REQUIRED, timeout=8.0)
-
-    if proc.poll() is None:
-        proc.send_signal(signal.SIGTERM)
-        try:
-            proc.wait(timeout=3.0)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait(timeout=2.0)
-
-    if proc.stderr is not None:
-        try:
-            tail = proc.stderr.read()
-        except (ValueError, OSError):
-            tail = ""
-        if tail:
-            captured += tail
-            sys.stderr.write(tail)
-            sys.stderr.flush()
-
-    missing = [n for n in REQUIRED if n not in captured]
-    if missing:
-        sys.stderr.write(f"FAIL: missing required patterns: {missing}\n")
-        return 1
-    sys.stderr.write("OK: bfd dual-bind v6 lifecycle observed\n")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-EOF_PY
-
-cmd=foreground:seq=1:exec=python3 ./test-bfd-ipv6.py:timeout=15s
+cmd=foreground:seq=1:exec=ze-test fixture plugin/bfd-ipv6-dual-bind:timeout=15s
 expect=exit:code=0
 expect=stderr:pattern=bfd plugin running
 expect=stderr:pattern=ipv6=true

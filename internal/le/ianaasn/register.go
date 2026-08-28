@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -29,8 +28,4 @@ func init() {
 	// refused.
 	leroot.RegisterShape(area, command.ShapeMap)
 
-	// No Make target names this generator, so it claims no gate. The census
-	// counts gates, and a tool with none moves it by zero: what moves the count
-	// here are the four checks the other codegen tools carry.
-	parity.Claim(area, actions.Gates()...)
 }

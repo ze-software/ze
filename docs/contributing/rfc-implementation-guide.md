@@ -513,18 +513,17 @@ inside a `terminator=` block):
   `{single-polarity: positive|negative; why}` instead. `{gap: why; ref}` and
   `{not-applicable: why}` cover deliberate divergence and inapplicability, each
   with a reason (a bare annotation is rejected).
-- **Five RFC make targets, and each clears a different red.**
-  - `make ze-rfc-check` gates coverage and validates the audit records.
-  - `make ze-rfc-index-update` renders the ledger: one file per RFC under `rfc/requirements/`,
-    and the index over them (`ai/RFC-REQUIREMENTS.md`).
-  - `make ze-rfc-extraction-create STEM=<stem>` writes an extraction skeleton.
-  - `make ze-rfc-extraction-status` prints the sign-off counts.
-  - `make ze-rfc-reseal` re-stamps an audit verdict a mechanical edit staled.
+- **Five native RFC actions clear different failures.**
+  - `./le rfc check` gates coverage and validates the audit records.
+  - `./le rfc index-update` renders one ledger per RFC and
+    `ai/RFC-REQUIREMENTS.md`.
+  - `./le rfc extraction-create stem <stem>` writes an extraction skeleton.
+  - `./le rfc extraction-status` prints the sign-off counts.
+  - `./le rfc reseal` re-stamps an audit verdict after a mechanical edit.
 
-  For an enrolled RFC (`rfc/enrolled.txt`) the gate fails unless every MUST has its
-  pair or a reasoned annotation. Writing a summary does NOT enroll an RFC.
-  Enrollment is a separate, deliberate step taken once the tests exist.
-  <!-- source: Makefile — ze-rfc-check, ze-rfc-index-update, ze-rfc-extraction-create, ze-rfc-extraction-status, ze-rfc-reseal -->
+  For an enrolled RFC (`rfc/enrolled.txt`), the gate fails unless every MUST has
+  its pair or a reasoned annotation. Writing a summary does not enroll an RFC.
+  <!-- source: internal/le/rfc/actions.go -- Actions -->
 - **Enrol it, or declare why not.** Every summary under `rfc/short/` is in
   `rfc/enrolled.txt` or in `rfc/not-enrolled.txt`. One in neither reds the gate.
   Un-enrolment used to be the one state that carried no information. So "the RFC
@@ -544,7 +543,7 @@ inside a `terminator=` block):
   extraction sign-off whose `register-reason` says why. Second, a Remaining cell that
   spells a gap count immediately before MUST or SHALL must agree with the summary's
   `{gap}` count.
-  <!-- source: scripts/dev/rfc_requirements.py — check_summary_disposition, check_unproven_support, check_gap_count_agreement -->
+  <!-- source: internal/le/rfc/actions.go — check_summary_disposition, check_unproven_support, check_gap_count_agreement -->
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
   exists, but it cannot read the test. The audit reads the RFC itself and each
   tagged test. It then judges whether the test would fail if the code stopped
@@ -555,28 +554,27 @@ inside a `terminator=` block):
     requirement from the published proven count. That count is in the ledger's
     **Audit coverage** section, and the gate still exits 0.
 
-  Recording a finding is free, and deleting one is not. `make ze-rfc-check`
+  Recording a finding is free, and deleting one is not. `./le rfc check`
   re-stales a verdict when the requirement text, the tagged test's own function,
   or a cited producer changes.
-  <!-- source: scripts/dev/rfc_requirements.py — AUDIT_VERDICTS, check_audit_schema, audit_coverage -->
+  <!-- source: internal/le/rfc/actions.go — AUDIT_VERDICTS, check_audit_schema, audit_coverage -->
 - **A `SHIFTED` verdict is not your problem to re-read.** When the gate says a
   verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
   moved: a line shift, a sibling test, or a rewritten import. Run
-  `make ze-rfc-reseal` then `make ze-rfc-index-update`. It is the only command that writes
+  `./le rfc reseal` then `./le rfc index-update`. It is the only command that writes
   `rfc/audit/`, and that is deliberate. A check that also wrote cannot be trusted
   to report. And a regen target that wrote evidence would re-stamp hand-authored
   judgements during unrelated work.
-  <!-- source: scripts/dev/rfc_requirements.py — verdict_freshness, run_reseal -->
+  <!-- source: internal/le/rfc/actions.go — verdict_freshness, run_reseal -->
 - **A `STALE` verdict is.** The tagged unit itself changed, so re-run
   `/ze-rfc-audit <rfc>`. The re-seal refuses that case by design.
 - **Never change a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag it is the requirement: fix your code, not the test.
   Changing its behavior needs the owner's approval. Write it as one row in
-  `test/rfc-changed.md`, and commit that file with the change. The
-  `rfc-tagged-test` hook reads the file and blocks the edit until a row names the
-  test.
+  `test/rfc-changed.md`, and commit that file with the change. The native
+  weakening check reads the file and blocks the edit until a row names the test.
 
-<!-- source: scripts/dev/rfc_requirements.py -- scan_go_tags/scan_ci_tags, evaluate -->
+<!-- source: internal/le/weakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 
 Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
@@ -584,7 +582,7 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 ```
 [ ] Every MUST-level line in rfc/short/rfcNNNN.md has an id (allocated by /ze-rfc)
 [ ] Each gated MUST has a positive AND a negative tagged test, or a reasoned annotation
-[ ] make ze-rfc-check passes; rfc/enrolled.txt lists the RFC once its tests exist
+[ ] ./le rfc check passes; rfc/enrolled.txt lists the RFC once its tests exist
 [ ] If not enrolled: rfc/not-enrolled.txt carries a kind and a reason for it
 ```
 
@@ -609,7 +607,7 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 [ ] Add Ze implementation notes section
 [ ] Cross-reference related RFCs
 [ ] Every MUST-level line has a stable id (see 9.7); disclose any {gap} in docs/features/rfc-status.md
-[ ] Extraction sign-off recorded: make ze-rfc-extraction-create STEM=rfcNNNN, then classify
+[ ] Extraction sign-off recorded: ./le rfc extraction-create STEM=rfcNNNN, then classify
     every derived site and section in rfc/extraction/rfcNNNN.json (see 10.4)
 ```
 
@@ -623,13 +621,13 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 ### 10.4 Extraction Sign-Off
 
 The checklist above proves the requirements you WROTE DOWN are enforced. Nothing
-in it bounds what the summary MISSED, and a green `make ze-rfc-check` is bounded
+in it bounds what the summary MISSED, and a green `./le rfc check` is bounded
 by what was extracted. Record the walk in an artifact the gate re-checks:
 
 ```
-make ze-rfc-extraction-create STEM=rfcNNNN     # writes an UNCLASSIFIED skeleton
+./le rfc extraction-create STEM=rfcNNNN     # writes an UNCLASSIFIED skeleton
                                       # classify every site and section by hand
-make ze-rfc-check                     # re-derives the inventory and judges it
+./le rfc check                     # re-derives the inventory and judges it
 ```
 
 Each derived site (`<section>:<n>`, with the sentence it came from) is `mapped`
@@ -645,15 +643,12 @@ ruling moved it out of the summary. It authors `relocated-to`
 (`plan/spec-<name>.md`) and `reserved-id`, and the gate refuses the sign-off
 unless that spec exists and still names that id.
 
-<!-- source: scripts/dev/rfc_requirements.py -- run_extract_skeleton/check_extraction_signoff/_relocation_errors -->
+<!-- source: internal/le/rfc/actions.go -- Answer -->
 
-The counts machine-readably (signed, enrolled, the per-register split, the
-relocated count, and the unsigned backlog): `make ze-rfc-extraction-status`. Do NOT spell it
-`make ze-rfc-extraction-status --json` -- GNU make reads `--json` as one of its own
-options and exits 2 before the recipe runs. The target always emits JSON.
+Read the signed, enrolled, relocated, and unsigned counts with
+`./le rfc extraction-status`. The action emits structured output directly.
 
-<!-- source: Makefile -- ze-rfc-extraction-status -->
-<!-- source: scripts/dev/rfc_requirements.py -- run_extraction_status -->
+<!-- source: internal/le/rfc/actions.go -- Actions -->
 
 
 
@@ -664,13 +659,13 @@ options and exits 2 before the recipe runs. The target always emits JSON.
 Before marking implementation complete:
 
 ```
-[ ] All tests pass: make ze-standard-test (timeout 300s)
-[ ] All linting passes: make ze-lint (zero issues)
-[ ] All functional tests pass: make ze-functional-test
-[ ] RFC MUST tests tagged both polarities, make ze-rfc-check passes (see 9.7)
+[ ] Pre-commit verification passes: ./le verify current mode full
+[ ] Fuzz targets pass: ./le fuzz run
+[ ] Functional tests pass: ./le functional
+[ ] RFC MUST tests have both polarities: ./le rfc check
 [ ] RFC section comments on all protocol code
 [ ] RFC constraint comments with quoted requirements
-[ ] RFC requirement coverage tags on tests (see 9.7): make ze-rfc-check passes
+[ ] RFC requirement coverage tags on tests (see 9.7): ./le rfc check passes
 [ ] No backwards-compatibility shims (Ze rule)
 [ ] No version numbers in config (Ze rule)
 [ ] Architecture docs updated

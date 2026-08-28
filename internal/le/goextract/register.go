@@ -27,10 +27,6 @@ func init() {
 	// (ai/rules/cli.md).
 	leroot.RegisterShape("go-extract", command.ShapeMap)
 
-	// No parity.Claim here, and that absence is a fact rather than an
-	// oversight: `./le gates --json` declares 156 gates, 51 of them naming a
-	// file under scripts/dev, and every one of those 51 runs a PYTHON tool.
-	// Nothing reaches this one but a developer and the ze-extract skill, so the
-	// census counts it under script-files and has no gate to move
-	// (internal/le/parity, Take).
+	// No parity.Claim: this developer action has no census gate or retained
+	// Make target.
 }

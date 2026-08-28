@@ -1,1 +1,1 @@
---asn 65003 --router-id 172.30.0.10 --family 1:1 --family 25:70 --test /speaker/plugins/no_unrecognized_evpn_type.py --duration 75 --stop-after-updates 0 --connect-delay 0
+--asn 65003 --router-id 172.30.0.10 --family 1:1 --family 25:70 --test no-unrecognized-evpn-type --duration 75 --stop-after-updates 0 --connect-delay 0

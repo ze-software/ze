@@ -126,10 +126,10 @@ func capturePcap(ctx context.Context, conn *packet.Conn, ca captureArgs) (*plugi
 	return &plugin.Response{ //nolint:nilerr // partial capture returned on ctx deadline/cancel; not a Go error
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"format":   captureFormatPcap,
-			"packets":  captured,
-			"pcap":     base64.StdEncoding.EncodeToString(buf.Bytes()),
-			"snap-len": ca.snapLen,
+			captureFormatKey: captureFormatPcap,
+			"packets":        captured,
+			"pcap":           base64.StdEncoding.EncodeToString(buf.Bytes()),
+			"snap-len":       ca.snapLen,
 		},
 	}, nil
 }
@@ -171,9 +171,9 @@ func captureText(ctx context.Context, conn *packet.Conn, ca captureArgs) *plugin
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"format":  captureFormatText,
-			"packets": captured,
-			"lines":   lines,
+			captureFormatKey: captureFormatText,
+			"packets":        captured,
+			"lines":          lines,
 		},
 	}
 }

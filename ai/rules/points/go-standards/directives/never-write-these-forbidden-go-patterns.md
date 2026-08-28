@@ -4,7 +4,7 @@ level: MUST
 stage:
 ---
 **Code MUST NOT write these forbidden Go patterns:**
-- `panic()` for error handling. Allowed prefixes (enforced by `block-panic-error.sh`): `panic("BUG: ...")`, `panic("unreachable: ...")`, `panic("not implemented")`, `panic("unimplemented")`, `panic("TODO: ...")`, `panic("impossible: ...")`. Use `panic("BUG: <what>")` for programmer-error guards that MUST never fire at runtime. Any other `panic()` call is rejected at Write/Edit time (test files and `scripts/` excepted)
+- `panic()` for error handling. The native Write/Edit gate in `internal/le/hookruntime/writeedit.go` blocks a new `panic()` call. Return an error from operating paths; reserve `panic("BUG: <what>")` for a programmer-error invariant only where the owning rule permits it
 - `f, _ := func()` and `_, _ = func()` (ignoring errors). If you genuinely MUST discard, use `//nolint:errcheck // <why>` with a specific reason
 - Global mutable state
 - `init()` except registry patterns

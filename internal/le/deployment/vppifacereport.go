@@ -48,9 +48,9 @@ func (o Outcome) String() string {
 	case OutcomeFail:
 		return "fail"
 	case OutcomeUnspecified:
-		return "unspecified"
+		return reportValueUnspecified
 	}
-	return "unspecified"
+	return reportValueUnspecified
 }
 
 // MarshalJSON writes the word rather than the number, so `| json` and `| yaml`

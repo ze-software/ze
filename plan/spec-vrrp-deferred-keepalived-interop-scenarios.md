@@ -10,7 +10,7 @@
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:** this spec file;
-`.claude/rules/planning.md`; `scripts/evidence/effective-vrrp-keepalived.py`
+`.claude/rules/planning.md`; `internal/le/qemu/vrrp_keepalived_linux.go`
 (the lab this spec extends, its module docstring is the topology);
 `docs/architecture/vrrp/vrrp-first-hop-redundancy.md`.
 
@@ -22,8 +22,8 @@ removed, so this file is the work's home. The surviving
 `plan/spec-vrrp-7-vpp.md` covers the VPP dataplane only; its interop row is
 about the VPP path, not these kernel-path scenarios.
 
-The keepalived interop lab `scripts/evidence/effective-vrrp-keepalived.py`
-(driven by `make ze-qemu-vrrp-keepalived-test`, `mk/test-integration.mk`)
+The keepalived interop lab `internal/le/qemu/vrrp_keepalived_linux.go`
+(driven by `./le qemu vrrp-keepalived-test`, `internal/le/integration/gates.go`)
 implements three scenarios and declares five more as not implemented. Verified
 2026-07-16:
 
@@ -63,12 +63,12 @@ This is test infrastructure, not a protocol gap.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `scripts/evidence/effective-l2tp-ppp.py` - the blueprint the vrrp lab follows (PID-suffixed names, netns setup and cleanup, LineCollector predicate waits, diagnostics on failure)
+- [ ] `internal/le/deployment/l2tp.go` - the blueprint the vrrp lab follows (PID-suffixed names, netns setup and cleanup, LineCollector predicate waits, diagnostics on failure)
   → Constraint: new scenarios follow the same shape, no new lab harness
 - [ ] `ai/rules/interop-and-goal-validation.md` - when interop evidence is required and what counts
   → Constraint: proof comes from outside ze (tcpdump wire fields, keepalived notify markers, ping exit codes); ze log lines are readiness markers only
 - [ ] `ai/rules/platform-linux.md` - QEMU integration tests are mandatory for linux-only code, never skipped for "needs hardware"
-  → Constraint: these run in the stock Alpine VM via `make ze-qemu-vrrp-keepalived-test`
+  → Constraint: these run in the stock Alpine VM via `./le qemu vrrp-keepalived-test`
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc3768.md` - the v2 wire format QS-5 exercises
@@ -83,10 +83,10 @@ This is test infrastructure, not a protocol gap.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (verified 2026-07-16)
-- [ ] `scripts/evidence/effective-vrrp-keepalived.py` - three-leaf netns lab plus bridge; `SCENARIOS` holds QS-1..QS-3 (:1625-1631), `PENDING_SCENARIOS` holds QS-4..QS-8 as NOT IMPLEMENTED (:1636-1642); IPv4-only constants (VIP 192.0.2.1, VRID 10, v3, :91-118); keepalived peer pinned to `vrrp_version 3` (:786-812)
+- [ ] `internal/le/qemu/vrrp_keepalived_linux.go` - three-leaf netns lab plus bridge; `SCENARIOS` holds QS-1..QS-3 (:1625-1631), `PENDING_SCENARIOS` holds QS-4..QS-8 as NOT IMPLEMENTED (:1636-1642); IPv4-only constants (VIP 192.0.2.1, VRID 10, v3, :91-118); keepalived peer pinned to `vrrp_version 3` (:786-812)
 - [ ] `internal/plugins/vrrp/packet/packet_test.go` - `TestEncodeGoldenV2` (:86) asserts the v2 golden bytes (:23); `TestRoundTrip` (:170) covers v2, v3 IPv4 and v3 IPv6
 - [ ] `internal/plugins/vrrp/packet/packet.go` - one codec for both versions; `msToV2Seconds` (:237) and `msToV3Centiseconds` (:230) are the per-version interval encodings QS-5 puts on the wire
-- [ ] `mk/test-integration.mk` - `ze-qemu-vrrp-keepalived-test` runs the script in the stock Alpine VM (:443-447)
+- [ ] `internal/le/integration/gates.go` - `ze-qemu-vrrp-keepalived-test` runs the script in the stock Alpine VM (:443-447)
 - [ ] `test/vrrp/vrrp-config-invalid.ci` - the v2 cross-leaf config rejections (:185-208), config-plane only
 
 **Behavior to preserve:**
@@ -103,8 +103,8 @@ This is test infrastructure, not a protocol gap.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `make ze-qemu-vrrp-keepalived-test` (`mk/test-integration.mk`) boots the stock Alpine VM and runs `python3 scripts/evidence/effective-vrrp-keepalived.py`
-- The script also takes scenario names on the command line and `--list` (`usage`, `:1652`), so a single scenario can be run alone
+- `./le qemu vrrp-keepalived-test` dispatches through `internal/le/qemu/actions.go`
+  and accepts `scenarios <QS-1,QS-2,QS-3>` for a selected native scenario set.
 
 ### Transformation Path
 1. `main()` builds the four namespaces, veths and bridge, then probes kernel support (module docstring `:13-23`, `ensure_kernel_support`)
@@ -149,8 +149,8 @@ This is test infrastructure, not a protocol gap.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-qemu-vrrp-keepalived-test` | → | `SCENARIOS` dict dispatch, `scenario_qs5` | `QS-5` scenario in `scripts/evidence/effective-vrrp-keepalived.py` |
-| `make ze-qemu-vrrp-keepalived-test` | → | `SCENARIOS` dict dispatch, `scenario_qs6` | `QS-6` scenario in `scripts/evidence/effective-vrrp-keepalived.py` |
+| `./le qemu vrrp-keepalived-test` | → | `SCENARIOS` dict dispatch, `scenario_qs5` | `QS-5` scenario in `internal/le/qemu/vrrp_keepalived_linux.go` |
+| `./le qemu vrrp-keepalived-test` | → | `SCENARIOS` dict dispatch, `scenario_qs6` | `QS-6` scenario in `internal/le/qemu/vrrp_keepalived_linux.go` |
 | `effective-vrrp-keepalived.py --list` | → | `print_scenarios` over both dicts | QS-5 and QS-6 listed as implemented, not pending |
 
 ## Acceptance Criteria
@@ -191,15 +191,15 @@ the QEMU lab's job (`ai/rules/interop-and-goal-validation.md`).
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| QS-5 v2 opt-in wire format | `scripts/evidence/effective-vrrp-keepalived.py` | keepalived (v2 default) | ze's RFC 3768 encoding interoperates with a real v2 peer | |
+| QS-5 v2 opt-in wire format | `internal/le/qemu/vrrp_keepalived_linux.go` | keepalived (v2 default) | ze's RFC 3768 encoding interoperates with a real v2 peer | |
 | QS-6 IPv6 v3 link-local plus global VIP | same | keepalived (v3, IPv6) | ze's IPv6 advertisement, election and unsolicited NA interoperate | |
 
 ### Future (if deferring any tests)
 - QS-4, QS-7 and QS-8 stay in `PENDING_SCENARIOS` unless the design phase pulls them in. They remain tracked by this spec; do not let them fall out of the dict.
 
 ## Files to Modify
-- `scripts/evidence/effective-vrrp-keepalived.py` - QS-5 and QS-6 scenario functions, v2 and IPv6 keepalived config generators, IPv6 constants, dict moves
-- `mk/test-integration.mk` - only if the run needs a longer timeout or an extra kernel probe
+- `internal/le/qemu/vrrp_keepalived_linux.go` - QS-5 and QS-6 scenario functions, v2 and IPv6 keepalived config generators, IPv6 constants, dict moves
+- `internal/le/integration/gates.go` - only if the run needs a longer timeout or an extra kernel probe
 - `docs/functional-tests.md` - the lab's scenario inventory
 - `docs/features/rfc-status.md` - RFC 3768 and RFC 9568 IPv6 rows gain interop evidence
 
@@ -213,7 +213,7 @@ Stage mapping follows `plan/TEMPLATE.md` unchanged.
 2. **Phase: QS-5** -- v2 keepalived config generator, v2 ze config, wire-field assertions against the golden shape
 3. **Phase: QS-6** -- IPv6 constants and addressing, v3 IPv6 configs both sides, election plus unsolicited NA plus neighbor-entry assertions
 4. **Phase: Regression** -- full lab run, QS-1..QS-3 unchanged
-5. **Full verification** -- `make ze-qemu-vrrp-keepalived-test`, then `make ze-precommit-verify`
+5. **Full verification** -- `./le qemu vrrp-keepalived-test`, then `./le verify current mode full`
 6. **Complete spec** -- audit, learned summary, two-commit closure
 
 ### Failure Routing
@@ -243,9 +243,9 @@ rows in `docs/features/rfc-status.md` with the new interop evidence.
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete, every row a concrete scenario name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes
-- [ ] `make ze-qemu-vrrp-keepalived-test` passes with QS-1..QS-3, QS-5 and QS-6
-- [ ] Feature code integrated (`scripts/evidence/effective-vrrp-keepalived.py`, `mk/test-integration.mk`)
+- [ ] `./le verify current mode full` passes
+- [ ] `./le qemu vrrp-keepalived-test` passes with QS-1..QS-3, QS-5 and QS-6
+- [ ] Feature code integrated (`internal/le/qemu/vrrp_keepalived_linux.go`, `internal/le/integration/gates.go`)
 - [ ] Documentation Update Checklist answered with source evidence
 
 ### TDD

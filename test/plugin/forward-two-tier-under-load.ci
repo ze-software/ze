@@ -10,7 +10,7 @@
 # 3. Destination peer asserts all 80 NLRIs arrive in order (ordered= needles:
 #    the forward rail may legally pack several same-attr NLRIs into one
 #    UPDATE via fwdBucketMerge, so per-message framing is not asserted)
-# 4. Python observer smoke-checks metric registration while the tiny channel
+# 4. compiled Go observer smoke-checks metric registration while the tiny channel
 #    and full destination delivery prove the overflow path was taken
 
 # Source peer (ASN 65001) -- sends 80 prefixes in a burst
@@ -210,88 +210,8 @@ expect=bgp:conn=1:seq=1:ordered=180A004F
 # above are this test's actual subject and are unchanged.
 EOF_DEST
 
-# Python test plugin: smoke-checks metric registration while the dest peer proves
+# compiled Go test plugin: smoke-checks metric registration while the dest peer proves
 # every UPDATE was delivered.
-tmpfs=two-tier-load-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: two-tier dispatch under load with overflow verification."""
-import json
-import sys
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Every prefix the source announced must reach adj-rib-in. The receive path
-    # is not throttled by ZE_FWD_CHAN_SIZE, so this fills quickly and only
-    # proves nothing was lost on ingest before we drain forwarding to the dest.
-    EXPECTED_ROUTES = 80
-    result = api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', 0) >= EXPECTED_ROUTES,
-        attempts=80,
-    )
-    total = result_json_data(result, {}).get('total-routes', 0)
-    if total < EXPECTED_ROUTES:  # negative = query failed; short = ingest incomplete
-        msg = f'adj-rib-in has {total}/{EXPECTED_ROUTES} routes'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    print(f'OK: {total} routes in adj-rib-in', file=sys.stderr)
-
-    # Drain forwarding deterministically before shutting down. The tiny forward
-    # channel leaves routes queued in the per-destination overflow buffer well
-    # after adj-rib-in is full; 'request peer * flush' blocks until the forward
-    # pool has written every queued item to the wire (BarrierPeer), so an early
-    # shutdown cannot truncate the dest. This replaces a shutdown-races-forwarding
-    # window that made the test fail under load.
-    fr = api.dispatch_until_done('request peer * flush', attempts=40)
-    if fr.get('status') != 'done':
-        msg = f'forward-pool flush did not complete: {fr}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    print('OK: forward pool flushed to all peers', file=sys.stderr)
-
-    # Verify two-tier metrics exist.
-    r = dispatch(api, 'show metrics values')
-    data_str = result_text_data(r, '{}')
-    try:
-        data = json.loads(data_str) if isinstance(data_str, str) else data_str
-    except (json.JSONDecodeError, TypeError):
-        data = {}
-    metrics = data.get('metrics', '')
-
-    required = [
-        'ze_bgp_pool_used_ratio',
-        'ze_forward_workers_active',
-    ]
-    missing = [name for name in required if name not in metrics]
-    if missing:
-        msg = f'missing metrics: {missing}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    print('OK: two-tier metrics present', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze configuration: source -> ze (RS) -> dest
 # ze.fwd.chan.size=2 forces tiny channel, guaranteeing overflow with 80 routes
@@ -304,7 +224,7 @@ plugin {
 		use bgp-rs
 	}
     external two-tier-load-test {
-        run ./two-tier-load-test.run
+        run "ze-test fixture plugin/forward-two-tier-under-load"
         encoder json
     }
 }

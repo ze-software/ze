@@ -26,8 +26,8 @@ OTHER concurrent sessions had the tree structurally red throughout.
 | `8e67a9b03` | T1-2 pooled transcode buffer (adopt-handle), T1-4 single receive walk |
 | `1d48f2edd` | T1-5 RFC 8669 fix, T1-3 accumulator hoist, RFC ledger + audit repair |
 
-State at handover: `make ze-unit-bgp-test` 81/81, `make ze-rfc-check` exits 0,
-`make ze-unit-reactor-test-race` clean at `-count=20`, `make ze-functional-plugin-test` 528/528,
+State at handover: `./le test-unit bgp` 81/81, `./le rfc check` exits 0,
+`go test -race ./internal/component/bgp/reactor/...` clean at `-count=20`, `./le functional plugin` 528/528,
 Tier 2 boundary untouched.
 
 ## Verify these overrides before closing (BLOCKING)
@@ -36,7 +36,7 @@ Every commit above asserts the red gates belong to other sessions:
 `internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go` (untracked,
 does not compile) and the IKE session's `ai/RFC-REQUIREMENTS.md` work. **Re-check
 that both have cleared before you close.** If they have, run a clean
-`make ze-precommit-verify` and record it. If a red turns out to be ours, it is ours.
+`./le verify current mode full` and record it. If a red turns out to be ours, it is ours.
 
 ## What the spec got WRONG -- carry these forward
 
@@ -106,9 +106,9 @@ unblocked.
 
 ## Suggested order
 
-1. Verify the other sessions' reds cleared; clean `make ze-precommit-verify`.
+1. Verify the other sessions' reds cleared; clean `./le verify current mode full`.
 2. Independent `/ze-review` over the four commits' diff. Loop to zero. Record
-   with `scripts/dev/review_gate.py`.
+   with the retired `scripts/dev/review_gate.py` (current producer: `internal/le/speclifecycle/review.go`).
 3. Fill the spec's Implementation Audit and Pre-Commit Verification tables,
    resolve A-1..A-6, reconcile the Deliverables contradiction.
 4. Learned summary, then the two closure commits.

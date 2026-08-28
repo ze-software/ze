@@ -23,7 +23,7 @@ structural divergence found by the 2026-07-08 comparative review
 (spec-layout-0 umbrella, closed with this spec as the recorded destination for
 its unscheduled candidate). Decompose it into glossary-named subpackages; the
 legacy `reactor` name (documented exception,
-`scripts/dev/protocol_skeleton_report.py`) dies as a side effect.
+`internal/le/protocolskeleton/protocolskeleton.go`) dies as a side effect.
 
 Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 
@@ -108,13 +108,13 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The filename-prefix clusters map to low-coupling seams | file listing 2026-07-08 (prefix counts above) | split lines must come from call-graph analysis instead | import/call analysis during design | unvalidated |
-| A-2 | rib-arch closes before design starts and its reactor edits are absorbed | Depends field; rib-arch-8 file list | rebase churn mid-design | `make ze-spec-status` at design start | unvalidated |
+| A-2 | rib-arch closes before design starts and its reactor edits are absorbed | Depends field; rib-arch-8 file list | rebase churn mid-design | the retired `ze-spec-status` (current: `./le spec-status`) at design start | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Internal cross-references force import cycles between the new subpackages | first extraction fails to compile without dependency inversion | design phase must produce a dependency-ordered extraction sequence before any move |
-| R-2 | 331 doc anchors + prose make the sweep error-prone | `make ze-doc-verify` red tail | per-extraction anchor sweeps, not one big-bang sweep |
+| R-2 | 331 doc anchors + prose make the sweep error-prone | `./le doc-check verify` red tail | per-extraction anchor sweeps, not one big-bang sweep |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -127,8 +127,8 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | after decomposition | `internal/component/bgp/reactor` no longer exists as a 69-file package; its concerns live in glossary-named subpackages (fill exact target list during design) |
-| AC-2 | `scripts/dev/protocol_skeleton_report.py` | ("bgp", "reactor") LEGACY_EXCEPTIONS row removed; summary legacy count drops accordingly |
-| AC-3 | behavior | full `make ze-precommit-verify` green; decode/encode/integration suites unchanged |
+| AC-2 | `internal/le/protocolskeleton/protocolskeleton.go` | ("bgp", "reactor") LEGACY_EXCEPTIONS row removed; summary legacy count drops accordingly |
+| AC-3 | behavior | full `./le verify current mode full` green; decode/encode/integration suites unchanged |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -164,9 +164,9 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 
 ## Files to Modify
 - `internal/component/bgp/reactor/**` - decomposed into subpackages (fill exact map during design)
-- `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS ("bgp","reactor") removal
+- `internal/le/protocolskeleton/protocolskeleton.go` - LEGACY_EXCEPTIONS ("bgp","reactor") removal
 - `ai/rules/go-standards.md`, `ai/rules/protocol.md` - reactor exception rows retired
-- `scripts/codegen/plugin_imports.go` - `internal/component/bgp/reactor/filter` row if that subdir moves
+- `internal/le/pluginimports/pluginimports.go` - `internal/component/bgp/reactor/filter` row if that subdir moves
 - docs holding the 331 anchors - sweep (fill during design)
 
 ### Integration Checklist
@@ -351,7 +351,7 @@ Points captured at skeleton creation (2026-07-08), to be re-verified at design:
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

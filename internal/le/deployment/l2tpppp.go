@@ -330,7 +330,7 @@ func (l *L2TPPPP) setupNamespaces() error {
 	}
 
 	for _, ns := range []string{l.ZeNamespace, l.LACNamespace} {
-		out, ok := nsText(ns, "ip", "l2tp", ipShow, "tunnel")
+		out, ok := nsText(ns, "ip", "l2tp", ipShow, tunnelObjectName)
 		if ok {
 			continue
 		}
@@ -542,7 +542,7 @@ func (l *L2TPPPP) daemonEnv(work string) []string {
 	var tb textbuf.Buffer
 	return append(kept,
 		"ZE_LOG_L2TP=debug",
-		"ZE_STORAGE_BLOB=false",
+		storageBlobDisabledEnv,
 		tb.Str("ZE_CONFIG_DIR=").Str(filepath.Join(work, "ze")).String(),
 		"ze.l2tp.ncp.enable-ipv6cp=false",
 		"ze.l2tp.ncp.ip-timeout=15s",
@@ -560,7 +560,7 @@ func (l *L2TPPPP) diagnose(work string) {
 	writeProgress(l.Progress, "\n--- diagnostics ---")
 
 	queries := [][]string{
-		{"ip", "l2tp", ipShow, "tunnel"},
+		{"ip", "l2tp", ipShow, tunnelObjectName},
 		{"ip", "l2tp", ipShow, "session"},
 		{"ip", ipLink, ipShow, ipType, pppPrefix},
 	}

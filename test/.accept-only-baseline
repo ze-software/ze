@@ -3,7 +3,7 @@
 # One repo-relative path per line: each test whose ONLY assertion is
 # expect=exit:code=0 (proves ACCEPTED, not that the config parsed to the
 # CORRECT tree). The lint (internal/test/runner/accept_only_lint_test.go,
-# run under `make ze-unit-test`) FAILS on a NEW unannotated accept-only .ci
+# run under `./le verify-deps unit-cached`) FAILS on a NEW unannotated accept-only .ci
 # not listed here, and on a STALE entry (one that was strengthened,
 # annotated, or removed). Strengthen a test with a readback assertion, or
 # annotate it `# accept-only: <reason>` when a unit test covers the value;
@@ -28,6 +28,18 @@ test/install/pxe-chainload.ci
 test/install/qemu-full.ci
 test/install/qemu-iso.ci
 test/install/tftp-server-config.ci
+test/managed/auth-reject.ci
+test/managed/cli-reads-meta-keys.ci
+test/managed/client-backup-start.ci
+test/managed/client-cached-boot.ci
+test/managed/client-first-boot.ci
+test/managed/client-reconnect.ci
+test/managed/client-reject-invalid.ci
+test/managed/config-change-notify.ci
+test/managed/file-namespace.ci
+test/managed/init-managed-key.ci
+test/managed/init-meta-keys.ci
+test/managed/per-client-auth.ci
 test/parse/as112-config.ci
 test/parse/bmp-config.ci
 test/parse/cli-config-activate.ci
@@ -73,9 +85,9 @@ test/parse/parse-inactive-leaf.ci
 test/parse/parse-inactive-leaflist-member-inline.ci
 test/parse/parse-inactive-leaflist-member.ci
 test/parse/parse-nop-keyword.ci
+test/parse/process-parse.ci
 test/parse/process-receive-leaflist.ci
 test/parse/process-send-leaflist.ci
-test/parse/process-parse.ci
 test/parse/redistribute-invalid-source.ci
 test/parse/route-priority.ci
 test/parse/send-enhanced-refresh.ci
@@ -89,24 +101,36 @@ test/parse/sysctl-profile-dsr.ci
 test/parse/system-dns-dnssec.ci
 test/parse/test-family-config.ci
 test/parse/ttl-parse.ci
+test/plugin/as112-probe-anycast-not-loopback.ci
+test/plugin/audit-auth-fail.ci
+test/plugin/audit-persistence.ci
+test/plugin/authz-allow.ci
+test/plugin/authz-default.ci
+test/plugin/authz-deny.ci
+test/plugin/cli-credential-resolution.ci
+test/plugin/config-edit-no-daemon.ci
 test/plugin/config-edit-ssh-session.ci
 test/plugin/config-edit-ssh.ci
+test/plugin/config-plaintext-password-at-boot.ci
+test/plugin/debug-toggle.ci
 test/plugin/firewall-irr-commit.ci
 test/plugin/firewall-irr-iface-commit.ci
 test/plugin/firewall-irr-refresh.ci
 test/plugin/firewall-irr-show.ci
+test/plugin/netlab-lab-profile.ci
 test/plugin/peer-name-selector.ci
 test/plugin/plugin-persist-features.ci
 test/plugin/plugin-rs-features.ci
+test/plugin/rbac-web-config-deny.ci
 test/plugin/rest-peer-set-delete-lifecycle.ci
 test/plugin/rib-best-selection.ci
 test/plugin/rib-graph-best.ci
 test/plugin/rib-graph-filtered.ci
 test/plugin/rib-graph.ci
-test/plugin/smart-unconfigured-show.ci
 test/plugin/smart-show.ci
-test/plugin/sysctl-list.ci
+test/plugin/smart-unconfigured-show.ci
 test/plugin/sysctl-describe-show.ci
+test/plugin/sysctl-list.ci
 test/plugin/traffic-monitor.ci
 test/ui/cli-completion-ghost-no-match.ci
 test/ui/cli-completion-invalid-context.ci

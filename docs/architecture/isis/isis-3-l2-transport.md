@@ -99,9 +99,7 @@ registered here, not by the CLI layer.
 
 <!-- source: internal/plugins/isis/transport/metrics.go -- the four transport series -->
 
-## Trap: the QEMU evidence script does not derive packages from build tags
+## Trap: QEMU evidence uses an explicit package list
 
-`make ze-qemu-integration-test` derives its package list from a grep over the
-integration build tags. `scripts/evidence/qemu-all-tests.sh` hardcodes its list,
-so a new integration-tagged package must be added there explicitly or its tests
-are silently skipped in the evidence run.
+`./le qemu all-tests` uses `integrationPackages` in
+`internal/le/qemu/alltests.go`. Add every new integration-tagged package there.

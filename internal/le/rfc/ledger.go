@@ -38,11 +38,11 @@ var dispositionKinds = map[string]bool{
 	dispositionBlocked:      true,
 }
 
-// DispositionKinds answers the closed set in sorted order.
+// dispositionKindNames answers the closed set in sorted order.
 //
 // Sorted because the refusals below name it, and a message built from a map
 // walk would name the same set in a different order on every run.
-func DispositionKinds() []string { return sortedSet(dispositionKinds) }
+func dispositionKindNames() []string { return sortedSet(dispositionKinds) }
 
 // Disposition is one rfc/not-enrolled.txt row: why this summary is not enrolled.
 type Disposition struct {
@@ -53,14 +53,14 @@ type Disposition struct {
 // notEnrolledRel is the declared remainder, repo-relative.
 const notEnrolledRel = "rfc/not-enrolled.txt"
 
-// ParseDispositions reads rfc/not-enrolled.txt into {stem: Disposition}.
+// parseDispositions reads rfc/not-enrolled.txt into {stem: Disposition}.
 //
-// Same comment and blank-line tolerance as ParseEnrolled, and the same
+// Same comment and blank-line tolerance as parseEnrolled, and the same
 // first-token stem, so one reader serves both files. Everything after that is
 // REFUSED rather than skipped: a malformed line would silently un-declare a
 // summary, and an un-declared summary is exactly the absence this file exists
 // to abolish. A typo must cost a red gate, not a quiet hole.
-func ParseDispositions(text string) (map[string]Disposition, error) {
+func parseDispositions(text string) (map[string]Disposition, error) {
 	out := map[string]Disposition{}
 	for n, raw := range strings.Split(text, "\n") {
 		line := strings.TrimSpace(raw)
@@ -81,13 +81,13 @@ func ParseDispositions(text string) (map[string]Disposition, error) {
 			var tb textbuf.Buffer
 			return nil, parseErr(tb.Str(at).Str(pyRepr(line)).
 				Str(" has no kind. Each row is '<stem> <kind> <reason>' with kind one of ").
-				Str(pyRepr(DispositionKinds())))
+				Str(pyRepr(dispositionKindNames())))
 		}
 		kind := fields[1]
 		if !dispositionKinds[kind] {
 			var tb textbuf.Buffer
 			return nil, parseErr(tb.Str(at).Str("kind ").Str(pyRepr(kind)).Str(" for ").
-				Str(stem).Str(" is not one of ").Str(pyRepr(DispositionKinds())).
+				Str(stem).Str(" is not one of ").Str(pyRepr(dispositionKindNames())).
 				Str(". Use 'non-normative' when the DOCUMENT imposes nothing, 'backlog' ").
 				Str("when the extraction is owed, 'blocked' when something outside the ").
 				Str("summary prevents enrolment"))
@@ -135,14 +135,14 @@ func splitFieldsN(s string, n int) []string {
 	return append(out, rest)
 }
 
-// LoadDispositions answers the declared remainder, or empty when the file does
+// loadDispositions answers the declared remainder, or empty when the file does
 // not exist yet.
 //
 // An absent file is NOT an error: the disposition check reports every summary
 // that is neither enrolled nor declared, so an absent file surfaces as one
 // violation per un-enrolled summary -- which names the actual problem -- rather
 // than as one message about a missing path.
-func LoadDispositions(tree string) (map[string]Disposition, error) {
+func loadDispositions(tree string) (map[string]Disposition, error) {
 	path := treePath(tree, notEnrolledRel)
 	raw, err := os.ReadFile(path) // #nosec G304 -- rfc/not-enrolled.txt under the checkout
 	if err != nil {
@@ -152,7 +152,7 @@ func LoadDispositions(tree string) (map[string]Disposition, error) {
 		var tb textbuf.Buffer
 		return nil, parseErr(tb.Str(relTo(tree, path)).Str(": cannot read: ").Err(err))
 	}
-	return ParseDispositions(string(raw))
+	return parseDispositions(string(raw))
 }
 
 // statusRel is the public claim, repo-relative.
@@ -177,14 +177,14 @@ var (
 	statusStemRE  = regexp.MustCompile(`\A[a-z][a-z0-9]*(-[a-z0-9.]+)+\z`)
 )
 
-// ParseStatusLedger reads docs/features/rfc-status.md rows into {stem: row}.
+// parseStatusLedger reads docs/features/rfc-status.md rows into {stem: row}.
 //
 // A line that is not a table row, and a row whose first cell keys nothing, are
 // both skipped rather than refused. The page is prose with a table in it, so a
 // paragraph is not a defect; a row this cannot key is a row about something
 // other than an RFC, and check_status_completeness is what notices an enrolled
 // RFC with no row of its own.
-func ParseStatusLedger(text string) map[string]LedgerRow {
+func parseStatusLedger(text string) map[string]LedgerRow {
 	rows := map[string]LedgerRow{}
 	for line := range strings.SplitSeq(text, "\n") {
 		if !strings.HasPrefix(line, "|") {
@@ -229,17 +229,17 @@ func splitTableRow(line string) []string {
 	return cells
 }
 
-// LoadStatusLedger reads the public page.
+// loadStatusLedger reads the public page.
 //
 // The read is the caller's to share: one gate run parses this page once and
 // hands the result to every consumer, because six consumers reading it
 // themselves would be six parses of the same rows.
-func LoadStatusLedger(tree string) (map[string]LedgerRow, error) {
+func loadStatusLedger(tree string) (map[string]LedgerRow, error) {
 	text, err := readFile(treePath(tree, statusRel), statusRel)
 	if err != nil {
 		return nil, err
 	}
-	return ParseStatusLedger(text), nil
+	return parseStatusLedger(text), nil
 }
 
 var (
@@ -349,7 +349,7 @@ func isPyWordRune(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsNumber(r)
 }
 
-// ParseSuccessorStem answers the stem of the document that obsoletes this one,
+// parseSuccessorStem answers the stem of the document that obsoletes this one,
 // read off the forward Meta row.
 //
 // Empty when the summary carries no such row, or the row says nothing does. It
@@ -361,7 +361,7 @@ func isPyWordRune(r rune) bool {
 // by RFC 9568". The LAST reference is therefore the document that states these
 // obligations today, and ai/rules/rfc-compliance.md is explicit that the
 // lineage which matters runs forward.
-func ParseSuccessorStem(text, stem, source string) (string, error) {
+func parseSuccessorStem(text, stem, source string) (string, error) {
 	where := source
 	if where == "" {
 		where = stem
@@ -407,16 +407,16 @@ func ParseSuccessorStem(text, stem, source string) (string, error) {
 	return successor, nil
 }
 
-// SummarySuccessors answers {stem: the stem that obsoletes it} over every
+// summarySuccessors answers {stem: the stem that obsoletes it} over every
 // summary that declares one.
 //
 // Derived from the summaries on every run rather than kept in a list: a
 // hand-kept list of superseded RFCs rots the day the IETF publishes the next
 // one, and nothing notices.
-func SummarySuccessors(tree string, stems map[string]bool) (map[string]string, error) {
+func summarySuccessors(tree string, stems map[string]bool) (map[string]string, error) {
 	if stems == nil {
 		var err error
-		if stems, err = SummaryStems(tree); err != nil {
+		if stems, err = summaryStems(tree); err != nil {
 			return nil, err
 		}
 	}
@@ -435,7 +435,7 @@ func SummarySuccessors(tree string, stems map[string]bool) (map[string]string, e
 		if err != nil {
 			return nil, err
 		}
-		successor, err := ParseSuccessorStem(text, stem, rel)
+		successor, err := parseSuccessorStem(text, stem, rel)
 		if err != nil {
 			return nil, err
 		}

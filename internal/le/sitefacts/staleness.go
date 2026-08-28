@@ -7,14 +7,13 @@
 //
 // It judges a COMMIT, never the working tree. Several sessions share a checkout
 // of ze, so a check that read the tree would answer differently in two of them
-// at the same moment -- which is the defect this tool exists to remove, not a
+// at the same moment, which is the defect this tool exists to remove, not a
 // way to look for it. The commit is materialized in a throwaway worktree and
-// judged there, which is what ze-verify-worktree does for the pre-commit gate
-// (scripts/dev/verify_worktree.py).
+// judged there, which is what `./le verify worktree` does.
 //
 // It judges the PUBLISHED figure, not the exact count. A count reaches a page
-// through fmt_int, which floors a magnitude to one tenth of its visible unit
-// (website/tools/sitefacts.py, display_step), so 3852 and 3899 are one string.
+// through the display formatter owned by internal/le/sitebuild, which floors a
+// magnitude to one tenth of its visible unit, so 3852 and 3899 are one string.
 // Exact equality is not something the commit flow can deliver either: git
 // ls-files answers from the INDEX, so a regeneration run before `git add`
 // cannot count the files that same commit adds, and a gate demanding exactness
@@ -43,7 +42,7 @@ import (
 
 // worktreeRoot is where a materialized commit lands, under the checkout's own
 // scratch directory. It sits beside tmp/verify-worktree, which the pre-commit
-// gate uses for the same purpose (scripts/dev/verify_worktree.py, worktree_path).
+// gate uses for the same purpose (internal/le/verifyworktree/actions.go, worktree_path).
 const worktreeRoot = "tmp/site-facts-check"
 
 // worktreeTimeout bounds the checkout of one commit. It writes every tracked
@@ -69,7 +68,7 @@ const shaShown = 12
 // fixAction is what a person runs when a fact has gone stale. The check names
 // it in every rendering, because a gate that reports a red without the command
 // that clears it leaves the reader to search for one.
-const fixAction = "make ze-site-facts-update, then commit website/data/repo-facts.json with the change that moved the count"
+const fixAction = "./le site-facts update, then commit website/data/repo-facts.json with the change that moved the count"
 
 // roundedMark is the suffix fmt_int puts on a figure it floored.
 const roundedMark = "+"
@@ -239,10 +238,9 @@ func provenance(category, source string) string {
 
 // render answers the string the site publishes for a count.
 //
-// This is fmt_int, in Go (website/tools/sitefacts.py). The rule is one line of
-// arithmetic and it is stated in two languages because the check runs here and
-// the render runs there; a third statement of it would be one too many, so a
-// change to either MUST move both together.
+// This is the native site's display rule, kept here because the check compares
+// published values rather than raw counts. A change to the site formatter MUST
+// move this implementation with it.
 func render(value int) string {
 	step := displayStep(value)
 	floored := value / step * step

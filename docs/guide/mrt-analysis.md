@@ -10,7 +10,7 @@ and congestion handling.
 ## Building
 
 ```
-make ze-analyze-build
+go build -tags ze_analyze -o bin/ze-analyze ./cmd/ze
 ```
 
 This produces `bin/ze-analyze`.
@@ -126,7 +126,7 @@ Dumps MRT records as BGP UPDATE hex, one per line. Useful for piping into
 
 ```
 bin/ze-analyze mrt-dump test/internet/ripe-updates.*.gz | head -5
-bin/ze-analyze mrt-dump test/internet/latest-bview.gz | bin/ze bgp decode -
+bin/ze-analyze mrt-dump test/internet/latest-bview.gz | ./ze bgp decode -
 ```
 
 ### show

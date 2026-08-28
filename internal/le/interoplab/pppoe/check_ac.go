@@ -1,4 +1,4 @@
-// Design: test/interop-pppoe/scenarios/02-ze-ac-pppd-client/check.py.
+// Design: typed Ze access-concentrator checks against an independent pppd client.
 // Related: scenarios.go -- Ze starts before the idle pppd client container.
 package pppoe
 

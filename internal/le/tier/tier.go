@@ -16,7 +16,7 @@
 //
 // Plugin roots come from internal/le/pluginimports.PluginSearchRoots. This function
 // uses the composition-root generator's actual list. The replaced script parsed
-// the same list from scripts/codegen/plugin_imports.go. A direct call preserves
+// the same list from internal/le/pluginimports/pluginimports.go. A direct call preserves
 // the guarantee and survives script deletion.
 //
 // Detail: gates.go -- the five checks --check runs
@@ -82,8 +82,8 @@ var setupFeatureRe = regexp.MustCompile(setupFeaturePattern)
 // import it.
 type Edges map[string][]string
 
-// ModulePath answers the module path go.mod declares.
-func ModulePath(tree string) (string, error) {
+// modulePath answers the module path go.mod declares.
+func modulePath(tree string) (string, error) {
 	raw, err := os.ReadFile(filepath.Join(tree, "go.mod")) //nolint:gosec // the go.mod of the tree the caller named
 	if err != nil {
 		return "", err
@@ -97,13 +97,13 @@ func ModulePath(tree string) (string, error) {
 	return "", errors.New("go.mod: no module line found")
 }
 
-// IsRegistrationImporter reports files that only blank-import for side-effect
+// isRegistrationImporter reports files that only blank-import for side-effect
 // registration.
 //
 // Generated per-feature compile-out files beside all.go are composition roots
 // behind build tags. They MUST count. Otherwise, moving a gated ENGINE import
 // from all.go to all_<tag>.go would appear to create a feature dependency.
-func IsRegistrationImporter(rel string) bool {
+func isRegistrationImporter(rel string) bool {
 	if strings.HasSuffix(rel, "/all/all.go") {
 		return true
 	}
@@ -120,12 +120,12 @@ func IsRegistrationImporter(rel string) bool {
 		setupFeatureRe.MatchString(rel)
 }
 
-// CollectEdges reads every tree Go file and answers its import edges.
+// collectEdges reads every tree Go file and answers its import edges.
 //
 // An unreadable file stops the run. The script skipped it. A missing import edge
 // can hide an upward import from the direction gate. The resulting lower
 // violation count looks like a pass, with no skipped-file notice.
-func CollectEdges(tree, module string) (Edges, error) {
+func collectEdges(tree, module string) (Edges, error) {
 	var tb textbuf.Buffer
 	importRe, err := regexp.Compile(tb.Byte('"').Byte('(').Str(regexp.QuoteMeta(module)).Str(`/[^"]+)"`).String())
 	if err != nil {
@@ -188,7 +188,7 @@ func (e Edges) importersOf(pkgPrefix, ownPrefix string) (external, registration,
 			switch {
 			case strings.HasSuffix(importer, "_test.go"):
 				tests = append(tests, importer)
-			case IsRegistrationImporter(importer):
+			case isRegistrationImporter(importer):
 				registration = append(registration, importer)
 			default:
 				external = append(external, importer)
@@ -267,13 +267,13 @@ func Classify(area, tree, module string, edges Edges, engines map[string]bool) (
 // TestThePluginDirsAreTheGeneratorsOwnList.
 func PluginDirs() []string { return pluginimports.PluginSearchRoots() }
 
-// NestedNamespaces answers the sub-plugin registries nested under a component,
+// nestedNamespaces answers the sub-plugin registries nested under a component,
 // such as bgp/plugins.
 //
 // These are plugin roots under internal/component that are deeper than a
 // top-level subsystem. An engine inside one is a sub-plugin of its host and is
 // correctly placed, so the tier check skips it.
-func NestedNamespaces(pluginDirs []string) []string {
+func nestedNamespaces(pluginDirs []string) []string {
 	var nested []string
 	for _, dir := range pluginDirs {
 		if strings.HasPrefix(dir, "internal/component/") && strings.Count(dir, "/") >= 3 {
@@ -283,10 +283,10 @@ func NestedNamespaces(pluginDirs []string) []string {
 	return nested
 }
 
-// FindEngineDirs answers every directory under the two areas whose non-test
+// findEngineDirs answers every directory under the two areas whose non-test
 // code calls the engine constructor, excluding anything inside a nested
 // sub-plugin namespace.
-func FindEngineDirs(tree string, nested []string) ([]string, error) {
+func findEngineDirs(tree string, nested []string) ([]string, error) {
 	var engines []string
 	for _, area := range [...]string{AreaComponent, AreaPlugins} {
 		root := filepath.Join(tree, area)
@@ -343,9 +343,9 @@ func isUnder(rel string, namespaces []string) bool {
 	return false
 }
 
-// TopSubsystem maps any package path under the two areas to its top-level
+// topSubsystem maps any package path under the two areas to its top-level
 // subsystem directory.
-func TopSubsystem(rel string) string {
+func topSubsystem(rel string) string {
 	parts := strings.Split(rel, "/")
 	if len(parts) > 3 {
 		parts = parts[:3]
@@ -353,25 +353,25 @@ func TopSubsystem(rel string) string {
 	return strings.Join(parts, "/")
 }
 
-// EngineSubsystems answers the top-level subsystems holding an engine, used
-// only to LABEL the advisory tiers. The enforced gate reads FindEngineDirs.
-func EngineSubsystems(tree string) (map[string]bool, error) {
-	dirs, err := FindEngineDirs(tree, NestedNamespaces(PluginDirs()))
+// engineSubsystems answers the top-level subsystems holding an engine, used
+// only to LABEL the advisory tiers. The enforced gate reads findEngineDirs.
+func engineSubsystems(tree string) (map[string]bool, error) {
+	dirs, err := findEngineDirs(tree, nestedNamespaces(PluginDirs()))
 	if err != nil {
 		return nil, err
 	}
 	subsystems := make(map[string]bool, len(dirs))
 	for _, dir := range dirs {
-		subsystems[TopSubsystem(dir)] = true
+		subsystems[topSubsystem(dir)] = true
 	}
 	return subsystems, nil
 }
 
-// EngineDepended reports whether a FEATURE imports the engine package subtree.
+// engineDepended reports whether a FEATURE imports the engine package subtree.
 //
 // It excludes the engine subtree, tests, generated composition root, cmd/ze
 // dispatch, and non-feature trees. None is a feature that depends on the engine.
-func EngineDepended(engineRel, module string, edges Edges) bool {
+func engineDepended(engineRel, module string, edges Edges) bool {
 	var tb textbuf.Buffer
 	pkg := tb.Str(module).Byte('/').Str(engineRel).String()
 	tb.Reset()
@@ -385,7 +385,7 @@ func EngineDepended(engineRel, module string, edges Edges) bool {
 			if strings.HasPrefix(importer, own) || strings.HasSuffix(importer, "_test.go") {
 				continue
 			}
-			if IsRegistrationImporter(importer) || hasAnyPrefix(importer, NonFeaturePrefixes[:]) {
+			if isRegistrationImporter(importer) || hasAnyPrefix(importer, NonFeaturePrefixes[:]) {
 				continue
 			}
 			if strings.HasPrefix(importer, "internal/component/") || strings.HasPrefix(importer, "internal/plugins/") {
@@ -406,19 +406,19 @@ func hasAnyPrefix(rel string, prefixes []string) bool {
 	return false
 }
 
-// EngineMisplacements answers every misplaced engine and the area it belongs
+// engineMisplacements answers every misplaced engine and the area it belongs
 // in.
 //
 // A search-root list that came back EMPTY stops the gate rather than flagging
 // everything, which is what the script's parse failure did. The list is a Go
 // call now, so an empty answer is a defect in the generator's own declaration.
-func EngineMisplacements(tree, module string, edges Edges) (map[string]string, error) {
+func engineMisplacements(tree, module string, edges Edges) (map[string]string, error) {
 	pluginDirs := PluginDirs()
 	if len(pluginDirs) == 0 {
 		return nil, errors.New("internal/le/pluginimports: no plugin search root -- gate cannot run safely")
 	}
 
-	dirs, err := FindEngineDirs(tree, NestedNamespaces(pluginDirs))
+	dirs, err := findEngineDirs(tree, nestedNamespaces(pluginDirs))
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +430,7 @@ func EngineMisplacements(tree, module string, edges Edges) (map[string]string, e
 			area = AreaComponent
 		}
 		expected := AreaPlugins
-		if EngineDepended(engine, module, edges) {
+		if engineDepended(engine, module, edges) {
 			expected = AreaComponent
 		}
 		if expected != area {

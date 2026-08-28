@@ -265,9 +265,9 @@ metadata and no daemon comparison claim.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The refusal in `tlsMethod.Process` | `make ze-unit-pkg-test PKG=./internal/component/ike/eap` |
-| The functional test | `make ze-functional-ipsec-test` |
-| The interop regression | `make ze-interop-ipsec-test IPSEC_INTEROP_SCENARIO=eap-tls` |
+| The refusal in `tlsMethod.Process` | `go test -race ./internal/component/ike/eap` |
+| The functional test | `./le functional ipsec` |
+| The interop regression | `./le integration interop-ipsec IPSEC_INTEROP_SCENARIO=eap-tls` |
 
 ### Security Review Checklist
 
@@ -329,7 +329,7 @@ acknowledgement for the M-flagged case, so the next reader sees which case the R
 - [ ] AC-1 to AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled
@@ -345,7 +345,7 @@ acknowledgement for the M-flagged case, so the next reader sees which case the R
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm` the spec

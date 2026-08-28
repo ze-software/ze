@@ -60,7 +60,7 @@ the design question this spec exists to answer.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-`python3 test/interop/run.py [scenario]`, or `make ze-interop-test`.
+`python3 test/interop/run.py [scenario]`, or `./le integration interop`.
 
 ### Transformation Path
 (fill during design)
@@ -146,7 +146,7 @@ the design question this spec exists to answer.
 
 ### Goal Gates (MUST pass)
 - [ ] Every AC demonstrated
-- [ ] `make ze-precommit-verify` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Feature code integrated, not library-only
 

@@ -1561,3 +1561,56 @@ func TestExpandDependenciesResolvesUseLabel(t *testing.T) {
 		})
 	}
 }
+
+func TestReloadFuncReadsCandidateBeforeActive(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "ze.conf")
+	active := `bgp {
+	router-id 1.2.3.4
+	session { asn { local 65000; } }
+	peer alpha {
+		connection { remote { ip 192.0.2.1; } local { ip 192.0.2.10; accept false; } }
+		session { asn { remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } }
+	}
+}`
+	candidate := `set bgp router-id 1.2.3.4
+set bgp session asn local 65000
+set bgp peer beta connection remote ip 192.0.2.2
+set bgp peer beta connection local ip 192.0.2.10
+set bgp peer beta connection local accept false
+set bgp peer beta session asn remote 65002
+set bgp peer beta session family ipv4/unicast prefix maximum 10000
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(active), 0o600))
+	store := storage.NewFilesystem()
+	_, err := storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())
+	require.NoError(t, err)
+
+	peers, err := createReloadFunc(store, &reactor.Reactor{})(configPath)
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
+	assert.Equal(t, netip.MustParseAddr("192.0.2.2"), peers[0].Address)
+}
+
+func TestReloadFuncRefusesIncompleteCandidate(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "ze.conf")
+	active := `bgp {
+	router-id 1.2.3.4
+	session { asn { local 65000; } }
+	peer alpha {
+		connection { remote { ip 192.0.2.1; } local { ip 192.0.2.10; accept false; } }
+		session { asn { remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } }
+	}
+}`
+	candidate := `bgp { peer broken { session { } } }`
+	require.NoError(t, os.WriteFile(configPath, []byte(active), 0o600))
+	store := storage.NewFilesystem()
+	_, err := storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())
+	require.NoError(t, err)
+
+	_, err = createReloadFunc(store, &reactor.Reactor{})(configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "incomplete peer definition")
+	assert.Contains(t, err.Error(), "broken:connection/remote/ip")
+}

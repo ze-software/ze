@@ -1,5 +1,5 @@
-// Design: docs/architecture/core-design.md -- the terminal-demo gate area and its external renderer boundary
-// Detail: actions.go -- the six gate actions and their metadata
+// Design: docs/architecture/core-design.md -- the terminal-demo action area and its external renderer boundary
+// Detail: actions.go -- the six actions and their metadata
 // Detail: lock.go -- the cross-process artifact-tree lock
 // Detail: manifest.go -- manifest contracts, digests, and artifact verification
 // Detail: render.go -- Docker and media execution pipeline
@@ -175,8 +175,8 @@ type ArtifactEntry struct {
 	Assets           map[string]AssetMetadata `json:"assets"`
 }
 
-// ArtifactManifest is the generated publish-tree manifest.
-type ArtifactManifest struct {
+// artifactManifest is the generated publish-tree manifest.
+type artifactManifest struct {
 	Schema   int                      `json:"schema"`
 	Renderer Renderer                 `json:"renderer"`
 	Demos    map[string]ArtifactEntry `json:"demos"`

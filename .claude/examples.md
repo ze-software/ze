@@ -56,9 +56,9 @@ Reference implementations for common patterns. Copy these when creating new inst
 | All-imports | `internal/component/plugin/all/all.go` | Blank imports triggering init |
 | CLI handler in plugin | `internal/component/bgp/plugins/nlri/evpn/register.go` | `cli.BaseConfig` + `cli.RunPlugin` |
 
-## Scripts/Tooling
+## Native Tooling
 
 | Pattern | Reference | Notes |
 |---------|-----------|-------|
-| Inventory script | `scripts/inventory/inventory.go` | `//go:build ignore`, registry import, markdown+JSON |
-| Code generator | `scripts/codegen/plugin_imports.go` | Walk dirs, generate Go source |
+| Registry inventory | `internal/le/inventory` | Registered `./le inventory` actions with structured answers |
+| Code generator | `internal/le/pluginimports` | `./le plugin-imports write` walks registrations and writes the composition root |

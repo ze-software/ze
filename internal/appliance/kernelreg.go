@@ -17,9 +17,8 @@ const (
 	kernelConfigName     = "kernel.config"
 	kernelRequireName    = "kernel.require"
 	// kernelCommonDir holds shared config fragments pulled in by a
-	// `# ze-include: <name>` directive. It mirrors tools/kernel-builder/run.py's
-	// COMMON_DIR_REL; the cross-language fixture asserts both resolvers expand an
-	// include to the same fragment set.
+	// `# ze-include: <name>` directive. The native builder receives this
+	// resolver's explicit fragment order.
 	kernelCommonDir = "tools/kernel-builder/common"
 )
 
@@ -128,10 +127,9 @@ func resolveKernelProfile(srcDir, profile string) (kernelProfileResolution, erro
 	}, nil
 }
 
-// collectKernelIncludes scans fragments (in resolution order) for
-// `# ze-include: <name>` directives, returning the shared fragment names once
-// each in first-seen order. This mirrors run.py's include expansion so the Go
-// verified path and the python make path resolve identically.
+// collectKernelIncludes scans fragments in resolution order for
+// `# ze-include: <name>` directives, returning each shared fragment once in
+// first-seen order.
 func collectKernelIncludes(fragments []string) ([]string, error) {
 	var includes []string
 	seen := make(map[string]bool)

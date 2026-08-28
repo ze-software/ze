@@ -1274,7 +1274,7 @@ func TestForwardUpdateDirectOrdering(t *testing.T) {
 }
 
 // TestForwardBackpressureThroughFastPath verifies AC-5 through the fast path:
-// when the forward pool's TryDispatch channel is full, the DispatchOverflow
+// when the forward pool's TryDispatch channel is full, the dispatchOverflow
 // fallback path fires (rather than dropping the item).
 //
 // VALIDATES: AC-5 -- backpressure via overflow path.

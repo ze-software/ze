@@ -1,4 +1,4 @@
-// RFC: rfc/short/rfc9552.md — BGP-LS obligations gated by make ze-rfc-check
+// RFC: rfc/short/rfc9552.md — BGP-LS obligations gated by `./le rfc check`
 //
 // RFC 9552 obsoletes RFC 7752 with the same wire format and a stricter split
 // between syntactic and semantic validation: a Propagator validates syntax

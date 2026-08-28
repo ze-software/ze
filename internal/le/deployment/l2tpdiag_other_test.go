@@ -10,12 +10,12 @@ import (
 func TestL2TPDiagnosticsRemainRegisteredAndRefuseTheOperatingSystem(t *testing.T) {
 	cases := []struct {
 		name string
-		run  func() (L2TPDiagnosticReport, error)
+		run  func() (l2tpDiagnosticReport, error)
 	}{
-		{name: l2tpPPPoXDiagnosticName, run: func() (L2TPDiagnosticReport, error) {
+		{name: l2tpPPPoXDiagnosticName, run: func() (l2tpDiagnosticReport, error) {
 			return executeL2TPPPoXDiagnostic(defaultPPPoXDiagnosticOptions())
 		}},
-		{name: l2tpTunnelDiagnosticName, run: func() (L2TPDiagnosticReport, error) {
+		{name: l2tpTunnelDiagnosticName, run: func() (l2tpDiagnosticReport, error) {
 			return executeL2TPTunnelDiagnostic(defaultTunnelDiagnosticOptions())
 		}},
 	}

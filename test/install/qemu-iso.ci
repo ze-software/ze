@@ -1,6 +1,6 @@
 # Full end-to-end QEMU coverage of the appliance ISO installer chain.
 #
-# Drives scripts/evidence/effective-install-iso-qemu.py, which builds the
+# Drives internal/le/qemu/install_iso.go, which builds the
 # installer initrd + a credential-bearing appliance image, creates a bootable
 # ISO via `ze appliance iso --target`, boots that ISO in QEMU against
 # two blank disks, asserts the initrd consumes ze.target, writes the embedded
@@ -11,7 +11,7 @@
 # image-build tooling are environment prerequisites. The driver self-skips with
 # a single clear INSTALL-ISO-QEMU: SKIP line when they are absent.
 
-cmd=foreground:seq=1:exec=python3 scripts/evidence/effective-install-iso-qemu.py
+cmd=foreground:seq=1:exec=./le qemu install-iso-test
 expect=exit:code=0
 expect=stdout:regex=INSTALL-ISO-QEMU: (PASS|SKIP)
 expect=stdout:regex=INSTALL-ISO-QEMU: (SKIP|installer consumed explicit ze.target=/dev/vda)

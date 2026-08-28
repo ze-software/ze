@@ -1,6 +1,6 @@
 # Test: each page loads the assets its own markup needs, and no others
 # VALIDATES: AC-8 and AC-11 of spec-web-htmx4-prepare -- the head block renders
-#            the set scripts/codegen/web_assets.go derived from the markup that
+#            the set internal/le/webassets/webassets.go derived from the markup that
 #            page reaches, so a page rendering no htmx attribute loads no htmx
 # PREVENTS: the union shipping to every page, and the opposite failure. A page
 #           missing an asset it needs still renders and still answers 200, and

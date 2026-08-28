@@ -21,6 +21,8 @@ type BFDRawCaptureProvider interface {
 
 var bfdRawCapture BFDRawCaptureProvider
 
+const captureRawActionStart = "start"
+
 func SetBFDRawCaptureProvider(p BFDRawCaptureProvider) {
 	bfdRawCapture = p
 }
@@ -32,7 +34,7 @@ func HandleCaptureRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	limit := 0
 	for _, a := range args {
 		switch a {
-		case "start", "stop", "dump":
+		case captureRawActionStart, "stop", "dump":
 			action = a
 		case capL2TP, capBGP, capBFD:
 			protocol = a
@@ -44,7 +46,7 @@ func HandleCaptureRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	}
 
 	switch action {
-	case "start":
+	case captureRawActionStart:
 		return captureRawStart(ctx, protocol)
 	case "stop":
 		return captureRawStop(ctx, protocol)
@@ -76,7 +78,7 @@ func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin
 		}
 	}
 	data := plugin.Map{
-		"action":  "start",
+		"action":  captureRawActionStart,
 		"started": started,
 	}
 	if note := captureRawL2TPNote(protocol); note != "" {

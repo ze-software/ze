@@ -59,78 +59,11 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0056020000003740010
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE94003040A000001180A0002180A0003
 EOF_PEER
 
-tmpfs=prefix-count-cross-family.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Prove the message refused on ipv6/unicast left ipv4/unicast able to accept."""
-
-import json
-import sys
-
-from ze_api import API, result_text_data, runtime_fail
-
-# Message 2 announces two IPv4 prefixes into a family whose maximum is 2 and
-# whose count was rolled back to zero when message 1 was refused. Both must be
-# installed. Without the rollback the count is already 2, message 2 crosses the
-# maximum, and this number is 0.
-EXPECTED = 2
-
-# The one RIB scope this test reads. `count` answers {"count": N}.
-RECEIVED_QUERY = 'show bgp rib received count'
-
-
-def rib_count(result):
-    """Return the route count from a dispatch result, or None when unreadable."""
-    if result.get('status') != 'done':
-        return None
-    try:
-        payload = json.loads(result_text_data(result))
-    except (json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(payload, dict) or 'count' not in payload:
-        return None
-    return int(payload['count'])
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Poll up to the expected number so a route delivered late still counts.
-    received = api.dispatch_until(
-        RECEIVED_QUERY,
-        lambda res: (rib_count(res) or 0) >= EXPECTED,
-        attempts=60, delay=0.25)
-    installed = rib_count(received)
-    if installed is None:
-        runtime_fail('bgp-rib did not answer %s: %r' % (RECEIVED_QUERY, received))
-    if installed != EXPECTED:
-        runtime_fail(
-            'a message refused on ipv6/unicast must leave ipv4/unicast where it '
-            'was: %d routes received, wanted exactly %d. A lower number means '
-            'the refused message spent ipv4/unicast slots on prefixes no plugin '
-            'ever saw.' % (installed, EXPECTED))
-
-    print('OK cross-family: %d routes installed after the refused message'
-          % installed, file=sys.stderr)
-
-    api._call_engine('ze-plugin-engine:dispatch-command',
-                     {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external prefix-count-cross-family {
-		run ./prefix-count-cross-family.run
+		run "ze-test fixture plugin/prefix-count-installed-cross-family"
 		encoder json
 	}
 	internal bgp-rib {

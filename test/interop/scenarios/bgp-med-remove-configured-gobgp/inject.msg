@@ -52,7 +52,8 @@ action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B40010
 # End-of-RIB.
 action=send:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Hold the session open while check.py polls GoBGP. A peer whose script is
+# Hold the session open while the internal/le/interoplab/bgp checker polls GoBGP. A peer whose
+# script is
 # exhausted exits, and its session dropping makes Ze withdraw the relayed routes
 # before the check runs. Twenty-four KEEPALIVEs at 5 s give the check 120 s, and
 # the runner tears the lab down as soon as the check returns.

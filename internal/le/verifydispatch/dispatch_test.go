@@ -70,12 +70,12 @@ func TestDispatchCapturesStdoutAndPreservesIdentityCodeArgsAndRoot(t *testing.T)
 	})
 
 	root := t.TempDir()
-	identity := verify.Identity{Gate: "ze-probe", Command: probeRoot, Args: []string{"alpha", "beta"}}
-	result := RunGate(context.Background(), root, identity)
+	identity := verify.Identity{Name: "ze-probe", Command: probeRoot, Args: []string{"alpha", "beta"}}
+	result := RunAction(context.Background(), root, identity)
 	if !result.Registered || !result.Completed || result.Code != 37 || result.Failure != nil {
 		t.Fatalf("dispatch result = %#v", result)
 	}
-	if result.Identity.Gate != identity.Gate || result.Identity.Command != identity.Command {
+	if result.Identity.Name != identity.Name || result.Identity.Command != identity.Command {
 		t.Errorf("identity = %#v, want %#v", result.Identity, identity)
 	}
 	if !slices.Equal(result.Identity.Args, identity.Args) {
@@ -106,8 +106,8 @@ func TestDispatchCapturesStdoutAndPreservesIdentityCodeArgsAndRoot(t *testing.T)
 
 func TestDispatchCapturesStderrFromTheRegisteredHandler(t *testing.T) {
 	registerProbe()
-	identity := verify.Identity{Gate: "ze-probe-error", Command: probeRoot, Args: []string{"stderr"}}
-	result := RunGate(context.Background(), t.TempDir(), identity)
+	identity := verify.Identity{Name: "ze-probe-error", Command: probeRoot, Args: []string{"stderr"}}
+	result := RunAction(context.Background(), t.TempDir(), identity)
 	if !result.Registered || !result.Completed || result.Code != 1 {
 		t.Fatalf("dispatch result = %#v", result)
 	}
@@ -118,7 +118,7 @@ func TestDispatchCapturesStderrFromTheRegisteredHandler(t *testing.T) {
 
 func TestDispatchRefusesUnownedMissingAndMismatchedRoots(t *testing.T) {
 	root := t.TempDir()
-	identity := verify.Identity{Gate: "ze-refusal", Command: "refusal-probe", Args: []string{"exact"}}
+	identity := verify.Identity{Name: "ze-refusal", Command: "refusal-probe", Args: []string{"exact"}}
 	resolve := func() (string, error) { return root, nil }
 	missing := func(string) registry.LocalDataHandler { return nil }
 
@@ -186,20 +186,20 @@ func TestDispatchSerializesRootOverrides(t *testing.T) {
 	lookup := func(string) registry.LocalDataHandler { return handler }
 	owns := func(string) bool { return true }
 
-	var first, second verify.GateResult
+	var first, second verify.ActionResult
 	var calls sync.WaitGroup
 	calls.Add(2)
 	go func() {
 		defer calls.Done()
 		first = dispatch(context.Background(), firstRoot,
-			verify.Identity{Gate: "first", Command: "probe", Args: []string{"first"}},
+			verify.Identity{Name: "first", Command: "probe", Args: []string{"first"}},
 			owns, lookup, lepath.Root)
 	}()
 	<-firstEntered
 	go func() {
 		defer calls.Done()
 		second = dispatch(context.Background(), secondRoot,
-			verify.Identity{Gate: "second", Command: "probe", Args: []string{"second"}},
+			verify.Identity{Name: "second", Command: "probe", Args: []string{"second"}},
 			owns, lookup, lepath.Root)
 	}()
 	calls.Wait()

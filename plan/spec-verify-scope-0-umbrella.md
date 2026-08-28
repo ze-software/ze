@@ -14,11 +14,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`make ze-precommit-verify` takes 74 minutes and certifies nothing. Two separate
+`./le verify current mode full` takes 74 minutes and certifies nothing. Two separate
 faults produce that result, and each sub-spec fixes one of them.
 
 **Fault 1: the gate judges a tree no session owns.** `computeTreeHash`
-(`scripts/status/verify_run.go`) hashes `HEAD`, the whole `git diff HEAD`, and
+(`internal/le/verify/run.go`) hashes `HEAD`, the whole `git diff HEAD`, and
 every untracked file. Six sessions share this checkout and it carries 248
 uncommitted files. `writeVerifyStatus` writes `treeMovedSentinel` when the tree
 moved during the run, and no tree can hash to that value, so the record reports
@@ -45,16 +45,16 @@ Measured stage costs, derived from stage-log timestamps under `tmp/verify/`:
 
 | Stage | Full run | Changed run |
 |-------|----------|-------------|
-| `ze-functional-test` | 1472s | 1998s |
-| `ze-staticcheck-feature-matrix-check` | 874s | 1138s |
+| `./le functional` | 1472s | 1998s |
+| `./le staticcheck-feature-matrix check` | 874s | 1138s |
 | `ze-unit-test-race-changed` | 638s | - |
 | `ze-unit-test-cached` | 439s | - |
 | `ze-unit-test-changed` | - | 1163s |
 | 24 other stages | 995s | 461s |
 | **Total** | **4418s** | **4760s** |
 
-`ze-precommit-verify-changed` is slower than the full run, because
-`scripts/dev/changed-pkgs.sh` expands the changed set by the transitive `.Deps`
+`./le verify current mode changed` is slower than the full run, because
+`internal/le/` expands the changed set by the transitive `.Deps`
 closure and builds that closure with no build tags. 38 of 646 packages carry
 200 or more transitive importers, so one edit under `internal/core/` selects a
 third of the tree. In the same graph `internal/component/ssh` carries zero
@@ -101,9 +101,9 @@ load: back to back on one tree, `plugin` gave 628/628 clean against 626/628
 instrumented, and `ui` 184/184 against 181/184 and 177/184, every failure
 `daemon did not become ready`. Instrumentation costs +45% suite time, +52% wall.
 
-So `ze-functional-test` stays unscoped, and AC-U1's under-15-minute target is
+So `./le functional` stays unscoped, and AC-U1's under-15-minute target is
 not reachable by any route this umbrella found.
-| 6 | `plan/spec-verify-scope-6-wiring-docs-attribution.md` | Per-failure groups for `ze-doc-wiring-check`, so attribution reaches the ledger's largest class | 1 |
+| 6 | `plan/spec-verify-scope-6-wiring-docs-attribution.md` | Per-failure groups for `./le doc-wiring`, so attribution reaches the ledger's largest class | 1 |
 
 **Sub-spec 5 exists because every static route to a suite map was measured and
 failed** (owner approval, 2026-08-19). `go list -deps ./cmd/ze` links 562 of 646
@@ -131,19 +131,19 @@ and its staticcheck half stands on its own.
   → Constraint: the stage list lives in `stagesForMode` and nowhere else
 
 **Key insights:**
-- The stage list is single-sourced in `stagesForMode` (`scripts/status/verify_run.go`), pinned by `TestStagesForModeMatchesGolden`. A gate absent from that function runs nowhere, in CI or locally.
-- `ai/rules/testing.md` derives a `.ci` file's `functional/verify` tier from the literal `all_suites` line in `mk/test-functional.mk`. Any per-change suite skipping must not lower a tagged RFC requirement's tier. Sub-spec 3 owns that obligation.
-- The scoped freshness answer is already built. `dirty_manifest` and `manifest_scoped` (`scripts/dev/verify-status.sh`) exist, and their own comment states the reason: "The commit is scoped to a file list; the evidence must be scopeable to the same list, or a session can never hold evidence about its own code". No production caller passes a path.
+- The stage list is single-sourced in `stagesForMode` (`internal/le/verify/run.go`), pinned by `TestStagesForModeMatchesGolden`. A gate absent from that function runs nowhere, in CI or locally.
+- `ai/rules/testing.md` derives a `.ci` file's `functional/verify` tier from the literal `all_suites` line in `internal/le/functional/suites.go`. Any per-change suite skipping must not lower a tagged RFC requirement's tier. Sub-spec 3 owns that obligation.
+- The scoped freshness answer is already built. `dirty_manifest` and `manifest_scoped` (`internal/le/verifystatus/answer.go`) exist, and their own comment states the reason: "The commit is scoped to a file list; the evidence must be scopeable to the same list, or a session can never hold evidence about its own code". No production caller passes a path.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/status/verify_run.go` - runs 30 stages sequentially; `stageResult` records no duration; `writeVerifyStatus` stamps `treeMovedSentinel` on any concurrent edit
-- [ ] `scripts/dev/verify-status.sh` - `tree_hash` covers the whole repository; `manifest_scoped` implements a scoped answer that no production caller uses
-- [ ] `scripts/dev/changed-pkgs.sh` - transitive, untagged reverse-dependency expansion
-- [ ] `scripts/checks/staticcheck_feature_matrix.go` - `judgeStaticcheckFeatureMatrix` spawns one `staticcheck -matrix ./...`; `deriveFeatureMatrix` emits 38 rows
-- [ ] `mk/test-functional.mk` - 24 suites in a sequential shell loop; `ZE_SKIP_SUITES` is the only scoping knob
-- [ ] `scripts/dev/commit_helper.py` - `verify_status` runs `verify-status.sh check` with no path arguments; `STRUCTURAL_GATES` names the reds that `--unverified` cannot wave through; `record_debt` writes rows and nothing clears them
+- [ ] `internal/le/verify/run.go` - runs 30 stages sequentially; `stageResult` records no duration; `writeVerifyStatus` stamps `treeMovedSentinel` on any concurrent edit
+- [ ] `internal/le/verifystatus/answer.go` - `tree_hash` covers the whole repository; `manifest_scoped` implements a scoped answer that no production caller uses
+- [ ] `internal/le/` - transitive, untagged reverse-dependency expansion
+- [ ] `internal/le/staticcheckmatrix/staticcheckmatrix.go` - `judgeStaticcheckFeatureMatrix` spawns one `staticcheck -matrix ./...`; `deriveFeatureMatrix` emits 38 rows
+- [ ] `internal/le/functional/suites.go` - 24 suites in a sequential shell loop; `ZE_SKIP_SUITES` is the only scoping knob
+- [ ] `internal/le/commit/prepare.go` - `verify_status` runs `verify-status.sh check` with no path arguments; `STRUCTURAL_GATES` names the reds that `--unverified` cannot wave through; `record_debt` writes rows and nothing clears them
 
 **Behavior to preserve:**
 - The stage list stays single-sourced in `stagesForMode`.
@@ -155,7 +155,7 @@ and its staticcheck half stands on its own.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- A session edits files, then runs `make ze-precommit-verify` or `make ze-precommit-verify-changed`.
+- A session edits files, then runs `./le verify current mode full` or `./le verify current mode changed`.
 
 ### Transformation Path
 1. `verify-lock.sh` (an alias for `ze-run.sh`) admits the job into a slot.
@@ -195,7 +195,7 @@ and its staticcheck half stands on its own.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A scoped selector drops a suite that the change could reach, and a defect lands | A red in CI that the local gate reported green | The selector fails OPEN: an unclassified path selects everything, and the selector logs what it dropped |
-| R-2 | Per-change suite skipping lowers a tagged RFC requirement's derived tier | `make ze-rfc-check` reports a tier change | Sub-spec 3 makes the tier derivation read the selector, not the static suite list |
+| R-2 | Per-change suite skipping lowers a tagged RFC requirement's derived tier | `./le rfc check` reports a tier change | Sub-spec 3 makes the tier derivation read the selector, not the static suite list |
 | R-3 | The debt ledger is cleared by a script that hides a real unrun gate | A cleared row for a gate that never ran | Clearing re-runs the owed gate over the committed code and records its exit |
 
 ## Blast Radius
@@ -210,16 +210,16 @@ and its staticcheck half stands on its own.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-precommit-verify-list` | → | `stagesForMode` | `TestStagesForModeMatchesGolden` |
-| `scripts/dev/commit_helper.py create` | → | `verify_status` with the commit's file list | `test_verify_status_scopes_to_commit_paths` |
-| `make ze-verify-scope-selector` | → | the sub-spec 2 selector | `TestSelectorFailsOpenOnUnknownPath` |
-| `make ze-verify-debt-clear` | → | the sub-spec 1 clearing target | `test_debt_clear_reruns_the_owed_gate` |
+| `./le verify current mode full-list` | → | `stagesForMode` | `TestStagesForModeMatchesGolden` |
+| `internal/le/commit/prepare.go create` | → | `verify_status` with the commit's file list | `test_verify_status_scopes_to_commit_paths` |
+| `./le changed scope` | → | the sub-spec 2 selector | `TestSelectorFailsOpenOnUnknownPath` |
+| `./le commit debt-clear` | → | the sub-spec 1 clearing target | `test_debt_clear_reruns_the_owed_gate` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-U1 | Sub-specs 1 to 4 are closed | `make ze-precommit-verify-changed` over a single-feature change completes in under 15 minutes on the dev box |
+| AC-U1 | Sub-specs 1 to 4 are closed | `./le verify current mode changed` over a single-feature change completes in under 15 minutes on the dev box |
 | AC-U2 | Another session edits an unrelated file while a verify run is in flight | The run still produces a usable verdict for the paths it judged |
 | AC-U3 | A gate is red because of a file outside the committing session's change set | `commit_helper.py create` does not charge that session a debt row for it |
 | AC-U4 | The debt ledger holds open rows for gates that now pass | A make target clears them, and it re-runs each owed gate to do so |
@@ -230,7 +230,7 @@ and its staticcheck half stands on its own.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestStagesForModeMatchesGolden` | `scripts/status/verify_run_test.go` | The stage list stays single-sourced across every sub-spec edit | |
+| `TestStagesForModeMatchesGolden` | `internal/le/verify/verify_test.go` | The stage list stays single-sourced across every sub-spec edit | |
 | per sub-spec | per sub-spec | per sub-spec | |
 
 ### Functional Tests
@@ -246,12 +246,12 @@ and its staticcheck half stands on its own.
 | `verify-scope-debt-clear` | `test/runner/verify-scope-debt-clear.ci` | A developer clears a debt row, and the clearing re-runs the owed gate rather than trusting the edit | |
 
 ## Files to Modify
-- `scripts/status/verify_run.go` - freshness record, stage durations, stage selection
-- `scripts/dev/verify-status.sh` - scoped freshness callers
-- `scripts/dev/changed-pkgs.sh` - reduced to a dispatcher: it reads the answer the run published, or runs the selector. The transitive untagged expansion is deleted rather than wrapped, and the tag-aware logic lives in `runSelector` (`scripts/checks/verify_scope_selector.go`)
-- `scripts/dev/commit_helper.py` - refusal attribution, debt clearing
-- `scripts/checks/staticcheck_feature_matrix.go` - row scoping
-- `mk/test-functional.mk` - suite selection and the suite wall-clock cap
+- `internal/le/verify/run.go` - freshness record, stage durations, stage selection
+- `internal/le/verifystatus/answer.go` - scoped freshness callers
+- `internal/le/` - reduced to a dispatcher: it reads the answer the run published, or runs the selector. The transitive untagged expansion is deleted rather than wrapped, and the tag-aware logic lives in `runSelector` (`internal/le/changed/selector.go`)
+- `internal/le/commit/prepare.go` - refusal attribution, debt clearing
+- `internal/le/staticcheckmatrix/staticcheckmatrix.go` - row scoping
+- `internal/le/functional/suites.go` - suite selection and the suite wall-clock cap
 - `.github/workflows/verify.yml` - sharding
 
 ## Files to Create
@@ -298,7 +298,7 @@ and its staticcheck half stands on its own.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- each sub-spec starts with its own wiring phase, and the rows in the Wiring Test table above are its targets
    - Tests: the four rows in the Wiring Test table
-   - Files: `scripts/dev/commit_helper.py`, `scripts/status/verify_run.go`, and the two new make targets
+   - Files: `internal/le/commit/prepare.go`, `internal/le/verify/run.go`, and the two new make targets
    - Verify: each wiring test fails because the target it names does not exist yet
 2. **Phase: Sub-spec 1** -- shared-checkout freshness and debt
 3. **Phase: Sub-spec 2** -- the change-set selector
@@ -348,7 +348,7 @@ and its staticcheck half stands on its own.
 |----------|------------------------|-----------|
 | Fix the shared checkout's gate rather than isolate sessions | A git worktree per session | Owner decision 2026-08-19: sessions edit the same files too often, and the merges cost more than the isolation saves |
 | Scope the staticcheck matrix by row count | Run the 38 rows as parallel processes | Owner decision 2026-08-19: the box is partitioned so concurrent sessions coexist, and a 38-way fan-out starves them |
-| One selector, computed once, read by every stage | Per-stage change detection | A second copy drifts. `stagesForMode` already proved that: two duplicate Makefile stage lists drifted for an unknown period before `spec-fixit-verify-stage-ssot.md` deleted them |
+| One selector, computed once, read by every stage | Per-stage change detection | A second copy drifts. `stagesForMode` already proved that: two duplicate the retired Makefile (current producers: `internal/le/` native action tables) stage lists drifted for an unknown period before `spec-fixit-verify-stage-ssot.md` deleted them |
 
 ## Known Limitations
 - The whole-tree sweep still has to happen somewhere. This umbrella moves it to CI and to the cadence targets, and does not delete it.
@@ -359,7 +359,7 @@ and its staticcheck half stands on its own.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -377,7 +377,7 @@ and its staticcheck half stands on its own.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

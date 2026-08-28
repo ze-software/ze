@@ -121,5 +121,5 @@ These cost days if rediscovered:
   leak forever, and on re-attach the eBPF maps start fresh so the old values are
   stale anyway.
 - Keep package-internal helpers unexported even when a sibling plugin exports the
-  equivalent. `ze-repository-check` flags an exported symbol with no cross-package
+  equivalent. `./le repository check` flags an exported symbol with no cross-package
   caller.

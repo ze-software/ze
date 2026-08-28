@@ -243,10 +243,10 @@ move it and say so in both specs.
 
 ### Id allocation (cross-spec hazard, BLOCKING)
 
-`check_id_allocation` (`scripts/dev/rfc_requirements.py`) refuses a new id whose
+`check_id_allocation` (`internal/le/rfc/rfc.go`) refuses a new id whose
 ordinal is at or below its section's high-water mark. The mark comes from the committed
 HEAD summaries. A section with no mark is skipped entirely
-(`scripts/dev/rfc_requirements.py`). Refusal is permanent for that ordinal: the
+(`internal/le/rfc/rfc.go`). Refusal is permanent for that ordinal: the
 row must take a higher one and leaves document order.
 
 **Marks measured 2026-07-31**, against `git show HEAD:rfc/short/rfc7296.md` and against
@@ -298,12 +298,12 @@ One command per section:
 
     git show HEAD:rfc/short/rfc7296.md | grep -oE 'RFC7296-4-[0-9]+' | sort -V | tail -1
 
-After the rows land, run `make ze-rfc-index-update` and commit `ai/RFC-REQUIREMENTS.md` in the
+After the rows land, run `./le rfc index-update` and commit `ai/RFC-REQUIREMENTS.md` in the
 SAME commit. The ledger records each tagged test's `file:line`, and both verify modes of
-`ze-rfc-check` fail on a stale ledger.
+`./le rfc check` fail on a stale ledger.
 
 **Tag carriers.** A tag can live in a `_test.go` or in a `.ci` under `test/ipsec/`, which
-`ze-functional-test` runs. `test/interop-ipsec/` is REFUSED as a carrier, because nothing
+`./le functional` runs. `test/interop-ipsec/` is REFUSED as a carrier, because nothing
 runs that suite automatically. The strongSwan scenarios in this spec are goal-validation
 evidence, and they earn no row a polarity.
 
@@ -730,7 +730,7 @@ redden the half named.
 5. **Phase: Config validation** - AC-12, AC-13 (inherited deferral)
    - Files: `ipsec/validate.go`, `engine/config.go`, `test/reload/*.ci`
 6. **Phase: Interop** - AC-14
-   - `test/interop-ipsec/scenarios/remote-access-eap-mschapv2`, `remote-access-eap-tls`; `make ze-interop-ipsec-test`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+   - `test/interop-ipsec/scenarios/remote-access-eap-mschapv2`, `remote-access-eap-tls`; `./le integration interop-ipsec`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 7. **Observability + docs** - counters, `show` views, documentation checklist
 8. **Full verification, review gate, closure**
 
@@ -749,7 +749,7 @@ this table. Phases 1, 2 and 4 to 8 are unchanged.
 | D | The consumer | `engine/cp.go`. The CP case at all THREE drop sites. The EAP start signature. The reply insertion between AUTH and SAr2. Traffic-selector narrowing before the child response payloads are built. Real pool wiring in place of `_ = ipPool` | `2.19-2`, `2.19-3`, `4-2`, `4-3`, `3.15.1-1` | 1.5 days |
 | E | Authorization and error paths | The two fail-closed guards, `FAILED_CP_REQUIRED` emission with its short-circuit before the Child SA install, and `INTERNAL_ADDRESS_FAILURE` | `2.19-5`, `2.19-6` | 0.5 day |
 | F | Tests | The tagged pairs, every mutation run and reverted, the pool tests, a `test/ipsec/` functional test, and the strongSwan road-warrior scenario | all 17 proven | 1.5 days |
-| G | Discovery and closure | `docs/features.md`, the guide, the wire architecture page, `docs/features/rfc-status.md` rows, the summary rows, `make ze-rfc-index-update`, and the Integration Checklist re-answer | - | 0.5 day |
+| G | Discovery and closure | `docs/features.md`, the guide, the wire architecture page, `docs/features/rfc-status.md` rows, the summary rows, `./le rfc index-update`, and the Integration Checklist re-answer | - | 0.5 day |
 
 **Total: roughly 6 days.** Phases A, B and C are genuinely parallel.
 
@@ -796,7 +796,7 @@ exhaustion-by-churn failure. Neither depends on the CP consumer.
 | pool no longer discarded | `grep -n '_ = ipPool' internal/component/ike/engine/register.go` returns nothing |
 | CP payload emitted | interop capture or `TestRemoteAccessAssignsVirtualIP` |
 | eap-user live | `TestRemoteAccessResolvesEAPUserPassword` |
-| interop green | `make ze-interop-ipsec-test` scenarios `remote-access-eap-mschapv2`, `remote-access-eap-tls` |
+| interop green | `./le integration interop-ipsec` scenarios `remote-access-eap-mschapv2`, `remote-access-eap-tls` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -956,7 +956,7 @@ exhaustion-by-churn failure. Neither depends on the CP consumer.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken

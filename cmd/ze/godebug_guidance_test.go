@@ -108,7 +108,7 @@ func TestNoShippedGuidanceNamesARemovedGODEBUG(t *testing.T) {
 // assignment sits on the line. That covers every form the repository can ship one
 // in: a bare `GODEBUG=` line in an env file, `export GODEBUG=` in a shell script,
 // `ENV GODEBUG=` in a Dockerfile, `env GODEBUG=... ./ze` before a command, and
-// `-e GODEBUG=...` in the `docker run` argument lists lab.py builds.
+// `-e GODEBUG=...` in `docker run` argument lists built by the native interop labs.
 //
 // The value list runs to the first whitespace, quote, or backtick, because GODEBUG
 // is comma-separated and each item is its own setting.

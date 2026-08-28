@@ -2048,8 +2048,8 @@ func TestBuiltinPathsResolveToTheirOwnHandler(t *testing.T) {
 // spec-cli-show-bgp-is-the-command against the real YANG command tree.
 //
 // VALIDATES: `show bgp summary` is no command. The YANG tree produces no path
-// for it and no wire method of its own, so make ze-command-list, which reads
-// the same WireMethodToPath map (scripts/inventory/commands.go), cannot name
+// for it and no wire method of its own, so `./le command-list`, which reads the
+// same WireMethodToPath map (internal/le/commandlist/register.go), cannot name
 // it. Typed anyway, it matches `show bgp` and hands `summary` over as an
 // argument, which is what makes handleBgpOverview
 // (internal/component/bgp/plugins/cmd/peer/summary.go) answer the

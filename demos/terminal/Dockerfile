@@ -1,9 +1,8 @@
 # The image every demo is rendered in.
 #
-# It carries what the demos need and nothing more: the Python the tape recorder
-# runs on (demos/terminal/pty-session.py), chromium with Playwright for the one
-# `kind: browser` demo, ffmpeg for the video that demo records, the network
-# tools the demo scenarios drive, and the three font families below.
+# It carries what the demos need and nothing more: chromium with Playwright for
+# the one `kind: browser` demo, ffmpeg for the video that demo records, the
+# network tools the scenarios drive, and the three font families below.
 #
 # The vendored fonts are load-bearing, and they are the ONLY fonts the image
 # holds: the copy below removes every font a Debian package installed, so what
@@ -18,7 +17,7 @@
 FROM debian:trixie-slim@sha256:3a39a0592364683e6bab97937b72cad5a8fa6dcbbee90edb3bb48c7f8e94f258
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends chromium curl ffmpeg fontconfig frr iproute2 iputils-ping keepalived netcat-openbsd nftables nodejs npm openssh-client procps python3 sshpass \
+    && apt-get install --yes --no-install-recommends chromium curl ffmpeg fontconfig frr iproute2 iputils-ping keepalived netcat-openbsd nftables nodejs npm openssh-client procps sshpass \
     && npm install --global playwright-core@1.55.0 \
     && npm cache clean --force \
     && mkdir -p /opt/ms-playwright/ffmpeg-1011 \
@@ -34,7 +33,6 @@ RUN find /usr/share/fonts -mindepth 1 -maxdepth 1 \
         ! -name fira-code ! -name liberation ! -name noto -exec rm -rf {} + \
     && fc-cache -f >/dev/null
 
-COPY container-entrypoint.sh /usr/local/bin/terminal-demo-entrypoint
 
 WORKDIR /src
-ENTRYPOINT ["/usr/local/bin/terminal-demo-entrypoint"]
+ENTRYPOINT ["/src/tmp/terminal-demos/bin/ze-demo", "entrypoint"]

@@ -30,7 +30,7 @@ import (
 // Builder.SetAIGP) and OpaqueAttribute (what EVERY unknown transitive attribute
 // decodes to, attribute/wire.go) matched neither case and were dropped. The batch
 // rail copies the caller's block verbatim and kept them. Which rail runs is
-// decided by Peer.ShouldQueue(), i.e. by scheduling -- so the same route reached
+// decided by Peer.shouldQueue(), i.e. by scheduling -- so the same route reached
 // the peer with or without its AIGP depending on whether the destination had
 // finished its initial sync.
 //
@@ -162,7 +162,7 @@ func buildPreserveQueuedRail(t *testing.T, c preserveCase) []byte {
 // VALIDATES: an AIGP and an unknown transitive attribute survive BOTH rails, at
 // their type-code position, and the two rails encode them to identical bytes.
 // PREVENTS: the queued rail silently dropping any attribute its type switch does
-// not name -- one route encoding two ways according to Peer.ShouldQueue(), and an
+// not name -- one route encoding two ways according to Peer.shouldQueue(), and an
 // unrecognized transitive attribute discarded against RFC 4271 Section 5.
 func TestAnnounceRailsPreserveUnlistedAttributes(t *testing.T) {
 	for _, c := range preserveCases() {

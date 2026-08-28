@@ -23,8 +23,8 @@ did NOT move. They are not backend-specific.
 
 Each package exports `RegisterHealthCheck()` and calls it from the existing
 `register.go` `init()`. A direct `health.Register()` inside `init()` is rejected
-by `.claude/hooks/block-init-register.sh`, which enforces explicit over implicit
-registration.
+by the native write hook, which enforces explicit over implicit registration.
+<!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
 
 The warning-code check was INLINED in the moved firewall health check rather than
 exported as `checkWarningCodes()`. Two hardcoded strings do not justify a new

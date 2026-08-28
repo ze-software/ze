@@ -12,123 +12,6 @@
 option=needs-linux:caps=net-admin,net-raw
 option=netns-link:name=veth-bng:peer=veth-sub:vlan=100
 
-tmpfs=pppoe-vlan-client.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""PPPoE client over an 802.1Q sub-interface."""
-import os
-import socket
-import struct
-import sys
-
-ETH_P_PPPOE_DISC = 0x8863
-PADI = 0x09
-PADO = 0x07
-PADR = 0x19
-PADS = 0x65
-
-TAG_EOL = 0x0000
-TAG_SVC_NAME = 0x0101
-TAG_HOST_UNIQ = 0x0103
-TAG_AC_COOKIE = 0x0104
-
-IFACE = os.environ.get("TEST_IFACE", "veth-sub.100")
-
-ATTEMPT_TIMEOUT = 1.0
-ATTEMPTS = 15
-PADR_ROUNDS = 6
-
-
-def build_padi(host_uniq=b"\x44\x44"):
-    tags = struct.pack("!HH", TAG_SVC_NAME, 0)
-    tags += struct.pack("!HH", TAG_HOST_UNIQ, len(host_uniq)) + host_uniq
-    return struct.pack("!BBHH", 0x11, PADI, 0, len(tags)) + tags
-
-
-def build_padr(ac_cookie, host_uniq=b"\x44\x44"):
-    tags = struct.pack("!HH", TAG_SVC_NAME, 0)
-    tags += struct.pack("!HH", TAG_HOST_UNIQ, len(host_uniq)) + host_uniq
-    tags += struct.pack("!HH", TAG_AC_COOKIE, len(ac_cookie)) + ac_cookie
-    return struct.pack("!BBHH", 0x11, PADR, 0, len(tags)) + tags
-
-
-def parse_tags(payload):
-    tags = {}
-    off = 0
-    while off + 4 <= len(payload):
-        ttype, tlen = struct.unpack("!HH", payload[off:off + 4])
-        if ttype == TAG_EOL or off + 4 + tlen > len(payload):
-            break
-        tags[ttype] = payload[off + 4:off + 4 + tlen]
-        off += 4 + tlen
-    return tags
-
-
-def exchange(sock, own_mac, dst_mac, payload, want_code, attempts=ATTEMPTS):
-    """Send until want_code answers. Frames from our own MAC are our sent copy."""
-    frame = dst_mac + own_mac + struct.pack("!H", ETH_P_PPPOE_DISC) + payload
-    for _ in range(attempts):
-        sock.send(frame)
-        try:
-            while True:
-                got = sock.recv(1518)
-                if got[6:12] == own_mac:
-                    continue
-                body = got[14:]
-                if len(body) < 6:
-                    continue
-                _, code, sid, plen = struct.unpack("!BBHH", body[:6])
-                if code == want_code:
-                    return got[6:12], sid, parse_tags(body[6:6 + plen])
-                break
-        except socket.timeout:
-            continue
-    return None, None, None
-
-
-def main():
-    sock = socket.socket(
-        socket.AF_PACKET, socket.SOCK_RAW, socket.htons(ETH_P_PPPOE_DISC)
-    )
-    sock.bind((IFACE, ETH_P_PPPOE_DISC))
-    sock.settimeout(ATTEMPT_TIMEOUT)
-    own_mac = sock.getsockname()[4]
-
-    server_mac, _, tags = exchange(sock, own_mac, b"\xff" * 6, build_padi(), PADO)
-    if server_mac is None:
-        print(f"ERROR: no PADO received on {IFACE}", file=sys.stderr)
-        return 1
-    if TAG_AC_COOKIE not in tags:
-        print("ERROR: PADO missing AC-Cookie", file=sys.stderr)
-        return 1
-    print("OK: PADO received on VLAN interface")
-
-    # A fresh PADI per PADR round: an AC-Cookie expires (cookie-timeout, 5s by
-    # default), so replaying one for the whole budget reports a stale cookie
-    # where the real fault belongs to the first round.
-    sid = None
-    for _ in range(PADR_ROUNDS):
-        _, sid, _ = exchange(
-            sock, own_mac, server_mac, build_padr(tags[TAG_AC_COOKIE]), PADS, attempts=2
-        )
-        if sid is not None:
-            break
-        server_mac, _, tags = exchange(sock, own_mac, b"\xff" * 6, build_padi(), PADO)
-        if server_mac is None:
-            print("ERROR: AC stopped answering PADI while retrying PADR", file=sys.stderr)
-            return 1
-    if sid is None:
-        print("ERROR: no PADS received on VLAN interface", file=sys.stderr)
-        return 1
-    if sid == 0:
-        print("ERROR: PADS session ID is 0", file=sys.stderr)
-        return 1
-    print(f"OK: PADS received on VLAN, session-id={sid}")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-EOF_PY
 
 stdin=config:terminator=EOF_CONF
 pppoe {
@@ -143,7 +26,7 @@ option=env:var=ze.log.pppoe:value=debug
 option=env:var=TEST_IFACE:value=veth-sub.100
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=python3 pppoe-vlan-client.py:timeout=45s
+cmd=foreground:seq=2:exec=ze-test fixture pppoe/vlan:timeout=45s
 expect=exit:code=0
 expect=stdout:contains=OK: PADO received on VLAN interface
 expect=stdout:contains=OK: PADS received on VLAN

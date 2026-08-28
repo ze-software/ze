@@ -8,12 +8,11 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
 	leroot.Register(area, Answer, registry.Meta{
-		Description: "report recurring problem classes from the committed journal",
+		Description: "report committed journal classes and validate one edited shard",
 		Mode:        "offline",
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,
@@ -25,5 +24,5 @@ func init() {
 	leroot.RegisterShape(area, command.ShapeDoc)
 
 	// The census reads the same action table that dispatch and help read.
-	parity.Claim(area, actions.Gates()...)
+
 }

@@ -9,50 +9,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies session works with group-updates disable
-tmpfs=group-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-import time
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # Verify session established with group-updates disable
-        result = dispatch(api, 'show bgp peer peer1 detail')
-        if result.get('status') != 'done':
-            print(f'FAIL: peer detail status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-
-        print('OK: session works with group-updates disable', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze bgp configuration with group-updates disable
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external group-test {
-		run ./group-test.run
+		run "ze-test fixture plugin/config-group-updates"
 		encoder json
 	}
 }

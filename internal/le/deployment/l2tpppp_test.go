@@ -3,7 +3,7 @@ package deployment
 // Tests for the on-host L2TP PPP proof through direct function calls.
 //
 // Goal: pin the run behavior that
-// scripts/evidence/l2tp_ppp_parity_test.go cannot reach. This test covers both
+// internal/le/deployment/l2tpppp_test.go cannot reach. This test covers both
 // daemon configurations, the ze startup environment, and a kernel listing. It
 // distinguishes a proof that the test was unable to perform from a failed
 // proof. Method: call each piece and read its answer. No namespace or daemon is

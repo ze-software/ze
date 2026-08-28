@@ -157,7 +157,7 @@ left segment names a YANG verb or container is the same R9 violation (`traffic-c
 vs the `traffic` container). MUST NOT assume a root is ungoverned because it is not in the
 tree.
 Shipped commands awaiting the agreed rename are listed in `pendingNamespaceSplit`
-(`scripts/checks/cli_grammar.go`) and reported as tracked debt, so the gate stays green
+(`internal/le/cligrammar/cligrammar.go`) and reported as tracked debt, so the gate stays green
 while a NEW collision still fails. Migrating one is a dispatch-key change (see
 "Migrating a Built-in Command's Path" below): MUST add the split path, keep the old form per
 "Backward Compatibility", update `.ci` senders, and remove its `pendingNamespaceSplit`
@@ -167,7 +167,7 @@ entry.
 the mere existence of a sibling matching the LEFT segment, so it cannot tell a real
 namespace from two names that share a word by accident (test 3). When test 2 wins -- the
 token is one indivisible protocol / LSA / object name -- MUST list the full command path in
-`treeNamespaceExempt` (`scripts/checks/cli_grammar.go`) with a one-line reason. It is the
+`treeNamespaceExempt` (`internal/le/cligrammar/cligrammar.go`) with a one-line reason. It is the
 tree-side counterpart of `rootNamespaceExempt`, is counted and printed (`Tree
 namespace-exempt`), and leaves every unlisted collision blocking. MUST reach for it only when
 splitting would state something false about the object model; `show ospf database
@@ -347,11 +347,11 @@ keyword-before-value, action-before-identifier, config-tree-mutation stays in
 
 | Feeder | What it checks | Run |
 |--------|----------------|-----|
-| Static gate | Every built-in command (YANG command tree) against R1-R9 (R9 sibling-collision is static-gate-only, it needs sibling context), plus no `--flag` in any `.yang` | `make ze-cli-grammar-check` (NOT a `make ze-precommit-verify` stage -- it is not in `stagesForMode`; the gate reaches CI through `TestCLIGrammarGateStatic` in `scripts/checks/cli_grammar_test.go`, which runs the same checker under the unit stage) |
+| Static gate | Every built-in command (YANG command tree) against R1-R9 (R9 sibling-collision is static-gate-only, it needs sibling context), plus no `--flag` in any `.yang` | `./le cli-grammar` (NOT a `./le verify worktree` stage -- it is not in `stagesForMode`; the gate reaches CI through `TestCLIGrammarGateStatic` in `internal/le/cligrammar/cligrammar_test.go`, which runs the same checker under the unit stage) |
 | Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in functional/exabgp suites |
 | Runtime guard | The runtime built-in assembly (`AllBuiltinRPCs` x `WireMethodToPaths`) re-checked with `ExemptCategory` by wire method; and the `CommandRegistry.Register` boundary rejecting a bad name | `TestRuntimeBuiltinSurfaceGrammar` / `TestRegistrationRejectsBadGrammar` (unit) |
-| Root namespace | Every registered root command (`registry.MustRegisterRootHandler` / `RegisterRoot`, enumerated from source) against R9 across surfaces (`grammar.CheckRootNamespace`): a hyphenated root whose left segment names a YANG verb or container is a namespace member masquerading as a compound root. Root handlers never pass through the YANG-tree static gate, so this feeder is the only one that governs them | `make ze-cli-grammar-check` (same gate); `TestRootNamespaceGrammar` (unit) |
-| Demo call sites | Every `ze <token>` invocation in `demos/terminal/**/*.sh`: the position-1 token must be a YANG verb, a registered root, or the `-` stdin sentinel. The other feeders check how commands are DECLARED; this one checks the repo's own CALL SITES, which no other gate reaches -- `make ze-precommit-verify` never executes the demos (they need Docker, and they run from `mk/build-terminal-demo.mk` at release time and in the gh-pages website workflow), so a removed launch form rots there silently -- and since main's own `pages.yml` was deleted, main no longer gets even the after-the-fact signal it once did: `ze <config-file>` stayed in thirteen demo scripts and failed the Deploy website job on every push for four days. This static gate is now the ONLY thing on main that sees a broken demo call site | `make ze-cli-grammar-check` (same gate); `TestCLIGrammarGateStatic` (unit) |
+| Root namespace | Every registered root command (`registry.MustRegisterRootHandler` / `RegisterRoot`, enumerated from source) against R9 across surfaces (`grammar.CheckRootNamespace`): a hyphenated root whose left segment names a YANG verb or container is a namespace member masquerading as a compound root. Root handlers never pass through the YANG-tree static gate, so this feeder is the only one that governs them | `./le cli-grammar` (same gate); `TestRootNamespaceGrammar` (unit) |
+| Demo call sites | Every `ze <token>` invocation under `demos/terminal/`: the position-1 token must be a YANG verb, a registered root, or the `-` stdin sentinel. `./le cli-grammar` reads the demo sources; `./le terminal-demo check-all` validates the published artifacts |
 
 Feeder 3 is an **in-process** guard, not a daemon-boot audit: built-ins are 100%
 YANG-derived (a handler with no YANG path is skipped, `LoadBuiltinsWithAliases`) so
@@ -451,7 +451,7 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 - MUST return exit codes; MUST NOT call `os.Exit()` in handlers
 - `-` means stdin (read) / stdout (write): MUST read/write a user-supplied path through
   `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), MUST NOT make a raw
-  `os` call. `make ze-dash-stdio-check` fails any command that bypasses it. `--json` for JSON output
+  `os` call. `./le dash-stdio check` fails any command that bypasses it. `--json` for JSON output
 - Repeatable flags MUST use `stringSlice` with `String()` + `Set()`
 
 ### Command Completion (BLOCKING)
@@ -556,7 +556,7 @@ An error MUST carry these three legs:
    values with `%q` so empty, whitespace, or look-alike values are visible:
    `expected exit code %d, got %d`, `unknown field %q (want one of ...)`.
 3. **What to do next** -- the corrective action, or a stable handle the reader
-   can act on: a directive to add, a flag to set, a make target to run, or a
+   can act on: a directive to add, a flag to set, a native action to run, or a
    registered `doctor-*` diagnostic code that `ze explain` expands.
 
 If the next step needs more than one line, attach a diagnostic code (below)
@@ -743,7 +743,7 @@ Format: `"afi/safi"`. Families are registered dynamically by plugins (not a stat
 | l2vpn | `evpn`, `vpls` |
 | bgp-ls | `bgp-ls`, `bgp-ls-vpn` |
 
-Unicast and multicast are builtin (engine). All others registered by `bgp-nlri-*` plugins. Use `make ze-inventory` for the authoritative list.
+Unicast and multicast are builtin (engine). All others registered by `bgp-nlri-*` plugins. Use `./le inventory` for the authoritative list.
 
 ### NLRI Operations
 
@@ -795,25 +795,23 @@ When a skill covers the task (`/ze-rfc`, `/ze-review`, `/ze-implement`, etc.),
 use it instead of spawning a raw agent or improvising the workflow. Skills
 encode project conventions, gates, and ordering that a raw agent will miss.
 
-- **`.claude/hooks/pretool-agent-skill.py` BLOCKS the spawn** when the agent prompt asks for something a skill covers. It matches the ASK, never the subject: "review this diff" is routed, "explain how review works" is not.
+- **The native `pretool-agent-skill` action in `internal/le/hookruntime/agent.go` BLOCKS the spawn** when the prompt asks for something a skill covers. It matches the ask, never the subject.
 - **Naming the skill in the prompt satisfies the gate**, so a subagent that MUST follow `/ze-explore` is spawned by saying so.
 - The map it enforces: research is `/ze-explore`, review is `/ze-review`, spec conformance is `/ze-review-spec`, a red test is `/ze-debug`, spec work is `/ze-implement`, bug classes are `/ze-hunt`, spec audit is `/ze-audit`.
 - A hand-written prompt reproduces a worse version of the skill and drops every gate it carries. That is what the gate exists to stop.
 
 ### Commit Script Generation
 
-Use `scripts/dev/commit_helper.py` for commit script preparation. It owns
-session ID reuse, message file creation, executable per-commit script
-generation (the path comes from its `script=` line), ignored-path rejection, `git commit -F`, and the learned-summary
-gate for workflow/tooling/rule changes. Hand-write a commit script only when the
-helper cannot express the commit shape, and keep the same generated-script
-contract from `ai/rules/git-safety.md`.
+Use `./le commit create` for commit script preparation. `internal/le/commit`
+owns session ID reuse, message creation, explicit add/remove validation,
+executable script generation, and the pre-staging gates. Run the path printed
+by its `script=` line. A hand-written compatibility path is prohibited.
 
 On explicit commit requests, commit-helper invocation is the work. Do not run
 late completeness checks, health checks, recent-commit style reviews, or
 remaining-work tables unless the user explicitly asks for them. Before any
-verify target, run `scripts/dev/verify-status.sh check`; a FRESH result
-forbids rerunning `make ze-precommit-verify` or `make ze-precommit-verify-changed`.
+verify target, run `./le verify-status check`; a FRESH result
+forbids rerunning `./le verify worktree` or `./le verify worktree`.
 
 ### Skills
 

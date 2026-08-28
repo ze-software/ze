@@ -29,9 +29,9 @@ import (
 // suite loudly (AC-4) rather than silently pass: a netlink suite that cannot get
 // its own namespace must never fall through and program the host firewall.
 //
-// The thread stays locked for the whole test lifetime: ze, ze-peer, and driver.py
-// are fork+exec'd from this goroutine and inherit the thread's netns (assumption
-// A-5, validated by TestNetnsLaunchChildInheritsNamespace), so they share one
+// The thread stays locked for the whole test lifetime: ze, ze-peer, and compiled
+// fixture helpers are fork+exec'd from this goroutine and inherit the thread's
+// netns (assumption A-5, validated by TestNetnsLaunchChildInheritsNamespace), so they share one
 // throwaway namespace and reach each other over 127.0.0.1. restore() must run on
 // the same thread, so callers MUST defer it (never hand it to another goroutine).
 func enterTestNetns(name string) (restore func(), hostInode uint64, err error) {

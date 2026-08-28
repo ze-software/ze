@@ -2,19 +2,19 @@
 
 Ze's quality work has one rule: when something fails, the output should show what broke and what to run next. This page follows that path from a small Go test to the full release evidence.
 
-<!-- source: ../main/mk/test-unit.mk -- unit and race targets -->
-<!-- source: ../main/mk/test-functional.mk -- functional suite targets -->
+<!-- source: ../main/internal/le/testunit/actions.go -- unit and race actions -->
+<!-- source: ../main/internal/le/functional/actions.go -- functional suite actions -->
 <!-- source: ../main/docs/architecture/testing/ci-format.md -- .ci and .et formats -->
 <!-- source: ../main/docs/architecture/testing/runner-architecture.md -- runner architecture and .wb format -->
-<!-- source: ../main/mk/test-integration.mk -- QEMU, interop, deployment targets -->
-<!-- source: ../main/mk/test-fuzz.mk -- fuzz targets -->
-<!-- source: ../main/mk/test-mutation.mk -- mutation targets -->
-<!-- source: ../main/mk/test-release.mk -- release evidence -->
-<!-- source: ../main/scripts/status/verify_run.go -- staged verify and failure index -->
-<!-- source: ../main/scripts/dev/verify-lock.sh -- shared verify lock -->
-
-<!-- source: ../main/scripts/dev/rfc_requirements.py -- RFC requirement gate -->
-<!-- source: ../main/.claude/hooks/pretool-writeedit.py -- RFC-tagged test edit guard -->
+<!-- source: ../main/internal/le/qemu/actions.go -- QEMU actions -->
+<!-- source: ../main/internal/le/integration/gates.go -- integration and interop actions -->
+<!-- source: ../main/internal/le/fuzz/actions.go -- fuzz actions -->
+<!-- source: ../main/internal/le/mutation/actions.go -- mutation reporting actions -->
+<!-- source: ../main/internal/le/evidence/actions.go -- release evidence -->
+<!-- source: ../main/internal/le/verify/run.go -- staged verify runner -->
+<!-- source: ../main/internal/le/verifylock/register.go -- shared verify lock -->
+<!-- source: ../main/internal/le/rfc/actions.go -- RFC requirement gate -->
+<!-- source: ../main/internal/le/hookruntime/writeedit.go -- RFC-tagged test edit guard -->
 <div class="quality-hero">
   <div class="quality-hero-card">
     <span class="quality-hero-kicker">Quality model</span>
@@ -82,7 +82,7 @@ Ze's quality work has one rule: when something fails, the output should show wha
 <tr><td>Linux kernel behavior, real peer compatibility, deployment, or release evidence</td><td>QEMU, Docker interop, deployment scripts, perf gates</td><td><a href="qemu-interop-release/">QEMU, interop, and release evidence</a></td></tr>
 <tr><td>A failing verify run that needs a clear rerun command</td><td>Verify stages, failure groups, trace output, debug logs</td><td><a href="verify-debugging/">Verify and debugging workflow</a></td></tr>
 <tr><td>Whether the suite would actually catch a regression, not how large it is</td><td>Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history</td><td><a href="health/">Testing health</a></td></tr>
-<tr><td>RFC requirement coverage, public gap disclosure, or AI agent test-change guards</td><td><code>make ze-rfc-check</code>, RFC test tags, status-ledger agreement, audit freshness</td><td><a href="rfc-compliance/">RFC compliance gate</a></td></tr>
+<tr><td>RFC requirement coverage, public gap disclosure, or AI agent test-change guards</td><td><code>./le rfc check</code>, RFC test tags, status-ledger agreement, audit freshness</td><td><a href="rfc-compliance/">RFC compliance gate</a></td></tr>
 </tbody>
 </table>
 
@@ -93,30 +93,30 @@ Ze's quality work has one rule: when something fails, the output should show wha
     <h3>Edit loop</h3>
     <p>Use one focused command while changing code.</p>
     <pre><code>go test -race -run TestName ./internal/component/config/...
-make ze-fuzz-test-one FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
-make ze-mutation-test-changed
+FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le fuzz run
+go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
 bin/ze-test bgp plugin 42 -v</code></pre>
   </article>
   <article class="quality-command">
     <h3>Handoff gate</h3>
     <p>Use the shared gate before handing over normal work.</p>
-    <pre><code>make ze-precommit-verify
-make ze-precommit-verify-changed
-make ze-repository-check</code></pre>
+    <pre><code>./le verify current mode full
+./le verify current mode changed
+./le repository check</code></pre>
   </article>
   <article class="quality-command">
     <h3>Linux and release</h3>
     <p>Use the wider gates only when the behavior needs Linux, real peers, or release evidence.</p>
-    <pre><code>make ze-qemu-needs-linux-test
-make ze-qemu-debug RUN='...'
-make ze-interop-test
-make ze-evidence-release-verify</code></pre>
+    <pre><code>./le qemu netns-test
+./le qemu run command '...' keep-alive
+./le integration interop
+./le evidence release-candidate</code></pre>
   </article>
 </div>
 
 ## How a failure becomes useful
 
-`make ze-precommit-verify` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
+`./le verify current mode full` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
 
 <div class="quality-panel">
   <h3>The rule</h3>

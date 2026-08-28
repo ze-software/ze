@@ -199,7 +199,7 @@ existing EVPN family. The BGP Family Checklist does not apply.
 3. **Phase: Value parsing** — symbolic + numeric 1-5, validation.
    - Tests: `TestEVPNRouteTypeNumericAlias`, `TestEVPNRouteTypeConfigParse`
 4. **Functional + interop tests**
-5. **Full verification** → `make ze-precommit-verify`
+5. **Full verification** → `./le verify current mode full`
 6. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -268,7 +268,7 @@ existing EVPN family. The BGP Family Checklist does not apply.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

@@ -25,69 +25,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=bfd-session-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Exercise `show bfd session <peer>` for known and unknown peers."""
-
-import json
-import time
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # AC-2: known peer
-    r = api.dispatch_until_done('show bfd session address 203.0.113.9')
-    if r is None or r.get('status') != 'done':
-        runtime_fail(f'known peer: status={r.get("status") if r else "nil"}')
-
-    try:
-        detail = result_json_data(r, {})
-    except json.JSONDecodeError as exc:
-        detail = {}
-        runtime_fail(f'known peer json: {exc}')
-    if detail.get('peer') != '203.0.113.9':
-        runtime_fail(f'known peer payload: {detail}')
-    if detail.get('mode') != 'single-hop':
-        runtime_fail(f'known mode: {detail.get("mode")}')
-
-    # AC-3: unknown peer
-    r = dispatch(api, 'show bfd session address 198.51.100.200')
-    if r.get('status') != 'error':
-        runtime_fail(f'unknown status: {r.get("status")} data={result_text_data(r)[:200]}')
-    else:
-        msg = result_text_data(r)
-        if 'no session for peer' not in msg:
-            runtime_fail(f'unknown message: {msg}')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
 	external bfd-session-show-test {
-		run ./bfd-session-show.run
+		run "ze-test fixture plugin/bfd-session-show"
 		encoder json
 	}
 }

@@ -234,8 +234,8 @@ func TestTheAreaDispatchesItsTwoGates(t *testing.T) {
 	if _, code := Answer([]string{"nonesuch"}); code != 2 {
 		t.Errorf("an unknown action answers %d, want 2", code)
 	}
-	if _, code := Answer([]string{"check", "web"}); code != 1 {
-		t.Errorf("a value after an action answers %d, want 1", code)
+	if _, code := Answer([]string{"check", "web"}); code != 2 {
+		t.Errorf("a value after an action answers %d, want 2", code)
 	}
 }
 
@@ -243,7 +243,7 @@ func TestTheAreaDispatchesItsTwoGates(t *testing.T) {
 // runs.
 // PREVENTS: the daemon binding a port the schema documents differently. This is
 // where TestPortDefaultsGate and TestPortDefaultsSelftest
-// (scripts/checks/port_defaults_test.go) now live: the first forked the script
+// (internal/le/portdefaults/portdefaults_test.go) now live: the first forked the script
 // and asserted the page reads OK, the second forked --selftest for the same one
 // line. TestEachSelftestCaseHolds carries the second one, per case.
 func TestThisCheckoutPassesTheGate(t *testing.T) {

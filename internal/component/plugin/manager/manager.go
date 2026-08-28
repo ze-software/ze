@@ -39,7 +39,6 @@ var logger = slogutil.LazyLogger("plugin.manager")
 type Manager struct {
 	mu      sync.RWMutex
 	plugins map[string]*pluginState
-	caps    []ze.Capability
 	started bool
 
 	// Hub config for TLS acceptor (external plugins).
@@ -60,7 +59,7 @@ type Manager struct {
 	// Stored references.
 	eventBus        ze.EventBus
 	config          ze.ConfigProvider
-	metricsRegistry any // metrics.Registry, stored as any to avoid import
+	metricsRegistry metrics.Registry
 }
 
 // pluginState tracks a single plugin's registration and lifecycle.
@@ -82,12 +81,16 @@ func (m *Manager) SetHubConfig(cfg *parent.HubConfig) {
 	m.hubConfig = cfg
 }
 
-// SetMetricsRegistry stores the metrics registry for plugin health metrics.
-// Must be called before SpawnMore. The registry is passed to each ProcessManager.
-func (m *Manager) SetMetricsRegistry(reg any) {
+// SetMetricsRegistry stores the registry and forwards it to an existing
+// ProcessManager. The registry can become available after processes start.
+func (m *Manager) SetMetricsRegistry(reg metrics.Registry) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.metricsRegistry = reg
+	pm := m.procManager
+	m.mu.Unlock()
+	if pm != nil {
+		pm.SetMetricsRegistry(reg)
+	}
 }
 
 // Register adds a plugin for startup. Returns error if the name
@@ -158,14 +161,8 @@ func (m *Manager) spawnProcesses(configs []parent.PluginConfig) error {
 	if first {
 		m.procManager = process.NewProcessManager(configs)
 
-		// Thread metrics registry to ProcessManager for plugin health metrics.
 		if m.metricsRegistry != nil {
-			if reg, ok := m.metricsRegistry.(metrics.Registry); ok {
-				m.procManager.SetMetricsRegistry(reg)
-			} else {
-				logger().Warn("metrics registry type mismatch, plugin health metrics disabled",
-					"type", fmt.Sprintf("%T", m.metricsRegistry))
-			}
+			m.procManager.SetMetricsRegistry(m.metricsRegistry)
 		}
 	}
 
@@ -311,21 +308,4 @@ func (m *Manager) Plugins() []ze.PluginProcess {
 		})
 	}
 	return result
-}
-
-// Capabilities returns all capabilities collected from plugins.
-func (m *Manager) Capabilities() []ze.Capability {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	result := make([]ze.Capability, len(m.caps))
-	copy(result, m.caps)
-	return result
-}
-
-// AddCapability adds a capability to the manager.
-func (m *Manager) AddCapability(cap ze.Capability) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.caps = append(m.caps, cap)
 }

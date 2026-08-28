@@ -11,4 +11,4 @@ stage:
 | Deviations | What differed from spec/plan/instructions and why. "None" is valid. |
 | Not done | Explicit scope boundary. Prevents the assumption that everything related was handled. Surfaces deferred items. |
 | Risks & observations | Things that might bite later: new coupling, stale references elsewhere, edge cases not covered, follow-up work needed. Start from the spec's Risks table (R-N rows that survived implementation): this section is a copy-forward, not an invention at the end. |
-| Verification | What was run, what passed. Not "make ze-standard-test passes" but actual output or specific test names. |
+| Verification | What was run, what passed. Not "./le verify worktree passes" but actual output or specific test names. |

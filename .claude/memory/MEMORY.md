@@ -13,9 +13,8 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 ## Reference
 
-- [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh (--channel ze-news/ze-test, --text "msg"; token baked in); Zeledon weekly-update tooling in scripts/zeledon/ (STYLE.md, post_weekly.py, weekly/)
+- [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh; weekly style and archives under `website/changes/discord/`; publish with `./le weekly`
 - [feedback_discord_voice.md](feedback_discord_voice.md) - Discord posts as Zeledon; use third person for Thomas, not "I"
-- [reference_python_uv.md](reference_python_uv.md) - Install Python deps via `uv run --with`. No scapy dep remains; stress path is the in-memory Go injector (`ze-test peer --mode inject`), `test/stress/` holds the Python harness
 
 ## Feedback (testing)
 
@@ -24,7 +23,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 ## Moved to ai/rules/ or .claude/rules/
 
-- feedback_autonomous_work -> ai/rules/completion.md. Enforced at Stop by block-premature-stop.sh, which blocks a stop on permission-seeking phrases (exit 2). It sat unregistered from 2026-06-29 (`41e5fa44f`) to 2026-07-31
+- feedback_autonomous_work -> ai/rules/completion.md. Enforced by `hookStop` in `internal/le/hookruntime/lifecycle.go`, which blocks a stop on permission-seeking phrases. The retired `block-premature-stop.sh` was unwired from 2026-06-29 (`41e5fa44f`) to 2026-07-31
 - feedback_memory_is_in_repo -> derivable from project structure
 - feedback_no_em_dashes -> ~/.claude/CLAUDE.md global rule
 - feedback_no_taskoutput_polling -> ai/rules/git-safety.md (verify section)
@@ -36,7 +35,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - feedback_no_cross_boundary_pointers -> ai/rules/plugins.md (Cross-Boundary Value Types)
 - feedback_verify_specs_against_code -> ai/rules/planning.md (Verify Specs Against Code)
 - feedback_aliased_imports -> rules/go-standards.md (Aliased Imports)
-- feedback_python_not_shell -> rules/go-standards.md (Scripts: Python Only)
+- feedback_python_not_shell -> superseded by the native Go tooling cutover under `internal/le`, `internal/test`, and `internal/appliance`
 - feedback_rebase_not_merge -> rules/git-safety.md (Branch Integration)
 - feedback_gpg_signing_recovery -> rules/git-safety.md (GPG Signing Recovery)
 - feedback_verify_before_deferring -> rules/deferral-tracking.md (Verify Before Deferring)

@@ -83,7 +83,7 @@ func TestPluginWebRouteRegistration(t *testing.T) {
 	h := l2tp.Build(RouteDeps{Renderer: renderer})
 	require.NotNil(t, h)
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/l2tp", http.NoBody))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/l2tp", http.NoBody))
 	assert.GreaterOrEqual(t, rec.Code, 200, "handler must respond with an HTTP status")
 
 	// Mirror the hub loop: register every enabled route onto a fresh ServeMux.
@@ -120,6 +120,6 @@ func TestWebRouteRegistryRoundTrip(t *testing.T) {
 	r, ok := lookupWebRoute(routes, "GET /__test_wiring")
 	require.True(t, ok)
 	rec := httptest.NewRecorder()
-	r.Build(RouteDeps{}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/__test_wiring", http.NoBody))
+	r.Build(RouteDeps{}).ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/__test_wiring", http.NoBody))
 	assert.Equal(t, http.StatusTeapot, rec.Code)
 }

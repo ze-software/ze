@@ -59,7 +59,7 @@ func TestLocaleFromAcceptLanguage(t *testing.T) {
 	}
 
 	assert.Equal(t, LocaleEnglish, LocaleFromRequest(nil))
-	req := httptest.NewRequest(http.MethodGet, "/login", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", http.NoBody)
 	req.Header.Set("Accept-Language", "fr-CH,fr;q=0.9")
 	assert.Equal(t, LocaleFrench, LocaleFromRequest(req))
 }

@@ -1,7 +1,7 @@
 // Design: docs/architecture/cli/command-namespacing.md -- CLI command grammar
 //
 // Package grammar mechanizes the CLI command-syntax rules of ai/rules/cli.md
-// as pure functions, so the grammar gate (scripts/checks/cli_grammar.go), the plugin
+// as pure functions, so the grammar gate (internal/le/cligrammar/register.go), the plugin
 // registration check (validateCommandName), and the runtime audit all enforce the
 // SAME rules from one place.
 //

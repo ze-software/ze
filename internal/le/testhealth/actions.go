@@ -1,12 +1,7 @@
-// Design: docs/architecture/testing/test-health.md -- the three gates
+// Design: docs/architecture/testing/test-health.md -- native health actions
 //
-// actions.go is the Python area, ported. `le repository ze-test-health-check`
-// selected one gate out of a GateSet; `le test-health check` selects one action
-// out of the table below. The three fields the Gate carried travel with it: the
-// Make target it still is, the reason `--list` printed, and whether it WRITES.
-//
-// The dispatch, the listing, the help line and the two refusals live in
-// internal/le/leaction. What stays here is the TABLE.
+// The action table owns dispatch, listing, help, write metadata, and each
+// implementation.
 package testhealth
 
 import (
@@ -14,47 +9,32 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-// area is the word this tool is typed as, and the prefix leaction removes from
-// each gate name to derive the verb.
+// area is the word this tool is typed as.
 const area = "test-health"
 
 // exitCollect is the code a refusal answers.
 //
-// 2 rather than 1: the script answered 2 for a collector that could not produce
-// a trustworthy number, and 1 for a page that is merely stale. A caller that
-// reads them apart keeps reading them apart -- "regenerate and commit" is the
-// answer to one and not to the other.
+// Code 2 means the collector could not produce a trustworthy number. Code 1
+// means the committed page is stale, so callers can distinguish refusal from a
+// normal stale verdict.
 const exitCollect = 2
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-test-health-check",
-		Why: "docs/features/test-health.md and test/health/latest.json are current." +
-			" Their output is a pure function of committed state, with no wall-clock" +
-			" value in it, so staleness is gateable the way every other generated file is",
-		Answer: checkAnswer,
-	},
-	leaction.Action{
-		Gate: "ze-test-health-update",
-		Why: "regenerate docs/features/test-health.md, its structured sibling" +
-			" test/health/latest.json, and the ratchet baseline",
+	leaction.Action{Verb: "check", Why: "docs/features/test-health.md and test/health/latest.json are current." +
+		" Their output is a pure function of committed state, with no wall-clock" +
+		" value in it, so staleness can be checked like every other generated file",
+		Answer: checkAnswer},
+	leaction.Action{Verb: "update", Why: "regenerate docs/features/test-health.md, its structured sibling" +
+		" test/health/latest.json, and the ratchet baseline",
 		Writes: true,
-		Answer: updateAnswer,
-	},
-	leaction.Action{
-		Gate: "ze-test-health-record",
-		Why: "append ONE KPI row to test/health/history.ndjson, after a mutation or" +
-			" verify run. The page renders its trends from the committed history and" +
-			" never from live output",
+		Answer: updateAnswer},
+	leaction.Action{Verb: "record", Why: "append ONE KPI row to test/health/history.ndjson, after a mutation or" +
+		" verify run. The page renders its trends from the committed history and" +
+		" never from live output",
 		Writes: true,
-		Answer: recordAnswer,
-	},
+		Answer: recordAnswer},
 )
-
-// Gates answers the Make targets this area claims, which is what the census
-// counts and what register.go declares.
-func Gates() []string { return actions.Gates() }
 
 // Actions answers the command surface as data.
 func Actions() leaction.List { return actions.Actions() }
@@ -66,7 +46,7 @@ func Subs() string { return actions.Subs() }
 // the checkout and the rendering is a pipe operator (ai/rules/cli.md).
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// checkAnswer gates the committed snapshot's structural facts against the tree.
+// checkAnswer compares the committed snapshot's structural facts with the tree.
 func checkAnswer() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {

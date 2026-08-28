@@ -21,11 +21,8 @@ const area = "staticcheck-feature-matrix"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-staticcheck-feature-matrix-check",
-		Why:    "the tree type-checks in every feature-tag combination Ze can be built in, so a package compiled out of the default build is still judged",
-		Answer: runCheck,
-	},
+	leaction.Action{Verb: "check", Why: "the tree type-checks in every feature-tag combination Ze can be built in, so a package compiled out of the default build is still judged",
+		Answer: runCheck},
 	leaction.Action{
 		// No Make target names this one: it is the script's --print-matrix, and
 		// it exists so a reader can see WHICH combinations a run judges without

@@ -215,7 +215,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			if r.FormValue("_workbench") == "1" {
 				var tb textbuf.Buffer
-				target := tb.Str("/show/").Join(listPath, "/").Byte('/').String()
+				target := tb.Str(showPathPrefix).Join(listPath, "/").Byte('/').String()
 				w.Header().Set("HX-Redirect", target)
 				w.WriteHeader(http.StatusOK)
 				return
@@ -223,7 +223,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			// Keyless lists: redirect to the new entry so the page reloads with it.
 			if ln, ok := listNode.(*config.ListNode); ok && ln.KeyName == "" {
 				var tb textbuf.Buffer
-				target := tb.Str("/show/").Join(path, "/").Byte('/').String()
+				target := tb.Str(showPathPrefix).Join(path, "/").Byte('/').String()
 				w.Header().Set("HX-Redirect", target)
 				w.WriteHeader(http.StatusOK)
 				return

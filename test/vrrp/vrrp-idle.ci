@@ -26,7 +26,7 @@
 # `show vrrp` path in test/vrrp/vrrp-show.ci (empty selector result through the
 # real dispatch path) and the "zero groups -> no kernel macvlan" clause in
 # test/vrrp/vrrp-instance-up.ci (post-teardown kernel readback). This file is the
-# darwin-runnable, kernel-free portion, so `make ze-functional-vrrp-test` covers AC-6 on the
+# darwin-runnable, kernel-free portion, so `./le functional vrrp-test` covers AC-6 on the
 # dev box while the QEMU needs-linux target covers the live behavior.
 
 # --- Interfaces configured, ZERO vrrp groups: config validates. --------------

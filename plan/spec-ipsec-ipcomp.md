@@ -40,7 +40,7 @@ allocation, and the conformance argument. Read it before the design phase of thi
 | `RFC7296-2.22-4` | MUST NOT | `Implementations of this specification MUST NOT compress using an algorithm other than one proposed and accepted in the setup of the Child SA (§2.22)` |
 
 The `(§2.22)` citation on each row is load-bearing. `parse_checklist_line`
-(`scripts/dev/rfc_requirements.py`) validates that a row identifier's section segment agrees
+(`internal/le/rfc/rfc.go`) validates that a row identifier's section segment agrees
 with its citation.
 
 ### Identifier allocation
@@ -147,8 +147,8 @@ get harder, not easier. The tests written for them must assert over a real negot
   `Registration.DoctorChecks` declaration.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
-- Every `test/ipsec/*.ci` stays green. The suite runs inside `ze-precommit-verify`
-  (`mk/test-functional.mk` lists it in `all_suites`, and `:217` carries its `run_suite`
+- Every `test/ipsec/*.ci` stays green. The suite runs inside `./le verify current mode full`
+  (`internal/le/functional/suites.go` lists it in `all_suites`, and `:217` carries its `run_suite`
   line).
 - Every scenario under `test/interop-ipsec/scenarios/` stays green. The bullet
   does not enumerate them: the directory is named rather than numbered, and a
@@ -227,7 +227,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 | A-3 | The VPP binary API exposes no IPComp SA type usable from Ze | `internal/component/ike/dataplane/vpp.go`, not yet read for this purpose | The VPP backend implements the feature rather than refusing it | Read the vendored VPP binary API definitions | unvalidated |
 | A-4 | `wire.PayloadNotify` carries the CPI and transform identifier without a codec change | `internal/component/ike/wire/payload_notify.go` declares the type constant only | The wire layer needs new accessors and new tests | Read `ReadFrom` and `WriteTo` and write a round-trip test | unvalidated |
 | A-5 | strongSwan offers IPComp when its config sets a compression option | Not yet read | The interop scenario cannot exercise the negotiation | Read the strongSwan config reference and build scenario `ipcomp` | unvalidated |
-| A-6 | `test/interop-ipsec/` remains `TIER_UNRUN` | `scripts/dev/rfc_requirements.py`, `:876-878`, refusal at `:952` and `:1004` | An interop tag becomes legal evidence and the test plan gains an option | Rerun `make ze-rfc-check` at landing time | unvalidated |
+| A-6 | `test/interop-ipsec/` remains `TIER_UNRUN` | `internal/le/rfc/rfc.go`, `:876-878`, refusal at `:952` and `:1004` | An interop tag becomes legal evidence and the test plan gains an option | Rerun `./le rfc check` at landing time | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -238,7 +238,7 @@ get harder, not easier. The tests written for them must assert over a real negot
 | R-4 | The CPI outlives its Child SA, or leaks on rekey. RFC 7296 requires the compression association to disappear with the SA (`rfc/full/rfc7296.txt:3399-3403`) | A long-running session accumulates CPI allocations | A CPI allocator owned by the Child SA lifecycle, with a release path proven by a rekey test |
 | R-5 | The feature lands on XFRM only, and the VPP backend silently ignores the compression request. `ai/rules/protocol.md` forbids silent approximation | `ze config verify` accepts a compression config that the active backend cannot apply | The VPP backend refuses at verify time with an error naming the backend and the unsupported setting |
 | R-6 | The tests pass over an empty sample. A test that asserts an absence over zero collected messages is green either way | None. The test is green | Every absence assertion carries a non-empty count assertion beside it |
-| R-7 | The four tagged tests are placed under `test/interop-ipsec/`, which is `TIER_UNRUN`. A tag there is refused by `_refuse_unrun` (`scripts/dev/rfc_requirements.py`, raised at `:1004`) | `make ze-rfc-check` fails naming the file | Place the tags in `_test.go` or in `test/ipsec/*.ci`. Build the interop scenario as untagged coverage |
+| R-7 | The four tagged tests are placed under `test/interop-ipsec/`, which is `TIER_UNRUN`. A tag there is refused by `_refuse_unrun` (`internal/le/rfc/rfc.go`, raised at `:1004`) | `./le rfc check` fails naming the file | Place the tags in `_test.go` or in `test/ipsec/*.ci`. Build the interop scenario as untagged coverage |
 | R-8 | Engine line numbers move. Other agents edit `internal/component/ike/engine/` concurrently | A tag cites a line holding different code | Every citation in this spec names its function. Relocate by function name before you quote a line |
 | R-9 | The XFRM half is Linux-only and ships without QEMU coverage. No `ze-qemu-*-ipsec` target exists today | The feature is unproven on a real kernel | A QEMU integration test and a make target, per `ai/rules/platform-linux.md` |
 | R-10 | Compression expands small or already compressed packets. RFC 3173 requires the sender to discard the compressed form when it is not smaller | Throughput drops on a compressed tunnel | Read RFC 3173 during design and record the size decision as an acceptance criterion |
@@ -325,7 +325,7 @@ count assertion beside it. A counter is proven over a chain that holds the paylo
 | `ipsec-ipcomp-vpp-reject` | `test/ipsec/ipsec-ipcomp-vpp-reject.ci` | The operator commits compression with VPP active and gets a clear error | |
 | `ipsec-show-sa-ipcomp` | `test/ipsec/ipsec-show-sa-ipcomp.ci` | The operator reads the negotiated algorithm and CPI | |
 
-The `ipsec` suite runs inside `ze-precommit-verify` (`mk/test-functional.mk` and `:217`), so a
+The `ipsec` suite runs inside `./le verify current mode full` (`internal/le/functional/suites.go` and `:217`), so a
 `.ci` there earns a verify tier. A `.ci` that drives a crafted IKEv2 inner payload chain needs
 a scripted IKEv2 peer, and `internal/test/cli/` has none today. Building one is in scope for
 the design phase, and it serves many other rows in the rfcgate-1b RFC 7296 pilot spec.
@@ -344,7 +344,7 @@ The package needs a make target. No `ze-qemu-*` IPsec target exists today.
 | `ipcomp-declined` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer that offers IPComp against a Ze with compression disabled still establishes its Child SA | |
 
 **These scenarios cannot carry an RFC tag.** `test/interop-ipsec/` is declared `TIER_UNRUN`
-(`scripts/dev/rfc_requirements.py`), and a tag there raises `_refuse_unrun`
+(`internal/le/rfc/rfc.go`), and a tag there raises `_refuse_unrun`
 (`:952`, raised at `:1004`). Nothing runs the suite automatically, so a tag there would be
 evidence nothing executes. Compliance evidence for the four rows must be unit tier or
 functional tier. Write that reason into each scenario header, so a later reader does not add
@@ -370,10 +370,10 @@ a tag.
 - `internal/component/ike/dataplane/xfrm_linux.go` - `InstallSA` programs the state
 - `internal/component/ike/dataplane/vpp.go` - `InstallSA` refuses
 - `internal/core/diagnostic/codes.go` - the doctor diagnostic code
-- `mk/test-integration.mk` - the QEMU target
+- `internal/le/integration/gates.go` - the QEMU target
 - `rfc/short/rfc7296.md` - the four checklist rows and the Section Index entry
 - `docs/features/rfc-status.md` - RFC 7296 row
-- `ai/RFC-REQUIREMENTS.md` - regenerated with `make ze-rfc-index-update`
+- `ai/RFC-REQUIREMENTS.md` - regenerated with `./le rfc index-update`
 
 ## Files to Create
 - `internal/component/ike/engine/rfc7296_ipcomp_test.go` - the tagged compliance tests
@@ -484,11 +484,11 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
    - Tests: AC-13, `TestXFRMIPCompStateIntegration`, scenarios `ipcomp` and
      `ipcomp-declined`
    - Files: `internal/component/ike/engine/register.go`, `internal/core/diagnostic/codes.go`,
-     `mk/test-integration.mk`, the two scenario directories
+     `internal/le/integration/gates.go`, the two scenario directories
    - Verify: `ze doctor --json` reports the check, the QEMU target passes, and both strongSwan
      scenarios pass
 8. **Phase: Compliance rows and documentation**
-   - Tests: `make ze-rfc-check`, `make ze-doc-verify`
+   - Tests: `./le rfc check`, `./le doc-check verify`
    - Files: `rfc/short/rfc7296.md`, `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`,
      the documentation checklist rows
    - Verify: the four rows land in one commit at `-1` through `-4`, and the regenerated ledger
@@ -521,8 +521,8 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The four rows exist in the summary | `grep -c 'RFC7296-2\.22-' rfc/short/rfc7296.md` returns 4 |
-| The four rows are proven | `make ze-rfc-check` passes and `ai/RFC-REQUIREMENTS.md` shows four bound rows |
-| The ledger is fresh | `make ze-rfc-index-update` produces no diff |
+| The four rows are proven | `./le rfc check` passes and `ai/RFC-REQUIREMENTS.md` shows four bound rows |
+| The ledger is fresh | `./le rfc index-update` produces no diff |
 | Compression is off by default | `test/ipsec/ipsec-ipcomp-disabled.ci` passes |
 | Both backends are covered | `TestXFRMInstallsCompressionState` and `TestVPPBackendRefusesCompression` pass |
 | The kernel path is proven | The QEMU target passes |
@@ -571,7 +571,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
 |----------|------------------------|-----------|
 | Implement the feature, rather than prove non-participation with eight tests | Prove non-participation. The four rows are conformant today by non-participation, at a cost of roughly one day | Owner decision, 2026-07-31 |
 | Place the compression container under `esp-group` | A per-peer container under `site-to-site peer` | IPComp is a Child SA property, and `esp-group` is the Child SA parameter group (`internal/component/ike/ipsec/yang/ze-ipsec-conf.yang`) |
-| Compliance evidence is unit tier or functional tier, never interop tier | Tag the strongSwan scenario | `test/interop-ipsec/` is `TIER_UNRUN` and a tag there is refused (`scripts/dev/rfc_requirements.py`, `:952`) |
+| Compliance evidence is unit tier or functional tier, never interop tier | Tag the strongSwan scenario | `test/interop-ipsec/` is `TIER_UNRUN` and a tag there is refused (`internal/le/rfc/rfc.go`, `:952`) |
 
 ## Known Limitations
 
@@ -599,7 +599,7 @@ informational builders, and the dataplane compression call.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -617,7 +617,7 @@ informational builders, and the dataplane compression call.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

@@ -177,7 +177,7 @@ implementation.
    - Files: `initiator.go`, YANG schema
    - Verify: ESN negotiated with capable peers
 5. **Functional + interop tests** - `ike-pq-mlkem.ci`, `ike-esn.ci`, strongSwan interop scenario
-6. **Full verification** - `make ze-precommit-verify`
+6. **Full verification** - `./le verify current mode full`
 
 ## Known Limitations
 - Large scope: requires cryptographic implementation work
@@ -214,7 +214,7 @@ implementation.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Interop test with strongSwan passes
 - [ ] Risks & Assumptions: every A-N confirmed or broken

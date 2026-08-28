@@ -24,90 +24,12 @@ option=timeout:value=15s
 # would test BGP rather than sysctl.
 EOF_PEER
 
-tmpfs=sysctl-describe-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Dispatch `sysctl show` and `sysctl describe` and verify output."""
-
-import json
-import sys
-import time
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    # Test sysctl show: no config applied, no defaults => empty array.
-    r = api.dispatch_until_done('show sysctl')
-    if r is None or r.get('status') != 'done':
-        runtime_fail(f'sysctl show: status={r.get("status") if r else "nil"}')
-
-    try:
-        entries = result_json_data(r, [])
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'sysctl show json: {exc}')
-        entries = None
-
-    if not isinstance(entries, list):
-        runtime_fail(f'sysctl show: expected list, got {type(entries).__name__}')
-
-    # Test sysctl describe: pick first key from sysctl list.
-    r = dispatch(api, 'show sysctl keys')
-    if r.get('status') != 'done':
-        runtime_fail(f'sysctl list for describe: status={r.get("status")}')
-
-    keys = result_json_data(r, [])
-    if not keys:
-        runtime_fail('sysctl list returned empty, cannot test describe')
-
-    first_key = keys[0].get('key', '')
-    r = dispatch(api, f'show sysctl key {first_key}')
-    if r.get('status') != 'done':
-        runtime_fail(f'show sysctl key {first_key}: status={r.get("status")}')
-
-    try:
-        detail = result_json_data(r, {})
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'show sysctl key json: {exc}')
-        detail = {}
-
-    if detail.get('key') != first_key:
-        runtime_fail(f'sysctl describe: key={detail.get("key")!r} want {first_key!r}')
-    if not detail.get('description'):
-        runtime_fail(f'show sysctl key {first_key}: missing description')
-    if not detail.get('type'):
-        runtime_fail(f'show sysctl key {first_key}: missing type')
-
-    # Fire-and-forget: a synchronous dispatch of `request shutdown` races ze's own
-    # socket close. When the close wins (routine under load) _call_engine blocks for
-    # its 30s TLS read timeout then raises "no response for
-    # ze-plugin-engine:dispatch-command", failing a test whose assertions all passed.
-    # wait_for_shutdown observes the close itself, which is the real condition.
-    api.shutdown_fire_and_forget()
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/sysctl-describe-show.
 
 stdin=ze-sysctl:terminator=EOF_CONF
 plugin {
 	external sysctl-describe-show-test {
-		run ./sysctl-describe-show.run
+		run "ze-test fixture plugin/sysctl-describe-show"
 		encoder json
 	}
 }

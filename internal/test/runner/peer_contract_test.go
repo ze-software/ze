@@ -160,7 +160,7 @@ func TestZePeerExecMode(t *testing.T) {
 func TestIsZePeerExec(t *testing.T) {
 	assert.True(t, isZePeerExec("ze-peer --port 1790"))
 	assert.False(t, isZePeerExec("ze bgp server -"))
-	assert.False(t, isZePeerExec("python3 driver.py --wait-for ze-peer"))
+	assert.False(t, isZePeerExec("fixture-driver --wait-for ze-peer"))
 	assert.False(t, isZePeerExec(""))
 }
 

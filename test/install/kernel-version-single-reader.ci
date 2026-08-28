@@ -1,45 +1,8 @@
-# Test (AC-14/AC-15): the kernel version is single-sourced. No Makefile reads
-# kernel.version directly; one variable name (KERNEL_VERSION) crosses the builder
-# env boundary; the old KVER/LINUX_VERSION split is gone; run.py self-locates the
-# version file and is the single build-time reader (Go //go:embed is the
-# compile-time reader).
+# Test (AC-15): the native builder validates the requested kernel version and
+# records the same value in build provenance.
 
 option=timeout:value=20s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
-
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-makefiles="mk/build-gokrazy.mk gokrazy/kernel/Makefile tools/installer-kernel/Makefile"
-
-# AC-15: no Makefile cats kernel.version.
-if grep -E 'cat[^|]*kernel\.version' $makefiles; then
-	echo "a Makefile still reads kernel.version directly" >&2
-	exit 1
-fi
-
-# AC-14: the old KVER / LINUX_VERSION names are gone everywhere in the build path.
-if grep -E '\bKVER\b|LINUX_VERSION' $makefiles tools/kernel-builder/build.py tools/kernel-builder/qemu-build.py tools/kernel-builder/run.py; then
-	echo "stale KVER/LINUX_VERSION version variable name found" >&2
-	exit 1
-fi
-
-# KERNEL_VERSION is the name used at the builder env boundary.
-grep -q 'KERNEL_VERSION' tools/kernel-builder/run.py
-grep -q "os.environ.get(\"KERNEL_VERSION\")" tools/kernel-builder/build.py
-
-# run.py self-locates the canonical version file (no caller passes the path).
-grep -q 'internal/appliance/kernel.version' tools/kernel-builder/run.py
-
-# Go //go:embed is the compile-time reader.
-grep -q 'go:embed kernel.version' internal/appliance/cmd_kernel.go
-
-printf 'OK\n'
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/kernel-version-single-reader
 expect=exit:code=0
 expect=stdout:contains=OK

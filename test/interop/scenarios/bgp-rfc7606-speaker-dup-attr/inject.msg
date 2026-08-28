@@ -26,7 +26,8 @@ option=timeout:value=180s
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEC400304AC1E0009180A0000
 action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Hold the session open while the speaker connects, is replayed the route, and check.py reads
+# Hold the session open while the speaker connects, is replayed the route, and the
+# internal/le/interoplab/bgp checker reads
 # its verdict. A peer whose script is exhausted exits, and its session dropping would make Ze
 # withdraw the relayed route before the speaker sees it. Three KEEPALIVE waits keep it up for
 # roughly 90s (a third of the 90s hold each). Checker.check silently accepts an unmatched

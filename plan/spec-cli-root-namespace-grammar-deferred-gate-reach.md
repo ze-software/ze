@@ -46,7 +46,7 @@ never becomes reachable.
 
 **And the gate is not wrong either, only silent about why.** `CheckName`, which
 owns R1, R2, R3 and R7, is run over the YANG tree and never over roots
-(`scripts/checks/cli_grammar.go`). Under the ruling that is the correct scope,
+(`internal/le/cligrammar/cligrammar.go`). Under the ruling that is the correct scope,
 not an oversight. Roots get `CheckRootNamespace` alone, which is R9
 namespace-collision discipline, and R9 SHOULD bind them: a root colliding with a
 YANG namespace confuses a reader whatever surface declares it.
@@ -57,7 +57,7 @@ Only Surface 2, and only its R9 half.
 
 The 33 `MustRegisterLocalMeta` paths reach no gate: nothing under
 `internal/component/command/grammar/` mentions local metas, and
-`scripts/checks/cli_grammar.go` enumerates roots only. Under the ruling they need
+`internal/le/cligrammar/cligrammar.go` enumerates roots only. Under the ruling they need
 no R1/R2/R3 either, because they are not YANG-mapped. What they plausibly DO owe
 is the same namespace discipline roots owe, so that a local path cannot collide
 with a YANG namespace unnoticed.
@@ -76,7 +76,7 @@ Both surfaces are still uncovered. Measured, not carried from the text above.
 
 **Surface 2 is uncovered completely.** The grammar package has no knowledge of
 local metas at all: nothing under `internal/component/command/grammar/` mentions
-them, and `scripts/checks/cli_grammar.go` collects only roots, through
+them, and `internal/le/cligrammar/cligrammar.go` collects only roots, through
 `registeredRootNames`. That helper walks `cmd/ze` and `internal` with the Go AST
 and takes the first string-literal argument of every `RegisterRoot` and
 `(Must)RegisterRootHandler` call. Mirroring it for `(Must)RegisterLocalMeta` is
@@ -220,7 +220,7 @@ answer gets decided by the migration rather than by the rule.
 <!-- BLOCKING: proves the feature is reachable from its intended entry point.
      Without it the feature exists in isolation: unit tests pass, nothing calls it.
      Every row needs a concrete test name. "Deferred"/"TODO"/empty is rejected
-     by .claude/hooks/validate-spec.sh, which is the point: an unedited row fails. -->
+     by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
@@ -408,7 +408,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -426,7 +426,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

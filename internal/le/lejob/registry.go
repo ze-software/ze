@@ -8,7 +8,7 @@
 // entry if its process is gone. Thus, a crashed job causes a delay of one poll
 // interval and does not require an operator.
 //
-// The format matches scripts/dev/ze-run.sh field for field and file name for
+// The format matches internal/le/lejob/answer.go field for field and file name for
 // file name. Both implementations read and write this directory during the
 // migration. If a field is renamed here, the other implementation cannot see
 // that job.
@@ -75,7 +75,6 @@ type pending struct {
 	argv      []string
 	tree      string
 	key       string
-	params    string
 	mayAttach bool
 	// treeStale indicates that this job's tree hash predates its admission
 	// because the job waited. The tree can change while a job waits. Therefore,
@@ -250,11 +249,8 @@ func (a *Admission) take(job *pending, now time.Time) outcome {
 	tb.Str("PID=").Int(int64(pid)).Byte('\n')
 	tb.Str("PGID=").Int(int64(processGroup())).Byte('\n')
 	tb.Str("TREE=").Str(job.tree).Byte('\n')
-	// KEY determines whether a later asker can share this run. PARAMS supplies
-	// readable information for an operator who investigates why two jobs did
-	// not share. PARAMS does not affect the decision.
+	// KEY determines whether a later asker can share this run.
 	tb.Str("KEY=").Str(job.key).Byte('\n')
-	tb.Str("PARAMS=").Str(job.params).Byte('\n')
 	tb.Str("STARTED=").Int(now.Unix()).Byte('\n')
 	tb.Str("LOG=").Str(logRel).Byte('\n')
 	tb.Str("STATE=running\n")

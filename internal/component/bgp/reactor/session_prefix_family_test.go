@@ -450,6 +450,6 @@ func TestPrefixStaleUsesOldestFamily(t *testing.T) {
 		"ipv6/unicast": "2020-01-01", // older than the 180 day threshold
 	}}
 
-	assert.True(t, IsPrefixDataStale(ps.OldestPrefixUpdated(), now),
+	assert.True(t, isPrefixDataStale(ps.OldestPrefixUpdated(), now),
 		"one stale family makes the peer stale")
 }

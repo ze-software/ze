@@ -22,9 +22,8 @@ import (
 
 var rootOverrideMu sync.Mutex
 
-
-// RunGate runs one registered le tool inside the requested checkout root.
-func RunGate(ctx context.Context, root string, identity verify.Identity) verify.GateResult {
+// RunAction runs one registered le action inside the requested checkout root.
+func RunAction(ctx context.Context, root string, identity verify.Identity) verify.ActionResult {
 	return dispatch(ctx, root, identity, leroot.Owns, lookupTool, lepath.Root)
 }
 
@@ -44,7 +43,7 @@ func dispatch(
 	owns func(string) bool,
 	lookup func(string) registry.LocalDataHandler,
 	resolveRoot func() (string, error),
-) (result verify.GateResult) {
+) (result verify.ActionResult) {
 	identity.Args = slices.Clone(identity.Args)
 	var text textbuf.Buffer
 	result.Identity = identity
@@ -52,18 +51,18 @@ func dispatch(
 		return refused(result, "interrupted", verify.Interrupted, err.Error())
 	}
 	if strings.TrimSpace(root) == "" {
-		return refused(result, "root-missing", 2, "gate runner received no checkout root")
+		return refused(result, "root-missing", 2, "action runner received no checkout root")
 	}
 	absoluteRoot, err := filepath.Abs(root)
 	if err != nil {
-		return refused(result, "root-missing", 2, messageWithError("resolve gate root: ", err))
+		return refused(result, "root-missing", 2, messageWithError("resolve action root: ", err))
 	}
 	info, err := os.Stat(absoluteRoot)
 	if err != nil {
-		return refused(result, "root-missing", 2, messageWithError("open gate root: ", err))
+		return refused(result, "root-missing", 2, messageWithError("open action root: ", err))
 	}
 	if !info.IsDir() {
-		return refused(result, "root-missing", 2, "gate root is not a directory")
+		return refused(result, "root-missing", 2, "action root is not a directory")
 	}
 
 	rootOverrideMu.Lock()
@@ -74,24 +73,24 @@ func dispatch(
 
 	previousRoot := env.Get(lepath.RootKey)
 	if err := env.Set(lepath.RootKey, absoluteRoot); err != nil {
-		return refused(result, "root-override", 2, messageWithError("set gate root: ", err))
+		return refused(result, "root-override", 2, messageWithError("set action root: ", err))
 	}
 	defer func() {
 		if err := env.Set(lepath.RootKey, previousRoot); err != nil {
-			result = refused(result, "root-restore", 2, messageWithError("restore gate root: ", err))
+			result = refused(result, "root-restore", 2, messageWithError("restore action root: ", err))
 		}
 	}()
 
 	resolvedRoot, err := resolveRoot()
 	if err != nil {
-		return refused(result, "root-mismatch", 2, messageWithError("resolve overridden gate root: ", err))
+		return refused(result, "root-mismatch", 2, messageWithError("resolve overridden action root: ", err))
 	}
 	resolvedRoot, err = filepath.Abs(resolvedRoot)
 	if err != nil {
-		return refused(result, "root-mismatch", 2, messageWithError("normalize overridden gate root: ", err))
+		return refused(result, "root-mismatch", 2, messageWithError("normalize overridden action root: ", err))
 	}
 	if filepath.Clean(resolvedRoot) != filepath.Clean(absoluteRoot) {
-		message := text.Reset().Str("gate root resolved to ").Quoted(resolvedRoot).
+		message := text.Reset().Str("action root resolved to ").Quoted(resolvedRoot).
 			Str(", want ").Quoted(absoluteRoot).String()
 		return refused(result, "root-mismatch", 2, message)
 	}
@@ -120,10 +119,10 @@ func dispatch(
 	return result
 }
 
-func refused(result verify.GateResult, kind string, code int, message string) verify.GateResult {
+func refused(result verify.ActionResult, kind string, code int, message string) verify.ActionResult {
 	result.Code = code
 	result.Completed = false
-	result.Failure = &verify.Failure{Kind: kind, Stage: result.Identity.Gate, Message: message}
+	result.Failure = &verify.Failure{Kind: kind, Stage: result.Identity.Name, Message: message}
 	return result
 }
 

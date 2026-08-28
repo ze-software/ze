@@ -81,7 +81,7 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 		meta:         map[string]any{"tag": "v1"},
 		done:         func() { done1Called.Store(true) },
 	}
-	require.True(t, fp.DispatchOverflow(key, item1))
+	require.True(t, fp.dispatchOverflow(key, item1))
 
 	// Second overflow item with same key -- should supersede.
 	item2 := fwdItem{
@@ -91,7 +91,7 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 		meta:         map[string]any{"tag": "v2"},
 		done:         func() { done2Called.Store(true) },
 	}
-	require.True(t, fp.DispatchOverflow(key, item2))
+	require.True(t, fp.dispatchOverflow(key, item2))
 
 	// Verify: old item's done() was called (superseded).
 	assert.True(t, done1Called.Load(), "superseded item's done() must be called")
@@ -125,7 +125,7 @@ func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 	key := fwdKey{peerAddr: mustAddrPort("10.0.0.1:179")}
 
 	// Fill the channel so the worker is stuck in the handler, guaranteeing
-	// subsequent DispatchOverflow calls land in the overflow queue.
+	// subsequent dispatchOverflow calls land in the overflow queue.
 	fp.TryDispatch(key, fwdItem{peer: &Peer{}})
 	require.Eventually(t, func() bool {
 		return fp.WorkerCount() == 1
@@ -134,11 +134,11 @@ func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 	body1 := []byte{0x01}
 	body2 := []byte{0x02}
 
-	fp.DispatchOverflow(key, fwdItem{
+	fp.dispatchOverflow(key, fwdItem{
 		peer: &Peer{}, rawBodies: [][]byte{body1},
 		supersedeKey: fwdSupersedeKey([][]byte{body1}),
 	})
-	fp.DispatchOverflow(key, fwdItem{
+	fp.dispatchOverflow(key, fwdItem{
 		peer: &Peer{}, rawBodies: [][]byte{body2},
 		supersedeKey: fwdSupersedeKey([][]byte{body2}),
 	})

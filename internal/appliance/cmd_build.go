@@ -57,8 +57,8 @@ func e2fsSearchDirs() []string {
 	for _, prefix := range brewPrefixes() {
 		dirs = append(dirs, filepath.Join(prefix, "sbin"))
 	}
-	// /usr/local/sbin is in the tail because mk/build-gokrazy.mk searches it for the
-	// same two tools, and leaving it out here let `make ze-gokrazy-build` and `ze
+	// /usr/local/sbin is in the tail because internal/appliance/cmd_build.go searches it for the
+	// same two tools, and leaving it out here let `./ze appliance build` and `ze
 	// appliance build` pick different mkfs.ext4 binaries on one host.
 	//
 	// On macOS it has usually arrived already: /usr/local is one of the two
@@ -376,6 +376,7 @@ func runGokBuild(cfg *applianceConfig, imgPath string) int {
 // `ze version`. The manifest write is non-fatal: it is a diagnostic aid, not
 // required for the image to boot or for credentials to load.
 func injectZeFS(imgPath, dbPath, manifestPath string) int {
+
 	permOff, permSize, err := findLastPartition(imgPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: find /perm partition: %v\n", err)
@@ -450,6 +451,16 @@ func injectZeFS(imgPath, dbPath, manifestPath string) int {
 	}
 
 	return exitOK
+}
+
+// InjectDatabase formats an image's /perm partition and writes the ZeFS
+// database into it. Image builders outside this package use the same checked
+// GPT and read-back path as `ze appliance build`.
+func InjectDatabase(imgPath, dbPath string) error {
+	if code := injectZeFS(imgPath, dbPath, ""); code != exitOK {
+		return errors.New("inject database into appliance image")
+	}
+	return nil
 }
 
 func findLastPartition(imgPath string) (offsetBytes, sizeBytes int64, err error) {

@@ -10,10 +10,9 @@
 //   - .github/workflows/codeql.yml the two shipped go build combos
 //
 // feature-gates.txt is the single source of truth (ai/rules/plugins.md). The
-// Makefile's ZE_FEATURES, the test runner, the plugin-imports generator and
-// dep_audit all derive from the manifest already; these four files could not,
-// so they were hand-maintained and drift-gated. This makes them derived too:
-// add a gate to the manifest, run the write action, and all four follow.
+// native toolchain, test runner, plugin-imports generator, and dependency audit
+// derive from the manifest. The four files below are derived too: add a gate to
+// the manifest, run `./le feature-tags write`, and all four follow.
 //
 // Every edit is SURGICAL. Only the tag list moves; the indentation, the
 // neighboring keys and every other line of each file survive untouched, so

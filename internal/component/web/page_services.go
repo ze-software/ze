@@ -101,14 +101,14 @@ func buildSSHFormData(tree *config.Tree) WorkbenchFormData {
 		Fields: []WorkbenchFormField{
 			{
 				Name:        "enabled",
-				Label:       "Enabled",
+				Label:       labelEnabled,
 				Type:        "toggle",
 				Value:       getConfigValue(tree, "environment/ssh/enabled"),
 				Description: "Enable SSH server",
 			},
 			{
 				Name:        "servers",
-				Label:       "Listen Endpoints",
+				Label:       labelListenEndpoints,
 				Type:        "list",
 				Items:       getConfigListItems(tree, "environment/ssh", "server"),
 				Description: "SSH server listen endpoints",
@@ -156,14 +156,14 @@ func buildWebFormData(tree *config.Tree) WorkbenchFormData {
 		Fields: []WorkbenchFormField{
 			{
 				Name:        "enabled",
-				Label:       "Enabled",
+				Label:       labelEnabled,
 				Type:        "toggle",
 				Value:       getConfigValue(tree, "environment/web/enabled"),
 				Description: "Enable web interface",
 			},
 			{
 				Name:        "servers",
-				Label:       "Listen Endpoints",
+				Label:       labelListenEndpoints,
 				Type:        "list",
 				Items:       getConfigListItems(tree, "environment/web", "server"),
 				Description: "Web server listen endpoints",
@@ -197,14 +197,14 @@ func buildTelemetryFormData(tree *config.Tree) WorkbenchFormData {
 		Fields: []WorkbenchFormField{
 			{
 				Name:        "enabled",
-				Label:       "Enabled",
+				Label:       labelEnabled,
 				Type:        "toggle",
 				Value:       getConfigValue(tree, "telemetry/prometheus/enabled"),
 				Description: "Enable Prometheus metrics endpoint",
 			},
 			{
 				Name:        "servers",
-				Label:       "Listen Endpoints",
+				Label:       labelListenEndpoints,
 				Type:        "list",
 				Items:       getConfigListItems(tree, "telemetry/prometheus", "server"),
 				Description: "Prometheus listen endpoints",
@@ -357,7 +357,7 @@ func buildMCPFormData(tree *config.Tree) WorkbenchFormData {
 		Fields: []WorkbenchFormField{
 			{
 				Name:        "enabled",
-				Label:       "Enabled",
+				Label:       labelEnabled,
 				Type:        "toggle",
 				Value:       getConfigValue(tree, "environment/mcp/enabled"),
 				Description: "Enable MCP server",
@@ -379,14 +379,14 @@ func buildMCPFormData(tree *config.Tree) WorkbenchFormData {
 			},
 			{
 				Name:        "token",
-				Label:       "Bearer Token",
+				Label:       labelBearerToken,
 				Type:        "password",
 				Value:       getConfigValue(tree, "environment/mcp/token"),
 				Description: "Bearer token for auth-mode=bearer (sensitive)",
 			},
 			{
 				Name:        "servers",
-				Label:       "Listen Endpoints",
+				Label:       labelListenEndpoints,
 				Type:        "list",
 				Items:       getConfigListItems(tree, "environment/mcp", "server"),
 				Description: "MCP server listen endpoints",
@@ -448,14 +448,14 @@ func buildLookingGlassFormData(tree *config.Tree) WorkbenchFormData {
 		Fields: []WorkbenchFormField{
 			{
 				Name:        "enabled",
-				Label:       "Enabled",
+				Label:       labelEnabled,
 				Type:        "toggle",
 				Value:       getConfigValue(tree, "environment/looking-glass/enabled"),
 				Description: "Enable looking glass",
 			},
 			{
 				Name:        "servers",
-				Label:       "Listen Endpoints",
+				Label:       labelListenEndpoints,
 				Type:        "list",
 				Items:       getConfigListItems(tree, "environment/looking-glass", "server"),
 				Description: "Looking glass listen endpoints",
@@ -476,7 +476,7 @@ func buildLookingGlassFormData(tree *config.Tree) WorkbenchFormData {
 			},
 			{
 				Name:        "token",
-				Label:       "Bearer Token",
+				Label:       labelBearerToken,
 				Type:        "password",
 				Value:       getConfigValue(tree, "environment/looking-glass/token"),
 				Description: "Bearer token gating every route (sensitive). Empty leaves the looking glass open",
@@ -504,7 +504,7 @@ func buildAPIFormData(tree *config.Tree) WorkbenchFormData {
 		Fields: []WorkbenchFormField{
 			{
 				Name:        "token",
-				Label:       "Bearer Token",
+				Label:       labelBearerToken,
 				Type:        "password",
 				Value:       getConfigValue(tree, "environment/api-server/token"),
 				Description: "Bearer token for API authentication (sensitive)",

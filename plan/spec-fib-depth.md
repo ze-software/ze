@@ -298,7 +298,7 @@ Ze must reach parity on the attributes that matter for production routing.
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Fix issues | Fix every issue from critical review |
 | 9. Re-verify | Re-run stage 6 |
@@ -350,7 +350,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 8. **Functional tests** -- end-to-end with ze-test
 9. **Interop tests** -- FRR/BIRD comparison
 10. **RFC refs** -- `// RFC 4271 Section 9.1.2.2 Step 6` comments
-11. **Full verification** -- `make ze-precommit-verify`
+11. **Full verification** -- `./le verify current mode full`
 12. **Complete spec** -- learned summary, delete spec
 
 ### Critical Review Checklist (/implement stage 6)
@@ -513,7 +513,7 @@ Add `// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP m
 - [ ] AC-1..AC-15 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

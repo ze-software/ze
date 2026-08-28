@@ -1,116 +1,23 @@
 # Test: the BUILT le binary runs the consistency gate over the real checkout,
-#       reports what the script reports, and answers the same findings as data.
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#       gives the same answer independently of the working directory, and
+#       exposes the same findings as structured data.
 #
 # VALIDATES: spec-le-is-a-ze-binary AC-11 over the REAL TREE, and AC-7 for the
 #            first ported tool, against the artifact a developer runs.
-# PREVENTS: a port that agrees with the script on fixtures and disagrees on the
-#           checkout. The gate's report here is 1250 lines over ~20000 files;
-#           a check that stopped firing on a shape no fixture holds would pass
-#           every unit test and change what the gate says.
+# PREVENTS: a consistency implementation that passes focused fixtures but
+#           disagrees with the real checkout, changes with the current working
+#           directory, or exposes a different payload through row operators.
 #
-# Both sides are compiled here rather than by the runner, which builds only ze
-# and ze-test (internal/test/runner/runner.go, setupBinShims). Both binaries are
-# written into the test's own directory, so nothing is written back into the
-# checkout.
+# The registered fixture compiles cmd/ze as le into its own temporary directory,
+# so no build artifact is written back into the checkout. Report comparisons are
+# over the multiset of lines because ordering is not part of the report contract.
 #
-# The comparison is over the SET of lines, not the sequence. The script produces
-# its cross-reference findings by iterating a map, so its own output order
-# changes between two runs of the script over one tree; the command sorts. Every
-# finding, every group count and the summary are pinned by the set.
-#
-# The timeout is DECLARED because two full walks of the checkout follow a cold
-# build of the cmd/ze le personality.
+# The timeout is declared because the fixture performs a cold product build and
+# several full walks of the real checkout.
 
 option=timeout:value=300s
 
-tmpfs=run.py:terminator=EOF_PY
-"""Compile both sides of the migration and check that they agree."""
-import collections
-import json
-import os
-import re
-import subprocess
-import sys
-
-
-def require(condition, message):
-    if not condition:
-        raise SystemExit(f'FAIL: {message}')
-
-
-root = os.environ['ZE_REPO_ROOT']
-here = os.getcwd()
-binary = os.path.join(here, 'le')
-script = os.path.join(here, 'consistency')
-
-for args in (['make', '--no-print-directory', 'le-build',
-              f'ZE_BIN_DIR={os.path.dirname(binary)}'],
-             ['go', 'build', '-o', script, 'scripts/lint/consistency.go']):
-    built = subprocess.run(args, cwd=root, capture_output=True, text=True, check=False)
-    require(built.returncode == 0, f'{" ".join(args)} failed: {built.stderr}')
-
-ANSI = re.compile(r'\x1b\[[0-9;]*m')
-
-
-def lines(text):
-    return collections.Counter(ANSI.sub('', text).split('\n'))
-
-
-# The script, invoked the way the ze-consistency-check gate invokes it.
-old = subprocess.run([script, '.'], cwd=root, capture_output=True, text=True, check=False)
-require(old.stderr == '', f'the script wrote to stderr: {old.stderr}')
-
-# The command, invoked the way a developer does. It takes no path: the tree is
-# the checkout, so the answer does not change with the working directory.
-new = subprocess.run([binary, 'consistency'], cwd=here, capture_output=True, text=True, check=False)
-require(new.stderr == '', f'`le consistency` wrote to stderr: {new.stderr}')
-
-require(old.returncode == new.returncode,
-        f'the script exited {old.returncode} and the command exited {new.returncode}')
-
-script_lines, command_lines = lines(old.stdout), lines(new.stdout)
-only_script = list((script_lines - command_lines).elements())
-only_command = list((command_lines - script_lines).elements())
-require(not only_script and not only_command,
-        'the two reports differ over the checkout:\n'
-        + '\n'.join('  only the script: ' + line for line in only_script[:10])
-        + '\n'
-        + '\n'.join('  only the command: ' + line for line in only_command[:10]))
-require(len(list(script_lines.elements())) > 100,
-        f'the comparison ran over {len(list(script_lines.elements()))} lines, which is too few to mean anything')
-
-# One payload, every rendering. Nothing in the tool writes a line of JSON.
-answer = subprocess.run([binary, 'consistency', '|', 'json'], cwd=here,
-                        capture_output=True, text=True, check=False)
-try:
-    report = json.loads(answer.stdout)
-except json.JSONDecodeError as exc:
-    raise SystemExit(f'FAIL: `le consistency | json` did not answer JSON: {exc}\n{answer.stdout[:400]}') from exc
-
-for key in ('findings', 'errors', 'warnings'):
-    require(key in report, f'the report answered no {key!r} key: {sorted(report)}')
-require(len(report['findings']) == report['errors'] + report['warnings'],
-        f"{len(report['findings'])} findings against {report['errors']} errors "
-        f"and {report['warnings']} warnings")
-require(answer.returncode == new.returncode,
-        f"`| json` exited {answer.returncode} and the bare command exited {new.returncode}")
-
-first = report['findings'][0]
-for key in ('severity', 'check', 'file', 'message'):
-    require(key in first, f'a finding carries no {key!r}: {first}')
-require(not os.path.isabs(first['file']),
-        f"a finding names an absolute path: {first['file']}")
-
-# A row operator acts on the findings, which is what declaring the answer's
-# shape buys. `| count` answers a number, never the report.
-counted = subprocess.run([binary, 'consistency', '|', 'count'], cwd=here,
-                         capture_output=True, text=True, check=False)
-require(str(len(report['findings'])) in counted.stdout,
-        f"`le consistency | count` answered {counted.stdout!r}, want {len(report['findings'])}")
-
-print('OK')
-EOF_PY
-
-cmd=foreground:seq=1:exec=python3 run.py
+cmd=foreground:seq=1:exec=ze-test fixture ui/le-consistency-answers
 expect=exit:code=0
 expect=stdout:contains=OK

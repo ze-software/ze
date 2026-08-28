@@ -79,10 +79,10 @@ var (
 const cmdHelp = "help"
 
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.storage.blob", Type: "bool", Default: "true", Description: "Use blob storage (false = filesystem)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.server", Type: "string", Description: "Override hub address (host:port) for managed mode"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.name", Type: "string", Description: "Override client name for managed mode"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.token", Type: "string", Description: "Override auth token for managed mode"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.storage.blob", Type: "bool", Default: booleanTextTrue, Description: "Use blob storage (false = filesystem)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.server", Type: typeNameString, Description: "Override hub address (host:port) for managed mode"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.name", Type: typeNameString, Description: "Override client name for managed mode"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.token", Type: typeNameString, Description: "Override auth token for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.connect.timeout", Type: "duration", Default: "5s", Description: "Connection timeout for managed hub"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.tls.insecure", Type: "bool", Default: "false", Description: "Skip TLS certificate verification for hub connection (INSECURE)"})
 )
@@ -222,7 +222,7 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 			}
 			zeFlags.chaosRate = f
 			args = args[2:]
-		case "--mcp":
+		case flagStartMCP:
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --mcp requires a port\n")
 				return nil, 1
@@ -234,14 +234,14 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 			var tb textbuf.Buffer
 			zeFlags.mcpAddr = tb.Str("127.0.0.1:").Str(args[1]).String()
 			args = args[2:]
-		case "--mcp-token":
+		case flagStartMCPToken:
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --mcp-token requires a value\n")
 				return nil, 1
 			}
 			zeFlags.mcpToken = args[1]
 			args = args[2:]
-		case "--web":
+		case flagStartWeb:
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --web requires a port\n")
 				return nil, 1
@@ -252,14 +252,14 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 			}
 			zeFlags.webPort = args[1]
 			args = args[2:]
-		case "--insecure-web":
+		case flagStartInsecureWeb:
 			zeFlags.insecureWeb = true
 			args = args[1:]
-		case "--web-only":
+		case flagStartWebOnly:
 			zeFlags.webOnly = true
 			args = args[1:]
 		case "--color":
-			_ = env.Set("ze.log.color", "true")
+			_ = env.Set("ze.log.color", booleanTextTrue)
 			args = args[1:]
 		case "--no-color":
 			_ = env.Set("ze.log.color", "false")
@@ -268,7 +268,7 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 			return args, 0
 		case "--version", "-V":
 			return nil, printVersion(false)
-		case "--extended-version":
+		case flagExtendedVersion:
 			return nil, printVersion(true)
 		case "--help", "-h": //nolint:goconst // consistent pattern across cmd files
 			return args, 0
@@ -447,7 +447,7 @@ func registerLocalCommands() {
 		return printVersion(slices.Contains(args, "--extended"))
 	}, registry.Meta{
 		Description: "Show the running Ze version and build date",
-		Mode:        "offline",
+		Mode:        commandModeOffline,
 	})
 
 	registry.MustRegisterRootHandler("start", func(rctx *registry.RuntimeContext, args []string) int {
@@ -467,7 +467,7 @@ func registerLocalCommands() {
 		return 0
 	}, registry.Meta{
 		Description: "Show the running Ze version and build date",
-		Mode:        "offline",
+		Mode:        commandModeOffline,
 		Section:     registry.SectionSystem,
 		Subs:        "--extended",
 	})
@@ -475,34 +475,34 @@ func registerLocalCommands() {
 		return dispatchHelp(args)
 	}, registry.Meta{
 		Description: "Show available commands and how to use them",
-		Mode:        "offline",
+		Mode:        commandModeOffline,
 		Section:     registry.SectionSystem,
 		Subs:        "command [<filter>] [--json], ai [cli|api|mcp|dispatch|all] [--json]",
 	})
 	registry.MustRegisterRootHandler("--plugins", func(_ *registry.RuntimeContext, args []string) int {
-		printPlugins(len(args) > 0 && args[0] == "--json")
+		printPlugins(len(args) > 0 && args[0] == flagJSON)
 		return 0
 	}, registry.Meta{
 		Description: "List loaded plugins",
-		Mode:        "offline",
+		Mode:        commandModeOffline,
 		Section:     registry.SectionSystem,
-		Subs:        "--json",
+		Subs:        flagJSON,
 	})
 	registry.MustRegisterRootHandler("pipe", func(_ *registry.RuntimeContext, args []string) int {
 		return runPipe(args)
 	}, registry.Meta{
 		Description: "Apply pipe operators to stdin",
-		Mode:        "offline",
+		Mode:        commandModeOffline,
 		Section:     registry.SectionSystem,
 		Subs:        pipeOperatorSubs(),
 	})
 	registry.MustRegisterLocalMeta("help command", printHelpCommand, registry.Meta{
 		Description: "List every command with its description. Use a filter to narrow the list.",
-		Mode:        "offline",
+		Mode:        commandModeOffline,
 	})
 	registry.MustRegisterLocalMeta("help ai", printAIHelp, registry.Meta{
 		Description: "AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).",
-		Mode:        "offline",
+		Mode:        commandModeOffline,
 	})
 	// `update` is a YANG verb, so a root handler named `update` would be
 	// unreachable behind the isYANGVerb branch in zeDispatch. RunCommand consults
@@ -511,7 +511,7 @@ func registerLocalCommands() {
 	// version` uses to run a local command under a YANG verb.
 	registry.MustRegisterLocalMeta("update serve", runUpdateServe, registry.Meta{
 		Description: "Run a local update server for firmware checks",
-		Mode:        "offline",
+		Mode:        commandModeOffline,
 	})
 
 	registry.SetRuntimeStorage(func() any { return resolveStorage() })

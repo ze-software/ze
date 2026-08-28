@@ -12,117 +12,13 @@ stdin=peer:terminator=EOF_PEER
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002A0306041441646D696E697374726174697665205265736574
 EOF_PEER
 
-# Python test plugin: trigger teardown, then poll "show errors".
-tmpfs=errors-sent-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def poll_for_match(api, match_fn, timeout=5.0):
-    """Poll `show errors` until at least one entry matches match_fn or timeout."""
-    def _matched(r):
-        if r.get('status') != 'done':
-            return False
-        data = r.get('data', {})
-        if isinstance(data, str):
-            try:
-                data = json.loads(data)
-            except (json.JSONDecodeError, TypeError, ValueError):
-                return False
-        errors = data.get('errors', []) if isinstance(data, dict) else []
-        return any(match_fn(e) for e in errors)
-
-    result = api.dispatch_until('show errors', _matched, attempts=max(1, int(timeout / 0.25)))
-    if not _matched(result):
-        return None
-    data = result.get('data', {})
-    if isinstance(data, str):
-        data = json.loads(data)
-    return data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    # Wait for the BGP session to reach Established before tearing it down.
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # Send teardown 4 (Administrative Reset) -> ze sends NOTIFICATION code=6 subcode=4.
-        td = dispatch(api, 'request peer 127.0.0.1 teardown 4')
-        if td.get('status') != 'done':
-            print(f'FAIL: teardown status={td.get("status")} data={td.get("data")}', file=sys.stderr)
-            sys.exit(1)
-
-        # Poll for the notification-sent entry instead of a fixed sleep.
-        data = poll_for_match(api, lambda e:
-            e.get('source') == 'bgp' and
-            e.get('code') == 'notification-sent' and
-            e.get('subject') == '127.0.0.1')
-
-        if data is None:
-            print('FAIL: timed out waiting for bgp/notification-sent entry', file=sys.stderr)
-            sys.exit(1)
-
-        errors = data.get('errors', [])
-
-        # Exactly one matching entry per teardown command. Other entries
-        # may be present (session-dropped is suppressed because the flag
-        # is set, but other unrelated bgp errors might appear).
-        matches = [e for e in errors
-                   if e.get('source') == 'bgp'
-                   and e.get('code') == 'notification-sent'
-                   and e.get('subject') == '127.0.0.1']
-        if len(matches) != 1:
-            print(f'FAIL: expected exactly 1 matching entry, got {len(matches)}: {matches}', file=sys.stderr)
-            sys.exit(1)
-
-        e = matches[0]
-        if e.get('severity') != 'error':
-            print(f'FAIL: severity != error: {e}', file=sys.stderr)
-            sys.exit(1)
-        detail = e.get('detail', {})
-        if detail.get('direction') != 'sent':
-            print(f'FAIL: detail.direction != sent: {e}', file=sys.stderr)
-            sys.exit(1)
-        # teardown 4 -> Cease (6) / Administrative Reset (4) per RFC 4486 + 8203.
-        if int(detail.get('code', -1)) != 6:
-            print(f'FAIL: detail.code != 6: {e}', file=sys.stderr)
-            sys.exit(1)
-        if int(detail.get('subcode', -1)) != 4:
-            print(f'FAIL: detail.subcode != 4: {e}', file=sys.stderr)
-            sys.exit(1)
-
-        print(f'OK: show errors returned {len(errors)} entry(s); 1 matching notification-sent', file=sys.stderr)
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-    except SystemExit:
-        raise
-    except Exception as e:
-        print(f'FAIL: unexpected error: {e}', file=sys.stderr)
-        sys.exit(1)
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# The compiled test plugin triggers teardown, then polls `show errors`.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external errors-sent-show-test {
-		run ./errors-sent-show-test.run
+		run "ze-test fixture plugin/errors-sent-show"
 		encoder json
 	}
 }

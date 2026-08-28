@@ -4,17 +4,17 @@ Source common.tape
 Hide
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/irr-filter/config ZE_INIT_INPUT=/src/tmp/terminal-demos/state/irr-filter/init.input ZE_SSH_PASSWORD=secret123 SSHPASS=secret123"
 Enter
-Type "/src/demos/terminal/irr-filter/run.sh prepare"
+Type "ze-demo run irr-filter prepare"
 Enter
 Wait+Screen /IRR filter demo prepared/
 Type "ze init < $ZE_INIT_INPUT >/dev/null"
 Enter
-Type "/src/demos/terminal/irr-filter/run.sh seed"
+Type "ze-demo run irr-filter seed"
 Enter
 Wait+Screen /without IRR filtering/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh irr-filter intro"
+Type "ze-demo card irr-filter intro"
 Enter
 Show
 Wait+Screen /====/
@@ -59,13 +59,13 @@ Sleep 7s
 Hide
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh irr-filter configured"
+Type "ze-demo card irr-filter configured"
 Enter
 Show
 Sleep 9s
 
 Hide
-Type "/src/demos/terminal/irr-filter/run.sh start"
+Type "ze-demo run irr-filter start"
 Enter
 Wait+Screen /IRR filter demo ready/
 Type "clear"
@@ -83,7 +83,7 @@ Wait+Screen /2001:db8::\/32/
 Sleep 7s
 
 Hide
-Type "/src/demos/terminal/irr-filter/run.sh announce"
+Type "ze-demo run irr-filter announce"
 Enter
 Wait+Screen /Customer routes announced/
 Type "clear"
@@ -105,12 +105,12 @@ Wait+Screen /10.0.0.0\/24/
 Sleep 7s
 
 Hide
-Type "/src/demos/terminal/irr-filter/run.sh stop"
+Type "ze-demo run irr-filter stop"
 Enter
 Wait+Screen /IRR filter demo stopped/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh irr-filter recap"
+Type "ze-demo card irr-filter recap"
 Enter
 Show
 Sleep 9s

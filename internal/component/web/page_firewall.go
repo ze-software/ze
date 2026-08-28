@@ -46,8 +46,8 @@ func collectTables() []tableEntry {
 // buildFirewallTablesTableData constructs a WorkbenchTableData for the tables page.
 func buildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: "Name", Sortable: true},
-		{Key: "family", Label: "Family", Sortable: true},
+		{Key: "name", Label: labelName, Sortable: true},
+		{Key: "family", Label: labelFamily, Sortable: true},
 		{Key: "chains", Label: "Chains", Sortable: true},
 		{Key: "sets", Label: "Sets", Sortable: true},
 	}
@@ -66,7 +66,7 @@ func buildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "View Chains", URL: tb.Reset().Str("/show/firewall/chain/?table=").Str(e.Name).String()},
-				{Label: "Edit", URL: tb.Reset().Str("/show/firewall/table/").Str(e.Name).Byte('/').String()},
+				{Label: labelEdit, URL: tb.Reset().Str("/show/firewall/table/").Str(e.Name).Byte('/').String()},
 			},
 		})
 	}
@@ -151,7 +151,7 @@ func collectChains(filterTable, filterHook, filterType string) []chainEntry {
 func buildFirewallChainsTableData(entries []chainEntry, filterTable string) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "table", Label: "Table", Sortable: true},
-		{Key: "name", Label: "Name", Sortable: true},
+		{Key: "name", Label: labelName, Sortable: true},
 		{Key: "type", Label: "Type", Sortable: true},
 		{Key: "hook", Label: "Hook", Sortable: true},
 		{Key: "priority", Label: "Priority", Sortable: true},
@@ -181,7 +181,7 @@ func buildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "View Rules", URL: tb.Reset().Str("/show/firewall/rule/?table=").Str(ce.Table).Str("&chain=").Str(ce.Name).String()},
-				{Label: "Edit", URL: tb.Reset().Str("/show/firewall/table/").Str(ce.Table).Str("/chain/").Str(ce.Name).Byte('/').String()},
+				{Label: labelEdit, URL: tb.Reset().Str("/show/firewall/table/").Str(ce.Table).Str("/chain/").Str(ce.Name).Byte('/').String()},
 			},
 		})
 	}
@@ -497,7 +497,7 @@ func buildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 				valueOrDash(re.Comment),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "Edit", URL: tb.Reset().Str(ruleBase).Byte('/').String()},
+				{Label: labelEdit, URL: tb.Reset().Str(ruleBase).Byte('/').String()},
 				{Label: "Toggle", HxPost: tb.Reset().Str(ruleBase).Str("/toggle").String(),
 					Confirm: tb.Reset().Str("Toggle rule ").Str(strconv.Quote(re.Name)).Byte('?').String()},
 				{Label: "Move Up", HxPost: tb.Reset().Str(ruleBase).Str("/move-up").String()},
@@ -607,7 +607,7 @@ func setFlagsStr(f firewall.SetFlags) string {
 func buildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "table", Label: "Table", Sortable: true},
-		{Key: "name", Label: "Name", Sortable: true},
+		{Key: "name", Label: labelName, Sortable: true},
 		{Key: "type", Label: "Type", Sortable: true},
 		{Key: "flags", Label: "Flags"},
 		{Key: "elements", Label: "Elements", Sortable: true},
@@ -657,7 +657,7 @@ func handleFirewallSetsPage(renderer *Renderer, r *http.Request) template.HTML {
 // dispatch, so this shows a placeholder empty state.
 func buildFirewallConnectionsTableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "protocol", Label: "Protocol", Sortable: true},
+		{Key: "protocol", Label: labelProtocol, Sortable: true},
 		{Key: "source", Label: "Source", Sortable: true},
 		{Key: "destination", Label: "Destination", Sortable: true},
 		{Key: "state", Label: "State", Sortable: true},

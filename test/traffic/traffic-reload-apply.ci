@@ -10,38 +10,8 @@
 # every environment. The real tc kernel-state check on reload (`tc qdisc show`
 # before/after) is now covered by the needs-linux companion
 # traffic-reload-qdisc-tc.ci, which runs as root in the QEMU VM via
-# `make ze-qemu-needs-linux-test` (spec followup-test-infra AC-2). The reload
 # semantic under test here is "remove the traffic-control section": a deletion
 # the reactor handles by applying an empty desired state.
-
-tmpfs=reload.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Block on daemon readiness, rewrite the config to remove traffic-control,
-send SIGHUP, then SIGTERM for a clean exit.
-
-wait_for_daemon_ready is the shared barrier (test/scripts/ze_api.py): it returns
-the daemon pid once daemon.ready exists, which ze creates after
-apiServer.WaitForStartupComplete returns (cmd/ze/hub/main.go). Every plugin
-startup phase has settled by then, the traffic reactor's boot-time apply among
-them, so the former 0.3s "let the initial apply finish" hold had nothing left to
-wait for and is gone.
-"""
-import os
-import shutil
-import signal
-import time
-
-from ze_api import wait_for_daemon_ready
-
-pid = wait_for_daemon_ready()
-
-shutil.copy("config2.conf", "ze-bgp.conf")
-os.kill(pid, signal.SIGHUP)
-
-# sleep(no-signal): handleSIGHUPReload (cmd/ze/hub/main_reload.go) writes no file and answers no query, and this driver holds no API connection, so the reload's only evidence is the "traffic-control config reloaded" line on ze's stderr, which the runner reads and this process cannot
-time.sleep(2.0)
-os.kill(pid, signal.SIGTERM)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
@@ -120,7 +90,7 @@ EOF_CONF2
 
 option=env:var=ze.log.traffic:value=debug
 
-cmd=background:seq=1:exec=python3 reload.py
+cmd=background:seq=1:exec=ze-test fixture traffic/traffic-reload-apply
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=traffic-control config reloaded

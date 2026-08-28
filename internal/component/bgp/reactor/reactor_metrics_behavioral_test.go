@@ -100,7 +100,7 @@ func TestReloadParseErrorIncrementsErrorCounter(t *testing.T) {
 // ze_peer_messages_received_total{type="update"}, and FSM transitions bump the
 // established/flap/transition counters.
 //
-// VALIDATES: Peer.IncrUpdatesReceived (peer_stats.go:134) and
+// VALIDATES: Peer.incrUpdatesReceived (peer_stats.go:134) and
 // updatePeerStateMetric (peer_stats.go:361-367).
 // PREVENTS: churn counters registered but never incremented, so UPDATE volume
 // and session flaps read as zero on the dashboard.
@@ -120,12 +120,12 @@ func TestPeerEventsIncrementChurnCounters(t *testing.T) {
 
 	// RIB churn: each received UPDATE increments the update-typed message counter.
 	for range 3 {
-		peer.IncrUpdatesReceived()
+		peer.incrUpdatesReceived()
 	}
 	recv := reg.counterVec("ze_peer_messages_received_total")
 	require.NotNil(t, recv, "ze_peer_messages_received_total must be registered")
 	updates := recv.get(label, "update")
-	require.NotNil(t, updates, "the update-type series must exist after IncrUpdatesReceived")
+	require.NotNil(t, updates, "the update-type series must exist after incrUpdatesReceived")
 	assert.Equal(t, 3.0, updates.Value(), "three received UPDATEs must count as three")
 
 	// Session churn: Active -> Established records an establishment + transition.

@@ -60,8 +60,8 @@ internal/component/web/
 A name ending in `_*` above is a family: every file carrying that prefix
 belongs to the line it sits on. Each other name is one file.
 
-`make generate` compiles each `.templ` into a `*_templ.go` beside it, and
-`make ze-templ-output-check` refuses a source whose generated file is stale.
+`./le repository generate` compiles each `.templ` into a `*_templ.go` beside it, and
+`./le doc-check templ-output` refuses a source whose generated file is stale.
 
 Each input type is one file. `fieldInputFor` (`field_input.go`) reads the `fieldInputs` registry, which maps a YANG field type onto the component that edits it. A type nobody registered reaches the text editor by a named rule. No if/else chain in the markup.
 
@@ -225,7 +225,7 @@ All source files in `internal/component/lg/` reference this document via `// Des
 | `layout.go` | Layered layout algorithm, SVG rendering |
 | `render.go` | templ component rendering, page vs fragment detection |
 | `view.go` | One named view-model struct per page, which the components take |
-| `*.templ` | The markup, compiled into `*_templ.go` by `make generate` |
+| `*.templ` | The markup, compiled into `*_templ.go` by `./le repository generate` |
 | `embed.go` | Embedded assets (CSS, HTMX, SSE) via go:embed |
 | `auth.go` | Optional bearer-token gate over the whole mux |
 

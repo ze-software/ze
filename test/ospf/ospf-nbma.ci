@@ -15,74 +15,11 @@ option=needs-linux:caps=net-admin
 # nbma0 on 10.0.0.0/24 so the static neighbors 10.0.0.2/10.0.0.3 are on-link.
 option=netns-link:name=nbma0:address=10.0.0.1/24
 
-tmpfs=ospf-nbma.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert the runtime OSPF NBMA interface snapshot and neighbor/poll state."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    result = dispatch(api, 'show ospf interface')
-    if result.get('status') != 'done':
-        runtime_fail(
-            f"show ospf interface: status={result.get('status')} "
-            f"data={result_text_data(result)[:200]}")
-    rows = result_json_data(result, None)
-    if not isinstance(rows, list):
-        runtime_fail(f"show ospf interface: expected list, got {rows!r}")
-
-    by_name = {row.get('name'): row for row in rows if isinstance(row, dict)}
-    row = by_name.get('nbma0')
-    if row is None:
-        runtime_fail(f"missing nbma0 in {rows!r}")
-    if row.get('network_type') != 'nbma':
-        runtime_fail(f"nbma0 network_type = {row.get('network_type')!r}, want nbma")
-    if int(row.get('poll-interval') or 0) != 90:
-        runtime_fail(f"nbma0 poll-interval = {row.get('poll-interval')!r}, want 90")
-    # Eligible (priority 1) NBMA interface waits for the election (may already have
-    # elected itself DR on a single node).
-    if row.get('state') not in ('waiting', 'dr', 'backup', 'dr-other', 'down'):
-        runtime_fail(f"nbma0 state = {row.get('state')!r}")
-    neighbors = row.get('nbma-neighbors') or []
-    addrs = {n.get('neighbor') for n in neighbors if isinstance(n, dict)}
-    if '10.0.0.2' not in addrs or '10.0.0.3' not in addrs:
-        runtime_fail(f"nbma0 configured neighbors = {neighbors!r}, want 10.0.0.2 and 10.0.0.3")
-    for n in neighbors:
-        if n.get('state') not in ('attempt', 'heard'):
-            runtime_fail(f"neighbor {n!r} state must be attempt/heard")
-
-    print('OK: OSPF NBMA interface renders poll interval and configured neighbors', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-nbma {
-		run ./ospf-nbma.run
+		run "ze-test fixture ospf/ospf-nbma"
 		encoder json
 	}
 }

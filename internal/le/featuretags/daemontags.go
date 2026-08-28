@@ -10,7 +10,7 @@
 // It lives beside the parser rather than in the tools, because a per-tool
 // literal is a second record of one fact and the record nothing compares
 // drifts. That is measured rather than feared: ze_bgp became a gate and
-// scripts/evidence/effective-vpp.py went on building a ze with no BGP, and
+// internal/le/deployment/vppevidence.go went on building a ze with no BGP, and
 // ze_l2tp became a gate on 2026-07-24 with no evidence script updated, so the
 // proof that L2TP works against real kernel modules was silently unavailable
 // for a month.
@@ -25,18 +25,17 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// gatePrefix is what a feature-gate tag starts with. The Makefile selects on it
-// (`$$1 ~ /^ze_/` at Makefile:110) and so does every consumer that reads the
-// manifest, so the selection is stated here once rather than at each of them.
+// gatePrefix is what a feature-gate tag starts with. Every native consumer that
+// reads the manifest selects this prefix, so the choice is stated here once
+// rather than at each of them.
 const gatePrefix = "ze_"
 
 // DaemonBase is the tag pair a daemon build carries before its gates: the core,
 // and the word for which product this build is.
 //
-// A HOST driver is built without it. The `ze-host` that runs `ze appliance ...`
-// on the build machine is `ze_core ze_setup` with no feature tags at all
-// (mk/build-gokrazy.mk), because feature gates select daemon features and have
-// nothing to say about the setup surface.
+// A host driver is built without it. `internal/le/buildartifacts.BuildHost`
+// builds the `ze appliance ...` driver with `ze_core ze_setup` and no feature
+// tags, because feature gates select daemon features and do not affect setup.
 const DaemonBase = "ze_core ze_distro"
 
 // ErrNoGateTags says the manifest declares no gate tag.
@@ -78,9 +77,9 @@ func DaemonTags(root string) ([]string, error) {
 // DaemonBuildTags answers the `-tags` value for a daemon build: base, then
 // every gate the manifest declares.
 //
-// Space-separated, which is what the Makefile passes and what `go build`
-// documents. Commas work too, and using both spellings is how two builds of one
-// tree come to carry different features.
+// Space-separated, which is what `go build` documents. Commas work too, and
+// using both spellings is how two builds of one tree come to carry different
+// features.
 func DaemonBuildTags(root, base string) (string, error) {
 	gates, err := DaemonTags(root)
 	if err != nil {

@@ -14,7 +14,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Make `ze-doc-wiring-check` report WHICH FILES each of its failures is about, so
+Make `./le doc-wiring` report WHICH FILES each of its failures is about, so
 the commit helper can tell a red that belongs to this session from a red that
 belongs to another one.
 
@@ -26,10 +26,10 @@ almost nothing, and one gate is why:
 | Population | Count |
 |------------|-------|
 | Open `structural gates (red)` debt rows | 102 |
-| Of those, rows naming `ze-doc-wiring-check` | **71** |
+| Of those, rows naming `./le doc-wiring` | **71** |
 | Rows attribution can act on today | about 3 |
 
-`classifyWiringDocs` (`scripts/status/verify_run.go`) builds its groups from
+`classifyWiringDocs` (`internal/le/verify/run.go`) builds its groups from
 prose, with `runningRE` matching `^Running ([A-Za-z0-9_-]+)\.{3}` and `failedRE`
 matching `([A-Za-z0-9_-]+) failed`, so `Related` carries a CHECK NAME. Sub-spec
 1's `related_repo_path` then finds no file, the group counts as unattributable,
@@ -37,7 +37,7 @@ and the gate is charged to whoever happened to be committing. That is the
 fail-closed half working as designed, and it is why 71 rows exist.
 
 **The gate is a router, and that is the whole difficulty.** `main`
-(`scripts/dev/verify_wiring_docs.py`) runs five checks unconditionally
+(`internal/le/docwiring/wiring.go`) runs five checks unconditionally
 (`check_ci_sleep_ratchet`, `check_ci_sleep_justification`,
 `check_known_failure_load_excuses`, `check_ci_log_subsystem_keys`,
 `check_design_refs`), then `check_wiring`, then delegates the remaining selected
@@ -58,20 +58,20 @@ ratchet's failure.
   → Constraint: a zero value must never be a valid-looking answer
 
 **Key insights:**
-- The structured protocol already exists and is proven. `run_suite` (`mk/test-functional.mk`) emits `VERIFY FAILURE GROUP: {json}` for a budget expiry, and `classifyFunctional` (`scripts/status/verify_run.go`) parses it into a `failureGroup`. The producer declares its own group instead of the consumer guessing from prose.
+- The structured protocol already exists and is proven. `run_suite` (`internal/le/functional/suites.go`) emits `VERIFY FAILURE GROUP: {json}` for a budget expiry, and `classifyFunctional` (`internal/le/verify/run.go`) parses it into a `failureGroup`. The producer declares its own group instead of the consumer guessing from prose.
 - That parser is PRIVATE to `classifyFunctional` today. `ai/rules/no-layering.md`: extract it, do not write a second one.
 - `check_wiring` failing returns 1 immediately, so the delegated targets never run and `gate_rc` from the five earlier checks is discarded. Any group design has to survive that early return.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/dev/verify_wiring_docs.py` - `main` and its dispatch; `check_wiring`, `check_design_refs`, `check_ci_sleep_ratchet`, `check_ci_sleep_justification`, `check_known_failure_load_excuses`, `check_ci_log_subsystem_keys`, `run_make_target`, `selected_targets`, `changed_files`
-- [ ] `scripts/status/verify_run.go` - `classifyStage` and its empty-slice fallback to `genericGroup`; `classifyWiringDocs` and its two regexes; `classifyFunctional` and the `VERIFY FAILURE GROUP:` parser
-- [ ] `scripts/dev/commit_helper.py` - `structural_gate_reds`, `GateReds`, `group_related_paths`, `related_repo_path`, `PATH_BEARING_GROUP_KINDS`
+- [ ] `internal/le/docwiring/wiring.go` - `main` and its dispatch; `check_wiring`, `check_design_refs`, `check_ci_sleep_ratchet`, `check_ci_sleep_justification`, `check_known_failure_load_excuses`, `check_ci_log_subsystem_keys`, `run_make_target`, `selected_targets`, `changed_files`
+- [ ] `internal/le/verify/run.go` - `classifyStage` and its empty-slice fallback to `genericGroup`; `classifyWiringDocs` and its two regexes; `classifyFunctional` and the `VERIFY FAILURE GROUP:` parser
+- [ ] `internal/le/commit/prepare.go` - `structural_gate_reds`, `GateReds`, `group_related_paths`, `related_repo_path`, `PATH_BEARING_GROUP_KINDS`
 - [ ] `plan/verification-debt/*.md` - the rows and the gate names they carry
 
 **Behavior to preserve:**
-- `ze-doc-wiring-check` stays a STRUCTURAL gate: `--unverified` cannot wave it through, and a red inside the session's own paths still refuses the commit.
+- `./le doc-wiring` stays a STRUCTURAL gate: `--unverified` cannot wave it through, and a red inside the session's own paths still refuses the commit.
 - The check's exit code and what it refuses are unchanged. This spec changes what it REPORTS, never what it judges.
 - `changed_files` keeps reading the whole shared tree. Narrowing it is a different question and is not in scope here.
 
@@ -86,14 +86,14 @@ goes to the stage level; the ADOPTION stays scoped to this gate.**
 Phase 1 asked whether the payoff was there and found it smaller than the header
 table claims. Of 103 open `structural gates (red)` rows, 72 name this gate, and
 only **33** name gates that would ALL be attributable after this spec. Thirty-nine
-also name a gate that stays unattributable, led by `ze-generated-files-check`
-(15), `ze-doc-links-check` (13) and `ze-test-weakened-check` (7). Nineteen name
+also name a gate that stays unattributable, led by `./le repository generated-check`
+(15), `./le doc-check links` (13) and `./le test-weakened check` (7). Nineteen name
 no gate at all.
 
 The reason is one mechanism rather than nine separate gaps, and it is verified:
-`classifyStage` (`scripts/status/verify_run.go`) dispatches to a classifier for
+`classifyStage` (`internal/le/verify/run.go`) dispatches to a classifier for
 SIX stage names and gives every other stage `genericGroup`, whose `Kind` is
-`stage`. `PATH_BEARING_GROUP_KINDS` (`scripts/dev/commit_helper.py`) does not
+`stage`. `PATH_BEARING_GROUP_KINDS` (`internal/le/commit/prepare.go`) does not
 contain `stage`, and `group_related_paths` returns an empty list for every kind
 outside it before any path lookup. So 24 of the 30 stages cannot be attributed
 at all, whatever they print.
@@ -136,7 +136,7 @@ matching `run_make_target`'s own `GateFailure`.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `make ze-doc-wiring-check`, as a stage of either verify mode.
+- `./le doc-wiring`, as a stage of either verify mode.
 
 ### Transformation Path
 1. A sub-check fails and prints a `VERIFY FAILURE GROUP:` line naming its files.
@@ -153,7 +153,7 @@ matching `run_make_target`'s own `GateFailure`.
 
 ### Integration Points
 - The `VERIFY FAILURE GROUP:` parser, extracted from `classifyFunctional` and shared.
-- `related_repo_path` and `PATH_BEARING_GROUP_KINDS` (`scripts/dev/commit_helper.py`), which already decide what counts as a path.
+- `related_repo_path` and `PATH_BEARING_GROUP_KINDS` (`internal/le/commit/prepare.go`), which already decide what counts as a path.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -168,7 +168,7 @@ matching `run_make_target`'s own `GateFailure`.
 
 ### A-1: every failure path in `main`, and what it can name
 
-`main` (`scripts/dev/verify_wiring_docs.py`) has eight paths to a non-zero exit.
+`main` (`internal/le/docwiring/wiring.go`) has eight paths to a non-zero exit.
 "Names files" means the path holds a repository path in a variable at the moment
 it decides to fail, not that a path appears somewhere in the log.
 
@@ -178,10 +178,10 @@ it decides to fail, not that a path appears somewhere in the log.
 | 2 | `check_ci_sleep_justification` | `ci-sleep justification FAILED:` then `rel:line: text` | **Yes.** `violations` carries `rel` per row | changed `.ci` only |
 | 3 | `check_known_failure_load_excuses` | `known-failure load excuse FAILED:` then `rel:line: text` | **Yes.** `violations` carries `rel` per row | changed shards only |
 | 4 | `check_ci_log_subsystem_keys` | `ci log-subsystem key FAILED:` then `rel:line: ze.log.<key>` | **Yes.** `violations` is `(rel, lineno, subsystem, text)` | whole tree, triggered by any changed `.ci` |
-| 5 | `check_design_refs` | nothing of its own | **No, as written.** It runs `check_doc_links.py --design-only` with no `capture_output`, so it holds only `proc.returncode`. The CHILD's own `check_design_refs` (`scripts/dev/check_doc_links.py`) prints `<go>:<line>: broken Design reference: <target>` straight to the inherited stdout | whole tree, unconditional |
+| 5 | `check_design_refs` | nothing of its own | **No, as written.** It runs `check_doc_links.py --design-only` with no `capture_output`, so it holds only `proc.returncode`. The CHILD's own `check_design_refs` (`internal/le/doccheck/links.go`) prints `<go>:<line>: broken Design reference: <target>` straight to the inherited stdout | whole tree, unconditional |
 | 6 | `check_wiring`, then `main`'s early `return 1` | `Wiring check FAILED:` then `sym.path:sym.line: exported ...` | **Yes.** `issues` carries `sym.path` | files in `changed`, which is the whole shared tree |
 | 7 | `run_make_target` | the child's stdout and stderr, then `GateFailure("<target> failed")` on stderr | **No.** It holds the TARGET name. Any path in the relayed text was produced by another program | one delegated target |
-| 8 | `check_plugin_imports` | `GateFailure("plugin import check failed")` | **No.** Unreachable from the gate: `main` returns 0 on its `--check-plugin-imports` branch, and the `ze-doc-wiring-check` recipe in `mk/check-docs.mk` never passes that flag | n-a |
+| 8 | `check_plugin_imports` | `GateFailure("plugin import check failed")` | **No.** Unreachable from the gate: `main` returns 0 on its `--check-plugin-imports` branch, and the `./le doc-wiring` recipe in `internal/le/doccheck/actions.go` never passes that flag | n-a |
 
 **Verdict: A-1 CONFIRMED, with one path that must change to keep the payoff.**
 Every path either names its files or structurally cannot, so no path names files
@@ -206,9 +206,9 @@ interleave as a side effect.
 Counted over `plan/verification-debt/*.md`, rows whose `Gate owed` contains
 `structural gates (red)` and whose Status is `open`. A gate is attributable
 TODAY when its stage has a classifier that records a repo path: `classifyLint`,
-`classifyGoTest` and `classifyVet` (`scripts/status/verify_run.go`). Every other
+`classifyGoTest` and `classifyVet` (`internal/le/verify/run.go`). Every other
 stage falls through `classifyStage` to `genericGroup` with `Kind: "stage"`, and
-`PATH_BEARING_GROUP_KINDS` (`scripts/dev/commit_helper.py`) does not admit that
+`PATH_BEARING_GROUP_KINDS` (`internal/le/commit/prepare.go`) does not admit that
 kind, so it is refused before any path lookup.
 
 | Population | Count |
@@ -219,10 +219,10 @@ kind, so it is refused before any path lookup.
 | Rows also naming a gate that stays unattributable | 39 |
 | Rows naming no gate at all in their Reason prose | 19 |
 
-The 39 are blocked by: `ze-generated-files-check` (15), `ze-doc-links-check`
-(13), `ze-test-weakened-check` (7), `ze-staticcheck-feature-matrix-check` (4),
-`ze-rules-*` (3), `ze-doc-verify` (2), `ze-spec-citation-check` (1),
-`ze-unit-hook-test` (1), `ze-doc-index-check` (1).
+The 39 are blocked by: `./le repository generated-check` (15), `./le doc-check links`
+(13), `./le test-weakened check` (7), `./le staticcheck-feature-matrix check` (4),
+`ze-rules-*` (3), `./le doc-check verify` (2), `./le spec-citation anchors` (1),
+`ze-unit-hook-test` (1), `./le docs-to-code index-check` (1).
 
 **Verdict: A-2 CONFIRMED but SMALLER than the spec assumed. The payoff is 33
 rows, not 71.** 33 is also an upper bound: it counts rows whose other named
@@ -313,18 +313,18 @@ amendments the main thread rules on before phase 3 starts:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEveryWiringSubcheckDeclaresItsFiles` | `scripts/dev/verify_wiring_docs_test.py` | AC-1, AC-4, AC-5: every failure path declares a group | green |
-| `TestClassifyWiringDocsPrefersDeclaredGroups` | `scripts/status/verify_run_test.go` | AC-1 | green |
-| `TestClassifyWiringDocsFallsBackToProse` | `scripts/status/verify_run_test.go` | AC-6: partial capture cannot drop a failure | green |
-| `TestMalformedGroupLineIsReported` | `scripts/status/verify_run_test.go` | AC-7, R-2 | green |
-| `TestAStageWithNoClassifierCanDeclareItsOwnGroups` | `scripts/status/verify_run_test.go` | the protocol reaches every stage, not only this gate | green |
-| `TestTheWiringGateSpeaksTheProtocolThisRunnerReads` | `scripts/status/verify_run_test.go` | the Python producer and the Go reader agree on prefix and keys | green |
-| `TestAPathologicalPathCannotForgeAGroup` | `scripts/status/verify_run_test.go` | Security Review: a path cannot forge a second group | green |
-| `DeclaredGroupProtocolTest` | `scripts/dev/verify_wiring_docs_test.py` | escaping, the 50-path bound, the count, and a failing run end to end | green |
-| `test_wiring_red_outside_the_commit_is_not_charged` | `scripts/dev/commit_helper_test.py` | AC-2 | green |
-| `test_wiring_red_inside_the_commit_still_refuses` | `scripts/dev/commit_helper_test.py` | AC-3 | green |
-| `test_unattributable_wiring_red_is_charged` | `scripts/dev/commit_helper_test.py` | AC-4 | green |
-| `TestSplitLinesReportsATruncatedRead` | `scripts/status/verify_run_test.go` | R-1 from the reader's side: a truncated stage log makes the declared count disagree, so the stage falls back rather than trusting a partial set | green |
+| `TestEveryWiringSubcheckDeclaresItsFiles` | `internal/le/` | AC-1, AC-4, AC-5: every failure path declares a group | green |
+| `TestClassifyWiringDocsPrefersDeclaredGroups` | `internal/le/verify/verify_test.go` | AC-1 | green |
+| `TestClassifyWiringDocsFallsBackToProse` | `internal/le/verify/verify_test.go` | AC-6: partial capture cannot drop a failure | green |
+| `TestMalformedGroupLineIsReported` | `internal/le/verify/verify_test.go` | AC-7, R-2 | green |
+| `TestAStageWithNoClassifierCanDeclareItsOwnGroups` | `internal/le/verify/verify_test.go` | the protocol reaches every stage, not only this gate | green |
+| `TestTheWiringGateSpeaksTheProtocolThisRunnerReads` | `internal/le/verify/verify_test.go` | the Python producer and the Go reader agree on prefix and keys | green |
+| `TestAPathologicalPathCannotForgeAGroup` | `internal/le/verify/verify_test.go` | Security Review: a path cannot forge a second group | green |
+| `DeclaredGroupProtocolTest` | `internal/le/` | escaping, the 50-path bound, the count, and a failing run end to end | green |
+| `test_wiring_red_outside_the_commit_is_not_charged` | `internal/le/` | AC-2 | green |
+| `test_wiring_red_inside_the_commit_still_refuses` | `internal/le/` | AC-3 | green |
+| `test_unattributable_wiring_red_is_charged` | `internal/le/` | AC-4 | green |
+| `TestSplitLinesReportsATruncatedRead` | `internal/le/verify/verify_test.go` | R-1 from the reader's side: a truncated stage log makes the declared count disagree, so the stage falls back rather than trusting a partial set | green |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -347,9 +347,9 @@ amendments the main thread rules on before phase 3 starts:
 | N-A | - | - | Scope is tooling. No wire-visible behavior changes | |
 
 ## Files to Modify
-- `scripts/dev/verify_wiring_docs.py` - each failure path declares its group
-- `scripts/status/verify_run.go` - extract the shared `VERIFY FAILURE GROUP:` parser; `classifyWiringDocs` prefers declared groups; a malformed line becomes a group
-- `scripts/status/verify_run_test.go`, `scripts/dev/verify_wiring_docs_test.py`, `scripts/dev/commit_helper_test.py`
+- `internal/le/docwiring/wiring.go` - each failure path declares its group
+- `internal/le/verify/run.go` - extract the shared `VERIFY FAILURE GROUP:` parser; `classifyWiringDocs` prefers declared groups; a malformed line becomes a group
+- `internal/le/verify/verify_test.go`, `internal/le/`, `internal/le/`
 - `ai/rules/points/precommit-verify/**` and the regenerated `ai/rules/precommit-verify.md`, `TRIGGERS.md`, `CORE.md`, `INDEX.md` - the reach of attribution changes, so its text does too
 - `docs/architecture/testing/verify-freshness-scope.md` - the declared-group protocol
 - `docs/functional-tests.md` - the new `test/runner/` member
@@ -397,7 +397,7 @@ amendments the main thread rules on before phase 3 starts:
 ## Implementation Steps
 
 1. **Phase: Enumerate before changing (MANDATORY FIRST)** -- A-1 decides the shape
-   - List every failure path in `main` (`scripts/dev/verify_wiring_docs.py`) and say, per sub-check, whether it can name files, and which
+   - List every failure path in `main` (`internal/le/docwiring/wiring.go`) and say, per sub-check, whether it can name files, and which
    - Answer A-2 by re-reading the 71 rows: how many name ONLY gates this makes attributable
    - **If most of the 71 also name an unattributable gate, say so.** The mechanism would still be right and the payoff would not be there
 2. **Phase: Share the parser** -- extract the `VERIFY FAILURE GROUP:` reader from `classifyFunctional` so one implementation serves both stages, and make a malformed line a group rather than a silent skip
@@ -422,7 +422,7 @@ amendments the main thread rules on before phase 3 starts:
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| One shared parser | `grep -c 'VERIFY FAILURE GROUP:' scripts/status/verify_run.go` names one reader |
+| One shared parser | `grep -c 'VERIFY FAILURE GROUP:' internal/le/verify/run.go` names one reader |
 | Every failure declares a group | `TestEveryWiringSubcheckDeclaresItsFiles` |
 | The ledger's largest class becomes attributable | Re-count the 71 rows against the new behavior |
 
@@ -463,7 +463,7 @@ amendments the main thread rules on before phase 3 starts:
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -481,7 +481,7 @@ amendments the main thread rules on before phase 3 starts:
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

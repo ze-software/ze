@@ -34,53 +34,13 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003101040001005A0102
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304010203044005040000006418636363
 EOF_PEER
 
-# Python plugin that sends a marker UPDATE to prove it's active
-tmpfs=flowspec-wrapper.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""External flowspec wrapper that sends marker UPDATE to prove it's active."""
-
-import sys
-from ze_api import API
-
-def main() -> None:
-    api = API()
-
-    # Stage 1: Declare flowspec families + unicast for marker
-    api.declare_family('ipv4', 'flow', mode='decode')
-    api.declare_family('ipv6', 'flow', mode='decode')
-    api.declare_family('ipv4', 'flow-vpn', mode='decode')
-    api.declare_family('ipv6', 'flow-vpn', mode='decode')
-    api.declare_family('ipv4', 'unicast')  # For sending marker
-    api.declare_done()
-
-    # Stage 2: Receive config
-    api.wait_for_config(timeout=5.0)
-
-    # Stage 3: No capabilities
-    api.capability_done()
-
-    # Stage 4: Receive registry
-    api.wait_for_registry(timeout=5.0)
-
-    # Stage 5: Ready
-    api.ready()
-
-    # Send marker UPDATE to prove we're the active plugin
-    # This prefix (99.99.99.0/24) is unique to this external plugin
-    api.send('peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 99.99.99.0/24')
-    api.quiesce()
-
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Compiled plugin sends a marker UPDATE to prove it is active.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external flowspec {
-        run ./flowspec-wrapper.run
+        run "ze-test fixture plugin/explicit-plugin-config"
         encoder json
     }
 }

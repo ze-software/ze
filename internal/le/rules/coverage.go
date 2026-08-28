@@ -3,8 +3,8 @@
 // Detail: coverage_report.go -- the answer this join is rendered as
 // Detail: hooktable.go -- the published claim the join is compared against
 //
-// coverage.go implements the gate-map half of scripts/dev/rules_points.py. It
-// joins PreToolUse `# ze point:` comments to the points on disk.
+// coverage.go implements the gate-map half of internal/le/rules/points.go. It
+// joins native Go `// ze point:` comments to the points on disk.
 //
 // The join produces five sets. GATED and UNGATED are measurements. An ungated
 // point is a rule that no machine enforces. DANGLING fails because its check
@@ -20,7 +20,10 @@ package rules
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"maps"
 	"os"
 	"os/exec"
@@ -28,28 +31,25 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// The dispatcher roster comes from settings.json. A fixed list can shrink with
-// no failure. Removal of one dispatcher once retired seven checks from the join
-// and the published table. Every gate stayed green. settings.json determines
-// which dispatchers RUN, so it is the only valid source.
+// hookRuntimeRel is the package whose native action registry runs the checks
+// measured by this join.
 const (
-	settingsRel    = ".claude/settings.json"
-	hookDir        = ".claude/hooks"
-	dispatcherGlob = "pretool-"
+	hookRuntimeRel = "internal/le/hookruntime"
+	hookRegistry   = "nativeHookActions"
 )
 
-// noCheck names a binding that the join cannot attribute to a running check. The
-// binding remains in the report because it claims to gate a point.
-const noCheck = "<module>"
+// noCheck names a binding comment not attached to a top-level Go function. It
+// remains visible because it still claims to gate a point.
+const noCheck = "<source>"
 
-// emptyRef stands in for a `# ze point:` comment with no payload, so a bare
-// marker lands in the dangling set instead of matching nothing and vanishing.
+// emptyRef stands in for a `// ze point:` comment with no payload.
 const emptyRef = "!empty"
 
 // retiredFile is the ledger a point's removal is declared in.
@@ -64,16 +64,14 @@ const retiredTableHead = "| Point | Why |"
 const gitTimeout = 60 * time.Second
 
 var (
-	// `# ze point: <rule>/<section>/<slug>` on a line of its own, directly
-	// above the check it binds. The payload is captured WHOLE rather than as
-	// one bare token, so a typo lands in the dangling set instead of matching
-	// nothing and vanishing.
-	bindingLine = regexp.MustCompile(`^[ \t\n\r\f\v]*#[ \t\n\r\f\v]*ze point:(.*)$`)
-	// `# ze point: none -- <why>` declares that a check enforces no written
-	// point. The reason is REQUIRED: without it, "nobody bound this yet" and
-	// "there is nothing to bind" would look the same.
+	// `// ze point: <rule>/<section>/<slug>` on a line of its own in a Go
+	// function's doc comment. The payload is captured whole so a typo becomes
+	// dangling instead of disappearing.
+	bindingLine = regexp.MustCompile(`^[ \t]*//[ \t]*ze point:(.*)$`)
+	// `// ze point: none -- <why>` declares that a registered native check
+	// enforces no written point. The reason distinguishes an intentional
+	// exception from a forgotten binding.
 	noPointLine  = regexp.MustCompile(`^none[ \t\n\r\f\v]+--[ \t\n\r\f\v]+(\S.*)$`)
-	topLevelDef  = regexp.MustCompile(`^def[ \t\n\r\f\v]+([A-Za-z_]\w*)[ \t\n\r\f\v]*\(`)
 	retirementRe = regexp.MustCompile(
 		"^\\|[ \t\n\r\f\v]*`([a-z0-9-]+/[a-z0-9-]+/[a-z0-9-]+)`[ \t\n\r\f\v]*\\|[ \t\n\r\f\v]*([^|]*\\S)[ \t\n\r\f\v]*\\|[ \t\n\r\f\v]*$")
 )
@@ -82,8 +80,8 @@ var (
 // means "points stating something nothing gates" rather than "markdown blocks".
 var structuralKinds = [...]string{kindHeading, kindFence}
 
-// Binding is one `# ze point:` comment: where it is, what carries it, what it
-// names.
+// Binding is one native Go `// ze point:` comment: where it is, what carries
+// it, and what it names.
 type Binding struct {
 	File  string `json:"file"`
 	Line  int    `json:"line"`
@@ -94,9 +92,8 @@ type Binding struct {
 	Reason string `json:"reason,omitempty"`
 }
 
-// GateMap is the join between the bindings in the dispatchers and the points on
-// disk.
-type GateMap struct {
+// gateMap is the join between native registered-check bindings and points.
+type gateMap struct {
 	// Points maps every point id on disk to its kind.
 	Points   map[string]string
 	Bindings []Binding
@@ -123,7 +120,7 @@ type GateMap struct {
 
 // candidates answers the ungated denominator: every point that is not
 // structural.
-func (g GateMap) candidates() []string {
+func (g gateMap) candidates() []string {
 	var out []string
 	for ref, kind := range g.Points {
 		if !slices.Contains(structuralKinds[:], kind) {
@@ -135,7 +132,7 @@ func (g GateMap) candidates() []string {
 }
 
 // gatedBindings answers every binding that resolved to a point.
-func (g GateMap) gatedBindings() []Binding {
+func (g gateMap) gatedBindings() []Binding {
 	var out []Binding
 	for _, ref := range sortedKeys(g.Gated) {
 		out = append(out, g.Gated[ref]...)
@@ -143,58 +140,151 @@ func (g GateMap) gatedBindings() []Binding {
 	return out
 }
 
-// parseBindings answers every binding comment in one dispatcher, attributed to
-// the check below it.
-//
-// A binding binds only the NEXT top-level `def`. Only blank lines and comments
-// can occur between them. Other content breaks the binding, so the report
-// attributes it to noCheck instead of dropping it.
-//
-// A payload must contain a point id or `none -- <why>`. The report keeps an
-// invalid payload as its spelled ref. No point matches it, so it fails as
-// dangling. Dropping it would let a typo remove a check without a failure.
-func parseBindings(text, path string) []Binding {
-	type pending struct {
-		line   int
-		ref    string
-		reason string
-	}
-	var waiting []pending
-	var out []Binding
+type hookFile struct {
+	bindings  []Binding
+	functions map[string]int
+	registry  map[string][]string
+}
 
-	flush := func(check string) {
-		for _, p := range waiting {
-			out = append(out, Binding{File: path, Line: p.line, Check: check, Ref: p.ref, Reason: p.reason})
+// parseHookFile reads Go syntax, top-level functions, binding comments, and the
+// native action registry when this is the file that declares it.
+func parseHookFile(text, path string) (hookFile, error) {
+	files := token.NewFileSet()
+	tree, err := parser.ParseFile(files, path, text, parser.ParseComments)
+	if err != nil {
+		return hookFile{}, err
+	}
+	out := hookFile{functions: map[string]int{}}
+	attached := map[*ast.CommentGroup]bool{}
+	for _, declaration := range tree.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok || function.Recv != nil {
+			continue
 		}
-		waiting = nil
+		out.functions[function.Name.Name] = files.Position(function.Pos()).Line
+		if function.Doc == nil {
+			continue
+		}
+		attached[function.Doc] = true
+		for _, comment := range function.Doc.List {
+			if binding, ok := bindingComment(comment.Text, path,
+				files.Position(comment.Slash).Line, function.Name.Name); ok {
+				out.bindings = append(out.bindings, binding)
+			}
+		}
 	}
+	for _, group := range tree.Comments {
+		if attached[group] {
+			continue
+		}
+		for _, comment := range group.List {
+			if binding, ok := bindingComment(comment.Text, path,
+				files.Position(comment.Slash).Line, noCheck); ok {
+				out.bindings = append(out.bindings, binding)
+			}
+		}
+	}
+	out.registry, err = parseHookRegistry(tree)
+	return out, err
+}
 
-	for i, line := range strings.Split(text, "\n") {
-		if found := bindingLine.FindStringSubmatch(line); found != nil {
-			payload := strings.TrimSpace(found[1])
-			if declared := noPointLine.FindStringSubmatch(payload); declared != nil {
-				waiting = append(waiting, pending{line: i + 1, reason: declared[1]})
+func bindingComment(text, path string, line int, check string) (Binding, bool) {
+	found := bindingLine.FindStringSubmatch(text)
+	if found == nil {
+		return Binding{}, false
+	}
+	payload := strings.TrimSpace(found[1])
+	if declared := noPointLine.FindStringSubmatch(payload); declared != nil {
+		return Binding{File: path, Line: line, Check: check, Reason: declared[1]}, true
+	}
+	if payload == "" {
+		payload = emptyRef
+	}
+	return Binding{File: path, Line: line, Check: check, Ref: payload}, true
+}
+
+// parseHookRegistry answers the action-to-check function names from the
+// composite literal used by hookruntime.Run. A malformed registry is an error,
+// never a shortened roster.
+func parseHookRegistry(tree *ast.File) (map[string][]string, error) {
+	var literal *ast.CompositeLit
+	for _, declaration := range tree.Decls {
+		generic, ok := declaration.(*ast.GenDecl)
+		if !ok || generic.Tok != token.VAR {
+			continue
+		}
+		for _, raw := range generic.Specs {
+			spec, ok := raw.(*ast.ValueSpec)
+			if !ok {
 				continue
 			}
-			if payload == "" {
-				payload = emptyRef
+			for index, name := range spec.Names {
+				if name.Name != hookRegistry {
+					continue
+				}
+				if literal != nil || index >= len(spec.Values) {
+					return nil, fmt.Errorf("%s must be declared exactly once", hookRegistry)
+				}
+				literal, ok = spec.Values[index].(*ast.CompositeLit)
+				if !ok {
+					return nil, fmt.Errorf("%s must be a composite literal", hookRegistry)
+				}
 			}
-			waiting = append(waiting, pending{line: i + 1, ref: payload})
-			continue
-		}
-		if len(waiting) == 0 {
-			continue
-		}
-		if found := topLevelDef.FindStringSubmatch(line); found != nil {
-			flush(found[1])
-			continue
-		}
-		if strings.TrimSpace(line) != "" && !strings.HasPrefix(strings.TrimLeft(line, " \t"), "#") {
-			flush(noCheck)
 		}
 	}
-	flush(noCheck)
-	return out
+	if literal == nil {
+		return nil, nil
+	}
+
+	actions := map[string][]string{}
+	for _, raw := range literal.Elts {
+		entry, ok := raw.(*ast.KeyValueExpr)
+		if !ok {
+			return nil, fmt.Errorf("%s contains a non-keyed action", hookRegistry)
+		}
+		key, ok := entry.Key.(*ast.BasicLit)
+		if !ok || key.Kind != token.STRING {
+			return nil, fmt.Errorf("%s contains a non-string action name", hookRegistry)
+		}
+		action, err := strconv.Unquote(key.Value)
+		if err != nil || action == "" {
+			return nil, fmt.Errorf("%s contains an invalid action name", hookRegistry)
+		}
+		body, ok := entry.Value.(*ast.CompositeLit)
+		if !ok {
+			return nil, fmt.Errorf("%s action %q is not a composite literal", hookRegistry, action)
+		}
+		if _, duplicate := actions[action]; duplicate {
+			return nil, fmt.Errorf("%s declares action %q twice", hookRegistry, action)
+		}
+		var checks []string
+		for _, rawField := range body.Elts {
+			field, ok := rawField.(*ast.KeyValueExpr)
+			name, named := field.Key.(*ast.Ident)
+			if !ok || !named || name.Name != "checks" {
+				continue
+			}
+			list, ok := field.Value.(*ast.CompositeLit)
+			if !ok {
+				return nil, fmt.Errorf("%s action %q has a non-literal checks field", hookRegistry, action)
+			}
+			for _, rawCheck := range list.Elts {
+				check, ok := rawCheck.(*ast.Ident)
+				if !ok {
+					return nil, fmt.Errorf("%s action %q contains a non-function check", hookRegistry, action)
+				}
+				checks = append(checks, check.Name)
+			}
+		}
+		if len(checks) == 0 {
+			return nil, fmt.Errorf("%s action %q runs no checks", hookRegistry, action)
+		}
+		actions[action] = checks
+	}
+	if len(actions) == 0 {
+		return nil, fmt.Errorf("%s runs no actions", hookRegistry)
+	}
+	return actions, nil
 }
 
 // pointsOnDisk answers every point's `<rule>/<section>/<slug>` id mapped to the
@@ -229,7 +319,7 @@ func pointsOnDisk(pointsDir string) (map[string]Point, error) {
 					return nil, err
 				}
 				slug := strings.TrimSuffix(file.Name(), ".md")
-				point, err := ParsePoint(string(raw), slug)
+				point, err := parsePoint(string(raw), slug)
 				if err != nil {
 					return nil, err
 				}
@@ -242,92 +332,103 @@ func pointsOnDisk(pointsDir string) (map[string]Point, error) {
 	return out, nil
 }
 
-// dispatchers answers every PreToolUse Python dispatcher, and the problems
-// found deriving them.
-//
-// It fails closed in both directions. Each problem removes a check from the
-// join while the report still says "no dangling bindings". A settings.json
-// command without a file removes all bindings in that file. An unregistered
-// `pretool-*.py` file contains checks that never run.
-//
-// An unreadable settings.json is a failure, not an empty roster. An empty roster
-// incorrectly claims that no dispatchers exist.
-func dispatchers(root string) ([]string, []string) {
-	var tb textbuf.Buffer
-	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(settingsRel))) // #nosec G304 -- a path derived from the checkout
+// nativeHookSources answers the Go files in hookruntime and refuses any
+// disagreement between their top-level functions, binding comments, and the
+// registry that hookruntime.Run executes.
+func nativeHookSources(root string) (map[string]string, []string) {
+	directory := filepath.Join(root, filepath.FromSlash(hookRuntimeRel))
+	entries, err := os.ReadDir(directory)
 	if err != nil {
-		return nil, []string{tb.Str(settingsRel).Str(": cannot be read (").Err(err).
-			Str("); the dispatcher roster is unknown").String()}
-	}
-	// These fields need no JSON tags. Their names match Claude Code keys
-	// case-insensitively. A tag would use Ze's kebab-case convention and stop
-	// matching the external schema.
-	var settings struct {
-		Hooks struct {
-			PreToolUse []struct {
-				Hooks []struct{ Command string }
-			}
-		}
-	}
-	if err := json.Unmarshal(raw, &settings); err != nil {
-		return nil, []string{tb.Str(settingsRel).Str(": cannot be read (").Err(err).
-			Str("); the dispatcher roster is unknown").String()}
+		return nil, []string{fmt.Sprintf("%s: cannot be read (%v); the native hook roster is unknown",
+			hookRuntimeRel, err)}
 	}
 
-	var problems, registered []string
-	for _, entry := range settings.Hooks.PreToolUse {
-		for _, hook := range entry.Hooks {
-			name := hook.Command
-			if at := strings.LastIndex(name, "/"); at >= 0 {
-				name = name[at+1:]
-			}
-			tb.Reset()
-			if !strings.HasSuffix(name, ".py") ||
-				!strings.Contains(hook.Command, tb.Str(hookDir).Byte('/').Str(name).String()) {
-				continue
-			}
-			if !slices.Contains(registered, name) {
-				registered = append(registered, name)
-			}
-		}
-	}
-	if len(registered) == 0 {
-		tb.Reset()
-		problems = append(problems, tb.Str(settingsRel).Str(": no PreToolUse entry runs a ").
-			Str(hookDir).Str("/*.py dispatcher; the gate map would read nothing and must not report success").String())
-	}
-
-	sorted := slices.Sorted(slices.Values(registered))
-	var paths []string
-	for _, name := range sorted {
-		path := filepath.Join(root, filepath.FromSlash(hookDir), name)
-		if info, err := os.Stat(path); err != nil || info.IsDir() {
-			tb.Reset()
-			problems = append(problems, tb.Str(settingsRel).Str(": PreToolUse runs ").
-				Str(hookDir).Byte('/').Str(name).
-				Str(", which does not exist; every binding in it is out of the join").String())
+	sources := map[string]string{}
+	parsed := map[string]hookFile{}
+	var problems []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		paths = append(paths, path)
+		body, err := os.ReadFile(filepath.Join(directory, name)) // #nosec G304 -- entry came from the fixed hookruntime directory
+		if err != nil {
+			problems = append(problems, fmt.Sprintf("%s/%s: cannot be read: %v", hookRuntimeRel, name, err))
+			continue
+		}
+		sources[name] = string(body)
+		file, err := parseHookFile(string(body), name)
+		if err != nil {
+			problems = append(problems, fmt.Sprintf("%s/%s: cannot be parsed: %v", hookRuntimeRel, name, err))
+			continue
+		}
+		parsed[name] = file
+	}
+	if len(sources) == 0 {
+		problems = append(problems, hookRuntimeRel+": no Go sources; the gate map would read nothing")
+		return sources, problems
 	}
 
-	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(hookDir)))
-	if err == nil {
-		for _, entry := range entries {
-			name := entry.Name()
-			if entry.IsDir() || !strings.HasPrefix(name, dispatcherGlob) || !strings.HasSuffix(name, ".py") {
+	functions := map[string]string{}
+	var registry map[string][]string
+	for _, name := range sortedKeys(parsed) {
+		file := parsed[name]
+		for function := range file.functions {
+			if previous := functions[function]; previous != "" {
+				problems = append(problems, fmt.Sprintf("%s: top-level function %s is also declared in %s",
+					name, function, previous))
 				continue
 			}
-			if slices.Contains(registered, name) {
+			functions[function] = name
+		}
+		if file.registry == nil {
+			continue
+		}
+		if registry != nil {
+			problems = append(problems, hookRegistry+" is declared in more than one Go file")
+			continue
+		}
+		registry = file.registry
+	}
+	if registry == nil {
+		problems = append(problems, hookRegistry+": native hook action registry is missing")
+		return sources, problems
+	}
+
+	registered := map[string]string{}
+	for _, action := range sortedKeys(registry) {
+		for _, check := range registry[action] {
+			if previous := registered[check]; previous != "" {
+				problems = append(problems, fmt.Sprintf("%s: check %s is also wired to %s", action, check, previous))
 				continue
 			}
-			tb.Reset()
-			problems = append(problems, tb.Str(hookDir).Byte('/').Str(name).
-				Str(": no PreToolUse entry in ").Str(settingsRel).
-				Str(" runs it, so its checks never fire; wire it up or delete it").String())
+			registered[check] = action
+			if functions[check] == "" {
+				problems = append(problems, fmt.Sprintf("%s: check %s names no top-level hookruntime function", action, check))
+			}
 		}
 	}
-	return paths, problems
+
+	bound := map[string]bool{}
+	for _, name := range sortedKeys(parsed) {
+		for _, binding := range parsed[name].bindings {
+			if binding.Check == noCheck {
+				continue
+			}
+			bound[binding.Check] = true
+			if registered[binding.Check] == "" {
+				problems = append(problems, fmt.Sprintf("%s:%d: binding on unwired check %s",
+					name, binding.Line, binding.Check))
+			}
+		}
+	}
+	for _, check := range sortedKeys(registered) {
+		if !bound[check] {
+			problems = append(problems, fmt.Sprintf("%s: registered check %s has no `// ze point:` binding",
+				registered[check], check))
+		}
+	}
+	return sources, problems
 }
 
 // gitOutput runs one git command in root and answers its stdout and whether it
@@ -342,17 +443,11 @@ func gitOutput(root string, args ...string) (string, bool) {
 	return string(out), err == nil
 }
 
-// headSources answers each dispatcher's text at git HEAD, and the ones HEAD
-// does not carry.
+// headSources answers each current hookruntime Go source at git HEAD, and the
+// source names HEAD does not carry.
 //
-// ok=false means that git cannot answer. It differs from an empty mapping. The
-// function probes HEAD once to preserve this distinction. Otherwise, a missing
-// commit, an unreadable checkout, and a renamed dispatcher all produce an empty
-// map. The caller would then infer a baseline that contains nothing. A disabled
-// ratchet prints the same zero as an active ratchet.
-//
-// The report names a file that is absent at HEAD. The change either adds a
-// dispatcher with no baseline or renames one and removes its baseline bindings.
+// ok=false means git could not answer at all. Missing individual files stay
+// visible in absent rather than silently shortening the baseline.
 func headSources(root string, names []string) (map[string]string, []string, bool) {
 	if _, ok := gitOutput(root, "rev-parse", "--verify", "HEAD"); !ok {
 		return nil, nil, false
@@ -362,7 +457,7 @@ func headSources(root string, names []string) (map[string]string, []string, bool
 	var tb textbuf.Buffer
 	for _, name := range names {
 		tb.Reset()
-		text, ok := gitOutput(root, "show", tb.Str("HEAD:").Str(hookDir).Byte('/').Str(name).String())
+		text, ok := gitOutput(root, "show", tb.Str("HEAD:").Str(hookRuntimeRel).Byte('/').Str(name).String())
 		if ok {
 			out[name] = text
 			continue
@@ -372,16 +467,15 @@ func headSources(root string, names []string) (map[string]string, []string, bool
 	return out, absent, true
 }
 
-// bindingsAtHead answers each check's point ids at HEAD, for the checks that
-// named one.
-//
-// It is keyed by CHECK rather than flattened to a ref set, because a rename
-// moves a ref and leaves the check where it was. The ref set alone cannot tell
-// a renamed point from a deleted one, and unboundRegressions needs to.
-func bindingsAtHead(sources map[string]string) map[string]map[string]bool {
+// bindingsAtHead answers each Go check's point ids at HEAD.
+func bindingsAtHead(sources map[string]string) (map[string]map[string]bool, error) {
 	out := map[string]map[string]bool{}
 	for _, name := range sortedKeys(sources) {
-		for _, binding := range parseBindings(sources[name], name) {
+		file, err := parseHookFile(sources[name], name)
+		if err != nil {
+			return nil, err
+		}
+		for _, binding := range file.bindings {
 			if binding.Ref == "" || binding.Ref == emptyRef || binding.Check == noCheck {
 				continue
 			}
@@ -391,18 +485,18 @@ func bindingsAtHead(sources map[string]string) map[string]map[string]bool {
 			out[binding.Check][binding.Ref] = true
 		}
 	}
-	return out
+	return out, nil
 }
 
 // gatedRegressions answers the points that were gated at HEAD and that no
 // binding names now.
 //
 // The gated set is MONOTONIC. The published-table check catches deletion of a
-// `# ze point:` comment. But deletion of both the comment and its backticked
+// `// ze point:` comment. But deletion of both the comment and its backticked
 // table stem leaves both sources empty. The point becomes ungated while every
 // gate exits 0. This is the shortest route from red to green, and path ids exist
 // to prevent it.
-func gatedRegressions(gm GateMap, baseline map[string]map[string]bool) []string {
+func gatedRegressions(gm gateMap, baseline map[string]map[string]bool) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, refs := range baseline {
@@ -428,12 +522,12 @@ func gatedRegressions(gm GateMap, baseline map[string]map[string]bool) []string 
 //
 // This is the laundering route that gatedRegressions cannot see. A renamed point
 // makes its binding dangle and fail. Replacing that binding with
-// `# ze point: none -- <why>` puts it in UNBOUND, which does not fail.
+// `// ze point: none -- <why>` puts it in UNBOUND, which does not fail.
 //
 // retired contains ids that retiredRowsSince VALIDATED as declared since HEAD.
 // Such a ref is not a regression. Retirement, declaration, and check relabeling
 // are the normal route out of the corpus. A PARTIAL declaration fails closed.
-func unboundRegressions(gm GateMap, baseline map[string]map[string]bool, retired map[string]bool) []string {
+func unboundRegressions(gm gateMap, baseline map[string]map[string]bool, retired map[string]bool) []string {
 	now := map[string]bool{}
 	for _, binding := range gm.gatedBindings() {
 		now[binding.Check] = true
@@ -700,7 +794,7 @@ func exceptionProblems(points map[string]Point) (map[string][]string, [][2]strin
 		if point.ExceptedBy == "" {
 			continue
 		}
-		named := ExceptionRefs(point.ExceptedBy)
+		named := exceptionRefs(point.ExceptedBy)
 		if len(named) == 0 {
 			missing = append(missing, [2]string{ref, point.ExceptedBy})
 			continue
@@ -715,12 +809,12 @@ func exceptionProblems(points map[string]Point) (map[string][]string, [][2]strin
 	return declared, missing
 }
 
-// buildGateMap joins the dispatchers' binding comments against the points on
-// disk. root is where a point's `rationale:` path is resolved from.
-func buildGateMap(gateFiles []string, pointsDir, root string) (GateMap, error) {
+// buildGateMap joins native Go binding comments against the points on disk.
+// root is where a point's `rationale:` path is resolved from.
+func buildGateMap(sources map[string]string, pointsDir, root string) (gateMap, error) {
 	onDisk, err := pointsOnDisk(pointsDir)
 	if err != nil {
-		return GateMap{}, err
+		return gateMap{}, err
 	}
 	rationales, missingRationale := rationaleProblems(onDisk, root)
 	excepted, missingException := exceptionProblems(onDisk)
@@ -731,12 +825,12 @@ func buildGateMap(gateFiles []string, pointsDir, root string) (GateMap, error) {
 	}
 
 	var bindings []Binding
-	for _, path := range gateFiles {
-		raw, err := os.ReadFile(path) // #nosec G304 -- a dispatcher path settings.json named
+	for _, name := range sortedKeys(sources) {
+		file, err := parseHookFile(sources[name], name)
 		if err != nil {
-			return GateMap{}, err
+			return gateMap{}, err
 		}
-		bindings = append(bindings, parseBindings(string(raw), filepath.Base(path))...)
+		bindings = append(bindings, file.bindings...)
 	}
 
 	gated := map[string][]Binding{}
@@ -765,7 +859,7 @@ func buildGateMap(gateFiles []string, pointsDir, root string) (GateMap, error) {
 	}
 	sort.Strings(ungated)
 
-	return GateMap{
+	return gateMap{
 		Points: points, Bindings: bindings, Gated: gated, Ungated: ungated,
 		Dangling: dangling, Unbound: unbound,
 		Rationales: rationales, MissingRationale: missingRationale,

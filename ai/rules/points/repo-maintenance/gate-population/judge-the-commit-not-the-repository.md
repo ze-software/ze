@@ -30,7 +30,7 @@ foreign hunk, deleting an owner-approved row, or waiting.
 
 **The same defect wears a second face: a gate that infers INTENT from a
 by-product instead of reading the act.** `spec_audit_problems`
-(`scripts/dev/commit_helper.py`) asks whether a journal row names the claimed
+(`internal/le/commit`) asks whether a journal row names the claimed
 spec, and treats that as the spec's closure. A row naming a spec is mandated for
 every defect an agent finds, and an agent finds most of them inside its own
 spec, so the ordinary mid-spec commit is read as a closure and refused for

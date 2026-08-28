@@ -5,7 +5,7 @@
 # come up, cmd=stop terminates it mid-test, and a foreground step then observes
 # that the process is gone. The observation is deterministic because the runner
 # reaps the killed process before the next step runs (AC-1): by the time
-# assert-gone.sh runs, kill -0 on the holder's PID must already fail.
+# the compiled assertion runs, probing the holder's PID must already fail.
 #
 # If the stop primitive regressed to a no-op, holder would still be alive at
 # seq=4, kill -0 would succeed, and the test would FAIL -- so this proves the
@@ -15,43 +15,17 @@ option=timeout:value=20s
 
 # A named background process: record its PID, then block forever (no busy work,
 # no sleep) by exec'ing tail so the PID the runner tracks stays stable.
-tmpfs=holder.sh:terminator=EOF_HOLDER
-#!/bin/sh
-echo $$ > holder.pid
-exec tail -f /dev/null
-EOF_HOLDER
 
 # Barrier: block until the holder has published its PID, so the stop step below
 # always has a live, tracked process to terminate. Spin-wait (no time.sleep) with
 # a large safety bound that fails loudly rather than hanging if the pid never lands.
-tmpfs=wait-start.sh:terminator=EOF_WAIT
-#!/bin/sh
-i=0
-until [ -f holder.pid ]; do
-	i=$((i + 1))
-	if [ "$i" -gt 2000000 ]; then
-		echo "holder.pid never appeared" >&2
-		exit 1
-	fi
-done
-EOF_WAIT
 
 # Assertion: after cmd=stop reaped the holder, its PID must be gone. kill -0
 # succeeding here means the stop primitive failed to terminate the process.
-tmpfs=assert-gone.sh:terminator=EOF_ASSERT
-#!/bin/sh
-set -u
-pid=$(cat holder.pid)
-if kill -0 "$pid" 2>/dev/null; then
-	echo "holder-still-alive pid=$pid" >&2
-	exit 1
-fi
-echo "holder-stopped"
-EOF_ASSERT
 
-cmd=background:seq=1:exec=sh holder.sh:name=holder
-cmd=foreground:seq=2:exec=sh wait-start.sh
+cmd=background:seq=1:exec=ze-test fixture runner/stop-background-holder:name=holder
+cmd=foreground:seq=2:exec=ze-test fixture runner/stop-background-wait
 cmd=stop:seq=3:name=holder:signal=kill
-cmd=foreground:seq=4:exec=sh assert-gone.sh
+cmd=foreground:seq=4:exec=ze-test fixture runner/stop-background-assert
 expect=exit:code=0
 expect=stdout:contains=holder-stopped

@@ -34,7 +34,7 @@ values, or the gate that reads it fails and names the file, the field, and the
 value it could not parse. The failure is the point: an unparseable record must
 never be silently sorted into a bucket.
 
-**Scope.** Every gate under `scripts/dev/` that reads a status, state,
+**Scope.** Every gate under `internal/le/` that reads a status, state,
 disposition, severity, verdict, or polarity from a Markdown table or a
 frontmatter key. The audit is mechanical: find the comparisons against literal
 vocabulary words, and check what the surrounding branch does with a value that

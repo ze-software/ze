@@ -55,11 +55,11 @@ belong in separate future fix work approved after the audit finding is filed.
   -> Decision: audit by user-visible entry point and component boundary, not by package alone
   -> Constraint: engine, BGP, plugin server, config provider, and plugins must stay independently wired through registered boundaries
 - [ ] `docs/functional-tests.md` - functional release-gate coverage and non-gated suites
-  -> Decision: coverage audit must separate `ze-precommit-verify` evidence from heavy/manual release evidence
-  -> Constraint: static, traffic, VPP, L2TP wire, chaos web, interop, QEMU, perf, deployment, and live checks are not all covered by default `ze-precommit-verify`
+  -> Decision: coverage audit must separate `./le verify current mode full` evidence from heavy/manual release evidence
+  -> Constraint: static, traffic, VPP, L2TP wire, chaos web, interop, QEMU, perf, deployment, and live checks are not all covered by default `./le verify current mode full`
 - [ ] `docs/architecture/testing/interop.md` - Docker interop with FRR, BIRD, GoBGP, ExaBGP wire compatibility
   -> Decision: BGP protocol findings require external-peer evidence when wire-visible
-  -> Constraint: interop tests are separate from `ze-precommit-verify` because they require Docker
+  -> Constraint: interop tests are separate from `./le verify current mode full` because they require Docker
 - [ ] `docs/architecture/config/yang-config-design.md` - config pipeline and YANG shape
   -> Decision: config audit must trace file -> tree -> resolved config -> runtime application
   -> Constraint: config validation must reject unsupported or lossy behavior rather than approximating silently
@@ -94,7 +94,7 @@ belong in separate future fix work approved after the audit finding is filed.
 **Key insights:**
 - Ze has enough release surface that an informal code review will miss entire classes of bugs.
 - The audit must be feature-surface driven: CLI, config, web, API, BGP wire, plugins, Linux system paths, docs, and operations.
-- Existing `ze-precommit-verify` is necessary but not sufficient for release evidence.
+- Existing `./le verify current mode full` is necessary but not sufficient for release evidence.
 - The review must produce actionable findings with reproduction and missing-test evidence.
 - Each finding should document the regression test or evidence expected from the future fix.
 
@@ -113,7 +113,7 @@ belong in separate future fix work approved after the audit finding is filed.
 - [ ] `plan/spec-rbac-audit.md` - RBAC and audit hardening already planned separately
 
 **Behavior to preserve:**
-- `make ze-precommit-verify` remains the fast pre-commit gate.
+- `./le verify current mode full` remains the fast pre-commit gate.
 - Existing unit, functional, ExaBGP, interop, QEMU, deployment, chaos, fuzz, and perf targets remain independently runnable.
 - Ze's registration pattern remains the discovery mechanism for components, plugins, commands, schemas, capabilities, and web/API surfaces.
 - Child audits do not rewrite architecture while reviewing it. They file findings with evidence and leave implementation decisions to focused fix specs.
@@ -158,8 +158,8 @@ belong in separate future fix work approved after the audit finding is filed.
 
 - `plan/spec-release-evidence-gate.md` supplies the heavyweight evidence target once implemented.
 - `plan/spec-rbac-audit.md` owns known RBAC/audit hardening work.
-- `make ze-precommit-verify` remains the default proof for ordinary code changes.
-- `make ze-interop-test`, `make ze-functional-exabgp-test`, `make ze-qemu-integration-test`, `make ze-chaos-test`, `make ze-fuzz-test`, and deployment/perf targets supply release evidence by risk area.
+- `./le verify current mode full` remains the default proof for ordinary code changes.
+- `./le integration interop`, `./le functional exabgp-test`, `./le qemu run command "./le qemu all-tests"`, `./le test-chaos unit`, `./le fuzz run`, and deployment/perf targets supply release evidence by risk area.
 
 ### Architectural Verification
 
@@ -220,7 +220,7 @@ Every finding must use this schema. A finding without reproduction or missing-te
 
 | Blocker | Why It Blocks Release | Evidence To Request From Future Fix |
 |---------|-----------------------|-------------------------------------|
-| `make ze-precommit-verify` fails | Baseline gate is broken | Passing `make ze-precommit-verify` output |
+| `./le verify current mode full` fails | Baseline gate is broken | Passing `./le verify current mode full` output |
 | User-facing behavior lacks functional coverage | Cannot prove end-to-end behavior | `.ci` or `.et` test through the user entry point |
 | Protocol behavior lacks interop evidence | Wire correctness needs external validation | Passing FRR/BIRD/GoBGP/ExaBGP/peer scenario |
 | Reachable TODO, FIXME, stub, or not-implemented path | Users may hit unfinished behavior | Future fix removes or implements the path and provides regression evidence |
@@ -285,7 +285,7 @@ No production code is implemented by this umbrella. This section documents evide
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | Child audit dependent | `test/interop/scenarios/` | FRR, BIRD, GoBGP | BGP protocol correctness evidence requested from future fix work | Planned per protocol finding |
-| ExaBGP compatibility | `test/exabgp-compat/encoding/` | ExaBGP | Wire encoding compatibility | Existing gate via `make ze-precommit-verify` |
+| ExaBGP compatibility | `test/exabgp-compat/encoding/` | ExaBGP | Wire encoding compatibility | Existing gate via `./le verify current mode full` |
 
 ### Future
 
@@ -349,7 +349,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 | 3. Wiring phase | Wiring Test table maps surfaces to child audits |
 | 4. Document findings | Create child audit specs and run review passes, not production code in this umbrella |
 | 5. Review gate | Child specs perform adversarial review and document confirmed blockers |
-| 6. Full verification | `make ze-precommit-verify` plus release evidence from `spec-release-evidence-gate.md` |
+| 6. Full verification | `./le verify current mode full` plus release evidence from `spec-release-evidence-gate.md` |
 | 7. Critical review | Release Blocker Policy and child findings |
 | 8. Route issues | Record owner, suggested fix direction, and requested verification |
 | 9. Re-verify audit evidence | Re-check source references, reproductions, and status output |
@@ -560,14 +560,14 @@ For this audit spec, "implementation" means audit documentation only. It does no
 ## Checklist
 
 <!-- Added 2026-07-10: this audit spec predates the validator's required-section list
-     (.claude/hooks/validate-spec.sh). Audit umbrellas produce documentation, not code;
+     (`internal/le/hookruntime/lifecycle.go`). Audit umbrellas produce documentation, not code;
      the TDD items bind the future fix work routed from findings, not this spec. -->
 
 ### Goal Gates (MUST pass)
 
 - [ ] Every release surface has an owner child audit (AC-2)
 - [ ] Findings use the Finding Schema with evidence (AC-4)
-- [ ] `make ze-standard-test` evidence requested from future fix work per the Release Blocker Policy
+- [ ] `./le verify current mode full` evidence requested from future fix work per the Release Blocker Policy
 
 ### TDD (applies to future fix specs routed from findings)
 

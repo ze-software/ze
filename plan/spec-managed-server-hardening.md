@@ -182,4 +182,4 @@ an indefinite block.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes

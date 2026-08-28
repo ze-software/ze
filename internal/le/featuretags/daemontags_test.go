@@ -59,7 +59,7 @@ func TestDaemonBuildTagsTakesTheBaseFromItsCaller(t *testing.T) {
 // PREVENTS: the fail-open the Python module has -- an empty list builds a daemon
 // with every feature compiled out, and the caller then reads "unknown top-level
 // keyword: l2tp" as a protocol defect rather than as a build that carried no
-// L2TP. Measured 2026-08-26: scripts/evidence/feature_tags.py answers
+// L2TP. Measured 2026-08-26: internal/le/featuretags/actions.go answers
 // "ze_core ze_distro" for a manifest of comments, with no error at all.
 func TestAManifestWithNoGateIsAnError(t *testing.T) {
 	cases := []struct {

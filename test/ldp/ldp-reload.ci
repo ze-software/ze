@@ -21,61 +21,11 @@
 # functional test covers the boot half of that path: a single-interface config
 # reaches the engine and produces the expected discovery + binding state.
 
-tmpfs=ldp-reload.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert the booted LDP engine answers `show ldp binding` as a JSON array."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = dispatch(api, 'show ldp binding')
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"show ldp binding: expected done, got status={r.get('status')} "
-            f"data={result_text_data(r)[:200]}")
-    bindings = result_json_data(r, None)
-    if not isinstance(bindings, list):
-        runtime_fail(f"show ldp binding: expected list, got {bindings!r}")
-    for b in bindings:
-        if b.get('direction') not in ('local', 'remote'):
-            runtime_fail(f"show ldp binding: bad direction in {b!r}")
-        if 'fec' not in b or 'label' not in b:
-            runtime_fail(f"show ldp binding: missing fec/label in {b!r}")
-
-    print('OK: LDP booted on the configured interface and answered show ldp binding',
-          file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ldp-reload {
-		run ./ldp-reload.run
+		run "ze-test fixture ldp/ldp-reload"
 		encoder json
 	}
 }

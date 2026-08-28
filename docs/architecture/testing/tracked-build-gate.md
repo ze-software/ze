@@ -1,21 +1,21 @@
 # The Tracked-Build Gate
 
-`make ze-repository-tracked-build-check` compiles what git holds. Every other build and
+`./le repository-tracked-build check` compiles what git holds. Every other build and
 test target in this repository compiles the WORKING TREE, so a commit that
 lands a consumer while its producer stays uncommitted passes every gate and
 breaks HEAD for everyone else.
 
-<!-- source: scripts/checks/tracked_build.go -- extraction, flavors, anchors, package floor -->
+<!-- source: internal/le/trackedbuild/actions.go -- Answer -->
 
-On 2026-08-04 four commits broke `make ze-build` in one day with that same defect.
-Every gate was green at each commit. Nothing in the pipeline compiled the
-committed population, so nothing could see the class at all.
+On 2026-08-04 four commits broke the retired tracked-build path in one day.
+The current replacement, `./le repository-tracked-build check`, compiles the
+committed population and catches that class.
 
 ## Structural type checking and final linking
 
-<!-- source: scripts/checks/staticcheck_feature_matrix.go -- buildFeatureMatrix, runStaticcheckFeatureMatrix -->
+<!-- source: internal/le/staticcheckmatrix/actions.go -- Answer -->
 
-`make ze-staticcheck-feature-matrix-check` type-checks working-tree production
+`./le staticcheck-feature-matrix check` type-checks working-tree production
 and `_test.go` sources. It derives N+2 rows from the N unique manifest features:
 distro all-on, bare core, and one row for each omitted feature.
 The matrix covers those direct omissions. It makes no guarantee for arbitrary
@@ -26,7 +26,7 @@ verify run it judges only the rows the change set can move, keeping the distro
 all-on and bare-core rows always: `docs/architecture/testing/verify-freshness-scope.md`.
 
 Staticcheck stops after package and test-variant type checking.
-`ze-repository-tracked-build-check` supplies committed-tree final-link proof for
+`./le repository-tracked-build check` supplies committed-tree final-link proof for
 its six tracked configurations, not for every shipped build flavor. Keep both
 stages live because they judge different populations and compiler boundaries.
 
@@ -41,9 +41,9 @@ carries the absolute source directory, so every fresh scratch path is a full
 rebuild (measured 36s, then 36s again). With it the shared build cache is
 reused across scratch paths: 36s once, then 5.7s.
 
-`vendor/` must be included. `commit_helper.py`'s existing `extract_head_into`
-excludes it on purpose for the index generators, so it cannot be reused here: a
-tree with no `vendor/` does not build at all.
+`vendor/` must be included. The commit package's index extraction intentionally
+omits it, so that helper cannot serve this gate: a tree without `vendor/` does
+not build.
 
 The parent must drain `git archive`'s stdout pipe. If `tar` dies early, the
 still-open read end gives the writer no EPIPE and `git archive` blocks forever
@@ -52,7 +52,7 @@ on a full pipe.
 ## Flavors and why each names a file
 
 Six build-tag flavors are compiled, at about 45s warm against a 25-minute
-`ze-precommit-verify`. `ze_chaos`, `ze_perf`, `ze_analyze` and `ze_core ze_ssh` are
+`./le verify current mode full`. `ze_chaos`, `ze_perf`, `ze_analyze` and `ze_core ze_ssh` are
 dropped as developer tools or near-duplicates. Each flavor builds `./...`
 rather than its own main package: it costs 1.8s more and type-checks every
 package the tag set selects, not only the ones a binary imports.
@@ -82,11 +82,10 @@ caught by the next run, not by itself. Two things make that bite:
 carried Go, and the gate is in `STRUCTURAL_GATES`, so the next commit is
 refused while HEAD is red.
 
-Running it inside `commit_helper.py create` against the prospective tree was
-rejected. `create` is called once per commit BLOCK and `--append` builds several
-blocks into one script, so an overlay of block 2's paths onto HEAD omits block
-1's producer and reports a false red. A commit gate that cries wolf gets
-bypassed.
+Running it during `./le commit create` against a prospective tree was rejected.
+One generated script can hold several commit blocks, and an overlay of a later
+block's paths onto HEAD omits an earlier block's producer. That produces a false
+red and makes the gate untrustworthy.
 
 ### The deadlock the structural listing created
 
@@ -103,13 +102,11 @@ four earlier rounds did not.
 - `_test.go` files are outside the gate forever, because `go build` never
   compiles them. A test file committed without its fixture producer stays
   invisible here.
-- Adding a binary flavor to the Makefile does not extend the gate.
-  `TestTrackedBuildPrimaryFlavorMatchesMakeZe` pins the daemon flavor against
-  the Makefile `ze` target; the other five are a judged list. Every row is
-  checked for an anchor, and `TestTrackedBuildOSGatedFlavorsPinGOOS` fails a
-  row whose anchor package is Linux-gated while the row pins no `GOOS`.
-- `REV=<commit-ish>` makes any past commit judgeable, so a break found later is
-  bisectable with no hand-rolled extraction.
+- Adding a binary flavor outside `internal/le/trackedbuild/matrix.go` does not
+  extend the gate. `TestEveryFlavorNamesATagGatedAnchorFile` requires each
+  shipped row to name the tag-gated file it exists to compile.
+- `REV=<commit-ish> ./le repository-tracked-build check` judges a past commit,
+  so a break found later remains bisectable.
 
 ## Two shell and tooling traps
 

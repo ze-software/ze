@@ -8,7 +8,7 @@ stage:
    determine.** Deterministic reds, structural gates, anything with a reproduction
    command, and anything host load explains MUST be fixed, never sharded. When the exception
    does apply, you MUST add
-   `plan/known-failures/<make-target>-<test-name>.md` with: failure output, the
+   `plan/known-failures/<native-action>-<test-name>.md` with: failure output, the
    reproduction attempt and its result, evidence gathered, and the next step. You MUST label a
    root cause you have not verified against source a HYPOTHESIS, so the next agent does
    not inherit it as fact.

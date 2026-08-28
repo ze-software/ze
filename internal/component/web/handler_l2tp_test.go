@@ -109,7 +109,7 @@ func TestHandleL2TPList_RendersSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := &l2TPHandlers{Renderer: renderer}
-	req := httptest.NewRequest("GET", "/l2tp?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/l2tp?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.handleL2TPList()(rec, req)
 
@@ -144,7 +144,7 @@ func TestHandleL2TPDetail_RendersTimeline(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := &l2TPHandlers{Renderer: renderer}
-	req := httptest.NewRequest("GET", "/l2tp/42?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/l2tp/42?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.handleL2TPDetail()(rec, req)
 
@@ -171,7 +171,7 @@ func TestHandleL2TPSamplesJSON_ColumnarShape(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest("GET", "/l2tp/testuser/samples", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/l2tp/testuser/samples", http.NoBody)
 	rec := httptest.NewRecorder()
 	handleL2TPSamplesJSON()(rec, req)
 
@@ -205,7 +205,7 @@ func TestHandleL2TPSamplesJSON_FromToFilter(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest("GET", "/l2tp/testuser/samples?from=1000100&to=1000200", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/l2tp/testuser/samples?from=1000100&to=1000200", http.NoBody)
 	rec := httptest.NewRecorder()
 	handleL2TPSamplesJSON()(rec, req)
 
@@ -231,7 +231,7 @@ func TestHandleL2TPSamplesCSV_Format(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest("GET", "/l2tp/testuser/samples.csv", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/l2tp/testuser/samples.csv", http.NoBody)
 	rec := httptest.NewRecorder()
 	handleL2TPSamplesCSV()(rec, req)
 
@@ -263,7 +263,7 @@ func TestHandleL2TPDisconnect_DispatchesCommand(t *testing.T) {
 	}
 
 	form := url.Values{"reason": {"maintenance"}, "cause": {"6"}}
-	req := httptest.NewRequest("POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	h.handleL2TPDisconnect()(rec, req)
@@ -284,7 +284,7 @@ func TestHandleL2TPDisconnect_ReasonRequired(t *testing.T) {
 		},
 	}
 	form := url.Values{"reason": {""}}
-	req := httptest.NewRequest("POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	h.handleL2TPDisconnect()(rec, req)
@@ -301,7 +301,7 @@ func TestHandleL2TPDisconnect_ReasonTooLong(t *testing.T) {
 		},
 	}
 	form := url.Values{"reason": {strings.Repeat("x", 257)}}
-	req := httptest.NewRequest("POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	h.handleL2TPDisconnect()(rec, req)
@@ -321,7 +321,7 @@ func TestHandleL2TPDisconnect_DispatchFailureReturns500JSON(t *testing.T) {
 	}
 
 	form := url.Values{"reason": {"maintenance"}}
-	req := httptest.NewRequest("POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	h.handleL2TPDisconnect()(rec, req)
@@ -349,7 +349,7 @@ func TestExtractLogin_Valid(t *testing.T) {
 		{"/l2tp/user-name/samples", "user-name"},
 	}
 	for _, tt := range tests {
-		req := httptest.NewRequest("GET", tt.path, http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), "GET", tt.path, http.NoBody)
 		got := extractLogin(req)
 		if got != tt.want {
 			t.Errorf("extractLogin(%q)=%q, want %q", tt.path, got, tt.want)
@@ -364,7 +364,7 @@ func TestExtractLogin_Rejects(t *testing.T) {
 		"/l2tp/../samples",
 	}
 	for _, path := range httpRejects {
-		req := httptest.NewRequest("GET", path, http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), "GET", path, http.NoBody)
 		got := extractLogin(req)
 		if got != "" {
 			t.Errorf("extractLogin(%q)=%q, want empty", path, got)
@@ -401,7 +401,7 @@ func TestHandleL2TPDisconnect_ReasonQuoted(t *testing.T) {
 	}
 
 	form := url.Values{"reason": {"maintenance cause 999"}}
-	req := httptest.NewRequest("POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	h.handleL2TPDisconnect()(rec, req)

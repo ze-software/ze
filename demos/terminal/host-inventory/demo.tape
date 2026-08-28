@@ -4,7 +4,7 @@ Source common.tape
 Hide
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh host-inventory intro"
+Type "ze-demo card host-inventory intro"
 Enter
 Show
 Wait+Screen /====/

@@ -5,174 +5,45 @@
 #   AC-2 -- hash-as-token over loopback authenticates (the on-box ze CLI path).
 #   AC-1 -- hash-as-token over a non-loopback peer is REJECTED.
 #   AC-3 -- the real plaintext password authenticates over both transports.
-# PREVENTS: a leaked config backup (which contains the bcrypt hash) being
-#           replayed as an SSH credential from another machine.
-#
-# The daemon binds two SSH listeners: one on 127.0.0.1 and one on a non-loopback
-# address the host owns (scope global). The client connects to each and presents
-# alice's stored hash as the password. The daemon classifies the accepted socket
-# peer: loopback accepts the hash-as-token, non-loopback rejects it. If the
-# runner has no non-loopback address, the non-loopback assertions are skipped
-# (that path is also proven by the unit test
-# TestSSHPasswordCallbackRejectsHashFromRemotePeer) and the loopback assertions
-# still run.
+# PREVENTS: a leaked config backup containing the bcrypt hash being replayed
+#           as an SSH credential from another machine.
 
-tmpfs=test-ssh-remote-hash.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
-
-touch daemon.ready
-
-# bcrypt cost-4 hash of "testpass" -- shared fixture (ssh-user-login-yang.ci).
-PASSHASH='$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO'
-
-# A non-loopback IPv4 the host owns, if any (scope global excludes 127/8).
-NONLOOP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1 || true)
-echo "non-loopback address: ${NONLOOP:-<none>}" >&2
-
-LANBLOCK=""
-if [ -n "$NONLOOP" ]; then
-	LANBLOCK="		server lan {
-			ip $NONLOOP;
-			port 0;
-		}"
-fi
-
-cat > remote-hash.conf << ZECONF
+stdin=ze-conf:terminator=EOF_CONF
 bgp {
 	peer peer1 {
 		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
 		}
-		session {
-			asn {
-				local 65533
-				remote 65533
-			}
-		}
+		session { asn { local 65533; remote 65533; } }
 	}
 }
-
 system {
 	authentication {
 		user alice {
-			password "$PASSHASH"
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
 		}
 	}
 }
-
 environment {
 	ssh {
 		enabled true
-		server loop {
-			ip 127.0.0.1;
-			port 0;
-		}
-$LANBLOCK
+		server loop { ip 127.0.0.1; port $PORT; }
+		# Binding the second listener to all interfaces lets the native fixture
+		# connect through a host-owned non-loopback address when one exists.
+		server lan { ip 0.0.0.0; port $PORT2; }
 	}
 }
-ZECONF
+plugin {
+	external remote-hash-test {
+		run "ze-test fixture plugin/ssh-remote-hash-rejected $PORT $PORT2"
+		encoder json
+	}
+}
+EOF_CONF
 
-export ze_test_bgp_port=$((10000 + ($$ % 50000)))
-
-ze start remote-hash.conf 2>daemon.log &
-DAEMON_PID=$!
-trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
-
-# Wait for the loopback SSH listener.
-LOOP_PORT=""
-for i in $(seq 1 50); do
-	LOOP_PORT=$(grep -oE '127\.0\.0\.1:[0-9]+' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
-	if [ -n "$LOOP_PORT" ]; then
-		break
-	fi
-	sleep 0.2
-done
-if [ -z "$LOOP_PORT" ]; then
-	echo "FAIL: loopback SSH server did not start" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "loopback SSH port: $LOOP_PORT" >&2
-
-EMPTY_DIR=$(mktemp -d)
-trap 'rm -rf "$EMPTY_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
-
-sleep 0.5
-
-# AC-2: hash-as-token over loopback is accepted.
-if ! ZE_CONFIG_DIR="$EMPTY_DIR" ZE_SSH_PASSWORD="$PASSHASH" \
-	ze cli --remote 127.0.0.1:$LOOP_PORT --user alice -c "show bgp peer list" >/dev/null 2>hashloop.log; then
-	echo "FAIL: hash-as-token over loopback must authenticate" >&2
-	cat hashloop.log >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "OK: AC-2 -- hash-as-token accepted over loopback" >&2
-
-# AC-3: plaintext over loopback is accepted.
-if ! ZE_CONFIG_DIR="$EMPTY_DIR" ZE_SSH_PASSWORD="testpass" \
-	ze cli --remote 127.0.0.1:$LOOP_PORT --user alice -c "show bgp peer list" >/dev/null 2>&1; then
-	echo "FAIL: plaintext over loopback must authenticate" >&2
-	exit 1
-fi
-echo "OK: AC-3 -- plaintext accepted over loopback" >&2
-
-if [ -n "$NONLOOP" ]; then
-	ESC=$(echo "$NONLOOP" | sed 's/\./\\./g')
-	LAN_PORT=""
-	for i in $(seq 1 50); do
-		LAN_PORT=$(grep -oE "$ESC:[0-9]+" daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
-		if [ -n "$LAN_PORT" ]; then
-			break
-		fi
-		sleep 0.2
-	done
-	if [ -z "$LAN_PORT" ]; then
-		echo "FAIL: non-loopback SSH server did not start on $NONLOOP" >&2
-		cat daemon.log >&2
-		exit 1
-	fi
-	echo "non-loopback SSH port: $LAN_PORT" >&2
-
-	# AC-1: hash-as-token over a non-loopback peer is REJECTED.
-	DLOG_BEFORE=$(wc -c < daemon.log)
-	if ZE_CONFIG_DIR="$EMPTY_DIR" ZE_SSH_INSECURE="true" ZE_SSH_PASSWORD="$PASSHASH" \
-		ze cli --remote $NONLOOP:$LAN_PORT --user alice -c "show bgp peer list" >/dev/null 2>&1; then
-		echo "FAIL: hash-as-token MUST be rejected over a non-loopback peer" >&2
-		cat daemon.log >&2
-		exit 1
-	fi
-	NEW_LOG=$(tail -c +$((DLOG_BEFORE + 1)) daemon.log)
-	if ! echo "$NEW_LOG" | grep -q 'SSH auth failure.*username=alice'; then
-		echo "FAIL: daemon did not record an auth failure for the rejected hash" >&2
-		echo "NEW LOG: $NEW_LOG" >&2
-		exit 1
-	fi
-	echo "OK: AC-1 -- hash-as-token rejected over non-loopback" >&2
-
-	# AC-3: plaintext over the same non-loopback peer is accepted.
-	if ! ZE_CONFIG_DIR="$EMPTY_DIR" ZE_SSH_INSECURE="true" ZE_SSH_PASSWORD="testpass" \
-		ze cli --remote $NONLOOP:$LAN_PORT --user alice -c "show bgp peer list" >/dev/null 2>&1; then
-		echo "FAIL: plaintext must authenticate over a non-loopback peer" >&2
-		cat daemon.log >&2
-		exit 1
-	fi
-	echo "OK: AC-3 -- plaintext accepted over non-loopback" >&2
-else
-	echo "NOTE: no non-loopback address on this runner; the remote-reject path is" >&2
-	echo "      proven by unit test TestSSHPasswordCallbackRejectsHashFromRemotePeer" >&2
-fi
-
-echo "OK: all ssh-remote-hash tests passed" >&2
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-ssh-remote-hash.sh:timeout=25s
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
 expect=exit:code=0
+expect=stderr:pattern=OK: AC-2 -- hash-as-token accepted over loopback
+expect=stderr:pattern=OK: all ssh-remote-hash tests passed
+reject=stderr:pattern=ZE-OBSERVER-FAIL

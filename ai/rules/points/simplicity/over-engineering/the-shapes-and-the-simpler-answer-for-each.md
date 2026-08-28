@@ -13,4 +13,4 @@ stage:
 | A branch for a state the caller cannot produce | Delete the branch. Where the state is reachable, it is an error path and gets an error (`ai/rules/evidence.md`) |
 | A retry, cache, pool, or worker added with no measured problem | Do the direct thing. Measure, then add the machinery the measurement asks for |
 | A rewrite where a small change restores correctness | Make the small change. A design you believe is wrong is a spec, never an unasked rewrite |
-| Scaffolding for a feature that is planned but not commissioned | Write nothing. `c_yagni` in `.claude/hooks/pretool-writeedit.py` refuses the comment form of this |
+| Scaffolding for a feature that is planned but not commissioned | Write nothing. The commissioned requirement is the only source that can justify the code |

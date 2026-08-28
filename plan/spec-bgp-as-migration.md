@@ -49,7 +49,7 @@ tests in both polarities, and enrol RFC 7705 in `rfc/enrolled.txt`.
 
 **Enrolment is the closing act, and the summary is parked until then.** A summary
 sitting in `rfc/short/` while declaring nine un-enrolled gated MUSTs fails
-`ze-rfc-check`, which runs inside `ze-precommit-verify` and `ze-precommit-verify-changed`, so it would
+`./le rfc check`, which runs inside `./le verify current mode full` and `./le verify current mode changed`, so it would
 red the tree for every session in this checkout for as long as this spec takes.
 Thomas ruled on 2026-07-28 to park it rather than carry that cost, so the summary
 lives at `rfc/pending/rfc7705.md` and the source text stays at
@@ -185,7 +185,7 @@ and writes the enrolment row that admits all nine in the same change.
 | A-3 | Introducing the Bad Peer AS check breaks no existing test or deployment, because a correctly configured peer advertises the AS it is configured with. | The configured `PeerAS` is what every session already assumes when deciding iBGP versus eBGP. | Sessions that work today start failing. That is a real operational risk and the reason the check lands in its own phase with its own `.ci`. | Running the full functional and interop suites after the check lands, before anything else in this spec. | unvalidated |
 | A-4 | A dynamic peer, whose `PeerAS` is 0 until establishment, must be exempt from the new check. | `validateOpenIdentifier` documents exactly this: the comment at `buildDynamicPeerSettings` (`internal/component/bgp/reactor/session_open_validation.go`) records that it sets `PeerAS` to 0 and that `resolveDynamicPeerSettings` fills it only at establishment. | Every dynamic peer is rejected at OPEN, which would be a severe regression. | A dedicated dynamic-peer test asserting the check is skipped when `PeerAS` is 0. | unvalidated |
 | A-5 | `RFC7705-4.2-5`'s fallback can be implemented within the existing connect-retry path without a new FSM state. | The retry already exists as a timer-driven reconnect; the change is which ASN the next OPEN carries. | The SHOULD is deferred with an explicit annotation rather than silently skipped, and that deferral is a compliance decision for Thomas. | A design spike on the connect-retry path before phase 5 starts. | unvalidated |
-| A-6 | Enrolling RFC 7705 requires `plan/spec-bgp-local-as-options.md` to have landed, because a row admits an RFC only when every gated MUST is classified. | `rfc/enrolled.txt` header: an enrolled RFC has every MUST-level requirement either covered by tagged tests or annotated. | The two specs must land together in one change, which enlarges the commit but does not change the work. | `make ze-rfc-check` after both specs' tests exist. | unvalidated |
+| A-6 | Enrolling RFC 7705 requires `plan/spec-bgp-local-as-options.md` to have landed, because a row admits an RFC only when every gated MUST is classified. | `rfc/enrolled.txt` header: an enrolled RFC has every MUST-level requirement either covered by tagged tests or annotated. | The two specs must land together in one change, which enlarges the commit but does not change the work. | `./le rfc check` after both specs' tests exist. | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -230,7 +230,7 @@ and writes the enrolment row that admits all nine in the same change.
 | AC-9 | A four-octet alternate ASN | My AS carries AS_TRANS and the ASN4 capability carries the real value, consistently on both the send and the compare side |
 | AC-10 | Both speakers configured for AS migration | The session establishes without deadlock, per `RFC7705-4.2-5`, or the SHOULD is recorded as a ruled deferral |
 | AC-11 | A peer with no migration configuration at all | Every observable is byte-identical to before this spec, except that an AS mismatch is now rejected |
-| AC-12 | `make ze-rfc-check` after this spec and its dependency close | Exit 0. `rfc7705` is enrolled and all nine gated MUSTs name an enforcing test in `ai/RFC-REQUIREMENTS.md` |
+| AC-12 | `./le rfc check` after this spec and its dependency close | Exit 0. `rfc7705` is enrolled and all nine gated MUSTs name an enforcing test in `ai/RFC-REQUIREMENTS.md` |
 
 ## End-to-End User Stories
 
@@ -375,9 +375,9 @@ and writes the enrolment row that admits all nine in the same change.
    - Files: `internal/component/bgp/reactor/session_as_migration.go` and the connect-retry path
    - Verify: AC-10 passes, or A-5 resolves to a ruled deferral recorded here
 8. **Phase: unpark, enrol and close the ledger** -- BLOCKING, requires `plan/spec-bgp-local-as-options.md` landed
-   - Tests: `make ze-rfc-index-update` then `make ze-rfc-check`
+   - Tests: `./le rfc index-update` then `./le rfc check`
    - Files: move `rfc/pending/rfc7705.md` back under `rfc/short/`, then `rfc/enrolled.txt` and `ai/RFC-REQUIREMENTS.md`. Re-point the three specs' Required Reading rows at the restored summary and remove `rfc/pending/` if it is left empty
-   - Verify: AC-12 passes, `ze-rfc-check` exits 0 with `rfc7705` enrolled rather than absent, and `ls rfc/pending/` is empty
+   - Verify: AC-12 passes, `./le rfc check` exits 0 with `rfc7705` enrolled rather than absent, and `ls rfc/pending/` is empty
 9. **Phase: documentation, counter and interop**
    - Tests: the two interop scenarios
    - Files: the doc targets above, `test/interop/scenarios/`
@@ -404,9 +404,9 @@ and writes the enrolment row that admits all nine in the same change.
 | Either ASN accepted | `go test ./internal/component/bgp/reactor/ -run TestMigrationAccepts` |
 | Wire-level coverage | `ls test/plugin/bgp-as-migration-*.ci` returns three files |
 | RFC 7705 enrolled | `grep -n "^rfc7705" rfc/enrolled.txt` returns the row |
-| The gate is green | `make ze-rfc-check` exits 0 |
-| Ledger regenerated in the same commit | `make ze-rfc-index-update` then `git diff --stat ai/RFC-REQUIREMENTS.md` |
-| No unrelated regressions | `make ze-precommit-verify` |
+| The gate is green | `./le rfc check` exits 0 |
+| Ledger regenerated in the same commit | `./le rfc index-update` then `git diff --stat ai/RFC-REQUIREMENTS.md` |
+| No unrelated regressions | `./le verify current mode full` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -428,7 +428,7 @@ and writes the enrolment row that admits all nine in the same change.
 | Lint failure | Fix inline; if architectural → DESIGN |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | Interop peer rejects our OPEN | STOP and present. A real peer disagreeing is stronger evidence than any unit test |
-| `ze-rfc-check` still fails after enrolment | Read `scripts/dev/rfc_requirements.py` for the specific violation; a tag that does not match an ID is the common cause |
+| `./le rfc check` still fails after enrolment | Read `internal/le/rfc/rfc.go` for the specific violation; a tag that does not match an ID is the common cause |
 | `RFC7705-4.2-5` cannot be implemented within the existing retry path | Do not silently skip it. Report, and let Thomas rule on the deferral |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
@@ -453,7 +453,7 @@ and writes the enrolment row that admits all nine in the same change.
 ## Known Limitations
 
 - RFC 7705 Section 3.3 is out of scope here; `plan/spec-bgp-local-as-options.md` owns it and must land first for enrolment to be possible.
-- `make ze-rfc-check` stays red in this checkout until phase 8. That cost is real and shared with every concurrent session.
+- `./le rfc check` stays red in this checkout until phase 8. That cost is real and shared with every concurrent session.
 - `RFC7705-4.2-5` is a SHOULD and depends on A-5. If the connect-retry path cannot carry the fallback, the outcome is a ruled deferral, not a silent skip.
 - The `.ci` files cover IPv4 unicast sessions. The OPEN and the iBGP verdict are family-independent, so the coverage is representative rather than exhaustive.
 - Introducing the Bad Peer AS check may reject peerings that work today because their configuration was wrong and tolerated. That is a correctness improvement with an operational cost, and it needs a release note.
@@ -480,7 +480,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -498,7 +498,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-bgp-as-migration.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-bgp-as-migration.md` only (commit A preserves the spec in history)

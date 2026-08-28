@@ -22,18 +22,12 @@ import (
 )
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-ai-skills-sync",
-		Why:    "write every tool's copy of the skills, the subagents, CLAUDE.md and AGENTS.md from ai/",
+	leaction.Action{Verb: "skills-sync", Why: "write every tool's copy of the skills, the subagents, CLAUDE.md and AGENTS.md from ai/",
 		Writes: true,
-		Answer: syncHere,
-	},
-	leaction.Action{
-		Gate: "ze-ai-sync-check",
-		Why: "name every generated agent file that no longer matches its source." +
-			" All of them are gitignored, so git can never show this drift",
-		Answer: checkHere,
-	},
+		Answer: syncHere},
+	leaction.Action{Verb: "sync-check", Why: "name every generated agent file that no longer matches its source." +
+		" All of them are gitignored, so git can never show this drift",
+		Answer: checkHere},
 	leaction.Action{
 		Verb:   "sync-preview",
 		Why:    "name the skills a sync would write, and write nothing",
@@ -45,9 +39,8 @@ var actions = leaction.New(area,
 // help renders, and the test that checks them all read one table.
 func Actions() leaction.List { return actions.Actions() }
 
-// Gates answers the Make target of every action that has one, which is what the
-// census claims.
-func Gates() []string { return actions.Gates() }
+// Gates answers the retired Make target associated with each ported action, for
+// the migration census.
 
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
@@ -88,9 +81,9 @@ func syncHere() (any, int) {
 
 // checkHere compares this checkout's mirrors against their sources.
 //
-// A stale tree answers 1. The Makefile target and the session hook already read
-// that code. A tree that was not JUDGED also answers 1. It states the reason on
-// stderr because an incomplete check does not establish freshness.
+// A stale tree answers 1. The native check action and the session hook both
+// read that code. A tree that was not JUDGED also answers 1 and states the
+// reason on stderr because an incomplete check does not establish freshness.
 func checkHere() (any, int) {
 	mirror, err := here()
 	if err != nil {

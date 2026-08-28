@@ -1,4 +1,4 @@
-// Design: test/interop-ipsec/lab.py -- fail-closed peer queries and bounded waits.
+// Design: fail-closed strongSwan and Ze queries with bounded observations.
 // Related: ipsec.go -- topology and rendered configuration.
 // Related: checkers.go -- protocol assertions built from these typed operations.
 package ipsec
@@ -44,7 +44,6 @@ var (
 	xfrmBytes      = regexp.MustCompile(`(\d+)\(bytes\)`)
 	srcDstPattern  = regexp.MustCompile(`^src (\S+) dst (\S+)`)
 )
-
 
 type scenarioLab struct {
 	check   *interoplab.CheckContext

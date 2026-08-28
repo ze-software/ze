@@ -7,11 +7,11 @@ import (
 	"testing"
 )
 
-// VALIDATES: the run reads its knobs from the environment the make target
-// exports, defaults every one of them, and refuses to start outside the guest.
-// PREVENTS: a swap that repoints mk/test-integration.mk at a command reading a
-// different variable, or defaulting to a different concurrency. Both spellings
-// of each default are one decision, and the make fragment's comment says so.
+// VALIDATES: the run reads its knobs from the environment the native host
+// action exports, defaults every one of them, and refuses to start outside the
+// guest.
+// PREVENTS: host and guest actions reading different variables or defaulting to
+// different concurrency.
 
 func TestTheRunReadsEveryKnobFromTheEnvironment(t *testing.T) {
 	t.Setenv("ZE_BIN", "bin/ze-linux-arm64")
@@ -23,7 +23,7 @@ func TestTheRunReadsEveryKnobFromTheEnvironment(t *testing.T) {
 	t.Setenv("GOCACHE", "/cache/build")
 	t.Setenv("GOMODCACHE", "/cache/mod")
 
-	run := NewAllTests()
+	run := newAllTests()
 	if run.ZeBin != "bin/ze-linux-arm64" || run.StrippedBin != "bin/ze-stripped-linux-arm64" ||
 		run.TestBin != "bin/ze-test-linux-arm64" {
 		t.Errorf("the binaries are %q, %q and %q", run.ZeBin, run.StrippedBin, run.TestBin)
@@ -41,10 +41,9 @@ func TestTheRunReadsEveryKnobFromTheEnvironment(t *testing.T) {
 	}
 }
 
-// Every knob has a default. The defaults are the ones that
-// mk/test-integration.mk declares. A different silent default would change the
-// nightly run even though no file that names the knob changed.
-func TestEveryKnobHasTheDefaultTheMakeFragmentDeclares(t *testing.T) {
+// Every knob has one native default. A different silent default would change
+// the nightly run even though no action that names the knob changed.
+func TestEveryKnobHasTheNativeDefault(t *testing.T) {
 	for _, key := range []string{
 		"ZE_BIN", "ZE_STRIPPED_BIN", "ZE_TEST_BIN",
 		"ZE_QEMU_SKIP_SUITES", "ZE_QEMU_PARALLEL", "ZE_QEMU_SUITE_TIMEOUT",
@@ -53,7 +52,7 @@ func TestEveryKnobHasTheDefaultTheMakeFragmentDeclares(t *testing.T) {
 		t.Setenv(key, "")
 	}
 
-	run := NewAllTests()
+	run := newAllTests()
 	if run.Workspace != guestWorkspace || run.BinDir != guestBinDir {
 		t.Errorf("the guest paths are %q and %q", run.Workspace, run.BinDir)
 	}
@@ -67,8 +66,8 @@ func TestEveryKnobHasTheDefaultTheMakeFragmentDeclares(t *testing.T) {
 	if run.ZeBin != "bin/ze" || run.StrippedBin != "bin/ze-stripped" || run.TestBin != "bin/ze-test" {
 		t.Errorf("the default binaries are %q, %q and %q", run.ZeBin, run.StrippedBin, run.TestBin)
 	}
-	// The caches have NO default: they are the one pair a run refuses to start
-	// without, because the Makefile's own assignment would otherwise win.
+	// The caches have NO default: they are the one pair the host action must
+	// supply and the guest action refuses to guess.
 	if run.BuildCache != "" || run.ModuleCache != "" {
 		t.Errorf("the caches defaulted to %q and %q, and a default here would hide the refusal",
 			run.BuildCache, run.ModuleCache)
@@ -108,10 +107,10 @@ func TestAReportOfNoPhasesDoesNotRenderAsSuccess(t *testing.T) {
 }
 
 // A binary path named by the host is resolved as follows. An ABSOLUTE path is
-// used as it is. A relative path is relative to the workspace. The make targets
-// pass relative paths. An operator who debugs by hand passes absolute paths.
+// used as it is. A relative path is relative to the workspace. The native host
+// action passes relative paths. An operator who debugs by hand passes absolute paths.
 func TestABinaryPathIsResolvedAgainstTheWorkspaceOnlyWhenItIsRelative(t *testing.T) {
-	run := &AllTests{Workspace: "/workspace"}
+	run := &allTestsRun{Workspace: "/workspace"}
 
 	if got := run.workspacePath("bin/ze"); got != "/workspace/bin/ze" {
 		t.Errorf("a relative path resolved to %q", got)

@@ -1,5 +1,5 @@
 # FlowSpec plugin test - verify FlowSpec routes via external process API
-# Tests Python plugin sending FlowSpec routes
+# Tests a compiled observer sending FlowSpec routes
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -20,44 +20,6 @@ expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"mes
 # fails the test if the marker never reaches the wire.
 EOF_PEER
 
-# Python plugin script
-tmpfs=flowspec.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-
-from ze_api import API, runtime_fail
-
-
-def main() -> None:
-    api = API()
-    # Full 5-stage handshake (the module-level ready() helper's sequence).
-    api.declare_done()
-    api.wait_for_config(timeout=10.0)
-    api.capability_done()
-    api.wait_for_registry(timeout=10.0)
-    api.ready()
-
-    # Put the send on ONE side of the peer's initial route sync. Behind this
-    # barrier the marker is already on the wire, so the peer sees marker, then
-    # route, every run -- and checker.go silently accepts the marker, which
-    # matches no expectation at that point. Without it, whether the route joins
-    # the initial dump or follows it is decided by how promptly the host
-    # scheduled the daemon.
-    if not api.wait_peer_eor_sent():
-        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
-
-    # THE subject of this test: a FlowSpec route announced through the external
-    # process API. `add` is the grammar's required verb (route/route.go
-    # ErrMissingAddDel) and copy-to-nexthop is a colon-less FlowSpec action the
-    # update-text parser now accepts (attribute/flowspec_action.go); this command
-    # was rejected on both counts before, so it never produced anything.
-    api.send('peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32')
-    api.wait_for_ack(expected_count=1)
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration. The plugin is the ONLY producer of the asserted route.
 #
@@ -73,7 +35,7 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external flowspec-process {
-		run ./flowspec.run
+		run "ze-test fixture plugin/flowspec-announce"
 		encoder json
 	}
 }

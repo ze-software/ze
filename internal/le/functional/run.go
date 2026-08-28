@@ -14,9 +14,13 @@ package functional
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -24,40 +28,33 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-// scratchLookupTimeout bounds the one shell call this package makes.
-// session-scratch.sh reads a marker file and prints a path, so a run past this
-// is a wedged shell rather than a slow one.
-const scratchLookupTimeout = 30 * time.Second
+// coverageReduceTimeout bounds the go tool invocation for one suite.
+const coverageReduceTimeout = 30 * time.Second
 
 // killedByBudget is what `timeout` answers when it killed the command.
 const killedByBudget = 124
 
-// sessionScratch asks scripts/dev/session-scratch.sh where this session writes.
+// sessionScratch resolves this session's root-relative scratch path without a
+// subprocess. Path lookup creates nothing.
 func sessionScratch(root string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), scratchLookupTimeout)
-	defer cancel()
-
-	script := filepath.Join(root, "scripts", "dev", "session-scratch.sh")
-	//nolint:gosec // the program is a checked-in script inside the checkout lepath resolved
-	cmd := exec.CommandContext(ctx, script, "--path")
-	cmd.Dir = root
-	out, err := cmd.Output()
+	paths, err := lepath.ResolveSession(root, false)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	return paths.Scratch, nil
 }
 
-// CommandLine is the full argv one suite runs: the cap, then the binary, then
+// commandLine is the full argv one suite runs: the cap, then the binary, then
 // the suite.
 //
 // `timeout` runs the suite in its own process group and signals the whole group
 // on expiry, so leaked grandchildren (ze daemons, tacacs mocks) die with it.
-func CommandLine(suite Suite, set BinarySet) []string {
+func commandLine(suite Suite, set BinarySet) []string {
 	argv := suite.Command()
-	argv[0] = set.ZeTestPath()
+	argv[0] = set.zeTestPath()
 
 	var tb textbuf.Buffer
 	full := make([]string, 0, len(argv)+3)
@@ -77,17 +74,17 @@ func Execute(tc gotoolchain.Toolchain, suite Suite, set BinarySet, cover string)
 		environ = append(environ, cov.Str("GOCOVERDIR=").Str(cover).String())
 	}
 	started := time.Now()
-	code = gaterun.Stream(CommandLine(suite, set), tc.Root, environ)
+	code = gaterun.Stream(commandLine(suite, set), tc.Root, environ)
 	return code, int(time.Since(started).Seconds())
 }
 
-// FailureGroupLine is the declared failure group a cap expiry publishes.
+// failureGroupLine is the declared failure group a cap expiry publishes.
 //
 // A budget expiry has already consumed the full run budget.
 // Its failure group therefore includes the same rerun command as an ordinary suite failure.
-// functionalSuiteRerun defines that command (scripts/status/verify_run.go).
+// functionalSuiteRerun defines that command (internal/le/verify/run.go).
 // The failure kind is timeout rather than a failed test.
-func FailureGroupLine(suite Suite, summary string) string {
+func failureGroupLine(suite Suite, summary string) string {
 	group := map[string]any{
 		"group-id": groupID(suite.Name),
 		"kind":     "timeout",
@@ -218,7 +215,7 @@ func (r *Run) Record(suite Suite, seconds, status int) {
 			Str(". The test failures above are that kill, not the product.").
 			Colored(textbuf.C.Reset).String())
 		tb.Reset()
-		gaterun.Note(tb.Str("VERIFY FAILURE GROUP: ").Str(FailureGroupLine(suite, summary)).String())
+		gaterun.Note(tb.Str("VERIFY FAILURE GROUP: ").Str(failureGroupLine(suite, summary)).String())
 		r.report.ExpiredNames = append(r.report.ExpiredNames, suite.Name)
 	case allowed > 0 && percent >= r.report.WarnPercent:
 		tb.Reset()
@@ -244,15 +241,83 @@ func expirySummary(suite Suite, budget string) string {
 		Str(" wall-clock budget (").Str(suite.BudgetVar()).Str(") and was killed").String()
 }
 
-// RunGating runs every gating suite, in order, under its own budget.
+// ciGoTestPackages derives every Go package that a .ci command compiles inside
+// its own deadline. The retired Make prerequisite derived the same set from
+// `cmd=...:exec=go test ...` lines. Keeping the derivation here prevents a new
+// fixture from gaining a cold compile without joining the warmup.
+func ciGoTestPackages(root string) ([]string, error) {
+	packages := map[string]bool{}
+	testRoot := filepath.Join(root, "test")
+	err := filepath.WalkDir(testRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || filepath.Ext(path) != ".ci" {
+			return nil
+		}
+		raw, err := os.ReadFile(path) //nolint:gosec // the repository tool reads its own test corpus
+		if err != nil {
+			return err
+		}
+		for line := range strings.SplitSeq(string(raw), "\n") {
+			command, found := strings.CutPrefix(strings.TrimSpace(line), "cmd=")
+			if !found {
+				continue
+			}
+			_, command, found = strings.Cut(command, "exec=go test ")
+			if !found {
+				continue
+			}
+			for _, token := range strings.Fields(command) {
+				token, _, _ = strings.Cut(strings.Trim(token, `"'`), ":")
+				if strings.HasPrefix(token, "./") {
+					packages[token] = true
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(packages) == 0 {
+		return nil, errors.New("no .ci-invoked Go package was found")
+	}
+	out := make([]string, 0, len(packages))
+	for name := range packages {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// warmCITestPackages removes compilation from each fixture's behavioral
+// deadline. It intentionally uses the bare tag set that the .ci commands use;
+// a tagged build would populate a different Go cache entry.
+func warmCITestPackages(tc gotoolchain.Toolchain) error {
+	packages, err := ciGoTestPackages(tc.Root)
+	if err != nil {
+		return fmt.Errorf("derive .ci Go packages: %w", err)
+	}
+	var tb textbuf.Buffer
+	gaterun.Note(tb.Str("Warming build cache for ").Int(int64(len(packages))).
+		Str(" .ci-invoked package(s)...").String())
+	argv := append([]string{"go", "test", "-run", "^$", "-count=1"}, packages...)
+	if code := gaterun.Stream(argv, tc.Root, tc.Environment(gotoolchain.EnvOptions{Procs: true})); code != 0 {
+		return fmt.Errorf("warm .ci Go packages: exit %d", code)
+	}
+	return nil
+}
+
+// runGating runs every gating suite, in order, under its own budget.
 //
-// One isolated binary set serves the whole run, built once at the top exactly
-// as the recipe built it, and removed however the run ends.
+// One isolated binary set serves the whole run, built once and removed however
+// the run ends.
 //
 // The payload is nil when the run never started.
 // A zero GatingReport is not an empty run because its Text renders "PASS all 0 suites" in green.
 // Returning it after a refused run list or failed build would falsely report a pass.
-func RunGating(tc gotoolchain.Toolchain) (any, int) {
+func runGating(tc gotoolchain.Toolchain) (any, int) {
 	suites, err := GatingSuites(Gating, Suites)
 	if err != nil {
 		gaterun.Note(reportLine(err))
@@ -268,17 +333,23 @@ func RunGating(tc gotoolchain.Toolchain) (any, int) {
 	}
 	run := NewRun(total)
 
-	set, err := Prepare(tc, "ze-functional-test", true)
+	if err := warmCITestPackages(tc); err != nil {
+		gaterun.Note(reportLine(err))
+		return nil, 1
+	}
+	set, err := Prepare(tc, "functional", true)
 	if err != nil {
 		gaterun.Note(reportLine(err))
 		return nil, 1
 	}
-	defer Release(set)
 
-	coverRoot := CoverRoot(tc.Root)
+	coverRoot, err := coverRoot(tc.Root)
+	if err != nil {
+		gaterun.Note(reportLine(err))
+		return nil, 1
+	}
 	for _, suite := range suites {
 		if skip[suite.Name] {
-			run.Skip(suite)
 			continue
 		}
 		run.Announce(suite)
@@ -315,7 +386,7 @@ func reduceCoverage(tc gotoolchain.Toolchain, suite Suite, cover, root string) {
 	appendLine(filepath.Join(root, "raw-size.txt"),
 		tb.Str(suite.Name).Byte(' ').Int(int64(files)).Byte(' ').Int(bytes/1024).Byte('\n').String())
 
-	ctx, cancel := context.WithTimeout(context.Background(), scratchLookupTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), coverageReduceTimeout)
 	defer cancel()
 	tb.Reset()
 	//nolint:gosec // the go tool, over a directory this run created

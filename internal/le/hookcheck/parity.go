@@ -1,14 +1,12 @@
 // Design: docs/architecture/core-design.md -- native Go gates run through le
 // Overview: hookcheck.go -- selftest orchestration and structured report
 //
-// The producer's embedded GOLDEN maps remain the migration boundary. This file
-// parses those maps as data and independently derives every verdict in Go. It
-// never imports or starts a Python dispatcher.
+// Dispatcher fixtures are typed Go data. Native rules evaluate that data and
+// hook source contracts detect changes to the dispatchers themselves.
 package hookcheck
 
 import (
-	"bufio"
-	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"regexp"
 	"strings"
@@ -23,181 +21,116 @@ const (
 	postWriteEditRowsExpected = 24
 )
 
-type goldenRow struct {
-	name string
-	code int
+var parityCatalogDigest = [sha256.Size]byte{
+	0x9e, 0x56, 0x5d, 0xe4, 0x10, 0x29, 0x9e, 0x9d,
+	0xe6, 0x18, 0x48, 0x46, 0x1d, 0x03, 0x9c, 0xd3,
+	0xd4, 0xf8, 0x8d, 0x92, 0x55, 0xd0, 0xc6, 0x64,
+	0xd7, 0xae, 0x22, 0x20, 0x14, 0x80, 0xb7, 0x08,
 }
 
 var (
-	expensivePipe   = regexp.MustCompile(`(?s)(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?(?:go\s+test\b|make\s+ze-(?:precommit-verify|unit-hook-test)\b|(?:(?:\./)?bin/ze-test|(?:/\S*/)?tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[^/\s]+/bin/ze-test)\b|python3\s+scripts/dev/hook-parity-check\.py\b)[^;&\n]*?(?:\||\|&)\s*(?:head|tail|grep)\b`)
+	expensivePipe = regexp.MustCompile(
+		`(?s)(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?` +
+			`(?:go\s+test\b|(?:\./)?le\s+verify(?:\s|$)|` +
+			`(?:(?:\./)?bin/ze-test|(?:/\S*/)?tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[^/\s]+/bin/ze-test)\b|` +
+			`(?:(?:\./)?bin/ze|ze)\s+le\s+hook-check\s+unit\b)[^;&\n]*?(?:\||\|&)\s*(?:head|tail|grep)\b`,
+	)
 	rawGoTest       = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?go\s+test\b`)
 	rawLint         = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+\S+\s+)?golangci-lint\s+run\b`)
 	rawZeTest       = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+\S+\s+)?(?:(?:\./)?bin/ze-test(?:-linux-[^\s/]*)?|(?:/\S*/)?tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[^/\s]+/bin/ze-test(?:-linux-[^\s/]*)?)\b`)
-	rawPythonTest   = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+\S+\s+)?python3\s+\S*_test\.py\b`)
-	rootScratch     = regexp.MustCompile(`(?:>|>>|\btee\s+)(?:\s*)(?:\./|@PROJECT@/)?tmp/([^/\s'\"]+)(?:\s|['\"]|$)`)
+	rootScratch     = regexp.MustCompile(`(?:>|>>|\btee\s+)(?:\s*)(?:\./|@PROJECT@/)?tmp/([^/\s'"]+)(?:\s|['"]|$)`)
 	boundedTimeout  = regexp.MustCompile(`^timeout\s+(?:-k\s+\S+\s+)?\d`)
 	waitLoopPattern = regexp.MustCompile(`\b(?:while|until)\s+`)
 )
 
-func runParity(root string) ([]Result, Population, []GoldenCase) {
-	body, err := readCheckoutFile(root, parityProducer)
-	if err != nil {
-		failure := Result{Name: "dispatcher-golden-population", Code: 2, Message: err.Error()}
-		return []Result{failure}, Population{}, nil
-	}
+type parityFixture struct {
+	name         string
+	expectedCode int
+}
 
-	tables := []struct {
-		name     string
-		start    string
-		expected int
-		judge    func(string) int
-	}{
-		{"bash-dispatcher-golden", "BASH_GOLDEN", bashRowsExpected, bashCode},
-		{"write-edit-dispatcher-golden", "WE_GOLDEN", writeEditRowsExpected, writeEditCode},
-		{"weakening-dispatcher-golden", "WEAKEN_GOLDEN", weakeningRowsExpected, weakeningCode},
-		{"post-write-edit-dispatcher-golden", "POST_GOLDEN", postWriteEditRowsExpected, postWriteEditCode},
-	}
+type parityTable struct {
+	key      string
+	name     string
+	expected int
+	judge    func(string) int
+	fixtures []parityFixture
+}
 
-	population := Population{}
-	results := make([]Result, 0, len(tables))
+func runParity(_ string) ([]Result, Population, []GoldenCase) {
+	results := make([]Result, 0, len(parityCatalog))
 	golden := make([]GoldenCase, 0,
 		bashRowsExpected+writeEditRowsExpected+weakeningRowsExpected+postWriteEditRowsExpected)
-	for index, table := range tables {
-		rows, parseErr := parseGolden(body, table.start)
-		result := Result{Name: table.name, Passed: true}
-		if parseErr != nil {
+	population := Population{}
+	currentDigest := parityDigest(parityCatalog[:])
+	catalogOK := currentDigest == parityCatalogDigest
+
+	for index, table := range parityCatalog {
+		result := Result{Name: table.name, Passed: catalogOK}
+		if !catalogOK {
+			result.Code = 2
+			result.Message = fmt.Sprintf("typed dispatcher fixture content changed: got %x, want %x", currentDigest, parityCatalogDigest)
+		} else if len(table.fixtures) != table.expected {
 			result.Passed = false
 			result.Code = 2
-			result.Message = parseErr.Error()
-		} else {
-			if len(rows) != table.expected {
-				result.Passed = false
-				result.Code = 2
-				var tb textbuf.Buffer
-				result.Message = tb.Str("population is ").Int(int64(len(rows))).
-					Str(" rows, want ").Int(int64(table.expected)).String()
+			var tb textbuf.Buffer
+			result.Message = tb.Str("population is ").Int(int64(len(table.fixtures))).
+				Str(" rows, want ").Int(int64(table.expected)).String()
+		}
+		for _, fixture := range table.fixtures {
+			got := table.judge(fixture.name)
+			golden = append(golden, GoldenCase{
+				Table:        table.key,
+				Name:         fixture.name,
+				ExpectedCode: fixture.expectedCode,
+				NativeCode:   got,
+				Passed:       got == fixture.expectedCode,
+			})
+			if got == fixture.expectedCode || !result.Passed {
+				continue
 			}
-			for _, row := range rows {
-				got := table.judge(row.name)
-				golden = append(golden, GoldenCase{
-					Table:        table.start,
-					Name:         row.name,
-					ExpectedCode: row.code,
-					NativeCode:   got,
-					Passed:       got == row.code,
-				})
-				if got == row.code || !result.Passed {
-					continue
-				}
-				result.Passed = false
-				result.Code = 1
-				var tb textbuf.Buffer
-				result.Message = tb.Str(row.name).Str(": native code ").Int(int64(got)).
-					Str(", golden code ").Int(int64(row.code)).String()
-			}
+			result.Passed = false
+			result.Code = 1
+			var tb textbuf.Buffer
+			result.Message = tb.Str(fixture.name).Str(": native code ").Int(int64(got)).
+				Str(", expected code ").Int(int64(fixture.expectedCode)).String()
 		}
 		results = append(results, result)
 		switch index {
 		case 0:
-			population.Bash = len(rows)
+			population.Bash = len(table.fixtures)
 		case 1:
-			population.WriteEdit = len(rows)
+			population.WriteEdit = len(table.fixtures)
 		case 2:
-			population.Weakening = len(rows)
+			population.Weakening = len(table.fixtures)
 		case 3:
-			population.PostWriteEdit = len(rows)
+			population.PostWriteEdit = len(table.fixtures)
 		}
 	}
 	return results, population, golden
 }
 
-func parseGolden(body []byte, name string) ([]goldenRow, error) {
+func parityDigest(tables []parityTable) [sha256.Size]byte {
 	var tb textbuf.Buffer
-	marker := tb.Str(name).Str(" = {").String()
-	start := bytes.Index(body, []byte(marker))
-	if start < 0 {
-		return nil, fmt.Errorf("%s table is missing", name)
-	}
-	rows := make([]goldenRow, 0)
-	scanner := bufio.NewScanner(bytes.NewReader(body[start+len(marker):]))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "}" {
-			return rows, nil
-		}
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		key, code, ok := parseGoldenLine(line)
-		if !ok {
-			return nil, fmt.Errorf("%s has an unreadable row %q", name, line)
-		}
-		rows = append(rows, goldenRow{name: key, code: code})
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("read %s: %w", name, err)
-	}
-	return nil, fmt.Errorf("%s has no closing brace", name)
-}
-
-func parseGoldenLine(line string) (string, int, bool) {
-	if len(line) < 6 || (line[0] != '\'' && line[0] != '"') {
-		return "", 0, false
-	}
-	quote := line[0]
-	end := -1
-	escaped := false
-	for index := 1; index < len(line); index++ {
-		if escaped {
-			escaped = false
-			continue
-		}
-		if line[index] == '\\' {
-			escaped = true
-			continue
-		}
-		if line[index] == quote {
-			end = index
-			break
+	for _, table := range tables {
+		for _, fixture := range table.fixtures {
+			tb.Str(table.key).Byte(0).Str(fixture.name).Byte(0).
+				Int(int64(fixture.expectedCode)).Byte(0)
 		}
 	}
-	if end < 0 {
-		return "", 0, false
-	}
-	rest := strings.TrimSpace(line[end+1:])
-	if len(rest) < 4 || rest[0] != ':' || rest[1] != ' ' || rest[3] != ',' {
-		return "", 0, false
-	}
-	code := int(rest[2] - '0')
-	if code < 0 || code > 2 {
-		return "", 0, false
-	}
-	return unescapePython(line[1:end]), code, true
-}
-
-func unescapePython(value string) string {
-	var out strings.Builder
-	out.Grow(len(value))
-	for index := 0; index < len(value); index++ {
-		if value[index] != '\\' || index+1 >= len(value) {
-			out.WriteByte(value[index])
-			continue
-		}
-		index++
-		switch value[index] {
-		case 'n':
-			out.WriteByte('\n')
-		case 't':
-			out.WriteByte('\t')
-		default:
-			out.WriteByte(value[index])
-		}
-	}
-	return out.String()
+	return sha256.Sum256([]byte(tb.String()))
 }
 
 func bashCode(command string) int {
 	command = strings.ReplaceAll(command, "\\\n", " ")
+	fields := strings.Fields(command)
+	if len(fields) >= 3 && fields[0] == "./le" && fields[1] == "commit" {
+		switch fields[2] {
+		case "session", "create", "message", "audit", "review-check",
+			"debt-list", "debt-status", "debt-clear":
+		default:
+			return 2
+		}
+	}
 	if strings.Contains(command, "cp .claude/worktrees/") {
 		return 2
 	}
@@ -223,21 +156,17 @@ func bashCode(command string) int {
 }
 
 func rawJob(command string) bool {
-	if strings.Contains(command, "scripts/dev/ze-run.sh") {
+	if strings.Contains(command, "internal/le/lejob/answer.go") {
 		return false
 	}
 	if strings.Contains(command, "ZE_ADMIT_RAW=\"") && !strings.Contains(command, "ZE_ADMIT_RAW=\"\"") {
 		return false
 	}
 	return rawGoTest.MatchString(command) || rawLint.MatchString(command) ||
-		rawZeTest.MatchString(command) || rawPythonTest.MatchString(command)
+		rawZeTest.MatchString(command)
 }
 
 func unboundedWait(command string) bool {
-	if strings.Contains(command, "python3 -c") && strings.Contains(command, "while True") &&
-		strings.Contains(command, "time.sleep") {
-		return true
-	}
 	for _, location := range waitLoopPattern.FindAllStringIndex(command, -1) {
 		loop := location[0]
 		statementStart := strings.LastIndexAny(command[:loop], ";\n") + 1

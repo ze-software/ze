@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: plan/spec-le-is-a-ze-binary.md -- step 10 guest-side evidence ports
-// Producer: scripts/evidence/effective-pppoe-accel.py.
+// Replaces the former effective PPPoE Python guest driver.
 package qemu
 
 import (
@@ -233,8 +233,8 @@ func waitPPPLinksCleared(ctx context.Context, namespace string, initial map[stri
 	return nil
 }
 
-func runPPPoEAccelGuest(ctx context.Context, root string) (report GuestLabReport, runErr error) {
-	report = GuestLabReport{Lab: "pppoe-accel", Selected: []string{"pppoe-accel"}, Verdict: VerdictUnspecified}
+func runPPPoEAccelGuest(ctx context.Context, root string) (report guestLabReport, runErr error) {
+	report = guestLabReport{Lab: "pppoe-accel", Selected: []string{"pppoe-accel"}, Verdict: VerdictUnspecified}
 	if err := rejectPPPoEProbeSkip(); err != nil {
 		return report, err
 	}
@@ -301,7 +301,7 @@ func runPPPoEAccelGuest(ctx context.Context, root string) (report GuestLabReport
 		}
 	}()
 
-	failure := func(err error) (GuestLabReport, error) {
+	failure := func(err error) (guestLabReport, error) {
 		report.Verdict = VerdictFail
 		report.Failure = err.Error()
 		fmt.Fprintf(os.Stderr, "FAIL: %s\n\n--- diagnostics ---\n", err) //nolint:errcheck // evidence diagnostics

@@ -28,27 +28,11 @@ cmd=api:conn=1:seq=1:text=peer * update text origin igp med 100 nhop 101.1.101.1
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001B4001010040020602010000FDE840030465016501800404000000642001000001
 EOF_PEER
 
-tmpfs=med-local.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-
-def main() -> None:
-    ready()
-    send('peer * update text origin igp med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32')
-    wait_for_ack(expected_count=1)
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external med-local {
-		run ./med-local.run
+		run "ze-test fixture plugin/med-locally-set-reaches-peer"
 		encoder json
 	}
 }

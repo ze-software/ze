@@ -16,7 +16,7 @@ left segment names a YANG verb or container is the same R9 violation (`traffic-c
 vs the `traffic` container). MUST NOT assume a root is ungoverned because it is not in the
 tree.
 Shipped commands awaiting the agreed rename are listed in `pendingNamespaceSplit`
-(`scripts/checks/cli_grammar.go`) and reported as tracked debt, so the gate stays green
+(`internal/le/cligrammar/cligrammar.go`) and reported as tracked debt, so the gate stays green
 while a NEW collision still fails. Migrating one is a dispatch-key change (see
 "Migrating a Built-in Command's Path" below): MUST add the split path, keep the old form per
 "Backward Compatibility", update `.ci` senders, and remove its `pendingNamespaceSplit`

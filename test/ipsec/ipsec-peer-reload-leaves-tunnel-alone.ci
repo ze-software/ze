@@ -47,7 +47,7 @@
 #
 # Gated option=needs-linux:caps=net-admin: peer-a programs real XFRM state, so this SKIPs
 # on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root in the QEMU
-# VM, where `fsuite ipsec` in scripts/evidence/qemu-all-tests.sh executes the suite.
+# VM, where `fsuite ipsec` in internal/le/qemu/alltests.go executes the suite.
 
 option=needs-linux:caps=net-admin
 # Serialize against every other real-XFRM ipsec test. `ip xfrm state` and
@@ -58,99 +58,6 @@ option=env:var=ze_test_ike_port:value=$PORT2
 option=timeout:value=120s
 option=env:var=ze_log_ike:value=info
 
-tmpfs=quiet.py:mode=755:terminator=EOF_QUIET
-#!/usr/bin/env python3
-"""Commit an unrelated change under a live tunnel and watch the kernel not move.
-
-The tunnel's ESP SPIs and its policy selectors are read once it is up, the config file
-gains a second peer that nothing contacts, SIGHUP commits it, and the same two sets are
-re-read across a settle window. A restart removes the states and the policies inside the
-OnConfigure handler, so any bounce shows inside that window.
-"""
-import os
-import re
-import shutil
-import signal
-import subprocess
-import sys
-import time
-
-from ze_api import wait_until
-
-# The two halves of the negotiated selector. Every policy this tunnel installs names one
-# of them, and nothing else on the box does.
-LOCAL_NET = "203.0.113.0/25"
-REMOTE_NET = "203.0.113.128/25"
-
-# The settle window, in seconds. reconcilePeers stops a peer synchronously while it
-# handles the config, so a bounce is visible within a few polls of the SIGHUP; the window
-# is long enough that a slow VM cannot make a bounce look like stability.
-SETTLE_SECONDS = 8.0
-POLL_DELAY = 0.25
-
-
-def run(*cmd):
-    out = subprocess.run(cmd, capture_output=True, text=True)
-    if out.returncode != 0:
-        sys.exit(f"{' '.join(cmd)} failed: {out.stderr.strip()}")
-    return out.stdout
-
-
-def spis():
-    """Every ESP SPI the kernel currently holds a state for."""
-    return frozenset(re.findall(r"\bspi (0x[0-9a-fA-F]+)", run("ip", "xfrm", "state")))
-
-
-def policies():
-    """This tunnel's policy selectors, one normalised string per policy."""
-    found = []
-    selector = None
-    for line in run("ip", "xfrm", "policy").splitlines():
-        fields = line.split()
-        if not fields:
-            continue
-        if fields[0] == "src":
-            selector = " ".join(fields) if (LOCAL_NET in fields or REMOTE_NET in fields) else None
-        elif selector is not None and fields[0] == "dir":
-            found.append(f"{selector} | {fields[1]}")
-            selector = None
-    return frozenset(found)
-
-
-if not wait_until(lambda: len(spis()) >= 2 and len(policies()) >= 2, attempts=400, delay=0.25):
-    sys.exit(f"the tunnel never reached the kernel: states={sorted(spis())} policies={sorted(policies())}")
-before_spis, before_policies = spis(), policies()
-print("INSTALLED:", " ".join(sorted(before_spis)))
-print("POLICIES:", " | ".join(sorted(before_policies)))
-
-# The unrelated commit. peer-b's block is byte-identical in the new file; peer-quiet is
-# what the reload has to act on.
-if not wait_until(lambda: os.path.exists("daemon.pid"), attempts=200, delay=0.05):
-    sys.exit("daemon.pid never appeared, so there is no daemon to reload")
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-shutil.copy("config2.conf", "ze-bgp.conf")
-os.kill(pid, signal.SIGHUP)
-print("RELOADED: sent SIGHUP to pid", pid)
-
-deadline = time.monotonic() + SETTLE_SECONDS
-while time.monotonic() < deadline:
-    now_spis, now_policies = spis(), policies()
-    if now_spis != before_spis:
-        print("BOUNCED: the ESP states moved under an unrelated commit")
-        print("  before:", " ".join(sorted(before_spis)))
-        print("  after: ", " ".join(sorted(now_spis)))
-        sys.exit(1)
-    if now_policies != before_policies:
-        print("BOUNCED: the policies moved under an unrelated commit")
-        print("  before:", " | ".join(sorted(before_policies)))
-        print("  after: ", " | ".join(sorted(now_policies)))
-        sys.exit(1)
-    time.sleep(POLL_DELAY)
-
-print("STABLE:", " ".join(sorted(spis())))
-print("POLICY-STABLE:", " | ".join(sorted(policies())))
-EOF_QUIET
 
 # peer-a's config AFTER the unrelated commit. The `peer peer-b` block is byte-identical
 # to the peer-a block below; peer-quiet is the whole difference.
@@ -311,7 +218,7 @@ EOF_PEER_A
 
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b:name=peer-b
 cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
-cmd=foreground:seq=3:exec=python3 quiet.py:timeout=110s
+cmd=foreground:seq=3:exec=ze-test fixture ipsec/peer-reload-leaves-tunnel-alone:timeout=110s
 # signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
 # release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
 # them in the kernel for the rest of the suite, where ipsec-teardown-leaves-nothing.ci

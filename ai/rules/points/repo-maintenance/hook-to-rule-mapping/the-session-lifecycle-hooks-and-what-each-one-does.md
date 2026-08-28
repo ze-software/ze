@@ -3,14 +3,14 @@ kind: table
 level:
 stage:
 ---
-| Hook | Event | What it does |
+| Native kind | Event | What it does |
 |---|---|---|
-| `session-start.sh` | SessionStart (all sources) | Passes the raw payload to the canonical validator. The empty matcher covers startup, resume, clear, compact, and fork. Publishes an accepted id as `CLAUDE_CODE_SESSION_ID` for the hook and appends it to `CLAUDE_ENV_FILE`. Prints the status summary. Deletes NOTHING. `make ze-scratch-clean` and `make ze-session-clean BEFORE=<date>` are the operator's cleanup routes. |
-| `compaction-reminder.sh` | UserPromptSubmit | Detects compaction; reminds to read `post-compaction.md`. Writes to **stderr**, so it costs no context tokens. |
-| `verify-claim-reminder.sh` | UserPromptSubmit | Emits one **stdout** line per turn. Verify a claim about code by reading the function that PRODUCES the behavior, not the caller. Label an unread claim unverified. Name the file and the symbol, and use a line number only when the line IS the fact. Report the conclusion, not the search. Enforces `ai/rules/evidence.md` and `ai/rules/writing.md`. A banner read once at session start does not survive to the turn that makes the claim, so this lands in fresh context. |
-| `delegation-reminder.sh` | UserPromptSubmit | Emits one **stdout** line per turn: subagent delegation needs no permission in this repository. The harness appends the guard "Do not call the AgentTool unless the user requested it" to the END of the system prompt, where it wins on position. `ai/INSTRUCTIONS.md` "STANDING REQUEST: delegate to subagents" IS the request that guard defers to, but it sits far earlier in the same prompt and loses. UserPromptSubmit stdout is the only harness position that lands after the whole system prompt, so the counter goes there. Unconditional by design: a conditional reminder adds a "did the condition fire" failure mode, and the reminder is correct on every turn. Enforces `ai/rules/planning.md`. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation-reminder`. |
-| `block-premature-stop.sh` | Stop (**first**, ahead of `session-end-summary.sh`) | **Live and BLOCKING.** Four checks run. (1) The stop-phrase scan exits 2 on a match. `COMPLETION_PHRASES` joins the scan only while the claimed spec is `in-progress`. (2) For a claimed spec, `spec-closure-check.py` exit 3 means implemented but not closed, so the hook exits 2. (3) A claimed spec whose metadata is `in-progress` adds a state warning. (4) A missing `.agent-spawned-${SID}` marker adds a delegation warning. State warnings without a stop phrase exit 1 and do not block. There is no `verification` status branch. |
-| `session-end-summary.sh` | Stop | Writes session state snapshot. It does not release the spec claim, and no hook does: `spec-session.sh release` does, from `/ze-close`, so the claim survives the turn-by-turn `Stop` and every session end after it. There is no `SessionEnd` hook at all; the only work that event ever did here was deleting `tmp/session/`. |
-| `session-end-deferrals.sh` | Stop | Prints open deferral count. Advisory. |
-| `pre-compact-save.sh` | PreCompact | Saves session state before compaction. |
-| `subagent-context.sh` | SubagentStart | Validates the parent `session_id` from the hook payload. Only an absent field permits resolver fallback. A malformed value adds no parent id, path, spec, or state. Emits the complete context through JSON `hookSpecificOutput.additionalContext`. For a safe id, that context includes the exact parent id and scratch directory, the parent session's claimed spec and status, and the subagent contract from `ai/rules/planning.md`. |
+| `session-start` | SessionStart | Validates the raw session ID, publishes the accepted ID, and prints status. Deletes nothing; `./le session reap` owns proof-based cleanup. |
+| `compaction-reminder` | UserPromptSubmit | Detects compaction and reminds the session to read the post-compaction rule. |
+| `verify-claim-reminder` | UserPromptSubmit | Reminds the session to read the producing function before making a code claim. |
+| `delegation-reminder` | UserPromptSubmit | States that requested parallel delegation needs no permission. |
+| `block-premature-stop` | Stop | Runs the native stop-phrase and spec-closure checks. Blocking. |
+| `session-end-summary` | Stop | Calls `./le session end-summary`; preserves handoffs and never releases a spec claim. |
+| `session-end-deferrals` | Stop | Prints the open deferral count. Advisory. |
+| `pre-compact-save` | PreCompact | Saves session state before compaction. |
+| `subagent-context` | SubagentStart | Validates the parent session ID and emits the parent context through the hook protocol. |

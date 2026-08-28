@@ -14,7 +14,7 @@ table keeps an entry for every identifier a peer ever used, and a peer grows it
 from the socket. The finding, its producing function and the two fix shapes are in
 the Review Gate section at the end of this file. The fix is Go and was NOT made in
 the closure session: the tree did not compile (other sessions mid-TDD) and a Go
-commit owes a full `make ze-precommit-verify`.
+commit owes a full `./le verify current mode full`.
 
 **Answered 2026-08-14, kept for the record.** The phase-2 question was whether
 `TestForwardPathIDsDifferForCollidingSources`
@@ -218,7 +218,7 @@ daemon holding a RIB can report it.
 | `internal/component/bgp/reactor/forward_body.go` | `fwdReencodeNLRIs` reads a generated identifier instead of copying the received one, and `buildFwdBody`'s same-context branch rewrites the identifiers of the raw frame before it splits or forwards it |
 | `internal/core/bgp/context/context.go` | `AnyAddPath`, so the forward rail can skip every session that negotiated ADD-PATH for nothing before it reads an UPDATE's sections |
 | `internal/component/bgp/reactor/reactor_peers.go` | `doRemovePeer` releases the removed peer's identifiers |
-| `scripts/dev/rfc_requirements_test.py` | the judged-count pin drops to 57: RFC 7911's row stops spelling a gap count when its last `{gap}` closes |
+| `internal/le/` | the judged-count pin drops to 57: RFC 7911's row stops spelling a gap count when its last `{gap}` closes |
 | `rfc/short/rfc7911.md` | `RFC7911-2-2` loses its `{gap}` and gains both polarities |
 | `docs/features/rfc-status.md` | the RFC 7911 row's Remaining count and prose |
 
@@ -281,7 +281,7 @@ The two rows above are the filled set.
 |-------------|---------------------|
 | The generator has one caller | `gopls references` names only the egress transform |
 | `RFC7911-2-2` is no longer a gap | `grep -n "RFC7911-2-2" rfc/short/rfc7911.md` shows both polarities and no `{gap}` |
-| The public ledger agrees | `make ze-rfc-check` green |
+| The public ledger agrees | `./le rfc check` green |
 | Colliding identifiers survive | the `.ci` passes, and fails when the generator is reverted to copying |
 
 ### Security Review Checklist
@@ -327,8 +327,8 @@ a tagged test in both polarities.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] `make ze-rfc-check` green with `RFC7911-2-2` carrying both polarities
-- [ ] `make ze-precommit-verify` green, or scoped evidence with attribution
+- [ ] `./le rfc check` green with `RFC7911-2-2` carrying both polarities
+- [ ] `./le verify current mode full` green, or scoped evidence with attribution
 
 ### TDD
 - [ ] Tests written
@@ -432,7 +432,7 @@ a tagged test in both polarities.
 |------|--------|-------|
 | `forward_path_id.go`, `forward_path_id_gen_test.go` | Done | created |
 | `forward_body.go`, `context.go`, `reactor_peers.go` | Done | changed |
-| `rfc/short/rfc7911.md`, `rfc/requirements/rfc7911.md`, `docs/features/rfc-status.md`, `scripts/dev/rfc_requirements_test.py` | Done | judged-count pin dropped to 57 |
+| `rfc/short/rfc7911.md`, `rfc/requirements/rfc7911.md`, `docs/features/rfc-status.md`, `internal/le/` | Done | judged-count pin dropped to 57 |
 | the two `.ci` | Changed | replaced by the interop scenarios, with the reason in the TDD plan |
 | `docs/architecture/bgp/structural-forwarding.md` | Missing | see Documentation Updates |
 
@@ -472,7 +472,7 @@ a tagged test in both polarities.
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | BLOCKER | The identifier table keeps an entry for every identifier a peer ever used. `generate` inserts one per distinct received identifier; the only release is `releaseSource`, called from `doRemovePeer` alone. A withdraw creates entries too (`fwdPatchPathIDs` runs over the withdrawn sections) and `reactorForwardRS` relays a received UPDATE without consulting a RIB, so withdrawals for paths that were never announced grow the table permanently. A five-octet withdraw NLRI buys about 30 to 40 octets of table, so one full-size UPDATE carries hundreds of them and an established route-server client exhausts the daemon's memory | `internal/component/bgp/reactor/forward_path_id.go` (`fwdPathIDTable.generate`, `fwdPathIDTable.releaseSource`, `fwdPatchPathIDs`), `internal/component/bgp/reactor/reactor_peers.go` (`doRemovePeer`) | NOT FIXED, and the fix shape below was DISPROVEN on 2026-08-17 — read the correction before writing code. ~~The fix is Go: release `(source, received)` when ze has relayed the withdraw for that ingress path, which is the reuse point AC-4 names.~~ A session-scoped release is not a substitute either, because `bgp-addpath-readvertise-collision-frr` pins that a session reset must not renumber. The closure session could not commit Go: the tree did not compile and a Go commit owes a full `make ze-precommit-verify` |
+| 1 | BLOCKER | The identifier table keeps an entry for every identifier a peer ever used. `generate` inserts one per distinct received identifier; the only release is `releaseSource`, called from `doRemovePeer` alone. A withdraw creates entries too (`fwdPatchPathIDs` runs over the withdrawn sections) and `reactorForwardRS` relays a received UPDATE without consulting a RIB, so withdrawals for paths that were never announced grow the table permanently. A five-octet withdraw NLRI buys about 30 to 40 octets of table, so one full-size UPDATE carries hundreds of them and an established route-server client exhausts the daemon's memory | `internal/component/bgp/reactor/forward_path_id.go` (`fwdPathIDTable.generate`, `fwdPathIDTable.releaseSource`, `fwdPatchPathIDs`), `internal/component/bgp/reactor/reactor_peers.go` (`doRemovePeer`) | NOT FIXED, and the fix shape below was DISPROVEN on 2026-08-17 — read the correction before writing code. ~~The fix is Go: release `(source, received)` when ze has relayed the withdraw for that ingress path, which is the reuse point AC-4 names.~~ A session-scoped release is not a substitute either, because `bgp-addpath-readvertise-collision-frr` pins that a session reset must not renumber. The closure session could not commit Go: the tree did not compile and a Go commit owes a full `./le verify current mode full` |
 
 ### BLOCKER 1: why "release on the relayed withdraw" is WRONG (2026-08-17)
 
@@ -546,7 +546,7 @@ case this feature exists for, not every peer.
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1, AC-3 | the emitted identifier is ze's own and stable | `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor` green on 2026-08-17, race-instrumented, 149.5s, `TestForwardPathIDStableAcrossUpdates` included |
+| AC-1, AC-3 | the emitted identifier is ze's own and stable | the retired `ze-unit-pkg-test PKG=./internal/component/bgp/reactor` (current: `go test -race ./internal/component/bgp/reactor`) green on 2026-08-17, race-instrumented, 149.5s, `TestForwardPathIDStableAcrossUpdates` included |
 | AC-2 | two colliding sources leave under different identifiers | same run, `TestForwardPathIDsDifferForCollidingSources` and `TestForwardPathIDDiffersForTwoSourcePeers` |
 | AC-4 | announce and withdraw share one identifier, and release returns values | same run, `TestForwardPathIDMatchesAnnounceAndWithdraw` and `TestForwardPathIDReleaseReturnsValues`; the bound is the Review Gate blocker |
 | AC-5 | 0 and 2^32-1 are values, not absences | same run, `TestForwardPathIDBoundaryReceivedValues` |

@@ -1,30 +1,36 @@
-#!/usr/bin/env python3
-"""le -- the Ze build and test entry point.
+#!/bin/sh
+set -eu
 
-Run from anywhere in the checkout:
+root=$(CDPATH= cd "$(dirname "$0")" && pwd)
+binary=$root/bin/le
 
-    ./le --help
-    ./le setup --check
-    ./le lint
+# This is an existence cache, not a freshness check. An existing binary is
+# deliberately executed without asking the toolchain whether sources changed.
+if [ ! -x "$binary" ]; then
+	feature_tags=$(awk 'NF && $1 !~ /^#/ && !seen[$1]++ { printf "%s%s", sep, $1; sep="," }' "$root/feature-gates.txt")
+	tags=ze_le
+	if [ -n "$feature_tags" ]; then
+		tags=$tags,$feature_tags
+	fi
 
-Each subprogram also runs on its own, which is what this shim's `sys.path`
-entry makes possible without an install step:
+	GOCACHE=$root/cache/go-cache
+	GOLANGCI_LINT_CACHE=$root/tmp/golangci-lint-cache
+	CGO_ENABLED=0
+	export GOCACHE GOLANGCI_LINT_CACHE CGO_ENABLED
+	# A toolchain line wins; the go directive is the fallback, because a module
+	# stating `go 1.27.0` and no toolchain line still pins go1.27.0. Reading only
+	# the toolchain line left this build with no pin at all.
+	toolchain=$(awk '$1 == "toolchain" { print $2; exit }' "$root/go.mod")
+	if [ -z "$toolchain" ]; then
+		toolchain=$(awk '$1 == "go" { print "go" $2; exit }' "$root/go.mod")
+	fi
+	if [ -n "$toolchain" ]; then
+		GOTOOLCHAIN=$toolchain
+		export GOTOOLCHAIN
+	fi
 
-    PYTHONPATH=scripts python3 -m le.application.setup --check
-"""
+	mkdir -p "$root/bin"
+	(cd "$root" && go build -tags "$tags" -o "$binary" ./cmd/ze)
+fi
 
-from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-# scripts/ holds the package and is not itself one, so putting it on the path
-# is what makes `import le` work with nothing installed. A checkout is cloned
-# and run, never pip-installed, so an editable install would be a step to
-# forget rather than a step to take.
-sys.path.insert(0, str(Path(__file__).resolve().parent / 'scripts'))
-
-from le.main import main  # noqa: E402  (path must be set before the import)
-
-if __name__ == '__main__':
-    sys.exit(main())
+exec "$binary" "$@"

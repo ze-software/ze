@@ -110,11 +110,17 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 			}}
 		}
 	}
-	websiteCandidate := filepath.Join(filepath.Dir(root), "gh-pages", "data", "cli-commands.json")
-	wikiCandidate := filepath.Join(filepath.Dir(root), "wiki", "command-catalog.md")
+	var websiteCandidates, wikiCandidates []string
 	if commandCatalogPath != "" {
-		websiteCandidate = filepath.Join(root, "website", "data", "cli-commands.json")
-		wikiCandidate = filepath.Join(root, "wiki", "command-catalog.md")
+		websiteCandidates = append(websiteCandidates,
+			filepath.Join(root, "website", "data", "cli-commands.json"))
+		wikiCandidates = append(wikiCandidates,
+			filepath.Join(root, "wiki", "command-catalog.md"))
+	} else if checkSiblingPublications {
+		websiteCandidates = append(websiteCandidates,
+			filepath.Join(filepath.Dir(root), "gh-pages", "data", "cli-commands.json"))
+		wikiCandidates = append(wikiCandidates,
+			filepath.Join(filepath.Dir(root), "wiki", "command-catalog.md"))
 	}
 
 	liveRaw, live, err := loadLiveCommandCatalog(root, commandCatalogPath)
@@ -138,7 +144,7 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 		}}
 	}
 	issues := validateGeneratedWikiCommandSurface(expectedWiki, live)
-	wikiPaths, wikiPathErr := existingPaths(wikiCandidate)
+	wikiPaths, wikiPathErr := existingPaths(wikiCandidates...)
 	if wikiPathErr != nil {
 		issues = append(issues,
 			commandSurfaceReadIssue("wiki command catalog", wikiPathErr))
@@ -147,12 +153,13 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 		issues = append(issues, compareWikiCommandCatalog(root, path, expectedWiki)...)
 	}
 
-	websitePaths, websitePathErr := existingPaths(websiteCandidate)
+	websitePaths, websitePathErr := existingPaths(websiteCandidates...)
 	if websitePathErr != nil {
 		return append(issues,
 			commandSurfaceReadIssue("website command catalog", websitePathErr))
 	}
-	if len(websitePaths) == 0 {
+	if len(websitePaths) == 0 && len(websiteCandidates) != 0 {
+		websiteCandidate := websiteCandidates[0]
 		hasPublishedWebsite, inspectErr := publishedWebsiteRootExists(
 			filepath.Dir(filepath.Dir(websiteCandidate)), commandCatalogPath != "",
 		)
@@ -587,11 +594,19 @@ func compareWikiCatalogProducer(
 	if bytes.Equal(liveNormalized, producedNormalized) {
 		return nil
 	}
+	detail := fmt.Sprintf("live catalog has %d rows and wiki producer has %d", len(live), len(produced))
+	for index := 0; index < len(live) && index < len(produced); index++ {
+		liveRow, _ := json.Marshal(live[index])
+		producedRow, _ := json.Marshal(produced[index])
+		if !bytes.Equal(liveRow, producedRow) {
+			detail = fmt.Sprintf("first mismatch at row %d\nlive: %s\nwiki: %s", index, liveRow, producedRow)
+			break
+		}
+	}
 	return []Issue{{
 		File:    "internal/le/wikicatalog/catalog.go",
 		Message: "the shipping wiki catalog producer and the live command catalog disagree",
-		Detail: "wikicatalog.Collect must preserve every command field before " +
-			"wikicatalog.Render publishes the catalog",
+		Detail:  detail,
 	}}
 }
 

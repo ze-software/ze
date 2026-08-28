@@ -21,76 +21,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=l2tp-config-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Dispatch `show l2tp config` and assert non-default values round-trip."""
-
-import json
-import time
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = api.dispatch_until_done('show l2tp config')
-    if r is None or r.get('status') != 'done':
-        status = r.get('status') if r else 'nil'
-        data = result_text_data(r) if r else ''
-        runtime_fail(f'show l2tp config: status={status} data={data[:200]}')
-
-    try:
-        cfg = result_json_data(r, {})
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'show l2tp config json: {exc}: {result_text_data(r)[:200]}')
-        cfg = {}
-
-    # Non-default values set by the config block below.
-    checks = [
-        ('enabled', True),
-        ('max-tunnels', 50),
-        ('max-sessions', 75),
-        ('hello-interval', 45),
-        ('shared-secret', '<set>'),
-    ]
-    for key, want in checks:
-        got = cfg.get(key)
-        if got != want:
-            runtime_fail(f'show l2tp config: {key}={got!r} want {want!r}')
-
-    listeners = cfg.get('listeners')
-    if not isinstance(listeners, list) or len(listeners) != 1:
-        runtime_fail(f'show l2tp config listeners unexpected: {listeners!r}')
-    if '127.0.0.1:' not in listeners[0]:
-        runtime_fail(f'show l2tp config listeners[0]={listeners[0]!r}')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external l2tp-config-show-test {
-		run ./l2tp-config-show.run
+		run "ze-test fixture plugin/l2tp-config-show"
 		encoder json
 	}
 }

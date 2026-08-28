@@ -12,11 +12,10 @@
 #           being gzip CSV.
 #
 # WHY A PLUGIN-DRIVEN HTTP CHECK (not an http= directive): the runner's http=
-# assertion checks only status code + body substring, NOT response HEADERS, and the
-# body here is gzip (no readable tokens). So the plugin issues the download request
-# itself (urllib) and asserts on Content-Disposition / Content-Type / the decompressed
-# CSV header. The LG listen port reaches the plugin via option=env (ZE_LG_PORT=$PORT2),
-# which the ze daemon inherits (os.Environ) and passes to the plugin process
+# assertion checks only status code + body substring, not response headers, and
+# the body here is gzip. The native fixture checks Content-Disposition,
+# Content-Type, and the decompressed CSV body. ZE_LG_PORT reaches the external
+# fixture through the daemon's inherited environment.
 # (internal/component/plugin/process/process.go:568).
 
 # ze-peer expectations (minimal handshake)
@@ -29,123 +28,13 @@ EOF_PEER
 # Pass the looking-glass listen port ($PORT2) to the plugin process.
 option=env:var=ZE_LG_PORT:value=$PORT2
 
-# Python test plugin: injects one route to peer 10.0.1.1, then downloads that peer's
-# CSV from the looking glass and asserts on the response headers + gzip body.
-tmpfs=lg-csv.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Inject a route, then GET /lg/peer/<addr>/download and assert the CSV contract."""
-import gzip
-import io
-import os
-import sys
-import urllib.request
-from ze_api import API
-from ze_api import runtime_fail, wait_until
-
-
-def dispatch(api, command):
-    try:
-        resp = api._call_engine(
-            'ze-plugin-engine:dispatch-command', {'command': command})
-    except Exception as e:
-        return {'status': 'error', 'error': f'engine call raised: {e}'}
-    if resp is None:
-        return {'status': 'error', 'error': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def inject(api, peer, prefix, nhop, aspath):
-    cmd = f'request bgp rib inject {peer} ipv4/unicast {prefix} origin igp nhop {nhop} aspath {aspath}'
-    result = dispatch(api, cmd)
-    if result.get('status') != 'done':
-        runtime_fail(f'{cmd} -> {result}')
-        sys.exit(1)
-
-
-def fetch(url, timeout=15.0):
-    # Bypass any ambient proxy; poll until the LG server has bound its port.
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    captured = {}
-
-    def try_get():
-        try:
-            with opener.open(url, timeout=3.0) as resp:
-                captured['result'] = (
-                    resp.status,
-                    resp.headers.get('Content-Disposition', ''),
-                    resp.headers.get('Content-Type', ''),
-                    resp.read(),
-                )
-                return True
-        except Exception as e:  # connection refused during startup, etc.
-            captured['last'] = e
-            return False
-
-    if not wait_until(try_get, attempts=max(1, int(timeout / 0.2)), delay=0.2):
-        runtime_fail(f'csv: LG download never responded at {url}: {captured.get("last")}')
-        sys.exit(1)
-    return captured['result']
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    peer = '10.0.1.1'
-    try:
-        inject(api, peer, '10.20.0.0/24', peer, '2914,65100')
-
-        port = os.environ.get('ZE_LG_PORT')
-        if not port:
-            runtime_fail('csv: ZE_LG_PORT not set in plugin environment')
-            sys.exit(1)
-
-        url = f'http://127.0.0.1:{port}/lg/peer/{peer}/download'
-        status, cd, ct, body = fetch(url)
-
-        if status != 200:
-            runtime_fail(f'csv: expected HTTP 200, got {status}')
-        # Content-Disposition attachment filename: routes-<addr>.csv.gz
-        if 'routes-' not in cd or '.csv.gz' not in cd:
-            runtime_fail(f'csv: Content-Disposition missing routes-/.csv.gz token: {cd!r}')
-        if f'routes-{peer}.csv.gz' not in cd:
-            runtime_fail(f'csv: Content-Disposition filename mismatch: {cd!r}')
-        if ct != 'application/gzip':
-            runtime_fail(f'csv: Content-Type expected application/gzip, got {ct!r}')
-
-        # Body must be gzip whose first CSV line is the fixed column header.
-        try:
-            text = gzip.GzipFile(fileobj=io.BytesIO(body)).read().decode('utf-8', 'replace')
-        except Exception as e:
-            runtime_fail(f'csv: body is not valid gzip: {e}')
-            text = ''
-        header_line = 'prefix,next-hop,as-path,origin,local-pref,med'
-        if header_line not in text:
-            runtime_fail(f'csv: gzip body missing CSV header line; got {text[:160]!r}')
-        # The injected route must be present as a data row.
-        if '10.20.0.0/24' not in text:
-            runtime_fail(f'csv: injected route 10.20.0.0/24 missing from CSV body; got {text[:200]!r}')
-
-        print(f'OK: csv download status={status} cd={cd!r} ct={ct!r}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer injects one route, downloads its CSV, and verifies headers and body.
 
 # ze bgp configuration with LG enabled
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external lg-csv {
-		run ./lg-csv.run
+		run "ze-test fixture plugin/lg-csv-download"
 		encoder json
 	}
 	internal bgp-rib {

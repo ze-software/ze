@@ -8,9 +8,8 @@
 //     body of the function under test would not turn it red.
 //
 //  2. tag-orphan: a _test.go file whose //go:build constraint requires a
-//     project tag (ze_*) that no `go test -tags` invocation in the Makefile or
-//     mk/*.mk ever supplies. The file compiles nowhere, runs nowhere, and reads
-//     as coverage from every directory listing.
+//     project tag (ze_*) that no native test action supplies. The file compiles
+//     nowhere, runs nowhere, and reads as coverage from directory listings.
 //
 // Both are counted and ratcheted: the committed floors in
 // test/health/sensitivity-baseline.json may only go DOWN (lower the floor in
@@ -40,10 +39,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// testRoots are the in-repo trees that hold first-party tests. vendor/ and
-// gokrazy/modcache/ are third-party module trees: counting them is precisely
-// the error that let the published test total reach six times the real one.
-var testRoots = []string{"internal", "cmd", "pkg", "scripts", "test"}
+// testRoots are the in-repo first-party test populations.
+var testRoots = []string{"internal", "cmd", "pkg", "test"}
 
 // BaselinePath is the committed floor file, relative to the tree.
 const BaselinePath = "test/health/sensitivity-baseline.json"
@@ -73,7 +70,7 @@ const (
 // It fails closed: a scan that finds no test files at all is a broken scan, not
 // a clean tree, and an empty tag universe means the make files did not parse.
 func Scan(root string, population Population) (Result, error) {
-	universe, err := TagUniverse(root)
+	universe, err := tagUniverse(root)
 	if err != nil {
 		return Result{}, err
 	}

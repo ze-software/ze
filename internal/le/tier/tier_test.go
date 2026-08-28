@@ -24,7 +24,7 @@ func fixtureTree(t *testing.T, files map[string]string) string {
 // VALIDATES: the plugin search roots this gate scans are the composition-root
 // generator's own list, obtained by a CALL.
 // PREVENTS: the step-14 landmine. The script parsed the roots out of
-// scripts/codegen/plugin_imports.go's source text, so deleting that
+// internal/le/pluginimports/pluginimports.go's source text, so deleting that
 // script leaves the gate with no roots and every nested sub-plugin
 // engine reads as misplaced.
 func TestThePluginDirsAreTheGeneratorsOwnList(t *testing.T) {
@@ -47,7 +47,7 @@ func TestThePluginDirsAreTheGeneratorsOwnList(t *testing.T) {
 // nested namespace, which would exclude every plugin engine from the
 // gate.
 func TestOnlyADeepComponentRootIsANestedNamespace(t *testing.T) {
-	nested := NestedNamespaces([]string{
+	nested := nestedNamespaces([]string{
 		AreaPlugins,
 		"internal/component/iface",
 		"internal/component/bgp/plugins",
@@ -133,7 +133,7 @@ func TestOnlyACompositionRootIsARegistrationImporter(t *testing.T) {
 		{"cmd/ze/setup.go", false},
 	}
 	for _, testCase := range cases {
-		if got := IsRegistrationImporter(testCase.file); got != testCase.want {
+		if got := isRegistrationImporter(testCase.file); got != testCase.want {
 			t.Errorf("IsRegistrationImporter(%q) = %v, want %v", testCase.file, got, testCase.want)
 		}
 	}
@@ -154,7 +154,7 @@ func TestTheEdgeScanSkipsTheModuleCacheAndSiblingWorktrees(t *testing.T) {
 		"tmp/scratch/t.go":                blankImport("scratch", "internal/component/thing"),
 		"internal/node_modules/deep/n.go": blankImport("deep", "internal/component/thing"),
 	})
-	edges, err := CollectEdges(root, fixtureModule)
+	edges, err := collectEdges(root, fixtureModule)
 	if err != nil {
 		t.Fatalf("collecting edges: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestAnUnreadableGoFileStopsTheEdgeScan(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(path, 0o600) })
 
-	if _, err := CollectEdges(root, fixtureModule); err == nil {
+	if _, err := collectEdges(root, fixtureModule); err == nil {
 		t.Fatal("an unreadable Go file was passed over, so its import edges never reach the direction gate")
 	}
 }
@@ -191,12 +191,12 @@ func TestAnUnreadableGoFileStopsTheEdgeScan(t *testing.T) {
 // PREVENTS: the dependency test being dropped, which would send every component
 // engine to plugins.
 func TestAnEngineIsPlacedByWhoDependsOnIt(t *testing.T) {
-	root := fixtureTree(t, PlacementFixture())
-	edges, err := CollectEdges(root, fixtureModule)
+	root := fixtureTree(t, placementFixture())
+	edges, err := collectEdges(root, fixtureModule)
 	if err != nil {
 		t.Fatalf("collecting edges: %v", err)
 	}
-	misplaced, err := EngineMisplacements(root, fixtureModule, edges)
+	misplaced, err := engineMisplacements(root, fixtureModule, edges)
 	if err != nil {
 		t.Fatalf("computing misplacements: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestTheEngineScanIgnoresInternalLe(t *testing.T) {
 		"internal/plugins/edge/engine.go": engineFile("edge"),
 	})
 
-	dirs, err := FindEngineDirs(root, nil)
+	dirs, err := findEngineDirs(root, nil)
 	if err != nil {
 		t.Fatalf("finding engine directories: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestTheBaselineRoundTripsThroughItsOwnWriter(t *testing.T) {
 		"internal/component/edgeproto": AreaPlugins,
 		"internal/plugins/platformx":   AreaComponent,
 	}
-	if err := WriteBaseline(root, misplaced); err != nil {
+	if err := writeBaseline(root, misplaced); err != nil {
 		t.Fatalf("writing the baseline: %v", err)
 	}
 
@@ -287,7 +287,7 @@ func TestACategoryIsLegalOnlyWhereItsRuleAllowsIt(t *testing.T) {
 		{"internal/component/x", "made-up", Row{}, false},
 	}
 	for _, testCase := range cases {
-		got, reason := ValidNonEngineCategory(testCase.rel, testCase.category, testCase.row)
+		got, reason := validNonEngineCategory(testCase.rel, testCase.category, testCase.row)
 		if got != testCase.want {
 			t.Errorf("ValidNonEngineCategory(%q, %q) = %v (%s), want %v",
 				testCase.rel, testCase.category, got, reason, testCase.want)
@@ -314,7 +314,7 @@ func TestTheManifestReportsItsOwnProblems(t *testing.T) {
 			"",
 		}, "\n"),
 	})
-	_, problems, err := LoadNonEngineCategories(root)
+	_, problems, err := loadNonEngineCategories(root)
 	if err != nil {
 		t.Fatalf("loading the manifest: %v", err)
 	}
@@ -358,11 +358,11 @@ func TestAManifestRowMustNameADirectoryThatExists(t *testing.T) {
 			"",
 		}, "\n"),
 	})
-	edges, err := CollectEdges(root, fixtureModule)
+	edges, err := collectEdges(root, fixtureModule)
 	if err != nil {
 		t.Fatalf("collecting edges: %v", err)
 	}
-	problems, err := NonEngineCategoryProblems(root, fixtureModule, edges)
+	problems, err := nonEngineCategoryProblems(root, fixtureModule, edges)
 	if err != nil {
 		t.Fatalf("reading the manifest: %v", err)
 	}
@@ -405,7 +405,7 @@ func TestANegatedTagDoesNotRequireIt(t *testing.T) {
 		"plain.go": false, "comment.go": true, "codefirst.go": false,
 	}
 	for file, want := range cases {
-		if got := FileRequiresTag(root, file, "ze_widget"); got != want {
+		if got := fileRequiresTag(root, file, "ze_widget"); got != want {
 			t.Errorf("FileRequiresTag(%q) = %v, want %v", file, got, want)
 		}
 	}
@@ -417,10 +417,10 @@ func TestANegatedTagDoesNotRequireIt(t *testing.T) {
 // package whose line was skipped.
 func TestAMalformedFeatureGateLineIsRefused(t *testing.T) {
 	root := fixtureTree(t, map[string]string{FeatureGatesManifest: "ze_alpha\n"})
-	if _, err := LoadFeatureGates(root); err == nil {
+	if _, err := loadFeatureGates(root); err == nil {
 		t.Fatal("a line naming a tag and no package was accepted")
 	}
-	if _, err := LoadFeatureGates(t.TempDir()); err == nil {
+	if _, err := loadFeatureGates(t.TempDir()); err == nil {
 		t.Fatal("a tree with no manifest answered a gate map instead of an error")
 	}
 }
@@ -443,7 +443,7 @@ func TestTheBuildTagsListStopsAtTheNextKey(t *testing.T) {
 			"",
 		}, "\n"),
 	})
-	tags, err := ParseGolangciBuildTags(root)
+	tags, err := parseGolangciBuildTags(root)
 	if err != nil {
 		t.Fatalf("parsing: %v", err)
 	}
@@ -456,12 +456,12 @@ func TestTheBuildTagsListStopsAtTheNextKey(t *testing.T) {
 // PREVENTS: the grandfathered set losing its one test-file pair, which would
 // make that row look stale and red the gate.
 func TestTheCoreDirectionGateReadsTestFiles(t *testing.T) {
-	root := fixtureTree(t, CoreFixture())
-	edges, err := CollectEdges(root, fixtureModule)
+	root := fixtureTree(t, coreFixture())
+	edges, err := collectEdges(root, fixtureModule)
 	if err != nil {
 		t.Fatalf("collecting edges: %v", err)
 	}
-	pairs := CoreDirectionViolations(fixtureModule, edges)
+	pairs := coreDirectionViolations(fixtureModule, edges)
 	if len(pairs) != 2 {
 		t.Fatalf("pairs %+v, want two", pairs)
 	}
@@ -475,7 +475,7 @@ func TestTheCoreDirectionGateReadsTestFiles(t *testing.T) {
 // PREVENTS: a merged capture, whose interleaving no runner can order and no
 // comparison can settle.
 func TestTheVerdictAndTheFailureAreDifferentStreams(t *testing.T) {
-	root := fixtureTree(t, PlacementFixture())
+	root := fixtureTree(t, placementFixture())
 	report, err := Check(root)
 	if err != nil {
 		t.Fatalf("checking: %v", err)
@@ -489,7 +489,7 @@ func TestTheVerdictAndTheFailureAreDifferentStreams(t *testing.T) {
 	if strings.Contains(report.Text(), "FAIL:") {
 		t.Errorf("a failure reached the verdict stream:\n%s", report.Text())
 	}
-	for _, gate := range report.Gates {
+	for _, gate := range report.Checks {
 		if gate.Page != "" && gate.Diagnosis != "" {
 			t.Errorf("gate %s wrote to both streams", gate.Name)
 		}
@@ -500,13 +500,13 @@ func TestTheVerdictAndTheFailureAreDifferentStreams(t *testing.T) {
 // PREVENTS: a later check's code overwriting the first, which would tell a
 // caller to look at the wrong thing.
 func TestTheFirstFailingCheckDecidesTheCode(t *testing.T) {
-	root := fixtureTree(t, PlacementFixture())
+	root := fixtureTree(t, placementFixture())
 	report, err := Check(root)
 	if err != nil {
 		t.Fatalf("checking: %v", err)
 	}
 	first := 0
-	for _, gate := range report.Gates {
+	for _, gate := range report.Checks {
 		if gate.Code != 0 {
 			first = gate.Code
 			break
@@ -515,16 +515,16 @@ func TestTheFirstFailingCheckDecidesTheCode(t *testing.T) {
 	if report.Failed != first {
 		t.Fatalf("the run answers %d and the first failing check answers %d", report.Failed, first)
 	}
-	if report.Gates[0].Name != "engine-placement" || len(report.Gates) != 5 {
-		t.Fatalf("the checks ran as %+v, want the script's five in order", report.Gates)
+	if report.Checks[0].Name != "engine-placement" || len(report.Checks) != 5 {
+		t.Fatalf("the checks ran as %+v, want the script's five in order", report.Checks)
 	}
 
 	// The five checks all answer 0 or 2, so first-versus-last is unobservable
 	// from their own output. The rule is asserted where it can be seen.
-	if got := FirstFailure([]GateResult{{Code: 0}, {Code: 3}, {Code: 1}}); got != 3 {
+	if got := firstFailure([]CheckResult{{Code: 0}, {Code: 3}, {Code: 1}}); got != 3 {
 		t.Errorf("FirstFailure answered %d, want the first non-zero code", got)
 	}
-	if got := FirstFailure([]GateResult{{Code: 0}, {Code: 0}}); got != 0 {
+	if got := firstFailure([]CheckResult{{Code: 0}, {Code: 0}}); got != 0 {
 		t.Errorf("FirstFailure answered %d for a run that passed", got)
 	}
 }
@@ -533,7 +533,7 @@ func TestTheFirstFailingCheckDecidesTheCode(t *testing.T) {
 // PREVENTS: a payload `| json` cannot render into the document the CLI contract
 // promises.
 func TestTheAuditReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
-	root := fixtureTree(t, PlacementFixture())
+	root := fixtureTree(t, placementFixture())
 	report, err := Report(root, DefaultAreas[:2])
 	if err != nil {
 		t.Fatalf("building the report: %v", err)
@@ -574,7 +574,7 @@ func TestTheAuditReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 // PREVENTS: a page a reader cannot compare with the script's, which is the only
 // rendering this action has.
 func TestTheReportPageGroupsAndOrdersTheScriptsWay(t *testing.T) {
-	root := fixtureTree(t, PlacementFixture())
+	root := fixtureTree(t, placementFixture())
 	report, err := Report(root, []string{AreaPlugins})
 	if err != nil {
 		t.Fatalf("building the report: %v", err)
@@ -617,15 +617,11 @@ func TestTheReportPageGroupsAndOrdersTheScriptsWay(t *testing.T) {
 	}
 }
 
-// VALIDATES: the area holds the two gates and the two verbs, and only
+// VALIDATES: the area publishes all four native actions, and only
 // write-baseline writes.
-// PREVENTS: a gate leaving the command surface with its parity claim, or the
-// listing telling a developer that a check writes.
-func TestTheAreaHoldsTwoGatesAndTwoVerbs(t *testing.T) {
-	gates := actions.Gates()
-	if !slices.Equal(gates, []string{"ze-tier-check", "ze-tier-selftest"}) {
-		t.Fatalf("gates %q", gates)
-	}
+// PREVENTS: an action leaving the command surface or the listing calling a
+// check a write.
+func TestTheAreaPublishesFourNativeActions(t *testing.T) {
 	list := Actions()
 	verbs := make([]string, 0, len(list.Actions))
 	writes := make([]string, 0, 1)
@@ -650,8 +646,8 @@ func TestTheAreaRefusesAnUnknownActionApartFromAValue(t *testing.T) {
 	if _, code := Answer([]string{"nope"}); code != 2 {
 		t.Errorf("an unknown action answered %d, want 2", code)
 	}
-	if _, code := Answer([]string{"check", AreaComponent}); code != 1 {
-		t.Errorf("a value after an action answered %d, want 1", code)
+	if _, code := Answer([]string{"check", AreaComponent}); code != 2 {
+		t.Errorf("a value after an action answered %d, want 2", code)
 	}
 }
 
@@ -660,12 +656,12 @@ func TestTheAreaRefusesAnUnknownActionApartFromAValue(t *testing.T) {
 // PREVENTS: a subsystem falling out of the audit, which the manifest gate then
 // never asks to classify.
 func TestEveryTopLevelSubsystemIsClassified(t *testing.T) {
-	root := fixtureTree(t, PlacementFixture())
-	edges, err := CollectEdges(root, fixtureModule)
+	root := fixtureTree(t, placementFixture())
+	edges, err := collectEdges(root, fixtureModule)
 	if err != nil {
 		t.Fatalf("collecting edges: %v", err)
 	}
-	engines, err := EngineSubsystems(root)
+	engines, err := engineSubsystems(root)
 	if err != nil {
 		t.Fatalf("finding engines: %v", err)
 	}

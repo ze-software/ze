@@ -25,46 +25,6 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 EOF_PEER
 
 # Custom plugin with UNRELATED name that claims flowspec families
-tmpfs=acme-traffic-filter.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Custom plugin with unrelated name - proves only family claims matter."""
-
-import sys
-from ze_api import API
-
-def main() -> None:
-    api = API()
-
-    # Stage 1: Claim flowspec families (this is what prevents auto-load)
-    api.declare_family('ipv4', 'flow', mode='decode')
-    api.declare_family('ipv6', 'flow', mode='decode')
-    api.declare_family('ipv4', 'flow-vpn', mode='decode')
-    api.declare_family('ipv6', 'flow-vpn', mode='decode')
-    api.declare_family('ipv4', 'unicast')  # For sending marker
-    api.declare_done()
-
-    # Stage 2: Receive config
-    api.wait_for_config(timeout=5.0)
-
-    # Stage 3: No capabilities
-    api.capability_done()
-
-    # Stage 4: Receive registry
-    api.wait_for_registry(timeout=5.0)
-
-    # Stage 5: Ready
-    api.ready()
-
-    # Send marker UPDATE to prove we're the active plugin
-    # Prefix 77.77.77.0/24 (0x4d4d4d) is unique to this plugin
-    api.send('peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.0/24')
-    api.quiesce()
-
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration
 # Plugin name "acme-traffic-filter" has NO relation to "flowspec"
@@ -72,7 +32,7 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external acme-traffic-filter {
-        run ./acme-traffic-filter.run
+        run "ze-test fixture plugin/custom-flowspec-plugin"
         encoder json
     }
 }

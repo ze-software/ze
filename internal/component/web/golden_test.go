@@ -26,7 +26,7 @@ import (
 // ONE SET. The package renders through templ alone: the html/template tree and
 // the second Set that covered it went with the last ported template.
 //
-// Recapture a deliberate markup change with `make ze-web-golden-update`.
+// Recapture a deliberate markup change with `go test ./internal/component/web -run TestWebGoldenOutput -update-golden`.
 var webTemplGolden = golden.Set{
 	FS:      os.DirFS("."),
 	Dir:     ".",

@@ -78,29 +78,37 @@ func kernelTreeCachePath(version, variant string) string {
 	return filepath.Join(resolveCacheDir(), runtimeKernelCacheDir, tb.Str(version).Byte('-').Str(variant).String())
 }
 
-// kernelBuilderScripts lists every Python module under kernelBuilderDir, sorted
-// so the hash is stable regardless of directory walk order. ok is false if the
-// directory cannot be read, so the caller falls back to a builder-independent
-// variant.
-//
-// Found rather than named, for the reason tools/installer-kernel/Makefile globs
-// the same directory: a hand-written list stops covering the builder the day
-// somebody adds a module to it. This one had already stopped. It named build.py,
-// run.py and ksource.py, so an edit to qemu-build.py -- the whole QEMU backend --
-// left the key unchanged and served a kernel the old backend had built.
-func kernelBuilderScripts() (paths []string, ok bool) {
-	entries, err := os.ReadDir(kernelBuilderDir)
-	if err != nil {
-		return nil, false
+// kernelBuilderSources lists every production source file used by the native
+// builder. The list is discovered and sorted so adding or editing a backend
+// invalidates cached kernels without maintaining another filename registry.
+func kernelBuilderSources() (paths []string, ok bool) {
+	roots := []string{
+		kernelBuilderDir,
+		filepath.Join("internal", "appliance", "kernelbuilder"),
 	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".py") {
-			continue
+	for _, root := range roots {
+		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				if root == kernelBuilderDir && path != root {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			paths = append(paths, path)
+			return nil
+		})
+		if err != nil {
+			return nil, false
 		}
-		paths = append(paths, filepath.Join(kernelBuilderDir, e.Name()))
 	}
 	sort.Strings(paths)
-	return paths, true
+	return paths, len(paths) > 0
 }
 
 func cacheFileHashPaths(paths []string) (string, bool) {
@@ -110,7 +118,10 @@ func cacheFileHashPaths(paths []string) (string, bool) {
 		if err != nil {
 			return "", false
 		}
+		h.Write([]byte(filepath.ToSlash(path)))
+		h.Write([]byte{0})
 		h.Write(data)
+		h.Write([]byte{0})
 	}
 	return hex.EncodeToString(h.Sum(nil))[:8], true
 }
@@ -124,23 +135,49 @@ func kernelCacheVariant(arch, profile string) string {
 	return kernelCacheVariantFor(kernelTargetInstaller, arch, resolved)
 }
 
+// kernelPatchSources lists every file under the target's patch directory.
+// Patch names are part of cacheFileHashPaths, so adding, removing, renaming, or
+// editing a patch invalidates a runtime kernel built from the old tree.
+func kernelPatchSources(target string) (paths []string, ok bool) {
+	description, err := kernelTargetFor(target)
+	if err != nil {
+		return nil, false
+	}
+	if description.patchesDir == "" {
+		return nil, true
+	}
+	err = filepath.WalkDir(description.patchesDir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !entry.IsDir() {
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	if err != nil || len(paths) == 0 {
+		return nil, false
+	}
+	sort.Strings(paths)
+	return paths, true
+}
+
 // kernelCacheVariantFor keys the cache by target so installer (single-file
 // Image) and runtime (vmlinuz tree) artifacts never collide, and by the config
-// + builder-script hashes so profile/fragment/builder changes invalidate stale
-// artifacts. The resolved Fragments already include any # ze-include shared
-// fragment, so editing the shared fragment invalidates the cache too. The
-// builder hash covers every module under kernelBuilderDir, the QEMU backend
-// included (kernelBuilderScripts).
+// and native builder hashes so profile, fragment, or backend changes invalidate
+// stale artifacts. Resolved fragments include shared # ze-include fragments.
 func kernelCacheVariantFor(target, arch string, profile kernelProfileResolution) string {
 	var tb textbuf.Buffer
 	configInputs := append([]string{}, profile.Fragments...)
 	configInputs = append(configInputs, profile.Manifests...)
+	patches, patchesOK := kernelPatchSources(target)
+	configInputs = append(configInputs, patches...)
 	configHash, configOK := cacheFileHashPaths(configInputs)
 	builderHash, builderOK := "", false
-	if scripts, found := kernelBuilderScripts(); found {
-		builderHash, builderOK = cacheFileHashPaths(scripts)
+	if sources, found := kernelBuilderSources(); found {
+		builderHash, builderOK = cacheFileHashPaths(sources)
 	}
-	if !configOK || !builderOK {
+	if !configOK || !patchesOK || !builderOK {
 		return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).String()
 	}
 	return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).Byte('-').Str(configHash).Byte('-').Str(builderHash).String()

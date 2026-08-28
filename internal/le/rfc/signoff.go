@@ -244,8 +244,8 @@ func evaluateExtraction(tree string, art Extraction, inv *Inventory, reqs []Requ
 		var tb textbuf.Buffer
 		return append(errs, tb.Str(where).Str(": source-sha no longer matches ").
 			Str(inv.SourcePath).Str(". The source text changed under this sign-off, so ").
-			Str("the walk no longer bounds what the summary missed. Re-run: make ").
-			Str("ze-rfc-extraction-create STEM=").Str(art.Stem).
+			Str("the walk no longer bounds what the summary missed. Re-run: ./le rfc ").
+			Str("extraction-create stem ").Str(art.Stem).
 			Str(", re-classify any site that moved, and bump signed-off").String())
 	}
 	if art.SourcePath != inv.SourcePath {
@@ -282,7 +282,7 @@ func evaluateExtraction(tree string, art Extraction, inv *Inventory, reqs []Requ
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(where).Str(": derived site ").Str(id).
 			Str(" is absent from the sign-off (").Str(pyRepr(firstRunes(derivedSites[id].Quote, 80))).
-			Str("). Re-run make ze-rfc-extraction-create STEM=").Str(art.Stem).
+			Str("). Re-run ./le rfc extraction-create stem ").Str(art.Stem).
 			Str(" and classify it").String())
 	}
 	for _, id := range sortedMissing(artSites, derivedSites) {
@@ -456,8 +456,8 @@ func sortedShared[L any, R any](left map[string]L, right map[string]R) []string 
 	return out
 }
 
-// EvaluateExtractions answers the valid sign-offs by stem, and every violation.
-func EvaluateExtractions(deriver *Deriver, requirements []Requirement) (map[string]Extraction, []string, error) {
+// evaluateExtractions answers the valid sign-offs by stem, and every violation.
+func evaluateExtractions(deriver *Deriver, requirements []Requirement) (map[string]Extraction, []string, error) {
 	byRFC := map[string][]Requirement{}
 	for _, req := range requirements {
 		byRFC[req.RFC] = append(byRFC[req.RFC], req)
@@ -466,7 +466,7 @@ func EvaluateExtractions(deriver *Deriver, requirements []Requirement) (map[stri
 	if err != nil {
 		return nil, nil, err
 	}
-	gated := GatedCounts(requirements)
+	gated := gatedCounts(requirements)
 	signed := map[string]Extraction{}
 	var errs []string
 	for _, stem := range sortedKeysOf(artifacts) {
@@ -501,7 +501,7 @@ func sortedKeysOf[V any](in map[string]V) []string {
 	return out
 }
 
-// Credited answers the sign-offs that COUNT: the ones whose stem is enrolled.
+// credited answers the sign-offs that COUNT: the ones whose stem is enrolled.
 //
 // Every published figure and every comparison is derived from this, never from
 // the valid set directly, so credit and backlog always describe the same set.
@@ -512,7 +512,7 @@ func sortedKeysOf[V any](in map[string]V) []string {
 // Signing BEFORE enrolling stays the normal workflow, because the sign-off is a
 // precondition of enrolment. Such an artifact is still parsed and still
 // ratcheted, and starts counting the moment its stem enrolls.
-func Credited(signed map[string]Extraction, enrolled map[string]bool) map[string]Extraction {
+func credited(signed map[string]Extraction, enrolled map[string]bool) map[string]Extraction {
 	out := map[string]Extraction{}
 	for stem := range signed {
 		if enrolled[stem] {
@@ -522,10 +522,10 @@ func Credited(signed map[string]Extraction, enrolled map[string]bool) map[string
 	return out
 }
 
-// RegisterCounts answers the split with EVERY register present even at zero. A
+// registerCounts answers the split with EVERY register present even at zero. A
 // register missing from the split reads as "not a thing" rather than as "zero",
 // and the split is the counterweight that keeps the credit half honest.
-func RegisterCounts(signed map[string]Extraction) map[string]int {
+func registerCounts(signed map[string]Extraction) map[string]int {
 	counts := map[string]int{}
 	for _, name := range Registers() {
 		counts[name] = 0

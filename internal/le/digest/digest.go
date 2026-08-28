@@ -34,7 +34,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/pyfmt"
+	"github.com/ze-software/ze/internal/le/textrepr"
 )
 
 // DigestDir is where the hand-maintained subsystem digests live, relative to
@@ -59,25 +59,13 @@ var SkipWalk = map[string]bool{
 // is one of them is already repo-relative and resolves against the tree root
 // rather than against a digest base.
 //
-// It is exported for the migration's constant comparison. That comparison
-// tests it by value against the script's TOP_DIRS. An output comparison cannot
-// detect a missing entry because only an unwritten anchor changes.
+// It is exported because the anchor resolver and tests share this vocabulary.
 var TopDirs = map[string]bool{
-	"internal": true,
-	"pkg":      true,
-	"cmd":      true,
-	"scripts":  true,
-	"ai":       true,
-	"plan":     true,
-	"docs":     true,
-	"rfc":      true,
-	"mk":       true,
-	"test":     true,
-	"hooks":    true,
-	"yang":     true,
-	".claude":  true,
-	".codex":   true,
-	".agents":  true,
+	"internal": true, "pkg": true, "cmd": true, "ai": true, "plan": true,
+	"docs": true, "rfc": true, "test": true, "tools": true, "website": true,
+	"demos": true, "gokrazy": true, "contrib": true, "examples": true,
+	"etc": true, "third_party": true, "vendor": true,
+	".claude": true, ".codex": true, ".agents": true, ".github": true,
 }
 
 // The three patterns match the script character for character. Thus, the
@@ -150,8 +138,8 @@ func (a anchor) text() string {
 	return tb.String()
 }
 
-// DigestFiles answers every digest under the tree, in name order.
-func DigestFiles(tree string) ([]string, error) {
+// digestFiles answers every digest under the tree, in name order.
+func digestFiles(tree string) ([]string, error) {
 	dir := filepath.Join(tree, filepath.Join(DigestDir[:]...))
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -172,9 +160,9 @@ func DigestFiles(tree string) ([]string, error) {
 	return names, nil
 }
 
-// ParseBases answers the subtrees a digest declares, deduplicated and in
+// parseBases answers the subtrees a digest declares, deduplicated and in
 // declaration order.
-func ParseBases(text string) []string {
+func parseBases(text string) []string {
 	var bases []string
 	seen := make(map[string]bool)
 	for _, match := range baseRe.FindAllStringSubmatch(text, -1) {
@@ -189,10 +177,10 @@ func ParseBases(text string) []string {
 	return bases
 }
 
-// AnchorsIn answers every backtick token of text that looks like a code
+// anchorsIn answers every backtick token of text that looks like a code
 // anchor. A comma list expands to one anchor per element, so every cited line
 // is checked instead of the whole token being dropped.
-func AnchorsIn(text string) []anchor {
+func anchorsIn(text string) []anchor {
 	var out []anchor
 	for _, match := range backtickRe.FindAllStringSubmatch(text, -1) {
 		fields := anchorRe.FindStringSubmatch(strings.TrimSpace(match[1]))
@@ -229,8 +217,8 @@ func AnchorsIn(text string) []anchor {
 	return out
 }
 
-// IsRepoRelative reports whether an anchor path starts at the tree root.
-func IsRepoRelative(anchorPath string) bool {
+// isRepoRelative reports whether an anchor path starts at the tree root.
+func isRepoRelative(anchorPath string) bool {
 	head, _, _ := strings.Cut(anchorPath, "/")
 	return TopDirs[head]
 }
@@ -338,7 +326,7 @@ func (r *resolver) forBase(base string) ([]string, error) {
 // file. A bare name under two bases is ambiguous. The check fails closed
 // instead of selecting the first base and checking the wrong same-named file.
 func (r *resolver) resolve(bases []string, anchorPath string) ([]string, error) {
-	if IsRepoRelative(anchorPath) {
+	if isRepoRelative(anchorPath) {
 		return []string{anchorPath}, nil
 	}
 
@@ -395,8 +383,8 @@ func checkDigest(tree, name string, res *resolver) ([]Problem, []Resolution, err
 	}
 	text := string(raw)
 
-	bases := ParseBases(text)
-	anchors := AnchorsIn(text)
+	bases := parseBases(text)
+	anchors := anchorsIn(text)
 	var problems []Problem
 	var resolved []Resolution
 
@@ -404,7 +392,7 @@ func checkDigest(tree, name string, res *resolver) ([]Problem, []Resolution, err
 	// anchor carrying a line number. A bare mention with no line is informal.
 	needsBase := false
 	for _, item := range anchors {
-		if item.hasStart && !IsRepoRelative(item.path) {
+		if item.hasStart && !isRepoRelative(item.path) {
 			needsBase = true
 			break
 		}
@@ -465,7 +453,7 @@ func checkDigest(tree, name string, res *resolver) ([]Problem, []Resolution, err
 // it as a finding. Thus, prose can mention `register.go`, and the gate does not
 // fail.
 func checkBareAnchor(tree, relDigest, named string, item anchor, hits []string) (*Problem, *Resolution) {
-	if IsRepoRelative(item.path) {
+	if isRepoRelative(item.path) {
 		if len(hits) > 0 && isFile(tree, hits[0]) {
 			return nil, &Resolution{Digest: relDigest, Anchor: named, File: hits[0]}
 		}
@@ -488,7 +476,7 @@ func checkLineAnchor(tree, relDigest, named string, item anchor, bases, hits []s
 		}
 		return &Problem{
 			Digest: relDigest, Anchor: named,
-			Detail: tb.Str("file not found under ").Str(pyfmt.List(where)).String(),
+			Detail: tb.Str("file not found under ").Str(textrepr.List(where)).String(),
 		}, nil
 	case len(hits) > 1:
 		return &Problem{
@@ -528,7 +516,7 @@ func checkLineAnchor(tree, relDigest, named string, item anchor, bases, hits []s
 
 // Check validates every digest of the tree.
 func Check(tree string) (Report, error) {
-	names, err := DigestFiles(tree)
+	names, err := digestFiles(tree)
 	if err != nil {
 		return Report{}, err
 	}

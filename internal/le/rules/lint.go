@@ -2,7 +2,7 @@
 // Overview: rules.go -- the corpus predicate and the Python spellings this uses
 // Overview: actions.go -- the action that runs this
 //
-// lint.go ports scripts/dev/rules_lint.py. It answers only two corpus questions.
+// lint.go ports internal/le/rules/lint.go. It answers only two corpus questions.
 //
 // A RENDERED rule must contain the canonical metadata block. The block must be
 // HONEST. `**When:**` names a task situation, and `**Severity:**` agrees with
@@ -232,7 +232,7 @@ func Lint(tree string) (LintReport, error) {
 		return report, errors.New(tb.Str(rulesRel).Str(" not found").String())
 	}
 
-	files, err := RuleFiles(rulesDir)
+	files, err := ruleFiles(rulesDir)
 	if err != nil {
 		return report, err
 	}
@@ -475,7 +475,6 @@ func checkSeverityAgrees(severity, title string, lines []string, bodyStart int) 
 //
 // manifest.md is not a point. A file with an all-caps stem is also not a point
 // because RETIRED.md is the ledger.
-//
 func checkPointFiles(tree, pointsDir string) (int, []LintProblems, error) {
 	// An ABSENT point tree gives zero points, which Lint refuses. An UNREADABLE
 	// tree is an error, not a zero. The script conflates the cases. This port

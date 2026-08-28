@@ -51,117 +51,6 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00330200000018400101
 # forwarded-route rule above is this test's actual subject and is unchanged.
 EOF_DEST
 
-# Python test plugin: keep the daemon alive long enough for the destination wire
-# assertion below to complete. The dest-peer `expect=bgp` lines are the proof.
-tmpfs=test-strip.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Keep the daemon alive while the dest peer proves egress stripping on the wire."""
-import json
-import sys
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def dest_got_route(result):
-    """True once the dest peer has been sent a real UPDATE, not just its EOR.
-
-    updates-sent counts EVERY UPDATE written to the peer, End-of-RIB included
-    (reactor_notify.go IncrUpdatesSent, which sees only the message type).
-    eor-sent is the separate marker counter, so the DIFFERENCE is the forwarded
-    route this test is about. Comparing updates-sent against 0 would be satisfied
-    by the peer's own initial-sync EOR and prove nothing.
-
-    Deliberately NOT gated on state == established. The dest peer is a check-mode
-    ze-peer without linger: it closes the moment its expect=bgp rule matches, so
-    the very success this predicate is looking for puts the session into
-    "connecting" a moment later. Requiring established would make the predicate
-    unsatisfiable in exactly the run where the test passed.
-    """
-    if result.get('status') != 'done':
-        return False
-    data = result_text_data(result, '{}')
-    try:
-        parsed = json.loads(data) if isinstance(data, str) else data
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    if not isinstance(parsed, dict):
-        return False
-    peers = parsed.get('peers', {})
-    if not isinstance(peers, dict):
-        return False
-    for row in peers.values():
-        if not isinstance(row, dict):
-            continue
-        if row.get('updates-sent', 0) - row.get('eor-sent', 0) >= 1:
-            return True
-    return False
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # ONE barrier, on the outbound side, because it implies the inbound one: the
-    # dest peer cannot have been sent the re-advertisement unless adj-rib-in
-    # learned the route first. Polling adj-rib-in and then the dest peer in
-    # sequence cost two full poll budgets, and with the source peer lingering the
-    # observer's wall clock IS the test's -- under load the pair overran the
-    # test budget while the wire exchange itself had already succeeded.
-    #
-    # The dest's expect=bgp rule is the authoritative proof of the strip, but it
-    # can only run while the daemon is alive and this observer owns `request
-    # shutdown`. quiesce() is not the barrier either: it drains the forward pool,
-    # which says nothing when the dest was not yet an established forward target
-    # at forward time -- the route then arrives on the Adj-RIB-In replay rail,
-    # after a quiesce-only observer would already have torn the daemon down.
-    #
-    # quiesce() FIRST so the poll behind it is a safety net rather than the
-    # mechanism: every dispatch_until attempt is a full engine RPC, and 60 of
-    # them on a starved daemon outlast the test's own budget -- turning a run
-    # whose wire assertions had already passed into an opaque timeout. One
-    # barrier RPC plus a short bounded poll costs a couple of round trips in the
-    # normal case and still tolerates the replay rail arriving late.
-    api.quiesce()
-    dest_result = api.dispatch_until(
-        'show bgp peer dest-peer detail', dest_got_route, attempts=24,
-    )
-    dest_data = result_text_data(dest_result)
-    if not dest_got_route(dest_result):
-        print(f'FAIL: dest-peer detail: {dest_data}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail('dest peer was never sent the re-advertised route')
-
-    # Diagnostics, not an assertion, and deliberately NOT `< 1`. The forwarded
-    # copy and adj-rib-in's own bookkeeping are independent rails: the dest can
-    # legitimately have been sent the re-advertisement while this query still
-    # reads 0 (observed on role-otc-egress-stamp under load, where both peers
-    # reported a clean exchange and this query returned 0 in the same
-    # millisecond). Only a FAILED query (result_json_data's -1 default) is a
-    # fault here; the strip proof is the dest peer's expect=bgp rule.
-    total = result_json_data(dispatch(api, 'show bgp adj-rib-in status'), {}).get('total-routes', -1)
-    if total < 0:
-        msg = f'adj-rib-in query failed, got total={total}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    print(f'INFO: adj-rib-in total={total}', file=sys.stderr)
-    print(f'INFO: dest-peer detail after the re-advertisement: {dest_data}', file=sys.stderr)
-    print('OK: dest peer was sent the re-advertised route', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze configuration: two peers, egress strip on dest peer
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -172,7 +61,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external test-strip {
-		run ./test-strip.run
+		run "ze-test fixture plugin/community-strip"
 		encoder json
 	}
 }

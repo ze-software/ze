@@ -239,10 +239,10 @@ func acceptEveryFamily(uint16, uint8) bool { return true }
 // RFC 7606 Section 5.1 encourages MP_UNREACH as the first and only attribute) whose every
 // withdrawal names an unrecognized type is DROPPED, not relayed.
 // PREVENTS: a forged End-of-RIB. With the only attribute gone, RebuildUpdateBody emits
-// withdrawn-length 0, attribute-length 0 and no NLRI -- four zero octets, which is exactly
-// RFC 4724 Section 2's legacy End-of-RIB marker. Relaying it would make ze-build tell every peer
-// that this neighbor finished its initial routing update, ending a restarting peer's RFC
-// 4724 route deferral early on a withdrawal the peer never meant as an EoR.
+// withdrawn-length 0, attribute-length 0 and no NLRI: four zero octets, exactly
+// RFC 4724 Section 2's legacy End-of-RIB marker. Relaying it would make ze tell
+// every peer that this neighbor finished its initial routing update, ending a
+// restarting peer's RFC 4724 route deferral early on a withdrawal it never meant as an EoR.
 //
 // The MP_REACH tests miss this because mpReachAttrs prepends ORIGIN and AS_PATH, so their
 // attribute section never empties.

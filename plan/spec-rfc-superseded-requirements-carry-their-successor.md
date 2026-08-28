@@ -29,7 +29,7 @@ Mark every requirement of a superseded document with where that obligation now
 lives, and make a gate keep it true.
 
 Two facts make this a machinery change rather than an editing pass.
-`ANNOTATION_KINDS` (`scripts/dev/rfc_requirements.py`) is a CLOSED set of three
+`ANNOTATION_KINDS` (`internal/le/rfc/rfc.go`) is a CLOSED set of three
 -- `not-applicable`, `gap`, `single-polarity` -- so there is no vocabulary for
 "this obligation moved". And the `| Obsoleted by |` row in a summary's Meta table
 is not parsed anywhere: it is prose a human writes and nothing reads, which is
@@ -37,7 +37,7 @@ why three summaries can carry it and still be gated as current.
 
 ## Required Reading
 
-- [ ] `scripts/dev/rfc_requirements.py` - `ANNOTATION_KINDS`, `parse_checklist_line`, the check registry
+- [ ] `internal/le/rfc/rfc.go` - `ANNOTATION_KINDS`, `parse_checklist_line`, the check registry
 - [ ] `rfc/short/rfc3768.md` - a superseded summary whose successor is enrolled
 - [ ] `rfc/short/rfc7627.md` - a superseded summary whose successor is absent
 - [ ] `rfc/short/rfc9568.md` - the successor, for what a forward pointer must resolve to
@@ -51,7 +51,7 @@ why three summaries can carry it and still be gated as current.
 
 Source read for this section:
 
-- [ ] `scripts/dev/rfc_requirements.py`
+- [ ] `internal/le/rfc/rfc.go`
 - [ ] `rfc/short/rfc3768.md`
 - [ ] `rfc/short/rfc7627.md`
 - [ ] `rfc/enrolled.txt`
@@ -61,7 +61,7 @@ A requirement line carries at most one annotation from that set, and every one
 of them says something about Ze's coverage. None says anything about the
 DOCUMENT's standing.
 
-A grep for `Obsoleted by` and `obsoleted` over `scripts/dev/rfc_requirements.py`
+A grep for `Obsoleted by` and `obsoleted` over `internal/le/rfc/rfc.go`
 returns nothing, so the Meta row is unparsed. Ten summaries carry the row; three
 carry a real successor and the rest say `None` or `-`.
 
@@ -73,13 +73,13 @@ requirements are gated, counted in the published totals, and ratcheted by
 
 ### Entry Point
 
-`make ze-rfc-check` -> `run_check()` -> the check registry -> per-summary
+`./le rfc check` -> `run_check()` -> the check registry -> per-summary
 `parse_checklist_line` over `rfc/short/*.md`.
 
 ### Transformation Path
 
 A summary's Meta table and its checklist lines are read into requirement
-records; `make ze-rfc-index-update` derives `ai/RFC-REQUIREMENTS.md` and
+records; `./le rfc index-update` derives `ai/RFC-REQUIREMENTS.md` and
 `rfc/requirements/<stem>.md` from those records.
 
 ### Boundaries Crossed
@@ -88,7 +88,7 @@ records; `make ze-rfc-index-update` derives `ai/RFC-REQUIREMENTS.md` and
 |------|----|-------|--------------|
 | summary Meta table | checker | a new Meta parser | the obsoleting RFC, if any |
 | checklist line | checker | `parse_checklist_line` | the annotation, now including a successor pointer |
-| checker | published ledger | `make ze-rfc-index-update` | the superseded marking, so a reader of the ledger sees it too |
+| checker | published ledger | `./le rfc index-update` | the superseded marking, so a reader of the ledger sees it too |
 
 ### Integration Points
 
@@ -100,14 +100,14 @@ that reads an annotation.
 
 | Claim | Holds? | Evidence |
 |-------|--------|----------|
-| `ANNOTATION_KINDS` is closed and has exactly three members | yes | `scripts/dev/rfc_requirements.py`, `ANNOTATION_KINDS` = `frozenset({"not-applicable", "gap", "single-polarity"})`; `_parse_annotation` raises on any other kind. It still holds exactly three: `superseded` is a separate kind (`SUPERSEDED_KIND`) on a separate `Requirement` field, so it cannot evict a coverage annotation |
-| No code reads the `Obsoleted by` Meta row | was true, now false | `grep -rn "Obsoleted by\|obsoleted\|supersed" scripts/dev/*.py` found no hit in `rfc_requirements.py` before this change. `parse_successor_stem` and `summary_successors` now read it |
+| `ANNOTATION_KINDS` is closed and has exactly three members | yes | `internal/le/rfc/rfc.go`, `ANNOTATION_KINDS` = `frozenset({"not-applicable", "gap", "single-polarity"})`; `_parse_annotation` raises on any other kind. It still holds exactly three: `superseded` is a separate kind (`SUPERSEDED_KIND`) on a separate `Requirement` field, so it cannot evict a coverage annotation |
+| No code reads the `Obsoleted by` Meta row | was true, now false | `grep -rn "Obsoleted by\|obsoleted\|supersed" internal/le/` found no hit in `rfc_requirements.py` before this change. `parse_successor_stem` and `summary_successors` now read it |
 | All three superseded stems are enrolled | NO -- broken | `rfc7627` is not in `rfc/enrolled.txt`; it carries a `backlog` disposition in `rfc/not-enrolled.txt`. The other two are enrolled. `check_superseded` therefore runs over EVERY summary rather than the enrolled set, which is what the Task section's reader-facing goal needs anyway |
 | A new check registers rather than being called directly | yes | `check_superseded` is one `errs.extend(...)` line in `run_check`, beside `evaluate`, and `TestSupersededWiring` drives `run_check` end to end so an unwired check fails the test |
 | The published ledger is derived, never hand-edited | yes | `check_ledger_fresh` re-renders `ai/RFC-REQUIREMENTS.md` and every shard through `render_index` / `render_shards` and reds on any difference. The superseded facts come from `summary_successors()` and `Requirement.superseded`, both derived at run time |
 | A FOURTH stem is superseded and the spec missed it | found | `rfc/short/rfc5549.md` writes its Meta row as `Obsoleted By` with a capital B, which the spec's case-sensitive grep missed. RFC 8950 obsoletes it, both its summary and its text are held, and its 9 requirements are now marked. The real population is 137, not 128 |
 | THREE MORE stems, and the reader was fixed one spelling at a time | found and fixed | `_OBSOLETED_ROW_RE` matched `Obsoleted by` alone, and the case fix for rfc5549 left the hyphen open. `Obsoleted-by` is the corpus MAJORITY: 28 rows against 18 for the space. `rfc5575` -> RFC 8955, `rfc6810` -> RFC 8210 and `rfc1334` -> RFC 1994 each name a real successor the repository holds, and each got no obligation at all. The label now reads `Obsoleted[ -]by[^\|]*` (the tail absorbs rfc1334's `(partial)`), `_NO_SUCCESSOR_RE` takes rfc8654's `(none)`, and `parse_successor_stem` REFUSES any other Meta field matching `obsolet` rather than skipping it, which is the part that stops the class recurring. The real population is 230 over 7 stems, not 137 over 4 |
-| One CONSUMER of the ledger's State cell broke | found and fixed | `collect_rfc` (`scripts/dev/testing_health.py`) compared the State cell with `== "**enrolled**"`. The suffix dropped four rows and 71 gated requirements off `docs/features/test-health.md`, silently, because the remainder and the annotation split were narrowed by the same filter and still balanced. Now a prefix match, pinned by `test_a_superseded_enrolled_row_stays_in_the_population` |
+| One CONSUMER of the ledger's State cell broke | found and fixed | `collect_rfc` (`internal/le/testhealth/testhealth.go`) compared the State cell with `== "**enrolled**"`. The suffix dropped four rows and 71 gated requirements off `docs/features/test-health.md`, silently, because the remainder and the annotation split were narrowed by the same filter and still balanced. Now a prefix match, pinned by `test_a_superseded_enrolled_row_stays_in_the_population` |
 | The shard Note cell escapes nothing | found and fixed | `render_shards` wrote an authored annotation reason straight into a markdown table cell, so a reason quoting a grep alternation split its row. 113 rows over 9 shards were in that state at HEAD. This spec writes a SECOND mark into that same cell, so it is code related to the work in hand: `_table_cell` escapes `\|`, `test_a_pipe_in_a_reason_does_not_split_the_shard_row` counts the unescaped pipes, and every row in every shard now has 6 cells. Row in `plan/journal/rendered-markup-invalid.md` |
 
 ## Risks & Assumptions
@@ -160,7 +160,7 @@ that reads an annotation.
 
 ## Blast Radius
 
-`scripts/dev/rfc_requirements.py`, the three superseded summaries, and the
+`internal/le/rfc/rfc.go`, the three superseded summaries, and the
 derived ledger. No production code. Every other summary is unaffected, because a
 summary whose Meta names no successor gains no obligation.
 
@@ -168,11 +168,11 @@ summary whose Meta names no successor gains no obligation.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `make ze-rfc-check` on a superseded summary with an unmarked line | → | `check_superseded`, reached from `run_check` | `TestSupersededWiring.test_an_unmarked_superseded_summary_fails_the_gate`, and `TestSupersededCheck.test_superseded_requires_a_successor_pointer` over the helper |
-| `make ze-rfc-check` on a current summary | → | the same check | `TestSupersededCheck.test_current_summary_gains_no_obligation`, and its stale-marker twin `test_marker_on_a_current_summary_reds` |
+| `./le rfc check` on a superseded summary with an unmarked line | → | `check_superseded`, reached from `run_check` | `TestSupersededWiring.test_an_unmarked_superseded_summary_fails_the_gate`, and `TestSupersededCheck.test_superseded_requires_a_successor_pointer` over the helper |
+| `./le rfc check` on a current summary | → | the same check | `TestSupersededCheck.test_current_summary_gains_no_obligation`, and its stale-marker twin `test_marker_on_a_current_summary_reds` |
 | a `{superseded: ...}` line | → | `parse_checklist_line` -> `_strip_markers` -> `_parse_successor` | `TestSupersededMarkerParsing`, 9 cases |
-| `make ze-rfc-index-update` | → | `render_shards` and `_render_rollup` | `TestSupersededLedger.test_shard_banner_and_note_name_the_successor` and `test_rollup_states_the_successor_and_counts_unresolved_as_debt` |
-| the ledger's State cell | → | `collect_rfc` (`scripts/dev/testing_health.py`) | `TestRfcLedgerParse.test_a_superseded_enrolled_row_stays_in_the_population` |
+| `./le rfc index-update` | → | `render_shards` and `_render_rollup` | `TestSupersededLedger.test_shard_banner_and_note_name_the_successor` and `test_rollup_states_the_successor_and_counts_unresolved_as_debt` |
+| the ledger's State cell | → | `collect_rfc` (`internal/le/testhealth/testhealth.go`) | `TestRfcLedgerParse.test_a_superseded_enrolled_row_stays_in_the_population` |
 
 ## Acceptance Criteria
 
@@ -181,7 +181,7 @@ summary whose Meta names no successor gains no obligation.
 - AC-2: `ANNOTATION_KINDS` gains a kind that names where an obligation now lives,
   and it composes with the existing three rather than replacing them.
 - AC-3: A requirement line in a superseded summary that carries no successor
-  pointer reds `make ze-rfc-check`, naming the id and the obsoleting RFC.
+  pointer reds `./le rfc check`, naming the id and the obsoleting RFC.
 - AC-4: The marker cannot lower coverage: a requirement marked superseded is
   still counted, still gated, and still ratcheted.
 - AC-5: A pointer that names a requirement id in a summary the repository holds
@@ -206,7 +206,7 @@ without saying what replaced each obligation.
 
 ### Unit Tests
 
-All in `scripts/dev/rfc_requirements_test.py` unless the row says otherwise. 49 cases
+All in `internal/le/` unless the row says otherwise. 49 cases
 across six classes; the file runs 872 tests.
 
 | Test | Asserts |
@@ -217,28 +217,28 @@ across six classes; the file runs 872 tests.
 | `TestSupersededDoesNotLowerCoverage` (5 cases) | a marked requirement is still gated by `evaluate`, still needs both polarities, still counted by `rfc_coverage`, still fires `check_coverage_ratchet`, and does not evict a `{gap}` |
 | `TestSupersededLedger` (3 cases) | the shard banner and the per-row Note name the successor; the rollup states it and counts the debt; a current summary gains no ledger prose |
 | `TestSupersededWiring` (4 cases) | `run_check` reds on an unmarked superseded summary and exits 0 on a marked one; it reds the same way when the Meta row uses the hyphenated label, which is the spelling that failed open; and an unrecognised `obsolet` Meta field stops the run with exit 2, naming the field |
-| `TestRfcLedgerParse.test_a_superseded_enrolled_row_stays_in_the_population` (`scripts/dev/testing_health_test.py`) | the suffixed State cell keeps its row in the health page's enrolled population |
+| `TestRfcLedgerParse.test_a_superseded_enrolled_row_stays_in_the_population` (`internal/le/`) | the suffixed State cell keeps its row in the health page's enrolled population |
 
 ### Functional Tests
 
 N-A with a reason, and the reason is the point rather than an excuse. This spec
-changes no daemon behavior: it touches `scripts/dev/rfc_requirements.py` and
+changes no daemon behavior: it touches `internal/le/rfc/rfc.go` and
 three markdown summaries, and nothing it does is reachable from a running `ze`.
 A `.ci` drives a daemon, and there is no daemon surface here to drive. The
 end-to-end evidence is the gate itself:
 
 | Test | Location | Scenario |
 |------|----------|----------|
-| `make ze-rfc-check` end to end | `scripts/dev/` | the real tree passes with the three summaries marked, and reds naming the id when one pointer is removed |
-| `make ze-rfc-index-update` | `scripts/dev/` | regenerates, and the ledger diff is only this change |
+| `./le rfc check` end to end | `internal/le/` | the real tree passes with the three summaries marked, and reds naming the id when one pointer is removed |
+| `./le rfc index-update` | `internal/le/` | regenerates, and the ledger diff is only this change |
 
 ## Files to Modify
 
-- `scripts/dev/rfc_requirements.py` - Meta parsing, the new marker kind, the new check
-- `scripts/dev/rfc_requirements_test.py` - the unit tests above
-- `scripts/dev/testing_health.py` - the State-cell consumer this change broke, now a
+- `internal/le/rfc/rfc.go` - Meta parsing, the new marker kind, the new check
+- `internal/le/` - the unit tests above
+- `internal/le/testhealth/testhealth.go` - the State-cell consumer this change broke, now a
   prefix match
-- `scripts/dev/testing_health_test.py` - the test that pins it
+- `internal/le/` - the test that pins it
 - `rfc/short/rfc3768.md` - 50 markers against RFC 9568 (43 restated, 7 dropped)
 - `rfc/short/rfc7752.md` - 51 markers against RFC 9552 (30 restated, 7 dropped, 14
   unextracted)
@@ -263,14 +263,14 @@ end-to-end evidence is the gate itself:
 
 ### Integration Checklist
 
-- [ ] `make ze-rfc-check` exits 0 with all SEVEN summaries marked. `check_superseded`
+- [ ] `./le rfc check` exits 0 with all SEVEN summaries marked. `check_superseded`
       reports 0 over the whole corpus, and the gate's remaining 5 violations are
       `rfc/short/rfc9552.md` rows another session committed in `02ca02af6` and left
       needing the owner's coverage ruling. They were red in this session's first
-      baseline run, before any edit. `make ze-rfc-check` itself was unusable through
-      the Makefile for part of the session while a concurrent session moved the
-      functional-suite list from `mk/test-functional.mk` to `scripts/le/`; every run
-      recorded here is `python3 scripts/dev/rfc_requirements.py --check` directly
+      baseline run, before any edit. `./le rfc check` itself was unusable through
+      the the native action tables under `internal/le/` for part of the session while a concurrent session moved the
+      functional-suite list from `internal/le/functional/suites.go` to `internal/le/`; every run
+      recorded here is `./le rfc check` directly
 - [ ] Removing one pointer reds it, naming the id. Yes, stripping the marker from
       `RFC3768-5.2.3-2` gives:
 
@@ -286,7 +286,7 @@ and does not say where that obligation now lives
 points at RFC9568-99.9-1, which rfc/short/rfc9568.md does not declare
 ```
 
-- [ ] `make ze-rfc-index-update` regenerates cleanly and the diff is only this
+- [ ] `./le rfc index-update` regenerates cleanly and the diff is only this
       change. Yes: 178 shards rewritten; every Gated / Both / Annotated /
       Outstanding count is byte-identical to HEAD, and only the State cell,
       the shard banner and the per-row Note gained the superseded facts
@@ -308,8 +308,8 @@ points at RFC9568-99.9-1, which rfc/short/rfc9568.md does not declare
 - [ ] `ai/rules/rfc-compliance.md` - state that a superseded document's requirements
       carry their successor. Yes: new point
       `points/rfc-compliance/rfc-summaries-rfc-short/mark-every-requirement-of-a-superseded-summary-with-its-successor.md`,
-      listed in the manifest, rendered by `make ze-rules-render-update`, and
-      `ze-rules-render-check`, `-index-check`, `-condensed-check`,
+      listed in the manifest, rendered by `./le rules render-update`, and
+      `./le rules render-check`, `-index-check`, `-condensed-check`,
       `-points-roundtrip-check` and `-lint` all exit 0
 
 ## Implementation Steps
@@ -334,7 +334,7 @@ Two steps were added, and one was cut.
 Step 4b marks `rfc5549` against `rfc9568`'s sibling RFC 8950. The spec's stem table
 missed it because `rfc/short/rfc5549.md` writes `Obsoleted By` with a capital B.
 
-Step 7 repairs `collect_rfc` in `scripts/dev/testing_health.py`, the one consumer of
+Step 7 repairs `collect_rfc` in `internal/le/testhealth/testhealth.go`, the one consumer of
 the ledger's State cell, which this change would otherwise have silently narrowed.
 
 Step 6 does NOT fetch RFC 9846. Fetching and summarising an RFC is its own spec with
@@ -431,7 +431,7 @@ new one.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -449,7 +449,7 @@ new one.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

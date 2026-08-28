@@ -1,8 +1,8 @@
-// Related: platformvet.go -- the plans, environment, and streamed execution under test
-// Related: actions.go -- the two gate claims and multi-action sweep
+// Related: platformvet.go -- plans, environment, and streamed execution.
+// Related: actions.go -- native action metadata and multi-action sweep.
 //
-// VALIDATES: both platform gates retain their exact package population, command
-// environment, direct output, and exit status.
+// VALIDATES: both platform actions retain their exact package population,
+// command environment, direct output, and exit status.
 // PREVENTS: a cross-target check that silently vets the host platform, enables
 // CGO, adds feature tags, or succeeds after one package tree disappears.
 package platformvet
@@ -56,24 +56,21 @@ func platformVetEnvValue(entries []string, key string) (string, bool) {
 	return value, found
 }
 
-func TestActionsClaimBothReadOnlyGates(t *testing.T) {
+func TestActionsDeclareBothReadOnlyPlatforms(t *testing.T) {
 	listing := Actions()
-	if len(listing.Actions) != 2 {
-		t.Fatalf("platform-vet declares %d actions, want 2", len(listing.Actions))
+	want := []string{"darwin", "freebsd"}
+	if len(listing.Actions) != len(want) {
+		t.Fatalf("platform-vet declares %d actions, want %d", len(listing.Actions), len(want))
 	}
-	want := []string{"ze-platform-vet-darwin", "ze-platform-vet-freebsd"}
-	if got := Gates(); !slices.Equal(got, want) {
-		t.Fatalf("Gates = %v, want %v", got, want)
-	}
-	for _, action := range listing.Actions {
+	for index, action := range listing.Actions {
+		if action.Verb != want[index] {
+			t.Errorf("action %d verb = %q, want %q", index, action.Verb, want[index])
+		}
 		if action.Writes {
-			t.Errorf("%s is marked as writing", action.Gate)
+			t.Errorf("%s is marked as writing", action.Verb)
 		}
 		if action.Why == "" {
-			t.Errorf("%s has no reason", action.Gate)
-		}
-		if len(action.Forks) != 0 {
-			t.Errorf("%s still forks %v", action.Gate, action.Forks)
+			t.Errorf("%s has no reason", action.Verb)
 		}
 	}
 }
@@ -100,17 +97,17 @@ func TestBothPlansUseTheExactCommandAndDistinctGOOS(t *testing.T) {
 	for _, test := range []struct {
 		platform Platform
 		goos     string
-		gate     string
+		action   string
 	}{
-		{PlatformDarwin, "darwin", "ze-platform-vet-darwin"},
-		{PlatformFreeBSD, "freebsd", "ze-platform-vet-freebsd"},
+		{PlatformDarwin, "darwin", "darwin"},
+		{PlatformFreeBSD, "freebsd", "freebsd"},
 	} {
 		plan, planErr := runner.Plan(test.platform)
 		if planErr != nil {
 			t.Fatalf("Plan(%s): %v", test.goos, planErr)
 		}
-		if plan.Gate != test.gate || plan.Platform != test.goos {
-			t.Errorf("Plan(%s) identifies gate=%q platform=%q", test.goos, plan.Gate, plan.Platform)
+		if plan.Action != test.action || plan.Platform != test.goos {
+			t.Errorf("Plan(%s) identifies action=%q platform=%q", test.goos, plan.Action, plan.Platform)
 		}
 		if !slices.Equal(plan.Command, wantCommand) {
 			t.Errorf("Plan(%s) command = %v, want %v", test.goos, plan.Command, wantCommand)
@@ -137,26 +134,25 @@ func TestBothPlansUseTheExactCommandAndDistinctGOOS(t *testing.T) {
 
 func TestRunnerHandsTheExactPlanToTheExecutorAndPropagatesItsCode(t *testing.T) {
 	root := platformVetFixture(t, platformVetManifest, platformVetGoMod)
-	var seenGate, seenDir string
+	var seenAction, seenDir string
 	var seenCommand, seenEnvironment []string
-	execute := func(gate string, command []string, dir string, environment []string) (gaterun.GateReport, int) {
-		seenGate = gate
+	execute := func(action string, command []string, dir string, environment []string) (gaterun.ActionReport, int) {
+		seenAction = action
 		seenDir = dir
 		seenCommand = slices.Clone(command)
 		seenEnvironment = slices.Clone(environment)
-		return gaterun.GateReport{Gate: gate, Command: command, Code: 23}, 23
+		return gaterun.ActionReport{Action: action, Command: command, Code: 23}, 23
 	}
 	runner, err := newRunner(root, execute)
 	if err != nil {
 		t.Fatalf("newRunner: %v", err)
 	}
-
 	report, code := runner.Run(PlatformFreeBSD)
 	if code != 23 || report.Code != 23 {
-		t.Fatalf("Run code=%d report.code=%d, want 23", code, report.Code)
+		t.Fatalf("run code=%d report=%#v", code, report)
 	}
-	if seenGate != "ze-platform-vet-freebsd" || seenDir != root {
-		t.Errorf("executor received gate=%q dir=%q", seenGate, seenDir)
+	if seenAction != "freebsd" || seenDir != root {
+		t.Errorf("executor received action=%q dir=%q", seenAction, seenDir)
 	}
 	if !slices.Equal(seenCommand, report.Command) {
 		t.Errorf("executor command=%v report command=%v", seenCommand, report.Command)
@@ -214,9 +210,9 @@ func TestRunnerFailsClosedBeforeExecutionWhenAPackageIsMissing(t *testing.T) {
 		t.Fatalf("remove fixture package: %v", err)
 	}
 	called := false
-	runner, err := newRunner(root, func(string, []string, string, []string) (gaterun.GateReport, int) {
+	runner, err := newRunner(root, func(string, []string, string, []string) (gaterun.ActionReport, int) {
 		called = true
-		return gaterun.GateReport{}, 0
+		return gaterun.ActionReport{}, 0
 	})
 	if err != nil {
 		t.Fatalf("newRunner: %v", err)
@@ -282,7 +278,7 @@ func TestDefaultRunnerStreamsChildOutputAndExitCodeUnchanged(t *testing.T) {
 	if got := string(out); got != "vet stdout\n" {
 		t.Errorf("stdout=%q, want child stdout unchanged", got)
 	}
-	wantErr := "==> ze-platform-vet-darwin\nvet stderr\n"
+	wantErr := "==> darwin\nvet stderr\n"
 	if got := string(errOut); got != wantErr {
 		t.Errorf("stderr=%q, want %q", got, wantErr)
 	}

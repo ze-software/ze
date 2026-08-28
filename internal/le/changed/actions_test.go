@@ -10,12 +10,12 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-// VALIDATES: the three verbs answer over the checkout the environment names,
-// each carries the exit code its caller reads, and the real command runner
-// answers what a program printed.
-// PREVENTS: a swap that repoints mk/test-unit.mk and every scoped recipe at a
-// command whose verbs answer the wrong thing. Both callers size which tests
-// run, so a verb that answers 0 and nothing runs no test and reports success.
+// VALIDATES: every verb answers over the checkout the environment names, each
+// carries the exit code its caller reads, and the selector grammar reaches the
+// native change-set implementation.
+// PREVENTS: wiring the native unit and scoped verification actions to a command
+// whose verbs answer the wrong thing. Both callers size which tests run, so a
+// verb that answers 0 and nothing runs no test and reports success.
 
 // useCheckout points every verb in this test at one checkout.
 //
@@ -66,7 +66,7 @@ func TestTheGroupVerbsAnswerTheSelectionOfTheCheckoutNamed(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("the groups verb exited %d", code)
 	}
-	names, isNames := payload.(GroupNames)
+	names, isNames := payload.(groupNames)
 	if !isNames {
 		t.Fatalf("the payload is %T, want GroupNames", payload)
 	}
@@ -78,7 +78,7 @@ func TestTheGroupVerbsAnswerTheSelectionOfTheCheckoutNamed(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("the group-packages verb exited %d", code)
 	}
-	packages, isPackages := payload.(GroupPackages)
+	packages, isPackages := payload.(groupPackages)
 	if !isPackages {
 		t.Fatalf("the payload is %T, want GroupPackages", payload)
 	}
@@ -131,7 +131,7 @@ func TestThePackagesVerbAnswersThePrecomputedFile(t *testing.T) {
 	}
 }
 
-// NewScope reads the published filename from the environment. A run that
+// newScope reads the published filename from the environment. A run that
 // omitted that read would repeat the selector pass in every scoped stage.
 func TestTheScopeReadsThePublishedFileNameFromTheEnvironment(t *testing.T) {
 	root := t.TempDir()
@@ -143,8 +143,102 @@ func TestTheScopeReadsThePublishedFileNameFromTheEnvironment(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	if got := NewScope(root).File; got != scope {
+	if got := newScope(root).File; got != scope {
 		t.Errorf("the scope reads its file as %q, want %q", got, scope)
+	}
+}
+
+// The native action translates the deleted flag surface to closed keywords,
+// keeps both answers structured, and preserves the exact compatibility text.
+func TestTheScopeActionAcceptsTheClosedSelectorGrammar(t *testing.T) {
+	root := writeScopeFixture(t)
+	useCheckout(t, root)
+	paths := scopePathsFile(t, "core/core.go")
+	dropLog := filepath.Join(t.TempDir(), "drops.txt")
+
+	payload, code := Answer([]string{
+		"scope",
+		"drop-log", dropLog,
+		"paths-from", paths,
+		"depth", "1",
+		"print", "both",
+	})
+	if code != 0 {
+		t.Fatalf("the scope action exited %d", code)
+	}
+	report, ok := payload.(ScopeReport)
+	if !ok {
+		t.Fatalf("the scope payload is %T, want ScopeReport", payload)
+	}
+	if report.Print != "both" {
+		t.Errorf("the structured print mode is %q, want both", report.Print)
+	}
+	if got := report.Text(); !strings.HasPrefix(got, "# packages\n./core\n./mid\n# tags\n") {
+		t.Errorf("the both-mode text is %q", got)
+	}
+	body, err := os.ReadFile(dropLog)
+	if err != nil {
+		t.Fatalf("read drop log: %v", err)
+	}
+	if !strings.Contains(string(body), "# selected-at-depth-1-but-not-at-depth-1\n") {
+		t.Errorf("the drop log does not carry the requested depth:\n%s", body)
+	}
+
+	payload, code = Answer([]string{"scope", "print", "tags", "paths-from", paths})
+	if code != 0 {
+		t.Fatalf("the tags mode exited %d", code)
+	}
+	report, ok = payload.(ScopeReport)
+	if !ok {
+		t.Fatalf("the tags payload is %T, want ScopeReport", payload)
+	}
+	if got := report.Text(); got != "ze_bgp\nze_ssh\n" {
+		t.Errorf("the tags-mode text is %q", got)
+	}
+}
+
+func TestTheScopeActionDefaultsToPackageText(t *testing.T) {
+	root := writeScopeFixture(t)
+	useCheckout(t, root)
+	paths := scopePathsFile(t, "core/core.go")
+
+	payload, code := Answer([]string{"scope", "paths-from", paths})
+	if code != 0 {
+		t.Fatalf("the scope action exited %d", code)
+	}
+	report, ok := payload.(ScopeReport)
+	if !ok {
+		t.Fatalf("the scope payload is %T, want ScopeReport", payload)
+	}
+	if report.Print != "packages" {
+		t.Errorf("the default print mode is %q, want packages", report.Print)
+	}
+	if got := report.Text(); got != "./core\n./high\n./mid\n" {
+		t.Errorf("the default package text is %q", got)
+	}
+}
+
+// Grammar and value errors use the common caller-error exit code.
+func TestTheScopeActionPreservesGrammarAndValueExitCodes(t *testing.T) {
+	useCheckout(t, t.TempDir())
+	cases := []struct {
+		name string
+		args []string
+		code int
+	}{
+		{name: "missing value", args: []string{"scope", "print"}, code: 2},
+		{name: "flag spelling", args: []string{"scope", "--print=tags"}, code: 2},
+		{name: "duplicate keyword", args: []string{"scope", "print", "tags", "print", "both"}, code: 2},
+		{name: "unknown mode", args: []string{"scope", "print", "nope"}, code: 2},
+		{name: "non-number depth", args: []string{"scope", "depth", "one"}, code: 2},
+		{name: "zero depth", args: []string{"scope", "depth", "0"}, code: 2},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			if _, code := Answer(test.args); code != test.code {
+				t.Errorf("Answer(%v) exited %d, want %d", test.args, code, test.code)
+			}
+		})
 	}
 }
 

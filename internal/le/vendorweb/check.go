@@ -232,7 +232,7 @@ func Check(root string, updates bool) (CheckReport, error) {
 	}
 
 	if len(report.Problems) > 0 {
-		return report, fmt.Errorf("%d consumer asset copy problem(s); run `make ze-vendor-web-sync` and commit the result", len(report.Problems))
+		return report, fmt.Errorf("%d consumer asset copy problem(s); run `./le vendor-web sync` and commit the result", len(report.Problems))
 	}
 
 	return report, nil

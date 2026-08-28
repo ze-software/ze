@@ -15,13 +15,8 @@
 │   ├── architecture.md # Condensed system overview (*)
 │   ├── go-standards.md             # Ze naming convention (*)
 │   └── ...                   # See CLAUDE.md for full list + rationale
-├── hooks/              # Automation scripts
-│   ├── session-start.sh      # Git status, active specs (SessionStart)
-│   ├── compaction-reminder.sh # Detect compaction (UserPromptSubmit)
-│   ├── block-destructive-git.sh # Block dangerous git (PreToolUse:Bash)
-│   ├── block-claude-plans.sh # Block wrong plan location (PreToolUse:Write)
-│   ├── auto_linter.sh        # Lint on file write (PostToolUse)
-│   └── validate-spec.sh      # Validate spec format (PostToolUse)
+├── hooks/              # README.md only; every hook now runs in `./le hook-check <verb>`
+│   └── README.md       # Native hook dispatcher: see .claude/settings.json for the verb list
 ├── commands/           # Custom skills
 │   ├── code-review.md  # /code-review for PR reviews
 │   └── rfc-summarisation.md # /rfc-summarisation for RFC summaries
@@ -37,7 +32,7 @@
 1. Rules auto-load based on file path
 2. Hooks automate git check, linting, spec validation
 3. Read `INDEX.md` to find architecture docs
-4. Run `make lint && make ze-unit-test && make ze-functional-test` before claiming done
+4. Run `./le verify-lint run && ./le test-unit && ./le functional` before claiming done
 
 ## Architecture Docs
 

@@ -87,7 +87,10 @@ The current binary reports 97 registered plugins and schemas covering protocol f
 | Linters | 26 |
 
 Unit tests run with the race detector enabled (`-race`). Functional, browser, and compatibility suites do not currently use the race detector.
-<!-- source: Makefile -- ze-unit-test, ze-functional-test, ze-lint, ze-fuzz-test targets -->
+<!-- source: internal/le/testunit/actions.go -- Actions -->
+<!-- source: internal/le/functional/actions.go -- Actions -->
+<!-- source: internal/le/fuzz/actions.go -- Actions -->
+<!-- source: internal/le/lintgate/actions.go -- Actions -->
 
 ## What Does NOT Work Yet
 
@@ -152,7 +155,7 @@ Nothing is stable yet. Expect changes in:
 If you decide to use Ze today:
 
 1. **Pin to a commit** -- there are no releases or version tags yet
-2. **Run the test suite** -- `make ze-precommit-verify` before deploying any build
+2. **Run the test suite** -- `./le verify current mode full` before deploying any build
 3. **Start with monitoring** -- use Ze to observe BGP sessions before relying on it for route injection
 4. **Keep ExaBGP as fallback** -- Ze can migrate ExaBGP configs, so you can switch back easily
 5. **Report issues** -- [github.com/ze-software/ze/issues](https://github.com/ze-software/ze/issues)

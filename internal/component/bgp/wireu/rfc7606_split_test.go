@@ -4,7 +4,7 @@ package wireu
 // message. They do NOT prove the full RFC 7606 Section 5.1 second-bullet MUST,
 // because two relay paths still reproduce a received mixed shape (forward_body.go
 // verbatim forward, and its whole emit of a re-encoded destUpdate that fits).
-// Tagging them as proof of RFC7606-5.1-2 overclaims, and `make ze-rfc-check`
+// Tagging them as proof of RFC7606-5.1-2 overclaims, and `./le rfc check`
 // reports the contradiction against the requirement's surviving {gap} annotation.
 // They stay as regression protection for the narrowed behavior that annotation
 // describes.

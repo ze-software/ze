@@ -7,7 +7,7 @@ import (
 )
 
 func TestApplianceRootRegistered(t *testing.T) {
-	if !registry.HasRootHandler("appliance") {
+	if registry.LookupRoot("appliance") == nil {
 		t.Fatal("appliance root handler not registered")
 	}
 }

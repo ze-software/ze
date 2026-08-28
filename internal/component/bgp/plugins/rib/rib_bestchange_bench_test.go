@@ -13,8 +13,8 @@ import (
 
 // BenchmarkBestPathRecordHeapFootprint measures the steady-state heap cost of
 // storing N distinct packed records in Store[bestPathRecord] plus the shared
-// interner. Provides a lower-bounds figure that complements (and is available
-// without root / netns) the full `make ze-stress-profile` run in AC-1.
+// interner. Provides a lower-bounds figure that complements the full
+// `STRESS_SCENARIO=profile ./le integration stress` run in AC-1.
 //
 // Compare with the Phase-4b baseline (72-byte struct, five GC pointers):
 // Phase-4b 1M-prefix stress captured

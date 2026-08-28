@@ -24,7 +24,7 @@ func ReadBaseline(tree string) (Baseline, error) {
 	var baseline Baseline
 	raw, err := os.ReadFile(path) //nolint:gosec // fixed in-repo path
 	if err != nil {
-		return baseline, fmt.Errorf("read baseline %s: %w (run `make ze-test-health-update` to create it)", BaselinePath, err)
+		return baseline, fmt.Errorf("read baseline %s: %w (run `./le test-health update` to create it)", BaselinePath, err)
 	}
 	if err := json.Unmarshal(raw, &baseline); err != nil {
 		return baseline, fmt.Errorf("parse baseline %s: %w", BaselinePath, err)

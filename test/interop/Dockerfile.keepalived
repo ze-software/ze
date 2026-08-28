@@ -2,9 +2,9 @@
 # Alpine ships keepalived in its community repository (v2.3.1, built with
 # VRRP + VRRP_VMAC, verified 2026-07-15).
 #
-# iproute2 is present so a check.py can read the container's interface and
-# neighbour state (`ip -j addr`, `ip -j neigh`) over `docker exec`, which is how
-# a scenario proves the virtual IP actually moved rather than trusting a log.
+# iproute2 is present so the typed checker can read the container's interface
+# and neighbour state (`ip -j addr`, `ip -j neigh`) over `docker exec`, proving
+# the virtual IP actually moved rather than trusting a log.
 
 FROM alpine:3.21
 

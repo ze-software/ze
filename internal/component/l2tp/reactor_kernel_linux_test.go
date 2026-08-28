@@ -17,7 +17,7 @@ import (
 //
 // SetKernelWorker is documented as "must be called before Start()"; this
 // helper lets tests honor that contract.
-func newUnstartedReactor(t *testing.T) (*UDPListener, *L2TPReactor, func()) {
+func newUnstartedReactor(t *testing.T) (*UDPListener, *l2tpReactor, func()) {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(&lockedBuffer{}, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	ln := newUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
@@ -51,7 +51,7 @@ func addEstablishedSession(tun *L2TPTunnel, localSID, remoteSID uint16, lns bool
 
 // mkTunnel builds a tunnel in the established state and registers it
 // with the reactor's tunnel maps.
-func mkTunnel(r *L2TPReactor, localTID, remoteTID uint16, peer netip.AddrPort) *L2TPTunnel {
+func mkTunnel(r *l2tpReactor, localTID, remoteTID uint16, peer netip.AddrPort) *L2TPTunnel {
 	tun := newTunnel(localTID, remoteTID, peer,
 		ReliableConfig{MaxRetransmit: 3, RTimeout: time.Second, RTimeoutCap: 4 * time.Second, RecvWindow: 4},
 		r.logger, time.Now())
@@ -78,7 +78,7 @@ func TestReactorCollectsKernelSetupEvent(t *testing.T) {
 	w := newKernelWorker(fake.ops(), errCh, successCh, r.logger)
 	w.Start()
 	defer w.Stop()
-	r.SetKernelWorker(w, errCh, successCh)
+	r.setKernelWorker(w, errCh, successCh)
 
 	peer := netip.MustParseAddrPort("10.0.0.7:1701")
 	tun := mkTunnel(r, 100, 200, peer)
@@ -121,7 +121,7 @@ func TestReactorCollectsTeardownEvent(t *testing.T) {
 	w := newKernelWorker(fake.ops(), errCh, successCh, r.logger)
 	w.Start()
 	defer w.Stop()
-	r.SetKernelWorker(w, errCh, successCh)
+	r.setKernelWorker(w, errCh, successCh)
 
 	tun := mkTunnel(r, 101, 201, netip.MustParseAddrPort("10.0.0.8:1701"))
 	tun.pendingKernelTeardowns = []kernelTeardownEvent{

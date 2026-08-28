@@ -22,90 +22,11 @@ option=timeout:value=20s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=firewall-global-options.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify firewall global-options produce sysctl defaults."""
-
-import json
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    expected = {
-        'net.ipv4.icmp_echo_ignore_all': '0',
-        'net.ipv4.tcp_syncookies': '0',
-        'net.ipv4.conf.all.rp_filter': '1',
-    }
-
-    def sysctl_ready(res):
-        # firewall global-options reach sysctl asynchronously via EventBus;
-        # poll until every expected key/value is present, not just status==done.
-        if res.get('status') != 'done':
-            return False
-        try:
-            rows = result_json_data(res, [])
-        except json.JSONDecodeError:
-            return False
-        if not isinstance(rows, list):
-            return False
-        have = {e['key']: e for e in rows if isinstance(e, dict)}
-        return all(k in have and have[k].get('value') == v for k, v in expected.items())
-
-    r = api.dispatch_until('show sysctl', sysctl_ready, attempts=40)
-    if r is None or r.get('status') != 'done':
-        status = r.get('status') if r else 'nil'
-        runtime_fail(f'sysctl show: status={status}')
-
-    try:
-        entries = result_json_data(r, [])
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'sysctl show json: {exc}: {result_text_data(r)[:200]}')
-        entries = []
-
-    if not isinstance(entries, list):
-        runtime_fail(f'sysctl show: expected list, got {type(entries).__name__}')
-
-    by_key = {e['key']: e for e in entries if isinstance(e, dict)}
-
-    for key, want_val in expected.items():
-        if key not in by_key:
-            runtime_fail(f'sysctl show: missing key {key}; have {sorted(by_key.keys())}')
-            continue
-        entry = by_key[key]
-        if entry.get('value') != want_val:
-            runtime_fail(f'{key}: value={entry.get("value")!r} want {want_val!r}')
-        if entry.get('source') != 'firewall:global-options':
-            runtime_fail(f'{key}: source={entry.get("source")!r} want "firewall:global-options"')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external fw-go-test {
-		run ./firewall-global-options.run
+		run "ze-test fixture plugin/firewall-global-options"
 		encoder json
 	}
 }

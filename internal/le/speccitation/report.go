@@ -42,7 +42,7 @@ type Report struct {
 	Warnings []DriftFinding    `json:"warnings"`
 }
 
-// Text renders the byte-compatible page from spec-citation-check.py.
+// Text renders the native citation verdict and its actionable diagnostics.
 func (r Report) Text() string {
 	var tb textbuf.Buffer
 	for _, warning := range r.Warnings {
@@ -53,7 +53,7 @@ func (r Report) Text() string {
 	}
 
 	if len(r.Dangling) > 0 {
-		tb.Str("spec-citation-check FAILED: dangling plan/spec-*.md references\n")
+		tb.Str("./le spec-citation FAILED: dangling plan/spec-*.md references\n")
 		for _, finding := range r.Dangling {
 			tb.Str("  ").Str(finding.Citer.Path).Byte(':').Int(int64(finding.Citer.Line)).
 				Str(": references ").Str(finding.Target).
@@ -63,11 +63,11 @@ func (r Report) Text() string {
 			Str(" dangling reference(s). Either fix the citing reference,").
 			Str(" or -- if the target is legitimately gone -- add it to ").
 			Str(baselinePath).
-			Str(" (or run spec-citation-check.py --write-baseline).\n")
+			Str(".\n")
 		return tb.String()
 	}
 
-	tb.Str("spec-citation-check OK (").Int(int64(r.Specs)).Str(" specs, ").
+	tb.Str("./le spec-citation OK (").Int(int64(r.Specs)).Str(" specs, ").
 		Int(int64(len(r.Baseline))).Str(" baselined dangling")
 	if len(r.Warnings) > 0 {
 		tb.Str(", ").Int(int64(len(r.Warnings))).Str(" line-token WARN")

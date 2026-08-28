@@ -52,7 +52,7 @@ func (r Report) Text() string {
 		for _, path := range r.Stale {
 			tb.Str("stale: ").Str(path).Byte('\n')
 		}
-		tb.Str("generated agent files are stale -- run: make ze-generated-files-update\n")
+		tb.Str("generated agent files are stale -- run: ./le ai skills-sync\n")
 		return tb.String()
 	default:
 		return tb.Str("synced ").Int(int64(len(r.Skills))).Str(" skill(s) + ").

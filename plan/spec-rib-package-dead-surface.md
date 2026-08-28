@@ -44,7 +44,7 @@ costs what it uses.
   → Decision: it already states "Engine OutgoingRIB is excluded: it has no production callers (test-only)", and a previous projection was corrected for counting it at 478 B/route/peer
   → Constraint: the byte figures on that page are derived from struct sizes, so shrinking `Route` makes them wrong in the same commit that shrinks it
 - [ ] `docs/architecture/update-building.md` - documents the UPDATE build path
-  → Constraint: it carries a source anchor naming `CanForwardDirect`, so deleting that method reddens `ze-doc-index-check` unless the anchor and its prose move in the same commit
+  → Constraint: it carries a source anchor naming `CanForwardDirect`, so deleting that method reddens `./le docs-to-code index-check` unless the anchor and its prose move in the same commit
 
 **Key insights:** (minimal context to resume after compaction)
 - Production reaches exactly five symbols from this package; everything else is test-only
@@ -104,7 +104,7 @@ costs what it uses.
 ### Risks
 | # | Risk | Early signal | Mitigation |
 |---|------|--------------|------------|
-| R-1 | Deleting `CanForwardDirect` reddens `ze-doc-index-check` | the gate names `docs/architecture/update-building.md` | move the anchor and its prose in the same commit |
+| R-1 | Deleting `CanForwardDirect` reddens `./le docs-to-code index-check` | the gate names `docs/architecture/update-building.md` | move the anchor and its prose in the same commit |
 | R-2 | The per-route byte figures in `pool-architecture.md` become wrong the moment `Route` shrinks | the doc disagrees with the sizeof reporter | re-run the reporter and update the figures in the same commit |
 | R-3 | Removing the reference counter removes a mechanism a future RIB rewire might want | none at build time | `attrpool.Handle` already refcounts and is what production uses; a future design would build on that, not on this |
 | R-4 | The commit needs a large `test/weakened.md` population and that file is shared and currently accumulating | `commit_helper.py` refuses rows it cannot pair | write the rows against this commit's own removals only, and check the file is not carrying another session's rows first |
@@ -118,8 +118,8 @@ costs what it uses.
 | AC-2 | `Route` declares exactly five fields: `nlri`, `nextHop`, `attributes`, `asPath`, `indexCache` | reading the struct, and `TestStructSizes` reporting the five component sizes |
 | AC-3 | `Route` measures 96 bytes, down from the 160 bytes measured on 2026-08-18 | `TestStructSizes` output recorded before and after |
 | AC-4 | `NewRouteWithASPath` performs no reference-count write | reading the constructor; no `refCount` identifier survives in the package |
-| AC-5 | All four flavors of the committed tree compile | `make ze-repository-tracked-build-check` |
-| AC-6 | No documentation cites a deleted symbol or a stale byte figure | `make ze-doc-index-check` and `make ze-doc-links-check` both green, and the `pool-architecture.md` figures equal the AC-3 measurement |
+| AC-5 | All four flavors of the committed tree compile | `./le repository-tracked-build check` |
+| AC-6 | No documentation cites a deleted symbol or a stale byte figure | `./le docs-to-code index-check` and `./le doc-check links` both green, and the `pool-architecture.md` figures equal the AC-3 measurement |
 | AC-7 | Every production symbol the package exported before the change is still reachable | `NewRouteWithASPath`, `Route` accessors, `RouteJSON`, `NewCommitService` and `CommitOptions` still compile from their six importing files |
 
 ## Wiring Test
@@ -142,7 +142,7 @@ costs what it uses.
 
 No user-facing behavior changes: every symbol removed has no production caller,
 so nothing the daemon does can differ. The evidence that the removal is safe is
-`make ze-repository-tracked-build-check` green across all four flavors and the
+`./le repository-tracked-build check` green across all four flavors and the
 existing suites unchanged, not a new test.
 
 ## Files to Modify
@@ -168,16 +168,16 @@ existing suites unchanged, not a new test.
 4. Prune `sizeof_test.go` and `route_test.go` to the surviving surface
 5. Re-run the sizeof reporter and record the new size
 6. Update the three architecture docs, anchors first
-7. Run `make ze-lint-changed`, `make ze-unit-pkg-test` for the package, `make ze-doc-index-check` and `make ze-doc-links-check`
+7. Run `./le changed scope`, `go test -race ./...` for the package, `./le docs-to-code index-check` and `./le doc-check links`
 8. Write `test/weakened.md` rows against this commit's removals only
-9. Commit, then `make ze-repository-tracked-build-check`
+9. Commit, then `./le repository-tracked-build check`
 
 ## Checklist
 
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `make ze-precommit-verify` green
+- [ ] `./le verify current mode full` green
 
 ### Integration Checklist
 - [ ] YANG schema and validation - N/A, no config surface changes

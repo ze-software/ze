@@ -13,6 +13,9 @@ import (
 	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
+const usageSectionFlags = "Flags"
+const usageSectionOperations = "Operations"
+
 func cmdCymru(args []string) int {
 	if len(args) > 0 && isHelp(args[0]) {
 		cymruUsage()
@@ -75,10 +78,10 @@ func cymruUsage() {
 		Summary: "Team Cymru ASN-to-name resolution",
 		Usage:   []string{"ze resolve cymru [--dns-server <host>] asn-name <asn>"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Operations", Entries: []helpfmt.HelpEntry{
+			{Title: usageSectionOperations, Entries: []helpfmt.HelpEntry{
 				{Name: "asn-name <asn>", Desc: "Resolve ASN to organization name"},
 			}},
-			{Title: "Flags", Entries: []helpfmt.HelpEntry{
+			{Title: usageSectionFlags, Entries: []helpfmt.HelpEntry{
 				{Name: "--dns-server <host>", Desc: "DNS server for TXT queries (default: system DNS)"},
 			}},
 		},

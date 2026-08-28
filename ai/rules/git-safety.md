@@ -12,18 +12,17 @@ Rationale: `ai/rationale/git-safety.md`
 See: `ai/INSTRUCTIONS.md`, "git commit, git add, git rm: FORBIDDEN as bare Bash tool calls" -- the five banned verbs, the single add + delete + commit script, and "committing outside a script is not" reach every session from there, so this rule does not restate them.
 
 **A shared single-file plan log cross-commits even with a correct, explicit
-`--file` list.** The ban on the bare staging verbs fixes staging *timing*; it
-cannot fix staging *granularity*. `git add <file>` stages the WHOLE file, including hunks
-another session left uncommitted in it. You MUST SHARD the log so each
+`file <path>` list.** The ban on bare staging verbs fixes staging *timing*; it
+cannot fix staging *granularity*: the generated script stages the whole file,
+including hunks another session left uncommitted in it. You MUST SHARD the log so each
 session writes only files it owns and git merges disjoint creations without
 conflict. **Both cross-spec logs are now sharded.** Deferrals live one file
-per source under `plan/deferrals/` (`ai/rules/planning.md`), so `git
-add plan/deferrals/<source>.md` stages only your row. Known failures live one
-file per failure under `plan/known-failures/` (a `<make-target>-<test-name>.md`
-shard, with `RESOLVED.md` archiving the history and `README.md` holding the
-logging instructions), so `git add plan/known-failures/<make-target>-<test-name>.md`
-stages only your entry. A shared unsharded log lets concurrent sessions stage
-each other's entries.
+per source under `plan/deferrals/` (`ai/rules/planning.md`), so one
+`file plan/deferrals/<source>.md` pair stages only your row. Known failures live
+one file per failure under `plan/known-failures/` (a
+`<native-action>-<test-name>.md` shard, with `RESOLVED.md` archiving history), so
+one `file plan/known-failures/<native-action>-<test-name>.md` pair stages only your
+entry. A shared unsharded log lets concurrent sessions stage each other's entries.
 
 Consequences (they apply whenever two sessions touch the same tracked file, so
 keep each shard single-writer), in order of importance:
@@ -38,7 +37,7 @@ keep each shard single-writer), in order of importance:
 Do not read a cross-commit as a rule violation by the other session. With
 concurrent sessions and a shared single-file log it is structural.
 
-**A `--file` list is a list of PATHS, and a path carries whatever the file holds
+**A `file <path>` list is a list of PATHS, and a path carries whatever the file holds
 at that moment. Before naming a path, you MUST run `git diff` over it and confirm
 every hunk is yours.**
 
@@ -74,7 +73,7 @@ script and run it immediately. You MUST NOT re-audit the implementation, run lat
 completeness/remaining-work tables, inspect speculative companion artifacts,
 or rerun lint/tests just because commit was requested. You MUST inspect only enough
 state to avoid staging unrelated, ignored, generated, or out-of-scope paths.
-**One check is exempt, because it cannot run earlier: `make ze-repository-tracked-build-check`
+**One check is exempt, because it cannot run earlier: `./le repository-tracked-build check`
 after the script has run** (step 7). It judges the commit you just made, which no
 run before that commit could see.
 
@@ -86,16 +85,30 @@ bounded and one-shot, while the failure it prevents is unbounded.
 If scope is ambiguous, ask one narrow question; otherwise proceed.
 
 **Commit workflow:**
-1. You MUST use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
-2. You MUST use `scripts/dev/commit_helper.py create` to write one message file and one commit script. You MUST pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). One session can run many subagents that share the session id, so `--push` adds a push after the commits only on an owner instruction (see "Pushing").
-   `--append` adds a later commit block to a script you already prepared. You MUST pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
-3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **reads verify-status**, and since 2026-08-21 that reading gates the PUSH rather than the commit (see "Verify a Commit, Not the Working Tree"). `create` runs `verify-status.sh check <the commit's files>`; a stale answer records a verification-debt row and the commit PROCEEDS, because a commit that stays local costs nobody anything and a commit that never happens costs the work. `--push` then refuses while any row is open. The freshness question is scoped to the `--file` list, so an edit to a path this commit does not carry leaves the verdict FRESH. **One thing is still refused at commit time**: a STRUCTURAL gate red charged to this commit -- tier, lint, vet, plugin-boundary, iface-resolution, regen-check-readonly, wiring-docs, tracked-build (`ai/rules/precommit-verify.md`). Those are deterministic and say the tree is BROKEN, which is a different fact from unverified, and `--structural-red-ok` is the owner-only escape. Full-verify coverage over a commit carrying `.go`, `go.mod`, `go.sum` or `vendor/` is a debt row on the same footing.
-   It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`) is stale (run `make ze-generated-files-update`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package` header) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
-4. If the helper cannot express the commit shape, you MUST hand-write the same script pattern and `chmod +x` it. You MUST give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. You MUST NOT use heredocs. You MUST use `git commit -F <file>`.
-5. You MUST NOT end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. You MUST put path on its own line or follow with a space.
-6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-repository-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
-7. Before writing a commit script, you MUST read `.gitignore` and MUST NOT `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. You MUST only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
-**The helper asks for no lesson artifact, and it MUST NOT be made to (owner directive, 2026-08-10).** A lesson is applied by UPDATING the surface that governs behaviour, never by saving a summary beside the commit. Route it: a recurring trap to a rule under `ai/rules/`, a design decision to `docs/architecture/`, a subsystem's data flow to `ai/digests/`, a protocol obligation to `rfc/short/`. The journal row survives for its own reason, which is counting how often a PROBLEM class recurs (`ai/rules/planning.md`, "Writing Journal Rows").
+1. You MUST use `./le commit session` to create or reuse this harness session's
+   eight-hex commit namespace.
+2. You MUST use `./le commit create` to write one message file and one commit
+   script. Pass `file <path>` once per explicit file and `remove <path>` for
+   tracked deletions. The `script=` line is the only authoritative path.
+   `append` adds a later commit block to a prepared script; `script <path>` names
+   it. `replace` rewrites that named script. A new `create` with no `script`
+   always gets a distinct path.
+3. The native command writes executable scripts using `git commit -F`, rejects
+   ignored/generated paths, checks verification freshness for the explicit file
+   population, and records verification debt rather than dropping a local
+   commit. `push "<owner authorisation>"` is refused while debt is open. It also
+   enforces discovery-index freshness; use `./le discovery-index update`.
+4. `./le commit create` is the sole staging and commit route. There is no
+   hand-written fallback.
+5. You MUST run the finished script yourself with `bash` and the printed path.
+   For a commit carrying Go/module/vendor paths, run
+   `./le repository-tracked-build check` immediately afterwards. Report the commit SHA,
+   included files, message file, script path, push status, and verification
+   evidence or skip reason.
+6. Before creating the script, read `.gitignore`; add only canonical sources.
+**The command asks for no lesson artifact, and it MUST NOT be made to.** Apply a
+lesson by updating the surface that governs behaviour. Journal rows exist only
+to count recurrence of a problem class.
 
 `git commit`/`git add` inside the script is fine -- the ban is on
 direct AI tool invocations, not on what the script does when it runs.
@@ -111,47 +124,49 @@ modified during implementation (specs, stubs), you MUST use `git rm -f` to avoid
 "has local modifications" errors. You MUST NOT `git rm -f` without first
 committing the file's current state (see Spec Closure in planning rules).
 
-**You MUST use this helper format:**
+**You MUST use this native command format:**
 ```bash
 # Single commit (most common):
-scripts/dev/commit_helper.py create \
-  --replace \
-  --subject "hook: allow tee pipe, per-session log paths" \
-  --body "Explanation of why the change was made." \
-  --file .claude/hooks/pretool-bash.py \
-  --file ai/rules/commands.md
+./le commit create \
+  replace \
+  subject "hook: allow tee pipe, per-session log paths" \
+  body "Explanation of why the change was made." \
+  file internal/le/hookruntime/bash.go \
+  file ai/rules/points/commands/<section>/<point>.md
 
 # Second commit in the same script:
-scripts/dev/commit_helper.py create \
-  --append \
-  --subject "feat: add widget support" \
-  --body "Implements widget rendering for the dashboard." \
-  --file internal/component/web/widget.go \
-  --file internal/component/web/widget_test.go
+./le commit create \
+  append \
+  script tmp/commit-<session>-<tag>-<random>.sh \
+  subject "feat: add widget support" \
+  body "Implements widget rendering for the dashboard." \
+  file internal/component/web/widget.go \
+  file internal/component/web/widget_test.go
 
 # Spec closure (remove spec file):
-scripts/dev/commit_helper.py create \
-  --append \
-  --subject "spec: close spec-widget" \
-  --remove plan/spec-widget.md
+./le commit create \
+  append \
+  script tmp/commit-<session>-<tag>-<random>.sh \
+  subject "spec: close spec-widget" \
+  remove plan/spec-widget.md
 
 # With a journal row:
-scripts/dev/commit_helper.py create \
-  --replace \
-  --subject "rules: add goroutine lifecycle rule" \
-  --file ai/rules/goroutine-lifecycle.md \
-  --file plan/journal/<class>.md
+./le commit create \
+  replace \
+  subject "rules: add goroutine lifecycle rule" \
+  file ai/rules/points/<rule>/<section>/<point>.md \
+  file plan/journal/<class>.md
 ```
 
-`scripts/dev/commit_helper.py` is invoked from Bash, so `--subject`, `--body`
-and every override reason are shell words BEFORE Python sees them. Inside a
+`./le commit create` is invoked from Bash, so `subject`, `body`, and every
+override reason are shell words before the native command sees them. Inside a
 double-quoted argument a backtick opens command substitution, so a body reading
 ``the block declares `encoder json` `` runs `encoder json`, prints
 `encoder: command not found` to stderr, and substitutes the EMPTY STRING into
-the message. You MUST NOT put a backtick in any commit_helper argument.
+the message. You MUST NOT put a backtick in any `./le commit` argument.
 
-The failure is silent in the only place that matters. The helper still writes
-its message file and still prints `script=`, so a caller reading the tail of the
+The failure is silent in the only place that matters. The command still writes
+its message file and prints `script=`, so a caller reading the tail of the
 output sees success; the sentence is already mutilated, and running the script
 commits it to permanent history. Quote code in a commit message with plain
 double quotes, or name the thing without quoting it at all.
@@ -162,16 +177,16 @@ message that cannot be corrected without rewriting history:
 - Read the generated message file before running the script. `create` prints its
   path on the `message=` line. A blanked backtick span is obvious there and
   nowhere else.
-- Treat `command not found` anywhere in the helper's output as a failed
+- Treat `command not found` anywhere in the command's output as a failed
   invocation, not as noise from an unrelated tool.
 
 Repairing the message file in place is the fix, and it is allowed: the script
 runs `git commit -F <message-file>`, so the file is read when the script runs,
 not when `create` wrote it.
 
-Key flags: `--replace` for the first commit in a session, `--append`
-for subsequent commits. `--file` per path to add, `--remove` per
-tracked path to delete.
+Key keywords: `replace` for the first commit in a session, `append` for later
+blocks in the same script. Use `file <path>` per path to add and
+`remove <path>` per tracked path to delete.
 Body lines are wrapped to 72 characters. Subjects are single-line and
 are at most 72 characters.
 
@@ -198,9 +213,9 @@ commit now`, `want me to commit?`.
 ## Pushing (2026-08-05, owner amendment)
 
 - **A bare `git push` from a Bash call stays forbidden; the hook enforces it.**
-- **You MUST push only by passing `--push` to `scripts/dev/commit_helper.py create` (step 2); it runs from the script you run at step 7.**
-- **The owner orders a push; you MUST NOT decide one yourself. `--push` on your own initiative is a push without authority.**
-- **`git push --force` and `-f` stay forbidden; `--push` is no route to them.**
+- **You MUST push only with `./le commit create ... push "<owner authorisation>"`; the generated script performs it after every commit succeeds.**
+- **The owner orders a push; you MUST NOT add `push` on your own initiative.**
+- **`git push --force` and `-f` stay forbidden; the native route never forces.**
 
 ### Why the amendment, and what to do when a push goes wrong
 
@@ -214,16 +229,16 @@ the next reader. Writing a throwaway script that carries a push and deleting it
 afterwards is banned for the same reason. It reaches the same remote by the same
 hand and leaves no record of why the push happened, and `ai/INSTRUCTIONS.md`
 carries that ban into every session. A remote history that needs rewriting is
-the owner's decision, made at his own terminal, which is why `--force` and `-f`
-have no `--push` path (`ai/INSTRUCTIONS.md`, "Destructive git commands are
-FORBIDDEN").
+the owner's decision, made at his own terminal. `./le commit create` has no
+force keyword, and the `push "<owner authorisation>"` route never rewrites
+remote history (`ai/INSTRUCTIONS.md`, "Destructive git commands are FORBIDDEN").
 
 | Situation | Do |
 |-----------|-----|
 | The script's commit step failed | Nothing is pushed and nothing should be: `set -euo pipefail` stops the script before the push. Fix the cause (staged index, GPG), then re-run the script |
 | The commits are made and no push was ordered | Stop and report the SHA(s). A push nobody asked for is a push without authority, whatever the branch looks like |
 | You are a worktree agent | Never push. Work on your branch and stop there (`ai/INSTRUCTIONS.md`, "Worktree agents must not touch main") |
-| The owner orders a push after your script already ran | Say so and let him push, or carry `--push` on the next commit you prepare. Do not type the command to close the gap |
+| The owner orders a push after your script already ran | Say so and let him push, or carry `push "<owner authorisation>"` on the next commit you prepare. Do not type the command to close the gap |
 
 ## Commit Granularity
 
@@ -234,17 +249,17 @@ Review fixes from a review pass = one commit.
 
 **A finished chunk MUST be committed when it finishes, not when the session does (owner directive, 2026-08-21).** Work that is done and green sits in one working tree, where the next `git clean`, checkout or crashed session destroys it, and where every later chunk has to be diffed around it. The question to answer after each piece of work is "does this stand on its own", never "am I finished for the day". A defect fix, a rule change, a gate repair and a spec's implementation are four commits, and the first three MUST NOT wait behind the fourth's review gate.
 
-**Read the working tree's SPREAD before starting new work, and land what is already finished first.** `make ze-working-tree-check` reports the changed paths grouped by area. More than one area in flight means a chunk is waiting that could already be committed, and it MUST be landed before the next piece starts. The cost of getting this wrong compounds: an unrelated fix folded into a closing commit costs that commit its single focus and its review its scope, and it restarts gates that were already green (`ai/rules/rule-precedence.md`).
+**Read the working tree's SPREAD before starting new work, and land what is already finished first.** `./le working-tree` reports the changed paths grouped by area. More than one area in flight means a chunk is waiting that could already be committed, and it MUST be landed before the next piece starts. The cost of getting this wrong compounds: an unrelated fix folded into a closing commit costs that commit its single focus and its review its scope, and it restarts gates that were already green (`ai/rules/rule-precedence.md`).
 
 ## Verify a Commit, Not the Working Tree
 
-**The pre-commit gate MUST run against a COMMIT in a throwaway worktree, never against the working tree (owner directive, 2026-08-21).** `make ze-verify-worktree` does it: it adds a detached worktree at the commit, runs `ze-precommit-verify` there, and removes it on every exit path. `COMMIT=<rev>` picks the commit and defaults to HEAD; `KEEP=1` leaves the tree for inspection when it goes red.
+**The pre-commit gate MUST run against a COMMIT in a throwaway worktree, never against the working tree (owner directive, 2026-08-21).** `./le verify worktree` adds a detached worktree at HEAD, runs every native verification stage, and removes it on every exit path. `commit <revision>` selects another commit; `keep` leaves the tree for inspection when it goes red.
 
 **An in-place run is void the moment the tree moves under it, and the run does NOT say so.** Each stage reads the bytes present when that stage starts, so an edit landing mid-run leaves earlier stages judging a tree that no longer exists and later stages judging one the earlier ones never saw. The result reads green or red for a tree that was never committed. A red from such a run MUST NOT be diagnosed as a defect and a green MUST NOT be cited as evidence: it is void, and the answer is to re-run against a commit.
 
 **Verification is PERIODIC: a commit waits for its focused tests, never for the gate (owner directive, 2026-08-21).** The gate costs 25 to 53 minutes on this hardware, measured on 2026-08-21 at 1486s, 1574s and 3195s (`tmp/.ze-verify-duration.txt`). A session that verifies before every commit therefore batches its work until one run is worth the wait, and that accumulation is the thing this rule exists to stop. Each finished chunk MUST land when it is finished, with its focused tests green, and the worktree gate MUST run over the resulting commits on a cadence.
 
-**The gate therefore gates PUSHING, not committing.** A commit that stays local costs nobody anything and a commit that never happens costs the work, so a stale verify records a verification-debt row and the commit proceeds. `--push` refuses while any row is open, which is where the debt is actually owed: a push is what reaches users. The one thing still refused at commit time is a STRUCTURAL gate red charged to the commit -- tier, lint, vet, plugin-boundary, iface-resolution, regen-check-readonly, wiring-docs, tracked-build -- because those are deterministic and say the tree is BROKEN, which is a different fact from unverified.
+**The gate therefore gates PUSHING, not committing.** A commit that stays local costs nobody anything and a commit that never happens costs the work, so a stale verify records a verification-debt row and the commit proceeds. `push "<owner authorisation>"` refuses while any row is open, which is where the debt is actually owed: a push is what reaches users. The one thing still refused at commit time is a STRUCTURAL gate red charged to the commit, because that says the tree is broken rather than merely unverified.
 
 ## Worktree Cleanup
 
@@ -268,8 +283,8 @@ fails LAST, after every gate has passed and every file is already staged.
 When several sessions work the same tree, each session MUST commit the
 features it is in charge of implementing -- never leave your own finished
 work uncommitted for another session to sweep or strand. Scope every commit
-script to your own files (explicit `--file` lists; verify
-`git diff --cached --name-only` shows nothing foreign before running it).
+script to your own files (one `file <path>` keyword per file); verify
+`git diff --cached --name-only` shows nothing foreign before running it.
 
 Exception, per owner direction: an uncommitted improvement written by
 ANOTHER agent may be included in your commit when it is IN SCOPE of the
@@ -338,10 +353,10 @@ via `git rebase <branch>`, never `git merge`. Linear history.
 
 A rebase of local commits onto a diverged `origin/main` can re-conflict on
 the one derivable bookkeeping file still tracked (`ai/PACKAGE-MAP.md`).
-Regenerate with `make ze-discovery-index-update` at each rebase stop and continue.
+Regenerate with `./le discovery-index update` at each rebase stop and continue.
 
 Finish the rebase first, then repair bookkeeping -- never mid-rebase. Afterwards
-regenerate the derived indexes with `make ze-discovery-index-update` and recompute any
+regenerate the derived indexes with `./le discovery-index update` and recompute any
 derived ratchet the rebase loosened (e.g. `test/.ci-sleep-baseline` = actual
 `time.sleep(` count in `test/**/*.ci`).
 

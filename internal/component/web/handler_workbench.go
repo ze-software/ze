@@ -116,25 +116,22 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 			data.ReadOnly = readOnly
 			pathBar := renderer.renderComponent("path_bar_inner", pathBarInner(data))
 
-			wb := workbenchData{
-				LayoutData: LayoutData{
-					Title:          func() string { var tb textbuf.Buffer; return tb.Str("Ze: /").Join(path, "/").String() }(),
-					Content:        pageContent,
-					HasSession:     true,
-					CLIPrompt:      data.CLIPrompt,
-					CLIContextPath: data.CLIContextPath,
-					CLIPathBar:     pathBar,
-					Breadcrumbs:    data.Breadcrumbs,
-					Username:       data.Username,
-					Insecure:       insecure,
-					ActiveUI:       uiModeTokenWorkbench,
-					RouterIdentity: routerIdentity,
-					FleetPeers:     fleetPeers,
-					ChangeCount:    changeCount,
-					ReadOnly:       readOnly,
-				},
-				Sections: workbenchSections(path),
-			}
+			wb := newWorkbenchData(LayoutData{
+				Title:          func() string { var tb textbuf.Buffer; return tb.Str("Ze: /").Join(path, "/").String() }(),
+				Content:        pageContent,
+				HasSession:     true,
+				CLIPrompt:      data.CLIPrompt,
+				CLIContextPath: data.CLIContextPath,
+				CLIPathBar:     pathBar,
+				Breadcrumbs:    data.Breadcrumbs,
+				Username:       data.Username,
+				Insecure:       insecure,
+				ActiveUI:       uiModeTokenWorkbench,
+				RouterIdentity: routerIdentity,
+				FleetPeers:     fleetPeers,
+				ChangeCount:    changeCount,
+				ReadOnly:       readOnly,
+			}, workbenchSections(path))
 
 			if renderErr := renderer.RenderWorkbench(w, wb); renderErr != nil {
 				http.Error(w, fmt.Sprintf("render: %v", renderErr), http.StatusInternalServerError)
@@ -197,25 +194,22 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		pathBar := renderer.renderComponent("path_bar_inner", pathBarInner(data))
 
 		var tb2 textbuf.Buffer
-		wb := workbenchData{
-			LayoutData: LayoutData{
-				Title:          tb2.Str("Ze: /").Str(data.CurrentPath).String(),
-				Content:        content,
-				HasSession:     true,
-				CLIPrompt:      data.CLIPrompt,
-				CLIContextPath: data.CLIContextPath,
-				CLIPathBar:     pathBar,
-				Breadcrumbs:    data.Breadcrumbs,
-				Username:       data.Username,
-				Insecure:       insecure,
-				ActiveUI:       uiModeTokenWorkbench,
-				RouterIdentity: routerIdentity,
-				FleetPeers:     fleetPeers,
-				ChangeCount:    changeCount,
-				ReadOnly:       readOnly,
-			},
-			Sections: workbenchSections(path),
-		}
+		wb := newWorkbenchData(LayoutData{
+			Title:          tb2.Str("Ze: /").Str(data.CurrentPath).String(),
+			Content:        content,
+			HasSession:     true,
+			CLIPrompt:      data.CLIPrompt,
+			CLIContextPath: data.CLIContextPath,
+			CLIPathBar:     pathBar,
+			Breadcrumbs:    data.Breadcrumbs,
+			Username:       data.Username,
+			Insecure:       insecure,
+			ActiveUI:       uiModeTokenWorkbench,
+			RouterIdentity: routerIdentity,
+			FleetPeers:     fleetPeers,
+			ChangeCount:    changeCount,
+			ReadOnly:       readOnly,
+		}, workbenchSections(path))
 
 		if err := renderer.RenderWorkbench(w, wb); err != nil {
 			http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)

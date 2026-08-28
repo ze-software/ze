@@ -196,8 +196,8 @@ func TestInitialSyncEORAlsoCountsAsAnUpdateSent(t *testing.T) {
 //
 // VALIDATES: the End-of-RIB family set is asserted from production code, never
 // simulated inside the test that names it.
-// PREVENTS: the reason those tests survived for so long -- they DO assert, so the
-// assert-nothing detector (`make ze-test-sensitivity-check`) never saw them, and
+// PREVENTS: the reason those tests survived for so long: they DO assert, so the
+// assert-nothing detector (`./le test-sensitivity check`) never saw them, and
 // their names read as coverage of RFC 4724.
 //
 // Two limitations, stated rather than hidden. It greps ONE identifier, so the same
@@ -232,11 +232,11 @@ func TestNoTestBuildsItsOwnFamiliesSentMap(t *testing.T) {
 // SendUpdateHeld returns ErrInvalidState WITHOUT writing anything, and the counter
 // must not move.
 //
-// VALIDATES: the IncrEORSent contract (peer_stats.go) -- "eor-sent >= 1 means the
-// marker is on the wire" -- which test/scripts/ze_api.py wait_peer_eor_sent and the
-// functional suite use as the initial-sync barrier before asserting the EOR frame.
+// VALIDATES: the incrEORSent contract (peer_stats.go): "eor-sent >= 1 means the
+// marker is on the wire", which compiled functional observers use as the
+// initial-sync barrier before asserting the EOR frame.
 // PREVENTS: the pre-fix `_ = sendFn(...)` followed by an unconditional
-// IncrEORSent, which published an End-of-RIB the peer never received and so turned
+// incrEORSent, which published an End-of-RIB the peer never received and so turned
 // every barrier built on the counter into one that waits for nothing.
 func TestInitialSyncEORNotCountedWhenSessionLeftEstablished(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, false, family.IPv4Unicast, family.IPv6Unicast)

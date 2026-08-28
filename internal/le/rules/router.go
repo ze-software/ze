@@ -40,12 +40,12 @@ import (
 // `## Task (MANDATORY)`.
 var taskSections = [...]string{"context", "task"}
 
-// LoadCorpus answers the task descriptions in one directory of specs.
+// loadCorpus answers the task descriptions in one directory of specs.
 //
 // A missing directory gives no tasks, as in the script. The derivation that
 // needs the corpus reports an empty result (digest.go, unreachableBlocking).
 // That layer knows which answer the empty read prevented.
-func LoadCorpus(dir string) ([]Task, error) {
+func loadCorpus(dir string) ([]Task, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -202,15 +202,15 @@ func (r RouterReport) Text() string {
 func Router(tree string) (RouterReport, error) {
 	var report RouterReport
 
-	rules, err := LoadRules(rulesDir(tree))
+	rules, err := loadRules(rulesDir(tree))
 	if err != nil {
 		return report, err
 	}
-	corpus, err := LoadCorpus(filepath.Join(tree, "plan"))
+	corpus, err := loadCorpus(filepath.Join(tree, "plan"))
 	if err != nil {
 		return report, err
 	}
-	core, err := CoreMembers(rules, Corpus{}, nil)
+	core, err := coreMembers(rules, taskCorpus{}, nil)
 	if err != nil {
 		return report, err
 	}

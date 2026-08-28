@@ -58,8 +58,8 @@ CONFIG_NET_ACT_MIRRED
 # ze-iface-conf.yang and in tunnelKindNames (internal/component/iface/tunnel.go)
 # reach the kernel through six symbols and one gate. Every one is TRISTATE, and
 # IPV6_SIT carries a Kconfig `default m` that answered =m for as long as nothing
-# here read it. enforce_required_symbols (tools/kernel-builder/build.py) accepts
-# =y alone, so a line here is what turns a silent =m into a failed build.
+# here required it. The native worker accepts =y alone, so a line here turns a
+# silent =m into a failed build.
 CONFIG_NET_IPGRE_DEMUX
 CONFIG_NET_IPGRE
 CONFIG_IPV6_GRE

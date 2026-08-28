@@ -21,7 +21,7 @@ func actionTable(run platformRun) leaction.Area {
 	for _, spec := range platformSpecs {
 		platform := spec.platform
 		rows = append(rows, leaction.Action{
-			Gate: spec.gate,
+			Verb: spec.verb,
 			Why:  spec.why,
 			Answer: func() (any, int) {
 				return run(platform)
@@ -31,17 +31,14 @@ func actionTable(run platformRun) leaction.Area {
 	return leaction.New(area, rows...)
 }
 
-// metadataOnly builds the table for listing, help, and parity claims. Its
-// actions are never called, so these paths do not read the checkout.
+// metadataOnly builds the table for listing and help. Its actions are never
+// called, so these paths do not read the checkout.
 func metadataOnly() leaction.Area {
 	return actionTable(func(Platform) (any, int) { return nil, 0 })
 }
 
 // Actions answers the two-action command surface as data.
 func Actions() leaction.List { return metadataOnly().Actions() }
-
-// Gates answers both claimed gate names from the action table.
-func Gates() []string { return metadataOnly().Gates() }
 
 // Subs is the one-line hint that help renders under the command.
 func Subs() string { return metadataOnly().Subs() }

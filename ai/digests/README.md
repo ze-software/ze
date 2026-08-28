@@ -15,10 +15,10 @@ Each digest declares the subtree(s) it anchors into with a machine-readable head
 
     <!-- digest-base: internal/component/bgp/reactor internal/component/bgp/fsm -->
 
-`make ze-digest-check` (run inside `make ze-doc-verify`, and by `verify_wiring_docs.py`
-when a digest or a `.go` under one of those bases changes) validates that every
-`file:line` anchor resolves to a real file and an in-range line. Anchors are written
-subsystem-relative (`peer.go`, not the full path); a bare name must be unique across
+`./le digest` (run inside `./le doc-check verify` and by the digest stage in
+`internal/le/docwiring` when a digest or a `.go` under one of those bases
+changes) validates that every `file:line` anchor resolves to a real file and an in-range line.
+Anchors are written subsystem-relative (`peer.go`, not the full path); a bare name must be unique across
 the declared bases, so qualify it with enough path (`storage/familyrib.go`, or the full
 repo-relative path) when the same basename exists under more than one base. The check
 fails closed on such ambiguity rather than guessing, so it will not silently validate an
@@ -56,4 +56,4 @@ below it.
 | Telemetry/security | `aaa-auth.md` | AAA: SSH login, authn (local/TACACS+), RBAC authz, accounting |
 
 To add a subsystem: trace it from real code, write `<name>.md` in the same shape, set its
-`<!-- digest-base: -->` header, add a row here, and confirm `make ze-digest-check` passes.
+`<!-- digest-base: -->` header, add a row here, and confirm `./le digest` passes.

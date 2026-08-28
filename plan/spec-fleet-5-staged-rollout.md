@@ -249,7 +249,7 @@ which devices get notified and when.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-14 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 
 ### Design

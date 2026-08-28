@@ -49,7 +49,7 @@ func newStressBirdRecorder() *stressBirdRecorder {
 	}
 }
 
-func (r *stressBirdRecorder) EUID() int { return r.euid }
+func (r *stressBirdRecorder) effectiveUID() int { return r.euid }
 
 func (r *stressBirdRecorder) LookPath(name string) (string, error) {
 	r.events = append(r.events, "look "+name)
@@ -79,7 +79,7 @@ func (r *stressBirdRecorder) Getenv(key string) string {
 
 func (r *stressBirdRecorder) Run(_ context.Context, command stressBirdCommand) (stressBirdCommandResult, error) {
 	r.commands = append(r.commands, stressBirdCommand{
-		argv: slices.Clone(command.argv), environ: slices.Clone(command.environ),
+		argv: slices.Clone(command.argv), dir: command.dir, environ: slices.Clone(command.environ),
 		outputPath: command.outputPath, timeout: command.timeout,
 	})
 	line := "run " + strings.Join(command.argv, " ")
@@ -115,7 +115,7 @@ func (r *stressBirdRecorder) Run(_ context.Context, command stressBirdCommand) (
 
 func (r *stressBirdRecorder) Start(_ context.Context, command stressBirdCommand) (stressBirdProcess, error) {
 	r.commands = append(r.commands, stressBirdCommand{
-		argv: slices.Clone(command.argv), environ: slices.Clone(command.environ),
+		argv: slices.Clone(command.argv), dir: command.dir, environ: slices.Clone(command.environ),
 		outputPath: command.outputPath, timeout: command.timeout,
 	})
 	line := "start " + strings.Join(command.argv, " ") + " stdout=" + command.outputPath

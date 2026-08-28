@@ -3,4 +3,4 @@ kind: heading
 level:
 stage:
 ---
-### Mechanically blocked (c_test_weakening in pretool-writeedit.py)
+### Mechanically blocked (`writeWeakening` in `internal/le/hookruntime/writeedit.go`)

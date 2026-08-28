@@ -34,6 +34,8 @@ var errFilterAspathInvalidBgpConfigJson = errors.New("filter-aspath: invalid bgp
 
 var logger = slogutil.LazyLogger("bgp.filter.aspath")
 
+const configRootBGP = "bgp"
+
 // listsByName is the runtime-loaded set of as-path-list definitions, keyed by
 // the YANG list name. Updated atomically on every OnConfigure delivery so
 // the hot path can read without a lock.
@@ -47,7 +49,7 @@ func runFilterAsPath(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -71,7 +73,7 @@ func runFilterAsPath(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	}); err != nil {
 		logger().Error("filter-aspath plugin failed", "error", err)
 		return 1

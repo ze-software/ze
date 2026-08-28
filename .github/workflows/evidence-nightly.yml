@@ -1,42 +1,8 @@
 name: evidence-nightly
 
-# Scheduled heavy-evidence pipeline: fuzz + kernel integration suites that must
-# NOT sit in front of a merge. Advisory (`continue-on-error: true` per job), so a
-# red suite reports without wedging anything; flip to blocking once a green
-# baseline exists.
-#
-# This workflow is NEW. Codeberg's Woodpecker never ran an evidence pipeline (its
-# only pipelines were verify + perf-nightly); the whole heavy fuzz / integration
-# surface ran in no automated CI at all. On that SHARED instance
-# ze-integration-test could not have run anyway: its six suites need CAP_NET_ADMIN
-# / CAP_NET_BIND_SERVICE (mk/test-integration.mk), whose only Woodpecker lever is
-# `privileged: true` -- a BLOCKING lint error on an untrusted repo that aborts the
-# entire pipeline. GitHub ubuntu-latest gives passwordless root, so
-# `sudo make ze-integration-test` gets those capabilities natively (netns, nft,
-# bind :53). That is what lets this nightly include the integration suite and
-# resolve spec-fixit-ci-schedule-evidence AC-2.
-#
-# The cron lives IN this file: merging it to the default branch CREATES the
-# schedule. Unlike Woodpecker -- whose cron is a separate repo setting that nothing
-# in the repository recorded, so the nightly could silently never fire -- there is
-# nothing else to configure. GitHub disables scheduled workflows after 60 days
-# with no repository activity; `workflow_dispatch` is the manual re-trigger.
-#
-# ze-qemu-integration-test stays OUT of THIS workflow: it additionally needs
-# nested virt / KVM, which GitHub-hosted runners do not reliably provide, and a
-# job that fails to start catches nothing.
-#
-# The QEMU surface is not unrun, though: qemu-nightly.yml carries the Linux-only
-# FUNCTIONAL suite (`ze-qemu-needs-linux-test`) in its own scheduled, advisory
-# job. What makes that viable is the accelerator fallback -- qemu-run.py asks for
-# `accel=hvf:kvm:tcg`, so an unusable /dev/kvm costs wall-clock rather than the
-# whole run. Keeping the two apart means a slow VM boot cannot delay the fuzz and
-# kernel-integration evidence this workflow exists to produce.
-#
-# scripts/dev/github_workflows_test.go pins this shape (scheduled-only, runs fuzz
-# AND integration AND interop by make-target name, never the QEMU target, every job
-# advisory).
-
+# Scheduled heavy evidence stays outside the merge gate. Every job is advisory,
+# and each expensive proof has its own runner so one infrastructure failure is
+# not attributed to another suite.
 on:
   schedule:
     - cron: "17 3 * * *"
@@ -52,20 +18,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-
-      - name: Install system packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential git make python3
-
-      - name: make ze-fuzz-test
-        run: make ze-fuzz-test
+      - name: Run every native fuzz target
+        run: ./le fuzz run
 
   integration:
     runs-on: ubuntu-latest
@@ -73,95 +32,66 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-
-      - name: Install system packages
+      - name: Install kernel integration dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential git make python3 iproute2 iptables nftables
+            build-essential git iproute2 iptables nftables
 
-      # Runs as root (sudo): the six suites need CAP_NET_ADMIN (iface/fib/nft/
-      # traffic netlink) and CAP_NET_BIND_SERVICE (as112 binds port 53). `-E` and
-      # an explicit PATH keep the Go toolchain reachable under sudo, which would
-      # otherwise reset PATH via secure_path. `-race` needs CGO, hence gcc from
-      # build-essential.
-      - name: make ze-integration-test
-        run: sudo -E env "PATH=$PATH" make ze-integration-test
+      # These six actions need CAP_NET_ADMIN or CAP_NET_BIND_SERVICE. Preserve
+      # PATH across sudo so the Go toolchain remains available. Later actions
+      # still run after an earlier failure, yielding the whole nightly verdict.
+      - name: Interface integration
+        run: sudo -E env "PATH=$PATH" ./le integration iface
+      - name: FIB integration
+        if: ${{ !cancelled() }}
+        run: sudo -E env "PATH=$PATH" ./le integration fib
+      - name: Firewall integration
+        if: ${{ !cancelled() }}
+        run: sudo -E env "PATH=$PATH" ./le integration firewall
+      - name: Traffic integration
+        if: ${{ !cancelled() }}
+        run: sudo -E env "PATH=$PATH" ./le integration traffic
+      - name: GTSM integration
+        if: ${{ !cancelled() }}
+        run: sudo -E env "PATH=$PATH" ./le integration gtsm
+      - name: AS112 integration
+        if: ${{ !cancelled() }}
+        run: sudo -E env "PATH=$PATH" ./le integration as112
 
-  # The 104 BGP interop scenarios had NO automated caller: ze-interop-test's only
-  # invoker was ze-evidence-release-verify (mk/test-release.mk), a manual release-time
-  # target behind run_if_docker. So the one suite that proves Ze against FRR, BIRD
-  # and GoBGP ran when somebody remembered to run it.
-  #
-  # That is why this job is a prerequisite of letting an interop scenario carry an
-  # `RFC requirement:` tag at all (plan/spec-rfcgate-2-evidence.md): the scanner
-  # refuses a tag in a carrier nothing executes, and without this job every interop
-  # tag would be evidence with no pipeline behind it -- strictly weaker than the
-  # unit binding it replaced, which runs on every push.
-  #
-  # Its own job rather than a step on `integration`: a flaky Docker pull must not be
-  # attributed to the kernel suite, and the two need different system packages
-  # (this one needs none -- ubuntu-latest ships Docker).
-  #
-  # Advisory like its siblings. Ze-verify keeps NOT running it: that would put a
-  # multi-image Docker lab in front of every merge and demand Docker on every
-  # developer machine (owner decision, umbrella D3).
+  # BGP interoperability against FRR, BIRD, and GoBGP. Its own advisory job
+  # keeps a container-lab failure distinct from kernel integration evidence.
   interop:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
+      - name: BGP interoperability
+        run: ./le integration interop
 
-      - name: make ze-interop-test
-        run: make ze-interop-test
-
-  # The 12 strongSwan/IPsec scenarios had the same problem the BGP tree had above:
-  # a runner (`make ze-interop-ipsec-test`) and no automated caller, so
-  # rfc_requirements.py CARRIERS refused an `RFC requirement:` tag there as tier
-  # `unrun`. This job is what earns that tree its tier
-  # (plan/spec-rfcgate-2-deferred-unrun-interop-trees.md AC-1, AC-2).
-  #
-  # Its own job for the same two reasons the BGP one is: a Docker-lab failure must
-  # not be attributed to another suite, and jobBlocks reads `continue-on-error` as
-  # a DIRECT job key.
-  #
-  # setup-go is REQUIRED here and is not boilerplate copied from the siblings.
-  # Unlike the BGP lab, which builds ze inside Docker, test/interop-ipsec/run.py
-  # build_images() cross-compiles ze on the HOST (`CGO_ENABLED=0 GOOS=linux go
-  # build` into the gitignored test/interop-ipsec/ze-linux) and the Dockerfile then
-  # COPYs the result. Without a host toolchain this job fails at image build, which
-  # would read as a scenario failure.
-  #
-  # The lab runs `--privileged` containers (it programs XFRM state). That is the
-  # same posture the BGP job already has with `--cap-add NET_ADMIN`: a hosted
-  # ephemeral runner against repo-controlled Dockerfiles.
-  #
-  # Advisory like its siblings, so this is nightly evidence and never a merge gate.
+  # The strongSwan lab programs XFRM state in privileged containers. It remains
+  # scheduled and advisory, never part of a merge gate.
   ipsec-interop:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-
-      - name: make ze-interop-ipsec-test
-        run: make ze-interop-ipsec-test
+      - name: IKEv2/IPsec interoperability
+        run: ./le integration interop-ipsec

@@ -210,7 +210,7 @@ target set actually holds runtime entries with expiry.
 4. **Phase: Validation** - reject unknown/non-dynamic/family-mismatch target set.
    - Tests: `TestValidateAddToGroupTarget`
 5. **Functional test** - auto-blocklist end to end incl. expiry.
-6. **Full verification** → `make ze-precommit-verify`
+6. **Full verification** → `./le verify current mode full`
 7. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -278,7 +278,7 @@ target set actually holds runtime entries with expiry.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

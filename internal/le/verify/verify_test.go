@@ -14,123 +14,69 @@ import (
 	"time"
 )
 
-func TestFullStagesMatchesCurrentPrecommitPopulation(t *testing.T) {
+func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 	want := []string{
-		"ze-lint", "ze-tier-check", "ze-rfc-check", "ze-iface-resolution-check",
-		"ze-plugin-boundary-check", "ze-config-coercion-check", "ze-fs-persistence-check",
-		"ze-dash-stdio-check", "ze-port-defaults-check", "ze-config-claims-check",
-		"ze-test-sensitivity-check", "ze-test-weakened-check", "ze-staticcheck-feature-matrix-check",
-		"ze-repository-tracked-build-check", "ze-platform-vet", "ze-doc-wiring-check",
-		"ze-doc-verify", "ze-doc-links-check", "ze-repository-tree-check",
-		"ze-plugin-imports-check", "ze-yang-glue-check", "ze-feature-tags-check",
-		"ze-templ-output-check", "ze-vendor-web-check", "ze-web-assets-check",
-		"ze-doc-index-check", "ze-rules-render-check", "ze-rules-index-check",
-		"ze-rules-condensed-check", "ze-rules-lint", "ze-arch-map-check",
-		"ze-discovery-index-check", "ze-test-health-check", "ze-site-facts-check",
-		"ze-vendor-web-check", "ze-htmx-upgrade-check", "ze-evidence-vet",
-		"ze-unit-hook-test", "ze-dependency-vulnerability-check", "ze-unit-test-cached",
-		"ze-unit-test-race-changed", "ze-alloc-check", "ze-functional-test",
-		"ze-functional-exabgp-test",
+		"verify-lint/run", "tier/check", "rfc/check", "iface-resolution",
+		"plugin-boundary/check", "config-coercion/check", "fs-persistence/check",
+		"dash-stdio/check", "port-defaults/check", "config-claims",
+		"test-sensitivity/check", "test-weakened/check", "staticcheck-feature-matrix/check",
+		"repository-tracked-build/check", "platform-vet/darwin/freebsd", "doc-wiring",
+		"doc-check/verify", "doc-check/links", "repository/tree-check",
+		"plugin-imports/check", "yang-glue/check", "feature-tags/check",
+		"doc-check/templ-output", "vendor-web/check", "web-assets/check",
+		"docs-to-code/index-check", "rules/render-check", "rules/index-check",
+		"rules/condensed-check", "rules/lint", "arch-map/check",
+		"discovery-index/check", "test-health/check", "site-facts/check",
+		"htmx-upgrade/check", "verify-deps/evidence-vet", "hook-check/unit",
+		"verify-deps/vulnerability", "verify-deps/unit-cached",
+		"verify-deps/unit-race-changed", "verify-deps/alloc", "functional",
+		"functional/exabgp-test",
 	}
-	got := make([]string, 0, len(FullStages()))
-	for _, stage := range FullStages() {
-		got = append(got, stage.Identity.Gate)
+	stages := fullStages()
+	if len(stages) != len(want) {
+		t.Fatalf("full stage population = %d, want %d", len(stages), len(want))
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("full stage order = %q, want %q", got, want)
+	seen := make(map[string]bool, len(stages))
+	for index, current := range stages {
+		if current.Identity.Name != want[index] {
+			t.Errorf("stage %d = %q, want %q", index, current.Identity.Name, want[index])
+		}
+		if seen[current.Identity.Name] {
+			t.Errorf("stage %q appears twice", current.Identity.Name)
+		}
+		seen[current.Identity.Name] = true
+		derived := stage(current.Identity.Command, current.Identity.Args...).Identity
+		if !reflect.DeepEqual(current.Identity, derived) {
+			t.Errorf("%s identity = %#v, want %#v", current.Identity.Name, current.Identity, derived)
+		}
 	}
 }
 
-func TestRegisteredStageContractsNameExactRootAndActionArgs(t *testing.T) {
-	registered := map[string]Identity{
-		"ze-lint":                             stage("ze-lint", "verify-lint", "run").Identity,
-		"ze-tier-check":                       stage("ze-tier-check", "tier", "check").Identity,
-		"ze-rfc-check":                        stage("ze-rfc-check", "rfc", "check").Identity,
-		"ze-iface-resolution-check":           stage("ze-iface-resolution-check", "iface-resolution").Identity,
-		"ze-plugin-boundary-check":            stage("ze-plugin-boundary-check", "plugin-boundary", "check").Identity,
-		"ze-config-coercion-check":            stage("ze-config-coercion-check", "config-coercion", "check").Identity,
-		"ze-fs-persistence-check":             stage("ze-fs-persistence-check", "fs-persistence", "check").Identity,
-		"ze-dash-stdio-check":                 stage("ze-dash-stdio-check", "dash-stdio", "check").Identity,
-		"ze-port-defaults-check":              stage("ze-port-defaults-check", "port-defaults", "check").Identity,
-		"ze-config-claims-check":              stage("ze-config-claims-check", "config-claims").Identity,
-		"ze-test-sensitivity-check":           stage("ze-test-sensitivity-check", "test-sensitivity", "check").Identity,
-		"ze-test-weakened-check":              stage("ze-test-weakened-check", "test-weakened", "check").Identity,
-		"ze-staticcheck-feature-matrix-check": stage("ze-staticcheck-feature-matrix-check", "staticcheck-feature-matrix", "check").Identity,
-		"ze-repository-tracked-build-check":   stage("ze-repository-tracked-build-check", "repository-tracked-build", "check").Identity,
-		"ze-platform-vet":                     stage("ze-platform-vet", "platform-vet", "darwin", "freebsd").Identity,
-		"ze-doc-wiring-check":                 stage("ze-doc-wiring-check", "doc-wiring").Identity,
-		"ze-doc-verify":                       stage("ze-doc-verify", "doc-check", "verify").Identity,
-		"ze-doc-links-check":                  stage("ze-doc-links-check", "doc-check", "links").Identity,
-		"ze-repository-tree-check":            stage("ze-repository-tree-check", "repository", "tree-check").Identity,
-		"ze-plugin-imports-check":             stage("ze-plugin-imports-check", "plugin-imports", "check").Identity,
-		"ze-yang-glue-check":                  stage("ze-yang-glue-check", "yang-glue", "check").Identity,
-		"ze-feature-tags-check":               stage("ze-feature-tags-check", "feature-tags", "check").Identity,
-		"ze-templ-output-check":               stage("ze-templ-output-check", "doc-check", "templ-output").Identity,
-		"ze-web-assets-check":                 stage("ze-web-assets-check", "web-assets", "check").Identity,
-		"ze-doc-index-check":                  stage("ze-doc-index-check", "docs-to-code", "ze-doc-index-check").Identity,
-		"ze-rules-render-check":               stage("ze-rules-render-check", "rules", "render-check").Identity,
-		"ze-rules-index-check":                stage("ze-rules-index-check", "rules", "index-check").Identity,
-		"ze-rules-condensed-check":            stage("ze-rules-condensed-check", "rules", "condensed-check").Identity,
-		"ze-rules-lint":                       stage("ze-rules-lint", "rules", "lint").Identity,
-		"ze-arch-map-check":                   stage("ze-arch-map-check", "arch-map", "check").Identity,
-		"ze-discovery-index-check":            stage("ze-discovery-index-check", "discovery-index", "check").Identity,
-		"ze-test-health-check":                stage("ze-test-health-check", "test-health", "check").Identity,
-		"ze-site-facts-check":                 stage("ze-site-facts-check", "site-facts", "check").Identity,
-		"ze-vendor-web-check":                 stage("ze-vendor-web-check", "vendor-web", "check").Identity,
-		"ze-htmx-upgrade-check":               stage("ze-htmx-upgrade-check", "htmx-upgrade", "check").Identity,
-		"ze-evidence-vet":                     stage("ze-evidence-vet", "verify-deps", "evidence-vet").Identity,
-		"ze-unit-hook-test":                   stage("ze-unit-hook-test", "hook-check", "unit").Identity,
-		"ze-dependency-vulnerability-check":   stage("ze-dependency-vulnerability-check", "verify-deps", "vulnerability").Identity,
-		"ze-unit-test-cached":                 stage("ze-unit-test-cached", "verify-deps", "unit-cached").Identity,
-		"ze-unit-test-race-changed":           stage("ze-unit-test-race-changed", "verify-deps", "unit-race-changed").Identity,
-		"ze-alloc-check":                      stage("ze-alloc-check", "verify-deps", "alloc").Identity,
-		"ze-functional-test":                  stage("ze-functional-test", "functional").Identity,
-		"ze-functional-exabgp-test":           stage("ze-functional-exabgp-test", "functional", "exabgp-test").Identity,
-	}
-	for _, current := range FullStages() {
-		want, ok := registered[current.Identity.Gate]
-		if !ok {
-			t.Fatalf("stage %q has no exact registered native action contract", current.Identity.Gate)
-		}
-		if !reflect.DeepEqual(current.Identity, want) {
-			t.Errorf("%s identity = %#v, want %#v", current.Identity.Gate, current.Identity, want)
-		}
-	}
-
-}
-
-func TestEveryActionStageCarriesExplicitArgs(t *testing.T) {
+func TestEveryActionStageCarriesExplicitArgsOrIsBare(t *testing.T) {
 	bare := map[string]bool{
-		"ze-iface-resolution-check": true,
-		"ze-config-claims-check":    true,
-		"ze-doc-wiring-check":       true,
-		"ze-functional-test":        true,
+		"iface-resolution": true,
+		"config-claims":    true,
+		"doc-wiring":       true,
+		"functional":       true,
 	}
-	stages := FullStages()
-	if len(stages) != 44 {
-		t.Fatalf("full stage population = %d, want 44", len(stages))
-	}
-	for _, current := range stages {
-		if len(current.Identity.Args) != 0 {
-			continue
-		}
-		if bare[current.Identity.Gate] {
+	for _, current := range fullStages() {
+		if len(current.Identity.Args) != 0 || bare[current.Identity.Name] {
 			continue
 		}
 		t.Errorf("%s names action root %q without explicit args",
-			current.Identity.Gate, current.Identity.Command)
+			current.Identity.Name, current.Identity.Command)
 	}
 }
 
-func TestRunCallsEveryRegisteredGateInOrderAndWritesStatus(t *testing.T) {
+func TestRunCallsEveryRegisteredActionInOrderAndWritesStatus(t *testing.T) {
 	root := t.TempDir()
 	var called []Identity
-	runner := func(_ context.Context, gotRoot string, identity Identity) GateResult {
+	runner := func(_ context.Context, gotRoot string, identity Identity) ActionResult {
 		if gotRoot != root {
 			t.Fatalf("runner root = %q, want %q", gotRoot, root)
 		}
 		called = append(called, identity)
-		return GateResult{Identity: identity, Registered: true, Completed: true, Output: "native answer"}
+		return ActionResult{Identity: identity, Registered: true, Completed: true, Output: "native answer"}
 	}
 
 	report := run(context.Background(), root, "0123456789abcdef", runner, func() time.Time {
@@ -140,7 +86,7 @@ func TestRunCallsEveryRegisteredGateInOrderAndWritesStatus(t *testing.T) {
 	if report.Code != 0 || !report.Completed || report.Failure != nil {
 		t.Fatalf("report = %#v", report)
 	}
-	want := FullStages()
+	want := fullStages()
 	if len(called) != len(want) {
 		t.Fatalf("called %d stages, want %d", len(called), len(want))
 	}
@@ -153,19 +99,42 @@ func TestRunCallsEveryRegisteredGateInOrderAndWritesStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, line := range []string{"exit=0", "mode=ze-precommit-verify", "git_sha=0123456789abcdef"} {
+	for _, line := range []string{"exit=0", "mode=full", "git_sha=0123456789abcdef"} {
 		if !strings.Contains(string(status), line) {
 			t.Errorf("status lacks %q: %s", line, status)
 		}
 	}
 }
 
+func TestRunCertificateRecordsSkippedSuitesAsPartialEvidence(t *testing.T) {
+	t.Setenv("ZE_SKIP_SUITES", "firewall,web")
+	root := t.TempDir()
+	runner := func(_ context.Context, _ string, identity Identity) ActionResult {
+		return ActionResult{Identity: identity, Registered: true, Completed: true}
+	}
+	report := Run(context.Background(), root, "abc", runner)
+	if report.Code != 0 || !report.Completed {
+		t.Fatalf("run report = %#v", report)
+	}
+	certificate, err := ReadCertificate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if certificate.Skipped != "firewall,web" {
+		t.Fatalf("certificate skipped = %q", certificate.Skipped)
+	}
+	freshness := CheckCertificate(root, nil)
+	if freshness.Fresh || !strings.Contains(freshness.Reason, "skipped suites (firewall,web)") {
+		t.Fatalf("partial certificate freshness = %#v", freshness)
+	}
+}
+
 func TestAStageFailureIsStructuredLoggedAndDoesNotHideLaterStages(t *testing.T) {
 	root := t.TempDir()
 	var calls int
-	runner := func(_ context.Context, _ string, identity Identity) GateResult {
+	runner := func(_ context.Context, _ string, identity Identity) ActionResult {
 		calls++
-		result := GateResult{Identity: identity, Registered: true, Completed: true, Output: "output from " + identity.Gate}
+		result := ActionResult{Identity: identity, Registered: true, Completed: true, Output: "output from " + identity.Name}
 		if calls == 2 {
 			result.Code = 37
 		}
@@ -173,8 +142,8 @@ func TestAStageFailureIsStructuredLoggedAndDoesNotHideLaterStages(t *testing.T) 
 	}
 
 	report := Run(context.Background(), root, "abc", runner)
-	if report.Code != 1 || calls != len(FullStages()) {
-		t.Fatalf("code=%d calls=%d, want code 1 and %d calls", report.Code, calls, len(FullStages()))
+	if report.Code != 1 || calls != len(fullStages()) {
+		t.Fatalf("code=%d calls=%d, want code 1 and %d calls", report.Code, calls, len(fullStages()))
 	}
 	failed := report.Stages[1]
 	if failed.Code != 37 || failed.Failure == nil || failed.Failure.Kind != "stage-failed" {
@@ -184,7 +153,7 @@ func TestAStageFailureIsStructuredLoggedAndDoesNotHideLaterStages(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(content), "output from "+failed.Identity.Gate) {
+	if !strings.Contains(string(content), "output from "+failed.Identity.Name) {
 		t.Fatalf("stage log did not preserve runner output: %s", content)
 	}
 	if !strings.Contains(string(content), "Command: tier check") {
@@ -195,22 +164,22 @@ func TestAStageFailureIsStructuredLoggedAndDoesNotHideLaterStages(t *testing.T) 
 func TestEmptyAndUnregisteredAnswersFailClosed(t *testing.T) {
 	for _, test := range []struct {
 		name string
-		run  GateRunner
+		run  ActionRunner
 		kind string
 	}{
 		{name: "nil runner", run: nil, kind: "unregistered"},
-		{name: "zero result", run: func(context.Context, string, Identity) GateResult { return GateResult{} }, kind: "unregistered"},
-		{name: "registered without result", run: func(_ context.Context, _ string, identity Identity) GateResult {
-			return GateResult{Identity: identity, Registered: true}
+		{name: "zero result", run: func(context.Context, string, Identity) ActionResult { return ActionResult{} }, kind: "unregistered"},
+		{name: "registered without result", run: func(_ context.Context, _ string, identity Identity) ActionResult {
+			return ActionResult{Identity: identity, Registered: true}
 		}, kind: "empty-result"},
-		{name: "missing action args", run: func(_ context.Context, _ string, identity Identity) GateResult {
+		{name: "missing action args", run: func(_ context.Context, _ string, identity Identity) ActionResult {
 			identity.Args = nil
-			return GateResult{Identity: identity, Registered: true, Completed: true}
+			return ActionResult{Identity: identity, Registered: true, Completed: true}
 		}, kind: "identity-mismatch"},
-		{name: "wrong action args", run: func(_ context.Context, _ string, identity Identity) GateResult {
+		{name: "wrong action args", run: func(_ context.Context, _ string, identity Identity) ActionResult {
 			identity.Args = append([]string{}, identity.Args...)
 			identity.Args = append(identity.Args, "wrong-action")
-			return GateResult{Identity: identity, Registered: true, Completed: true}
+			return ActionResult{Identity: identity, Registered: true, Completed: true}
 		}, kind: "identity-mismatch"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -229,10 +198,10 @@ func TestInterruptionStopsBeforeTheNextStageAndRecordsStatus(t *testing.T) {
 	root := t.TempDir()
 	ctx, cancel := context.WithCancel(context.Background())
 	calls := 0
-	runner := func(_ context.Context, _ string, identity Identity) GateResult {
+	runner := func(_ context.Context, _ string, identity Identity) ActionResult {
 		calls++
 		cancel()
-		return GateResult{Identity: identity, Registered: true, Completed: true}
+		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
 
 	report := Run(ctx, root, "abc", runner)

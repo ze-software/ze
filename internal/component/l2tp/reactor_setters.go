@@ -15,7 +15,7 @@ import (
 // Only affects new tunnels (the FSM reads the secret at SCCRQ time).
 // Caller MUST NOT hold tunnelsMu; this method acquires it because
 // params.Defaults is consulted from the reactor goroutine.
-func (r *L2TPReactor) setSharedSecret(secret string) {
+func (r *l2tpReactor) setSharedSecret(secret string) {
 	r.tunnelsMu.Lock()
 	r.params.Defaults.SharedSecret = secret
 	r.tunnelsMu.Unlock()
@@ -24,7 +24,7 @@ func (r *L2TPReactor) setSharedSecret(secret string) {
 // setHelloInterval updates the per-reactor hello interval. New tunnels
 // schedule their first HELLO based on this value; live tunnels keep
 // their originally-scheduled interval.
-func (r *L2TPReactor) setHelloInterval(d time.Duration) {
+func (r *l2tpReactor) setHelloInterval(d time.Duration) {
 	r.tunnelsMu.Lock()
 	r.params.HelloInterval = d
 	r.tunnelsMu.Unlock()
@@ -35,7 +35,7 @@ func (r *L2TPReactor) setHelloInterval(d time.Duration) {
 // before an Established tunnel's peer is declared dead. Effective detection
 // time is HelloRetries * HelloInterval. Zero disables dead-peer detection.
 // Read by handleTick on the reactor goroutine; mutated here under tunnelsMu.
-func (r *L2TPReactor) setHelloRetries(n uint8) {
+func (r *l2tpReactor) setHelloRetries(n uint8) {
 	r.tunnelsMu.Lock()
 	r.params.HelloRetries = n
 	r.tunnelsMu.Unlock()
@@ -43,7 +43,7 @@ func (r *L2TPReactor) setHelloRetries(n uint8) {
 
 // setMaxTunnels updates the per-reactor tunnel admission cap. Affects
 // the next SCCRQ admission check; existing tunnels are untouched.
-func (r *L2TPReactor) setMaxTunnels(n uint16) {
+func (r *l2tpReactor) setMaxTunnels(n uint16) {
 	r.tunnelsMu.Lock()
 	r.params.MaxTunnels = n
 	r.tunnelsMu.Unlock()
@@ -51,7 +51,7 @@ func (r *L2TPReactor) setMaxTunnels(n uint16) {
 
 // setMaxSessions updates the per-reactor session admission cap. Affects
 // ICRQ/OCRQ admission on new sessions; existing sessions are untouched.
-func (r *L2TPReactor) setMaxSessions(n uint16) {
+func (r *l2tpReactor) setMaxSessions(n uint16) {
 	r.tunnelsMu.Lock()
 	r.params.MaxSessions = n
 	r.tunnelsMu.Unlock()
@@ -59,7 +59,7 @@ func (r *L2TPReactor) setMaxSessions(n uint16) {
 
 // setPPPAuthMethod updates the Auth-Protocol advertised to new PPP
 // sessions. Live sessions keep their already-negotiated method.
-func (r *L2TPReactor) setPPPAuthMethod(m ppp.AuthMethod) {
+func (r *l2tpReactor) setPPPAuthMethod(m ppp.AuthMethod) {
 	r.tunnelsMu.Lock()
 	r.params.AuthMethod = m
 	r.tunnelsMu.Unlock()
@@ -67,47 +67,47 @@ func (r *L2TPReactor) setPPPAuthMethod(m ppp.AuthMethod) {
 
 // setPPPAuthRequired updates whether new PPP sessions may proceed after
 // LCP opens with no negotiated Auth-Protocol.
-func (r *L2TPReactor) setPPPAuthRequired(required bool) {
+func (r *l2tpReactor) setPPPAuthRequired(required bool) {
 	r.tunnelsMu.Lock()
 	r.params.AuthRequired = required
 	r.tunnelsMu.Unlock()
 }
 
-func (r *L2TPReactor) setAuthTimeout(d time.Duration) {
+func (r *l2tpReactor) setAuthTimeout(d time.Duration) {
 	r.tunnelsMu.Lock()
 	r.params.AuthTimeout = d
 	r.tunnelsMu.Unlock()
 }
 
-func (r *L2TPReactor) setReauthInterval(d time.Duration) {
+func (r *l2tpReactor) setReauthInterval(d time.Duration) {
 	r.tunnelsMu.Lock()
 	r.params.ReauthInterval = d
 	r.tunnelsMu.Unlock()
 }
 
-func (r *L2TPReactor) setEnableIPCP(enabled bool) {
+func (r *l2tpReactor) setEnableIPCP(enabled bool) {
 	r.tunnelsMu.Lock()
 	r.params.EnableIPCP = enabled
 	r.tunnelsMu.Unlock()
 }
 
-func (r *L2TPReactor) setEnableIPv6CP(enabled bool) {
+func (r *l2tpReactor) setEnableIPv6CP(enabled bool) {
 	r.tunnelsMu.Lock()
 	r.params.EnableIPv6CP = enabled
 	r.tunnelsMu.Unlock()
 }
 
-func (r *L2TPReactor) setNCPTimeout(d time.Duration) {
+func (r *l2tpReactor) setNCPTimeout(d time.Duration) {
 	r.tunnelsMu.Lock()
 	r.params.NCPTimeout = d
 	r.tunnelsMu.Unlock()
 }
 
-// SetRouteObserver installs a RouteObserver for this reactor. MUST be
+// setRouteObserver installs a RouteObserver for this reactor. MUST be
 // called before Start(); the goroutine creation barrier synchronizes
 // the write here with reads in the run loop. Passing nil is a no-op
 // (leaves the existing observer unchanged).
-func (r *L2TPReactor) SetRouteObserver(obs RouteObserver) {
+func (r *l2tpReactor) setRouteObserver(obs RouteObserver) {
 	if obs == nil {
 		return
 	}
@@ -116,6 +116,6 @@ func (r *L2TPReactor) SetRouteObserver(obs RouteObserver) {
 
 // SetEventBus installs the EventBus for emitting (l2tp, session-down)
 // events. MUST be called before Start().
-func (r *L2TPReactor) SetEventBus(bus ze.EventBus) {
+func (r *l2tpReactor) SetEventBus(bus ze.EventBus) {
 	r.eventBus = bus
 }

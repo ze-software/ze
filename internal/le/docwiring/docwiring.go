@@ -1,25 +1,12 @@
-// Design: docs/architecture/core-design.md -- the changed-file wiring and docs router
-// Detail: sources.go -- which changed file needs which gate
-// Detail: checks.go -- the checks this gate runs itself
-// Detail: wiring.go -- the added-symbol check, and allowlist.go its exceptions
-// Detail: groups.go -- how a failure says which files it is about
-// Detail: report.go -- what the command answers
-// Detail: delegate.go -- the selected gates this binary answers itself
+// Design: docs/architecture/core-design.md -- changed-file wiring and docs router.
+// Detail: sources.go -- which changed file needs which native action.
+// Detail: checks.go -- checks implemented directly by this package.
+// Detail: groups.go -- failure attribution.
+// Detail: delegate.go -- linked native action callbacks.
 //
-// Package docwiring runs the changed-file-aware wiring, documentation, command
-// and inventory gate.
-//
-// It is intentionally a ROUTER that selects checks for the current diff. Each
-// check keeps its Make target as its stable identity, while this package calls
-// the linked Go owner directly. The router also attributes each failure to
-// repository paths at the failure point. The verify runner can then charge the
-// failure to the session that caused it.
-//
-// The Python half had two unused features that are not ported. ZE_REPO_ROOT
-// replaces `--root DIR` and follows keyword-before-value grammar. The
-// `--check-plugin-imports` option ran only one delegated check. `le
-// plugin-imports` provides that check, and this gate selects its target when
-// needed.
+// Package docwiring selects checks for the current diff and calls their Go
+// owners directly. It attributes each failure at the failure point so the
+// verifier can charge the session that caused it.
 package docwiring
 
 import (
@@ -29,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
 )
@@ -36,12 +24,17 @@ import (
 // name is the word this command is typed as.
 const name = "doc-wiring"
 
-// gateTarget is this gate's Make target. Every rule, document, journal row, and
-// census claim uses this spelling.
-const gateTarget = "ze-doc-wiring-check"
+const actionRerun = "./le doc-wiring"
 
-// gateRerun is the command a reader runs to reproduce any failure of this gate.
-const gateRerun = "make " + gateTarget
+// zeroArgumentActions holds exact actions that share this area but do not run
+// the changed-file router.
+var zeroArgumentActions = leaction.New(name,
+	leaction.Action{
+		Verb:   templOrphanVerb,
+		Why:    "report a .templ source outside internal/ or a generated templ Go file whose source is absent",
+		Answer: answerTemplOrphansHere,
+	},
+)
 
 // Options is what the operator asked for.
 type Options struct {
@@ -51,16 +44,25 @@ type Options struct {
 	DryRun bool
 }
 
-// gate is one run: the tree it judges, what the operator asked for, and what it
+// checker is one run: the tree it judges, what the operator asked for, and what it
 // has found so far.
-type gate struct {
+type checker struct {
 	root   string
 	opts   Options
 	report Report
 }
 
 // Answer is the `le doc-wiring` command.
+//
+// The templ-orphans action is exact and takes no arguments. A bare command and
+// the changed-file and dry-run keywords retain the router contract.
 func Answer(args []string) (any, int) {
+	if len(args) > 0 {
+		if args[0] == templOrphanVerb {
+			return zeroArgumentActions.Answer(args)
+		}
+	}
+
 	opts, code, ok := parseOptions(args)
 	if !ok {
 		return nil, code
@@ -77,12 +79,9 @@ func Answer(args []string) (any, int) {
 }
 
 // Run judges one tree and answers the report plus the exit code.
-//
-// The code is the gate verdict: 0 when every selected check passes, and 1
-// otherwise. Selected targets run as linked Go functions. This gate reports
-// whether the complete run is clean.
+// Run evaluates the selected native actions and returns their aggregate status.
 func Run(root string, opts Options) (Report, int) {
-	g := &gate{root: root, opts: opts}
+	g := &checker{root: root, opts: opts}
 	changed := make([]string, 0, len(opts.Changed))
 	for _, path := range opts.Changed {
 		changed = append(changed, normalizeChangedPath(root, path))
@@ -90,9 +89,6 @@ func Run(root string, opts Options) (Report, int) {
 	if len(changed) == 0 {
 		discovered, err := ChangedFiles(root)
 		if err != nil {
-			// The RUN failed before any check judged the tree because git is
-			// unusable. With no declared group, the verify runner uses its own
-			// classifier instead of preferring an empty group set.
 			reportError(err)
 			return Report{Failed: true, Error: err.Error()}, 1
 		}
@@ -100,16 +96,13 @@ func Run(root string, opts Options) (Report, int) {
 	}
 
 	g.report.Changed = changed
-	targets, err := SelectedTargets(root, changed)
+	actions, err := selectedActions(root, changed)
 	if err != nil {
-		// The router cannot select gates when it cannot read a changed file.
-		// Returning a partial selection would route that file to no gate.
 		reportError(err)
 		return Report{Failed: true, Error: err.Error()}, 2
 	}
-	g.report.Targets = targets
-	g.report.Advisory = FunctionalTestAdvisory(changed)
-
+	g.report.Actions = actions
+	g.report.Advisory = functionalTestAdvisory(changed)
 	if opts.DryRun {
 		g.report.DryRun = true
 		return g.report, 0
@@ -123,14 +116,8 @@ func Run(root string, opts Options) (Report, int) {
 	return g.report, code
 }
 
-// run executes the selected checks and answers the gate's exit code.
-//
-// Every check passes through runCheck, which makes attribution structural. If a
-// failed check declares nothing, runCheck adds an unattributable group. The
-// failure is then CHARGED instead of disappearing from the failure index. A
-// check that knows its files declares them at the failure point.
-func (g *gate) run() int {
-	gateRC := 0
+func (g *checker) run() int {
+	code := 0
 	for _, check := range []struct {
 		name string
 		run  func() CheckResult
@@ -141,41 +128,32 @@ func (g *gate) run() int {
 		{checkLogSubsystemName, func() CheckResult { return g.checkLogSubsystemKeys() }},
 		{checkDesignRefsName, func() CheckResult { return g.checkDesignRefs() }},
 	} {
-		// Every check runs, whatever an earlier one answered, and gateRC keeps
-		// the first non-zero.
-		if rc := g.runCheck(check.name, gateRerun, check.run); rc != 0 && gateRC == 0 {
-			gateRC = rc
+		if current := g.runCheck(check.name, actionRerun, check.run); current != 0 && code == 0 {
+			code = current
 		}
 	}
-
-	if len(g.report.Targets) == 0 {
-		return gateRC
+	if len(g.report.Actions) == 0 {
+		return code
 	}
-
-	for _, target := range g.report.Targets {
-		if target != wiringTarget {
+	for _, action := range g.report.Actions {
+		if action != wiringTarget {
 			continue
 		}
-		if rc := g.runCheck(wiringTarget, gateRerun, g.checkWiring); rc != 0 {
-			// A wiring failure stops the run. Every later delegated target would
-			// judge a tree already shown to contain unwired code.
-			return 1
+		if current := g.runCheck(wiringTarget, actionRerun, g.checkWiring); current != 0 {
+			return current
 		}
 	}
-
-	for _, target := range g.report.Targets {
-		if target == wiringTarget {
+	for _, action := range g.report.Actions {
+		if action == wiringTarget {
 			continue
 		}
-		var tb textbuf.Buffer
-		rerun := tb.Str("make ").Str(target).String()
-		if rc := g.runCheck(target, rerun, func() CheckResult { return g.runTarget(target) }); rc != 0 {
-			// A failed delegated target stops the run, as in the script. Later
-			// targets would judge a tree that an earlier target refused.
-			return rc
+		var text textbuf.Buffer
+		rerun := text.Str("./le ").Str(strings.ReplaceAll(action, "/", " ")).String()
+		if current := g.runCheck(action, rerun, func() CheckResult { return g.runAction(action) }); current != 0 {
+			return current
 		}
 	}
-	return gateRC
+	return code
 }
 
 // runCheck runs one sub-check and lets no failure of it leave the failure index.
@@ -185,7 +163,7 @@ func (g *gate) run() int {
 // would include that failure. The reader CAN treat the empty group set as
 // complete and drop the failure. runCheck adds one no-file group, whose
 // unattributable kind CHARGES the committing session.
-func (g *gate) runCheck(check, rerun string, run func() CheckResult) int {
+func (g *checker) runCheck(check, rerun string, run func() CheckResult) int {
 	before := len(g.report.Groups)
 	result := run()
 	result.Name = check
@@ -205,8 +183,8 @@ func (g *gate) runCheck(check, rerun string, run func() CheckResult) int {
 }
 
 // checkWiring runs the added-symbol wiring check and declares its group.
-func (g *gate) checkWiring() CheckResult {
-	issues, err := CheckWiring(g.root, g.report.Changed, func(path string) string {
+func (g *checker) checkWiring() CheckResult {
+	issues, err := checkWiring(g.root, g.report.Changed, func(path string) string {
 		return readHeadOrEmpty(g.root, path)
 	})
 	if err != nil {
@@ -219,7 +197,7 @@ func (g *gate) checkWiring() CheckResult {
 	// Each issue starts with `<path>:<line>: exported ...`. The doc-link prefix
 	// reader can parse the same form, so the group names each reported file.
 	g.declareFailureGroup(wiringTarget, findingPaths(g.root, issues),
-		"an exported symbol added by this change has no non-test reference", gateRerun)
+		"an exported symbol added by this change has no non-test reference", actionRerun)
 	return CheckResult{Failed: true, Message: "Wiring check FAILED:", Violations: issues}
 }
 
@@ -282,17 +260,20 @@ func refuseMissingValue(keyword string) int {
 	return 1
 }
 
-// usageLine states the whole grammar in one line, which is what a developer
-// needs after a refusal.
+// usageLine states the whole grammar, which is what a developer needs after a
+// refusal.
 func usageLine() string {
 	var tb textbuf.Buffer
 	return tb.Str("usage: le ").Str(name).
-		Str(" [changed-file <path>]... [dry-run] [| json | yaml | table]").String()
+		Str(" [changed-file <path>]... [dry-run] [| json | yaml | table]\n").
+		Str("       le ").Str(name).Byte(' ').Str(templOrphanVerb).
+		Str(" [| json | yaml | table]").String()
 }
 
 // Subs is the one-line hint help renders under the command.
 func Subs() string {
-	return "changed-file <path> | dry-run"
+	var tb textbuf.Buffer
+	return tb.Str("changed-file <path> | dry-run | ").Str(templOrphanVerb).String()
 }
 
 // leAnswer keeps the registered handler's type honest against leroot.Answer.

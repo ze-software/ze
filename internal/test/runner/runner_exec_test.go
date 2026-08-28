@@ -37,9 +37,9 @@ func TestZeDaemonConfigArgIndex(t *testing.T) {
 func TestBackgroundZeGetsReadinessEnv(t *testing.T) {
 	// VALIDATES: Fix A (AC-1) -- the runner arms the ze.ready.file handshake
 	// (ZE_READY_FILE env + daemon.pid tracking) for BACKGROUND ze daemons, not
-	// only foreground ones. driver.py-style suites (firewall/policy/static)
-	// launch `ze` as cmd=background and poll daemon.pid/daemon.ready; before the
-	// fix, background ze got neither and every such test timed out.
+	// only foreground ones. Native fixture drivers launch `ze` as a background
+	// command and poll daemon.pid/daemon.ready; before the fix, background ze
+	// got neither and every such test timed out.
 	// Foreground behavior is unchanged (still armed).
 	tests := []struct {
 		name         string
@@ -53,8 +53,8 @@ func TestBackgroundZeGetsReadinessEnv(t *testing.T) {
 		{name: "background ze without tmpfs", mode: "background", binName: "ze", tmpfsTempDir: "", want: false},
 		{name: "foreground ze without tmpfs", mode: modeForeground, binName: "ze", tmpfsTempDir: "", want: false},
 		{name: "background ze-peer", mode: "background", binName: binNameZePeer, tmpfsTempDir: "/tmp/x", want: false},
-		{name: "background helper script", mode: "background", binName: "python3", tmpfsTempDir: "/tmp/x", want: false},
-		{name: "foreground helper script", mode: modeForeground, binName: "create-marker.sh", tmpfsTempDir: "/tmp/x", want: false},
+		{name: "background native helper", mode: "background", binName: "ze-test", tmpfsTempDir: "/tmp/x", want: false},
+		{name: "foreground native helper", mode: modeForeground, binName: "ze-test", tmpfsTempDir: "/tmp/x", want: false},
 	}
 
 	for _, tt := range tests {

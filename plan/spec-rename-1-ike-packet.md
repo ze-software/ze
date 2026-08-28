@@ -15,14 +15,14 @@ Umbrella: `spec-rename-0-umbrella.md`. Siblings: `spec-rename-2-bgp-packet.md`, 
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `ai/rules/go-standards.md` ("Package-Naming Glossary"), `ai/rules/protocol.md`
-4. `internal/component/ike/wire/doc.go`, `scripts/dev/protocol_skeleton_report.py`
+4. `internal/component/ike/wire/doc.go`, `internal/le/protocolskeleton/protocolskeleton.go`
 
 ## Task
 
 `internal/component/ike/wire` is a full IKEv2 codec (parse + encode of
 messages, headers, payloads) that the glossary names `packet`; its `wire`
 name is one of the four documented legacy exceptions
-(`scripts/dev/protocol_skeleton_report.py`). Rename the package and
+(`internal/le/protocolskeleton/protocolskeleton.go`). Rename the package and
 directory to `internal/component/ike/packet`, package identifier `wire` ->
 `packet`, and retire the exception from every rule surface. Pure rename: no
 logic edits, no API change, one atomic commit pair.
@@ -42,7 +42,7 @@ identifiers in any importer.
 - [ ] `ai/rules/protocol.md` - IKE probe row + exceptions
   → Constraint: after this spec, IKE maps cleanly with no exceptions; probe row and exceptions table both change
 - [ ] `docs/architecture/bfd.md` is NOT affected; the 2 anchors into `ike/wire` live elsewhere - grep `source: internal/component/ike/wire` to locate them at implementation time
-  → Constraint: `make ze-doc-verify` gates the anchor sweep (`scripts/dev/code_to_docs.py` does literal path-exists checks)
+  → Constraint: `./le doc-check verify` gates the anchor sweep (`internal/le/docstocode/codetodocs.go` does literal path-exists checks)
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] Not applicable: no protocol behavior changes; RFC 7296 semantics are untouched (rename only).
@@ -57,7 +57,7 @@ identifiers in any importer.
 - [ ] `internal/component/ike/wire/doc.go` - "Package wire encodes and decodes IKEv2 messages, headers, and payloads" (:1-2); a codec, i.e. glossary `packet`
 - [ ] `internal/component/ike/wire/` listing - chain.go, header.go, message.go, payload_*.go + tests; 34 files, flat (no subdirs)
 - [ ] `internal/component/ike/engine/register.go` and siblings - the 17 importers; qualifier form `wire.X` throughout (~408 lines)
-- [ ] `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS holds ("ike", "wire") (:60); selftest asserts `classify_module("ike", "wire") == "legacy-exception"` and `classify_module("ospf", "wire") == "domain"`
+- [ ] `internal/le/protocolskeleton/protocolskeleton.go` - LEGACY_EXCEPTIONS holds ("ike", "wire") (:60); selftest asserts `classify_module("ike", "wire") == "legacy-exception"` and `classify_module("ospf", "wire") == "domain"`
 
 **Behavior to preserve:**
 - Every exported identifier keeps its name; only the package qualifier changes
@@ -82,7 +82,7 @@ identifiers in any importer.
 
 ### Integration Points
 - `ike/engine` (17 files) - import path + qualifier rewrite
-- `scripts/dev/protocol_skeleton_report.py` - exception row removed, selftest updated
+- `internal/le/protocolskeleton/protocolskeleton.go` - exception row removed, selftest updated
 - `ai/rules/go-standards.md`, `ai/rules/protocol.md` - rows updated
 - `ai/PACKAGE-MAP.md` - regenerated
 
@@ -100,14 +100,14 @@ identifiers in any importer.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | All importers live under `internal/component/ike/` | repo-wide import grep 2026-07-08 listed 17 files, all in `ike/engine` | wider rewrite needed | rerun the import grep at implementation start | confirmed (2026-07-08 snapshot) |
 | A-2 | No local `packet` identifier in any importer | grep audit 2026-07-08: zero declarations | compile errors after rewrite | `go build ./internal/component/ike/...` | confirmed (2026-07-08 snapshot) |
-| A-3 | Exactly 2 doc source anchors point into `ike/wire` | anchor grep 2026-07-08 | doc-test failures reveal more | `make ze-doc-verify` after sweep | confirmed (2026-07-08 snapshot) |
+| A-3 | Exactly 2 doc source anchors point into `ike/wire` | anchor grep 2026-07-08 | doc-test failures reveal more | `./le doc-check verify` after sweep | confirmed (2026-07-08 snapshot) |
 | A-4 | No string literal, YANG node, metric, or CLI word depends on the package name | pkg/ grep zero refs; no quoted literals found carrying the name | user-visible break | repo grep for `ike/wire` after rename must return only history (plan/learned) | confirmed (2026-07-08 snapshot) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Another session has uncommitted edits under `ike/` when the rename lands | `git status` shows ike/ files modified before starting | check status first; land in a quiet window (umbrella R-1) |
-| R-2 | A missed reference form (build tag file, generated code, script) escapes the grep | build or gate failure after rename | full `make ze-precommit-verify`; final repo-wide grep for the old path is an AC |
+| R-2 | A missed reference form (build tag file, generated code, script) escapes the grep | build or gate failure after rename | full `./le verify current mode full`; final repo-wide grep for the old path is an AC |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -122,10 +122,10 @@ identifiers in any importer.
 |-------|-------------------|-------------------|
 | AC-1 | after rename | `internal/component/ike/wire/` does not exist; `internal/component/ike/packet/` builds; package clause is `packet` in all 34 files |
 | AC-2 | repo-wide grep for the old import path | zero hits in code, scripts, docs/ and ai/ (living surfaces); history under plan/learned/ exempt |
-| AC-3 | `scripts/dev/protocol_skeleton_report.py` | summary shows `legacy 3`; `--verbose` shows `ike: ... packet=canonical`; `--selftest` OK with ("ike", "wire") fixtures removed and `ospf/wire == domain` retained |
-| AC-4 | `make ze-doc-verify` | green after the 2 anchors (and any prose mentions) are updated |
+| AC-3 | `internal/le/protocolskeleton/protocolskeleton.go` | summary shows `legacy 3`; `--verbose` shows `ike: ... packet=canonical`; `--selftest` OK with ("ike", "wire") fixtures removed and `ospf/wire == domain` retained |
+| AC-4 | `./le doc-check verify` | green after the 2 anchors (and any prose mentions) are updated |
 | AC-5 | rule surfaces | `ai/rules/go-standards.md` `wire` row no longer carries an ike exception; `ai/rules/protocol.md` IKE probe row says "none" under Exceptions |
-| AC-6 | `make ze-precommit-verify` | green, including regenerated `ai/PACKAGE-MAP.md` |
+| AC-6 | `./le verify current mode full` | green, including regenerated `ai/PACKAGE-MAP.md` |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -139,7 +139,7 @@ identifiers in any importer.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | all existing `wire_test` files move with the package | `internal/component/ike/packet/*_test.go` | behavior identical post-rename | |
-| report selftest (fail-first: flip the fixture expectations BEFORE editing LEGACY_EXCEPTIONS; red proves teeth) | `scripts/dev/protocol_skeleton_report.py` | ("ike","wire") no longer an exception | |
+| report selftest (fail-first: flip the fixture expectations BEFORE editing LEGACY_EXCEPTIONS; red proves teeth) | `internal/le/protocolskeleton/protocolskeleton.go` | ("ike","wire") no longer an exception | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -164,9 +164,9 @@ identifiers in any importer.
 - `internal/component/ike/engine/*.go` - 17 files: import path + `wire.` -> `packet.` qualifiers (~408 lines)
 - `ai/rules/go-standards.md` - glossary `wire` row: drop the ike exception clause
 - `ai/rules/protocol.md` - IKE probe row exceptions -> none; exceptions table row removed
-- `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS ("ike","wire") removed; selftest fixtures updated
+- `internal/le/protocolskeleton/protocolskeleton.go` - LEGACY_EXCEPTIONS ("ike","wire") removed; selftest fixtures updated
 - docs with the 2 source anchors into `ike/wire` (locate by grep at implementation time) - anchor + prose sweep
-- `ai/PACKAGE-MAP.md` - regenerated (`make ze-discovery-index-update`)
+- `ai/PACKAGE-MAP.md` - regenerated (`./le discovery-index update`)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -194,7 +194,7 @@ identifiers in any importer.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - the 2 anchors; gated by `make ze-doc-verify` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - the 2 anchors; gated by `./le doc-check verify` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -209,7 +209,7 @@ identifiers in any importer.
 | 2. Audit | Files to Modify; rerun A-1..A-4 greps |
 | 3. Wiring phase | Wiring Test table (existing chains; no new entry points to register) |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
 | 6-9. Reviews + fixes | Critical Review Checklist below |
 | 10. Deliverables review | Deliverables Checklist below |
 | 11. Security review | Security Review Checklist below |
@@ -219,18 +219,18 @@ identifiers in any importer.
 
 ### Implementation Phases
 1. **Phase: report selftest fail-first** — flip the ("ike","wire") selftest expectations; run `--selftest`, paste the red; this proves the fixtures have teeth.
-   - Tests: `scripts/dev/protocol_skeleton_report.py --selftest`
-   - Files: `scripts/dev/protocol_skeleton_report.py`
+   - Tests: `internal/le/protocolskeleton/protocolskeleton.go --selftest`
+   - Files: `internal/le/protocolskeleton/protocolskeleton.go`
    - Verify: selftest fails because LEGACY_EXCEPTIONS still holds the row
 2. **Phase: the rename** — git mv the directory; rewrite package clause, import paths, qualifiers; remove the LEGACY_EXCEPTIONS row.
    - Tests: `go build ./...`, `go test ./internal/component/ike/...`, report `--selftest` green
-   - Files: `internal/component/ike/packet/`, `internal/component/ike/engine/*.go`, `scripts/dev/protocol_skeleton_report.py`
+   - Files: `internal/component/ike/packet/`, `internal/component/ike/engine/*.go`, `internal/le/protocolskeleton/protocolskeleton.go`
    - Verify: AC-1, AC-2 (code), AC-3
 3. **Phase: rule + doc sweep** — go-standards.md, protocol.md, the 2 anchors + prose, regenerate PACKAGE-MAP.
-   - Tests: `make ze-doc-verify`, `make ze-rules-index-update` if rule headers changed
+   - Tests: `./le doc-check verify`, `./le rules index-update` if rule headers changed
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
-4. **Full verification** — `make ze-precommit-verify`; AC-6.
+4. **Full verification** — `./le verify current mode full`; AC-6.
 5. **Complete spec** — audit tables, learned summary, two-commit closure (commit A: rename + rules + docs + spec + learned; commit B: git rm spec).
 
 ### Critical Review Checklist (/implement stage 6)
@@ -331,7 +331,7 @@ Not applicable: no RFC-covered behavior changes.
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| rename with zero behavior change | functional test | (fill: `make ze-precommit-verify` output + old-path grep) |
+| rename with zero behavior change | functional test | (fill: `./le verify current mode full` output + old-path grep) |
 
 ## Review Gate
 
@@ -379,7 +379,7 @@ Not applicable: no RFC-covered behavior changes.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

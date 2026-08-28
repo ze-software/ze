@@ -17,17 +17,15 @@ For BGP terminology used in this document, see [docs/features.md](../../features
 | BIRD | 2.x (Alpine 3.21) | Alpine build | birdc | eBGP, route exchange, triangle topologies |
 | GoBGP | 3.31.0 | Go builder | gobgp CLI | eBGP, route injection and verification |
 | StayRTR | 0.6.4 | Go builder | HTTP `/rpki.json` export | RTR (RFC 8210) as the CACHE, so Ze is the client of an implementation that is not its own. Origin validation answers (RFC 6811) against VRPs a third party encoded |
-| ExaBGP | main (API 6.0.0) | Python harness | Wire byte comparison | Byte-for-byte encoding across all address families |
-<!-- source: test/interop/interop.py -- FRR, BIRD, GoBGP, Ze helpers -->
-<!-- source: test/interop/run.py -- scenario orchestrator -->
+| ExaBGP | API 6.0.0 contract fixtures | Compiled Go wire server | Wire byte comparison | Byte-for-byte encoding across all address families |
+<!-- source: internal/le/interoplab/bgp/prepare.go -- peer helpers and scenario preparation -->
+<!-- source: internal/le/interoplab/bgp/run.go -- scenario orchestrator -->
 
 ## Prerequisites
 
 | Requirement | Used By | Notes |
 |-------------|---------|-------|
 | Docker | Interop tests | Containers for FRR, BIRD, GoBGP, Ze |
-| Python 3 | Interop tests | Orchestrator and scenario assertions |
-| `uv` | ExaBGP compat | Auto-installs `psutil` and `paramiko` dependencies |
 | ~1.5 GB disk | Interop tests | Docker images (Go builder, FRR, Alpine) |
 
 The interop test network uses `172.30.0.0/24`. MD5 authentication scenarios require
@@ -41,18 +39,25 @@ via each daemon's native CLI.
 
 ### How It Works
 
-A Python orchestrator (`run.py`) iterates over scenario directories in `test/interop/scenarios/`.
-For each scenario, `interop.py` manages the container lifecycle:
+The native `internal/le/interoplab/bgp` package discovers scenario directories in
+`test/interop/scenarios/`. For each scenario, the shared `interoplab.Suite`
+engine:
 
-1. Create a Docker network (`172.30.0.0/24`)
-2. Start Ze (always) and peer daemons (conditionally, based on which config files exist in the scenario directory)
-3. Wait for all containers to become healthy
-4. Import and run the scenario's `check.py`
-5. Tear down containers and network
-<!-- source: test/interop/interop.py -- container lifecycle, network creation -->
+1. Creates an isolated Docker network.
+2. Starts Ze and the peer daemons declared by the scenario's config files.
+3. Waits for every declared readiness probe.
+4. Runs the scenario's typed checker from the package-local BGP registry.
+5. Tears down every container and network, including after setup or checker failure.
+<!-- source: internal/le/interoplab/lab.go -- suite lifecycle -->
 
 Daemons start conditionally: FRR if `frr.conf` exists, BIRD if `bird.conf` exists,
 GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it needs.
+
+**A scenario directory is NAMED, never numbered** (owner directive, 2026-08-24).
+Run order is lexical by scenario directory name and no scenario depends on it.
+The rule and its reasoning live in `ai/rules/interop-and-goal-validation.md`,
+which is always-on, so a spec author planning a scenario meets it without
+opening this page.
 
 ### Container Addresses
 
@@ -63,12 +68,12 @@ GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it 
 | BIRD | 172.30.0.4 | `ze-iop-bird-<pid>` |
 | GoBGP | 172.30.0.5 | `ze-iop-gobgp-<pid>` |
 | Raw injector | 172.30.0.9 | `ze-iop-inject-<pid>` |
-| Python speaker | 172.30.0.10 | `ze-iop-speaker-<pid>` |
-| Python speaker (2nd) | 172.30.0.11 | `ze-iop-speaker2-<pid>` |
+| Compiled strict speaker | 172.30.0.10 | `ze-iop-speaker-<pid>` |
+| Compiled strict speaker (2nd) | 172.30.0.11 | `ze-iop-speaker2-<pid>` |
 | StayRTR | 172.30.0.12 | `ze-iop-stayrtr-<pid>` |
 
 Container names include the runner PID as suffix, so concurrent runs do not conflict.
-<!-- source: test/interop/interop.py -- container naming, IP addresses -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- container naming, IP addresses -->
 
 ### Scenario Structure
 
@@ -78,27 +83,31 @@ Each scenario is a directory under `test/interop/scenarios/`:
 scenarios/bgp-ebgp-ipv4-frr/
   ze.conf        # Ze configuration (required)
   frr.conf       # FRR configuration (starts FRR container)
-  check.py       # Python assertions (required)
 ```
 
-The `check.py` file defines a `check()` function that uses daemon helper classes
-(`FRR`, `BIRD`, `GoBGP`, `Ze`) from `interop.py` to query sessions, routes, and
-attributes via each daemon's native CLI.
+Every directory has one typed checker in `internal/le/interoplab/bgp`. The
+catalogue uses explicit operations for ordinary session, route, adjacency, log,
+and negative assertions, plus bespoke checkers for scenarios whose control flow
+cannot be represented as an ordered operation list. `Audit()` retains the exact
+digest and obligation mapping of the removed checker revision.
 
 ### Optional sidecars
 
-A scenario directory may also carry files that start extra containers before Ze,
-alongside `rpki-server` and `bmp-collector.py`:
+A scenario directory may also carry files that start extra containers before Ze:
 
 | File | Sidecar | Purpose |
 |------|---------|---------|
-| `inject.msg` | `ze-test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit -- e.g. an UPDATE mixing Withdrawn Routes with NLRI (RFC 7606 Section 5.1), which every receiver must accept but no sender may produce. Ze dials it (`accept false` in `ze.conf`), so the injector runs `ze-test peer` in check mode against the `inject.msg` expect/action script. An optional `inject-args` file adds flags (`--asn` is important, or the peer adopts Ze's ASN). Because the injector and Ze start before the peer daemons, a route the injector announces is stored in Ze before FRR connects, so it is delivered by Ze's replay-on-peer-up path -- useful for testing the re-encode/replay rail specifically. |
-| `speaker-args` (and optional `speaker2-args`) | Minimal Python speaker (172.30.0.10; second at 172.30.0.11) | Dial Ze with an INDEPENDENT strict peer that applies one per-test check. The fixed engine (`test/interop/speaker/engine.py`) establishes, loads a plugin named in `speaker-args` (`--test /speaker/plugins/<name>.py`), inspects every UPDATE, and prints a verdict `check.py` reads via `docker logs`. Unlike `ze-test peer`, which asserts only the bytes it was told to expect, a speaker plugin runs its own validator -- e.g. RFC 7606 Section 3(g) duplicate attributes -- so it catches wire output Ze's own lenient validator waves through. Started after Ze (like the daemons), so it exercises the replay rail; keep it connected with `--stop-after-updates 0` when the check bytes arrive on Ze's delta-replay rather than the first initial-sync UPDATE. A `speaker2-args` file starts a second instance at a distinct IP/router-id (scenario 49 proves two engines establish without colliding). See `plan/spec-bgp-plugin-speaker.md`. |
-| `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. `rpki-server` above runs `ze-test rpki`, which is Ze's encoder answering Ze's decoder, and that pair agrees with itself whatever it does. The file is the rpki-client / Routinator JSON export format: `roas` of prefix, `maxLength` and `asn`. StayRTR serves the same set back on `http://172.30.0.12:9847/rpki.json`. A `check.py` reads that export to learn what the CACHE meant, rather than what the scenario intended. A cache-side decode fault fails OPEN, because every prefix then reads NotFound and `not-found accept` accepts it. So assert the per-prefix validation ANSWER, never the session. Worked example: `rtr-stayrtr`. |
+| `inject.msg` | `ze-test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit. An optional `inject-args` file adds flags. Because the injector and Ze start before the peer daemons, an early route exercises Ze's replay-on-peer-up path. |
+| `speaker-args` (and optional `speaker2-args`) | `ze-test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
+| `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session. |
 
-<!-- source: test/interop/interop.py -- inject.msg sidecar startup, INJECT_CONTAINER -->
-<!-- source: test/interop/interop.py -- speaker-args sidecar startup, SPEAKER_CONTAINER -->
-<!-- source: test/interop/interop.py -- vrps.json sidecar startup, STAYRTR_CONTAINER -->
+BMP scenarios start `ze-test interop-bgp bmp-collector`. Announcement and
+observer process plugins use `ze-test interop-bgp process <scenario> <plugin>`.
+These personalities are compiled into `ze-test`; no interpreter or source mount
+is present in the Ze image.
+<!-- source: internal/le/interoplab/bgp/prepare.go -- sidecar startup -->
+<!-- source: internal/le/interoplab/bgp/helper.go -- compiled process and BMP helpers -->
+<!-- source: internal/le/interoplab/bgp/speaker.go -- compiled strict speaker -->
 <!-- source: test/interop/scenarios/bgp-rfc7606-relay-shape-frr/ -- injector worked example -->
 <!-- source: test/interop/scenarios/bgp-rfc7606-speaker-dup-attr/ -- speaker worked example -->
 <!-- source: test/interop/scenarios/rtr-stayrtr/ -- StayRTR worked example -->
@@ -106,28 +115,36 @@ alongside `rpki-server` and `bmp-collector.py`:
 ### Prove a scenario discriminates
 
 An interop scenario is evidence only if it goes RED when the behaviour it tests is
-broken. Before relying on a new scenario, revert the fix, rebuild the `ze-interop`
-image (`docker build -f test/interop/Dockerfile.ze -t ze-interop .`), and confirm the
-scenario fails; then restore and confirm it passes. A scenario that passes either way
+broken. Before you rely on a new scenario, revert the fix, run the scenario, and
+confirm that it fails. Then restore the fix and confirm that it passes.
+
+**Let the harness build. Do NOT `docker build -t ze-interop` by hand and then run
+with `NO_BUILD=1`.** A tag is shared by every run on the host. A build in another
+session rebinds that tag between yours and your container start. Your mutation run
+then measures a daemon you did not build, and that inverted a proof twice in one
+review on 2026-08-05. `Docker.Build` reads the image ID from `docker build -q`,
+and the suite pins every container of the run to that immutable ID.
+Quote that line beside the result, because it names the binary the run measured.
+
+A scenario that passes either way
 (common when the peer must accept both the old and new wire form) proves acceptance,
 not correctness -- see `ai/rules/interop-and-goal-validation.md` "Prove the test
 discriminates".
 
-### Daemon Helpers
+### Typed checker operations
 
-`interop.py` provides helper classes for querying each daemon:
+`checkers.go` is the complete scenario catalogue. Each operation identifies the
+peer, exact command, required or forbidden evidence, proof for negative
+assertions, and a bound. `check_engine.go` executes those operations through the
+shared `CheckerLab` interface. FRR, BIRD, GoBGP, Ze, speaker logs, and kernel
+state are all queried through explicit typed branches.
 
-Methods follow a naming convention:
+An absent value never proves a negative assertion by itself. The operation must
+also name positive evidence that the query mechanism ran. Failed and empty
+queries remain errors rather than becoming plausible empty protocol state.
 
-| Prefix | Behavior | Example |
-|--------|----------|---------|
-| `wait_` | Poll until condition is true, raise on timeout | `wait_session`, `wait_route` |
-| `check_` | Assert condition, raise immediately if false | `check_route`, `check_route_community` |
-| `has_` | Return bool, no exception | `has_route` |
-
-All classes (`FRR`, `BIRD`, `GoBGP`, `Ze`) are defined in `interop.py`. Each wraps the
-daemon's native CLI (`vtysh`, `birdc`, `gobgp`, `ze`) via `docker exec`. Start with an
-existing scenario (e.g., `bgp-ebgp-ipv4-frr/check.py`) as a template.
+Scenarios with non-linear behavior live in `check_special.go`; their audit rows
+name each branch and mutation separately.
 
 ### Querying Ze
 
@@ -143,10 +160,9 @@ The daemon starts an SSH listener only when its config asks for one
 (`infraSetup`, `cmd/ze/hub/infra_setup.go`), and `ze cli` reaches the daemon over
 SSH. No scenario `ze.conf` asks. The harness appends `ZE_CLI_CONFIG` -- the
 listener plus the account it authenticates against -- to the RENDERED copy of
-every `ze.conf` (`_render_scenario_dir`), so no scenario carries the boilerplate
-and none can forget it. A scenario that forgot it would fail its assertions for a
-reason unrelated to what it tests. The IPsec lab appends its own copy of the same
-two blocks, in `Scenario._prepare_ze_conf` (`test/interop-ipsec/lab.py`).
+every `ze.conf` (`renderScenario`), so no scenario carries the boilerplate and
+none can forget it. The native IPsec plan appends the same blocks in
+`renderZeConfig` (`internal/le/interoplab/ipsec/ipsec.go`).
 
 **A Ze helper never converts a failed query into a plausible number.**
 `Ze.rib_count` raises when the command fails or answers without a `routes-in`
@@ -156,45 +172,26 @@ separate faults hid behind that one number for three days
 (`spec-fixit-test-harness-fail-open-guards`, guard 3). Write new Ze
 helpers the same way.
 
-All session waiters poll with a configurable timeout (default 90s, override via `SESSION_TIMEOUT` env var).
-The harness passes that value into the Ze container as `SESSION_TIMEOUT`, so a process
-plugin can size its own barriers against the harness budget instead of repeating a
-constant (`docker_run(..., env=)`).
-<!-- source: test/interop/interop.py -- wait_session, wait_route, check_route -->
+All session waiters use explicit bounds (default 90 seconds, override via
+`SESSION_TIMEOUT`). The harness passes that value into the Ze container so a
+compiled process helper can size its barriers against the same budget.
+<!-- source: internal/le/interoplab/wait.go -- bounded wait -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- container environment -->
 
-### A process plugin that fails
+### A compiled process helper that fails
 
-A scenario can drive Ze from a process plugin (`test/scripts/ze_api.py`). When such a
-plugin calls `runtime_fail`, it writes the `ZE-OBSERVER-FAIL` sentinel to its stderr
-and stops Ze. The `.ci` runner rejects that sentinel in `validateLogging`; this lab
-has no such reject, so the plugin's failure would otherwise reach `check.py` as a
-route that never arrived, or as `containers not healthy` 30 seconds later.
+Scenario process personalities use the Go plugin SDK. A helper failure writes
+the `ZE-OBSERVER-FAIL` sentinel to stderr and requests daemon shutdown. The
+checker failure path reads the last 2,000 Ze log lines and appends that measured
+cause when the sentinel is present.
 
-`raise_if_observer_failed(when)` reads the sentinel from the LAST 2000 lines of Ze's
-log and raises with the plugin's own message. The tail is the right end to read:
-`runtime_fail` requests shutdown immediately after writing the sentinel, so Ze stops
-within a few lines of it. A scenario whose Ze writes more than 2000 lines after the
-sentinel must raise the `lines` bound.
+An unreadable log is not a plugin verdict. `checkerFailure` retains the original
+scenario assertion when the log read fails, so a Docker diagnostic cannot
+replace the protocol failure that triggered it.
 
-An unreadable log raises as well, with the docker error rather than the plugin's
-message. "I could not look" is not "the plugin is fine".
-
-An unreadable log is NOT a plugin verdict, and the two are worded differently. The
-sentinel case names the plugin as the cause. The unreadable case says a plugin failure
-cannot be ruled out. `observer_failure_note` returns the finished line so one writer
-states the claim: a caller that added its own prefix asserted the plugin as the cause
-for every scenario that failed before Ze's container existed.
-
-Three call sites, and the first covers every failure the other two miss:
-
-| Site | Fires when |
-|------|-----------|
-| `run.py`, the scenario's `except BaseException` handler | on every scenario failure other than a Ctrl-C. An interrupt is counted and ends the loop, whether it arrives before this point or during the read itself, so the run still prints its summary. Uses `observer_failure_note`, which returns text instead of raising, because a second exception there would replace the failure being reported |
-| `wait_containers_healthy` | only when the plugin already stopped Ze before the health loop gave up. A race, measured as such on `bgp-addpath-frr` |
-| `check.py`, before the first wait and again when a wait fails | when the scenario knows which of its own waits the plugin can outrun |
-<!-- source: test/interop/interop.py -- observer_fail_line, raise_if_observer_failed, observer_failure_note -->
-<!-- source: test/interop/run.py -- main -->
-<!-- source: test/interop/scenarios/bgp-wire-edit-api-origin-bird/check.py -- worked example -->
+<!-- source: internal/le/interoplab/bgp/helper.go -- runtimeFailure -->
+<!-- source: internal/le/interoplab/bgp/check_engine.go -- checkerFailure -->
+<!-- source: internal/le/interoplab/bgp/bgp_test.go -- TestCheckerFailureKeepsPrimaryCauseWhenLogsFail -->
 
 ### Scenario Inventory
 
@@ -252,15 +249,15 @@ segment routing, opaque LSAs, stub/NSSA, virtual links, and more) interop famili
 ### Running
 
 ```bash
-make ze-interop-test                                  # all scenarios
-make ze-interop-test INTEROP_SCENARIO=bgp-ebgp-ipv4-frr  # single scenario
-VERBOSE=1 make ze-interop-test                         # debug output
-NO_BUILD=1 make ze-interop-test                        # skip image rebuilds
-FRR_IMAGE=quay.io/frrouting/frr:10.3 make ze-interop-test  # override FRR version
+./le integration interop
+INTEROP_SCENARIO=bgp-ebgp-ipv4-frr ./le integration interop
+VERBOSE=1 ./le integration interop
+NO_BUILD=1 ./le integration interop
+FRR_IMAGE=quay.io/frrouting/frr:10.3 ./le integration interop
 ```
 
-Interop tests require Docker and are not part of `make ze-precommit-verify` (which runs without
-Docker). They are available as a separate target for protocol validation.
+Interop tests require Docker and are not part of the offline precommit gate.
+They are a separate protocol-validation action.
 
 The first run builds Docker images (takes a few minutes). Subsequent runs with `NO_BUILD=1`
 skip rebuilds. The full suite takes roughly 5-10 minutes depending on session establishment
@@ -273,45 +270,39 @@ For more detail:
 
 - `VERBOSE=1` enables debug output (polling status, container commands, raw CLI output)
 - `SESSION_TIMEOUT=120` increases the session establishment timeout (default 90s)
-- Single-scenario runs isolate the problem: `make ze-interop-test INTEROP_SCENARIO=bgp-graceful-restart-frr`
+- Single-scenario runs isolate the problem: `INTEROP_SCENARIO=bgp-graceful-restart-frr ./le integration interop`
 
 ### Writing a New Scenario
 
-1. Create `test/interop/scenarios/NN-description/`
-2. Write `ze.conf` (required) and peer configs (`frr.conf`, `bird.conf`, `gobgp.toml`) as needed
-3. Write `check.py` with a `check()` function that imports helpers from `interop`
-4. Run `make ze-interop-test INTEROP_SCENARIO=NN-description`
+1. Create a descriptively named directory under `test/interop/scenarios/`.
+2. Add `ze.conf` and whichever peer configs the scenario needs.
+3. Add the scenario's ordered assertions to `scenarioOperations` and
+   `scenarioExtras`, or register a bespoke checker in `specialCheckers` when the
+   control flow is non-linear.
+4. Add the source-contract audit row and focused branch tests.
+5. Run `INTEROP_SCENARIO=<name> ./le integration interop`.
 
-Example `check.py`:
-
-```python
-import sys, os
-# Make the interop module (two directories up) importable.
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from interop import FRR, ZE_IP
-
-def check():
-    frr = FRR()
-    frr.wait_session(ZE_IP)
-    frr.check_route("10.0.0.0/24")
-```
+`TestCheckerPopulationMatchesProducer` compares every scenario directory with
+the package-local registry. `TestEveryCheckerFailsClosedWithoutPeerEvidence`
+rejects a checker that can pass without reading a peer. Each negative assertion
+must carry positive proof that its query mechanism ran.
+<!-- source: internal/le/interoplab/bgp/checkers.go -- checkers -->
 
 For Ze's configuration syntax, see [docs/architecture/config/syntax.md](../config/syntax.md).
 Copy an existing scenario's `ze.conf` as a starting point.
 
 ## ExaBGP Wire Compatibility (`test/exabgp-compat/`)
 
-A separate test suite validates that Ze's wire encoding produces identical bytes to
-ExaBGP (main branch, JSON API 6.0.0). Rather than establishing live BGP sessions, it
-compares encoded output byte-for-byte using a Python harness.
+A separate test suite validates that Ze's wire encoding matches the reviewed
+ExaBGP API 6.0.0 contract fixtures. The compiled Go server negotiates each BGP
+session and compares every received frame byte-for-byte.
 
 ### What It Tests
 
-The harness runs Ze with ExaBGP-derived configurations and compares the wire bytes Ze
-produces against known-good ExaBGP output. 42 test cases are defined as `.ci` files in
-`test/exabgp-compat/encoding/`. These `.ci` files use a format specific to the ExaBGP
-compat harness (`option=file:`, `option=serial`, `1:cmd:`, `1:raw:`, `1:json:` lines),
-not the [standard `.ci` format](ci-format.md) used by Ze's functional tests.
+The harness migrates each ExaBGP-derived configuration, runs Ze, and compares
+its wire bytes with the known-good fixture. The 42 `.ci` cases in
+`test/exabgp-compat/encoding/` use `option=file:`, `option=serial`, `1:cmd:`,
+`1:raw:`, and `1:json:` records rather than the standard `.ci` format.
 `option=serial` marks process-driven fixtures that must not overlap other ExaBGP
 harness instances; the runner executes those after the parallel batch.
 
@@ -327,20 +318,20 @@ Coverage includes:
 ### Running
 
 ```bash
-make ze-functional-exabgp-test   # runs via uv with psutil dependency
+./le functional exabgp-test
 ```
 
-ExaBGP compatibility is part of `make ze-precommit-verify` (the pre-commit gate).
+ExaBGP compatibility is part of the offline precommit gate.
 <!-- source: test/exabgp-compat/encoding/ -- .ci test files for wire compatibility -->
 
 ## Test Hierarchy
 
-| Target | Includes Interop? | Includes ExaBGP? | Requires Docker? |
-|--------|-------------------|-------------------|-------------------|
-| `make ze-precommit-verify` | No | Yes | No |
-| `make ze-standard-test` | No | Yes | No |
-| `make ze-interop-test` | Yes | No | Yes |
-| `make ze-functional-exabgp-test` | No | Yes | No |
+| Workflow | Includes Interop? | Includes ExaBGP? | Requires Docker? |
+|----------|-------------------|-------------------|-------------------|
+| Offline precommit gate | No | Yes | No |
+| Standard functional sweep | No | Yes | No |
+| `./le integration interop` | Yes | No | Yes |
+| `./le functional exabgp-test` | No | Yes | No |
 
 Interop tests are intentionally separate from the pre-commit gate because they require
 Docker and take longer to run. ExaBGP wire compatibility tests run as part of the

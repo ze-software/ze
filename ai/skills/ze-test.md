@@ -9,13 +9,13 @@ Use this whenever you are about to create a `.ci` test, or change an existing
 one. It is the repo's modus operandi for test authoring, and step 1 is not
 optional.
 
-See also: `/ze-debug` (a test is failing and you do not know why), `/ze-precommit-verify`
+See also: `/ze-debug` (a test is failing and you do not know why), `/ze-verify`
 (the gate, after promotion)
 
 ## Step 1 — Draft it where nothing can see it (BLOCKING)
 
 **Never write or iterate on a `.ci` inside `test/<suite>/`.** That directory is
-live: every `make ze-precommit-verify` in the checkout runs it, including runs by other
+live: every `./le verify worktree` in the checkout runs it, including runs by other
 sessions working on unrelated things, who then have to work out whether your
 half-written test is their regression.
 
@@ -54,36 +54,29 @@ happens fast enough" eventually does not.
 
 | Banned | Use instead |
 |--------|-------------|
-| `time.sleep(N)` to let something settle | `api.dispatch_until(cmd, predicate)` on the state you actually need |
-| Shutting down when your own assertion passed | wait for the state your PEERS assert on, then shut down |
-| `api.quiesce()` as the only barrier | quiesce drains the forward pool; it says nothing about a peer that was not yet an established target |
+| `time.Sleep(N)` to let something settle | `fixture.Poll(ctx, attempts, delay, predicate)` over the state you need |
+| Shutting down when your own assertion passed | wait for the state your peers assert on, then return from the observer |
+| A quiesce command as the only barrier | quiesce drains the forward pool; it says nothing about a peer that was not yet an established target |
 | A peer that closes as soon as its script completes | `option=linger:value=true` when another peer's assertion is still in flight |
-| Closing the connection to make ze-build notice a dead peer | `option=silent:value=true`: a closed socket is a DIFFERENT event on a different code path (`handleConnectionClose`), so it never reaches the receive hold timer. Silent stops the peer's automatic KEEPALIVE reply while the connection stays open, which is the only way a `.ci` reaches dead-peer detection (`test/plugin/deadpeer-holddown.ci`) |
+| Closing the connection to make Ze notice a dead peer | `option=silent:value=true`: a closed socket is a different event on a different code path (`handleConnectionClose`). Silent stops automatic KEEPALIVE replies while the connection stays open, which reaches dead-peer detection (`test/plugin/deadpeer-holddown.ci`) |
 
-Three barriers that already exist, in `test/scripts/ze_api.py`:
+Compiled fixture helpers live in `internal/test/fixture`:
 
-- `api.wait_peer_eor_sent()` — blocks until ze has flushed its initial-sync
-  End-of-RIB to the wire. **Required before `request shutdown` in any test whose
-  ze-peer asserts the EOR frame** (`expect=bgp:...00170200000000`).
-- `api.dispatch_until(cmd, predicate, attempts=N)` — poll a real command until a
-  payload predicate holds. Returns the LAST result when attempts run out, so the
-  caller MUST re-check the predicate and fail explicitly. `if total < 0` on a
-  count that the poll waited for `>= 1` is a guard that passes on timeout.
-- `api.quiesce()` — one barrier RPC, drains the forward pool and each peer's
-  initial-sync queue. Cheap. Put it BEFORE a poll so the poll is a safety net
-  rather than the mechanism.
+- `fixture.Poll` retries a predicate within the observer's context and bounded attempt count. A false result MUST become an error.
+- `fixture.Dispatch` sends one command and decodes its JSON answer into the supplied Go value.
+- `fixture.Observe` runs a typed scenario after all plugins are ready and requests shutdown only after the scenario returns.
+- Peer-specific helpers such as `waitPeerCounter` and `fixture10WaitEOR` poll `eor-sent` before a scenario that depends on initial-sync bytes reaching the wire.
 
-**Budget the polls.** Every `dispatch_until` attempt is a full engine RPC. A
-60-attempt poll on a starved daemon outlasts the test's own timeout and turns a
-run whose wire assertions already passed into an opaque timeout. Keep the poll
-well inside the test budget.
+**Budget the polls.** Every predicate attempt can make a full engine RPC. A
+60-attempt poll on a starved daemon can outlast the test's own timeout. Keep the
+poll inside the test budget.
 
-## Step 4 — Never print an OK you did not verify
+## Step 4 — Never report success you did not verify
 
-An unconditional `print('OK: ...')` in an observer is a lie that survives in the
-log and misleads the next reader. Print what you actually checked, and
-`runtime_fail(...)` on the path where the check did not hold
-(`ai/rules/evidence.md`).
+An unconditional `OK:` line in a fixture is a false verdict. Print the state the
+fixture checked, and return an error when the condition does not hold.
+`fixture.Run` routes that error through `fixture.ReportFailure`, whose sentinel
+the runner treats as authoritative (`ai/rules/evidence.md`).
 
 ## Step 5 — Take a port from the runner, never a literal
 
@@ -100,10 +93,10 @@ never run concurrently, and register the cluster in
 ## Step 6 — Prove it under load, still as a draft
 
 ```
-python3 scripts/dev/stress-repro.py "<suite> --draft" --test <id> --any-failure --iterations 80
+./le stress-repro run suite "<suite> --draft" test <id> any-failure iterations 80
 ```
 
-Passing once on an idle machine proves very little. `--any-failure` is required
+Passing once on an idle machine proves very little. `any-failure` is required
 for assertion flakes: without it, only a crash counts as a reproduction and the
 evidence is thrown away.
 

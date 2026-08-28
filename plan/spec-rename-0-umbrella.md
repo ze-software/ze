@@ -13,14 +13,14 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `ai/rules/go-standards.md` ("Package-Naming Glossary") and `ai/rules/protocol.md`
-4. `scripts/dev/protocol_skeleton_report.py` (LEGACY_EXCEPTIONS table)
+4. `internal/le/protocolskeleton/protocolskeleton.go` (LEGACY_EXCEPTIONS table)
 
 ## Task
 
 The package-naming glossary (spec-layout-3) and the protocol skeleton
 (spec-layout-4) documented four legacy package names as exceptions rather than
 renaming them: `bgp/message`, `bgp/wireu`, `bgp/reactor`, `ike/wire`
-(`scripts/dev/protocol_skeleton_report.py` LEGACY_EXCEPTIONS). The user
+(`internal/le/protocolskeleton/protocolskeleton.go` LEGACY_EXCEPTIONS). The user
 decided on 2026-07-08 to retire three of them. This umbrella coordinates the
 set; each child is one atomic pure-rename (or merge) commit pair.
 
@@ -62,7 +62,7 @@ The name dies with the decomposition, whichever destination that work gets.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS at :56-61 lists the four (protocol, module) pairs; selftest asserts their classification
+- [ ] `internal/le/protocolskeleton/protocolskeleton.go` - LEGACY_EXCEPTIONS at :56-61 lists the four (protocol, module) pairs; selftest asserts their classification
 - [ ] `internal/component/bgp/message/message.go` - `package message`: Message interface, writeHeader; full codec for OPEN/UPDATE/NOTIFICATION/KEEPALIVE/ROUTE-REFRESH
 - [ ] `internal/component/bgp/wireu/doc.go` - `package wireu` ("wire UPDATE"): lazy zero-copy UPDATE parsing; records the 2026-07-08 keep decision this umbrella supersedes
 - [ ] `internal/component/bgp/wireu/split.go` - imports `bgp/message` (:9), proving fold direction has no import cycle
@@ -91,9 +91,9 @@ The name dies with the decomposition, whichever destination that work gets.
 | None new | pure rename/merge; no boundary is added, moved, or removed | [ ] |
 
 ### Integration Points
-- `scripts/dev/protocol_skeleton_report.py` LEGACY_EXCEPTIONS - one row removed per child
+- `internal/le/protocolskeleton/protocolskeleton.go` LEGACY_EXCEPTIONS - one row removed per child
 - `ai/rules/go-standards.md` glossary + `ai/rules/protocol.md` exceptions/probe - rows updated per child
-- `ai/PACKAGE-MAP.md` - regenerated (`make ze-discovery-index-update`) per child
+- `ai/PACKAGE-MAP.md` - regenerated (`./le discovery-index update`) per child
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -110,14 +110,14 @@ The name dies with the decomposition, whichever destination that work gets.
 | A-1 | No identifier clashes between `message` and `wireu` (fold is a clean merge) | comm audit 2026-07-08: 0 clashes across exported (60+81 vs 24+7) and unexported (108 vs 34) top-level names, tests included | fold needs renames first; child 3 redesign | audit rerun at child-3 start (packages may drift before then) | confirmed (2026-07-08 snapshot; re-check at child-3 start) |
 | A-2 | No local identifiers named `packet` shadow the new qualifier in any importer | grep audit 2026-07-08 over all importer files of the three packages: zero `packet :=` / `var packet` / `packet []byte` declarations | qualifier rewrite produces compile errors; rename locals first | `go build ./...` after each rename | confirmed (2026-07-08 snapshot; recompile validates) |
 | A-3 | No external surface carries the legacy names | `pkg/` grep: zero references; no quoted string literal ties telemetry/config/API to the package names; ExaBGP topic "bgp.reactor" (`internal/exabgp/topics/topics.go`) names a topic, not the package | a rename would break users | grep audit rerun per child | confirmed |
-| A-4 | The rib-arch spec set owns the BGP trees until it closes | `plan/spec-rib-arch-*.md` uncommitted in another session; rib-arch-8 lists `reactor` and NLRI-path files | children 2-3 conflict with in-flight branches | `make ze-spec-status` shows rib-arch set closed before starting child 2 | satisfied (rechecked 2026-07-22: rib-arch set fully closed -- no `spec-rib-arch-*.md` remains in plan/, learned 1128 + children 1123-1154 on disk; child 2 flipped to ready the same day) |
+| A-4 | The rib-arch spec set owns the BGP trees until it closes | `plan/spec-rib-arch-*.md` uncommitted in another session; rib-arch-8 lists `reactor` and NLRI-path files | children 2-3 conflict with in-flight branches | the retired `ze-spec-status` (current: `./le spec-status`) shows rib-arch set closed before starting child 2 | satisfied (rechecked 2026-07-22: rib-arch set fully closed -- no `spec-rib-arch-*.md` remains in plan/, learned 1128 + children 1123-1154 on disk; child 2 flipped to ready the same day) |
 | A-5 | Only `doc.go` and `errors.go` collide by filename between `message` and `wireu` | comm over both directory listings 2026-07-08 | more file merges needed in child 3 | rerun listing comm at child-3 start | confirmed (2026-07-08 snapshot) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Concurrent sessions have uncommitted work touching renamed files; a big rename conflicts with everything in flight | `git status` shows other-session modifications in the affected trees | Land each child as one atomic commit pair in a quiet window; children 2-3 stay blocked until rib-arch closes |
-| R-2 | Doc sweep fixes anchors (gated by `make ze-doc-verify`) but misses prose mentions of old paths | prose still says `bgp/message` after anchors are green | Per child, grep docs/ and ai/ for the old path in BOTH anchor and prose form; the AC requires zero hits |
+| R-2 | Doc sweep fixes anchors (gated by `./le doc-check verify`) but misses prose mentions of old paths | prose still says `bgp/message` after anchors are green | Per child, grep docs/ and ai/ for the old path in BOTH anchor and prose form; the AC requires zero hits |
 | R-3 | Mixing logic edits into a rename commit destroys `git log --follow` usability and bloats review | diff shows non-mechanical hunks | Pure rename/merge commits only; any discovered logic fix goes in a separate commit before or after |
 | R-4 | Historical records (plan/learned/, rfc-may-decisions, learned summaries) mention old paths | grep hits under plan/learned/ | Leave history untouched; it describes the past accurately. Only living docs (docs/, ai/) are updated |
 
@@ -131,7 +131,7 @@ The name dies with the decomposition, whichever destination that work gets.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | All three children closed | `scripts/dev/protocol_skeleton_report.py` summary shows `legacy 1` (only `bgp/reactor` remains) |
+| AC-1 | All three children closed | `internal/le/protocolskeleton/protocolskeleton.go` summary shows `legacy 1` (only `bgp/reactor` remains) |
 | AC-2 | Any child closed | repo-wide grep for that child's old import path returns zero hits (code, docs anchors, docs prose in living docs) |
 | AC-3 | Umbrella closure | reactor exclusion recorded here with its destination (the spec-layout-0 decomposition decision), per no-deferral-without-destination |
 
@@ -139,7 +139,7 @@ The name dies with the decomposition, whichever destination that work gets.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Peers send BGP UPDATEs / IKE exchanges before and after each rename | identical wire path, relocated packages | full `make ze-precommit-verify` per child; suites named per child spec |
+| 1 | Peers send BGP UPDATEs / IKE exchanges before and after each rename | identical wire path, relocated packages | full `./le verify current mode full` per child; suites named per child spec |
 
 ## 🧪 TDD Test Plan
 
@@ -147,7 +147,7 @@ The name dies with the decomposition, whichever destination that work gets.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | existing package tests move with each package | per child spec | rename did not change behavior | |
-| report selftest updated per child | `scripts/dev/protocol_skeleton_report.py` | LEGACY_EXCEPTIONS row removal (fail-first: update the selftest expectation before the table) | |
+| report selftest updated per child | `internal/le/protocolskeleton/protocolskeleton.go` | LEGACY_EXCEPTIONS row removal (fail-first: update the selftest expectation before the table) | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -173,8 +173,8 @@ The name dies with the decomposition, whichever destination that work gets.
 - Per child spec. Umbrella-owned shared surfaces, touched once per child:
 - `ai/rules/go-standards.md` - glossary rows (`wireu`, `wire` exception)
 - `ai/rules/protocol.md` - probe rows + exceptions table
-- `scripts/dev/protocol_skeleton_report.py` - LEGACY_EXCEPTIONS + selftest fixtures
-- `ai/PACKAGE-MAP.md` - regenerated per child (`make ze-discovery-index-update`)
+- `internal/le/protocolskeleton/protocolskeleton.go` - LEGACY_EXCEPTIONS + selftest fixtures
+- `ai/PACKAGE-MAP.md` - regenerated per child (`./le discovery-index update`)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -203,7 +203,7 @@ The name dies with the decomposition, whichever destination that work gets.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered plugin/event/send/command/capability inventory changed? | [ ] | No |
-| 16 | Any changed source file referenced by existing doc source anchors? | [ ] | Yes - the per-child anchor sweep IS the doc work; `make ze-doc-verify` gates it |
+| 16 | Any changed source file referenced by existing doc source anchors? | [ ] | Yes - the per-child anchor sweep IS the doc work; `./le doc-check verify` gates it |
 | 17 | Existing docs show config/CLI/API examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -231,8 +231,8 @@ The name dies with the decomposition, whichever destination that work gets.
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| three closed children | `make ze-spec-status` shows none of the rename children open |
-| legacy count 1 | run `scripts/dev/protocol_skeleton_report.py`, read summary line |
+| three closed children | `./le spec-status` shows none of the rename children open |
+| legacy count 1 | run `internal/le/protocolskeleton/protocolskeleton.go`, read summary line |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -320,7 +320,7 @@ Not applicable: no RFC-covered behavior changes.
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| retire three legacy names with zero behavior change | functional test | (fill: per-child `make ze-precommit-verify` runs + report summary line) |
+| retire three legacy names with zero behavior change | functional test | (fill: per-child `./le verify current mode full` runs + report summary line) |
 
 ## Review Gate
 
@@ -368,7 +368,7 @@ Not applicable: no RFC-covered behavior changes.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

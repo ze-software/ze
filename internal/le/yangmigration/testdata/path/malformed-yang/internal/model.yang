@@ -1,0 +1,3 @@
+module model {
+  namespace "urn:model";
+  prefix model;

@@ -22,60 +22,11 @@
 # internal/plugins/ldp/frr_interop_integration_linux_test.go. This functional
 # test covers the single-daemon half: config -> engine -> show, with no peer.
 
-tmpfs=ldp-converge.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show ldp neighbor` is empty with no peer (no phantom convergence)."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = dispatch(api, 'show ldp neighbor')
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"show ldp neighbor: expected done, got status={r.get('status')} "
-            f"data={result_text_data(r)[:200]}")
-    neighbors = result_json_data(r, None)
-    if not isinstance(neighbors, list):
-        runtime_fail(f"show ldp neighbor: expected list, got {neighbors!r}")
-    # No peer -> no adjacency -> no neighbor. A non-empty list here would mean
-    # the engine fabricated convergence, which is exactly what we assert against.
-    if neighbors:
-        runtime_fail(f"show ldp neighbor: expected empty list (no peer), got {neighbors!r}")
-
-    print('OK: LDP converged to an empty neighbor table with no peer',
-          file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ldp-converge {
-		run ./ldp-converge.run
+		run "ze-test fixture ldp/ldp-convergence"
 		encoder json
 	}
 }

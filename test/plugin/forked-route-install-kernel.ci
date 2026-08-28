@@ -3,7 +3,7 @@
 # VALIDATES: AC-5 -- a route installed by a FORKED plugin over the
 #            ze-plugin-engine:route-install RPC traverses the full engine chain
 #            (locrib.Default() -> sysrib OnChange -> fib-kernel) and appears in the
-#            Linux kernel FIB tagged RTPROT_ZE (proto 250). The external Python
+#            Linux kernel FIB tagged RTPROT_ZE (proto 250). The external compiled Go
 #            plugin stands in for a forked OSPF/IS-IS: the route-install RPC is
 #            protocol-agnostic, so this proves the same cross-process path OSPF and
 #            IS-IS use when forked (their installers ship the identical RPC via
@@ -28,82 +28,11 @@
 # and names the runner where the test executes (ai/rules/qemu-testing.md).
 option=needs-linux:caps=net-admin
 
-tmpfs=forked-kernel.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Forked plugin installs a route; assert it becomes an RTPROT_ZE kernel entry."""
-
-import subprocess
-import sys
-
-from ze_api import API
-from ze_api import runtime_fail
-
-
-def sh(*args):
-    return subprocess.run(list(args), capture_output=True, text=True)
-
-
-def kernel_has_ze_route(prefix):
-    out = sh("ip", "route", "show", prefix).stdout
-    return prefix in out and ("proto ze" in out or "proto 250" in out)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # A dummy interface makes 192.0.2.1 an on-link next-hop so the kernel accepts
-    # the route programmed by fib-kernel.
-    sh("ip", "link", "add", "ze-fri0", "type", "dummy")
-    sh("ip", "addr", "add", "192.0.2.254/24", "dev", "ze-fri0")
-    sh("ip", "link", "set", "ze-fri0", "up")
-
-    resp = api._call_engine('ze-plugin-engine:route-install', {'routes': [{
-        'protocol': 'bgp', 'afi': 1, 'safi': 1,
-        'prefix': '10.99.0.0/24', 'next-hop': '192.0.2.1',
-        'admin-distance': 110, 'metric': 10,
-    }]})
-    installed = (resp or {}).get('result', {}).get('installed')
-    if installed != 1:
-        runtime_fail(f"route-install: expected installed=1, got {installed!r}")
-
-    # // the two hand-rolled 40x/0.25s kernel-poll loops became
-    # wait_until(predicate) calls (spec-payload-predicate-waits). Same 40-attempt
-    # x 0.25s budget, same present->absent assertions; only the poll scaffolding
-    # (which used wait_for_event merely as a backoff) is replaced.
-    if not api.wait_until(lambda: kernel_has_ze_route('10.99.0.0/24'), attempts=40, delay=0.25):
-        got = sh("ip", "route", "show", "10.99.0.0/24").stdout.strip()
-        runtime_fail(f"route-install: 10.99.0.0/24 not in kernel as RTPROT_ZE; ip route showed: {got!r}")
-
-    print('OK: forked route-install produced an RTPROT_ZE kernel route', file=sys.stderr)
-
-    # route-remove must sweep it from the kernel.
-    api._call_engine('ze-plugin-engine:route-remove', {'routes': [{
-        'protocol': 'bgp', 'afi': 1, 'safi': 1,
-        'prefix': '10.99.0.0/24', 'instance': 0,
-    }]})
-    if not api.wait_until(lambda: not kernel_has_ze_route('10.99.0.0/24'), attempts=40, delay=0.25):
-        runtime_fail("route-remove: 10.99.0.0/24 still in kernel after withdrawal")
-
-    print('OK: route-remove swept the forked route from the kernel', file=sys.stderr)
-
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external forked-route {
-		run ./forked-kernel.run
+		run "ze-test fixture plugin/forked-route-install-kernel"
 		encoder json
 	}
 	internal rib {

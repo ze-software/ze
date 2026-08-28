@@ -61,7 +61,7 @@ func firstSection(text string) string {
 	return ""
 }
 
-// ExtractSection answers the section an id anchors to: the FIRST section of
+// extractSection answers the section an id anchors to: the FIRST section of
 // THIS RFC that the line cites, or noSection when the line cites none of its
 // own.
 //
@@ -70,7 +70,7 @@ func firstSection(text string) string {
 // section first must anchor to the section it is FROM, not the one it refers
 // TO. A cite naming another document is scrubbed first, because anchoring an
 // RFC 1071 requirement to RFC 2328's §A.3.1 would name the wrong document.
-func ExtractSection(text string) string {
+func extractSection(text string) string {
 	scrubbed := crossRFCSecRE.ReplaceAllString(text, "")
 
 	if tail := trailingParenRE.FindStringSubmatch(scrubbed); tail != nil {
@@ -95,7 +95,7 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 	kind = strings.TrimSpace(kind)
 	rest = strings.TrimSpace(rest)
 	if !annotationKinds[kind] {
-		known := append(AnnotationKinds(), supersededKind)
+		known := append(annotationKindNames(), supersededKind)
 		sort.Strings(known)
 		return nil, parseErr(tb.Str(where).Str(": unknown annotation kind ").Str(pyRepr(kind)).
 			Str("; expected one of ").Str(pyRepr(known)))
@@ -110,7 +110,7 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 		why = strings.TrimSpace(why)
 		if !polarities[polarity] {
 			return nil, parseErr(tb.Str(where).Str(": single-polarity needs a polarity from ").
-				Str(pyRepr(Polarities())).Str(", got ").Str(pyRepr(polarity)).
+				Str(pyRepr(polarityNames())).Str(", got ").Str(pyRepr(polarity)).
 				Str(". Format: {single-polarity: negative; why}"))
 		}
 		if why == "" {
@@ -154,7 +154,7 @@ func parseSuccessor(body, where string) (*Successor, error) {
 	if !successorDispositions[disposition] {
 		return nil, parseErr(tb.Str(where).Str(": unknown {").Str(supersededKind).
 			Str("} disposition ").Str(pyRepr(disposition)).Str("; expected one of ").
-			Str(pyRepr(SuccessorDispositions())))
+			Str(pyRepr(successorDispositionNames())))
 	}
 	if successorTargeted[disposition] {
 		names := "successor section"
@@ -190,7 +190,7 @@ func parseSuccessor(body, where string) (*Successor, error) {
 // marker, in either order, and the two COMPOSE. The loop is what makes that
 // possible: the pattern anchors at end of line and matches ONE group, so a
 // single search would leave the second group inside the requirement TEXT,
-// unparsed and dragged into ExtractSection as if it were prose.
+// unparsed and dragged into extractSection as if it were prose.
 func stripMarkers(rest, where string) (*Annotation, *Successor, string, error) {
 	var annotation *Annotation
 	var successor *Successor
@@ -265,13 +265,13 @@ func validateID(rid, stem, section, where string) error {
 	return nil
 }
 
-// ParseChecklistLine parses one Compliance Checklist line. It answers nil for a
+// parseChecklistLine parses one Compliance Checklist line. It answers nil for a
 // line that is not a checklist entry.
 //
 // It raises for a line that is TRYING to be a requirement and is malformed,
 // including a legacy line with no id. It never answers nil for those: skipping
 // a MUST is how a gate goes green while an obligation is unenforced.
-func ParseChecklistLine(line, stem, source string, lineno int) (*Requirement, error) {
+func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, error) {
 	where := "line"
 	if source != "" {
 		var tb textbuf.Buffer
@@ -316,7 +316,7 @@ func ParseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 	if err != nil {
 		return nil, err
 	}
-	section := ExtractSection(rest)
+	section := extractSection(rest)
 	if err := validateID(rid, stem, section, where); err != nil {
 		return nil, err
 	}
@@ -327,14 +327,14 @@ func ParseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 	}, nil
 }
 
-// ParseSummaryText parses every checklist line in a summary. It raises on a
+// parseSummaryText parses every checklist line in a summary. It raises on a
 // duplicate id: ids are permanent and unique.
-func ParseSummaryText(text, stem, source string) ([]Requirement, error) {
+func parseSummaryText(text, stem, source string) ([]Requirement, error) {
 	var out []Requirement
 	seen := map[string]int{}
 	for i, line := range strings.Split(text, "\n") {
 		lineno := i + 1
-		req, err := ParseChecklistLine(line, stem, source, lineno)
+		req, err := parseChecklistLine(line, stem, source, lineno)
 		if err != nil {
 			return nil, err
 		}
@@ -357,19 +357,19 @@ func ParseSummaryText(text, stem, source string) ([]Requirement, error) {
 	return out, nil
 }
 
-// ParseSummaryFile parses one rfc/short/<stem>.md.
-func ParseSummaryFile(tree, path string) ([]Requirement, error) {
+// parseSummaryFile parses one rfc/short/<stem>.md.
+func parseSummaryFile(tree, path string) ([]Requirement, error) {
 	stem := strings.TrimSuffix(filepath.Base(path), ".md")
 	rel := relTo(tree, path)
 	text, err := readFile(path, rel)
 	if err != nil {
 		return nil, err
 	}
-	return ParseSummaryText(text, stem, rel)
+	return parseSummaryText(text, stem, rel)
 }
 
-// SummaryStems answers every stem under rfc/short/.
-func SummaryStems(tree string) (map[string]bool, error) {
+// summaryStems answers every stem under rfc/short/.
+func summaryStems(tree string) (map[string]bool, error) {
 	dir := treePath(tree, summaryRel)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -388,9 +388,9 @@ func SummaryStems(tree string) (map[string]bool, error) {
 	return out, nil
 }
 
-// ParseEnrolled reads rfc/enrolled.txt: one stem per line, comments and blank
+// parseEnrolled reads rfc/enrolled.txt: one stem per line, comments and blank
 // lines skipped, the first word of a row taken.
-func ParseEnrolled(text string) map[string]bool {
+func parseEnrolled(text string) map[string]bool {
 	out := map[string]bool{}
 	for line := range strings.SplitSeq(text, "\n") {
 		line = strings.TrimSpace(line)
@@ -402,9 +402,9 @@ func ParseEnrolled(text string) map[string]bool {
 	return out
 }
 
-// LoadEnrolled answers the enrolled set, or the empty set when the file is
+// loadEnrolled answers the enrolled set, or the empty set when the file is
 // absent. Absent is a legal state; unreadable is not, and reaches the caller.
-func LoadEnrolled(tree string) (map[string]bool, error) {
+func loadEnrolled(tree string) (map[string]bool, error) {
 	path := treePath(tree, enrolledRel)
 	raw, err := os.ReadFile(path) // #nosec G304 -- rfc/enrolled.txt under the checkout
 	if err != nil {
@@ -414,12 +414,12 @@ func LoadEnrolled(tree string) (map[string]bool, error) {
 		var tb textbuf.Buffer
 		return nil, parseErr(tb.Str(relTo(tree, path)).Str(": cannot read: ").Err(err))
 	}
-	return ParseEnrolled(string(raw)), nil
+	return parseEnrolled(string(raw)), nil
 }
 
-// GatedCounts answers the number of MUST-level requirements each summary
+// gatedCounts answers the number of MUST-level requirements each summary
 // declares.
-func GatedCounts(requirements []Requirement) map[string]int {
+func gatedCounts(requirements []Requirement) map[string]int {
 	out := map[string]int{}
 	for _, req := range requirements {
 		if req.Gated() {

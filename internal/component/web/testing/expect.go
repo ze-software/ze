@@ -13,13 +13,11 @@ import (
 
 const (
 	// expectDeadline bounds how long a POSITIVE expectation waits for the thing
-	// it is looking for. Sized against the HARNESS, not against how long a page
-	// "should" take: the suite drives four tests at once through a single shared
-	// agent-browser daemon, where one `snapshot` or `eval` round trip costs
-	// seconds and a 10-step test that runs in 3s alone takes 20-45s. At 5s this
-	// budget bought one or two samples and `commit-flow.wb` still lost the race.
-	// It stays well inside the per-test `option=timeout` (30-60s), so a genuinely
-	// missing element still fails the step rather than the whole test.
+	// it is looking for. Size it against the browser subprocess cost, not an
+	// ideal page render. One snapshot or eval round trip can cost seconds, and a
+	// 10-step test that runs in 3s alone can take 20-45s in the full gate. At 5s
+	// this budget bought one or two samples and `commit-flow.wb` lost the race.
+	// It stays inside the per-test timeout, so a missing element fails this step.
 	expectDeadline = 15 * time.Second
 	expectPoll     = 100 * time.Millisecond
 )
@@ -28,14 +26,13 @@ const (
 // returns the LAST failure so the error still carries a current snapshot.
 //
 // Positive expectations must poll because `action=wait` cannot prove the update
-// they are waiting for has started. WaitLoad's predicate (runner.go
+// they are waiting for has started. waitLoad's predicate (runner.go
 // inflightIdleExpr) is `no in-flight request AND quiet for 120ms`, which is true
 // both AFTER a request finishes and BEFORE one begins: a click that dispatches
 // its htmx request asynchronously leaves a window in which the page is idle, the
 // wait returns immediately, and a single-sample assertion reads the pre-request
 // DOM. That is what failed `commit-flow.wb` line 15 and
-// `scenario-interface-setup.wb` under the suite's 4-way concurrency while both
-// passed alone.
+// `scenario-interface-setup.wb` in the loaded suite while both passed alone.
 //
 // NEGATIVE expectations deliberately do NOT poll. "Not present" is satisfied by
 // the first sample, so retrying could only ever convert a real failure into a
@@ -76,12 +73,10 @@ func retryCommand(run func() error) error {
 // retryFetch re-runs a browser QUERY until it succeeds, and is not an assertion
 // retry: it loops on the command erroring, never on what the command returned.
 //
-// `agent-browser html` exits non-zero from time to time under the suite's
-// four-way concurrency against one shared daemon, and a negative expectation
-// then fails on `html: exit status 1` -- a tool failure wearing an assertion's
-// clothes, and one that says nothing about the page. Negatives cannot use
-// retryPositive (retrying an absence would only ever turn a real failure into a
-// pass), but they can insist on getting a usable answer before judging it.
+// `agent-browser html` can exit non-zero in a loaded suite. A negative
+// expectation then fails on `html: exit status 1`, which says nothing about the
+// page. Negatives cannot use retryPositive because that can hide a real failure.
+// They can require a usable answer before they judge it.
 func retryFetch(fetch func() (string, error)) (string, error) {
 	deadline := time.Now().Add(expectDeadline)
 	for {

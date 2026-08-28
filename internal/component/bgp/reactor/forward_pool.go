@@ -17,7 +17,7 @@
 // bufio.Writer, then flushing once per batch.
 //
 // A channel item aliases the source cache entry's bytes zero-copy. An overflow
-// item does not: it can outlive the entry, so DispatchOverflow copies its bodies
+// item does not: it can outlive the entry, so dispatchOverflow copies its bodies
 // into the overflow handle it already holds (ownOverflowBodies, forward_body.go).
 //
 // Weight tracking sizes per-peer channel capacity proportional to the peer's
@@ -328,7 +328,7 @@ type fwdWorker struct {
 	// slice, the items sitting in w.ch, and the batch fwdBatchHandler is
 	// writing right now. While nonzero, TryDispatch refuses new items and the
 	// route-server rail refuses its direct write, so both route the newer item
-	// through DispatchOverflow behind the pending ones.
+	// through dispatchOverflow behind the pending ones.
 	//
 	// Every narrower count leaves an inversion window. len(w.overflow) alone
 	// misses the drain snapshot. Decrementing as each item enters w.ch misses
@@ -336,7 +336,7 @@ type fwdWorker struct {
 	// a direct write that wins that race overtakes the very items an ordering
 	// hold has just released.
 	//
-	// Mutated only under overflowMu: DispatchOverflow adds one per appended
+	// Mutated only under overflowMu: dispatchOverflow adds one per appended
 	// item, and the worker re-derives the count from len(w.overflow) once a
 	// batch completes with an empty channel (runWorker), which is the first
 	// moment every item that left the slice is provably written.
@@ -414,7 +414,7 @@ type fwdPool struct {
 // Used to compute the overflow ratio (AC-16).
 type fwdSourceStats struct {
 	forwarded  atomic.Int64 // successfully dispatched via TryDispatch
-	overflowed atomic.Int64 // fell through to DispatchOverflow
+	overflowed atomic.Int64 // fell through to dispatchOverflow
 	addrLabel  string       // cached addr.String(), computed once at creation
 }
 
@@ -552,7 +552,7 @@ func (fp *fwdPool) Dispatch(key fwdKey, item fwdItem) bool {
 // TryDispatch attempts a non-blocking send to the worker for the given key.
 // Creates the worker lazily if it doesn't exist.
 // Returns true if the item was enqueued, false if the channel is full or pool is stopped.
-// On false, the caller should use DispatchOverflow as a fallback.
+// On false, the caller should use dispatchOverflow as a fallback.
 //
 // If the send fails because the channel is full:
 //   - Sets the worker's congested flag (if not already set)
@@ -611,7 +611,7 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 	// FIFO gate: while overflow items are pending (queued, snapshotted by an
 	// in-flight drain, on the channel, or in the batch being written), a direct
 	// channel send would let this newer item overtake them. Refuse so the
-	// caller routes it through DispatchOverflow behind the pending items. A
+	// caller routes it through dispatchOverflow behind the pending items. A
 	// send behind items already ON the channel would keep FIFO on its own, so
 	// this refusal is wider than this rail strictly needs; the count is one
 	// condition serving both rails, and the route-server rail's direct write
@@ -647,7 +647,7 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 	}
 }
 
-// DispatchOverflow adds an item to the per-worker overflow buffer.
+// dispatchOverflow adds an item to the per-worker overflow buffer.
 // Creates the worker lazily if it doesn't exist. The worker goroutine
 // drains overflow items after each batch from the channel.
 //
@@ -657,7 +657,7 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 //
 // Returns true if the item was buffered, false if the pool is stopped
 // (in which case done() is called immediately to prevent cache leaks).
-func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
+func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 	// Fast path: RLock when the worker already exists.
 	// pending.Add(1) under RLock prevents the idle handler from deleting
 	// the worker between lookup and the overflow append below. RLock is
@@ -715,7 +715,7 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	// destination peer is the worst offender, skip pool acquisition. The item
 	// still goes to unbounded overflow (routes never dropped), but the denial
 	// signal feeds into teardown decisions.
-	denied := fp.congestion.ShouldDeny(w.addrLabel)
+	denied := fp.congestion.shouldDeny(w.addrLabel)
 
 	// Acquire overflow MixedBufMux handle if available and not denied.
 	// Skip for sentinel items (peer == nil) — they carry no route data
@@ -916,10 +916,10 @@ func (fp *fwdPool) overflowDepths() map[string]int {
 	return result
 }
 
-// PoolUsedRatio returns the fraction of overflow pool capacity in use (0.0 to 1.0).
+// poolUsedRatio returns the fraction of overflow pool capacity in use (0.0 to 1.0).
 // Reads from MixedBufMux stats (usedBytes/budgetBytes).
 // Returns 0.0 if no overflow mux is configured. Called by the metrics update loop.
-func (fp *fwdPool) PoolUsedRatio() float64 {
+func (fp *fwdPool) poolUsedRatio() float64 {
 	if fp.overflowMux != nil {
 		return fp.overflowMux.usedRatio()
 	}
@@ -933,7 +933,7 @@ func (fp *fwdPool) recordForwarded(sourcePeer netip.Addr) {
 }
 
 // recordOverflowed increments the overflowed counter for a source peer.
-// Called from ForwardUpdate when DispatchOverflow is used.
+// Called from ForwardUpdate when dispatchOverflow is used.
 func (fp *fwdPool) recordOverflowed(sourcePeer netip.Addr) {
 	fp.getSourceStats(sourcePeer).overflowed.Add(1)
 }
@@ -1076,7 +1076,7 @@ func fwdBodiesEqual(a, b [][]byte) bool {
 // on idle timeout or channel close (Stop).
 //
 // After processing each batch from the channel, the worker drains overflow
-// items (added by DispatchOverflow) into the channel or processes them directly.
+// items (added by dispatchOverflow) into the channel or processes them directly.
 // Checks congestion state: clears congested flag when channel occupancy drops
 // below low-water mark (25% of channel capacity).
 func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
@@ -1106,7 +1106,7 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			// Check congestion teardown after each batch (AC-4).
 			// This is cheap (atomic reads + map lookup) and only fires when
 			// the pool is critically full and this peer is the worst offender.
-			fp.congestion.CheckTeardown(key.peerAddr)
+			fp.congestion.checkTeardown(key.peerAddr)
 
 			// Drain overflow items into the channel after processing.
 			fp.drainOverflow(key, w)
@@ -1296,7 +1296,7 @@ func overflowHeld(items []fwdItem) bool {
 // item, and a held worker has an empty channel by construction, so without this
 // the parked items wait for the next forward to that peer.
 //
-// Same non-blocking nil-peer sentinel DispatchOverflow uses for the same reason.
+// Same non-blocking nil-peer sentinel dispatchOverflow uses for the same reason.
 // A full channel needs no wake: the worker has items to process and reaches
 // drainOverflow on its own.
 func (fp *fwdPool) wakeOverflow(key fwdKey) {
@@ -1323,7 +1323,7 @@ func (fp *fwdPool) wakeOverflow(key fwdKey) {
 
 // requeueOverflow prepends items to the front of w.overflow so they are
 // picked up in their original FIFO order on the next drainOverflow cycle.
-// Any items concurrently appended to w.overflow by DispatchOverflow (after
+// Any items concurrently appended to w.overflow by dispatchOverflow (after
 // this drain cycle took its snapshot) are kept in their relative order
 // after the re-queued items.
 func (fp *fwdPool) requeueOverflow(w *fwdWorker, leftover []fwdItem) {

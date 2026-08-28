@@ -9,5 +9,5 @@ stage:
 | `TestTemplatesAvoidInlineScriptAndStyle` | `internal/test/markupcheck`, `AssertNoInlineScriptOrStyle` | an inline `<script>` block, an inline `style=`, an `on*` handler, an `hx-on` attribute |
 | `TestTemplAssetsResolve` | `internal/test/markupcheck`, `AssertAssetsResolve` | a `src` or `href` the served filesystem does not hold, and one naming an asset tree the package does not serve |
 | `TestWebViewDataIsTyped`, `TestLGViewDataIsTyped` | `internal/test/templcheck`, `AssertTyped` | a component parameter that is a map, a named map, a bare `any`, or a struct wrapping any of them |
-| `make ze-templ-output-check` | `Makefile` | a `*_templ.go` its `.templ` source no longer produces |
-| `make ze-web-golden-check` | `Makefile` | a rendered byte that moved with no fixture behind it |
+| `./le doc-check templ-output` | `internal/le/doccheck` and `internal/le/docwiring` | a `*_templ.go` its `.templ` source no longer produces |
+| `go test ./internal/component/web ./internal/component/lg` | `internal/test/golden` and the package capture tests | a rendered byte that moved with no fixture behind it |

@@ -3,7 +3,7 @@
 # Flow:
 # 1. BGP session establishes, ze-peer sends default route (populates adj-rib-in)
 # 2. Config static route populates adj-rib-out via RIB plugin
-# 3. Python test plugin dispatches pipeline commands via dispatch-command
+# 3. Native test fixture dispatches pipeline commands via dispatch-command
 # 4. Verifies scope routing, filter keywords, count terminal, and old command rejection
 #
 # VALIDATES: Pipeline parameters reach rib plugin through full command chain
@@ -15,7 +15,9 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-option=update:value=send-default-route
+option=linger:value=true
+# Default route with a non-self NEXT_HOP.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002C02000000144001010040020602010000FDE94003040101010100
 
 # ze sends static route + EOR after session setup
 # UPDATE: origin=IGP, as-path=[], next-hop=10.0.0.1, local-pref=100, nlri=192.168.1.0/24
@@ -24,257 +26,13 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command with pipeline filter args on populated RIB
-tmpfs=rib-pipe-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""
-Test: RIB pipeline filter wiring with actual routes
-
-Verifies dispatch-command with pipeline keywords on a RIB containing real routes:
-- Scope keywords (received, sent, sent-received) route to correct RIB tables
-- Filter keywords (path, community, prefix, family) apply correctly
-- Count terminal returns {"count": N} format
-- Old commands (rib show in, rib show out) return pipeline error
-"""
-
-import json
-import sys
-
-from ze_api import API, result_text_data
-
-
-failures = 0
-
-
-def dispatch(api, command):
-    """Call dispatch-command and return result dict."""
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def check(label, result, expected_status):
-    """Assert result status matches expected."""
-    global failures
-    actual = result.get('status')
-    if actual != expected_status:
-        print(f'FAIL {label}: expected status={expected_status}, got={actual}', file=sys.stderr)
-        failures += 1
-    else:
-        print(f'OK {label}: status={actual}', file=sys.stderr)
-
-
-def parse_data(result):
-    """Parse result data as JSON, return dict."""
-    data_str = result_text_data(result, '{}')
-    if not data_str:
-        return {}
-    try:
-        return json.loads(data_str)
-    except (json.JSONDecodeError, TypeError):
-        return {}
-
-
-def check_count(label, result, min_count=0, exact=None):
-    """Assert result data has {"count": N} with N >= min_count (or N == exact)."""
-    global failures
-    data = parse_data(result)
-    if 'count' not in data or not isinstance(data['count'], int):
-        print(f'FAIL {label}: no valid count in data: {data}', file=sys.stderr)
-        failures += 1
-        return 0
-    if exact is not None and data['count'] != exact:
-        print(f'FAIL {label}: count={data["count"]} != expected {exact}', file=sys.stderr)
-        failures += 1
-    elif data['count'] < min_count:
-        print(f'FAIL {label}: count={data["count"]} < {min_count}', file=sys.stderr)
-        failures += 1
-    else:
-        print(f'OK {label}: count={data["count"]}', file=sys.stderr)
-    return data['count']
-
-
-def check_has_direction(label, result, direction):
-    """Assert the answer carries at least one row going that way.
-
-    `show bgp rib` answers FLAT ROWS: one envelope, one row per route, each row
-    carrying `peer` and `direction` as fields (owner ruling, 2026-08-23). It
-    used to answer an object keyed by direction and then by peer, and these
-    checks asserted the top-level `adj-rib-in` / `adj-rib-out` key existed.
-
-    This asks a stronger question than the key did: the key proved an envelope
-    had been built, and this proves a ROUTE actually went that way.
-    """
-    global failures
-    data = parse_data(result)
-    rows = data.get('routes')
-    if not isinstance(rows, list):
-        print(f'FAIL {label}: no routes list in data: {list(data.keys())}', file=sys.stderr)
-        failures += 1
-        return
-    going = [r for r in rows if isinstance(r, dict) and r.get('direction') == direction]
-    if not going:
-        seen = sorted({r.get('direction') for r in rows if isinstance(r, dict)})
-        print(f'FAIL {label}: no {direction!r} row among {len(rows)} rows, directions seen: {seen}',
-              file=sys.stderr)
-        failures += 1
-        return
-    if not all('peer' in r for r in going):
-        print(f'FAIL {label}: a {direction!r} row carries no peer field', file=sys.stderr)
-        failures += 1
-        return
-    print(f'OK {label}: {len(going)} {direction!r} row(s), each naming its peer', file=sys.stderr)
-
-
-def check_has_key(label, result, key):
-    """Assert result data has the given top-level key."""
-    global failures
-    data = parse_data(result)
-    if key not in data:
-        print(f'FAIL {label}: missing key {key!r} in data: {list(data.keys())}', file=sys.stderr)
-        failures += 1
-    else:
-        print(f'OK {label}: has key {key!r}', file=sys.stderr)
-
-
-def check_data_error(label, result):
-    """Assert result data contains an error field (pipeline parse error)."""
-    global failures
-    data = parse_data(result)
-    if 'error' not in data:
-        print(f'FAIL {label}: expected error in data, got: {list(data.keys())}', file=sys.stderr)
-        failures += 1
-    else:
-        print(f'OK {label}: data has error={data["error"]!r}', file=sys.stderr)
-
-
-def main():
-    global failures
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for BGP session to establish, routes to arrive, and RIB to process.
-    # Poll rib status until the forked rib plugin has completed startup and
-    # registered its commands (ForwardToPlugin fails if commands aren't registered).
-    api.wait_for_post_startup(timeout=5.0)
-    if api.dispatch_until_done('show bgp rib status').get('status') != 'done':
-        print('FAIL: rib plugin did not become ready', file=sys.stderr)
-        failures += 1
-
-    # --- Scope routing with content verification ---
-
-    # rib show received: adj-rib-in data (default route from ze-peer)
-    r = dispatch(api, 'show bgp rib received')
-    check('scope-received', r, 'done')
-    check_has_direction('scope-received-content', r, 'received')
-
-    # rib show sent: adj-rib-out data (static route from config)
-    r = dispatch(api, 'show bgp rib sent')
-    check('scope-sent', r, 'done')
-    check_has_direction('scope-sent-content', r, 'sent')
-
-    # rib show sent-received: explicit default scope
-    r = dispatch(api, 'show bgp rib sent-received')
-    check('scope-sent-received', r, 'done')
-    check_has_direction('scope-sent-received-in', r, 'received')
-    check_has_direction('scope-sent-received-out', r, 'sent')
-
-    # rib show (no scope): defaults to sent-received
-    r = dispatch(api, 'show bgp rib')
-    check('scope-default', r, 'done')
-    check_has_direction('scope-default-in', r, 'received')
-    check_has_direction('scope-default-out', r, 'sent')
-
-    # --- Count terminal returns {"count": N} ---
-
-    r = dispatch(api, 'show bgp rib count')
-    check('count-total', r, 'done')
-    check_count('count-total', r, exact=2)  # 1 received (default route) + 1 sent (static)
-
-    r = dispatch(api, 'show bgp rib received count')
-    check('count-received', r, 'done')
-    check_count('count-received', r, exact=1)  # 1 default route from ze-peer
-
-    r = dispatch(api, 'show bgp rib sent count')
-    check('count-sent', r, 'done')
-    check_count('count-sent', r, exact=1)  # 1 static route from config
-
-    # --- Filter keywords ---
-
-    # Path filter — no routes have AS 64501, count should be 0
-    r = dispatch(api, 'show bgp rib received path 64501 count')
-    check('path-filter', r, 'done')
-    check_count('path-filter', r, exact=0)
-
-    # Community filter — no routes have this community
-    r = dispatch(api, 'show bgp rib received community 65000:100 count')
-    check('community-filter', r, 'done')
-    check_count('community-filter', r, exact=0)
-
-    # Family filter — ipv4/unicast should match
-    r = dispatch(api, 'show bgp rib received family ipv4/unicast count')
-    check('family-filter', r, 'done')
-    check_count('family-filter', r, exact=1)
-
-    # Prefix filter on specific sent prefix
-    r = dispatch(api, 'show bgp rib sent prefix 192.168.1.0/24 count')
-    check('prefix-filter', r, 'done')
-    check_count('prefix-filter', r, exact=1)
-
-    # Combined filters: family + community + count (no routes have community)
-    r = dispatch(api, 'show bgp rib received family ipv4/unicast community 65000:100 count')
-    check('combined-filter', r, 'done')
-    check_count('combined-filter', r, exact=0)
-
-    # --- rib show best with content verification ---
-
-    r = dispatch(api, 'show bgp rib best')
-    check('best-path', r, 'done')
-    check_has_key('best-path-content', r, 'best-path')
-
-    r = dispatch(api, 'show bgp rib best prefix 0.0.0.0/0')
-    check('best-prefix', r, 'done')
-    check_has_key('best-prefix-content', r, 'best-path')
-
-    # --- Unknown keyword returns pipeline error in data ---
-
-    r = dispatch(api, 'show bgp rib bogus')
-    check('unknown-keyword', r, 'done')
-    check_data_error('unknown-keyword', r)
-
-    # --- Old commands produce pipeline error ---
-
-    r = dispatch(api, 'show bgp rib in')
-    check('old-show-in', r, 'done')
-    check_data_error('old-show-in', r)
-
-    r = dispatch(api, 'show bgp rib out')
-    check('old-show-out', r, 'done')
-    check_data_error('old-show-out', r)
-
-    # Shutdown daemon
-    if failures > 0:
-        print(f'\n{failures} failures', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-    if failures > 0:
-        sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native test fixture: exercises dispatch-command with pipeline filter args on populated RIB
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external pipe-test {
-		run ./rib-pipe-test.run
+		run "ze-test fixture plugin/rib-pipe-filter"
 		encoder json
 	}
 	internal bgp-rib {
@@ -323,7 +81,11 @@ bgp {
 		}
 
 		attach process bgp-rib {
-			receive [ update state refresh ]
+			receive [ update update-received state refresh ]
+			send [ update ]
+		}
+
+		attach process pipe-test {
 			send [ update ]
 		}
 	}

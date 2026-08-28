@@ -11,6 +11,7 @@ import (
 	"io"
 	"iter"
 	"log/slog"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -529,14 +530,23 @@ func (m *MuxConn) routeAnswerLine(idStr string, call *answerCall, verb, payload 
 		m.endAnswer(idStr, call, fmt.Errorf("answer line for id %s: %w", idStr, parseErr))
 		return m.badLine()
 	}
-
 	m.consecutiveBad = 0
-	select {
-	case call.lines <- tail:
-	default:
-		// The consumer is answerQueueDepth lines behind. readLoop reads for
-		// every id on this connection, so it ends this one answer rather than
-		// wait: the consumer is told, and no other id stops (R-5, AC-17).
+	delivered := false
+	for range 64 {
+		select {
+		case call.lines <- tail:
+			delivered = true
+		default:
+			// Give an actively ranging consumer scheduler turns without
+			// waiting on it. An abandoned consumer never frees a slot and
+			// reaches the fail-closed path below after this fixed bound.
+			runtime.Gosched()
+		}
+		if delivered {
+			break
+		}
+	}
+	if !delivered {
 		slog.Warn("mux conn: answer queue full, abandoning answer",
 			"id", idStr, "depth", answerQueueDepth)
 		m.endAnswer(idStr, call, ErrAnswerQueueFull)

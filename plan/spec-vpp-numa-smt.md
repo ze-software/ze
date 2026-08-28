@@ -221,7 +221,7 @@ so this spec is about correctness on bigger iron, not the common path.
 
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed and approved before implementation
-- [ ] `make ze-standard-test` passes (after implementation)
+- [ ] `./le verify current mode full` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] QEMU evidence for topology-dependent behaviour
 

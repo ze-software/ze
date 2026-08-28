@@ -22,89 +22,20 @@
 #
 # needs-linux:caps=net-admin: creating a netdev and a bridge, and enslaving one
 # to the other, need CAP_NET_ADMIN, which the verify runner does not have. Runs
-# as root under `make ze-qemu-needs-linux-test`.
+# as root under `./le qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the devices zebmsel0 and zebmbr0, and the address
 # block 198.51.100.144/28. No other file under test/ puts any of them in a
 # kernel. The per-test /28 matters because the plugin suite runs 8-wide in ONE
-# namespace (ZE_PLUGIN_PARALLEL, mk/test-functional.mk).
+# namespace (ZE_PLUGIN_PARALLEL, internal/le/functional/budget.go).
 option=needs-linux:caps=net-admin
 option=timeout:value=30s
 
-tmpfs=iface-bridge-member-selector-apply.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert the bridge holds the kernel device the member's selector names.
-
-The read goes straight to the kernel through `ip -j link show`, not through a ze
-command, so nothing in the assertion shares a resolver with the code under test.
-"""
-
-import json
-import subprocess
-import sys
-
-from ze_api import API
-from ze_api import runtime_fail
-
-DEVICE = "zebmsel0"     # the kernel device the alias names
-LOGICAL = "zebmwan"     # the entry name; no kernel device carries it
-BRIDGE = "zebmbr0"
-CIDR = "198.51.100.145/28"
-
-
-def ip_json(*args):
-    result = subprocess.run(["ip", "-j", *args], capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        return None
-    return json.loads(result.stdout or "[]")
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        if not ip_json("link", "show", BRIDGE):
-            runtime_fail(f'{BRIDGE} was not created: the apply never reached the bridge')
-
-        links = ip_json("link", "show", DEVICE)
-        if not links:
-            runtime_fail(f'{DEVICE} was not created: the apply never reached the aliased device')
-        master = links[0].get("master")
-        if master != BRIDGE:
-            runtime_fail(f'{DEVICE} master={master!r}, want {BRIDGE!r}: the member did not follow the alias')
-
-        if ip_json("link", "show", LOGICAL):
-            runtime_fail(f'a device named {LOGICAL} exists: the apply worked on the logical name')
-
-        addrs = [
-            f'{a["local"]}/{a["prefixlen"]}'
-            for entry in (ip_json("addr", "show", DEVICE) or [])
-            for a in (entry.get("addr_info") or [])
-        ]
-        if CIDR not in addrs:
-            runtime_fail(f'{DEVICE} carries {addrs!r}, not {CIDR}: '
-                         f'a bridged member must still get the entry settings')
-
-        print(f'OK: bridge {BRIDGE} holds {DEVICE}, the device {LOGICAL} resolves to', file=sys.stderr)
-    finally:
-        api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-bridge-member-selector-apply {
-		run ./iface-bridge-member-selector-apply.run
+		run "ze-test fixture plugin/iface-bridge-member-selector-apply"
 		encoder json
 	}
 }

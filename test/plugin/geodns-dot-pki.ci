@@ -18,48 +18,6 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=geodns-dot-pki-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import socket
-import sys
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        bound = False
-        for _ in range(40):
-            try:
-                with socket.create_connection(('127.0.0.1', 18855), timeout=1):
-                    bound = True
-                    break
-            except OSError:
-                pass
-        if not bound:
-            runtime_fail('dot: listener not bound on 127.0.0.1:18855 '
-                         '(pki certificate reference did not resolve)')
-        print('OK: geodns dot bound with pki certificate', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 pki {
@@ -91,7 +49,7 @@ service {
 
 plugin {
 	external geodns-dot-pki-test {
-		run ./geodns-dot-pki-test.run
+		run "ze-test fixture plugin/geodns-dot-pki"
 		encoder json
 	}
 }

@@ -484,7 +484,7 @@ type Dispatcher struct {
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
 		commands:   make(map[string]*Command),
-		registry:   NewCommandRegistry(),
+		registry:   newCommandRegistry(),
 		pending:    newPendingRequests(),
 		subsystems: NewSubsystemManager(),
 	}

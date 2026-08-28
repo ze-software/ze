@@ -15,9 +15,57 @@ package weekly
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/le/lepath"
 )
+
+func TestCommittedDiscordArchiveStopsDuplicatePublication(t *testing.T) {
+	if ArchiveDirRel != "website/changes/discord" {
+		t.Fatalf("ArchiveDirRel = %q, want website/changes/discord", ArchiveDirRel)
+	}
+
+	// VALIDATES: the four published Discord posts remain discoverable at the
+	// website-owned archive path, and a committed archive stops a duplicate.
+	// PREVENTS: moving the producer without its publication records, which
+	// would make le weekly post an already-published week again.
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("find checkout root: %v", err)
+	}
+	archiveDir := filepath.Join(root, ArchiveDirRel)
+	for _, name := range []string{
+		"2026-07-27-weekly.md",
+		"2026-08-03-weekly.md",
+		"2026-08-10-weekly.md",
+		"2026-08-17-weekly.md",
+	} {
+		if _, err := os.Stat(filepath.Join(archiveDir, name)); err != nil {
+			t.Errorf("published archive %s is not discoverable: %v", name, err)
+		}
+	}
+
+	rec := &recorder{}
+	var slept []time.Duration
+	p, postsDir := sweep(t, rec, &slept, "2026-08-20")
+	p.ArchiveDir = archiveDir
+	writePost(t, postsDir, "2026-08-10", "2026-08-16", shortBody)
+
+	report, err := p.Run(Options{Confirm: true, Dir: postsDir})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(rec.sent) != 0 {
+		t.Fatalf("an archived week was posted a second time: %q", rec.sent)
+	}
+	if got := report.Posts[0].Status; got != StatusSkipped {
+		t.Errorf("status = %q, want %q", got, StatusSkipped)
+	}
+}
 
 func TestParseOptionsReadsTheWholeGrammar(t *testing.T) {
 	opts, err := parseOptions([]string{

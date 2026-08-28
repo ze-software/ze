@@ -17,10 +17,8 @@ import (
 	"github.com/ze-software/ze/internal/le/leaction"
 )
 
-// VALIDATES: qemu publishes the exact host and guest action population, while
-// the host run remains gateless, native, and argument-aware.
-// PREVENTS: a missing guest proof, a Make gate claim for run, a Python fork, or
-// a renamed action.
+// VALIDATES: qemu publishes the exact host and guest action population.
+// PREVENTS: a missing guest proof or renamed action.
 func TestQEMUActionsIncludeTheHostRun(t *testing.T) {
 	rows := Actions().Actions
 	if len(rows) != 11 {
@@ -36,14 +34,11 @@ func TestQEMUActionsIncludeTheHostRun(t *testing.T) {
 			t.Errorf("action %d = %q, want %q", index, rows[index].Verb, verb)
 		}
 	}
-	if rows[1].Gate != "" || len(rows[1].Forks) != 0 {
-		t.Fatalf("run action claims a gate or script fork: %#v", rows[1])
-	}
 }
 
 // VALIDATES: qemu run uses closed keywords, requires a command or keep-alive,
 // and parses package and duration values at their boundaries.
-// PREVENTS: Python flag syntax or a zero timeout entering the Go command.
+// PREVENTS: flag syntax or a zero timeout entering the Go command.
 func TestParseRunArgumentsAndBoundaries(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
@@ -51,16 +46,16 @@ func TestParseRunArgumentsAndBoundaries(t *testing.T) {
 	t.Setenv("ZE_QEMU_SSH_PORT", "65535")
 	env.ResetCache()
 
-	got, err := ParseRunArguments(leaction.Arguments{
-		"command": "go test ./...", "packages": "git  bash\npython3", "timeout": "45s",
+	got, err := parseRunArguments(leaction.Arguments{
+		"command": "go test ./...", "packages": "git  curl", "timeout": "45s",
 	})
 	if err != nil {
-		t.Fatalf("ParseRunArguments: %v", err)
+		t.Fatalf("parseRunArguments: %v", err)
 	}
 	if got.Command != "go test ./..." || got.Timeout != 45*time.Second {
 		t.Fatalf("parsed options = %#v", got)
 	}
-	if !reflect.DeepEqual(got.Packages, []string{"git", "bash", "python3"}) {
+	if !reflect.DeepEqual(got.Packages, []string{"git", "curl"}) {
 		t.Fatalf("packages = %v", got.Packages)
 	}
 	if got.SSHPort != 65535 || got.Boot != 300*time.Second {
@@ -77,13 +72,13 @@ func TestParseRunArgumentsAndBoundaries(t *testing.T) {
 		{"fractional timeout", leaction.Arguments{"command": "true", "timeout": "1500ms"}},
 	} {
 		t.Run(one.name, func(t *testing.T) {
-			if _, parseErr := ParseRunArguments(one.args); parseErr == nil {
+			if _, parseErr := parseRunArguments(one.args); parseErr == nil {
 				t.Fatal("invalid arguments were accepted")
 			}
 		})
 	}
 
-	keep, err := ParseRunArguments(leaction.Arguments{"keep-alive": ""})
+	keep, err := parseRunArguments(leaction.Arguments{"keep-alive": ""})
 	if err != nil || !keep.KeepAlive {
 		t.Fatalf("keep-alive alone = %#v, %v", keep, err)
 	}
@@ -324,7 +319,17 @@ func TestScratchSymlinkResolvesHostAndGuestPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !shared || host != target || guest != target {
+	// scratchShare resolves the host path (it becomes QEMU's virtfs path=, a
+	// real host directory) but keeps the guest path as the symlink's literal
+	// target text (it becomes a fresh mount point inside the guest VM, no
+	// host filesystem lookup involved). On macOS target's own /var/folders/...
+	// form is itself a symlink to /private/var/folders/..., so host and the
+	// raw target diverge even though both name the same directory.
+	resolvedTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !shared || host != resolvedTarget || guest != target {
 		t.Fatalf("scratch share = host %q, guest %q, shared %v", host, guest, shared)
 	}
 	if count := strings.Count(strings.Join(run.virtfsArgs(), "\n"), "mount_tag="); count != 2 {
@@ -532,14 +537,24 @@ func TestBootTimeoutCleansUpTheQEMUProcess(t *testing.T) {
 	bin := t.TempDir()
 	qemu := filepath.Join(bin, "qemu-system-x86_64")
 	marker := filepath.Join(root, "stopped")
-	program := "#!/bin/sh\ntrap 'printf stopped > \"$MARKER\"; exit 0' INT TERM EXIT\nwhile :; do sleep 1; done\n"
-	if err := os.WriteFile(qemu, []byte(program), 0o750); err != nil {
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fake QEMU is this test binary, re-exec'd under the name
+	// qemu-system-x86_64: exec.Command keeps that literal string as argv[0]
+	// no matter which file it resolves to, so fakeqemu_test.go's init()
+	// recognizes it and runs fakeQEMUProcess instead of the test suite. That
+	// installs its SIGINT/SIGTERM handler with no shell to fork and no script
+	// to parse, which removes the startup latency the earlier /bin/sh fixture
+	// raced against, rather than out-waiting it with a longer boot budget.
+	if err := os.Symlink(self, qemu); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin)
 	t.Setenv("MARKER", marker)
 
-	run := NewRun(root, RunOptions{Boot: 20 * time.Millisecond, Timeout: time.Second})
+	run := NewRun(root, RunOptions{Boot: 2 * time.Second, Timeout: time.Second})
 	report := RunReport{Plan: RunPlan{
 		QEMUBinary: "qemu-system-x86_64",
 		QEMUArgv:   []string{"qemu-system-x86_64"},

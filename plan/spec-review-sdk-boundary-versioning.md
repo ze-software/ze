@@ -77,9 +77,9 @@ Two notes from the 2026-07 implementation wave (verified against current code):
    fail-fast closes. The version design and its tests must not attribute a watchdog-triggered
    close to a version mismatch (or vice versa).
 
-2. **`ze-plugin-boundary-check` does NOT satisfy AC-5, despite the name.** The verify gate
-   `ze-plugin-boundary-check` (Makefile:287, :294, :319) runs
-   `scripts/checks/plugin_process_boundary.go`, which guards same-process-effect direct calls
+2. **`./le plugin-boundary check` does NOT satisfy AC-5, despite the name.** The verify gate
+   `./le plugin-boundary check` (the native action tables under `internal/le/`:287, :294, :319) runs
+   `internal/le/pluginboundary/pluginboundary.go`, which guards same-process-effect direct calls
    that bypass DirectBridge/DispatchCommand (its header, plugin_process_boundary.go). It
    does not inspect exported `pkg/plugin/**` signatures for `internal/` types. AC-5 still
    requires its own new mechanical guard; name it distinctly to avoid collision with the
@@ -161,7 +161,7 @@ first; API cleanup + a guard fixes the second.
 - `pkg/plugin/sdk` Stage-1 send path - where the plugin declares its version.
 - `server/startup.go` / `server/subsystem.go` `registrationFromRPC` - where the engine validates it.
 - `pkg/plugin/rpc/bridge.go` / `pkg/plugin/sdk/sdk_engine.go` - the exported internal-typed surface.
-- `make ze-precommit-verify` - where the new boundary guard runs.
+- `./le verify current mode full` - where the new boundary guard runs.
 
 ### Architectural Verification
 - [ ] No bypassed layers (version checked at the handshake, before typed struct exchange)
@@ -203,7 +203,7 @@ first; API cleanup + a guard fixes the second.
 | AC-2 | Plugin declares a protocol version the engine does not support | Engine rejects at Stage 1 with a specific, logged diagnostic BEFORE any later typed struct is trusted; the plugin sees a clear error, not a hang or silent mis-decode |
 | AC-3 | Version check present at BOTH engine Stage-1 sites (or the unified site) | `startup.go` and `subsystem.go` topologies both enforce it; a test drives both |
 | AC-4 | Inspect the advertised public `pkg/plugin/**` exported API | No exported func/method/type/handler signature names a type from any `internal/` package (`*selector.Selector` no longer appears in the public surface) |
-| AC-5 | Run `make ze-precommit-verify` | A mechanical guard fails the build if any exported `pkg/plugin/**` signature references an `internal/` type, preventing regression |
+| AC-5 | Run `./le verify current mode full` | A mechanical guard fails the build if any exported `pkg/plugin/**` signature references an `internal/` type, preventing regression |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -256,7 +256,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| Boundary guard in verify | [ ] | `scripts/checks/pkg-no-internal-in-api` or `pkg/plugin/boundary_test.go`, wired into `make ze-precommit-verify` |
+| Boundary guard in verify | [ ] | `internal/le/repository/` or `pkg/plugin/boundary_test.go`, wired into `./le verify current mode full` |
 | Functional test for handshake | [ ] | `test/plugin/plugin-version-mismatch.ci`, `plugin-version-match.ci` |
 | Prometheus counter (version rejections) | [ ] | plugin server telemetry, if a rejection metric is wanted |
 
@@ -282,7 +282,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate |
-| 6. Full verification | `make ze-precommit-verify` |
+| 6. Full verification | `./le verify current mode full` |
 
 ### Implementation Phases
 
@@ -298,8 +298,8 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 3. **Phase: Boundary cleanup** — relocate the internal-typed `UpdateRouteSel*` fast path out of
    the public surface; update in-tree callers; boundary guard passes.
    - Tests: `TestPublicPkgAPIHasNoInternalTypes`; existing in-process plugin tests still green.
-4. **Phase: Guard in verify** — wire the boundary guard into `make ze-precommit-verify`.
-5. **Full verification** → `make ze-precommit-verify`.
+4. **Phase: Guard in verify** — wire the boundary guard into `./le verify current mode full`.
+5. **Full verification** → `./le verify current mode full`.
 6. **Complete spec** → learned summary `plan/learned/NNN-sdk-boundary-versioning.md`; two commits.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -316,7 +316,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 |-------------|---------------------|
 | Version field + check | `plugin-version-mismatch.ci` rejects; `plugin-version-match.ci` passes |
 | No internal types in public API | `TestPublicPkgAPIHasNoInternalTypes` passes; grep for `selector.` in exported pkg/plugin signatures empty |
-| Guard in verify | `make ze-precommit-verify` fails on a deliberately-reintroduced leak |
+| Guard in verify | `./le verify current mode full` fails on a deliberately-reintroduced leak |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -411,7 +411,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`pkg/*`, `internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

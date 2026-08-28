@@ -18,7 +18,7 @@ import "github.com/ze-software/ze/internal/core/textbuf"
 const (
 	// ReasonAssertNothing is a Test with no reachable failure call.
 	ReasonAssertNothing = "assert-nothing"
-	// ReasonTagOrphan is a test file no `go test -tags` invocation can build.
+	// ReasonTagOrphan is a test file no native test tag set can build.
 	ReasonTagOrphan = "tag-orphan"
 )
 
@@ -79,7 +79,7 @@ type Verdict struct {
 func (v Verdict) MarshalJSON() ([]byte, error) { return marshalResult(v.Result) }
 
 // Text renders the one line a passing ratchet prints, and nothing for a failing
-// one: a breach is rendered by Breach, on stderr, because it is advice rather
+// one: a breach is rendered by breach, on stderr, because it is advice rather
 // than an answer. It ends in a newline.
 func (v Verdict) Text() string {
 	if !v.Result.Valid {
@@ -93,10 +93,10 @@ func (v Verdict) Text() string {
 		Str(", ").Int(int64(v.Result.FilesScanned)).Str(" test files)\n").String()
 }
 
-// Breach renders what a reader does next about a ratchet that fired, or about a
+// breach renders what a reader does next about a ratchet that fired, or about a
 // floor that has gone slack. It is empty when the counts sit exactly on their
 // floors, and it ends in a newline.
-func (v Verdict) Breach() string {
+func (v Verdict) breach() string {
 	var tb textbuf.Buffer
 	if len(v.Result.AssertNothing) > v.Baseline.AssertNothing {
 		tb.Str("\ntest-sensitivity: assert-nothing count ").Int(int64(len(v.Result.AssertNothing))).
@@ -111,15 +111,15 @@ func (v Verdict) Breach() string {
 	if len(v.Result.TagOrphan) > v.Baseline.TagOrphan {
 		tb.Str("\ntest-sensitivity: tag-orphan count ").Int(int64(len(v.Result.TagOrphan))).
 			Str(" exceeds baseline ").Int(int64(v.Baseline.TagOrphan)).Byte('\n')
-		tb.Str("  No `go test -tags` in Makefile or mk/*.mk can build these files:\n")
+		tb.Str("  No native test action can build these files with their required tags:\n")
 		for _, finding := range v.Result.TagOrphan {
 			tb.Str("    ").Str(finding.File).Byte(':').Int(int64(finding.Line)).
 				Str(" requires ").Str(finding.Detail).Byte('\n')
 		}
-		tb.Str("  Add the tag to a go test invocation, or delete the file.\n")
+		tb.Str("  Add the tag to a native test action, or delete the file.\n")
 	}
 	if !v.Result.Valid {
-		tb.Str("\n  Refresh the floors only when the count went DOWN: make ze-test-health-update\n")
+		tb.Str("\n  Refresh the floors only when the count went DOWN: ./le test-health update\n")
 		return tb.String()
 	}
 
@@ -130,7 +130,7 @@ func (v Verdict) Breach() string {
 			Int(int64(len(v.Result.AssertNothing))).Byte('<').Int(int64(v.Baseline.AssertNothing)).
 			Str(", tag-orphan ").
 			Int(int64(len(v.Result.TagOrphan))).Byte('<').Int(int64(v.Baseline.TagOrphan)).
-			Str("). Run `make ze-test-health-update` to tighten it.\n")
+			Str("). Run `./le test-health update` to tighten it.\n")
 	}
 	return tb.String()
 }

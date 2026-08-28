@@ -606,7 +606,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// Write to destination bufWriters without flushing (pure memory copies).
 	// Dirty sessions are tracked on srcSession.fwdDirty for deferred flush
 	// when the source bufReader has no more data (natural batch boundary).
-	// Falls back to TryDispatch/DispatchOverflow when TryLock fails.
+	// Falls back to TryDispatch/dispatchOverflow when TryLock fails.
 	if len(pending) > 0 {
 		r.recentUpdates.RetainN(updateID, len(pending))
 		for i := range pending {
@@ -629,7 +629,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			// took fp.mu.RLock and hashed a fwdKey per destination per UPDATE.
 			dst := pending[i].item.peer
 			if dst != nil && (dst.forwardOrderHold() || dst.forwardOverflowPending()) {
-				if r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item) {
+				if r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item) {
 					delivered++
 					r.fwdPool.recordOverflowed(sourcePeerAddr)
 				} else {
@@ -662,7 +662,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			case r.fwdPool.TryDispatch(pending[i].key, pending[i].item):
 				delivered++
 				r.fwdPool.recordForwarded(sourcePeerAddr)
-			case r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item):
+			case r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item):
 				delivered++
 				r.fwdPool.recordOverflowed(sourcePeerAddr)
 			default:

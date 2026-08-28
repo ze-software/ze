@@ -5,12 +5,10 @@
 // actions.go ports the Python area. internal/le/leaction owns dispatch, listing,
 // help, and refusals. This file keeps the TABLE and the four checkout actions.
 //
-// Two actions are Make targets. `report` is the script's default, while
-// `write-baseline` replaces --write-baseline. Both are documented procedures
-// without targets, so each uses a verb. `| json` replaces --json because the
-// payload contains all sets. Filtering core-candidate replaces
-// --candidates-only. Optional AREA arguments are absent because no gate, target,
-// hook, or documented procedure uses them.
+// Check, report, and write-baseline are explicit native actions. `| json`
+// renders the payload's complete sets, while filters replace the retired
+// candidates-only rendering. Optional AREA arguments are absent because no
+// native action, hook, or documented procedure uses them.
 package tier
 
 import (
@@ -26,19 +24,13 @@ const area = "tier"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
+	leaction.Action{Verb: "check", Why: "module-tier placement (ai/rules/architecture.md): a config-driven engine lives in internal/component/ when a feature depends on it, and in internal/plugins/ otherwise",
+		Answer: runCheck},
+	leaction.Action{Verb: "selftest", Why: "the tier gate's own isolated fixtures -- engine placement, and the wired-versus-core classification -- before it judges the live tree",
+		Answer: runSelftest},
 	leaction.Action{
-		Gate:   "ze-tier-check",
-		Why:    "module-tier placement (ai/rules/architecture.md): a config-driven engine lives in internal/component/ when a feature depends on it, and in internal/plugins/ otherwise",
-		Answer: runCheck,
-	},
-	leaction.Action{
-		Gate:   "ze-tier-selftest",
-		Why:    "the tier gate's own isolated fixtures -- engine placement, and the wired-versus-core classification -- before it judges the live tree",
-		Answer: runSelftest,
-	},
-	leaction.Action{
-		// No Make target uses this action. It is the script's default
-		// reverse-dependency report for package moves.
+		// This reverse-dependency report is an explicit native action for
+		// package moves.
 		Verb:   "report",
 		Why:    "who imports each subsystem from outside its own subtree, so a reader can see which packages could move and which the daemon wires",
 		Answer: runReport,
@@ -111,39 +103,39 @@ func runWriteBaseline() (any, int) {
 		return nil, 2
 	}
 
-	module, err := ModulePath(tree)
+	module, err := modulePath(tree)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	edges, err := CollectEdges(tree, module)
+	edges, err := collectEdges(tree, module)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	misplaced, err := EngineMisplacements(tree, module, edges)
+	misplaced, err := engineMisplacements(tree, module, edges)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	if err := WriteBaseline(tree, misplaced); err != nil {
+	if err := writeBaseline(tree, misplaced); err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	return BaselineReport{File: Baseline, Engines: len(misplaced)}, 0
+	return baselineReport{File: Baseline, Engines: len(misplaced)}, 0
 }
 
 // Report answers the reverse-dependency audit for the named areas.
 func Report(tree string, areas []string) (AuditReport, error) {
-	module, err := ModulePath(tree)
+	module, err := modulePath(tree)
 	if err != nil {
 		return AuditReport{}, err
 	}
-	edges, err := CollectEdges(tree, module)
+	edges, err := collectEdges(tree, module)
 	if err != nil {
 		return AuditReport{}, err
 	}
-	engines, err := EngineSubsystems(tree)
+	engines, err := engineSubsystems(tree)
 	if err != nil {
 		return AuditReport{}, err
 	}

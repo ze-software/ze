@@ -30,7 +30,7 @@ type Issue struct {
 	Detail string `json:"detail,omitempty"`
 }
 
-// DriftReport is the whole answer of one `ze-doc-drift-check` run.
+// DriftReport is the whole answer of one `le docvalid doc-drift` run.
 //
 // Issues is the only row set in it, so the row operators act on the findings
 // (internal/component/command/answer_shape.go, rowsIn).
@@ -38,13 +38,8 @@ type DriftReport struct {
 	Issues []Issue `json:"issues"`
 }
 
-// Text renders the drift report the way the script printed it: the clean line
-// on its own, or a heading, one line per finding, and the command to run. It
-// ends in a newline.
-//
-// The script wrote the finding list to stderr and the clean line to stdout. A
-// command answers ONE payload and the caller chooses where it goes, so both
-// land on stdout here. The verdict travels in the exit code either way.
+// Text renders the drift report as a clean line or a heading, one line per
+// finding, and the native command to rerun. It ends in a newline.
 func (r DriftReport) Text() string {
 	if len(r.Issues) == 0 {
 		return "No documentation drift detected.\n"
@@ -66,7 +61,7 @@ func (r DriftReport) Text() string {
 		}
 	}
 
-	tb.Str("\n  Run: make ze-doc-drift-check\n\n")
+	tb.Str("\n  Run: ./le docvalid doc-drift\n\n")
 	return tb.String()
 }
 
@@ -80,8 +75,8 @@ type CommandEntry struct {
 // ValidationResult holds the cross-check between the YANG command tree and the
 // registered handlers.
 //
-// The JSON keys are the ones `make ze-command-contract-check-json` published
-// before this was a command, so anything reading that output keeps reading it.
+// The JSON keys are the ones `./le docvalid command-contract | json` publishes,
+// so anything reading that output keeps reading it.
 type ValidationResult struct {
 	YANGCommands        []CommandEntry `json:"yang-commands"`
 	Handlers            []string       `json:"handlers"`

@@ -35,7 +35,7 @@ type docVerifyStage struct {
 }
 
 var docVerifyStages = [...]docVerifyStage{
-	{"Documentation drift (docs claims vs registry, Makefile, filesystem)...", docDriftStage},
+	{"Documentation drift (docs claims vs registries and filesystem)...", docDriftStage},
 	{"YANG/handler contract (validate-commands)...", docContractStage},
 	{"Source anchors (docs source references exist)...", docIndexStage},
 	{"Rules render (ai/rules/<rule>.md matches ai/rules/points/)...", rulesRenderStage},
@@ -254,7 +254,7 @@ func rfcFreshnessStage(root string) (any, int) {
 	}
 	if string(current) != tb.Reset().Str(index).Byte('\n').Slice() {
 		stale = append(stale,
-			"ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: make ze-rfc-index-update")
+			"ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: ./le rfc index-update")
 	}
 
 	shards := rfc.RenderShards(input)
@@ -266,7 +266,7 @@ func rfcFreshnessStage(root string) (any, int) {
 		body, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // generated page under the named checkout
 		if os.IsNotExist(readErr) {
 			stale = append(stale, tb.Reset().Str(rel).
-				Str(" is missing -- run: make ze-rfc-index-update").String())
+				Str(" is missing -- run: ./le rfc index-update").String())
 			continue
 		}
 		if readErr != nil {
@@ -275,7 +275,7 @@ func rfcFreshnessStage(root string) (any, int) {
 		}
 		if string(body) != tb.Reset().Str(shards[stem]).Byte('\n').Slice() {
 			stale = append(stale, tb.Reset().Str(rel).
-				Str(" is stale vs its sources -- run: make ze-rfc-index-update").String())
+				Str(" is stale vs its sources -- run: ./le rfc index-update").String())
 		}
 	}
 	prunable, err := rfc.PrunableShards(root, keep)
@@ -286,7 +286,7 @@ func rfcFreshnessStage(root string) (any, int) {
 	for _, stem := range prunable {
 		stale = append(stale, tb.Reset().Str("rfc/requirements/").Str(stem).
 			Str(".md renders no requirement section and the generator no longer owns it -- ").
-			Str("run: make ze-rfc-index-update").String())
+			Str("run: ./le rfc index-update").String())
 	}
 	if len(stale) > 0 {
 		tb.Reset()

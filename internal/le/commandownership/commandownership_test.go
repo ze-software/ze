@@ -140,7 +140,7 @@ func TestTheAllowlistIsCheckedBothWays(t *testing.T) {
 // PREVENTS: the fail-open this gate exists to prevent, applied to itself. The
 // script's parser errors are discarded, so a cmd/ze file with a syntax error
 // registers no root at all and the gate reports OK over it
-// (scripts/checks/parity_test.go, TestOwnershipScriptStillPassesOverWhatItCannotParse).
+// (internal/le/parity/parity_test.go, TestOwnershipScriptStillPassesOverWhatItCannotParse).
 func TestAFileThatWillNotParseStopsTheRun(t *testing.T) {
 	dir := tree(t, map[string]string{
 		"cmd/ze/broken.go": "package main\n\nfunc f() { registry.RegisterRoot(\"mystery\"\n",
@@ -226,7 +226,7 @@ func TestAnswerRefusesAnArgument(t *testing.T) {
 // VALIDATES: this checkout passes the gate, from the entry point a developer
 // runs.
 // PREVENTS: a command surface nobody owns. This is where
-// TestNoOwnerAllowlistIsEnforced (scripts/checks/checks_test.go) now lives: it
+// TestNoOwnerAllowlistIsEnforced (internal/le/contract_test.go) now lives: it
 // forked the script and asserted the tree passes and the verdict reads OK, and
 // both facts are here.
 func TestThisCheckoutPassesTheGate(t *testing.T) {

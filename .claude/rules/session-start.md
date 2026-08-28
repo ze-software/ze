@@ -8,7 +8,7 @@ Rationale: `ai/rationale/session-start.md`
 ```
 [ ] 1. Load LSP tool (`ToolSearch query="select:LSP"`). UNCONDITIONAL FIRST ACTION.
 [ ] 2. Read `docs/contributing/ze-go-style.md`. EVERY session, before any code.
-[ ] 3. Run `scripts/dev/spec-session.sh current` to see this session's claimed spec
+[ ] 3. Run `./le spec-session current` to see this session's claimed spec
 [ ] 4. Read plan/<spec-name> (if a spec is claimed)
 [ ] 5. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
 [ ] 6. Check git status
@@ -40,9 +40,11 @@ Two things hid the gap, and neither is a reason to rely on them:
 
 - `ze-style` is an OUTPUT STYLE (`.claude/output-styles/ze-style.md`), not a
   skill, so it never appears in the skills listing an agent reads at startup.
-- `c_pre_write_go` (`.claude/hooks/pretool-writeedit.py`) returns None unless
-  the tool is `Write` or `Edit`. Go written through a Bash heredoc reaches it
-  never, and auto mode tells agents to prefer Bash for file changes.
+- The native `pretool-writeedit` action (`internal/le/hookruntime/runtime.go`,
+  dispatched via `./le hook-check pretool-writeedit`) only runs for the `Write`,
+  `Edit`, `MultiEdit`, and `NotebookEdit` tools. Go written through a Bash
+  heredoc reaches it never, and auto mode tells agents to prefer Bash for file
+  changes.
 
 ## LSP Load (step 1) -- no-exceptions clause
 
@@ -69,7 +71,8 @@ not close.
 loading a tool your harness does not expose. Some contexts get "No matching deferred
 tools found" back, subagents on some builds among them. Issuing the query and getting
 that answer SATISFIES step 1 -- proceed, do not retry, do not treat it as a skipped
-step. The gate agrees: `.claude/hooks/block-until-lsp.sh` lifts on the query text, not
+step. The gate agrees: the native `block-until-lsp` action (`./le hook-check
+block-until-lsp`, `internal/le/hookruntime/lifecycle.go`) lifts on the query text, not
 on a successful load (by design -- a stuck session is the worse failure). The banned
 excuses above are about SKIPPING the query; issuing it and getting nothing back is not
 a skip.
@@ -86,7 +89,7 @@ never read a whole file to hunt for a symbol on the strength of one empty query.
 binary every call returns `ENOENT: gopls` and the session silently falls back to
 reading whole files. That is what happened on one of the two dev machines: the server
 was absent there until 2026-08-05, and that machine's transcript store held 33
-sessions with no LSP call in any of them (`make ze-token-economy-report` reads
+sessions with no LSP call in any of them (`./le token-economy` reads
 `~/.claude/projects/`, so its counts are per-machine and say nothing about the other).
 The gate could not see it, and by design will not: it lifts on the query text, because
 a stuck session is the worse failure.
@@ -134,10 +137,11 @@ of picking up other uncommitted work. "Continue what you were doing" means the s
 goal, not "find more things to do."
 
 The Stop hook knows about this instruction and does not fight it.
-`.claude/hooks/block-premature-stop.sh` holds `what next` and `what would you like`
-in a second phrase list (`COMPLETION_PHRASES`, `:133-138`). It scans that list ONLY
-when this session has a claimed spec whose Status is still `in-progress`. The flag
-is `OPEN_WORK`, set at `:193` and assembled at `:225-228`.
+The native `block-premature-stop` action (`./le hook-check block-premature-stop`,
+`hookStop` in `internal/le/hookruntime/lifecycle.go`) holds `what next` and `what
+would you like` in a second phrase list, appended only when `openWork` is true
+(`:342`). `openWork` is set when the claimed spec's Status is still
+`in-progress` (`:331`).
 
 So the question above is permitted when no work remains. It is refused with exit 2
 while a spec is open. The question is mandated behavior once the task is done. The

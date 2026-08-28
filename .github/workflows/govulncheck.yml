@@ -1,23 +1,9 @@
 name: govulncheck
 
-# Software-composition analysis (SCA). `make ze-dependency-vulnerability-check` is the shared
-# mandatory target used by both `make ze-precommit-verify` modes and this workflow. It
-# scans the module dependency graph against the Go vulnerability database and
-# reports vulnerabilities reachable from Ze's call graph.
-#
-# The outer Go process stays host-native. Its exec wrapper starts the host-native
-# govulncheck process with `GOOS=linux GOARCH=amd64`, so the scanner loads the
-# Linux/amd64 package graph on both local Darwin/arm64 and CI hosts.
-#
-# The daily schedule and `workflow_dispatch` remain here to detect advisories
-# published after a commit passed mandatory verification. The cron lives in this
-# file, so merging it to the default branch creates the schedule. GitHub
-# disables scheduled workflows after 60 days of repository inactivity, and
-# `workflow_dispatch` provides the manual trigger.
-#
-# scripts/status/verify_run_test.go pins the schedule, manual trigger, shared
-# make target, and absence of push and pull_request triggers.
-
+# The native vulnerability action is also part of full verification. This daily
+# run catches advisories published after a commit passed its merge gate. The
+# action runs the scanner against the Linux/amd64 package graph and propagates
+# its verdict.
 on:
   schedule:
     - cron: "37 5 * * *"
@@ -32,17 +18,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-
-      # The shared target keeps the outer Go process host-native and starts
-      # govulncheck through its exec wrapper with a Linux/amd64 environment.
-      # This makes the scanner load the Linux/amd64 package graph. It resolves
-      # the current tool without changing go.mod or vendor. A non-zero exit
-      # fails this scheduled or manually triggered job.
-      - name: govulncheck (SCA)
-        run: make ze-dependency-vulnerability-check
+      - name: Install govulncheck
+        run: |
+          CGO_ENABLED=0 go install golang.org/x/vuln/cmd/govulncheck@v1.4.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Scan reachable dependencies
+        run: ./le verify-deps vulnerability

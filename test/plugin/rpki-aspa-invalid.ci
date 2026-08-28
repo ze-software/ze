@@ -12,54 +12,8 @@ option=update:value=send-route:prefix=10.0.1.0/24:origin-as=64502:next-hop=10.0.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python observer: check aspa-state=invalid
-tmpfs=rpki-aspa-invalid-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-
-    api.subscribe(['rpki direction received'])
-    api.ready()
-
-    def _match(evt):
-        if not isinstance(evt, dict):
-            return False
-        bgp = evt.get('bgp', {})
-        if bgp.get('message', {}).get('type') != 'rpki':
-            return False
-        rpki = bgp.get('rpki', {})
-        if not isinstance(rpki, dict) or rpki.get('status') == 'unavailable':
-            return False
-        return rpki.get('aspa-state') == 'invalid'
-
-    try:
-        if api.wait_for_event(timeout=15.0, predicate=_match) is not None:
-            print('OK: rpki event has aspa-state=invalid', file=sys.stderr)
-        else:
-            print('FAIL: no rpki event with aspa-state=invalid', file=sys.stderr)
-            sys.exit(1)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# native observer: check aspa-state=invalid
+# Native compiled fixture: plugin/rpki-aspa-invalid
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	hub {
@@ -70,7 +24,7 @@ plugin {
 		}
 	}
 	external rpki-aspa-invalid-test {
-		run ./rpki-aspa-invalid-test.run
+		run "ze-test fixture plugin/rpki-aspa-invalid"
 		encoder json
 	}
 	internal rpki {

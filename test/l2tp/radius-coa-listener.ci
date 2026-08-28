@@ -21,125 +21,6 @@
 # and never contacts the server, so the only thing the `server radius1` block
 # supplies is the allowed source address and the shared secret.
 
-tmpfs=coa-client.py:mode=755:terminator=EOF_COA
-#!/usr/bin/env python3
-"""Send an RFC 5176 Disconnect-Request to ze and check the Disconnect-NAK."""
-import hashlib
-import hmac
-import socket
-import struct
-import sys
-import time
-
-CODE_DISCONNECT_REQUEST = 40
-CODE_DISCONNECT_NAK = 42
-ATTR_ACCT_SESSION_ID = 44
-ATTR_EVENT_TIMESTAMP = 55
-ATTR_MESSAGE_AUTHENTICATOR = 80
-ATTR_ERROR_CAUSE = 101
-ERROR_CAUSE_SESSION_NOT_FOUND = 503
-
-
-def attr(atype, value):
-    return bytes([atype, len(value) + 2]) + value
-
-
-def build_disconnect_request(secret, ident, session_id):
-    attrs = attr(ATTR_ACCT_SESSION_ID, session_id.encode())
-    attrs += attr(ATTR_EVENT_TIMESTAMP, struct.pack("!I", int(time.time())))
-    attrs += attr(ATTR_MESSAGE_AUTHENTICATOR, b"\x00" * 16)
-    length = 20 + len(attrs)
-    header = bytes([CODE_DISCONNECT_REQUEST, ident]) + struct.pack("!H", length)
-
-    # RFC 5176 Section 3.5: MD5(Code+ID+Length+16 zero octets+Attributes+Secret),
-    # with the Message-Authenticator value zeroed, which it still is here.
-    req_auth = hashlib.md5(header + b"\x00" * 16 + attrs + secret).digest()
-    packet = bytearray(header + req_auth + attrs)
-
-    # RFC 3579 Section 3.2: HMAC-MD5 over the whole packet with the
-    # Message-Authenticator value zeroed. It is the last attribute, so its value
-    # is the final 16 octets.
-    mac = hmac.new(secret, bytes(packet), hashlib.md5).digest()
-    packet[length - 16:length] = mac
-    return bytes(packet), req_auth
-
-
-def find_attr(data, length, wanted):
-    off = 20
-    while off + 2 <= length:
-        atype = data[off]
-        alen = data[off + 1]
-        if alen < 2 or off + alen > length:
-            return None
-        if atype == wanted:
-            return data[off + 2:off + alen]
-        off += alen
-    return None
-
-
-def main():
-    if len(sys.argv) < 3:
-        print("usage: coa-client.py <coa-port> <shared-secret>", file=sys.stderr)
-        return 2
-    port = int(sys.argv[1])
-    secret = sys.argv[2].encode()
-    request, req_auth = build_disconnect_request(secret, 7, "no-such-session")
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # The listener accepts only the configured RADIUS server addresses
-    # (RFC 5176 Section 3.5), so the request must leave 127.0.0.1.
-    sock.bind(("127.0.0.1", 0))
-    sock.settimeout(0.5)
-
-    # Retransmit the SAME packet while the daemon starts. Identical retries are
-    # what a RADIUS server does, and ze answers them from its replay cache.
-    response = None
-    for _ in range(40):
-        try:
-            sock.sendto(request, ("127.0.0.1", port))
-            response, _ = sock.recvfrom(4096)
-            break
-        except (socket.timeout, ConnectionRefusedError, OSError):
-            continue
-    if response is None:
-        print("ERROR: no answer from the CoA listener on port %d" % port, file=sys.stderr)
-        return 1
-
-    if len(response) < 20:
-        print("ERROR: response is %d octets, less than a RADIUS header" % len(response), file=sys.stderr)
-        return 1
-    length = struct.unpack("!H", response[2:4])[0]
-    if length > len(response):
-        print("ERROR: response length %d exceeds the datagram" % length, file=sys.stderr)
-        return 1
-
-    # RFC 5176 Section 3.5: MD5(Code+ID+Length+RequestAuth+Attributes+Secret).
-    expected = hashlib.md5(response[:4] + req_auth + response[20:length] + secret).digest()
-    if response[4:20] != expected:
-        print("ERROR: response authenticator does not verify", file=sys.stderr)
-        return 1
-    if response[0] != CODE_DISCONNECT_NAK:
-        print("ERROR: code %d, want Disconnect-NAK (%d)" % (response[0], CODE_DISCONNECT_NAK), file=sys.stderr)
-        return 1
-    if response[1] != 7:
-        print("ERROR: identifier %d, want 7" % response[1], file=sys.stderr)
-        return 1
-    cause = find_attr(response, length, ATTR_ERROR_CAUSE)
-    if cause is None or len(cause) != 4:
-        print("ERROR: no Error-Cause attribute in the NAK", file=sys.stderr)
-        return 1
-    value = struct.unpack("!I", cause)[0]
-    if value != ERROR_CAUSE_SESSION_NOT_FOUND:
-        print("ERROR: Error-Cause %d, want %d" % (value, ERROR_CAUSE_SESSION_NOT_FOUND), file=sys.stderr)
-        return 1
-
-    print("OK: Disconnect-NAK with Error-Cause 503 from the coa-port listener")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-EOF_COA
 
 stdin=config:terminator=EOF_CONF
 l2tp {
@@ -170,6 +51,6 @@ option=env:var=ze.log.l2tp.auth.radius:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=python3 coa-client.py $PORT2 testing123:timeout=30s
+cmd=foreground:seq=2:exec=ze-test fixture l2tp/radius-coa-listener $PORT2 testing123:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=OK: Disconnect-NAK with Error-Cause 503 from the coa-port listener

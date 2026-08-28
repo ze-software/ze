@@ -1,105 +1,121 @@
-// Design: run.py -- Python producer retained during duplicate-then-swap.
-// Related: ../../internal/le/interoplab/ipsec -- native scenario registry and callbacks.
 package interopipsec_test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab/ipsec"
 )
 
-// VALIDATES: The native registry names every Python IPsec scenario in the same
-// lexical order selected by run.py, with no sample-only or extra callback.
-// PREVENTS: a green replacement gate silently dropping a scenario directory.
-func TestNativeScenarioRegistryExactlyMatchesPythonProducer(t *testing.T) {
+var ipsecScenarios = []string{
+	"child-rekey",
+	"child-rekey-narrowing",
+	"clear-reestablish",
+	"cookie-challenge",
+	"delete-while-window-held",
+	"eap-mschapv2",
+	"eap-tls",
+	"eap-tls13",
+	"esp-form-change",
+	"initiator-rekey-answer-narrows",
+	"invalid-ke-retry",
+	"ipsec-bgp-redistribute-frr",
+	"peer-reload-narrowing",
+	"psk-site-to-site",
+	"responder-accepts-reinit",
+	"responder-eap-mschapv2",
+	"responder-eap-tls13",
+	"responder-ike-rekey",
+	"responder-psk",
+	"responder-raises-child-rekey",
+}
+
+// VALIDATES: The native registry exposes the complete reviewed IPsec scenario
+// population in lexical selection order.
+// PREVENTS: A Go-only gate silently dropping a scenario after its old runner is gone.
+func TestNativeScenarioRegistryIsExact(t *testing.T) {
+	if got := ipsec.ScenarioNames(); !reflect.DeepEqual(got, ipsecScenarios) {
+		t.Fatalf("native scenarios = %v, want %v", got, ipsecScenarios)
+	}
+
 	entries, err := os.ReadDir("scenarios")
 	if err != nil {
 		t.Fatal(err)
 	}
-	producer := make([]string, 0, len(entries))
+	directories := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+		if entry.IsDir() {
+			directories = append(directories, entry.Name())
 		}
-		checkPath := filepath.Join("scenarios", entry.Name(), "check.py")
-		if _, err := os.Stat(checkPath); err != nil {
-			continue
-		}
-		producer = append(producer, entry.Name())
 	}
-	sort.Strings(producer)
-	if native := ipsec.ScenarioNames(); !reflect.DeepEqual(native, producer) {
-		t.Fatalf("native scenarios = %v, Python producer scenarios = %v", native, producer)
+	if !reflect.DeepEqual(directories, ipsecScenarios) {
+		t.Fatalf("fixture directories = %v, want %v", directories, ipsecScenarios)
 	}
 }
 
-// VALIDATES: Every registered scenario retains its complete producer checker and
-// mandatory Ze/strongSwan configuration; optional daemon and reload files remain
-// beside that same named producer and are discovered from the live directory.
-// PREVENTS: registering a name whose Python checker or protocol configuration was
-// omitted from the translated corpus.
-func TestEveryNativeScenarioHasCompleteProducerFiles(t *testing.T) {
+// VALIDATES: Every typed checker retains both protocol endpoints' configuration,
+// plus the extra inputs consumed by reload, PKI, and FRR scenarios.
+// PREVENTS: Registering a checker whose independent peer or transition fixture was removed.
+func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
+	extra := map[string][]string{
+		"clear-reestablish":              {"ze.conf.resolved"},
+		"delete-while-window-held":       {"ze.conf.resolved"},
+		"eap-mschapv2":                   {"ze.conf.resolved"},
+		"eap-tls":                        {"ze-env", "ze.conf.resolved"},
+		"eap-tls13":                      {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"initiator-rekey-answer-narrows": {"ze-env"},
+		"invalid-ke-retry":               {"ze.conf.resolved"},
+		"ipsec-bgp-redistribute-frr":     {"frr.conf"},
+		"peer-reload-narrowing":          {"ze-narrowed.conf", "ze.conf.resolved"},
+		"responder-eap-mschapv2":         {"strongswan.conf"},
+		"responder-eap-tls13":            {"strongswan.conf", "ze.conf.resolved", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+	}
 	for _, name := range ipsec.ScenarioNames() {
-		directory := filepath.Join("scenarios", name)
-		for _, required := range []string{"check.py", "ze.conf", "swanctl.conf"} {
-			path := filepath.Join(directory, required)
+		required := append([]string{"ze.conf", "swanctl.conf"}, extra[name]...)
+		for _, relative := range required {
+			path := filepath.Join("scenarios", name, relative)
 			info, err := os.Stat(path)
 			if err != nil || info.IsDir() {
-				t.Errorf("%s missing producer file %s", name, required)
+				t.Errorf("%s missing input %s", name, relative)
 			}
 		}
-		checker, err := os.ReadFile(filepath.Join(directory, "check.py"))
+		config, err := os.ReadFile(filepath.Join("scenarios", name, "ze.conf"))
 		if err != nil {
-			t.Error(err)
+			t.Errorf("%s unreadable ze.conf: %v", name, err)
 			continue
 		}
-		text := string(checker)
-		if !strings.Contains(text, "def check():") {
-			t.Errorf("%s producer has no check()", name)
+		if strings.Contains(string(config), "user interop") ||
+			strings.Contains(string(config), "$2a$04$UlwuiuH82Unfsq") {
+			t.Errorf("%s source config contains native renderer boilerplate", name)
 		}
 	}
 }
 
-// VALIDATES: Gate identity and the producer's image, timeout, selector, and
-// no-build contracts remain byte-for-byte represented by the native adapter.
-// PREVENTS: wiring a similar lab under a different gate or environment contract.
-func TestNativeGateMetadataMatchesRunPy(t *testing.T) {
-	producer, err := os.ReadFile("run.py")
+// VALIDATES: The native gate is the sole executable implementation in this tree.
+// PREVENTS: Reintroducing source, bytecode, or an interpreter-backed fallback.
+func TestIPsecTreeIsGoOnly(t *testing.T) {
+	err := filepath.WalkDir(".", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() && entry.Name() == "__pycache__" {
+			t.Errorf("Python cache directory remains: %s", path)
+			return filepath.SkipDir
+		}
+		if !entry.IsDir() && (strings.HasSuffix(entry.Name(), ".py") ||
+			strings.HasSuffix(entry.Name(), ".pyc") || strings.HasSuffix(entry.Name(), ".sh")) {
+			t.Errorf("interpreter-backed artifact remains: %s", path)
+		}
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	lab, err := os.ReadFile("lab.py")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, fragment := range []string{
-		`"FRR_IMAGE", "quay.io/frrouting/frr:10.3.1"`,
-		`"NO_BUILD", "0"`,
-		`scenario_filter = sys.argv[1]`,
-		`sorted(os.listdir(scenarios_dir))`,
-	} {
-		if !strings.Contains(string(producer), fragment) {
-			t.Errorf("run.py no longer carries %q", fragment)
-		}
-	}
-	for _, fragment := range []string{
-		`"ZE_IPSEC_INTEROP_SUFFIX"`,
-		`"SESSION_TIMEOUT", "90"`,
-		`SUBNET = "172.28.0.0/24"`,
-		`ZE_IP = "172.28.0.2"`,
-		`SWAN_IP = "172.28.0.3"`,
-		`FRR_IP = "172.28.0.4"`,
-	} {
-		if !strings.Contains(string(lab), fragment) {
-			t.Errorf("lab.py no longer carries %q", fragment)
-		}
-	}
-	if ipsec.Gate != "ze-interop-ipsec-test" {
-		t.Fatalf("native gate = %q", ipsec.Gate)
+	if ipsec.Action != "integration/interop-ipsec" {
+		t.Fatalf("native action = %q", ipsec.Action)
 	}
 }

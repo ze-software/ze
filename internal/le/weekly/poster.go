@@ -75,12 +75,12 @@ type Options struct {
 	ResumeFrom int
 }
 
-// Poster runs one publication. Every field is a seam, and the binary is the
+// publisher runs one publication. Every field is a seam, and the binary is the
 // only caller that fills them from the machine (answer.go).
-type Poster struct {
+type publisher struct {
 	// Channel is the Discord channel every message goes to.
 	Channel string
-	// Send delivers one message. ExecSender answers the one that runs
+	// Send delivers one message. execSender answers the one that runs
 	// discord.sh; a test passes a recorder.
 	Send Sender
 	// DiscordSh is where the transport lives. send refuses before the first
@@ -107,7 +107,7 @@ type Poster struct {
 // unreadable post, a transport that would not deliver. The report is returned
 // beside it either way, because a post that failed half way through still has
 // to say which messages are in the channel.
-func (p *Poster) Run(opts Options) (Report, error) {
+func (p *publisher) Run(opts Options) (Report, error) {
 	report := Report{Action: StatusPlanned, Channel: p.Channel, Posts: []PostReport{}}
 	if opts.Confirm {
 		report.Action = "published"
@@ -128,7 +128,7 @@ func (p *Poster) Run(opts Options) (Report, error) {
 // week or ten is the same command.
 //
 // The bound is the file count of the posts directory.
-func (p *Poster) sweep(report Report, opts Options) (Report, error) {
+func (p *publisher) sweep(report Report, opts Options) (Report, error) {
 	files, err := filepath.Glob(filepath.Join(opts.Dir, "*.md"))
 	if err != nil {
 		return report, err
@@ -173,7 +173,7 @@ func (p *Poster) sweep(report Report, opts Options) (Report, error) {
 
 // eligible answers whether a sweep should pass a post over, and the row that
 // records the reason when it should.
-func (p *Poster) eligible(file string) (skipped PostReport, skip bool, err error) {
+func (p *publisher) eligible(file string) (skipped PostReport, skip bool, err error) {
 	_, covers, err := readPost(file)
 	if err != nil {
 		return PostReport{}, false, err
@@ -205,7 +205,7 @@ func (p *Poster) eligible(file string) (skipped PostReport, skip bool, err error
 // Every refusal happens before the first message leaves: a week still running,
 // a resume point past the end. Once sending starts the only failure left is the
 // transport's, and send answers that one with the point to restart from.
-func (p *Poster) publish(file string, opts Options, force bool, resumeFrom int) (PostReport, error) {
+func (p *publisher) publish(file string, opts Options, force bool, resumeFrom int) (PostReport, error) {
 	post, covers, err := readPost(file)
 	if err != nil {
 		return PostReport{Source: file, Status: StatusFailed, Messages: []Message{}}, err
@@ -294,7 +294,7 @@ func stampWanted(choice Stamp, daysSinceWeekEnd int) bool {
 }
 
 // archivePath answers where a week's record lives, whether or not it exists.
-func (p *Poster) archivePath(date string) string {
+func (p *publisher) archivePath(date string) string {
 	var tb textbuf.Buffer
 	return filepath.Join(p.ArchiveDir, tb.Str(date).Str("-weekly.md").String())
 }

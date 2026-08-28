@@ -239,7 +239,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 		result.Error = err.Error()
 		return result
 	}
-	network, err := s.Docker.CreateNetwork(ctx, plan.Network)
+	network, err := s.Docker.createNetwork(ctx, plan.Network)
 	if err != nil {
 		result.Error = err.Error()
 		return result
@@ -263,7 +263,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 	}
 	for index := range peers {
 		peer := &peers[index]
-		if err := s.Docker.RunContainer(ctx, network, *peer); err != nil {
+		if err := s.Docker.runContainer(ctx, network, *peer); err != nil {
 			result.Error = err.Error()
 			return result
 		}
@@ -396,7 +396,7 @@ func (l *Lab) cleanup(ctx context.Context, network string, peers []PeerConfig) [
 	if network == "" {
 		return problems
 	}
-	if err := l.docker.RemoveNetwork(ctx, network); err != nil {
+	if err := l.docker.removeNetwork(ctx, network); err != nil {
 		problems = append(problems, err.Error())
 	}
 	return problems
@@ -472,7 +472,7 @@ func (l *Lab) PeerPID(ctx context.Context, peer string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return l.docker.ContainerPID(ctx, config.Container)
+	return l.docker.containerPID(ctx, config.Container)
 }
 
 // Signal sends a signal to the named peer's PID 1.
@@ -490,7 +490,7 @@ func (l *Lab) Pause(ctx context.Context, peer string) error {
 	if err != nil {
 		return err
 	}
-	return l.docker.PauseContainer(ctx, config.Container)
+	return l.docker.pauseContainer(ctx, config.Container)
 }
 
 // Unpause resumes every process in the named paused peer's cgroup.
@@ -499,7 +499,7 @@ func (l *Lab) Unpause(ctx context.Context, peer string) error {
 	if err != nil {
 		return err
 	}
-	return l.docker.UnpauseContainer(ctx, config.Container)
+	return l.docker.unpauseContainer(ctx, config.Container)
 }
 
 // Start restarts the named stopped peer without replacing its container.
@@ -508,7 +508,7 @@ func (l *Lab) Start(ctx context.Context, peer string) error {
 	if err != nil {
 		return err
 	}
-	return l.docker.StartContainer(ctx, config.Container)
+	return l.docker.startContainer(ctx, config.Container)
 }
 
 // Stop asks Docker to stop the named peer within the grace period.
@@ -517,7 +517,7 @@ func (l *Lab) Stop(ctx context.Context, peer string, timeoutSeconds int) error {
 	if err != nil {
 		return err
 	}
-	return l.docker.StopContainer(ctx, config.Container, timeoutSeconds)
+	return l.docker.stopContainer(ctx, config.Container, timeoutSeconds)
 }
 
 func (l *Lab) peer(name string) (PeerConfig, error) {

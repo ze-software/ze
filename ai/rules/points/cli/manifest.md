@@ -189,7 +189,7 @@ agent-tooling-contract ## Agent Tooling Contract
   use-the-skill-instead-of-a-raw-agent
   the-hook-blocks-a-raw-spawn-a-named-skill-passes
   commit-script-generation
-  prepare-commit-scripts-with-commit-helper-py
+  prepare-commit-scripts-with-the-native-commit-action
   a-commit-request-is-the-work-add-no-late-review
   skills
   version-matched-skill-content-is-embedded-in-the-binary

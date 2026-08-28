@@ -14,55 +14,13 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 action=sigterm:conn=1:seq=2
 EOF_PEER
 
-# Python test plugin: dispatches daemon quit
-tmpfs=quit-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    # The peer block asserts ze's initial-sync End-of-RIB frame
-    # (expect=bgp:...00170200000000). Halting the daemon inside the
-    # establishment window closes the session under the peer, which then reports
-    # "connection closed before completion". wait_peer_eor_sent gates on the
-    # product's own per-peer eor-sent counter, incremented by IncrEORSent
-    # (internal/component/bgp/reactor/peer_stats.go) only once the EOR write
-    # reached the socket, so a non-zero count means the asserted frame is out.
-    if not api.wait_peer_eor_sent('peer1', attempts=40):
-        print('FAIL: initial-sync EOR never reached the wire', file=sys.stderr)
-        sys.exit(1)
-
-    try:
-        result = dispatch(api, 'request halt')
-        if result.get('status') != 'done':
-            print(f'FAIL: quit status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-        print('OK: daemon quit dispatched', file=sys.stderr)
-    finally:
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native test observer: dispatches daemon quit
 
 # ze bgp configuration
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 plugin {
 	external quit-test {
-		run ./quit-test.run
+		run "ze-test fixture reload/signal-quit"
 		encoder json
 	}
 }

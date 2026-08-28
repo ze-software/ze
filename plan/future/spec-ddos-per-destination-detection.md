@@ -72,7 +72,7 @@ settle four things:
 **Why this is future work and not a defect.** Aggregate detection does what it
 says and does it correctly. Nothing is wrong; a capability is missing.
 
-**Owning gate.** `make ze-unit-pkg-test PKG=./internal/plugins/ddos/detect`, then
-`make ze-functional-plugin-test`. A new `.ci` fixture is required: aggregate traffic held
+**Owning gate.** `go test -race ./internal/plugins/ddos/detect`, then
+`./le functional plugin`. A new `.ci` fixture is required: aggregate traffic held
 flat while one destination prefix is flooded, asserting a detection that today
 does not happen.

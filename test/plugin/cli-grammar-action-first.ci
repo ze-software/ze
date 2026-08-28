@@ -9,7 +9,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises both canonical and deprecated commit grammar
+# native fixture test plugin: exercises both canonical and deprecated commit grammar
 #
 # The commit commands and the BGP session are independent. The commands are
 # local config operations that finish in milliseconds, while the session needs
@@ -21,115 +21,12 @@ EOF_PEER
 # as the barrier an observer MUST hold before shutdown whenever its ze-peer
 # asserts the End-of-RIB frame (ai/rules/fix-dont-record.md -- wait on the
 # condition, never on a duration).
-tmpfs=cli-grammar-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    # Check the result rather than discard it. wait_for_post_startup floors its
-    # wait at 30s, but a caller that ignores False dispatches before the command
-    # registry is frozen and reports the damage somewhere else entirely.
-    # Post-startup is NOT the End-of-RIB barrier: the fan-out runs before
-    # StartPeers, so it returns while the session is still being opened.
-    if not api.wait_for_post_startup(timeout=5.0):
-        runtime_fail('post-startup callback never arrived; command registry not frozen')
-
-    try:
-        # Canonical grammar: commit start <name>
-        result = dispatch(api, 'request commit start canonical-test')
-        if result.get('status') != 'done':
-            print(f'FAIL: commit start canonical-test: {result}', file=sys.stderr)
-            sys.exit(1)
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-        if 'deprecated' in data:
-            print(f'FAIL: canonical grammar should not have deprecated field', file=sys.stderr)
-            sys.exit(1)
-        print('OK: canonical commit start', file=sys.stderr)
-
-        # Canonical grammar: commit show <name>
-        result = dispatch(api, 'request commit show canonical-test')
-        if result.get('status') != 'done':
-            print(f'FAIL: commit show canonical-test: {result}', file=sys.stderr)
-            sys.exit(1)
-        print('OK: canonical commit show', file=sys.stderr)
-
-        # Canonical grammar: commit rollback <name>
-        result = dispatch(api, 'request commit rollback canonical-test')
-        if result.get('status') != 'done':
-            print(f'FAIL: commit rollback canonical-test: {result}', file=sys.stderr)
-            sys.exit(1)
-        print('OK: canonical commit rollback', file=sys.stderr)
-
-        # Deprecated grammar: commit <name> start (should work with deprecation)
-        result = dispatch(api, 'request commit deprecated-test start')
-        if result.get('status') != 'done':
-            print(f'FAIL: deprecated commit start: {result}', file=sys.stderr)
-            sys.exit(1)
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-        if 'deprecated' not in data:
-            print(f'FAIL: deprecated grammar should have deprecated field', file=sys.stderr)
-            sys.exit(1)
-        print(f'OK: deprecated commit start (warning: {data["deprecated"]})', file=sys.stderr)
-
-        # Clean up deprecated commit
-        result = dispatch(api, 'request commit rollback deprecated-test')
-        if result.get('status') != 'done':
-            print(f'FAIL: rollback deprecated-test: {result}', file=sys.stderr)
-            sys.exit(1)
-
-        # Verify commit list is empty
-        result = dispatch(api, 'request commit list')
-        if result.get('status') != 'done':
-            print(f'FAIL: commit list: {result}', file=sys.stderr)
-            sys.exit(1)
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-        if data.get('count', -1) != 0:
-            print(f'FAIL: expected 0 commits, got {data.get("count")}', file=sys.stderr)
-            sys.exit(1)
-        print('OK: commit list empty after cleanup', file=sys.stderr)
-
-        # Hold ze open until the End-of-RIB the peer asserts on is on the wire.
-        # The signal is the product's own per-peer eor-sent counter, incremented
-        # by IncrEORSent only after the write reached the peer's socket, so a
-        # non-zero count means the frame is already sent, not merely attempted.
-        if not api.wait_peer_eor_sent():
-            runtime_fail('ze did not send the End-of-RIB to peer1 before shutdown')
-        print('OK: end-of-rib sent to peer1', file=sys.stderr)
-
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external cli-grammar-test {
-		run ./cli-grammar-test.run
+		run "ze-test fixture plugin/cli-grammar-action-first"
 		encoder json
 	}
 }

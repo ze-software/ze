@@ -76,63 +76,6 @@ expect=bgp:conn=1:seq=1:contains=8009047F000001800A040A000001
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
 EOF_DEST
 
-# Observer: sequences the source's withdrawal behind "the dest was actually sent
-# the advertisement", so neither assertion can pass or fail by absence.
-tmpfs=relay-rr.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Sequence the source client's withdrawal behind the dest's advertisement."""
-import sys
-from ze_api import API, runtime_fail
-
-DEST = '127.0.0.2'
-
-
-def dest_updates(api):
-    """Real UPDATEs written to the dest peer, End-of-RIB markers excluded.
-
-    updates-sent counts EVERY UPDATE written to the peer, the initial-sync EoR
-    included (IncrUpdatesSent in reactor/reactor_notify.go sees only the message
-    type). eor-sent is the separate marker counter, so the difference is the
-    reflected traffic this test is about.
-    """
-    return (api.peer_counter('updates-sent', peer=DEST)
-            - api.peer_counter('eor-sent', peer=DEST))
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # quiesce FIRST so the poll behind it is a safety net rather than the
-    # mechanism: it drains the forward pool in one RPC.
-    api.quiesce()
-    if not api.wait_until(lambda: dest_updates(api) >= 1, attempts=40):
-        runtime_fail('dest peer was never sent the reflected advertisement')
-    print('OK: dest was sent the reflected advertisement', file=sys.stderr)
-
-    # Release the source's withdrawal. This route goes to the SOURCE only, and
-    # its NLRI (192.0.2.0/24 -> 18 C0 00 02) is what the source's seq=2 barrier
-    # matches on.
-    api.send('peer 127.0.0.1 update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24')
-
-    # The dest must still be alive when its seq=2 rule runs, so hold the daemon
-    # up until the withdrawal has actually been written to it.
-    if not api.wait_until(lambda: dest_updates(api) >= 2, attempts=40):
-        runtime_fail('dest peer was never sent the reflected withdrawal')
-    print('OK: dest was sent the reflected withdrawal', file=sys.stderr)
-
-    api.dispatch('request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze (ASN 65000) as a route reflector with two clients on separate loopbacks.
 # cluster-id is pinned rather than defaulted so the dest's CLUSTER_LIST assertion
 # is an exact number.
@@ -145,7 +88,7 @@ plugin {
 		use bgp-rs
 	}
 	external relay-rr {
-		run ./relay-rr.run
+		run "ze-test fixture plugin/relay-withdraw-reflector"
 		encoder json
 	}
 }

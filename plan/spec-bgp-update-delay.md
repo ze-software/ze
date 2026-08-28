@@ -222,7 +222,7 @@ This is a local-process startup feature. It is distinct from graceful restart
 4. **Phase: Validation** — establish-wait ≤ max-delay at config verify.
    - Tests: `TestUpdateDelayValidation`
 5. **Functional + interop tests**
-6. **Full verification** → `make ze-precommit-verify`
+6. **Full verification** → `./le verify current mode full`
 7. **Complete spec** → audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -289,7 +289,7 @@ This is a local-process startup feature. It is distinct from graceful restart
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete — every row has a concrete test name
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

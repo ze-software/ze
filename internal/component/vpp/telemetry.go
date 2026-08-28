@@ -14,6 +14,11 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
+const (
+	metricLabelInterface = "interface"
+	metricLabelNode      = "node"
+)
+
 // metricsRegPtr stores the metrics registry, set via SetVPPMetricsRegistry.
 var metricsRegPtr atomic.Pointer[metrics.Registry]
 
@@ -73,17 +78,17 @@ type vppMetrics struct {
 // newVPPMetrics registers all VPP telemetry metrics with the given registry.
 func newVPPMetrics(reg metrics.Registry) *vppMetrics {
 	return &vppMetrics{
-		ifaceRxPackets: reg.CounterVec("ze_vpp_interface_rx_packets", "VPP interface received packets.", []string{"interface"}),
-		ifaceTxPackets: reg.CounterVec("ze_vpp_interface_tx_packets", "VPP interface transmitted packets.", []string{"interface"}),
-		ifaceRxBytes:   reg.CounterVec("ze_vpp_interface_rx_bytes", "VPP interface received bytes.", []string{"interface"}),
-		ifaceTxBytes:   reg.CounterVec("ze_vpp_interface_tx_bytes", "VPP interface transmitted bytes.", []string{"interface"}),
-		ifaceDrops:     reg.CounterVec("ze_vpp_interface_drops", "VPP interface dropped packets.", []string{"interface"}),
-		ifaceRxErrors:  reg.CounterVec("ze_vpp_interface_rx_errors", "VPP interface receive errors.", []string{"interface"}),
-		ifaceTxErrors:  reg.CounterVec("ze_vpp_interface_tx_errors", "VPP interface transmit errors.", []string{"interface"}),
+		ifaceRxPackets: reg.CounterVec("ze_vpp_interface_rx_packets", "VPP interface received packets.", []string{metricLabelInterface}),
+		ifaceTxPackets: reg.CounterVec("ze_vpp_interface_tx_packets", "VPP interface transmitted packets.", []string{metricLabelInterface}),
+		ifaceRxBytes:   reg.CounterVec("ze_vpp_interface_rx_bytes", "VPP interface received bytes.", []string{metricLabelInterface}),
+		ifaceTxBytes:   reg.CounterVec("ze_vpp_interface_tx_bytes", "VPP interface transmitted bytes.", []string{metricLabelInterface}),
+		ifaceDrops:     reg.CounterVec("ze_vpp_interface_drops", "VPP interface dropped packets.", []string{metricLabelInterface}),
+		ifaceRxErrors:  reg.CounterVec("ze_vpp_interface_rx_errors", "VPP interface receive errors.", []string{metricLabelInterface}),
+		ifaceTxErrors:  reg.CounterVec("ze_vpp_interface_tx_errors", "VPP interface transmit errors.", []string{metricLabelInterface}),
 
-		nodeClocks:  reg.GaugeVec("ze_vpp_node_clocks", "VPP graph node clock cycles.", []string{"node"}),
-		nodeVectors: reg.GaugeVec("ze_vpp_node_vectors", "VPP graph node vectors processed.", []string{"node"}),
-		nodeCalls:   reg.GaugeVec("ze_vpp_node_calls", "VPP graph node calls.", []string{"node"}),
+		nodeClocks:  reg.GaugeVec("ze_vpp_node_clocks", "VPP graph node clock cycles.", []string{metricLabelNode}),
+		nodeVectors: reg.GaugeVec("ze_vpp_node_vectors", "VPP graph node vectors processed.", []string{metricLabelNode}),
+		nodeCalls:   reg.GaugeVec("ze_vpp_node_calls", "VPP graph node calls.", []string{metricLabelNode}),
 
 		sysVectorRate: reg.Gauge("ze_vpp_system_vector_rate", "VPP system vector rate."),
 		sysInputRate:  reg.Gauge("ze_vpp_system_input_rate", "VPP system input rate."),

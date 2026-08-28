@@ -285,7 +285,7 @@ the nft backend deadlock the parent recorded as a gotcha applies. Read
 | 2. Audit | Files to Modify; resolve A-1 with Thomas FIRST |
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
-| 5. Full verification | `make ze-precommit-verify` |
+| 5. Full verification | `./le verify current mode full` |
 | 14. Present summary + close | two-commit closure per `ai/rules/planning.md` |
 
 ### Implementation Phases
@@ -299,7 +299,7 @@ the nft backend deadlock the parent recorded as a gotcha applies. Read
    - Tests: `TestBuildDropTermCarvesExemptSource`, `TestBuildDropTermUnchangedWithoutExemption`
    - Verify: unit tests pass; AC-1 proves no regression
 4. **Phase: Functional proof** — `ddos-source-carve.ci`
-5. **Full verification** → `make ze-precommit-verify`
+5. **Full verification** → `./le verify current mode full`
 6. **Complete spec** → learned summary + the 1110 correction; TWO commits (A: code+tests+spec+learned; B: `git rm` spec)
 
 ### Critical Review Checklist (/implement stage 6)
@@ -372,7 +372,7 @@ the nft backend deadlock the parent recorded as a gotcha applies. Read
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/plugins/ddos/*`)
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
 

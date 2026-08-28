@@ -31,7 +31,7 @@ polarities by `TestErrInitiatorSurvivesPiggybackedErrorNotify`
 (`internal/component/ike/engine/rfc7296_notify_error_test.go`), recorded at
 `ai/RFC-REQUIREMENTS.md` with its positive tag at
 `internal/component/ike/engine/rfc7296_notify_error_test.go` and its negative tag at
-`:406`. Both are unit tier, so `make ze-precommit-verify` runs them on every push.
+`:406`. Both are unit tier, so `./le verify current mode full` runs them on every push.
 
 The value of this spec is operational, and not a compliance gain. A peer whose Child SA
 fails keeps its IKE SA. It retries the Child SA with one CREATE_CHILD_SA exchange, and
@@ -174,7 +174,7 @@ outbound half the peer never allocated, and the traffic on that tunnel is lost.
 the design phase closes.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
-- Every `test/ipsec/*.ci` stays green. The suite is listed in `mk/test-functional.mk`.
+- Every `test/ipsec/*.ci` stays green. The suite is listed in `internal/le/functional/suites.go`.
 - Every scenario under `test/interop-ipsec/scenarios/` stays green.
 - `RFC7296-2.21.2-2` keeps both polarities. `ai/rules/rfc-compliance.md` makes proof
   monotonic, so the initiator test must never lose a tag.
@@ -252,8 +252,8 @@ the design phase closes.
 | A-3 | The initiator installs a Child SA with an invented outbound SPI when the response accepted none | `established.go`, `fsm.go` and `child.go`, read 2026-08-01 | The initiator defect does not exist and phase 4 is unnecessary | Drive a response with a piggybacked notification and read the installed SPI | unvalidated |
 | A-4 | strongSwan keeps its IKE SA when its Child SA request is refused | Not yet read | The interop scenario cannot prove the capability against a peer | Read the strongSwan source for its IKE_AUTH error path | unvalidated |
 | A-5 | strongSwan retries the Child SA with a CREATE_CHILD_SA exchange after such a refusal | Not yet read | G-3 has no interop counterpart and only a Ze-to-Ze test proves it | Read the strongSwan retry policy and build the scenario | unvalidated |
-| A-6 | `test/interop-ipsec/` stays outside the automated tiers | `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md` | An interop tag becomes legal evidence | Rerun `make ze-rfc-check` at landing time | unvalidated |
-| A-7 | No committed RFC row needs to change | `RFC7296-2.21.2-2` is bound in both polarities at `ai/RFC-REQUIREMENTS.md` | The spec touches a gated row and the proof ratchet applies | Rerun `make ze-rfc-check` after the change | unvalidated |
+| A-6 | `test/interop-ipsec/` stays outside the automated tiers | `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md` | An interop tag becomes legal evidence | Rerun `./le rfc check` at landing time | unvalidated |
+| A-7 | No committed RFC row needs to change | `RFC7296-2.21.2-2` is bound in both polarities at `ai/RFC-REQUIREMENTS.md` | The spec touches a gated row and the proof ratchet applies | Rerun `./le rfc check` after the change | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -353,7 +353,7 @@ owner's approval, because the RFC-tagged-test hook blocks it.
 | `ipsec-auth-piggyback-expiry` | `test/ipsec/ipsec-auth-piggyback-expiry.ci` | The unattended SA is deleted | |
 | `ipsec-show-sa-no-child` | `test/ipsec/ipsec-show-sa-no-child.ci` | The operator reads the intermediate state | |
 
-The `ipsec` suite runs inside `ze-precommit-verify`, so a `.ci` there earns a verify tier. A `.ci`
+The `ipsec` suite runs inside `./le verify current mode full`, so a `.ci` there earns a verify tier. A `.ci`
 that makes IKE_AUTH refuse the Child SA while AUTH still verifies needs a configuration
 that disagrees on ESP only. `plan/deferrals/rfcgate-1b-rfc7296-pilot.md` records that a
 disjoint `esp-group` fails `selectResponderESP` at IKE_AUTH, so the SA never establishes.
@@ -491,7 +491,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
      reads the state. R-1 is closed here
 7. **Phase: Interoperability and documentation**
    - Tests: scenarios `auth-piggyback` and `auth-piggyback-attach`,
-     `make ze-doc-verify`, `make ze-rfc-check`
+     `./le doc-check verify`, `./le rfc check`
    - Files: the two scenario directories, the documentation checklist rows
    - Verify: both strongSwan scenarios pass, and no RFC row lost a polarity
 
@@ -525,8 +525,8 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
 | A Child SA attaches later | `test/ipsec/ipsec-auth-piggyback-attach.ci` passes |
 | The bound is enforced | `test/ipsec/ipsec-auth-piggyback-expiry.ci` passes |
 | The initiator invents no SPI | `TestInitiatorInstallsNoChildSAWhenNoneAccepted` passes |
-| `RFC7296-2.21.2-2` keeps both polarities | `make ze-rfc-check` passes, and `ai/RFC-REQUIREMENTS.md` still shows both columns filled |
-| The ledger is fresh | `make ze-rfc-index-update` produces no diff |
+| `RFC7296-2.21.2-2` keeps both polarities | `./le rfc check` passes, and `ai/RFC-REQUIREMENTS.md` still shows both columns filled |
+| The ledger is fresh | `./le rfc index-update` produces no diff |
 | No interop tag was added | `grep -rn 'RFC requirement:' test/interop-ipsec/` returns nothing |
 | Interoperability is proven | Scenarios `auth-piggyback` and `auth-piggyback-attach` pass |
 | The operator can read the state | `test/ipsec/ipsec-show-sa-no-child.ci` passes |
@@ -598,7 +598,7 @@ MAY, so a later reader does not read the code as a mandatory behavior.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -616,7 +616,7 @@ MAY, so a later reader does not read the code as a mandatory behavior.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

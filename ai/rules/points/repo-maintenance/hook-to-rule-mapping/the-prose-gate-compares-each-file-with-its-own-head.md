@@ -3,4 +3,4 @@ kind: note
 level:
 stage:
 ---
-Make targets and a commit-time gate, not Claude hooks. HEAD is the baseline and the comparison is per file, so a document nobody touched can never fail.
+Native `./le ste` actions and the commit-time gate own this check. HEAD is the baseline and the comparison is per file, so a document nobody touched can never fail.

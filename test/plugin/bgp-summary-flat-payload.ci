@@ -20,103 +20,13 @@ option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: reads the payload an agent reads.
-tmpfs=flat-payload-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API, dispatch, result_json_data, runtime_fail
-
-AGGREGATES = (
-    'router-id',
-    'local-as',
-    'uptime',
-    'peers-configured',
-    'peers-established',
-)
-
-
-def summary(api, command):
-    result = dispatch(api, command)
-    if result.get('status') != 'done':
-        runtime_fail(f'{command}: status={result.get("status")} data={result.get("data")}')
-    return result_json_data(result, {})
-
-
-def established(result):
-    """True once the peer has completed RFC 4760 negotiation for its families.
-
-    The family-filtered half of this test reads NegotiatedFamilies, which only
-    an established session carries, so this is the barrier both queries wait on.
-    The peer holds the session open past its expectation (option=linger), so the
-    state does not go away again under load.
-    """
-    if result.get('status') != 'done':
-        return False
-    rows = result_json_data(result, {}).get('peers', [])
-    return any(p.get('address') == '127.0.0.1' and p.get('state') == 'established' for p in rows)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    try:
-        # // dispatch_until poll, not a blind sleep -- reaching
-        # established is an async engine state with no barrier to wait on.
-        settled = api.dispatch_until('show bgp', established, attempts=40)
-        if not established(settled):
-            runtime_fail(f'the peer never reached established: {settled!r}')
-        data = result_json_data(settled, {})
-
-        if 'summary' in data:
-            runtime_fail(f'the summary envelope is back: {sorted(data)}')
-
-        for key in AGGREGATES:
-            if key not in data:
-                runtime_fail(f'{key} is not a top-level key: {sorted(data)}')
-
-        peers = data.get('peers')
-        if not isinstance(peers, list):
-            runtime_fail(f'peers is {type(peers).__name__}, want a list beside the aggregates')
-        if not any(p.get('address') == '127.0.0.1' for p in peers):
-            runtime_fail(f'the configured peer is not in the rows: {peers!r}')
-
-        # An unfiltered summary states no family, so neither key is present.
-        for key in ('family', 'peers-in-family'):
-            if key in data:
-                runtime_fail(f'{key} appeared without a family filter: {sorted(data)}')
-
-        # A family filter adds both keys as siblings, not under an envelope.
-        filtered = summary(api, 'show bgp ipv4/unicast')
-        if 'summary' in filtered:
-            runtime_fail(f'the summary envelope is back under a filter: {sorted(filtered)}')
-        if filtered.get('family') != 'ipv4/unicast':
-            runtime_fail(f'family={filtered.get("family")!r}, want ipv4/unicast')
-        if filtered.get('peers-in-family') != 1:
-            runtime_fail(f'peers-in-family={filtered.get("peers-in-family")!r}, want 1')
-        for key in AGGREGATES:
-            if key not in filtered:
-                runtime_fail(f'{key} left the filtered record: {sorted(filtered)}')
-
-        print(f'OK: flat summary keys {sorted(data)}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# native fixture test plugin: reads the payload an agent reads.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external flat-payload-test {
-		run ./flat-payload-test.run
+		run "ze-test fixture plugin/bgp-summary-flat-payload"
 		encoder json
 	}
 }

@@ -1,9 +1,6 @@
-// VALIDATES: test/draft/ is invisible to suite discovery and to every repo-wide
-//            .ci gate, and that SuiteDir routes --draft at the incubator.
-// PREVENTS:  a test under development reddening `make ze-precommit-verify` -- for its
-//            author, and worse, for another session sharing the checkout who then
-//            has to decide whether the red is theirs. The whole point of the
-//            directory is that answer is always "no".
+// VALIDATES: test/draft/ is invisible to suite discovery and every recursive
+// .ci check, and SuiteDir routes --draft at the incubator.
+// PREVENTS: a test under development reddening another session's native verify.
 
 package runner
 
@@ -70,34 +67,21 @@ func TestDiscoverIgnoresSubdirectories(t *testing.T) {
 		"Discover must glob one level only; a .ci under a subdirectory is not a test")
 }
 
-// TestDraftDirIsInvisibleToRepoGates is the ratchet.
-//
-// Every gate below walks test/ RECURSIVELY, so each needs an explicit skip. This
-// test asserts the skip is still spelled in each producer. It is a source-text
-// assertion on purpose: the alternative is materializing a fake repo and running
-// six checks against it, which is slower, and two of the six are Python.
-//
-// Adding a new repo-wide .ci scanner? Skip test/draft/ in it and add a row here.
-func TestDraftDirIsInvisibleToRepoGates(t *testing.T) {
+// TestDraftDirIsInvisibleToRepoChecks is the ratchet for recursive .ci readers.
+func TestDraftDirIsInvisibleToRepoChecks(t *testing.T) {
 	repo := filepath.Join("..", "..", "..")
-	for _, g := range []struct {
-		file   string
-		needle string
-		gate   string
+	for _, check := range []struct {
+		file, needle, name string
 	}{
 		{"internal/test/runner/accept_only.go", "isDraftPath(testDir, p)", "accept-only lint"},
 		{"internal/test/runner/ci_fixture_test.go", "isDraftPath(root, path)", "BGP frame-length fixtures"},
-		{"scripts/checks/ci_dispatch_commands.go", "draftTestDir", "dispatch-command check"},
-		{"scripts/dev/verify_wiring_docs.py", "real_ci_files(root)", "ci-sleep ratchet"},
-		{"scripts/dev/ci_observer_recover_check.py", `!= ("draft",)`, "observer-recover check"},
-		{"scripts/dev/docker_exec_checked.py", `== (DRAFT_DIR,)`, "fail-open call-site ratchet"},
-		{"scripts/dev/rfc_requirements.py", "rel.startswith(DRAFT_PREFIX)", "RFC requirement coverage gate"},
+		{"internal/le/docwiring/checks.go", "entry.Name() == DraftDir", "documentation wiring"},
+		{"internal/le/rfc/carriers.go", "strings.HasPrefix(rel, draftPrefix)", "RFC evidence"},
 	} {
-		raw, err := os.ReadFile(filepath.Join(repo, g.file)) //nolint:gosec // repo-relative fixed path
-		require.NoErrorf(t, err, "gate source %s unreadable", g.file)
-		require.Containsf(t, string(raw), g.needle,
-			"%s (%s) no longer skips test/draft/: a test under development will redden it for every session in this checkout",
-			g.file, g.gate)
+		raw, err := os.ReadFile(filepath.Join(repo, check.file)) //nolint:gosec // fixed repository path
+		require.NoErrorf(t, err, "check source %s unreadable", check.file)
+		require.Containsf(t, string(raw), check.needle,
+			"%s (%s) no longer skips test/draft/", check.file, check.name)
 	}
 }
 
@@ -122,24 +106,20 @@ func TestDraftDirIsGitignored(t *testing.T) {
 		"the README must stay tracked, or the convention is undiscoverable from a fresh clone")
 }
 
-// TestDraftReadmeNamesEveryGate keeps the README's table honest: it is the first
-// thing the next author reads, and a stale list there is how a gate gets missed.
-func TestDraftReadmeNamesEveryGate(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "test", "draft", "README.md")) //nolint:gosec // repo-relative fixed path
+// TestDraftReadmeNamesEveryCheck keeps the README's current producer table honest.
+func TestDraftReadmeNamesEveryCheck(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "test", "draft", "README.md")) //nolint:gosec // fixed repository path
 	require.NoError(t, err)
 	body := string(raw)
 	for _, producer := range []string{
 		"accept_only.go",
 		"ci_fixture_test.go",
-		"verify_wiring_docs.py",
-		"ci_observer_recover_check.py",
-		"ci_dispatch_commands.go",
-		"inert_tests.go",
-		"docker_exec_checked.py",
+		"docwiring/checks.go",
+		"rfc/carriers.go",
 	} {
 		require.Containsf(t, body, producer,
-			"test/draft/README.md no longer names %s in its gate table", producer)
+			"test/draft/README.md no longer names %s in its check table", producer)
 	}
-	require.True(t, strings.Contains(body, "TestDraftDirIsInvisibleToRepoGates"),
+	require.True(t, strings.Contains(body, "TestDraftDirIsInvisibleToRepoChecks"),
 		"the README must point at the ratchet so a new scanner's author knows where to register it")
 }

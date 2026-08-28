@@ -13,91 +13,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: observes the peer-up state event, then triggers clean shutdown.
-#
-# This observer used to dispatch `peer * update text nlri ipv4/unicast eor` here.
-# That dispatch could never succeed and proved nothing about the Bus:
-#   - the End-of-RIB the wire expectation below asserts is emitted by ze ITSELF
-#     when the initial route sync drains (log: "end-of-rib suppressed: peer is
-#     still draining its initial route sync ... marker will be emitted by
-#     sendInitialRoutes when the drain completes"), so the dispatch was a second,
-#     redundant EOR;
-#   - ze-peer is a check-mode peer: it closes the connection the moment its
-#     expectations are met, which is BEFORE this callback runs, so the dispatch
-#     lost the race every time and failed with "no established peers to send to".
-# Subscribing to `state` asserts the thing the header actually claims -- the
-# peer-up event reaching a subscribed plugin -- and it cannot race the peer's
-# teardown, because the event fires while the peer is coming UP.
-tmpfs=bus-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, dispatch, runtime_fail
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-
-    # Subscriptions ride the ready RPC, so there is no window in which the peer
-    # could come up unobserved.
-    api.subscribe(['state'])
-    api.ready()
-
-    def is_peer_up(event):
-        if not isinstance(event, dict):
-            return False
-        bgp = event.get('bgp', {})
-        return bgp.get('message', {}).get('type') == 'state' and bgp.get('state') == 'up'
-
-    try:
-        # Read events STRAIGHT after ready(), with nothing in between that also
-        # reads. wait_for_post_startup loops on read_line() and throws away what
-        # it reads (ze_api.py:1281-1297), so calling it here would consume the
-        # peer-up event and this wait would then time out with nothing left to
-        # read -- observed exactly once, which is why it now runs below instead.
-        # refresh.ci:54-58 reads events directly after ready() for this reason.
-        if api.wait_for_event(timeout=10.0, predicate=is_peer_up) is None:
-            runtime_fail('no bgp state=up event delivered to the subscribed plugin')
-
-        print('OK: Bus lifecycle — peer-up state event delivered', file=sys.stderr)
-    finally:
-        # Post-startup means the dispatcher's command registry is frozen, which
-        # is what makes the shutdown dispatch below safe. This is where the wait
-        # belongs: after the events have been read, not before.
-        api.wait_for_post_startup(timeout=5.0)
-        # Post-startup is NOT a barrier for the End-of-RIB the ze-peer expectation
-        # above asserts. The post-startup fan-out runs before StartPeers
-        # (plugin/server/startup.go), and the peer-up event that released this
-        # observer is emitted at peer_run.go before the goroutine that writes the
-        # EOR is even spawned. Shutting the daemon down here therefore races the
-        # frame the peer is waiting for, and the peer reports "connection closed
-        # before completion". Whether the race is lost is decided by how promptly
-        # the host scheduled the daemon, which is why this test passed alone and
-        # failed inside a full verify run.
-        #
-        # wait_peer_eor_sent gates on the product's own per-peer eor-sent counter,
-        # incremented by IncrEORSent (reactor/peer_initial_sync.go) only after the
-        # EOR write to the session succeeded and was flushed. Non-zero means the
-        # frame is already on the wire. This peer negotiates one family and never
-        # flaps, so neither documented caveat of the helper applies.
-        if not api.wait_peer_eor_sent(expected_peers=1):
-            runtime_fail('ze never put the initial-sync end-of-rib on the wire')
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external bus-test {
-		run ./bus-test.run
+		run "ze-test fixture plugin/reactor-bus-subscribe"
 		encoder json
 	}
 }

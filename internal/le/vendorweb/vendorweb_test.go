@@ -138,9 +138,9 @@ func problemsOf(report CheckReport, kind string) []Problem {
 // serves an asset that is in no consumer's source of truth, and every gate
 // reading this verdict stays green while it happens.
 //
-// This is what TestDriftCheckExitsNonZeroOnMismatch (scripts/vendor) proved by
-// reading an exit status. The proof is the same and the seam is closer: the
-// verdict is the error Check answers, and AnswerCheck turns it into the status.
+// The retired subprocess test proved this by reading an exit status. The proof
+// is the same and the seam is closer: the verdict is the error Check answers,
+// and AnswerCheck turns it into the status.
 func TestCheckReportsDriftAndNamesTheCopy(t *testing.T) {
 	const drifted = "internal/component/web/assets/htmx.min.js"
 
@@ -307,10 +307,10 @@ func useRegistry(t *testing.T, rt http.RoundTripper) {
 // sandbox with no egress and every train journey into a red verify that no edit
 // in the tree explains.
 //
-// TestDriftCheckNeedsNoNetwork (scripts/vendor) proved this by pointing the
-// child process at a closed port and reading its output for registry lines. The
-// transport counts the requests instead, so an absent line and an absent
-// request are no longer the same evidence.
+// The retired subprocess test proved this by pointing its transport at a
+// closed port and reading output for registry lines. The transport now counts
+// requests, so an absent line and an absent request are no longer the same
+// evidence.
 func TestCheckMakesNoRegistryCallWithoutUpdates(t *testing.T) {
 	fake := &fakeRegistry{status: http.StatusOK, body: `{"version":"9.9.9"}`}
 	useRegistry(t, fake)
@@ -427,7 +427,7 @@ func TestUpdateReportStopsWhenTheManifestCannotBeRead(t *testing.T) {
 // outside its own package, so one library is vendored once per consumer, and a
 // copy nobody regenerates is a copy that quietly diverges.
 //
-// This is the-sync-restores-an-edited-copy (scripts/vendor/sync_web_test.go) as
+// This is the-sync-restores-an-edited-copy (internal/le/vendorweb/vendorweb_test.go) as
 // a function call. The old case read the file back after a `go run`; this one
 // reads it back after Sync, and also reads the report, which the subprocess
 // could only expose as text.
@@ -449,8 +449,9 @@ func TestSyncRestoresAnEditedConsumerCopy(t *testing.T) {
 	if report.Changed != 1 {
 		t.Errorf("Sync reported %d files changed, want 1: %v", report.Changed, report.Files)
 	}
-	if !strings.Contains(report.Text(), "synced: "+filepath.Join(root, edited)) {
-		t.Errorf("the rendering does not name the file it wrote:\n%s", report.Text())
+	wantText := "synced: " + filepath.Join(root, edited) + "\n"
+	if got := report.Text(); got != wantText {
+		t.Errorf("rendered sync = %q, want %q", got, wantText)
 	}
 }
 
@@ -479,8 +480,8 @@ func TestSyncWritesAMissingCopyAndTheCheckThenPasses(t *testing.T) {
 }
 
 // VALIDATES: a run over a tree already in sync writes nothing and says so.
-// PREVENTS: a generator that rewrites every file it visits. `make generate`
-// would then dirty the working tree on every run and the commit gate would
+// PREVENTS: a generator that rewrites every file it visits. `./le vendor-web
+// sync` would then dirty the working tree on every run and the commit gate would
 // report a change nobody made.
 func TestSyncWritesNothingWhenEverythingMatches(t *testing.T) {
 	root := fixture(t)
@@ -537,7 +538,7 @@ func TestSyncWarnsAboutAMissingConsumerDirectory(t *testing.T) {
 // to date" and exits 0, which is the same answer a genuinely synced tree gets.
 // The check half of this pair has refused that shape since 2026-08-15
 // ("a run that read nothing has proven nothing"); the sync half never did.
-// scripts/vendor/parity_test.go pins the script still failing open, so that
+// internal/le/vendorweb/vendorweb_test.go pins the script still failing open, so that
 // test goes red the day somebody fixes the script -- and the answer then is to
 // delete the script and the test together.
 func TestSyncFailsClosedWhenNoVendoredAssetIsReadable(t *testing.T) {
@@ -558,8 +559,8 @@ func TestSyncFailsClosedWhenNoVendoredAssetIsReadable(t *testing.T) {
 
 // VALIDATES: a destination the run cannot write is an error, because the run
 // was told to write it. It is not a warning it carries on past.
-// PREVENTS: `make generate` exiting 0 having failed to write a file, which
-// leaves the drift gate to report it one commit later.
+// PREVENTS: `./le vendor-web sync` exiting 0 after failing to write a file,
+// which leaves the drift gate to report it one commit later.
 func TestSyncFailsWhenADestinationCannotBeWritten(t *testing.T) {
 	const blocked = "internal/component/web/assets/htmx.min.js"
 
@@ -614,9 +615,9 @@ func TestAnUnknownActionIsRefusedApartFromAFailure(t *testing.T) {
 }
 
 // VALIDATES: the bare command lists its actions, and the listing says which one
-// WRITES. The Python area carried that fact as Gate.writes and printed it as
-// `writes` or `checks` beside the reason (scripts/le/devtools/gate.py,
-// GateSet.render_list).
+// writes. The native action table carries that fact and the shared renderer
+// prints `writes` or `checks` beside the reason
+// (`internal/le/leaction.List.Text`).
 // PREVENTS: a writing tool that reads like a check. A developer picking an
 // action out of a listing has one place to learn that one of the three changes
 // the tree, and it must not be a comment.
@@ -631,9 +632,6 @@ func TestTheListingSaysWhichActionWrites(t *testing.T) {
 		writers[row.Verb] = row.Writes
 		if row.Why == "" {
 			t.Errorf("%s carries no reason, so the listing renders it blank", row.Verb)
-		}
-		if !strings.HasPrefix(row.Gate, "ze-") {
-			t.Errorf("%s names gate %q, which is not a Make target", row.Verb, row.Gate)
 		}
 	}
 

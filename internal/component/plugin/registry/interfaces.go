@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // PluginServerAccessor provides the methods that plugins need from the Server
@@ -16,6 +17,7 @@ type PluginServerAccessor interface {
 	ReactorAny() any            // Returns ReactorLifecycle (any to avoid importing plugin types)
 	ReactorFor(name string) any // Returns named protocol reactor, or nil
 	UpdateProtocolConfig(families, customEvents, customSendTypes []string)
+	SetMetricsRegistry(reg metrics.Registry)
 	SetCommitManager(cm any) // Set commit manager (type-asserted by handlers)
 }
 

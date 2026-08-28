@@ -22,6 +22,12 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+const (
+	fieldPeers = "peers"
+	fieldState = "state"
+	fieldTable = "table"
+)
+
 // handleAPIStatus returns router status in birdwatcher format (GET /api/looking-glass/status).
 func (s *LGServer) handleAPIStatus(w http.ResponseWriter, _ *http.Request) {
 	result := s.query("bgp status")
@@ -208,7 +214,7 @@ func (s *LGServer) handleAPIBMPRoutes(w http.ResponseWriter, r *http.Request) {
 
 // transformBMPProtocols converts BMP peer data to birdwatcher protocols format.
 func transformBMPProtocols(ze map[string]any) map[string]any {
-	peers, _ := ze["peers"].([]any)
+	peers, _ := ze[fieldPeers].([]any)
 
 	protocols := make(map[string]any)
 	for _, p := range peers {
@@ -228,10 +234,10 @@ func transformBMPProtocols(ze map[string]any) map[string]any {
 		name := tb.Str(router).Byte(':').Str(bgpID).String()
 		protocols[name] = map[string]any{
 			"bird_protocol":   name,
-			"state":           state,
+			fieldState:        state,
 			"neighbor_as":     peerAS,
 			"description":     "BMP monitored",
-			"table":           "bmp",
+			fieldTable:        "bmp",
 			"routes_received": 0,
 			"routes_imported": 0,
 			"routes_exported": 0,
@@ -389,7 +395,7 @@ func parseJSON(s string) map[string]any {
 		// Try parsing as array (peer summary returns array).
 		var arr []any
 		if arrErr := json.Unmarshal([]byte(s), &arr); arrErr == nil {
-			return map[string]any{"peers": arr}
+			return map[string]any{fieldPeers: arr}
 		}
 
 		lgLogger.Warn("failed to parse engine response as JSON", "error", err, "length", len(s))
@@ -544,13 +550,13 @@ func transformProtocols(ze map[string]any) map[string]any {
 
 		protocols[name] = map[string]any{
 			"bird_protocol":    name,
-			"state":            getStr(peer, "state"),
+			fieldState:         getStr(peer, fieldState),
 			"state_changed":    getStr(peer, "state-changed"),
 			"neighbor_address": addr,
 			"neighbor_as":      getNum(peer, "remote-as"),
 			"description":      getStr(peer, "description"),
 			"last_error":       getStr(peer, "last-error"),
-			"table":            "master",
+			fieldTable:         "master",
 			// Flat fields for simple consumers.
 			"routes_received": received,
 			"routes_imported": accepted,
@@ -591,11 +597,11 @@ func transformProtocolsShort(ze map[string]any) map[string]any {
 		}
 
 		protocols[name] = map[string]any{
-			"proto": "BGP",
-			"table": "master",
-			"state": getStr(peer, "state"),
-			"since": getStr(peer, "state-changed"),
-			"info":  getStr(peer, "state"),
+			"proto":    "BGP",
+			fieldTable: "master",
+			fieldState: getStr(peer, fieldState),
+			"since":    getStr(peer, "state-changed"),
+			"info":     getStr(peer, fieldState),
 		}
 	}
 
@@ -790,7 +796,7 @@ func getStr(m map[string]any, key string) string {
 // answers only the rows lands here too. Mirrors the navigation in
 // handler_ui.go.
 func summaryPeers(ze map[string]any) []any {
-	peers, _ := ze["peers"].([]any)
+	peers, _ := ze[fieldPeers].([]any)
 	return peers
 }
 

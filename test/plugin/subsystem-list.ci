@@ -15,81 +15,12 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=subsystem-list-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    # Two commands, so the count this test reads is a number this plugin chose.
-    api.declare_command('show subsystem-list-test alpha')
-    api.declare_command('show subsystem-list-test beta')
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        resp = dispatch(api, 'system subsystem list')
-        status = resp.get('status')
-        if status is None:
-            runtime_fail(f'subsystem-list: dispatch returned no status: {resp}')
-        if status != 'done':
-            runtime_fail(f'subsystem-list: status={status} data={resp.get("data")}')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-
-        subsystems = data.get('subsystems', [])
-        count = data.get('count', 0)
-
-        if count < 1:
-            runtime_fail(f'subsystem-list: expected at least 1 subsystem, got {count}')
-
-        for sub in subsystems:
-            if not isinstance(sub, dict):
-                runtime_fail(f'subsystem-list: entry is not a dict: {sub}')
-            for field in ('name', 'stage', 'running', 'command-count'):
-                if field not in sub:
-                    runtime_fail(f'subsystem-list: missing field {field!r} in {sub}')
-
-        mine = [s for s in subsystems if s['name'] == 'subsystem-list-test']
-        if len(mine) != 1:
-            runtime_fail(f'subsystem-list: expected exactly one own row, got {mine}')
-        got = mine[0]['command-count']
-        if got != 2:
-            runtime_fail(
-                f'subsystem-list: command-count={got!r}, want 2. This plugin declared '
-                f'two commands, so a 0 here means the count is not reading the '
-                f'registry dispatch resolves against. Row: {mine[0]}')
-
-        names = [s['name'] for s in subsystems]
-        print(f'OK: subsystem-list returned {count} subsystem(s): {names}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/subsystem-list.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external subsystem-list-test {
-		run ./subsystem-list-test.run
+		run "ze-test fixture plugin/subsystem-list"
 		encoder json
 	}
 }

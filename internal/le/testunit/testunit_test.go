@@ -33,12 +33,12 @@ func fixtureToolchain() gotoolchain.Toolchain {
 // TestTablePinsEveryUnitGroup protects the producer's population, order,
 // package patterns, reasons, and non-writing contract.
 func TestTablePinsEveryUnitGroup(t *testing.T) {
-	want := []Gate{
-		{"ze-unit-bgp-test", "./internal/component/bgp/...", "the BGP component group: reactor, fsm, wire, message, attribute (~1:30)"},
-		{"ze-unit-core-test", "./internal/core/...", "the core leaf libraries every tier above depends on (~30s)"},
-		{"ze-unit-plugins-test", "./internal/plugins/...", "the system plugins: DHCP, NTP, static, firewall, the CLI verb providers (~40s)"},
-		{"ze-unit-config-test", "./internal/component/config/...", "the YANG-modeled config pipeline: file, tree, resolve (~20s)"},
-		{"ze-unit-cli-test", "./internal/component/cli/...", "the CLI: modes, completion, diff, commit, dashboard (~10s)"},
+	want := []Group{
+		{"bgp", "./internal/component/bgp/...", "the BGP component group: reactor, fsm, wire, message, attribute (~1:30)"},
+		{"core", "./internal/core/...", "the core leaf libraries every tier above depends on (~30s)"},
+		{"plugins", "./internal/plugins/...", "the system plugins: DHCP, NTP, static, firewall, the CLI verb providers (~40s)"},
+		{"config", "./internal/component/config/...", "the YANG-modeled config pipeline: file, tree, resolve (~20s)"},
+		{"cli", "./internal/component/cli/...", "the CLI: modes, completion, diff, commit, dashboard (~10s)"},
 	}
 	if got := Table(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("unit group table differs:\n got: %#v\nwant: %#v", got, want)
@@ -49,15 +49,78 @@ func TestTablePinsEveryUnitGroup(t *testing.T) {
 		t.Fatalf("action population is area %q with %d rows, want %q with %d", list.Area, len(list.Actions), Area, len(want))
 	}
 	for index, row := range list.Actions {
-		if row.Verb != want[index].Name || row.Gate != want[index].Name || row.Why != want[index].Why {
+		if row.Verb != want[index].Verb || row.Why != want[index].Why {
 			t.Errorf("action %d differs: %#v", index, row)
 		}
 		if row.Writes {
-			t.Errorf("action %s claims to write", row.Gate)
+			t.Errorf("action %s claims to write", row.Verb)
 		}
-		if len(row.Forks) != 0 {
-			t.Errorf("action %s is still classified as a script fork: %v", row.Gate, row.Forks)
-		}
+	}
+}
+
+// TestBareSweepDerivesEveryDefaultFromTheActionTable protects the action
+// population and order.
+// VALIDATES: bare `le test-unit` runs every table action exactly once.
+// PREVENTS: omitting an action or appending one twice.
+func TestBareSweepDerivesEveryDefaultFromTheActionTable(t *testing.T) {
+	called := make([]string, 0, 2)
+	command := leaction.New("fixture",
+		leaction.Action{
+			Verb: "one",
+			Why:  "first fixture action",
+			Answer: func() (any, int) {
+				called = append(called, "one")
+				return "one report", 0
+			},
+		},
+		leaction.Action{
+			Verb: "two",
+			Why:  "second fixture action",
+			Answer: func() (any, int) {
+				called = append(called, "two")
+				return "two report", 6
+			},
+		},
+	)
+
+	answer, code := sweep(nil, command)
+	if code != 6 {
+		t.Fatalf("bare sweep answered %d, want 6", code)
+	}
+	if !reflect.DeepEqual(called, []string{"one", "two"}) {
+		t.Fatalf("bare sweep calls differ: got %q, want [one two]", called)
+	}
+	report, ok := answer.(leaction.Sweep)
+	if !ok {
+		t.Fatalf("bare sweep returned %T, want leaction.Sweep", answer)
+	}
+	if len(report.Ran) != 2 || report.Ran[0].Verb != "one" || report.Ran[1].Verb != "two" {
+		t.Errorf("structured sweep differs: %#v", report)
+	}
+}
+
+// TestNamedSweepPreservesSelectionOrder proves that an explicit selection is
+// neither expanded to the default nor deduplicated.
+// VALIDATES: selected test-unit actions retain their order and repetitions.
+// PREVENTS: applying the bare-command expansion or deduplication to named actions.
+func TestNamedSweepPreservesSelectionOrder(t *testing.T) {
+	tc := fixtureToolchain()
+	rows := table(tc, func(name string, argv []string, _ string, _ []string) (gaterun.ActionReport, int) {
+		return gaterun.ActionReport{Action: name, Command: argv}, 0
+	}).Actions().Actions
+	selected := []string{rows[2].Verb, rows[0].Verb, rows[2].Verb}
+	called := make([]string, 0, len(selected))
+	command := table(tc, func(name string, argv []string, _ string, _ []string) (gaterun.ActionReport, int) {
+		called = append(called, name)
+		return gaterun.ActionReport{Action: name, Command: argv}, 0
+	})
+
+	if _, code := sweep(selected, command); code != 0 {
+		t.Fatalf("named sweep answered %d", code)
+	}
+	want := []string{Table()[2].Verb, Table()[0].Verb, Table()[2].Verb}
+	if !reflect.DeepEqual(called, want) {
+		t.Errorf("named sweep calls differ: got %q, want %q", called, want)
 	}
 }
 
@@ -73,31 +136,31 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 		"GOMAXPROCS=8",
 	}
 
-	for _, gate := range Table() {
-		t.Run(gate.Name, func(t *testing.T) {
+	for _, group := range Table() {
+		t.Run(group.Verb, func(t *testing.T) {
 			var gotArgv, gotEnvironment []string
-			run := func(name string, argv []string, root string, environment []string) (gaterun.GateReport, int) {
-				if name != gate.Name {
-					t.Errorf("runner received gate %q, want %q", name, gate.Name)
+			run := func(name string, argv []string, root string, environment []string) (gaterun.ActionReport, int) {
+				if name != group.Verb {
+					t.Errorf("runner received action %q, want %q", name, group.Verb)
 				}
 				if root != tc.Root {
 					t.Errorf("runner root is %q, want %q", root, tc.Root)
 				}
 				gotArgv = slices.Clone(argv)
 				gotEnvironment = slices.Clone(environment)
-				return gaterun.GateReport{Gate: name, Command: argv, Code: 0}, 0
+				return gaterun.ActionReport{Action: name, Command: argv, Code: 0}, 0
 			}
 
-			answer, code := table(tc, run).Answer([]string{gate.Name})
+			answer, code := table(tc, run).Answer([]string{group.Verb})
 			if code != 0 {
 				t.Fatalf("action answered %d, want 0", code)
 			}
-			report, ok := answer.(gaterun.GateReport)
-			if !ok || report.Gate != gate.Name || report.Code != 0 {
+			report, ok := answer.(gaterun.ActionReport)
+			if !ok || report.Action != group.Verb || report.Code != 0 {
 				t.Fatalf("action report differs: %#v", answer)
 			}
 
-			wantArgv := []string{"go", "test", "-timeout", "20m", "-tags", fixtureTags, "-race", gate.Pattern}
+			wantArgv := []string{"go", "test", "-timeout", "20m", "-tags", fixtureTags, "-race", group.Pattern}
 			if !reflect.DeepEqual(gotArgv, wantArgv) {
 				t.Errorf("argv differs:\n got: %q\nwant: %q", gotArgv, wantArgv)
 			}
@@ -112,22 +175,22 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 	}
 }
 
-// TestSweepRunsEveryGroupAndReturnsTheFirstFailure pins the gateapp sweep
-// contract: all selected groups run, while the first non-zero status wins.
+// TestSweepRunsEveryGroupAndReturnsTheFirstFailure pins the sweep contract: all
+// selected groups run, while the first non-zero status wins.
 func TestSweepRunsEveryGroupAndReturnsTheFirstFailure(t *testing.T) {
 	tc := fixtureToolchain()
 	codes := map[string]int{
-		"ze-unit-bgp-test":     0,
-		"ze-unit-core-test":    7,
-		"ze-unit-plugins-test": 3,
-		"ze-unit-config-test":  0,
-		"ze-unit-cli-test":     9,
+		"bgp":     0,
+		"core":    7,
+		"plugins": 3,
+		"config":  0,
+		"cli":     9,
 	}
 	called := make([]string, 0, len(codes))
-	run := func(name string, argv []string, _ string, _ []string) (gaterun.GateReport, int) {
+	run := func(name string, argv []string, _ string, _ []string) (gaterun.ActionReport, int) {
 		called = append(called, name)
 		code := codes[name]
-		return gaterun.GateReport{Gate: name, Command: argv, Code: code}, code
+		return gaterun.ActionReport{Action: name, Command: argv, Code: code}, code
 	}
 
 	result, code := answer(
@@ -139,39 +202,49 @@ func TestSweepRunsEveryGroupAndReturnsTheFirstFailure(t *testing.T) {
 	if code != 7 {
 		t.Fatalf("sweep answered %d, want first failure 7", code)
 	}
-	if !reflect.DeepEqual(called, Gates()) {
-		t.Fatalf("sweep call order differs: got %q, want %q", called, Gates())
+	wantOrder := groupVerbs()
+	if !reflect.DeepEqual(called, wantOrder) {
+		t.Fatalf("sweep call order differs: got %q, want %q", called, wantOrder)
 	}
 	report, ok := result.(leaction.Sweep)
 	if !ok {
 		t.Fatalf("sweep returned %T, want leaction.Sweep", result)
 	}
-	wantFailed := []string{"ze-unit-core-test", "ze-unit-plugins-test", "ze-unit-cli-test"}
+	wantFailed := []string{"core", "plugins", "cli"}
 	if !reflect.DeepEqual(report.Failed, wantFailed) {
 		t.Errorf("failed groups differ: got %q, want %q", report.Failed, wantFailed)
 	}
-	if len(report.Ran) != len(Gates()) {
-		t.Fatalf("sweep reports %d runs, want %d", len(report.Ran), len(Gates()))
+	if len(report.Ran) != len(wantOrder) {
+		t.Fatalf("sweep reports %d runs, want %d", len(report.Ran), len(wantOrder))
 	}
 	for _, row := range report.Ran {
-		gateReport, ok := row.Answer.(gaterun.GateReport)
-		if !ok || row.Code != codes[row.Gate] || gateReport.Code != row.Code {
-			t.Errorf("structured report lost status for %s: %#v", row.Gate, row)
+		actionReport, ok := row.Answer.(gaterun.ActionReport)
+		if !ok || row.Code != codes[row.Verb] || actionReport.Code != row.Code {
+			t.Errorf("structured report lost status for %s: %#v", row.Verb, row)
 		}
 	}
+}
+
+func groupVerbs() []string {
+	groups := Table()
+	verbs := make([]string, len(groups))
+	for index, group := range groups {
+		verbs[index] = group.Verb
+	}
+	return verbs
 }
 
 // TestAnswerFailsClosedBeforeStartingGo proves that an unreadable checkout or
 // toolchain manifest cannot turn into a reduced test surface.
 func TestAnswerFailsClosedBeforeStartingGo(t *testing.T) {
 	runnerCalled := false
-	run := func(string, []string, string, []string) (gaterun.GateReport, int) {
+	run := func(string, []string, string, []string) (gaterun.ActionReport, int) {
 		runnerCalled = true
-		return gaterun.GateReport{}, 0
+		return gaterun.ActionReport{}, 0
 	}
 
 	result, code := answer(
-		[]string{"ze-unit-core-test"},
+		[]string{"core"},
 		func() (string, error) { return "", errors.New("root unavailable") },
 		func(string) (gotoolchain.Toolchain, error) { return fixtureToolchain(), nil },
 		run,
@@ -181,7 +254,7 @@ func TestAnswerFailsClosedBeforeStartingGo(t *testing.T) {
 	}
 
 	result, code = answer(
-		[]string{"ze-unit-core-test"},
+		[]string{"core"},
 		func() (string, error) { return "/checkout", nil },
 		func(string) (gotoolchain.Toolchain, error) {
 			return gotoolchain.Toolchain{}, errors.New("feature manifest unavailable")
@@ -210,13 +283,13 @@ func TestRunnerStreamsTheGroupOutputAndPreservesStatus(t *testing.T) {
 		t.Fatalf("link fixture go: %v", err)
 	}
 
-	gate := Table()[3]
+	group := Table()[3]
 	tc := gotoolchain.Toolchain{
 		Root: root, Features: []string{"ze_fixture"}, GoToolchain: "go1.fixture", Procs: 3, Timeout: "41s",
 	}
 	t.Setenv("PATH", bin)
 	t.Setenv("TESTUNIT_GO_FIXTURE", "1")
-	t.Setenv("TESTUNIT_FIXTURE_PATTERN", gate.Pattern)
+	t.Setenv("TESTUNIT_FIXTURE_PATTERN", group.Pattern)
 	t.Setenv("TESTUNIT_FIXTURE_TIMEOUT", tc.Timeout)
 	t.Setenv("TESTUNIT_FIXTURE_TAGS", tc.TestTags())
 	t.Setenv("TESTUNIT_FIXTURE_GOCACHE", filepath.Join(root, "cache", "go-cache"))
@@ -226,19 +299,19 @@ func TestRunnerStreamsTheGroupOutputAndPreservesStatus(t *testing.T) {
 	var answer any
 	var code int
 	stdout, stderr := captureOutput(t, func() {
-		answer, code = table(tc, gaterun.Run).Answer([]string{gate.Name})
+		answer, code = table(tc, gaterun.Run).Answer([]string{group.Verb})
 	})
 	if code != 23 {
 		t.Fatalf("runner answered %d, want 23", code)
 	}
-	report, ok := answer.(gaterun.GateReport)
-	if !ok || report.Code != 23 || report.Gate != gate.Name {
+	report, ok := answer.(gaterun.ActionReport)
+	if !ok || report.Code != 23 || report.Action != group.Verb {
 		t.Fatalf("runner report differs: %#v", answer)
 	}
-	if want := "unit fixture stdout: " + gate.Pattern + "\n"; stdout != want {
+	if want := "unit fixture stdout: " + group.Pattern + "\n"; stdout != want {
 		t.Errorf("stdout differs:\n got: %q\nwant: %q", stdout, want)
 	}
-	wantStderr := "==> " + gate.Name + "\nunit fixture stderr: " + gate.Pattern + "\n"
+	wantStderr := "==> " + group.Verb + "\nunit fixture stderr: " + group.Pattern + "\n"
 	if stderr != wantStderr {
 		t.Errorf("stderr differs:\n got: %q\nwant: %q", stderr, wantStderr)
 	}

@@ -28,64 +28,6 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=ddos-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def check(api, command, keys):
-    resp = dispatch(api, command)
-    status = resp.get('status')
-    if status != 'done':
-        runtime_fail(f'{command}: status={status} data={resp.get("data")}')
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    if data.get('enabled') is not True:
-        runtime_fail(f'{command}: enabled != true (plugin not wired): {data}')
-    for k in keys:
-        if k not in data:
-            runtime_fail(f'{command}: missing {k!r} in {data}')
-    print(f'OK: {command} -> {data}', file=sys.stderr)
-    return data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        status = check(api, 'show ddos status', ['active-attacks', 'incidents'])
-        if status['active-attacks'] != 0:
-            runtime_fail(f'show ddos status: active-attacks != 0 with no traffic: {status}')
-        incs = check(api, 'show ddos incidents', ['incidents'])
-        if not isinstance(incs['incidents'], list):
-            runtime_fail(f'show ddos incidents: incidents not a list: {incs["incidents"]!r}')
-        local = check(api, 'show ddos local', ['active'])
-        if local['active'] is not False:
-            runtime_fail(f'show ddos local: active != false with no attack: {local}')
-        flowspec = check(api, 'show ddos flowspec', ['active'])
-        if flowspec['active'] is not False:
-            runtime_fail(f'show ddos flowspec: active != false with no attack: {flowspec}')
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 ddos {
@@ -111,7 +53,7 @@ ddos {
 
 plugin {
 	external ddos-show-test {
-		run ./ddos-show-test.run
+		run "ze-test fixture plugin/ddos-show"
 		encoder json
 	}
 }

@@ -2,8 +2,8 @@
 //
 // actions.go ports the Python area. `le check-rules ze-discovery-index-check`
 // selected one gate from a GateSet. `le discovery-index check` selects one
-// action from the table below. Each action carries the Make target, the reason
-// that `--list` printed, and whether it WRITES.
+// action from the table below. Each action carries its retired target identity,
+// the reason that `--list` printed, and whether it WRITES.
 //
 // The dispatch, the listing, the help line and the two refusals live in
 // internal/le/leaction. What stays here is the TABLE, because the table is the only
@@ -24,17 +24,11 @@ const area = "discovery-index"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-discovery-index-check",
-		Why:    "ai/PACKAGE-MAP.md is current with the tree",
-		Answer: func() (any, int) { return run(Check) },
-	},
-	leaction.Action{
-		Gate:   "ze-discovery-index-update",
-		Why:    "regenerate ai/PACKAGE-MAP.md",
+	leaction.Action{Verb: "check", Why: "ai/PACKAGE-MAP.md is current with the tree",
+		Answer: func() (any, int) { return run(Check) }},
+	leaction.Action{Verb: "update", Why: "regenerate ai/PACKAGE-MAP.md",
 		Writes: true,
-		Answer: func() (any, int) { return run(Update) },
-	},
+		Answer: func() (any, int) { return run(Update) }},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line

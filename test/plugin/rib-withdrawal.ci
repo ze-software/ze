@@ -15,7 +15,7 @@ option=tcp_connections:value=2
 option=timeout:value=15s
 
 # Connection A: Route announcement + withdrawal + EOR
-# Both announce and withdrawal are queued pre-session (Python plugin sends
+# Both announce and withdrawal are queued pre-session (native plugin sends
 # during startup, before peers connect). sendInitialRoutes drains both from
 # the opQueue before sending EOR.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
@@ -27,49 +27,13 @@ action=notification:conn=1:seq=2:text=Peer Reset
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python plugin script
-tmpfs=rib-withdrawal.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""
-Test: Withdrawn routes not replayed on reconnect
-
-Flow:
-1. Send route via API -> RIB stores in ribOut
-2. Withdraw route via API -> RIB removes from ribOut
-3. Test peer disconnects
-4. ZeBGP reconnects
-5. RIB replays nothing (route was withdrawn)
-"""
-
-import time
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-
-def main() -> None:
-    ready()
-
-    # Send one route
-    send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
-    wait_for_ack(expected_count=1)
-
-    # Withdraw the route
-    send('peer * update text nlri ipv4/unicast del 192.168.1.0/24')
-    wait_for_ack(expected_count=1)
-
-    # Wait for reconnect cycle to complete
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# native plugin script
+# Native compiled fixture: plugin/rib-withdrawal
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run ./rib-withdrawal.run
+		run "ze-test fixture plugin/rib-withdrawal"
 		encoder json
 	}
 	internal bgp-rib {

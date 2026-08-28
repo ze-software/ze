@@ -69,12 +69,12 @@ func (f Facts) Equal(other Facts) bool {
 	return true
 }
 
-// StructuralFacts reads the three gated facts off one record.
+// structuralFacts reads the three gated facts off one record.
 //
 // The order is fixed so the shared precondition -- a non-empty metric list --
 // is checked before any per-fact guard, and so each fact's failure is
 // attributable to its own guard rather than to whichever sibling ran first.
-func StructuralFacts(metrics []object) (Facts, error) {
+func structuralFacts(metrics []object) (Facts, error) {
 	statuses, err := readStatuses(metrics)
 	if err != nil {
 		return Facts{}, err
@@ -241,7 +241,7 @@ func gatedList(byKey map[string]object, metricKey, listField string,
 		return nil, collectErrorf(
 			"the `%s` metric carries no `%s` field. A snapshot written before the field "+
 				"existed has no answer here, which is not the same as zero. Run "+
-				"`make ze-test-health-update` and commit %s", metricKey, listField, Latest)
+				"`./le test-health update` and commit %s", metricKey, listField, Latest)
 	}
 	listed, isList := metric.get(listField).([]any)
 	if !isList {
@@ -260,7 +260,7 @@ func gatedList(byKey map[string]object, metricKey, listField string,
 		return nil, collectErrorf(
 			"`%s` lists %d entry(ies) in `%s` but counts %d in `%s`. Both come from the same "+
 				"data, so they have diverged: the snapshot is stale, or the list is truncated. "+
-				"Run `make ze-test-health-update` and commit %s",
+				"Run `./le test-health update` and commit %s",
 			metricKey, len(listed), listField, number, countPath, Latest)
 	}
 	return listed, nil

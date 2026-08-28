@@ -2,94 +2,9 @@
 # Covers the arm64 user path with default kernel/initrd lookup and verifies the
 # generated staging tree carries arm64-specific EFI and kernel-console settings.
 
-# Underscore form: /bin/sh (dash) drops dotted names from the environment, so
-# the dotted spelling never survives into sh-script children. ze's env lookup
-# treats dots and underscores as equivalent (internal/core/env/env.go:40).
+# The underscore spelling is equivalent to the dotted appliance environment key.
 option=env:var=ze_appliance_ssh_password:value=secret
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
-# Default kernel/initrd lookup surface (internal/appliance/cmd_iso.go:299-316):
-# the iso path resolves the kernel profile fragments from
-# tools/installer-kernel/ (kernelreg.go), gates on build/kernel/.variant
-# matching "<arch>-<profile>-<kernel.version>-", and reads
-# build/kernel/Image + build/initrd/initrd.img.gz. The kernel version comes
-# from internal/appliance/kernel.version (single source of truth) via
-# ZE_REPO_ROOT so this fixture survives kernel bumps.
-mkdir -p appliances tools/installer-kernel build/kernel build/initrd
-: > tools/installer-kernel/kernel.config
-: > tools/installer-kernel/kernel.require
-: > tools/installer-kernel/qemu.config
-: > tools/installer-kernel/qemu.require
-python3 -c "
-import struct, sys
-buf = bytearray(0x206)
-struct.pack_into('<I', buf, 56, 0x644d5241)  # arm64 magic
-sys.stdout.buffer.write(buf)
-" > build/kernel/Image
-kver=$(cat "${ZE_REPO_ROOT:?}/internal/appliance/kernel.version")
-printf 'arm64-qemu-%s-test\n' "$kver" > build/kernel/.variant
-printf 'initrd-arm64\n' > build/initrd/initrd.img.gz
-cat > grub-mkstandalone <<'EOF_GRUB'
-#!/bin/sh
-set -eu
-target=""
-out=""
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -O) target="$2"; shift 2 ;;
-    -o) out="$2"; shift 2 ;;
-    *) shift ;;
-  esac
-done
-[ "$target" = "arm64-efi" ]
-printf '%s\n' "$target" > grub.target
-printf 'efi-arm64\n' > "$out"
-EOF_GRUB
-chmod +x grub-mkstandalone
-cat > xorriso <<'EOF_XORRISO'
-#!/bin/sh
-set -eu
-out=""
-image=""
-stage=""
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -as) shift 2 ;;
-    -R|-J|-eltorito-alt-boot|-no-emul-boot) shift ;;
-    -o) out="$2"; shift 2 ;;
-    -e) image="$2"; shift 2 ;;
-    *) stage="$1"; shift ;;
-  esac
-done
-[ -f "$stage/$image" ]
-printf 'iso-arm64\n' > "$out"
-EOF_XORRISO
-chmod +x xorriso
-export PATH="$PWD:$PATH"
-ze appliance --dir appliances init --config iso-config.json lab >/dev/null 2>&1
-printf 'image-bytes\n' > appliances/lab/ze-20260101-000000.img
-python3 - <<'PY'
-from pathlib import Path
-import hashlib
-p = Path('appliances/lab/ze-20260101-000000.img')
-p.with_suffix(p.suffix + '.sha256').write_text(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n')
-PY
-ze appliance --dir appliances iso --keep-staging lab >/dev/null
-set -- appliances/lab/.iso-staging-*
-stage="$1"
-[ -d "$stage" ]
-[ -f "$stage/EFI/BOOT/BOOTAA64.EFI" ]
-[ -f "$stage/EFI/BOOT/efiboot.img" ]
-# Serial console first, tty0 last (producer: internal/appliance/cmd_iso.go:771)
-grep -q 'console=ttyAMA0,115200n8 console=tty0' "$stage/boot/grub/grub.cfg"
-grep -q 'search --no-floppy --file /ze-install/media-id --set=root' "$stage/boot/grub/grub.cfg"
-[ -f "$stage/ze-install/images/ze-20260101-000000.img.gz" ]
-grep -q 'ze.image=ze-20260101-000000.img.gz' "$stage/boot/grub/grub.cfg"
-[ "$(cat grub.target)" = "arm64-efi" ]
-echo OK
-EOF_SH
 
 tmpfs=iso-config.json:terminator=EOF_JSON
 {
@@ -105,6 +20,6 @@ tmpfs=iso-config.json:terminator=EOF_JSON
 }
 EOF_JSON
 
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture appliance/appliance-iso-arm64
 expect=exit:code=0
 expect=stdout:contains=OK

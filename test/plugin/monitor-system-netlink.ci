@@ -11,83 +11,13 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for monitor system netlink
-tmpfs=monitor-system-netlink-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        result = dispatch(api, 'monitor system netlink')
-        status = result.get('status')
-        if status is None:
-            runtime_fail(f'netlink monitor: dispatch returned no status: {result}')
-
-        data = result_text_data(result)
-        if isinstance(data, str) and 'not available on this platform' in data:
-            print('OK: netlink monitor not available on this platform (expected on non-Linux)', file=sys.stderr)
-            return
-
-        if status != 'done':
-            runtime_fail(f'netlink monitor: status={status} data={data}')
-
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-
-        monitor_status = data.get('status', '')
-        if monitor_status != 'monitor-configured':
-            runtime_fail(f'expected monitor-configured, got {monitor_status}')
-
-        group = data.get('group', '')
-        if group != 'all':
-            runtime_fail(f'expected group=all, got {group}')
-
-        print(f'OK: monitor system netlink returned status={monitor_status} group={group}', file=sys.stderr)
-
-        result2 = dispatch(api, 'monitor system netlink route')
-        data2 = result2.get('data', {})
-        if isinstance(data2, str) and data2:
-            data2 = json.loads(data2)
-        if isinstance(data2, dict) and data2.get('group') != 'route':
-            runtime_fail(f'expected group=route, got {data2.get("group")}')
-
-        print('OK: monitor system netlink route returned group=route', file=sys.stderr)
-
-        result3 = dispatch(api, 'monitor system netlink bogus')
-        if result3.get('status') != 'error':
-            runtime_fail(f'expected error for bogus group, got {result3}')
-
-        print('OK: monitor system netlink bogus returned error', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer exercises monitor system netlink and its group validation.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external monitor-system-netlink-test {
-		run ./monitor-system-netlink-test.run
+		run "ze-test fixture plugin/monitor-system-netlink"
 		encoder json
 	}
 }

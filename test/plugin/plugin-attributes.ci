@@ -14,39 +14,13 @@ cmd=api:conn=1:seq=5:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python plugin script
-tmpfs=attributes.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-
-def main() -> None:
-    ready()
-
-    messages = [
-        'peer * update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32',
-        'peer * update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.2/32',
-        'peer * update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri ipv4/unicast add 2.0.0.1/32',
-        'peer * update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri ipv4/unicast add 2.0.0.2/32',
-    ]
-
-    for message in messages:
-        send(message)
-
-    wait_for_ack(expected_count=4)
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native plugin route driver.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external add-remove {
-		run ./attributes.run
+		run "ze-test fixture plugin/plugin-attributes"
 		encoder json
 	}
 }

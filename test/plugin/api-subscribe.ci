@@ -9,59 +9,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for subscribe
-tmpfs=subscribe-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        result = dispatch(api, 'request subscribe bgp event update')
-        if result.get('status') != 'done':
-            print(f'FAIL: subscribe status={result.get("status")} data={result.get("data")}', file=sys.stderr)
-            sys.exit(1)
-
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-        ns = data.get('namespace', '')
-        ev = data.get('event', '')
-        if ns != 'bgp' or ev != 'update':
-            print(f'FAIL: expected bgp/update, got {ns}/{ev}', file=sys.stderr)
-            sys.exit(1)
-
-        print(f'OK: subscribed to {ns} event {ev}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native test plugin: exercises dispatch-command for subscribe
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external subscribe-test {
-		run ./subscribe-test.run
+		run "ze-test fixture plugin/api-subscribe"
 		encoder json
 	}
 }

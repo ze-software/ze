@@ -13,76 +13,11 @@
 # External-plugin daemon test (see ospf-ldp-sync-show.ci); runs in CI / QEMU.
 option=skip-os:value=darwin
 
-tmpfs=ospf-ldp-sync-broadcast.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert a broadcast ldp-sync interface is driven not-synchronized -> synchronized."""
-
-import json
-import sys
-import time
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def ldp_row(api, iface):
-    rows = result_json_data(dispatch(api, 'show ospf ldp-sync'), None) or []
-    for r in rows:
-        if isinstance(r, dict) and r.get('interface') == iface:
-            return r
-    return None
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    row = ldp_row(api, 'eth0')
-    if row is None or row.get('state') != 'not-synchronized':
-        runtime_fail(f"initial broadcast eth0 = {row!r}, want not-synchronized")
-
-    api._call_engine('ze-plugin-engine:emit-event', {
-        'namespace': 'ldp',
-        'event-type': 'session-up',
-        'event': json.dumps({'interface': 'eth0', 'session-state': 'operational'}),
-    })
-
-    deadline = time.time() + 6.0
-    while time.time() < deadline:
-        row = ldp_row(api, 'eth0')
-        if row and row.get('state') == 'synchronized':
-            break
-        # poll interval; the loop above breaks once the ldp-sync state reaches synchronized, bounded wait not a blind sleep
-        time.sleep(0.2)
-    if row is None or row.get('state') != 'synchronized':
-        runtime_fail(f"broadcast eth0 did not synchronize; last = {row!r}")
-
-    print('OK: broadcast ldp-sync interface driven to synchronized', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-ldp-sync-broadcast {
-		run ./ospf-ldp-sync-broadcast.run
+		run "ze-test fixture ospf/ospf-ldp-sync-broadcast"
 		encoder json
 	}
 }
@@ -114,7 +49,7 @@ EOF_CONF
 # bound the test actually asserts is the 6s poll above, which runtime_fails when
 # the state does not reach synchronized. At 20s the budget covered plugin startup
 # plus that poll only on an idle host, and the test timed out inside a full
-# `make ze-precommit-verify` (22 suites at once) while passing 89/89 in 13.1s on its own.
+# `./le verify current mode full` (22 suites at once) while passing 89/89 in 13.1s on its own.
 cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=broadcast ldp-sync interface driven to synchronized

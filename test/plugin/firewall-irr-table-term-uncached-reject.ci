@@ -10,7 +10,7 @@
 #
 # Flow:
 # 1. The daemon starts with no firewall table and fetches nothing.
-# 2. trigger.sh swaps in a config carrying a term for AS-MISSING and SIGHUPs.
+# 2. The native reload driver swaps in a config carrying a term for AS-MISSING and SIGHUPs.
 # 3. The commit is refused, and no table reaches the kernel.
 
 # This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
@@ -33,55 +33,12 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=30s
 
-tmpfs=firewall-irr-table-term-uncached.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Commit a table term for an AS-SET nobody fetched, and check it is refused."""
-import os
-import sys
-from ze_api import API, runtime_fail
 
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    with open('observer.ready', 'w') as f:
-        f.write('ok')
-
-    if not api.wait_until(lambda: os.path.exists('reload.done'), attempts=200, delay=0.1):
-        runtime_fail('trigger.sh never created reload.done marker')
-
-    # The refused commit must leave the kernel as it was: no ze_wan table.
-    result = api.dispatch_until_done('show firewall ruleset wan')
-    if result.get('status') == 'done':
-        runtime_fail(f'the refused config reached the kernel anyway: {result}')
-    print('OK: the uncached table term did not reach the kernel', file=sys.stderr)
-
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-# Swap in a config whose term names an AS-SET nobody fetched.
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-while [ ! -f observer.ready ]; do sleep 0.1; done
-cp config2.conf ze-bgp.conf
-kill -HUP $(cat daemon.pid)
-touch reload.done
-EOF_TRIGGER
 
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external firewall-irr-table-term-uncached-test {
-		run ./firewall-irr-table-term-uncached.run
+		run "ze-test fixture plugin/firewall-irr-table-term-uncached-reject"
 		encoder json
 	}
 }
@@ -126,7 +83,7 @@ EOF_CONF2
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-table-term-uncached-test {
-		run ./firewall-irr-table-term-uncached.run
+		run "ze-test fixture plugin/firewall-irr-table-term-uncached-reject"
 		encoder json
 	}
 }
@@ -152,7 +109,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-test irr --port $PORT2
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture plugin/firewall-irr-table-term-uncached-reject/reload
 cmd=foreground:seq=3:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=no cached prefix data for as-set AS-MISSING

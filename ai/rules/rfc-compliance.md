@@ -97,7 +97,7 @@ Rationale: `ai/rationale/rfc-compliance.md`
 
 **A summary whose forward Meta row names a successor MUST carry a
 `{superseded: ...}` marker on EVERY requirement line it declares.**
-`check_superseded` (`scripts/dev/rfc_requirements.py`) refuses the summary
+`check_superseded` (`internal/le/rfc/rfc.go`) refuses the summary
 otherwise. The row used to be prose nobody read. Seven summaries declare
 themselves obsoleted, six of them enrolled, and the gate treated all seven as
 current documents. A reader who opened one of their 230 requirement lines saw a
@@ -147,7 +147,7 @@ MUST NOT be treated as closing it.
 
 ## Extraction Completeness (BLOCKING when enrolling a summary)
 
-`make ze-rfc-check` verifies that every requirement **listed** in a summary is
+`./le rfc check` verifies that every requirement **listed** in a summary is
 covered. It cannot know about an obligation nobody wrote down. A green gate is
 bounded by what was extracted, so a missing extraction is invisible to it and to
 any audit that only re-checks classifications.
@@ -163,11 +163,11 @@ the file.
 
 | Step | Command / file |
 |------|----------------|
-| Write the unclassified skeleton | `make ze-rfc-extraction-create STEM=<stem>` |
+| Write the unclassified skeleton | `./le rfc extraction-create STEM=<stem>` |
 | Classify every derived site and section by hand | `rfc/extraction/<stem>.json` |
-| Re-check the arithmetic | `make ze-rfc-check` |
+| Re-check the arithmetic | `./le rfc check` |
 | Read the published backlog | `ai/RFC-REQUIREMENTS.md`, "Extraction sign-off" |
-| Read the counts machine-readably | `make ze-rfc-extraction-status` |
+| Read the counts machine-readably | `./le rfc extraction-status` |
 
 **The contract is `rfc/extraction/README.md`.** Five properties SHOULD be known before you meet one.
 
@@ -194,7 +194,7 @@ the bound path.
 
 ## What Keeps RFC Testing Valid (the eight ratchets)
 
-`make ze-rfc-check` reads the WORKING TREE to judge coverage, and a tree cannot tell
+`./le rfc check` reads the WORKING TREE to judge coverage, and a tree cannot tell
 "never proven" from "stopped being proven". Eight comparisons against HEAD supply that
 difference. Each fires only on a real downgrade, so a green run means the evidence held,
 not that nobody looked.
@@ -241,7 +241,7 @@ waves its deletion through, after which the test is unguarded and a self-written
 sits on the doc comment, so a hunk-scoped guard misses exactly the edit it exists to stop)
 and not the whole file (which blocked 331 of 3220 untagged helper functions).
 
-**A tagged test's assertions MUST NOT be weakened *in place* while keeping the same shape.** None of the eight ratchets catches that: `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`), catch it instead, wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
+**A tagged test's assertions MUST NOT be weakened *in place* while keeping the same shape.** None of the eight ratchets catches that: `c_test_weakening` and `./le commit audit`, plus the SHA ratchet (`check_audit_freshness`), catch it instead, wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
 
 ## Before Implementing BGP Features
 

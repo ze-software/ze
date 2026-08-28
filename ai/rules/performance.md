@@ -168,8 +168,7 @@ Pool `New` func, session buffer creation, cached encoding, result copies to call
 4. `make([]byte)`? → Get from pool
 5. Type has `WriteTo`? → Use it
 
-Enforced by the `encoding-alloc` check in `.claude/hooks/pretool-writeedit.py`
-(BLOCKING). Audit: `/ze-find-alloc`. Fix: `/ze-fix-alloc file:line`.
+`writeGoPatterns` in `internal/le/hookruntime/writeedit.go` blocks allocation-heavy formatting and fake buffer handles. Audit the full encoding path with `/ze-find-alloc`; fix it with `/ze-fix-alloc file:line`.
 
 ### Text/JSON Format Generation
 
@@ -339,7 +338,7 @@ Is this on a per-UPDATE / per-route / per-NLRI path?
 | Building `[]string` + `strings.Join` in a loop | N+1 allocations | Single `textbuf.Buffer` outside the loop |
 | `string(bytes)` + comparison in a filter | Allocates the string | Compare bytes directly or use typed value |
 | `map[string]V` keyed by value from a known set | String keys cost: hash over bytes, GC scans pointers | `map[uint16]V` or `map[TypedEnum]V`; parse string at boundary (`ai/rules/go-standards.md`) |
-| `BufHandle{Buf: make(...)}` | Corrupts pool tracking | Only use pool-issued BufHandles (hook `block-fake-bufhandle.sh` enforces) |
+| `BufHandle{Buf: make(...)}` | Corrupts pool tracking | Only use pool-issued BufHandles; `writeGoPatterns` in `internal/le/hookruntime/writeedit.go` enforces |
 
 ## Three Rules
 

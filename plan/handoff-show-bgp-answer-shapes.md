@@ -23,7 +23,7 @@ produces the two closure commits.
 
 ## The commits to review
 
-Ten, in order. `make ze-repository-tracked-build-check` was run and passed after
+Ten, in order. `./le repository-tracked-build check` was run and passed after
 every one that carried Go.
 
 | SHA | Subject |
@@ -51,7 +51,7 @@ Both are dirty in the working tree and neither can be committed before closure.
     plan/journal/documentation-shows-config-the-parser-refuses.md
 
 Each holds a row whose Spec cell names one of these two specs, and
-`spec_audit_problems` (`scripts/dev/commit_helper.py`) reads a spec-named row as
+`spec_audit_problems` (`internal/le/commit/prepare.go`) reads a spec-named row as
 that spec's closure artifact. It then refuses because the spec has no filled
 `## Pre-Commit Verification` section. At closure that section IS filled, so the
 refusal lifts and the rows land where they belong.
@@ -109,7 +109,7 @@ mistake.
 ## Verification debt
 
 Session `5ac14170` holds 20 open rows in `plan/verification-debt/5ac14170.md`.
-`make ze-verify-debt-clear` was started at the end of this session; read that
+the retired `ze-verify-debt-clear` (current: `./le commit debt-clear`) was started at the end of this session; read that
 shard for the outcome rather than assuming it cleared. `--push` refuses while
 any row is open, and a successful push is not evidence: the 2026-08-24 push went
 through by hand, outside `commit_helper.py`, so it bypassed the debt gate.

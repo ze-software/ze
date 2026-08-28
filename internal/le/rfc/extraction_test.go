@@ -265,7 +265,7 @@ func TestAnUnsignedSkeletonParsesAndStillFailsTheCheck(t *testing.T) {
 		t.Errorf("the skeleton claims a sign-off: %+v", art)
 	}
 
-	signed, errs, err := EvaluateExtractions(NewDeriver(tree), nil)
+	signed, errs, err := evaluateExtractions(NewDeriver(tree), nil)
 	if err != nil {
 		t.Fatalf("EvaluateExtractions: %v", err)
 	}
@@ -288,11 +288,11 @@ func TestCreditIsScopedToTheEnrolledSet(t *testing.T) {
 		"rfc1": {Stem: "rfc1", Register: registerProse},
 		"rfc2": {Stem: "rfc2", Register: registerRFC2119},
 	}
-	signed := Credited(valid, map[string]bool{"rfc1": true})
+	signed := credited(valid, map[string]bool{"rfc1": true})
 	if len(signed) != 1 {
 		t.Fatalf("credited: %v", signed)
 	}
-	counts := RegisterCounts(signed)
+	counts := registerCounts(signed)
 	if counts[registerProse] != 1 || counts[registerRFC2119] != 0 {
 		t.Errorf("the split is %v", counts)
 	}
@@ -412,8 +412,8 @@ func TestEachFailureAnswersItsOwnExitCode(t *testing.T) {
 	if _, code := Answer([]string{"no-such-action"}); code != 2 {
 		t.Errorf("an action this area does not hold answered %d, want 2", code)
 	}
-	if _, code := Answer([]string{"extraction-status", "rfc7606"}); code != 1 {
-		t.Errorf("a value after an action that takes none answered %d, want 1", code)
+	if _, code := Answer([]string{"extraction-status", "rfc7606"}); code != 2 {
+		t.Errorf("a value after an action that takes none answered %d, want 2", code)
 	}
 	listing, code := Answer(nil)
 	if code != 0 {
@@ -434,19 +434,21 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 	}
 	writes := map[string]bool{}
 	for _, row := range list.Actions {
-		if row.Gate == "" || row.Why == "" {
-			t.Errorf("action %q carries no gate or no reason: %+v", row.Verb, row)
+		if row.Why == "" {
+			t.Errorf("action %q carries no reason: %+v", row.Verb, row)
 		}
 		if row.Writes {
 			writes[row.Verb] = true
 		}
 	}
-	// Exactly two ported actions change the tree, and each one owns a directory
-	// nothing else writes: the re-seal owns rfc/audit/, and the generator owns
-	// ai/RFC-REQUIREMENTS.md and rfc/requirements/. Read-only is the default and
-	// the listing prints the exception, so a reader never has to look it up.
-	if len(writes) != 2 || !writes["reseal"] || !writes["index-update"] {
-		t.Errorf("the actions that write are %v, want exactly [index-update reseal]",
+	// Exactly three ported actions change the tree, and each one owns its
+	// output: extraction-create owns one rfc/extraction artifact, re-seal owns
+	// rfc/audit/, and the generator owns ai/RFC-REQUIREMENTS.md plus
+	// rfc/requirements/. Read-only is the default and the listing prints the
+	// exception, so a reader never has to look it up.
+	if len(writes) != 3 || !writes["extraction-create"] || !writes["reseal"] ||
+		!writes["index-update"] {
+		t.Errorf("the actions that write are %v, want exactly [extraction-create index-update reseal]",
 			sortedKeys(writes))
 	}
 	if Subs() == "" {

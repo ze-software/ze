@@ -17,12 +17,12 @@ other implementation.
 
 ### Required interop test by protocol
 
-| Protocol area | Test infrastructure | Directory | Make target |
-|---------------|--------------------|-----------|----|
-| BGP (session, capability, NLRI, community, policy) | Docker: FRR, BIRD, GoBGP | `test/interop/scenarios/` | `make ze-interop-test` |
-| IPsec (IKEv2, EAP, MOBIKE) | Docker: strongSwan | `test/interop-ipsec/` | `make ze-interop-ipsec-test` |
+| Protocol area | Test infrastructure | Directory | Native action |
+|---------------|---------------------|-----------|---------------|
+| BGP (session, capability, NLRI, community, policy) | Docker: FRR, BIRD, GoBGP | `test/interop/scenarios/` | `./le integration interop` |
+| IPsec (IKEv2, EAP, MOBIKE) | Docker: strongSwan | `test/interop-ipsec/` | `./le integration interop-ipsec` |
 | L2TP | Docker | `test/interop-l2tp/` | (L2TP runner) |
-| PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `make ze-deployment-docker-pppoe-accel-test` |
+| PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le deployment docker-pppoe-accel-test` |
 
 ### What must be tested
 
@@ -45,7 +45,7 @@ other implementation.
 
 ### Interop scenario structure
 
-**An interop scenario directory MUST be NAMED and MUST NOT carry a numeric prefix, and a spec planning a future scenario MUST name it too** (owner directive, 2026-08-24). The directory name is the scenario's identity: `run.py` filters on it by exact equality, an operator types it after `IPSEC_INTEROP_SCENARIO=`, and specs, journal rows and code comments cite it.
+**An interop scenario directory MUST be NAMED and MUST NOT carry a numeric prefix, and a spec planning a future scenario MUST name it too** (owner directive, 2026-08-24). The directory name is the scenario's identity: `internal/le/interoplab.Discover` matches it exactly, the native `./le integration` action accepts it through its scenario selector, and specs, journal rows and code comments cite it.
 
 A number adds nothing a name does not carry, and it goes stale in two ways a
 name cannot: a deleted scenario leaves a hole no reader can tell from a
@@ -61,17 +61,18 @@ each gets its own `setup()`, `run_check()` and `teardown()` in that loop, so
 they are independent by construction and the number encoded a sequence that was
 never a dependency.
 
-Each scenario in `test/interop/scenarios/` follows the established pattern:
-- `ze.conf`: ze configuration for the scenario
-- `<peer>.conf`: peer daemon configuration (frr.conf, bird.conf, etc.)
-- `check.py`: Python script with a `check()` function that asserts the expected behavior
+Each scenario under `test/interop*/scenarios/` carries the declarative inputs
+that its native runner reads: `ze.conf` plus the peer configuration and argument
+files required by that topology. Assertions do not live in the scenario
+directory. They are typed Go checkers under `internal/le/interoplab/`.
 
-The `check.py` MUST:
-1. Wait for session establishment (`wait_session`)
-2. Assert the specific protocol behavior being tested (route presence, capability negotiation, etc.)
-3. Verify session stability after the exchange (`session_established`)
-4. Use `log_pass`/`log_fail` for clear output
-5. Raise on failure (AssertionError or RuntimeError)
+Every scenario MUST have an exact-name entry in the owning native checker
+registry. BGP uses the package-local `checkers` registry and typed operations in
+`internal/le/interoplab/bgp`; IPsec uses `scenarioCheckers` in
+`internal/le/interoplab/ipsec`. The checker MUST wait for readiness, assert the
+protocol behavior, verify stability where the scenario requires it, and return
+an error on failure. `interoplab.Discover` fails closed when a fixture and its
+checker registry disagree.
 
 ## Prove the test discriminates (BLOCKING)
 

@@ -67,12 +67,13 @@ European collector with full feeds.
 
 ## Quick Download
 
-Use `download.sh` for automatic recompression to gzip -9:
+Use the native analyzer command. It writes gzip-compatible files under
+`test/internet` by default:
 
 ```bash
-./download.sh                # today @ 0000
-./download.sh 20251220       # specific date
-./download.sh 20251220 1200  # specific date+time
+bin/ze-analyze download
+bin/ze-analyze download 20251220
+bin/ze-analyze download 20251220 1200
 ```
 
 Manual download examples:

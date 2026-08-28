@@ -45,7 +45,7 @@ func TestTheRealCheckoutPassesTheRatchet(t *testing.T) {
 	}
 	verdict := Judge(result, baseline)
 	if !verdict.Result.Valid {
-		t.Errorf("this checkout fails the sensitivity ratchet:\n%s", verdict.Breach())
+		t.Errorf("this checkout fails the sensitivity ratchet:\n%s", verdict.breach())
 	}
 }
 
@@ -86,9 +86,9 @@ func TestTheRatchetCanActuallyDeny(t *testing.T) {
 	if fired.Text() != "" {
 		t.Errorf("a firing ratchet rendered a verdict line: %q", fired.Text())
 	}
-	for _, want := range []string{"assert-nothing count 1 exceeds baseline 0", "tag-orphan count 1 exceeds baseline 0", "a_test.go:3 TestA", "make ze-test-health-update"} {
-		if !strings.Contains(fired.Breach(), want) {
-			t.Errorf("the breach has no %q:\n%s", want, fired.Breach())
+	for _, want := range []string{"assert-nothing count 1 exceeds baseline 0", "tag-orphan count 1 exceeds baseline 0", "a_test.go:3 TestA", "./le test-health update"} {
+		if !strings.Contains(fired.breach(), want) {
+			t.Errorf("the breach has no %q:\n%s", want, fired.breach())
 		}
 	}
 
@@ -99,13 +99,13 @@ func TestTheRatchetCanActuallyDeny(t *testing.T) {
 	if !strings.Contains(passed.Text(), "test-sensitivity: OK (assert-nothing 1/1, tag-orphan 1/1, 2 test files)") {
 		t.Errorf("the passing verdict is %q", passed.Text())
 	}
-	if passed.Breach() != "" {
-		t.Errorf("a passing ratchet on its floors reported a breach: %q", passed.Breach())
+	if passed.breach() != "" {
+		t.Errorf("a passing ratchet on its floors reported a breach: %q", passed.breach())
 	}
 
 	slack := Judge(result, Baseline{AssertNothing: 5, TagOrphan: 5})
-	if !strings.Contains(slack.Breach(), "baseline is slack") {
-		t.Errorf("a slack floor was not reported:\n%s", slack.Breach())
+	if !strings.Contains(slack.breach(), "baseline is slack") {
+		t.Errorf("a slack floor was not reported:\n%s", slack.breach())
 	}
 }
 
@@ -150,7 +150,7 @@ func TestABadBaselineIsRefused(t *testing.T) {
 func TestEveryAssertCaseDrawsWhatItDeclares(t *testing.T) {
 	inert, asserting := 0, 0
 	for _, testCase := range assertCases {
-		got, err := CountInert(testCase.src, nil)
+		got, err := countInert(testCase.src, nil)
 		if err != nil {
 			t.Fatalf("case %q: %v", testCase.name, err)
 		}
@@ -173,14 +173,14 @@ func TestEveryAssertCaseDrawsWhatItDeclares(t *testing.T) {
 // PREVENTS: the follow becoming a blanket pardon for every function that happens
 // to take a *testing.T.
 func TestTheCrossPackageFollowCreditsOnlyAnAssertingHelper(t *testing.T) {
-	root, err := WriteCrossFixture()
+	root, err := writeCrossFixture()
 	if err != nil {
 		t.Fatalf("write the cross-package fixture: %v", err)
 	}
 	t.Cleanup(func() { os.RemoveAll(root) }) //nolint:errcheck // temp fixture
 
 	for _, testCase := range crossCases {
-		got, err := CountInert(testCase.src, NewIndex(root))
+		got, err := countInert(testCase.src, newPkgIndex(root))
 		if err != nil {
 			t.Fatalf("case %q: %v", testCase.name, err)
 		}
@@ -218,28 +218,26 @@ func TestEveryTagCaseIsJudgedAsDeclared(t *testing.T) {
 	}
 }
 
-// VALIDATES: the tag universe is derived from the make files and is not empty.
-// PREVENTS: a universe seeded straight from the manifest, which would make the
-// guard unable to fail: deleting $(ZE_FEATURES) from GO_TEST_TAGS would strand
-// every gated test and the gate would still report zero orphans.
-func TestTheTagUniverseComesFromTheMakeFiles(t *testing.T) {
+// VALIDATES: the tag universe comes from the native toolchain's feature
+// manifest and is not empty.
+func TestTheTagUniverseComesFromTheNativeFeatureManifest(t *testing.T) {
 	tree, err := lepath.Root()
 	if err != nil {
 		t.Fatalf("resolve the repository root: %v", err)
 	}
-	universe, err := TagUniverse(tree)
+	universe, err := tagUniverse(tree)
 	if err != nil {
 		t.Fatalf("derive the tag universe: %v", err)
 	}
 	if len(universe) < 2 {
-		t.Fatalf("the universe holds %d tags: the make files did not parse", len(universe))
+		t.Fatalf("the universe holds %d tags: the feature manifest did not load", len(universe))
 	}
 	if !universe["ze_core"] {
-		t.Error("the universe does not hold ze_core, which every unit target passes")
+		t.Error("the universe does not hold ze_core, which native unit actions pass")
 	}
 
-	if _, err := TagUniverse(t.TempDir()); err == nil {
-		t.Error("a tree with no Makefile answered a universe")
+	if _, err := tagUniverse(t.TempDir()); err == nil {
+		t.Error("a tree with no feature manifest answered a universe")
 	}
 }
 
@@ -257,8 +255,8 @@ func TestTheSelftestPassesOverItsOwnFixtures(t *testing.T) {
 	if code := report.Code(2); code != 0 {
 		t.Errorf("a passing selftest answers %d, want 0", code)
 	}
-	if len(report.Results) != SelftestCaseCount() {
-		t.Errorf("the selftest answered %d rows for %d cases", len(report.Results), SelftestCaseCount())
+	if len(report.Results) != selftestCaseCount() {
+		t.Errorf("the selftest answered %d rows for %d cases", len(report.Results), selftestCaseCount())
 	}
 }
 
@@ -314,9 +312,8 @@ func TestTheReportPageCarriesBothLists(t *testing.T) {
 	}
 }
 
-// VALIDATES: the area dispatches its four actions and refuses the two mistakes.
-// PREVENTS: a verb that drifts from its gate name, which would leave the Make
-// target pointing at nothing after the swap.
+// VALIDATES: the area dispatches its four native actions and refuses invalid
+// invocations.
 func TestTheAreaDispatchesItsActions(t *testing.T) {
 	if _, code := Answer([]string{"selftest"}); code != 0 {
 		t.Errorf("the selftest action answers %d over its own fixtures, want 0", code)
@@ -324,8 +321,8 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 	if _, code := Answer([]string{"nope"}); code != 2 {
 		t.Errorf("an unknown action answers %d, want 2", code)
 	}
-	if _, code := Answer([]string{"check", "value"}); code != 1 {
-		t.Errorf("a value after an action answers %d, want 1", code)
+	if _, code := Answer([]string{"check", "value"}); code != 2 {
+		t.Errorf("a value after an action answers %d, want 2", code)
 	}
 
 	verbs := Actions()

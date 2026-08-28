@@ -1,4 +1,5 @@
 # Test: ze update serve — the standalone update server binds and serves its manifest
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
 # VALIDATES: AC-8 -- `ze update serve --listen <addr>` routes through the update YANG
 #            verb to runUpdateServe (now a local handler, not a root) and actually
 #            binds the address and serves /version.json, exactly as the old
@@ -7,17 +8,10 @@
 
 option=timeout:value=20s
 
-tmpfs=update-serve-start.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-# Wrap the server in a script so the runner treats it as a foreground daemon
-# (mirroring test/ui/web-tool-decode.ci) rather than a `ze` subcommand: `update`
-# is not a daemon verb, so a bare foreground `ze update serve` would be awaited
-# and hang on ListenAndServe, and a `cmd=background` ze daemon triggers a BGP
-# peer-exchange check this non-BGP HTTP server cannot satisfy.
-exec ze update serve --listen 127.0.0.1:$PORT
-EOF_SH
-
-cmd=foreground:seq=1:exec=./update-serve-start.sh:timeout=20s
+# Run through a native fixture so the runner treats the server as a foreground
+# daemon rather than as a `ze update` subcommand. The fixture directly replaces
+# itself with the product binary, preserving its environment, stdio, and signals.
+cmd=foreground:seq=1:exec=ze-test fixture ui/update-serve $PORT:timeout=20s
 
 # http=wait polls until the listener is up; http=get is a real check (populates
 # HTTPChecks) so the test is self-validated and the runner does not fall through

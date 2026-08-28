@@ -43,7 +43,7 @@ type deprecatedAlias struct {
 // Scope: this registration gate applies ONLY to plugin-registered commands
 // (Register and RegisterDeprecated). Core builtins are registered through a
 // separate path (AddBuiltin) and are covered instead by the static grammar gate
-// (scripts/checks/cli_grammar.go) walking the YANG command tree.
+// (internal/le/cligrammar/register.go) walking the YANG command tree.
 //
 // validVerbList returns the sorted, comma-separated list of valid command verbs,
 // derived from the canonical command.Verbs registry (internal/component/command)
@@ -167,8 +167,8 @@ type CommandRegistry struct {
 	frozen atomic.Pointer[frozenCommands]
 }
 
-// NewCommandRegistry creates a new command registry.
-func NewCommandRegistry() *CommandRegistry {
+// newCommandRegistry creates a new command registry.
+func newCommandRegistry() *CommandRegistry {
 	return &CommandRegistry{
 		commands:   make(map[string]*RegisteredCommand),
 		builtins:   make(map[string]bool),
@@ -270,10 +270,10 @@ func (r *CommandRegistry) Unregister(proc *process.Process, names []string) {
 	r.republishFrozen()
 }
 
-// UnregisterAll removes all commands and deprecated aliases owned by the process.
+// unregisterAll removes all commands and deprecated aliases owned by the process.
 // Called when a process dies.
 // If frozen, publishes a new snapshot reflecting the removal.
-func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
+func (r *CommandRegistry) unregisterAll(proc *process.Process) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

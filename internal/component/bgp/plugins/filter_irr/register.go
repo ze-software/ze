@@ -16,8 +16,8 @@ func init() {
 		Description:  "IRR-based prefix-list filter for eBGP peers",
 		Features:     "yang",
 		YANG:         firryang.ZeFilterIrrYANG,
-		ConfigRoots:  []string{"bgp"},
-		Dependencies: []string{"bgp"},
+		ConfigRoots:  []string{configRootBGP},
+		Dependencies: []string{configRootBGP},
 		RunEngine:    runFilterIRR,
 		ConfigureMetrics: func(reg metrics.Registry) {
 			SetMetricsRegistry(reg)

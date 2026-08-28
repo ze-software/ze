@@ -14,7 +14,12 @@ import (
 // round-trip tests without implementing every method (methods are never called).
 type fakeEventBus struct{ ze.EventBus }
 type fakeMetricsRegistry struct{ metrics.Registry }
-type fakePluginServerAccessor struct{ PluginServerAccessor }
+type fakePluginServerAccessor struct {
+	PluginServerAccessor
+	metrics metrics.Registry
+}
+
+func (f *fakePluginServerAccessor) SetMetricsRegistry(reg metrics.Registry) { f.metrics = reg }
 
 // TestConfigureHooksTyped is a compile-time-and-runtime contract that the three
 // Configure* hooks stay typed rather than func(any). If any hook regressed to
@@ -76,6 +81,9 @@ func TestTypedInstanceAccessorsRoundTrip(t *testing.T) {
 	SetPluginServer(ps)
 	if GetPluginServer() != PluginServerAccessor(ps) {
 		t.Errorf("GetPluginServer() = %v, want %v", GetPluginServer(), ps)
+	}
+	if ps.metrics != metrics.Registry(mr) {
+		t.Errorf("plugin server metrics = %v, want %v", ps.metrics, mr)
 	}
 }
 

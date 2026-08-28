@@ -18,12 +18,12 @@ The spec's premise also needs correcting before implementation. A make-built
 host binary already resolves to a commit, because `readInfo` and `Extended`
 (`internal/core/version/version.go`) read `vcs.revision` and `vcs.modified`
 from the build info. The two real gaps are narrower: the Docker image tag is
-date-only (`ZE_DOCKER_TAG` in the `Makefile`), and `.dockerignore` excludes
+date-only (`ZE_DOCKER_TAG` in the `internal/le/` native action tables), and `.dockerignore` excludes
 `.git/`, so the image's binary carries no `vcs.*` stamp at all.
 
 ## Task
 
-`ZE_VERSION := $(shell date +%y.%m.%d)` (`Makefile`) is a build stamp, not a
+`ZE_VERSION := $(shell date +%y.%m.%d)` (`internal/le/` native action tables) is a build stamp, not a
 release identity, and it reaches both `-X main.version` (through `ZE_LDFLAGS`)
 and `ZE_DOCKER_TAG`. Two unrelated commits built on one day produce one version
 and one image tag. One commit built on two days produces two versions. The
@@ -44,7 +44,7 @@ generator would silently drop (`spec`, `plan`, `rules`, `journal`, `close`,
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/rules/repo-maintenance.md` - which checks fire on a Makefile change
+- [ ] `ai/rules/repo-maintenance.md` - which checks fire on a the native action tables under `internal/le/` change
   → Decision: <to be filled>
   → Constraint: <to be filled>
 
@@ -54,7 +54,7 @@ generator would silently drop (`spec`, `plan`, `rules`, `journal`, `close`,
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `Makefile` - defines `ZE_VERSION`, `ZE_BUILD_DATE`, `ZE_LDFLAGS`, `ZE_DOCKER_TAG`
+- [ ] `internal/le/` native action tables - defines `ZE_VERSION`, `ZE_BUILD_DATE`, `ZE_LDFLAGS`, `ZE_DOCKER_TAG`
 
 **Behavior to preserve:**
 - <to be filled>
@@ -98,7 +98,7 @@ generator would silently drop (`spec`, `plan`, `rules`, `journal`, `close`,
 
 ## Files to Modify
 
-- `Makefile` - <what changes>
+- `internal/le/` native action tables - <what changes>
 
 ## Implementation Steps
 
@@ -109,7 +109,7 @@ generator would silently drop (`spec`, `plan`, `rules`, `journal`, `close`,
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `make ze-precommit-verify` green
+- [ ] `./le verify current mode full` green
 
 ### Integration Checklist
 - [ ] <to be filled>

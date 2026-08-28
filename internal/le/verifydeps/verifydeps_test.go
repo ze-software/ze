@@ -19,17 +19,13 @@ import (
 
 const testModulePath = "github.com/ze-software/ze"
 
-// VALIDATES: the verifier-only command exposes the five commissioned gateless
-// verbs and makes no Make/Python parity claim.
-// PREVENTS: registering these internal actions in the Python parity denominator.
-func TestTheActionTableIsGatelessAndComplete(t *testing.T) {
+// VALIDATES: the verifier-only command exposes its five native actions.
+// PREVENTS: losing an action during verification routing changes.
+func TestTheActionTableIsComplete(t *testing.T) {
 	listing := Actions()
 	got := make([]string, 0, len(listing.Actions))
 	for _, action := range listing.Actions {
 		got = append(got, action.Verb)
-		if action.Gate != "" {
-			t.Errorf("action %s claims parity gate %q", action.Verb, action.Gate)
-		}
 	}
 	want := []string{
 		VerbEvidenceVet,
@@ -41,23 +37,21 @@ func TestTheActionTableIsGatelessAndComplete(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Fatalf("verbs are %v, want %v", got, want)
 	}
-	if gates := metadataOnly().Gates(); len(gates) != 0 {
-		t.Fatalf("gateless area claims parity gates %v", gates)
-	}
 }
 
-// VALIDATES: evidence vet preserves the producer's Linux-only, tagless package
-// and argv contract under the pinned non-cgo toolchain environment.
-// PREVENTS: broadening vet to ./..., adding shipped feature tags, or inheriting
-// the host GOOS.
+// VALIDATES: evidence vet covers every native Linux evidence package under the
+// pinned non-cgo toolchain environment.
+// PREVENTS: deleting one migrated evidence area from the vet population.
 func TestEvidenceVetPlanPreservesItsExactPopulation(t *testing.T) {
 	root := t.TempDir()
-	mkdir(t, root, "scripts/evidence")
+	for _, directory := range []string{"internal/le/evidence", "internal/le/deployment", "internal/le/qemu"} {
+		mkdir(t, root, directory)
+	}
 	plan, _, code, err := planFor(context.Background(), root, VerbEvidenceVet, fakeDependencies(root))
 	if err != nil || code != 0 {
 		t.Fatalf("plan failed with code %d: %v", code, err)
 	}
-	want := []string{"go", "vet", "./scripts/evidence/..."}
+	want := []string{"go", "vet", "./internal/le/evidence/...", "./internal/le/deployment/...", "./internal/le/qemu/..."}
 	if !slices.Equal(plan.Commands[0].Command, want) {
 		t.Fatalf("command is %v, want %v", plan.Commands[0].Command, want)
 	}
@@ -183,9 +177,9 @@ func TestRaceChangedDerivesTheExactPopulationAndEnvironment(t *testing.T) {
 	deps := fakeDependencies(root)
 	unmapped := filepath.Join(root, "internal/le", "verifydeps")
 	deps.execute = scriptedExecutor(map[string]scriptedResult{
-		"git diff --name-only -- *.go":                                        {output: "internal/core/x.go\ninternal/le/verifydeps/new.go\n"},
-		"git diff --cached --name-only -- *.go":                               {output: "internal/component/bgp/x.go\n"},
-		"git ls-files --others --exclude-standard -- *.go":                    {},
+		"git diff --name-only -- *.go":                                            {output: "internal/core/x.go\ninternal/le/verifydeps/new.go\n"},
+		"git diff --cached --name-only -- *.go":                                   {output: "internal/component/bgp/x.go\n"},
+		"git ls-files --others --exclude-standard -- *.go":                        {},
 		"go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/verifydeps": {output: unmapped + "\n"},
 	})
 	plan, _, code, err := planFor(context.Background(), root, VerbUnitRaceChanged, deps)

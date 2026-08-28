@@ -19,37 +19,27 @@
 # checkMgmtListeners passes it, and the server binds authenticated. The two
 # stderr assertions below pin both halves.
 #
-# The web server needs blob storage (startWebServer, service_web.go), so the
-# daemon runs from a script that calls `ze init` first, the shape
-# rbac-web-config-deny.ci already uses.
+# The web server needs blob storage (startWebServer, service_web.go), so `ze init`
+# runs as its own declarative command before the daemon.
 
 option=exclusive:group=mgmt-guard
 option=timeout:value=60s
+option=env:var=ze.web.enabled:value=1
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=ZE_STORAGE_BLOB:value=true
 
-tmpfs=test-web-dormant-insecure.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
+stdin=init-answers:terminator=EOF_INIT
+webadmin
+webadminpass
+127.0.0.1
+2222
 
-ZE_DIR=$(mktemp -d)
-DAEMON_PID=""
-cleanup() {
-	rm -rf "$ZE_DIR"
-	if [ -n "$DAEMON_PID" ]; then
-		kill "$DAEMON_PID" 2>/dev/null || true
-		wait "$DAEMON_PID" 2>/dev/null || true
-	fi
-}
-trap cleanup EXIT
+EOF_INIT
 
-# Blob storage for the web server, and the zefs power user that goes with it.
-printf 'webadmin\nwebadminpass\n127.0.0.1\n2222\n' | ZE_CONFIG_DIR="$ZE_DIR" ze init >/dev/null
-
-cat > web-dormant-insecure.conf << 'ZECONF'
+tmpfs=web-dormant-insecure.conf:terminator=EOF_CONF
 system {
 	authentication {
 		# bcrypt cost-4 hash of "testpass", the fixture authz-allow.ci uses.
-		# Somebody must be able to log in or startWebServer disables the server
-		# instead of binding, and the test would then prove nothing.
 		user webadmin {
 			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
 			profile [ admin ]
@@ -57,20 +47,16 @@ system {
 	}
 	authorization {
 		profile admin {
-			run {
-				default-action allow
-			}
-			edit {
-				default-action allow
-			}
+			run { default-action allow }
+			edit { default-action allow }
 		}
 	}
 }
 
 environment {
 	web {
-		# No `enabled true`: ze_web_enabled below starts the server. The address
-		# applies anyway, and `insecure` does not. The daemon must say so.
+		# No `enabled true`: ze.web.enabled starts the server. The address
+		# applies anyway, and `insecure` does not.
 		insecure true;
 		server main {
 			ip 127.0.0.1;
@@ -78,37 +64,11 @@ environment {
 		}
 	}
 }
-ZECONF
+EOF_CONF
 
-# ze.web.enabled in the env form the daemon reads (dots become underscores,
-# internal/core/env/env.go normalize). Exported here rather than through
-# option=env because the daemon is launched by this script, not by the runner.
-export ze_web_enabled=1
-
-ZE_CONFIG_DIR="$ZE_DIR" ze start web-dormant-insecure.conf 2>daemon.log &
-DAEMON_PID=$!
-
-for i in $(seq 1 60); do
-	if grep -q 'web server listening on' daemon.log 2>/dev/null; then
-		break
-	fi
-	if grep -q 'web server disabled' daemon.log 2>/dev/null; then
-		break
-	fi
-	sleep 0.5
-done
-
-# The runner's stderr assertions read this.
-cat daemon.log >&2
-
-grep -q 'web server listening on' daemon.log || {
-	echo "FAIL: the web server never reported a listening address" >&2
-	exit 1
-}
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-web-dormant-insecure.sh:timeout=60s
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=foreground:seq=2:exec=ze start web-dormant-insecure.conf:timeout=60s
+cmd=foreground:seq=3:exec=ze-test fixture plugin/mgmt-guard-web-dormant-insecure-warns-probe 18450:timeout=30s
 expect=exit:code=0
 # The WARN itself: the leaf that was dropped, named.
 expect=stderr:contains=environment.web insecure not honored

@@ -17,15 +17,18 @@ enforces two things: the profile's own manifest, and a hardcoded universal floor
 of `IP_PNP_DHCP`, `EXT4_FS`, `BLK_DEV_INITRD`, and `DEVTMPFS_MOUNT`. The
 guarantee is read back from the artifact, not assumed from the inputs.
 
-`tools/kernel-builder/build.py` stays thin on purpose: stdlib download, extract,
-and copy, with subprocess used only for `make`, the kernel's own
-`merge_config.sh`, and `patch`. It never uses `shell=True`.
+`internal/appliance/kernelbuilder` owns backend selection, downloads, verified
+Alpine ISO caching, Docker and QEMU lifecycle, and the low-level kernel build.
+The low-level Go worker invokes the kernel's `merge_config.sh`, `patch`, and
+`tar`. The container and QEMU guest run the compiled `ze-kernel-builder`
+command.
 
-<!-- source: tools/kernel-builder/build.py -- the single builder driver -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
-Raw `make -C tools/installer-kernel` and `make ze-kernel-build` stay free of any Ze
-binary, so nothing verifies their output. They consume the same registry and the
-same builder.
+`ze appliance kernel` selects the profile and architecture, validates the
+result against the registry, and uses the shared builder in
+`internal/appliance/kernelbuilder`.
 
 ## Decisions
 
@@ -43,26 +46,22 @@ same builder.
   universal floor name.** Otherwise Go enforcement correctly fails after the
   fake build writes `build/config`, and the failure reads as a bug in the
   enforcement.
-- **Assert the absence of the old shell driver, not only the presence of the new
-  one.** A Docker or QEMU argv test that checks for `build.py` still passes when
-  a stale `build.sh` path survives beside it.
+- **Assert the absence of interpreter and shell drivers, not only the presence
+  of the Go worker.** A Docker or QEMU argv test can pass while a stale launch
+  path survives beside it.
 - **A test profile goes in a scratch repository root, never in
   `tools/installer-kernel/`.** The registry is a directory scan, so a
   `<name>.config` plus `<name>.require` pair in the tracked directory IS a
   buildable profile for as long as it sits on disk, and an EXIT trap does not
-  survive SIGKILL. Both resolvers follow a root the test controls:
-  `kernelInstallerConfigDir` is the relative `tools/installer-kernel`, so Go
-  follows the process working directory, and `repo_root` in
-  `tools/kernel-builder/run.py` walks up from `run.py` to the first `go.mod`.
-  Copy the builder directory into the scratch root. A symlink resolves back to
-  the real repository through `Path(__file__).resolve()` and defeats the
-  isolation.
-- `ze-repository-check` flags an exported symbol in a changed Go file that has no
+  survive SIGKILL. Resolution follows the process working directory through
+  the relative `kernelInstallerConfigDir`. Put the complete registry and native
+  builder fixture beneath the scratch root.
+- `./le repository check` flags an exported symbol in a changed Go file that has no
   cross-package caller, even when the symbol predates the change. Appliance-only
   helpers stay unexported for that reason.
 
-<!-- source: internal/appliance/cmd_kernel.go -- kernelInstallerConfigDir -->
-<!-- source: tools/kernel-builder/run.py -- repo_root -->
+<!-- source: internal/appliance/cmd_kernel.go -- kernelInstallerConfigDir, defaultKernelBuild -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Request.Root -->
 <!-- source: internal/appliance/kernelreg_test.go -- TestRegisteredKernelProfilesShippedSet -->
 
 ## Related

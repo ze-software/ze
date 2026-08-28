@@ -143,7 +143,7 @@ func TestTextMarksAStaleSkeleton(t *testing.T) {
 // put in a padded cell is ASCII, and the one multi-byte cell (the rule) is
 // exactly its column's width, so both paddings answer zero for it. The
 // byte-for-byte comparison against the script over the real tree
-// (scripts/status/parity_test.go) is what covers that.
+// (internal/le/parity/parity_test.go) is what covers that.
 func TestTextAlignsEveryRowOnTheSameColumns(t *testing.T) {
 	root := planTree(t, map[string]string{
 		"spec-fixture-short.md": templateShapedSpec("ready", "2026-08-20"),
@@ -236,8 +236,8 @@ func TestTheCommandDeclaresItsAnswerShape(t *testing.T) {
 // operator, so the script's --json flag is not an argument here.
 func TestAnswerRefusesAnArgument(t *testing.T) {
 	payload, code := Answer([]string{"--json"})
-	if code != 1 {
-		t.Errorf("exit code = %d, want 1 for an argument the command takes none of", code)
+	if code != 2 {
+		t.Errorf("exit code = %d, want 2 for an argument the command takes none of", code)
 	}
 	if payload != nil {
 		t.Errorf("the refusal carries a payload: %v", payload)

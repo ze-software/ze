@@ -309,29 +309,25 @@ func extractObserverFailLine(stderr string, idx int) string {
 	return strings.TrimSpace(stderr[start:end])
 }
 
-// observerFailSentinel is the prefix that Python observer plugins emit on
-// stderr via `ze_api.runtime_fail()` to signal a runtime assertion failure.
-// The engine relays ERROR-level plugin stderr through its own stderr so the
-// sentinel lands in the runner's captured output. validateLogging applies an
-// implicit reject check for this sentinel on every test, so an observer's
-// runtime_fail always surfaces as a test failure regardless of whether the
-// test author added a dedicated reject= directive.
-//
-// Kept in sync with test/scripts/ze_api.py `_OBSERVER_FAIL_SENTINEL`.
+// observerFailSentinel is the prefix compiled observer helpers emit on stderr
+// through fixture.ReportFailure. The engine relays ERROR-level plugin stderr
+// through its own stderr so the sentinel lands in the runner's captured output.
+// validateLogging applies an implicit reject check for this sentinel on every
+// test, so an observer failure surfaces regardless of whether the test author
+// added a dedicated reject= directive.
 //
 // The sentinel exists because an observer's own exit code never reaches the
-// runner: the observer ends its failure branch with `daemon shutdown`, ze exits
-// 0, and the runner used to report PASS on a test whose observer had detected a
-// real failure. See plan/known-failures/README.md for background.
+// runner: the observer requests `daemon shutdown`, ze exits 0, and the runner
+// used to report PASS on a test whose observer had detected a real failure. See
+// plan/known-failures/README.md for background.
 const observerFailSentinel = "ZE-OBSERVER-FAIL"
 
 // validateLogging validates logging expectations against stderr and syslog output.
 // Returns nil if all validations pass or no logging expectations exist.
 func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.Server) error {
 	// Implicit universal check: the observer-failure sentinel. Applies to every
-	// test, even those without explicit expect/reject patterns, so the
-	// runtime_fail helper in ze_api.py is not silently ignored when the
-	// observer reports an assertion failure.
+	// test, even those without explicit expect/reject patterns, so a compiled
+	// observer's reported assertion failure is never silently ignored.
 	if idx := strings.Index(stderr, observerFailSentinel); idx >= 0 {
 		return fmt.Errorf("observer reported runtime failure: %s", extractObserverFailLine(stderr, idx))
 	}

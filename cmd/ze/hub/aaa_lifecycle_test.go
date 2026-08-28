@@ -475,6 +475,7 @@ func TestSwapAAABundleClosesPrevious(t *testing.T) {
 // VALIDATES: closeAAABundle is idempotent and safe with no installed bundle.
 // PREVENTS: panic on exit paths that never ran infraSetup.
 func TestCloseAAABundleNoBundle(t *testing.T) {
+	// test-asserts-nothing: returning from closeAAABundle is the no-panic assertion.
 	resetAAABundleForTest(t)
 	// Must not panic.
 	closeAAABundle(nil)

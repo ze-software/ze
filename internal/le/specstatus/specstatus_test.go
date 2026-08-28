@@ -13,14 +13,14 @@ import (
 // spec_status.go through exec. Each case below names the old assertion it
 // carries and what it now calls instead.
 //
-//	scripts/status/specbucket/specbucket_test.go
+//	internal/le/specstatus/answer.go
 //	  TestCategory                   -> TestCategorySplitsCommittedBacklogFromIdeaCapture
 //	  TestSkeletonStaleBoundary      -> TestSkeletonStaleBoundary (same name, same cases)
-//	scripts/status/specmeta/specmeta_test.go
+//	internal/le/specstatus/answer.go
 //	  TestRowsFindsTablePastAFixedWindow -> TestMetaRowsFindsTablePastAFixedWindow
 //	  TestRowsStopsAtTheFirstHeading     -> TestMetaRowsStopsAtTheFirstHeading
 //	  TestRowsReportsAMissingTable       -> TestMetaRowsReportsAMissingTable
-//	scripts/status/spec_status_test.go
+//	internal/le/specstatus/closure_test.go
 //	  TestSpecStatusBacklogSplit          -> TestCategorySplitsCommittedBacklogFromIdeaCapture
 //	  TestSkeletonTTLBoundary             -> TestSkeletonStaleBoundary
 //	  TestSpecStatusReportsAnUnreadableSpec -> TestCollectDistinguishesUnparsedFromUnknown
@@ -33,7 +33,7 @@ import (
 // package. What compiling bought was the ENTRY POINT: main, the plan/ glob and
 // the exit code. That is not lost. Collect owns the glob, Answer owns the exit
 // code, and both are called directly here; the built binary is still driven end
-// to end by scripts/status/parity_test.go and by
+// to end by internal/le/parity/parity_test.go and by
 // test/ui/le-spec-status-answers.ci.
 
 // templateShapedSpec returns a spec of the shape plan/TEMPLATE.md produces: a
@@ -137,16 +137,16 @@ func TestSkeletonStaleBoundary(t *testing.T) {
 	day := 24 * time.Hour
 
 	atTTL := base.Add(time.Duration(SkeletonTTLDays) * day)
-	if SkeletonStale(updated, atTTL) {
+	if skeletonStale(updated, atTTL) {
 		t.Errorf("at exactly TTL (%d days) must not be flagged", SkeletonTTLDays)
 	}
 	pastTTL := base.Add(time.Duration(SkeletonTTLDays+1) * day)
-	if !SkeletonStale(updated, pastTTL) {
+	if !skeletonStale(updated, pastTTL) {
 		t.Errorf("one day past TTL (%d days) must be flagged", SkeletonTTLDays+1)
 	}
 	// An unparseable date cannot be judged and must not be flagged: flagging
 	// noise trains the reader to ignore the flag.
-	if SkeletonStale("not-a-date", pastTTL) {
+	if skeletonStale("not-a-date", pastTTL) {
 		t.Error("unparseable date must not be flagged")
 	}
 }
@@ -327,7 +327,7 @@ func TestTextSortsTheUnreadableSpecFirst(t *testing.T) {
 // PREVENTS: an inventory of a population it never read. filepath.Glob answers an
 // empty list and NO error for a pattern whose directory does not exist, so the
 // script this ports prints "Specs: 0 total" and exits 0 over any tree it is not
-// standing in. scripts/status/parity_test.go asserts the script still does.
+// standing in. internal/le/parity/parity_test.go asserts the script still does.
 func TestCollectRefusesATreeWithNoPlanDirectory(t *testing.T) {
 	_, err := Collect(context.Background(), t.TempDir(), fixedNow, nil)
 	if err == nil {
@@ -405,7 +405,7 @@ func TestCollectSkipsTheTemplate(t *testing.T) {
 // TestCollectFlagsAStaleSkeletonAndNothingElse drives the TTL through the whole
 // read with a fixed clock.
 //
-// PREVENTS: the flag being proven at SkeletonStale alone while Collect stops
+// PREVENTS: the flag being proven at skeletonStale alone while Collect stops
 // asking, and the flag reaching a status that is not a skeleton.
 func TestCollectFlagsAStaleSkeletonAndNothingElse(t *testing.T) {
 	root := planTree(t, map[string]string{

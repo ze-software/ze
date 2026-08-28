@@ -98,7 +98,7 @@ func (c *testClient) Close() { _ = c.conn.Close() }
 // buildLogReactor constructs a listener + reactor pair whose logger writes
 // into a locked buffer for race-safe assertion. The caller must call
 // stop() when done.
-func buildLogReactor(t *testing.T) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+func buildLogReactor(t *testing.T) (*UDPListener, *l2tpReactor, *lockedBuffer, func()) {
 	t.Helper()
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -471,7 +471,7 @@ func TestReactor_StopIdempotent(t *testing.T) {
 // otherwise. Phase-4 auth tests call this instead of buildLogReactor.
 //
 //nolint:unparam // phase 4 auth tests all use the same secret value; keeping the parameter makes call sites self-documenting and leaves room for future auth-variant tests.
-func buildLogReactorSecret(t *testing.T, secret string) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+func buildLogReactorSecret(t *testing.T, secret string) (*UDPListener, *l2tpReactor, *lockedBuffer, func()) {
 	t.Helper()
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -1080,7 +1080,7 @@ func (c *testClock) add(d time.Duration) {
 // tests call r.handleTick() directly.
 //
 //nolint:unparam // all current callers use 60s but the parameter keeps call sites self-documenting.
-func buildLogReactorWithClock(t *testing.T, clk *testClock, helloInterval time.Duration, secret string) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+func buildLogReactorWithClock(t *testing.T, clk *testClock, helloInterval time.Duration, secret string) (*UDPListener, *l2tpReactor, *lockedBuffer, func()) {
 	t.Helper()
 	return buildLogReactorWithClockObserver(t, clk, helloInterval, secret, nil)
 }
@@ -1093,7 +1093,7 @@ func buildLogReactorWithClock(t *testing.T, clk *testClock, helloInterval time.D
 // is a genuine data race, not a timing flake -- unlike the reload-time setters
 // (setHelloRetries and friends), which take tunnelsMu and are safe any time.
 // A nil observer is a documented no-op, so the wrapper above passes nil.
-func buildLogReactorWithClockObserver(t *testing.T, clk *testClock, helloInterval time.Duration, secret string, obs RouteObserver) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+func buildLogReactorWithClockObserver(t *testing.T, clk *testClock, helloInterval time.Duration, secret string, obs RouteObserver) (*UDPListener, *l2tpReactor, *lockedBuffer, func()) {
 	t.Helper()
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -1105,7 +1105,7 @@ func buildLogReactorWithClockObserver(t *testing.T, clk *testClock, helloInterva
 		Defaults:      TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16, SharedSecret: secret},
 		Clock:         clk.now,
 	})
-	r.SetRouteObserver(obs)
+	r.setRouteObserver(obs)
 	require.NoError(t, r.Start())
 
 	stop := func() {

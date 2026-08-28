@@ -6,8 +6,8 @@ CONFIG_DEVTMPFS_MOUNT
 # The netfilter surface ze's own firewall programs. A fragment line asking for
 # =y is a request; kconfig answers it, and it answered =m for the four tristate
 # expressions below until NF_CONNTRACK and NF_NAT were themselves built in.
-# Nothing reported that, because enforce_required_symbols (tools/kernel-builder/build.py)
-# only checks symbols listed HERE, and none of these were listed. The result
+# Nothing reported that, because the native worker only checks symbols listed
+# here, and none of these were listed. The result
 # shipped for months: a kernel whose "inet" family is absent, so control-plane
 # policing (coppTable, internal/plugins/copp/translate.go) makes a table the
 # kernel refuses with EOPNOTSUPP.

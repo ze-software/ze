@@ -42,7 +42,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 | 6 | If I deliberately broke the production code path, would the test catch it? | Re-run after breaking it. Observer-exit antipattern hides this (`ai/rules/testing.md`) |
 | 7 | Did I rename a registered name (plugin / subsystem / log / dispatch key)? Did I grep every consumer? | `ai/rules/plugins.md` "Renaming a Registered Name" |
 | 8 | Did I add a guard / fallback to a function? Did I check sibling call sites? | `ai/rules/architecture.md` "Sibling Call-Site Audit" |
-| 9 | Did I touch reactor concurrency code? Did `make ze-unit-reactor-test-race` pass? | `ai/rules/testing.md` "Reactor Concurrency Code" |
+| 9 | Did I touch reactor concurrency code? Did `go test -race -count=20 ./internal/component/bgp/reactor/...` pass? | `ai/rules/testing.md` "Reactor Concurrency Code" |
 
 **MUST NOT present "version 1" knowing "version 2" is needed.** The first presentation SHOULD be the thorough one.
 
@@ -54,9 +54,9 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 Paste command output as evidence. "Should work" is not evidence.
 
-`make ze-precommit-verify` is the ONLY acceptable verification before claiming done. Run it in the foreground and wait for it to finish. Output auto-captured to `tmp/ze-verify.log`. See `ai/rules/precommit-verify.md` for the full pre-commit workflow, and its "Running The Gate" for why you must not kill it for being slow.
+`./le verify worktree` is the ONLY acceptable verification before claiming done. Run it in the foreground and wait for it to finish. Output auto-captured to `tmp/ze-verify.log`. See `ai/rules/precommit-verify.md` for the full pre-commit workflow, and its "Running The Gate" for why you must not kill it for being slow.
 
-Race coverage: `ze-precommit-verify` runs `-race` on component groups with changed `.go` files (two-pass strategy). For reactor concurrency changes, also run `make ze-unit-reactor-test-race` (`-race -count=20`).
+Race coverage: `./le verify current mode full` runs `-race` on component groups with changed `.go` files. For reactor concurrency changes, also run `go test -race -count=20 ./internal/component/bgp/reactor/...`.
 
 ## Learned Summary Verification
 

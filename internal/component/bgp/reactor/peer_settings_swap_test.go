@@ -315,7 +315,7 @@ func prefixStaleRaised() bool {
 	return false
 }
 
-// freshPrefixDate is today, which IsPrefixDataStale (session_prefix.go) measures
+// freshPrefixDate is today, which isPrefixDataStale (session_prefix.go) measures
 // against a 180-day threshold. The reactor under test runs on clock.RealClock, so
 // deriving the date from the same wall clock keeps the fixture valid on any day.
 func freshPrefixDate() string {
@@ -360,7 +360,7 @@ func TestReloadPrefixDatesSwapWithoutRestart(t *testing.T) {
 		"peerGeneration must not advance: a restart re-adds the peer and bumps it")
 	assert.Equal(t, PeerStateEstablished, after.State(),
 		"the established session must survive a prefix-date refresh")
-	assert.Equal(t, fresh, after.OldestPrefixUpdated(),
+	assert.Equal(t, fresh, after.oldestPrefixUpdated(),
 		"the new dates must reach the running peer, not be discarded as 'no change'")
 }
 

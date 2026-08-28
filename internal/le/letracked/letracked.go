@@ -1,17 +1,12 @@
 // Design: docs/architecture/testing/tracked-build-gate.md -- checks whether le works from what GIT holds
 //
-// Package letracked contains ports of scripts/le/application/tracked.py and
-// scripts/le/devtools/tracked.py. It checks whether `le` still works when built
-// from the commit instead of the working tree.
+// Package letracked checks whether `le` still works when built from the commit
+// instead of the working tree.
 //
-// THE FAILURE THAT CAUSED THIS CHECK OCCURRED. On 2026-08-25, a clean
-// `git archive HEAD` of scripts/le failed to load 21 of 21 areas. An ImportError
-// for a name that had not been committed yet affected 19 areas. Modules that
-// were never added affected the other 2 areas.
-//
-// `le` and every make target that forwarded to it did not work at HEAD. This
-// affected every session and CI, while the working tree ran correctly. Three
-// commits caused the failure.
+// THE FAILURE THAT CAUSED THIS CHECK OCCURRED. On 2026-08-25, a clean archive
+// of the committed development tools failed to load all 21 areas because their
+// imports named uncommitted callees. Every forwarding Make target failed at
+// HEAD while the working tree ran correctly.
 //
 // No individual commit was incorrect. Another session held a per-commit file,
 // which delayed the commit ADDING the callee. The commit USING it had no such
@@ -112,10 +107,10 @@ func (v Verdict) Text() string {
 	return tb.Str("and absent from the commit is exactly what this finds.\n").String()
 }
 
-// ToolImports returns the sorted short names of the tool packages that the
+// toolImports returns the sorted short names of the tool packages that the
 // composition root blank-imports. Named imports support the root handler and
 // are not composition entries.
-func ToolImports(src []byte) ([]string, error) {
+func toolImports(src []byte) ([]string, error) {
 	file, err := parser.ParseFile(token.NewFileSet(), registerPath, src, parser.ImportsOnly)
 	if err != nil {
 		return nil, err
@@ -141,12 +136,12 @@ func ToolImports(src []byte) ([]string, error) {
 	return names, nil
 }
 
-// RegisteringPackages returns the sorted short names of all tool packages under
+// registeringPackages returns the sorted short names of all tool packages under
 // root that join the shared local-data registry.
 //
 // The test checks for the CALL, not a naming convention. A package gets a
 // command by creating it. A directory that contains only helpers is not a tool.
-func RegisteringPackages(root string) ([]string, error) {
+func registeringPackages(root string) ([]string, error) {
 	base := filepath.Join(root, toolsDir)
 	entries, err := os.ReadDir(base)
 	if err != nil {
@@ -193,13 +188,13 @@ func packageRegisters(dir string) (bool, error) {
 	return false, nil
 }
 
-// CommandNames returns the root commands in the order in which the help page
+// commandNames returns the root commands in the order in which the help page
 // lists them.
 //
 // The parser reads the page from the "Commands:" heading to the first blank line
 // after it. The usage line above has the same indentation, but it has a separate
 // heading. Therefore, the parser does not identify that line as a command.
-func CommandNames(page string) []string {
+func commandNames(page string) []string {
 	var names []string
 	inside := false
 
@@ -323,13 +318,13 @@ func Run(ctx context.Context, repo, rev string) (Verdict, int, error) {
 		var tb textbuf.Buffer
 		return verdict, 2, errors.New(tb.Str(rev).Str(" holds no ").Str(registerPath).String())
 	}
-	imported, err := ToolImports(src)
+	imported, err := toolImports(src)
 	if err != nil {
 		return verdict, 2, err
 	}
 	verdict.Areas = len(imported)
 
-	registering, err := RegisteringPackages(dest)
+	registering, err := registeringPackages(dest)
 	if err != nil {
 		return verdict, 2, err
 	}
@@ -431,5 +426,5 @@ func buildAndList(ctx context.Context, dest string) ([]string, error) {
 		return nil, errors.New(tb.Str("le help: ").Err(err).Str(": ").
 			Str(strings.TrimSpace(printed.String())).String())
 	}
-	return CommandNames(printed.String()), nil
+	return commandNames(printed.String()), nil
 }

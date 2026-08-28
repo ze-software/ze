@@ -564,7 +564,7 @@ func New(config *Config) *Reactor {
 	teardownGrace := env.GetDuration("ze.fwd.teardown.grace", congestionGraceDefault)
 	r.fwdPool.congestion = newCongestionController(congestionConfig{
 		gracePeriod:    teardownGrace,
-		poolUsedRatio:  r.fwdPool.PoolUsedRatio,
+		poolUsedRatio:  r.fwdPool.poolUsedRatio,
 		overflowDepths: r.fwdPool.overflowDepths,
 		weights:        r.fwdWeights,
 		onTeardown: congestionTeardownPeer(func(addr netip.AddrPort) *Peer {
@@ -1597,7 +1597,7 @@ func (r *Reactor) StopForRestart() {
 // work on the way out is worth having; it is not what makes the stop final.
 //
 // Peer.stopping's read at the top of Peer.run is likewise the cheap early exit
-// on the outbound rail; ShutdownNotify's teardown raises ErrTeardown, the one
+// on the outbound rail; shutdownNotify's teardown raises ErrTeardown, the one
 // error that loop answers by resetting the delay and continuing with no wait.
 //
 // Stopping a listener cannot disturb a session: Listener.Stop and
@@ -1613,7 +1613,7 @@ func (r *Reactor) StopForRestart() {
 //
 // The sessions are sealed after that hold is released, and NOT because r.mu must
 // never nest p.mu. It does nest it, and that IS this package's lock order:
-// reactor_api.go reads peer.SettingsSnapshot and peer.currentSession (p.mu.RLock
+// reactor_api.go reads peer.settingsSnapshot and peer.currentSession (p.mu.RLock
 // both) under r.mu.RLock at two sites and calls peer.Stop (p.mu.Lock) under
 // r.mu.Lock at two more, and peerGRCapable takes p.mu under r.mu.RLock in this
 // file. The order is r.mu before p.mu everywhere, and nothing takes r.mu under
@@ -1679,7 +1679,7 @@ func (r *Reactor) notifyPeersShutdown(peers []*Peer) {
 
 	var wg sync.WaitGroup
 	for _, peer := range peers {
-		wg.Go(peer.ShutdownNotify)
+		wg.Go(peer.shutdownNotify)
 	}
 
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), shutdownNotifyBudget)

@@ -4,10 +4,8 @@
 // actions.go is the table. The dispatch, the listing, the help line and the two
 // refusals are internal/le/leaction, which every ported area shares.
 //
-// The area is perf-bench and its one gate is ze-perf-suggestion-report, so
-// leaction removes nothing from the name and the verb IS the gate name. That is
-// what every Make target, doc and shim already spells, and it is the same
-// answer internal/le/integration reaches for ze-interop-test.
+// The area is perf-bench and its native verbs are suggestion-report and record.
+// The action table is the sole command surface.
 
 package perfbench
 
@@ -17,14 +15,11 @@ import (
 )
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-perf-suggestion-report",
-		Why: "suggest a perf run when BGP data-plane code changed since the last one." +
-			" A NUDGE, never a gate -- always exits 0. The heavy suite needs Docker and" +
-			" minutes, so it is not run every edit; this notices when a Docker perf run" +
-			" is overdue on THIS machine, beside the nightly Docker-free regression check",
-		Answer: suggestHere,
-	},
+	leaction.Action{Verb: "suggestion-report", Why: "suggest a perf run when BGP data-plane code changed since the last one." +
+		" A NUDGE, never a gate -- always exits 0. The heavy suite needs Docker and" +
+		" minutes, so it is not run every edit; this notices when a Docker perf run" +
+		" is overdue on THIS machine, beside the nightly Docker-free regression check",
+		Answer: suggestHere},
 	leaction.Action{
 		Verb:   recordVerb,
 		Why:    "record the current HEAD as the commit perf last ran at, which clears the suggestion",

@@ -74,9 +74,9 @@ misleading message. Each is a general trap.
   answered in 10 seconds under KVM. The rewritten one prints the last SSH error
   verbatim.
 
-<!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- accelerator selection and the hugepage boot proof -->
-<!-- source: scripts/le/devtools/system.py -- Kvm, kvm_state -->
-<!-- source: scripts/le/application/setup.py -- _visit_kvm, the kvm-access pending/missing/n-a states -->
+<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/devsetup/actions.go -- Answer -->
+<!-- source: internal/le/devsetup/actions.go -- Answer -->
 
 `./le setup` reports `kvm-access` as `present`, `pending`, `missing`, or
 `n/a`. `pending` means the user is in the `kvm` group but the running session

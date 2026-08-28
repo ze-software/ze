@@ -27,7 +27,7 @@ type Report struct {
 	mode           reportMode
 }
 
-// Text renders the Python producer's lines in the same order. It ends in a
+// Text renders the native producer's lines in source order. It ends in a
 // newline. Check carries only unexplained issues; report carries every issue.
 func (r Report) Text() string {
 	var tb textbuf.Buffer

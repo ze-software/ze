@@ -42,7 +42,6 @@
 #
 # option=needs-linux: the daemon runs the interface plugin's netlink backend,
 # which needs Linux (on darwin it fails config apply and the daemon never boots).
-# Runs via `make ze-qemu-needs-linux-test`.
 #
 # The observer is spawned as a BGP peer `process` (with a ze-peer connection),
 # the established external-observer pattern (test/plugin/ddos-show.ci,
@@ -62,81 +61,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=vrrp-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Dispatch each vrrp show/clear command through the real daemon path and assert
-the response envelope. Zero groups configured -> idle engine -> empty payloads."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        "ze-plugin-engine:dispatch-command", {"command": command})
-    if resp is None:
-        return {"status": "error", "data": "engine call returned None"}
-    return resp.get("result", {})
-
-
-def payload(api, command, key):
-    """Dispatch a command that must return status done and carry `key`."""
-    result = dispatch(api, command)
-    if result.get("status") != "done":
-        runtime_fail(
-            f"{command}: status={result.get('status')} data={result.get('data')!r}")
-    data = result_json_data(result, {})
-    if not isinstance(data, dict) or key not in data:
-        runtime_fail(f"{command}: missing {key!r} in {data!r}")
-    return data[key]
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # AC-8: `show vrrp` resolves and returns the {"vrrp": [...]} envelope. Idle
-    # engine -> empty list (AC-6 "show vrrp reports zero instances" via the real
-    # dispatch path).
-    rows = payload(api, "show vrrp", "vrrp")
-    if rows != []:
-        runtime_fail(f"show vrrp: expected empty list with zero groups, got {rows!r}")
-
-    # AC-8: the interface selector resolves and filters (empty here).
-    filtered = payload(api, "show vrrp interface name eth0", "vrrp")
-    if filtered != []:
-        runtime_fail(f"show vrrp interface name eth0: expected [], got {filtered!r}")
-
-    # AC-8: statistics resolves and returns the {"vrrp-statistics": [...]} envelope.
-    stats = payload(api, "show vrrp statistics", "vrrp-statistics")
-    if stats != []:
-        runtime_fail(f"show vrrp statistics: expected [], got {stats!r}")
-
-    # AC-9: clear resolves and reports the count it cleared (0 with no instances).
-    cleared = payload(api, "clear vrrp statistics", "cleared")
-    if cleared != 0:
-        runtime_fail(f"clear vrrp statistics: expected cleared 0, got {cleared!r}")
-
-    print("OK: vrrp show/interface/statistics/clear all resolve through the daemon path",
-          file=sys.stderr)
-    dispatch(api, "request shutdown")
-    api.wait_for_shutdown()
-
-
-if __name__ == "__main__":
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external vrrp-show {
-		run ./vrrp-show.run
+		run "ze-test fixture vrrp/vrrp-show"
 		encoder json
 	}
 }

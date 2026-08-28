@@ -4,10 +4,9 @@
 // selected one gate from a GateSet. `le docs-to-code update` selects one
 // action from the table below.
 //
-// Only ONE action is a Make target. The generated-files check runs the script's
-// `--check` mode directly rather than through its own gate. Thus, that action
-// carries the verb that a developer types. An invented gate name would put an
-// undeclared target in the census.
+// Only ONE action had a retired Make target. The generated-files check invoked
+// the old helper's check mode directly. The native action table keeps only the
+// verbs a developer can type.
 //
 // The dispatch, the listing, the help line and the two refusals live in
 // internal/le/leaction. What stays here is the TABLE.
@@ -32,28 +31,18 @@ var actions = leaction.New(area,
 		Why:    "ai/DOCS-TO-CODE.md is current with the `// Design:` headers in the tree",
 		Answer: func() (any, int) { return run(Check) },
 	},
-	leaction.Action{
-		Gate:   "ze-docs-to-code-update",
-		Why:    "regenerate ai/DOCS-TO-CODE.md",
+	leaction.Action{Verb: "update", Why: "regenerate ai/DOCS-TO-CODE.md",
 		Writes: true,
-		Answer: func() (any, int) { return run(Update) },
-	},
+		Answer: func() (any, int) { return run(Update) }},
 	// The MIRROR index and its two gates keep their full names as verbs.
-	// leaction removes only the `ze-<area>-` prefix, but these names start with
-	// ze-doc-index- in a docs-to-code area. Every Make target, document, and
-	// shim uses the full name. internal/le/integration uses the same answer for
-	// ze-interop-test.
-	leaction.Action{
-		Gate:   "ze-doc-index-check",
-		Why:    "every `<!-- source: -->` anchor in docs/ resolves to a real file and symbol",
-		Answer: func() (any, int) { return runCode(CheckCodeIndex) },
-	},
-	leaction.Action{
-		Gate:   "ze-doc-index-update",
-		Why:    "regenerate ai/CODE-TO-DOCS.md, the source-to-document reverse index",
+	// These names use the docs-to-code area's `index-` namespace because they
+	// operate on the mirror index. The action table is now the sole command
+	// surface.
+	leaction.Action{Verb: "index-check", Why: "every `<!-- source: -->` anchor in docs/ resolves to a real file and symbol",
+		Answer: func() (any, int) { return runCode(CheckCodeIndex) }},
+	leaction.Action{Verb: "index-update", Why: "regenerate ai/CODE-TO-DOCS.md, the source-to-document reverse index",
 		Writes: true,
-		Answer: func() (any, int) { return runCode(UpdateCodeIndex) },
-	},
+		Answer: func() (any, int) { return runCode(UpdateCodeIndex) }},
 )
 
 // runCode locates the checkout and hands it to one of the reverse index's two

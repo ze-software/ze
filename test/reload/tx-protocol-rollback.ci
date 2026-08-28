@@ -7,6 +7,7 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
+option=linger:value=true
 
 # Connection 1: peer established from initial config, sends route + EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
@@ -68,20 +69,7 @@ bgp {
 EOF_BAD
 
 # Trigger: wait for peer connection, then try bad config reload
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-# Wait for peer to establish
-sleep 2
-cp bad-config.conf ze-bgp.conf
-kill -HUP $(cat daemon.pid)
-# Daemon should log error but keep running with original config
-sleep 2
-# Clean shutdown
-kill -TERM $(cat daemon.pid)
-EOF_TRIGGER
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture reload/tx-protocol-rollback-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

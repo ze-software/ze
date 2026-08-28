@@ -269,8 +269,8 @@ func TestThePagesCarryTheirVerdicts(t *testing.T) {
 }
 
 // VALIDATES: the area dispatches its two actions and refuses the two mistakes.
-// PREVENTS: a verb that drifts from its gate name, which would leave the Make
-// target pointing at nothing after the swap.
+// PREVENTS: a verb that drifts from its registered native action and becomes
+// unreachable.
 func TestTheAreaDispatchesItsActions(t *testing.T) {
 	payload, code := Answer([]string{"rows"})
 	if code != 0 {
@@ -282,8 +282,8 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 	if _, code := Answer([]string{"nope"}); code != 2 {
 		t.Errorf("an unknown action answers %d, want 2", code)
 	}
-	if _, code := Answer([]string{"rows", "value"}); code != 1 {
-		t.Errorf("a value after an action answers %d, want 1", code)
+	if _, code := Answer([]string{"rows", "value"}); code != 2 {
+		t.Errorf("a value after an action answers %d, want 2", code)
 	}
 
 	verbs := Actions()

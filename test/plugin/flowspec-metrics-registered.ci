@@ -37,82 +37,6 @@ option=timeout:value=35s
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E150001850401020304000B01180A02000381FD058150C010088006000000000000
 EOF_PEER
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Scrape Prometheus until the refusal series carries the unknown-protocol reason."""
-import os
-import signal
-import sys
-import urllib.error
-import urllib.request
-
-from ze_api import wait_until
-
-PORT = "$PORT2"  # substituted by the runner, same value as the telemetry block
-SERIES = 'ze_flowspec_rules_refused_total{reason="unknown-protocol"}'
-
-pid_holder = {}
-
-
-def daemon_up():
-    if not (os.path.exists("daemon.pid") and os.path.exists("daemon.ready")):
-        return False
-    with open("daemon.pid") as fh:
-        pid_holder["pid"] = int(fh.read().strip())
-    return True
-
-
-if not wait_until(daemon_up, attempts=400, delay=0.05):
-    sys.exit("daemon.pid/ready never appeared")
-
-scrape = {"body": ""}
-
-
-def fetch():
-    """Scrape once, keeping the body. True when the endpoint answered.
-
-    A failed poll CLEARS the body: the diagnostic below reports what the last
-    scrape saw, and a stale body would describe a poll that did not fail.
-    """
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/metrics", timeout=2) as resp:
-            scrape["body"] = resp.read().decode()
-    except (urllib.error.URLError, OSError):
-        scrape["body"] = ""
-        return False
-    return True
-
-
-# The endpoint answering is the control for "the series is missing because the
-# plugin hook never fired" against "because telemetry is off".
-if not wait_until(fetch, attempts=200, delay=0.05):
-    sys.exit(f"the Prometheus endpoint on 127.0.0.1:{PORT} never answered")
-
-RUNTIME_FAMILIES = ("go_goroutines", "process_start_time_seconds")
-absent = [f for f in RUNTIME_FAMILIES if f not in scrape["body"]]
-if absent:
-    print(f"ERROR: the serving registry is missing runtime families {absent}; it is not the populated one")
-    sys.exit(1)
-print(f"CONTROL: serving registry populated, {len(scrape['body'])} bytes")
-
-
-def refusal_counted():
-    return fetch() and SERIES in scrape["body"]
-
-
-ok = wait_until(refusal_counted, attempts=200, delay=0.1)
-
-for line in scrape["body"].split("\n"):
-    if line.startswith("ze_flowspec"):
-        print(line)
-
-os.kill(pid_holder["pid"], signal.SIGTERM)
-
-if not ok:
-    print(f"ERROR: {SERIES} absent from a {len(scrape['body'])}-byte scrape")
-    sys.exit(1)
-sys.stdout.write("flowspec refusal metric exposed\n")
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -162,7 +86,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=35s
+cmd=foreground:seq=3:exec=ze-test fixture plugin/flowspec-metrics-registered $PORT2:timeout=35s
 expect=exit:code=0
 expect=stdout:contains=flowspec refusal metric exposed
 expect=stdout:pattern=ze_flowspec_rules_refused_total\{reason="unknown-protocol"\} 1

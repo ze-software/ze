@@ -116,7 +116,7 @@ renaming-a-registered-name-blocking ## Renaming a Registered Name (BLOCKING)
   dots-for-subsystem-keys-hyphens-for-plugin-names
 new-plugin-checklist ## New Plugin Checklist
   the-new-plugin-checklist
-  what-make-generate-populates-for-you
+  what-repository-generate-populates-for-you
 invocation-modes ## Invocation Modes
   how-each-invocation-mode-is-spelled
 transport ## Transport

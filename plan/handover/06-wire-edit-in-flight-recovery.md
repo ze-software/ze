@@ -13,8 +13,8 @@ running anything. Nothing here is lost; it needs reconciling, not redoing.
 | `94f6c579e` | The RFC 7606 Section 5.4 spec |
 | `bbd53bf22` | wire-edit child 1 (immutable base + eager span index) and a second fail-open leak |
 
-Every one of those was verified green at the time it landed: `make ze-unit-bgp-test`
-81/81, `golangci-lint` clean, `make ze-rfc-check` exit 0, `make ze-unit-reactor-test-race`
+Every one of those was verified green at the time it landed: `./le test-unit bgp`
+81/81, `golangci-lint` clean, `./le rfc check` exit 0, `go test -race ./internal/component/bgp/reactor/...`
 0 data races.
 
 ## Why the tree is red now: I over-parallelised
@@ -45,8 +45,8 @@ lives. That gap is the direct cause.
    to pass `facts.addr.String()` / `dest.Address.String()`, and add the `netip`
    import or drop the parameter type back.
 3. **Reconcile `locateMPNLRI`** with whatever the Section 5.4 agent landed.
-4. Then `make ze-unit-bgp-test`, `golangci-lint`, `make ze-rfc-check`,
-   `make ze-unit-reactor-test-race`. Only then commit.
+4. Then `./le test-unit bgp`, `golangci-lint`, `./le rfc check`,
+   `go test -race ./internal/component/bgp/reactor/...`. Only then commit.
 
 ## Do not lose these, they are real work
 
@@ -71,7 +71,7 @@ T1-3 frame was invisible).
 
 ## Two open items that are nobody's yet
 
-- `TestFwdPool_BackpressureBehavior` fails under `make ze-unit-reactor-test-race`
+- `TestFwdPool_BackpressureBehavior` fails under `go test -race ./internal/component/bgp/reactor/...`
   (`-count=20`), passes 5/5 isolated, 0 data races. Per `ai/rules/completion.md`
   that is a BROKEN TEST waiting on a duration instead of a condition. It must be
   fixed, not recorded in `plan/known-failures/`.

@@ -23,20 +23,11 @@
 #           ssh exec handler's "error: " text became the client's error value and the
 #           client prefixed it again.
 
-tmpfs=test-rbac-ssh-only.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
-
-touch daemon.ready
-
-# noc-secret, bcrypt
-NOC_HASH='$2a$10$EHVw7e4FvIc2NlB.sTHrGuRGv8PHte7aHyGQkiuvHWdC6NxQx/TIO'
-
-cat > rbac-ssh-only.conf <<ZECONF
+tmpfs=rbac-ssh-only.conf:terminator=EOF_CONF
 environment {
 	ssh {
 		enabled enable
-		server main { ip 127.0.0.1; port 0; }
+		server main { ip 127.0.0.1; port $PORT2; }
 	}
 }
 
@@ -53,102 +44,16 @@ system {
 	}
 	authentication {
 		user noc {
-			password ${NOC_HASH}
+			# bcrypt hash of noc-secret.
+			password "$2a$10$EHVw7e4FvIc2NlB.sTHrGuRGv8PHte7aHyGQkiuvHWdC6NxQx/TIO"
 			profile read-only
 		}
 	}
 }
-ZECONF
+EOF_CONF
 
-ze start rbac-ssh-only.conf 2>daemon.log &
-DAEMON_PID=$!
-trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
-
-# Poll for the ephemeral ssh port the daemon logs once its listener is bound.
-# No fixed sleep: the port line is the readiness signal.
-SSH_PORT=""
-for i in $(seq 1 50); do
-	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
-	if [ -n "$SSH_PORT" ]; then
-		break
-	fi
-	sleep 0.2
-done
-if [ -z "$SSH_PORT" ]; then
-	echo "FAIL: SSH server did not start" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "ssh on :$SSH_PORT" >&2
-
-ADMIN_DIR=$(mktemp -d)
-trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
-printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
-
-run_as_noc() {
-	ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="noc-secret" ze cli --user noc -c "$1" 2>&1
-}
-
-# The read-only profile's run section defaults to allow, so an operational
-# show must still work. This also proves the noc login itself is fine, so a
-# refusal below is authorization and not a broken credential.
-if ! OUTPUT=$(run_as_noc "show version"); then
-	echo "FAIL: 'show version' should be allowed for the read-only profile" >&2
-	echo "OUTPUT: $OUTPUT" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "OK: 'show version' allowed: $OUTPUT" >&2
-
-# 'clear interface counters' is a real registered command that the profile denies
-# via the "clear" prefix entry. A real command matters: an unregistered one would
-# report "unknown command" and prove nothing about authorization.
-if OUTPUT=$(run_as_noc "clear interface counters"); then
-	echo "FAIL: 'clear interface counters' must be refused (profile denies 'clear')" >&2
-	echo "OUTPUT: $OUTPUT" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "DENIED-OUTPUT: $OUTPUT" >&2
-
-case "$OUTPUT" in
-	*"command restricted by access control"*)
-		echo "OK: refusal names access control" >&2
-		;;
-	*)
-		echo "FAIL: refusal must say 'command restricted by access control', got: $OUTPUT" >&2
-		exit 1
-		;;
-esac
-
-case "$OUTPUT" in
-	*"error: error:"*)
-		echo "FAIL: doubled error prefix in: $OUTPUT" >&2
-		exit 1
-		;;
-esac
-echo "OK: single error prefix" >&2
-
-# A command that exists nowhere must stay distinguishable from a refusal, so an
-# operator reading "restricted" knows it is their profile and not a typo.
-if OUTPUT=$(run_as_noc "show no-such-command-anywhere"); then
-	echo "FAIL: a nonexistent command must not succeed" >&2
-	exit 1
-fi
-case "$OUTPUT" in
-	*"unknown command"*)
-		echo "OK: nonexistent command reports unknown command" >&2
-		;;
-	*)
-		echo "FAIL: nonexistent command must report 'unknown command', got: $OUTPUT" >&2
-		exit 1
-		;;
-esac
-
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-rbac-ssh-only.sh:timeout=30s
+cmd=foreground:seq=1:exec=ze start rbac-ssh-only.conf:timeout=30s
+cmd=foreground:seq=2:exec=ze-test fixture plugin/rbac-ssh-only-enforced $PORT2:timeout=30s
 expect=exit:code=0
 # The read-only profile still allows operational reads.
 expect=stderr:pattern=OK: 'show version' allowed

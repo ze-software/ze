@@ -1,39 +1,9 @@
-# Test (AC-2): the arch -> docker platform mapping appears exactly once, in
-# run.py; it is absent from both Makefiles and cmd_kernel.go.
+# Test (AC-2): native builder selection maps supported architectures to one
+# backend and prefers docker before QEMU.
 
 option=timeout:value=20s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-# The platform strings live only in run.py. Scope to the kernel-build source
-# trees: skip gokrazy/modcache (a huge vendored Go module cache that would both
-# slow the scan and false-match) and compiled __pycache__ bytecode.
-files=$(grep -rl --exclude-dir=__pycache__ 'linux/amd64\|linux/arm64' \
-	tools/kernel-builder tools/installer-kernel gokrazy/kernel internal/appliance 2>/dev/null | sort -u || true)
-expected="tools/kernel-builder/run.py"
-if [ "$files" != "$expected" ]; then
-	echo "platform mapping must appear only in $expected, found in:" >&2
-	printf '%s\n' "$files" >&2
-	exit 1
-fi
-
-# run.py defines exactly one mapping table.
-grep -q 'DOCKER_PLATFORM' tools/kernel-builder/run.py
-
-# The Makefiles and Go no longer carry an arch->platform branch.
-nope() { grep -q "$2" "$1" && { echo "$1 still maps platform ($2)" >&2; exit 1; } || true; }
-nope gokrazy/kernel/Makefile 'DOCKER_PLATFORM'
-nope tools/installer-kernel/Makefile 'DOCKER_PLATFORM'
-nope internal/appliance/cmd_kernel.go 'dockerPlatform'
-
-printf 'OK\n'
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/kernel-arch-mapping-single
 expect=exit:code=0
 expect=stdout:contains=OK

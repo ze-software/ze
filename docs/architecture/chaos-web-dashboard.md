@@ -457,7 +457,7 @@ All files are vendored into `internal/chaos/web/` and embedded via `go:embed` di
 
 Served at `/assets/htmx.min.js`, `/assets/hx-sse.min.js`, `/assets/style.css` with appropriate `Content-Type` headers and `Cache-Control: immutable` (assets are versioned with the binary).
 
-The head block does not name those two script files. It renders `pageAssets(pgWriteLayout)`, a set `scripts/codegen/web_assets.go` derives from the attributes this package renders and writes into `page_assets.go`. `make ze-web-assets-check` refuses a set that disagrees with the markup. The dashboard streams, so its set names both files.
+The head block does not name those two script files. It renders `pageAssets(pgWriteLayout)`, a set `internal/le/webassets.Write` derives from the attributes this package renders and writes into `page_assets.go`. `./le web-assets check` refuses a set that disagrees with the markup. The dashboard streams, so its set names both files.
 <!-- source: internal/chaos/web/render.go -- writeLayout, the head block -->
 <!-- source: internal/chaos/web/page_assets.go -- pageAssets, generated -->
 
@@ -467,7 +467,7 @@ Every response this package writes is pinned by a golden fixture under `internal
 
 Two lists are machine-derived rather than hand-maintained, so a route or a renderer cannot be added without a fixture: `golden.RoutePatterns` reads the registrations in `handlers.go`, and the renderer list is read from the `render*` declarations in `dashboard.go` and `render.go`. A route or renderer that no case reaches fails the test by name.
 
-Two spans are normalized because they are clock-derived: the uptime in `writeLayout` and the Duration stat in `writeChaosTimeline`. Everything else is pinned by seeding the dashboard state. Recapture after a deliberate markup change with `make ze-chaos-golden-update`, then read the diff.
+Two spans are normalized because they are clock-derived: the uptime in `writeLayout` and the Duration stat in `writeChaosTimeline`. Everything else is pinned by seeding the dashboard state. Recapture after a deliberate markup change with `go test ./internal/chaos/web -run TestChaosGoldenOutput -update-golden`, then read the diff.
 <!-- source: internal/chaos/web/golden_test.go -- TestChaosGoldenOutput, chaosLiveRoutes, chaosSSERenderers -->
 
 ## WebDashboard Internal State

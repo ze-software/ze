@@ -18,6 +18,12 @@
 
 option=skip-os:value=darwin
 
+# Give the runner one private working directory for both the daemon's relative
+# MRT path and the file assertion below.
+tmpfs=.mrt-workdir:terminator=EOF_WORKDIR
+mrt
+EOF_WORKDIR
+
 # ze-peer: listen on $PORT, accept ze's session, and receive ze's end-of-RIB
 # UPDATE (the expectation below both gives ze-peer test data and confirms the
 # UPDATE ze records was really sent).
@@ -28,47 +34,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Observer plugin: wait until ze has sent its UPDATE (EOR counts into
-# updates-sent), then shut ze down cleanly so the mrt writer flushes and closes.
-tmpfs=mrt-observer.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
-
-
-def peer_field(api, name, addr, field, default):
-    result = dispatch(api, f'show bgp peer {name} detail').get('result', {})
-    if result.get('status') != 'done':
-        return default
-    data = result_json_data(result, {})
-    return data.get('peers', {}).get(addr, {}).get(field, default)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    for _ in range(100):
-        if peer_field(api, 'peer1', '127.0.0.1', 'updates-sent', 0) >= 1:
-            break
-        api.wait_for_event(timeout=0.2)
-    else:
-        runtime_fail('timeout waiting for ze to send an UPDATE (EOR) to peer1')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer waits for the EOR UPDATE before requesting clean shutdown.
 
 # ze configuration: the top-level `mrt {}` section auto-loads the mrt plugin
 # (config-path auto-load, startup_autoload.go:74) and the observer drives the
@@ -76,7 +42,7 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external mrt-observer {
-		run ./mrt-observer.run
+		run "ze-test fixture plugin/mrt-dump-updates"
 		encoder json
 	}
 }

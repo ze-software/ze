@@ -12,6 +12,8 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
+const safiNLRIMPLS = "nlri-mpls"
+
 // convertFamilyToList converts ExaBGP family syntax to ZeBGP list entries.
 // ExaBGP: "ipv4 unicast;" -> ZeBGP: session > family list: key="ipv4/unicast".
 func convertFamilyToList(src, dst *config.Tree) {
@@ -118,7 +120,7 @@ func convertNexthopSyntax(nexthop string) string {
 // ZeBGP's nexthop parser expects "mpls-label".
 func normalizeSAFI(safi string) string {
 	switch strings.ToLower(safi) {
-	case "nlri-mpls", "labeled-unicast":
+	case safiNLRIMPLS, "labeled-unicast":
 		return "mpls-label"
 	default: // pass through: unknown SAFIs are preserved as-is for the Ze parser to validate
 		return safi
@@ -134,7 +136,7 @@ func canonicalSAFI(safi string) string {
 	switch strings.ToLower(safi) {
 	case "mcast-vpn":
 		return "mvpn"
-	case "nlri-mpls", "labeled-unicast":
+	case safiNLRIMPLS, "labeled-unicast":
 		return "mpls-label"
 	case "flowspec":
 		return "flow"

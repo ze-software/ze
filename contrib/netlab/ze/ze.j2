@@ -18,8 +18,8 @@
     bfd               min_tx, min_rx, multiplier, all in milliseconds
     routing.static[]  prefix and nexthop
 
-  `make ze-netlab-render-check` renders this against contrib/netlab/topology.yml
-  and compares the result with contrib/netlab/golden/, then runs
+  `./le netlab render-check` renders this against contrib/netlab/topology.yml,
+  compares the result with contrib/netlab/golden/, then runs
   `ze config validate` on the golden files. A change here that ze would reject
   fails that check.
 #}

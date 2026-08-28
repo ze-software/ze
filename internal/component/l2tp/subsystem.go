@@ -79,7 +79,7 @@ type Subsystem struct {
 	mu            sync.Mutex
 	started       bool
 	listeners     []*UDPListener
-	reactors      []*L2TPReactor
+	reactors      []*l2tpReactor
 	timers        []*tunnelTimer
 	kernelWorkers []*kernelWorker
 	pppDrivers    []*ppp.Driver
@@ -253,7 +253,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		// spec-l2tp-7 Phase 6: install the subsystem's route observer
 		// into every reactor so EventSessionIPAssigned and
 		// EventSessionDown drive inject / withdraw.
-		reactor.SetRouteObserver(s.routeObserver)
+		reactor.setRouteObserver(s.routeObserver)
 		// spec-l2tp-8a: install EventBus so reactor can emit
 		// (l2tp, session-down) for pool release.
 		reactor.SetEventBus(bus)
@@ -288,7 +288,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		} else {
 			worker = newSubsystemKernelWorkerFn(errCh, successCh, s.logger)
 		}
-		reactor.SetKernelWorker(worker, errCh, successCh)
+		reactor.setKernelWorker(worker, errCh, successCh)
 
 		// Phase 6a: construct a PPP driver if an iface backend is loaded.
 		// The driver owns per-session goroutines that drive LCP and (in

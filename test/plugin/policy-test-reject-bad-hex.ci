@@ -8,57 +8,6 @@ option=timeout:value=20s
 option=bind:value=0.0.0.0
 EOF_PEER
 
-tmpfs=policy-test-bad-hex.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Test 1: invalid hex characters
-    result = dispatch(api, 'show policy test peer test-peer export update ZZZZ')
-    if result.get('status') != 'error':
-        runtime_fail(f'expected error for bad hex, got {result.get("status")}')
-        print(f'FAIL: expected error for bad hex, got {result.get("status")}', file=sys.stderr)
-        sys.exit(1)
-    print(f'OK: bad hex rejected: {result.get("error", "")}')
-
-    # Test 2: too short (less than 19 bytes)
-    result = dispatch(api, 'show policy test peer test-peer export update FFFF')
-    if result.get('status') != 'error':
-        runtime_fail(f'expected error for short message, got {result.get("status")}')
-        print(f'FAIL: expected error for short message, got {result.get("status")}', file=sys.stderr)
-        sys.exit(1)
-    print(f'OK: short message rejected: {result.get("error", "")}')
-
-    # Test 3: not a BGP UPDATE (type=1 OPEN)
-    result = dispatch(api, 'show policy test peer test-peer export update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001301')
-    if result.get('status') != 'error':
-        runtime_fail(f'expected error for non-UPDATE, got {result.get("status")}')
-        print(f'FAIL: expected error for non-UPDATE, got {result.get("status")}', file=sys.stderr)
-        sys.exit(1)
-    print(f'OK: non-UPDATE rejected: {result.get("error", "")}')
-
-    print('ALL PASS: bad hex rejection tests')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -66,7 +15,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-test-bad-hex {
-		run ./policy-test-bad-hex.run
+		run "ze-test fixture plugin/policy-test-reject-bad-hex"
 		encoder json
 	}
 }

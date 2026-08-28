@@ -14,7 +14,7 @@
 // three concurrent sessions and "running the linting by hand can cause the
 // machine to freeze".
 //
-// This package is a port of scripts/dev/ze-run.sh. It preserves the registry
+// This package is a port of internal/le/lejob/answer.go. It preserves the registry
 // format field for field and file name for file name. Thus, a job admitted by
 // the shell and a job admitted here can detect each other. During migration,
 // the two implementations use one queue and do not admit themselves separately.
@@ -117,8 +117,8 @@ const (
 // ever, so it is refused rather than clamped.
 const SlotsMin = 1
 
-// SlotsDefault is what a caller that arrives without make gets. The Makefile
-// derives the real number from the per-job ceiling and exports it.
+// SlotsDefault is what a caller supplies when it does not know this machine's
+// shared-job policy.
 const SlotsDefault = 1
 
 // The intervals a waiting job runs on.
@@ -139,9 +139,8 @@ const (
 	lockRetry = 50 * time.Millisecond
 )
 
-// The keys the run-time knobs are read under. Two carry the spelling the
-// Makefile and ai/rules already document, so a session following either keeps
-// reaching the same value.
+// The keys the run-time knobs are read under. Two carry the spelling ai/rules
+// documents, so a session following it reaches the same value.
 const (
 	// SlotsKey is how many admitted jobs run at once.
 	SlotsKey = "ze.run.slots"
@@ -351,15 +350,15 @@ func (a *Admission) Validate() error {
 	if a.Slots < SlotsMin || a.Slots > slotsMax {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("slot count ").Int(int64(a.Slots)).Str(" is out of range (").
-			Int(int64(SlotsMin)).Str("..").Int(int64(slotsMax)).Str("); set ZE_RUN_SLOTS. The Makefile ").
-			Str("derives it from GO_TEST_PROCS; take it down with `make <target> ZE_RUN_SLOTS=1`").
+			Int(int64(SlotsMin)).Str("..").Int(int64(slotsMax)).
+			Str("); set ZE_RUN_SLOTS. Native actions default to one slot; use ZE_RUN_SLOTS=1 to serialize").
 			String())
 	}
 	return nil
 }
 
 // Kind says how a job was admitted. The zero value names no admission at all,
-// so a Ticket nobody filled in cannot read as a held slot.
+// so a ticket nobody filled in cannot read as a held slot.
 type Kind uint8
 
 const (
@@ -393,7 +392,7 @@ func (k Kind) String() string {
 	}
 }
 
-// Ticket contains the answer to "does this job run now".
+// ticket contains the answer to "does this job run now".
 //
 // A ticket with KindClaimed holds a slot. Its holder MUST call Release exactly
 // once. All other kinds hold no slot, and Release is a no-op for them. Thus, a
@@ -404,7 +403,7 @@ func (k Kind) String() string {
 // holder remains silent, the breaker breaks its slot while it works. Run
 // writes the progress for a job that is another program. A caller that does
 // the work in-process has the same responsibility.
-type Ticket struct {
+type ticket struct {
 	// Label is the job's name, and the first component of its entry.
 	Label string
 	// Kind says whether this ticket holds a slot.
@@ -437,9 +436,9 @@ type Ticket struct {
 // a race it can lose.
 //
 // MUST be called exactly once for a ticket whose Kind is KindClaimed, and MUST
-// be paired with the Admit that answered it. It is a no-op for every other
+// be paired with the admit that answered it. It is a no-op for every other
 // kind, and for a second call on one ticket.
-func (t *Ticket) Release(code int) {
+func (t *ticket) Release(code int) {
 	if t == nil || t.Kind != KindClaimed || t.adm == nil {
 		return
 	}
@@ -453,15 +452,15 @@ func (t *Ticket) Release(code int) {
 	adm.remove(adm.abs(OwnerFile))
 }
 
-// Admit waits until this job can run and then returns its admission result.
+// admit waits until this job can run and then returns its admission result.
 //
-// argv identifies the work that the job will run. Admit reads it to calculate
+// argv identifies the work that the job will run. admit reads it to calculate
 // the work key but does not execute it. A caller that does its work in-process
 // passes the argv that identifies that work.
 //
-// Admit can return a slot to hold, another job's verdict, or a parent's slot
+// admit can return a slot to hold, another job's verdict, or a parent's slot
 // to use. Only the first result must be released.
-func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
+func (a *Admission) admit(label string, argv []string) (*ticket, error) {
 	if !validLabel(label) {
 		return nil, ErrLabel
 	}
@@ -475,20 +474,18 @@ func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
 	if parent, nested := a.insideParent(); nested {
 		var tb textbuf.Buffer
 		a.note(tb.Byte('[').Str(label).Str("] running inside ").Str(parent).String())
-		return &Ticket{Label: label, Kind: KindInside, adm: a}, nil
+		return &ticket{Label: label, Kind: KindInside, adm: a}, nil
 	}
 
 	if err := os.MkdirAll(a.jobsDir(), 0o755); err != nil { //nolint:gosec // the registry is read and written by every session on this machine
 		return nil, err
 	}
 
-	params := MakeParams()
 	job := pending{
 		label:     label,
 		argv:      argv,
 		tree:      TreeHash(a.Root),
-		key:       JobKey(argv, params),
-		params:    strings.Join(params, " "),
+		key:       jobKey(argv),
 		mayAttach: a.MayAttach,
 	}
 	return a.queue(&job)
@@ -501,7 +498,7 @@ func (a *Admission) Admit(label string, argv []string) (*Ticket, error) {
 // machine is busy, for as long as one hour. The registry controls this wait.
 // Each holder in the registry is alive and writing, or the registry reaps it.
 // See registry.go.
-func (a *Admission) queue(job *pending) (*Ticket, error) {
+func (a *Admission) queue(job *pending) (*ticket, error) {
 	started := time.Now()
 	var lastBanner time.Time
 
@@ -510,7 +507,7 @@ func (a *Admission) queue(job *pending) (*Ticket, error) {
 
 		switch result.state {
 		case stateClaimed:
-			return &Ticket{
+			return &ticket{
 				Label: job.label, Kind: KindClaimed, Tree: job.tree, Key: job.key,
 				Entry: result.entry, Log: result.log, Waited: time.Since(started),
 				adm: a, started: result.started,
@@ -518,7 +515,7 @@ func (a *Admission) queue(job *pending) (*Ticket, error) {
 
 		case stateAttach:
 			if code, observed := a.attach(job.label, result); observed {
-				return &Ticket{
+				return &ticket{
 					Label: job.label, Kind: KindAttached, Code: code, Tree: job.tree,
 					Key: job.key, Waited: time.Since(started), adm: a,
 				}, nil
@@ -590,7 +587,7 @@ func (a *Admission) Run(label string, argv []string, dir string, environ []strin
 		return report, report.Code
 	}
 
-	ticket, err := a.Admit(label, argv)
+	ticket, err := a.admit(label, argv)
 	if err != nil {
 		a.note(errorLine(err))
 		report.Code = 2
@@ -647,7 +644,7 @@ func (a *Admission) runDir(dir string) string {
 // The entry path is absolute because a stage can run outside the checkout root.
 // Registry paths are relative to the root. If a nested job cannot find its
 // parent's entry, it enters the queue. A job behind its own parent cannot start.
-func (a *Admission) childEnviron(environ []string, ticket *Ticket) []string {
+func (a *Admission) childEnviron(environ []string, ticket *ticket) []string {
 	if environ == nil {
 		environ = os.Environ()
 	}

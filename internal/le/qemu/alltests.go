@@ -4,12 +4,12 @@
 //
 // alltests.go is the whole ze test suite, run INSIDE the QEMU Linux VM.
 //
-// It runs in the guest, not on the host. scripts/evidence/qemu-run.py has
-// already prepared the guest. It booted Alpine and 9p-mounted the repository at
-// /workspace. It also loaded the ppp, l2tp and nft kernel modules and installed
-// the Go toolchain. The three ze binaries were cross-compiled on the host and
-// shared in over that mount. The remaining task is to run every phase and
-// report which phases failed.
+// It runs in the guest, not on the host. The native qemu run action has
+// already prepared the guest: it booted Alpine, 9p-mounted the repository at
+// /workspace, loaded the ppp, l2tp and nft kernel modules, and installed the Go
+// toolchain. The three ze binaries and the le personality were cross-compiled
+// on the host and shared in over that mount. The remaining task is to run every
+// phase and report which phases failed.
 //
 // Three phases run. The functional suites use concurrency that an 8-vCPU VM can
 // carry, rather than the concurrency that a build host can carry. The unit tests
@@ -18,10 +18,9 @@
 // netlink, nft, fib and procfs code paths that need a real kernel.
 //
 // THE SUITE LIST IS CHECKED AGAINST THE ONE THE REPOSITORY DECLARES. A run whose
-// list has a hole refuses to start. The shell half has 25 hand-written lines,
-// but the repository declares 29 suites. Thus runner, flow-export, vpp and web
-// never execute in the VM. Four comments in the shell half explain that a suite
-// left off the list "would execute NOWHERE"
+// list has a hole refuses to start. The retired shell helper had 25 hand-written
+// lines while the repository declared 29 suites, so runner, flow-export, vpp,
+// and web never executed in the VM
 // (plan/journal/gate-excludes-part-of-its-population.md, 2026-08-26).
 package qemu
 
@@ -41,8 +40,7 @@ import (
 
 // The guest uses fixed paths. The repository arrives on a 9p mount at a known
 // place. The binary shim is a VM-local directory because some UI tests exec
-// `ze-stripped` through PATH. mk/test-integration.mk mirrors this path for the
-// same reason. The two path definitions must move together.
+// `ze-stripped` through PATH. The build and guest command use this one path.
 const (
 	guestWorkspace = "/workspace"
 	guestBinDir    = "/tmp/ze-qemu-bin"
@@ -57,9 +55,8 @@ const (
 	killAfterFlag = "--kill-after=15s"
 )
 
-// The defaults the make targets and this file must agree on. Both spellings of
-// each are one decision, and the one here wins whenever the command is invoked
-// directly (mk/test-integration.mk).
+// These defaults belong to the native guest action. The host passes explicit
+// values when it needs a different concurrency, timeout, or skip set.
 const (
 	defaultParallel = "4"
 	defaultTimeout  = "900s"
@@ -212,7 +209,7 @@ var vmSuites = []vmSuite{
 var excludedSuites = map[string]string{}
 
 // integrationPackages are the linux-only test packages, the same set
-// `make ze-qemu-integration-test` names.
+// `./le qemu all-tests` names.
 var integrationPackages = []string{
 	// The doctor's integration test is internal/component/doctor
 	// (checks_integration_linux_test.go). This entry once read ./cmd/ze/doctor,
@@ -257,14 +254,14 @@ var (
 	ErrIncompleteRun = errors.New("qemu: a declared functional suite is neither run nor excluded")
 )
 
-// AllTests is one whole in-VM run.
-type AllTests struct {
+// allTestsRun is one whole in-VM run.
+type allTestsRun struct {
 	// Workspace is where the repository is mounted in the guest.
 	Workspace string
 	// BinDir is the VM-local directory the binary shim is built in.
 	BinDir string
 	// The three binaries, as the host named them. A relative path is resolved
-	// against the workspace, which is how the make targets pass them.
+	// against the workspace, which is how the native host action passes them.
 	ZeBin       string
 	StrippedBin string
 	TestBin     string
@@ -274,9 +271,7 @@ type AllTests struct {
 	// wall-clock cap each suite runs under.
 	Parallel string
 	Timeout  string
-	// BuildCache and ModuleCache are handed to make as COMMAND-LINE variables.
-	// The Makefile assigns GOCACHE itself, and a makefile assignment beats an
-	// environment variable, so an exported value is silently discarded.
+	// BuildCache and ModuleCache are passed directly in the child environment.
 	BuildCache  string
 	ModuleCache string
 	// Run runs one child and answers its exit code. The zero value streams it
@@ -287,10 +282,10 @@ type AllTests struct {
 	Note func(line string)
 }
 
-// NewAllTests reads the run's knobs from the environment the make target
-// exported, and defaults the rest.
-func NewAllTests() *AllTests {
-	return &AllTests{
+// newAllTests reads the run's knobs from the environment the native host action
+// exports, and defaults the rest.
+func newAllTests() *allTestsRun {
+	return &allTestsRun{
 		Workspace:   guestWorkspace,
 		BinDir:      guestBinDir,
 		ZeBin:       envOr(zeBinKey, "bin/ze"),
@@ -325,7 +320,7 @@ func splitList(value string) []string {
 }
 
 // note writes one progress line through the run's writer, defaulted to stderr.
-func (a *AllTests) note(line string) {
+func (a *allTestsRun) note(line string) {
 	if a.Note == nil {
 		gaterun.Note(line)
 		return
@@ -335,7 +330,7 @@ func (a *AllTests) note(line string) {
 
 // child runs one command through the run's runner, defaulted to a streaming run
 // in the workspace.
-func (a *AllTests) child(argv, environ []string) int {
+func (a *allTestsRun) child(argv, environ []string) int {
 	if a.Run == nil {
 		return gaterun.Stream(argv, a.Workspace, environ)
 	}
@@ -347,7 +342,7 @@ func (a *AllTests) child(argv, environ []string) int {
 // Execute checks EVERY precondition before the first child starts. If a run
 // discovers halfway through that it cannot answer, it has already spent an
 // hour of VM time. Its partial result reads like a test failure.
-func (a *AllTests) Execute() (AllTestsReport, int) {
+func (a *allTestsRun) Execute() (AllTestsReport, int) {
 	if err := a.verify(); err != nil {
 		leaction.ReportError(err)
 		return AllTestsReport{}, 1
@@ -363,7 +358,12 @@ func (a *AllTests) Execute() (AllTestsReport, int) {
 	for _, suite := range vmSuites {
 		report.add(a.suite(suite, environ))
 	}
-	report.add(a.unitPhase(environ))
+	unit, err := a.unitPhase(environ)
+	if err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
+	report.add(unit)
 
 	integration, err := a.integrationPhase(environ)
 	if err != nil {
@@ -379,7 +379,7 @@ func (a *AllTests) Execute() (AllTestsReport, int) {
 }
 
 // verify rejects any run that was unable to answer honestly.
-func (a *AllTests) verify() error {
+func (a *allTestsRun) verify() error {
 	if info, err := os.Stat(a.Workspace); err != nil || !info.IsDir() {
 		var tb textbuf.Buffer
 		return errors.New(tb.Err(ErrNotMounted).Str(": ").Str(a.Workspace).String())
@@ -395,8 +395,8 @@ func (a *AllTests) verify() error {
 	}
 
 	if a.BuildCache == "" || a.ModuleCache == "" {
-		return errors.New("qemu: GOCACHE and GOMODCACHE must both be named: the Makefile assigns" +
-			" GOCACHE itself, so an unnamed cache compiles through a host-only symlink")
+		return errors.New("qemu: GOCACHE and GOMODCACHE must both be named by the native toolchain; " +
+			"an unnamed cache can compile through a host-only symlink")
 	}
 
 	if err := a.verifySuiteCoverage(); err != nil {
@@ -408,7 +408,7 @@ func (a *AllTests) verify() error {
 
 // verifySuiteCoverage refuses a run that would leave a declared suite executing
 // nowhere. It is the guard the shell's hand-written list does not have.
-func (a *AllTests) verifySuiteCoverage() error {
+func (a *allTestsRun) verifySuiteCoverage() error {
 	listed := make(map[string]bool, len(vmSuites))
 	for _, suite := range vmSuites {
 		listed[suite.Name] = true
@@ -428,10 +428,10 @@ func (a *AllTests) verifySuiteCoverage() error {
 	return errors.New(tb.Err(ErrIncompleteRun).Str(": ").Join(missing, ", ").String())
 }
 
-// workspacePath resolves a binary path in the same way that the make targets
-// pass it. An absolute path is unchanged. A relative path is relative to the
-// workspace.
-func (a *AllTests) workspacePath(path string) string {
+// workspacePath resolves a binary path in the same way that the native host
+// action passes it. An absolute path is unchanged. A relative path is relative
+// to the workspace.
+func (a *allTestsRun) workspacePath(path string) string {
 	if filepath.IsAbs(path) {
 		return path
 	}
@@ -442,7 +442,7 @@ func (a *AllTests) workspacePath(path string) string {
 //
 // Some UI tests exec `ze-stripped` through PATH, and the host cross-compiles to
 // arch-suffixed names so that bin/ze stays the host-native binary.
-func (a *AllTests) shim() error {
+func (a *allTestsRun) shim() error {
 	if err := os.MkdirAll(a.BinDir, 0o750); err != nil {
 		return err
 	}
@@ -469,12 +469,18 @@ func (a *AllTests) shim() error {
 // correct for a plain checkout and wrong here. The PATH shim puts `ze` in a
 // scratch directory whose parent is not the repository. Those tests then grep
 // paths that do not exist. They find nothing, read no source, and fail.
-func (a *AllTests) environment() []string {
+func (a *allTestsRun) environment() []string {
 	environ := os.Environ()
 	environ = setEnv(environ, noBuildKey, "1")
 	environ = setEnv(environ, inVMKey, "1")
 	environ = setEnv(environ, repoRootKey, a.Workspace)
 	environ = setEnv(environ, zeBinKey, filepath.Join(a.BinDir, "ze"))
+	if a.BuildCache != "" {
+		environ = setEnv(environ, "GOCACHE", a.BuildCache)
+	}
+	if a.ModuleCache != "" {
+		environ = setEnv(environ, "GOMODCACHE", a.ModuleCache)
+	}
 
 	var tb textbuf.Buffer
 	return setEnv(environ, pathKey, tb.Str(a.BinDir).Byte(':').Str(os.Getenv(pathKey)).String())
@@ -503,7 +509,7 @@ func setEnv(environ []string, key, value string) []string {
 }
 
 // suite runs one functional suite, or reports it skipped.
-func (a *AllTests) suite(suite vmSuite, environ []string) PhaseResult {
+func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
 	var tb textbuf.Buffer
 	name := tb.Str("functional/").Str(suite.Name).String()
 
@@ -520,7 +526,7 @@ func (a *AllTests) suite(suite vmSuite, environ []string) PhaseResult {
 //
 // `timeout` runs the suite in its own process group. On expiry, it kills the
 // whole group. Thus a stuck ze or plugin child cannot wedge the run.
-func (a *AllTests) suiteCommand(suite vmSuite) []string {
+func (a *allTestsRun) suiteCommand(suite vmSuite) []string {
 	argv := make([]string, 0, len(suite.Args)+6)
 	argv = append(argv, "timeout", killAfterFlag, a.Timeout, filepath.Join(a.BinDir, "ze-test"))
 	argv = append(argv, suite.Args...)
@@ -535,41 +541,28 @@ func (a *AllTests) suiteCommand(suite vmSuite) []string {
 	}
 }
 
-// unitPhase runs the full unit pass without -race. The Alpine image ships no C
-// compiler, and the race detector needs CGO. Native runs provide race coverage.
-// This phase adds the //go:build linux test files that never compile on a macOS
-// dev box.
-//
-// unitPhase calls the -impl body DIRECTLY. It bypasses the job-admission wrapper
-// that the public target carries. That wrapper must not run here.
-//
-// The wrapper registry is under the repository's tmp/, which the guest shares
-// over 9p. The host and guest have DISJOINT pid namespaces. If a guest reads a
-// host holder's entry, it finds no such pid and reaps the slot as dead. The VM
-// is single-tenant, and its whole job is this run. There is nothing to admit.
-//
-// ze-scratch-links-ensure is named explicitly. It is a prerequisite of the
-// PUBLIC target, but not of the -impl body. A direct call to an -impl skips the
-// prerequisites that the public half declared.
-func (a *AllTests) unitPhase(environ []string) PhaseResult {
-	var cache textbuf.Buffer
-	var module textbuf.Buffer
+// unitPhase runs the complete Go package population without -race. The Alpine
+// guest ships no C compiler, and the race detector needs CGO. Native host runs
+// provide race coverage.
+func (a *allTestsRun) unitPhase(environ []string) (PhaseResult, error) {
+	tags, err := a.integrationTags()
+	if err != nil {
+		return PhaseResult{}, err
+	}
+	tags = strings.Replace(tags, " integration", "", 1)
 	argv := []string{
-		"make", "--no-print-directory",
-		cache.Str(buildCacheAssignment).Str(a.BuildCache).String(),
-		module.Str(moduleCacheAssignment).Str(a.ModuleCache).String(),
-		// ./scripts/... is host developer tooling with no linux-only surface,
-		// and in the guest it fails on Alpine having neither brew nor apt.
-		"ZE_PACKAGES_EXCLUDE=/scripts/",
-		"ze-scratch-links-ensure", "_ze-unit-test-cached-impl",
+		"env", "CGO_ENABLED=0", "go", "test",
+		"-timeout", "20m",
+		"-tags", tags,
+		"./...",
 	}
 	const name = "unit tests (no -race, cacheable)"
 	a.note(banner(name))
-	return PhaseResult{Name: name, Command: argv, Code: a.child(argv, environ)}
+	return PhaseResult{Name: name, Command: argv, Code: a.child(argv, environ)}, nil
 }
 
 // integrationPhase runs the linux-only, integration-tagged tests.
-func (a *AllTests) integrationPhase(environ []string) (PhaseResult, error) {
+func (a *allTestsRun) integrationPhase(environ []string) (PhaseResult, error) {
 	argv, err := a.integrationArgs()
 	if err != nil {
 		return PhaseResult{}, err
@@ -585,7 +578,7 @@ func (a *AllTests) integrationPhase(environ []string) (PhaseResult, error) {
 // A path typo is a bug in THIS file, not a test failure. `go test` reports a
 // missing directory as `FAIL <pkg> [setup failed]` among real results. Thus,
 // ./cmd/ze/doctor remained broken here when the phase only looked red.
-func (a *AllTests) integrationArgs() ([]string, error) {
+func (a *allTestsRun) integrationArgs() ([]string, error) {
 	tags, err := a.integrationTags()
 	if err != nil {
 		return nil, err
@@ -618,7 +611,7 @@ func (a *AllTests) integrationArgs() ([]string, error) {
 
 // hasPackage reports whether a package pattern names a directory of the
 // workspace.
-func (a *AllTests) hasPackage(pkg string) bool {
+func (a *allTestsRun) hasPackage(pkg string) bool {
 	dir := strings.TrimSuffix(pkg, "/...")
 	info, err := os.Stat(filepath.Join(a.Workspace, dir))
 	return err == nil && info.IsDir()
@@ -629,13 +622,10 @@ func (a *AllTests) hasPackage(pkg string) bool {
 // `-tags integration` ADDS the integration files to a package. It does not
 // replace the package's ordinary unit tests, which also compile and run.
 //
-// Without ze_core and the feature set that they usually get, every
-// feature-gated surface silently vanishes. The tests that assert on these
-// surfaces then fail. Four doctor listener tests once failed because ze_ssh
-// alone was absent. The set is DERIVED from feature-gates.txt, so it cannot
-// drift from the Makefile's own set. A manifest that is not there is an ERROR,
+// Without ze_core and the feature set, feature-gated surfaces silently vanish.
+// The set is derived from feature-gates.txt, so a missing manifest is an error,
 // not a smaller tag set.
-func (a *AllTests) integrationTags() (string, error) {
+func (a *allTestsRun) integrationTags() (string, error) {
 	body, err := os.ReadFile(filepath.Join(a.Workspace, "feature-gates.txt")) //nolint:gosec // a fixed path of the checkout
 	if err != nil {
 		var tb textbuf.Buffer

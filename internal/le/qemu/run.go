@@ -4,9 +4,9 @@
 // Detail: run_iso.go -- Alpine ISO and initramfs cache behavior
 // Detail: run_report.go -- the structured plan and run answer
 //
-// This file owns the host side of scripts/evidence/qemu-run.py. It starts QEMU
-// directly. It never starts Python. The command string remains guest input and
-// crosses the SSH boundary unchanged.
+// This file owns the native host QEMU harness. It starts QEMU directly and
+// never starts Python. The command string remains guest input and crosses the
+// SSH boundary unchanged.
 package qemu
 
 import (
@@ -94,8 +94,8 @@ type RunOptions struct {
 	SSHPort   int
 }
 
-// ParseRunArguments validates the qemu run keyword values.
-func ParseRunArguments(args leaction.Arguments) (RunOptions, error) {
+// parseRunArguments validates the qemu run keyword values.
+func parseRunArguments(args leaction.Arguments) (RunOptions, error) {
 	options := RunOptions{
 		Command: args["command"], Packages: strings.Fields(args["packages"]),
 		Timeout: DefaultCommandTimeout, Kernel: args["kernel"],
@@ -532,7 +532,7 @@ func (r *Run) setupCommand() (string, error) {
 		Str("/community\\n' > /etc/apk/repositories").String()
 	parts := []string{
 		"set -e", repositories, "apk update",
-		"apk add --no-cache git python3 bash curl musl-dev",
+		"apk add --no-cache git curl musl-dev",
 	}
 	if len(r.Options.Packages) != 0 {
 		b.Reset()

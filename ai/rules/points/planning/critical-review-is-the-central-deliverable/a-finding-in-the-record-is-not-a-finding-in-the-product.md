@@ -17,7 +17,7 @@ stage:
 - **A round whose findings are ALL record defects is the last round.** The loop
   has stopped converging on the product: each prose fix creates fresh text to
   audit, so another round cannot establish product quality.
-- **`scripts/dev/review_gate.py record` takes `--rounds N` and refuses more than
+- **`./le spec-session review record` takes `--rounds N` and refuses more than
   five without `--rounds-reason`, which MUST name the PRODUCT defect a later
   round found.** The cap is not a ban: a genuinely defective implementation can
   need a sixth round and gets one for the cost of a sentence. That sentence is
@@ -29,7 +29,7 @@ stage:
   stays required alongside it. The product defect and his word are both owed,
   and neither substitutes for the other.
 - **You MUST NOT set `--owner-authorised` on your own initiative.** The same ban
-  covers `--push` on `scripts/dev/commit_helper.py` (`ai/rules/git-safety.md`).
+  covers `--push` on `internal/le/commit` (`ai/rules/git-safety.md`).
   At the cap you MUST stop. Report what the loop keeps finding, then ask him
   whether it runs another pass. A script cannot check who typed a flag. Setting
   it unasked is a recorded false statement about the owner, not a shortcut.

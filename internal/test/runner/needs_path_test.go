@@ -40,17 +40,17 @@ func newNeedsPathFixture(t *testing.T, optionLine string) (*Record, error) {
 // "shasum: gokrazy/modcache/.../vmlinuz: No such file or directory". The pinned
 // rtr7/kernel module is gitignored (gokrazy/modcache/.gitignore ignores all but
 // the vendored gokrazy init source), so it exists only after
-// `make ze-gokrazy-deps-download` and a fresh checkout has no way to satisfy the test.
+// `./le setup install`; a fresh checkout has no way to satisfy the test.
 func TestParseCIOptionNeedsPath(t *testing.T) {
 	t.Run("absent-skips-with-reason-and-hint", func(t *testing.T) {
-		rec, err := newNeedsPathFixture(t, "option=needs-path:value=gokrazy/modcache/github.com/rtr7:hint=make ze-gokrazy-deps-download")
+		rec, err := newNeedsPathFixture(t, "option=needs-path:value=gokrazy/modcache/github.com/rtr7:hint=./le setup install")
 		require.NoError(t, err)
 		require.NotNil(t, rec)
 
 		require.NotEmpty(t, rec.SkipReason, "an absent needs-path must skip, not run")
 		assert.Contains(t, rec.SkipReason, "gokrazy/modcache/github.com/rtr7",
 			"the reason must name the missing path")
-		assert.Contains(t, rec.SkipReason, "make ze-gokrazy-deps-download",
+		assert.Contains(t, rec.SkipReason, "./le setup install",
 			"the reason must name the command that materializes it")
 	})
 

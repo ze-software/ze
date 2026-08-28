@@ -19,14 +19,14 @@ func (fp *fwdPool) Barrier(ctx context.Context) error {
 	return fp.barrier(ctx, nil)
 }
 
-// BarrierPeer blocks until the worker for a specific peer address has drained.
+// barrierPeer blocks until the worker for a specific peer address has drained.
 // Returns nil immediately if no worker exists for that peer.
-func (fp *fwdPool) BarrierPeer(ctx context.Context, peerAddr netip.AddrPort) error {
+func (fp *fwdPool) barrierPeer(ctx context.Context, peerAddr netip.AddrPort) error {
 	target := fwdKey{peerAddr: peerAddr}
 	return fp.barrier(ctx, func(k fwdKey) bool { return k == target })
 }
 
-// barrier is the internal implementation for Barrier and BarrierPeer.
+// barrier is the internal implementation for Barrier and barrierPeer.
 // If filter is nil, all workers are targeted. Otherwise, only workers
 // whose key passes the filter are targeted.
 func (fp *fwdPool) barrier(ctx context.Context, filter func(fwdKey) bool) error {
@@ -92,9 +92,9 @@ func (fp *fwdPool) barrier(ctx context.Context, filter func(fwdKey) bool) error 
 		}
 		// Overflow had items (or channel was full): queue sentinel in
 		// overflow so it is processed strictly after every dispatch that
-		// preceded Barrier. If DispatchOverflow returns false (pool
+		// preceded Barrier. If dispatchOverflow returns false (pool
 		// stopped), it calls sentinel.done() itself.
-		fp.DispatchOverflow(targets[i].key, sentinel)
+		fp.dispatchOverflow(targets[i].key, sentinel)
 	}
 
 	// Wait for all sentinels to be processed.

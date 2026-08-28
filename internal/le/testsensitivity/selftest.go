@@ -25,12 +25,11 @@ import (
 // legacyLogSelector spells the standard logger's fatal call for one fixture
 // below, assembled rather than written whole.
 //
-// c_legacy_log (.claude/hooks/pretool-writeedit.py) refuses that selector in any
-// compiled Go file outside _test.go and scripts/, and it cannot tell a FIXTURE
-// from a call. This package's subject IS which calls count as an assertion, so
-// its corpus has to contain the ones that do not. The pattern needs the package
-// and the method adjacent, so splitting them suffices, and a const line is
-// exempt from the concatenation rule. The parser sees one identifier either way.
+// writeGoPatterns (`internal/le/hookruntime/writeedit.go`) refuses that selector
+// in production Go, and it cannot tell a fixture from a call. This package's
+// subject is which calls count as an assertion, so its corpus must contain the
+// forms that do not. The pattern needs the package and method adjacent, so
+// splitting them suffices. The parser sees one identifier either way.
 const legacyLogSelector = "log." + "Fatalf"
 
 // assertCase is one synthetic test file and the number of assert-nothing
@@ -211,9 +210,8 @@ var tagCases = []tagCase{
 	{"a second unreachable tag is still an orphan", "//go:build ze_nowhere || ze_gone\n\npackage p\n", true},
 }
 
-// SelftestCaseCount answers how many rows one selftest run reports, which is
-// what a caller pins so a table that shrank is visible.
-func SelftestCaseCount() int { return len(assertCases) + len(crossCases) + len(tagCases) + 1 }
+// selftestCaseCount answers how many rows one selftest run reports.
+func selftestCaseCount() int { return len(assertCases) + len(crossCases) + len(tagCases) }
 
 // Selftest runs both detectors over their fixtures and answers one row per
 // case.
@@ -222,7 +220,7 @@ func SelftestCaseCount() int { return len(assertCases) + len(crossCases) + len(t
 // from a detector that stopped detecting, so it is answered apart from the rows
 // rather than as one more failing case.
 func Selftest() (leroot.SelftestReport, error) {
-	results := make([]leroot.SelftestResult, 0, SelftestCaseCount())
+	results := make([]leroot.SelftestResult, 0, selftestCaseCount())
 
 	for _, testCase := range assertCases {
 		results = append(results, judgeAssertCase(testCase, nil))
@@ -240,7 +238,6 @@ func Selftest() (leroot.SelftestReport, error) {
 	for _, testCase := range tagCases {
 		results = append(results, judgeTagCase(testCase))
 	}
-	results = append(results, judgeExpandTags())
 
 	return leroot.NewSelftestReport(
 		"test-sensitivity: selftest OK",
@@ -252,7 +249,7 @@ func Selftest() (leroot.SelftestReport, error) {
 // judgeAssertCase runs one assert-nothing case. index is nil for a single-file
 // case and non-nil for a cross-package one.
 func judgeAssertCase(testCase assertCase, index *pkgIndex) leroot.SelftestResult {
-	got, err := CountInert(testCase.src, index)
+	got, err := countInert(testCase.src, index)
 	if err != nil {
 		var tb textbuf.Buffer
 		return leroot.Fail(testCase.name, tb.Str("parse: ").Err(err).String())
@@ -281,23 +278,9 @@ func judgeTagCase(testCase tagCase) leroot.SelftestResult {
 		Str(", want ").Bool(testCase.orphan).String())
 }
 
-// judgeExpandTags pins make-variable expansion. Without it the universe
-// silently narrows and every gated test file becomes a false orphan.
-func judgeExpandTags() leroot.SelftestResult {
-	const name = "expandTags resolves a nested make variable"
-	vars := map[string]string{"GO_TEST_TAGS": "ze_core $(ZE_FEATURES)", "ZE_FEATURES": "ze_web ze_ssh"}
-	got := ExpandTags("$(GO_TEST_TAGS)", vars, 0)
-	if len(got) == 3 && got[0] == "ze_core" && got[1] == "ze_web" && got[2] == "ze_ssh" {
-		return leroot.Pass(name)
-	}
-	var tb textbuf.Buffer
-	return leroot.Fail(name, tb.Str("expandTags: got ").Join(got, " ").
-		Str(", want ze_core ze_web ze_ssh").String())
-}
-
-// CountInert answers how many Test functions in one source assert nothing.
+// countInert answers how many Test functions in one source assert nothing.
 // index resolves cross-package helpers and may be nil.
-func CountInert(src string, index *pkgIndex) (int, error) {
+func countInert(src string, index *pkgIndex) (int, error) {
 	file, err := parseSource(src)
 	if err != nil {
 		return 0, err
@@ -326,14 +309,6 @@ func CountInert(src string, index *pkgIndex) (int, error) {
 	}
 	return count, nil
 }
-
-// NewIndex answers a helper index rooted at a tree, so a test can drive the
-// cross-package follow over a fixture module.
-func NewIndex(root string) *pkgIndex { return newPkgIndex(root) }
-
-// WriteCrossFixture writes the cross-package helper module and answers its
-// root. The caller removes it.
-func WriteCrossFixture() (string, error) { return writeCrossFixture() }
 
 // writeCrossFixture writes a one-package module the cross-package cases import.
 func writeCrossFixture() (string, error) {

@@ -23,18 +23,6 @@ EOF_SOURCE
 # Observer: issue `daemon shutdown` after a short settle so ze exits 0 instead
 # of being killed by the foreground cmd timeout (which the runner flags as
 # StateTimeout). See bgp-rs-fastpath-ebgp-shared.ci for the rationale.
-tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-# // the observer's synchronous `show bgp` eor-sent poll +
-# `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
-# (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
-# A more robust rewrite, not a relaxation: same "wait until the RS replayed to every
-# peer" semantics, no expect/action/reject assertion removed. The old poll's dispatch
-# RPC could stall ~30s under load and strand the shutdown until ze was killed.
-from ze_api import API
-
-API().run_rs_observer(expected_peers=1)
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -42,7 +30,7 @@ plugin {
 		use bgp-rs
 	}
 	external shutdown-after-up {
-		run ./shutdown-after-up.run
+		run "ze-test fixture plugin/bgp-rs-replaying-gate"
 		encoder json
 	}
 }

@@ -27,30 +27,23 @@ import (
 // area is the name this command is typed as.
 const area = "site-facts"
 
-// actions is the whole command surface. Each action carries the Make target it
-// still is, and leaction derives the word a developer types from it
+// actions is the whole command surface. Each action carries its retired target
+// identity for the migration census, and leaction derives the native verb
 // (internal/le/leaction, Area.verbOf).
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-site-facts-update",
-		Why:    "derive the published numbers about this repository and write website/data/repo-facts.json, the file the site build reads instead of walking this tree",
+	leaction.Action{Verb: "update", Why: "derive the published numbers about this repository and write website/data/repo-facts.json, the file the site build reads instead of walking this tree",
 		Writes: true,
-		Answer: runUpdate,
-	},
-	leaction.Action{
-		Gate:   "ze-site-facts-check",
-		Why:    "report which published facts the committed file and the last commit disagree about, and name the action that fixes them",
-		Answer: runCheck,
-	},
+		Answer: runUpdate},
+	leaction.Action{Verb: "check", Why: "report which published facts the committed file and the last commit disagree about, and name the action that fixes them",
+		Answer: runCheck},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line
 // help renders, and the test that checks them all read one table.
 func Actions() leaction.List { return actions.Actions() }
 
-// Gates answers the Make target of each action, so the parity census counts
-// them from the same table the dispatch reads.
-func Gates() []string { return actions.Gates() }
+// Gates answers the retired Make target of each ported action, so the migration
+// census counts them from the same table the dispatch reads.
 
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }

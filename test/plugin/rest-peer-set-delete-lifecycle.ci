@@ -13,203 +13,12 @@ stdin=peer:terminator=EOF_PEER
 option=bind:value=0.0.0.0
 EOF_PEER
 
-tmpfs=drive-lifecycle.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Drive config set/delete/commit via REST config sessions, verify BGP session state."""
-import json
-import sys
-import urllib.error
-import urllib.request
-from ze_api import API
-
-REST_PORT = int('$PORT2')
-PEER_PORT = '$PORT'
-BASE_URL = f'http://127.0.0.1:{REST_PORT}/api/v1'
-HEADERS = {'Authorization': 'Bearer secret', 'Content-Type': 'application/json'}
-
-
-def rest(method, path, payload=None):
-    data = None
-    headers = dict(HEADERS)
-    if payload is not None:
-        data = json.dumps(payload).encode()
-    req = urllib.request.Request(BASE_URL + path, data=data, headers=headers, method=method)
-    try:
-        resp = urllib.request.urlopen(req, timeout=10)
-    except urllib.error.HTTPError as err:
-        body = err.read().decode(errors='replace')
-        raise RuntimeError(f'HTTP {err.code} {method} {path}: {body}') from err
-    raw = resp.read()
-    return json.loads(raw) if raw else {}
-
-
-def wait_for_rest(api, timeout=15):
-    def _ok():
-        try:
-            rest('GET', '/commands')
-            return True
-        except (RuntimeError, urllib.error.URLError, ConnectionRefusedError, OSError):
-            return False
-    if api.wait_until(_ok, attempts=50, delay=0.3):
-        return
-    print('FAIL: REST API did not respond', file=sys.stderr)
-    sys.exit(1)
-
-
-def create_session():
-    created = rest('POST', '/config/sessions')
-    sid = created.get('session-id')
-    if not sid:
-        raise RuntimeError(f'create session failed: {created}')
-    return sid
-
-
-def config_set(sid, path, value):
-    rest('PUT', f'/config/sessions/{sid}', {'path': path, 'value': value})
-
-
-def config_delete(sid, path):
-    url_path = path.replace('.', '/')
-    rest('DELETE', f'/config/sessions/{sid}/{url_path}')
-
-
-def config_commit(sid, label):
-    result = rest('POST', f'/config/sessions/{sid}/commit')
-    if result.get('status') != 'committed':
-        raise RuntimeError(f'{label} commit status: {result}')
-
-
-def add_peer(sid, name, remote_ip, remote_as):
-    prefix = f'bgp.peer.{name}'
-    config_set(sid, f'{prefix}.connection.remote.ip', remote_ip)
-    config_set(sid, f'{prefix}.connection.remote.port', PEER_PORT)
-    config_set(sid, f'{prefix}.connection.local.ip', remote_ip)
-    config_set(sid, f'{prefix}.connection.local.accept', 'false')
-    config_set(sid, f'{prefix}.session.asn.remote', str(remote_as))
-    config_set(sid, f'{prefix}.behavior.group-updates', 'false')
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error'}
-    return resp.get('result', {})
-
-
-def get_peer_state(api, peer_ip):
-    """Return the BGP FSM state for a peer, or None if absent."""
-    result = dispatch(api, f'show bgp peer {peer_ip}')
-    if result.get('status') != 'done':
-        return None
-    data = result.get('data', {})
-    if isinstance(data, str):
-        data = json.loads(data)
-    peers = data.get('peers', {})
-    info = peers.get(peer_ip)
-    if info is None:
-        return None
-    return info.get('state', '')
-
-
-def wait_for_peer_state(api, peer_ip, timeout=12):
-    """Wait for a peer to appear with a BGP state."""
-    api.wait_until(
-        lambda: get_peer_state(api, peer_ip) is not None,
-        attempts=max(1, int(timeout / 0.5)), delay=0.5,
-    )
-    return get_peer_state(api, peer_ip)
-
-
-def wait_for_peer_gone(api, peer_ip, timeout=12):
-    """Wait for a peer to disappear from the BGP engine."""
-    return api.wait_until(
-        lambda: get_peer_state(api, peer_ip) is None,
-        attempts=max(1, int(timeout / 0.5)), delay=0.5,
-    )
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        wait_for_rest(api)
-
-        # Step 1: Verify initial peer-alpha has a BGP session
-        state = wait_for_peer_state(api, '127.0.0.1')
-        if state is None:
-            print('FAIL: peer-alpha (127.0.0.1) not in show bgp peer', file=sys.stderr)
-            sys.exit(1)
-        print(f'OK: step 1 - peer-alpha state={state}', file=sys.stderr)
-
-        # Step 2: Add peer-beta via config session commit
-        sid = create_session()
-        add_peer(sid, 'peer-beta', '127.0.0.2', 65002)
-        config_commit(sid, 'step 2')
-
-        state = wait_for_peer_state(api, '127.0.0.2')
-        if state is None:
-            print('FAIL: peer-beta (127.0.0.2) not in show bgp peer after add', file=sys.stderr)
-            sys.exit(1)
-        alpha = wait_for_peer_state(api, '127.0.0.1')
-        if alpha is None:
-            print('FAIL: peer-alpha (127.0.0.1) lost after adding peer-beta', file=sys.stderr)
-            sys.exit(1)
-        print(f'OK: step 2 - peer-beta state={state}, peer-alpha state={alpha}', file=sys.stderr)
-
-        # Step 3: Delete peer-alpha via config session commit
-        sid = create_session()
-        config_delete(sid, 'bgp.peer.peer-alpha')
-        config_commit(sid, 'step 3')
-
-        if not wait_for_peer_gone(api, '127.0.0.1'):
-            print('FAIL: peer-alpha (127.0.0.1) still in show bgp peer after delete', file=sys.stderr)
-            sys.exit(1)
-        beta = wait_for_peer_state(api, '127.0.0.2')
-        if beta is None:
-            print('FAIL: peer-beta (127.0.0.2) lost after deleting peer-alpha', file=sys.stderr)
-            sys.exit(1)
-        print(f'OK: step 3 - peer-alpha gone, peer-beta state={beta}', file=sys.stderr)
-
-        # Step 4: Re-add peer-alpha via config session commit
-        sid = create_session()
-        add_peer(sid, 'peer-alpha', '127.0.0.1', 65001)
-        config_commit(sid, 'step 4')
-
-        state = wait_for_peer_state(api, '127.0.0.1')
-        if state is None:
-            print('FAIL: peer-alpha (127.0.0.1) not in show bgp peer after re-add', file=sys.stderr)
-            sys.exit(1)
-        beta = wait_for_peer_state(api, '127.0.0.2')
-        if beta is None:
-            print('FAIL: peer-beta (127.0.0.2) lost after re-adding peer-alpha', file=sys.stderr)
-            sys.exit(1)
-        print(f'OK: step 4 - peer-alpha state={state}, peer-beta state={beta}', file=sys.stderr)
-
-        print('OK: config set/delete/commit lifecycle completed', file=sys.stderr)
-    except Exception as exc:
-        print(f'FAIL: {exc}', file=sys.stderr)
-        sys.exit(1)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration with plugin + REST
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external lifecycle-driver {
-        run ./drive-lifecycle.run
+        run "ze-test fixture plugin/rest-peer-set-delete-lifecycle $PORT2 $PORT"
         encoder json
     }
 }
@@ -228,6 +37,12 @@ environment {
 }
 
 bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
     peer peer-alpha {
         connection {
             remote {

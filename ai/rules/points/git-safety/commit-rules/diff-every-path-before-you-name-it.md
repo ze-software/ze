@@ -3,7 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-**A `--file` list is a list of PATHS, and a path carries whatever the file holds
+**A `file <path>` list is a list of PATHS, and a path carries whatever the file holds
 at that moment. Before naming a path, you MUST run `git diff` over it and confirm
 every hunk is yours.**
 

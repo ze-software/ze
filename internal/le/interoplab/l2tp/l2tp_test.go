@@ -147,8 +147,8 @@ func l2tpCheckout(t *testing.T) string {
 	return root
 }
 
-// VALIDATES: every producer scenario has a typed callback in lexical order.
-// PREVENTS: a self-contained Python run.py branch disappearing from the native gate.
+// VALIDATES: every reviewed scenario has a typed callback in lexical order.
+// PREVENTS: an inverse-role or three-peer branch disappearing from the native gate.
 func TestPlansCoverEveryScenario(t *testing.T) {
 	root := l2tpCheckout(t)
 	plans, _, err := plansAt(root, "", testEnvironment())
@@ -168,8 +168,8 @@ func TestPlansCoverEveryScenario(t *testing.T) {
 	}
 }
 
-// VALIDATES: peer roles, image commands, configuration mounts, and privileged isolation match the producer lifecycle.
-// PREVENTS: a translated checker running without its independent xl2tpd, FRR, or RADIUS participant.
+// VALIDATES: peer roles, image commands, configuration mounts, and privileged isolation match the native lifecycle.
+// PREVENTS: a typed checker running without its independent xl2tpd, FRR, or RADIUS participant.
 func TestPlanPeerCommandsAndConfigBytes(t *testing.T) {
 	root := l2tpCheckout(t)
 	plans, _, err := plansAt(root, "", testEnvironment())
@@ -231,11 +231,11 @@ func TestPlanPeerCommandsAndConfigBytes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read rendered initiator config: %v", err)
 	}
-	producer, err := os.ReadFile(filepath.Join(scenario03, "ze.conf"))
+	fixture, err := os.ReadFile(filepath.Join(scenario03, "ze.conf"))
 	if err != nil {
-		t.Fatalf("read producer initiator config: %v", err)
+		t.Fatalf("read initiator config: %v", err)
 	}
-	wantRendered := strings.Replace(string(producer), "\t\taddress 127.0.0.1", "\t\taddress 172.29.0.3", 1)
+	wantRendered := strings.Replace(string(fixture), "\t\taddress 127.0.0.1", "\t\taddress 172.29.0.3", 1)
 	if string(rendered) != wantRendered {
 		t.Errorf("rendered initiator config bytes differ from the single peer-address substitution")
 	}
@@ -339,6 +339,16 @@ func TestFailureCodeIsOne(t *testing.T) {
 	}
 	if report := runAt(t.Context(), root, scenarioPPPIPv4, nil, testEnvironment()); report.Code != 1 {
 		t.Fatalf("unavailable Docker code = %d, want 1", report.Code)
+	}
+}
+
+// VALIDATES: The deployment action can select one scenario through the native environment contract.
+// PREVENTS: An empty action argument silently running the full population.
+func TestRunAtReadsNativeScenarioSelector(t *testing.T) {
+	t.Setenv("ZE_L2TP_INTEROP_SCENARIO", "does-not-exist")
+	report := RunAt(t.Context(), l2tpCheckout(t), "")
+	if report.Code != 1 || !strings.Contains(report.SetupError, "does-not-exist") {
+		t.Fatalf("environment-selected missing scenario report = %#v", report)
 	}
 }
 

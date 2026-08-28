@@ -14,7 +14,7 @@ By contributing, you agree to the terms of the
    all contributions, whether written by hand or with AI assistance.
 4. **Run `/ze-review-deep` before submitting.** The maintainer reviews contributions
    with Claude Code. Submitting pre-reviewed code makes that process smooth.
-   See the [Claude Code cheat sheet](docs/claude-code-cheatsheet.md) for all available commands.
+   See [`ai/INDEX.md`](ai/INDEX.md) for the repository's command and rule index.
 5. **Sign your commits** with `git commit -s` (certifies you accept the [CLA](CLA.md)).
 
 ## Rules
@@ -24,7 +24,7 @@ requirements, and workflow expectations. Key points:
 
 - **TDD:** tests written before implementation
 - **Specs drive work:** no code without a spec
-- **`make ze-precommit-verify` must pass** before any submission
+- **`./le verify current mode full` must pass** before any submission
 - **No partial deliveries:** code + tests + docs in one piece
 
 ## License

@@ -11,133 +11,6 @@ option=env:var=ze.log.bgp.bmp:value=info
 option=env:var=ze.log.bgp.rib:value=info
 option=timeout:value=20s
 
-tmpfs=bmp-bestpath.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""BMP best-path isolation test: BMP routes must not enter best-path."""
-import json
-import socket
-import struct
-import sys
-import time
-from ze_api import API, result_text_data, result_json_data, rib_rows_by_peer
-
-def bmp_header(msg_type, length):
-    return struct.pack('!BIB', 3, length, msg_type)
-
-def bmp_initiation():
-    name = b'test-router'
-    name_tlv = struct.pack('!HH', 2, len(name)) + name
-    return bmp_header(4, 6 + len(name_tlv)) + name_tlv
-
-def bgp_open(asn):
-    marker = b'\xff' * 16
-    body = struct.pack('!BHHIB', 4, asn, 90, 0x01020304, 0)
-    length = 19 + len(body)
-    return marker + struct.pack('!HB', length, 1) + body
-
-def bmp_peer_header(peer_as=65001):
-    ph = struct.pack('!BB', 0, 0)
-    ph += struct.pack('!Q', 0)
-    ph += b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 1])
-    ph += struct.pack('!II', peer_as, 0x01020304)
-    ph += struct.pack('!II', int(time.time()), 0)
-    return ph
-
-def bmp_peer_up():
-    ph = bmp_peer_header()
-    local_addr = b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 100])
-    ports = struct.pack('!HH', 179, 54321)
-    sent_open = bgp_open(65000)
-    recv_open = bgp_open(65001)
-    payload = ph + local_addr + ports + sent_open + recv_open
-    return bmp_header(3, 6 + len(payload)) + payload
-
-def bgp_update_announce(prefix_bytes, prefix_len):
-    marker = b'\xff' * 16
-    withdrawn_len = struct.pack('!H', 0)
-    origin = struct.pack('!BBB', 0x40, 1, 1) + b'\x00'
-    as_path = struct.pack('!BBB', 0x40, 2, 0)
-    next_hop = struct.pack('!BBB', 0x40, 3, 4) + bytes([10, 0, 0, 100])
-    attrs = origin + as_path + next_hop
-    attr_len = struct.pack('!H', len(attrs))
-    nlri = bytes([prefix_len]) + prefix_bytes
-    body = withdrawn_len + attr_len + attrs + nlri
-    length = 19 + len(body)
-    return marker + struct.pack('!HB', length, 2) + body
-
-def bmp_route_monitoring():
-    ph = bmp_peer_header()
-    update = bgp_update_announce(bytes([10, 0, 0]), 24)
-    payload = ph + update
-    return bmp_header(0, 6 + len(payload)) + payload
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Inject BMP route for 10.0.0.0/24
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(('127.0.0.1', $PORT2))
-    sock.sendall(bmp_initiation())
-    sock.sendall(bmp_peer_up())
-    sock.sendall(bmp_route_monitoring())
-
-    # Verify BMP route exists in show bmp rib. Poll until the injected route lands
-    # (async BMP ingest); replaces blind inter-send + settle sleeps.
-    result = api.dispatch_until(
-        'show bmp rib',
-        lambda r: bool(rib_rows_by_peer(result_json_data(r, {}))),
-    )
-    data = result_text_data(result, '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    rib_in = rib_rows_by_peer(parsed)
-    if not rib_in:
-        print('FAIL: no BMP routes found', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    # Verify bgp rib show does NOT include BMP routes
-    result = dispatch(api, 'show bgp rib')
-    data = result_text_data(result, '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    bgp_rib = rib_rows_by_peer(parsed)
-    for peer, routes in bgp_rib.items():
-        for route in routes:
-            if '10.0.0.0' in route.get('prefix', ''):
-                print('FAIL: BMP route leaked into bgp rib show', file=sys.stderr, flush=True)
-                sys.exit(1)
-
-    # Verify best-path does NOT include BMP route
-    result = dispatch(api, 'show bgp rib best')
-    data = result_text_data(result, '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    best = parsed.get('best', {})
-    for prefix_data in best.values() if isinstance(best, dict) else []:
-        if isinstance(prefix_data, dict) and '10.0.0.0' in str(prefix_data):
-            print('FAIL: BMP route appeared in best-path', file=sys.stderr, flush=True)
-            sys.exit(1)
-
-    print('PASS: BMP routes isolated from best-path selection', file=sys.stderr, flush=True)
-    sock.close()
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 environment {
@@ -151,7 +24,7 @@ environment {
 }
 plugin {
     external bmp-bestpath {
-        run ./bmp-bestpath.run;
+        run "ze-test fixture plugin/bmp-lg-bestpath-isolation $PORT2;"
         encoder json;
     }
 }

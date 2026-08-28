@@ -152,7 +152,7 @@ func parseNetnsLinkFile(t *testing.T, netnsOn, withNeedsLinux bool) *Record {
 
 // VALIDATES: a test declaring option=netns-link is SKIPPED, with a reason naming
 // the netns targets, when the per-test netns launch mode is off.
-// PREVENTS: the 2026-07-25 QEMU wipeout -- `make ze-qemu-needs-linux-test` does
+// PREVENTS: the 2026-07-25 QEMU wipeout -- `./le qemu all-tests` does
 // not set ZE_TEST_NETNS, so provisionNetnsLinks never ran, the daemon was asked
 // to open interfaces (eth1/nbma0/ptmp0) that did not exist, the OSPF engine
 // exited 1, plugin startup timed out, and all 8 ospf + 3 ospfv3 + policy
@@ -170,7 +170,7 @@ func TestNetnsLinkSkipsWithoutNetnsMode(t *testing.T) {
 
 // VALIDATES: the same test RUNS (no skip reason) when netns mode is active.
 // PREVENTS: the gate silencing the eleven ospf/ospfv3 tests in the one mode that
-// does provision their links (make ze-netns-test / ze-qemu-netns-test), which
+// does provision their links (./le qemu netns-test / ze-qemu-netns-test), which
 // would turn a precise gate into a permanent coverage hole.
 func TestNetnsLinkRunsUnderNetnsMode(t *testing.T) {
 	// withNeedsLinux=false: needs-linux skips on every non-Linux host, which would

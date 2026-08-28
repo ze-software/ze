@@ -1,8 +1,0 @@
-make ze-build
-
-mkdir -p tmp
-export ZE_CONFIG_DIR="$(mktemp -d "$PWD/tmp/webui-mac.XXXXXX")"
-
-printf 'admin\nsecret\n127.0.0.1\n2222\nwebui-mac\n' | bin/ze init --web-cert 127.0.0.1:3443
-
-bin/ze start --web 3443 --insecure-web

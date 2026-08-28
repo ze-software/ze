@@ -1,4 +1,4 @@
-// VALIDATES: RFC 7296 (IKEv2) MUST-level obligations enrolled into `make ze-rfc-check`:
+// VALIDATES: RFC 7296 (IKEv2) MUST-level obligations enrolled in `./le rfc check`:
 // the initial-exchange encryption boundary (§1.2), DPD empty-INFORMATIONAL echo (§2.4),
 // mandatory KE on IKE-SA rekey (§1.3.3), AEAD/non-AEAD proposal separation and INTEG-NONE
 // (§3.3), IKE proposal transform completeness and mandatory DH (§3.3.2/§3.3.6), NAT ESP

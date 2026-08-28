@@ -1,15 +1,10 @@
 // Design: docs/architecture/core-design.md -- Go fuzzing, discovered at run time
 //
-// Package fuzz is scripts/le/application/fuzz.py, ported. Every `func Fuzz`
-// under internal/ is found when the fuzzers run, so there is no enumeration to
-// commit and nothing to go stale.
+// Package fuzz discovers every `func Fuzz` under internal/ when the fuzzers
+// run, so there is no enumeration to commit and nothing to go stale.
 //
-// Make cannot discover targets, so this area previously used a committed generated file.
-// A generator walked internal/ for `func Fuzz` and wrote each target to mk/test-fuzz-targets.mk.
-// Another target checked that file for stale data, and regen-check inspected its diff.
-// These three components maintained one fact that a program can read directly from the tree.
-// Discover performs that walk when needed.
-// Adding a `func Fuzz` now adds the target without a generation step.
+// Discovery reads the tree at run time. Adding a `func Fuzz` therefore adds the
+// target without a generated fragment or a second stale-data check.
 //
 // Two constraints on the emitted command are Go fuzz REQUIREMENTS rather than
 // preferences, and both are why the generator existed at all:
@@ -21,9 +16,9 @@
 //     another (FuzzParseVPN against FuzzParseVPNAddPath) fails with "matches
 //     more than one fuzz target".
 //
-// The admission wrapper remains in Make.
-// scripts/dev/ze-run.sh re-enters Make to take a job slot on a shared machine.
-// Removing that wrapper would change the target for every user of the machine.
+// The native job action owns admission on shared machines. Fuzz discovery
+// itself stays a pure inventory operation and does not re-enter another command
+// dispatcher.
 
 package fuzz
 
@@ -51,8 +46,8 @@ const (
 	DefaultTimeout = "60s"
 )
 
-// DefaultPackage is where a named run looks when the caller named a target and
-// no package. Go resolves it, exactly as the Make recipe let it.
+// DefaultPackage is where a named run looks when the caller names a target and
+// no package. Go resolves it directly.
 const DefaultPackage = "./internal/..."
 
 // DefaultName is what a named run fuzzes when the caller named a package and no

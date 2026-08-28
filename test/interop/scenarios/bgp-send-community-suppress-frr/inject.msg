@@ -36,7 +36,8 @@ expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 # (2) Announce 10.52.2.0/24 live, with the same three community types.
 action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005402000000394001010040020602010000FDEC400304AC1E0009C00808FDEC0064FDEC00C8C010080002FDEC0000012CC0200C0000FDEC0000000100000002180A3402
 
-# Hold the session open while check.py polls both daemons. A peer whose script is
+# Hold the session open while the internal/le/interoplab/bgp checker polls both daemons. A peer
+# whose script is
 # exhausted exits, and its session dropping makes Ze withdraw the relayed routes
 # before the check runs. Twenty KEEPALIVEs at 5 s give the check 100 s, and the
 # runner tears the lab down as soon as the check returns.

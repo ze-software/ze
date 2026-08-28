@@ -80,7 +80,7 @@ Found during research for this spec.
 
 ## Why the gates are green
 
-Six RFCs here are enrolled and gated by `make ze-rfc-check`: 1661, 2865, 2866,
+Six RFCs here are enrolled and gated by `./le rfc check`: 1661, 2865, 2866,
 3954, 5176, 7296. The gate is green because the obligations these defects break
 were never extracted.
 
@@ -176,7 +176,7 @@ those two rows true rather than changing them.
 - [ ] `internal/component/vpp/config.go` - `parsePollSleepMs` accepts whole milliseconds only
 - [ ] `internal/component/doctor/checks_linux.go` - `checkVPPVersion` checks for a literal substring, not a version range
 - [ ] `pkg/ze/eventbus.go` - the `Emit` contract: the returned count excludes in-process subscribers
-- [ ] `scripts/dev/verify_wiring_docs.py` - `check_wiring` is the existing symbol-versus-reference checker I-1 extends
+- [ ] `internal/le/docwiring/wiring.go` - `check_wiring` is the existing symbol-versus-reference checker I-1 extends
 - [ ] `internal/component/l2tp/ppp/echo_test.go` - the negative control that documents the re-entry side effects
 - [ ] `internal/component/l2tp/plugins/authradius/acct_test.go` - `startAcctServer` and `acctCapture` provide a real fake accounting server
 
@@ -241,7 +241,7 @@ Three independent entry points converge on the same downstream consumers.
 ### Integration Points
 - `subscriber.DefaultRegistry` - the single registry both transports write; the migration must not change its API.
 - `subscriber/handler_registry.go` - where a transport-generic disconnect handler joins the existing pool, auth and shaper handlers for I-4.
-- `scripts/dev/verify_wiring_docs.py` `check_wiring` - the existing checker I-1 extends with an emit-versus-subscribe predicate, reached through the `wiring` target of `make ze-repository-check`.
+- `internal/le/docwiring/wiring.go` `check_wiring` - the existing checker I-1 extends with an emit-versus-subscribe predicate, reached through the `wiring` target of `./le repository check`.
 - `internal/core/events` `AllEventTypes` - the declared-topic inventory the I-1 guard reads.
 
 ### Architectural Verification
@@ -270,8 +270,8 @@ Three independent entry points converge on the same downstream consumers.
 |----|------|--------------|----------------------|
 | R-1 | Re-keying session metadata touches six call sites; one missed site reads nil and applies defaults silently | a functional test shows the default rate or no Session-Timeout where RADIUS supplied one | make the metadata accessor take a `subscriber.Session` rather than loose fields, so a missed site fails to compile |
 | R-2 | Splitting the topic changes when `SessionUp` fires, which observability and `show` output depend on | `show subscriber summary` or the observer reports a session late or not at all | migrate the observer in the same phase as the split, with its existing tests as the gate |
-| R-3 | The I-1 guard fires on legitimately unsubscribed topics (a topic emitted for external plugin processes only) | `make ze-repository-check` goes red on unrelated work | reuse the existing `WIRING_ALLOWLIST` mechanism for reviewed exceptions rather than inventing a second one |
-| R-4 | Adding RFC checklist rows to five enrolled summaries makes `ze-rfc-check` red until every row has positive and negative tagged tests | the gate reports uncovered requirements mid-implementation | add each row in the same phase as its proof, never in a batch ahead of the tests |
+| R-3 | The I-1 guard fires on legitimately unsubscribed topics (a topic emitted for external plugin processes only) | `./le repository check` goes red on unrelated work | reuse the existing `WIRING_ALLOWLIST` mechanism for reviewed exceptions rather than inventing a second one |
+| R-4 | Adding RFC checklist rows to five enrolled summaries makes `./le rfc check` red until every row has positive and negative tagged tests | the gate reports uncovered requirements mid-implementation | add each row in the same phase as its proof, never in a batch ahead of the tests |
 | R-5 | Nothing can drive a mid-session Configure-Request in a functional test today, so the end-to-end proof needs new harness capability | the functional phase has no way to reach the daemon | extend the scripted Python L2TP peer in `test/l2tp/` to send an LCP Configure-Request in a data message after session-up |
 | R-6 | The renegotiation path re-runs the auth phase, so a fix scoped to accounting alone leaves a duplicate RADIUS Access-Request | the fake RADIUS server sees two Access-Requests for one session | assert Access-Request count as well as Accounting-Start count in the same test |
 | R-7 | Changing the RFC 1661 `{gap}` count desynchronises the spelled number in the public ledger | `check_gap_count_agreement` fails at commit | change the ledger row in the same commit as the summary |
@@ -318,7 +318,7 @@ tests instead.
 | AC-19 | The scripted L2TP peer is asked to renegotiate an established session | it sends an LCP Configure-Request in a data message and completes the exchange, giving AC-6, AC-7, AC-8 and AC-17 a functional entry point |
 | AC-10 | The daemon reloads its configuration with flow export enabled | the exported sysUpTime continues to increase and FIRST_SWITCHED / LAST_SWITCHED stay on the same epoch |
 | AC-11 | An L2TP session and a PPPoE session hold numerically equal identifier pairs | each reads back its own RADIUS profile attributes |
-| AC-12 | A build declares an event topic that is emitted and never subscribed | `make ze-repository-check` reports it and fails, unless the topic is in the reviewed allowlist |
+| AC-12 | A build declares an event topic that is emitted and never subscribed | `./le repository check` reports it and fails, unless the topic is in the reviewed allowlist |
 | AC-13 | An operator sets a sub-millisecond `poll-sleep` value | the value is accepted and appears in the generated startup.conf in microseconds |
 | AC-14 | `ze doctor` runs against a VPP whose version is outside the supported range | a warning names the found version and the supported range |
 | AC-15 | A RADIUS Disconnect-Request names a PPPoE session | the session is torn down and the response is Disconnect-ACK |
@@ -360,7 +360,7 @@ tests instead.
 | `TestFlowExportReloadPreservesSysUpTime` | `internal/plugins/flowexport/exporter_test.go` | AC-10 including FIRST_SWITCHED continuity | |
 | `TestParsePollSleepMicroseconds` | `internal/component/vpp/config_test.go` | AC-13 | |
 | `TestCheckVPPVersionRejectsUnsupportedRange` | `internal/component/doctor/checks_linux_test.go` | AC-14 | |
-| `test_emit_without_subscribe_is_reported` | `scripts/dev/verify_wiring_docs_test.py` | AC-12 | |
+| `test_emit_without_subscribe_is_reported` | `internal/le/` | AC-12 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -408,8 +408,8 @@ tests instead.
 - `internal/plugins/flowexport/register.go` - preserve the exporter epoch across a reload
 - `internal/component/vpp/config.go`, `internal/component/vpp/yang/ze-vpp-conf.yang` - accept sub-millisecond poll-sleep
 - `internal/component/doctor/checks_linux.go` - implement the version-range check
-- `scripts/evidence/effective-vpp.py`, `scripts/evidence/effective-vpp-iface.py` - pin the VPP image
-- `scripts/dev/verify_wiring_docs.py` - add the emit-versus-subscribe predicate
+- `internal/le/deployment/vppevidence.go`, `internal/le/deployment/vppiface.go` - pin the VPP image
+- `internal/le/docwiring/wiring.go` - add the emit-versus-subscribe predicate
 - `ai/rules/interop-and-goal-validation.md` - add the contention vacuity-trap row
 - `ai/rules/architecture.md` - add the fresh-versus-restore trigger row
 - `rfc/short/rfc2865.md`, `rfc/short/rfc2866.md`, `rfc/short/rfc3954.md`, `rfc/short/rfc5176.md` - extract the missing obligations
@@ -501,12 +501,12 @@ tests instead.
    - Verify: existing whole-millisecond configs produce byte-identical startup.conf (A-5)
 10. **Phase: Guards and rules** - the emit-versus-subscribe predicate and the two rule rows
    - Tests: `test_emit_without_subscribe_is_reported`
-   - Files: `scripts/dev/verify_wiring_docs.py`, `ai/rules/interop-and-goal-validation.md`, `ai/rules/architecture.md`
+   - Files: `internal/le/docwiring/wiring.go`, `ai/rules/interop-and-goal-validation.md`, `ai/rules/architecture.md`
    - Verify: the predicate reports the pre-fix state of this very spec's topics when run against the parent commit
 11. **Phase: RFC extraction and ledger** - add the missing obligations with their proofs, in the same phase as the tests that prove them
    - Tests: tagged positive and negative pairs for each new requirement id
    - Files: the four summaries, `docs/features/rfc-status.md`
-   - Verify: `make ze-rfc-check` green, and the RFC 1661 spelled gap count still agrees (R-7)
+   - Verify: `./le rfc check` green, and the RFC 1661 spelled gap count still agrees (R-7)
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -524,9 +524,9 @@ tests instead.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | No lifecycle consumer subscribes to `l2tpevents` | grep the six files named in Current Behavior for `l2tpevents` and expect no lifecycle topic |
-| Every subscriber topic has a subscriber | `make ze-repository-check` |
+| Every subscriber topic has a subscriber | `./le repository check` |
 | PPPoE accounting reaches the wire | the accounting functional test's captured packets |
-| RFC gates hold | `make ze-rfc-check` |
+| RFC gates hold | `./le rfc check` |
 | Pool does not leak | the pool-release-cycle test run for more cycles than the pool holds addresses |
 
 ### Security Review Checklist
@@ -558,7 +558,7 @@ tests instead.
 |----------|------------------------|-----------|
 | Split the session-up topic so it fires once, and add a params-changed topic | make each consumer idempotent; suppress the side effects at the source with one latch | every existing consumer already assumes once-per-session, so the split makes six consumers correct without touching their logic, and a consumer that wants renegotiation opts in. Suppression alone would silently drop a legitimate MRU or address change |
 | Re-key session metadata by the subscriber session ID string | add a transport discriminator to the existing pair; leave it and block on a separate spec | the string key is already namespaced per transport and is the identifier every migrated consumer holds. A discriminator would keep a key whose meaning depends on transport, leaving the same trap for the next consumer |
-| Extend the existing `check_wiring` checker for the I-1 guard | a new AST-walking checker; a runtime subscriber count on the bus | `check_wiring` is already a symbol-versus-reference checker with an allowlist for reviewed exceptions and is already wired into `make ze-repository-check`. The `Emit` return value cannot serve, because its contract excludes in-process subscribers |
+| Extend the existing `check_wiring` checker for the I-1 guard | a new AST-walking checker; a runtime subscriber count on the bus | `check_wiring` is already a symbol-versus-reference checker with an allowlist for reviewed exceptions and is already wired into `./le repository check`. The `Emit` return value cannot serve, because its contract excludes in-process subscribers |
 | On rekey, advance `CreatedAt` and carry `EstablishedAt` forward, in both directions | make both paths stamp the current time; make both carry the old time; add a third field for tunnel-first-established | RFC 7296 draws exactly this line and ze already has both fields. Section 2.18 makes the SA new (new SPIs, new keys), Section 2.8.3 makes the authentication unchanged and reserves a reset for reauthentication. Using the existing fields keeps `show ipsec` output shape unchanged; a third field would restate a distinction the two already carry |
 | Build the renegotiation harness in its own phase before the phases that need it | leave it as a risk row and decide during implementation; accept unit-level proof and record a deferral | the four renegotiation ACs are the core of the spec and unit tests are what missed this defect the first time. Discovering the harness is unreachable after the code has landed is the expensive order; discovering it first stops the spec cheaply |
 
@@ -570,7 +570,7 @@ tests instead.
 
 ## Review Gate
 
-Filled at implementation time by `/ze-review`, recorded via `scripts/dev/review_gate.py`. Do not delete.
+Filled at implementation time by `/ze-review`, recorded via `internal/le/speclifecycle/review.go`. Do not delete.
 
 | Run | Date | BLOCKER | ISSUE | Notes |
 |-----|------|---------|-------|-------|
@@ -587,8 +587,8 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-19 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
-- [ ] `make ze-rfc-check` passes with the four summaries extended
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le rfc check` passes with the four summaries extended
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -607,7 +607,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-lifecycle-invariants.md` only

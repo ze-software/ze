@@ -25,68 +25,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: assert GTSM fields present in peer detail
-tmpfs=gtsm-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        result = dispatch(api, 'show bgp peer peer1 detail')
-        if result.get('status') != 'done':
-            print(f'FAIL: detail status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-
-        peers = data.get('peers', {})
-        if '127.0.0.1' not in peers:
-            print('FAIL: 127.0.0.1 not in detail response', file=sys.stderr)
-            sys.exit(1)
-
-        peer = peers['127.0.0.1']
-        out_ttl = peer.get('gtsm-ttl-out')
-        min_ttl = peer.get('gtsm-ttl-min')
-        if out_ttl != 255:
-            print(f'FAIL: gtsm-ttl-out={out_ttl} expected 255', file=sys.stderr)
-            sys.exit(1)
-        if min_ttl != 255:
-            print(f'FAIL: gtsm-ttl-min={min_ttl} expected 255', file=sys.stderr)
-            sys.exit(1)
-
-        print(f'OK: GTSM active out={out_ttl} min={min_ttl} state={peer.get("state")}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Compiled observer asserts GTSM fields in peer detail.
 
 # ze bgp configuration with single-hop GTSM
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external gtsm-show-test {
-		run ./gtsm-show-test.run
+		run "ze-test fixture plugin/bgp-gtsm"
 		encoder json
 	}
 }

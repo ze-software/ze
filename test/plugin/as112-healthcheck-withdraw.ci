@@ -15,7 +15,7 @@
 # than sequencing with it: under load the sentinel was removed BEFORE the first
 # probe ran, so the probe went INIT -> DOWN directly, nothing was ever announced,
 # and the test timed out having received only the EOR (reproduced with
-# scripts/dev/stress-repro.py "bgp plugin" --test 40 --any-failure). Sequencing
+# internal/le/stressrepro/actions.go "bgp plugin" --test 40 --any-failure). Sequencing
 # the two events through the file itself removes the window entirely.
 #
 # AC-3: probe reaches DOWN after having been UP -> routes withdrawn from the peer.

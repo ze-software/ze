@@ -118,7 +118,7 @@ One route fanned out to peers in two policy groups over real sockets.
 
 ### Goal Gates (MUST pass)
 - [ ] Every AC demonstrated
-- [ ] `make ze-precommit-verify` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 

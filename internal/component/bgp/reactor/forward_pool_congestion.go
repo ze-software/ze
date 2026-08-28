@@ -44,7 +44,7 @@ const (
 //   - Whether to force-teardown the worst destination peer (AC-4)
 //
 // The controller does not own goroutines. It is queried synchronously by the
-// forward pool dispatch path (ShouldDeny) and the batch handler (ShouldTeardown).
+// forward pool dispatch path (shouldDeny) and the batch handler (ShouldTeardown).
 //
 // Thread-safe. All methods may be called from any goroutine.
 type congestionController struct {
@@ -124,12 +124,12 @@ func newCongestionController(cfg congestionConfig) *congestionController {
 	}
 }
 
-// ShouldDeny returns true if buffer acquisition should be denied for a
+// shouldDeny returns true if buffer acquisition should be denied for a
 // destination peer. Called from the overflow dispatch path (AC-2).
 //
 // Denial activates when: pool > 80% AND the destination peer has the
 // highest usage-to-weight ratio. This is the soft backpressure threshold.
-func (cc *congestionController) ShouldDeny(destPeerAddr string) bool {
+func (cc *congestionController) shouldDeny(destPeerAddr string) bool {
 	if cc == nil {
 		return false
 	}
@@ -151,7 +151,7 @@ func (cc *congestionController) ShouldDeny(destPeerAddr string) bool {
 	return false
 }
 
-// CheckTeardown evaluates whether forced teardown should fire for the
+// checkTeardown evaluates whether forced teardown should fire for the
 // given peer. Called by the worker goroutine after each batch (AC-4).
 //
 // Teardown fires when ALL conditions hold:
@@ -161,7 +161,7 @@ func (cc *congestionController) ShouldDeny(destPeerAddr string) bool {
 //
 // When teardown fires, onTeardown is called with the peer address and
 // GR capability. The caller (batch handler) should not write further.
-func (cc *congestionController) CheckTeardown(failedPeerAddr netip.AddrPort) {
+func (cc *congestionController) checkTeardown(failedPeerAddr netip.AddrPort) {
 	if cc == nil {
 		return
 	}
@@ -273,7 +273,7 @@ func congestionTeardownPeer(peers func(netip.AddrPort) *Peer) func(netip.AddrPor
 			// RFC 4271 Event 8 (AutomaticStop): ze ran out of forwarding room and
 			// chose to drop the peer. That is a failed attempt for the
 			// ConnectRetryCounter, not an operator stop.
-			_ = peer.TeardownAutomatic(message.NotifyCeaseOutOfResources, "")
+			_ = peer.teardownAutomatic(message.NotifyCeaseOutOfResources, "")
 		}
 	}
 }

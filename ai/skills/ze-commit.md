@@ -36,22 +36,22 @@ See also: `/ze-commit-check` (commit with verification only when needed)
    with MUST on BOTH sides? Fix what they find before you draft the message.
 3. **Draft commit message:** Base the subject and body on the scoped changes.
    Do not run `git log` just to imitate style unless the user explicitly asks.
-4. **Generate commit script:** Use `scripts/dev/commit_helper.py create` so the
-   session ID, message file, executable script, ignored-path checks, and
-   `git commit -F` are handled consistently:
+4. **Generate commit script:** Use `./le commit create`; it is the sole staging
+   and commit preparation route and owns the session ID, message file,
+   executable script, ignored-path checks, and `git commit -F`:
 
 ```bash
-scripts/dev/commit_helper.py create \
-  --replace \
-  --subject "type: subject line" \
-  --body "Body explaining why." \
-  --file file1.go \
-  --file file2.go \
-  --file file3_test.go
+./le commit create \
+  replace \
+  subject "type: subject line" \
+  body "Body explaining why." \
+  file file1.go \
+  file file2.go \
+  file file3_test.go
 ```
 
 5. **Run and report:** Run the generated script yourself, with `bash` and the
-   path from the helper's `script=` line (never a path you built from the
+   path from the command's `script=` line (never a path you built from the
    session id), then show the resulting commit SHA(s),
    the included files, commit subject/body summary, generated message file
    path, generated script path, and that verification was skipped because
@@ -59,9 +59,9 @@ scripts/dev/commit_helper.py create \
 
 ## Rules
 
-- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the commit script, then run the script by the path its `script=` line printed.
-- Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
-- Do not run `make ze-precommit-verify`, `make ze-precommit-verify-changed`, lint, health checks, completeness audits, recent-commit style reviews, or remaining-work scans for `/ze-commit`.
+- **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the script from `./le commit create`, then run the exact `script=` path it printed.
+- `./le commit create` is the sole staging and commit route. There is no hand-written fallback.
+- Do not run `./le verify worktree`, lint, health checks, completeness audits, recent-commit style reviews, or remaining-work scans for `/ze-commit`.
 - Step 2's style gate is the ONE exception, and it stays inside its bounds: one grep, one read of the added lines, four questions. It never grows into `/ze-review`. When the diff needs a review, the user asks for one.
 - Never include spec files unless the user explicitly asks.
 - Never include documentation changes unless they're part of the task.

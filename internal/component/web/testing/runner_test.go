@@ -82,7 +82,7 @@ func TestBrowserCloseResetsDaemonStart(t *testing.T) {
 
 func TestBrowserSessionScopedEnv(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
-	browser := NewBrowserWithSession("https://127.0.0.1:5678", "test-web-01")
+	browser := newBrowserWithSession("https://127.0.0.1:5678", "test-web-01")
 
 	if err := browser.Open("/page"); err != nil {
 		t.Fatalf("open: %v", err)
@@ -106,7 +106,7 @@ func TestBrowserSessionScopedEnv(t *testing.T) {
 
 func TestBrowserCloseOwnSession(t *testing.T) {
 	logPath := installFakeAgentBrowser(t)
-	browser := NewBrowserWithSession("https://127.0.0.1:5678", "sess-a")
+	browser := newBrowserWithSession("https://127.0.0.1:5678", "sess-a")
 
 	if err := browser.Open("/page"); err != nil {
 		t.Fatalf("open: %v", err)
@@ -206,7 +206,7 @@ func assertAgentCommands(t *testing.T, logPath string, want []string) {
 // each entry carries one setting), and nothing at the call site says so. A
 // Buffer that kept its bytes would hand the browser
 // AGENT_BROWSER_IDLE_TIMEOUT_MS=<ms>AGENT_BROWSER_INIT_SCRIPTS=<path>, one
-// entry setting neither: the init script would never load, WaitLoad would fall
+// entry setting neither: the init script would never load, waitLoad would fall
 // back to networkidle, and waitMs would work around an idle window the browser
 // never received. Nothing else reads these entries back.
 func TestAgentEnvEntriesCarryOneSettingEach(t *testing.T) {
@@ -223,7 +223,7 @@ func TestAgentEnvEntriesCarryOneSettingEach(t *testing.T) {
 		}
 	}
 
-	browser := NewBrowserWithSession("https://127.0.0.1:1234", "probe-session")
+	browser := newBrowserWithSession("https://127.0.0.1:1234", "probe-session")
 
 	var added []string
 	for _, entry := range browser.agentEnv() {
@@ -258,6 +258,17 @@ func TestAgentEnvEntriesCarryOneSettingEach(t *testing.T) {
 
 	if !slices.Contains(added, "AGENT_BROWSER_IDLE_TIMEOUT_MS=60000") {
 		t.Errorf("agentEnv must state the idle window waitMs works around; it added %q", added)
+	}
+}
+
+func TestAgentEnvLeavesFunctionalScratchOutOfChrome(t *testing.T) {
+	t.Setenv("TMPDIR", "/workspace/cache/functional-tmp")
+	env := newBrowser("https://127.0.0.1:1234").agentEnv()
+	if slices.ContainsFunc(env, func(entry string) bool { return strings.HasPrefix(entry, "TMPDIR=") }) {
+		t.Fatalf("agentEnv passed TMPDIR to Chrome: %q", env)
+	}
+	if os.Getenv("TMPDIR") != "/workspace/cache/functional-tmp" {
+		t.Fatal("agentEnv changed the parent process environment")
 	}
 }
 

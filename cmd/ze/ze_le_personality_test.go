@@ -261,7 +261,7 @@ func personalityFeatureTags(t *testing.T, root string) []string {
 func writePersonalityFixture(t *testing.T, root string) {
 	t.Helper()
 	files := map[string]string{
-		"ai/PACKAGE-MAP.md": "stale\n",
+		"ai/PACKAGE-MAP.md":            "stale\n",
 		"internal/core/thing/thing.go": "// Package thing does a thing.\npackage thing\n",
 	}
 	for relative, content := range files {

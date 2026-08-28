@@ -9,50 +9,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for bgp monitor with event filter
-tmpfs=monitor-events-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API, dispatch, runtime_fail
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        result = dispatch(api, 'monitor bgp event update,state')
-        if result.get('status') != 'done':
-            runtime_fail(f'monitor bgp event: status={result.get("status")} data={result.get("data")}')
-
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-        event_types = data.get('event-types', [])
-        if 'update' not in event_types or 'state' not in event_types:
-            runtime_fail(f'monitor bgp event: expected update and state in event-types, got {event_types}')
-
-        print(f'OK: monitor event-types={event_types}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer exercises dispatch-command with an event filter.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external monitor-events-test {
-		run ./monitor-events-test.run
+		run "ze-test fixture plugin/monitor-events"
 		encoder json
 	}
 }

@@ -60,7 +60,7 @@ func TestWeightTracker_WorstPeerRatioEmpty(t *testing.T) {
 	assert.Equal(t, 0.0, ratio)
 }
 
-// --- Congestion controller: ShouldDeny ---
+// --- Congestion controller: shouldDeny ---
 
 func makeCongestionController(poolRatio float64, depths map[string]int, wt *weightTracker) *congestionController {
 	return newCongestionController(congestionConfig{
@@ -99,10 +99,10 @@ func TestCongestion_ShouldDenyHighRatio(t *testing.T) {
 		onDenied:       func() { denied.Add(1) },
 	})
 
-	assert.True(t, cc.ShouldDeny("10.0.0.1"))
+	assert.True(t, cc.shouldDeny("10.0.0.1"))
 	assert.Equal(t, int64(1), denied.Load())
 
-	assert.False(t, cc.ShouldDeny("10.0.0.2"))
+	assert.False(t, cc.shouldDeny("10.0.0.2"))
 	assert.Equal(t, int64(1), denied.Load())
 }
 
@@ -119,7 +119,7 @@ func TestCongestion_ShouldDenyBelowThreshold(t *testing.T) {
 	depths := map[string]int{"10.0.0.1": 500}
 	cc := makeCongestionController(0.50, depths, wt)
 
-	assert.False(t, cc.ShouldDeny("10.0.0.1"))
+	assert.False(t, cc.shouldDeny("10.0.0.1"))
 }
 
 // TestCongestion_ShouldDenyNilController verifies nil controller never denies.
@@ -130,7 +130,7 @@ func TestCongestion_ShouldDenyNilController(t *testing.T) {
 	t.Parallel()
 
 	var cc *congestionController
-	assert.False(t, cc.ShouldDeny("10.0.0.1"))
+	assert.False(t, cc.shouldDeny("10.0.0.1"))
 }
 
 // TestCongestion_FastPeerUnaffected verifies a peer with low overflow ratio
@@ -152,11 +152,11 @@ func TestCongestion_FastPeerUnaffected(t *testing.T) {
 
 	cc := makeCongestionController(0.99, depths, wt)
 
-	assert.True(t, cc.ShouldDeny("10.0.0.1"))
-	assert.False(t, cc.ShouldDeny("10.0.0.2"))
+	assert.True(t, cc.shouldDeny("10.0.0.1"))
+	assert.False(t, cc.shouldDeny("10.0.0.2"))
 }
 
-// --- Congestion controller: CheckTeardown ---
+// --- Congestion controller: checkTeardown ---
 
 // TestCongestion_ForcedTeardownFires verifies teardown fires after grace period
 // when all conditions are met.
@@ -191,15 +191,15 @@ func TestCongestion_ForcedTeardownFires(t *testing.T) {
 
 	addr := netip.MustParseAddrPort("10.0.0.1:179")
 
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 	assert.Equal(t, int64(0), tornDown.Load())
 
 	fc.Add(3 * time.Second)
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 	assert.Equal(t, int64(0), tornDown.Load())
 
 	fc.Add(3 * time.Second)
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 	assert.Equal(t, int64(1), tornDown.Load())
 	assert.False(t, lastGR.Load())
 }
@@ -238,24 +238,24 @@ func TestCongestion_TeardownGracePeriodResets(t *testing.T) {
 
 	addr := netip.MustParseAddrPort("10.0.0.1:179")
 
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 	fc.Add(3 * time.Second)
 
 	// Pool drops below threshold -- grace clears.
 	poolRatio = 0.50
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 
 	// Conditions return.
 	poolRatio = 0.97
 	fc.Add(3 * time.Second)
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 
 	fc.Add(3 * time.Second)
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 	assert.Equal(t, int64(0), tornDown.Load())
 
 	fc.Add(3 * time.Second)
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 	assert.Equal(t, int64(1), tornDown.Load())
 }
 
@@ -287,9 +287,9 @@ func TestCongestion_TeardownGRCapable(t *testing.T) {
 	})
 
 	addr := netip.MustParseAddrPort("10.0.0.1:179")
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 	fc.Add(2 * time.Second) // exceed 1s grace period
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 
 	assert.True(t, lastGR.Load())
 }
@@ -328,15 +328,15 @@ func TestCongestion_TeardownNotWorstPeer(t *testing.T) {
 	notWorst := netip.MustParseAddrPort("10.0.0.2:179")
 
 	// Start grace for worst peer.
-	cc.CheckTeardown(worst)
+	cc.checkTeardown(worst)
 
-	// Non-worst peer calls CheckTeardown -- must NOT reset grace.
+	// Non-worst peer calls checkTeardown -- must NOT reset grace.
 	fc.Add(3 * time.Second)
-	cc.CheckTeardown(notWorst)
+	cc.checkTeardown(notWorst)
 
 	// Worst peer calls again after total 6s -- should fire (grace was NOT reset).
 	fc.Add(3 * time.Second)
-	cc.CheckTeardown(worst)
+	cc.checkTeardown(worst)
 	assert.Equal(t, int64(1), tornDown.Load())
 }
 
@@ -368,19 +368,19 @@ func TestCongestion_TeardownRatioBelowThreshold(t *testing.T) {
 	})
 
 	addr := netip.MustParseAddrPort("10.0.0.1:179")
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 	fc.Add(time.Second)
-	cc.CheckTeardown(addr)
+	cc.checkTeardown(addr)
 	assert.Equal(t, int64(0), tornDown.Load(), "ratio < 2x should not trigger teardown")
 }
 
 // TestCongestion_NilCheckTeardown verifies nil controller is safe.
 //
-// VALIDATES: Safe nil handling for CheckTeardown.
+// VALIDATES: Safe nil handling for checkTeardown.
 // PREVENTS: Nil pointer panic in worker loop.
 func TestCongestion_NilCheckTeardown(t *testing.T) {
 	t.Parallel()
 
 	var cc *congestionController
-	cc.CheckTeardown(netip.MustParseAddrPort("10.0.0.1:179"))
+	cc.checkTeardown(netip.MustParseAddrPort("10.0.0.1:179"))
 }

@@ -1,5 +1,5 @@
 // The report's own rendering, which is the half of the old subprocess test
-// that matched on printed text (scripts/lint/consistency_test.go asserted on
+// that matched on printed text (internal/le/consistency/consistency_test.go asserted on
 // the tool's combined output).
 //
 // VALIDATES: the bare command renders the findings the way a person reads them

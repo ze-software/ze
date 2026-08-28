@@ -11,7 +11,7 @@
 //
 // The renderings here are BYTE-IDENTICAL to what the scripts print. No color is
 // involved on either side, so unlike the consistency port there is no palette
-// to trade away, and scripts/vendor/parity_test.go compares the two streams
+// to trade away, and internal/le/vendorweb/vendorweb_test.go compares the two streams
 // exactly.
 
 package vendorweb
@@ -150,7 +150,7 @@ func (r CheckReport) Text() string {
 			tb.Str("  DRIFT: ").Str(problem.File).Str(" differs from ").Str(problem.Source).Byte('\n')
 		case ProblemUnsynced:
 			tb.Str("  UNSYNCED: ").Str(problem.File).
-				Str(" reaches no consumer; add it to scripts/vendor/sync_web.go\n")
+				Str(" reaches no consumer; add it to internal/le/vendorweb/actions.go\n")
 		}
 	}
 
@@ -201,9 +201,8 @@ type SyncReport struct {
 	Readable int `json:"readable"`
 }
 
-// Text renders the sync for a person: one line per file written, then the
-// count. The warnings are not here, because the script wrote them to stderr and
-// a caller reading this rendering is reading stdout (Warnings).
+// Text renders one line for each file written. A clean run reports that all
+// consumer copies are current. Warnings use the stderr rendering.
 func (r SyncReport) Text() string {
 	var tb textbuf.Buffer
 
@@ -225,8 +224,6 @@ func (r SyncReport) Text() string {
 		tb.Str("all consumer copies are up to date\n")
 		return tb.String()
 	}
-
-	tb.Str("synced ").Int(int64(r.Changed)).Str(" file(s)\n")
 	return tb.String()
 }
 

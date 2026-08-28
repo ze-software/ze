@@ -19,7 +19,7 @@ import (
 // Driver.Stop returns promptly and the inverted order passes. The only property
 // that can be asserted on every host is the one the fix turns on: the call to
 // stopKernelWorkersLocked precedes the pppDrivers loop. The end-to-end proof is
-// `make ze-netns-test`, which runs the L2TP transcripts with CAP_NET_ADMIN.
+// `./le deployment l2tp-ppp-test`, which runs with CAP_NET_ADMIN.
 func TestStopReleasesKernelWorkersBeforePPPDrivers(t *testing.T) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "subsystem.go", nil, 0)

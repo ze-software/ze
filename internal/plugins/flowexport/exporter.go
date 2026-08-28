@@ -369,7 +369,7 @@ func (e *exporter) status() []map[string]any {
 			"name":           cs.cfg.Name,
 			"address":        cs.cfg.Address,
 			"port":           cs.cfg.Port,
-			"protocol":       cs.cfg.Protocol,
+			protocolKey:      cs.cfg.Protocol,
 			"datagrams-sent": datagrams,
 			"bytes-sent":     bytes,
 			"errors":         errors,

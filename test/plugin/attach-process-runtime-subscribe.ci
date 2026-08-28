@@ -28,154 +28,13 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=runtime-subscribe.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import os
-import sys
-import time
-
-from ze_api import API, result_text_data, runtime_fail
-
-PEER = '127.0.0.1'
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return (resp or {}).get('result', {})
-
-
-def body_of(raw):
-    try:
-        decoded = json.loads(raw)
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return {}
-    return decoded.get("bgp", decoded)
-
-
-def is_up(raw):
-    """True for a state event that says the session is UP."""
-    if raw is None:
-        return False
-    body = body_of(raw)
-    return body.get("message", {}).get("type", "") == "state" and body.get("state") == "up"
-
-
-def wait_up(api, what):
-    """Block until the session is UP, not merely until a state event arrives."""
-    deadline = time.monotonic() + 25.0
-    while time.monotonic() < deadline:
-        if is_up(api.wait_for_event(timeout=1.0)):
-            return
-    runtime_fail(f"RUNTIME-SUB: the session never came up {what}")
-
-
-def keepalive_within(api, seconds):
-    """True when a keepalive event reaches this program inside the window."""
-    deadline = time.monotonic() + seconds
-    while time.monotonic() < deadline:
-        event = api.wait_for_event(timeout=0.5)
-        if event is None:
-            continue
-        if body_of(event).get("message", {}).get("type", "") == "keepalive":
-            return True
-    return False
-
-
-def granted_receive(api):
-    """What the CONFIG grants this program on the peer, read from the index."""
-    resp = dispatch(api, 'show event delivery')
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    if not isinstance(data, dict):
-        return []
-    for peer in data.get('peers', []):
-        if peer.get('peer') != PEER:
-            continue
-        for proc in peer.get('processes', []):
-            if proc.get('process') == 'runtime-subscribe':
-                return proc.get('receive', [])
-    return []
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.subscribe(["state"])
-    api.ready()
-
-    wait_up(api, "for the first session")
-
-    # The config grants keepalive, but this program declared only state. The
-    # keepalives are flowing at one per second and none belongs to the program
-    # until the live capability addition below.
-    if keepalive_within(api, 4.0):
-        runtime_fail("RUNTIME-SUB: fed a keepalive the program never declared")
-        return
-    print("RUNTIME-SUB: the program declares state only", file=sys.stderr, flush=True)
-
-    # The operator's live override.
-    resp = dispatch(api, f'request subscribe peer {PEER} event keepalive')
-    if resp.get('status') != 'done':
-        runtime_fail(f"RUNTIME-SUB: subscribe refused: {resp}")
-        return
-    if not keepalive_within(api, 8.0):
-        runtime_fail("RUNTIME-SUB: the live subscribe did not take effect")
-        return
-    print("RUNTIME-SUB: the live subscribe takes effect at once", file=sys.stderr, flush=True)
-
-    # The live subscription adds to the program's capability. It does not edit
-    # the durable configured authorization, which already grants keepalive.
-    granted = granted_receive(api)
-    if set(granted) != {'keepalive', 'state'}:
-        runtime_fail(f"RUNTIME-SUB: configured receive grant changed: {granted}")
-        return
-    print("RUNTIME-SUB: the config index is unchanged by the override", file=sys.stderr, flush=True)
-
-    # Hand over to the trigger, which applies the document again.
-    with open("subscribed.marker", "w") as marker:
-        marker.write("done")
-    # The wait for the marker must READ the events, not discard them: the peer
-    # bounces on the apply and its new state=up can land inside this window.
-    # Throwing it away here is what made a later wait_up hang on an event that
-    # had already happened.
-    came_up = False
-    while not os.path.exists("reloaded.marker"):
-        came_up = is_up(api.wait_for_event(timeout=0.5)) or came_up
-    if not came_up:
-        wait_up(api, "after the reload")
-
-    if keepalive_within(api, 4.0):
-        runtime_fail("RUNTIME-SUB: the override outlived the config apply")
-        return
-    print("RUNTIME-SUB: the config apply discards the override", file=sys.stderr, flush=True)
-
-    api.shutdown_fire_and_forget()
-    api.wait_for_shutdown(timeout=15.0)
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # Trigger: apply the document again once the override is in force.
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f subscribed.marker ]; do sleep 0.1; done
-cp config2.conf ze-bgp.conf
-kill -HUP $(cat daemon.pid)
-touch reloaded.marker
-EOF_TRIGGER
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external runtime-subscribe {
-		run ./runtime-subscribe.run
+		run "ze-test fixture plugin/attach-process-runtime-subscribe"
 		encoder json
 	}
 }
@@ -224,7 +83,7 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external runtime-subscribe {
-		run ./runtime-subscribe.run
+		run "ze-test fixture plugin/attach-process-runtime-subscribe"
 		encoder json
 	}
 }
@@ -273,6 +132,6 @@ expect=stderr:pattern=RUNTIME-SUB: the config index is unchanged by the override
 expect=stderr:pattern=RUNTIME-SUB: the config apply discards the override
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture plugin/attach-process-runtime-subscribe-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=50s
 expect=exit:code=0

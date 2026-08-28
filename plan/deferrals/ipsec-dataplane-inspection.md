@@ -27,7 +27,7 @@ Three items look deferrable and are not. Each is named here so a later session d
 it into the table above without a decision.
 
 - The kernel-level functional test (`test/ipsec/ipsec-show-dataplane-kernel.ci`) needs a
-  `fsuite ipsec` line in `scripts/evidence/qemu-all-tests.sh`, which does not exist today. The
+  `fsuite ipsec` line in the retired `scripts/evidence/qemu-all-tests.sh` (current producer: `internal/le/qemu/alltests.go`), which does not exist today. The
   missing line is one edit and is in scope (Phase 7). It is the reason no IPsec functional
   test has ever run against a real kernel, so deferring it would leave the spec proving its
   central claim under the noop backend, which cannot prove it at all.

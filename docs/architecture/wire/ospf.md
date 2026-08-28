@@ -184,5 +184,5 @@ CLI.
 Functional fixtures live in `test/ospf-wire/` and run with:
 
 ```bash
-make ze-functional-ospf-wire-test
+./le functional ospf-wire
 ```

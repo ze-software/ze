@@ -32,6 +32,11 @@ import (
 )
 
 const (
+	reportFieldAction     = "action"
+	reportFieldNewVersion = "new-ver"
+)
+
+const (
 	selfUpdateSource  = "system"
 	selfUpdateCode    = "self-update"
 	selfUpdateSubject = "firmware"
@@ -246,14 +251,14 @@ func (su *SelfUpdater) check(ctx context.Context) {
 		su.mu.Unlock()
 		report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 			"update available ("+manifest.Ver+"), paused by server",
-			map[string]any{"remote": manifest.Ver, "running": running, "paused": true})
+			map[string]any{reportFieldRemoteVersion: manifest.Ver, reportFieldRunningVersion: running, "paused": true})
 		return
 	}
 
 	if !su.cfg.AutoApply {
 		report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 			"newer firmware available: "+manifest.Ver+" (running "+running+")",
-			map[string]any{"remote": manifest.Ver, "running": running})
+			map[string]any{reportFieldRemoteVersion: manifest.Ver, reportFieldRunningVersion: running})
 		return
 	}
 
@@ -263,7 +268,7 @@ func (su *SelfUpdater) check(ctx context.Context) {
 		su.mu.Unlock()
 		report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 			"auto-apply requires server to provide sha256",
-			map[string]any{"remote": manifest.Ver, "running": running})
+			map[string]any{reportFieldRemoteVersion: manifest.Ver, reportFieldRunningVersion: running})
 		return
 	}
 
@@ -275,7 +280,7 @@ func (su *SelfUpdater) check(ctx context.Context) {
 		su.recordEvent(running, manifest.Ver, "blocked-minimum-version")
 		report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 			"upgrade to "+manifest.Ver+" requires intermediate version "+manifest.MinimumVersion+" first",
-			map[string]any{"remote": manifest.Ver, "running": running, "minimum": manifest.MinimumVersion})
+			map[string]any{reportFieldRemoteVersion: manifest.Ver, reportFieldRunningVersion: running, "minimum": manifest.MinimumVersion})
 		return
 	}
 
@@ -314,7 +319,7 @@ func (su *SelfUpdater) check(ctx context.Context) {
 			su.mu.Unlock()
 			report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 				"update available ("+manifest.Ver+"), waiting for spread delay",
-				map[string]any{"remote": manifest.Ver, "running": running})
+				map[string]any{reportFieldRemoteVersion: manifest.Ver, reportFieldRunningVersion: running})
 			return
 		}
 	}
@@ -405,7 +410,7 @@ func (su *SelfUpdater) attemptStage(ctx context.Context, manifest extendedManife
 			su.mu.Unlock()
 			report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 				"update downloaded, waiting for maintenance window",
-				map[string]any{"remote": manifest.Ver, "running": running})
+				map[string]any{reportFieldRemoteVersion: manifest.Ver, reportFieldRunningVersion: running})
 			return
 		}
 	}
@@ -439,7 +444,7 @@ func (su *SelfUpdater) attemptStage(ctx context.Context, manifest extendedManife
 
 	report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 		"update staged: "+manifest.Ver+" (restart to activate)",
-		map[string]any{"remote": manifest.Ver, "running": running, "staged": true})
+		map[string]any{reportFieldRemoteVersion: manifest.Ver, reportFieldRunningVersion: running, "staged": true})
 
 	su.handleRestart(ctx, manifest.Ver)
 }
@@ -448,10 +453,10 @@ func (su *SelfUpdater) handleRestart(ctx context.Context, newVer string) {
 	logger := slogutil.Logger("self-update")
 
 	if su.cfg.RestartImmediate {
-		logger.Info("restarting in 5 seconds", "new-ver", newVer)
+		logger.Info("restarting in 5 seconds", reportFieldNewVersion, newVer)
 		report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 			"restarting into "+newVer+" in 5 seconds",
-			map[string]any{"new-ver": newVer, "action": "restart-immediate"})
+			map[string]any{reportFieldNewVersion: newVer, reportFieldAction: "restart-immediate"})
 
 		select {
 		case <-time.After(drainDelay):
@@ -472,7 +477,7 @@ func (su *SelfUpdater) handleRestart(ctx context.Context, newVer string) {
 
 	report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 		"update staged, restart to activate ("+newVer+")",
-		map[string]any{"new-ver": newVer, "action": "manual-restart-required"})
+		map[string]any{reportFieldNewVersion: newVer, reportFieldAction: "manual-restart-required"})
 }
 
 func (su *SelfUpdater) waitForRestartTime(ctx context.Context, newVer string) {
@@ -494,10 +499,10 @@ func (su *SelfUpdater) waitForRestartTime(ctx context.Context, newVer string) {
 
 	select {
 	case <-time.After(delay):
-		logger.Info("restarting (scheduled)", "new-ver", newVer)
+		logger.Info("restarting (scheduled)", reportFieldNewVersion, newVer)
 		report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 			"restarting into "+newVer+" (scheduled)",
-			map[string]any{"new-ver": newVer, "action": "restart-scheduled"})
+			map[string]any{reportFieldNewVersion: newVer, reportFieldAction: "restart-scheduled"})
 		if err := su.restartFunc(su.targetPath); err != nil {
 			logger.Warn("exec failed", "error", err)
 		}
@@ -622,10 +627,10 @@ func (su *SelfUpdater) manualApply(ctx context.Context) (string, error) {
 
 	su.recordEvent(running, manifest.Ver, "success")
 
-	logger.Info("manual apply: restarting", "new-ver", manifest.Ver)
+	logger.Info("manual apply: restarting", reportFieldNewVersion, manifest.Ver)
 	report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
 		"restarting into "+manifest.Ver,
-		map[string]any{"new-ver": manifest.Ver, "action": "manual-apply"})
+		map[string]any{reportFieldNewVersion: manifest.Ver, reportFieldAction: "manual-apply"})
 
 	select {
 	case <-time.After(drainDelay):

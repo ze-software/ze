@@ -1,29 +1,26 @@
 # Multi-stage build for Ze BGP daemon.
 # Produces a minimal Alpine image with just the ze binary.
 
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 RUN apk add --no-cache git
 
 WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
 COPY . .
 
-# ze and ze-test are both cmd/ze selected by build tag (Makefile: bin/ze uses ze_core,
-# bin/ze-test uses ze_test). The daemon personality (ze_core_dispatch.go) and the test
-# runner (ze_test_register.go) are tag-gated, so an untagged build has neither.
+# ze and ze-test are both cmd/ze selected by build tag. The daemon personality
+# uses ze_core and the test personality uses ze_test; an untagged build has
+# neither registration set.
 #
 # The personality tag alone is NOT enough: every compile-out-able feature is off
 # unless its tag is passed, and BGP itself is one of them (feature-gates.txt,
 # ze_bgp). A `-tags ze_core` image rejects the `bgp` config root as an unknown
 # top-level keyword, so both interop and perf would test a daemon with no BGP.
-# Derive the default-on tags from feature-gates.txt -- the single source of truth
-# Makefile ZE_FEATURES and scripts/evidence/qemu-all-tests.sh read the same way --
-# so this image can never drift from the shipped binary's feature set.
-RUN ZE_FEATURES="$(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')" && \
-    CGO_ENABLED=0 go build -tags "ze_core $ZE_FEATURES" -o /ze ./cmd/ze && \
-    CGO_ENABLED=0 go build -tags "ze_test $ZE_FEATURES" -o /ze-test ./cmd/ze
+# The native interop runner derives the feature set from feature-gates.txt and
+# passes it as one build argument. The image build never parses the manifest.
+ARG ZE_FEATURES
+RUN CGO_ENABLED=0 go build -mod=vendor -tags "ze_core ze_distro $ZE_FEATURES" -o /ze ./cmd/ze && \
+    CGO_ENABLED=0 go build -mod=vendor -tags "ze_test $ZE_FEATURES" -o /ze-test ./cmd/ze
 
 FROM alpine:3.21
 
@@ -32,14 +29,11 @@ FROM alpine:3.21
 # instrument: `show firewall` renders the registry's own record, and the nft
 # readback skips every table outside the ze_ ownership prefix
 # (internal/plugins/firewall/nft/readback_linux.go).
-RUN apk add --no-cache tini python3 nftables
+RUN apk add --no-cache tini nftables
 
 COPY --from=builder /ze /usr/local/bin/ze
 COPY --from=builder /ze-test /usr/local/bin/ze-test
 
-# ze_api.py is needed by process plugin scripts that announce routes.
-COPY test/scripts/ze_api.py /usr/lib/ze/ze_api.py
-ENV PYTHONPATH=/usr/lib/ze
 
 # tini ensures proper signal handling (SIGTERM → ze process).
 ENTRYPOINT ["tini", "--", "ze"]

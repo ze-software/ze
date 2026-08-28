@@ -6,9 +6,9 @@
 // dedicated network namespace. They require CAP_NET_ADMIN (to create the netns
 // and veth) and CAP_NET_RAW (to open the raw socket); when those are missing the
 // tests t.Skip rather than fail (e.g. on a developer laptop). They run under the
-// `ze-qemu-integration-test` target, which derives its package set from the
-// `integration && linux` build tag (mk/test-integration.mk), and are also listed
-// in scripts/evidence/qemu-all-tests.sh.
+// native QEMU all-tests action, which derives its package set from
+// `integration && linux`; the same population is listed in
+// internal/le/qemu/alltests.go.
 //
 // They validate spec assumptions A-1 (PPPoE AF_PACKET pattern generalises to
 // 802.3+LLC), A-2 (raw multicast receive of ISO MACs via PACKET_ADD_MEMBERSHIP,
@@ -187,16 +187,16 @@ func TestISISTransportConcurrentSendNoTear(t *testing.T) {
 	// interleave BuildFrame+Sendto and transmit a torn frame. This test fires many
 	// concurrent sends of two DISTINCT PDUs on one circuit and asserts that every
 	// frame received on the peer is one of those PDUs byte-for-byte (a torn frame
-	// would be a splice of both, or fail ParseFrame). Run under -race
-	// (make ze-integration-test) the unsynchronized sendBuf access is also flagged.
+	// would be a splice of both, or fail ParseFrame). Under the race-instrumented
+	// integration run, the unsynchronized sendBuf access is also flagged.
 	withVethPair(t, func() {
 		be := NewBackend()
 
 		sender, err := be.OpenCircuit(vethA)
 		if err != nil {
-			// Missing CAP_NET_RAW means no raw socket on this host, so this skips as the
-			// sibling veth tests do. The race coverage comes from make ze-integration-test on
-			// a host with CAP_NET_ADMIN and CAP_NET_RAW, where -race is enabled.
+			// Missing CAP_NET_RAW means no raw socket on this host, so this skips as
+			// the sibling veth tests do. The QEMU integration pass supplies both
+			// CAP_NET_ADMIN and CAP_NET_RAW.
 			if strings.Contains(err.Error(), "CAP_NET_RAW") {
 				t.Skipf("requires CAP_NET_RAW: %v", err)
 			}

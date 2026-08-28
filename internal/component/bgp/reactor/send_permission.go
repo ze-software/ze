@@ -107,7 +107,7 @@ var errSendNoSender = errors.New("send refused: the command names no sender, so 
 // An origin marked attachOnly stops at the block: the process must be attached,
 // and the send list is not read. Only rawOrigin sets it.
 //
-// Reads p.settings directly rather than through SettingsSnapshot, which copies
+// Reads p.settings directly rather than through settingsSnapshot, which copies
 // the struct under p.mu. The fields read here are written once, when the peer is
 // built, and no later path writes them, so the copy would buy nothing and this
 // runs once per send command per matched peer. Settings() returns the same

@@ -103,8 +103,8 @@ const (
 	colDepends = 10
 )
 
-// Text renders the inventory as the page `make ze-spec-status` prints: the
-// summary line, the bucket line, then one section per bucket.
+// Text renders the inventory as the page `./le spec-status` prints: the summary
+// line, the bucket line, then one section per bucket.
 //
 // It is the DEFAULT rendering (leroot.Prose). Every pipe operator still goes to
 // the engine and reads the rows above.

@@ -4,13 +4,27 @@ level: MUST
 stage:
 ---
 **Commit workflow:**
-1. You MUST use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id-<claude-session>` (keyed per Claude session so concurrent sessions never share a message or script namespace).
-2. You MUST use `scripts/dev/commit_helper.py create` to write one message file and one commit script. You MUST pass `--file` once per explicit file and `--remove` for tracked deletions. The path is the `script=` line it prints (`ai/INSTRUCTIONS.md`). One session can run many subagents that share the session id, so `--push` adds a push after the commits only on an owner instruction (see "Pushing").
-   `--append` adds a later commit block to a script you already prepared. You MUST pass `--script` with the path that create printed. Without `--script` it resolves only when the session has exactly one script, and otherwise refuses with the list. `--replace` rewrites the script `--script` names. It is refused when that script was prepared for a file set sharing nothing with yours. To start over, prepare a new one: a `create` without `--script` always gets its own path.
-3. The helper writes executable scripts, uses `git commit -F <message-file>`, and rejects ignored/generated paths. It never writes over an existing script unless `--script` names it, with `--replace` or `--append`. It also **reads verify-status**, and since 2026-08-21 that reading gates the PUSH rather than the commit (see "Verify a Commit, Not the Working Tree"). `create` runs `verify-status.sh check <the commit's files>`; a stale answer records a verification-debt row and the commit PROCEEDS, because a commit that stays local costs nobody anything and a commit that never happens costs the work. `--push` then refuses while any row is open. The freshness question is scoped to the `--file` list, so an edit to a path this commit does not carry leaves the verdict FRESH. **One thing is still refused at commit time**: a STRUCTURAL gate red charged to this commit -- tier, lint, vet, plugin-boundary, iface-resolution, regen-check-readonly, wiring-docs, tracked-build (`ai/rules/precommit-verify.md`). Those are deterministic and say the tree is BROKEN, which is a different fact from unverified, and `--structural-red-ok` is the owner-only escape. Full-verify coverage over a commit carrying `.go`, `go.mod`, `go.sum` or `vendor/` is a debt row on the same footing.
-   It further **gates on discovery-index freshness**: `create` refuses if a generated index (`ai/PACKAGE-MAP.md`) is stale (run `make ze-generated-files-update`), or if the commit changes an index-feeding source (a `register.go`, a `.go` with a `// Package` header) but omits the regenerated index. Override with `--stale-index-ok "<reason>"`. With no CI, this is the only place index freshness is enforced. `create` additionally **warns (non-blocking)** when HEAD's committed index does not match HEAD's committed sources, which catches a prior commit that bypassed the gate; it detects this by re-running the generators against a materialized copy of HEAD, so it works even when the working tree carries unrelated uncommitted changes.
-4. If the helper cannot express the commit shape, you MUST hand-write the same script pattern and `chmod +x` it. You MUST give it a name no other agent will pick: `tmp/commit-<SESSION>-<tag>-<random>.sh`. You MUST NOT use heredocs. You MUST use `git commit -F <file>`.
-5. You MUST NOT end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. You MUST put path on its own line or follow with a space.
-6. You MUST run the finished script yourself with `bash` and the helper's `script=` path. **When the commit contained any `.go`, `go.mod`, `go.sum`, or `vendor/` path, you MUST run `make ze-repository-tracked-build-check` immediately afterwards** (about 45s): it compiles what git now holds, and it is the only check that reads that population -- see "Your Working Tree Is Not What You Committed" below. You MUST then report the resulting commit SHA(s), included files, message file, script path, whether the script pushed, and verification evidence or skip reason. You MUST NOT add a late completeness or remaining-work review unless the user explicitly asked for one.
-7. Before writing a commit script, you MUST read `.gitignore` and MUST NOT `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. You MUST only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
-**The helper asks for no lesson artifact, and it MUST NOT be made to (owner directive, 2026-08-10).** A lesson is applied by UPDATING the surface that governs behaviour, never by saving a summary beside the commit. Route it: a recurring trap to a rule under `ai/rules/`, a design decision to `docs/architecture/`, a subsystem's data flow to `ai/digests/`, a protocol obligation to `rfc/short/`. The journal row survives for its own reason, which is counting how often a PROBLEM class recurs (`ai/rules/planning.md`, "Writing Journal Rows").
+1. You MUST use `./le commit session` to create or reuse this harness session's
+   eight-hex commit namespace.
+2. You MUST use `./le commit create` to write one message file and one commit
+   script. Pass `file <path>` once per explicit file and `remove <path>` for
+   tracked deletions. The `script=` line is the only authoritative path.
+   `append` adds a later commit block to a prepared script; `script <path>` names
+   it. `replace` rewrites that named script. A new `create` with no `script`
+   always gets a distinct path.
+3. The native command writes executable scripts using `git commit -F`, rejects
+   ignored/generated paths, checks verification freshness for the explicit file
+   population, and records verification debt rather than dropping a local
+   commit. `push "<owner authorisation>"` is refused while debt is open. It also
+   enforces discovery-index freshness; use `./le discovery-index update`.
+4. `./le commit create` is the sole staging and commit route. There is no
+   hand-written fallback.
+5. You MUST run the finished script yourself with `bash` and the printed path.
+   For a commit carrying Go/module/vendor paths, run
+   `./le repository-tracked-build check` immediately afterwards. Report the commit SHA,
+   included files, message file, script path, push status, and verification
+   evidence or skip reason.
+6. Before creating the script, read `.gitignore`; add only canonical sources.
+**The command asks for no lesson artifact, and it MUST NOT be made to.** Apply a
+lesson by updating the surface that governs behaviour. Journal rows exist only
+to count recurrence of a problem class.

@@ -1,4 +1,4 @@
-Set Shell "bash"
+Set Shell "/src/tmp/terminal-demos/bin/ze-demo shell"
 Set FontFamily "JetBrains Mono"
 Set FontSize 20
 Set Width 1680

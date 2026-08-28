@@ -58,7 +58,7 @@ func TestUIMode_RollbackFinder(t *testing.T) {
 // VALIDATES: Workbench cutover is not overridden by stale ze-ui=finder cookies.
 // PREVENTS: Normal pages showing the old Finder layout and bottom CLI bar.
 func TestReadUIModeFromRequestIgnoresStaleFinderCookie(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: uiModeCookie, Value: uiModeTokenFinder})
 
 	assert.Equal(t, UIModeWorkbench, ReadUIModeFromRequest(req, UIModeWorkbench))
@@ -70,7 +70,7 @@ func TestReadUIModeFromRequestIgnoresStaleFinderCookie(t *testing.T) {
 // VALIDATES: Operators can switch between Finder and Workbench intentionally.
 // PREVENTS: CLI return navigation becoming one-way.
 func TestReadUIModeFromRequestAcceptsCurrentSwitchCookie(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: uiModeSwitchCookie, Value: uiModeTokenFinder})
 
 	assert.Equal(t, UIModeFinder, ReadUIModeFromRequest(req, UIModeWorkbench))

@@ -77,7 +77,7 @@ type reactorParams struct {
 	Clock           func() time.Time // injected for tests; time.Now if nil
 }
 
-// L2TPReactor is the single goroutine that owns the tunnel map and
+// l2tpReactor is the single goroutine that owns the tunnel map and
 // dispatches incoming datagrams to per-tunnel FSMs. All per-tunnel state
 // (ReliableEngine, FSM state, peer addr:port) is mutated exclusively
 // from this goroutine, which matches the phase-2 contract that
@@ -92,7 +92,7 @@ type reactorParams struct {
 // Caller MUST call Stop after Start. Start is not idempotent; the
 // underlying UDPListener must already be Start()ed before the reactor
 // runs.
-type L2TPReactor struct {
+type l2tpReactor struct {
 	listener *UDPListener
 	logger   *slog.Logger
 	params   reactorParams
@@ -164,7 +164,7 @@ type L2TPReactor struct {
 // newL2TPReactor constructs a reactor bound to the given listener. The
 // listener must be started before the reactor is started; the reactor
 // does not manage the listener's lifecycle.
-func newL2TPReactor(listener *UDPListener, logger *slog.Logger, params reactorParams) *L2TPReactor {
+func newL2TPReactor(listener *UDPListener, logger *slog.Logger, params reactorParams) *l2tpReactor {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -177,7 +177,7 @@ func newL2TPReactor(listener *UDPListener, logger *slog.Logger, params reactorPa
 	if params.Defaults.HostName == "" {
 		params.Defaults.HostName = "ze"
 	}
-	return &L2TPReactor{
+	return &l2tpReactor{
 		listener:         listener,
 		logger:           logger,
 		params:           params,
@@ -192,14 +192,14 @@ func newL2TPReactor(listener *UDPListener, logger *slog.Logger, params reactorPa
 
 // EnableCapture allocates the capture ring. Called when YANG
 // diagnostics.capture is true. No-op if already enabled.
-func (r *L2TPReactor) EnableCapture() {
+func (r *l2tpReactor) EnableCapture() {
 	if r.capture == nil {
 		r.capture = newCaptureRing()
 	}
 }
 
 // CaptureSnapshot returns captured control messages. Nil-safe.
-func (r *L2TPReactor) CaptureSnapshot(limit int, tunnelID uint16, peer string) []CaptureEntry {
+func (r *l2tpReactor) CaptureSnapshot(limit int, tunnelID uint16, peer string) []CaptureEntry {
 	if r.capture == nil {
 		return nil
 	}
@@ -207,17 +207,17 @@ func (r *L2TPReactor) CaptureSnapshot(limit int, tunnelID uint16, peer string) [
 }
 
 // EnableRawCapture allocates the raw byte capture ring for pcap export.
-func (r *L2TPReactor) EnableRawCapture() {
+func (r *l2tpReactor) EnableRawCapture() {
 	r.rawCapture.CompareAndSwap(nil, NewRawCaptureRing())
 }
 
 // DisableRawCapture releases the raw capture ring.
-func (r *L2TPReactor) DisableRawCapture() {
+func (r *l2tpReactor) DisableRawCapture() {
 	r.rawCapture.Store(nil)
 }
 
 // RawCaptureSnapshot returns raw captured bytes. Nil-safe.
-func (r *L2TPReactor) RawCaptureSnapshot(limit int) []RawCaptureEntry {
+func (r *l2tpReactor) RawCaptureSnapshot(limit int) []RawCaptureEntry {
 	rc := r.rawCapture.Load()
 	if rc == nil {
 		return nil
@@ -226,7 +226,7 @@ func (r *L2TPReactor) RawCaptureSnapshot(limit int) []RawCaptureEntry {
 }
 
 // Start launches the reactor goroutine. Returns an error if already started.
-func (r *L2TPReactor) Start() error {
+func (r *l2tpReactor) Start() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.started {
@@ -240,7 +240,7 @@ func (r *L2TPReactor) Start() error {
 }
 
 // Stop signals the reactor to exit and waits for it. Idempotent.
-func (r *L2TPReactor) Stop() {
+func (r *l2tpReactor) Stop() {
 	r.mu.Lock()
 	if !r.started {
 		r.mu.Unlock()
@@ -259,7 +259,7 @@ func (r *L2TPReactor) Stop() {
 // when r.stop fires. On stop, any packets already buffered in the RX
 // channel are drained with release() only so the listener's slot pool
 // frees promptly.
-func (r *L2TPReactor) run() {
+func (r *l2tpReactor) run() {
 	defer r.wg.Done()
 	rx := r.listener.RX()
 	for {
@@ -292,7 +292,7 @@ func (r *L2TPReactor) run() {
 // path, which otherwise would wait on GC to reclaim abandoned closures.
 // Bounded by rxPoolSize (the listener cannot produce more than that in
 // flight at any moment).
-func (r *L2TPReactor) drainOnStop(rx <-chan rxPacket) {
+func (r *l2tpReactor) drainOnStop(rx <-chan rxPacket) {
 	for len(rx) > 0 {
 		pkt, ok := <-rx
 		if !ok {
@@ -321,7 +321,7 @@ func (r *L2TPReactor) drainOnStop(rx <-chan rxPacket) {
 //
 // The pool slot is released before return. `bytes` MUST NOT be retained
 // past this call.
-func (r *L2TPReactor) handle(pkt rxPacket) {
+func (r *l2tpReactor) handle(pkt rxPacket) {
 	defer pkt.release()
 
 	if len(pkt.bytes) < 6 {
@@ -529,9 +529,9 @@ func stopCCNSlot(a netip.Addr) int {
 // AVP carried 0, which RFC 2661 Section 4.4.3 makes a protocol error, and
 // bounds how often it does so.
 //
-// The datagram that reaches here is unauthenticated and its source
-// address is spoofable, so an unconditional reply would make ze-build a
-// reflector. One rule bounds it and it carries no exception: a slot is
+// The datagram that reaches here is unauthenticated and its source address is
+// spoofable, so an unconditional reply would make ze a reflector. One rule
+// bounds it and carries no exception: a slot is
 // answered at most once per stopCCNLimitInterval, and every datagram
 // above that is dropped in silence. A source address maps to exactly one
 // slot, so no victim receives more than one StopCCN per interval, and the
@@ -553,7 +553,7 @@ func stopCCNSlot(a netip.Addr) int {
 // TunnelID=0 body, this sentinel included, immediately after this call
 // returns, so a second line would only add one netip.AddrPort.String and
 // one slog call to each datagram of a flood.
-func (r *L2TPReactor) answerZeroTunnelIDSCCRQ(from netip.AddrPort, peerNs uint16) {
+func (r *l2tpReactor) answerZeroTunnelIDSCCRQ(from netip.AddrPort, peerNs uint16) {
 	now := r.params.Clock()
 	slot := stopCCNSlot(from.Addr())
 	if last := r.stopCCNLastSent[slot]; !last.IsZero() && now.Sub(last) < stopCCNLimitInterval {
@@ -576,7 +576,7 @@ func (r *L2TPReactor) answerZeroTunnelIDSCCRQ(from netip.AddrPort, peerNs uint16
 // Ns is 0 because this is the first control message ze sends on a control
 // connection that never opened. Nr is the peer's Ns plus one, which is the
 // sequence number ze would expect next (RFC 2661 Section 5.8).
-func (r *L2TPReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16) {
+func (r *l2tpReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16) {
 	buf := GetBuf()
 	defer PutBuf(buf)
 	b := *buf
@@ -618,7 +618,7 @@ func (r *L2TPReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16) 
 // The tick also serves as the reaper sweep: every tick examines ALL
 // closed tunnels for expiry, not just the one that fired. This is cheap
 // at phase-5 scale (tens of tunnels).
-func (r *L2TPReactor) handleTick(tr tickReq) {
+func (r *l2tpReactor) handleTick(tr tickReq) {
 	now := r.params.Clock()
 	r.tunnelsMu.Lock()
 
@@ -752,7 +752,7 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 
 // notifyReaped sends zero-deadline heap updates for reaped tunnel IDs.
 // Called AFTER releasing tunnelsMu.
-func (r *L2TPReactor) notifyReaped(ids []uint16) {
+func (r *l2tpReactor) notifyReaped(ids []uint16) {
 	for _, tid := range ids {
 		select {
 		case r.updateCh <- heapUpdate{tunnelID: tid}:
@@ -768,7 +768,7 @@ func (r *L2TPReactor) notifyReaped(ids []uint16) {
 // plus any kernel teardown events from reaped tunnels whose sessions
 // had kernel resources.
 // Caller MUST hold tunnelsMu.
-func (r *L2TPReactor) reapExpiredLocked(now time.Time) ([]uint16, []kernelTeardownEvent) {
+func (r *l2tpReactor) reapExpiredLocked(now time.Time) ([]uint16, []kernelTeardownEvent) {
 	// Collect IDs first to avoid modifying the map during iteration.
 	var expired []uint16
 	for tid, t := range r.tunnelsByLocalID {
@@ -797,7 +797,7 @@ func (r *L2TPReactor) reapExpiredLocked(now time.Time) ([]uint16, []kernelTeardo
 // discarding a tunnel during tie-breaker resolution (Phase 5). The
 // caller MUST enqueue these to the kernel worker after releasing
 // tunnelsMu, even when the tunnel return is nil.
-func (r *L2TPReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader, sccrq *sccrqInfo) (*L2TPTunnel, []kernelTeardownEvent) {
+func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader, sccrq *sccrqInfo) (*L2TPTunnel, []kernelTeardownEvent) {
 	if hdr.TunnelID != 0 {
 		t, ok := r.tunnelsByLocalID[hdr.TunnelID]
 		if !ok {
@@ -875,7 +875,7 @@ func (r *L2TPReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 //
 // Caller MUST hold tunnelsMu. Called only when sccrq.TieBreakerPresent
 // is true and newTB is non-nil.
-func (r *L2TPReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte) (*L2TPTunnel, []kernelTeardownEvent) {
+func (r *l2tpReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte) (*L2TPTunnel, []kernelTeardownEvent) {
 	sentinel := &L2TPTunnel{} // non-nil "proceed" return value
 	var losers []*L2TPTunnel
 	newLoses := false
@@ -917,7 +917,7 @@ func (r *L2TPReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte)
 // closed. Returns any kernel teardown events queued by clearSessions for
 // established sessions that had kernel resources; the caller MUST
 // enqueue them to the kernel worker. Caller MUST hold tunnelsMu.
-func (r *L2TPReactor) discardTunnelLocked(t *L2TPTunnel, reason string) []kernelTeardownEvent {
+func (r *l2tpReactor) discardTunnelLocked(t *L2TPTunnel, reason string) []kernelTeardownEvent {
 	// AC-4: a dialed tunnel that loses the tie-breaker (or expires in
 	// retention) is discarded before it establishes, so its pending call is
 	// never placed on a session and would otherwise be dropped silently. Fail
@@ -941,7 +941,7 @@ func (r *L2TPReactor) discardTunnelLocked(t *L2TPTunnel, reason string) []kernel
 // skips zero and tidNoTunnel; on collision it scans forward up to 8
 // slots. Returns an error only if the 65534 address space is fully
 // occupied (which coincides with max-tunnels at its ceiling).
-func (r *L2TPReactor) allocateLocalTID() (uint16, error) {
+func (r *l2tpReactor) allocateLocalTID() (uint16, error) {
 	const maxProbe = 8
 	for range maxProbe {
 		r.nextLocalTID++
@@ -961,7 +961,7 @@ func (r *L2TPReactor) allocateLocalTID() (uint16, error) {
 // TunnelCount returns the number of tunnels currently tracked by the
 // reactor. Acquires tunnelsMu so tests may call it concurrently with
 // reactor-goroutine map mutations.
-func (r *L2TPReactor) TunnelCount() int {
+func (r *l2tpReactor) TunnelCount() int {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	return len(r.tunnelsByLocalID)
@@ -969,7 +969,7 @@ func (r *L2TPReactor) TunnelCount() int {
 
 // tunnelByLocalID returns the tunnel with the given local TID, or nil
 // if none. Intended for tests; thread-safe.
-func (r *L2TPReactor) tunnelByLocalID(tid uint16) *L2TPTunnel {
+func (r *l2tpReactor) tunnelByLocalID(tid uint16) *L2TPTunnel {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	return r.tunnelsByLocalID[tid]

@@ -49,104 +49,11 @@ option=linger:value=true
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0081020000006640010100400200400304C0A80102C00804FDE90064C010280002FDE80000000180090000000000EE020200010000006480070000000000038007FFFFFFFFFFFFC01914000220010DB80000000000000000000000000001C0200C0000FDE90000000100000002180A0000
 EOF_PEER
 
-tmpfs=community-json.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert every community attribute a peer sends reaches this plugin decoded."""
-import json
-import sys
-
-from ze_api import API, runtime_fail
-
-# What appendAttributeJSON writes when a formatter claims the attribute. The
-# values are read straight off the wire bytes the peer sent above.
-#
-# extended-communities carries the NAMED form, the vocabulary Ze's own route and
-# config parsers accept on input and the FlowSpec firewall bridge matches on
-# this event. 'mark:46' is the proof that RFC 8955 Section 7.5's two reserved
-# bits were ignored: the octet on the wire is 0xEE, so an unmasked read would
-# say 'mark:238' and the firewall would drop the marking action.
-#
-# The two traffic-action entries are the RFC 8955 Section 7.3 pair. They carry
-# different wire octets and must decode alike, because the only bits the decoder
-# reads are S (Sample, bit 46) and T (Terminal Action, bit 47); every other bit
-# of the Traffic Action Field is unused and ignored on decode. One entry alone
-# would not say that: a decoder that read NO bit would satisfy it too.
-#
-# 'target:65536:100' is the RFC 5668 Section 2 four-octet AS form. It splits the
-# 6-octet value field 4+2 where 'target:65000:1' splits it 2+4, so a renderer
-# that used one split for both reads the wrong number out of each field.
-#
-# ipv6-extended-communities stays hex: RFC 5701 puts a 16-octet IPv6 global
-# administrator where RFC 4360 puts a 2-octet AS, so this vocabulary names
-# nothing in it.
-DECODED = {
-    'communities': ['65001:100'],
-    'extended-communities': [
-        'target:65000:1',
-        'mark:46',
-        'target:65536:100',
-        'traffic-action:sample-terminal',
-        'traffic-action:sample-terminal',
-    ],
-    'ipv6-extended-communities': ['000220010db80000000000000000000000000001'],
-    'large-communities': ['65001:1:2'],
-}
-
-# What it falls back to when no formatter claims one: the defect's signature.
-HEX_FALLBACK = ('attr-8', 'attr-16', 'attr-25', 'attr-32')
-
-
-def carries_attributes(event):
-    """True for the received UPDATE, false for state and End-of-RIB events."""
-    if not isinstance(event, dict):
-        return False
-    bgp = event.get('bgp')
-    if not isinstance(bgp, dict):
-        return False
-    update = bgp.get('update')
-    if not isinstance(update, dict):
-        return False
-    return bool(update.get('attr'))
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    # The config's `receive [ update-received ]` grants the events; this asks
-    # for them. Without both, no event is delivered and the wait below times out.
-    api.subscribe(['update'])
-    api.ready()
-
-    raw = api.wait_for_event(timeout=15.0, predicate=carries_attributes)
-    if raw is None:
-        runtime_fail('no UPDATE event carrying attributes arrived')
-
-    attr = json.loads(raw)['bgp']['update']['attr']
-
-    for key, want in DECODED.items():
-        if attr.get(key) != want:
-            runtime_fail(f'{key}: expected {want}, got {attr.get(key)!r} in {attr!r}')
-
-    for key in HEX_FALLBACK:
-        if key in attr:
-            runtime_fail(f'{key} fell back to raw hex: {attr!r}')
-
-    print('OK: all four community attributes decoded', file=sys.stderr)
-    api.shutdown_fire_and_forget()
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external community-json {
-		run ./community-json.run
+		run "ze-test fixture plugin/community-attributes-json"
 		encoder json
 	}
 }

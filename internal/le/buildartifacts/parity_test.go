@@ -32,7 +32,7 @@ func parityToolchain(root string) gotoolchain.Toolchain {
 	}
 }
 
-func TestInstallerPlansMatchBothPythonProducerBuilds(t *testing.T) {
+func TestInstallerPlansPreserveBothArchitectureBuilds(t *testing.T) {
 	root := filepath.Join(string(filepath.Separator), "checkout")
 	toolchain := parityToolchain(root)
 	ldflags := "-X main.version=" + parityVersion + " -X main.buildDate=" + parityBuildDate
@@ -62,8 +62,8 @@ func TestInstallerPlansMatchBothPythonProducerBuilds(t *testing.T) {
 			if got := toolchain.Overrides(plan.environ); !reflect.DeepEqual(got, wantEnvironment) {
 				t.Fatalf("environment = %#v, want %#v", got, wantEnvironment)
 			}
-			if plan.gate != "ze-installer-build-"+arch || plan.output != output {
-				t.Fatalf("plan identity = gate %q output %q", plan.gate, plan.output)
+			if plan.action != "installer-"+arch || plan.output != output {
+				t.Fatalf("plan identity = action %q output %q", plan.action, plan.output)
 			}
 		})
 	}
@@ -88,8 +88,8 @@ func TestHostPlanUsesExactTagsVersionFlagsAndRootOutput(t *testing.T) {
 	if plan.output != output {
 		t.Fatalf("output = %q, want %q", plan.output, output)
 	}
-	if plan.gate != hostGate {
-		t.Fatalf("gate = %q, want %q", plan.gate, hostGate)
+	if plan.action != hostAction {
+		t.Fatalf("gate = %q, want %q", plan.action, hostAction)
 	}
 	wantEnvironment := []string{
 		"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
@@ -148,12 +148,12 @@ func TestCompilerFailureIsTheActionExitAndTheStructuredReportCode(t *testing.T) 
 	}
 
 	for _, plan := range plans {
-		t.Run(plan.gate, func(t *testing.T) {
+		t.Run(plan.action, func(t *testing.T) {
 			const compilerCode = 37
 			var called bool
 			run := func(gate string, argv []string, dir string, environ []string) int {
 				called = true
-				if gate != plan.gate || dir != root {
+				if gate != plan.action || dir != root {
 					t.Fatalf("runner got gate %q dir %q", gate, dir)
 				}
 				if !reflect.DeepEqual(argv, plan.command) {
@@ -195,7 +195,7 @@ func TestSuccessfulBuildReportsTheArtifactAndZeroExit(t *testing.T) {
 	}
 
 	for _, plan := range plans {
-		t.Run(plan.gate, func(t *testing.T) {
+		t.Run(plan.action, func(t *testing.T) {
 			report, code := execute(
 				plan,
 				toolchain,
@@ -212,13 +212,9 @@ func TestSuccessfulBuildReportsTheArtifactAndZeroExit(t *testing.T) {
 	}
 }
 
-func TestBuildAreaClaimsThreeWritingActions(t *testing.T) {
+func TestBuildAreaDeclaresThreeWritingActions(t *testing.T) {
 	list := Actions()
-	wantGates := []string{
-		"ze-host-build",
-		"ze-installer-build-amd64",
-		"ze-installer-build-arm64",
-	}
+	wantVerbs := []string{"host", "installer-amd64", "installer-arm64"}
 	wantWhys := []string{
 		"ze-host, the `ze appliance ...` driver that runs on the BUILD machine. " +
 			"It owns the kernel cache key, so every QEMU target declares it as a " +
@@ -226,24 +222,18 @@ func TestBuildAreaClaimsThreeWritingActions(t *testing.T) {
 		"the installer initrd PID 1 for amd64, at bin/ze-installer-amd64",
 		"the installer initrd PID 1 for arm64, at bin/ze-installer-arm64",
 	}
-	if !reflect.DeepEqual(actions.Gates(), wantGates) {
-		t.Fatalf("gates = %#v, want %#v", actions.Gates(), wantGates)
-	}
-	if len(list.Actions) != len(wantGates) {
-		t.Fatalf("actions = %d, want %d", len(list.Actions), len(wantGates))
+	if len(list.Actions) != len(wantVerbs) {
+		t.Fatalf("actions = %d, want %d", len(list.Actions), len(wantVerbs))
 	}
 	for index, row := range list.Actions {
-		if row.Gate != wantGates[index] || row.Verb != wantGates[index] {
-			t.Errorf("action %d identity = gate %q verb %q", index, row.Gate, row.Verb)
+		if row.Verb != wantVerbs[index] {
+			t.Errorf("action %d verb = %q, want %q", index, row.Verb, wantVerbs[index])
 		}
 		if !row.Writes {
-			t.Errorf("action %s is not marked as writing", row.Gate)
+			t.Errorf("action %s is not marked as writing", row.Verb)
 		}
 		if row.Why != wantWhys[index] {
-			t.Errorf("action %s reason = %q, want %q", row.Gate, row.Why, wantWhys[index])
-		}
-		if len(row.Forks) != 0 {
-			t.Errorf("action %s still forks %v", row.Gate, row.Forks)
+			t.Errorf("action %s reason = %q, want %q", row.Verb, row.Why, wantWhys[index])
 		}
 	}
 	if !registry.HasLocal(leroot.CommandPath(area)) {

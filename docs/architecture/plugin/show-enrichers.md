@@ -29,11 +29,15 @@ This matches in-process enricher behavior, which mutates the base map in place.
 A nested merge would make the two paths differ.
 
 **`RegisterProcessCleanup` is called from a `sync.Once`, not from `init()`.**
-The repo hook blocks a registration call inside `init()` in a non-register file.
+The native write hook blocks a registration call inside `init()` in a
+non-register file.
+<!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
 
-**Testing uses both a Go plugin and a Python `.ci`.** The Go `fakeenrich`
-guards the in-process path permanently. The Python `.ci` exercises the external
-SDK path end to end. Either alone leaves one path unproven.
+**Testing uses both a Go plugin and a compiled `.ci` fixture.** The Go
+`fakeenrich` package guards the in-process path. The `ze-test fixture` process
+exercises the external SDK path end to end. Either alone leaves one path
+unproven.
+<!-- source: internal/test/fixture/plugin_fixture_06.go -- fixture06EnricherExternalChecker -->
 
 `Unregister(command, key)` removes one key at plugin exit, replacing the coarse
 test-only reset.

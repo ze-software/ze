@@ -25,7 +25,7 @@ const lgCapturedPageFloor = 8
 // not match. The bytes stay valid HTML and the handler still answers 200, so
 // only this comparison sees it.
 //
-// It is the half that reads the captures. scripts/codegen/web_assets.go walks
+// It is the half that reads the captures. internal/le/webassets/webassets.go walks
 // the sources instead, and over-approximates. A page loading more than it
 // renders is therefore not a finding here.
 //

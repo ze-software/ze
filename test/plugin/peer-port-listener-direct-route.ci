@@ -66,16 +66,9 @@ EOF_CONF
 
 # Trigger: let the session establish, then stop the daemon so the NOTIFICATION
 # above is sent.
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-sleep 3
-kill -TERM $(cat daemon.pid)
-EOF_TRIGGER
 
 cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture plugin/peer-port-listener-direct-route-trigger
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
 
 # The connection was attributed to the configured peer, not to its source address.

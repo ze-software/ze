@@ -7,7 +7,7 @@
 // No parity claim applies. Admission is not one of the 156 gates declared by
 // the Python le, so this command cannot reduce that census. It reduces the
 // OTHER census by one shell file. That count decreases when
-// scripts/dev/ze-run.sh is deleted at the swap, not when this command appears.
+// internal/le/lejob/answer.go is deleted at the swap, not when this command appears.
 
 package lejob
 

@@ -16,59 +16,6 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=anomaly-observe-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        resp = dispatch(api, 'show anomaly observe')
-        status = resp.get('status')
-        if status != 'done':
-            runtime_fail(f'anomaly observe: status={status} data={resp.get("data")}')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-
-        if data.get('enabled') is not True:
-            runtime_fail(f'anomaly observe: enabled != true (plugin not wired): {data}')
-        if 'incidents' not in data:
-            runtime_fail(f'anomaly observe: missing "incidents" in {data}')
-        if not isinstance(data['incidents'], list):
-            runtime_fail(f'anomaly observe: incidents not a list: {data["incidents"]!r}')
-        if data['incidents']:
-            runtime_fail(f'anomaly observe: incidents non-empty with no traffic: {data["incidents"]!r}')
-        if 'active-count' not in data:
-            runtime_fail(f'anomaly observe: missing "active-count" in {data}')
-        if data['active-count'] != 0:
-            runtime_fail(f'anomaly observe: active-count != 0 with no traffic: {data}')
-
-        print(f'OK: show anomaly observe enabled={data["enabled"]} active-count={data["active-count"]} incidents={len(data["incidents"])}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 anomaly {
@@ -82,7 +29,7 @@ anomaly {
 
 plugin {
 	external anomaly-observe-show-test {
-		run ./anomaly-observe-show-test.run
+		run "ze-test fixture plugin/anomaly-observe-show"
 		encoder json
 	}
 }

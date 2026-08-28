@@ -19,13 +19,10 @@ import (
 const area = "yang-glue"
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-yang-glue-check",
-		Why: "the generated yang/*/register.go and embed.go agree with the .yang tree." +
-			" A stale one leaves a module the loader never registers, so a config leaf" +
-			" the tree declares is refused as unknown",
-		Answer: runCheckHere,
-	},
+	leaction.Action{Verb: "check", Why: "the generated yang/*/register.go and embed.go agree with the .yang tree." +
+		" A stale one leaves a module the loader never registers, so a config leaf" +
+		" the tree declares is refused as unknown",
+		Answer: runCheckHere},
 	leaction.Action{
 		Verb:   "write",
 		Why:    "regenerate the embed and register glue beside every .yang file",

@@ -1,18 +1,12 @@
 // Design: docs/architecture/testing/verify-freshness-scope.md -- what a scoped run covers
-// Overview: changed.go -- the selection two of these verbs answer
-// Detail: scope.go -- the third
+// Overview: changed.go -- the group selection
+// Detail: scope.go and selector.go -- the scoped change-set selection
 //
-// actions.go is the table. The dispatch, the listing, the help line and the two
-// refusals are internal/le/leaction, which every ported area shares.
+// actions.go is the table. The dispatch, listing, help line and refusals are
+// internal/le/leaction, which every ported area shares.
 //
-// No verb here carries a Gate because neither ported script is a Make target.
-// A recipe reads each script's answer and runs another program with it. Thus,
-// no gate name exists to keep as the identity, and the VERB is the identity.
-//
-// This area uses three verbs instead of two scripts and a flag.
-// `changed-groups.sh` and `changed-groups.sh --pkgs` render one selection.
-// Therefore, one payload and two verbs serve them. `changed-pkgs.sh` asks a
-// different producer a different question, so it becomes the third verb.
+// `scope` is the native change-set selector. Its values follow closed keywords
+// so every free-form token has a declared meaning.
 
 package changed
 
@@ -37,8 +31,18 @@ var actions = leaction.New(area,
 		Verb: "packages",
 		Why: "the packages a scoped verify stage must cover, from the one change-set selector." +
 			" Widens to ./... on every route it cannot answer",
-		Forks:  []string{"go", "run", selectorPath},
 		Answer: scopePackagesHere,
+	},
+	leaction.Action{
+		Verb: "scope",
+		Why:  "the native scoped-verify selector, including feature tags and reverse-import depth",
+		Parameters: []leaction.Parameter{
+			{Keyword: "print", Value: "mode"},
+			{Keyword: "depth", Value: "n"},
+			{Keyword: "paths-from", Value: "path"},
+			{Keyword: "drop-log", Value: "path"},
+		},
+		AnswerArgs: scopeHere,
 	},
 )
 
@@ -58,7 +62,7 @@ func groupNamesHere() (any, int) {
 	if code != 0 {
 		return nil, code
 	}
-	return GroupNames{Selection: selection}, 0
+	return groupNames{Selection: selection}, 0
 }
 
 // groupPackagesHere answers the same selection as package patterns.
@@ -67,7 +71,7 @@ func groupPackagesHere() (any, int) {
 	if code != 0 {
 		return nil, code
 	}
-	return GroupPackages{Selection: selection}, 0
+	return groupPackages{Selection: selection}, 0
 }
 
 // selectHere runs the selection over the checkout this command was run in.
@@ -99,5 +103,24 @@ func scopePackagesHere() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	return NewScope(root).Resolve(nil), 0
+	return newScope(root).Resolve(nil)
+}
+
+// scopeHere runs the selector directly. It deliberately does not call
+// newScope: the selector action always computes a fresh change set, while the
+// packages action may consume a verify run's precomputed package file.
+func scopeHere(arguments leaction.Arguments) (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+
+	legacy := make([]string, 0, len(arguments))
+	for _, keyword := range []string{"print", "depth", "paths-from", "drop-log"} {
+		if value, present := arguments[keyword]; present {
+			legacy = append(legacy, "--"+keyword+"="+value)
+		}
+	}
+	return (Scope{Root: root}).Resolve(legacy)
 }

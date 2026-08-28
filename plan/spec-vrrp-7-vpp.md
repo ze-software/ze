@@ -119,7 +119,7 @@ Open research questions for the design phase (all currently unverified):
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | VPP VRRP semantics diverge from ze's kernel-path behavior (timers, accept-mode), splitting operator experience per dataplane | Conformance audit table shows divergent rows | Exact-or-reject per leaf; document divergences in docs/guide/vrrp.md |
-| R-2 | Skeleton rots: nobody picks this up and the verify-rejection quietly becomes permanent | spec-status shows this skeleton unclaimed while vrrp ships | Umbrella Known Limitations names this spec; `make ze-spec-status` keeps it visible |
+| R-2 | Skeleton rots: nobody picks this up and the verify-rejection quietly becomes permanent | spec-status shows this skeleton unclaimed while vrrp ships | Umbrella Known Limitations names this spec; `./le spec-status` keeps it visible |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -245,7 +245,7 @@ Skeleton-level; the design phase expands these.
    - Verify: tests fail -> implement -> pass
 4. **Functional tests** -> full .ci coverage
 5. **RFC refs** -> conformance audit rows
-6. **Full verification** -> `make ze-precommit-verify`
+6. **Full verification** -> `./le verify current mode full`
 7. **Complete spec** -> audit + learned summary + two-commit closure
 
 ### Critical Review Checklist (/implement stage 6)
@@ -394,7 +394,7 @@ enforcement (e.g. parity validators).
 - [ ] AC-1..AC-3 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered with source evidence
 

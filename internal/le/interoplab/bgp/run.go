@@ -1,20 +1,22 @@
 // Design: docs/architecture/testing/interop.md -- native general interoperability gate.
 // Related: prepare.go -- scenario rendering and peer construction.
-// Related: checkers.go -- typed replacements for every scenario check.py.
+// Related: checkers.go -- complete typed scenario checker catalogue.
 package bgp
 
 import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 const defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
 
 // Options selects one exact scenario and controls image reuse. Empty fields use
-// the same environment and process-id defaults as test/interop/run.py.
+// the documented environment and process-id defaults.
 type Options struct {
 	Scenario string
 	NoBuild  bool
@@ -50,7 +52,7 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 
 	producer := filepath.Join(root, "test", "interop")
 	sources, err := interoplab.Discover(
-		filepath.Join(producer, "scenarios"), options.Scenario, Checkers())
+		filepath.Join(producer, "scenarios"), options.Scenario, checkers())
 	if err != nil {
 		return setupFailure(err)
 	}
@@ -58,11 +60,15 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 	if err != nil {
 		return setupFailure(err)
 	}
+	tags, err := featuretags.DaemonTags(root)
+	if err != nil {
+		return setupFailure(err)
+	}
 
 	suite := interoplab.Suite{
 		Docker: interoplab.NewDocker(),
 		Images: []interoplab.ImageBuild{
-			{Name: "ze", Tag: "ze-interop", Dockerfile: filepath.Join(producer, "Dockerfile.ze"), Context: root, Required: true},
+			{Name: "ze", Tag: "ze-interop", Dockerfile: filepath.Join(producer, "Dockerfile.ze"), Context: root, BuildArgs: []string{"ZE_FEATURES=" + strings.Join(tags, " ")}, Required: true},
 			{Name: "bird", Tag: "bird-interop", Dockerfile: filepath.Join(producer, "Dockerfile.bird"), Context: producer, Required: true},
 			{Name: "gobgp", Tag: "gobgp-interop", Dockerfile: filepath.Join(producer, "Dockerfile.gobgp"), Context: producer},
 			{Name: "keepalived", Tag: "keepalived-interop", Dockerfile: filepath.Join(producer, "Dockerfile.keepalived"), Context: producer, Required: true},

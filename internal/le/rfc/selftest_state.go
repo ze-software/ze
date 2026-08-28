@@ -86,7 +86,7 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 		return nil, err
 	}
 
-	audits, err := LoadAudits(root, collected.Enrolled)
+	audits, err := loadAudits(root, collected.Enrolled)
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +114,11 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 		Tree: root, Requirements: collected.Requirements, Tags: shiftedTags,
 		Enrolled: collected.Enrolled, Audits: audits,
 	})
-	resealReport, err := Reseal(root)
+	resealReport, err := resealTree(root)
 	if err != nil {
 		return nil, err
 	}
-	resealedAudits, err := LoadAudits(root, collected.Enrolled)
+	resealedAudits, err := loadAudits(root, collected.Enrolled)
 	if err != nil {
 		return nil, err
 	}
@@ -150,11 +150,11 @@ func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // temporary fixture checkout
 
-	requirements, err := ParseSummaryText(selftestSummary, "rfc9999", "rfc/short/rfc9999.md")
+	requirements, err := parseSummaryText(selftestSummary, "rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
 		return nil, err
 	}
-	inventory, err := NewDeriver(root).Inventory("rfc9999", GatedCounts(requirements)["rfc9999"])
+	inventory, err := NewDeriver(root).Inventory("rfc9999", gatedCounts(requirements)["rfc9999"])
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	signed, violations, err := EvaluateExtractions(NewDeriver(root), requirements)
+	signed, violations, err := evaluateExtractions(NewDeriver(root), requirements)
 	if err != nil {
 		return nil, err
 	}

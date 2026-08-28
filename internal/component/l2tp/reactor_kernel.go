@@ -15,7 +15,7 @@ import (
 // collectKernelEventsLocked scans the tunnel for sessions that need
 // kernel setup and for pending kernel teardowns. Clears the flags and
 // drains the teardown list. Caller MUST hold tunnelsMu.
-func (r *L2TPReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSetupEvent, []kernelTeardownEvent) {
+func (r *l2tpReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSetupEvent, []kernelTeardownEvent) {
 	// Drain teardowns first, unconditionally: the route observer must learn
 	// of torn sessions even when no kernel worker is present (non-Linux,
 	// tests). Subscriber-route withdrawal is independent of kernel-resource
@@ -65,7 +65,7 @@ func (r *L2TPReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSet
 
 // enqueueKernelEvents sends setup and teardown events to the kernel
 // worker. Called after releasing tunnelsMu.
-func (r *L2TPReactor) enqueueKernelEvents(setups []kernelSetupEvent, teardowns []kernelTeardownEvent) {
+func (r *l2tpReactor) enqueueKernelEvents(setups []kernelSetupEvent, teardowns []kernelTeardownEvent) {
 	if r.kernelWorker == nil {
 		return
 	}
@@ -87,7 +87,7 @@ func (r *L2TPReactor) enqueueKernelEvents(setups []kernelSetupEvent, teardowns [
 // When pppDriver is nil (no iface backend configured, test paths,
 // non-Linux platforms), the success is logged and the fds remain owned
 // by the kernel worker; the worker will close them on teardownAll.
-func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
+func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	// spec-followup-l2tp-call A-4: a LAC-relayed session's PPP frames flow
 	// through the kernel channel bridge (PPPoE <-> pppol2tp); no local PPP
 	// unit is driven for it, so skip ppp.StartSession. The kernel worker owns
@@ -162,7 +162,7 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 // below. The compile-time assertion in `var _ [...]` below freezes the
 // set at the count the reactor knows about; bumping the count in a
 // future spec forces the author to handle the new type here too.
-func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
+func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	// spec-l2tp-9: EventEchoRTT carries LCP echo round-trip time
 	// for CQM aggregation. Relay to EventBus.
 	if echoRTT, ok := ev.(ppp.EventEchoRTT); ok {
@@ -259,7 +259,7 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 // route record is a cheap no-op.
 //
 // Caller MUST NOT hold tunnelsMu (OnSessionDown takes the observer lock).
-func (r *L2TPReactor) notifyRouteObserverDown(events []kernelTeardownEvent) {
+func (r *l2tpReactor) notifyRouteObserverDown(events []kernelTeardownEvent) {
 	if r.routeObserver == nil {
 		return
 	}
@@ -272,7 +272,7 @@ func (r *L2TPReactor) notifyRouteObserverDown(events []kernelTeardownEvent) {
 // session struct and calls RouteObserver.OnSessionIPUp. Called from
 // handlePPPEvent for every EventSessionIPAssigned (once per family
 // per session in dual-stack flows).
-func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
+func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 	r.tunnelsMu.Lock()
 	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
 	if !ok {
@@ -327,7 +327,7 @@ func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 // handleSessionUp emits the (l2tp, session-up) EventBus event when a
 // PPP session completes LCP, auth, and all NCPs. The shaper plugin
 // subscribes to this event to apply TC rules on the pppN interface.
-func (r *L2TPReactor) handleSessionUp(ev ppp.EventSessionUp) {
+func (r *l2tpReactor) handleSessionUp(ev ppp.EventSessionUp) {
 	var ifaceName string
 	r.tunnelsMu.Lock()
 	if tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]; ok {
@@ -360,7 +360,7 @@ func (r *L2TPReactor) handleSessionUp(ev ppp.EventSessionUp) {
 
 // handleEchoRTT relays a PPP echo round-trip measurement to the
 // EventBus for CQM aggregation (spec-l2tp-9-observer AC-3).
-func (r *L2TPReactor) handleEchoRTT(ev ppp.EventEchoRTT) {
+func (r *l2tpReactor) handleEchoRTT(ev ppp.EventEchoRTT) {
 	if r.eventBus == nil {
 		return
 	}
@@ -385,7 +385,7 @@ func (r *L2TPReactor) handleEchoRTT(ev ppp.EventEchoRTT) {
 // handleKernelError processes a setup failure reported by the kernel
 // worker. Grabs tunnelsMu, looks up the session, and sends a CDN to
 // the peer if the session still exists.
-func (r *L2TPReactor) handleKernelError(kerr kernelSetupFailed) {
+func (r *l2tpReactor) handleKernelError(kerr kernelSetupFailed) {
 	r.tunnelsMu.Lock()
 	tunnel, ok := r.tunnelsByLocalID[kerr.localTID]
 	if !ok {
@@ -410,17 +410,17 @@ func (r *L2TPReactor) handleKernelError(kerr kernelSetupFailed) {
 	}
 }
 
-// SetKernelWorker configures the kernel worker for this reactor.
+// setKernelWorker configures the kernel worker for this reactor.
 // Called by the subsystem after creating the worker. MUST be called
 // before Start(); the goroutine creation barrier in Start synchronizes
 // the writes here with reads in r.run().
 //
-// Calling SetKernelWorker more than once is a programmer error -- the
+// Calling setKernelWorker more than once is a programmer error -- the
 // reactor goroutine could observe a torn read of the channel triple.
 // Panics on second call, even when arguments are nil.
 //
 // successCh may be nil for tests that exercise the failure path only.
-func (r *L2TPReactor) SetKernelWorker(w *kernelWorker, errCh <-chan kernelSetupFailed, successCh <-chan kernelSetupSucceeded) {
+func (r *l2tpReactor) setKernelWorker(w *kernelWorker, errCh <-chan kernelSetupFailed, successCh <-chan kernelSetupSucceeded) {
 	if r.kernelWorkerSet {
 		panic("BUG: SetKernelWorker called twice on the same reactor")
 	}
@@ -451,7 +451,7 @@ func (r *L2TPReactor) SetKernelWorker(w *kernelWorker, errCh <-chan kernelSetupF
 // called, the reactor falls back to logging success events without
 // dispatching, which is acceptable on non-Linux or when the iface
 // backend is unavailable.
-func (r *L2TPReactor) setPPPDriver(d pppDriverIface) {
+func (r *l2tpReactor) setPPPDriver(d pppDriverIface) {
 	r.pppDriver = d
 	if d != nil {
 		r.pppEventsOut = d.EventsOut()

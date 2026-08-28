@@ -17,7 +17,7 @@ IPv4 and IPv6) by default, and [RFC 3768](https://www.rfc-editor.org/rfc/rfc3768
 > [RFC status](../features/rfc-status.md#first-hop-redundancy).
 
 The Docker interop lab runs the `vrrp-mastership-keepalived` scenario
-(`make ze-interop-test`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
+(`./le integration interop`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
 for one virtual IP on a shared segment, VRID 10, VRRPv3 pinned on both sides
 (keepalived speaks v2 by default, and RFC 9568 Section 7.1 has a v3 router discard
 a v2 advertisement, so the two would never see each other). Every assertion reads
@@ -33,8 +33,8 @@ never from ze's own output.
 Split brain is its own assertion: two owners is what a scenario watching only its
 own side would call a pass.
 
-<!-- source: test/interop/scenarios/vrrp-mastership-keepalived/check.py -- the three mastership phases -->
-<!-- source: test/interop/interop.py -- keepalived.conf starts a keepalived on the run's .8 address -->
+<!-- source: internal/le/interoplab/bgp/checkers.go -- the three mastership phases -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- keepalived container preparation -->
 
 The IPv6 unsolicited Neighbor Advertisement burst on promotion is resolved on the
 caller's goroutine, because netlink sockets are created in the calling thread's

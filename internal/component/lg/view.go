@@ -18,7 +18,7 @@ type layoutView struct {
 	ActiveTab string
 	// Page names the body the layout wraps, so the head loads that page's
 	// assets rather than every page's. page_assets.go carries the sets and
-	// scripts/codegen/web_assets.go derives them. A zero Page is a page nobody
+	// internal/le/webassets/webassets.go derives them. A zero Page is a page nobody
 	// named, and it gets every asset: an extra file costs bytes, while a
 	// missing one gives a page that renders correctly and does nothing.
 	Page pageID

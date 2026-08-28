@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes, rib plugin sends EOR
-# 2. Python test plugin dispatches rib show commands with pipeline args
+# 2. Native test fixture dispatches rib show commands with pipeline args
 # 3. Verifies community, path, family filters reach rib pipeline correctly
 # 4. Verifies unknown pipeline keyword returns error status
 # 5. Shuts down daemon via dispatch-command
@@ -23,128 +23,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command with filter args
-tmpfs=rib-filter-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""
-Test: RIB show pipeline dispatch wiring
-
-Verifies dispatch-command with pipeline filter args (community, path, family)
-reaches the rib plugin pipeline handler and returns valid responses.
-Empty RIB is expected — the test proves wiring, not filtering logic
-(unit tests cover filtering).
-"""
-
-import json
-
-from ze_api import API, runtime_fail, result_text_data, result_json_data
-
-
-def dispatch(api, command):
-    """Call dispatch-command and return result dict."""
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def eor_sent(result):
-    """True once ze has written its End-of-RIB to at least one peer.
-
-    `show bgp peer <sel> detail` returns {"peers": {"<ip>": {..., "eor-sent": N}}}
-    (peer.go:217, :341-345). peer_stats.go IncrEORSent, called only from
-    peer_initial_sync.go's sendInitialRoutes, increments the counter once the EOR
-    write has succeeded and been flushed to the peer's socket, so eor-sent >= 1
-    proves the marker is on the wire rather than merely scheduled.
-    """
-    if result.get('status') != 'done':
-        return False
-    try:
-        peers = result_json_data(result, {}).get('peers', {})
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    return any(p.get('eor-sent', 0) >= 1 for p in peers.values())
-
-
-def wait_eor_sent(api, selector):
-    """Block until ze has sent its EOR, so `request shutdown` cannot pre-empt it.
-
-    The peer block asserts ze's End-of-RIB on the wire. ze emits it only after the
-    initial-sync barrier: peer_initial_sync.go's sendInitialRoutes runs the
-    apiSync wait (500ms sleep, then the plugin-ready signal) before its EOR-send
-    loop builds and sends the EOR. The
-    pipeline checks below complete long before that, so a shutdown gated on them
-    alone closes TCP first and the peer's expectation can never fire. Gate on the
-    EOR the test actually asserts.
-    """
-    if not eor_sent(api.dispatch_until(
-            f'show bgp peer {selector} detail', eor_sent, attempts=40)):
-        runtime_fail(f'ze never sent its End-of-RIB to {selector}')
-
-
-def check(label, result, expected_status, expect_error=False):
-    """Assert result status matches expected, failing loudly on mismatch.
-
-    silent no-op that runtime_fail's own docstring warns about: ze keeps running, so
-    the observer's exit code never reaches the runner and the test dies by daemon
-    timeout instead of by this assertion. It failed for the wrong reason and named
-    neither the failing check nor the reason. runtime_fail emits the
-    ZE-OBSERVER-FAIL sentinel (rejected in the orchestration block below) and asks
-    ze to stop, so the real cause is what the next reader sees. `label` was accepted
-    and then dropped on the floor; it is now in the message.
-    """
-    actual = result.get('status')
-    if actual != expected_status:
-        runtime_fail(
-            f'{label}: expected status={expected_status}, got {actual}: '
-            f'{result_text_data(result)[:200]}')
-    if expect_error:
-        data = result_text_data(result)
-        if '"error"' not in data:
-            runtime_fail(f'{label}: expected error JSON in data, got: {data[:200]}')
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for the rib plugin to register its commands (RIB may be empty).
-    api.dispatch_until_done('show bgp rib count')
-
-    # Community filter on empty RIB via pipeline — done (not error)
-    check('community', dispatch(api, 'show bgp rib received community 65000:100'), 'done')
-
-    # Path filter on empty RIB — done (not error)
-    check('path', dispatch(api, 'show bgp rib received path 64501'), 'done')
-
-    # Count terminal on empty RIB — done
-    check('count', dispatch(api, 'show bgp rib count'), 'done')
-
-    # Combined family + community filter — done
-    check('family+community', dispatch(api, 'show bgp rib received family ipv4/unicast community 65000:100'), 'done')
-
-    # Unknown pipeline keyword — status is done but data contains error JSON
-    check('unknown-keyword', dispatch(api, 'show bgp rib bogus'), 'done', expect_error=True)
-
-    wait_eor_sent(api, 'peer1')
-
-    # All passed — shutdown daemon
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native test fixture: exercises dispatch-command with filter args
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external filter-test {
-		run ./rib-filter-test.run
+		run "ze-test fixture plugin/rib-filter-show"
 		encoder json
 	}
 	internal bgp-rib {

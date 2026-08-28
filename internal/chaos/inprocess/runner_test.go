@@ -68,8 +68,8 @@ func TestInProcessBasicRoute(t *testing.T) {
 		Profiles: profiles,
 		Seed:     42,
 		// 25s duration covers the observed ~46s wall-clock slowdown under
-		// `make ze-precommit-verify` parallel load (reactor startup + OPEN/
-		// KEEPALIVE for two peers + 5-route advertisement). The enclosing
+		// `./le verify current mode full` parallel load (reactor startup + OPEN/
+		// KEEPALIVE for two peers + 5-route advertisement).
 		// ctx timeout of 30s still bounds total runtime. Isolated runs
 		// finish in ~3s, so this is ~8x slack, matching the worst-case
 		// slowdown observed under parallel-binary CPU contention.

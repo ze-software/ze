@@ -106,7 +106,7 @@ func FillChecksum(buf []byte, off, n int, src, dst netip.Addr) {
 		// outranks tracking the newest RFC's clarification, so ze transmits the
 		// pseudo-header form. ze's rx (verifyReceived) still dual-accepts both,
 		// so a future strict-RFC-9568 peer also interoperates. Proven by the
-		// keepalived QEMU interop lab (scripts/evidence/effective-vrrp-keepalived.py).
+		// keepalived QEMU interop lab (internal/le/qemu/vrrp_keepalived_linux.go).
 		initial = pseudoSumV4Legacy(src, dst, n)
 	}
 	// v2 has no pseudo-header (RFC 3768 Section 5.3.7): initial stays 0.

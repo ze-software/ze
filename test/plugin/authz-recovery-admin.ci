@@ -29,29 +29,7 @@
 #            would exit non-zero -- both assertions below would then fail. This
 #            is the guard that a strict default did not lock the operator out.
 
-tmpfs=test-authz-recovery-admin.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
-
-touch daemon.ready
-
-# Show every authorization decision so the recovery grant is observable in the
-# daemon log. The authz subsystem logger defaults to WARN, and the recovery
-# grant is logged at INFO, so it must be raised here.
-export ze_log_authz=info
-
-# Shared config dir: the daemon reads its bootstrap admin from the SAME zefs
-# that `ze init` populates below. loadZefsUsers reads $ZE_CONFIG_DIR/database.zefs.
-SHARED=$(mktemp -d)
-trap 'rm -rf "$SHARED"' EXIT
-
-# Populate the zefs bootstrap admin BEFORE the daemon starts (the daemon loads
-# it once at startup). The port here is a placeholder -- `ze init` only writes
-# credentials, it does not connect. The real SSH port is injected at `ze cli`
-# time via ze.ssh.host / ze.ssh.port.
-printf 'admin\nrecoverypass\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$SHARED" ze init >/dev/null
-
-cat > authz-recovery-admin.conf <<ZECONF
+tmpfs=authz-recovery-admin.conf:terminator=EOF_CONF
 environment {
 	ssh {
 		enabled true
@@ -71,55 +49,9 @@ system {
 		}
 	}
 }
-ZECONF
+EOF_CONF
 
-# Daemon shares ZE_CONFIG_DIR with the init above, so it loads the bootstrap
-# admin (with the reserved recovery profile) at startup.
-ZE_CONFIG_DIR="$SHARED" ze start authz-recovery-admin.conf 2>daemon.log &
-DAEMON_PID=$!
-trap 'rm -rf "$SHARED"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
-
-# Poll for the ephemeral ssh port the daemon logs once its listener is bound.
-SSH_PORT=""
-for i in $(seq 1 50); do
-	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
-	if [ -n "$SSH_PORT" ]; then
-		break
-	fi
-	sleep 0.2
-done
-if [ -z "$SSH_PORT" ]; then
-	echo "FAIL: SSH server did not start" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "ssh on :$SSH_PORT" >&2
-
-# The bootstrap admin authenticates over SSH (super-admin path: plaintext env
-# password checked against the zefs bcrypt hash) and runs a real command. On a
-# box with authorization configured and no assignment for this identity, the
-# ONLY way this succeeds is the reserved recovery profile.
-if ! OUTPUT=$(ZE_CONFIG_DIR="$SHARED" ZE_SSH_HOST="127.0.0.1" ZE_SSH_PORT="$SSH_PORT" ZE_SSH_PASSWORD="recoverypass" ze cli --user admin -c "show version" 2>&1); then
-	echo "FAIL: bootstrap admin must reach the box via the recovery profile" >&2
-	echo "OUTPUT: $OUTPUT" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "OK: recovery admin allowed 'show version': $OUTPUT" >&2
-
-# Load-bearing: the recovery BRANCH decided, not some incidental allow. This
-# line is emitted only by the reserved-recovery path in Store.Authorize.
-if ! grep -q "break-glass recovery admin" daemon.log; then
-	echo "FAIL: daemon did not log the break-glass recovery decision" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "OK: daemon logged break-glass recovery admin decision" >&2
-
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-authz-recovery-admin.sh:timeout=30s
+cmd=foreground:seq=1:exec=ze-test fixture plugin/authz-recovery-admin:timeout=30s
 expect=exit:code=0
 # The recovery account reached the box.
 expect=stderr:pattern=OK: recovery admin allowed 'show version'

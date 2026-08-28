@@ -50,111 +50,11 @@ option=linger:value=true
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020602010000FDE940030401010101C0080CFDE80040FDE80063FC000063180A0000
 EOF_PEER
 
-# Python test plugin: exactly the two survivors, and not the scrubbed value.
-tmpfs=test-scrub.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify the RFC 7454 Section 11 scrub keeps the keep-list and foreign GAs."""
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-def count_of(result, what):
-    """The `count` field of a pipeline answer, or a named failure.
-
-    The count terminal answers with a number, but only on a `done` envelope. A
-    dispatch that fails SOFTLY answers {"status": "error", "error": ...} with no
-    `data` key at all: routeToProcess (internal/component/plugin/server/command.go)
-    returns a nil error on a transport failure, and DispatchCommandOutput.Data is
-    `omitempty`. A numeric default therefore reports a broken pipe as a missing
-    community, which is a zero value passing for an answer (ai/rules/evidence.md).
-    """
-    if result.get('status') != 'done':
-        fail(f'{what}: dispatch failed: {result.get("error", result)}')
-    payload = result_json_data(result, {})
-    if 'count' not in payload:
-        fail(f'{what}: the count terminal answered no count: {payload}')
-    return payload['count']
-
-def route_count(api, value):
-    """How many received routes still carry this community?"""
-    result = dispatch(api, f'show bgp rib received community {value} count')
-    return count_of(result, value)
-
-def prefix_count(api, prefix):
-    """How many received routes carry this prefix? The arrival barrier.
-
-    Asked of the SAME store the community assertions read, which is bgp-rib's
-    per-peer table (newInboundSource, internal/component/bgp/plugins/rib/rib_pipeline.go).
-    """
-    result = dispatch(api, f'show bgp rib received prefix {prefix} count')
-    return count_of(result, prefix)
-
-def fail(msg):
-    print(f'FAIL: {msg}', file=sys.stderr)
-    sys.stderr.flush()
-    runtime_fail(msg)
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Poll the store the three assertions below read, and no other.
-    #
-    # bgp-adj-rib-in and bgp-rib are two plugins holding two separate tables,
-    # and one UPDATE reaches them through two goroutines that nothing orders:
-    # onMessageBatchReceived (internal/component/bgp/server/events.go) enqueues
-    # EventDelivery with NO Result channel, deliberately, so no subscriber
-    # blocks another, and each process then drains its own eventChan. The
-    # observer's command travels a third rail and overtakes both. So
-    # `show bgp adj-rib-in status` reporting the route said nothing about the
-    # store queried below, and bgp-rib is the slower of the two: it interns the
-    # pool and the bundle where adj-rib-in stores hex. Measured 3 reds in 20
-    # runs, always on the FIRST assertion, which has the least slack after the
-    # barrier. The 65000:99 assertion expects 0, so an empty table satisfies it
-    # vacuously and a lost route reads as a correct scrub.
-    #
-    # The barrier waits on the PREFIX rather than on a community, so it stays
-    # independent of what the assertions test: a scrub that wrongly removed
-    # 65000:64 passes this barrier at once and is then reported by name below,
-    # rather than expiring here as a route that never arrived.
-    if not api.wait_until(lambda: prefix_count(api, '10.0.0.0/24') >= 1):
-        fail('10.0.0.0/24 never reached the bgp-rib received table')
-
-    # The keep-list survivor. Removing it would be the "scrub removes
-    # everything" failure, which deletes what customers and peers signal.
-    if route_count(api, '65000:64') != 1:
-        fail('65000:64 is in the keep-list and must survive the scrub')
-
-    # The foreign high half. RFC 7454 Section 11 bullet two (RFC7454-11-2)
-    # forbids removing another AS's communities.
-    if route_count(api, '64512:99') != 1:
-        fail('64512:99 carries another ASN and must never be removed')
-
-    # The scrubbed value. Leaving it would be the "scrub removes nothing"
-    # failure, which is the forgery Section 11 exists to prevent.
-    if route_count(api, '65000:99') != 0:
-        fail('65000:99 is our own number outside the keep-list and must be removed')
-
-    print('OK: keep-list and foreign values survived, own-number 99 scrubbed', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze configuration: one eBGP peer with the Section 11 scrub and one kept function.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-scrub {
-		run ./test-scrub.run
+		run "ze-test fixture plugin/community-scrub-own-ga"
 		encoder json
 	}
 	internal bgp-rib {

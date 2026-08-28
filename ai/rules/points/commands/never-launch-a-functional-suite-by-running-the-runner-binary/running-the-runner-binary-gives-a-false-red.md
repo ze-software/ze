@@ -3,6 +3,6 @@ kind: note
 level:
 stage:
 ---
-Running this session's `ze-test` binary yourself (`$(ZEBIN_TEST) bgp plugin 145`)
-is **not** equivalent to `make ze-functional-plugin-test`, and the difference produces a
-convincing false red.
+Running a raw `ze-test` binary is not equivalent to `./le functional <suite>`.
+The native action builds the isolated tagged pair, sets `ZE_BIN` and
+`ZE_TEST_BIN`, and owns the scratch environment. Bypassing it can produce a convincing false red.

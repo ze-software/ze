@@ -73,7 +73,7 @@ For every markdown link `[text](path)` or `[text](path#anchor)`:
 
 For every fenced code block tagged with a language (` ```go `, ` ```bash `, ` ```json `):
 - `go`: check that referenced types, functions, and methods exist in the codebase (`Grep`)
-- `bash`: check that referenced commands (`ze`, `make ze-*`) exist
+- `bash`: check that referenced `ze` and `./le <area> <action>` commands exist
 - `json`: check that field names match `ai/rules/cli.md` conventions (kebab-case)
 
 **3d. Terminology consistency**
@@ -130,7 +130,7 @@ Compare documentation against the actual codebase to find gaps.
 
 **5a. Feature coverage**
 
-Run `make ze-inventory` (or `make ze-inventory-json` for structured data). For each item in the inventory:
+Run `./le inventory` (or `./le inventory-json` for structured data). For each item in the inventory:
 
 | Inventory item | Expected documentation |
 |----------------|----------------------|

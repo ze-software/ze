@@ -73,7 +73,7 @@ func HandlePortal(renderer *Renderer, defaultMode UIMode) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := extractPortalKey(r)
 		if key == "" {
-			http.Redirect(w, r, "/show/", http.StatusFound)
+			http.Redirect(w, r, showPathPrefix, http.StatusFound)
 			return
 		}
 
@@ -89,7 +89,7 @@ func HandlePortal(renderer *Renderer, defaultMode UIMode) http.HandlerFunc {
 			portalFrame(portalFrameData{URL: svc.Path, Title: svc.Title}))
 
 		breadcrumbs := []BreadcrumbSegment{
-			{Name: "portal", URL: "/show/"},
+			{Name: "portal", URL: showPathPrefix},
 			{Name: svc.Title, URL: "/portal/" + svc.Key, Active: true},
 		}
 

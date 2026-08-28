@@ -47,7 +47,7 @@ nearest-to-enrollable first, each as its own reviewable unit.
 Received 2026-07-30 from `plan/deferrals/mcp2026-0-umbrella.md`, whose own spec
 closed with the MCP 2026-07-28 cutover. The MCP protocol specification carries
 MUST-level obligations, and Ze now implements revision `2026-07-28` in full. No
-part of it sits under `make ze-rfc-check`, so no ratchet holds that conformance.
+part of it sits under `./le rfc check`, so no ratchet holds that conformance.
 
 The question is for Thomas, and an implementing session must not answer it
 (`ai/rules/rfc-compliance.md`, "Implement Full Compliance. Ask Thomas Only
@@ -86,7 +86,7 @@ nothing.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/dev/rfc_requirements.py` - the gate; re-derives coverage and enforces enrolment.
+- [ ] `internal/le/rfc/rfc.go` - the gate; re-derives coverage and enforces enrolment.
 - [ ] `ai/RFC-REQUIREMENTS.md` - the "not enrolled" rollup is the authoritative, derived work list.
 - [ ] `rfc/enrolled.txt` - currently enrolls only rfc7606.
 
@@ -107,12 +107,12 @@ tests gain `RFC requirement:` tags; the 9 zero-capture summaries are re-authored
    every MUST-level requirement is covered or annotated.
 2. Tagging enforcing tests (`RFC requirement: <id> <polarity>`) makes the derived ledger show the
    requirement→test link; the gate turns green for that RFC.
-3. `make ze-rfc-index-update` regenerates `ai/RFC-REQUIREMENTS.md`; `ze-doc-verify` fails if it is stale.
+3. `./le rfc index-update` regenerates `ai/RFC-REQUIREMENTS.md`; `./le doc-check verify` fails if it is stale.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Summary ⇄ Test | requirement id in `rfc/short/<stem>.md` ↔ `RFC requirement:` tag in the test | `make ze-rfc-check` per enrolled RFC |
+| Summary ⇄ Test | requirement id in `rfc/short/<stem>.md` ↔ `RFC requirement:` tag in the test | `./le rfc check` per enrolled RFC |
 | Requirement ledger ⇄ Product ledger | `{gap}` disposition ↔ `docs/features/rfc-status.md` Remaining column | gate cross-check (existing) |
 
 ### Integration Points
@@ -123,7 +123,7 @@ tests gain `RFC requirement:` tags; the 9 zero-capture summaries are re-authored
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Add an RFC stem to `rfc/enrolled.txt` | → | `rfc_requirements.py --check` gates its MUSTs | `make ze-rfc-check` exits non-zero until covered/annotated (existing gate; per-increment) |
+| Add an RFC stem to `rfc/enrolled.txt` | → | `rfc_requirements.py --check` gates its MUSTs | `./le rfc check` exits non-zero until covered/annotated (existing gate; per-increment) |
 
 ## 🧪 TDD Test Plan
 
@@ -149,13 +149,13 @@ Design not started. When picked up, run `/ze-spec` to:
 2. Choose increment granularity (per-RFC vs cluster) and ordering.
 3. Decide the triage for divergences found during enrolment (fix the code vs disclose a `{gap}`).
 4. Fill full Acceptance Criteria and the review-gate sections the template requires, then enroll
-   RFCs one increment at a time, each green through `make ze-rfc-check` before the next.
+   RFCs one increment at a time, each green through `./le rfc check` before the next.
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | An RFC stem added to `rfc/enrolled.txt` | `make ze-rfc-check` passes only when every MUST-level requirement is covered-both-polarities or reasoned-annotated |
+| AC-1 | An RFC stem added to `rfc/enrolled.txt` | `./le rfc check` passes only when every MUST-level requirement is covered-both-polarities or reasoned-annotated |
 | AC-2 | A zero-capture summary (e.g. rfc5303) before enrolment | Re-authored via `/ze-rfc` so its source MUSTs are captured, before its stem may be enrolled |
 
 ## Risks & Assumptions
@@ -163,7 +163,7 @@ Design not started. When picked up, run `/ze-spec` to:
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The rollup's nearest-to-enrollable ranking is still accurate after the pilot's fixes | `ai/RFC-REQUIREMENTS.md` derived rollup | Re-rank before starting | Re-run `make ze-rfc-index-update` and read the rollup | unvalidated |
+| A-1 | The rollup's nearest-to-enrollable ranking is still accurate after the pilot's fixes | `ai/RFC-REQUIREMENTS.md` derived rollup | Re-rank before starting | Re-run `./le rfc index-update` and read the rollup | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -182,8 +182,8 @@ and the enforcing test carries the machine-checked `// RFC requirement: <id> <po
 - [ ] Tests written for each newly tagged requirement
 - [ ] Tests FAIL before the enforcing code/tag exists
 - [ ] Tests PASS after
-- [ ] `make ze-standard-test` passes
-- [ ] `make ze-rfc-check` green for every enrolled RFC
+- [ ] `./le verify current mode full` passes
+- [ ] `./le rfc check` green for every enrolled RFC
 
 ### Quality Gates (SHOULD pass)
 - [ ] Each enrolled RFC earns a `/ze-rfc-audit` pass

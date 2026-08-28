@@ -33,27 +33,11 @@ cmd=api:conn=1:seq=1:text=peer * update text origin igp as-path [64496 64512 644
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003B02000000204001010040021202040000FBF40000FBF00000FDEA0000FBF140030401010101180A0000
 EOF_PEER
 
-tmpfs=remove-private-as-replace-originated.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Originate one route carrying a private ASN; the peer wire assertion is the proof."""
-import sys
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-def main() -> None:
-    ready()
-    send('peer * update text origin igp as-path [64496 64512 64497] nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24')
-    wait_for_ack(expected_count=1)
-    print('INFO: originated route carrying private ASN 64512', file=sys.stderr)
-    wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external remove-private-as-replace-originated {
-		run ./remove-private-as-replace-originated.run
+		run "ze-test fixture plugin/remove-private-as-replace-originated"
 		encoder json
 	}
 }

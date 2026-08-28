@@ -92,7 +92,7 @@ flagged by the user across sessions. Occurrence count lives in
 **The `pkg/` blind spot, and how to count a family (2026-08-22,
 spec-record-answers-1-sdk-path).** A move from `internal/` to `pkg/` is a one-way
 door. It also moves the symbol OUT of the gate below.
-`check_cross_package_wiring` in `scripts/dev/validate.py` collects symbols only
+`check_cross_package_wiring` in the retired `scripts/dev/validate.py` (current producer: `internal/le/docwiring/checks.go`) collects symbols only
 from changed files under `internal/` and `cmd/`. So a `pkg/` export is unwired
 where it is most expensive and least checked. One such move made three symbols
 public and two had no caller: `CheckRowArity`, which only its own package called,
@@ -132,8 +132,8 @@ of a family, count the family's callers before you accept that it belongs there.
 4. `architecture.md` item 5: name the entry point and file:line
    before writing any feature code.
 
-**Gated by.** `make ze-doc-wiring-check`, which runs `check_wiring` in
-`scripts/dev/verify_wiring_docs.py`. It fails when a new exported symbol under
+**Gated by.** `./le doc-wiring`, which runs `check_wiring` in
+the retired `scripts/dev/verify_wiring_docs.py` (current producer: `internal/le/docwiring/wiring.go`). It fails when a new exported symbol under
 `internal/` or `cmd/` has no non-test caller. Read the scope literally: the gate
 covers `internal/` and `cmd/` and nothing else, so `pkg/` is caught at review
 time or not at all.
@@ -576,7 +576,7 @@ rely on test isolation.
 
 ### `go test` cache hides compile breaks in dependent packages
 
-**Symptom.** `make ze-precommit-verify` is green. A package that imports
+**Symptom.** `./le verify current mode full` is green. A package that imports
 your modified file fails to compile at the next build.
 
 **Cause.** `go test` caches the compile result per package. Modifying
@@ -590,7 +590,7 @@ is stale.
 
 **Avoid it by.** After modifying any exported identifier (type,
 function signature, constant, interface method), run
-`go clean -testcache` before `make ze-precommit-verify`, OR touch one file
+`go clean -testcache` before `./le verify current mode full`, OR touch one file
 in every importing package to force recompile.
 
 **Recover if you hit it.** Clean the test cache and re-run.
@@ -656,7 +656,7 @@ spec or handoff -- never leave it implicit. A grep- or registry-driven
 audit that enumerates every applicable site beats per-file judgement.
 See `ai/rules/testing.md` "Back-Fill New Test Types".
 
-**Gated by.** `make ze-test-sensitivity-check`, partly. Its tag-orphan ratchet
+**Gated by.** `./le test-sensitivity check`, partly. Its tag-orphan ratchet
 catches a `_test.go` whose build tag no `go test` supplies, so a new test type
 that nothing runs fails. It cannot tell whether an applicable site was skipped,
 so the back-fill sweep above is still yours to run.
@@ -803,13 +803,13 @@ shard with a named destination spec.
 ### An inventory command is not the population it reports on
 
 **Symptom.** You build the list of every command under a prefix from
-`make ze-command-list`, register something against each entry, and ship. Live
+`./le command-list`, register something against each entry, and ship. Live
 paths the list never named keep the old behavior, and no gate goes red.
 
 **Cause.** Ze resolves a typed command from THREE registries: the builtin RPCs,
 the plugin names, and the local handlers `registry.MustRegisterLocal` owns
 (`internal/component/bgp/cli/register.go`). `collect`
-(`scripts/inventory/commands.go`) walks `AllBuiltinRPCs` and the streaming
+(the retired `scripts/inventory/commands.go` (current producer: `internal/le/commandlist/commandlist.go`)) walks `AllBuiltinRPCs` and the streaming
 prefixes, which is the first of the three. A verification tool blind to two
 thirds of the population answers "complete" about the third it can see.
 
@@ -959,7 +959,7 @@ defect, and only failed on `ike: started peer`.
 
 ### A full disk reads as a code breakage
 
-**Symptom.** `make ze-precommit-verify` reports `[build failed]` against dozens of
+**Symptom.** `./le verify current mode full` reports `[build failed]` against dozens of
 packages you never touched, and the functional suite fails a few unrelated
 tests. It looks like a concurrent session broke the tree.
 
@@ -993,9 +993,9 @@ mid-run.
 
 ### Another session's test edit reddens your RFC gate
 
-**Symptom.** `make ze-rfc-check` fails with the violation
+**Symptom.** `./le rfc check` fails with the violation
 `rfc/requirements/<stem>.md is stale vs its sources`. You changed no tagged
-test. `ze-doc-verify`, `ze-doc-wiring-check`, `ze-generated-files-check`
+test. `./le doc-check verify`, `./le doc-wiring`, `./le repository generated-check`
 and `TestRFCLedgerFresh` all go red at the same time, because each one
 reads the same freshness fact.
 
@@ -1013,11 +1013,11 @@ Both times the whole diff was line numbers in `internal/component/mcp/`,
 which a different session was editing. `diff` of the regenerated ledger
 named the owning package in one line each time.
 
-**Avoid it by.** Running `make ze-rfc-index-update` immediately before you start
+**Avoid it by.** Running `./le rfc index-update` immediately before you start
 a verify, not earlier in the session. Diff the regenerated files to see
 WHOSE tests moved: if every changed row names a package you never touched,
-the staleness is not yours. To read one RFC's rows and leave the index shut,
-run `python3 scripts/dev/rfc_requirements.py --show <stem>`.
+the staleness is not yours. Run `./le rfc check | json` and inspect the RFC's
+rows without regenerating the index.
 
 **Recover if you hit it.** Regenerate, then verify. Do not hand-edit the
 ledger, and do not reach for an override first: the gate is correct and
@@ -1054,7 +1054,7 @@ close the spec.
 
 ### Concurrent session corrupts another session's WIP
 
-**Symptom.** `make ze-precommit-verify` fails with compile errors in a
+**Symptom.** `./le verify current mode full` fails with compile errors in a
 file you did not touch. `git status` shows modifications you do not
 recognise. Another session's commit picked up your uncommitted files.
 
@@ -1066,15 +1066,15 @@ staged file, regardless of origin.
 **Evidence.** 581 (sysctl-0-plugin: another session's commit
 `fd5ebbb5` picked up our in-progress edits). 396 (bgp-monitor),
 438 (event-stream), 444 (fleet-config), 477 (zefs-key-registry),
-483 (exabgp-bridge-muxconn). 605, 627, 633 (concurrent `make ze-precommit-verify`
+483 (exabgp-bridge-muxconn). 605, 627, 633 (concurrent `./le verify current mode full`
 corrupted the shared log file).
 
 **Avoid it by.**
 1. `CLAUDE.md` already forbids `git add` / `git commit` from the Bash
    tool; commits only via a script the user runs.
-2. Before invoking `make ze-precommit-verify`, `git status` and confirm
+2. Before invoking `./le verify current mode full`, `git status` and confirm
    only expected files appear as modified.
-3. Only one `make ze-precommit-verify*` may run at a time across the tree;
+3. Only one `./le verify current mode full*` may run at a time across the tree;
    `verify-lock.sh` enforces this via `flock`.
 
 **Recover if you hit it.** `git stash` is forbidden (see
@@ -1086,7 +1086,7 @@ manually.
 
 ### Research subagents leaving `.go` files in `tmp/`
 
-**Symptom.** `make ze-precommit-verify` fails with compile errors in files
+**Symptom.** `./le verify current mode full` fails with compile errors in files
 under `tmp/` that are unrelated to any active spec.
 
 **Cause.** Research subagents fetched third-party source (e.g. vendor
@@ -1197,7 +1197,7 @@ BLOCKER-2. `test/ui/show-column-order-absent-unchanged.ci` was RED on HEAD
 across four landed phases. Its stated purpose is that the prefix lookup does not
 leak a column order onto a command that declared none, which is exactly what
 phase 1 broke. Phase 5 was verification only and ran no suite at all. The review
-found it by running `make ze-functional-ui-test`.
+found it by running `./le functional ui`.
 
 **Avoid it by.** Choosing the suite from the SURFACE the change alters, not from
 the package it edits. A registration that decides how output renders is a

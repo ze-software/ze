@@ -65,5 +65,5 @@ A graduated multiplier changes what counts as above, so it changes what the
 baseline learns. That interaction is the main design risk here and the spec
 must state what it does about it.
 
-**Owning gate.** `make ze-unit-pkg-test PKG=./internal/plugins/ddos/detect`, then
-`make ze-functional-plugin-test` for the thirteen `ddos-*.ci` fixtures.
+**Owning gate.** `go test -race ./internal/plugins/ddos/detect`, then
+`./le functional plugin` for the thirteen `ddos-*.ci` fixtures.

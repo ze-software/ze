@@ -18,60 +18,10 @@
 option=env:var=ze.log.flow.export:value=info
 option=timeout:value=20s
 
-tmpfs=netflow9-receiver.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Bind UDP $PORT2, wait for a NetFlow v9 datagram, assert version 9 + template."""
-import socket
-import struct
-
-from ze_api import API, runtime_fail
-
-
-def dispatch(api, command):
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-
-
-def main():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(('127.0.0.1', $PORT2))
-    sock.settimeout(8.0)
-
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    try:
-        data, _ = sock.recvfrom(65535)
-    except socket.timeout:
-        runtime_fail('no NetFlow v9 datagram received within timeout')
-
-    # NetFlow v9 header is 20 bytes: version(2) count(2) sysUptime(4)
-    # unixSecs(4) seqNumber(4) sourceID(4). The first FlowSet follows.
-    if len(data) < 24:
-        runtime_fail(f'NetFlow v9 datagram too short: {len(data)} bytes')
-    version = struct.unpack('!H', data[:2])[0]
-    if version != 9:
-        runtime_fail(f'NetFlow v9 version={version} want 9')
-    flowset_id = struct.unpack('!H', data[20:22])[0]
-    if flowset_id != 0:
-        runtime_fail(f'first FlowSet id={flowset_id} want 0 (template)')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external netflow9-receiver {
-		run ./netflow9-receiver.run
+		run "ze-test fixture flow-export/netflow9-export $PORT2"
 		encoder json
 	}
 }

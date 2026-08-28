@@ -362,8 +362,8 @@ producing function, and each changed what was declared.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `show-bgp-declared-shapes` | `test/ui/show-bgp-declared-shapes.ci` | An operator counts, filters, selects and resolves over the in-tree `show bgp` commands, and is refused BY NAME where the answer holds no rows | green (Phase 4). `make ze-functional-ui-test` is 196/196. It DISCRIMINATES, proven twice by removing `registerRibResultShapes` and re-running. The first run of that probe exposed a vacuity in the test itself and is why it asserts the pre-dispatch wording: `rowOperatorRefusal` (`internal/component/command/pipe.go`) answers "count needs rows, and this answer has none: it holds one document" AFTER dispatch, which shares both substrings with the refusal a declaration produces, so three assertions passed with every declaration removed. "cannot apply here" is written by `validateDeclaredShape` alone, and pinning it is what makes each refusal evidence that the command did not run |
-| `show-bgp-peer-rows` | `test/ui/show-bgp-peer-rows.ci` | An operator runs one chain against a one-peer and a two-peer router and gets the same shape of answer | green (Phase 3). It drives a real daemon over SSH with two configured peers, and selects one of them and both of them in turn, which is the one-matched-peer case the operator meets. `make ze-functional-ui-test` is 194/194 |
+| `show-bgp-declared-shapes` | `test/ui/show-bgp-declared-shapes.ci` | An operator counts, filters, selects and resolves over the in-tree `show bgp` commands, and is refused BY NAME where the answer holds no rows | green (Phase 4). the retired `ze-functional-ui-test` (current: `./le functional ui`) is 196/196. It DISCRIMINATES, proven twice by removing `registerRibResultShapes` and re-running. The first run of that probe exposed a vacuity in the test itself and is why it asserts the pre-dispatch wording: `rowOperatorRefusal` (`internal/component/command/pipe.go`) answers "count needs rows, and this answer has none: it holds one document" AFTER dispatch, which shares both substrings with the refusal a declaration produces, so three assertions passed with every declaration removed. "cannot apply here" is written by `validateDeclaredShape` alone, and pinning it is what makes each refusal evidence that the command did not run |
+| `show-bgp-peer-rows` | `test/ui/show-bgp-peer-rows.ci` | An operator runs one chain against a one-peer and a two-peer router and gets the same shape of answer | green (Phase 3). It drives a real daemon over SSH with two configured peers, and selects one of them and both of them in turn, which is the one-matched-peer case the operator meets. `./le functional ui` is 194/194 |
 
 ### Interop Tests (Scope: protocol)
 Not applicable. Nothing here is wire-visible: no BGP message changes, no
@@ -433,7 +433,7 @@ capability changes, no route changes. The scope is the operator surface.
 | 13 | Route metadata keys? | No | |
 | 14 | Prometheus counters? | No | |
 | 15 | Registered command or capability changed? | No | The set of registered commands is unchanged |
-| 16 | Changed source file referenced by doc source anchors? | DERIVED | Run `python3 scripts/dev/spec_doc_anchors.py plan/spec-cli-show-bgp-answer-shapes.md` at the start of each phase. `docs/architecture/bgp/filter-irr.md` is declared by `filter_irr/cmd_irr.go` and is UNAFFECTED: that file gains a registration helper stating what the three `show bgp irr` answers already hold, and the doc describes what the IRR filter does to routes. No behavior the doc records changes |
+| 16 | Changed source file referenced by doc source anchors? | DERIVED | Run `./le spec-citation anchors spec plan/spec-cli-show-bgp-answer-shapes.md` at the start of each phase. `docs/architecture/bgp/filter-irr.md` is declared by `filter_irr/cmd_irr.go` and is UNAFFECTED: that file gains a registration helper stating what the three `show bgp irr` answers already hold, and the doc describes what the IRR filter does to routes. No behavior the doc records changes |
 | 17 | Existing docs show examples for this area? | Yes | Checked (Phase 5). `docs/architecture/api/commands.md` shows no payload for either changed command: its "Peer Commands" block lists spellings alone, and the two JSON examples below it are `show neighbor` and `show adj-rib`. Two STALE claims were found elsewhere and corrected: `docs/features/formatting.md` said only `show bgp` and `show bgp peer list` declare an order, and `docs/guide/command-reference.md` said `show bgp rib` renders alphabetically |
 
 ## Implementation Steps
@@ -509,7 +509,7 @@ capability changes, no route changes. The scope is the operator surface.
 | Every in-tree `show bgp` path declares a shape | `TestEveryShowBgpPathDeclaresAShape` |
 | The registry refuses a conflicting declaration | `TestRegisterConflictPanics` |
 | Every declared column name exists in the payload | `TestDeclaredColumnsExistInPayload` |
-| The published catalog states each command's operators | `make ze-command-list-json`, read a `show bgp` entry |
+| The published catalog states each command's operators | `./le command-list | json`, read a `show bgp` entry |
 | No operator is accepted and ignored | The two `.ci` files assert a refusal BY NAME for each unsupported operator |
 
 ### Security Review Checklist
@@ -580,7 +580,7 @@ capability changes, no route changes. The scope is the operator surface.
 - [ ] AC-1..AC-22 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated, not library-only
 - [ ] Integration and Documentation checklists answered with evidence
 - [ ] Architectural Verification table filled
@@ -598,7 +598,7 @@ capability changes, no route changes. The scope is the operator surface.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-cli-show-bgp-answer-shapes.md` only

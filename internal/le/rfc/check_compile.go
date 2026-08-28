@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
 const quotedCompilerMessages = 5
@@ -42,59 +43,11 @@ func featureTags(tree string) ([]string, error) {
 }
 
 func buildTags(tree string) (string, error) {
-	const rel = "Makefile"
-	var tb textbuf.Buffer
-	raw, err := os.ReadFile(treePath(tree, rel)) // #nosec G304 -- the recipe under the checkout
+	toolchain, err := gotoolchain.New(tree)
 	if err != nil {
-		return "", baselineParseError(tb.Str(rel).Str(": cannot read the recipe that declares GO_TEST_TAGS, so the tag set the unit stage compiles with is unknown: ").Err(err).String())
+		return "", baselineParseError("derive native Go test tags: " + err.Error())
 	}
-	var assignments []string
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmed, "GO_TEST_TAGS") {
-			continue
-		}
-		rest := strings.TrimSpace(strings.TrimPrefix(trimmed, "GO_TEST_TAGS"))
-		for _, operator := range []string{":=", "?=", "="} {
-			if assignment, found := strings.CutPrefix(rest, operator); found {
-				assignments = append(assignments, strings.TrimSpace(assignment))
-				break
-			}
-		}
-	}
-	if len(assignments) == 0 {
-		return "", baselineParseError(tb.Reset().Str(rel).Str(": no `GO_TEST_TAGS = ...` assignment found. That line is where the unit stage declares the tags it compiles with, and this type-check has to use the same set or it reads a different set of files").String())
-	}
-	if len(assignments) > 1 {
-		return "", baselineParseError(tb.Reset().Str(rel).Str(": ").Int(int64(len(assignments))).Str(" `GO_TEST_TAGS = ...` assignments found, so the tag set the unit stage compiles with is ambiguous. Declare it exactly once").String())
-	}
-	features, err := featureTags(tree)
-	if err != nil {
-		return "", err
-	}
-	expansions := map[string]string{
-		"ZE_FEATURES": strings.Join(features, " "),
-		"ZE_TAGS":     os.Getenv("ZE_TAGS"),
-	}
-	text := assignments[0]
-	for {
-		start := strings.Index(text, "$(")
-		if start < 0 {
-			break
-		}
-		end := strings.IndexByte(text[start+2:], ')')
-		if end < 0 {
-			break
-		}
-		end += start + 2
-		name := text[start+2 : end]
-		value, held := expansions[name]
-		if !held {
-			return "", baselineParseError(tb.Reset().Str(rel).Str(": GO_TEST_TAGS references $(").Str(name).Str("), which this check cannot expand. Handing that literal text to `go vet` would type-check a different set of files from the one the unit stage compiles, so it is refused. Teach build_tags about the variable, or keep the recipe to ZE_FEATURES and ZE_TAGS").String())
-		}
-		text = text[:start] + value + text[end+1:]
-	}
-	return strings.Join(strings.Fields(text), " "), nil
+	return toolchain.TestTags(), nil
 }
 
 func modulePath(tree string) (string, error) {
@@ -117,7 +70,7 @@ func goTagPackages(tree string, tags []Tag, carriers []Carrier) []string {
 	dirs := map[string]bool{}
 	var tb textbuf.Buffer
 	for _, tag := range tags {
-		carrier, held := CarrierFor(tag.File, carriers)
+		carrier, held := carrierFor(tag.File, carriers)
 		if !held || carrier.Reader != "go" {
 			continue
 		}
@@ -238,7 +191,7 @@ func checkTagPackagesCompile(tree string, tags []Tag, carriers []Carrier) ([]str
 	}
 	held := map[string][]Tag{}
 	for _, tag := range tags {
-		carrier, found := CarrierFor(tag.File, carriers)
+		carrier, found := carrierFor(tag.File, carriers)
 		if found && carrier.Reader == "go" {
 			held[filepath.ToSlash(filepath.Dir(tag.File))] = append(held[filepath.ToSlash(filepath.Dir(tag.File))], tag)
 		}
@@ -264,7 +217,7 @@ func checkTagPackagesCompile(tree string, tags []Tag, carriers []Carrier) ([]str
 			stake = tb.Str("so the ").Int(int64(len(list))).Str(" RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: ").Str(text).String()
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(pkg).Str(": `go vet` cannot type-check this package, ").Str(stake).Str(". go vet said: ").Str(quoteCompiler(failures[pkg])).Str(". Fix the package so `make ze-unit-test` compiles it, then re-run `make ze-rfc-check`").String())
+		errs = append(errs, tb.Str(pkg).Str(": `go vet` cannot type-check this package, ").Str(stake).Str(". go vet said: ").Str(quoteCompiler(failures[pkg])).Str(". Fix the package so `./le verify-deps unit-cached` compiles it, then re-run `./le rfc check`").String())
 	}
 	sort.Strings(errs)
 	return errs, nil

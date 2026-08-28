@@ -23,7 +23,7 @@ func TestWorkbench_InterfacesPageDispatch(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/iface/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/iface/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -48,7 +48,7 @@ func TestWorkbench_InterfacesFilteredDispatch(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/iface/?type=ethernet", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/iface/?type=ethernet", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -73,7 +73,7 @@ func TestWorkbench_TrafficPageDispatch(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/iface/traffic/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/iface/traffic/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -94,7 +94,7 @@ func TestWorkbench_AddressesPageDispatch(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/ip/addresses/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/ip/addresses/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -115,7 +115,7 @@ func TestWorkbench_RoutesPageDispatch(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/ip/routes/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/ip/routes/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -136,7 +136,7 @@ func TestWorkbench_DNSPageDispatch(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/ip/dns/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/ip/dns/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -158,7 +158,7 @@ func TestWorkbench_HTMXPartialForInterfacesPage(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/iface/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/iface/", http.NoBody)
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -181,7 +181,7 @@ func TestWorkbench_ExistingYANGPathStillWorks(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

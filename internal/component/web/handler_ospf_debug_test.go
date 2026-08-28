@@ -17,7 +17,7 @@ import (
 func TestOSPFOpaqueWebView(t *testing.T) {
 	var got string
 	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[{"areas":[]}]`, &got)}
-	req := httptest.NewRequest("GET", "/ospf/database/opaque?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/ospf/database/opaque?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.HandleOSPFOpaqueDatabase()(rec, req)
 
@@ -32,7 +32,7 @@ func TestOSPFOpaqueWebView(t *testing.T) {
 func TestOSPFv3DatabaseWebView(t *testing.T) {
 	var got string
 	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[{"address-family":"ipv6-unicast","lsas":[]}]`, &got)}
-	req := httptest.NewRequest("GET", "/ospfv3/database?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/ospfv3/database?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.HandleOSPFv3Database()(rec, req)
 
@@ -72,7 +72,7 @@ func assertNoInjectDispatch(t *testing.T) {
 	hv := reflect.ValueOf(h)
 	ht := hv.Type()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	drove := 0
@@ -92,13 +92,13 @@ func assertNoInjectDispatch(t *testing.T) {
 		if mt.NumIn() != 0 || mt.NumOut() != 1 || mt.Out(0) != handlerFuncType {
 			continue
 		}
-		fn, ok := m.Call(nil)[0].Interface().(http.HandlerFunc)
+		fn, ok := reflect.TypeAssert[http.HandlerFunc](m.Call(nil)[0])
 		if !ok {
 			continue
 		}
 
 		got = ""
-		req := httptest.NewRequest("GET", "/x?format=json", http.NoBody).WithContext(ctx)
+		req := httptest.NewRequestWithContext(t.Context(), "GET", "/x?format=json", http.NoBody).WithContext(ctx)
 		fn(httptest.NewRecorder(), req)
 		if strings.Contains(got, "inject") {
 			t.Fatalf("handler %q dispatched an inject command: %q", name, got)

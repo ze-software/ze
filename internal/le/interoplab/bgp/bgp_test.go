@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -18,8 +19,8 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-// TestCheckerPopulationMatchesProducer validates that adding any scenario without
-// a native checker makes the package fail closed instead of silently shrinking the gate.
+// TestCheckerPopulationMatchesProducer validates that every scenario directory
+// has a typed checker, so adding one can never silently shrink the gate.
 func TestCheckerPopulationMatchesProducer(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -34,12 +35,10 @@ func TestCheckerPopulationMatchesProducer(t *testing.T) {
 		if !entry.IsDir() {
 			continue
 		}
-		if _, statErr := os.Stat(filepath.Join(root, "test", "interop", "scenarios", entry.Name(), "check.py")); statErr == nil {
-			producer = append(producer, entry.Name())
-		}
+		producer = append(producer, entry.Name())
 	}
 	sort.Strings(producer)
-	checkers := Checkers()
+	checkers := checkers()
 	native := make([]string, 0, len(checkers))
 	for name, checker := range checkers {
 		if checker == nil {
@@ -57,13 +56,26 @@ func TestCheckerPopulationMatchesProducer(t *testing.T) {
 		if _, generic := scenarioExtras[name]; generic {
 			t.Errorf("bespoke checker %s still has generic extra operations", name)
 		}
-		if len(specialAuditOperations[name]) == 0 {
-			t.Errorf("bespoke checker %s has no exact audit mapping", name)
-		}
 	}
 	sort.Strings(native)
 	if strings.Join(native, "\n") != strings.Join(producer, "\n") {
 		t.Fatalf("native scenario population differs from producer\nnative: %v\nproducer: %v", native, producer)
+	}
+}
+
+// TestEveryCheckerFailsClosedWithoutPeerEvidence runs the complete checker
+// registry against a lab where every observation fails.
+func TestEveryCheckerFailsClosedWithoutPeerEvidence(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	defer cancel()
+
+	for name, checker := range checkers() {
+		if err := checker(ctx, &interoplab.CheckContext{
+			Source: interoplab.ScenarioSource{Name: name},
+			Lab:    noEvidenceLab{},
+		}); err == nil {
+			t.Errorf("checker %s passed with no peer evidence", name)
+		}
 	}
 }
 
@@ -99,7 +111,7 @@ func TestEveryScenarioOperationUsesRecorder(t *testing.T) {
 	}
 	for _, branch := range []operationKind{
 		opFRRSession, opBIRDSession, opGoBGPSession, opFRRRoute, opFRRRouteAbsent,
-		opBIRDRoute, opGoBGPRoute, opFRRCommunity, opFRRNoAS, opBIRDNoAS,
+		opBIRDRoute, opGoBGPRoute, opFRRCommunity, opFRRNoAS,
 		opWaitContains, opWaitContainsAny, opWaitAbsent, opRequireContains, opRequireAbsent,
 		opRequireJSONFields, opWaitJSONFields, opExec, opSignal, opStart,
 		opWaitLogFields, opWaitLogContains, opDelayRequireContains,
@@ -156,6 +168,121 @@ func TestRequiredOperationBranchScenarioMappings(t *testing.T) {
 	}
 }
 
+// TestRFCInteropCheckerBindings pins each RFC carrier to the scenario whose
+// foreign-peer observations the native integration action executes.
+func TestRFCInteropCheckerBindings(t *testing.T) {
+	for _, name := range []string{
+		"bgp-addpath-readvertise-collision-frr",
+		"bgp-local-pref-strip-gobgp",
+		"bgp-med-across-as-gobgp",
+		"bgp-med-remove-configured-gobgp",
+		"bgp-relay-withdraw-reflector-frr",
+		"bgp-relay-withdraw-shape-frr",
+		"bgp-rfc2545-linklocal-nexthop-frr",
+		"bgp-rfc7606-relay-shape-frr",
+		"bgp-rfc7606-typed-nlri-discard",
+		"bgp-rfc7999-blackhole-frr",
+		"bgp-role-otc-withdraw-frr",
+		"bgp-route-server-frr",
+		"bgp-self-nexthop-withheld-frr",
+		"bgp-wellknown-noexport-frr",
+		"isis-p2p-frr",
+		"no-family-peer-eor-frr",
+		"ospf-stub-nssa-frr",
+	} {
+		if _, ok := specialCheckers[name]; !ok {
+			t.Errorf("native integration registry does not execute RFC checker %s", name)
+		}
+	}
+	for name, checker := range map[string]interoplab.Checker{
+		"bgp-addpath-readvertise-collision-frr": checkAddPathReadvertiseCollision,
+		"bgp-local-pref-strip-gobgp":            checkLocalPrefStrip,
+		"bgp-med-across-as-gobgp":               checkMEDAcrossAS,
+		"bgp-med-remove-configured-gobgp":       checkMEDRemovalConfiguration,
+		"bgp-relay-withdraw-shape-frr":          checkRelayWithdrawalShape,
+		"bgp-rfc2545-linklocal-nexthop-frr":     checkRFC2545NextHops,
+		"bgp-rfc7606-relay-shape-frr":           checkRFC7606MixedUpdate,
+		"bgp-rfc7606-typed-nlri-discard":        checkRFC7606TypedNLRIDiscard,
+		"bgp-rfc7999-blackhole-frr":             checkRFC7999Blackhole,
+		"bgp-role-otc-withdraw-frr":             checkOTCWithdrawal,
+		"bgp-route-server-frr":                  checkRouteServerASPath,
+		"bgp-self-nexthop-withheld-frr":         checkSelfNextHopWithheld,
+		"bgp-wellknown-noexport-frr":            checkNoExportBoundary,
+		"isis-p2p-frr":                          checkISISDynamicHostname,
+		"no-family-peer-eor-frr":                checkNoFamilyEndOfRIB,
+		"ospf-stub-nssa-frr":                    checkNSSADefault,
+	} {
+		t.Run(name, func(t *testing.T) {
+			sentinel := errors.New("stop at first foreign-peer query")
+			lab := &recordingLab{failure: sentinel}
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			err := checker(ctx, &interoplab.CheckContext{
+				Network: interoplab.Network{
+					IPv4: netip.MustParsePrefix("172.30.44.0/24"),
+					IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
+				},
+				Lab: lab,
+			})
+			if err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("checker error = %v, want scenario name %q", err, name)
+			}
+		})
+	}
+}
+
+// TestRFCInteropStructuredPeerEvidence proves checks that cannot be
+// represented as substring operations decode the foreign daemon's exact state.
+func TestRFCInteropStructuredPeerEvidence(t *testing.T) {
+	t.Run("distinct add-path identifiers", func(t *testing.T) {
+		state, err := parseAddPathState(`{"routes":{"10.99.0.0/24":[{"aspath":{"string":"65003"}},{"aspath":{"string":"65004"},"addpathRxId":1}]}}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if state["65003"] != 0 || state["65004"] != 1 {
+			t.Fatalf("Path Identifiers = %v", state)
+		}
+		if _, err := parseAddPathState(`{"routes":{"10.99.0.0/24":[{"aspath":{"string":"65003"}},{"aspath":{"string":"65004"}}]}}`); err == nil {
+			t.Fatal("colliding received Path Identifiers passed")
+		}
+	})
+
+	t.Run("OTC value", func(t *testing.T) {
+		for _, output := range []string{"OTC: 65001", `{"otc":65001}`} {
+			value, err := parseOTCValue(output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if value != 65001 {
+				t.Fatalf("OTC = %d", value)
+			}
+		}
+		if value, err := parseOTCValue("OTC: 65002"); err != nil || value == 65001 {
+			t.Fatalf("wrong OTC verdict: value=%d err=%v", value, err)
+		}
+	})
+
+	t.Run("RFC2545 next-hop lengths", func(t *testing.T) {
+		onLink, err := parseFRRNextHops(`{"paths":[{"nexthops":[{"scope":"global","ip":"fd00:1e:2c::2"},{"scope":"link-local","ip":"fe80::be:ef:2"}]}]}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := requireNextHopShape(onLink, netip.MustParseAddr("fd00:1e:2c::2"), netip.MustParseAddr("fe80::be:ef:2")); err != nil {
+			t.Fatal(err)
+		}
+		offLink, err := parseFRRNextHops(`{"paths":[{"nexthops":[{"scope":"global","ip":"2001:db8:ffff::1"}]}]}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := requireNextHopShape(offLink, netip.MustParseAddr("2001:db8:ffff::1"), netip.Addr{}); err != nil {
+			t.Fatal(err)
+		}
+		if err := requireNextHopShape(onLink, netip.MustParseAddr("fd00:1e:2c::2"), netip.Addr{}); err == nil {
+			t.Fatal("off-link route accepted a link-local next hop")
+		}
+	})
+}
+
 // TestNegativeAssertionsRequirePositiveProof verifies both failure branches of
 // an absence check: the forbidden state and a mechanism that never ran.
 func TestNegativeAssertionsRequirePositiveProof(t *testing.T) {
@@ -173,8 +300,26 @@ func TestNegativeAssertionsRequirePositiveProof(t *testing.T) {
 	}
 }
 
-// TestScenarioPreparerBuildsOrderedPeers validates config discovery, immutable
-// mounts, rebased speaker addressing, and the legacy participant order.
+// TestCheckerFailureKeepsPrimaryCauseWhenLogsFail preserves the former
+// scenario-55 exception polarity without executing its deleted probe.
+func TestCheckerFailureKeepsPrimaryCauseWhenLogsFail(t *testing.T) {
+	cause := errors.New("BIRD route is absent")
+	err := checkerFailure(t.Context(), &recordingLab{failure: errors.New("docker logs unavailable")}, "bgp-wire-edit-api-origin-bird", 2, cause)
+	if !errors.Is(err, cause) || strings.Contains(err.Error(), "docker logs unavailable") {
+		t.Fatalf("checker failure replaced the primary assertion: %v", err)
+	}
+}
+
+func TestCheckerFailureIncludesAvailablePeerLogs(t *testing.T) {
+	cause := errors.New("route is absent")
+	err := checkerFailure(t.Context(), &recordingLab{logs: "peer startup clue"}, "scenario", 1, cause)
+	if !errors.Is(err, cause) || !strings.Contains(err.Error(), "peer startup clue") {
+		t.Fatalf("checker failure omitted the primary cause or peer logs: %v", err)
+	}
+}
+
+// TestScenarioPreparerBuildsOrderedPeers validates config discovery, compiled
+// helper argv, rebased speaker addressing, and the legacy participant order.
 func TestScenarioPreparerBuildsOrderedPeers(t *testing.T) {
 	producer := t.TempDir()
 	scenario := t.TempDir()
@@ -183,10 +328,6 @@ func TestScenarioPreparerBuildsOrderedPeers(t *testing.T) {
 	writeFixture(t, filepath.Join(scenario, "bird.conf"), "protocol device {}\n")
 	writeFixture(t, filepath.Join(scenario, "gobgp.toml"), "[global.config]\n")
 	writeFixture(t, filepath.Join(scenario, "speaker-args"), "--asn 65010\n")
-	writeFixture(t, filepath.Join(scenario, "announce.py"), "print('ready')\n")
-	if err := os.Mkdir(filepath.Join(producer, "speaker"), 0o750); err != nil {
-		t.Fatal(err)
-	}
 	network := interoplab.Network{Name: "lab", IPv4: netip.MustParsePrefix("172.31.22.0/24")}
 	peers, err := scenarioPeers(producer, scenario, "fixture", network)
 	if err != nil {
@@ -200,17 +341,14 @@ func TestScenarioPreparerBuildsOrderedPeers(t *testing.T) {
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("peer order = %v, want %v", got, want)
 	}
-	if joined := strings.Join(peers[1].Command, " "); !strings.Contains(joined, "172.31.22.2:179") {
-		t.Fatalf("speaker command did not use selected network: %s", joined)
+	if joined := strings.Join(peers[1].Command, " "); !strings.Contains(joined, "interop-bgp speaker --connect 172.31.22.2:179") {
+		t.Fatalf("compiled speaker command did not use selected network: %s", joined)
 	}
-	foundPlugin := false
-	for _, mount := range peers[0].Mounts {
-		if mount.Target == "/etc/ze/announce.py" && mount.ReadOnly {
-			foundPlugin = true
-		}
+	if got := peers[1].Arguments; !slices.Equal(got, []string{"--entrypoint", "ze-test"}) {
+		t.Fatalf("speaker entrypoint = %v, want compiled ze-test", got)
 	}
-	if !foundPlugin {
-		t.Fatal("ze peer did not mount the scenario plugin read-only")
+	if len(peers[0].Mounts) != 1 || peers[0].Mounts[0].Target != "/etc/ze/bgp.conf" || !peers[0].Mounts[0].ReadOnly {
+		t.Fatalf("ze mounts = %+v, want only immutable rendered config", peers[0].Mounts)
 	}
 }
 
@@ -455,8 +593,6 @@ func recorderFor(current *operation) *recordingLab {
 		recorder.output = current.argument + " " + strings.Join(current.contains, " ")
 	case opFRRNoAS:
 		recorder.output = current.argument + ` "aspath":{"string":"65000"}`
-	case opBIRDNoAS:
-		recorder.output = current.argument + " BGP.as_path: 65000"
 	case opWaitContains, opWaitContainsAny, opDelayRequireContains, opRequireContains:
 		recorder.output = strings.Join(current.contains, " ")
 	case opRequireJSONFields, opWaitJSONFields:
@@ -515,8 +651,6 @@ func contradictoryRecorderFor(current *operation) *recordingLab {
 		recorder.output = current.argument + " without requested community"
 	case opFRRNoAS:
 		recorder.output = current.argument + " " + current.absent[0]
-	case opBIRDNoAS:
-		recorder.output = current.argument + " BGP.as_path: " + current.absent[0]
 	case opWaitContains, opWaitContainsAny, opDelayRequireContains, opRequireContains:
 		recorder.output = "measured output without required values"
 	case opRequireAbsent, opWaitAbsent:
@@ -597,6 +731,50 @@ func (r *recordingLab) Start(context.Context, string) error {
 func (r *recordingLab) Stop(context.Context, string, int) error {
 	r.reads++
 	return r.failure
+}
+
+var errNoPeerEvidence = errors.New("peer produced no evidence")
+
+type noEvidenceLab struct{}
+
+func (noEvidenceLab) Exec(context.Context, string, []string, []interoplab.EnvironmentVariable) (interoplab.CommandResult, error) {
+	return interoplab.CommandResult{}, errNoPeerEvidence
+}
+
+func (noEvidenceLab) ExecDetached(context.Context, string, []string, []interoplab.EnvironmentVariable) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Query(context.Context, string, []string, []interoplab.EnvironmentVariable) (string, error) {
+	return "", errNoPeerEvidence
+}
+
+func (noEvidenceLab) Logs(context.Context, string, int) (interoplab.LogResult, error) {
+	return interoplab.LogResult{}, errNoPeerEvidence
+}
+
+func (noEvidenceLab) PeerPID(context.Context, string) (int, error) {
+	return 0, errNoPeerEvidence
+}
+
+func (noEvidenceLab) Signal(context.Context, string, string) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Pause(context.Context, string) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Unpause(context.Context, string) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Start(context.Context, string) error {
+	return errNoPeerEvidence
+}
+
+func (noEvidenceLab) Stop(context.Context, string, int) error {
+	return errNoPeerEvidence
 }
 
 func writeFixture(t *testing.T, path, content string) {

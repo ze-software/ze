@@ -5,10 +5,10 @@
 // wiring.go answers one question about every exported symbol a session added:
 // does anything OUTSIDE its own package call it.
 //
-// The check uses a whole-word search over internal/, cmd/, pkg/, and scripts/,
-// as the script's grep did. Five undercounted type shapes have bounded
-// exemptions: constants, struct composition, wired constructors, wired
-// setters, and live interface embedding. Two more cover interface-only method
+// The check uses a whole-word search over internal/, cmd/, and pkg/.
+// Five undercounted type shapes have bounded exemptions: constants, struct
+// composition, wired constructors, wired setters, and live interface embedding.
+// Two more cover interface-only method
 // dispatch through an exported package interface or generated gRPC service
 // registration.
 //
@@ -19,6 +19,9 @@ package repository
 
 import (
 	"context"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"path"
@@ -30,7 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// The declaration patterns are the script's, character for character.
+// The declaration patterns preserve the prior gate's source contract.
 const (
 	// ExportedFuncPattern matches an exported func or method declaration. The
 	// optional group consumes a receiver, so the parameter list is what
@@ -75,14 +78,12 @@ var (
 	constLineRe         = regexp.MustCompile(ConstLinePattern)
 )
 
-// SearchDirs lists the trees that can contain callers. scripts/ is included
-// because its //go:build ignore gates call exported helpers. A symbol used only
-// by a gate must not look dead.
-var SearchDirs = [...]string{"internal", "cmd", "pkg", "scripts"}
+// searchDirs lists the first-party trees that can contain callers.
+var searchDirs = [...]string{"cmd", "demos", "docker", "internal", "pkg", "tools"}
 
-// DispatchSite names one package and one unexported receiver whose methods are
+// dispatchSite names one package and one unexported receiver whose methods are
 // called by an external library through an interface it holds.
-type DispatchSite struct {
+type dispatchSite struct {
 	Package  string
 	Receiver string
 }
@@ -94,7 +95,7 @@ type DispatchSite struct {
 //
 // It stays exact on purpose: another exported method on the same handler still
 // needs a caller.
-var InterfaceDispatchMethods = map[DispatchSite]map[string]bool{
+var InterfaceDispatchMethods = map[dispatchSite]map[string]bool{
 	{Package: "internal/component/api/grpc", Receiver: "transportCompletionStatsHandler"}: {
 		"TagRPC": true, "HandleRPC": true, "TagConn": true, "HandleConn": true,
 	},
@@ -134,7 +135,7 @@ type scanner struct {
 // cannot judge.
 func newScanner(ctx context.Context, tree string) (*scanner, error) {
 	s := &scanner{tree: tree, content: make(map[string]string), refs: make(map[string]bool)}
-	for _, dir := range SearchDirs {
+	for _, dir := range searchDirs {
 		root := filepath.Join(tree, dir)
 		info, err := os.Stat(root)
 		if err != nil || !info.IsDir() {
@@ -204,7 +205,7 @@ func hasWord(text, word string) bool {
 	return false
 }
 
-// HasCrossPackageRef reports whether sym is named as a whole word by a package
+// hasCrossPackageRef reports whether sym is named as a whole word by a package
 // other than the one that declares it.
 //
 // Test files do not count, so a symbol called only by tests looks unwired.
@@ -213,7 +214,7 @@ func hasWord(text, word string) bool {
 // exemption depends on where the symbol is DEFINED. The calling test must also
 // IMPORT the helper. A bare test-file word matched Colors.Red in a comment and
 // runner.TestSet in an unrelated test function.
-func (s *scanner) HasCrossPackageRef(sym, pkgDir string) (bool, error) {
+func (s *scanner) hasCrossPackageRef(sym, pkgDir string) (bool, error) {
 	var tb textbuf.Buffer
 	key := tb.Str(sym).Byte(0).Str(pkgDir).String()
 	if answer, ok := s.refs[key]; ok {
@@ -287,7 +288,7 @@ func constSpec(text string) (names []string, explicitType string, hasValue bool)
 	return names, match[2], match[3] != ""
 }
 
-// ExportedConstsOfType answers the exported constants declared with typeName in
+// exportedConstsOfType answers the exported constants declared with typeName in
 // pkgDir.
 //
 // A typed enum is reached through its values, so another package need not use
@@ -295,7 +296,7 @@ func constSpec(text string) (names []string, explicitType string, hasValue bool)
 // RouteVerb, which makes the word search undercount. This check handles
 // single-line and block consts, multi-name specs, and iota. A bare spec inherits
 // the prior explicit type. An untyped `= expr` resets that type, as Go specifies.
-func (s *scanner) ExportedConstsOfType(pkgDir, typeName string) ([]string, error) {
+func (s *scanner) exportedConstsOfType(pkgDir, typeName string) ([]string, error) {
 	seen := make(map[string]bool)
 	var names []string
 	add := func(specNames []string) {
@@ -359,14 +360,14 @@ func (s *scanner) ExportedConstsOfType(pkgDir, typeName string) ([]string, error
 	return names, nil
 }
 
-// TypeUsedAsFieldInPackage reports whether typeName is a struct field type
+// typeUsedAsFieldInPackage reports whether typeName is a struct field type
 // inside its own package.
 //
 // A type composed into a struct is reached through field access (inv.CPU,
 // cap.Families), so its bare name need not appear in any other package. The
 // search is scoped to the declaring package: a field declaration elsewhere
 // would name the type, which the word search already covers.
-func (s *scanner) TypeUsedAsFieldInPackage(pkgDir, typeName string) (bool, error) {
+func (s *scanner) typeUsedAsFieldInPackage(pkgDir, typeName string) (bool, error) {
 	var tb textbuf.Buffer
 	fieldRe, err := regexp.Compile(tb.Str(`^\s*[A-Z][A-Za-z0-9_]*\s+(?:\[\]|\*|map\[[^\]]+\]|chan\s+)*\*?`).
 		Str(regexp.QuoteMeta(typeName)).Str(`\b`).String())
@@ -486,7 +487,7 @@ func (s *scanner) wiredFuncNamesType(pkgDir, typeName string, part signaturePart
 			if name == typeName {
 				continue // its own constructor name collision
 			}
-			wired, refErr := s.HasCrossPackageRef(name, pkgDir)
+			wired, refErr := s.hasCrossPackageRef(name, pkgDir)
 			if refErr != nil {
 				return false, refErr
 			}
@@ -498,14 +499,14 @@ func (s *scanner) wiredFuncNamesType(pkgDir, typeName string, part signaturePart
 	return false, nil
 }
 
-// PackageExportedInterfaceMethods answers the method names declared by exported
+// packageExportedInterfaceMethods answers the method names declared by exported
 // interfaces of pkgDir's non-test files.
 //
 // A method satisfying an exported interface is reached through dispatch, which
 // the word search cannot see. Combined with an UNEXPORTED receiver, which no
 // other package can name, such a method is wired through the interface rather
 // than dead.
-func (s *scanner) PackageExportedInterfaceMethods(pkgDir string) (map[string]bool, error) {
+func (s *scanner) packageExportedInterfaceMethods(pkgDir string) (map[string]bool, error) {
 	names := make(map[string]bool)
 	for _, rel := range s.packageFiles(pkgDir) {
 		text, err := s.read(rel)
@@ -533,13 +534,13 @@ func (s *scanner) PackageExportedInterfaceMethods(pkgDir string) (map[string]boo
 	return names, nil
 }
 
-// TypeEmbeddedInWiredInterface reports whether a live exported interface in the
+// typeEmbeddedInWiredInterface reports whether a live exported interface in the
 // same package embeds typeName.
 //
 // Interface embedding carries the embedded contract when no caller names it.
 // The outer interface needs a cross-package production reference, or one dead
 // interface CAN hide another.
-func (s *scanner) TypeEmbeddedInWiredInterface(pkgDir, typeName string) (bool, error) {
+func (s *scanner) typeEmbeddedInWiredInterface(pkgDir, typeName string) (bool, error) {
 	for _, rel := range s.packageFiles(pkgDir) {
 		text, err := s.read(rel)
 		if err != nil {
@@ -557,7 +558,7 @@ func (s *scanner) TypeEmbeddedInWiredInterface(pkgDir, typeName string) (bool, e
 				continue
 			}
 			if strings.TrimSpace(line) == typeName {
-				wired, refErr := s.HasCrossPackageRef(outer, pkgDir)
+				wired, refErr := s.hasCrossPackageRef(outer, pkgDir)
 				if refErr != nil {
 					return false, refErr
 				}
@@ -571,13 +572,13 @@ func (s *scanner) TypeEmbeddedInWiredInterface(pkgDir, typeName string) (bool, e
 	return false, nil
 }
 
-// RegisteredInterfaceMethodsByReceiver answers the exported API methods that
+// registeredInterfaceMethodsByReceiver answers the exported API methods that
 // each unexported pkgDir receiver reaches through generated gRPC registration.
 //
 // Generated clients call the service interface instead of the concrete private
 // implementation. Binding that implementation to Register*Server is the
 // production site that makes its interface methods reachable.
-func (s *scanner) RegisteredInterfaceMethodsByReceiver(pkgDir string) (map[string]map[string]bool, error) {
+func (s *scanner) registeredInterfaceMethodsByReceiver(pkgDir string) (map[string]map[string]bool, error) {
 	type registration struct{ receiver, iface string }
 	var registrations []registration
 	seen := make(map[registration]bool)
@@ -690,41 +691,77 @@ func declaredSymbols(tree string, changed []string) ([]symbol, error) {
 		if !strings.HasSuffix(rel, ".go") || strings.HasSuffix(rel, "_test.go") {
 			continue
 		}
+		if strings.Contains(filepath.ToSlash(rel), "/testdata/") {
+			continue
+		}
 		if !strings.HasPrefix(rel, "internal/") && !strings.HasPrefix(rel, "cmd/") {
 			continue
 		}
-		raw, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(rel))) //nolint:gosec // a changed file of the tree the caller named
+		pathname := filepath.Join(tree, filepath.FromSlash(rel))
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, pathname, nil, 0)
 		if err != nil {
 			if os.IsNotExist(err) {
-				continue // a changed file that was deleted declares nothing
+				continue
 			}
 			return nil, err
 		}
-
 		pkgDir := path.Dir(rel)
-		for i, line := range strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n") {
-			if match := exportedFuncRe.FindStringSubmatch(line); match != nil {
-				found := symbol{file: rel, line: i + 1, name: match[1], pkgDir: pkgDir, kind: kindFunc}
-				if recv := funcRecvRe.FindStringSubmatch(line); recv != nil {
-					found.receiver = recv[1]
-					if recv[1] != "" && !exportedName(recv[1]) {
+		for _, declaration := range file.Decls {
+			switch typed := declaration.(type) {
+			case *ast.FuncDecl:
+				if !typed.Name.IsExported() {
+					continue
+				}
+				found := symbol{
+					file: rel, line: fset.Position(typed.Name.Pos()).Line,
+					name: typed.Name.Name, pkgDir: pkgDir, kind: kindFunc,
+				}
+				if typed.Recv != nil && len(typed.Recv.List) != 0 {
+					found.receiver = receiverTypeName(typed.Recv.List[0].Type)
+					if found.receiver != "" && !exportedName(found.receiver) {
 						found.kind = kindMethodUnexported
 					}
 				}
 				symbols = append(symbols, found)
-				continue
-			}
-			if match := exportedTypeRe.FindStringSubmatch(line); match != nil {
-				symbols = append(symbols, symbol{file: rel, line: i + 1, name: match[1], pkgDir: pkgDir, kind: kindType})
+			case *ast.GenDecl:
+				if typed.Tok != token.TYPE {
+					continue
+				}
+				for _, spec := range typed.Specs {
+					typeSpec, ok := spec.(*ast.TypeSpec)
+					if !ok || !typeSpec.Name.IsExported() {
+						continue
+					}
+					symbols = append(symbols, symbol{
+						file: rel, line: fset.Position(typeSpec.Name.Pos()).Line,
+						name: typeSpec.Name.Name, pkgDir: pkgDir, kind: kindType,
+					})
+				}
 			}
 		}
 	}
 	return symbols, nil
 }
 
-// CheckCrossPackageWiring reports every exported symbol a changed file declares
+func receiverTypeName(expression ast.Expr) string {
+	switch typed := expression.(type) {
+	case *ast.Ident:
+		return typed.Name
+	case *ast.StarExpr:
+		return receiverTypeName(typed.X)
+	case *ast.IndexExpr:
+		return receiverTypeName(typed.X)
+	case *ast.IndexListExpr:
+		return receiverTypeName(typed.X)
+	default:
+		return ""
+	}
+}
+
+// checkCrossPackageWiring reports every exported symbol a changed file declares
 // that nothing outside its package calls.
-func CheckCrossPackageWiring(ctx context.Context, tree string, changed []string) ([]Finding, error) {
+func checkCrossPackageWiring(ctx context.Context, tree string, changed []string) ([]Finding, error) {
 	symbols, err := declaredSymbols(tree, changed)
 	if err != nil {
 		return nil, err
@@ -753,7 +790,7 @@ func CheckCrossPackageWiring(ctx context.Context, tree string, changed []string)
 			continue
 		}
 
-		wired, refErr := scan.HasCrossPackageRef(found.name, found.pkgDir)
+		wired, refErr := scan.hasCrossPackageRef(found.name, found.pkgDir)
 		if refErr != nil {
 			return nil, refErr
 		}
@@ -770,7 +807,7 @@ func CheckCrossPackageWiring(ctx context.Context, tree string, changed []string)
 		}
 
 		if found.kind == kindMethodUnexported {
-			methods, methodErr := scan.PackageExportedInterfaceMethods(found.pkgDir)
+			methods, methodErr := scan.packageExportedInterfaceMethods(found.pkgDir)
 			if methodErr != nil {
 				return nil, methodErr
 			}
@@ -780,7 +817,7 @@ func CheckCrossPackageWiring(ctx context.Context, tree string, changed []string)
 
 			byReceiver, ok := registered[found.pkgDir]
 			if !ok {
-				byReceiver, methodErr = scan.RegisteredInterfaceMethodsByReceiver(found.pkgDir)
+				byReceiver, methodErr = scan.registeredInterfaceMethodsByReceiver(found.pkgDir)
 				if methodErr != nil {
 					return nil, methodErr
 				}
@@ -792,7 +829,7 @@ func CheckCrossPackageWiring(ctx context.Context, tree string, changed []string)
 		}
 
 		if found.receiver != "" &&
-			InterfaceDispatchMethods[DispatchSite{Package: found.pkgDir, Receiver: found.receiver}][found.name] {
+			InterfaceDispatchMethods[dispatchSite{Package: found.pkgDir, Receiver: found.receiver}][found.name] {
 			continue
 		}
 
@@ -813,12 +850,12 @@ func (s *scanner) exemptType(found symbol) (bool, error) {
 		return false, nil
 	}
 
-	consts, err := s.ExportedConstsOfType(found.pkgDir, found.name)
+	consts, err := s.exportedConstsOfType(found.pkgDir, found.name)
 	if err != nil {
 		return false, err
 	}
 	for _, name := range consts {
-		wired, refErr := s.HasCrossPackageRef(name, found.pkgDir)
+		wired, refErr := s.hasCrossPackageRef(name, found.pkgDir)
 		if refErr != nil {
 			return false, refErr
 		}
@@ -828,10 +865,10 @@ func (s *scanner) exemptType(found symbol) (bool, error) {
 	}
 
 	seams := []func() (bool, error){
-		func() (bool, error) { return s.TypeUsedAsFieldInPackage(found.pkgDir, found.name) },
+		func() (bool, error) { return s.typeUsedAsFieldInPackage(found.pkgDir, found.name) },
 		func() (bool, error) { return s.wiredFuncNamesType(found.pkgDir, found.name, partReturns) },
 		func() (bool, error) { return s.wiredFuncNamesType(found.pkgDir, found.name, partParameters) },
-		func() (bool, error) { return s.TypeEmbeddedInWiredInterface(found.pkgDir, found.name) },
+		func() (bool, error) { return s.typeEmbeddedInWiredInterface(found.pkgDir, found.name) },
 	}
 	for _, seam := range seams {
 		exempt, seamErr := seam()

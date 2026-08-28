@@ -15,100 +15,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=system-cpu-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show system cpu` produces real runtime and hardware values."""
-
-import json
-import sys
-
-from ze_api import API, dispatch, runtime_fail, result_text_data
-
-
-def payload(resp, label):
-    status = resp.get('status')
-    if status != 'done':
-        runtime_fail(f'{label}: status={status} data={result_text_data(resp)}')
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    if not isinstance(data, dict):
-        runtime_fail(f'{label}: expected dict, got {type(data).__name__}: {data}')
-    return data
-
-
-def require_int(data, key, minimum, label):
-    if key not in data:
-        runtime_fail(f'{label}: missing "{key}" in {sorted(data)}')
-    value = data[key]
-    if isinstance(value, bool) or not isinstance(value, int):
-        runtime_fail(f'{label}: "{key}"={value!r} is not an integer')
-    if value < minimum:
-        runtime_fail(f'{label}: "{key}"={value} is below the minimum {minimum}')
-    return value
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        data = payload(dispatch(api, 'show system cpu'), 'system-cpu')
-
-        # The four runtime fields handleShowSystemCPU always sets. A zero or a
-        # missing key is the silent-degradation shape, so each is range-checked
-        # rather than merely present.
-        num_cpu = require_int(data, 'num-cpu', 1, 'system-cpu')
-        require_int(data, 'num-goroutines', 1, 'system-cpu')
-        require_int(data, 'max-procs', 1, 'system-cpu')
-
-        go_version = data.get('go-version')
-        if not isinstance(go_version, str) or not go_version.startswith('go'):
-            runtime_fail(f'system-cpu: "go-version"={go_version!r} is not a Go version')
-
-        # The `hardware` enrichment is merged only when host.DetectCPU succeeds,
-        # and `hardware-error` only when it fails with something other than
-        # ErrUnsupported. On a platform where inventory IS supported exactly one
-        # of the two must appear: neither means the enrichment silently vanished.
-        if 'hardware-error' in data:
-            runtime_fail(f'system-cpu: hardware detection failed: {data["hardware-error"]}')
-        if 'hardware' not in data:
-            runtime_fail(f'system-cpu: no "hardware" and no "hardware-error" in {sorted(data)}')
-
-        hardware = data['hardware']
-        if not isinstance(hardware, dict):
-            runtime_fail(f'system-cpu: "hardware" is {type(hardware).__name__}, not an object')
-        if 'vendor' not in hardware:
-            runtime_fail(f'system-cpu: hardware missing "vendor" in {sorted(hardware)}')
-
-        # Cross-source check: logical-cpus is counted from /proc/cpuinfo while
-        # num-cpu comes from the Go runtime. The runtime figure honours CPU
-        # affinity, so it can be lower, never higher.
-        logical = require_int(hardware, 'logical-cpus', 1, 'system-cpu hardware')
-        if logical < num_cpu:
-            runtime_fail(
-                f'system-cpu: hardware logical-cpus={logical} is below runtime num-cpu={num_cpu}')
-
-        print(f'OK: show system cpu num-cpu={num_cpu} logical-cpus={logical} '
-              f'go-version={go_version}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external system-cpu-show-test {
-		run ./system-cpu-show-test.run
+		run "ze-test fixture plugin/system-cpu-show"
 		encoder json
 	}
 }

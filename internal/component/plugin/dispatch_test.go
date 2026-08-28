@@ -1588,8 +1588,8 @@ func TestFailedCommandStatesItsReasonOnTheTerminator(t *testing.T) {
 }
 
 // pooledAnswerRows is the row count the streamed measurements below walk. It is
-// the count the alloc gate walks too (ALLOC_GATE_BENCHTIME, mk/test-alloc.mk),
-// so the number measured here and the number that gate reports describe one
+// also the native allocation verifier's pinned benchtime, so the number measured
+// here and the number that gate reports describe one
 // walk.
 const pooledAnswerRows = 300
 
@@ -2176,16 +2176,15 @@ func TestRejectedRowIsBuiltOnce(t *testing.T) {
 //
 //	gate reads this benchmark's allocs/op, so a per-row allocation
 //	reintroduced anywhere between the generator and the wire reddens
-//	`make ze-alloc-check` rather than being argued about.
+//	`./le verify-deps alloc` rather than being argued about.
 //
 // The op is ONE ROW and not one answer. The walk yields b.N rows into a single
 // answer, so allocs/op reads as allocations per row. That is what AC-1 bounds
 // and what a ceiling of zero states. A per-answer op would hide the row cost
 // inside a number that grows with the walk.
-//
-// The gate pins -benchtime=300x (ALLOC_GATE_BENCHTIME, mk/test-alloc.mk), so
-// b.N is 300. That is past rpc.AnswerBufferThreshold, so the answer STREAMS,
-// which is the shape the per-row cost matters in. A shorter benchtime collapses
+// The native allocation verifier pins -benchtime=300x, so b.N is 300. That is
+// past rpc.AnswerBufferThreshold, so the answer STREAMS, which is the shape the
+// per-row cost matters in. A shorter benchtime collapses
 // the walk into one document and measures the collapse instead. The collapse
 // costs more for each row, so that mistake turns the gate red, never green.
 //

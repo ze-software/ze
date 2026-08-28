@@ -25,13 +25,13 @@
 #   and VIP in the kernel (teardown path broken / apply-diff not deleting).
 #
 # option=needs-linux: macvlan creation, raw sockets and netlink VIP install do
-# not exist on darwin. Runs as root in the QEMU Linux VM via
-# `make ze-qemu-needs-linux-test`. setup.py builds a throwaway veth parent so the
-# macvlan hangs off a real multicast-capable device and the VIP lands there
+# not exist on darwin. Runs as root in the QEMU Linux VM.
+# `ze-test fixture vrrp/vrrp-instance-up-setup` builds a throwaway veth parent so
+# the macvlan hangs off a real multicast-capable device and the VIP lands there
 # rather than on the VM's eth0.
-# caps=net-admin because setup.py below runs `ip link add`. Without the
-# declaration an unprivileged Linux host does not skip: it runs, the `ip`
-# calls are refused, and the test FAILS for a capability the host never had
+# caps=net-admin because the native setup fixture creates network links. Without
+# the declaration an unprivileged Linux host does not skip: the netlink calls are
+# refused and the test fails for a capability the host never had
 # (internal/test/runner/record_parse.go, option=needs-linux).
 option=needs-linux:caps=net-admin
 # option=exclusive: two ze daemons must not own macvlans in one network
@@ -48,160 +48,6 @@ option=needs-linux:caps=net-admin
 # of RegisterOwnedMacvlan.
 option=exclusive:group=iface-owned-macvlan
 
-tmpfs=setup.py:mode=755:terminator=EOF_SETUP
-#!/usr/bin/env python3
-# Build the VRRP parent: a multicast-capable veth pair, addressed so the VIP
-# subnet resolves, both ends up. Idempotent (swallow "exists"). modprobe macvlan
-# so ze's RTM_NEWLINK(kind=macvlan) works even if the VM kernel did not autoload.
-import subprocess
-
-
-def ip(*args):
-    subprocess.run(["ip", *args], stderr=subprocess.DEVNULL)
-
-
-subprocess.run(["modprobe", "macvlan"], stderr=subprocess.DEVNULL)
-ip("link", "add", "zept0", "type", "veth", "peer", "name", "zept0p")
-ip("addr", "add", "192.0.2.251/24", "dev", "zept0")
-ip("link", "set", "zept0", "up")
-ip("link", "set", "zept0p", "up")
-EOF_SETUP
-
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Assert the VRRP instance lifecycle from OUTSIDE ze, via `ip` kernel readback.
-
-Waits for the daemon, proves the macvlan+virtual-MAC and the VIP (master), then
-rewrites the config to drop the group, SIGHUPs, and proves the macvlan and VIP
-are gone. No sleeps: every wait is a kernel-state poll (ze_api.wait_until, whose
-internal delay is ratchet-exempt)."""
-import json
-import os
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-VRID = 10
-VIRTUAL_MAC = "00:00:5e:00:01:0a"  # RFC 9568 IPv4 vMAC for vrid 10 (0x0a)
-# TWO virtual addresses: the group's headline capability is up to 16 VIPs in
-# configuration order (RFC 9568 5.2.9). A single-VIP test cannot tell a working
-# bracket leaf-list from one that collapsed to a single joined member (the parser
-# regression fixed in 0b3259949), so this test installs and reads back BOTH.
-VIPS = ["192.0.2.1", "192.0.2.2"]
-
-
-def links():
-    out = subprocess.run(["ip", "-j", "link", "show"], capture_output=True, text=True).stdout
-    try:
-        return json.loads(out or "[]")
-    except json.JSONDecodeError:
-        return []
-
-
-def macvlan_name():
-    """Return the name of the macvlan carrying the virtual MAC, or None."""
-    for link in links():
-        if (link.get("address") or "").lower() == VIRTUAL_MAC:
-            return link.get("ifname")
-    return None
-
-
-def vips_on(dev):
-    """Return the set of configured VIPs currently installed on device dev."""
-    out = subprocess.run(["ip", "-j", "-4", "addr", "show", "dev", dev], capture_output=True, text=True).stdout
-    try:
-        addrs = json.loads(out or "[]")
-    except json.JSONDecodeError:
-        return set()
-    found = set()
-    for link in addrs:
-        for info in link.get("addr_info", []):
-            if info.get("local") in VIPS:
-                found.add(info.get("local"))
-    return found
-
-
-def any_vip_present():
-    out = subprocess.run(["ip", "-j", "-4", "addr", "show"], capture_output=True, text=True).stdout
-    try:
-        addrs = json.loads(out or "[]")
-    except json.JSONDecodeError:
-        return False
-    for link in addrs:
-        for info in link.get("addr_info", []):
-            if info.get("local") in VIPS:
-                return True
-    return False
-
-
-def main():
-    if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-                      attempts=200, delay=0.05):
-        sys.exit("daemon readiness files missing")
-    with open("daemon.pid") as f:
-        pid = int(f.read().strip())
-
-    # AC-7: the macvlan is created at instance create, carrying the virtual MAC.
-    if not wait_until(lambda: macvlan_name() is not None, attempts=100, delay=0.1):
-        sys.exit("macvlan with virtual MAC %s never appeared:\n%s"
-                 % (VIRTUAL_MAC, subprocess.run(["ip", "link", "show"], capture_output=True, text=True).stdout))
-    dev = macvlan_name()
-    if not dev.startswith("zv4-"):
-        sys.exit("macvlan name %r does not carry the zv4- owned-device prefix" % dev)
-    sys.stdout.write("MACVLAN-UP %s %s\n" % (dev, VIRTUAL_MAC))
-
-    # AC-7: BOTH VIPs are installed on the macvlan ONLY on ->Master, so their
-    # presence proves the single node reached Master AND that a 2-member bracket
-    # leaf-list reached the dataplane as two distinct addresses (not one joined
-    # string, which would install zero valid VIPs and fail config validation).
-    if not wait_until(lambda: vips_on(dev) == set(VIPS), attempts=200, delay=0.1):
-        sys.exit("both VIPs %s never installed on %s (got %s) -- FSM did not reach Master, VIP action missing, or the multi-address leaf-list collapsed:\n%s"
-                 % (VIPS, dev, sorted(vips_on(dev)),
-                    subprocess.run(["ip", "addr", "show"], capture_output=True, text=True).stdout))
-    sys.stdout.write("VIPS-INSTALLED %s\n" % ",".join(VIPS))
-
-    # AC-13: remove the group and reload. The daemon's config file is ze-bgp.conf
-    # (the runner materializes the first `ze -` stdin block there; SIGHUP reloads
-    # from it -- see test/static/static-reload-add.ci).
-    with open("ze-bgp.conf", "w") as f:
-        f.write("""interface {
-    backend netlink;
-    ethernet zept0 {
-        unit 0 {
-            ipv4 {
-                address [ 192.0.2.251/24 ];
-            }
-        }
-    }
-}
-""")
-    os.kill(pid, signal.SIGHUP)
-
-    # AC-13 (+ AC-6 no-macvlan idle clause): teardown removes BOTH the macvlan
-    # device and the VIP from the kernel.
-    if not wait_until(lambda: macvlan_name() is None and not any_vip_present(),
-                      attempts=200, delay=0.1):
-        sys.exit("teardown incomplete after group removal: macvlan=%r vip=%s\n%s"
-                 % (macvlan_name(), any_vip_present(),
-                    subprocess.run(["ip", "addr", "show"], capture_output=True, text=True).stdout))
-    sys.stdout.write("TEARDOWN-COMPLETE\n")
-
-    os.kill(pid, signal.SIGTERM)
-
-    def dead():
-        try:
-            os.kill(pid, 0)
-            return False
-        except OSError:
-            return True
-    wait_until(dead, attempts=100, delay=0.05)
-
-
-if __name__ == "__main__":
-    main()
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 interface {
@@ -226,9 +72,9 @@ EOF_CONF
 
 option=env:var=ze.log.vrrp:value=info
 
-cmd=foreground:seq=1:exec=python3 setup.py
+cmd=foreground:seq=1:exec=ze-test fixture vrrp/vrrp-instance-up-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=60s
+cmd=foreground:seq=3:exec=ze-test fixture vrrp/vrrp-instance-up-driver:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=MACVLAN-UP
 expect=stdout:contains=VIPS-INSTALLED 192.0.2.1,192.0.2.2

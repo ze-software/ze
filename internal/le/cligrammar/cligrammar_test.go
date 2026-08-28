@@ -42,7 +42,7 @@ func cleanFixture(t *testing.T) map[string]string {
 	return map[string]string{
 		"internal/a/yang/ze-a-conf.yang": "module ze-a-conf {\n  container traffic {\n    leaf x { type string; }\n  }\n}\n",
 		"cmd/ze/roots.go":                "package main\n\nfunc wire() { registry.MustRegisterRootHandler(\"env\", nil, meta) }\n",
-		"demos/terminal/one/run.sh":      "#!/bin/sh\nze show interface\n",
+		"demos/terminal/one/demo.tape":   "Type \"ze show interface\"\n",
 	}
 }
 
@@ -112,7 +112,7 @@ func TestAFileThatWillNotParseStopsTheRun(t *testing.T) {
 func TestEachFeederDrawsItsRowOverAFixture(t *testing.T) {
 	files := cleanFixture(t)
 	files["internal/a/yang/ze-a-cmd.yang"] = "module ze-a-cmd {\n  leaf detail { description \"--detail is banned here\"; }\n}\n"
-	files["demos/terminal/one/run.sh"] = "#!/bin/sh\nze show interface\nze mystery-verb\n"
+	files["demos/terminal/one/demo.tape"] = "Type \"ze show interface\"\nType \"ze mystery-verb\"\n"
 	tree := writeTree(t, files)
 
 	result, err := Check(tree, Floor{})
@@ -126,19 +126,19 @@ func TestEachFeederDrawsItsRowOverAFixture(t *testing.T) {
 		t.Errorf("the R3 feeder drew %d rows, want the one --detail line: %+v", len(result.FlagInYANG), result.FlagInYANG)
 	}
 	if len(result.DemoLaunch) != 1 || result.DemoLaunch[0].Token != "mystery-verb" {
-		t.Errorf("the call-site feeder drew %+v, want the one dead launch form", result.DemoLaunch)
+		t.Fatalf("the call-site feeder drew %+v, want the one dead launch form", result.DemoLaunch)
 	}
-	if result.DemoLaunch[0].File != "demos/terminal/one/run.sh" {
+	if result.DemoLaunch[0].File != "demos/terminal/one/demo.tape" {
 		t.Errorf("the row names %q, want the tree-relative path", result.DemoLaunch[0].File)
 	}
 }
 
-// VALIDATES: a heredoc body and a comment are prose rather than call sites.
-// PREVENTS: the false positives the heredoc rule exists to remove coming back,
-// which would make the feeder unusable and get it switched off.
-func TestProseInADemoScriptIsNotACallSite(t *testing.T) {
+// VALIDATES: a comment in a demo definition is prose rather than a call site.
+// PREVENTS: false positives that would make the feeder unusable and get it
+// switched off.
+func TestProseInADemoDefinitionIsNotACallSite(t *testing.T) {
 	files := cleanFixture(t)
-	files["demos/terminal/one/run.sh"] = "#!/bin/sh\n# ze narrated-verb\ncat <<'EOF'\nze prose-verb\nEOF\nze show interface\n"
+	files["demos/terminal/one/demo.tape"] = "# ze narrated-verb\nType \"ze show interface\"\n"
 	tree := writeTree(t, files)
 
 	result, err := Check(tree, Floor{})
@@ -150,15 +150,22 @@ func TestProseInADemoScriptIsNotACallSite(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-7 -- the payload is data a JSON encoder takes, with the
-// script's own keys.
+func TestAFlagOnlyZeInvocationStopsAtTheShellBoundary(t *testing.T) {
+	got := launchTokens(strings.Fields(`ze --plugins | ze pipe count`))
+	if strings.Join(got, ",") != "pipe" {
+		t.Fatalf("launch tokens = %v, want only the second ze command", got)
+	}
+}
+
+// VALIDATES: AC-7 -- the payload is data a JSON encoder takes, with the native
+// report's own keys.
 // PREVENTS: a port that answers a rendered page, which no pipe operator can act
 // on.
 func TestResultIsStructuredData(t *testing.T) {
 	raw, err := json.Marshal(Result{
 		Findings:   []grammar.Finding{{Command: "show x", Rule: "R1", Message: "m"}},
 		FlagInYANG: []FlagHit{{File: "a.yang", Line: 2, Text: "--x"}},
-		DemoLaunch: []DemoLaunchHit{{File: "b.sh", Line: 3, Token: "t"}},
+		DemoLaunch: []DemoLaunchHit{{File: "b.tape", Line: 3, Token: "t"}},
 		Exempt:     map[string]int{"bridge": 3},
 	})
 	if err != nil {

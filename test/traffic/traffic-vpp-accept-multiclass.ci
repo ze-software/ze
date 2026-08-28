@@ -14,16 +14,6 @@
 #
 # Scope note: waits ~6s for the 5s WaitConnected timeout + margin.
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Hold open for Apply's 5s WaitConnected -> "vpp not connected", which only
-fires if the multi-class config PASSED verify."""
-import time
-
-# blind hold: the internal 5s vpp WaitConnected timeout IS the behavior under test; hold past it for the asserted log, no earlier signal to poll
-time.sleep(6.0)
-EOF_PY
-
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -84,6 +74,6 @@ EOF_CONF
 option=env:var=ze.log.traffic:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
+cmd=foreground:seq=2:exec=ze-test fixture traffic/traffic-vpp-accept-multiclass:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=vpp not connected

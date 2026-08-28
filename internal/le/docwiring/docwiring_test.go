@@ -29,7 +29,7 @@ const (
 	four  = 4
 )
 `
-	symbols := ExportedSymbols("internal/example/example.go", content)
+	symbols := exportedSymbols("internal/example/example.go", content)
 
 	want := map[string]string{
 		"Exported": "func",
@@ -78,7 +78,7 @@ const (
 	hidden = 2
 )
 `
-	symbols := ExportedSymbols("internal/example/example.go", content)
+	symbols := exportedSymbols("internal/example/example.go", content)
 	if len(symbols) != 1 || symbols[0].Name != "Kept" {
 		t.Errorf("read %+v, want only Kept", symbols)
 	}
@@ -96,9 +96,9 @@ func TestParseSleepBaselineSumsTheDeltaLedger(t *testing.T) {
 		{"# nothing but prose\n", 0, false},
 		{"", 0, false},
 	} {
-		got, active := ParseSleepBaseline(tc.text)
+		got, active := parseSleepBaseline(tc.text)
 		if got != tc.want || active != tc.active {
-			t.Errorf("ParseSleepBaseline(%q) = (%d, %v), want (%d, %v)", tc.text, got, active, tc.want, tc.active)
+			t.Errorf("parseSleepBaseline(%q) = (%d, %v), want (%d, %v)", tc.text, got, active, tc.want, tc.active)
 		}
 	}
 }
@@ -225,7 +225,7 @@ func TestAGroupSplitsWhenItNamesMorePathsThanOneLineCarries(t *testing.T) {
 	for i := range RelatedPerGroup + 1 {
 		many = append(many, "a"+strconv.Itoa(i))
 	}
-	g := &gate{}
+	g := &checker{}
 	g.declareFailureGroup("check", many, "summary", "rerun")
 
 	if len(g.report.Groups) != 2 {
@@ -240,7 +240,7 @@ func TestAGroupSplitsWhenItNamesMorePathsThanOneLineCarries(t *testing.T) {
 
 	// One path fewer stays in a single group, which is what makes the split a
 	// bound rather than a habit.
-	g = &gate{}
+	g = &checker{}
 	g.declareFailureGroup("check", many[:RelatedPerGroup], "summary", "rerun")
 	if len(g.report.Groups) != 1 {
 		t.Errorf("%d paths became %d groups, want one", RelatedPerGroup, len(g.report.Groups))
@@ -250,7 +250,7 @@ func TestAGroupSplitsWhenItNamesMorePathsThanOneLineCarries(t *testing.T) {
 func TestACheckThatDeclaresNothingIsStillCharged(t *testing.T) {
 	// A failure that declared no group would publish a count that agrees with
 	// itself, and the reader would then drop the red.
-	g := &gate{}
+	g := &checker{}
 	code := g.runCheck("silent", "rerun", func() CheckResult {
 		return CheckResult{Failed: true, Message: "it failed"}
 	})
@@ -267,8 +267,8 @@ func TestACheckThatDeclaresNothingIsStillCharged(t *testing.T) {
 }
 
 func TestAnUnknownTargetIsRefusedRatherThanRun(t *testing.T) {
-	g := &gate{root: t.TempDir()}
-	result := g.runTarget("ze-not-a-target")
+	g := &checker{root: t.TempDir()}
+	result := g.runAction("not-an-action")
 
 	if !result.Failed || result.Code != 2 ||
 		!strings.Contains(result.Message, "no native callback") {
@@ -277,8 +277,8 @@ func TestAnUnknownTargetIsRefusedRatherThanRun(t *testing.T) {
 }
 
 func TestANativeCallbackCannotPassWithoutAResult(t *testing.T) {
-	g := &gate{root: t.TempDir()}
-	result := g.runGoTarget("silent", call{
+	g := &checker{root: t.TempDir()}
+	result := g.runGoAction("silent", call{
 		answer: func(string) (any, int) { return nil, 0 },
 	})
 	if !result.Failed || result.Code != 2 ||
@@ -289,10 +289,10 @@ func TestANativeCallbackCannotPassWithoutAResult(t *testing.T) {
 
 func TestTheDesignRefCheckerIsDeclaredAsAFork(t *testing.T) {
 	root := nativeGitTree(t, map[string]string{
-		"go.mod":              "module fixture\n",
+		"go.mod":               "module fixture\n",
 		"internal/x/source.go": "// Design: docs/missing.md\npackage x\n",
 	})
-	g := &gate{root: root}
+	g := &checker{root: root}
 	g.run()
 	var design CheckResult
 	for _, result := range g.report.Checks {
@@ -315,8 +315,8 @@ func TestTheDesignRefCheckerIsDeclaredAsAFork(t *testing.T) {
 func TestAGoTargetRunsInThisProcessAndAMakeTargetDoesNot(t *testing.T) {
 	root := t.TempDir()
 	called := false
-	g := &gate{root: root}
-	native := g.runGoTarget("native", call{answer: func(gotRoot string) (any, int) {
+	g := &checker{root: root}
+	native := g.runGoAction("native", call{answer: func(gotRoot string) (any, int) {
 		called = gotRoot == root
 		return docVerifyPage{text: "native output\n"}, 0
 	}})
@@ -333,27 +333,24 @@ func TestAGoTargetRunsInThisProcessAndAMakeTargetDoesNot(t *testing.T) {
 		t.Errorf("the Go target message = %q", native.Message)
 	}
 
-	makeOnly := g.runTarget("ze-make-only-target")
-	if !makeOnly.Failed {
-		t.Error("an undeclared Make target ran through the native router")
+	missing := g.runAction("missing/action")
+	if !missing.Failed || missing.Code != 2 {
+		t.Errorf("an undeclared action answered %+v", missing)
 	}
-	if makeOnly.Code != 2 {
-		t.Errorf("an undeclared Make target answered code %d", makeOnly.Code)
-	}
-	if !strings.Contains(makeOnly.Message, "no native callback for target ze-make-only-target") {
-		t.Errorf("the undeclared Make target message = %q", makeOnly.Message)
+	if !strings.Contains(missing.Message, "no native callback for action missing/action") {
+		t.Errorf("undeclared action message = %q", missing.Message)
 	}
 }
 
 func TestTheAdvisoryFiresOnlyWhenNoTestChanged(t *testing.T) {
 	changed := []string{"internal/component/cli/thing.go"}
-	if FunctionalTestAdvisory(changed) == "" {
+	if functionalTestAdvisory(changed) == "" {
 		t.Error("a user-facing change with no test change drew no advisory")
 	}
-	if got := FunctionalTestAdvisory(append(changed, "test/ui/thing.ci")); got != "" {
+	if got := functionalTestAdvisory(append(changed, "test/ui/thing.ci")); got != "" {
 		t.Errorf("a change carrying a test drew an advisory: %q", got)
 	}
-	if got := FunctionalTestAdvisory([]string{"internal/component/bgp/reactor/peer.go"}); got != "" {
+	if got := functionalTestAdvisory([]string{"internal/component/bgp/reactor/peer.go"}); got != "" {
 		t.Errorf("an area outside the table drew an advisory: %q", got)
 	}
 }
@@ -361,14 +358,14 @@ func TestTheAdvisoryFiresOnlyWhenNoTestChanged(t *testing.T) {
 func TestReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	raw, err := json.Marshal(Report{
 		Changed: []string{"a.go"},
-		Targets: []string{"wiring"},
+		Actions: []string{"wiring"},
 		Checks:  []CheckResult{{Name: "ci-sleep-ratchet", Message: "ok"}},
 		Groups:  []Group{{GroupID: "files:wiring", Kind: "files", Related: []string{"a.go"}}},
 	})
 	if err != nil {
 		t.Fatalf("the payload does not encode: %v", err)
 	}
-	for _, want := range []string{`"changed"`, `"targets"`, `"checks"`, `"failure-groups"`, `"declared-groups"`, `"group-id"`, `"dry-run"`} {
+	for _, want := range []string{`"changed"`, `"actions"`, `"checks"`, `"failure-groups"`, `"declared-groups"`, `"group-id"`, `"dry-run"`} {
 		if !strings.Contains(string(raw), want) {
 			t.Errorf("the payload has no %s key: %s", want, raw)
 		}
@@ -403,6 +400,18 @@ func TestTheGrammarTakesEveryValueBehindAKeyword(t *testing.T) {
 	}
 }
 
+// VALIDATES: changes to the native orphan owner select the templ output gate.
+// PREVENTS: routing changes to a deleted script while native checker edits skip
+// their own gate.
+func TestTheNativeTemplCheckerSelectsTheOutputGate(t *testing.T) {
+	if !isTemplSource(templCheckerSource) {
+		t.Errorf("%s does not select ze-templ-output-check", templCheckerSource)
+	}
+	if isTemplSource("internal/le/docwiring/native_test.go") {
+		t.Error("an unrelated test file selects the templ output gate")
+	}
+}
+
 func TestAChangedFileTheRouterCannotReadIsRefused(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a mode-000 file, so the case cannot be built")
@@ -419,13 +428,13 @@ func TestAChangedFileTheRouterCannotReadIsRefused(t *testing.T) {
 		t.Fatalf("chmod: %v", err)
 	}
 
-	if _, err := SelectedTargets(root, []string{"internal/component/config/yang/thing.yang"}); err == nil {
+	if _, err := selectedActions(root, []string{"internal/component/config/yang/thing.yang"}); err == nil {
 		t.Error("the router selected gates for a tree it could not read")
 	}
 
 	// An ABSENT file is the other half of this question. It is not an error
 	// because a caller uses this state for a path that the change deleted.
-	if _, err := SelectedTargets(root, []string{"internal/component/config/yang/gone.yang"}); err != nil {
+	if _, err := selectedActions(root, []string{"internal/component/config/yang/gone.yang"}); err != nil {
 		t.Errorf("a deleted file was refused: %v", err)
 	}
 }
@@ -461,11 +470,11 @@ func TestTheRatchetRefusesABaselineItCannotRead(t *testing.T) {
 // TestEveryDelegatedTargetIsAnsweredHereOrDeclaredAFork keeps the selected
 // target table total. The cutover answers every former fork as a native call.
 func TestEveryDelegatedTargetIsAnsweredHereOrDeclaredAFork(t *testing.T) {
-	for _, target := range TargetOrder() {
+	for _, target := range actionOrderList() {
 		if target == wiringTarget {
 			continue
 		}
-		one, found := goTargets[target]
+		one, found := goActions[target]
 		if !found {
 			t.Errorf("%s has no native callback", target)
 			continue
@@ -474,7 +483,7 @@ func TestEveryDelegatedTargetIsAnsweredHereOrDeclaredAFork(t *testing.T) {
 			t.Errorf("%s has a nil native callback", target)
 		}
 	}
-	if got, want := len(goTargets), len(TargetOrder())-1; got != want {
+	if got, want := len(goActions), len(actionOrderList())-1; got != want {
 		t.Fatalf("native target table has %d rows, want %d", got, want)
 	}
 }

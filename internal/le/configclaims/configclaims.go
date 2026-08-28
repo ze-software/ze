@@ -40,7 +40,7 @@ import (
 )
 
 // name is the word this command is typed as, and the prefix its own messages
-// carry. The Make target it still is spells the same words: ze-config-claims-check.
+// carry. The retired Make target used the ze-config-claims-check spelling.
 const name = "config-claims"
 
 // Floors, not counts. An enumeration that broke would otherwise report a clean

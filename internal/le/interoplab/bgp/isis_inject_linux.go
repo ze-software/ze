@@ -9,6 +9,7 @@ import (
 	"runtime"
 
 	"golang.org/x/sys/unix"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 

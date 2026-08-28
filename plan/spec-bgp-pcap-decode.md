@@ -70,16 +70,16 @@ specs share the `ze bgp decode` entry point and nothing else.
 ### Architecture Docs
 
 - [ ] `docs/architecture/diagnostics/packet-capture.md` - the design doc for the capture feature this spec fixes
-  → Constraint: the page carries `source:` anchors for `pcap.go`, `capture_raw.go`, `capture.go`, `capture_common.go`, both raw rings and both interface-capture files. Every anchor must be repointed when code moves, and `make ze-doc-verify` plus `make ze-doc-wiring-check` own that.
+  → Constraint: the page carries `source:` anchors for `pcap.go`, `capture_raw.go`, `capture.go`, `capture_common.go`, both raw rings and both interface-capture files. Every anchor must be repointed when code moves, and `./le doc-check verify` plus `./le doc-wiring` own that.
   → Decision: the page's `LINKTYPE_RAW` justification is false and is corrected here, not preserved. It does not mention `internal/analyze/convert.go` at all, which is how a second pcap writer stayed invisible.
 
 - [ ] `ai/rules/architecture.md` - tier placement and the core import direction
   → Constraint: `internal/core/pcap` must import nothing from `internal/component/` or `internal/plugins/`. Achievable: the writer needs only `encoding/binary`, `io`, `time` and `net/netip`.  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
-  → Decision: no row in `scripts/dev/tier_non_engine_categories.txt`; that manifest covers only component and plugin paths. `internal/component/bgp/cli`, `internal/plugins/diag/cmd` and `internal/analyze` importing it are all downward imports and legal.
+  → Decision: no row in `internal/le/`; that manifest covers only component and plugin paths. `internal/component/bgp/cli`, `internal/plugins/diag/cmd` and `internal/analyze` importing it are all downward imports and legal.
 
 - [ ] `ai/rules/cli.md` - the `-` stdin contract
   → Constraint: a user-supplied path must go through `internal/core/cliio`, never a raw `os` call.
-  → Constraint: `make ze-dash-stdio-check` is an AST taint pass whose `scanRoots` EXCLUDE `internal/core`. A raw `os.Open` inside `internal/core/pcap` would not be flagged, so the `-` handling MUST live at the CLI edge in `internal/component/bgp/cli`, which is scanned.  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+  → Constraint: `./le dash-stdio check` is an AST taint pass whose `scanRoots` EXCLUDE `internal/core`. A raw `os.Open` inside `internal/core/pcap` would not be flagged, so the `-` handling MUST live at the CLI edge in `internal/component/bgp/cli`, which is scanned.  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 
 - [ ] `ai/rules/interop-and-goal-validation.md` - proving the test discriminates
   → Constraint: `test/plugin/diag-capture.ci` exercises capture in JSON only and asserts no pcap bytes, so the format change breaks no existing `.ci` and gains no evidence from one. The discriminating test must be new: a file ze wrote, decoded back, asserting the messages.
@@ -389,7 +389,7 @@ the generated pcap describe a session from a host to itself.
 3. **Phase: `internal/core/pcap` writer** -- absorb `convert.go`'s framing, fix its three defects  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
    - Tests: the `pcap_test.go` unit tests, including sequence, checksums and IPv6
    - Files: `internal/core/pcap/pcap.go`, `internal/analyze/convert.go`, `internal/analyze/convert_test.go`, `internal/plugins/diag/cmd/pcap.go`  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
-   - Verify: `make ze-tier-check`, and `ze-analyse convert pcap` output still opens
+   - Verify: `./le tier check`, and `ze-analyse convert pcap` output still opens
 4. **Phase: the capture side** -- whole messages and framing fields into the ring
    - Tests: `TestRingCarriesFramingFields`, then AC-1 to AC-6
    - Files: `internal/component/bgp/reactor/raw_capture.go`, `reactor_notify.go`, `internal/component/plugin/types_bgp.go`
@@ -401,10 +401,10 @@ the generated pcap describe a session from a host to itself.
 6. **Phase: the CLI edge** -- pcap input, stdin, multi-payload
    - Tests: AC-15 to AC-17, then the three `.ci` tests
    - Files: `internal/component/bgp/cli/decode.go`, `decode_pcap.go`, `register.go`
-   - Verify: `make ze-dash-stdio-check`, `make ze-functional-decode-test`
+   - Verify: `./le dash-stdio check`, `./le functional decode`
 7. **Phase: documentation and discovery** -- every row of the Documentation checklist
    - Files: the docs listed under Files to Modify, plus `ai/INDEX.md`
-   - Verify: `make ze-doc-verify`, `make ze-doc-wiring-check`
+   - Verify: `./le doc-check verify`, `./le doc-wiring`
 
 ### Critical Review Checklist
 
@@ -427,11 +427,11 @@ the generated pcap describe a session from a host to itself.
 | One pcap file-format owner | `grep -rn 'writePcapHeader\|writePcapPacket\|writePcapGlobalHeader' internal/` names only `internal/core/pcap` |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Truthful BGP capture | tshark dissects a generated file and reports the expected BGP message count |
 | BFD and L2TP unchanged | byte-comparison test in the suite |
-| The reader | `make ze-unit-pkg-test PKG=./internal/core/pcap` |
-| Round trip | `make ze-functional-plugin-test` for `test-bgp-pcap-roundtrip.ci` |
-| stdin honoured | `make ze-dash-stdio-check` |
-| Core tier respected | `make ze-tier-check` |
-| Docs corrected | `make ze-doc-verify`, `make ze-doc-wiring-check` |
+| The reader | `go test -race ./internal/core/pcap` |
+| Round trip | `./le functional plugin` for `test-bgp-pcap-roundtrip.ci` |
+| stdin honoured | `./le dash-stdio check` |
+| Core tier respected | `./le tier check` |
+| Docs corrected | `./le doc-check verify`, `./le doc-wiring` |
 
 ### Security Review Checklist
 
@@ -471,7 +471,7 @@ the generated pcap describe a session from a host to itself.
 | Unify both consumers on link type 101 | Leave `convert.go` on 228 | Two link types for one framing implementation is the state that caused this. 101 also fixes `convert.go`'s silent IPv6 skip for free, since the version nibble selects the family |
 | Reconstruct the 19-byte header at the tap | Widen `MessageCallback` with a wire parameter; move the capture beside `teeCapture` | Byte-exact from data already in scope, and touches no call site. Widening changes six-plus sites and one caller has no wire bytes. Matches the sibling spec so both taps behave identically. Owner decision, 2026-08-15 |
 | Fabricate TCP ports rather than read the real ones | Call `(*Peer).tCPPorts` at capture time | The real ports need two mutexes on the session read path. `convert.go` already fabricates. The fabrication is documented rather than hidden (A-1) |
-| `-` handled at the CLI edge, not in `internal/core/pcap` | Handle stdin inside the reader | `make ze-dash-stdio-check` deliberately excludes `internal/core` from its scan roots, so a raw `os.Open` there would pass unflagged. Putting it at the scanned edge keeps the gate meaningful |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `-` handled at the CLI edge, not in `internal/core/pcap` | Handle stdin inside the reader | `./le dash-stdio check` deliberately excludes `internal/core` from its scan roots, so a raw `os.Open` there would pass unflagged. Putting it at the scanned edge keeps the gate meaningful |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Split the BFD exporter from the BGP exporter first | Share one exporter with a protocol switch | BFD and L2TP are UDP payloads. A shared exporter that grew TCP framing is exactly how a correct BFD capture would silently become malformed (R-1) |
 
 ## Known Limitations
@@ -487,7 +487,7 @@ the generated pcap describe a session from a host to itself.
 - [ ] AC-1..AC-18 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -505,7 +505,7 @@ the generated pcap describe a session from a host to itself.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

@@ -133,7 +133,7 @@ option=asn:value=65533
 
 // TestParseTmpfsWithSubdirs verifies tmpfs paths with subdirectories.
 //
-// VALIDATES: Paths like scripts/plugin.py stored correctly.
+// VALIDATES: Paths like test/fixtures/plugin.py stored correctly.
 // PREVENTS: Path flattening or directory info lost.
 func TestParseTmpfsWithSubdirs(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -142,7 +142,7 @@ func TestParseTmpfsWithSubdirs(t *testing.T) {
 peer config
 EOF_CONF
 
-tmpfs=scripts/plugin.py:terminator=EOF_PY
+tmpfs=test/fixtures/plugin.py:terminator=EOF_PY
 #!/usr/bin/env python3
 print("hello")
 EOF_PY
@@ -162,7 +162,7 @@ option=asn:value=65533
 
 	require.NotNil(t, r.TmpfsFiles)
 	assert.Contains(t, r.TmpfsFiles, "conf/peer.conf")
-	assert.Contains(t, r.TmpfsFiles, "scripts/plugin.py")
+	assert.Contains(t, r.TmpfsFiles, "test/fixtures/plugin.py")
 }
 
 // TestParseNoTmpfs verifies .ci files without tmpfs still work.

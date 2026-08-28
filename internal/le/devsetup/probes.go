@@ -1,18 +1,17 @@
 // Design: docs/architecture/core-design.md -- a tool can be present when it is not on PATH
 //
-// probes.go is a Go port of scripts/le/devtools/probes.py. Two table rows
-// require more than a PATH lookup. Experience showed why these exceptions are
-// necessary:
+// Two table rows require more than a PATH lookup. Experience showed why these
+// exceptions are necessary:
 //
 //	e2fsprogs   is searched by DIRECTORY on every platform. Homebrew does not
 //	            link a keg-only formula to PATH. Debian does not include
 //	            /usr/sbin in a non-root user's PATH. Thus, a lookup can fail
 //	            when the tools are installed and operational.
 //
-//	            Both consumers specify the directories directly (E2FS in mk/build-gokrazy.mk,
-//	            e2fsSearchDirs in internal/appliance). Therefore, a PATH-based
-//	            probe reported the tools as missing although the build used
-//	            them. The install path then reported [pending] indefinitely.
+//	            Both native consumers specify the directories directly:
+//	            e2fsprogsDirs here and e2fsSearchDirs in internal/appliance.
+//	            Therefore, a PATH-based probe reported the tools as missing
+//	            although the build used them. Setup then reported pending forever.
 //
 //	staticcheck must be one exact VERSION. A different version on PATH runs but
 //	            disagrees. This result is worse than an absent tool.
@@ -44,7 +43,7 @@ const staticcheckProbeTimeout = 5 * time.Second
 func (s *Setup) Probe(tool Tool) bool {
 	switch tool.Name {
 	case toolE2fsprogs:
-		return s.ProbeE2fsprogs()
+		return s.probeE2fsprogs()
 	case toolStaticcheck:
 		return s.probeStaticcheck(tool)
 	}
@@ -114,7 +113,7 @@ func staticcheckVersionMatches(line string) bool {
 // that knows a relocated install.
 const homebrewPrefixKey = "HOMEBREW_PREFIX"
 
-// BrewPrefixes returns the Homebrew prefixes that exist on this host. It orders
+// brewPrefixes returns the Homebrew prefixes that exist on this host. It orders
 // them from most authoritative to least authoritative.
 //
 // Homebrew has no single prefix. It uses /opt/homebrew on Apple Silicon and
@@ -137,9 +136,9 @@ const homebrewPrefixKey = "HOMEBREW_PREFIX"
 //
 // The same resolution is in the Go function brewPrefixes
 // (internal/appliance/homebrew.go) and the Python function brew_prefixes
-// (scripts/evidence/homebrew.py). scripts/dev/homebrew_prefix_test.py verifies
+// (internal/le/devsetup/install.go). internal/le/devsetup/devsetup_test.go verifies
 // that the copies give one result.
-func (s *Setup) BrewPrefixes() []string {
+func (s *Setup) brewPrefixes() []string {
 	var candidates []string
 	if exported := s.env(homebrewPrefixKey); exported != "" {
 		candidates = append(candidates, exported)
@@ -179,7 +178,7 @@ type versionPart struct {
 // previous month's e2fsprogs when a formula first has a two-digit patch number.
 // A Homebrew revision suffix is different. 1.47.4_1 has four numeric segments
 // and correctly ranks higher than 1.47.4. This function uses the same keys as
-// version_key in scripts/evidence/homebrew.py.
+// version_key in internal/le/devsetup/install.go.
 func cellarVersionKey(sbin string) []versionPart {
 	version := filepath.Base(filepath.Dir(sbin))
 	fields := strings.FieldsFunc(version, func(r rune) bool {
@@ -224,7 +223,7 @@ func cellarNewerFirst(a, b string) bool {
 	return len(left) > len(right)
 }
 
-// E2fsprogsDirs returns every directory that can contain mkfs.ext4 and debugfs.
+// e2fsprogsDirs returns every directory that can contain mkfs.ext4 and debugfs.
 // It orders the best directory first.
 //
 // e2fsprogs is keg-only, so Homebrew does not link it to PATH. Therefore, a
@@ -233,13 +232,13 @@ func cellarNewerFirst(a, b string) bool {
 // They are also in <prefix>/Cellar/e2fsprogs/<version>/sbin. An interrupted
 // upgrade can leave them in the Cellar without a link.
 //
-// This function is separate from ProbeE2fsprogs so that a test can verify WHERE
+// This function is separate from probeE2fsprogs so that a test can verify WHERE
 // the probe looks. The boolean cannot show this information. The list ends with
 // /usr/sbin and /sbin. Thus, on a Linux host with e2fsprogs, the boolean is true
 // even if both Homebrew branches are deleted.
-func (s *Setup) E2fsprogsDirs() []string {
+func (s *Setup) e2fsprogsDirs() []string {
 	var dirs []string
-	for _, prefix := range s.BrewPrefixes() {
+	for _, prefix := range s.brewPrefixes() {
 		dirs = append(dirs, filepath.Join(prefix, "opt", toolE2fsprogs, "sbin"))
 
 		cellar, err := filepath.Glob(filepath.Join(prefix, "Cellar", toolE2fsprogs, "*", "sbin"))
@@ -252,14 +251,14 @@ func (s *Setup) E2fsprogsDirs() []string {
 	return append(dirs, "/usr/sbin", "/sbin")
 }
 
-// ProbeE2fsprogs reports whether ONE directory contains BOTH e2fsprogs tools.
+// probeE2fsprogs reports whether ONE directory contains BOTH e2fsprogs tools.
 //
-// Both tools are required. The image build formats /perm with mkfs.ext4 and
-// then injects credentials with debugfs. A one-tool probe can pass when the
-// directory contains only the first tool. The build then fails later
-// (mk/build-gokrazy.mk, E2FS).
-func (s *Setup) ProbeE2fsprogs() bool {
-	for _, dir := range s.E2fsprogsDirs() {
+// Both tools are required. The appliance image build formats /perm with
+// mkfs.ext4 and then injects credentials with debugfs. A one-tool probe can pass
+// when the directory contains only the first tool, and the build then fails
+// later in `internal/appliance.runGokBuild`.
+func (s *Setup) probeE2fsprogs() bool {
+	for _, dir := range s.e2fsprogsDirs() {
 		if isFile(filepath.Join(dir, "mkfs.ext4")) && isFile(filepath.Join(dir, "debugfs")) {
 			return true
 		}

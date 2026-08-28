@@ -19,7 +19,7 @@ See also: `/ze-find-alloc` (find allocations to fix)
 3. Read the target file and understand the allocation context
 4. Read callers of the function to understand how the result is used
 5. Apply the appropriate fix pattern (see below)
-6. Run `make ze-lint && make ze-unit-test` to verify
+6. Run `./le verify-lint run && ./le test-unit` to verify
 
 ## Pre-Flight Checks
 
@@ -179,8 +179,8 @@ n.cached = make([]byte, 2+len(data))
 After making changes:
 
 1. **Compile:** `go build ./...`
-2. **Lint:** `make ze-lint`
-3. **Test:** `make ze-unit-test`
+2. **Lint:** `./le verify-lint run`
+3. **Test:** `./le test-unit`
 4. **Check for Pack() deprecation:** If ALL callers now use WriteTo, add deprecation comment to Pack()
 
 ## Common Mistakes to Avoid

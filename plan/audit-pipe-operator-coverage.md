@@ -453,13 +453,13 @@ generated: see 8.2.
 
 `ze help ai --json` and the MCP surface carry no pipe metadata at all. The REST
 `/api/v1/commands` and its generated OpenAPI, the gRPC `DescribeCommand`, and
-gNMI carry none either. `make ze-command-list` walks `AllBuiltinRPCs` plus the
+gNMI carry none either. `./le command-list` walks `AllBuiltinRPCs` plus the
 streaming prefixes and reports no pipe data and no plugin or local command.
 
 ### 8.2 The wiki is already generated, and it is still wrong
 
-`make ze-wiki-commands-update` pipes `ze help command --json` through
-`scripts/dev/gen_wiki_commands.py` into `../wiki/command-catalog.md`. The
+`./le wiki-catalog update` pipes `ze help command --json` through
+the retired `scripts/dev/gen_wiki_commands.py` (current producer: `internal/le/wikicatalog/render.go`) into `../wiki/command-catalog.md`. The
 machinery the owner wants exists.
 
 It publishes a hand-typed operator list, and it publishes it on every command:
@@ -570,7 +570,7 @@ because the head is written by the producer on every answer.
 
 ### 9.5 The page is generated, and a gate fails when the product and the page disagree
 
-`make ze-wiki-commands-update` already generates the wiki catalog from
+`./le wiki-catalog update` already generates the wiki catalog from
 `ze help command --json`. The work is to make the JSON carry the answer and the
 generator carry none of it.
 
@@ -581,9 +581,9 @@ generator carry none of it.
 | the wiki page | `gen_wiki_commands.py` prints the list it is given and holds no literal |
 | the website | `website/tools/render-cli-catalog.py` already consumes the same JSON and renders no pipe information at all. It renders this |
 | the docs pages | `docs/features/formatting.md` keeps the prose and takes the operator table from a generated include. Every other page links to it rather than re-listing |
-| the gate | `ze-doc-verify` already runs `doc_drift.go`, which compares documentation claims against the registry. It grows one check: every operator name in `docs/` and in the wiki is in the exported set, and no command's published list disagrees with what the command declares |
+| the gate | `./le doc-check verify` already runs `doc_drift.go`, which compares documentation claims against the registry. It grows one check: every operator name in `docs/` and in the wiki is in the exported set, and no command's published list disagrees with what the command declares |
 
-`ze-doc-verify` is the right home because it already owns "docs claims vs
+`./le doc-check verify` is the right home because it already owns "docs claims vs
 registry" and already fails a build. A new parallel generator would be a sixth
 copy of the problem this section exists to end.
 
@@ -594,7 +594,7 @@ copy of the problem this section exists to end.
 The population is the 465 paths of `plan/audit-command-pipe-vs-subcommand.md`,
 re-derived here only for the local registry (46 production paths from
 `MustRegisterLocal` and `MustRegisterLocalMeta` literals outside `_test.go`).
-`make ze-command-list` was not used, for the reason that audit records.
+`./le command-list` was not used, for the reason that audit records.
 
 A `ze` binary was built from this tree with the repository's feature tags and
 driven two ways. `ze pipe` ran the operator chain over fixed JSON with no daemon,

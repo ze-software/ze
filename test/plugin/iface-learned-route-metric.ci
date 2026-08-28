@@ -35,7 +35,7 @@
 #
 # needs-linux:caps=net-admin: creating a dummy device and installing routes needs
 # CAP_NET_ADMIN, which the verify runner does not have. Runs as root under
-# `make ze-qemu-needs-linux-test`.
+# `./le qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the device zermetric0, the address block
 # 198.51.100.192/28, and the destination 203.0.113.192/28. Nothing else under
@@ -43,7 +43,7 @@
 # removes both routes with it.
 #
 # The blocks are /28s because the plugin suite runs 8-wide
-# (ZE_PLUGIN_PARALLEL, mk/test-functional.mk) and the QEMU run gives every test
+# (ZE_PLUGIN_PARALLEL, internal/le/functional/budget.go) and the QEMU run gives every test
 # ONE namespace. This file used to claim 198.51.100.0/24 and 203.0.113.0/24 were
 # unique to it, and both claims were false: iface-route-protocol-name.ci
 # addressed the same /24 and installed two routes at 203.0.113.0/24, so the
@@ -51,7 +51,7 @@
 # Per-test /28s were the fix rather than option=netns-link, which
 # applyNetnsLinkGate (internal/test/runner/caps.go) SKIPS unless the per-test
 # netns launch mode is on -- that would take this test out of
-# `make ze-qemu-needs-linux-test` entirely. option=exclusive:group= is the other
+# `./le qemu all-tests` entirely. option=exclusive:group= is the other
 # route, and it serializes; it is for state that cannot be made unique, such as
 # the cos tests' real eth0.
 #
@@ -60,155 +60,11 @@
 # still resolves to the routes this test installed.
 option=needs-linux:caps=net-admin
 
-tmpfs=iface-learned-route-metric.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Install a static route, then a learned one at ze's own metric, and assert
-both survive with the static one forwarding.
-
-Setup goes through `ip route replace`, the same verb (*netlinkBackend).AddRoute
-uses, so the ownership question this test asks is the one the daemon asks the
-kernel. The read goes through ze-plugin-engine:dispatch-command, which is the
-path an operator's `show route` takes.
-"""
-
-import re
-import subprocess
-import sys
-
-from ze_api import API
-from ze_api import result_json_data
-from ze_api import runtime_fail
-
-DEV = "zermetric0"
-# Per-test /28s: the suite runs 8-wide in one namespace, so a shared /24 lets a
-# sibling's routes be counted as this test's. See the header.
-LOCAL = "198.51.100.193/28"
-STATIC_GW = "198.51.100.194"
-LEARNED_GW = "198.51.100.195"
-DEST = "203.0.113.192/28"
-PROBE = "203.0.113.197"
-# The metric a plain static route takes, and the one a learned route used to
-# land on. The whole defect is the two sharing it.
-STATIC_METRIC = 0
-IFACE_PROTO = "253"
-
-
-def run(args, check=True):
-    result = subprocess.run(args, capture_output=True, text=True, check=False)
-    if check and result.returncode != 0:
-        runtime_fail(f'{" ".join(args)}: exit {result.returncode}: {result.stderr.strip()}')
-    return result
-
-
-def learned_metric():
-    """Read the route-priority default out of the daemon's own schema."""
-    out = run(["ze", "schema", "show", "ze-iface-conf"]).stdout
-    leaf = re.search(r'leaf route-priority \{(?:[^{}]|\{[^{}]*\})*\}', out)
-    if leaf is None:
-        runtime_fail('ze schema show ze-iface-conf: no route-priority leaf in the schema')
-    default = re.search(r'default (\d+);', leaf.group(0))
-    if default is None:
-        runtime_fail(f'route-priority declares no default: {leaf.group(0)}')
-    return int(default.group(1))
-
-
-def dispatch(api, command):
-    try:
-        resp = api._call_engine(
-            'ze-plugin-engine:dispatch-command', {'command': command})
-    except Exception as e:  # unwired command -> loud RED, never a vacuous pass
-        return {'status': 'error', 'error': f'engine call raised: {e}'}
-    if resp is None:
-        return {'status': 'error', 'error': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def routes_for(api, dest):
-    resp = dispatch(api, f'show route {dest}')
-    if resp.get('status') != 'done':
-        runtime_fail(
-            f'show route {dest}: expected status=done, got status={resp.get("status")!r} '
-            f'error={resp.get("error")!r}')
-    data = result_json_data(resp, None)
-    if not isinstance(data, dict):
-        runtime_fail(f'show route {dest}: expected an object, got {data!r}')
-    return [r for r in (data.get('routes') or []) if r.get('destination') == dest]
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    metric = learned_metric()
-    if metric == STATIC_METRIC:
-        runtime_fail(
-            f'ze installs learned routes at metric {metric}, the metric a static route '
-            f'takes: a learned default route will replace the operator\'s')
-
-    try:
-        run(["ip", "link", "add", DEV, "type", "dummy"])
-        run(["ip", "address", "add", LOCAL, "dev", DEV])
-        run(["ip", "link", "set", DEV, "up"])
-
-        # The operator's static route, as internal/plugins/static programs it.
-        run(["ip", "route", "replace", DEST, "via", STATIC_GW, "dev", DEV,
-             "proto", "static", "metric", str(STATIC_METRIC)])
-        # The learned route, as (*netlinkBackend).AddRoute programs it.
-        run(["ip", "route", "replace", DEST, "via", LEARNED_GW, "dev", DEV,
-             "proto", IFACE_PROTO, "metric", str(metric)])
-
-        found = routes_for(api, DEST)
-        by_metric = {r.get('metric'): r for r in found}
-        if len(by_metric) != 2:
-            runtime_fail(
-                f'{DEST}: expected two routes, one static and one learned, got {found!r}')
-
-        static_route = by_metric.get(STATIC_METRIC)
-        if static_route is None:
-            runtime_fail(f'{DEST}: the static route at metric {STATIC_METRIC} is gone: {found!r}')
-        if static_route.get('nexthop') != STATIC_GW:
-            runtime_fail(
-                f'{DEST}: the static route now points at {static_route.get("nexthop")!r}, '
-                f'not {STATIC_GW!r}: the learned install took its gateway')
-        if static_route.get('protocol') != 'static':
-            runtime_fail(
-                f'{DEST}: the static route reads protocol {static_route.get("protocol")!r}: '
-                f'the learned install re-stamped it')
-
-        learned = by_metric.get(metric)
-        if learned is None:
-            runtime_fail(f'{DEST}: the learned route at metric {metric} is absent: {found!r}')
-        if learned.get('nexthop') != LEARNED_GW or learned.get('protocol') != 'ze-iface':
-            runtime_fail(f'{DEST}: wrong learned route: {learned!r}')
-
-        # The lower metric forwards. This is the operator's route.
-        chosen = run(["ip", "route", "get", PROBE]).stdout
-        if f'via {STATIC_GW}' not in chosen:
-            runtime_fail(
-                f'{PROBE} is forwarded through {chosen.strip()!r}, not via the static '
-                f'route\'s gateway {STATIC_GW}')
-
-        print(f'OK: static route (metric {STATIC_METRIC}) and learned route '
-              f'(metric {metric}) coexist, static forwards', file=sys.stderr)
-    finally:
-        run(["ip", "link", "del", DEV], check=False)
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-learned-route-metric {
-		run ./iface-learned-route-metric.run
+		run "ze-test fixture plugin/iface-learned-route-metric"
 		encoder json
 	}
 }

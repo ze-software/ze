@@ -3,7 +3,7 @@ package deployment
 // The VPP interface proof, driven as functions.
 //
 // Goal: pin the parts of the run that the argv comparison beside the script
-// (scripts/evidence/vpp_iface_parity_test.go) cannot reach. These parts are the
+// (internal/le/deployment/vppiface_test.go) cannot reach. These parts are the
 // scenario table's own invariants, the container and daemon arguments and the
 // rule that a probe uses to produce an answer. Method: call each builder and
 // read what it answers, with no Docker and no container anywhere.
@@ -18,7 +18,7 @@ import (
 
 // fixtureVPPIface answers a run over a checkout carrying the one file the build
 // tags derive from.
-func fixtureVPPIface(t *testing.T) *VPPIface {
+func fixtureVPPIface(t *testing.T) *vppIface {
 	t.Helper()
 
 	tree := t.TempDir()
@@ -27,7 +27,7 @@ func fixtureVPPIface(t *testing.T) *VPPIface {
 		t.Fatalf("write the fixture manifest: %v", err)
 	}
 
-	return &VPPIface{
+	return &vppIface{
 		Tree: tree, Image: VPPImage, Platform: VPPPlatform, Goarch: VPPGoarch,
 		SocketWait: VPPSocketWait, ScenarioWait: VPPScenarioWait, Progress: io.Discard,
 	}

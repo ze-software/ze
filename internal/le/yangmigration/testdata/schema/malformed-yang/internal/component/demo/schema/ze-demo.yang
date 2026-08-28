@@ -1,0 +1,3 @@
+module ze-demo {
+  namespace "urn:demo";
+  prefix demo;

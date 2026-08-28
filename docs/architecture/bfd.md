@@ -219,9 +219,9 @@ deliberate:
 
 | Looks like | Actual reason |
 |-----------|---------------|
-| `type Machine struct` instead of `type Session struct` in `session/` | The project-wide hook rejects duplicate type names; `session.Session` would have collided with `internal/component/bgp/reactor/session.go`. |
-| `type Loop struct` instead of `type Engine struct` in `engine/` | Same reason: `internal/component/engine/engine.go` owns `Engine`. `engine.Loop` reads fine because the package name is `engine`. |
-| `trySendStateChange` uses a `len/cap` precheck instead of `select { case ch <- ...: default: }` | The `block-silent-ignore.sh` hook refuses bare `default:` in `select`. The precheck is race-free because the express loop is the only writer — the invariant is documented on `Loop`. If a future refactor adds a second writer, switch to an explicit `select`/`default` and accept the hook re-work. |
+| `type Machine struct` instead of `type Session struct` in `session/` | `Machine` names the BFD state machine directly and avoids a second `Session` identity beside `internal/component/bgp/reactor.Session`. |
+| `type Loop struct` instead of `type Engine struct` in `engine/` | `Loop` names the scheduled express loop and distinguishes it from `internal/component/engine.Engine`. |
+| `trySendStateChange` uses a `len/cap` precheck instead of `select { case ch <- ...: default: }` | The precheck is race-free because the express loop is the only writer, and the invariant is documented on `Loop`. If a future refactor adds a second writer, use an explicit non-blocking send and document how a full channel is handled. |
 | `packet.Buf` wraps `*[]byte` in a struct instead of using raw `[]byte` | `sync.Pool.Put(&buf)` escapes a fresh 24-byte slice header per call if you pass `[]byte`. Wrapping in a struct carried as a value lets the same `*[]byte` round-trip through the pool. The benchmark `BenchmarkRoundTrip` measures 0 B/op; any refactor that returns to raw `[]byte` will regress it. |
 | `firstPacketKey` excludes `Local` from the tuple | Per RFC 5880 §6.8.6, the receiver cannot reliably observe the peer's chosen source address; it learns it from the packet. The first-packet index key MUST match what the transport actually surfaces on `Inbound`, which is `(peer=src_addr, vrf, iface, mode)`. |
 | `allocateDiscriminatorLocked` walks the counter instead of using a random value | Deterministic for tests and trivially debuggable. Swap to CSPRNG seeding only if a deployment asks for it. |

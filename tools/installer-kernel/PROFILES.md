@@ -2,7 +2,7 @@
 
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
-<!-- source: tools/kernel-builder/build.py -- main -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 A profile is valid when both files exist in `tools/installer-kernel/`:
 
@@ -45,11 +45,11 @@ and profile fragments. This single-sources a Kconfig subset that more than one
 profile needs: the `efi-console` fragment carries the verified-identical Fintek
 serial + EFI framebuffer console symbols shared by the runtime kernel and the
 installer `hardware` profile. Each profile keeps its own divergent symbols local.
-A shared fragment ships a paired `.require` (which may be empty); both the Go
-resolver and the `run.py` driver expand the same include to the same fragment
-set, and removing a shared fragment fails resolution rather than silently
-dropping its symbols.
+A shared fragment ships a paired `.require` (which may be empty); the native Go
+resolver expands the include into one ordered fragment set, and removing a
+shared fragment fails resolution rather than silently dropping its symbols.
 
-`ze appliance kernel --profile <name>` is the verified path. It resolves the registry in Go (base + `# ze-base:` + `# ze-include:`), calls the builder with explicit fragment order, reads `build/config`, and fails if any manifest symbol or universal installer floor symbol did not resolve to `=y`.
-
-Raw `make -C tools/installer-kernel PROFILE=<name>` builds without first building `ze`; it calls `tools/kernel-builder/run.py` (the single shared driver), which performs the same fragment resolution but no Go-side verification.
+`ze appliance kernel --profile <name>` resolves the registry in Go (base +
+`# ze-base:` + `# ze-include:`), calls the compiled builder with explicit
+fragment order, reads the resolved config, and fails if any manifest symbol or
+universal installer floor symbol did not resolve to `=y`.

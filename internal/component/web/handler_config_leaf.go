@@ -19,7 +19,7 @@ func buildBreadcrumbs(path []string) []BreadcrumbSegment {
 	crumbs := make([]BreadcrumbSegment, 0, len(path))
 
 	for i, seg := range path {
-		url := "/show/" + textbuf.Join(path[:i+1], "/") + "/"
+		url := showPathPrefix + textbuf.Join(path[:i+1], "/") + "/"
 		crumbs = append(crumbs, BreadcrumbSegment{
 			Name:   seg,
 			URL:    url,
@@ -128,25 +128,24 @@ func configViewComponent(kind config.NodeKind, v *ConfigViewData) templ.Componen
 		return configContainer(v)
 	}
 
+	// A node kind added without a case above lands here. configContainer renders
+	// the node's LeafFields and Children, which is the closest correct markup an
+	// unknown kind can get, and the warning names the kind so the missing case is
+	// findable. The caller used to test this return for nil to reach that warning,
+	// which never fired: every branch of this function returns a component.
+	serverLogger.Warn("config node kind has no view component",
+		"kind", nodeKindString(kind), "path", v.CurrentPath)
+
 	return configContainer(v)
 }
 
 // renderConfigContent renders the config view of one node.
 //
-// The nil branch is unreachable today: configViewComponent answers a component
-// for every node kind. It stays because a node kind added without a case would
-// otherwise render an empty panel with nothing said about it, which is the
-// defect this function used to carry for two of the six kinds.
+// EVERY node kind reaches markup, so there is no empty-panel branch here.
+// configViewComponent warns and falls back to configContainer for a kind it
+// does not name.
 func renderConfigContent(renderer *Renderer, v *ConfigViewData) template.HTML {
-	component := configViewComponent(v.NodeKind, v)
-	if component == nil {
-		serverLogger.Warn("config node kind has no view component",
-			"kind", nodeKindString(v.NodeKind), "path", v.CurrentPath)
-
-		return ""
-	}
-
-	return renderer.renderComponent("config view", component)
+	return renderer.renderComponent("config view", configViewComponent(v.NodeKind, v))
 }
 
 // nodeKindString returns a human-readable kind string for display.

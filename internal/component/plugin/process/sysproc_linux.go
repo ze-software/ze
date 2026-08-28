@@ -12,7 +12,7 @@ import "syscall"
 // Pdeathsig=SIGKILL guarantees the plugin dies when ze dies: if ze crashes,
 // SIGKILLs out of turn, or is killed from outside, the kernel signals every
 // child that was started with Pdeathsig. Without this, crashed-ze leaves
-// long-running external plugins (e.g. test/plugin/lg-graph-lab/lg-lab.run)
+// long-running external helpers (for example the compiled looking-glass lab)
 // reparented to init, where they can hold inherited resources (lock fds,
 // Unix sockets) for hours before an operator reaps them by hand. The
 // matching non-Linux file is sysproc_other.go; Pdeathsig is a Linux-only

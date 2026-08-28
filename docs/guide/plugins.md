@@ -785,30 +785,18 @@ plugin {
 
 ## Writing External Plugins
 
-External plugins communicate with ze using the same newline-framed YANG RPC protocol as internal plugins: `#<id> <verb> [json]`. External processes connect back to the plugin hub over TLS using the `ZE_PLUGIN_HUB_*` environment variables set by the engine. The Go SDK in `pkg/plugin/sdk` is the reference implementation; the functional-test helper `test/scripts/ze_api.py` shows the Python shape:
+External plugins communicate with Ze through the same newline-framed YANG RPC
+protocol as internal plugins: `#<id> <verb> [json]`. External processes connect
+to the plugin hub over TLS with the `ZE_PLUGIN_HUB_*` environment supplied by
+the engine. The Go SDK in `pkg/plugin/sdk` is the reference implementation. A
+plugin written in another language implements the same documented wire
+protocol; no first-party Python launcher or helper is required.
 
-```python
-from ze_api import API
-
-api = API()
-api.declare_done()
-api.wait_for_config()
-api.capability_done()
-api.wait_for_registry()
-api.subscribe(['update direction received'])
-api.ready()
-
-# Event loop
-while True:
-    event = api.read_line(timeout=1.0)
-    if event:
-        # process event JSON
-        pass
-```
-
-See [plugin-development/protocol.md](../plugin-development/protocol.md) for the full protocol reference.
+See [plugin-development/protocol.md](../plugin-development/protocol.md) for the
+protocol and [`examples/plugin/go`](../../examples/plugin/go/) for a complete
+plugin.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
-<!-- source: test/scripts/ze_api.py -- API YANG RPC client -->
+<!-- source: examples/plugin/go/main.go -- main -->
 
 ### Answering a command with rows
 

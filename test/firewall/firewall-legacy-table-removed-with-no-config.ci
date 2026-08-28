@@ -46,78 +46,6 @@ option=env:var=ze.log.firewall:value=info
 option=env:var=ze.log.flowspec.firewall:value=info
 option=timeout:value=40s
 
-tmpfs=seed.sh:mode=755:terminator=EOF_SEED
-#!/bin/sh
-# Two tables, and ze must tell them apart on chain shape alone.
-#
-#   inet flowspec       what a ze build before the ownership prefix wrote:
-#                       its name, its family, and a chain it wrote.
-#   ip anomaly-shape    another tool's table. The name and family are ones ze
-#                       used too, and the chain is one ze never wrote.
-set -e
-nft add table inet flowspec
-nft add chain inet flowspec flowspec-fwd '{ type filter hook forward priority -1 ; policy accept ; }'
-nft add rule inet flowspec flowspec-fwd ip daddr 198.51.100.0/24 drop
-
-nft add table ip anomaly-shape
-nft add chain ip anomaly-shape forward '{ type filter hook forward priority -1 ; policy accept ; }'
-nft add rule ip anomaly-shape forward ip daddr 203.0.113.0/24 drop
-
-nft list ruleset
-EOF_SEED
-
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""The stale table goes, the other tool's table stays."""
-import os
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-if not wait_until(
-    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-    attempts=400,
-    delay=0.05,
-):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    daemon_pid = int(f.read().strip())
-
-state = {"ruleset": ""}
-
-
-def ruleset():
-    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
-    state["ruleset"] = snap.stdout
-    return snap.stdout
-
-
-def swept():
-    return "table inet flowspec {" not in ruleset()
-
-
-ok = wait_until(swept, attempts=300, delay=0.1)
-
-final = state["ruleset"]
-sys.stdout.write(final)
-os.kill(daemon_pid, signal.SIGTERM)
-
-if not ok:
-    sys.exit("the table an older ze build wrote survived a daemon with no firewall config")
-if "198.51.100.0/24" in final:
-    sys.exit("the rule an older ze build installed is still enforcing")
-
-# The other tool's table is the positive half: a run that deleted nothing
-# reaches neither of these lines, and a run that deleted everything fails here.
-if "table ip anomaly-shape {" not in final:
-    sys.exit("ze deleted a table another tool owns, matching on the name alone")
-if "203.0.113.0/24" not in final:
-    sys.exit("ze deleted another tool's rule")
-EOF_PY
-
 stdin=ze-bgp:terminator=EOF_CONF
 # No firewall section and no peer. The bridge is loaded and silent.
 plugin {
@@ -127,9 +55,9 @@ plugin {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=sh seed.sh
+cmd=foreground:seq=1:exec=ze-test fixture firewall/firewall-legacy-table-removed-with-no-config-seed
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=35s
+cmd=foreground:seq=3:exec=ze-test fixture firewall/firewall-legacy-table-removed-with-no-config:timeout=35s
 expect=exit:code=0
 # The survivor, printed from the settled ruleset.
 expect=stdout:contains=table ip anomaly-shape

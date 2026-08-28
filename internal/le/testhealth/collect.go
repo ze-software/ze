@@ -117,13 +117,13 @@ func orphanMetric(scan testsensitivity.Result, floors sensitivityFloors) Metric 
 	return Metric{
 		Key:      keyTagOrphan,
 		Question: "Q3",
-		Label:    "Test files no `go test` target can build",
+		Label:    "Test files no native test action can build",
 		Status:   ratchetStatus(len(scan.TagOrphan), floors.tagOrphan),
 		Value:    value,
-		Detail: "Their build tags are supplied by no go test invocation in Makefile or mk/*.mk, " +
-			"so these tests exist but never run.",
-		Action: "Add the tag to a go test invocation, or delete the file. Either way the " +
-			"false inventory shrinks.",
+		Detail: "No registered Go test action supplies these build tags, so the " +
+			"tests exist but never run.",
+		Action: "Add the tag to a native Go test action, or delete the file. " +
+			"Either way the false inventory shrinks.",
 		Data: data,
 	}
 }
@@ -196,129 +196,6 @@ func collectInventory(t *tree) (Metric, error) {
 			"because a count that silently includes vendored tests inflates by ~6x.",
 		Data: data,
 	}, nil
-}
-
-// mutationAction is the one remedy every unmeasured mutation branch names.
-const mutationAction = "Run `make ze-mutation-test-changed`, then `make ze-test-health-record`."
-
-// unknownMutation answers the row for a mutation history that measured nothing.
-func unknownMutation(detail string) Metric {
-	return Metric{
-		Key:      keyMutation,
-		Question: "Q1",
-		Label:    "Mutation kill rate",
-		Status:   statusUnknown,
-		// The value word and the status word are the same word here on
-		// purpose: the page prints "**unknown** (unknown)" for a sensor that
-		// measured nothing, which is what makes it unmistakable.
-		Value:  statusUnknown,
-		Detail: detail,
-		Action: mutationAction,
-	}
-}
-
-// collectMutation answers the mutation kill rate from the committed history.
-//
-// The recorder is advisory and records nothing when the mutation report is
-// missing, so an absent series means "not measured", never "score zero".
-func collectMutation(t *tree, floors qualityFloors) (Metric, error) {
-	var tb textbuf.Buffer
-	if !exists(filepath.Join(t.root, filepath.FromSlash(mutationHistory))) {
-		return unknownMutation(tb.Str(mutationHistory).
-			Str(" does not exist; no mutation run has been recorded.").String()), nil
-	}
-
-	body, err := t.readBody(mutationHistory)
-	if err != nil {
-		return Metric{}, err
-	}
-	rows, err := parseNDJSON(body, mutationHistory)
-	if err != nil {
-		return Metric{}, err
-	}
-	if len(rows) == 0 {
-		return unknownMutation(tb.Str(mutationHistory).Str(" is empty.").String()), nil
-	}
-
-	// Latest sample per package, so a package measured twice is not double
-	// counted. The order is the order each package was FIRST seen, which is
-	// what a Python dict keeps when a key is re-assigned.
-	order := make([]string, 0, len(rows))
-	latest := make(map[string]object, len(rows))
-	for index, row := range rows {
-		name, ok := row.get("package").(string)
-		if !ok || name == "" {
-			return Metric{}, collectErrorf(
-				"%s line %d has no 'package'; rows without one would all collapse into a "+
-					"single bucket and silently overwrite each other", mutationHistory, index+1)
-		}
-		if _, seen := latest[name]; !seen {
-			order = append(order, name)
-		}
-		latest[name] = row
-	}
-
-	mutants, mutantsInt := sumField(order, latest, "mutants")
-	killed, killedInt := sumField(order, latest, "killed")
-	if mutants == 0 {
-		return unknownMutation(tb.Str(mutationHistory).Str(" records ").Int(int64(len(latest))).
-			Str(" package(s) but zero mutants; nothing was actually measured.").String()), nil
-	}
-
-	kill := ratioOf(killed, killedInt, mutants, mutantsInt)
-	return mutationMetric(order, latest, rows, kill, floors), nil
-}
-
-// mutationMetric renders the measured mutation row.
-func mutationMetric(order []string, latest map[string]object, rows []object,
-	kill object, floors qualityFloors,
-) Metric {
-	// The ten weakest packages, by the score each row states. A row with no
-	// numeric score ranks as a perfect one, which is the script's own reading
-	// and is preserved: the list is a display slice, and changing the ranking
-	// would change the page while the two halves run side by side.
-	ranked := make([]string, len(order))
-	copy(ranked, order)
-	sort.SliceStable(ranked, func(i, j int) bool {
-		return scoreOf(latest[ranked[i]]) < scoreOf(latest[ranked[j]])
-	})
-
-	worst := make([]any, 0, 10)
-	for index, name := range ranked {
-		if index >= 10 {
-			break
-		}
-		entry := object{}
-		entry.set("package", latest[name].get("package"))
-		entry.set("score", latest[name].get("score"))
-		worst = append(worst, entry)
-	}
-
-	data := object{}
-	data.set("kill_rate", kill)
-	data.set("packages_measured", len(latest))
-	data.set("samples", len(rows))
-	data.set("worst", worst)
-
-	var tb textbuf.Buffer
-	value := tb.Str(valueText(kill.get("numerator"))).Str(" / ").
-		Str(valueText(kill.get("denominator"))).String()
-	tb.Reset()
-	detail := tb.Str(valueText(percentOf(kill))).Str("% across ").Int(int64(len(latest))).
-		Str(" of the repository's packages. Mutation operators are biased toward arithmetic, " +
-			"conditionals and returns, and are nearly blind to concurrency and wire-format semantics.").
-		String()
-
-	return Metric{
-		Key:      keyMutation,
-		Question: "Q1",
-		Label:    "Mutants killed, latest sample per package",
-		Status:   floors.status(keyMutation, percentOf(kill)),
-		Value:    value,
-		Detail:   detail,
-		Action:   "Take the lowest-scoring package and add tests until its survivors die.",
-		Data:     data,
-	}
 }
 
 // collectSleepRatchet answers the .ci sleep ratchet headroom. Sleeps hide the

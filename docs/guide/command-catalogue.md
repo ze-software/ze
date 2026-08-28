@@ -10,11 +10,10 @@ This is a historical roadmap seed, not a user reference and not the current
 cross-vendor migration surface. For what ze ships today, see
 `docs/guide/command-reference.md`. For generated Ze-to-vendor lookup, use the
 [website Command Equivalents page](https://ze-software.net/reference/command-equivalents/).
-Code-tree readers can inspect the maintained data and generator in `website/`:
-[`data/command-equivalents.json`](https://github.com/ze-software/ze/blob/main/website/data/command-equivalents.json)
-and
-[`tools/render-command-equivalents.py`](https://github.com/ze-software/ze/blob/main/website/tools/render-command-equivalents.py).
-<!-- source: website/tools/render-command-equivalents.py -- load_inputs, build_rows -->
+Code-tree readers can inspect the curated mapping in
+[`website/data/command-equivalents.json`](https://github.com/ze-software/ze/blob/main/website/data/command-equivalents.json).
+The native renderer joins it with the live command registry.
+<!-- source: internal/le/docvalid/command_render.go -- RenderCommandSurfaces -->
 <!-- source: website/data/command-equivalents.json -- vendor mapping -->
 
 ## How to read this

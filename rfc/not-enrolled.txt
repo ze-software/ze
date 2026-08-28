@@ -3,7 +3,7 @@
 # columns: <rfc-stem>\t<kind>\t<why>
 #
 # This file is the sibling of rfc/enrolled.txt and the two PARTITION rfc/short/*.md: every
-# summary is in exactly one of them. check_summary_disposition (scripts/dev/rfc_requirements.py)
+# summary is in exactly one of them. internal/le/rfc.Check
 # reds the gate on a summary in neither, on a stem in both, and on a row naming a summary that
 # does not exist. Nine summaries once sat outside every check with no recorded reason, and
 # nothing distinguished "the RFC imposes nothing" from "nobody extracted it" from "we do not

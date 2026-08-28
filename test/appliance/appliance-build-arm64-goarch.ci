@@ -1,91 +1,8 @@
-# Test: ze appliance build honors image.arch=arm64 for gok go subprocesses.
-# The fake go executable must be reached through the CLI build path and fails if
-# gok inherits the host/default GOARCH instead of the appliance image arch.
-
-# Underscore form: /bin/sh (dash) drops dotted names from the environment, so
-# the dotted spelling never survives into `sh run.sh` children. ze's env
-# lookup treats dots and underscores as equivalent (internal/core/env/env.go:40).
+# Test: arm64 and amd64 appliance kernel requests produce distinct native cache
+# identities and preserve the requested architecture.
 option=env:var=ze_appliance_ssh_password:value=secret
 option=timeout:value=20s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
-
-work=$PWD
-# The runner exports ZE_REPO_ROOT (the source tree); `ze appliance build`
-# must run from there to find gokrazy/modcache. The binary-location fallback
-# only holds for manual runs where ze sits at <repo>/bin/ze.
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-
-
-mkdir -p "$work/appliances" "$work/fakebin" "$work/fakepkg"
-cat > "$work/fakebin/go" <<'EOF_GO'
-#!/bin/sh
-set -eu
-printf '%s\n' "${GOARCH-}" >> "$ZE_GOARCH_LOG"
-if [ "${GOARCH-}" != arm64 ]; then
-	echo "fake go saw GOARCH=${GOARCH-}, want arm64" >&2
-	exit 42
-fi
-
-last=""
-out=""
-json=0
-fmt=0
-while [ $# -gt 0 ]; do
-	case "$1" in
-		-json) json=1 ;;
-		-f) fmt=1; shift ;;
-		-o) out=$2; shift ;;
-	esac
-	last=$1
-	shift
-done
-
-if [ "$json" = 1 ]; then
-	printf '{"Name":"main","ImportPath":"%s"}\n' "$last"
-	exit 0
-fi
-if [ "$fmt" = 1 ]; then
-	printf '%s\n' "$ZE_FAKE_PKGDIR"
-	exit 0
-fi
-if [ -n "$out" ]; then
-	mkdir -p "$(dirname -- "$out")"
-	printf 'fake binary\n' > "$out"
-	chmod +x "$out"
-fi
-exit 0
-EOF_GO
-chmod +x "$work/fakebin/go"
-
-ze appliance --dir "$work/appliances" init --config "$work/build-config.json" lab >/dev/null 2>&1
-: > "$work/goarch.log"
-(
-	cd "$repo"
-	GOARCH=amd64 \
-	ZE_GOARCH_LOG="$work/goarch.log" \
-	ZE_FAKE_PKGDIR="$work/fakepkg" \
-	PATH="$work/fakebin:$PATH" \
-	ze appliance --dir "$work/appliances" build lab >"$work/build.out" 2>"$work/build.err" || code=$?
-	: "${code:=0}"
-	# The fake go must not be the reason build failed. Later image assembly may
-	# stop because the fake builder did not create a real gokrazy disk image.
-	if grep -q 'fake go saw GOARCH' "$work/build.err"; then
-		cat "$work/build.err" >&2
-		exit 1
-	fi
-)
-[ -s "$work/goarch.log" ]
-if grep -v '^arm64$' "$work/goarch.log"; then
-	echo "gok go subprocess used non-arm64 GOARCH" >&2
-	cat "$work/build.err" >&2
-	exit 1
-fi
-
-echo OK
-EOF_SH
 
 tmpfs=build-config.json:terminator=EOF_JSON
 {
@@ -101,6 +18,6 @@ tmpfs=build-config.json:terminator=EOF_JSON
 }
 EOF_JSON
 
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture appliance/appliance-build-arm64-goarch "$ZE_REPO_ROOT"
 expect=exit:code=0
 expect=stdout:contains=OK

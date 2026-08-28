@@ -264,11 +264,11 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 	rates := iface.ListRates()
 
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: "Name", Sortable: true},
+		{Key: "name", Label: labelName, Sortable: true},
 		{Key: "type", Label: "Type", Sortable: true},
 		{Key: "state", Label: "Link State", Sortable: true},
-		{Key: "mtu", Label: "MTU", Sortable: true},
-		{Key: "mac", Label: "MAC"},
+		{Key: "mtu", Label: labelMTU, Sortable: true},
+		{Key: "mac", Label: labelMAC},
 		{Key: "addresses", Label: "Addresses"},
 		{Key: "rx-bps", Label: "RX bps", Sortable: true},
 		{Key: "tx-bps", Label: "TX bps", Sortable: true},
@@ -323,7 +323,7 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 			FlagClass: flagClass,
 			Cells:     []string{info.Name, info.Type, info.State, strconv.Itoa(info.MTU), mac, addrStr, rxBps, txBps, rxPps, txPps},
 			Actions: []WorkbenchRowAction{
-				{Label: "Detail", URL: detailURL},
+				{Label: labelDetail, URL: detailURL},
 			},
 		})
 	}
@@ -391,7 +391,7 @@ func buildInterfaceDetailData(renderer *Renderer, info *iface.InterfaceInfo) Wor
 	return WorkbenchDetailData{
 		Title:    info.Name,
 		Tabs:     tabs,
-		CloseURL: "/show/iface/",
+		CloseURL: ifacePathPrefix,
 		Tools:    tools,
 	}
 }
@@ -433,12 +433,12 @@ func ifaceCountersURL(name string) string {
 
 func buildDetailConfigHTML(renderer *Renderer, info *iface.InterfaceInfo) template.HTML {
 	rows := []detailKV{
-		{Key: "Name", Value: info.Name},
+		{Key: labelName, Value: info.Name},
 		{Key: "Type", Value: info.Type},
-		{Key: "MTU", Value: strconv.Itoa(info.MTU)},
+		{Key: labelMTU, Value: strconv.Itoa(info.MTU)},
 	}
 	if info.MAC != "" {
-		rows = append(rows, detailKV{Key: "MAC", Value: info.MAC})
+		rows = append(rows, detailKV{Key: labelMAC, Value: info.MAC})
 	}
 
 	rows = append(rows, detailKV{Key: "Admin State", Value: info.State})

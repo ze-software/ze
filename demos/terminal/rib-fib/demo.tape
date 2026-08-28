@@ -4,17 +4,17 @@ Source common.tape
 Hide
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/rib-fib/config ZE_INIT_INPUT=/src/tmp/terminal-demos/state/rib-fib/init.input ZE_SSH_PASSWORD=secret123 SSHPASS=secret123"
 Enter
-Type "/src/demos/terminal/rib-fib/run.sh prepare"
+Type "ze-demo run rib-fib prepare"
 Enter
 Wait+Screen /RIB\/FIB demo prepared/
 Type "ze init < $ZE_INIT_INPUT >/dev/null"
 Enter
-Type "/src/demos/terminal/rib-fib/run.sh start"
+Type "ze-demo run rib-fib start"
 Enter
 Wait+Screen /RIB\/FIB demo ready/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh rib-fib intro"
+Type "ze-demo card rib-fib intro"
 Enter
 Show
 Wait+Screen /====/
@@ -40,7 +40,7 @@ Sleep 6s
 Hide
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh rib-fib recap"
+Type "ze-demo card rib-fib recap"
 Enter
 Show
 Sleep 9s

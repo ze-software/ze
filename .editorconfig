@@ -18,11 +18,7 @@ indent_size = 4
 [*.go]
 indent_style = tab
 
-# make requires a tab before every recipe line.
-[{Makefile,*.mk}]
-indent_style = tab
-
-# Functional test scripts embed shell heredocs and expected output. The tabs
+# Functional test fixtures embed shell heredocs and expected output. The tabs
 # are part of the recorded text, so leave the trailing bytes alone.
 [*.ci]
 indent_style = tab
@@ -30,12 +26,6 @@ trim_trailing_whitespace = false
 
 [*.et]
 indent_size = 2
-
-[*.py]
-indent_size = 4
-
-[*.sh]
-indent_size = 4
 
 # YANG modules use 4 spaces per level: ai/rules/config.md, "YANG file layout".
 [*.yang]

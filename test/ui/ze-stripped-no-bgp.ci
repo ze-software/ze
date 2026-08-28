@@ -1,4 +1,5 @@
 # Test: a BGP-free binary still serves its non-BGP config surface, and rejects bgp.
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
 #
 # VALIDATES: spec-fixit-bgp-off-plugin-functional -- the claim that a bare
 # ze_core binary "links zero internal/component/bgp symbols and still runs the
@@ -13,8 +14,9 @@
 # in every default-on gate including ze_bgp, so it could never have detected the
 # non-BGP surface wrongly depending on BGP.
 #
-# Why ze-stripped: mk/test-functional.mk builds it with tags "ze_core ze_ssh",
-# so ze_bgp is off, and the runner puts that binary dir first on PATH -- which
+# Why ze-stripped: internal/le/functional/binaries.go builds it with tags
+# "ze_core ze_ssh", so ze_bgp is off. The runner puts that binary dir first on
+# PATH, which
 # is what lets this reach it by bare name, the same way ze-stripped-surface.ci
 # does. No new harness was needed; the spec assumed none existed.
 #
@@ -23,38 +25,6 @@
 # ALWAYS-ON half of the claim -- fib and static routes. Proving the MRT and
 # flow-export half needs a binary built with the default feature set MINUS
 # ze_bgp, which the functional harness does not build today. That stays open.
-
-tmpfs=run.py:terminator=EOF_PY
-import subprocess
-import sys
-
-
-def validate(path):
-    return subprocess.run(
-        ["ze-stripped", "config", "validate", path],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, check=False)
-
-
-def require(condition, message):
-    if not condition:
-        raise SystemExit(message)
-
-
-# 1. The non-BGP surface still parses on a binary with BGP compiled out.
-ok = validate("fib-static.conf")
-require(ok.returncode == 0,
-        f"fib+static config rejected by a BGP-free binary: rc={ok.returncode} out={ok.stdout!r}")
-require("valid" in ok.stdout, f"expected a validity report, got {ok.stdout!r}")
-
-# 2. And BGP really is absent. Without this, step 1 would pass just as well on a
-#    binary that still carried BGP, which is exactly the vacuity that made the
-#    pre-existing parse test unable to detect anything.
-bad = validate("with-bgp.conf")
-require(bad.returncode != 0,
-        f"a bgp block was ACCEPTED by a binary built without ze_bgp: out={bad.stdout!r}")
-
-print("ze-stripped: non-BGP surface valid, bgp rejected")
-EOF_PY
 
 tmpfs=fib-static.conf:terminator=EOF_FIB
 fib {
@@ -75,6 +45,6 @@ bgp {
 }
 EOF_BGP
 
-cmd=foreground:seq=1:exec=python3 run.py
+cmd=foreground:seq=1:exec=ze-test fixture ui/ze-stripped-no-bgp
 expect=exit:code=0
 expect=stdout:contains=non-BGP surface valid, bgp rejected

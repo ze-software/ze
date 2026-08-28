@@ -17,20 +17,20 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
-// VALIDATES: all six terminal-demo gates keep their names, reason text, and writes metadata.
+// VALIDATES: all six terminal-demo actions keep their names, reason text, and writes metadata.
 // PREVENTS: a port that claims a writing renderer as a read-only check, or drops one build action.
-func TestActionsCarryTheSixGateContracts(t *testing.T) {
+func TestActionsCarryTheSixActionContracts(t *testing.T) {
 	want := []struct {
-		gate   string
+		verb   string
 		writes bool
 		why    string
 	}{
-		{"ze-terminal-demo-check-all", false, "every demo the manifest declares has its published artifacts"},
-		{"ze-terminal-demo-validation-check-all", false, "each scenario's output validators pass, so a demo shows the product working"},
-		{"ze-terminal-demo-release-check-all", false, "the published artifacts carry this release identity, which is what a tag ships"},
-		{"ze-terminal-demo-binaries-build-ze", true, "the ze a demo drives, cross-built for the renderer container"},
-		{"ze-terminal-demo-binaries-build-ze-test", true, "the ze-test a demo drives, which carries ze_test alone and no version"},
-		{"ze-terminal-demo-render-all", true, "re-record every website demo from its checked-in tape"},
+		{"check-all", false, "every demo the manifest declares has its published artifacts"},
+		{"validation-check-all", false, "each scenario's output validators pass, so a demo shows the product working"},
+		{"release-check-all", false, "the published artifacts carry this release identity, which is what a tag ships"},
+		{"binaries-build-ze", true, "the ze a demo drives, cross-built for the renderer container"},
+		{"binaries-build-ze-test", true, "the ze-test a demo drives, which carries ze_test alone and no version"},
+		{"render-all", true, "re-record every website demo from its checked-in tape"},
 	}
 	got := Actions()
 	if got.Area != area {
@@ -41,11 +41,8 @@ func TestActionsCarryTheSixGateContracts(t *testing.T) {
 	}
 	for index, expected := range want {
 		row := got.Actions[index]
-		if row.Gate != expected.gate || row.Writes != expected.writes || row.Why != expected.why {
-			t.Errorf("action %d = %#v, want gate=%q writes=%t why=%q", index, row, expected.gate, expected.writes, expected.why)
-		}
-		if len(row.Forks) != 0 {
-			t.Errorf("%s still publishes a script fork: %v", row.Gate, row.Forks)
+		if row.Verb != expected.verb || row.Writes != expected.writes || row.Why != expected.why {
+			t.Errorf("action %d = %#v, want verb=%q writes=%t why=%q", index, row, expected.verb, expected.writes, expected.why)
 		}
 	}
 }
@@ -67,13 +64,29 @@ func TestBuildCommandsAreExact(t *testing.T) {
 	if !reflect.DeepEqual(ze.Args, wantZe) {
 		t.Errorf("ze argv = %#v, want %#v", ze.Args, wantZe)
 	}
-	if zeReport.Gate != "ze-terminal-demo-binaries-build-ze" {
-		t.Errorf("ze gate = %q", zeReport.Gate)
+	if zeReport.Action != "terminal-demo binaries-build-ze" {
+		t.Errorf("ze action = %q", zeReport.Action)
 	}
 	assertEnvironmentLast(t, ze.Env, "CGO_ENABLED", "0")
 	assertEnvironmentLast(t, ze.Env, "GOTOOLCHAIN", "go1.26.6")
 	assertEnvironmentLast(t, ze.Env, "GOOS", "linux")
 	assertEnvironmentLast(t, ze.Env, "GOARCH", "arm64")
+	helper := ptyBuildCommand(root, ze.Env)
+	wantHelper := []string{
+		"go", "build", "-o", filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-terminal-pty"),
+		"./cmd/ze-terminal-pty",
+	}
+	if !reflect.DeepEqual(helper.Args, wantHelper) {
+		t.Errorf("PTY helper argv = %#v, want %#v", helper.Args, wantHelper)
+	}
+	runtimeHelper := runtimeBuildCommand(root, ze.Env)
+	wantRuntimeHelper := []string{
+		"go", "build", "-o", filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-demo"),
+		"./demos/terminal/cmd/ze-demo",
+	}
+	if !reflect.DeepEqual(runtimeHelper.Args, wantRuntimeHelper) {
+		t.Errorf("demo runtime argv = %#v, want %#v", runtimeHelper.Args, wantRuntimeHelper)
+	}
 
 	zeTest, testReport := buildCommand(root, toolchain, "arm64", true)
 	wantTest := []string{
@@ -83,8 +96,8 @@ func TestBuildCommandsAreExact(t *testing.T) {
 	if !reflect.DeepEqual(zeTest.Args, wantTest) {
 		t.Errorf("ze-test argv = %#v, want %#v", zeTest.Args, wantTest)
 	}
-	if testReport.Gate != "ze-terminal-demo-binaries-build-ze-test" {
-		t.Errorf("ze-test gate = %q", testReport.Gate)
+	if testReport.Action != "terminal-demo binaries-build-ze-test" {
+		t.Errorf("ze-test action = %q", testReport.Action)
 	}
 	if slices.Contains(zeTest.Args, "-ldflags") {
 		t.Error("ze-test unexpectedly carries release ldflags")
@@ -128,25 +141,23 @@ func (f *demoFixture) writeTree(t *testing.T) {
 	mustWrite(t, filepath.Join(f.root, "docs", "guide", "gallery.md"), "gallery\n")
 	mustWrite(t, filepath.Join(f.root, "docs", "guide", "demo.md"), "demo\n")
 	demoRoot := filepath.Join(f.root, "demos", "terminal")
-	for _, name := range []string{
-		"common.tape", "cards.sh", "Dockerfile", "container-entrypoint.sh", "demo-lock.sh",
-		"validate-common.sh", "pty-session.py", "render.py", "screen.py",
-	} {
+	for _, name := range []string{"common.tape", "Dockerfile"} {
 		mustWrite(t, filepath.Join(demoRoot, name), name+"\n")
+	}
+	for _, relative := range nativeRecorderSources {
+		mustWrite(t, filepath.Join(f.root, filepath.FromSlash(relative)), relative+"\n")
 	}
 	mustWrite(t, filepath.Join(demoRoot, "term", "demo.tape"), "Source common.tape\nSleep 5s\nType show term\n")
 	mustWrite(t, filepath.Join(demoRoot, "term", "transcript.txt"), "Terminal session\n\n$ show term\n")
-	mustWrite(t, filepath.Join(demoRoot, "term", "validate.sh"), "validate terminal\n")
-	mustWrite(t, filepath.Join(demoRoot, "browser", "run.sh"), "browser driver\n")
+	mustWrite(t, filepath.Join(demoRoot, "browser", "run.cjs"), "browser driver\n")
 	mustWrite(t, filepath.Join(demoRoot, "browser", "transcript.txt"), "Browser session\n\n$ browser\n")
-	mustWrite(t, filepath.Join(demoRoot, "browser", "validate.sh"), "validate browser\n")
 	manifest := Manifest{
 		Schema:      manifestSchema,
 		Renderer:    Renderer{Name: "fixture", Version: "3", Image: "fixture-renderer:3", Platform: "linux/amd64"},
 		GalleryPage: "guide/gallery.md",
 		Demos: []Demo{
-			{ID: "term", Title: "Terminal", Description: "Terminal demo", Page: "guide/demo.md", Anchor: "terminal", Platform: "portable", Kind: "terminal", Engine: "Ze recorder", Source: "term/demo.tape", Validate: "term/validate.sh"},
-			{ID: "browser", Title: "Browser", Description: "Browser demo", Page: "guide/demo.md", Anchor: "browser", Platform: "portable", Kind: "browser", Engine: "Playwright", Source: "browser/run.sh", Validate: "browser/validate.sh", Duration: "10 seconds", Privileged: new(true)},
+			{ID: "term", Title: "Terminal", Description: "Terminal demo", Page: "guide/demo.md", Anchor: "terminal", Platform: "portable", Kind: "terminal", Engine: "Ze recorder", Source: "term/demo.tape", Validate: "term"},
+			{ID: "browser", Title: "Browser", Description: "Browser demo", Page: "guide/demo.md", Anchor: "browser", Platform: "portable", Kind: "browser", Engine: "Playwright", Source: "browser/run.cjs", Validate: "browser", Duration: "10 seconds", Privileged: new(true)},
 		},
 	}
 	writeJSON(t, filepath.Join(demoRoot, "manifest.json"), manifest)
@@ -181,7 +192,7 @@ func (f *demoFixture) execute(command Command) int {
 		return 0
 	}
 	entry := command.Args[len(command.Args)-1]
-	if strings.Contains(entry, "validate.sh") {
+	if len(command.Args) >= 2 && command.Args[len(command.Args)-2] == "validate" {
 		if f.failValidation != 0 {
 			return f.failValidation
 		}
@@ -229,6 +240,7 @@ func TestRenderAllRunsValidationAndPublishesExactArtifacts(t *testing.T) {
 	validation := fixture.commands[0].Args
 	assertSubsequence(t, validation, []string{"docker", "run", "--rm", "--platform", "linux/amd64", "--network", "none"})
 	assertSubsequence(t, validation, []string{"--env", "ZE_DEMO_LOCK_HELD=1"})
+	assertSubsequence(t, validation, []string{"fixture-renderer:3", "/src/tmp/terminal-demos/bin/ze-demo", "validate", "term"})
 	if containsPrefix(validation, "ZE_DEMO_RELEASE=") {
 		t.Errorf("validation received render release env: %v", validation)
 	}
@@ -255,7 +267,7 @@ func TestRenderAllRunsValidationAndPublishesExactArtifacts(t *testing.T) {
 		t.Errorf("output = %q", output.String())
 	}
 	before := mustRead(t, filepath.Join(fixture.artifacts, "manifest.json"))
-	if _, err := engine.CheckAll("26.08.27"); err != nil {
+	if _, err := engine.checkAll("26.08.27"); err != nil {
 		t.Fatalf("release check after render: %v", err)
 	}
 	after := mustRead(t, filepath.Join(fixture.artifacts, "manifest.json"))
@@ -293,9 +305,9 @@ func TestEveryModeFailsClosedOnTheManifestContract(t *testing.T) {
 		name string
 		run  func(*Engine) error
 	}{
-		{"check", func(engine *Engine) error { _, err := engine.CheckAll(""); return err }},
-		{"release-check", func(engine *Engine) error { _, err := engine.CheckAll("26.08.27"); return err }},
-		{"validation", func(engine *Engine) error { _, err := engine.ValidationCheckAll(); return err }},
+		{"check", func(engine *Engine) error { _, err := engine.checkAll(""); return err }},
+		{"release-check", func(engine *Engine) error { _, err := engine.checkAll("26.08.27"); return err }},
+		{"validation", func(engine *Engine) error { _, err := engine.validationCheckAll(); return err }},
 		{"render", func(engine *Engine) error { _, err := engine.RenderAll("26.08.27"); return err }},
 	} {
 		t.Run(mode.name, func(t *testing.T) {
@@ -324,11 +336,11 @@ func TestCheckRejectsReleaseAndSourceDrift(t *testing.T) {
 	if _, err := engine.RenderAll("26.08.27"); err != nil {
 		t.Fatalf("render fixture: %v", err)
 	}
-	if _, err := engine.CheckAll("26.08.28"); err == nil || !strings.Contains(err.Error(), "rendered for '26.08.27', expected '26.08.28'") {
+	if _, err := engine.checkAll("26.08.28"); err == nil || !strings.Contains(err.Error(), "rendered for '26.08.27', expected '26.08.28'") {
 		t.Fatalf("release drift error = %v", err)
 	}
 	mustWrite(t, filepath.Join(fixture.root, "demos", "terminal", "term", "demo.tape"), "Source common.tape\nSleep 6s\nType show term\n")
-	if _, err := engine.CheckAll(""); err == nil || err.Error() != "term: source changed since the last render" {
+	if _, err := engine.checkAll(""); err == nil || err.Error() != "term: source changed since the last render" {
 		t.Fatalf("source drift error = %v", err)
 	}
 }
@@ -349,7 +361,7 @@ func TestCheckRefusesAContendedLock(t *testing.T) {
 	}
 	defer syscall.Flock(int(handle.Fd()), syscall.LOCK_UN) //nolint:errcheck // Test cleanup.
 	started := time.Now()
-	_, err = engine.CheckAll("")
+	_, err = engine.checkAll("")
 	if err == nil || !strings.Contains(err.Error(), "another demo run held") {
 		t.Fatalf("lock error = %v", err)
 	}
@@ -372,7 +384,7 @@ func TestValidationStopsAtTheFirstFailure(t *testing.T) {
 		t.Errorf("failure code = %d, want 23", failure.code)
 	}
 	if code != 1 {
-		t.Errorf("gate code = %d, want Python renderer code 1", code)
+		t.Errorf("action code = %d, want renderer code 1", code)
 	}
 	if len(fixture.commands) != 1 {
 		t.Errorf("commands after first failure = %d, want 1", len(fixture.commands))
@@ -428,7 +440,7 @@ func TestCheckRejectsArtifactDigestDrift(t *testing.T) {
 		t.Fatalf("render fixture: %v", err)
 	}
 	mustWrite(t, filepath.Join(fixture.artifacts, "term.cast"), "modified\n")
-	if _, err := engine.CheckAll(""); err == nil || err.Error() != "term: cast digest mismatch" {
+	if _, err := engine.checkAll(""); err == nil || err.Error() != "term: cast digest mismatch" {
 		t.Fatalf("asset drift error = %v", err)
 	}
 }
@@ -465,7 +477,7 @@ func TestManifestRejectsUnsupportedKindsAndDurationDrift(t *testing.T) {
 			readJSONForTest(t, path, &manifest)
 			test.change(&manifest)
 			writeJSON(t, path, manifest)
-			if _, err := fixture.engine(&bytes.Buffer{}).CheckAll(""); err == nil || err.Error() != test.want {
+			if _, err := fixture.engine(&bytes.Buffer{}).checkAll(""); err == nil || err.Error() != test.want {
 				t.Fatalf("error = %v, want %q", err, test.want)
 			}
 		})

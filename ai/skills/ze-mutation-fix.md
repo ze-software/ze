@@ -8,22 +8,21 @@ description: Fix Surviving Mutations
 Run mutation testing on a package, analyze surviving mutants, and either
 strengthen tests or fix code bugs exposed by the mutations.
 
-See also: `make ze-mutation-pkg-test PKG=./path/` (raw mutation run)
+See also: `./le mutation` (report combination and history actions)
 
 ## Instructions
 
 1. Accept `$ARGUMENTS` as the target package path (e.g., `./internal/core/textbuf/`).
    If empty, ask the user which package to target.
 
-2. Run mutation testing:
+2. Run mutation testing with the pinned Go module tool:
    ```
-   make ze-mutation-pkg-test PKG=$ARGUMENTS
+   go run github.com/sivchari/gomu/cmd/gomu run \
+     --workers 2 --timeout 120 --threshold 0 --output json \
+     --incremental=false --fail-on-gate=false "$ARGUMENTS"
    ```
 
-3. Parse `tmp/mutation-report.json` for surviving mutations:
-   ```python
-   [r for r in data['results'] if r['status'] == 'SURVIVED']
-   ```
+3. Read `mutation-report.json` and inspect the entries whose `status` is `SURVIVED`.
 
 4. For each surviving mutation, read the source file at the indicated line.
    Classify the mutation as one of:
@@ -38,12 +37,9 @@ See also: `make ze-mutation-pkg-test PKG=./path/` (raw mutation run)
 5. Implement fixes in batches by file:
    - For test gaps: write the minimal test that fails with the mutation applied
    - For code bugs: fix the code, then verify existing tests catch the fix
-   - Run `go test -race ./PKG/...` after each batch
+   - Run `go test -race "$ARGUMENTS"` after each batch
 
-6. Re-run gomu on the same package to measure improvement:
-   ```
-   make ze-mutation-pkg-test PKG=$ARGUMENTS
-   ```
+6. Re-run the same `go run github.com/sivchari/gomu/cmd/gomu run ... "$ARGUMENTS"` command to measure improvement. Use `./le mutation record-history report mutation-report.json` when the run must enter the committed history.
 
 7. Report the before/after mutation score and list what was fixed vs skipped.
 

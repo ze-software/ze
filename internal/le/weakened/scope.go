@@ -1,4 +1,4 @@
-// Design: scripts/dev/rfc_tagged_scope.py -- one definition of a Go test unit
+// Design: docs/contributing/rfc-implementation-guide.md -- one definition of a Go test unit
 // Related: detector.go -- the lexical verdicts applied to these units.
 package weakened
 

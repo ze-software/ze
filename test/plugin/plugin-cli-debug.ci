@@ -1,39 +1,23 @@
 # Test: plugin debug shell completes 5-stage handshake and dispatches commands
 #
-# Flow:
 # 1. Daemon starts with SSH + BGP peer
-# 2. Shell script creates SSH credentials via ze init
-# 3. ze bgp plugin cli receives piped Q&A answers + commands
-# 4. Verifies handshake completes and dispatch-command returns data
-# 5. "bye" triggers clean shutdown
+# 2. Compiled driver opens the SSH plugin-protocol channel
+# 3. SDK completes the five-stage handshake
+# 4. Verifies dispatch-command and help return command data
+# 5. The driver closes the channel cleanly
 #
 # VALIDATES: AC-9 -- debug shell completes 5-stage handshake with defaults via SSH.
 # VALIDATES: AC-11 -- dispatch-command works after handshake and returns data.
 # PREVENTS: Plugin protocol SSH handler not wired, handshake failing over SSH channel.
 
-tmpfs=test-plugin-cli-debug.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
-
-# Write config with SSH on OS-assigned port
-cat > cli-debug.conf << 'ZECONF'
+tmpfs=cli-debug.conf:terminator=EOF_CONF
 bgp {
 	peer peer1 {
 		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
+			remote { ip 127.0.0.1 }
+			local { ip 127.0.0.1; accept false }
 		}
-		session {
-			asn {
-				local 65533
-				remote 65533
-			}
-		}
+		session { asn { local 65533; remote 65533 } }
 	}
 }
 
@@ -50,96 +34,15 @@ environment {
 		enabled true
 		server main {
 			ip 127.0.0.1;
-			port 0;
+			port $PORT2;
 		}
 	}
 }
-ZECONF
+EOF_CONF
 
-# Use a PID-derived port for BGP
-export ze_test_bgp_port=$((10000 + ($$ % 50000)))
-
-# Start daemon, capture stderr to parse SSH port
-ze start cli-debug.conf 2>daemon.log &
-DAEMON_PID=$!
-trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
-
-# Wait for SSH server to report its listening address
-SSH_PORT=""
-for i in $(seq 1 50); do
-	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
-	if [ -n "$SSH_PORT" ]; then
-		break
-	fi
-	sleep 0.2
-done
-
-if [ -z "$SSH_PORT" ]; then
-	echo "FAIL: SSH server did not start" >&2
-	cat daemon.log >&2
-	exit 1
-fi
-echo "SSH port: $SSH_PORT" >&2
-
-# Wait for reactor + plugin protocol handler to be wired
-sleep 1.0
-
-# Create SSH credentials via ze init
-CRED_DIR=$(mktemp -d)
-trap 'rm -rf "$CRED_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
-printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$CRED_DIR" ze init >/dev/null
-
-# Pipe Q&A answers + commands to the debug shell.
-# Line 1: empty = accept default plugin name
-# Line 2: empty = accept default registration (yes)
-# Line 3: "show command list" = dispatch engine command (returns JSON with registered commands)
-# Line 4: "help" = dispatch help command (returns command list with descriptions)
-# Line 5: "bye" = disconnect after handshake
-OUTPUT=$(printf '\n\nshow command list\nhelp\nbye\n' | ZE_CONFIG_DIR="$CRED_DIR" ZE_SSH_PASSWORD="testpass" ze bgp plugin cli 2>cli-debug-stderr.log) || {
-	echo "FAIL: ze bgp plugin cli exited with error" >&2
-	cat cli-debug-stderr.log >&2
-	exit 1
-}
-
-# Verify handshake completed (stderr should contain "Handshake complete")
-if grep -q "Handshake complete" cli-debug-stderr.log; then
-	echo "OK: handshake completed" >&2
-else
-	echo "FAIL: handshake did not complete" >&2
-	cat cli-debug-stderr.log >&2
-	exit 1
-fi
-
-# Verify dispatch-command returned data (stdout captures command output).
-# "show command list" returns JSON with a "commands" array containing registered commands.
-echo "OUTPUT: $OUTPUT" >&2
-if echo "$OUTPUT" | grep -q '"commands"'; then
-	echo "OK: dispatch-command returned command data" >&2
-else
-	echo "FAIL: dispatch-command did not return expected data" >&2
-	echo "stdout was: $OUTPUT" >&2
-	cat cli-debug-stderr.log >&2
-	exit 1
-fi
-
-# Verify the help command also returned data (commands with descriptions).
-if echo "$OUTPUT" | grep -q 'show command list'; then
-	echo "OK: help command returned command descriptions" >&2
-else
-	echo "FAIL: help command did not return expected data" >&2
-	echo "stdout was: $OUTPUT" >&2
-	exit 1
-fi
-
-echo "OK: plugin debug shell test passed" >&2
-
-# Clean shutdown -- disable set -e for cleanup
-set +e
-kill $DAEMON_PID 2>/dev/null
-wait $DAEMON_PID 2>/dev/null
-exit 0
-EOF_SH
-
-# Process orchestration
-cmd=foreground:seq=1:exec=./test-plugin-cli-debug.sh:timeout=20s
+cmd=foreground:seq=1:exec=ze start cli-debug.conf:timeout=20s
+cmd=foreground:seq=2:exec=ze-test fixture plugin/plugin-cli-debug $PORT2:timeout=20s
 expect=exit:code=0
+expect=stderr:contains=OK: handshake completed
+expect=stderr:contains=OK: dispatch-command returned command data
+expect=stderr:contains=OK: help command returned command descriptions

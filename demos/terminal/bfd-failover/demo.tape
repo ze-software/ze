@@ -3,15 +3,15 @@ Source common.tape
 Set WaitTimeout 60s
 
 Hide
-Type "/src/demos/terminal/bfd-failover/run.sh prepare"
+Type "ze-demo run bfd-failover prepare"
 Enter
 Wait+Screen /BFD failover demo prepared/
-Type "/src/demos/terminal/bfd-failover/run.sh start"
+Type "ze-demo run bfd-failover start"
 Enter
 Wait+Screen /BFD and BGP sessions are up/
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh bfd-failover intro"
+Type "ze-demo card bfd-failover intro"
 Enter
 Show
 Wait+Screen /====/
@@ -44,7 +44,7 @@ Wait+Screen /receive-hold-time 300/
 Sleep 6s
 
 Hide
-Type "ip netns exec bfd-ze bash"
+Type "ip netns exec bfd-ze ze-demo shell"
 Enter
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/bfd-failover/config ZE_SSH_PASSWORD=secret123"
 Enter
@@ -66,7 +66,7 @@ Enter
 Sleep 4s
 
 Hide
-Type "ip netns exec bfd-ze bash"
+Type "ip netns exec bfd-ze ze-demo shell"
 Enter
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/bfd-failover/config ZE_SSH_PASSWORD=secret123"
 Enter
@@ -91,10 +91,10 @@ Type "ip link set bfd-p up"
 Enter
 Sleep 3s
 Hide
-Type "/src/demos/terminal/bfd-failover/run.sh restore"
+Type "ze-demo run bfd-failover restore"
 Enter
 Wait+Screen /BGP re-established/
-Type "ip netns exec bfd-ze bash"
+Type "ip netns exec bfd-ze ze-demo shell"
 Enter
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/bfd-failover/config ZE_SSH_PASSWORD=secret123"
 Enter

@@ -106,7 +106,7 @@ unless three surfaces genuinely need the same code (`ai/rules/simplicity.md`).
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `make ze-precommit-verify` green
+- [ ] `./le verify current mode full` green
 
 ### Integration Checklist
 - [ ] <to be filled>

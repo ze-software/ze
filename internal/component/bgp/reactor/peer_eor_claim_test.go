@@ -19,33 +19,33 @@ import (
 // VALIDATES: the first claimant for a family wins; every later claimant is told
 // to stand down, and a different family is unaffected.
 // PREVENTS: a peer receiving the same family's End-of-RIB twice. The previous
-// de-duplicator was a TIME-WINDOW test (AnnounceEOR gating on ShouldQueue, i.e.
+// de-duplicator was a TIME-WINDOW test (AnnounceEOR gating on shouldQueue, i.e.
 // on sendingInitialRoutes still being set); when a route-server replay finished
 // after that flag cleared, the guard failed open and the marker went out twice.
 func TestInitialSyncEORClaimedOncePerFamilyPerSession(t *testing.T) {
 	p := &Peer{}
 
-	require.True(t, p.ClaimInitialSyncEOR(family.IPv4Unicast), "first claimant sends")
-	require.False(t, p.ClaimInitialSyncEOR(family.IPv4Unicast), "second claimant must stand down")
-	require.False(t, p.ClaimInitialSyncEOR(family.IPv4Unicast), "and stays stood down")
+	require.True(t, p.claimInitialSyncEOR(family.IPv4Unicast), "first claimant sends")
+	require.False(t, p.claimInitialSyncEOR(family.IPv4Unicast), "second claimant must stand down")
+	require.False(t, p.claimInitialSyncEOR(family.IPv4Unicast), "and stays stood down")
 
-	require.True(t, p.ClaimInitialSyncEOR(family.IPv6Unicast),
+	require.True(t, p.claimInitialSyncEOR(family.IPv6Unicast),
 		"a different family still owes the peer its own marker")
 }
 
 // TestInitialSyncEORClaimReleasedOnFailedSend pins that a claim whose send failed
 // does not strand the family.
 //
-// VALIDATES: ReleaseInitialSyncEOR lets the other producer deliver the marker.
+// VALIDATES: releaseInitialSyncEOR lets the other producer deliver the marker.
 // PREVENTS: the opposite failure to the duplicate -- claiming, failing to write,
 // and leaving the peer with NO End-of-RIB for that family, which is the barrier
 // the functional suite waits on.
 func TestInitialSyncEORClaimReleasedOnFailedSend(t *testing.T) {
 	p := &Peer{}
 
-	require.True(t, p.ClaimInitialSyncEOR(family.IPv4Unicast))
-	p.ReleaseInitialSyncEOR(family.IPv4Unicast) // send failed, nothing on the wire
-	require.True(t, p.ClaimInitialSyncEOR(family.IPv4Unicast),
+	require.True(t, p.claimInitialSyncEOR(family.IPv4Unicast))
+	p.releaseInitialSyncEOR(family.IPv4Unicast) // send failed, nothing on the wire
+	require.True(t, p.claimInitialSyncEOR(family.IPv4Unicast),
 		"after a released claim the marker is still owed, so the next producer may send it")
 }
 
@@ -58,12 +58,12 @@ func TestInitialSyncEORClaimReleasedOnFailedSend(t *testing.T) {
 func TestInitialSyncEORResetPerSession(t *testing.T) {
 	p := &Peer{}
 
-	require.True(t, p.ClaimInitialSyncEOR(family.IPv4Unicast))
-	require.False(t, p.ClaimInitialSyncEOR(family.IPv4Unicast))
+	require.True(t, p.claimInitialSyncEOR(family.IPv4Unicast))
+	require.False(t, p.claimInitialSyncEOR(family.IPv4Unicast))
 
 	p.resetInitialSyncEOR()
 
-	require.True(t, p.ClaimInitialSyncEOR(family.IPv4Unicast),
+	require.True(t, p.claimInitialSyncEOR(family.IPv4Unicast),
 		"a new session owes the peer End-of-RIB again")
 }
 
@@ -87,7 +87,7 @@ func TestInitialSyncEORClaimIsAtomicUnderRace(t *testing.T) {
 	for range claimants {
 		go func() {
 			defer wg.Done()
-			if p.ClaimInitialSyncEOR(family.IPv4Unicast) {
+			if p.claimInitialSyncEOR(family.IPv4Unicast) {
 				granted <- struct{}{}
 			}
 		}()

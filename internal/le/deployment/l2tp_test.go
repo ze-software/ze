@@ -69,7 +69,7 @@ func TestTheDaemonIsBuiltWithEveryFeatureGate(t *testing.T) {
 
 // VALIDATES: a manifest that declares no gate stops the run rather than
 // building a daemon with every feature compiled out.
-// PREVENTS: the fail-open scripts/evidence/feature_tags.py has -- measured
+// PREVENTS: the fail-open internal/le/featuretags/actions.go has -- measured
 // 2026-08-26, it answers "ze_core ze_distro" for a manifest of comments, and the
 // caller then reads the daemon's "unknown top-level keyword: l2tp" as a
 // protocol defect rather than as a build that carried no L2TP.

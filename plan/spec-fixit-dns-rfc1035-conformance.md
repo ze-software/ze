@@ -66,7 +66,7 @@ recorded here so no later reader mistakes it for scope creep.
 
 **Goal.** Every one of the 27 obligations has a real Ze code path. Every one
 carries a positive and a negative test tagged `RFC requirement: <id> <polarity>`.
-The stem moves to `rfc/enrolled.txt`. `make ze-rfc-check` stays exit 0.
+The stem moves to `rfc/enrolled.txt`. `./le rfc check` stays exit 0.
 
 ### Normative register: RFC 1035 predates RFC 2119
 
@@ -190,7 +190,7 @@ recurs for every summary carrying an obligation a later Standards-Track RFC
 withdrew, and RFC 1035 is unlikely to be the only one: `Updates:` and
 `Obsoletes:` headers are ordinary in the corpus.
 
-`scripts/dev/rfc_requirements.py` holds two closed vocabularies, both validated
+`internal/le/rfc/rfc.go` holds two closed vocabularies, both validated
 at parse time, and neither carries the RFC-to-RFC relation:
 
 | Vocabulary | Values | Why none fits |
@@ -244,7 +244,7 @@ serial comparison, a multi-message response stream, and an access-control
 surface. That is larger than the other six packages combined.
 
 **Recommendation: keep WP-4 in this spec but land it in four commits.** Each
-commit leaves `make ze-precommit-verify` green. WP-4 is the last package implemented, so a
+commit leaves `./le verify current mode full` green. WP-4 is the last package implemented, so a
 green gate exists at every earlier boundary.
 
 | Commit | Lands | Gate state |
@@ -416,8 +416,8 @@ is not uniform.
 |------|-------------|
 | `ai/rules/testing.md` | every gated MUST needs a positive and a negative tagged test |
 | `rfc/enrolled.txt` | enrolment needs both polarities, or an annotation of `{not-applicable}`, `{gap}`, or `{single-polarity}` |
-| `scripts/dev/rfc_requirements.py` | `{single-polarity}` is a first-class annotation kind |
-| `scripts/dev/rfc_requirements.py` | `{single-polarity}` needs an explicit polarity AND a reason |
+| `internal/le/rfc/rfc.go` | `{single-polarity}` is a first-class annotation kind |
+| `internal/le/rfc/rfc.go` | `{single-polarity}` needs an explicit polarity AND a reason |
 | `ai/rules/rfc-compliance.md` | every earlier answer pointing away from full compliance or full proof is VOID |
 
 **A correction to the framing that commissioned this spec.**
@@ -427,7 +427,7 @@ does not appear in that file at all. Its void table names `{gap}`,
 
 `{single-polarity}` is documented at `rfc/enrolled.txt`, validated by the gate,
 and already used by roughly twenty enrolled RFCs.
-`scripts/dev/testing_health.py` treats a change from one into a test pair as
+`internal/le/testhealth/testhealth.go` treats a change from one into a test pair as
 an improvement. The gate therefore reads it as a weaker but legal state, not as a
 void one.
 
@@ -528,7 +528,7 @@ Record the outcome in the table below. Escalate only what survives.
 | R-6 | Truncation drops the SOA from a negative answer, breaking RFC 2308 caching | a NODATA reply arrives with TC set and an empty Authority section | truncate whole records from the least significant section first. Never emit a partial record. Assert the SOA survives in a negative answer |
 | R-7 | Fixing the discarded write error turns silent drops into a flood of logs | log volume rises sharply after the write-error fix | count the failure in a metric and rate-limit the log. A pack failure is a config defect, so also reject it at validate time |
 | R-8 | Adding the NOTIMP path changes the reply to a query Ze previously answered | a test asserting an answer to a non-standard opcode changes | gate NOTIMP on the opcode alone. A standard QUERY is unaffected. Assert QUERY still answers |
-| R-9 | 27 new tag pairs make `ai/RFC-REQUIREMENTS.md` stale at every commit | `make ze-rfc-check` fails on a stale ledger | run `make ze-rfc-index-update` and commit the ledger in the SAME commit as each tag change, per `ai/rules/testing.md` |
+| R-9 | 27 new tag pairs make `ai/RFC-REQUIREMENTS.md` stale at every commit | `./le rfc check` fails on a stale ledger | run `./le rfc index-update` and commit the ledger in the SAME commit as each tag change, per `ai/rules/testing.md` |
 
 ## Blast Radius
 
@@ -579,7 +579,7 @@ Record the outcome in the table below. Escalate only what survives.
 | AC-22 | The configured listener set | UDP and TCP both bind port 53 by default, and the TCP reply carries the two-octet length prefix. Positive and negative tags for `RFC1035-4.2.1-3`, `RFC1035-4.2.2-1`. |
 | AC-23 | Every one of the 27 gated rows | Each carries a positive and a negative tagged test, or a `{single-polarity}` annotation Thomas explicitly authorised, with his answer recorded in the summary. |
 | AC-24 | Enrolment | `rfc1035` is removed from `rfc/not-enrolled.txt` and added to `rfc/enrolled.txt` with a reason naming each row's proof. `rfc/extraction/rfc1035.json` stays valid, its `source-sha` still matching `rfc/full/rfc1035.txt`. |
-| AC-25 | `make ze-rfc-check` and `make ze-precommit-verify` | Both exit 0. `ai/RFC-REQUIREMENTS.md` is regenerated and committed alongside the tag changes. |
+| AC-25 | `./le rfc check` and `./le verify current mode full` | Both exit 0. `ai/RFC-REQUIREMENTS.md` is regenerated and committed alongside the tag changes. |
 | AC-26 | The published status row | `docs/features/rfc-status.md` no longer claims obligations with no code path, and its coverage text carries source anchors to the producing lines. |
 
 ## End-to-End User Stories
@@ -682,7 +682,7 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 - `rfc/not-enrolled.txt` - remove the `rfc1035` row
 - `rfc/enrolled.txt` - add the `rfc1035` row naming each row's proof
 - `docs/features/rfc-status.md` - correct the coverage and remaining columns for RFC 1035, with source anchors
-- `ai/RFC-REQUIREMENTS.md` - regenerated by `make ze-rfc-index-update`
+- `ai/RFC-REQUIREMENTS.md` - regenerated by `./le rfc index-update`
 
 ## Files to Create
 - `internal/core/dnsserver/transfer.go` - the AXFR and IXFR handler, the authoriser seam, and the response stream
@@ -793,7 +793,7 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
     - Files: `internal/core/dnsserver/transfer.go`
     - Verify: `RFC1035-4.2-1` carries both polarities
 13. **Phase: Enrolment and documentation** -- AC-24, AC-25, AC-26
-    - Tests: `make ze-rfc-check`, `make ze-rfc-index-update`, `make ze-doc-verify`, `make ze-precommit-verify`
+    - Tests: `./le rfc check`, `./le rfc index-update`, `./le doc-check verify`, `./le verify current mode full`
     - Files: `rfc/short/rfc1035.md`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`
     - Verify: the stem is enrolled and every gate exits 0
 
@@ -822,14 +822,14 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 |-------------|---------------------|
 | All 27 rows carry tags or an authorised annotation | `grep -c 'RFC1035-' internal/ -r` against the 27-row partition table |
 | The stem is enrolled | `grep '^rfc1035' rfc/enrolled.txt` returns a row, and the same grep on `rfc/not-enrolled.txt` returns nothing |
-| The extraction sign-off is still valid | `make ze-rfc-check` exits 0, confirming `source-sha` still matches `rfc/full/rfc1035.txt` |
-| The requirement ledger is fresh | `make ze-rfc-index-update` produces no diff |
-| Truncation is reachable from a user entry point | `make ze-functional-plugin-test` runs `dns-udp-truncation` green, and mutation-verify flips it red |
+| The extraction sign-off is still valid | `./le rfc check` exits 0, confirming `source-sha` still matches `rfc/full/rfc1035.txt` |
+| The requirement ledger is fresh | `./le rfc index-update` produces no diff |
+| Truncation is reachable from a user entry point | `./le functional plugin` runs `dns-udp-truncation` green, and mutation-verify flips it red |
 | Zone transfer interoperates | the BIND interop scenario loads the transferred zone |
-| No obligation is left unproven | `make ze-rfc-check` exits 0 with `rfc1035` in scope |
-| Documentation matches the code | `make ze-doc-verify` exits 0 |
-| The pre-commit gate is green | `make ze-precommit-verify` exits 0 |
-| Prose passes the style gate | `make ze-ste-review-changed` reports nothing on the files this spec adds |
+| No obligation is left unproven | `./le rfc check` exits 0 with `rfc1035` in scope |
+| Documentation matches the code | `./le doc-check verify` exits 0 |
+| The pre-commit gate is green | `./le verify current mode full` exits 0 |
+| Prose passes the style gate | `./le ste review-changed` reports nothing on the files this spec adds |
 
 ### Security Review Checklist
 
@@ -876,7 +876,7 @@ disclosure surface. Both are in scope here.
 - **The write path discards its error.** `internal/core/dnsserver/handler.go` reads `_ = w.WriteMsg(msg)`. A reply that fails to pack vanishes with no log, no metric, and no SERVFAIL. This is an independent defect. It surfaced when this spec checked the positive-only claim.
 - **The YANG name bound measures the wrong thing.** `internal/plugins/geodns/yang/ze-geodns-conf.yang` uses `length "1..255"` on a presentation string. RFC 1035 §2.3.4 bounds wire octets, which include one length octet per label. `internal/plugins/geodns/server.go` then synthesizes `ns<N>.<zone>` with no guard at all, so a maximal zone yields an unpackable glue name.
 - **AS112 conformance for the MINIMUM rule is a coincidence.** `internal/plugins/as112/zones.go` set `soaMinTTL` and `zoneTTL` both to 604800. `max(TTL, MINIMUM)` equals the TTL only because the two constants happen to be equal. A future edit to either breaks conformance silently, so the equality needs a regression test.
-- **`{single-polarity}` is legal, not void.** It is defined at `rfc/enrolled.txt`, validated at `scripts/dev/rfc_requirements.py`, and used by roughly twenty enrolled RFCs. `ai/rules/rfc-compliance.md` never mentions it. The framing that it is void does not hold. It still proves less than a pair, so the owner decides whether to accept it.
+- **`{single-polarity}` is legal, not void.** It is defined at `rfc/enrolled.txt`, validated at `internal/le/rfc/rfc.go`, and used by roughly twenty enrolled RFCs. `ai/rules/rfc-compliance.md` never mentions it. The framing that it is void does not hold. It still proves less than a pair, so the owner decides whether to accept it.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -925,9 +925,9 @@ the enforcing test, not on the production code.
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] All 27 gated rows carry both polarities, or an annotation Thomas explicitly authorised
 - [ ] `rfc1035` moved from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`
-- [ ] `make ze-rfc-check` exits 0 with `rfc1035` in scope
-- [ ] `make ze-rfc-index-update` produces no diff
-- [ ] `make ze-precommit-verify` passes, which is the pre-commit gate in `ai/rules/git-safety.md`
+- [ ] `./le rfc check` exits 0 with `rfc1035` in scope
+- [ ] `./le rfc index-update` produces no diff
+- [ ] `./le verify current mode full` passes, which is the pre-commit gate in `ai/rules/git-safety.md`
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -939,9 +939,9 @@ the enforcing test, not on the production code.
 - [ ] Security Review Checklist answered, including the amplification and zone-disclosure rows
 - [ ] Every `.ci` mutation-verified: disabling the producing function flips it red
 - [ ] Every absence-asserting AC paired with a presence assertion
-- [ ] `make ze-lint-changed` clean
-- [ ] `make ze-doc-verify` exits 0
-- [ ] `make ze-ste-review-changed` reports nothing on new prose
+- [ ] `./le changed scope` clean
+- [ ] `./le doc-check verify` exits 0
+- [ ] `./le ste review-changed` reports nothing on new prose
 - [ ] No `.ci` sleep added without a justifying comment
 
 ### TDD
@@ -954,7 +954,7 @@ the enforcing test, not on the production code.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

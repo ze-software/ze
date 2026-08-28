@@ -133,11 +133,11 @@ func zeTestExabgpMain(args []string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Every path below spawns the ExaBGP wrapper, which drives a ze daemon. The
-	// wrapper is a Python script: it cannot know whether ZE_BIN is set, where
-	// this session's bin/ is, or which build tags a binary carries. So the DUT is
-	// resolved HERE, through the one resolver every other suite in this package
-	// uses (TestSuiteRunnersResolveDUTThroughBuildZe), and passed down.
+	// Every path below spawns the compiled ExaBGP wrapper, which drives a ze
+	// daemon. The wrapper receives the DUT explicitly: it must not guess whether
+	// ZE_BIN is set, where this session's bin/ is, or which build tags a binary
+	// carries. Resolve it HERE through the same resolver as every other suite
+	// (TestSuiteRunnersResolveDUTThroughBuildZe), then pass it down.
 	//
 	// It matters more here than elsewhere: `ze exabgp migrate` exists only under
 	// the ze_exabgp tag (cmd/ze/dispatch_exabgp.go, feature-gates.txt), which
@@ -618,9 +618,11 @@ func runExaBGPServerForeground(test *exabgpTestEntry, port int, saveDir string) 
 	if port < 0 {
 		return errors.New("--port must be >= 0")
 	}
-	python := pythonInterpreter()
-	args := exaBGPServerArgs(test, port, saveDir)
-	cmd := exec.CommandContext(context.Background(), python, args...) //nolint:gosec // python and args target repository-owned predecessor encoding fixtures.
+	binary, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	cmd := exec.CommandContext(context.Background(), binary, exaBGPServerArgs(test, port, saveDir)...)
 	cmd.Env = exaBGPServerEnv(test, port)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -628,7 +630,11 @@ func runExaBGPServerForeground(test *exabgpTestEntry, port int, saveDir string) 
 }
 
 func runExaBGPClientForeground(test *exabgpTestEntry, port int, zeBinary string) error {
-	cmd := exec.CommandContext(context.Background(), exaBGPWrapperPath(test), exaBGPClientArgs(test)...) //nolint:gosec // wrapper path is derived from repository-owned fixtures.
+	config, err := exaBGPClientConfig(context.Background(), test, zeBinary)
+	if err != nil {
+		return err
+	}
+	cmd := exec.CommandContext(context.Background(), zeBinary, "start", config)
 	cmd.Env = exaBGPClientEnv(test, port, zeBinary)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -636,31 +642,29 @@ func runExaBGPClientForeground(test *exabgpTestEntry, port int, zeBinary string)
 }
 
 func startExaBGPServer(ctx context.Context, test *exabgpTestEntry, port int, saveDir string) (*exaProcess, <-chan int, error) {
-	python := pythonInterpreter()
-	args := exaBGPServerArgs(test, port, saveDir)
+	binary, err := os.Executable()
+	if err != nil {
+		return nil, nil, err
+	}
 	portCh := make(chan int, 1)
-	proc, err := startExaProcess(ctx, "server", python, args, exaBGPServerEnv(test, port), portCh)
+	proc, err := startExaProcess(ctx, "server", binary, exaBGPServerArgs(test, port, saveDir), exaBGPServerEnv(test, port), portCh)
 	return proc, portCh, err
 }
 
 func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int, zeBinary string) (*exaProcess, error) {
-	return startExaProcess(ctx, "client", exaBGPWrapperPath(test), exaBGPClientArgs(test), exaBGPClientEnv(test, port, zeBinary), nil)
+	config, err := exaBGPClientConfig(ctx, test, zeBinary)
+	if err != nil {
+		return nil, err
+	}
+	return startExaProcess(ctx, "client", zeBinary, []string{"start", config}, exaBGPClientEnv(test, port, zeBinary), nil)
 }
 
 func exaBGPServerArgs(test *exabgpTestEntry, port int, saveDir string) []string {
-	args := []string{bgpMockPath(test), "--port", strconv.Itoa(port), "--terse"}
+	args := []string{"interop-bgp", "exabgp-server", "--port", strconv.Itoa(port), "--terse"}
 	if saveDir != "" {
 		args = append(args, "--save", saveDir)
 	}
-	args = append(args, test.ciFile)
-	return args
-}
-
-func exaBGPClientArgs(test *exabgpTestEntry) []string {
-	args := make([]string, 0, 2+len(test.configs))
-	args = append(args, "-d", "-p")
-	args = append(args, test.configs...)
-	return args
+	return append(args, test.ciFile)
 }
 
 func exaBGPServerEnv(test *exabgpTestEntry, port int) []string {
@@ -686,30 +690,40 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary string) []string 
 		"exabgp_debug_configuration=true",
 		"exabgp_api_socketname=exabgp-test-"+portText,
 		"exabgp_api_version=4",
-		// Appended AFTER os.Environ() so the path this process verified wins over
-		// any inherited ZE_BIN: the wrapper must drive the binary that was
-		// checked, not one a parent shell left pointing somewhere else.
+		// Appended AFTER os.Environ() so the verified binary wins over any
+		// inherited ZE_BIN value.
 		tb.Str("ZE_BIN=").Str(zeBinary).String(),
 	)
 	return env
 }
 
-func exaBGPWrapperPath(test *exabgpTestEntry) string {
-	return filepath.Join(filepath.Dir(filepath.Dir(test.ciFile)), "bin", "exabgp")
-}
-
-func bgpMockPath(test *exabgpTestEntry) string {
-	return filepath.Join(filepath.Dir(filepath.Dir(test.ciFile)), "bin", "bgp")
-}
-
-func pythonInterpreter() string {
-	if interpreter := os.Getenv("INTERPRETER"); interpreter != "" {
-		return interpreter
+func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary string) (string, error) {
+	var config strings.Builder
+	for _, source := range test.configs {
+		command := exec.CommandContext(ctx, zeBinary, "exabgp", "migrate", source)
+		output, err := command.Output()
+		if err != nil {
+			return "", fmt.Errorf("migrate %s: %w", source, err)
+		}
+		config.Write(output)
+		config.WriteByte('\n')
 	}
-	if interpreter := os.Getenv("__PYVENV_LAUNCHER__"); interpreter != "" {
-		return interpreter
+	file, err := os.CreateTemp("", "ze-exabgp-native-*.conf")
+	if err != nil {
+		return "", err
 	}
-	return "python3"
+	path := file.Name()
+	nativeConfig := strings.ReplaceAll(config.String(), "local {", "local {\n\t\t\t\t\taccept false;")
+	if _, err := file.WriteString(nativeConfig); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return "", err
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
+		return "", err
+	}
+	return path, nil
 }
 
 type exaProcess struct {

@@ -28,7 +28,7 @@ func buildL2TPSessionsTableData() WorkbenchTableData {
 		{Key: "username", Label: "Username", Sortable: true},
 		{Key: "peer", Label: "Peer", Sortable: true},
 		{Key: "state", Label: "State", Sortable: true},
-		{Key: "interface", Label: "Interface"},
+		{Key: "interface", Label: labelInterface},
 	}
 
 	svc := l2tp.LookupService()
@@ -64,7 +64,7 @@ func buildL2TPSessionsTableData() WorkbenchTableData {
 					s.PppInterface,
 				},
 				Actions: []WorkbenchRowAction{
-					{Label: "Detail", URL: sessionURL},
+					{Label: labelDetail, URL: sessionURL},
 					{
 						Label:   "Disconnect",
 						HxPost:  tb.Reset().Str(sessionURL).Str("/disconnect").String(),
@@ -105,7 +105,7 @@ func buildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
 		Fields: []WorkbenchFormField{
 			{
 				Name:        "enabled",
-				Label:       "Enabled",
+				Label:       labelEnabled,
 				Type:        "toggle",
 				Value:       getConfigValue(tree, "l2tp/enabled"),
 				Description: "Enable L2TP subsystem",
@@ -161,7 +161,7 @@ func buildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
 			},
 			{
 				Name:        "servers",
-				Label:       "Listen Endpoints",
+				Label:       labelListenEndpoints,
 				Type:        "list",
 				Items:       getConfigListItems(tree, "environment/l2tp", "server"),
 				Description: "L2TP server listen endpoints (UDP)",
@@ -189,7 +189,7 @@ func buildL2TPHealthTableData() WorkbenchTableData {
 		{Key: "username", Label: "Username", Sortable: true},
 		{Key: "peer", Label: "Peer", Sortable: true},
 		{Key: "state", Label: "State", Sortable: true},
-		{Key: "interface", Label: "Interface"},
+		{Key: "interface", Label: labelInterface},
 	}
 
 	svc := l2tp.LookupService()

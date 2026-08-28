@@ -25,8 +25,8 @@ directives ## Directives
   use-os-getenv-only-for-system-env-vars
   aliased-imports
   alias-an-import-when-two-packages-share-a-name
-  scripts-python-only
-  write-scripts-in-python-not-in-shell
+  first-party-tooling-native-go-only
+  put-first-party-tooling-in-native-go-packages
   style-patterns-to-prefer
   adopt-these-style-patterns-on-touch-not-in-a-sweep
   prefer-guard-clauses-slice-types-and-narrow-constructors

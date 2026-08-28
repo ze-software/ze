@@ -86,11 +86,11 @@ func irrUsage() {
 		Summary: "IRR AS-SET expansion and prefix lookup",
 		Usage:   []string{"ze resolve irr [--server <host>] <operation> <as-set-name>"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Operations", Entries: []helpfmt.HelpEntry{
+			{Title: usageSectionOperations, Entries: []helpfmt.HelpEntry{
 				{Name: "as-set <name>", Desc: "Expand AS-SET to member ASNs"},
 				{Name: "prefix <name>", Desc: "Lookup announced prefixes for AS-SET"},
 			}},
-			{Title: "Flags", Entries: []helpfmt.HelpEntry{
+			{Title: usageSectionFlags, Entries: []helpfmt.HelpEntry{
 				{Name: "--server <host>", Desc: "IRR whois server (default: whois.radb.net:43)"},
 			}},
 		},

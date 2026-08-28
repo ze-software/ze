@@ -11,7 +11,7 @@
 // consumed by the kernel's own SLAAC code.
 //
 // They need CAP_NET_ADMIN and CAP_NET_RAW, so they skip with a reason when the
-// process is not root. Run them with `make ze-qemu-integration-test`.
+// process is not root. Run them with `./le qemu all-tests`.
 
 package ifacera
 

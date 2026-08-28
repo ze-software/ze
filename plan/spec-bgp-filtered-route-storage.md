@@ -386,7 +386,7 @@ are not verifiable locally.** Cite this section, not that doc.
    - Files: `lg/handler_api.go`
    - Verify: AC-6. `transformProtocols` untouched (D-4).
 6. **Phase: Interop** - `NN-keep-filtered-bird`; the only way to validate A-6.
-7. **Full verification** -> `make ze-precommit-verify-changed` when other sessions hold uncommitted work.
+7. **Full verification** -> `./le verify current mode changed` when other sessions hold uncommitted work.
 8. **Complete spec** -> audit tables, docs, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -480,7 +480,7 @@ the table, gets this feature almost for free.
 | D-2 | Option B is exposed under a distinct `*-total` key/metric, NEVER as `routes_filtered` | map it onto routes_filtered | The birdwatcher field is current-state. A monotonic counter mapped onto it fabricates a number (R-2). **BIRD parity confirmed:** BIRD keeps exactly this split — the gauge `filt_routes` (`nest/protocol.h:146`) and the cumulative `imp_updates_filtered` (`nest/rt-table.c:1689`) are different fields on different output lines (`nest/proto.c:2070-2080`). Option B IS Ze's `imp_updates_filtered` |
 | D-3 | Retention defaults OFF; the reject fast drop stays the default | always-on | **BIRD parity confirmed from primary source:** `doc/bird.sgml:1150` "Default: off.", and `nest/rt-table.c:1692-1693` `if (! c->in_keep_filtered) goto drop;` is the default fast path. Independently justified by memory cost (R-1) with no admission control (A-4). A-6's "unverified" caveat is now RESOLVED |
 | D-4 | `transformProtocols` is NOT modified | rewrite the LG mapping | It already maps the field (`handler_api.go/553/560`). Verified in code |
-| D-5 | The "routes-filtered never emitted" invariant becomes CONDITIONAL, not deleted: key ABSENT when retention off, PRESENT when on | emit 0 when off; delete the invariant | **BIRD parity confirmed from primary source** — this is exactly what BIRD does: `nest/proto.c:2070-2076` prints "%u imported, %u exported, %u preferred" when the knob is off and "%u imported, **%u filtered**, %u exported, %u preferred" only when on. **BIRD omits the field rather than printing 0.** So "absent when off" is parity, not a Ze invention, and emitting 0 would be the deviation. **No existing assertion weakens**: `summary_test.go` and `bgp-summary-route-counts.ci` both exercise the retention-OFF default, where "absent" stays correct. Only the stale rationale comments (`summary.go`, `.ci`) change, plus a NEW retention-ON case. Expect `scripts/dev/audit-test-relaxation.py` to inspect these edits |
+| D-5 | The "routes-filtered never emitted" invariant becomes CONDITIONAL, not deleted: key ABSENT when retention off, PRESENT when on | emit 0 when off; delete the invariant | **BIRD parity confirmed from primary source** — this is exactly what BIRD does: `nest/proto.c:2070-2076` prints "%u imported, %u exported, %u preferred" when the knob is off and "%u imported, **%u filtered**, %u exported, %u preferred" only when on. **BIRD omits the field rather than printing 0.** So "absent when off" is parity, not a Ze invention, and emitting 0 would be the deviation. **No existing assertion weakens**: `summary_test.go` and `bgp-summary-route-counts.ci` both exercise the retention-OFF default, where "absent" stays correct. Only the stale rationale comments (`summary.go`, `.ci`) change, plus a NEW retention-ON case. Expect `internal/le/weakened/audit.go` to inspect these edits |
 | D-6 | BMP-monitored peers keep their hardcoded 0 (`transformBMPProtocols`) | make it real too | Their routes never traverse the reactor import gate, so 0 is permanently honest, not a stub |
 | D-7 | **OPEN**: Option B's counter placement - engine vs RIB plugin | - | `reactor_notify.go+` already does lock-free per-peer atomics HERE, but its comment at `:248-249` says "NLRI-level counters ... belong in the RIB plugin", and this counter IS NLRI-level. Rejected routes never reach the RIB plugin today, so the RIB placement would force mark-and-dispatch even when retention is off - defeating AC-2. Resolve at the Phase 1 design gate; if the engine wins, UPDATE the comment rather than silently contradict it |
 | D-8 | Both counts MUST enumerate NLRI, not reject events | count reject events | The gate is per-UPDATE-message (`reactor_notify.go`, `:468`); no split happens upstream (`notifyMessageReceiver` is wired straight to `peer.messageCallback`, `reactor_peers.go`, `reactor_dynamic.go`). Use `wireUpdate.NLRIIterator(addPath)` (`wireu/wire_update.go`) + `MPReach()`. Withdrawals (`WithdrawnIterator` `:238`, `MPUnreach()` `:149`) must NOT inflate the count |
@@ -508,7 +508,7 @@ the table, gets this feature almost for free.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (or `make ze-precommit-verify-changed` when scoped, with rationale)
+- [ ] `./le verify current mode full` passes (or `./le verify current mode changed` when scoped, with rationale)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (A-6 needs the interop test)

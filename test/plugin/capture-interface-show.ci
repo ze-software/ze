@@ -9,60 +9,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=capture-interface-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        # AC-5: invalid interface name
-        resp = dispatch(api, 'show capture interface nonexistent-iface-xyz-99')
-        status = resp.get('status')
-        if status != 'error':
-            runtime_fail(f'expected error for invalid iface, got status={status}')
-        data = result_text_data(resp)
-        if 'interface not found' not in data and 'not available' not in data:
-            runtime_fail(f'unexpected error message: {data}')
-        print(f'OK: invalid interface rejected: {data}', file=sys.stderr)
-
-        # Missing interface: no args at all
-        resp = dispatch(api, 'show capture interface')
-        status = resp.get('status')
-        if status != 'error':
-            runtime_fail(f'expected error for missing iface, got status={status}')
-        data = result_text_data(resp)
-        if 'missing interface' not in data and 'not available' not in data:
-            runtime_fail(f'unexpected error for missing args: {data}')
-        print(f'OK: missing interface rejected: {data}', file=sys.stderr)
-
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external capture-interface-show-test {
-		run ./capture-interface-show-test.run
+		run "ze-test fixture plugin/capture-interface-show"
 		encoder json
 	}
 }

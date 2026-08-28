@@ -279,7 +279,7 @@ func TestCIAcceptOnlyLintStaleBaseline(t *testing.T) {
 
 // TestCIAcceptOnlyLint is the real gate over test/**/*.ci: no new unannotated
 // accept-only file may exist beyond the baseline, and no baseline entry may be
-// stale. Runs under `make ze-unit-test`.
+// stale. Runs under the native unit verification pass.
 func TestCIAcceptOnlyLint(t *testing.T) {
 	root := repoRootForTest(t)
 	res, err := checkAcceptOnlyRatchet(root)

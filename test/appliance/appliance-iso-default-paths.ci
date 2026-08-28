@@ -2,96 +2,9 @@
 # Covers the no-flag path for tools/installer-kernel/build/Image and
 # tools/installer-initrd/build/initrd.img.gz without requiring external GRUB/xorriso.
 
-# Underscore form: /bin/sh (dash) drops dotted names from the environment, so
-# the dotted spelling never survives into sh-script children. ze's env lookup
-# treats dots and underscores as equivalent (internal/core/env/env.go:40).
+# The underscore spelling is equivalent to the dotted appliance environment key.
 option=env:var=ze_appliance_ssh_password:value=secret
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
-# Default kernel/initrd lookup surface (internal/appliance/cmd_iso.go:299-316):
-# profile fragments from tools/installer-kernel/ (kernelreg.go), a
-# build/kernel/.variant gate matching "<arch>-<profile>-<kernel.version>-",
-# and build/kernel/Image + build/initrd/initrd.img.gz. Kernel version read
-# from internal/appliance/kernel.version via ZE_REPO_ROOT (survives bumps).
-mkdir -p appliances tools/installer-kernel build/kernel build/initrd
-: > tools/installer-kernel/kernel.config
-: > tools/installer-kernel/kernel.require
-: > tools/installer-kernel/qemu.config
-: > tools/installer-kernel/qemu.require
-python3 -c "
-import struct, sys
-buf = bytearray(0x206)
-struct.pack_into('<I', buf, 0x202, 0x53726448)  # x86 bzImage magic
-sys.stdout.buffer.write(buf)
-" > build/kernel/Image
-kver=$(cat "${ZE_REPO_ROOT:?}/internal/appliance/kernel.version")
-printf 'amd64-qemu-%s-test\n' "$kver" > build/kernel/.variant
-printf 'initrd-default\n' > build/initrd/initrd.img.gz
-cat > grub-mkstandalone <<'EOF_GRUB'
-#!/bin/sh
-set -eu
-target=""
-out=""
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -O) target="$2"; shift 2 ;;
-    -o) out="$2"; shift 2 ;;
-    *) shift ;;
-  esac
-done
-[ "$target" = "x86_64-efi" ]
-printf 'efi\n' > "$out"
-EOF_GRUB
-chmod +x grub-mkstandalone
-cat > xorriso <<'EOF_XORRISO'
-#!/bin/sh
-set -eu
-out=""
-image=""
-stage=""
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -as) shift 2 ;;
-    -R|-J|-eltorito-alt-boot|-no-emul-boot) shift ;;
-    -o) out="$2"; shift 2 ;;
-    -e) image="$2"; shift 2 ;;
-    *) stage="$1"; shift ;;
-  esac
-done
-[ -f "$stage/$image" ]
-printf 'iso\n' > "$out"
-EOF_XORRISO
-chmod +x xorriso
-export PATH="$PWD:$PATH"
-ze appliance --dir appliances init --config iso-config.json lab >/dev/null 2>&1
-printf 'image-bytes\n' > appliances/lab/ze-20260101-000000.img
-python3 - <<'PY'
-from pathlib import Path
-import hashlib
-p = Path('appliances/lab/ze-20260101-000000.img')
-p.with_suffix(p.suffix + '.sha256').write_text(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n')
-PY
-ze appliance --dir appliances iso --keep-staging lab >/dev/null
-set -- appliances/lab/.iso-staging-*
-stage="$1"
-[ -d "$stage" ]
-[ "$(stat -c %s "$stage/boot/kernel" 2>/dev/null || stat -f %z "$stage/boot/kernel")" -eq 518 ]
-[ "$(cat "$stage/boot/initrd.img.gz")" = "initrd-default" ]
-# Serial console first, tty0 last (producer: internal/appliance/cmd_iso.go:769)
-grep -q 'console=ttyS0,115200n8 console=tty0' "$stage/boot/grub/grub.cfg"
-[ -f "$stage/ze-install/images/ze-20260101-000000.img.gz" ]
-[ -f "$stage/ze-install/images/ze-20260101-000000.img.gz.sha256" ]
-grep -q 'ze.image=ze-20260101-000000.img.gz' "$stage/boot/grub/grub.cfg"
-python3 -c "
-import gzip, sys
-with gzip.open(sys.argv[1], 'rb') as f:
-    content = f.read()
-assert content == b'image-bytes\n', f'decompressed content: {content!r}'
-" "$stage/ze-install/images/ze-20260101-000000.img.gz"
-echo OK
-EOF_SH
 
 tmpfs=iso-config.json:terminator=EOF_JSON
 {
@@ -107,6 +20,6 @@ tmpfs=iso-config.json:terminator=EOF_JSON
 }
 EOF_JSON
 
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture appliance/appliance-iso-default-paths
 expect=exit:code=0
 expect=stdout:contains=OK

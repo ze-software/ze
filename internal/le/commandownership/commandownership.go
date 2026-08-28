@@ -37,8 +37,8 @@ import (
 	"github.com/ze-software/ze/internal/le/leroot"
 )
 
-// name is the word this command is typed as. The Make target it still is
-// spells the same words: ze-command-ownership-check.
+// name is the word this command is typed as. The retired Make target used the
+// equivalent ze-command-ownership-check spelling.
 const name = "command-ownership"
 
 // parseFloor is the smallest number of Go files under cmd/ze and internal/ that
@@ -143,6 +143,9 @@ func (s *scan) goFilesUnder(dir string, visit func(path, rel string) error) erro
 		if err != nil {
 			return err
 		}
+		if entry.IsDir() && entry.Name() == "testdata" {
+			return filepath.SkipDir
+		}
 		if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
@@ -165,6 +168,9 @@ func ownerCommandDirs(s *scan) ([]string, error) {
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if entry.IsDir() && entry.Name() == "testdata" {
+			return filepath.SkipDir
 		}
 		if entry.IsDir() || filepath.Base(path) != "register.go" {
 			return nil

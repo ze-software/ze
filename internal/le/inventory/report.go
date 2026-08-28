@@ -6,8 +6,8 @@
 //
 // The answer is one document with several tables in it: plugins, families,
 // capabilities, YANG modules, RPCs, tests and package statistics. It renders
-// ITSELF (Text), because the markdown page is what `make ze-inventory` has
-// always printed. `| json` and `| yaml` render the same data unchanged.
+// ITSELF (Text), because the Markdown page is what `./le inventory` prints.
+// `| json` and `| yaml` render the same data unchanged.
 
 package inventory
 
@@ -102,8 +102,8 @@ func (inv Inventory) coveredRPCs() int {
 	return covered
 }
 
-// Text renders the inventory as the markdown page `make ze-inventory` prints.
-// It ends in a newline.
+// Text renders the inventory as the Markdown page `./le inventory` prints. It
+// ends in a newline.
 //
 // This is the Prose rendering leroot uses for the bare command, and every pipe
 // operator bypasses it (internal/le/leroot, Prose). It carries no color: the page

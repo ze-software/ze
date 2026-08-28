@@ -9,74 +9,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: dispatches prefix update, verifies result
-tmpfs=prefix-update-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        result = dispatch(api, 'update bgp peer * prefix')
-        status = result.get('status')
-        if status != 'done':
-            print(f'FAIL: status={status} data={result.get("data")}', file=sys.stderr)
-            sys.exit(1)
-
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-
-        updated = data.get('updated', 0)
-        if updated != 1:
-            print(f'FAIL: expected 1 updated, got {updated}', file=sys.stderr)
-            sys.exit(1)
-
-        results = data.get('results', [])
-        if len(results) != 1:
-            print(f'FAIL: expected 1 result, got {len(results)}', file=sys.stderr)
-            sys.exit(1)
-
-        r = results[0]
-        if r.get('status') != 'updated':
-            print(f'FAIL: peer status={r.get("status")} error={r.get("error")}', file=sys.stderr)
-            sys.exit(1)
-
-        changes = r.get('changes', {})
-        # ASN 65001: ipv4=65001, with 10% margin = 71501
-        ipv4_max = changes.get('ipv4/unicast', 0)
-        if ipv4_max != 71501:
-            print(f'FAIL: expected ipv4 maximum 71501, got {ipv4_max}', file=sys.stderr)
-            sys.exit(1)
-
-        print(f'OK: prefix update succeeded, ipv4={ipv4_max}', file=sys.stderr)
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-    except SystemExit:
-        raise
-    except Exception as e:
-        print(f'FAIL: unexpected error: {e}', file=sys.stderr)
-        sys.exit(1)
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native test plugin: dispatches prefix update, verifies result
 
 # ze bgp configuration with PeeringDB pointed at fake server
 stdin=ze-bgp:terminator=EOF_CONF
@@ -89,7 +22,7 @@ system {
 
 plugin {
 	external prefix-update-test {
-		run ./prefix-update-test.run
+		run "ze-test fixture plugin/api-peer-prefix-update"
 		encoder json
 	}
 }

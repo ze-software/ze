@@ -30,7 +30,7 @@ needs. Nothing here is blocked on anything except the model.
 | `1ebdb35cc` | WP-8, four rows landed and two held |
 
 Four structural gates were red at HEAD when this session started and are green now:
-`ze-rfc-check`, `ze-doc-verify`, `ze-generated-files-check`, and `go test ./scripts/dev`. The
+`./le rfc check`, `./le doc-check verify`, `./le repository generated-check`, and `go test ./scripts/dev`. The
 cause of all four was a stale generated index, not a code defect.
 
 ## Owner decisions, 2026-07-31 (BINDING, do not re-open)
@@ -109,7 +109,7 @@ pilot and three children. None of the three is closeable as it stands.
 
 ## Id allocation, measured 2026-07-31
 
-`check_id_allocation` (`scripts/dev/rfc_requirements.py`) refuses an ordinal at or below its
+`check_id_allocation` (the retired `scripts/dev/rfc_requirements.py` (current producer: `internal/le/rfc/rfc.go`)) refuses an ordinal at or below its
 section's high-water mark, computed from COMMITTED HEAD. A stranded ordinal is permanent.
 **Recompute at the moment of landing. Never trust a number in this file.**
 
@@ -151,7 +151,7 @@ where the command exited non-zero, or claimed a mutation table that a re-run con
 Each was caught by re-running the command in the main thread. Budget for that.
 
 **`make X | tee` reports tee's exit status.** The session's first act was to call a
-six-stage-red `ze-precommit-verify` green because of this. Use `echo "EXIT=${PIPESTATUS[0]}"`.
+six-stage-red `./le verify current mode full` green because of this. Use `echo "EXIT=${PIPESTATUS[0]}"`.
 
 **A commit gate reads the literal phrase "out of scope" as an undeclared deferral.** Two
 WP-3 comments used it to mean RFC scope and blocked the commit. Reword rather than file a
@@ -161,7 +161,7 @@ deferral shard.
 `plan/handover/02-design-wp3.md`, which this commit deletes. Every sibling engine file cites
 a `plan/learned/NNN-*.md`.
 
-**`make ze-ste-check` reads the whole working tree.** With a sibling session active it will
+**`./le ste check` reads the whole working tree.** With a sibling session active it will
 name files that are not yours. The commit-time gate is per-commit-scoped, so read the paths
 before you spend an edit.
 
@@ -170,7 +170,7 @@ sibling session shares this checkout.
 
 ## Verification state
 
-`make ze-precommit-verify-changed` passed all 19 stages at `11:58:19Z`, before WP-3 and WP-8 landed.
+`./le verify current mode changed` passed all 19 stages at `11:58:19Z`, before WP-3 and WP-8 landed.
 Since then each package was verified with the changed-scope targets and the ike suite, and
-each guard was independently mutation-checked in the main thread. **A full `make ze-precommit-verify`
+each guard was independently mutation-checked in the main thread. **A full `./le verify current mode full`
 has not run since WP-8. Run one first.**

@@ -10,76 +10,6 @@ option=timeout:value=20s
 option=bind:value=0.0.0.0
 EOF_PEER
 
-tmpfs=policy-test-as4.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # 2-byte-session BGP UPDATE (RFC 6793). Total len 0x003F=63 bytes.
-    #   ORIGIN=IGP
-    #   AS_PATH (2-byte) = [64500 23456]   (public + AS_TRANS, no private ASN)
-    #   NEXT_HOP=1.1.1.1
-    #   AS4_PATH (4-byte) = [4200000000]   (Private Use ASN, RFC 6996)
-    #   LOCAL_PREF=100
-    #   NLRI=10.0.0.0/24
-    # Stripping the private ASN empties AS4_PATH, so it must be suppressed.
-    update_hex = (
-        'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003F02'
-        '00000024'
-        '40010100'
-        '4002060202FBF45BA0'
-        '40030401010101'
-        'C011060201FA56EA00'
-        '40050400000064'
-        '180A0000'
-    )
-
-    # source-asn4 false: parse AS_PATH as 2-byte so AS4_PATH is the carrier.
-    cmd = (f'show policy test peer test-peer export filter STRIP '
-           f'update {update_hex} source-asn4 false')
-    result = dispatch(api, cmd)
-    status = result.get('status', '')
-    if status != 'done':
-        error = result.get('error', '')
-        runtime_fail(f'dry-run status={status} error={error}')
-        print(f'FAIL: status={status} error={error}', file=sys.stderr)
-        sys.exit(1)
-
-    data = result.get('data', {})
-    if isinstance(data, str):
-        data = json.loads(data)
-    wire_changes = data.get('wire-changes', [])
-    print(f'OK: action={data.get("action", "")} wire-changes={wire_changes}')
-
-    if 'AS4_PATH suppressed' not in wire_changes:
-        runtime_fail(f'AS4_PATH suppressed not in wire-changes: {wire_changes}')
-        print(f'FAIL: AS4_PATH suppressed not in wire-changes: {wire_changes}',
-              file=sys.stderr)
-        sys.exit(1)
-
-    print('OK: AS4_PATH suppressed surfaced in dry-run wire-changes')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -87,7 +17,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-test-as4 {
-		run ./policy-test-as4.run
+		run "ze-test fixture plugin/policy-test-as4path-suppress"
 		encoder json
 	}
 }

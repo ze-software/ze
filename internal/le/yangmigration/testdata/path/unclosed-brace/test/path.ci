@@ -1,0 +1,5 @@
+bgp {
+    peer p1 {
+        connection {
+            remote {
+                ip 192.0.2.1

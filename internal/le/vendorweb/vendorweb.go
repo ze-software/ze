@@ -89,19 +89,13 @@ func vendorPackages(root string) (pkgs []vendorPackage, skipped map[string]strin
 		if !entry.IsDir() {
 			continue // MANIFEST.md, and anything else at the top level
 		}
-		// A vendored package is tracked. third_party/web/htmx-upgrade-check.py
-		// lives beside the packages it checks, so importing it writes
-		// third_party/web/__pycache__/, and every session that ran
-		// `make ze-htmx-upgrade-check` grew a directory here that no consumer
-		// subscribes to. Reading it as an unsynced package makes one gate red
-		// because a different gate ran, in the same verify.
-		//
-		// The skip is ANNOUNCED. git's ignore patterns are unanchored, so a
-		// directory named `build` here would be skipped on a rule written for
-		// something else. It could not be a vendored package -- `git add`
-		// refuses an ignored path without -f, and check-ignore consults the
-		// index, so a tracked package is never reported ignored -- but a
-		// skip nobody can see is how a gate loses a population quietly.
+		// An ignored directory is not a vendored package. Git ignore patterns
+		// are unanchored, so a directory named `build` here can match a rule
+		// written for another tree. A tracked package cannot match:
+		// `git add` refuses an ignored path without -f, and check-ignore
+		// consults the index. The skip is announced below so an unrelated rule
+		// cannot silently remove a directory from the synchronization
+		// population.
 		if ignored[entry.Name()] {
 			skipped[path.Join(vendorDir, entry.Name())] = ignoredReason
 			continue

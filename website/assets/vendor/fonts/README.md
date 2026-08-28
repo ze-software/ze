@@ -70,6 +70,6 @@ Poppins is at `v24` and Lato at `v25` in the URLs these files came from
 (2026-08-24). Take `OFL.txt` for each family from
 `https://github.com/google/fonts/tree/main/ofl/<family>`.
 
-`website/tools/test_render_demos.py::SelfHostedFontTest` checks that every
-`url()` in `fonts.css` names a file that exists, that each face keeps
-`font-display: swap`, and that this directory reaches the published tree.
+`internal/le/sitebuild.TestVendoredFontsAreSelfHosted` checks that every
+`url()` in these stylesheets names a local file and every face keeps
+`font-display: swap`.

@@ -35,61 +35,11 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=20s
 
-tmpfs=firewall-irr-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify show firewall irr returns correct JSON."""
-import json
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # First fetch some data so show has something to display.
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    if result.get('status') != 'done':
-        runtime_fail(f'update failed: {result}')
-
-    # Show all IRR entries.
-    result = api.dispatch_until_done('show firewall irr')
-    if result.get('status') != 'done':
-        runtime_fail(f'show firewall irr: status={result.get("status")}')
-
-    data = result_json_data(result, {})
-    if 'server' not in data:
-        runtime_fail(f'show response missing server: {data}')
-
-    # Show prefixes for a specific entry.
-    result = api.dispatch_until_done('show firewall irr prefix AS-TEST')
-    if result.get('status') != 'done':
-        runtime_fail(f'show firewall irr prefix: status={result.get("status")}')
-
-    prefix_data = result_json_data(result, {})
-    if 'ipv4' not in prefix_data:
-        runtime_fail(f'prefix response missing ipv4: {prefix_data}')
-
-    v4_prefixes = prefix_data.get('ipv4', [])
-    if len(v4_prefixes) < 1:
-        runtime_fail(f'expected at least 1 v4 prefix, got {len(v4_prefixes)}')
-
-    print(f'OK: show firewall irr returned {len(v4_prefixes)} v4 prefixes', file=sys.stderr)
-
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-show-test {
-		run ./firewall-irr-show.run
+		run "ze-test fixture plugin/firewall-irr-show"
 		encoder json
 	}
 }

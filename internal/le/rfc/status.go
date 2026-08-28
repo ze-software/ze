@@ -70,15 +70,15 @@ func (s Status) document() map[string]any {
 	}
 }
 
-// ExtractionStatus answers the envelope for one checkout.
-func ExtractionStatus(deriver *Deriver, requirements []Requirement,
+// extractionStatus answers the envelope for one checkout.
+func extractionStatus(deriver *Deriver, requirements []Requirement,
 	enrolled map[string]bool) (Status, error) {
-	valid, _, err := EvaluateExtractions(deriver, requirements)
+	valid, _, err := evaluateExtractions(deriver, requirements)
 	if err != nil {
 		return Status{}, err
 	}
-	signed := Credited(valid, enrolled)
-	counts := RegisterCounts(signed)
+	signed := credited(valid, enrolled)
+	counts := registerCounts(signed)
 
 	unsigned := make([]string, 0)
 	for _, stem := range sortedSet(enrolled) {
@@ -123,11 +123,11 @@ type Collected struct {
 // summary the gate cannot read is a summary whose obligations nobody can see,
 // enrolled or not.
 func Collect(tree string) (Collected, error) {
-	enrolled, err := LoadEnrolled(tree)
+	enrolled, err := loadEnrolled(tree)
 	if err != nil {
 		return Collected{}, err
 	}
-	stems, err := SummaryStems(tree)
+	stems, err := summaryStems(tree)
 	if err != nil {
 		return Collected{}, err
 	}
@@ -135,9 +135,9 @@ func Collect(tree string) (Collected, error) {
 	for _, stem := range sortedSet(stems) {
 		var name textbuf.Buffer
 		path := treePath(tree, summaryRel, name.Str(stem).Str(".md").String())
-		reqs, parseErr := ParseSummaryFile(tree, path)
+		reqs, parseErr := parseSummaryFile(tree, path)
 		if parseErr != nil {
-			if !IsParseError(parseErr) {
+			if !isParseError(parseErr) {
 				return Collected{}, parseErr
 			}
 			out.ParseErrors = append(out.ParseErrors, parseErr.Error())

@@ -1,0 +1,7 @@
+module ze-aaa-cmd {
+  namespace "urn:ze:aaa:cmd";
+  prefix aaa-cmd;
+  container commands {
+    leaf enabled { type boolean; }
+  }
+}

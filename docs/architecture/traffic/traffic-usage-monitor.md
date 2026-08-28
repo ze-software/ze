@@ -17,7 +17,7 @@ layer into math primitives, aggregation and neutral features is
 
 - The service is a COMPONENT, not a core leaf, because it imports
   `internal/component/iface` for per-interface rates. A core package cannot
-  import a component, and `make ze-tier-check` enforces that.
+  import a component, and `./le tier check` enforces that.
 - The port-to-service-name table is a CORE LEAF (`internal/core/portname`),
   because the ddos classifier needs the same table and the table is pure data
   with no component import.

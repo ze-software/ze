@@ -1,4 +1,4 @@
-// Design: scripts/dev/check_weakened_tests.py -- the weakening detector
+// Design: docs/architecture/testing/test-health.md -- the weakening detector
 // Related: scope.go -- the unit boundaries that give each verdict a test name.
 //
 // The detector is lexical by design. It preserves the producer's ordered
@@ -17,15 +17,15 @@ import (
 
 var (
 	assertPattern = regexp.MustCompile(
-		`(?:t\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)|assert\.|require\.)`,
+		`(?:\bt\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)|assert\.|require\.)`,
 	)
-	fatalPattern              = regexp.MustCompile(`(?:t\.(?:Fatal|Fatalf|FailNow)|require\.)`)
+	fatalPattern              = regexp.MustCompile(`(?:\bt\.(?:Fatal|Fatalf|FailNow)|require\.)`)
 	skipPattern               = regexp.MustCompile(`\b[A-Za-z_]\w*\.Skip(?:Now|f)?[ \t]*\(`)
 	ignoreTagPattern          = regexp.MustCompile(`//(?:go:build ignore\b|[ \t]*\+build ignore\b)`)
 	tableCasePattern          = regexp.MustCompile(`\{\s*(?:name|Name)\s*:`)
 	goTestFunctionPattern     = regexp.MustCompile(`(?m)^func (Test|Fuzz|Benchmark)`)
 	commentedAssertionPattern = regexp.MustCompile(
-		`//[^\n]*(?:t\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)|assert\.|require\.)`,
+		`//[^\n]*(?:\bt\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)|assert\.|require\.)`,
 	)
 	ciCoveragePattern = regexp.MustCompile(
 		`(?m)^[ \t]*(?:expect|reject|cmd)=` +
@@ -38,6 +38,11 @@ var (
 		`(?m)^[ \t]*(?:expect|reject)=[ \t]*$` +
 			`|^[ \t]*(?:expect|reject)=.*:[A-Za-z_][\w-]*=[ \t]*$`,
 	)
+	// heredocOpenPattern finds a carrier directive line that opens an embedded
+	// heredoc body (stdin=, tmpfs=, or any future directive shaped the same
+	// way), capturing the terminator name that closes it. Every occurrence in
+	// the corpus carries `terminator=<NAME>` as the line's final field.
+	heredocOpenPattern        = regexp.MustCompile(`terminator=([A-Za-z0-9_]+)[ \t]*$`)
 	pythonTestFunctionPattern = regexp.MustCompile(
 		`(?m)^[ \t]*(?:async[ \t]+)?def[ \t]+test`,
 	)
@@ -146,19 +151,30 @@ func detectCarrierVerdicts(
 	verdict detectorVerdict,
 	oldText, newText, oldSource, newSource string,
 ) detectorVerdict {
-	oldCoverage := matchCount(ciCoveragePattern, oldSource)
-	newCoverage := matchCount(ciCoveragePattern, newSource)
+	// The coverage and reject counts below are judged on the carrier's own
+	// directives, never on a heredoc body's program (a Python fixture, a
+	// pushed config file, ...). Stripping still leaves every real
+	// expect=/reject=/cmd= line, on both sides, so a directive genuinely
+	// dropped from the carrier is still caught: only what an embedded body
+	// happened to contain stops being counted as the carrier's own coverage.
+	oldCarrier := stripHeredocBodies(oldSource)
+	newCarrier := stripHeredocBodies(newSource)
+	oldCoverage := matchCount(ciCoveragePattern, oldCarrier)
+	newCoverage := matchCount(ciCoveragePattern, newCarrier)
 	if oldCoverage > newCoverage {
 		verdict.advisory = append(verdict.advisory, countVerdict(
 			"removing expectations", oldCoverage, newCoverage,
 			" expect=/reject=/cmd=/assert/fail"))
 	}
-	oldRejects := matchCount(ciRejectPattern, oldSource)
-	newRejects := matchCount(ciRejectPattern, newSource)
+	oldRejects := matchCount(ciRejectPattern, oldCarrier)
+	newRejects := matchCount(ciRejectPattern, newCarrier)
 	if oldRejects > newRejects {
 		verdict.advisory = append(verdict.advisory,
 			countVerdict("removing negative expectations", oldRejects, newRejects, " reject="))
 	}
+	// The empty-needle check stays on the raw, unstripped text: it is
+	// blocking, and a needle emptied inside a heredoc body still matches
+	// anything the moment that body is the thing dispatched.
 	oldEmpty := matchCount(ciEmptyNeedlePattern, oldText)
 	newEmpty := matchCount(ciEmptyNeedlePattern, newText)
 	if newEmpty > oldEmpty {
@@ -167,6 +183,55 @@ func detectCarrierVerdicts(
 			"; it now matches anything"))
 	}
 	return verdict
+}
+
+// stripHeredocBodies removes the embedded body of every carrier heredoc from
+// text, so a .ci/.et carrier is judged on its own directives rather than on
+// whatever program a heredoc happens to carry. A heredoc opens on a line
+// ending `terminator=NAME` and its body ends at the first following line
+// that is exactly NAME; both the opening directive and the closing line stay,
+// only the lines strictly between them are dropped. An unterminated heredoc
+// consumes the rest of the file as body -- this never panics, and it never
+// drops a directive that precedes the open it cannot close.
+// fixtureBlockOpener reports whether a block opener writes a FILE rather than
+// feeding the carrier's own input.
+//
+// The distinction decides what may be dropped, and getting it wrong blinds the
+// gate to the strongest assertions this repository has. A `tmpfs=` block is a
+// file the carrier writes to disk, so its bytes are a fixture. A `stdin=` block
+// is carrier input, and `stdin=peer:terminator=EOF_PEER` carries the
+// `expect=bgp:...:hex=...` wire expectations themselves: 548 of 1955 carriers
+// hold an expect= or reject= line inside a block, and every one of them is an
+// assertion a reader must still be shown losing.
+func fixtureBlockOpener(line string) bool {
+	return strings.HasPrefix(strings.TrimSpace(line), "tmpfs=")
+}
+
+func stripHeredocBodies(text string) string {
+	lines := strings.Split(text, "\n")
+	kept := make([]string, 0, len(lines))
+	index := 0
+	for index < len(lines) {
+		line := lines[index]
+		kept = append(kept, line)
+		index++
+		match := heredocOpenPattern.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+		if !fixtureBlockOpener(line) {
+			continue
+		}
+		terminator := match[1]
+		for index < len(lines) && lines[index] != terminator {
+			index++
+		}
+		if index < len(lines) {
+			kept = append(kept, lines[index])
+			index++
+		}
+	}
+	return strings.Join(kept, "\n")
 }
 
 func detectPythonVerdicts(

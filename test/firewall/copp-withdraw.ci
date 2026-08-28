@@ -5,52 +5,6 @@
 
 option=needs-linux:caps=net-admin
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Start ze with CoPP config, verify table exists, then verify
-shutdown removes it."""
-import os
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-                  attempts=200, delay=0.05):
-    print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
-    sys.exit(1)
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# Poll until the CoPP table is programmed instead of sleep(0.5).
-def _present():
-    try:
-        subprocess.check_output(["nft", "list", "table", "inet", "ze_copp"], text=True, stderr=subprocess.DEVNULL)
-        return True
-    except subprocess.CalledProcessError:
-        return False
-if not wait_until(_present, attempts=100, delay=0.05):
-    print("BEFORE_SHUTDOWN: table missing", file=sys.stderr)
-    sys.exit(1)
-print("BEFORE_SHUTDOWN: table present", file=sys.stderr)
-
-os.kill(pid, signal.SIGTERM)
-
-# Poll until the table is removed after shutdown instead of sleep(1).
-def _removed():
-    try:
-        subprocess.check_output(["nft", "list", "table", "inet", "ze_copp"], text=True, stderr=subprocess.STDOUT)
-        return False
-    except subprocess.CalledProcessError:
-        return True
-if not wait_until(_removed, attempts=200, delay=0.05):
-    print("AFTER_SHUTDOWN: table still present (FAIL)", file=sys.stderr)
-    sys.exit(1)
-print("AFTER_SHUTDOWN: table removed (OK)", file=sys.stderr)
-EOF_PY
-
 stdin=ze-bgp:terminator=EOF_CONF
 control-plane-protection {
     bgp {
@@ -62,7 +16,7 @@ EOF_CONF
 option=env:var=ze.log.copp:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=2:exec=ze-test fixture firewall/copp-withdraw:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=BEFORE_SHUTDOWN: table present
 expect=stderr:contains=AFTER_SHUTDOWN: table removed

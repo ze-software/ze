@@ -6,7 +6,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 const { chromium } = require("playwright-core");
 
-const run = "/src/demos/terminal/web-config/run.sh";
+const run = "/src/tmp/terminal-demos/bin/ze-demo";
 const artifactDir = "/src/demos/terminal/artifacts";
 const videoDir = "/src/tmp/terminal-demos/browser-video";
 const output = path.join(artifactDir, "web-config.webm");
@@ -20,7 +20,7 @@ function pause(milliseconds) {
 (async () => {
   fs.rmSync(videoDir, { recursive: true, force: true });
   fs.mkdirSync(videoDir, { recursive: true });
-  execFileSync(run, ["start"], { stdio: "inherit" });
+  execFileSync(run, ["run", "web-config", "start"], { stdio: "inherit" });
 
   let browser;
   try {
@@ -106,7 +106,7 @@ function pause(milliseconds) {
     if (browser) {
       await browser.close();
     }
-    execFileSync(run, ["stop"], { stdio: "inherit" });
+    execFileSync(run, ["run", "web-config", "stop"], { stdio: "inherit" });
   }
 })().catch((error) => {
   console.error(error.stack || error);

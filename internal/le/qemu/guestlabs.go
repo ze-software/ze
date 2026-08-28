@@ -1,6 +1,5 @@
 // Design: plan/spec-le-is-a-ze-binary.md -- step 10 guest-side evidence ports
-// Producers: scripts/evidence/effective-vrrp-keepalived.py,
-// scripts/evidence/effective-pppoe-accel.py, and scripts/evidence/netns_qemu.py.
+// Replaces the former VRRP, PPPoE, and netns Python guest drivers.
 package qemu
 
 import (
@@ -44,9 +43,9 @@ type GuestScenario struct {
 	Artifacts []string `json:"artifacts,omitempty"`
 }
 
-// GuestLabReport is the structured answer shared by the four guest-side actions.
+// guestLabReport is the structured answer shared by the four guest-side actions.
 // A zero Verdict is invalid and always maps to a failing command.
-type GuestLabReport struct {
+type guestLabReport struct {
 	Lab       string          `json:"lab"`
 	Verdict   Verdict         `json:"verdict"`
 	Selected  []string        `json:"selected,omitempty"`
@@ -59,7 +58,7 @@ type GuestLabReport struct {
 
 // Text preserves each producer's terminal summary while the pipe operators use
 // the fields above. Progress and peer output stream to stderr during the run.
-func (r GuestLabReport) Text() string {
+func (r guestLabReport) Text() string {
 	var out textbuf.Buffer
 	switch r.Lab {
 	case "vrrp-keepalived":
@@ -200,7 +199,7 @@ func runPPPoENetnsHere() (any, int) {
 	return finishGuestLab(report, err)
 }
 
-func finishGuestLab(report GuestLabReport, err error) (any, int) {
+func finishGuestLab(report guestLabReport, err error) (any, int) {
 	if err != nil {
 		leaction.ReportError(err)
 		if report.Lab == "" {

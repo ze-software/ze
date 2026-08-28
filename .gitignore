@@ -3,14 +3,11 @@
 
 # Build artifacts
 /bin/
-/ze
 /ze-*
 /functional
-# cache/ is a SYMLINK to the durable cache (~/.cache/ze), created by
-# scripts/dev/ensure-links.py. tmp/ is a real scratch dir by default; the tracked tmp/go.mod
-# sentinel keeps `go list ./...` from descending into the Go/QEMU caches under it. After the
-# opt-in `make ze-scratch-migrate`, tmp/ becomes a symlink to $TMPDIR/ze/<checkout-id>, which
-# `go list` skips without a sentinel. See plan/spec-relocate-scratch-and-cache.md.
+# cache/ and tmp/ become checkout-specific symlinks through
+# `./le scratch links-ensure`; Go skips those directory symlinks.
+# See plan/spec-relocate-scratch-and-cache.md.
 /cache
 tmp/*
 !tmp/go.mod
@@ -29,7 +26,7 @@ etc/ze/database.zefs*
 
 # Functional tests under development. A .ci in here is invisible to every suite
 # and every repo-wide gate (see test/draft/README.md), so a half-written test can
-# never redden `make ze-precommit-verify` or CI. Ignored rather than merely excluded: CI
+# never redden `./le verify current mode full` or CI. Ignored rather than merely excluded: CI
 # checks out git, so an ignored tree does not exist there at all, which makes the
 # guarantee independent of every gate remembering to skip it.
 # Promote with: mv test/draft/<suite>/<name>.ci test/<suite>/<name>.ci
@@ -57,13 +54,6 @@ coverage.html
 # Mutation testing incremental cache (gomu hardcodes this cwd path)
 .gomu_history.json
 
-# Python
-__pycache__/
-
-# Zeledon weekly-update Discord archive: authoritative copy of the text is the
-# published website (gh-pages/changes/posts/), so the local archive is kept only
-# for post_weekly.py's already-posted skip check, not committed.
-scripts/zeledon/weekly/
 
 # macOS
 .DS_Store
@@ -82,7 +72,7 @@ scripts/zeledon/weekly/
 
 # Generated AI tool config (canonical sources: ai/skills/, ai/agents/,
 # ai/INSTRUCTIONS.md)
-# Regenerate with: make ze-ai-skills-sync
+# Regenerate with: ./le ai skills-sync
 CLAUDE.md
 AGENTS.md
 .claude/skills/
@@ -92,13 +82,9 @@ AGENTS.md
 
 test/perf/results/
 bin/ze-perf-linux
-# Cross-compiled ze binary staged into the ipsec-interop Docker build context by
-# test/interop-ipsec/run.py (regenerated each run; ~58MB, must not be committed).
+# Cross-compiled ze binary staged into the IPsec interop Docker build context by
+# `internal/le/interoplab/ipsec.buildZe`; regenerated each run.
 test/interop-ipsec/ze-linux
-# The rendered ze.conf the container mounts: PKI placeholders resolved and the
-# CLI account and SSH listener appended. `Scenario._prepare_ze_conf` (lab.py)
-# writes one per scenario per run.
-test/interop-ipsec/scenarios/*/ze.conf.resolved
 
 # Runtime / scratch artifacts that leak into the working tree from running ze
 /stderr
@@ -115,23 +101,14 @@ internal/appliance/build/
 
 # Appliance builddir lock for the ze module itself. Derived and duplicated: that
 # module is only `replace ze => <repo root>`, so every line of its go.sum is
-# already in the root go.sum. The module bytes it would pin are not in the repo
-# either (gokrazy/modcache/.gitignore keeps only the gokrazy init source), so
-# `make ze-gokrazy-deps-download` is already a required post-clone step and regenerates
-# this file. Tracking it only created a second place to update on every
-# dependency bump, and it silently drifted (it still pinned grpc v1.80.0 after
-# the root module moved). The other gokrazy/ze/builddir go.sum files stay
-# tracked: they pin upstream gokrazy, serial-busybox and rtr7/kernel
-# dependencies that appear nowhere else.
+# already in the root go.sum. Tracking it created a second place to update on
+# each dependency bump. The native appliance dependency resolver regenerates
+# this file. The other gokrazy/ze/builddir go.sum files stay tracked because
+# kernel dependencies that appear nowhere else.
 gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
 
 # Derived documentation indexes, generated on demand and never committed.
-# Both are pure functions of the tree: docs_to_code.py reads `// Design:`
-# headers, code_to_docs.py reads `<!-- source: -->` anchors. Together they are
-# about 8900 lines that no code reads, they regenerate in under 3 seconds, and
-# tracking them cost a diff on 13% of commits plus a rebase conflict every time
-# two sessions appended a row. `make ze-doc-index-update` and
-# `make ze-discovery-index-update` write them; the session-start hook builds
-# them when they are missing.
+# `./le docs-to-code update` and `./le docs-to-code index-update` write them
+# from Go design headers and source anchors.
 /ai/DOCS-TO-CODE.md
 /ai/CODE-TO-DOCS.md

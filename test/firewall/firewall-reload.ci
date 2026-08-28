@@ -10,50 +10,6 @@
 
 option=needs-linux:caps=net-admin
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import os, shutil, signal, subprocess, sys
-
-from ze_api import wait_until
-
-if not wait_until(lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-                  attempts=200, delay=0.05):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# Poll until the initial rule is programmed instead of sleep(0.5).
-_b = {}
-def _initial():
-    try:
-        _b["s"] = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_002"], text=True, stderr=subprocess.DEVNULL)
-    except subprocess.CalledProcessError:
-        return False
-    return "dport 22 accept" in _b["s"]
-if not wait_until(_initial, attempts=100, delay=0.05):
-    sys.exit("initial state missing dport 22 rule")
-before = _b["s"]
-
-shutil.copy("config2.conf", "ze-bgp.conf")
-os.kill(pid, signal.SIGHUP)
-# Poll until the reload converged (old rule gone, new rule present) instead of sleep(1.5).
-_a = {}
-def _converged():
-    try:
-        _a["s"] = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_002"], text=True, stderr=subprocess.DEVNULL)
-    except subprocess.CalledProcessError:
-        return False
-    return "dport 22 accept" not in _a["s"] and "dport 443 accept" in _a["s"]
-if not wait_until(_converged, attempts=200, delay=0.05):
-    sys.exit("reload did not converge; got:\n" + _a.get("s", ""))
-after = _a["s"]
-
-sys.stdout.write("reload converged: before=%d bytes, after=%d bytes\n" % (len(before), len(after)))
-
-os.kill(pid, signal.SIGTERM)
-EOF_PY
-
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
 	backend nft;
@@ -95,7 +51,7 @@ EOF_CONF2
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+cmd=foreground:seq=2:exec=ze-test fixture firewall/firewall-reload:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=firewall config reloaded
 expect=stdout:contains=reload converged

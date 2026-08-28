@@ -13,76 +13,11 @@
 # Invalid args (bad family, non-numeric limit) are rejected upstream by the YANG
 # ArgDef validator before these handlers, so they are not exercised here.
 
-tmpfs=iface-kernel-read.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert show route/neighbor/arp dispatch (wiring) through the daemon."""
-
-# // authored this session, never previously green. The first draft
-# asserted handler-level errors (unknown family, --limit, invalid limit) and
-# case-insensitivity; running it showed the YANG ArgDef dispatcher rejects bad
-# family/limit values upstream (case-sensitively) before these handlers, and
-# that dispatching an ArgDef-invalid command raises plugin-side. Rewritten to
-# assert wiring of the valid object-rooted commands; the negative paths are the
-# framework's ArgDef contract, not these handlers'.
-
-import sys
-
-from ze_api import API, runtime_fail, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def assert_wired(api, command):
-    # Reaches its handler: status done (backend present) or a graceful handler
-    # error, but never "unknown command" (which means unregistered).
-    result = dispatch(api, command)
-    msg = result_text_data(result, '')
-    if result.get('status') != 'done' and 'unknown command' in msg.lower():
-        runtime_fail(f"{command}: not wired -- {msg[:160]}")
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        for cmd in (
-            'show route',
-            'show route 10.0.0.0/8',
-            'show route default',
-            'show route limit 5',
-            'show neighbor',
-            'show neighbor ipv4',
-            'show neighbor ipv6',
-            'show arp',
-        ):
-            assert_wired(api, cmd)
-
-        print('OK iface kernel-read dispatch verified', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-kernel-read-test {
-		run ./iface-kernel-read.run
+		run "ze-test fixture plugin/iface-kernel-read-dispatch"
 		encoder json
 	}
 }

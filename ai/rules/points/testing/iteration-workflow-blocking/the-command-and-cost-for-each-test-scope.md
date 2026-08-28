@@ -5,14 +5,14 @@ stage:
 ---
 | Scope | Command | Speed |
 |-------|---------|-------|
-| Single functional test | `ze-test bgp plugin N` or `ze-test ui N` | seconds |
-| Resume functional suite | `ze-test bgp plugin --start N` or `ze-test ui --start N` | seconds to remaining suite |
-| Single encode test | `ze-test bgp encode N` | seconds |
-| Single editor test | `ze-test editor N` or `ze-test editor --pattern <name>` | seconds |
-| Single ExaBGP compatibility test | `ze-test exabgp N` or `ze-test exabgp --start N` | seconds |
-| Single Go test | `make ze-unit-pkg-test PKG=./pkg/... RUN=TestName` | seconds |
-| Single package | `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor/` | seconds |
-| Component group | `make ze-unit-bgp-test` (or core, plugins, config, cli, rest) | 10s-1:30 |
-| All unit tests | `make ze-unit-test` | ~5 min |
-| All editor tests | `make ze-functional-editor-test` | ~30s |
-| Pre-commit gate | `make ze-precommit-verify` | 4-10 min (see `tmp/.ze-verify-duration.txt`) |
+| Single functional behavior | Run the owning compiled fixture's focused Go test, then the complete `./le functional <suite>` action | seconds plus suite |
+| Functional suite | `./le functional <suite>` | suite budget |
+| Encode or decode behavior | Focused Go test in the owning package, then `./le functional encode` or `./le functional decode` | seconds plus suite |
+| Single editor behavior | Focused Go test under `internal/component/cli/testing`, then `./le functional editor` | seconds plus suite |
+| ExaBGP compatibility | `./le functional exabgp-test` | suite budget |
+| Single Go test | `./le job run label unit-pkg command go test PKG=./pkg/... RUN=TestName` | seconds |
+| Single package | `./le job run label unit-pkg command go test PKG=./internal/component/bgp/reactor/` | seconds |
+| Component group | `./le test-unit bgp` (or core, plugins, config, cli, rest) | 10s-1:30 |
+| All unit tests | `./le test-unit` | ~5 min |
+| All editor tests | `./le functional editor` | ~30s |
+| Pre-commit gate | `./le verify worktree` | 4-10 min (see `tmp/.ze-verify-duration.txt`) |

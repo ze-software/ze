@@ -6,78 +6,21 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-option=update:value=send-default-route
+option=linger:value=true
+# UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: waits for route from peer, then queries adj-rib-in
-tmpfs=adj-rib-query-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for the inbound route to land in adj-rib-in before querying.
-    # // blind 2.0s sleep -> dispatch_until poll on adj-rib-in
-    # status (outbound quiesce cannot wait on an inbound route).
-    api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,
-    )
-
-    # The inbound route above proves the session reached Established. Quiesce so
-    # ze's End-of-RIB reaches the wire before `request shutdown` closes the
-    # session, making the peer's EOR expectation reachable instead of a race:
-    # PendingSync stays set from establishment (peer_run.go sendingInitialRoutes)
-    # until after the EOR is sent (peer_initial_sync.go), and the bgp-peer-sync
-    # quiescer blocks on exactly that, so this barrier cannot return early.
-    api.quiesce()
-
-    try:
-        # Query adj-rib-in for received routes
-        result = dispatch(api, 'show bgp rib received')
-        if result.get('status') != 'done':
-            print(f'FAIL: rib show-in status={result.get("status")} data={result.get("data")}', file=sys.stderr)
-            sys.exit(1)
-
-        print('OK: adj-rib-in query returned done', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native test plugin: waits for route from peer, then queries adj-rib-in
 
 # ze bgp configuration with adj-rib-in plugin
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external adj-rib-query-test {
-		run ./adj-rib-query-test.run
+		run "ze-test fixture plugin/adj-rib-in-query"
 		encoder json
-	}
-	internal bgp-rib {
-		use bgp-rib
-	}
-	internal adj-rib-in {
-		use bgp-adj-rib-in
 	}
 }
 
@@ -94,8 +37,8 @@ bgp {
 		}
 		session {
 			asn {
-				local 1
-				remote 1
+				local 65000
+				remote 65001
 			}
 			router-id 1.2.3.4
 			family {
@@ -109,11 +52,7 @@ bgp {
 			group-updates disable
 		}
 
-		attach process bgp-rib {
-			receive [ update state refresh ]
-			send [ update ]
-		}
-		attach process adj-rib-in {
+		attach process bgp-adj-rib-in {
 			receive [ update-received state ]
 		}
 	}

@@ -1,7 +1,7 @@
 # `test/draft/` — functional tests under development
 
 A `.ci` file here is **invisible to every suite and every repo-wide gate**. Write
-and iterate on it as long as you like; it cannot redden `make ze-precommit-verify`, and
+and iterate on it as long as you like; it cannot redden `./le verify current mode full`, and
 because the directory is gitignored it does not exist in CI at all.
 
 This directory is tracked only for this README. Everything else in it is ignored
@@ -15,7 +15,7 @@ so a subdirectory is already invisible to it. The problem was everything else: s
 gates walk `test/` RECURSIVELY, and each one would have seen a half-written draft.
 
 A test in progress used to have nowhere to live. Writing it in `test/<suite>/`
-meant every `make ze-precommit-verify` in the tree ran it — including runs by other sessions
+meant every `./le verify current mode full` in the tree ran it — including runs by other sessions
 working on unrelated things, who then had to decide whether the red was theirs.
 
 ## Layout
@@ -41,7 +41,7 @@ ze-test bgp plugin --draft -a
 ze-test bgp plugin --draft --pattern my-new-test
 
 # 3. prove it under load, still as a draft
-python3 scripts/dev/stress-repro.py "bgp plugin --draft" --test 1 --any-failure
+./le stress-repro run suite "bgp plugin --draft" test 1 any-failure
 
 # 4. promote when green: a plain move, no git plumbing needed
 mv test/draft/plugin/my-new-test.ci test/plugin/my-new-test.ci
@@ -53,27 +53,20 @@ ze-test bgp plugin -a
 Replacing an existing test is the same move: draft alongside it under
 `test/draft/<suite>/`, then `mv` over the original.
 
-## The gates that skip this directory
+## The checks that skip this directory
 
-Each of these walks `test/` recursively and explicitly skips `draft`. If you add
-another repo-wide scanner over `test/`, whatever it reads, skip it there too,
-and add a case to
-`TestDraftDirIsInvisibleToRepoGates`
-(`internal/test/runner/draft_dir_test.go`) so the omission fails a test rather
-than surfacing as a mystery red in someone else's session.
+Each recursive `.ci` reader explicitly skips `draft`. Add each new reader to
+`TestDraftDirIsInvisibleToRepoChecks`
+(`internal/test/runner/draft_dir_test.go`).
 
-| Gate | Producer |
+| Check | Producer |
 |------|----------|
-| accept-only lint | `internal/test/runner/accept_only.go` `acceptOnlyUnannotated` |
+| accept-only lint | `internal/test/runner/accept_only.go` |
 | BGP frame-length fixtures | `internal/test/runner/ci_fixture_test.go` |
-| ci-sleep ratchet | `scripts/dev/verify_wiring_docs.py` |
-| observer-recover check | `scripts/dev/ci_observer_recover_check.py` |
-| dispatch-command check | `scripts/checks/ci_dispatch_commands.go` |
-| inert-test check | `scripts/checks/inert_tests.go` |
-| fail-open call-site ratchet | `scripts/dev/docker_exec_checked.py` |
+| documentation wiring | `internal/le/docwiring/checks.go` |
+| RFC evidence | `internal/le/rfc/carriers.go` |
 
 ## What a draft does NOT get
 
-No accept-only annotation check, no sleep ratchet, no frame-length validation, no
-dispatch-command check. Those gates run the moment you promote, so promote early
-rather than polishing for days against none of them.
+No accept-only, frame-length, documentation-wiring, or RFC-evidence check runs
+until promotion. Promote early enough to run all four before review.

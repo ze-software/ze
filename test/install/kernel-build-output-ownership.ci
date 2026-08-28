@@ -1,105 +1,14 @@
 # Test: the containerized kernel build hands its output back to the invoking user.
 #
-# build.py runs as uid 0 inside the container, so everything it writes through
-# the `-v {out_dir}:/out` bind mount lands on the host owned root:root. The
-# caller is an unprivileged make recipe: ze-kernel-vmlinuz-stage
-# (mk/build-gokrazy.mk) then cannot `rm -rf` its own scratch view, no kernel is
-# staged, and ze-qemu-kernel-guard refuses every QEMU target with a message
-# about permissions rather than about the kernel. Nothing but `sudo rm` clears
-# it and no automated caller can issue that
-# (plan/journal/container-build-leaves-root-owned-scratch.md, two instances).
-#
-# `--user` on the build container is not the fix and this test does not ask for
-# one. The build also writes the named volumes /build and /tmp/kbuild, and
-# docker creates a named volume owned root:root 0755 -- measured 2026-08-24 on a
-# volume created fresh for the probe, so an unprivileged uid is denied there on
-# a clean machine exactly as on one that has built before. /out is the only
-# mount that reaches the host.
-#
-# Only docker is faked. Real python3, real run.py, real argv.
-
+# The compiled worker runs as uid 0 inside the container, so everything it
+# writes through the output bind mount lands on the host owned root:root. The
+# native driver repairs that ownership after both successful and failed builds.
+# Running the build container as the invoking uid is not sufficient because the
+# build also writes named volumes owned by root; only the output mount reaches
+# the host.
 option=timeout:value=60s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-work=$PWD
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-mkdir -p "$work/fakebin" "$work/out" "$work/out-failed"
-
-# Records every docker argv, and fails the BUILD run when ZE_FAKE_BUILD_FAILS is
-# set. `chown` is never made to fail: the point of the second case is that the
-# repair still runs when the build did not.
-cat > "$work/fakebin/docker" <<'EOF_DOCKER'
-#!/bin/sh
-set -eu
-printf '%s\n' "$*" >> "$ZE_DOCKER_LOG"
-if [ "$1" = run ] && [ -n "${ZE_FAKE_BUILD_FAILS:-}" ]; then
-	for arg in "$@"; do
-		if [ "$arg" = /builder/build.py ]; then
-			echo 'fake build failure' >&2
-			exit 1
-		fi
-	done
-fi
-EOF_DOCKER
-chmod +x "$work/fakebin/docker"
-
-drive() {
-	PATH="$work/fakebin:$PATH" \
-	ZE_DOCKER_LOG="$1" \
-	python3 "$repo/tools/kernel-builder/run.py" \
-		--target runtime \
-		--arch amd64 \
-		--profile runtime \
-		--builder docker \
-		--src-dir gokrazy/kernel \
-		--out-dir "$2" \
-		--builder-dir tools/kernel-builder \
-		--common-dir tools/kernel-builder/common \
-		--modules yes
-}
-
-# --- The build succeeds: the repair runs after it. ---------------------------
-drive "$work/docker.log" "$work/out"
-
-grep -q -- 'python3 /builder/build.py' "$work/docker.log"
-
-want="run --rm --platform linux/amd64 -v $work/out:/out ze-kernel-builder chown -R $(id -u):$(id -g) /out"
-grep -qxF -- "$want" "$work/docker.log" || {
-	echo "no ownership repair in the docker argv log; the build's output stays root:root" >&2
-	echo "wanted: $want" >&2
-	cat "$work/docker.log" >&2
-	exit 1
-}
-
-# Order matters: repairing before the build writes is repairing nothing.
-build_line=$(grep -n -- 'python3 /builder/build.py' "$work/docker.log" | head -n 1 | cut -d: -f1)
-chown_line=$(grep -n -- 'chown -R' "$work/docker.log" | head -n 1 | cut -d: -f1)
-[ "$chown_line" -gt "$build_line" ] || {
-	echo "ownership repair ran at line $chown_line, before the build at line $build_line" >&2
-	exit 1
-}
-
-# --- The build FAILS: the repair still runs. ---------------------------------
-# A build that dies during modules_install leaves a partial root-owned tree,
-# which is the same landmine as a whole one.
-if ZE_FAKE_BUILD_FAILS=1 drive "$work/docker-failed.log" "$work/out-failed"; then
-	echo 'run.py reported success for a failed docker build' >&2
-	exit 1
-fi
-
-want_failed="run --rm --platform linux/amd64 -v $work/out-failed:/out ze-kernel-builder chown -R $(id -u):$(id -g) /out"
-grep -qxF -- "$want_failed" "$work/docker-failed.log" || {
-	echo "a FAILED build left no ownership repair; its partial output stays root:root" >&2
-	cat "$work/docker-failed.log" >&2
-	exit 1
-}
-
-echo OK
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/kernel-build-output-ownership
 expect=exit:code=0
 expect=stdout:contains=OK

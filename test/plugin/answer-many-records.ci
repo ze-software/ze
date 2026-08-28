@@ -38,103 +38,12 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # The plugin: every answer it receives is a sequence, declared or not.
-tmpfs=answer-records.run:mode=755:terminator=EOF_RECORDS
-#!/usr/bin/env python3
-"""A peer reading a long answer record by record."""
-
-import json
-import sys
-
-from ze_api import API, answer_record_payload, runtime_fail
-
-# THRESHOLD is rpc.AnswerBufferThreshold (pkg/plugin/rpc/message.go). It is the
-# number of records the encoder holds while it decides the type, so an answer
-# must pass it to be streamed at all.
-THRESHOLD = 256
-
-
-def tail_of(line, want_kind):
-    """Return the positional tail of one answer line, checking its kind.
-
-    The field after the id is the three-byte kind token, and it is what says
-    what the line IS. The tail is never read to find that out, and it carries
-    no key name at all.
-    """
-    parts = line.split(" ", 2)
-    if len(parts) != 3 or parts[1] != want_kind:
-        runtime_fail(f"unexpected answer line, want kind {want_kind!r}: {line[:120]}")
-    return parts[2]
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    # Stage 3 names no wire shape: one answer has one encoding.
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    lines = api.dispatch_wire_lines("system command list", timeout=10.0)
-    if len(lines) < 3:
-        runtime_fail(f"answer was {len(lines)} lines, want a head, records and a terminator: {lines}")
-
-    # The head is positional: the map item type, the envelope name as a counted
-    # text, and empty column names. It states no outcome and carries no key name.
-    head = tail_of(lines[0], "top")
-    if head != "map 8:commands 0:":
-        runtime_fail(f"head was {head!r}, want 'map 8:commands 0:'")
-    if "=" in head:
-        runtime_fail(f"head carries a key=value pair: {head!r}")
-
-    # The terminator is three positional fields: the records produced, the rows
-    # rejected, and the message. A count is decimal digits a space closes, and a
-    # message is a byte count, a colon, and the bytes it counts.
-    terminator = tail_of(lines[-1], "end")
-    fields = terminator.split(" ")
-    if len(fields) != 3 or fields[1] != "0" or fields[2] != "0:":
-        runtime_fail(f"last line was {terminator!r}, want three counted fields, no fault and no message")
-    counted = int(fields[0])
-
-    records = lines[1:-1]
-    if len(records) != counted:
-        runtime_fail(f"the answer carries {len(records)} record lines and the terminator counts {counted}")
-    if counted <= THRESHOLD:
-        runtime_fail(
-            f"fixture problem: the daemon registers {counted} commands, "
-            f"which is inside the {THRESHOLD}-record threshold, so nothing streams"
-        )
-
-    # No count reaches the peer before the terminator: nothing states a total
-    # the records can contradict. Each record's payload states its own byte
-    # count, so it is taken by that count rather than by reading to the end of
-    # the line.
-    for i, line in enumerate(records):
-        payload = answer_record_payload(tail_of(line, "row"))
-        row = json.loads(payload)
-        if "value" not in row:
-            runtime_fail(f"record {i} carries no command name: {payload[:120]!r}")
-        if "commands" in row:
-            runtime_fail(f"record {i} carries the envelope; the head names it: {payload[:120]!r}")
-
-    print(f"OK: {counted} records streamed, one line each", file=sys.stderr)
-
-    # A negotiated peer reads EVERY dispatch answer as a sequence, so the
-    # shutdown goes out the same way.
-    api.dispatch_wire_lines("request shutdown", timeout=2.0, settle=0.2)
-    api.wait_for_shutdown()
-
-
-if __name__ == "__main__":
-    main()
-EOF_RECORDS
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external answer-records {
-		run ./answer-records.run
+		run "ze-test fixture plugin/answer-many-records"
 		encoder json
 	}
 }

@@ -14,59 +14,11 @@ option=needs-linux:caps=net-admin
 option=netns-link:name=eth0
 option=netns-link:name=eth1
 
-tmpfs=ospf-multiaf-show.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show ospf ipv6` identifies each RFC 5838 address-family instance."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    result = dispatch(api, 'show ospf ipv6')
-    if result.get('status') != 'done':
-        runtime_fail(f"show ospf ipv6: status={result.get('status')} data={result.get('data')!r}")
-    rows = result_json_data(result, None) or []
-    if not isinstance(rows, list):
-        runtime_fail(f"show ospf ipv6: expected a list, got {rows!r}")
-
-    by_af = {r.get('address-family'): r for r in rows if isinstance(r, dict)}
-    v6u = by_af.get('ipv6-unicast')
-    v4u = by_af.get('ipv4-unicast')
-    if v6u is None or v6u.get('instance-id') != 0:
-        runtime_fail(f"show ospf ipv6: missing ipv6-unicast at instance 0: {rows!r}")
-    if v4u is None or v4u.get('instance-id') != 64:
-        runtime_fail(f"show ospf ipv6: missing ipv4-unicast at instance 64: {rows!r}")
-
-    print('OK: show ospf ipv6 identifies both AF instances', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-multiaf-show {
-		run ./ospf-multiaf-show.run
+		run "ze-test fixture ospf/ospf-multiaf-show"
 		encoder json
 	}
 }

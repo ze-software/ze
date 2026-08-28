@@ -7,8 +7,8 @@ developer.
 
 Ze code is written to that standard. This page is the working standard for every
 line of Go in the repository. It has two companions. `writing-style.md` is the
-standard for every word. `ze-python-style.md` is the standard for every line of
-Python, which is the language of every gate and every test driver here.
+standard for every word. `ze-python-style.md` explains where external Python
+references remain valid while all first-party tooling stays in Go.
 
 This page carries the reasoning. The blocking mechanical detail lives in
 `ai/rules/`, and each section names the rule that owns it. When this page and a
@@ -138,7 +138,7 @@ uses three tools.
 The allowed panic prefixes are `BUG`, `unreachable`, `not implemented`,
 `unimplemented`, `TODO`, and `impossible`. Any other `panic()` is refused when
 the file is written.
-<!-- source: .claude/hooks/pretool-writeedit.py -- c_panic -->
+<!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
 
 Three habits make the tools earn their cost.
 
@@ -447,11 +447,12 @@ specialist instruments, each with its own manual.
 > "The right tool for the job is often the tool you are already using -- adding
 > new tools has a higher cost than many people appreciate"
 
-Ze writes its tooling in Python, never in shell. A shell script is fragile, it
-is hard to debug, and it fails differently on each machine. The precedent is
-`test/interop/run.py`. That Python has a standard of its own, and it is
-`ze-python-style.md`.
-<!-- source: ai/rules/go-standards.md -- Scripts: Python Only -->
+Ze writes repository tooling in Go under `internal/le/`. A new development
+workflow is an `./le <area> <action>` backed by a callable Go package, and its
+fixtures live under that package's `testdata/` directory or
+`internal/test/fixture`. Python remains relevant only when documentation or
+interoperability concerns an external Python program.
+<!-- source: internal/le/register.go -- native tooling composition root -->
 
 ## Where Ze differs from TigerStyle
 
@@ -465,7 +466,7 @@ answer. Each one is deliberate.
 | Line length | A hard limit of 100 columns | 100 columns, advisory |
 | Indentation | 4 spaces | Tabs, written by `gofmt` |
 | Allocation | No dynamic allocation after startup | Zero allocation on a wire path, through bounded pools. Go has a garbage collector, so the target is the hot path rather than the whole program |
-| Scripting | Zig | Python |
+| Repository tooling | Zig | Go actions under `internal/le/` |
 | Dependencies | Zero, apart from the toolchain | Vendored Go modules. A new one needs Thomas to agree first |
 | Assertion density | At least two for each function | Ze counts nothing. `panic("BUG:")` marks a state that a Ze defect alone can reach, and a peer never reaches one |
 

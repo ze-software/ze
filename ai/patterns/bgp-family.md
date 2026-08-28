@@ -74,7 +74,7 @@ registrations. Missing the plugin registry entry means `--nlri decode` and
       InProcessNLRIDecoder: DecodeNLRIHex
       RunEngine:            func(net.Conn) int { return 0 }  // codec-only plugin
       CLIHandler:           func([]string) int { return 0 }   // codec-only plugin
-[ ] Run make generate (updates internal/component/plugin/all/all.go)
+[ ] Run ./le repository generate (updates internal/component/plugin/all/all.go)
 ```
 
 ### 4. Capability (if the feature introduces one)
@@ -124,7 +124,7 @@ is an untested migration path.
 ### 6. Exhaustive Switch Audit (BLOCKING)
 
 New SAFI/capability constants break exhaustive switches elsewhere in the codebase.
-The `exhaustive` linter catches these, but only if you run `make ze-lint-changed`.
+The `exhaustive` linter catches these, but only if you run `./le changed scope`.
 Proactively find them:
 
 ```

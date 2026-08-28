@@ -89,7 +89,7 @@ Prose SHOULD follow STE. **STE is a GUIDELINE. It is not a law, and it is not a 
 text clearer for a reader. Owner directive, 2026-07-31.
 
 - **Never rewrite a sentence only to satisfy a count.** An edit that changes no meaning for a reader is pure overhead, and it is the thing this guideline exists to remove. A sentence two words over the limit is not a defect.
-- **The checker reports. It does not refuse.** `make ze-ste-check` and the commit-time check print findings and let the work through. Apply a finding when it makes the text clearer, and ignore it when it does not.
+- **The checker reports. It does not refuse.** `./le ste check` and the commit-time check print findings and let the work through. Apply a finding when it makes the text clearer, and ignore it when it does not.
 - **Aim at the six habits, not at the arithmetic.** The word and sentence counts below are a smell test for a run-on, never a target to hit.
 - **Write every sentence in STE.** One topic per sentence, active voice, the imperative form for instructions, and an approved verb for every action.
 - **The six habits in the next section are the operative list.** A numbered STE rule bans each one. Learn the six first, then read the standard for the remainder.
@@ -162,22 +162,21 @@ text clearer for a reader. Owner directive, 2026-07-31.
 
 | Command | What it does |
 |---------|--------------|
-| `scripts/dev/commit_helper.py create` | **Advisory.** `ste_problems` PRINTS findings for a commit's own `.md`, `.go`, or `.yang` files. It never refuses the commit. It runs on the files of that commit, so the prose it judges has one author |
-| `make ze-ste-check` | The same gate over every changed file in the working tree. Run it before you prepare a commit. About 2 seconds |
-| `make ze-ste-review` | The whole-tree report. Every finding with its `file:line`, its habit number, and the replacement to use |
-| `make ze-ste-review-changed` | The same report for changed files only |
-| `python3 scripts/dev/ste_check.py <file>...` | Review named documents |
-| `git log -1 --format=%B \| python3 scripts/dev/ste_check.py -` | Review a commit message or a PR body before you send it |
+| `./le commit create` | **Advisory.** `ste_problems` PRINTS findings for a commit's own `.md`, `.go`, or `.yang` files. It never refuses the commit. It runs on the files of that commit, so the prose it judges has one author |
+| `./le ste check` | The same gate over every changed file in the working tree. Run it before you prepare a commit. About 2 seconds |
+| `./le ste review` | The whole-tree report. Every finding with its `file:line`, its habit number, and the replacement to use |
+| `./le ste review-changed` | The same report for changed files only |
+| `./le ste check file <path> [file <path>...]` | Review named documents with the same native ratchet |
 
 - **HEAD is the baseline, and the comparison is per file.** A document nobody touched can never fail the gate, so legacy prose stays until someone rewrites it. The sentence you just wrote is what goes red.
 - **There is no baseline file, and nothing to re-bless.** Rewriting a number cannot silence this gate, so the one way to green is to fix the prose (`ai/rules/completion.md`).
-- **The gate is at commit time, not in `ze-doc-verify`.** Several sessions share this checkout. A tree-wide prose gate reports a sibling session's in-flight sentences, and a gate that reddens for a colleague's typing gets switched off.
-- **`make ze-ste-check` still reads the whole working tree**, so it can name a file another session is editing. Read the path before you read the habit.
+- **The gate is at commit time, not in `./le doc-check verify`.** Several sessions share this checkout. A tree-wide prose gate reports a sibling session's in-flight sentences, and a gate that reddens for a colleague's typing gets switched off.
+- **`./le ste check` still reads the whole working tree**, so it can name a file another session is editing. Read the path before you read the habit.
 - **The checker holds our own word lists, not the ASD dictionary.** It cannot see every violation, so the six habits stay a review checklist as well as a gate. Report a violation as an ISSUE against its habit number.
-- **When the tool is wrong, fix the tool and add the case to `scripts/dev/ste_check_test.py`.** A checker that flags `setup`, an RFC 2119 MUST, or a code span gets switched off, and then it protects nothing.
+- **When the tool is wrong, fix the tool and add the case to `internal/le/ste/ste_test.go`.** A checker that flags `setup`, an RFC 2119 MUST, or a code span gets switched off, and then it protects nothing.
 - **Escape hatch for a document that MUST quote non-STE text at length:** `<!-- ste: ignore-file <reason> -->`, or `<!-- ste: ignore -->` above one line. The reason is mandatory.
 - **Surfaces the tool reads:** Markdown in `docs/`, `ai/`, the durable half of `plan/`, and the repository root. Prose comments in `.go`. The `description` strings in `.yang`. Piped text on stdin. It never reads `rfc/`, which stays verbatim.
-- **A document that is DELETED when the work closes is out of scope, and editing its prose is banned work (owner directive, 2026-08-10).** A spec `git rm`s itself in commit B, and a deferral or known-failure shard goes when its rows resolve, so a sentence rewritten there is read once by the session that wrote it. `plan/spec-*.md`, `plan/deferrals/` and `plan/known-failures/` are excluded in `scripts/dev/ste_check.py`. `plan/journal/`, `plan/learned/` and `plan/TEMPLATE.md` stay in: they outlive every spec and are read by sessions that were not there.
+- **A document that is DELETED when the work closes is out of scope, and editing its prose is banned work (owner directive, 2026-08-10).** A spec `git rm`s itself in commit B, and a deferral or known-failure shard goes when its rows resolve, so a sentence rewritten there is read once by the session that wrote it. `plan/spec-*.md`, `plan/deferrals/` and `plan/known-failures/` are excluded in `internal/le/ste/ste.go`. `plan/journal/`, `plan/learned/` and `plan/TEMPLATE.md` stay in: they outlive every spec and are read by sessions that were not there.
 
 ### Mechanical check: STE
 
@@ -197,7 +196,7 @@ Write what changes the reader's next action. Write nothing else.
 
 - **Detail is a cost the reader pays, not proof that you did the work.** A fact the reader can recover in seconds by opening the code MUST NOT be written down.
 - **You MUST cite a location so the reader can NAVIGATE, never to show that you looked.** Verification is an action you take (read the producing function). The citation is a pointer for the reader, and it is a separate decision.
-- **You MUST name the file and the symbol: `session.go` `Session.Run`.** A line number is correct when the line IS the fact, or when a gate or generator pins it. Examples: a stack frame, a generated ledger row, a gate's own message, a `file:line -> sha` audit entry, a `ai/digests/` anchor that `make ze-digest-check` validates, a handoff edit range, and a `<!-- source: -->` anchor. Everywhere else the number rots at the next edit, and a reader who has the symbol never needs it.
+- **You MUST name the file and the symbol: `session.go` `Session.Run`.** A line number is correct when the line IS the fact, or when a gate or generator pins it. Examples: a stack frame, a generated ledger row, a gate's own message, a `file:line -> sha` audit entry, a `ai/digests/` anchor that `./le digest` validates, a handoff edit range, and a `<!-- source: -->` anchor. Everywhere else the number rots at the next edit, and a reader who has the symbol never needs it.
 - **One example for one point.** A second example earns its place only when it shows a DIFFERENT reading. A second instance of the same reading teaches nothing and costs every future session.
 - **When a directive can be read two ways, you MUST write both readings and name the one that governs.** More examples hide an ambiguity. Naming the readings ends it.
 - **You MUST NOT make the same cut twice.** When a table and a paragraph draw the same distinction, keep the table and delete the paragraph.
@@ -320,9 +319,9 @@ These are invisible in rendered markdown but let future sessions verify accuracy
 
 ### Validation
 
-Run `make ze-doc-verify` after editing any file under `docs/`, after adding or removing a plugin, or after touching a YANG `ze:command` declaration. The umbrella target runs `check-doc-drift` (validates doc counts/lists and narrow stale-claim checks), `validate-commands` (validates YANG `ze:command` <-> RPC handler contract), and the source-anchor stale-path check. These fail the make target on drift and report all issues found.
+Run `./le doc-check verify` after editing any file under `docs/`, after adding or removing a plugin, or after touching a YANG `ze:command` declaration. `internal/le/docwiring.Verify` runs the native documentation drift, command-surface, and source-anchor checks and reports every finding.
 
-Not part of `ze-precommit-verify` today because of a pre-existing drift backlog. Run on demand. See `docs/contributing/documentation-testing.md` for the full workflow and how to interpret output.
+Not part of `./le verify current mode full` today because of a pre-existing drift backlog. Run on demand. See `docs/contributing/documentation-testing.md` for the full workflow and how to interpret output.
 
 ### NOT Documentation
 

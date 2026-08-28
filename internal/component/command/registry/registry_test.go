@@ -75,7 +75,7 @@ func TestRegisterRootHandlerRejectsEmptyName(t *testing.T) {
 	if !errors.Is(err, ErrRootHandlerEmptyName) {
 		t.Fatalf("expected ErrRootHandlerEmptyName, got %v", err)
 	}
-	if HasRootHandler("") {
+	if LookupRoot("") != nil {
 		t.Error("empty-name handler should not be registered")
 	}
 }
@@ -88,7 +88,7 @@ func TestRegisterRootHandlerRejectsNilHandler(t *testing.T) {
 	if !errors.Is(err, ErrRootHandlerNilHandler) {
 		t.Fatalf("expected ErrRootHandlerNilHandler, got %v", err)
 	}
-	if HasRootHandler("interface") {
+	if LookupRoot("interface") != nil {
 		t.Error("nil handler should not be registered")
 	}
 }

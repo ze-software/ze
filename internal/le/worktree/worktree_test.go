@@ -10,7 +10,7 @@ import (
 // VALIDATES: a worktree update refuses every tree it must not rewrite -- the
 // main working tree, and a checkout with no branch checked out -- before it
 // stashes or rebases anything.
-// PREVENTS: the regression measured in scripts/dev/worktree_update.sh on
+// PREVENTS: the regression measured in internal/le/worktree/worktree.go on
 // 2026-08-26. `git branch --show-current` prints nothing and exits 0 for a
 // detached HEAD, the script keeps that empty string as the branch name, rebases
 // anyway, and reports "done (HEAD: <sha>)". The rebased commits are then

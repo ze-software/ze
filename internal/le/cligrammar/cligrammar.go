@@ -11,11 +11,11 @@
 // (validateCommandName) is Feeder 2; the in-process runtime guard
 // (TestRuntimeBuiltinSurfaceGrammar / TestRegistrationRejectsBadGrammar in
 // internal/component/plugin/server) is Feeder 3. Feeder 4 is the root
-// namespace and Feeder 5 is the repository's own call sites in the demo
-// scripts.
+// namespace and Feeder 5 is the repository's own call sites in terminal-demo
+// definitions.
 //
 // Every population this gate reads is FLOORED and every read error is
-// answered. The script this replaces discarded both: it walked `internal`,
+// answered. The retired implementation discarded both: it walked `internal`,
 // `cmd/ze` and `demos/terminal` relative to the working directory, skipped a
 // file it could not open, ignored a scanner error, and ignored a Go file it
 // could not parse. Run anywhere but a checkout, or over a tree holding one
@@ -151,14 +151,14 @@ type Floor struct {
 	YANGFiles int
 	// Roots is the least registered root handlers the AST scan must resolve.
 	Roots int
-	// DemoScripts is the least checked-in demo scripts the call-site scan must
-	// read.
+	// DemoScripts is the least checked-in demo definitions the call-site scan
+	// must read.
 	DemoScripts int
 }
 
 // DefaultFloor is what le passes. The counts on 2026-08-26 were 217 .yang
-// files, 40 roots and 40 demo scripts, so each floor sits at roughly half.
-var DefaultFloor = Floor{YANGFiles: 100, Roots: 20, DemoScripts: 20}
+// files, 40 roots, and 19 terminal-demo definitions.
+var DefaultFloor = Floor{YANGFiles: 100, Roots: 20, DemoScripts: 10}
 
 // Check walks every feeder of the grammar gate over tree and answers what it
 // found.
@@ -357,6 +357,9 @@ func walkYANG(tree string, read func(rel string, scanner *bufio.Scanner) error) 
 		if err != nil {
 			return err
 		}
+		if entry.IsDir() && entry.Name() == "testdata" {
+			return filepath.SkipDir
+		}
 		if entry.IsDir() || !strings.HasSuffix(path, ".yang") {
 			return nil
 		}
@@ -373,29 +376,29 @@ func walkYANG(tree string, read func(rel string, scanner *bufio.Scanner) error) 
 	})
 }
 
-// demoLaunchHits reports every `ze <token>` invocation in the checked-in demo
-// scripts whose token is not in accepted, and the number of scripts it read.
+// demoLaunchHits reports every `ze <token>` invocation in the checked-in
+// terminal-demo definitions whose token is not in accepted, and the number of
+// definitions it read.
 //
 // Feeder 5 of the grammar gate. The other feeders check how commands are
-// DECLARED; this one checks the repository's own CALL SITES, because nothing
-// else does: the pre-commit gate never executes demos/terminal (they need
-// Docker, and they run from mk/build-terminal-demo.mk at release time and from
-// the website workflow). When `ze <config-file>` was removed in favor of
-// `ze start <config-file>`, thirteen demo scripts kept the dead form and the
-// Deploy website job failed at "Generate terminal media" on every push for four
-// days before anyone read the log.
+// declared; this one checks the repository's own call sites. Terminal demos
+// need Docker and run from `./le terminal-demo`, so the pre-commit gate does not
+// execute them. When `ze <config-file>` was removed in favor of
+// `ze start <config-file>`, thirteen demos kept the dead form and the deploy
+// workflow stayed red for four days.
 func demoLaunchHits(tree string, accepted map[string]bool) ([]DemoLaunchHit, int, error) {
-	nested, err := filepath.Glob(filepath.Join(tree, "demos", "terminal", "*", "*.sh"))
-	if err != nil {
-		return nil, 0, err
+	var files []string
+	for _, pattern := range []string{
+		filepath.Join(tree, "demos", "terminal", "*", "*.tape"),
+		filepath.Join(tree, "demos", "terminal", "*", "*.cjs"),
+		filepath.Join(tree, "demos", "terminal", "*.tape"),
+	} {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, 0, err
+		}
+		files = append(files, matches...)
 	}
-	top, err := filepath.Glob(filepath.Join(tree, "demos", "terminal", "*.sh"))
-	if err != nil {
-		return nil, 0, err
-	}
-	files := make([]string, 0, len(nested)+len(top))
-	files = append(files, nested...)
-	files = append(files, top...)
 	sort.Strings(files)
 
 	var hits []DemoLaunchHit
@@ -406,9 +409,8 @@ func demoLaunchHits(tree string, accepted map[string]bool) ([]DemoLaunchHit, int
 		}
 		found, scanErr := scanDemoScript(path, filepath.ToSlash(rel), accepted)
 		if scanErr != nil {
-			// An unread script is an unchecked call site, which is the whole
-			// reason this feeder exists. The script this replaces said so of a
-			// scanner error and then skipped a file it could not OPEN.
+			// An unread definition is an unchecked call site, which is the
+			// reason this feeder exists.
 			return nil, 0, scanErr
 		}
 		hits = append(hits, found...)
@@ -416,7 +418,7 @@ func demoLaunchHits(tree string, accepted map[string]bool) ([]DemoLaunchHit, int
 	return hits, len(files), nil
 }
 
-// scanDemoScript reports every dead launch form in one demo script.
+// scanDemoScript reports every dead launch form in one demo definition.
 func scanDemoScript(path, rel string, accepted map[string]bool) ([]DemoLaunchHit, error) {
 	file, err := os.Open(path) //nolint:gosec // repository path
 	if err != nil {
@@ -446,7 +448,16 @@ func scanDemoScript(path, rel string, accepted map[string]bool) ([]DemoLaunchHit
 		if strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		for _, token := range launchTokens(strings.Fields(text)) {
+		command := text
+		if strings.HasPrefix(trimmed, "Type ") {
+			quoted := strings.TrimSpace(strings.TrimPrefix(trimmed, "Type "))
+			unquoted, unquoteErr := strconv.Unquote(quoted)
+			if unquoteErr != nil {
+				return nil, fmt.Errorf("read %s:%d: invalid Type command: %w", rel, line, unquoteErr)
+			}
+			command = unquoted
+		}
+		for _, token := range launchTokens(strings.Fields(command)) {
 			if accepted[token] {
 				continue
 			}
@@ -481,7 +492,8 @@ func launchTokens(fields []string) []string {
 			token = word
 			break
 		}
-		if token == "" || strings.HasPrefix(token, ">") || strings.HasPrefix(token, "$") {
+		if token == "" || strings.HasPrefix(token, ">") || strings.HasPrefix(token, "$") ||
+			token == "|" || token == "||" || token == "&&" || token == ";" {
 			continue
 		}
 		tokens = append(tokens, token)
@@ -513,6 +525,9 @@ func registeredRootNames(tree string) ([]string, error) {
 		err := filepath.WalkDir(filepath.Join(tree, dir), func(path string, entry os.DirEntry, err error) error {
 			if err != nil {
 				return err
+			}
+			if entry.IsDir() && entry.Name() == "testdata" {
+				return filepath.SkipDir
 			}
 			if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 				return nil

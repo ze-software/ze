@@ -3,11 +3,11 @@ kind: directive
 level: MUST
 stage:
 ---
-- You MUST NOT run `make ze-precommit-verify`, `make ze-precommit-verify-changed`, lint, or tests as a
+- You MUST NOT run `./le verify worktree`, `./le verify worktree`, lint, or tests as a
   late commit gate.
 - You MUST inspect only enough state to stage exactly the requested files and avoid
   ignored, generated, unrelated, or user-owned paths.
-- You MUST use `scripts/dev/commit_helper.py create` with the normal user-run script
+- You MUST use `./le commit create` with the normal user-run script
   path. The override changes verification requirements only.
 - You MUST carry the override into the helper: `--unverified "<reason>"`, and
   `--missing-full-verify-ok "<reason>"` as well when the commit carries Go. Since
@@ -20,5 +20,5 @@ stage:
   the generated script.
 - You MUST report `Verification skipped by Thomas owner override` in the final response
   and, when useful, in the commit body.
-- You MUST NOT claim tests, lint, `ze-precommit-verify`, integrations, or behavior were
+- You MUST NOT claim tests, lint, `./le verify current mode full`, integrations, or behavior were
   verified if they were skipped.

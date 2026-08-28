@@ -253,7 +253,7 @@ Peer-facing behavior is unchanged; existing BGP interop scenarios must remain gr
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate |
-| 6. Full verification | `make ze-precommit-verify` |
+| 6. Full verification | `./le verify current mode full` |
 
 ### Implementation Phases
 
@@ -268,7 +268,7 @@ Peer-facing behavior is unchanged; existing BGP interop scenarios must remain gr
    with schema-typed accessors; remove `Yuint64 -> TypeUint32` coarsening; add boundary test.
    - Tests: `TestPeersFromTreeTypedDecode`, `TestYangUint64NoTruncation`, `config-uint64-no-truncation.ci`.
 4. **Functional tests** → the two `.ci` files above.
-5. **Full verification** → `make ze-precommit-verify`.
+5. **Full verification** → `./le verify current mode full`.
 6. **Complete spec** → learned summary `plan/learned/NNN-typed-config-decode.md`; two commits.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -369,7 +369,7 @@ Peer-facing behavior is unchanged; existing BGP interop scenarios must remain gr
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

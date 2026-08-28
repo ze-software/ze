@@ -89,7 +89,7 @@ func TestSessionCookieValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 			if tt.cookie != "" {
 				req.AddCookie(&http.Cookie{Name: "ze-session", Value: tt.cookie})
 			}
@@ -203,7 +203,7 @@ func TestBasicAuthForJSONAPI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/api/status", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/status", http.NoBody)
 			req.Header.Set("Accept", "application/json")
 			req.Header.Set("Authorization", "Basic "+
 				base64.StdEncoding.EncodeToString([]byte(tt.username+":"+tt.password)))
@@ -226,7 +226,7 @@ func TestAuthMiddlewarePassesRemoteAddrToAuthenticator(t *testing.T) {
 
 	handler := authMiddleware(store, authenticator, noopRenderer, okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/api/status", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/status", http.NoBody)
 	req.RemoteAddr = "198.51.100.10:4444"
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Basic "+
@@ -252,7 +252,7 @@ func TestWebBasicAuthNeverSetsLocal(t *testing.T) {
 	}
 	handler := authMiddleware(store, authenticator, noopRenderer, okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/api/status", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/status", http.NoBody)
 	req.RemoteAddr = "127.0.0.1:5555" // even from loopback, web must stay remote
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Basic "+
@@ -278,7 +278,7 @@ func TestWebBasicAuthRejectsHashAsToken(t *testing.T) {
 	handler := authMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
 
 	basic := func(user, pass string) int {
-		req := httptest.NewRequest(http.MethodGet, "/api/status", http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/status", http.NoBody)
 		req.RemoteAddr = "127.0.0.1:5555"
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("Authorization", "Basic "+
@@ -307,7 +307,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 	handler := authMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: "ze-session", Value: session.Token})
 
 	rec := httptest.NewRecorder()
@@ -350,7 +350,7 @@ func TestLoginHandler(t *testing.T) {
 			"username": {"alice"},
 			"password": {"testpass"},
 		}
-		req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 		rec := httptest.NewRecorder()
@@ -384,7 +384,7 @@ func TestLoginHandler(t *testing.T) {
 			"username": {"alice"},
 			"password": {"wrongpass"},
 		}
-		req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 		rec := httptest.NewRecorder()
@@ -401,7 +401,7 @@ func TestLoginHandler(t *testing.T) {
 	})
 
 	t.Run("GET method not allowed", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/login", http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", http.NoBody)
 
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
@@ -419,7 +419,7 @@ func TestLoginHandlerAuthFailureAuditRecord(t *testing.T) {
 	require.NoError(t, err)
 	handler := LoginHandlerWithAudit(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, recorder)
 	form := url.Values{"username": {"alice"}, "password": {"wrongpass"}}
-	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.RemoteAddr = "192.0.2.10:4444"
 	rec := httptest.NewRecorder()

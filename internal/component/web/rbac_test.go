@@ -67,7 +67,7 @@ func TestSessionStoresProfiles(t *testing.T) {
 func TestRouteGateDeniesReadOnly(t *testing.T) {
 	// VALIDATES: AC-1 -- a read-only user gets 403 on an edit-gated route.
 	gate := RequireEditAuthz(fakeAuthorizer{allowEdit: false}, okHandler())
-	req := httptest.NewRequest(http.MethodGet, "/config/edit/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/edit/", http.NoBody)
 	req = req.WithContext(withUsername(req.Context(), "bob"))
 	rec := httptest.NewRecorder()
 	gate.ServeHTTP(rec, req)
@@ -79,7 +79,7 @@ func TestRouteGateDeniesReadOnly(t *testing.T) {
 func TestRouteGateAllowsAdmin(t *testing.T) {
 	// VALIDATES: AC-1/AC-2 -- an edit-authorized user reaches the gated route.
 	gate := RequireEditAuthz(fakeAuthorizer{allowEdit: true}, okHandler())
-	req := httptest.NewRequest(http.MethodGet, "/config/edit/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/edit/", http.NoBody)
 	req = req.WithContext(withUsername(req.Context(), "admin"))
 	rec := httptest.NewRecorder()
 	gate.ServeHTTP(rec, req)
@@ -92,7 +92,7 @@ func TestRouteGateAllowsAdmin(t *testing.T) {
 // PREVENTS: a later same-username login granting an established session edits.
 func TestRouteGateUsesSessionBoundAuthorizer(t *testing.T) {
 	gate := RequireEditAuthz(fakeAuthorizer{allowEdit: true}, okHandler())
-	req := httptest.NewRequest(http.MethodGet, "/config/edit/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/edit/", http.NoBody)
 	ctx := withUsername(req.Context(), "same-user")
 	ctx = plugin.WithCallerAuthorizer(ctx, fakeAuthorizer{allowEdit: false})
 	rec := httptest.NewRecorder()
@@ -106,7 +106,7 @@ func TestRouteGateOpenWhenUnassigned(t *testing.T) {
 	// VALIDATES: R-1 -- a nil authorizer (no authz assignments configured) fails
 	// open, so single-admin deployments keep working.
 	gate := RequireEditAuthz(nil, okHandler())
-	req := httptest.NewRequest(http.MethodGet, "/config/edit/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/edit/", http.NoBody)
 	rec := httptest.NewRecorder()
 	gate.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -133,7 +133,7 @@ func TestProfilesInRequestContext(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 	handler := authMiddleware(store, &authz.LocalAuthenticator{}, noopRenderer, next)
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: "ze-session", Value: session.Token})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -163,7 +163,7 @@ func TestRouteGateRealAuthzChain(t *testing.T) {
 	gate := RequireEditAuthz(authorizer, okHandler())
 
 	asUser := func(user string) *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodGet, "/config/edit/", http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/edit/", http.NoBody)
 		req = req.WithContext(withUsername(req.Context(), user))
 		rec := httptest.NewRecorder()
 		gate.ServeHTTP(rec, req)
@@ -177,7 +177,7 @@ func TestRouteGateRealAuthzChain(t *testing.T) {
 		t.Fatalf("admin profile via real store: status %d, want 200", rec.Code)
 	}
 
-	reqBob := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	reqBob := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	reqBob = reqBob.WithContext(withUsername(reqBob.Context(), "bob"))
 	if canEdit(reqBob, authorizer) {
 		t.Fatal("read-only profile via real store: CanEdit = true, want false")
@@ -186,7 +186,7 @@ func TestRouteGateRealAuthzChain(t *testing.T) {
 
 func TestCanEditReflectsAuthorizer(t *testing.T) {
 	// VALIDATES: AC-1 -- CanEdit (used for nav hiding) mirrors the gate decision.
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	req = req.WithContext(withUsername(req.Context(), "bob"))
 	if canEdit(req, fakeAuthorizer{allowEdit: false}) {
 		t.Fatal("read-only user: CanEdit = true, want false")

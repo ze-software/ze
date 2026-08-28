@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- running commands, and reaching root without a prompt
 //
-// proc.go is a Go port of scripts/le/process.py. Every command uses Shell.Run.
-// Commands that require root use Shell.RunPrivileged. RunPrivileged first
+// Every external command uses Shell.Run.
+// Commands that require root use Shell.runPrivileged. runPrivileged first
 // selects the privilege method and then calls Run.
 //
 // THE RULE THE PRIVILEGED HALF EXISTS TO KEEP: a setup program must never wait
@@ -79,11 +79,11 @@ type Result struct {
 // OK reports whether the command succeeded.
 func (r Result) OK() bool { return r.Code == 0 }
 
-// Complaint answers the first line worth showing a human when this failed.
+// complaint answers the first line worth showing a human when this failed.
 //
 // stderr first, then stdout: a tool that failed usually says why on stderr, and
 // the ones that do not have already put it on stdout.
-func (r Result) Complaint() string {
+func (r Result) complaint() string {
 	for _, stream := range [...]string{r.Err, r.Out} {
 		trimmed := strings.TrimSpace(stream)
 		if trimmed == "" {
@@ -264,14 +264,14 @@ func (s *Shell) terminal() bool {
 // a formatter to fail.
 const sudoPlaceholder = "{sudo}"
 
-// RunPrivileged runs one command as root and reports whether it succeeded. It
+// runPrivileged runs one command as root and reports whether it succeeded. It
 // also returns details for the person who must correct a failure.
 //
 // shown replaces the recorded command when argv differs from the command that
 // a person would copy. For example, a pipe into tee writes a config drop-in.
 // The argv alone shows tee without the content. If shown is empty, the code uses
 // the argv and adds the prefix that a person must type.
-func (s *Shell) RunPrivileged(report *Report, argv []string, stdin []byte, shown string) (bool, string) {
+func (s *Shell) runPrivileged(report *Report, argv []string, stdin []byte, shown string) (bool, string) {
 	mode := s.Privilege()
 
 	label := shown
@@ -308,7 +308,7 @@ func (s *Shell) RunPrivileged(report *Report, argv []string, stdin []byte, shown
 	result := s.Run(Cmd{Argv: full, Stdin: stdin})
 	if !result.OK() {
 		var tb textbuf.Buffer
-		return false, tb.Str(label).Str(": ").Str(result.Complaint()).String()
+		return false, tb.Str(label).Str(": ").Str(result.complaint()).String()
 	}
 	return true, label
 }

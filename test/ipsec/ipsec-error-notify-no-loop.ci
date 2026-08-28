@@ -1,6 +1,6 @@
 # Functional test: the out-of-SA error notification, over a real UDP socket.
 #
-# One unprivileged ze instance runs an IKEv2 responder on 127.0.0.1. A Python probe
+# One unprivileged ze instance runs an IKEv2 responder on 127.0.0.1. A native Go fixture probe
 # speaks to its real IKE socket and proves three things RFC 7296 Section 2.21.4
 # requires, none of which any unit test can prove through the socket:
 #
@@ -42,132 +42,6 @@ option=env:var=ze_test_ike_port:value=$PORT2
 option=env:var=ze_test_ike_dataplane:value=noop
 option=timeout:value=45s
 
-tmpfs=probe.py:terminator=EOF_PROBE
-import os
-import socket
-import struct
-import sys
-import time
-
-PORT = int(os.environ["ze_test_ike_port"])
-ADDR = ("127.0.0.1", PORT)
-
-# RFC 7296 Section 3.1: the IKE header is 28 octets.
-EXCHANGE_INFORMATIONAL = 37
-EXCHANGE_IKE_SA_INIT = 34
-FLAG_RESPONSE = 0x20
-NOTIFY_INVALID_IKE_SPI = 4
-PAYLOAD_TYPE_NOTIFY = 41
-
-
-def header(ispi, rspi, exchange, msgid, flags, next_payload=0, length=28):
-    return struct.pack(
-        "!8s8sBBBBII", ispi, rspi, next_payload, 0x20, exchange, flags, msgid, length
-    )
-
-
-def failures(msg):
-    print("FAIL: " + msg, file=sys.stderr)
-    return 1
-
-
-def recv(sock, what):
-    try:
-        return sock.recv(4096)
-    except socket.timeout:
-        return None
-
-
-def main():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(10.0)
-    sock.connect(ADDR)
-    bad = 0
-
-    ispi = bytes([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88])
-    rspi = bytes([0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x01])
-
-    # ---- 1. An unknown SPI pair draws INVALID_IKE_SPI ----------------------
-    request = header(ispi, rspi, EXCHANGE_INFORMATIONAL, 7, 0)
-    sock.send(request)
-    answer = recv(sock, "the INVALID_IKE_SPI answer")
-    if answer is None:
-        return failures("a datagram naming an unknown IKE SA drew no answer")
-    if len(answer) < 28:
-        return failures("the answer is shorter than an IKE header: %d octets" % len(answer))
-    (a_ispi, a_rspi, a_next, a_ver, a_exch, a_flags, a_msgid, a_len) = struct.unpack(
-        "!8s8sBBBBII", answer[:28]
-    )
-    if a_ispi != ispi:
-        bad = failures("the answer's initiator SPI does not copy the request's")
-    if a_rspi != rspi:
-        bad = failures("the answer's responder SPI does not copy the request's")
-    if a_msgid != 7:
-        bad = failures("the answer's message ID is %d, want the request's 7" % a_msgid)
-    if a_exch != EXCHANGE_INFORMATIONAL:
-        bad = failures("the answer's exchange type is %d, want the request's %d"
-                       % (a_exch, EXCHANGE_INFORMATIONAL))
-    if not a_flags & FLAG_RESPONSE:
-        bad = failures("the answer is not marked as a response")
-    if a_ver >> 4 != 2:
-        bad = failures("the answer's major version is %d, want 2" % (a_ver >> 4))
-    if a_next != PAYLOAD_TYPE_NOTIFY:
-        bad = failures("the answer's first payload is type %d, want Notify (41)" % a_next)
-    else:
-        # Generic payload header is 4 octets, then the Notify body.
-        body = answer[28 + 4:]
-        if len(body) < 4:
-            bad = failures("the Notify payload body is %d octets, want at least 4" % len(body))
-        else:
-            proto, spisize, ntype = struct.unpack("!BBH", body[:4])
-            if ntype != NOTIFY_INVALID_IKE_SPI:
-                bad = failures("the notify type is %d, want INVALID_IKE_SPI (4)" % ntype)
-            if spisize != 0:
-                bad = failures("the notify carries an SPI of %d octets, want none" % spisize)
-            if len(body) > 4:
-                bad = failures("the notify carries %d octets of data, want none" % (len(body) - 4))
-
-    # ---- 2. Feeding the answer back draws nothing --------------------------
-    # The fixed point. If the emitter answered its own output, two ze instances
-    # would exchange error notifications without end.
-    sock.send(answer)
-
-    # ---- 3. A message already marked as a response draws nothing -----------
-    sock.send(header(ispi, rspi, EXCHANGE_INFORMATIONAL, 9, FLAG_RESPONSE))
-
-    # The ordering probe. This request MUST draw a reply. Anything the two
-    # datagrams above produced was sent first and is read first.
-    marker_ispi = bytes([0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7])
-    sock.send(header(marker_ispi, rspi, EXCHANGE_INFORMATIONAL, 11, 0))
-    marker = recv(sock, "the ordering marker")
-    if marker is None:
-        return failures("the ordering marker drew no answer, so the probe proves nothing")
-    m_ispi = marker[0:8]
-    m_msgid = struct.unpack("!I", marker[20:24])[0]
-    if m_ispi != marker_ispi or m_msgid != 11:
-        bad = failures(
-            "ze answered something before the marker, so it replied to its own "
-            "output or to a message marked as a response"
-        )
-
-    # ---- 4. An IKE_SA_INIT is a request to START an SA. The answer never applies to it.
-    sock.send(header(ispi, b"\x00" * 8, EXCHANGE_IKE_SA_INIT, 0, 0))
-    marker2_ispi = bytes([0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7])
-    sock.send(header(marker2_ispi, rspi, EXCHANGE_INFORMATIONAL, 13, 0))
-    marker2 = recv(sock, "the second ordering marker")
-    if marker2 is None:
-        return failures("the second ordering marker drew no answer")
-    if marker2[0:8] != marker2_ispi:
-        bad = failures("an IKE_SA_INIT to an unknown SPI drew an answer")
-
-    if bad == 0:
-        print("probe: all out-of-SA notification assertions passed")
-    return bad
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-EOF_PROBE
 
 # Responder daemon: binds 127.0.0.1 and holds no SA with the probe's SPIs.
 stdin=responder:terminator=EOF_RESPONDER
@@ -207,7 +81,7 @@ vpn {
 EOF_RESPONDER
 
 cmd=background:seq=1:exec=ze -:stdin=responder
-cmd=foreground:seq=2:exec=python3 ./probe.py:timeout=30s
+cmd=foreground:seq=2:exec=ze-test fixture ipsec/error-notify-no-loop:timeout=30s
 
 expect=exit:code=0
 expect=stdout:contains=probe: all out-of-SA notification assertions passed

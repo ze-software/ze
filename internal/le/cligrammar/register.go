@@ -9,15 +9,10 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
-// name is the word this command is typed as. The gate it is has one action, so
-// it takes no verb and no argument.
+// name is the word this command is typed as.
 const name = "cli-grammar"
-
-// gate is the Make target this command still is.
-const gate = "ze-cli-grammar-check"
 
 func init() {
 	leroot.Register(name, Answer, registry.Meta{
@@ -34,8 +29,4 @@ func init() {
 	// (internal/component/command/answer_shape.go).
 	leroot.RegisterShape(name, command.ShapeDoc)
 
-	// The census counts this gate as ported from here, in the same init() that
-	// registers the command. A claim whose command never registered is red, so
-	// the count cannot fall for a tool nothing can reach.
-	parity.Claim(name, gate)
 }

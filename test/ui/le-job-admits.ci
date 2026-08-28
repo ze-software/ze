@@ -1,4 +1,5 @@
 # Test: the BUILT le binary admits jobs -- one runs, an identical second one
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
 #       shares that run rather than starting a duplicate.
 #
 # VALIDATES: spec-le-is-a-ze-binary AC-1, AC-7 and AC-8 for the admission
@@ -14,119 +15,14 @@
 # functional test must not take a slot the sessions sharing this machine are
 # queueing for.
 #
-# ZE_RUN_JOB is REMOVED from the environment for the same reason it exists. The
-# suite runs under make, which routes through scripts/dev/ze-run.sh, which
-# exports that variable, so a job started here would correctly run inside this
-# run's slot and nothing would be admitted at all.
+# ZE_RUN_JOB is removed from the driven process environment so this independent
+# admission test does not inherit the surrounding suite's slot.
 #
-# Nothing here sleeps. The holder announces itself on its own stdout, and a
-# blocking read of that pipe is the synchronisation: by the time a line has
-# arrived the job holds its slot, because the entry is written before the child
-# starts.
-#
-# The timeout is DECLARED because a cold build cache makes the first compile of
+# The timeout is declared because a cold build cache makes the first compile of
 # cmd/ze le personality far slower than the steady state.
 
 option=timeout:value=180s
 
-tmpfs=run.py:terminator=EOF_PY
-"""Compile le, then drive job admission the way a wrapped recipe does."""
-import glob
-import json
-import os
-import subprocess
-
-
-def require(condition, message):
-    if not condition:
-        raise SystemExit(f'FAIL: {message}')
-
-
-checkout = os.environ['ZE_REPO_ROOT']
-binary = os.path.join(os.getcwd(), 'le')
-
-compiled = subprocess.run(
-    ['make', '--no-print-directory', 'le-build', f'ZE_BIN_DIR={os.path.dirname(binary)}'],
-    cwd=checkout, capture_output=True, text=True, check=False,
-)
-require(compiled.returncode == 0, f'compiling the cmd/ze le personality failed: {compiled.stderr}')
-
-# The scratch checkout the registry lives in. git answers nothing about it, so
-# both jobs measure the same tree hash over the same absent repository, which is
-# what a second asker attaches on.
-scratch = os.path.join(os.getcwd(), 'tree')
-os.makedirs(os.path.join(scratch, 'tmp'), exist_ok=True)
-
-environment = dict(os.environ)
-environment['ZE_REPO_ROOT'] = scratch
-environment['MAKEFLAGS'] = ''
-environment.pop('ZE_RUN_JOB', None)
-
-marker = os.path.join(scratch, 'tmp', 'ran')
-
-
-def le(*args, background=False):
-    argv = [binary, *args]
-    if background:
-        return subprocess.Popen(argv, env=environment, cwd=scratch,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    return subprocess.run(argv, env=environment, cwd=scratch,
-                          capture_output=True, text=True, check=False)
-
-
-# The bare command answers what it can do, as data: one payload, several
-# renderings, and no rendering code in the tool.
-listing = le('job', '|', 'json')
-try:
-    actions = json.loads(listing.stdout)
-except json.JSONDecodeError as exc:
-    raise SystemExit(f'FAIL: `le job | json` did not answer JSON: {exc}\n{listing.stdout}') from exc
-require([row for row in actions['actions'] if row['verb'] == 'run'],
-        f'`le job` names no run action: {actions}')
-
-# The job's own exit code reaches the caller, never a flattened 1: the commit
-# helper reads 3 apart from 1.
-coded = le('job', 'run', 'label', 'ui-coded', 'command', 'sh', '-c', 'exit 3')
-require(coded.returncode == 3, f'a job that exited 3 answered {coded.returncode}: {coded.stderr}')
-
-# A holder, and an identical second asker. The work key and the tree hash both
-# match, so the second follows the first instead of running a duplicate.
-script = f'echo once >> {marker}; echo THE-SHARED-OUTPUT; sleep 3; exit 3'
-holder = le('job', 'run', 'label', 'ui-shared', 'command', 'sh', '-c', script, background=True)
-
-announced = holder.stdout.readline()
-if 'THE-SHARED-OUTPUT' not in announced:
-    holder.kill()
-    raise SystemExit(f'FAIL: the first job never reached its command: {announced!r}')
-
-follower = le('job', 'run', 'label', 'ui-shared', 'command', 'sh', '-c', script)
-held_out, held_err = holder.communicate(timeout=60)
-
-require(holder.returncode == 3, f'the holder answered {holder.returncode}: {held_err}')
-require(follower.returncode == 3,
-        f'the follower answered {follower.returncode}, want the shared job own 3: {follower.stderr}')
-with open(marker, encoding='utf-8') as handle:
-    require(handle.read() == 'once\n', 'the command ran twice: the follower ran its own copy')
-require('THE-SHARED-OUTPUT' in follower.stdout,
-        f'the follower did not replay the shared run: {follower.stdout[:200]!r}')
-
-# The registry is left as it was found: an entry is a claim, and a finished job
-# holds none.
-require(not glob.glob(os.path.join(scratch, 'tmp', '.ze-jobs', '*.job')),
-        'a finished job left its entry behind, so its slot is held for ever')
-
-# Two refusals, because a value nobody typed is worse than a refusal. A label
-# is a path component, and an action this command does not hold is the caller's
-# error rather than a job that ran and failed.
-escaped = le('job', 'run', 'label', '../escape', 'command', 'true')
-require(escaped.returncode != 0, 'a label that is not a path component was accepted')
-unknown = le('job', 'walk')
-require(unknown.returncode == 2,
-        f'an unknown action answered {unknown.returncode}, want 2: a caller reads it apart from a failed job')
-
-print('OK')
-EOF_PY
-
-cmd=foreground:seq=1:exec=python3 run.py
+cmd=foreground:seq=1:exec=ze-test fixture ui/le-job-admits
 expect=exit:code=0
 expect=stdout:contains=OK

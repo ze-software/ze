@@ -16,82 +16,12 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=bare-show-bgp.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show bgp` gives the summary and rejects an unregistered subcommand."""
-import json
-import sys
-
-from ze_api import API
-
-
-def dispatch(api, command):
-    try:
-        resp = api._call_engine(
-            'ze-plugin-engine:dispatch-command', {'command': command})
-    except RuntimeError as exc:
-        # A command registered nowhere is an RPC-level error, which is the same
-        # answer Dispatch gives for any unknown command.
-        return {'status': 'error', 'data': str(exc)}
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def payload(result):
-    data = result.get('data', {})
-    if isinstance(data, str):
-        data = json.loads(data)
-    return data
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        bare = dispatch(api, 'show bgp')
-        if bare.get('status') != 'done':
-            print(f'FAIL: show bgp status={bare.get("status")} data={bare.get("data")}', file=sys.stderr)
-            sys.exit(1)
-
-        bare_data = payload(bare)
-        for key in ('router-id', 'local-as', 'uptime', 'peers-configured', 'peers-established', 'peers'):
-            if key not in bare_data:
-                print(f'FAIL: show bgp is not the summary, {key} is missing: {sorted(bare_data)}', file=sys.stderr)
-                sys.exit(1)
-
-        unknown = dispatch(api, 'show bgp nonsense')
-        if unknown.get('status') != 'error':
-            print(f'FAIL: show bgp nonsense status={unknown.get("status")} want error', file=sys.stderr)
-            sys.exit(1)
-        message = str(unknown.get('data', ''))
-        if 'unknown command' not in message or 'show bgp nonsense' not in message:
-            print(f'FAIL: show bgp nonsense must report an unknown command; got {message!r}', file=sys.stderr)
-            sys.exit(1)
-        if 'invalid family' in message or 'afi/safi' in message:
-            print(f'FAIL: an unregistered subcommand is not a family typo; got {message!r}', file=sys.stderr)
-            sys.exit(1)
-
-        print(f'OK: show bgp answers the summary for {bare_data["peers-configured"]} peer(s)', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/show-bgp-bare-runs-summary.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external bare-show-bgp {
-		run ./bare-show-bgp.run
+		run "ze-test fixture plugin/show-bgp-bare-runs-summary"
 		encoder json
 	}
 }

@@ -81,7 +81,7 @@ func TestDashboardOverviewEmptyState(t *testing.T) {
 	tree := config.NewTree()
 	handler := workbenchForDashboard(t, tree, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -99,7 +99,7 @@ func TestDashboardOverviewAutoRefresh(t *testing.T) {
 	tree := config.NewTree()
 	handler := workbenchForDashboard(t, tree, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -116,7 +116,7 @@ func TestDashboardHealthRendersTable(t *testing.T) {
 	tree := config.NewTree()
 	handler := workbenchForDashboard(t, tree, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/health/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/health/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -136,7 +136,7 @@ func TestDashboardHealthStatusIndicators(t *testing.T) {
 	tree.SetContainer("bgp", bgp)
 
 	handler := workbenchForDashboard(t, tree, nil)
-	req := httptest.NewRequest(http.MethodGet, "/show/health/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/health/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -155,7 +155,7 @@ func TestDashboardEventsRendersTable(t *testing.T) {
 	tree := config.NewTree()
 	handler := workbenchForDashboard(t, tree, dispatch)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/events/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/events/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -169,7 +169,7 @@ func TestDashboardEventsEmptyState(t *testing.T) {
 	tree := config.NewTree()
 	handler := workbenchForDashboard(t, tree, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/events/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/events/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -187,7 +187,7 @@ func TestDashboardEventsNamespaceFilter(t *testing.T) {
 	tree := config.NewTree()
 	handler := workbenchForDashboard(t, tree, dispatch)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/events/?namespace=bgp", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/events/?namespace=bgp", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

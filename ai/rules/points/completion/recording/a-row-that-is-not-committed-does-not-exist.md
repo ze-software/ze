@@ -12,7 +12,7 @@ and needs no archaeology.
 **`/ze-close` sweeps the rows when a spec closes, and most sessions do not close
 a spec.** A session that ends any other way MUST commit its own rows first.
 
-**The trap that strands them:** a row naming a spec makes `commit_helper.py`
+**The trap that strands them:** a row naming a spec makes `internal/le/commit`
 read the commit as that spec's CLOSURE and demand the Review Gate artifact. The
 obvious answer is to drop the rows "for now", and "for now" is the rest of the
 session. A rows-only commit that adds no learned summary and removes no spec

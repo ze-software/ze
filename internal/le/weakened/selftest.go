@@ -1,4 +1,4 @@
-// Design: scripts/dev/check_weakened_tests.py -- the checker proves itself first
+// Design: docs/architecture/testing/test-health.md -- the checker proves itself first
 // Related: weakened.go -- every fixture enters through the public Check function.
 package weakened
 
@@ -238,20 +238,20 @@ func positiveFixtures() []detectorFixture {
 			detail: "emptying an expectation's needle",
 		},
 		{
-			path:   "scripts/dev/delete_python_test.py",
+			path:   "test/fixtures/delete_python_test.py",
 			old:    "def test_delete():\n    assert value\n",
 			new:    "helper = 1\n",
 			detail: "deleting every def test_ function",
 		},
 		{
-			path: "scripts/dev/skip_python_test.py",
+			path: "test/fixtures/skip_python_test.py",
 			old:  "def test_skip():\n    assert value\n",
 			new: "def test_skip():\n    pytest.skip(\"later\")\n" +
 				"    assert value\n",
 			detail: "adding a Python skip",
 		},
 		{
-			path:   "scripts/dev/assert_python_test.py",
+			path:   "test/fixtures/assert_python_test.py",
 			old:    "def test_assertion():\n    assert first\n    assert second\n",
 			new:    "def test_assertion():\n    assert first\n",
 			detail: "removing assertions",
@@ -268,7 +268,7 @@ func positiveFixtures() []detectorFixture {
 func negativeFixtures() []detectorFixture {
 	return []detectorFixture{
 		{
-			path: "scripts/dev/string_fixture_test.py",
+			path: "test/fixtures/string_fixture_test.py",
 			old:  "def test_fixture():\n    assert value\n",
 			new: "def test_fixture():\n    fixture = \"pytest.skip('later')\\nassert True\"\n" +
 				"    assert value\n",

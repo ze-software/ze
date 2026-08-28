@@ -45,6 +45,6 @@ func (f Findings) Text() string {
 	tb.Str("files: use internal/core/statestore (Put/Get under a registered pkg/zefs key)\n")
 	tb.Str("so appliance state lives inside database.zefs. If this write is a genuine\n")
 	tb.Str("non-state file (kernel knob, ephemeral scratch, external artifact, storage\n")
-	tb.Str("layer), add an allowlist entry with a reason in scripts/checks/direct_fs_persistence.go.\n")
+	tb.Str("layer), add an allowlist entry with a reason in internal/le/fspersistence/actions.go.\n")
 	return tb.String()
 }

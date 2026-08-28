@@ -16,8 +16,8 @@
 //   - ze receives FRR's LSP and stores it in its LSDB (CSNP/PSNP-driven sync)
 //
 // FRR's SPF/dataplane is not required; cross-implementation adjacency + LSDB
-// exchange is the interop proof. It t.Skips when FRR is absent -- run it via
-// `make ze-qemu-isis-frr-test`, which installs frr in the QEMU Alpine VM.
+// exchange is the interop proof. It t.Skips when FRR is absent; run it through
+// `./le qemu all-tests`, whose guest provides FRR.
 package isis
 
 import (
@@ -80,7 +80,7 @@ func startISISFRRPeer(t *testing.T) {
 	t.Helper()
 	zebra, isisd := frrISISBin("zebra"), frrISISBin("isisd")
 	if zebra == "" || isisd == "" {
-		t.Skipf("FRR not installed (zebra=%q isisd=%q) -- run via make ze-qemu-isis-frr-test (installs frr in the VM)", zebra, isisd)
+		t.Skipf("FRR not installed (zebra=%q isisd=%q); run via `./le qemu all-tests`", zebra, isisd)
 	}
 
 	// Clean any residue from a previous aborted run, then register teardown.

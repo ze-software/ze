@@ -25,9 +25,6 @@ type PluginManager interface {
 
 	// Plugins lists all running plugins.
 	Plugins() []PluginProcess
-
-	// Capabilities returns capabilities collected during Stage 3.
-	Capabilities() []Capability
 }
 
 // PluginConfig describes a plugin to be started by the PluginManager.
@@ -50,16 +47,4 @@ type PluginProcess struct {
 
 	// Running indicates whether the plugin is currently active.
 	Running bool
-}
-
-// Capability is a capability declared by a plugin during Stage 3.
-type Capability struct {
-	// Plugin is the name of the plugin that declared this capability.
-	Plugin string
-
-	// Code is the BGP capability code (e.g., 65 for 4-byte ASN).
-	Code uint8
-
-	// Value is the raw capability value bytes.
-	Value []byte
 }

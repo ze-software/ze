@@ -4,6 +4,6 @@ level:
 stage:
 ---
 ```
-make ze-verify-scope-selector ARGS="--print=both"
-make ze-verify-scope-selector ARGS="--print=packages --paths-from=FILE"
+./le changed scope print both
+./le changed scope print packages paths-from FILE
 ```

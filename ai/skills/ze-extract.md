@@ -26,10 +26,10 @@ If no arguments are provided, ASK the user for the source file, destination file
 
 ### Extract
 
-Build and run the extraction tool (`go run` can't be used because `.go` args confuse it):
+Run the native extraction action:
 
 ```bash
-go build -o bin/go-extract scripts/dev/go_extract.go && bin/go-extract <source.go> <dest.go> <symbol1> [symbol2 ...]
+./le go-extract source <source.go> dest <dest.go> symbol <symbol1> [symbol <symbol2> ...]
 ```
 
 ### Post-Extract

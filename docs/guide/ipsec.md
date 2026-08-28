@@ -755,4 +755,4 @@ ungated.
 <!-- source: internal/component/ike/engine/rekey.go -- make-before-break rekeying -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- XFRM state and policy programming -->
 <!-- source: internal/component/ike/ipsec/config.go -- configuration and validation -->
-<!-- source: test/interop-ipsec/run.py -- strongSwan interoperability scenarios -->
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- strongSwan interoperability scenarios -->

@@ -164,22 +164,26 @@ func TestRunKeepsAnEmptyJournalEmpty(t *testing.T) {
 	}
 }
 
-// TestActionsPreserveTheProducerRegistryRow validates the gate identity,
-// purpose, and writes flag from one table.
-func TestActionsPreserveTheProducerRegistryRow(t *testing.T) {
+// TestActionsPublishTheNativeRegistryRows validates both actions from one table.
+func TestActionsPublishTheNativeRegistryRows(t *testing.T) {
 	list := Actions()
-	if len(list.Actions) != 1 {
-		t.Fatalf("Actions = %d, want 1: %#v", len(list.Actions), list.Actions)
+	if len(list.Actions) != 2 {
+		t.Fatalf("Actions = %d, want 2: %#v", len(list.Actions), list.Actions)
 	}
 	action := list.Actions[0]
-	if action.Gate != "ze-journal-report" {
-		t.Fatalf("gate = %q, want ze-journal-report", action.Gate)
+	if action.Verb != "report" {
+		t.Fatalf("verb = %q, want report", action.Verb)
 	}
 	if action.Writes {
-		t.Fatal("ze-journal-report is marked as writing")
+		t.Fatal("journal report is marked as writing")
 	}
 	if action.Why != journalWhy {
 		t.Fatalf("why = %q, want %q", action.Why, journalWhy)
+	}
+	validate := list.Actions[1]
+	if validate.Verb != "validate" || validate.Writes ||
+		validate.Why != "validate one edited plan/journal class file's header, rows, dates, and Spec keys" {
+		t.Fatalf("validate action = %#v", validate)
 	}
 }
 
@@ -205,6 +209,27 @@ func TestAnswerReturnsTheStructuredReport(t *testing.T) {
 	}
 	if len(report.Classes) != 1 || report.Classes[0].Name != "recurring" {
 		t.Fatalf("Answer report = %#v, want recurring class", report)
+	}
+}
+
+func TestValidateActionUsesClosedFileKeywordGrammar(t *testing.T) {
+	tree := journalFixture(t, map[string]string{
+		"plan/journal/valid.md": journalTableHead +
+			"| 2026-08-27 | spec-a | cli | symptom | fix |\n",
+	})
+	t.Setenv("ZE_REPO_ROOT", tree)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	payload, code := Answer([]string{"validate", "file", "plan/journal/valid.md"})
+	report, ok := payload.(ValidationReport)
+	if code != 0 || !ok || report.Rows != 1 {
+		t.Fatalf("validate action = %T %#v, code %d", payload, payload, code)
+	}
+	if _, code := Answer([]string{"validate", "plan/journal/valid.md"}); code != 2 {
+		t.Fatalf("identifier-first grammar code = %d, want 2", code)
+	}
+	if _, code := Answer([]string{"validate", "file"}); code != 2 {
+		t.Fatalf("missing file value code = %d, want 2", code)
 	}
 }
 
@@ -239,5 +264,77 @@ func journalGit(t *testing.T, tree string, args ...string) {
 	cmd := exec.CommandContext(t.Context(), "git", append([]string{"-C", tree}, args...)...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %s: %v: %s", args[0], err, output)
+	}
+}
+
+func TestSpecStemsReadsEveryCanonicalCellShape(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		cell  string
+		want  []string
+		valid bool
+	}{
+		{cell: "-", want: []string{}, valid: true},
+		{cell: "none (walked into during closure)", want: []string{}, valid: true},
+		{cell: "n/a", want: []string{}, valid: true},
+		{cell: "spec-a", want: []string{"spec-a"}, valid: true},
+		{cell: "spec-a (measurement only)", want: []string{"spec-a"}, valid: true},
+		{cell: "spec-a, spec-b, spec-a", want: []string{"spec-a", "spec-b"}, valid: true},
+		{cell: "123-start", want: []string{"123-start"}, valid: true},
+		{cell: "future work", valid: false},
+		{cell: "../escape", valid: false},
+		{cell: "spec-a (nested (note))", valid: false},
+	}
+	for _, test := range tests {
+		got, valid := specStems(test.cell)
+		if valid != test.valid || !reflect.DeepEqual(got, test.want) {
+			t.Errorf("SpecStems(%q) = %q, %v; want %q, %v",
+				test.cell, got, valid, test.want, test.valid)
+		}
+	}
+}
+
+func TestHeadSpecEvidenceNormalizesCellsAndRejectsUnreadableShard(t *testing.T) {
+	tree := journalFixture(t, map[string]string{
+		"plan/journal/good.md": journalTableHead +
+			"| 2026-08-27 | spec-a, spec-b (shared fix) | cli | symptom | fix |\n" +
+			"| 2026-08-27 | none (outside a spec) | cli | symptom | fix |\n",
+		"plan/journal/bad.md": journalTableHead +
+			"| 2026-08-27 | future work | cli | symptom | fix |\n",
+	})
+	evidence, malformed, err := HeadSpecEvidence(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantEvidence := map[string]string{
+		"spec-a": "plan/journal/good.md",
+		"spec-b": "plan/journal/good.md",
+	}
+	if !reflect.DeepEqual(evidence, wantEvidence) {
+		t.Fatalf("HeadSpecEvidence evidence = %#v, want %#v", evidence, wantEvidence)
+	}
+	if !reflect.DeepEqual(malformed, []string{"plan/journal/bad.md"}) {
+		t.Fatalf("HeadSpecEvidence malformed = %q", malformed)
+	}
+}
+
+func TestAddedSpecEvidencePairsReformattedRowsBeforeReadingNewOnes(t *testing.T) {
+	path := "plan/journal/closure.md"
+	tree := journalFixture(t, map[string]string{
+		path: journalTableHead +
+			"| 2026-08-01 | same-spec | cli | symptom | fix |\n",
+	})
+	writeJournalFile(t, tree, path, journalTableHead+
+		"| 2026-08-01   | same-spec   | cli | symptom | fix |\n")
+	stems, malformed, err := AddedSpecEvidence(tree, []string{path})
+	if err != nil || len(malformed) != 0 || len(stems) != 0 {
+		t.Fatalf("reformatted evidence = %q, malformed %q, err %v", stems, malformed, err)
+	}
+	writeJournalFile(t, tree, path, journalTableHead+
+		"| 2026-08-01   | same-spec   | cli | symptom | fix |\n"+
+		"| 2026-08-27 | same-spec | cli | another symptom | another fix |\n")
+	stems, malformed, err = AddedSpecEvidence(tree, []string{path})
+	if err != nil || len(malformed) != 0 || !reflect.DeepEqual(stems, []string{"same-spec"}) {
+		t.Fatalf("new same-stem evidence = %q, malformed %q, err %v", stems, malformed, err)
 	}
 }

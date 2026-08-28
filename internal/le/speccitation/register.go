@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -21,5 +20,5 @@ func init() {
 		Section: registry.SectionTest,
 	})
 	leroot.RegisterShape(name, command.ShapeDoc)
-	parity.Claim(name, "ze-spec-citation-check")
+
 }

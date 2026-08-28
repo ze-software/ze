@@ -31,7 +31,7 @@ type relaySink struct {
 func (rs *relaySink) Relay(req callsink.Request) (bool, error) {
 	rs.s.mu.Lock()
 	rem, matched := rs.s.relayTargetLocked(req.Service)
-	var reactor *L2TPReactor
+	var reactor *l2tpReactor
 	if matched && len(rs.s.reactors) > 0 {
 		reactor = rs.s.reactors[0]
 	}

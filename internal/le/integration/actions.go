@@ -26,19 +26,17 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-// table builds this invocation's action table from the gate table. The
-// toolchain is resolved once and shared, so twelve gates named together read
-// go.mod and feature-gates.txt once between them.
+// table builds this invocation's action table. The toolchain is resolved once
+// and shared, so actions named together read go.mod and feature-gates.txt once.
 func table(tc gotoolchain.Toolchain) leaction.Area {
-	gates := Table()
-	rows := make([]leaction.Action, 0, len(gates))
-	for _, gate := range gates {
-		row := leaction.Action{Gate: gate.Name, Why: gate.Why}
-		if gate.Native != nil {
-			row.Answer = nativeRunner(tc.Root, gate.Native)
+	declared := Table()
+	rows := make([]leaction.Action, 0, len(declared))
+	for _, action := range declared {
+		row := leaction.Action{Verb: action.Verb, Why: action.Why}
+		if action.Native != nil {
+			row.Answer = nativeRunner(tc.Root, action.Native)
 		} else {
-			row.Forks = gate.Argv()
-			row.Answer = commandRunner(tc, gate)
+			row.Answer = commandRunner(tc, action)
 		}
 		rows = append(rows, row)
 	}
@@ -54,10 +52,10 @@ func nativeRunner(
 	}
 }
 
-func commandRunner(tc gotoolchain.Toolchain, gate Gate) func() (any, int) {
+func commandRunner(tc gotoolchain.Toolchain, action Action) func() (any, int) {
 	return func() (any, int) {
-		return gaterun.Run(gate.Name, gate.Argv(), tc.Root,
-			tc.Environment(gotoolchain.EnvOptions{CGO: gate.NeedsCgo()}))
+		return gaterun.Run(action.Verb, action.Argv(), tc.Root,
+			tc.Environment(gotoolchain.EnvOptions{CGO: action.needsCgo()}))
 	}
 }
 
@@ -75,7 +73,12 @@ func runIPsecInterop(ctx context.Context, root string) (any, int) {
 }
 
 func runStressBirdGate(_ context.Context, _ string) (any, int) {
-	return RunStressBird()
+	return runStressBirdAction()
+}
+
+func runStressGate(ctx context.Context, root string) (any, int) {
+	report, code := runStressAction(ctx, root, stressOptions{Scenario: env.Get("stress.scenario")})
+	return report, code
 }
 
 // metadataOnly supplies names but does not resolve a checkout.
@@ -83,9 +86,8 @@ func runStressBirdGate(_ context.Context, _ string) (any, int) {
 // Thus, `le --help` does not read go.mod.
 func metadataOnly() leaction.Area { return table(gotoolchain.Toolchain{}) }
 
-// Gates answers the Make target of every gate this area serves, which is what
-// the census claims.
-func Gates() []string { return metadataOnly().Gates() }
+// Gates answers the retired Make target of every ported gate this area serves,
+// which is what the migration census claims.
 
 // Actions answers the command surface as data.
 func Actions() leaction.List { return metadataOnly().Actions() }

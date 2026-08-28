@@ -53,10 +53,10 @@ var auditVerdicts = map[string]bool{
 	verdictNotApplicable: true,
 }
 
-// AuditVerdicts answers the closed vocabulary, sorted. The comparison against
+// auditVerdictNames answers the closed vocabulary, sorted. The comparison against
 // the Python module reads it by value, which is what kills a one-word mutation
 // in a set no output ever prints.
-func AuditVerdicts() []string { return sortedKeys(auditVerdicts) }
+func auditVerdictNames() []string { return sortedKeys(auditVerdicts) }
 
 var auditFileKeys = map[string]bool{
 	"rfc": true, "audited": true, "requirements": true,
@@ -72,15 +72,15 @@ var verdictKeys = map[string]bool{
 // fingerprintMaps are the three fields whose keys become filesystem reads.
 var fingerprintMaps = [...]string{"tests", "units", "code"}
 
-// AuditFileKeys and VerdictKeys answer the two closed key sets, sorted, for the
+// auditFileKeyNames and verdictKeyNames answer the two closed key sets, sorted, for the
 // value comparison against the module.
-func AuditFileKeys() []string { return sortedKeys(auditFileKeys) }
+func auditFileKeyNames() []string { return sortedKeys(auditFileKeys) }
 
-// VerdictKeys answers the verdict's own closed key set, sorted.
-func VerdictKeys() []string { return sortedKeys(verdictKeys) }
+// verdictKeyNames answers the verdict's own closed key set, sorted.
+func verdictKeyNames() []string { return sortedKeys(verdictKeys) }
 
-// FingerprintMaps answers the three fingerprint fields, in declaration order.
-func FingerprintMaps() []string { return fingerprintMaps[:] }
+// fingerprintMapNames answers the three fingerprint fields, in declaration order.
+func fingerprintMapNames() []string { return fingerprintMaps[:] }
 
 // A fingerprint key names a SYMBOL, never a location: `<repo-relative
 // path>::<FuncName>` for a Go function, or `<repo-relative path>` alone when
@@ -194,7 +194,7 @@ func validateSHA(value any, where string) error {
 		Str(" lowercase hex characters, as produced by requirement_sha()/test_sha(); got ").
 		Str(got.String()).
 		Str(". Replace the recorded value with the computed one -- a hand-edited ").
-		Str("fingerprint is never valid, and `make ze-rfc-reseal` cannot repair it ").
+		Str("fingerprint is never valid, and `./le rfc reseal` cannot repair it ").
 		Str("because it loads through this same check"))
 }
 
@@ -256,7 +256,7 @@ func validateVerdict(rid string, verdict any, order *keyOrder, where string) err
 	value, _ := data["verdict"].(string)
 	if !auditVerdicts[value] {
 		return parseErr(tb.Str(at).Str(" has verdict ").Str(pyRepr(data["verdict"])).
-			Str(", which is not one of ").Str(pyRepr(AuditVerdicts())).
+			Str(", which is not one of ").Str(pyRepr(auditVerdictNames())).
 			Str(". The vocabulary is closed (ai/skills/ze-rfc-audit.md): a fifth word is ").
 			Str("drift, and drift in this field is a compliance claim nobody can read"))
 	}
@@ -322,12 +322,12 @@ func (a Audit) Verdict(rid string) (map[string]any, bool) {
 	return found, isObject
 }
 
-// AuditStems answers every stem with an rfc/audit/<stem>.json.
+// auditStems answers every stem with an rfc/audit/<stem>.json.
 //
 // The direction the freshness check never walked: it iterates REQUIREMENTS and
 // asks each for its verdict, so an audit file for a stem that is not enrolled,
 // or has no summary at all, was read by nothing and reported by nothing.
-func AuditStems(tree string) (map[string]bool, error) {
+func auditStems(tree string) (map[string]bool, error) {
 	entries, err := os.ReadDir(treePath(tree, auditRel))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -345,12 +345,12 @@ func AuditStems(tree string) (map[string]bool, error) {
 	return out, nil
 }
 
-// LoadAudit reads and VALIDATES one rfc/audit/<stem>.json.
+// loadAudit reads and VALIDATES one rfc/audit/<stem>.json.
 //
 // An absent file is an empty answer rather than a refusal: most enrolled RFCs
 // have never been audited, and that is a state the ledger reports rather than a
 // tree the gate cannot read.
-func LoadAudit(tree, rfcStem string) (Audit, error) {
+func loadAudit(tree, rfcStem string) (Audit, error) {
 	var name textbuf.Buffer
 	path := treePath(tree, auditRel, name.Str(rfcStem).Str(".json").String())
 	var relBuf textbuf.Buffer
@@ -425,15 +425,15 @@ func isStringList(value any) bool {
 	return true
 }
 
-// LoadAudits reads every enrolled RFC's verdicts.
+// loadAudits reads every enrolled RFC's verdicts.
 //
 // ONE load point, so the validating parse cannot be reached by one consumer and
 // bypassed by another, and so a 166-RFC run pays for each file once instead of
 // once per check.
-func LoadAudits(tree string, enrolled map[string]bool) (map[string]Audit, error) {
+func loadAudits(tree string, enrolled map[string]bool) (map[string]Audit, error) {
 	out := make(map[string]Audit, len(enrolled))
 	for _, stem := range sortedSet(enrolled) {
-		found, err := LoadAudit(tree, stem)
+		found, err := loadAudit(tree, stem)
 		if err != nil {
 			return nil, err
 		}

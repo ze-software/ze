@@ -184,12 +184,12 @@ type Hugepages struct {
 	Progress io.Writer
 }
 
-// NewHugepages answers the run the command performs over tree, with every
+// newHugepages answers the run the command performs over tree, with every
 // setting taken from the environment or from its default.
-func NewHugepages(tree string) *Hugepages {
+func newHugepages(tree string) *Hugepages {
 	return &Hugepages{
 		Tree:        tree,
-		Arch:        settingOr(archEntry.Key, HostArch()),
+		Arch:        settingOr(archEntry.Key, hostArch()),
 		PageSize:    settingOr(pageSizeEntry.Key, DefaultPageSize),
 		Reservation: settingOr(reservationEntry.Key, DefaultReservation),
 		Memory:      settingOr(memoryEntry.Key, DefaultMemory),
@@ -235,33 +235,33 @@ func joinDigits(named string) string {
 	return tb.Str(named).Byte('b').String()
 }
 
-// HostArch answers the architecture this machine is, in the two spellings the
+// hostArch answers the architecture this machine is, in the two spellings the
 // appliance configuration accepts.
-func HostArch() string {
+func hostArch() string {
 	if runtime.GOARCH == ArchARM64 {
 		return ArchARM64
 	}
 	return ArchAMD64
 }
 
-// QemuBinary answers the QEMU system emulator for an architecture.
-func QemuBinary(arch string) string {
+// qemuBinary answers the QEMU system emulator for an architecture.
+func qemuBinary(arch string) string {
 	if arch == ArchARM64 {
 		return "qemu-system-aarch64"
 	}
 	return "qemu-system-x86_64"
 }
 
-// Accelerator answers the hypervisor QEMU is asked for on this machine.
+// accelerator answers the hypervisor QEMU is asked for on this machine.
 //
 // macOS has no /dev/kvm and uses the Apple hypervisor. On Linux, the existence
 // of /dev/kvm does not guarantee usability. The node is root:kvm 0660. A user
 // outside the kvm group can see the node.
 //
 // QEMU then reports a KVM permission error and does not use the fallback.
-// Accelerator opens the node for reading and writing, as QEMU itself does. It
+// accelerator opens the node for reading and writing, as QEMU itself does. It
 // then closes the node.
-func Accelerator() string {
+func accelerator() string {
 	if runtime.GOOS == "darwin" {
 		return "hvf"
 	}
@@ -364,7 +364,7 @@ func (h *Hugepages) note(line string) {
 func (h *Hugepages) plan() (HugepagesReport, error) {
 	report := HugepagesReport{
 		Arch:        h.Arch,
-		Accelerator: Accelerator(),
+		Accelerator: accelerator(),
 		PageSize:    h.PageSize,
 		Reservation: h.Reservation,
 	}
@@ -403,7 +403,7 @@ func (h *Hugepages) missingPrerequisite() string {
 		reason  string
 	}{
 		{"go", "go toolchain not found"},
-		{QemuBinary(h.Arch), ""},
+		{qemuBinary(h.Arch), ""},
 		{"sshpass", "sshpass not found (needed for non-interactive SSH assert)"},
 		{"mkfs.ext4", "e2fsprogs (mkfs.ext4/debugfs) not found"},
 		{"debugfs", "e2fsprogs (mkfs.ext4/debugfs) not found"},
@@ -588,8 +588,7 @@ var modcacheMarkers = []string{"toolchain not available", "incomplete packages",
 func buildHint(out string) string {
 	for _, marker := range modcacheMarkers {
 		if strings.Contains(out, marker) {
-			return " (gokrazy/modcache looks unpopulated -- run `make ze-gokrazy-deps-download`" +
-				" once, then retry)"
+			return " (gokrazy/modcache looks unpopulated -- run `./le setup install` once, then retry)"
 		}
 	}
 	return ""

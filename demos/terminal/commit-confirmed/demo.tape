@@ -8,7 +8,7 @@ Type "cp /src/demos/terminal/commit-confirmed/identity.conf /src/tmp/terminal-de
 Enter
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh commit-confirmed intro"
+Type "ze-demo card commit-confirmed intro"
 Enter
 Show
 Wait+Screen /====/
@@ -66,7 +66,7 @@ Sleep 5s
 Hide
 Type "clear"
 Enter
-Type "bash /src/demos/terminal/cards.sh commit-confirmed recap"
+Type "ze-demo card commit-confirmed recap"
 Enter
 Show
 Sleep 9s

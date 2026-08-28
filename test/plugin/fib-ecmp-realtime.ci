@@ -13,111 +13,11 @@ option=timeout:value=20s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=fib-ecmp-realtime.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-import time
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def rib_entry(api, prefix):
-    r = dispatch(api, 'show rib')
-    if r.get('status') != 'done':
-        return None
-    entries = result_json_data(r, [])
-    if not isinstance(entries, list):
-        return None
-    for e in entries:
-        if e.get('prefix') == prefix:
-            return e
-    return None
-
-
-def all_nexthops(entry):
-    """Primary next-hop plus every ecmp-path next-hop, as a sorted set."""
-    nhs = set()
-    if entry.get('next-hop'):
-        nhs.add(entry['next-hop'])
-    for p in entry.get('ecmp-paths', []) or []:
-        if p.get('next-hop'):
-            nhs.add(p['next-hop'])
-    return sorted(nhs)
-
-
-def wait_entry(api, prefix, predicate, tries=30):
-    for _ in range(tries):
-        e = rib_entry(api, prefix)
-        if e is not None and predicate(e):
-            return e
-        # poll interval: the loop is bounded by tries and returns as soon as the predicate holds
-        time.sleep(0.2)
-    return rib_entry(api, prefix)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    prefix = '10.55.0.0/24'
-    nh1, nh2 = '10.0.0.11', '10.0.0.12'
-
-    # Two equal-cost BGP routes for the same prefix, distinct next-hops.
-    for peer, nh in (('10.0.0.1', nh1), ('10.0.0.2', nh2)):
-        r = dispatch(api, f'request bgp rib inject {peer} ipv4/unicast {prefix} origin igp localpref 100 aspath 65001 nexthop {nh}')
-        if r.get('status') != 'done':
-            runtime_fail(f'inject {peer} failed: {r}')
-
-    # sysrib must carry BOTH next-hops (primary + one ecmp-path sibling).
-    entry = wait_entry(api, prefix, lambda e: len(e.get('ecmp-paths', []) or []) >= 1)
-    if entry is None:
-        runtime_fail(f'{prefix} not in sysrib after two equal-cost injects')
-    nhs = all_nexthops(entry)
-    if nhs != sorted([nh1, nh2]):
-        runtime_fail(f'expected ECMP next-hops {sorted([nh1, nh2])}, got {nhs} (ecmp-paths={entry.get("ecmp-paths")})')
-    print(f'OK: sysrib ECMP carries both next-hops {nhs}', file=sys.stderr)
-
-    # Shrink the ECMP set: withdraw one route -> ecmp-paths empties.
-    r = dispatch(api, f'request bgp rib withdraw 10.0.0.2 ipv4/unicast {prefix}')
-    if r.get('status') != 'done':
-        runtime_fail(f'withdraw failed: {r}')
-    entry = wait_entry(api, prefix, lambda e: len(e.get('ecmp-paths', []) or []) == 0)
-    if entry is None:
-        runtime_fail(f'{prefix} vanished from sysrib after withdraw of one path')
-    if entry.get('ecmp-paths'):
-        runtime_fail(f'ecmp-paths not empty after shrink: {entry.get("ecmp-paths")}')
-    print('OK: ECMP set shrank to a single next-hop after withdraw', file=sys.stderr)
-
-    # The peer asserts ze's End-of-RIB frame, so hold the barrier ze_api
-    # documents for that shape before shutting the daemon down: this peer
-    # attaches a process permitted to send updates, so the initial-sync gate
-    # holds the marker and a prompt shutdown closes the session under it.
-    if not api.wait_peer_eor_sent():
-        runtime_fail('ze did not send the End-of-RIB to the peer before shutdown')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external fib-ecmp-realtime {
-		run ./fib-ecmp-realtime.run
+		run "ze-test fixture plugin/fib-ecmp-realtime"
 		encoder json
 	}
 	internal bgp-rib {

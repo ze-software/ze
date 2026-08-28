@@ -1,0 +1,5 @@
+---
+name: native-render-fixture
+nodes:
+  r1:
+    device: linux

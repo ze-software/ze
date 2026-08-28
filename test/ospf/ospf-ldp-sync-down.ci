@@ -10,88 +10,11 @@
 # state-machine transition is unit-tested natively.
 option=skip-os:value=darwin
 
-tmpfs=ospf-ldp-sync-down.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Drive session up->sync->down and assert the metric is re-forced to LSInfinity."""
-
-import json
-import sys
-import time
-
-from ze_api import API, runtime_fail, result_json_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def ldp_row(api, iface):
-    rows = result_json_data(dispatch(api, 'show ospf ldp-sync'), None) or []
-    for r in rows:
-        if isinstance(r, dict) and r.get('interface') == iface:
-            return r
-    return None
-
-
-def emit_session(api, event_type, iface):
-    api._call_engine('ze-plugin-engine:emit-event', {
-        'namespace': 'ldp',
-        'event-type': event_type,
-        'event': json.dumps({'interface': iface, 'session-state': 'operational'}),
-    })
-
-
-def wait_state(api, iface, want, timeout=6.0):
-    deadline = time.time() + timeout
-    row = None
-    while time.time() < deadline:
-        row = ldp_row(api, iface)
-        if row and row.get('state') == want:
-            return row
-        # poll interval; the loop above returns once the ldp-sync state reaches the target, bounded wait not a blind sleep
-        time.sleep(0.2)
-    runtime_fail(f"eth0 did not reach {want}; last = {row!r}")
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Bring it up and let the (1s) hold-down expire -> synchronized at cost 100.
-    emit_session(api, 'session-up', 'eth0')
-    row = wait_state(api, 'eth0', 'synchronized')
-    if row.get('effective-metric') != 100:
-        runtime_fail(f"synchronized effective-metric = {row.get('effective-metric')!r}, want 100")
-
-    # Session down -> not-synchronized, metric re-forced to LSInfinity.
-    emit_session(api, 'session-down', 'eth0')
-    row = wait_state(api, 'eth0', 'not-synchronized')
-    if row.get('effective-metric') != 65535:
-        runtime_fail(f"after session-down effective-metric = {row.get('effective-metric')!r}, want 65535")
-
-    print('OK: LDP session-down re-forces LSInfinity', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-ldp-sync-down {
-		run ./ospf-ldp-sync-down.run
+		run "ze-test fixture ospf/ospf-ldp-sync-down"
 		encoder json
 	}
 }

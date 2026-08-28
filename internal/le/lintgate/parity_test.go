@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -104,8 +105,52 @@ func TestVerifyLintRunActionIsNativeAndGateless(t *testing.T) {
 		t.Fatalf("verify-lint actions = %#v, want one verify-lint action", listing)
 	}
 	row := listing.Actions[0]
-	if row.Verb != "run" || row.Gate != "" || row.Writes || len(row.Forks) != 0 {
+	if row.Verb != "run" || row.Writes {
 		t.Fatalf("verify-lint run is not a native gateless action: %#v", row)
+	}
+}
+
+func TestVerifyLintRunActionGrammarRefusesMalformedScope(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "missing package value",
+			args: []string{"run", "scope"},
+			want: "error: argument keyword \"scope\" requires <packages>\n",
+		},
+		{
+			name: "repeated scope",
+			args: []string{"run", "scope", "./cmd/ze", "scope", "./internal/le"},
+			want: "error: argument keyword \"scope\" was provided more than once\n",
+		},
+		{
+			name: "unquoted package list",
+			args: []string{"run", "scope", "./cmd/ze", "./internal/le"},
+			want: "error: unknown argument keyword \"./internal/le\"; use one of: scope\n",
+		},
+		{
+			name: "undeclared positional",
+			args: []string{"run", "./cmd/ze"},
+			want: "error: unknown argument keyword \"./cmd/ze\"; use one of: scope\n",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var answer any
+			var code int
+			stdout, stderr := captureLintOutput(t, func() {
+				answer, code = Answer(test.args)
+			})
+			if answer != nil || code != 2 {
+				t.Fatalf("Answer(%q) = (%#v, %d), want (nil, 2)", test.args, answer, code)
+			}
+			if stdout != "" || stderr != test.want {
+				t.Fatalf("Answer(%q) output = stdout %q stderr %q, want stdout empty stderr %q", test.args, stdout, stderr, test.want)
+			}
+		})
 	}
 }
 
@@ -114,8 +159,9 @@ func TestFlavorMatrixPinsEveryCurrentBuildInOrder(t *testing.T) {
 		{Name: "darwin", GOOS: "darwin", Why: "every !linux and darwin file that both Linux base passes miss"},
 		{Name: "freebsd", GOOS: "freebsd", Why: "the FreeBSD TCP-MD5 socket option and non-Linux fallback files"},
 		{Name: "openbsd", GOOS: "openbsd", Why: "the generic non-Linux TCP-MD5 fallback selected on OpenBSD"},
-		{Name: "dragonfly", GOOS: "dragonfly", Why: "the generic Unix fallback outside the explicitly supported BSD targets"},
+		{Name: "dragonfly", GOOS: "dragonfly", GOARCH: "amd64", Why: "the generic Unix fallback outside the explicitly supported BSD targets; amd64 is pinned because it is the only architecture DragonFly builds for, so an arm64 host would select no files and lint nothing"},
 		{Name: "wasip1", GOOS: "wasip1", GOARCH: "wasm", Why: "the !unix fallbacks through a target whose whole import graph type-checks"},
+		{Name: "linux-amd64", GOOS: "linux", GOARCH: "amd64", Why: "the amd64 filename-selected netlink implementations, which the base Linux pass covers only on an amd64 host"},
 		{Name: "linux-arm64", GOOS: "linux", GOARCH: "arm64", Why: "the arm64 filename-selected netlink implementations shipped by the appliance"},
 		{Name: "linux-other-arch", GOOS: "linux", GOARCH: "riscv64", Why: "the linux && !amd64 && !arm64 netlink fallback"},
 		{Name: "capability", GOOS: "linux", Tags: []string{"debug", "race", "live", "stress", "maprib", "fleetperf", "zetest", "gokrazy", "ze_test", "ze_perf", "ze_analyze", "ze_chaos", "ze_le", "integration"}, Why: "every additive capability tag that is not a mutually exclusive personality"},
@@ -148,7 +194,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 
 	wantNames := []string{
 		"host", "linux-integration", "darwin", "freebsd", "openbsd", "dragonfly", "wasip1",
-		"linux-arm64", "linux-other-arch", "capability", "distro", "appliance", "setup",
+		"linux-amd64", "linux-arm64", "linux-other-arch", "capability", "distro", "appliance", "setup",
 		"personalities", "installer", "installer-nofault", "tinygo", "setup-standalone", "compile-out",
 	}
 	if len(plan.Passes) != len(wantNames) {
@@ -171,16 +217,17 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		{"golangci-lint", "run", "-j", "8", "./pkg/p06"},
 		{"golangci-lint", "run", "-j", "8", "./pkg/p07"},
 		{"golangci-lint", "run", "-j", "8", "./pkg/p08"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "debug,race,live,stress,maprib,fleetperf,zetest,gokrazy,ze_test,ze_perf,ze_analyze,ze_chaos,ze_le,integration", "./pkg/p09"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_distro", "./pkg/p10"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_appliance", "./pkg/p11"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_setup", "./pkg/p12"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_distro,ze_appliance,ze_setup", "./pkg/p13"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_installer,ze_installer_fault", "./pkg/p14"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_installer", "./pkg/p15"},
-		{"golangci-lint", "run", "-j", "8", "--build-tags", "tinygo", "./pkg/p16"},
-		{"golangci-lint", "run", "-j", "8", "-c", plan.TaglessConfig, "--build-tags", "ze_a,ze_b,ze_setup", "./pkg/p17"},
-		{"golangci-lint", "run", "-j", "8", "-c", plan.TaglessConfig, "--build-tags", "ze_core", "./pkg/p18"},
+		{"golangci-lint", "run", "-j", "8", "./pkg/p09"},
+		{"golangci-lint", "run", "-j", "8", "--build-tags", "debug,race,live,stress,maprib,fleetperf,zetest,gokrazy,ze_test,ze_perf,ze_analyze,ze_chaos,ze_le,integration", "./pkg/p10"},
+		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_distro", "./pkg/p11"},
+		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_appliance", "./pkg/p12"},
+		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_setup", "./pkg/p13"},
+		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_distro,ze_appliance,ze_setup", "./pkg/p14"},
+		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_installer,ze_installer_fault", "./pkg/p15"},
+		{"golangci-lint", "run", "-j", "8", "--build-tags", "ze_installer", "./pkg/p16"},
+		{"golangci-lint", "run", "-j", "8", "--build-tags", "tinygo", "./pkg/p17"},
+		{"golangci-lint", "run", "-j", "8", "-c", plan.TaglessConfig, "--build-tags", "ze_a,ze_b,ze_setup", "./pkg/p18"},
+		{"golangci-lint", "run", "-j", "8", "-c", plan.TaglessConfig, "--build-tags", "ze_core", "./pkg/p19"},
 	}
 	for index := range plan.Passes {
 		pass := &plan.Passes[index]
@@ -204,12 +251,12 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		}
 	}
 	if len(*captureCalls) != len(wantNames)+1 {
-		t.Fatalf("planning ran %d capture commands, want 19 go list plus git", len(*captureCalls))
+		t.Fatalf("planning ran %d capture commands, want 20 go list plus git", len(*captureCalls))
 	}
 	wantListCalls := map[int][]string{
 		0:  {"go", "list", "-e", "-tags", "ze_core ze_a ze_b", "-f", listTemplate, "./..."},
 		1:  {"go", "list", "-e", "-tags", "ze_core ze_a ze_b integration", "-f", listTemplate, "./..."},
-		18: {"go", "list", "-e", "-tags", "ze_core", "-f", listTemplate, "./..."},
+		19: {"go", "list", "-e", "-tags", "ze_core", "-f", listTemplate, "./..."},
 	}
 	for index, want := range wantListCalls {
 		call := (*captureCalls)[index]
@@ -221,7 +268,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 			"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
 			"CGO_ENABLED=0", "GOTOOLCHAIN=go1.26.6", "GOMEMLIMIT=9GiB",
 		}
-		if index == 1 || index == 18 {
+		if index == 1 || index == 19 {
 			wantOverrides = append(wantOverrides, "GOOS=linux")
 		}
 		gotOverrides := call.environment[len(call.environment)-len(wantOverrides):]
@@ -242,8 +289,171 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 	if !reflect.DeepEqual(gotTrackedOverrides, wantTrackedOverrides) {
 		t.Errorf("tracked population environment differs:\n got: %q\nwant: %q", gotTrackedOverrides, wantTrackedOverrides)
 	}
-	if plan.Coverage.Code != 0 || plan.Coverage.Population != 21 || plan.Coverage.Selected != 19 || len(plan.Coverage.Blind) != 2 {
+	if plan.Coverage.Code != 0 || plan.Coverage.Population != 22 || plan.Coverage.Selected != 20 || len(plan.Coverage.Blind) != 2 {
 		t.Fatalf("coverage differs: %#v", plan.Coverage)
+	}
+}
+
+func TestScopedRunParsesPackagesAndNeverBroadensToTheTree(t *testing.T) {
+	root, tracked := lintFixture(t)
+	ops, captureCalls := fixtureOps(root, tracked)
+	var streamed [][]string
+	ops.stream = func(_ context.Context, argv []string, _ string, _ []string) (int, error) {
+		streamed = append(streamed, slices.Clone(argv))
+		return 0, nil
+	}
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+
+	var answer any
+	var code int
+	stdout, stderr := captureLintOutput(t, func() {
+		answer, code = runRunner(runner, leaction.Arguments{
+			"scope": " \t./pkg/alpha\n./pkg/beta  ",
+		})
+	})
+	if code != 0 {
+		t.Fatalf("scoped run code = %d, report = %#v, stderr = %q", code, answer, stderr)
+	}
+	report, ok := answer.(Report)
+	if !ok {
+		t.Fatalf("scoped run answer type = %T, want Report", answer)
+	}
+	if !reflect.DeepEqual(report.Coverage, Coverage{}) {
+		t.Fatalf("scoped run reported full-tree coverage: %#v", report.Coverage)
+	}
+	if strings.Contains(stdout, "every tracked Go file is linted") || strings.Contains(stderr, "tracked Go file") {
+		t.Fatalf("scoped run emitted a full-tree coverage verdict: stdout=%q stderr=%q", stdout, stderr)
+	}
+
+	patterns := []string{"./pkg/alpha", "./pkg/beta"}
+	if len(*captureCalls) != len(basePasses())+len(flavorMatrix(nil)) {
+		t.Fatalf("scoped planning ran %d capture commands, want only the 19 go-list calls", len(*captureCalls))
+	}
+	for index, call := range *captureCalls {
+		if call.argv[0] != listProgram || !reflect.DeepEqual(call.argv[len(call.argv)-len(patterns):], patterns) {
+			t.Errorf("scoped go-list call %d = %q, want exact package suffix %q", index, call.argv, patterns)
+		}
+	}
+	if len(streamed) != len(basePasses())+len(flavorMatrix(nil)) {
+		t.Fatalf("scoped run started %d children, want the complete 19-pass matrix", len(streamed))
+	}
+	for index, command := range streamed[:len(basePasses())] {
+		if !reflect.DeepEqual(command[len(command)-len(patterns):], patterns) {
+			t.Errorf("base lint command %d = %q, want exact scoped suffix %q", index, command, patterns)
+		}
+		if slices.Contains(command, packageRoot) {
+			t.Errorf("base lint command %d broadened the scope to %q: %q", index, packageRoot, command)
+		}
+	}
+	for _, pass := range report.Passes {
+		if pass.Skipped {
+			continue
+		}
+		if len(pass.Command) < 4 || !reflect.DeepEqual(pass.Command[:4], []string{lintProgram, "run", "-j", "8"}) {
+			t.Errorf("%s lost the native concurrency argv: %q", pass.Name, pass.Command)
+		}
+		if !slices.Contains(pass.Environment, "GOMEMLIMIT=9GiB") ||
+			!slices.Contains(pass.Environment, "GOTOOLCHAIN=go1.26.6") ||
+			!slices.Contains(pass.Environment, "CGO_ENABLED=0") {
+			t.Errorf("%s lost the scoped lint environment: %q", pass.Name, pass.Environment)
+		}
+	}
+}
+
+func TestExplicitFullTreeScopeKeepsTheCoverageProof(t *testing.T) {
+	root, tracked := lintFixture(t)
+	ops, captureCalls := fixtureOps(root, tracked)
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+	plan, err := runner.planScope([]string{packageRoot})
+	if err != nil {
+		t.Fatalf("PlanScope: %v", err)
+	}
+	if !plan.reportCoverage || plan.Coverage.Population != len(tracked) {
+		t.Fatalf("explicit ./... scope lost full-tree coverage: %#v", plan.Coverage)
+	}
+	last := (*captureCalls)[len(*captureCalls)-1]
+	if !reflect.DeepEqual(last.argv, []string{"git", "ls-files", "-z", "--", "*.go"}) {
+		t.Fatalf("explicit ./... scope ended with %q, want the tracked-file population query", last.argv)
+	}
+}
+
+func TestEmptyScopeRunsNoCommandsAndPrintsNothing(t *testing.T) {
+	root, tracked := lintFixture(t)
+	ops, captureCalls := fixtureOps(root, tracked)
+	streamed := 0
+	ops.stream = func(context.Context, []string, string, []string) (int, error) {
+		streamed++
+		return 0, nil
+	}
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+
+	var answer any
+	var code int
+	stdout, stderr := captureLintOutput(t, func() {
+		answer, code = runRunner(runner, leaction.Arguments{"scope": ""})
+	})
+	if code != 0 || stdout != "" || stderr != "" {
+		t.Fatalf("empty scope = report %#v code %d stdout %q stderr %q, want a silent success", answer, code, stdout, stderr)
+	}
+	report, ok := answer.(Report)
+	if !ok || len(report.Passes) != len(basePasses())+len(flavorMatrix(nil)) {
+		t.Fatalf("empty scope report = %#v, want every matrix row recorded", answer)
+	}
+	for _, pass := range report.Passes {
+		if !pass.Skipped {
+			t.Errorf("empty scope left %s runnable: %#v", pass.Name, pass)
+		}
+	}
+	if len(*captureCalls) != 0 || streamed != 0 {
+		t.Fatalf("empty scope ran %d planning and %d lint commands", len(*captureCalls), streamed)
+	}
+}
+
+func TestMalformedScopeStopsBeforeAnyLintCommand(t *testing.T) {
+	root, tracked := lintFixture(t)
+	ops, _ := fixtureOps(root, tracked)
+	var planned [][]string
+	ops.capture = func(_ context.Context, argv []string, _ string, _ []string) commandResult {
+		planned = append(planned, slices.Clone(argv))
+		return commandResult{stderr: []byte("malformed package pattern\n"), code: 1}
+	}
+	streamed := 0
+	ops.stream = func(context.Context, []string, string, []string) (int, error) {
+		streamed++
+		return 0, nil
+	}
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+
+	var report Report
+	var code int
+	stdout, stderr := captureLintOutput(t, func() {
+		report, code = runner.runScope([]string{"./bad["})
+	})
+	wantArgv := []string{
+		"go", "list", "-e", "-tags", "ze_core ze_a ze_b", "-f", listTemplate, "./bad[",
+	}
+	if len(planned) != 1 || !reflect.DeepEqual(planned[0], wantArgv) {
+		t.Fatalf("malformed scope planning argv = %q, want exactly %q", planned, wantArgv)
+	}
+	if code != cannotPlan || report.Code != cannotPlan ||
+		report.Error != "go list for lint flavor host returned code 1 with malformed package pattern" {
+		t.Fatalf("malformed scope report = %#v code %d", report, code)
+	}
+	wantStderr := "lint: go list for lint flavor host returned code 1 with malformed package pattern\n"
+	if stdout != "" || stderr != wantStderr || streamed != 0 {
+		t.Fatalf("malformed scope output = stdout %q stderr %q streamed %d, want stdout empty stderr %q and no lint", stdout, stderr, streamed, wantStderr)
 	}
 }
 

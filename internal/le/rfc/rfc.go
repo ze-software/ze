@@ -17,19 +17,12 @@
 // Detail: actions.go -- the command surface, and register.go -- how le finds it
 // Detail: pyfmt.go -- the Python spellings a message carries
 //
-// Package rfc is scripts/dev/rfc_requirements.py, ported. The module binds every
-// MUST-level requirement of an enrolled RFC to the tests that enforce it, and it
-// carries the eight ratchets ai/rules/rfc-compliance.md names.
+// Package rfc binds every MUST-level requirement of an enrolled RFC to the
+// tests that enforce it, and carries the ratchets in
+// ai/rules/rfc-compliance.md.
 //
-// The port lands one gate at a time because the module is 8610 lines and its
-// five gates share one core. What is here now is that core -- summary parsing,
-// tag scanning, the carrier table -- plus the whole extraction half, which is
-// what `le rfc extraction-status` answers, and the whole audit half, which is
-// what `le rfc reseal` answers.
-//
-// Two spellings are kept deliberately, because a message is DATA when a test
-// compares it against the script's: Python's repr() and its rune slicing are
-// reproduced in pyfmt.go rather than replaced by Go's %q and byte slicing.
+// Messages that are part of the established contract use the Python spellings
+// implemented in pyfmt.go rather than Go's %q.
 package rfc
 
 import (
@@ -83,19 +76,19 @@ var advisoryLevels = map[string]bool{
 	"OPTIONAL":        true,
 }
 
-// GatedLevels answers the MUST-level keyword set, sorted. The comparison
+// gatedLevelNames answers the MUST-level keyword set, sorted. The comparison
 // against the Python module reads it by value, which is the only thing that
 // kills a one-word mutation in a set an output comparison never prints.
-func GatedLevels() []string { return sortedKeys(gatedLevels) }
+func gatedLevelNames() []string { return sortedKeys(gatedLevels) }
 
-// AdvisoryLevels answers the SHOULD-level keyword set, sorted.
-func AdvisoryLevels() []string { return sortedKeys(advisoryLevels) }
+// advisoryLevelNames answers the SHOULD-level keyword set, sorted.
+func advisoryLevelNames() []string { return sortedKeys(advisoryLevels) }
 
 // polarities are the two directions a tag can prove.
 var polarities = map[string]bool{"positive": true, "negative": true}
 
-// Polarities answers them sorted, for the value comparison.
-func Polarities() []string { return sortedKeys(polarities) }
+// polarityNames answers them sorted, for the value comparison.
+func polarityNames() []string { return sortedKeys(polarities) }
 
 // annotationKinds are the three `{...}` kinds that say something about Ze's
 // COVERAGE. supersededKind is named apart because it says something about the
@@ -119,8 +112,8 @@ var annotationKinds = map[string]bool{
 	annotationSinglePolarity: true,
 }
 
-// AnnotationKinds answers them sorted.
-func AnnotationKinds() []string { return sortedKeys(annotationKinds) }
+// annotationKindNames answers them sorted.
+func annotationKindNames() []string { return sortedKeys(annotationKinds) }
 
 const supersededKind = "superseded"
 
@@ -140,8 +133,8 @@ var successorDispositions = map[string]bool{
 	successorUnresolved:  true,
 }
 
-// SuccessorDispositions answers them sorted.
-func SuccessorDispositions() []string { return sortedKeys(successorDispositions) }
+// successorDispositionNames answers them sorted.
+func successorDispositionNames() []string { return sortedKeys(successorDispositions) }
 
 // successorTargeted are the two dispositions that name something.
 var successorTargeted = map[string]bool{successorRestated: true, successorUnextracted: true}
@@ -176,7 +169,7 @@ const tagPunct = ".,;:"
 var levelAlternation = buildLevelAlternation()
 
 func buildLevelAlternation() string {
-	all := append(GatedLevels(), AdvisoryLevels()...)
+	all := append(gatedLevelNames(), advisoryLevelNames()...)
 	// Longest first. Equal lengths keep sorted order, which is what Python's
 	// sorted(key=len, reverse=True) does: the sort is stable there too.
 	for i := 1; i < len(all); i++ {
@@ -248,9 +241,9 @@ func (e *ParseError) Error() string { return e.msg }
 // parseErr builds one, from a buffer the caller has already filled.
 func parseErr(tb *textbuf.Buffer) error { return &ParseError{msg: tb.String()} }
 
-// IsParseError reports whether err came from malformed input rather than from
+// isParseError reports whether err came from malformed input rather than from
 // an unreadable tree.
-func IsParseError(err error) bool {
+func isParseError(err error) bool {
 	var pe *ParseError
 	return errors.As(err, &pe)
 }
@@ -297,10 +290,10 @@ type Requirement struct {
 // gate enforces.
 func (r Requirement) Gated() bool { return gatedLevels[r.Level] }
 
-// Correction is one `Correction <date>:` paragraph in a summary: the recorded
+// correction is one `correction <date>:` paragraph in a summary: the recorded
 // authorisation for a change to the rows it names. Quotes holds every
 // double-quoted span in the paragraph, unverified.
-type Correction struct {
+type correction struct {
 	Date   string   `json:"date"`
 	RIDs   []string `json:"rids"`
 	Quotes []string `json:"quotes"`

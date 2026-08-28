@@ -994,7 +994,7 @@ func buildPathBarSegments(path []string) []PathBarSegment {
 		joined := tb.Reset().Join(path[:i+1], "/").String()
 		segments[i] = PathBarSegment{
 			Name:   seg,
-			URL:    tb.Reset().Str("/show/").Str(joined).Byte('/').String(),
+			URL:    tb.Reset().Str(showPathPrefix).Str(joined).Byte('/').String(),
 			HxPath: joined,
 		}
 	}
@@ -1057,7 +1057,7 @@ func configLinkClass(kind string) string {
 func configKeyURL(path []string, key string) string {
 	var tb textbuf.Buffer
 
-	tb.Str("/show/")
+	tb.Str(showPathPrefix)
 
 	if len(path) > 0 {
 		tb.Join(path, "/").Byte('/')

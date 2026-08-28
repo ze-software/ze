@@ -1,10 +1,10 @@
 // Design: docs/architecture/core-design.md -- le's spec inventory
 //
 // Package specstatus reads the metadata table at the top of every plan/spec-*.md
-// and answers the inventory `make ze-spec-status` prints: one record per spec,
+// and answers the inventory `./le spec-status` prints: one record per spec,
 // carrying its status, its bucket, and whether a skeleton is past its TTL.
 //
-// It is the port of scripts/status/spec_status.go together with the two leaf
+// It is the port of internal/le/specstatus/answer.go together with the two leaf
 // packages that file kept beside it. Those two existed for one reason, stated in
 // their own headers: the front end was a single-file `go run` script excluded
 // from its own directory's package, so nothing could import it and its logic had
@@ -97,13 +97,13 @@ func Category(status string) string {
 	}
 }
 
-// SkeletonStale reports whether a skeleton last updated on `updated`
+// skeletonStale reports whether a skeleton last updated on `updated`
 // (YYYY-MM-DD) is past the TTL relative to `now`. At exactly the TTL it is not
 // yet stale (the flag boundary); beyond it, it is. An unparseable date is
 // treated as not stale: it cannot be judged, and a false flag trains the reader
 // to ignore the flag. TTL never deletes -- it promotes-or-flags; deletion stays
 // a human action.
-func SkeletonStale(updated string, now time.Time) bool {
+func skeletonStale(updated string, now time.Time) bool {
 	t, err := time.Parse("2006-01-02", updated)
 	if err != nil {
 		return false
@@ -320,7 +320,7 @@ func Collect(ctx context.Context, root string, now time.Time, warn func(string))
 
 	for i := range specs {
 		specs[i].Bucket = Category(specs[i].Status)
-		specs[i].Stale = specs[i].Bucket == Idea && SkeletonStale(specs[i].Updated, now)
+		specs[i].Stale = specs[i].Bucket == Idea && skeletonStale(specs[i].Updated, now)
 	}
 	sort.SliceStable(specs, func(i, j int) bool {
 		oi, oj := statusOrder(specs[i].Status), statusOrder(specs[j].Status)

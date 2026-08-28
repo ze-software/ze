@@ -6,10 +6,10 @@ manifest line together and the render check, the round trip, the gate map and
 the rule lint all stay green, because the points and the rendered rule agree on
 the smaller corpus. This file is what makes the removal say so.
 
-`corpus_shrink` in `scripts/dev/rules_points.py` compares the point IDS on disk
+`corpus_shrink` in `internal/le/rules/points.go` compares the point IDS on disk
 against the ids git HEAD carried and requires every id that left to be covered
-by a line added to this file since HEAD. `make ze-rules-gate-map-report` and
-`make ze-doc-verify` fail otherwise.
+by a line added to this file since HEAD. `./le rules gate-map-report` and
+`./le doc-check verify` fail otherwise.
 
 Identity, never a count. An addition can mask a removed point, so a count cannot
 prove that every instruction remains.
@@ -67,10 +67,10 @@ The Why cell says what happened to the instruction, not that it was removed.
 | `testing/common-flaky-test-causes/where-the-flake-shape-catalogue-lives` | the catalogue lived in a deleted summary, so the point now names the shapes itself as `.../the-flake-shapes-to-check-first` |
 | `commands/your-binaries-are-session-suffixed-ask-for-the-path/every-binary-is-built-with-a-session-suffix` | a session's binaries moved from the name suffix `bin/ze-<sid>` into its own directory, so the instruction reads `commands/your-binaries-live-in-this-session-s-directory/every-binary-is-built-in-this-session-s-directory` |
 | `commands/your-binaries-are-session-suffixed-ask-for-the-path/never-hardcode-bin-ze-ask-for-the-path` | unchanged instruction, renamed with its section to `commands/your-binaries-live-in-this-session-s-directory/never-hardcode-bin-ze-ask-for-the-path` |
-| `commands/your-binaries-are-session-suffixed-ask-for-the-path/use-make-ze-path-to-get-the-binary` | unchanged instruction, renamed with its section to `commands/your-binaries-live-in-this-session-s-directory/use-make-ze-path-to-get-the-binary` |
+| `commands/your-binaries-are-session-suffixed-ask-for-the-path/use-make-ze-path-to-get-the-binary` | retired with Make; the native suite route is `commands/your-binaries-live-in-this-session-s-directory/use-the-owning-native-action-to-build-test-binaries` |
 | `commands/your-binaries-are-session-suffixed-ask-for-the-path/why-test-binaries-live-in-a-private-bin` | test binaries now take the SAME shape as the canonical ones rather than the opposite one, under `commands/your-binaries-live-in-this-session-s-directory/why-test-binaries-live-in-a-private-bin` |
 | `commands/your-binaries-are-session-suffixed-ask-for-the-path/why-the-suffixed-binaries-stay-in-bin` | no binary stays in `bin/` under a session, so the reason it gives is void; the reason binaries live WITH the session is `commands/your-binaries-live-in-this-session-s-directory/why-the-binaries-live-with-the-session` |
-| `commands/write-ad-hoc-scratch-under-your-per-session-dir/what-is-swept-at-session-end-and-what-stays` | nothing under `tmp/session/` is swept at session end or on a timer any more, so the point named a mechanism that no longer exists; what stays put, and the operator's `make ze-session-clean`, are stated by `commands/write-ad-hoc-scratch-under-your-per-session-dir/nothing-is-deleted-automatically-and-what-stays-put` |
+| `commands/write-ad-hoc-scratch-under-your-per-session-dir/what-is-swept-at-session-end-and-what-stays` | automatic age cleanup was removed; the current proof-based cleanup is `./le session reap`, documented by `commands/write-ad-hoc-scratch-under-your-per-session-dir/nothing-is-deleted-automatically-and-what-stays-put` |
 | `writing/documentation/a-refused-example-becomes-false-evidence-in-a-review` | the parser-valid example directive remains under `writing/documentation/every-config-example-must-parse`, and the review-is-the-second-reader reason now opens `plan/journal/documentation-shows-config-the-parser-refuses.md`, above the incident rows |
 | `writing/documentation/the-gate-this-owes-and-what-its-scope-costs` | the gate itself remains Goal G-3 in `plan/spec-ze-config-fmt.md`, and its two constraints, parser-recognized carriers with an opt-OUT and stating the annotation cost, now sit in that spec's Q-8 cell |
 | `writing/owner-report/owner-report` | the section moved out of the writing rule, because that rule no longer triggers on a report; the directives it headed are in `ai/INSTRUCTIONS.md`, "Say it once, say it short" |
@@ -115,7 +115,7 @@ The Why cell says what happened to the instruction, not that it was removed.
 | `git-safety/before-any-commit/phrases-that-activate-the-owner-override` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/what-may-be-overridden/phrases-that-activate-the-owner-override` |
 | `git-safety/before-any-commit/plan-the-first-full-run-to-be-the-last` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/reading-a-red/plan-the-first-full-run-to-be-the-last` |
 | `git-safety/before-any-commit/read-the-whole-failure-summary-before-re-running` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/reading-a-red/read-the-whole-failure-summary-before-re-running` |
-| `git-safety/before-any-commit/run-make-ze-verify-and-check-freshness-first` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/run-make-ze-verify-and-check-freshness-first` |
+| `git-safety/before-any-commit/run-make-ze-verify-and-check-freshness-first` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/run-native-verify-and-check-freshness-first` |
 | `git-safety/before-any-commit/run-one-verify-at-a-time-repo-wide` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/concurrency/run-one-verify-at-a-time-repo-wide` |
 | `git-safety/before-any-commit/run-the-full-gate-before-any-commit-carrying-go` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/reading-a-red/run-the-full-gate-before-any-commit-carrying-go` |
 | `git-safety/before-any-commit/run-the-full-gate-once-when-the-work-is-finished` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/run-the-full-gate-once-when-the-work-is-finished` |
@@ -132,7 +132,7 @@ The Why cell says what happened to the instruction, not that it was removed.
 | `git-safety/before-any-commit/structural-gates-are-never-known-red-blocking` | heading only, no instruction; replaced by the `what-may-be-overridden` section line of `precommit-verify` |
 | `git-safety/before-any-commit/structural-red-ok-is-an-owner-only-escape` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/what-may-be-overridden/structural-red-ok-is-an-owner-only-escape` |
 | `git-safety/before-any-commit/take-another-sessions-red-as-working-code` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/reading-a-red/take-another-sessions-red-as-working-code` |
-| `git-safety/before-any-commit/test-one-package-with-ze-test-pkg` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/test-one-package-with-ze-test-pkg` |
+| `git-safety/before-any-commit/test-one-package-with-ze-test-pkg` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/test-one-package-with-a-native-job` |
 | `git-safety/before-any-commit/the-doc-test-only-checks-that-escape-the-gate` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/after-the-commit/the-doc-test-only-checks-that-escape-the-gate` |
 | `git-safety/before-any-commit/the-helper-refuses-a-commit-while-a-gate-is-red` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/after-the-commit/the-helper-refuses-a-commit-while-a-gate-is-red` |
 | `git-safety/before-any-commit/the-override-needs-both-parts-said-explicitly` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/what-may-be-overridden/the-override-needs-both-parts-said-explicitly` |
@@ -150,13 +150,13 @@ The Why cell says what happened to the instruction, not that it was removed.
 | `git-safety/before-any-commit/use-evidence-scoped-to-your-own-files` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/reading-a-red/use-evidence-scoped-to-your-own-files` |
 | `git-safety/before-any-commit/what-the-override-permits-and-forbids` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/what-may-be-overridden/what-the-override-permits-and-forbids` |
 | `git-safety/before-any-commit/what-to-do-while-another-verify-holds-the-lock` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/concurrency/what-to-do-while-another-verify-holds-the-lock` |
-| `git-safety/before-any-commit/what-ze-tracked-build-check-reads` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/after-the-commit/what-ze-tracked-build-check-reads` |
+| `git-safety/before-any-commit/what-ze-tracked-build-check-reads` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/after-the-commit/what-native-tracked-build-check-reads` |
 | `git-safety/before-any-commit/when-the-override-is-active` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/what-may-be-overridden/when-the-override-is-active` |
-| `git-safety/before-any-commit/which-file-types-require-ze-verify` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/does-verify-apply/which-file-types-require-ze-verify` |
-| `git-safety/before-any-commit/which-target-owns-each-surface` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/which-target-owns-each-surface` |
+| `git-safety/before-any-commit/which-file-types-require-ze-verify` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/does-verify-apply/which-file-types-require-native-verify` |
+| `git-safety/before-any-commit/which-target-owns-each-surface` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/which-action-owns-each-surface` |
 | `git-safety/before-any-commit/who-owns-each-red-a-full-run-reports` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/reading-a-red/who-owns-each-red-a-full-run-reports` |
 | `git-safety/before-any-commit/your-working-tree-is-not-what-you-committed-blocking` | heading only, no instruction; replaced by the `after-the-commit` section line of `precommit-verify` |
-| `git-safety/before-any-commit/ze-test-pkg-examples` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/ze-test-pkg-examples` |
+| `git-safety/before-any-commit/ze-test-pkg-examples` | unchanged instruction, moved with the pre-commit verification rule to `precommit-verify/running-the-gate/native-package-test-examples` |
 | `cli/pipe-completeness/known-violations-to-fix` | heading only, over a table whose sole row read `_(none currently)_`; the mechanical check above it is what finds a command missing pipe support |
 | `cli/pipe-completeness/the-commands-still-missing-pipe-support` | the tracker held no command, so it stated no instruction and cost every reader of the rule; a violation is found by the grep in "Mechanical Check (pipes)" |
 | `plugins/5-stage-protocol/the-sdk-declares-record-answers-at-stage-3` | heading only, over the negotiation this rule now says does not exist; replaced by `plugins/5-stage-protocol/one-command-answer-encoding-blocking` |

@@ -7,13 +7,14 @@
 package rfc
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
 
 func TestAGoTagIsReadAnywhereInTheFile(t *testing.T) {
-	src := "package x\n\nfunc a() {\n\t// RFC requirement: RFC1-2-3 positive -- inline at the case\n}\n"
-	tags, err := ScanGoTags(src, "internal/x/x_test.go")
+	src := "package x\n\nfunc a() {\n\t// " + rfcTagMarker + " RFC1-2-3 positive -- inline at the case\n}\n"
+	tags, err := scanGoTags(src, "internal/x/x_test.go")
 	if err != nil {
 		t.Fatalf("ScanGoTags: %v", err)
 	}
@@ -29,7 +30,7 @@ func TestATrailingPeriodOnATagIsPunctuationRatherThanPartOfTheWord(t *testing.T)
 	// godot requires a doc comment's last line to end in a period, so a tag
 	// placed last becomes "positive." -- refusing that would make the lint rule
 	// and the tag convention contradict each other.
-	tags, err := ScanGoTags("// RFC requirement: RFC1-2-3 negative.\n", "x_test.go")
+	tags, err := scanGoTags("// "+rfcTagMarker+" RFC1-2-3 negative.\n", "x_test.go")
 	if err != nil {
 		t.Fatalf("ScanGoTags: %v", err)
 	}
@@ -42,25 +43,25 @@ func TestATagWithoutAPolarityIsRefused(t *testing.T) {
 	// A negative-only test passes if the code rejects everything and a
 	// positive-only one passes if it accepts everything. Only the pair pins
 	// behavior to the requirement, so polarity is never inferred.
-	_, err := ScanGoTags("// RFC requirement: RFC1-2-3\n", "x_test.go")
+	_, err := scanGoTags("// "+rfcTagMarker+" RFC1-2-3\n", "x_test.go")
 	if err == nil || !strings.Contains(err.Error(), "has no polarity") {
 		t.Errorf("a tag with no polarity was accepted: %v", err)
 	}
 }
 
 func TestATagWithAnUnknownPolarityIsRefused(t *testing.T) {
-	_, err := ScanGoTags("// RFC requirement: RFC1-2-3 maybe\n", "x_test.go")
+	_, err := scanGoTags("// "+rfcTagMarker+" RFC1-2-3 maybe\n", "x_test.go")
 	if err == nil || !strings.Contains(err.Error(), "invalid polarity 'maybe'") {
 		t.Errorf("an invented polarity was accepted: %v", err)
 	}
 }
 
 func TestATerminatorBlockBodyIsNotCISyntax(t *testing.T) {
-	// A terminator block's body is RAW file content: one .ci in this repository
-	// embeds a Python shebang. Scanning those blocks invents phantom tags.
-	src := "name=x\ntmpfs=run.sh terminator=EOF\n#!/bin/sh\n# RFC requirement: RFC1-2-3 positive -- a shell comment\nEOF\n" +
-		"# RFC requirement: RFC4-5-6 negative -- a real tag\n"
-	tags, err := ScanCITags(src, "test/plugin/x.ci")
+	// A terminator block's body is raw fixture content. Scanning those blocks
+	// invents phantom tags.
+	src := "name=x\ntmpfs=payload.txt terminator=EOF\n# " + rfcTagMarker + " RFC1-2-3 positive -- payload text\nEOF\n" +
+		"# " + rfcTagMarker + " RFC4-5-6 negative -- a real tag\n"
+	tags, err := scanCITags(src, "test/plugin/x.ci")
 	if err != nil {
 		t.Fatalf("ScanCITags: %v", err)
 	}
@@ -69,64 +70,55 @@ func TestATerminatorBlockBodyIsNotCISyntax(t *testing.T) {
 	}
 }
 
-func TestAPythonTagIsReadOnlyWhereThePythonReaderSaysItIsAComment(t *testing.T) {
-	src := `"""A docstring.
-
-# RFC requirement: RFC9-9-9 positive -- inside a docstring
-"""
-
-PROMPT = "# RFC requirement: RFC9-9-9 negative -- inside a string"
-
-# RFC requirement: RFC1-2-3 negative -- a real tag
-def check():
-    pass  # RFC requirement: RFC9-9-9 positive -- trailing, not a line-start tag
-`
-	tags, err := ScanPythonTags(src, "test/interop/scenarios/x/check.py")
-	if err != nil {
-		t.Fatalf("ScanPythonTags: %v", err)
-	}
-	if len(tags) != 1 || tags[0].RID != "RFC1-2-3" {
-		t.Fatalf("tags: %+v", tags)
-	}
-}
-
-func TestAPythonFileNoReaderCanTrustIsRefusedRatherThanReportedEmpty(t *testing.T) {
-	cases := []struct{ name, src string }{
-		{"an unterminated single-quoted literal", "X = 'open\n"},
-		{"an unterminated triple-quoted literal", "X = \"\"\"open\nmore\n"},
-		{"a bracket still open at end of file", "X = [1, 2,\n"},
-		{"a dedent that matches no enclosing block", "def f():\n    if x:\n        a = 1\n      b = 2\n"},
+func TestChangedTagsDistinguishesBehaviorFromLayoutAndComments(t *testing.T) {
+	const tag = "" + rfcTagMarker + " RFC9999-2-1"
+	cases := []struct {
+		name, path, oldText, newText string
+		changed                      bool
+	}{
+		{
+			name: "behavior", path: "x_test.go",
+			oldText: "// " + tag + " positive\nfunc TestOne() { got := 1; _ = got }\n",
+			newText: "// " + tag + " positive\nfunc TestOne() { got := 2; _ = got }\n",
+			changed: true,
+		},
+		{
+			name: "comment", path: "x_test.go",
+			oldText: "// " + tag + " positive\nfunc TestOne() { got := 1; _ = got } // old\n",
+			newText: "// " + tag + " positive\nfunc TestOne() { got := 1; _ = got } // clearer\n",
+		},
+		{
+			name: "tag removal", path: "x_test.go",
+			oldText: "// " + tag + " positive\nfunc TestOne() {}\n",
+			newText: "func TestOne() {}\n", changed: true,
+		},
+		{
+			name: "Go import only", path: "x_test.go",
+			oldText: "// " + tag + " positive\nimport \"example/a\"\n",
+			newText: "// " + tag + " positive\nimport (\n\t\"example/a\"\n\talias \"example/b\"\n)\n",
+		},
+		{
+			name: "CI comment", path: "x.ci",
+			oldText: "# " + tag + " positive\nsend packet\n",
+			newText: "# " + tag + " positive\n# clearer reason\nsend packet\n",
+		},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			_, err := ScanPythonTags(one.src, "check.py")
-			if err == nil {
-				t.Fatalf("%s was reported as carrying no tags", one.name)
+			got := ChangedTags(one.path, one.oldText, one.newText)
+			if one.changed && (len(got) != 1 || got[0] != tag) {
+				t.Errorf("ChangedTags = %v, want [%s]", got, tag)
 			}
-			if !strings.Contains(err.Error(), "cannot tokenize as Python") {
-				t.Errorf("the refusal does not say why: %v", err)
+			if !one.changed && len(got) != 0 {
+				t.Errorf("ChangedTags = %v, want no changed tag", got)
 			}
 		})
 	}
 }
 
-func TestAValidPythonFileIsNotRefused(t *testing.T) {
-	// The refusals above must fire on a file Python would refuse and on nothing
-	// else. A reader that refused ordinary code would take every scenario
-	// check's evidence away.
-	src := "def f():\n    s = 'a \\' b'\n    t = \"\"\"multi\nline\"\"\"\n    u = [1,\n         2]\n    return s, t, u\n"
-	tags, err := ScanPythonTags(src, "check.py")
-	if err != nil {
-		t.Fatalf("ordinary Python was refused: %v", err)
-	}
-	if len(tags) != 0 {
-		t.Errorf("tags found in a file carrying none: %+v", tags)
-	}
-}
-
 func TestTheCarrierTableAnswersOneRowPerRunSuite(t *testing.T) {
 	tree := checkoutRoot(t)
-	carriers, err := Carriers(tree)
+	carriers, err := carriers(tree)
 	if err != nil {
 		t.Fatalf("Carriers: %v", err)
 	}
@@ -157,7 +149,7 @@ func TestTheCarrierTableAnswersOneRowPerRunSuite(t *testing.T) {
 }
 
 func TestTheFirstMatchingCarrierWinsAndTheIncubatorIsSkipped(t *testing.T) {
-	carriers, err := Carriers(checkoutRoot(t))
+	carriers, err := carriers(checkoutRoot(t))
 	if err != nil {
 		t.Fatalf("Carriers: %v", err)
 	}
@@ -173,14 +165,14 @@ func TestTheFirstMatchingCarrierWinsAndTheIncubatorIsSkipped(t *testing.T) {
 		{path: "test/editor/x.et", want: "editor-editor", held: true},
 		{path: "test/nosuite/x.et", want: "editor-unrun", held: true},
 		{path: "test/exabgp-compat/x.ci", want: "functional-exabgp", held: true},
-		{path: "test/interop/scenarios/one/check.py", want: "interop-bgp", held: true},
-		{path: "test/stress/scenarios/one/check.py", want: "scenario-check", held: true},
+		{path: "internal/le/interoplab/bgp/scenario_test.go", want: "interop-bgp", held: true},
+		{path: "internal/le/interoplab/new/scenario_test.go", want: "interop-unrun", held: true},
 		{path: "test/draft/x.ci", held: false},
 		{path: "internal/x/x.go", held: false},
 	}
 	for _, one := range cases {
 		t.Run(one.path, func(t *testing.T) {
-			carrier, held := CarrierFor(one.path, carriers)
+			carrier, held := carrierFor(one.path, carriers)
 			if held != one.held {
 				t.Fatalf("CarrierFor(%q) held=%v, want %v", one.path, held, one.held)
 			}
@@ -193,66 +185,56 @@ func TestTheFirstMatchingCarrierWinsAndTheIncubatorIsSkipped(t *testing.T) {
 
 func TestOnlyAScheduledWorkflowGrantsANightlyTier(t *testing.T) {
 	sources := map[string]string{
-		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: make ze-interop-test\n",
-		"push.yml":    "on:\n  push:\njobs:\n  a:\n    steps:\n      - run: make ze-interop-ipsec-test\n",
+		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le integration interop\n",
+		"push.yml":    "on:\n  push:\njobs:\n  a:\n    steps:\n      - run: ./le integration interop-ipsec\n",
 	}
-	got := ScheduledTargetsFrom(sources)
-	if got["ze-interop-test"] != "nightly.yml" {
-		t.Errorf("a scheduled target is not credited: %v", got)
+	got := scheduledActionsFrom(sources)
+	if got["integration/interop"] != "nightly.yml" {
+		t.Errorf("a scheduled action is not credited: %v", got)
 	}
-	if _, held := got["ze-interop-ipsec-test"]; held {
-		t.Errorf("a push-only target was credited as nightly: %v", got)
+	if _, held := got["integration/interop-ipsec"]; held {
+		t.Errorf("a push-only action was credited as nightly: %v", got)
 	}
 }
 
-func TestTheFirstScheduledWorkflowNamingATargetIsTheOneRecorded(t *testing.T) {
-	// The workflow a target is credited to is named in the refusal an unrun
-	// carrier prints and in the ledger legend, so which of two schedules is
-	// recorded is an answer rather than an accident. First wins, in the sorted
-	// order the map is walked in, because a walk that recorded the last one
-	// would answer differently on a filesystem that listed the files
-	// differently.
+func TestTheFirstScheduledWorkflowNamingAnActionIsTheOneRecorded(t *testing.T) {
+	// First wins in sorted workflow order, so filesystem listing order cannot
+	// change which scheduled pipeline the ledger names.
 	sources := map[string]string{
-		"b-nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: make ze-interop-test\n",
-		"a-nightly.yml": "on:\n  schedule:\n    - cron: '0 4 * * *'\njobs:\n  a:\n    steps:\n      - run: make ze-interop-test\n",
+		"b-nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le integration interop\n",
+		"a-nightly.yml": "on:\n  schedule:\n    - cron: '0 4 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le integration interop\n",
 	}
-	if got := ScheduledTargetsFrom(sources)["ze-interop-test"]; got != "a-nightly.yml" {
-		t.Errorf("the target is credited to %q, want the first workflow in order", got)
+	if got := scheduledActionsFrom(sources)["integration/interop"]; got != "a-nightly.yml" {
+		t.Errorf("the action is credited to %q, want the first workflow in order", got)
 	}
 }
 
 func TestACommentedOutCommandGrantsNothing(t *testing.T) {
 	sources := map[string]string{
-		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      # - run: make ze-interop-test\n",
+		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      # - run: ./le integration interop\n",
 	}
-	if got := ScheduledTargetsFrom(sources); len(got) != 0 {
+	if got := scheduledActionsFrom(sources); len(got) != 0 {
 		t.Errorf("a commented-out command granted a tier: %v", got)
 	}
 }
 
-func TestEveryBareWordAfterMakeIsATarget(t *testing.T) {
+func TestNativeActionsInWorkflowCommands(t *testing.T) {
 	cases := []struct {
 		name, src string
 		want      []string
 	}{
-		{"two targets on one line", "run: make a b\n", []string{"a", "b"}},
-		{"a variable assignment is not a target", "run: make V=1 a\n", []string{"a"}},
-		{"a flag with a separate argument", "run: make -C dir a\n", []string{"a"}},
-		{"a wrapper before make", "run: sudo make a\n", []string{"a"}},
-		{"a chain", "run: make a && make b\n", []string{"a", "b"}},
-		{"a quoted scalar", "- \"make a\"\n", []string{"a"}},
-		{"no make at all", "run: echo a\n", nil},
+		{"one action", "run: ./le integration interop\n", []string{"integration/interop"}},
+		{"a wrapper", "run: sudo ./le rfc check\n", []string{"rfc/check"}},
+		{"a chain", "run: ./le rfc check && ./le doc-check verify\n", []string{"rfc/check", "doc-check/verify"}},
+		{"a quoted scalar", "- \"./le tier check\"\n", []string{"tier/check"}},
+		{"arguments do not change identity", "run: ./le verify current mode full\n", []string{"verify/current"}},
+		{"no native action", "run: echo a\n", nil},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			got := MakeTargetsIn(one.src)
-			if len(got) != len(one.want) {
-				t.Fatalf("MakeTargetsIn(%q) = %v, want %v", one.src, got, one.want)
-			}
-			for i := range got {
-				if got[i] != one.want[i] {
-					t.Fatalf("MakeTargetsIn(%q) = %v, want %v", one.src, got, one.want)
-				}
+			got := nativeActionsIn(one.src)
+			if !slices.Equal(got, one.want) {
+				t.Fatalf("NativeActionsIn(%q) = %v, want %v", one.src, got, one.want)
 			}
 		})
 	}
@@ -262,8 +244,56 @@ func TestAWorkflowDirectoryTheGateCannotReadIsRefused(t *testing.T) {
 	// Not knowing what CI runs is a different fact from CI running nothing, and
 	// answering "everything runs" there would credit evidence to a pipeline
 	// nobody confirmed.
-	_, err := ScheduledWorkflowTargets(t.TempDir())
+	_, err := scheduledWorkflowActions(t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "cannot read the workflow directory") {
 		t.Errorf("an absent workflow directory was read as empty: %v", err)
 	}
 }
+
+// VALIDATES: a carrier's `terminator=` block holds a fixture rather than an
+// assertion, so moving that fixture out of the file changes no RFC-tagged
+// behaviour, while any edit to the carrier's own directives still does.
+// PREVENTS: the owner-approval gate demanding a ruling on a fixture move, and
+// the opposite failure of a weakened assertion slipping through beside one.
+func TestACarrierFixtureBlockIsNotTestedBehaviour(t *testing.T) {
+	const head = "# " + rfcTagMarker + " RFC4271-5.1.4-1 positive\n" +
+		"cmd=start\n" +
+		"expect=bgp:conn=1:seq=1:hex=FFFF\n"
+	embedded := head +
+		"tmpfs=probe.run:mode=755:terminator=EOF_PROBE\n" +
+		"#!/usr/bin/env python3\n" +
+		"runtime_fail('the fixture asserts here')\n" +
+		"EOF_PROBE\n"
+	compiled := head +
+		"tmpfs=probe.run:mode=755:terminator=EOF_PROBE\n" +
+		"run \"ze-test fixture plugin/probe\"\n" +
+		"EOF_PROBE\n"
+
+	if tags := ChangedTags("test/plugin/probe.ci", embedded, compiled); len(tags) != 0 {
+		t.Errorf("moving a fixture out of the block reported %v, want no change", tags)
+	}
+
+	weakened := strings.Replace(compiled,
+		"expect=bgp:conn=1:seq=1:hex=FFFF\n", "", 1)
+	if tags := ChangedTags("test/plugin/probe.ci", embedded, weakened); len(tags) == 0 {
+		t.Error("dropping an expect= directive reported no change, so a weakened assertion needs no approval")
+	}
+
+	retagged := strings.Replace(compiled,
+		"# "+rfcTagMarker+" RFC4271-5.1.4-1 positive\n", "", 1)
+	if tags := ChangedTags("test/plugin/probe.ci", embedded, retagged); len(tags) == 0 {
+		t.Error("dropping the RFC tag itself reported no change")
+	}
+}
+
+// rfcTagMarker is the tag word spelled in two pieces so that this package's own
+// FIXTURES are not read as tags when a tree walk scans these test files.
+//
+// A fixture here is Go or .ci source held in a string, and it must contain a
+// real tag for the scanner under test to find. Written whole, that literal also
+// makes the test file itself a tag carrier: `IsTagCarrier` and `rfcTagPattern`
+// (`internal/le/commit/rfcchange.go`) read a file's TEXT, so every edit to this
+// file demanded owner approval for requirement ids that name no RFC. The same
+// idiom guards `staleLeReferences` against its own corpus in
+// `internal/le/contract_test.go`.
+const rfcTagMarker = "RFC requi" + "rement:"

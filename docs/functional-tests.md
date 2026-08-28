@@ -8,49 +8,34 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 
 ```bash
 # Quick start
-make ze-functional-test   # Run all gating suites
-make ze-functional-encode-test       # Encoding tests only
-make ze-functional-plugin-test       # Plugin tests only
-make ze-functional-reload-test       # Reload tests only
+./le functional                    # Run all release-gate suites
+./le functional encode             # Encoding tests only
+./le functional plugin             # Plugin tests only
+./le functional reload             # Reload tests only
 ```
 
 ## Release Gate Coverage
 
-The stage list is **not reproduced here**, deliberately. It lives in
-`stagesForMode` (`scripts/status/verify_run.go`) and nowhere else: both make
-targets shell out to that runner, and each shard of
-`.github/workflows/verify.yml` reads the same list with
-`make ze-precommit-verify-list` and runs its own share of it, so a gate absent
-from that function runs nowhere and a gate added to it needs no edit to CI. To read the
-current list, run `make ze-precommit-verify-list` (or
-`make ze-precommit-verify-list ZE_VERIFY_MODE=ze-precommit-verify-changed`), or open the function.
+The stage list is **not reproduced here**. It lives in `stagesForMode`
+(`internal/le/verify/stages.go`) and nowhere else. Each shard of
+`.github/workflows/verify.yml` reads that same list through
+`./le verify current mode full-list`, so a gate absent from the Go table runs
+nowhere and a gate added to it needs no duplicate list in this page. Run
+`./le verify current mode full-list` to read the current full-mode list.
 
-Never use `make -n ze-precommit-verify` for this, nor `-t` / `-q`. The recipe contains `$(MAKE)`, which GNU
-make executes even under `-n`, propagating the flag to every stage sub-make: each
-would echo its recipe and exit 0, and the runner would write a FRESH
-`tmp/ze-verify.status` stamped with the current tree hash, certifying an entirely
-unverified tree. `-t` is the quieter of the three: a `.PHONY` stage prints "Nothing to be done" and exits 0, with no echoed recipes to hint that nothing ran. `verify_run.go` refuses all three for that reason, and
-`ze-precommit-verify-list` exists to give the question a safe answer.
+An earlier version of this paragraph enumerated the stages and went eight
+stages out of date. Keep the producer in Go and the prose at this level.
 
-An earlier version of this paragraph did enumerate the stages and had silently
-gone eight stages out of date, which is the same drift that killed the duplicate
-`_ze-verify-impl` Makefile targets. Nothing checks prose against `stagesForMode`,
-so any copy of the list here would rot the same way. Please do not re-add one.
+Broadly, `./le verify current mode full` runs the static gates first, then
+`./le verify-deps vulnerability` before unit, functional, and ExaBGP stages.
+`./le verify current mode changed` substitutes changed-only lint and unit
+stages. Both modes run the same vulnerability scan. It needs network access to
+the live Go vulnerability database. `TestStagesForModeBranchesAgree` and
+`TestStagesForModeMatchesGolden` in `internal/le/verify` pin the two lists.
 
-Broadly: `ze-precommit-verify` runs the static gates first (lint, module tier, plugin
-boundary, doc and generated-file freshness), then the Linux/amd64
-`ze-dependency-vulnerability-check` SCA stage before the unit, functional, and ExaBGP test stages.
-`ze-precommit-verify-changed` swaps in the changed-only lint and unit stages and drops the
-three full-verify-only stages. Both modes run the same vulnerability scan before
-their unit stage. The target needs network access to the live Go vulnerability
-database. `TestStagesForModeBranchesAgree` (`scripts/status/verify_run_test.go`)
-fails if any other gate lands in one mode but not the other, and
-`TestStagesForModeMatchesGolden` pins both lists. Both targets run under
-`scripts/dev/ze-run.sh` (through the `scripts/dev/verify-lock.sh` alias), which
-admits `ZE_RUN_SLOTS` heavy jobs at a time and queues the rest. Every stage a
-verify starts is itself a wrapped target, and it inherits the verify's slot
-rather than queueing behind it. Both targets continue across top-level stage
-failures, and write:
+Both modes use the shared admission code in `internal/le/lejob` and
+`internal/le/verifylock`. A verify run continues across top-level stage
+failures and writes:
 
 Each run writes its artifacts into its OWN directory, `tmp/verify/run-<start>-<mode>-<id>/`,
 so two sessions that verify at the same time never overwrite each other's log or
@@ -58,7 +43,7 @@ failure index. The `run-dir` key in the failure index names the directory. At
 most ten run directories are kept: the newest ones, plus every directory a
 documented path below still points into. A run a published path points into is
 never removed for age, because only a full run writes `tmp/ze-verify-full.json`
-and ten cheaper `ze-precommit-verify-changed` runs can follow it in one day.
+and ten cheaper `./le verify current mode changed` runs can follow it in one day.
 The documented paths below stay
 where they are: each is a symlink into the directory of the run that owns it.
 The combined log is published when the run starts, so a waiting session can
@@ -71,7 +56,7 @@ follow it; the failure artifacts are published when the run ends.
 | `tmp/verify/run-<start>-<mode>-<id>/<nn>-<stage>.log` | Full log for one stage of that run. The failure index names it in `detail-log` |
 | `tmp/ze-verify-failures.log` | Compact failure index to read first |
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
-| `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `ze-precommit-verify-changed` run in another session republishes the shared path |
+| `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `./le verify current mode changed` run in another session republishes the shared path |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 | `tmp/ze-verify-manifest.txt` | One fingerprint per path that differs from `HEAD`, so a session can ask about its own file list rather than the whole tree |
 
@@ -81,10 +66,10 @@ covers, and the four conditions it never widens, is
 [`docs/architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
 
 A scoped run also judges fewer Staticcheck matrix rows.
-`make ze-staticcheck-feature-matrix-check` derives one row per feature tag in
+`./le staticcheck-feature-matrix check` derives one row per feature tag in
 `feature-gates.txt` plus `all_features` and `core_only`, 38 rows today, and each
 row is a full-module analysis. `scopeFeatureMatrix`
-(`scripts/checks/staticcheck_feature_matrix.go`) keeps a row when it omits no tag
+(`internal/le/staticcheckmatrix.Answer`) keeps a row when it omits no tag
 or omits a tag the change reached, so a change local to `ze_ssh` judges 3 rows
 rather than 38. `all_features` and `core_only` judge the combinations Ze ships
 and are never subtracted. Running the target on its own, with
@@ -102,141 +87,109 @@ The functional test target runs 24 suites: encode, plugin, parse, decode, reload
 ui, editor, managed, l2tp, firewall, policy, ipsec, ldp, rsvpte, isis, ospf, ospfv3,
 web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
 
-`make ze-repository-check` is a fast (~0.2s) post-verify check that catches recurring
+`./le repository check` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired
-exported symbols, and incomplete spec AC tables. Run it after `ze-precommit-verify` passes,
+exported symbols, and incomplete spec AC tables. Run it after `./le verify current mode full` passes,
 before presenting work as complete.
-<!-- source: Makefile -- ze-precommit-verify, ze-precommit-verify-changed, ze-dependency-vulnerability-check, ze-functional-exabgp-test -->
-<!-- source: scripts/dev/validate.py -- post-verify validation checks -->
-<!-- source: scripts/status/verify_run.go -- artifact writing and grouped summaries -->
-<!-- source: scripts/dev/ze-run.sh -- job admission, one registry entry per running job -->
-<!-- source: scripts/dev/verify-status.sh -- tmp/ze-verify.status -->
-<!-- source: scripts/checks/staticcheck_feature_matrix.go -- deriveFeatureMatrix, scopeFeatureMatrix, validateScopedMatrix -->
-<!-- source: scripts/le/application/functional.py -- GATING, the ze-functional-test suite list -->
+<!-- source: internal/le/verify/stages.go -- stagesForMode -->
+<!-- source: internal/le/verifydeps/actions.go -- Actions -->
+<!-- source: internal/le/repository/actions.go -- Answer -->
+<!-- source: internal/le/verify/run.go -- Run, RunMode -->
+<!-- source: internal/le/lejob/answer.go -- Answer -->
+<!-- source: internal/le/verifystatus/answer.go -- Answer -->
+<!-- source: internal/le/staticcheckmatrix/actions.go -- Answer -->
+<!-- source: internal/le/functional/actions.go -- Answer -->
 
 The following shipped test suites are **not in the default release gate** and
 must be run manually:
 
 | Suite | Runner | Why not gated |
 |-------|--------|---------------|
-| Static routes | `make ze-functional-static-test` | Separate route-installation fixture |
-| Traffic control | `make ze-functional-traffic-test` | Requires traffic-control platform support |
-| Flow export | `make ze-functional-flow-export-test` | Requires Linux packet-sampling support for release evidence |
-| VPP | `make ze-functional-vpp-test` | Requires Python VPP stub setup |
-| L2TP wire | `make ze-functional-l2tp-wire-test` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
-| OSPFv2 wire | `make ze-functional-ospf-wire-test` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
-| IS-IS wire | `make ze-functional-isis-wire-test` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
-| BGP interop | `make ze-interop-test` or `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds. **Fails closed**: with Docker unreachable the runner exits non-zero naming Docker, it does not report success over a lab it never started. Runs nightly and advisory in `.github/workflows/evidence-nightly.yml`, which is what lets an interop scenario carry an `RFC requirement:` tag at all -- a tag in a suite nothing executes is refused by `make ze-rfc-check` |
-| IPsec interop | `make ze-interop-ipsec-test` or `python3 test/interop-ipsec/run.py [scenario]` | strongSwan peer via Docker (privileged). Ze runs as initiator in some scenarios and as responder in others; each scenario's `ze.conf` says which, on its `connection-type` leaf, so this page does not restate the split. **Fails closed**: `wait_xfrm_sa` and `assert_esp_accepted` (`test/interop-ipsec/lab.py`) raise `AssertionError`, so a missing SA or an unmoved ESP counter is a failure and never a skip. Control plane verified from strongSwan logs. |
-| Chaos web | `make ze-chaos-web-test` | Chaos dashboard scenarios live under the BGP runner; also included in `make ze-chaos-test` |
+| Static routes | `./le functional static` | Separate route-installation fixture |
+| Traffic control | `./le functional traffic` | Requires traffic-control platform support |
+| Flow export | `./le functional flow-export` | Requires Linux packet-sampling support for release evidence |
+| VPP | `./le functional vpp` | Uses the Go VPP stub in `internal/test/cli/cmd_vpp_stub.go` |
+| L2TP wire | `./le functional l2tp-wire` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
+| OSPFv2 wire | `./le functional ospf-wire` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
+| IS-IS wire | `./le functional isis-wire` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
+| BGP interop | `./le integration interop` (`INTEROP_SCENARIO=<name>` for one) | Requires Docker peer daemons and image builds. The runner fails when Docker is unavailable |
+| IPsec interop | `IPSEC_INTEROP_SCENARIO=<name> ./le integration interop-ipsec` | Requires strongSwan in privileged Docker containers |
+| Chaos web | `./le functional web` | Browser and dashboard scenarios |
 
-The runner is named through `make` here, and everywhere else on this page, for
-one reason: `make` hands the suite to `scripts/dev/ze-run.sh`, which runs it
-now, queues it behind the heavy jobs already in flight, or attaches it to an
-equivalent run. Several sessions share this machine, and `bin/ze-test` typed
-into a shell lands on it unadmitted. To run a SELECTION that no target
-expresses, queue the runner yourself:
-`scripts/dev/ze-run.sh <label> bin/ze-test <suite> <selection>`.
-<!-- source: scripts/le/application/functional.py -- SUITES and GATING: the non-gated suites are the difference -->
+Every suite action routes through `internal/le/lejob`, which runs it now,
+queues it behind a heavy job already in flight, or attaches it to an equivalent
+run. Queue a runner selection with
+`./le job run label <label> command bin/ze-test <suite> <selection>`.
+<!-- source: internal/le/functional/actions.go -- Actions -->
+<!-- source: internal/le/integration/actions.go -- Actions -->
 
-Linux-tagged Go unit tests are separate from the functional suites. From a
-non-Linux workstation, use `make ze-unit-linux-test`; it runs the default Linux-only
-unit package set in Docker and can be narrowed or expanded with
-`ZE_LINUX_TEST_PACKAGES="./pkg/a ./pkg/b"`.
-
-Clean release-candidate evidence can be run with `make ze-evidence-release-candidate-check`.
+Clean release-candidate evidence can be run with `./le evidence release-candidate-check`.
 The target refuses a dirty worktree, clones the repository into an ephemeral
 Docker container, mirrors the CI dependency setup, and runs
-`make ze-precommit-verify` there.
+`./le verify current mode full` there.
 
 `ze-deployment-*` targets are deployment-grade external evidence. Some use
 Docker because the local runner needs a Linux system service; Docker-specific
 targets say so in the target name.
 
 Real VPP daemon evidence is separate from the stub-backed VPP functional suite:
-`make ze-deployment-vpp-test` starts VPP in a privileged Docker container and
+`./le deployment vpp-test` starts VPP in a privileged Docker container and
 proves `fib-vpp` add and withdraw against VPP's real FIB, traffic policers,
 and the IKE IPsec dataplane backend.
 
 External L2TP peer evidence is separate from the in-tree L2TP fixture suite:
-`make ze-deployment-l2tp-test` starts Ze and a real `xl2tpd` LAC in a
+`./le deployment l2tp-test` starts Ze and a real `xl2tpd` LAC in a
 privileged Docker container, then proves the control tunnel and incoming-call
 session are established. Full PPP/NCP/kernel dataplane peer evidence is a
-separate Linux-only target: `make ze-deployment-l2tp-ppp-test` creates Ze and
+separate Linux-only target: `./le deployment l2tp-ppp-test` creates Ze and
 LAC network namespaces joined by a veth underlay, then requires `xl2tpd`,
 `pppd`, `ping`, `/dev/ppp`, `iproute2`, and PPPoL2TP kernel support.
-`make ze-deployment-docker-l2tp-ppp-test` runs a peer-isolated Docker lab
-with Ze LNS, a real `xl2tpd`/`pppd` LAC, and FRR as a BGP peer in separate
-containers on an isolated Docker bridge. It proves PPP LCP/IPCP, kernel
-`pppN` interface creation, dataplane ping, and BGP route redistribution from
-a live PPP session. The lab requires Docker and the host kernel (or Docker VM
-kernel) to have PPPoL2TP support; it refuses to run if `/dev/ppp`, `ip l2tp`,
-or the `l2tp_ppp`/`pppol2tp` module is missing. Run individual scenarios with
-`python3 test/interop-l2tp/run.py <scenario-name>`.
+`./le deployment docker-l2tp-ppp-test` runs a peer-isolated Docker lab with Ze,
+a real `xl2tpd`/`pppd` peer, FRR for BGP redistribution, and an independent Go
+RADIUS peer. Its four scenarios cover Ze as LNS and initiator, PPP LCP/IPCP,
+kernel `pppN` interfaces, dataplane traffic, route redistribution, and RADIUS
+accounting attributes. The lab refuses to run a PPP scenario when `/dev/ppp`,
+`ip l2tp`, or the `l2tp_ppp`/`pppol2tp` module is missing. A single scenario is
+selected with `ZE_L2TP_INTEROP_SCENARIO=<name>`.
 
-`make ze-deployment-docker-pppoe-accel-test` runs the inverse-role PPPoE lab:
-Ze as a PPPoE **client** (`pppoe-client` interface kind) against a real
-[accel-ppp](https://accel-ppp.org/) access concentrator (the Alpine `accel-ppp`
-package). It proves PADI/PADO/PADR/PADS discovery, LCP, CHAP-MD5 auth, IPCP
-address assignment, the kernel `pppN` interface, dataplane ping to the AC
-gateway, accel-ppp's session view, and teardown. It is the only test exercising
-Ze as the PPPoE client (the `test/pppoe/*.ci` tests run Ze as the server). The
-Docker form needs host-kernel `/dev/ppp` + `pppoe`; on macOS or any host without
-it, `make ze-qemu-pppoe-accel-test` runs the same proof in a QEMU netns
-(`scripts/evidence/effective-pppoe-accel.py`) using the runtime kernel built by
-`make ze-kernel-build`. See `docs/labs/pppoe-interop.md`.
-`make ze-qemu-vrrp-keepalived-test` runs the VRRP interop lab: Ze's VRRP against
-a real [keepalived](https://keepalived.org/) (the Alpine `keepalived` package,
-v2.3.1) on one L2 segment. Three network namespaces (Ze, keepalived, and a
-passive observer) are bridged in a fourth, so the observer sees flooded
-multicast and can prove the virtual IP moves at layer 2 and not merely in a log.
-It proves RFC 9568 VRRPv3 election, failover on node death, the prio-0 graceful
-stop, and that keepalived accepts Ze's advert format. Like every other QEMU
-target it boots Ze's own runtime kernel, so
-`make ze-kernel-vmlinuz-stage KERNEL_ARCH=<amd64|arm64>` is a precondition. That
-costs a file copy on a warm cache and a build only on a miss. The lab's verdict
-is about the kernel Ze ships, which is the reason the flag is unconditional even
-though the stock Alpine kernel also carries macvlan, bridge and veth.
+`./le deployment docker-pppoe-accel-test` runs two PPPoE roles against independent
+peers. Ze acts as a client against the Alpine
+[accel-ppp](https://accel-ppp.org/) access concentrator, then as an access
+concentrator against `pppd` with the `rp-pppoe` plugin. The checkers require
+PADI/PADO/PADR/PADS discovery, bidirectional LCP, CHAP-MD5 acceptance and
+refusal, IPCP address assignment, kernel `pppN` state, dataplane traffic, and
+clean teardown. The Docker form needs host-kernel `/dev/ppp` and `pppoe`
+support. `ZE_PPPOE_INTEROP_SCENARIO=<name>` selects one role. See
+`docs/labs/pppoe-interop.md`.
+
+`./le qemu vrrp-keepalived-test` runs the VRRP interop lab against keepalived
+2.3.1 on one L2 segment. Three network namespaces are bridged so a passive
+observer can prove the virtual IP moves at layer 2. The action boots Ze's
+runtime kernel through the native QEMU harness and uses the shared verified
+kernel cache.
 Keepalived state is read from its `notify_*` markers and every timing assertion
 is measured from tcpdump wire timestamps against the acceptance bands in
 `plan/spec-vrrp-6-interop.md`, never from wall clock.
 
-The Linux-only VRRP runtime `.ci` tests carry `option=needs-linux`: they SKIP on
-darwin (the `interface` plugin cannot manage devices there, which cascades into
-the vrrp plugin failing at stage Init) and run as root under
-`make ze-qemu-needs-linux-test`, where `test/vrrp` is in the QEMU suite list.
+The Linux-only VRRP runtime `.ci` tests carry `option=needs-linux`: they skip on
+Darwin and unprivileged Linux, then run inside `./le qemu all-tests`.
 
 ### Which pipeline runs each QEMU lab
 
-`.github/workflows/qemu-nightly.yml` runs every QEMU lab on a schedule, in three
-advisory jobs. Every one of them stages `tmp/kernel/vmlinuz` first, because every
-QEMU target boots Ze's own runtime kernel. `needs-linux` runs the
-`option=needs-linux` `.ci` suites. `protocol-labs` runs the three routing-protocol
-interop labs: `ze-qemu-ldp-frr-test`, `ze-qemu-isis-frr-test` and
-`ze-qemu-vrrp-keepalived-test`. `runtime-kernel-labs` runs the four
-access-protocol and traffic labs: `ze-qemu-l2tp-ppp-test`,
-`ze-qemu-pppoe-accel-test`, `ze-qemu-pppoe-test` and
-`ze-qemu-traffic-usage-test`.
-
-Before 2026-08-12 the last seven of those had no caller at all. Each target
-worked; nothing ran it. `TestQemuAndInteropTargetsHaveACaller`
-(`scripts/dev/github_workflows_test.go`) now refuses that state: it derives every
-`ze-qemu-*-test` and `ze-*-interop-test` target from the make fragments and fails
-when one is invoked by no workflow, no script and no other target. A target that
-is deliberately manual goes in that test's `manualQemuTargets` with the reason.
-A mention in this document is not a caller.
+`.github/workflows/qemu-nightly.yml` invokes the registered `./le qemu`
+actions. `./le qemu all-tests` covers the Linux functional suites;
+`vrrp-keepalived-test`, `pppoe-accel-test`, and `pppoe-test` own their protocol
+labs. `TestQemuAndInteropTargetsHaveACaller` refuses a registered action that no
+workflow or native aggregate reaches.
 
 <!-- source: .github/workflows/qemu-nightly.yml -- protocol-labs, runtime-kernel-labs -->
-<!-- source: scripts/dev/github_workflows_test.go -- TestQemuAndInteropTargetsHaveACaller -->
+<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestQemuAndInteropTargetsHaveACaller -->
 
 <!-- source: internal/test/cli/register.go -- subcommand registry -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
-<!-- source: Makefile -- ze-unit-linux-test -->
-<!-- source: scripts/evidence/effective-verify.sh -- clean Docker ze-precommit-verify evidence -->
-<!-- source: scripts/evidence/effective-l2tp-ppp.py -- full L2TP PPP/NCP peer evidence -->
-<!-- source: scripts/evidence/effective-vrrp-keepalived.py -- VRRP vs keepalived interop evidence -->
-<!-- source: mk/test-integration.mk -- ze-qemu-vrrp-keepalived-test -->
-<!-- source: scripts/evidence/qemu-all-tests.sh -- vrrp suite in the QEMU needs-linux run -->
+<!-- source: internal/le/evidence/actions.go -- Actions -->
+<!-- source: internal/le/qemu/actions.go -- Actions -->
+<!-- source: internal/le/qemu/alltests.go -- AllTestsRun -->
 
 ---
 
@@ -273,7 +226,7 @@ ze-test bgp plugin --draft --all
 ## Writing a Test: Draft First
 
 **Never write or iterate on a `.ci` inside `test/<suite>/`.** That directory is
-live: every `make ze-precommit-verify` in the checkout runs it, including runs by other
+live: every `./le verify current mode full` in the checkout runs it, including runs by other
 sessions working on unrelated things, who then have to work out whether your
 half-written test is their regression. The same applies to CHANGING an existing
 test.
@@ -284,7 +237,7 @@ repo-wide gate:
 ```bash
 $EDITOR test/draft/plugin/my-test.ci        # 1. write
 ze-test bgp plugin --draft -a               # 2. run only drafts
-python3 scripts/dev/stress-repro.py "bgp plugin --draft" --test 1 --any-failure
+./le stress-repro run suite "bgp plugin --draft" test 1 any-failure
 mv test/draft/plugin/my-test.ci test/plugin/  # 3. promote when green
 ze-test bgp plugin -a                       # 4. now it is real
 ```
@@ -306,9 +259,9 @@ validation. Full contract and workflow: `test/draft/README.md`, or the
 ### Changing a live test that already passes
 
 An edit to a `.ci` or `.et` under `test/` that removes an `expect=`, empties a
-needle, or inverts a `reject=` is a WEAKENING, and `c_test_weakening`
-(`.claude/hooks/pretool-writeedit.py`) refuses it. A whole `.ci` file is one
-test, so the name it asks for is the file stem.
+needle, or inverts a `reject=` is a weakening.
+`internal/le/weakened` detects it, and a whole `.ci` file is one test, named by
+its file stem.
 
 Write the row in `test/weakened.md` BEFORE the edit, then make the edit, then
 name `test/weakened.md` in the commit. The file is replaced per commit and never
@@ -359,7 +312,7 @@ and name, plus periodic progress while tests are still running.
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the development tooling that has no product entry point: the `.ci` orchestration grammar itself (naming a background process with `cmd=background:...:name=`, stopping it mid-test with `cmd=stop`), and the verify-freshness, structural-red attribution, verification-debt and change-set-selection tooling the commit path reads (`verify-scope-freshness-scoped.ci`, `verify-scope-wiring-attribution.ci`, `verify-scope-debt-clear.ci`, `verify-scope-selector.ci`). Host-safe (spawns only `sh`, `git`, `make` and `python3` helpers over throwaway git repos, no daemon); in the gating `ze-functional-test` list. |
+| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt, and change-set-selection fixtures. The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
@@ -383,8 +336,8 @@ which kills leaked `ze` daemons and mock servers with it.
 Override any of them on the command line:
 
 ```bash
-make ze-functional-test ZE_SUITE_TIMEOUT=1200s
-make ze-functional-plugin-test ZE_SUITE_TIMEOUT_PLUGIN=1800s
+ZE_SUITE_TIMEOUT=1200s ./le functional
+ZE_SUITE_TIMEOUT_PLUGIN=1800s ./le functional plugin
 ```
 
 #### One suite's budget is its own
@@ -404,15 +357,15 @@ rounded up to the whole minute. The kill then lands at 1.75x the measurement,
 which is a wedged suite and not a busy box.
 
 Adding a suite to that family is one line: a `BUDGET_DEFAULTS` entry in
-`scripts/le/application/functional.py`. Setting `ZE_SUITE_TIMEOUT_<SUITE>` in
+`internal/le/functional.Answer`. Setting `ZE_SUITE_TIMEOUT_<SUITE>` in
 the environment gives any suite one with no edit at all, because the variable
 name is derived from the suite's name.
 
-In the makefile this took four edits that a test had to hold in step, since the
-budget could be spelled in one place and not another: the run would then say
-1500s while the kill landed at 600s.
+The retired orchestration required four edits that a test had to hold in step,
+since the budget could be spelled in one place and not another: the run would
+then say 1500s while the kill landed at 600s.
 
-`make ze-functional-test` prints one runtime line per suite, and a table of all
+`./le functional` prints one runtime line per suite, and a table of all
 of them at the end:
 
 ```
@@ -440,8 +393,8 @@ nothing about the product. The same expiry lands in
 
 A budget that is raised and never watched creeps back to its cap, so the
 warning exists to make the creep visible while the suite is still green.
-<!-- source: scripts/le/application/functional.py -- DEFAULT_BUDGET, BUDGET_DEFAULTS, DEFAULT_WARN_PERCENT, Run.record -->
-<!-- source: scripts/le/functional_test.py -- the budget report's tests -->
+<!-- source: internal/le/functional/actions.go -- Answer -->
+<!-- source: internal/le/functional/actions.go -- Answer -->
 
 ---
 
@@ -452,15 +405,14 @@ Unit tests are standard Go `_test.go` files throughout the codebase. Running
 all ~349 packages with `-race` takes ~5 minutes. During development, use
 component-group targets to test only the area you changed:
 
-| Target | Scope | Approx time |
-|--------|-------|-------------|
-| `make ze-unit-bgp-test` | `./internal/component/bgp/...` (96 pkgs) | ~1:30 |
-| `make ze-unit-core-test` | `./internal/core/...` (26 pkgs) | ~30s |
-| `make ze-unit-plugins-test` | `./internal/plugins/...` (44 pkgs) | ~40s |
-| `make ze-unit-config-test` | `./internal/component/config/...` (13 pkgs) | ~20s |
-| `make ze-unit-cli-test` | `./internal/component/cli/...` (3 pkgs) | ~10s |
-| `make ze-unit-rest-test` | Everything not in a named group (~70 pkgs) | ~1:00 |
-| `make ze-unit-test` | All packages with `-race` | ~5 min |
+| Command | Scope | Approximate time |
+|---------|-------|------------------|
+| `./le test-unit bgp` | `./internal/component/bgp/...` | about 1:30 |
+| `./le test-unit core` | `./internal/core/...` | about 30 seconds |
+| `./le test-unit plugins` | `./internal/plugins/...` | about 40 seconds |
+| `./le test-unit config` | `./internal/component/config/...` | about 20 seconds |
+| `./le test-unit cli` | `./internal/component/cli/...` | about 10 seconds |
+| `./le verify current mode full` | Every unit group plus repository gates | about 5 minutes |
 
 All groups run with the test-only `CGO_ENABLED=1 go test -race` path on Linux
 and Darwin. These race-built test executables never ship or serve as
@@ -479,34 +431,45 @@ run in the ordinary unit passes (no build tag):
 | `TestMigrationRoundTripProperty` | `internal/exabgp/migration` | any valid ExaBGP config → migrate → serialize re-parses as valid Ze config with every neighbor preserved. |
 | `TestForwardPoolOrderingProperty` | `internal/component/bgp/reactor` | batch order preservation, supersede-key determinism, malformed-body robustness, and exactly-once delivery under concurrent dispatch (`-race`). |
 | `TestFilterChainRandomUpdatesProperty` | `internal/component/bgp/reactor` | `buildModifiedPayload` never panics and only emits well-formed UPDATE bodies over random payloads+ops; `LessOrder` is a strict total order. |
-<!-- source: internal/component/config/listener_property_test.go -- TestListenerConflictProperties -->
-<!-- source: internal/exabgp/migration/roundtrip_property_test.go -- TestMigrationRoundTripProperty -->
-<!-- source: internal/component/bgp/reactor/forward_pool_property_test.go -- TestForwardPoolOrderingProperty -->
-<!-- source: internal/component/bgp/reactor/filter_ordered_property_test.go -- TestFilterChainRandomUpdatesProperty -->
 
-### Evidence / release-tier stress and perf tests (build-tagged, out of `ze-precommit-verify`)
+### Evidence / release-tier stress and perf tests (build-tagged, out of `./le verify current mode full`)
 
-Resource-heavy, host-dependent tests kept out of the pre-commit gate. Each is
-gated by a build tag not in the default set and has a dedicated make target:
+Resource-heavy, host-dependent tests stay out of the pre-commit gate. Their
+native integration actions supply the required build tags:
 
-| Target | Test | Tag | What it drives |
-|--------|------|-----|----------------|
-| `make ze-stress-web-test` | `TestWebConcurrentEditStress` (`internal/component/web`) | `stress` | ≥64 concurrent editor sessions mutate+commit one config; asserts no race (`-race`), zero errors, no torn commit. |
-| `make ze-stress-fleet-test` | `TestFleetManyClientsPerf` (`cmd/ze/hub`) | `fleetperf` | 128 concurrent managed clients auth + initial-sync against the real managed hub listener (TLS 1.3, `managedMaxConns` cap); records latency p50/p95/max, asserts zero error budget. |
-<!-- source: internal/component/web/stress_test.go -- TestWebConcurrentEditStress -->
-<!-- source: cmd/ze/hub/fleet_perf_test.go -- TestFleetManyClientsPerf -->
-<!-- source: mk/test-integration.mk -- ze-stress-web-test, ze-stress-fleet-test -->
+| Command | Test | Tag | What it drives |
+|---------|------|-----|----------------|
+| `./le integration stress-web` | `TestWebConcurrentEditStress` | `stress` | Concurrent editor sessions mutate and commit one config under the race detector |
+| `./le integration stress-fleet` | `TestFleetManyClientsPerf` | `fleetperf` | 128 managed clients authenticate and synchronize against the real listener |
+<!-- source: internal/le/integration/gates.go -- Table -->
 
-### netlab template render check (`make ze-netlab-render-check`, out of `ze-precommit-verify`)
+The BGP route stress harness is a native integration action. It creates two
+network namespaces, starts Ze or BIRD, and drives the exact five-scenario
+registry with `ze-test peer --mode inject`. It needs root, `ip`, `ethtool`,
+`tcpdump`, and BIRD for the baseline scenario.
+
+```bash
+./le integration stress
+STRESS_SCENARIO=03-session-flap ./le integration stress
+STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le integration stress
+```
+
+The registry covers four bulk route counts from 100,000 to 1,000,000, sequential
+IPv4 and IPv6 peers, ten flap cycles followed by a final injection, the BIRD
+baseline, and the 1,000,000-route CPU, heap, and goroutine profile run.
+<!-- source: internal/le/integration/stress.go -- native scenario registry and runner -->
+<!-- source: internal/le/integration/stressbird.go -- BIRD baseline runner -->
+
+### netlab template render check (`./le netlab render-check`, out of `./le verify current mode full`)
 
 `contrib/netlab/` mirrors the netlab daemon integration: the daemon definition, the
 Jinja2 templates that emit ze configuration, one reference topology, and the committed
 render under `contrib/netlab/golden/`. The check builds a scratch lab from that mirror
 and runs `netlab create`. It then compares each rendered node configuration against its
 golden file, and runs `ze config validate` on each golden. It never writes to the
-operator's netlab install. `ARGS=--update` rewrites the golden files.
+golden file. `./le netlab render-update` rewrites the golden files.
 
-It is out of `ze-precommit-verify` because it needs netlab installed, and `ze-precommit-verify` must run on
+It is out of `./le verify current mode full` because it needs netlab installed, and `./le verify current mode full` must run on
 a machine that has neither netlab nor Jinja2. **A missing netlab is an error exit, not a
 skip:** a check that passes without its dependency reports "no drift" about a render it
 never performed. `NETLAB=/path/to/netlab` names a specific install.
@@ -517,66 +480,47 @@ suite, because it needs no netlab. It reads `contrib/netlab/golden/r3.conf` thro
 parses `show bgp peer list | json compact` with `json.loads`. The render check proves the
 templates still emit what ze accepts. The functional test proves ze still runs what they
 emitted.
-<!-- source: scripts/dev/netlab_render_check.py -- find_netlab, build_lab, run_netlab_create, compare, validate_golden -->
-<!-- source: mk/test-integration.mk -- ze-netlab-render-check -->
+<!-- source: internal/le/netlab/actions.go -- Actions -->
 <!-- source: test/plugin/netlab-lab-profile.ci -- golden read, daemon start, json compact -->
 
-### Allocation-ceiling gate (`make ze-alloc-check`, always-run in `ze-precommit-verify`)
+### Allocation-ceiling gate (`./le verify-deps alloc`)
 
-`make ze-alloc-check` runs the hot-path `ReportAllocs` benchmarks of the
-packages `ALLOC_GATE_PACKAGES` names (`mk/test-alloc.mk`: the reactor tree for
-bufmux / forward-pool / prefix-limits, and `internal/component/plugin` for the
-command-answer record path) with `-benchmem` at a bounded benchtime and
-asserts a per-benchmark `allocs/op` ceiling. allocs/op counts allocations, not
-time, so the ceiling is machine-independent; the gate needs no Docker and is
-registered as a stage in `scripts/status/verify_run.go`, so every full
-`make ze-precommit-verify` and CI push runs it (it is kept out of `ze-precommit-verify-changed` to
-leave the inline dev loop fast). Registration over hardcoding: a hot-path
-benchmark opts in by adding one entry to `perf.AllocCeilings`
-(`internal/perf/allocgate.go`); the gate fails closed if a registered benchmark
-is absent from the output. A benchmark in a package `ALLOC_GATE_PACKAGES` does
-not name is therefore a permanent red rather than a silent pass, and
-`TestAllocGateCoversRecordPath` asserts that the record path's package is named.
-The machine-dependent timing regression check
-(convergence / throughput / p99) is NOT in this gate: it runs scheduled-only via
-`.github/workflows/perf-nightly.yml` (`bin/ze-perf track --check`, scheduled), and
-the heavy Docker throughput/p99 DUT matrix stays in `make ze-evidence-perf-record`.
+`./le verify-deps alloc` runs the registered hot-path `ReportAllocs`
+benchmarks with `-benchmem` at a bounded benchtime and enforces each
+`allocs/op` ceiling. Allocation counts are machine-independent. A hot-path
+benchmark opts in through `perf.AllocCeilings`; the gate fails when a registered
+benchmark is absent from the output.
+
+Timing regressions run separately through `bin/ze-perf track --check`, while
+the Docker DUT matrix uses the native Go runner:
+`go run ./cmd/ze-perf-run --build --test`.
 <!-- source: internal/perf/allocgate.go -- AllocCeilings, checkAllocCeilings -->
-<!-- source: mk/test-alloc.mk -- ze-alloc-check target -->
-<!-- source: scripts/status/verify_run.go -- stagesForMode ze-precommit-verify includes ze-alloc-check -->
-<!-- source: .github/workflows/perf-nightly.yml -- scheduled Docker-free perf --check -->
+<!-- source: internal/le/verifydeps/actions.go -- Actions -->
+<!-- source: cmd/ze-perf-run/main.go -- main -->
 
 ### Privileged kernel-state tests under QEMU (`option=needs-linux`)
 
-`.ci` tests tagged `option=needs-linux` SKIP on non-Linux hosts (GOOS check) and
-run as root inside the QEMU VM via `make ze-qemu-needs-linux-test`, where
-CAP_NET_ADMIN and real interfaces are available. That target is scheduled in
-`.github/workflows/qemu-nightly.yml` (advisory), which is what makes the stronger
-`option=needs-linux:caps=net-admin` marker safe to use: it also skips on an
-unprivileged **Linux** host, so without a privileged runner it would remove the
-test everywhere rather than relocate it. `TestCapabilityGatedTestsHaveAQemuHome`
-(`scripts/dev/github_workflows_test.go`) fails if that link is ever broken.
-<!-- source: .github/workflows/qemu-nightly.yml -- scheduled ze-qemu-needs-linux-test -->
+`.ci` tests tagged `option=needs-linux` skip on non-Linux hosts and unprivileged
+Linux, then run as root inside `./le qemu all-tests`. CAP_NET_ADMIN and real
+interfaces are available in that guest. `TestCapabilityGatedTestsHaveAQemuHome`
+fails when a capability-gated test has no registered QEMU path.
+<!-- source: internal/le/qemu/alltests.go -- AllTestsRun -->
+<!-- source: internal/test/runner/record_parse.go -- capability gate -->
 <!-- source: internal/test/runner/record_parse.go -- caps=net-admin gate and skip reason -->
 
 The `traffic` suite is enrolled
-in `scripts/evidence/qemu-all-tests.sh`; `test/traffic/traffic-boot-qdisc-tc.ci` and
+in `internal/le/qemu.AllTestsRun.Run`; `test/traffic/traffic-boot-qdisc-tc.ci` and
 `traffic-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and
 after a reload (the check `001`/`002` document as deferred). The chaos iface
 fault family (`iface-link-flap`, `iface-addr-remove`) has a netns-scoped
-integration test (`//go:build integration && linux`) run via
-`make ze-integration-*`, plus the `test/chaos/iface-link-flap.ci` scenario.
+integration tests supplied by the applicable `./le integration` action, plus
+the `test/chaos/iface-link-flap.ci` scenario.
 
-Suites that mutate **shared, un-namespaced kernel state run serial (`-p 1`)** in
-that script: `traffic` (qdiscs on `eth0`), `reload` and `managed` (shared config
-state), and `firewall` + `policy`. The QEMU run sets no `ZE_TEST_NETNS`, so unlike
-`make ze-netns-test` it gives each test no namespace of its own -- every daemon
-shares the VM's root netns. The `policy` suite writes one nft table name for all
-six tests (`ze_pr`) and allocates its fwmark from a fixed base, so parallel tests
-read each other's rules or collide on an identical `ip rule`; the `firewall` suite
-installs `policy drop` base chains at the input hook, which nftables applies to
-every other test's traffic. Do not raise the parallelism of these suites.
-<!-- source: scripts/evidence/qemu-all-tests.sh -- fsuite traffic, fsuite firewall, fsuite policy at -p 1 -->
+Suites that mutate shared, un-namespaced kernel state run serially in
+`./le qemu all-tests`. The guest gives each test the QEMU root namespace rather
+than the host namespace. The policy and firewall suites therefore cannot alter
+the operator's nftables state.
+<!-- source: internal/le/qemu/actions.go -- Answer -->
 
 Dropping a whole suite to `-p 1` is not always the right tool. When only a
 *cluster* of tests inside a large suite contends, they declare
@@ -677,8 +621,8 @@ A `.ci` suite runs `-p N` tests at once. Where N comes from depends on the suite
 
 | Suite | Source of `-p` | Value |
 |-------|----------------|-------|
-| `plugin`, `encode` | `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL` (`scripts/le/application/functional.py`) | derived from the host: the core count, floored at 8 |
-| `reload`, `managed` | the make recipe, explicitly | 1. They share the kernel routing table |
+| `plugin`, `encode` | `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL` (`internal/le/functional.Answer`) | derived from the host: the core count, floored at 8 |
+| `reload`, `managed` | the native suite table in `internal/le/functional/suites.go` | 1. They share the kernel routing table |
 | `vpp` | the command's own default | 1 |
 | the other bgp-runner suites | `runner.DefaultParallelConcurrent` | 20 |
 | the 22 `registerCIRoot` suites | `runner.DefaultSuiteConcurrency` | 2x the core count, floored at 8 |
@@ -708,9 +652,9 @@ itself killed). `plugin` is CORE-bound instead, so it caps at 1x. Measured on a
 pass rate. Neither figure transfers to the 22 `registerCIRoot` suites: that sweep
 never measured them.
 
-An explicit value still wins over the derivation, on either side:
-`make ze-functional-plugin-test ZE_PLUGIN_PARALLEL=8` pins the suite, and `-p 0`
-on the command line still means every selected test at once.
+An explicit value still wins over the derivation:
+`ZE_PLUGIN_PARALLEL=8 ./le functional plugin` pins the suite, and `-p 0`
+on the runner command line selects every test at once.
 
 Raising concurrency moves flakes before it moves wall clock, so a deadline the
 harness cannot see is fixed first. `ParallelTimeoutHeadroom` widens every budget
@@ -720,11 +664,11 @@ listener, and six of one 32-way run's failures were that one message. The runner
 publishes `ze.test.parallel-factor` into every `cmd=` child's environment so such
 a deadline scales from the same source of truth.
 
-The runner does NOT read the job-admission budget. `scripts/dev/ze-run.sh` admits
+The runner does NOT read the job-admission budget. `internal/le/lejob.Answer` admits
 several jobs on a shared box, and a suite still sizes itself for the whole
 machine, so concurrent sessions can oversubscribe it.
 
-<!-- source: scripts/le/application/functional.py -- PARALLEL_FLOOR, ZE_SUITE_CORES, parallel -->
+<!-- source: internal/le/functional/actions.go -- Answer -->
 <!-- source: internal/test/runner/parallel.go -- SuiteConcurrencyFloor, DefaultSuiteConcurrency, ParallelTimeoutHeadroom, ParallelFactorEnv -->
 <!-- source: internal/test/cli/cmd_bgp.go -- the bgp runner's -p default -->
 <!-- source: internal/test/cli/cmd_vpp.go -- the vpp suite's -p default of 1 -->
@@ -740,114 +684,40 @@ operator's real firewall. An **opt-in per-test network-namespace launch mode**
 makes them runnable host-safely on Linux:
 
 ```bash
-make ze-netns-test                                   # firewall policy ospf ospfv3
-make ze-netns-test ZE_NETNS_SUITES=firewall          # one suite
+./le qemu netns-test
+./le qemu netns-test suites firewall
 ```
 
-Requires Linux + `sudo` + `setcap` (libcap) + `nft` (nftables). The target
-`setcap cap_net_admin,cap_net_raw,cap_net_bind_service+ep`s `bin/ze` and
-`bin/ze-stripped`, then runs each suite under `sudo` with `ZE_TEST_NETNS=1
-ZE_TEST_UID=$(id -u) ZE_TEST_GID=$(id -g)`, and asserts the host `nft list tables`
-is byte-identical before and after (removing the caps afterward).
+The native action provisions capabilities, runs each suite in a disposable
+network namespace, and proves the guest's root nftables state is unchanged.
 
 A test that declares `option=netns-link` runs **only** in this mode. The option is
 a prerequisite, not a hint: the links it names (`eth0`, `eth1`, `nbma0`, `ptmp0`)
 are provisioned inside the throwaway namespace and must never be created on a real
 host, so off netns mode the test is SKIPped with a reason naming these targets.
 That covers the 8 `test/ospf`, 3 `test/ospfv3` and 1 `test/policy` tests listed in
-`scripts/evidence/netns_qemu.py`; they carry `needs-linux` as well but do not run
-under `make ze-qemu-needs-linux-test`, which sets no `ZE_TEST_NETNS`.
+`internal/le/qemu.AllTestsRun.Run`; they carry `needs-linux` as well and use
+the same registered QEMU action path.
 
 <!-- source: internal/test/runner/caps.go -- applyNetnsLinkGate, skipReasonNetnsLink -->
 
-#### Kernel-capability `plugin` subset (`make ze-netns-plugin-test`)
+#### Kernel-capability plugin subset
 
-One `test/plugin` test needs a real kernel capability and therefore cannot pass
-under a plain `make ze-functional-plugin-test` on a privileged-capable but unprivileged
-Linux host:
+The `system-kernel-log-show` plugin test opens `/dev/kmsg` and needs
+`CAP_SYSLOG`. It runs in the privileged guest population through
+`./le qemu all-tests`; an unprivileged host run skips it with the required
+capability in the reason.
 
-| Test | Needs | Why |
-|------|-------|-----|
-| `system-kernel-log-show` | `CAP_SYSLOG` (+ `CAP_DAC_OVERRIDE` for the device mode) | Opens `/dev/kmsg`, which is `crw------- root root` and additionally gated by `kernel.dmesg_restrict`. No configuration knob can skip the work: reading the log IS the behaviour under test. |
-
-```bash
-make ze-netns-plugin-test
-make ze-netns-plugin-test ZE_NETNS_PLUGIN_TESTS=system-kernel-log-show
-```
-
-**Five L2TP tests used to live here and no longer do.** `l2tp-history-show`,
-`l2tp-sessions-show`, `l2tp-session-detail-show`, `teardown-session` and
-`teardown-session-all` each establish an L2TP session, and
-`ze.l2tp.skip-kernel-probe=true` bypasses only the modprobe at Start, **not** the
-data plane: wherever `resolveGenlFamily` succeeds (any host with `l2tp_netlink`
-loaded) a real kernel worker is built, ICCN sets `kernelSetupNeeded`, and the
-genl tunnel create returns EPERM without `CAP_NET_ADMIN` -- the session is then
-torn down and the observer reports "session never established".
-
-They now set `ze.l2tp.disable-kernel-dataplane=true` as well, which builds no
-kernel worker at all. That is not a new skip: it makes DETERMINISTIC the state
-these tests already ran in on macOS and on any Linux host whose kernel exposes
-no l2tp genl family, where the worker is never built and the session establishes
-on the control plane alone. Since all five assert on the CLI surface
-(`show l2tp sessions`, `teardown session`) and never on the kernel's view, the
-coverage is unchanged and they pass unprivileged -- verified 3x 5/5. Data-plane
-coverage lives where it belongs, in `test/l2tp/session-stopccn-cascade.ci`
-(`option=needs-linux:caps=net-admin`) and the L2TP unit tests.
-
-A test that genuinely needs the data plane must NOT set that knob.
-
-These tests deliberately carry **no** `option=needs-linux:caps=...`. That marker
-also skips on non-Linux, and they pass on macOS; marking them would delete real
-coverage to hide a host-specific requirement.
-
-The target reuses the per-test netns launch mode above: `ze` runs as a normal
-user off a **throwaway** setcap'd binary (the isolated `tmp/.../testbin-*/bin`
-set, removed by the recipe's trap, so no capability-bearing binary survives),
-and the kernel L2TP tunnel plus the `pppN` interface each test creates live and
-die inside the per-test namespace. Run the same tests privileged in the host
-namespace instead and a real `ppp0` and a real kernel L2TP tunnel appear on the
-operator's machine. The recipe asserts `ip l2tp show tunnel/session` and
-`ip -br link` are byte-identical before and after, the same shape as the nft
-assertion in `ze-netns-test`, and exits non-zero when Linux, `sudo`, or `setcap`
-is missing rather than skipping.
-
-<!-- source: mk/test-integration.mk -- ze-netns-plugin-test -->
-<!-- source: internal/component/l2tp/subsystem.go -- skip-kernel-probe scope, stopKernelWorkersLocked -->
-<!-- source: internal/plugins/host-cmd/cmd/show_kernel_log_linux.go -- readKmsg /dev/kmsg reader -->
-
-How the runner isolates each test (all gated on `ZE_TEST_NETNS`; the default path
-is byte-identical for every suite that passes today):
-
-1. Before spawning any child, the per-test goroutine `runtime.LockOSThread()`s and
-   enters a fresh named network namespace (`netns.NewNamed`), bringing `lo` up in
-   it. `ze`, `ze-peer`, and driver.py are all fork+exec'd from that locked thread,
-   so they **inherit the same throwaway netns** (validated by
-   `TestNetnsLaunchChildInheritsNamespace`) and reach each other over 127.0.0.1.
-2. The runner (root, via `sudo`) creates the netns (`CAP_SYS_ADMIN`) and execs `ze`
-   with `SysProcAttr.Credential` set to a normal user, so the **setcap'd `ze` runs
-   non-root** with ambient `CAP_NET_ADMIN`. `ze` must not be root: its readiness
-   file is written after `dropPrivileges`, so a root `ze` never writes it and the
-   `daemon.ready` handshake times out. `ze-peer`/driver.py stay root so they can
-   read nft state and signal the daemon.
-3. The nft tables `ze` programs live in the per-test netns; on test end the runner
-   restores the original netns and deletes the throwaway one. The host firewall is
-   never touched.
-
-**R-2 host-safety gate.** As belt-and-braces, a setcap'd `ze` that lands in the
-host netns (isolation silently failed) refuses to program nft: the runner passes
-the host netns inode via `ZE_TEST_NETNS_HOST`, and `firewallnft.Apply` aborts
-before any kernel op if the current netns matches it (`refuseHostNetnsFirewall`).
-The env is test-only, so production is unaffected.
-
-**macOS / QEMU.** netns and nft do not exist on macOS; `make ze-qemu-netns-test`
-exercises the launch path (child-inherits-netns + R-2 guard unit tests, and a
-firewall subset under `ZE_TEST_NETNS`) inside the QEMU Alpine VM.
+The namespace runner locks its goroutine to one OS thread, enters a disposable
+network namespace, and starts every child from that thread. The Go fixture
+drivers inherit that namespace with the daemon. Cleanup restores the original
+namespace and deletes the disposable one, so host firewall and link state stay
+unchanged.
 
 <!-- source: internal/test/runner/netns_linux.go -- enterTestNetns, testNetnsName -->
-<!-- source: internal/test/runner/netns_linux_test.go -- TestNetnsLaunchChildInheritsNamespace (A-5) -->
-<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated netns entry + SysProcAttr credential drop -->
-<!-- source: internal/plugins/firewall/nft/host_netns_guard_linux.go -- refuseHostNetnsFirewall (R-2) -->
-<!-- source: mk/test-integration.mk -- ze-netns-test / ze-qemu-netns-test -->
+<!-- source: internal/test/runner/netns_linux_test.go -- TestNetnsLaunchChildInheritsNamespace -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- source: internal/le/qemu/actions.go -- Actions -->
 
 ### In-process integration tests (feeds that can't cross the plugin boundary)
 
@@ -865,72 +735,32 @@ synthetic observations. The anomaly facts→judgment→response chain
 Use the narrowest test scope that covers your change, then widen before committing:
 
 ```
-single test  →  single package  →  component group  →  ze-precommit-verify
+single test  →  single package  →  component group  →  ./le verify current mode full
 ```
 
 ```bash
-make ze-unit-pkg-test PKG=./internal/component/config/system/... RUN=TestMyThing  # single test
-make ze-unit-config-test                                                          # component group
-make ze-precommit-verify                                                          # pre-commit gate
+./le job run label one-config-test command go test ./internal/component/config/system/... -run TestMyThing
+./le test-unit config
+./le verify current mode full
 ```
 
-#### Test binaries are isolated from your dev binary (automatic)
+#### Test binaries are isolated from the development binary
 
-Every functional target — the gating
-`ze-functional-test`, every per-suite target, and therefore the functional stage
-of `make ze-precommit-verify` — runs against its **own** binary set by default, so testing
-and development never touch each other's binaries:
+Every native functional action builds `ze`, `ze-test`, and `ze-stripped` into a
+session-owned temporary `bin/` directory. It sets the binary paths before the
+suite starts, freezes that set for the run, and removes it afterward. Editing
+or rebuilding `bin/ze` cannot change a suite already in flight.
 
-```bash
-make ze-functional-parse-test        # builds ze/ze-test/ze-stripped in tmp/testbin-<id>/bin/,
-                          # runs frozen against them, removes the dir on exit
-make ze-build                   # meanwhile: rebuild bin/ze as much as you like --
-                          # the running suite never sees it
-```
+The binaries must live below a directory named `bin` or `sbin`, because Ze
+derives its config and database directory from its executable path. The runner
+prepends the isolated directory to `PATH`, so `.ci` fixtures continue to invoke
+the canonical bare names.
 
-The legacy behavior recompiled `ze` and `ze-test` **into `bin/`** on every run
-(`internal/test/runner` `Build`), so editing source or running `make ze-build` while a
-long suite ran overwrote your dev `bin/ze` and leaked the half-edited tree into
-later tests. Now each target instead, at the start of its recipe:
+<!-- source: internal/le/functional/binaries.go -- Prepare, Release -->
+<!-- source: internal/test/runner/runner.go -- prebuilt binary environment -->
+<!-- source: internal/test/runner/runner_exec.go -- bare-name resolution -->
 
-- builds `ze`, `ze-test`, and `ze-stripped` into `tmp/testbin-<id>/bin/` with the
-  canonical names the `.ci` tests exec by. The `bin/` subdir is required: `ze`
-  derives its config/DB directory from its own location and only accepts a parent
-  named `bin`/`sbin` (`internal/core/paths/paths.go`), so a binary elsewhere would
-  break commands like `ze config archive`;
-- sets `ZE_TEST_NO_BUILD=1` and `ZE_BIN`/`ZE_TEST_BIN` so the runner uses that
-  set and never recompiles mid-run (`.ci` tests exec `ze` and `ze-stripped` by
-  bare name; the runner puts `ZE_BIN`'s directory first on `PATH`);
-- removes the throwaway directory when the target exits (shell `trap`), including
-  after a failed build.
-
-In auto mode the `<id>` is `pid-<make-PID>-<target>`: unique per invocation
-**and** per target, so chaining suites on one command line (`make ze-functional-encode-test
-ze-functional-plugin-test`, even under `-j`) never lets one target's cleanup delete another's
-binaries. Each target rebuilds all three binaries (a deliberate cost for a
-uniform isolated set). Overrides:
-
-| Variable | Effect |
-|----------|--------|
-| `ZE_SUFFIX=<name>` | Use `tmp/testbin-<name>/` and **keep** it on exit — run a named suite, then keep developing against that named build. |
-| `ZE_TEST_CANONICAL=1` | Opt out entirely: the runner rebuilds `bin/ze` + `bin/ze-test` in place (the legacy path, for release/CI reproducibility). |
-
-The only shared residue in every mode is `tmp/test-timings.json` (the display
-baseline), last-writer-wins as for any two concurrent `ze-test` invocations.
-Every `tmp/testbin-<id>/` path above is the off-session one. Under an AI session
-the throwaway root is that session's own directory,
-`tmp/session/<YYYY-MM-DD>-<session-id>/testbin-<id>/`, and the dev binary the
-isolation protects is `$(make ze-session-binary-path)` rather than `bin/ze`.
-
-An interrupted run (SIGKILL) can leave its `testbin-*` directory behind.
-Off-session `make ze-scratch-clean` sweeps directories older than 24h; on-session
-nothing is removed automatically, and `make ze-session-clean BEFORE=<YYYY-MM-DD>`
-takes the whole session directory when the operator asks for it.
-<!-- source: scripts/le/application/functional.py -- binary_root, prepare, release -->
-<!-- source: internal/test/runner/runner.go -- ze.bin/ze.test.bin/ze.test.no.build env, Build/verifyPrebuilt -->
-<!-- source: internal/test/runner/runner_exec.go -- bare-name ze/ze-test resolution, PATH prepend -->
-
-`make ze-precommit-verify` is the pre-commit gate. It runs a two-pass strategy:
+`./le verify current mode full` is the pre-commit gate. It runs a two-pass strategy:
 1. Cached full pass (all packages, no `-race`; completes quickly when nothing changed)
 2. Race pass on changed groups only (detects data races in what you touched)
 3. All functional test suites
@@ -945,9 +775,8 @@ directory, so it stays correct after another session's run publishes its own
 failure index. Use
 `tmp/ze-verify.log` only when the whole combined run is needed.
 Automation should read `tmp/ze-verify-failures.json`.
-<!-- source: Makefile -- ze-unit-bgp-test, ze-unit-core-test, ze-unit-plugins-test, ze-unit-config-test, ze-unit-cli-test, ze-unit-rest-test -->
-<!-- source: scripts/status/verify_run.go -- stage logs, compact index, JSON index -->
-<!-- source: mk/test-unit.mk -- ze-unit-test-cached, ze-unit-test-race-changed -->
+<!-- source: internal/le/testunit/actions.go -- Actions -->
+<!-- source: internal/le/verify/run.go -- Run, RunMode -->
 
 ---
 
@@ -986,20 +815,20 @@ Rules the gate enforces:
   Only the pair pins behavior to the requirement. A requirement that is genuinely
   testable only one way carries a `{single-polarity: positive|negative; why}`
   annotation on its summary line instead.
-- **`make ze-rfc-check` is the gate.** For every MUST-level requirement of an
+- **`./le rfc check` is the gate.** For every MUST-level requirement of an
   enrolled RFC (`rfc/enrolled.txt`) it requires the positive/negative pair, or a
   reasoned `{gap}` / `{not-applicable}` / `{single-polarity}` annotation. It scans
   Go `_test.go` files and `.ci` files under `internal/`, `pkg/`, and `test/`.
-  `make ze-rfc-index-update` renders each RFC's requirement to test rows into
+  `./le rfc index-update` renders each RFC's requirement to test rows into
   `rfc/requirements/<stem>.md`. It renders the index over them into
   `ai/RFC-REQUIREMENTS.md`.
 - **Do not edit a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag its behavior cannot change without the owner's approval.
   Write it as one row in `test/rfc-changed.md`, and commit that file with the
-  change. Fix the code instead. The `rfc-tagged-test` hook reads the file and
+  change. Fix the code instead. The native weakening check reads the file and
   blocks the edit until a row names the test.
 
-<!-- source: scripts/dev/rfc_requirements.py -- scan_go_tags/scan_ci_tags -->
+<!-- source: internal/le/weakened/proposed.go -- RFC-tagged carrier approval -->
 
 ### What the tags do not cover
 
@@ -1012,9 +841,9 @@ re-derives the site inventory from the source and re-checks the arithmetic on
 every run.
 
 ```
-make ze-rfc-extraction-create STEM=rfcNNNN     # unclassified skeleton; classify it by hand
-make ze-rfc-check                    # re-derives and judges
-make ze-rfc-extraction-status        # JSON counts, per register, plus the backlog
+./le rfc extraction-create STEM=rfcNNNN     # unclassified skeleton; classify it by hand
+./le rfc check                    # re-derives and judges
+./le rfc extraction-status        # JSON counts, per register, plus the backlog
 ```
 
 Only dispositions are authored: sites, sections, quotes and the register are
@@ -1025,7 +854,7 @@ before enrolling a stem that was not enrolled at HEAD; RFCs enrolled earlier are
 grandfathered and published as a counted backlog in `ai/RFC-REQUIREMENTS.md`.
 Contract: `rfc/extraction/README.md`.
 
-<!-- source: scripts/dev/rfc_requirements.py -- check_extraction_signoff/run_extract_skeleton -->
+<!-- source: internal/le/rfc/actions.go -- Answer -->
 
 ### What the tags cannot say: the audit record
 
@@ -1051,34 +880,33 @@ are therefore blocked:
 Audit coverage is monotonic per requirement id, because otherwise deleting the verdict is the
 cheapest route from red to green.
 
-<!-- source: scripts/dev/rfc_requirements.py -- AUDIT_VERDICTS/check_audit_schema/check_audit_findings -->
+<!-- source: internal/le/rfc/actions.go -- Answer -->
 
 A verdict goes stale when what it judged changes, in one of three ways, and only one of them
 wants a human:
 
 ```
-make ze-rfc-reseal                   # clears SHIFTED: a line shift or a sibling edit
-make ze-rfc-index-update                    # then re-render the ledger
+./le rfc reseal                   # clears SHIFTED: a line shift or a sibling edit
+./le rfc index-update                    # then re-render the ledger
 /ze-rfc-audit <rfc>                  # clears STALE: the tagged test itself changed
 ```
 
-`SHIFTED` means the tagged unit is byte-identical, and only the file around it moved. The tagged
-unit is the enclosing top-level Go function. For a `.ci`, a `.et` or an interop `check.py` it is
-the whole file. Six of the sixteen commits that have touched the one existing audit file were hand
-re-stamps of exactly that kind, in which no verdict changed.
+`SHIFTED` means the tagged unit is byte-identical and only the file around it
+moved. The unit is the enclosing top-level Go function or the whole `.ci`,
+`.et`, or native interop fixture.
 
-`make ze-rfc-reseal` is the only thing that writes `rfc/audit/` without a human edit.
-`ze-rfc-check` is read-only, and `ze-rfc-index-update` touches `ai/RFC-REQUIREMENTS.md` and
+`./le rfc reseal` is the only thing that writes `rfc/audit/` without a human edit.
+`./le rfc check` is read-only, and `./le rfc index-update` touches `ai/RFC-REQUIREMENTS.md` and
 `rfc/requirements/` alone. A re-stamp can therefore never happen as a side effect of
 unrelated work.
 
-<!-- source: scripts/dev/rfc_requirements.py -- verdict_freshness/reseal_audits -->
+<!-- source: internal/le/rfc/actions.go -- Answer -->
 
-The definition of "the tagged unit" lives in one place, `scripts/dev/rfc_tagged_scope.py`, which
+The definition of "the tagged unit" lives in one place, `internal/le/rfc.Answer`, which
 both this gate and the edit-time `rfc-tagged-test` guard import. A second copy that drifted would
 let the gate re-seal a verdict against a fingerprint the guard does not compute.
 
-<!-- source: scripts/dev/rfc_tagged_scope.py -- unit_at/tag_scope -->
+<!-- source: internal/le/rfc/actions.go -- Answer -->
 
 Full authoring guidance: `ai/skills/ze-rfc.md` (id allocation and annotations),
 `ai/skills/ze-rfc-audit.md` (letter-and-spirit audit, the verdict vocabulary and the four
@@ -1106,17 +934,16 @@ Parse coverage configs live in `test/parse/coverage-*.ci`. They are positive
 parse/validate coverage for realistic multi-feature configurations, such as
 IXP peering, large peer sets, RPKI policy, and redistribution. Run a specific
 coverage case by name, for example
-`scripts/dev/ze-run.sh parse-ixp bin/ze-test bgp parse coverage-ixp-peering`.
+`./le job run label parse-ixp command bin/ze-test bgp parse coverage-ixp-peering`.
 
-BGP interop scenarios live under `test/interop/scenarios/NN-name/` and run with
-`python3 test/interop/run.py NN-name`. Scenario files are written with the
-default `172.30.0.x` lab prefix, then copied to `tmp/interop-rendered/` and
-rewritten to an available `/24` before containers start. The default slot is
-`172.30.0.0/24`; concurrent runs retry on `172.30.1.0/24`, `172.30.2.0/24`, and
-so on. Use `ZE_INTEROP_SUBNET_INDEX=N` or `ZE_INTEROP_SUBNET_PREFIX=A.B.C.` to
-force a specific lab prefix. A scenario that includes `bmp-collector.py` gets a
-pre-started collector sidecar on the run's `.6` address so Ze's internal BMP
-sender can connect before peer events are generated. A scenario that includes
+BGP interop scenarios live under descriptively named directories in
+`test/interop/scenarios/`. Run all with `./le integration interop`, or one with
+`INTEROP_SCENARIO=<name> ./le integration interop`. Scenario files use the
+default `172.30.0.x` lab prefix, then render into an available `/24`. Concurrent
+runs retry successive subnets. Use `ZE_INTEROP_SUBNET_INDEX=N` or
+`ZE_INTEROP_SUBNET_PREFIX=A.B.C.` to force a prefix. A scenario whose config
+enables BMP gets the compiled collector personality on the run's `.6` address
+before Ze starts.
 `rpki-server` starts `ze-test rpki --bind 0.0.0.0` on the run's `.7` address.
 
 The tree is not BGP-only. A scenario that includes `keepalived.conf` gets a real
@@ -1129,7 +956,7 @@ inside Skew_Time when Ze is sent SIGTERM (which is Ze's RFC 9568 Section 6.4.3
 Priority 0 advertisement being accepted, not a timeout), and Ze preempts and
 takes it back. Before it existed, VRRP had 150 unit tags and no executed interop.
 
-<!-- source: test/interop/scenarios/vrrp-mastership-keepalived/check.py -- VRRP mastership assertions -->
+<!-- source: internal/le/interoplab/bgp/checkers.go -- vrrp-mastership-keepalived -->
 
 **Positive tests** (expect success):
 ```
@@ -1173,16 +1000,7 @@ expect=exit:code=1
 expect=stderr:contains=route-refresh requires process with send { update; }
 ```
 
-### 3. API Tests (`test/api/`)
-
-Dynamic route tests - routes injected via scripts using the process API.
-
-**Files:**
-- `*.ci` - Expected messages and config reference
-- `*.conf` - Ze configuration (includes `process` block)
-- `*.run` - Script that sends API commands
-
-### 3b. MCP Tests (`test/plugin/mcp-*.ci`)
+### 3. MCP Tests (`test/plugin/mcp-*.ci`)
 
 End-to-end scenarios for the MCP transport. The runner launches a ze
 daemon with `--mcp <port>` in the background and `ze-test mcp` in the
@@ -1465,72 +1283,21 @@ expect=bgp:conn=2:seq=1:hex=...   # Both routes after reload
 
 ### 5. VPP Tests (`test/vpp/`)
 
-> **Not in the default release gate.** VPP tests are not included in
-> `make ze-precommit-verify` / `make ze-functional-test`. Run manually via
-> `make ze-functional-vpp-test`.
+VPP functional tests are outside the default release gate. Run them with:
 
-Functional tests that exercise `fib-vpp` end-to-end against a Python
-GoVPP-API stub. The stub replaces the real VPP process in CI: no DPDK,
-no vfio, no root. Each test runs against a fresh per-test Unix socket.
-<!-- source: test/scripts/vpp_stub.py -- stdlib-only GoVPP socket-client stub -->
-
-Real-daemon evidence uses `make ze-deployment-vpp-test`. That target starts
-`ligato/vpp-base` under Docker, runs Linux-built `ze` and `ze-test peer` inside
-the same container, and checks that VPP's FIB contains then withdraws the test
-route. It also covers traffic policers, MPLS, and the IKE IPsec dataplane.
-
-The IPsec case is `run_ipsec_evidence`. It compiles the `ze_vpp && integration`
-test binary of `internal/component/ike/dataplane` and runs it inside the
-container, so what programs VPP is the shipped backend rather than a copy of it.
-The probe installs two SAs and two policies over the VPP binary API, and
-`vppctl` then asserts what VPP holds: both SPIs, the inbound flag on exactly one
-SA, the AEAD cipher key and its salt in their own fields, the SPD bound to the
-interface, both policies in one chain in priority order, and the child-SA policy
-matching every protocol. It also proves that closing the backend REMOVES the SA
-and the SPD it installed, so a ze restart leaves no orphan state enforcing
-policies that name dead SAs. The IKE engine is not the vehicle: no config leaf
-selects the IPsec dataplane, and IKE would need a peer to negotiate with before
-it programmed anything.
-<!-- source: scripts/evidence/effective-vpp.py -- run_ipsec_evidence, real-VPP IKE IPsec evidence -->
-<!-- source: internal/component/ike/dataplane/vpp_real_integration_test.go -- the probe that programs VPP -->
-
-**Not green as a whole.** Its firewall case fails on a plugin startup deadlock
-recorded in `plan/journal/plugin-startup-barrier-deadlock.md`. The FIB, MPLS,
-traffic and IPsec cases pass.
-
-`make ze-deployment-vpp-iface-test` is the interface-feature counterpart
-(`scripts/evidence/effective-vpp-iface.py`): it proves ze programs a GRE tunnel
-and a wireguard interface on real VPP 25.10, and probes plugin presence for the
-wireguard and linux-cp (LCP) plugins. Recorded image limit: `ligato/vpp-base`
-ships `wireguard_plugin.so` but NOT `linux_cp_plugin.so`/`linux_nl_plugin.so`,
-so the LCP-pair scenario records an evidence-backed SKIP; validating LCP TAP +
-BGP-over-TAP needs a VPP image built with the linux-cp plugins.
-<!-- source: scripts/evidence/effective-vpp-iface.py -- tunnel/wireguard/LCP real-VPP evidence -->
-
-**Runner:** `ze-test vpp [flags] [tests...]`
-
-| Flag | Purpose |
-|------|---------|
-| `-l`, `--list` | List available tests (discovered from `test/vpp/*.ci`) |
-| `-a`, `--all` | Run every test under `test/vpp/` |
-| `-t`, `--timeout` | Per-test timeout (default 30s) |
-| `-p`, `--parallel` | Concurrent tests (default 1 -- each test binds its own Unix socket) |
-| `-v`, `--verbose` | Show per-test output |
-| `-s`, `--save DIR` | Save client/peer logs under `DIR/<id>-<name>/` for offline inspection |
-
-**Dependencies:**
-- Tests use the `vpp.external` YANG leaf (default `false`) so ze connects
-  via GoVPP without execing the VPP binary. See `docs/guide/vpp.md`.
-- The stub runs as `python3 -m vpp_stub --socket <path> --log <path>`;
-  PYTHONPATH is set by the runner to `test/scripts/`.
-
-**Example:**
+```bash
+./le functional vpp
 ```
-scripts/dev/ze-run.sh vpp-list bin/ze-test vpp -l
-scripts/dev/ze-run.sh vpp-boot bin/ze-test vpp vpp-boot
-make ze-functional-vpp-test
-```
-<!-- source: internal/test/cli/cmd_vpp.go -- vppCmd wires EncodingTests to test/vpp/ -->
+
+The suite uses the compiled Go VPP API stub. Each test gets a fresh Unix socket,
+so it needs no DPDK, vfio, root, or Python helper.
+<!-- source: internal/test/cli/cmd_vpp_stub.go -- cmdVPPStub, runVPPStub -->
+<!-- source: internal/test/cli/cmd_vpp.go -- cmdVPP -->
+
+Real-daemon evidence uses `./le deployment vpp-test`. It starts VPP in Docker
+and checks FIB, traffic, MPLS, and IKE/IPsec dataplane behavior.
+`./le deployment vpp-iface-test` covers GRE and WireGuard interface behavior.
+<!-- source: internal/le/deployment/actions.go -- Actions -->
 
 ### 6. Backend Apply-Path Unit Tests (Go `_test.go`)
 
@@ -1588,78 +1355,28 @@ volatile fields removed, and `peer`/`neighbor` naming normalized.
 
 ### Install Tests (`test/install/`)
 
-Install functional tests cover the offline `ze install` command surface and the
-appliance kernel/initrd/ISO build commands. The QEMU evidence entries run Python drivers
-that self-skip when external prerequisites are missing, printing either
-`INSTALL-QEMU: SKIP` or `INSTALL-ISO-QEMU: SKIP` while exiting successfully.
-Real failures exit non-zero.
-<!-- source: internal/test/cli/register.go -- the install CI root -->
-<!-- source: internal/test/cli/dispatch.go -- registerCIRoot -->
-<!-- source: test/install/qemu-full.ci -- PXE installer evidence entry -->
-<!-- source: test/install/qemu-iso.ci -- ISO installer evidence entry -->
+Install functional tests cover the offline install surface and the appliance
+kernel, initrd, and ISO actions. The kernel builder is native Go in
+`internal/appliance/kernelbuilder`; Docker and QEMU are backends of the same
+driver.
 
-| File | What it verifies |
-|------|------------------|
-| `appliance-kernel-auto-docker.ci` | `ze appliance kernel` without `--builder` delegates to `run.py`, which prefers Docker, and writes the installer artifact into both `build/kernel/` and the XDG cache |
-| `appliance-kernel-auto-qemu.ci` | `run.py`'s `select_builder` implements the docker-first / qemu-fallback auto-selection (moved out of Go) |
-| `appliance-kernel-docker.ci` | `ze appliance kernel --builder docker` delegates to `run.py`, which drives Docker → `build.py` with the resolved `--fragment` list, writes `build/kernel/{Image,config,kernel.version}`, and stores the same artifact under the XDG cache |
-| `appliance-kernel-qemu.ci` | `ze appliance kernel --builder qemu` delegates to `run.py`, which selects QEMU and invokes `qemu-build.py` with the resolved fragments (including the shared `efi-console` fragment for the hardware profile) |
-| `appliance-kernel-runtime.ci` | `ze appliance kernel --target runtime` resolves the runtime registry, enforces the runtime floor, and caches the runtime TREE (vmlinuz + lib/modules) under a `target=runtime` cache dir |
-| `appliance-push-image-escape.ci` | `ze appliance push` rejects `--image` candidates that escape the appliance directory before network or TLS work |
-| `appliance-replace-cert.ci` | `ze appliance replace-cert` stores a valid pair, refuses a certificate and key from two different pairs, and leaves `cert.pem` and `key.pem` byte-identical after the refusal |
-| `appliance-iso-default-paths.ci` | `ze appliance iso` succeeds with default kernel/initrd artifact paths and stages those files into the installer tree |
-| `appliance-iso-arm64.ci` | `ze appliance iso` emits arm64 UEFI staging assets and arm64 kernel console settings when `image.arch=arm64` |
-| `kernel-builder-single-driver.ci` | A single shared driver (`tools/kernel-builder/run.py`) replaces the docker/qemu invocation; no Makefile or Go file invokes docker/qemu/build.py directly (AC-1) |
-| `kernel-arch-mapping-single.ci` | The arch → docker platform mapping appears exactly once, in `run.py` (AC-2) |
-| `kernel-shared-fragment.ci` | The six shared console symbols are single-sourced in `common/efi-console.config` and pulled into runtime + hardware via `# ze-include`, absent from qemu; the python resolver expands it (AC-3/AC-5) |
-| `kernel-compose.ci` | Runtime fragments (base + runtime + the shared `efi-console` fragment) keep required built-in options and exclude removed Kconfig symbols before any real build runs |
-| `kernel-qemu-arch-alias.ci` | `tools/kernel-builder/qemu-build.py` accepts `aarch64` as an alias for `arm64` and continues to later path validation |
-| `kernel-builder-packages.ci` | Shared runtime builder package lists include host tools needed for `CONFIG_KERNEL_ZSTD=y` images and `modules_install` output (`zstd`, `kmod`) in both Docker and QEMU backends |
-| `kernel-builder-no-shell.ci` | `build.py`/`qemu-build.py`/`run.py`/`ksource.py` use no `shell=` subprocess argument; `enforce_required_symbols` + `embed_firmware` behave |
-| `kernel-runtime-deps.ci` | `gokrazy/kernel/Makefile` treats the builder scripts (a module ADDED to `tools/kernel-builder/` included), the shared fragment, Dockerfile, tracked patches, and the Makefile itself as rebuild inputs, and a change of `ARCH=` or `BUILDER=` as work to do with every file untouched |
-| `kernel-tarball-dedup.ci` | The `cdn.kernel.org` URL + `vN.x` series construction lives only in `ksource.py`, imported by both `build.py` and `qemu-build.py` (AC-11) |
-| `kernel-version-single-reader.ci` | No Makefile reads `kernel.version`; one variable name (`KERNEL_VERSION`) at the builder env boundary; `run.py` self-locates the version file (AC-14/AC-15) |
-| `kernel-version-provenance.ci` | Every build emits a `build/kernel.version` provenance sidecar; a malformed or pre-7 version is rejected before any build (AC-16/AC-17) |
-| `kernel-wiring.ci` | Installer and runtime Makefiles delegate the build to `tools/kernel-builder/run.py` (no inline docker/qemu) |
-| `ze-kernel-no-modcache-mutation.ci` | `make ze-kernel-build` consumes the runtime kernel out-of-tree via a go.mod replace and never mutates the pinned modcache or creates `.ze-pinned-kernel` (AC-9/AC-10) |
-| `qemu-full.ci` | PXE installer path writes the image, injects ZeFS, boots the written disk, and authenticates |
-| `qemu-iso.ci` | Appliance ISO path writes the embedded image unchanged, skips PXE ZeFS injection, powers off safely, boots the written disk, and authenticates |
-| `ze-kernel-overlay.ci` | `make ze-kernel-build` builds the runtime kernel via `run.py` and assembles it into an out-of-tree package (`tmp/kernel/pkg`) consumed via a go.mod replace, with the pinned modcache untouched |
+```bash
+./le functional install
+./le qemu install-test
+./le qemu install-iso-test
+./le qemu install-scenarios-test
+./le qemu install-ventoy-test
+```
 
-The install suite has no `make` target of its own, so queue the runner:
-`scripts/dev/ze-run.sh install-suite bin/ze-test install --all`. For exhaustive
-QEMU entry points:
+The QEMU actions self-skip with one visible line when the operator-supplied
+installer kernel or a required host tool is unavailable. A real failure exits
+non-zero.
 
-- `make ze-qemu-install-test` — PXE HTTP install.
-- `make ze-qemu-install-iso-test` — appliance ISO media (amd64 x86_64-UEFI or
-  arm64 aarch64-UEFI; arch follows `ZE_INSTALL_ARCH` or the host).
-- `make ze-qemu-install-scenarios-test` — failure-path / pin / rescue evidence
-  (R-6 goroutine-panic recovery, `ze.mac` boot-NIC pin and flush recovery, and
-  the three-branch rescue console).
-- `make ze-qemu-install-ventoy-test` — Ventoy path: the appliance ISO carried as
-  a file on a FAT data disk, located by `tryVentoyISO` and installed. Needs
-  `grub-mkstandalone` + `xorriso` + `mtools`.
-
-All self-skip with a single `SKIP` line when the operator-supplied installer
-kernel (`ZE_INSTALL_KERNEL`) or a required host tool is unavailable.
-<!-- source: test/install/appliance-kernel-auto-docker.ci -- ze appliance kernel default docker path -->
-<!-- source: test/install/appliance-kernel-auto-qemu.ci -- ze appliance kernel qemu fallback path -->
-<!-- source: test/install/appliance-kernel-docker.ci -- ze appliance kernel explicit docker path -->
-<!-- source: test/install/appliance-kernel-qemu.ci -- ze appliance kernel explicit qemu path -->
-<!-- source: test/install/kernel-builder-packages.ci -- shared builder package prerequisites -->
-<!-- source: test/install/kernel-compose.ci -- runtime fragment contract -->
-<!-- source: test/install/kernel-qemu-arch-alias.ci -- qemu arch alias validation -->
-<!-- source: test/install/kernel-runtime-deps.ci -- runtime makefile dependency coverage -->
-<!-- source: test/install/kernel-wiring.ci -- shared builder delegation -->
-<!-- source: test/install/kernel-builder-single-driver.ci -- single run.py driver -->
-<!-- source: test/install/kernel-shared-fragment.ci -- ze-include shared fragment -->
-<!-- source: test/install/appliance-kernel-runtime.ci -- runtime verified path -->
-<!-- source: test/install/kernel-version-provenance.ci -- provenance sidecar + version validation -->
-<!-- source: test/install/ze-kernel-no-modcache-mutation.ci -- out-of-tree consumption -->
-<!-- source: test/install/ze-kernel-overlay.ci -- ze-kernel-build out-of-tree package + go.mod replace -->
-<!-- source: mk/test-integration.mk -- ze-qemu-install-test, ze-qemu-install-iso-test, ze-qemu-install-scenarios-test, ze-qemu-install-ventoy-test -->
-<!-- source: scripts/evidence/effective-install-scenarios-qemu.py -- R-6 fault, ze.mac pin/flush, rescue console evidence -->
-<!-- source: scripts/evidence/effective-install-ventoy-qemu.py -- Ventoy ISO-on-FAT evidence -->
+<!-- source: internal/test/cli/register.go -- install CI root -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
+<!-- source: internal/le/functional/actions.go -- Actions -->
+<!-- source: internal/le/qemu/actions.go -- Actions -->
 
 ### IS-IS Tests (`test/isis/`)
 
@@ -1692,16 +1409,15 @@ holdtime, with Ze still in FRR's Level-1 topology.
 They are the goal-validation evidence for the IS-IS umbrella and run under the
 Linux Docker interop harness (`test/interop/daemons` has `isisd=yes`), not on darwin.
 
-Run with `make ze-functional-isis-test`. The offline wire-decode
-suite is separate (`test/isis-wire/`, `make ze-functional-isis-wire-test`).
-<!-- source: test/interop/scenarios/isis-purge-reorig-frr/check.py -- re-origination above an own-LSP purge, witnessed by FRR -->
+Run with `./le functional isis`. The offline wire-decode suite is separate:
+`./le functional isis-wire`.
+<!-- source: internal/le/interoplab/bgp/check_special.go -- checkISISOwnLSPPurge -->
 <!-- source: internal/test/cli/register.go -- isis CI suite registration -->
 <!-- source: test/isis/isis-config.ci -- config validation evidence -->
 <!-- source: test/isis/isis-adjacency.ci -- adjacency config-surface evidence -->
-<!-- source: test/isis/isis-flooding.ci -- flooding CSNP/PSNP wire-format evidence -->
-<!-- source: test/isis/isis-auth.ci -- authentication config-surface evidence -->
-<!-- source: test/isis/isis-ipv6.ci -- dual-stack IPv6 SPF/install wiring evidence -->
-<!-- source: mk/test-functional.mk -- ze-functional-isis-test -->
+<!-- source: test/isis/isis-flooding.ci -- flooding evidence -->
+<!-- source: test/isis/isis-auth.ci -- authentication evidence -->
+<!-- source: test/isis/isis-ipv6.ci -- dual-stack evidence -->
 
 The OSPF FRR interop scenarios exercise the unified OSPF engine against a live FRR
 `ospfd`/`ospf6d` over the shared Docker bridge. The OSPFv3 set proves a P2P and a broadcast
@@ -1713,10 +1429,8 @@ redistribution into AS-External / NSSA Type-7. Route assertions on the shared LA
 passive dummy interface carrying a unique global prefix that exists only on Ze, since a
 segment prefix connected on both sides cannot be asserted as a route. They run under the
 Linux Docker interop harness only (raw IPv6 proto 89 over `ff02::5`), not on darwin.
-<!-- source: test/interop/scenarios/ospfv3-multiarea-frr/check.py -- v6 inter-area route install -->
-<!-- source: test/interop/scenarios/ospfv3-stub-frr/check.py -- v6 stub ABR default + no Type-5 leak -->
-<!-- source: test/interop/scenarios/ospfv3-broadcast-frr/check.py -- v6 DR-advertised route install -->
-<!-- source: test/interop/interop.py -- FRROSPF6 has_inter_area_prefix_lsa/has_as_external_lsa helpers -->
+<!-- source: internal/le/interoplab/bgp/checkers.go -- OSPFv3 scenario checks -->
+<!-- source: internal/le/interoplab/bgp/check_extras.go -- OSPFv3 database checks -->
 <!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6 stub default origination (v6ApplyAreaTypePolicy) -->
 
 ---
@@ -1857,7 +1571,7 @@ expect=json:conn=1:seq=1:json={...}
 ### Waiting without sleep (the quiesce barrier)
 
 Prefer a completion signal over a fixed `time.sleep` (the ci-sleep ratchet in
-`scripts/dev/verify_wiring_docs.py` counts sleeps in `test/**/*.ci`). Existing
+`internal/le/docwiring.Answer` counts sleeps in `test/**/*.ci`). Existing
 options: `ze_api.wait_for_event` / `wait_for_shutdown` / `wait_for_post_startup`
 (block on a delivered event / bye / post-startup RPC), `expect=event`, and
 `http=wait`.
@@ -1869,7 +1583,7 @@ its pending async work (the BGP forward pool among them) and then replies. So
 `send(route); quiesce()` guarantees the route is on the peer wire with no sleep.
 See `docs/architecture/api/commands.md` "Quiesce Barrier".
 
-<!-- source: test/scripts/ze_api.py -- quiesce (barrier helper) -->
+<!-- source: internal/test/fixture/misc_fixture_observers.go -- quiesce -->
 <!-- source: internal/component/plugin/server/quiesce.go -- ze-system:quiesce handler -->
 
 #### Payload-predicate waits
@@ -1892,22 +1606,16 @@ predicate grammar `expect=output:matches=<regexp>` / `absent=<substr>` /
 `json=<path>=<value>` (and `expect=stream:matches=`); see
 `docs/architecture/testing/ci-format.md` "Engine Steps".
 
-<!-- source: test/scripts/ze_api.py -- wait_until, dispatch_until, wait_for_event -->
+<!-- source: internal/test/fixture/fixture.go -- Poll, Dispatch -->
 <!-- source: internal/test/runner/engine_steps.go -- parseEngineExpectContains, engineOutputSatisfied -->
 
 #### Reading a record answer
 
-Every `dispatch-command` answer is a sequence of lines, and `capability_done()`
-takes no argument because nothing declares that shape. `api.dispatch` and
-`_call_engine` are therefore unusable for a dispatched command: they read one
-JSON payload. Use `api.dispatch_wire_lines(command)`, which returns the head,
-the records, and the terminator as raw lines. Send the test's `request shutdown`
-through it too.
-
-A fake plugin writes the same sequence for its own `execute-command`. Register
-the handler with `api.on_execute_command(handler)`, and `ze_api` turns the
-result dict into the head, the item, and the terminator.
-<!-- source: test/scripts/ze_api.py -- capability_done, dispatch_wire_lines, _respond_answer -->
+Every `dispatch-command` answer is a sequence of lines. The Go SDK and fixture
+drivers read the document head, records, and terminator through the framed RPC
+connection. The record-answer fixtures use `sdk.Records`, so the engine and the
+test share the production framing implementation.
+<!-- source: internal/test/fixture/plugin_fixture_11.go -- record answer fixture -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
 
 #### Declaring a pipe alias
@@ -1928,7 +1636,7 @@ stops the plugin before it can report the refusal, so assert it in the daemon
 log.
 `test/plugin/plugin-pipe-alias.ci` drives the accepted path, and
 `test/plugin/plugin-pipe-alias-collision.ci` drives the refusal.
-<!-- source: test/scripts/ze_api.py -- declare_pipe, on_execute_command -->
+<!-- source: internal/test/fixture/plugin_fixture_11.go -- pipe alias fixtures -->
 <!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
 
 #### Writing a record answer: the Go SDK test plugin
@@ -2021,10 +1729,10 @@ To read the frame bytes, drive the daemon with OpenSSH instead:
 `ssh` parses nothing and declares nothing. Its stderr is the daemon's frame,
 byte for byte.
 
-`test/plugin/exec-answer-unconditional.ci` drives it. Its `frame-check.py` reads
-a frame by the grammar. A three-byte word is taken by its width. A counted
-number runs to the byte that closes it. A counted text is the byte count, the
-colon, and that many BYTES.
+`test/plugin/exec-answer-unconditional.ci` drives the native frame checker. It
+parses lengths as byte counts and rejects malformed document, stream, error,
+and unknown-command frames.
+<!-- source: internal/test/fixture/plugin_fixture_06.go -- fixture06FrameCheck -->
 
 | Test | Proves |
 |------|--------|
@@ -2257,16 +1965,6 @@ The `N:json:` lines use ZeBGP plugin format (not ExaBGP envelope format):
 7. ze-peer prints "successful" or error
 ```
 
-### API Tests
-
-```
-1. Same as encode tests, plus:
-5. ze bgp spawns .run script as subprocess
-6. .run script sends commands via API
-7. ze bgp processes commands, sends UPDATE messages
-8. ze-peer validates messages
-```
-
 ---
 
 ## Display Output
@@ -2388,13 +2086,9 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 
 ### Run a single test
 
-These commands drive `ze-test` directly (build it with `make ze-test-build`; the binary is
-beside `$(make ze-session-binary-path)`), so unlike the `make ze-<suite>-test` targets they do
-**not** isolate: the runner rebuilds your `ze` in place. While actively editing,
-prefer the make targets (they build into a throwaway `testbin-<id>/bin/` and
-leave your `ze` alone — see
-[Test binaries are isolated from your dev binary](#test-binaries-are-isolated-from-your-dev-binary-automatic)),
-or export `ZE_TEST_NO_BUILD=1 ZE_BIN=<path>` to pin a prebuilt binary.
+Native suite actions isolate their binaries. For one selection, queue the
+runner through `./le job run`; set `ZE_BIN` and `ZE_TEST_BIN` only when testing
+an explicitly pinned pair.
 
 BGP suites use the `ze-test bgp <suite>` command shape:
 
@@ -2561,10 +2255,11 @@ func TestRFC7606MalformedOriginLength(t *testing.T) { ... }
   `terminator=` block is file content, not a tag, and is skipped.
 - On a table-driven test, put the tag on the line of the enforcing case, not only on
   the function, so deleting that case re-opens the coverage.
-- Once tagged, a test's behaviour must not be edited without user approval — the
-  `rfc-tagged-test` hook blocks it. Fix the code, not the test.
+- Once tagged, a test's behaviour must not be edited without user approval. The
+  native weakening check blocks it. Fix the code, not the test.
+  <!-- source: internal/le/hookruntime/writeedit.go -- writeWeakening -->
 
-`make ze-rfc-check` verifies every enrolled MUST has its pair of tags, or a reasoned
+`./le rfc check` verifies every enrolled MUST has its pair of tags, or a reasoned
 annotation. It also verifies that both generated outputs are fresh. Those outputs are
 `rfc/requirements/<stem>.md`, the requirement → test map for one RFC, and
 `ai/RFC-REQUIREMENTS.md`, the index over them.
@@ -2658,29 +2353,31 @@ Usage: `ze-test irr --port 4343 [--empty-after-first]`
 
 ### Security
 
-- Path traversal protection on `option:file:` and `.run` scripts
+- Path traversal protection on `option:file:` fixture paths
 - Process isolation via `Setpgid`
 - Context timeouts on all execution
 - Dynamic port allocation prevents conflicts
 
 ### ExaBGP Compatibility Test Ports
 
-ExaBGP compatibility tests (`make ze-functional-exabgp-test`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The Go runner reads this line from the server process output and passes the discovered port to the ExaBGP wrapper client. This eliminates port collisions when running concurrent test instances. Use `--server ID --port N` and `--client ID --port N` for split-terminal debugging.
-<!-- source: test/exabgp-compat/bin/bgp -- dynamic port binding and PORT line output -->
+ExaBGP compatibility tests (`./le functional exabgp-test`) use OS-assigned
+dynamic ports. The compiled `ze-test interop-bgp exabgp-server` personality
+binds port 0 and prints `PORT <N>`. The Go runner passes that port to the
+migrated Ze client. Use `--server ID --port N` and `--client ID --port N` for
+split-terminal debugging.
+<!-- source: internal/le/interoplab/bgp/exabgp_server.go -- wire server and PORT readiness -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- waitExaBGPPort and split debug modes -->
 
 ### ExaBGP Verify Output
 
-The ExaBGP compatibility runner is now integrated into `ze-test`, so it uses the
-same `--list`, `--all`, `--start`, `--pattern`, per-test result lines, periodic
-progress, and summary format as the other functional suites. `make
-ze-functional-exabgp-test` runs:
+The compatibility runner is integrated into `ze-test`, so it uses the same
+`--list`, `--all`, `--start`, `--pattern`, per-test result lines, progress, and
+summary format as the other functional suites. The public action is:
 
 ```bash
-uv run --with paramiko bin/ze-test exabgp --all --timeout 180s
+./le functional exabgp-test
 ```
-<!-- source: internal/test/cli/cmd_exabgp.go -- standard selection and progress output -->
-<!-- source: Makefile -- ze-functional-exabgp-test -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- native selection and progress output -->
 
 ---
 
@@ -2699,8 +2396,9 @@ The baseline uses an exponential moving average (EMA, alpha=0.3) and requires 3 
 
 ## Route Delivery Synchronization
 
-Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure routes have been delivered to peers before proceeding. It dispatches `request quiesce` (the `ze-system:quiesce` barrier), which drains BOTH the BGP forward pool (`bgp-forward-pool`) AND each peer's initial-sync opQueue (`bgp-peer-sync` / `DrainPeerSync`) before replying, so a route sent during a peer's establishment window is on the wire (past its EOR) when the call returns. It is a deterministic barrier with no `time.sleep`.
-<!-- source: test/scripts/ze_api.py -- wait_for_ack() function -->
+Plugin fixtures dispatch `request quiesce` through the Go SDK before they
+inspect route delivery.
+<!-- source: internal/test/fixture/misc_fixture_observers.go -- quiesce -->
 <!-- source: internal/component/plugin/server/quiesce.go -- request quiesce / quiesceAll / registerReactorQuiescer -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync (bgp-peer-sync quiescer) -->
 <!-- source: internal/component/bgp/reactor/forward_pool_barrier.go -- forward pool flush barrier -->
@@ -2719,7 +2417,7 @@ Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure
 
 ## Editor Tests (.et format)
 
-Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run all editor tests with `make ze-functional-editor-test`; select one with `scripts/dev/ze-run.sh editor-one bin/ze-test editor ID_OR_NAME`.
+Editor tests run through `./le functional editor`; select one with `./le job run label editor-one command bin/ze-test editor ID_OR_NAME`.
 
 <!-- source: internal/component/cli/testing/parser.go -- .et file parser -->
 <!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain selection flags -->
@@ -2748,31 +2446,23 @@ parsing, cryptographic operations, protocol state machines, IGP packet decoders
 (IS-IS, OSPF), and receiver/server-facing parsers (BMP, RADIUS, DHCP, VRRP).
 Fuzz tests catch crashes, panics, and memory corruption on malformed input.
 
-The target list is not maintained at all. `le fuzz` walks `internal/` for
+The target list is not maintained at all. `./le fuzz` walks `internal/` for
 `func Fuzz` when it runs, and emits one anchored `-fuzz=^<Name>$` invocation
-per target against that target's exact package. A new fuzzer is included by
-existing.
-
-There was a committed enumeration until 2026-08-25: a generator wrote
-`mk/test-fuzz-targets.mk`, a check target held it fresh, and the regen guard
-listed it. Make cannot read the tree when a target runs, so the fact had to be
-frozen into a file and then policed. All four mechanisms are gone.
+per target against that target's exact package. A new fuzzer is included by the
+existing action.
 
 ```bash
-./le fuzz                                   # every target, 10s each
-./le fuzz --list                            # what would run, and where
-./le fuzz --name FuzzParseUpdate --time 30s # one target, longer
+./le fuzz run                               # every target, 10s each
+./le fuzz list                              # what would run, and where
+FUZZ=FuzzParseUpdate PKG=./internal/... TIME=30s ./le fuzz run
 
-make ze-fuzz-test                                  # same, through job admission
-make ze-fuzz-test-one FUZZ=FuzzParseUpdate TIME=30s
 ```
 
-The `make` targets remain because `scripts/dev/ze-run.sh` takes a job slot
-before the run, which keeps a fuzz sweep from fighting every other session on a
-shared machine.
-<!-- source: scripts/le/application/fuzz.py -- discover, Target.command -->
+`./le fuzz run` discovers the targets and runs them through the native Go
+action.
+<!-- source: internal/le/fuzz/actions.go -- Actions -->
 
-Fuzz tests are not part of `make ze-precommit-verify` (they're time-bounded, not pass/fail
+Fuzz tests are not part of `./le verify current mode full` (they're time-bounded, not pass/fail
 in the traditional sense). Run them periodically or before releases.
 
 ### Fuzz Target Areas
@@ -2794,7 +2484,7 @@ in the traditional sense). Run them periodically or before releases.
 | Other | 6 | `FuzzHandleRoundTrip`, `FuzzInvalidHandle`, `FuzzParseAttributes`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzFSMEventSequence` |
 <!-- source: internal/plugins/isis/packet/fuzz_test.go -- IS-IS packet fuzz targets -->
 <!-- source: internal/plugins/ospf/packet/fuzz_test.go -- OSPF packet fuzz targets -->
-<!-- source: scripts/le/application/fuzz.py -- run-time fuzz target discovery -->
+<!-- source: internal/le/fuzz/actions.go -- Answer -->
 <!-- source: internal/component/bgp/message/fuzz_test.go -- BGP message fuzz targets -->
 <!-- source: internal/component/bgp/plugins/bmp/fuzz_test.go -- FuzzDecodeBMPTLV -->
 <!-- source: internal/component/radius/fuzz_test.go -- FuzzDecodeRADIUSVSA -->
@@ -2831,19 +2521,19 @@ func FuzzParseMyProtocol(f *testing.F) {
 ## Live Tests (Docker + Internet)
 
 Live tests run against real external infrastructure inside Docker containers.
-They are **not** part of `make ze-precommit-verify` and require both Docker and internet access.
+They are **not** part of `./le verify current mode full` and require both Docker and internet access.
 
 <!-- source: internal/component/bgp/plugins/rpki/rpki_live_test.go -- TestLiveRPKIValidation -->
 
 ```bash
-make ze-live-test    # Run all live tests
+./le integration live-rpki
 ```
 
 ### Build Tag
 
-Live tests use `//go:build live`. They are excluded from all normal test targets
-(`ze-unit-test`, `ze-functional-test`, `ze-precommit-verify`). The `ze-live-test` make target
-passes `-tags live` to include them.
+Live tests use `//go:build live`. Normal unit, functional, and pre-commit runs
+exclude them. `./le integration live-rpki` supplies the tag and the
+external infrastructure.
 
 ### RPKI Live Test
 
@@ -2878,11 +2568,10 @@ excluded from all normal test targets.
 ### Running on Linux
 
 ```bash
-make ze-integration-test           # Run all integration tests
-make ze-integration-iface-test     # Run iface integration tests only
-make ze-integration-fib-test       # Run FIB kernel integration tests only
-make ze-integration-firewall-test  # Run nft firewall integration tests only
-make ze-integration-traffic-test   # Run traffic-control netlink integration tests only
+./le integration iface
+./le integration fib
+./le integration firewall
+./le integration traffic
 ```
 
 ### Running on macOS (QEMU)
@@ -2890,7 +2579,7 @@ make ze-integration-traffic-test   # Run traffic-control netlink integration tes
 macOS cannot run these tests natively. Use the QEMU Alpine VM:
 
 ```bash
-make ze-qemu-integration-test     # Boots Alpine VM, runs all integration tests
+./le qemu all-tests
 ```
 
 This is the standard workflow for macOS developers. The QEMU runner boots an
@@ -2901,44 +2590,34 @@ subsequent runs reuse the cache (~30s boot + test time).
 See [testing/qemu-integration.md](architecture/testing/qemu-integration.md) for
 details on how to write QEMU integration tests and add new packages.
 
-The `trafficusage` eBPF/TCX tests in `internal/plugins/trafficusage/`
-(`//go:build integration && linux`) are auto-discovered by
-`make ze-qemu-integration-test` on the Alpine kernel: `program_test.go` runs the
-pure-Go eBPF programs through `BPF_PROG_TEST_RUN`, and
-`attach_integration_linux_test.go` attaches them to a veth pair, injects packets
-with AF_PACKET, and scrapes `/metrics`. A dedicated
-`make ze-qemu-traffic-usage-test` runs the same tests against Ze's own runtime
-kernel (`tmp/kernel/vmlinuz`, built by `make ze-kernel-build`), which carries the
-required `CONFIG_BPF_SYSCALL`, `CONFIG_BPF_JIT`, and `CONFIG_VETH`.
+The `trafficusage` eBPF/TCX tests in `internal/plugins/trafficusage/` carry
+`//go:build integration && linux`. `./le qemu all-tests` runs them inside the
+guest with the registered integration population.
 <!-- source: internal/plugins/trafficusage/program_test.go -- BPF_PROG_TEST_RUN eBPF program tests -->
 <!-- source: internal/plugins/trafficusage/attach_integration_linux_test.go -- veth + AF_PACKET + /metrics scrape -->
 
 ### Deployment Evidence
 
 ```bash
-make ze-deployment-preflight       # Strict tool check for complete deployment evidence
-make ze-evidence-release-candidate-check              # Run clean Docker ze-precommit-verify release evidence
-make ze-deployment-vpp-test        # Run real VPP daemon FIB, traffic, MPLS and IPsec evidence
-make ze-deployment-l2tp-test       # Run real xl2tpd LAC control/session evidence
-make ze-deployment-l2tp-ppp-test   # Run real xl2tpd/pppd PPP/NCP evidence on Linux
-make ze-qemu-install-test       # Run PXE installer QEMU evidence
-make ze-qemu-install-iso-test   # Run appliance ISO installer QEMU evidence
-make ze-deployment-docker-l2tp-ppp-test # Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)
+./le evidence release-candidate-check
+./le deployment vpp-test
+./le deployment l2tp-test
+./le deployment l2tp-ppp-test
+./le qemu install-test
+./le qemu install-iso-test
+./le deployment docker-l2tp-ppp-test
 ```
 
-The `ze-deployment-*` prefix marks deployment-grade external evidence;
-Docker-specific variants include `docker` in the target name.
-
-`ze-deployment-preflight` is strict: Docker-backed substitutes are reported, but
-the target fails until target-runner evidence and full PPP/NCP L2TP peer
-requirements are available. For Ze's current LNS path, that means a LAC peer
-such as `xl2tpd`, `pppd`, `/dev/ppp`, `iproute2`, and PPPoL2TP kernel support.
+These actions are external evidence and declare their own prerequisites.
+The L2TP peer actions require `xl2tpd`, `pppd`, `/dev/ppp`, `iproute2`, and
+PPPoL2TP kernel support.
 
 ### Build Tag
 
-Integration tests use `//go:build integration && linux`. They are excluded from
-`ze-unit-test`, `ze-functional-test`, and `ze-precommit-verify`. The `ze-integration-*`
-make targets pass `-tags integration` to include them.
+Integration tests use `//go:build integration && linux`. Normal unit,
+functional, and pre-commit runs exclude them. The native `./le integration`
+and `./le qemu` actions supply the integration tag where their scenarios need
+it.
 
 ### How They Work
 
@@ -2995,24 +2674,23 @@ Additional dataplane integration packages:
 
 L2TP functional tests (`test/l2tp/`) verify tunnel lifecycle, session
 negotiation, authentication, IP pool, and teardown over real loopback UDP.
-Run with `make ze-functional-l2tp-test`.
+Run with `./le functional l2tp`.
 
 > **In the default release gate.** The in-tree L2TP `.ci` tests are included in
-> `make ze-precommit-verify` / `make ze-functional-test` and can be run directly with
-> `make ze-functional-l2tp-test`. External-peer and PPP
-> dataplane evidence remain separate deployment targets.
+> `./le functional` and can be selected with `./le functional l2tp`.
+> External-peer and PPP dataplane evidence use separate deployment actions.
 
 ```bash
 ze-test l2tp --list    # List available tests
 ze-test l2tp --all     # Run all tests
 ```
 
-For external-peer evidence, run `make ze-deployment-l2tp-test`. It uses a
+For external-peer evidence, run `./le deployment l2tp-test`. It uses a
 real `xl2tpd` LAC to establish the L2TP control tunnel and incoming-call session
 against Ze. It intentionally does not claim full PPP/NCP dataplane proof when
 the Docker host lacks the `l2tp_ppp` kernel module.
 
-For full PPP/NCP peer evidence, run `make ze-deployment-l2tp-ppp-test` on a
+For full PPP/NCP peer evidence, run `./le deployment l2tp-ppp-test` on a
 Linux host or target runner with `xl2tpd`, `pppd`, `ping`, `/dev/ppp`,
 `iproute2`, and PPPoL2TP kernel support. The target refuses skip-kernel-probe
 mode, creates peer-isolated Ze and LAC network namespaces, starts Ze as LNS,
@@ -3023,34 +2701,19 @@ the LNS through the PPP tunnel from the LAC namespace to prove dataplane
 connectivity, observes subscriber route injection, and verifies teardown
 returns both namespaces' kernel L2TP/PPP state to their initial snapshots.
 
-On macOS, `make ze-deployment-docker-l2tp-ppp-test` runs that same proof in
+On macOS, `./le deployment docker-l2tp-ppp-test` runs that same proof in
 privileged Linux containers. Docker is only a Linux userspace wrapper here: the
 test still fails unless the Docker host kernel has `/dev/ppp`, Generic Netlink
 L2TP, and PPPoL2TP support.
 
-For appliance evidence, run `make ze-deployment-gokrazy-l2tp-ppp-test` on a
-Linux host or target runner with QEMU and the same PPPoL2TP LAC-side kernel
-support. The proof resolves an L2TP-capable kernel itself: the pinned
-`github.com/rtr7/kernel` ships no l2tp/ppp support at all, so booting it with
-the proof's `l2tp enabled true` template makes ze's fail-closed module probe
-refuse startup and the appliance crash-loops without ever serving. The script
-therefore validates an explicit `KERNEL_PKG`, or materializes the runtime
-kernel from the durable cache via `make ze-kernel-build`, and fails fast naming
-`make ze-kernel-build KERNEL_ARCH=<arch>` when the cache cannot provide one
-(~30 min on a cache miss; `make ze-kernel-build` defaults to `KERNEL_BUILDER=docker`,
-set `KERNEL_BUILDER=qemu` to force the shared QEMU backend). `make ze-kernel-build`
-assembles the kernel as an out-of-tree package at `tmp/kernel/pkg`; it never
-mutates the tracked gokrazy module cache. The target builds a temporary
-gokrazy image with an L2TP first-boot template and proof-only runtime
-environment (`ze.l2tp.ncp.enable-ipv6cp=false`, because the static pool is
-IPv4-only), boots it under QEMU attached to a host bridge by TAP (user-mode
-slirp cannot deliver the LAC's inbound UDP 1701), drives a real
-`xl2tpd`/`pppd` LAC from a Linux namespace, verifies PPP/IPCP and
-LAC `pppN` address state, pings the Ze LNS address through PPP, and observes
-appliance route inject/withdraw logs.
-<!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- resolve_kernel_pkg, qemu_command -->
-<!-- source: mk/build-gokrazy.mk -- ze-kernel-build -->
-<!-- source: gokrazy/kernel/Makefile -- all -->
+For appliance evidence, run `./le deployment gokrazy-l2tp-ppp-test` on a
+Linux host with QEMU and PPPoL2TP support. The native appliance kernel action
+materializes the verified runtime kernel from its durable cache or builds it
+through `internal/appliance/kernelbuilder`. The proof then builds a temporary
+gokrazy image, boots it under QEMU, drives a real `xl2tpd` and `pppd` LAC, and
+checks PPP/IPCP state, dataplane reachability, and route withdrawal.
+<!-- source: internal/le/deployment/actions.go -- Actions -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
 <!-- source: internal/component/l2tp/kernel_linux.go -- probeKernelModules -->
 
 A ze appliance that dies before serving reports the reason on the serial
@@ -3120,25 +2783,26 @@ rate, RADIUS round-trip handling, pool allocation correctness, and
 teardown completeness.
 
 The test tooling lives in `ze-test l2tp-scale`, which bundles a Go LAC
-simulator (speaking real L2TP wire protocol) and an embedded mock RADIUS
-server. A Python harness (`test/l2tp-scale/harness.py`) orchestrates Ze
-and the simulator.
+simulator (speaking the L2TP wire protocol) and an embedded mock RADIUS
+server. The native deployment action starts Ze, runs the four-scenario
+registry, checks each result, and retains the simulator's exact result bytes.
 
 ```bash
-python3 test/l2tp-scale/run.py                  # run all scenarios
-python3 test/l2tp-scale/run.py 2k-sessions       # run specific scenario
-ze-test l2tp-scale --help                        # simulator CLI help
+./le deployment l2tp-scale-test
+L2TP_SCALE_SCENARIO=2k-sessions ./le deployment l2tp-scale-test
+ze-test l2tp-scale --help
 ```
 
-| Scenario | Directory | What it validates |
-|----------|-----------|-------------------|
-| 2k sessions | `test/l2tp-scale/2k-sessions/` | All 2000 sessions established |
-| Clean teardown | `test/l2tp-scale/clean-teardown/` | No resource leaks after teardown |
-| Pool exhaustion | `test/l2tp-scale/pool-exhaustion/` | Sessions beyond pool size rejected |
-| Slow RADIUS | `test/l2tp-scale/slow-radius/` | Sessions established under 500ms RADIUS delay |
+| Scenario | Native checker | What it validates |
+|----------|----------------|-------------------|
+| 2k sessions | `checkL2TPScale2K` | All 2000 sessions established |
+| Clean teardown | `checkL2TPScaleCleanTeardown` | No resource leaks after teardown |
+| Pool exhaustion | `checkL2TPScalePoolExhaustion` | Sessions beyond pool size rejected |
+| Slow RADIUS | `checkL2TPScaleSlowRADIUS` | Sessions established under 500ms RADIUS delay |
 
 <!-- source: internal/test/cli/cmd_l2tp_scale.go -- LAC simulator + mock RADIUS -->
+<!-- source: internal/le/deployment/l2tpscale.go -- native scale registry and runner -->
 
 ---
 
-**Updated:** 2026-05-08
+**Updated:** 2026-08-27

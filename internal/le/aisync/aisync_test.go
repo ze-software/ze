@@ -12,7 +12,7 @@ import (
 // VALIDATES: The skill mirror is generated from ONE source set, and every
 // target is written. A missing source set produces an ERROR instead of a
 // successful empty run.
-// PREVENTS: Two regressions measured in scripts/dev/skill_sync.sh on 2026-08-26.
+// PREVENTS: Two regressions measured in internal/le/aisync/actions.go on 2026-08-26.
 // An empty ai/skills answers "synced 0 skill(s) + 0 agent(s) + CLAUDE.md +
 // AGENTS.md" and exits 0. That answer names two files the script did not write.
 // Also, any unrecognized argument enters the script's SYNC branch. Thus, a

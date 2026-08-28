@@ -266,6 +266,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	logger().Debug("config reload diff",
 		"added", len(diff.Added), "removed", len(diff.Removed), "changed", len(diff.Changed))
 
+	if err := s.reactor.VerifyConfig(newTree); err != nil {
+		return fmt.Errorf("reactor config verify: %w", err)
+	}
+
 	// Collect removed config keys for deferred stop (after verify+apply succeeds).
 	// Stopping plugins before the transaction is proven risks divergence: if
 	// verify/apply fails, the stopped plugins are gone and cannot be restarted
@@ -337,6 +341,9 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	}
 
 	if len(affected) == 0 {
+		if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
+			return fmt.Errorf("reactor config apply: %w", err)
+		}
 		// No plugins care about these changes. Recompute orphan ownership after
 		// auto-load, stop removed config owners, then update the running config.
 		logger().Info("config reload: no affected plugins, updating config")
@@ -378,6 +385,9 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	// so new dependents keep shared dependencies alive.
 	s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys))
 
+	if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
+		return fmt.Errorf("reactor config apply: %w", err)
+	}
 	// Update running config tree after the orchestrator commits. Plugins
 	// have already persisted their per-root state via apply; reconciling
 	// the reactor's config view happens last so the BGP peer reconcile

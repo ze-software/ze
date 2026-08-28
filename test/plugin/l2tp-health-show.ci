@@ -14,55 +14,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=l2tp-health-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        r = dispatch(api, 'show l2tp health')
-        status = r.get('status')
-        blob = json.dumps(r)
-        if status == 'done':
-            data = result_text_data(r)
-            if isinstance(data, str) and data:
-                data = json.loads(data)
-            if not isinstance(data, dict) or 'logins' not in data or 'count' not in data:
-                runtime_fail(f'l2tp-health: done but unexpected shape {data!r}')
-            print(f'OK: l2tp health done count={data.get("count")}', file=sys.stderr)
-        elif status == 'error' and ('observer not enabled' in blob or 'CQM' in blob or 'l2tp subsystem' in blob):
-            print('OK: l2tp health reached handler (CQM/observer off in harness)', file=sys.stderr)
-        else:
-            runtime_fail(f'l2tp-health: did not reach handler: {blob}')
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external l2tp-health-show-test {
-		run ./l2tp-health-show-test.run
+		run "ze-test fixture plugin/l2tp-health-show"
 		encoder json
 	}
 }

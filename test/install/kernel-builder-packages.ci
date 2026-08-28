@@ -1,26 +1,9 @@
-# Test: runtime shared-builder prerequisites cover kernel zstd compression and
-# modules_install host tools in both Docker and QEMU backends.
+# Test: runtime native-worker behavior builds compressed kernels and modules,
+# then installs modules into the requested output tree.
 
 option=timeout:value=20s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-grep -q '^CONFIG_KERNEL_ZSTD=y$' gokrazy/kernel/kernel.config
-grep -q 'INSTALL_MOD_PATH={out_dir}' tools/kernel-builder/build.py
-
-grep -q '^[[:space:]]*kmod[[:space:]]*\\$' tools/kernel-builder/Dockerfile
-grep -q '^[[:space:]]*zstd[[:space:]]*\\$' tools/kernel-builder/Dockerfile
-
-grep -q 'patch kmod zstd python3"$' tools/kernel-builder/qemu-build.py
-
-echo OK
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/kernel-builder-packages
 expect=exit:code=0
 expect=stdout:contains=OK

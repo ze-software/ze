@@ -10,9 +10,9 @@
 // at all.
 //
 // Note this file is guarded by `ze_installer`, a build tag no plain `go test`
-// supplies. It ran nowhere until `make ze-unit-installer-test` was added
-// (mk/test-unit.mk) and made a prerequisite of ze-unit-test; before that, every
-// test here was inert. See the tag-orphan list in test/health/latest.json.
+// supplies. The native installer-tag unit pass runs it through
+// `./le functional install-test`; before that coverage existed, every test here
+// was inert. See the tag-orphan list in test/health/latest.json.
 
 //go:build linux && ze_installer
 

@@ -1,6 +1,6 @@
 // Design: docs/architecture/forward-congestion-pool.md -- overflow items own their bytes
 // Related: forward_body.go -- ownOverflowBodies
-// Related: forward_pool.go -- DispatchOverflow
+// Related: forward_pool.go -- dispatchOverflow
 // Related: recent_cache.go -- runGapScan / evictLocked, the safety valve that recycles the bytes
 
 package reactor
@@ -16,7 +16,7 @@ import (
 )
 
 // blockedOverflowPool returns a forward pool whose single worker is stuck inside
-// the handler, so anything handed to DispatchOverflow stays in w.overflow where
+// the handler, so anything handed to dispatchOverflow stays in w.overflow where
 // the test can read it. mux controls whether tier 2 hands out a buffer handle.
 func blockedOverflowPool(t *testing.T, mux *MixedBufMux) (*fwdPool, fwdKey) {
 	t.Helper()
@@ -128,7 +128,7 @@ func TestOverflowItemSurvivesSafetyValveEviction(t *testing.T) {
 	require.NoError(t, cache.Ack(200, "healthy"))
 
 	fp, key := blockedOverflowPool(t, nil)
-	require.True(t, fp.DispatchOverflow(key, fwdItem{
+	require.True(t, fp.dispatchOverflow(key, fwdItem{
 		peer:      &Peer{},
 		rawBodies: [][]byte{body},
 		done:      func() { cache.Release(100) },
@@ -172,7 +172,7 @@ func TestOverflowItemOwnsBytesWithoutAHandle(t *testing.T) {
 	bodies := [][]byte{src, second}
 
 	fp, key := blockedOverflowPool(t, nil)
-	require.True(t, fp.DispatchOverflow(key, fwdItem{peer: &Peer{}, rawBodies: bodies}))
+	require.True(t, fp.dispatchOverflow(key, fwdItem{peer: &Peer{}, rawBodies: bodies}))
 
 	require.Equal(t, &src[0], &bodies[0][0], "the caller's body slice must not be re-pointed")
 
@@ -205,7 +205,7 @@ func TestOverflowItemOwnsBytesLargerThanOneHandle(t *testing.T) {
 	want := append([]byte(nil), src...)
 
 	fp, key := blockedOverflowPool(t, mux)
-	require.True(t, fp.DispatchOverflow(key, fwdItem{peer: &Peer{}, rawBodies: [][]byte{src}}))
+	require.True(t, fp.dispatchOverflow(key, fwdItem{peer: &Peer{}, rawBodies: [][]byte{src}}))
 
 	for i := range src {
 		src[i] = 0xAA
@@ -234,7 +234,7 @@ func TestOverflowItemOwnsUpdateSections(t *testing.T) {
 	want := append([]byte(nil), src...)
 
 	fp, key := blockedOverflowPool(t, mux)
-	require.True(t, fp.DispatchOverflow(key, fwdItem{
+	require.True(t, fp.dispatchOverflow(key, fwdItem{
 		peer: &Peer{},
 		updates: []*message.Update{{
 			WithdrawnRoutes: src[0:4],

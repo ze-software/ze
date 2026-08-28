@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/pyfmt"
+	"github.com/ze-software/ze/internal/le/textrepr"
 )
 
 // The files the gate reads and writes, all tree-relative.
@@ -29,14 +29,14 @@ const (
 	// Baseline contains engines in the wrong tier that are scheduled to move.
 	// New violations and stale entries fail. Thus, the file can only shrink, and
 	// an empty file means full enforcement.
-	Baseline = "scripts/dev/tier_migration_baseline.txt"
+	Baseline = "internal/le/tier/testdata/tier_migration_baseline.txt"
 	// NonEngineCategories is the human-readable source of truth for
 	// intentional non-engine placements.
-	NonEngineCategories = "scripts/dev/tier_non_engine_categories.txt"
-	// CoreImportBaseline holds the grandfathered upward imports out of
-	// internal/core, at PAIR granularity so a new pair in an already-baselined
-	// file is still caught.
-	CoreImportBaseline = "scripts/dev/core_import_baseline.txt"
+	NonEngineCategories = "internal/le/tier/testdata/tier_non_engine_categories.txt"
+	// CoreImportBaseline holds grandfathered upward imports out of
+	// internal/core, at pair granularity so a new pair in an existing file is
+	// still caught.
+	CoreImportBaseline = "internal/le/tier/testdata/core_import_baseline.txt"
 	// FeatureGatesManifest is the single declaration point for the
 	// compile-out-able features.
 	FeatureGatesManifest = "feature-gates.txt"
@@ -69,7 +69,6 @@ var DisableableNonProdPrefixes = [...]string{
 	"internal/chaos/",
 	"internal/test/",
 	"internal/perf/",
-	"scripts/",
 }
 
 // GolangciBaseTags are the non-feature build tags that legitimately appear in
@@ -122,9 +121,9 @@ var baselineHeader = [...]string{
 	`# columns: <current-dir>\t<expected-area>\t<resolving-child-spec>`,
 }
 
-// WriteBaseline regenerates the migration baseline from the misplacements the
+// writeBaseline regenerates the migration baseline from the misplacements the
 // tree currently holds.
-func WriteBaseline(tree string, misplaced map[string]string) error {
+func writeBaseline(tree string, misplaced map[string]string) error {
 	var tb textbuf.Buffer
 	for _, line := range baselineHeader {
 		tb.Str(line).Byte('\n')
@@ -146,14 +145,14 @@ func WriteBaseline(tree string, misplaced map[string]string) error {
 
 // enginePlacementGate compares the engines that are in the wrong tier against
 // the baseline that schedules their move.
-func enginePlacementGate(tree, module string, edges Edges) (GateResult, error) {
-	misplaced, err := EngineMisplacements(tree, module, edges)
+func enginePlacementGate(tree, module string, edges Edges) (CheckResult, error) {
+	misplaced, err := engineMisplacements(tree, module, edges)
 	if err != nil {
-		return GateResult{}, err
+		return CheckResult{}, err
 	}
 	baseline, err := ReadBaseline(tree)
 	if err != nil {
-		return GateResult{}, err
+		return CheckResult{}, err
 	}
 
 	var arrived, stale []string
@@ -170,7 +169,7 @@ func enginePlacementGate(tree, module string, edges Edges) (GateResult, error) {
 	sort.Strings(arrived)
 	sort.Strings(stale)
 
-	result := GateResult{Name: "engine-placement"}
+	result := CheckResult{Name: "engine-placement"}
 	var tb textbuf.Buffer
 	if len(arrived) > 0 {
 		tb.Str("FAIL: new misplaced engine(s) -- wrong module tier:\n")
@@ -211,8 +210,8 @@ func enginePlacementGate(tree, module string, edges Edges) (GateResult, error) {
 // Non-engine category manifest
 // ---------------------------------------------------------------------------
 
-// ManifestRow is one declared non-engine placement.
-type ManifestRow struct {
+// manifestRow is one declared non-engine placement.
+type manifestRow struct {
 	Category  string
 	Rationale string
 	Line      int
@@ -221,10 +220,10 @@ type ManifestRow struct {
 // specReferenceRe is the spec citation a planned-violation rationale must carry.
 var specReferenceRe = regexp.MustCompile(`\bspec-[A-Za-z0-9][A-Za-z0-9_.-]*\b`)
 
-// LoadNonEngineCategories parses the manifest into its rows and the problems
+// loadNonEngineCategories parses the manifest into its rows and the problems
 // with the file itself.
-func LoadNonEngineCategories(tree string) (map[string]ManifestRow, []string, error) {
-	rows := make(map[string]ManifestRow)
+func loadNonEngineCategories(tree string) (map[string]manifestRow, []string, error) {
+	rows := make(map[string]manifestRow)
 	raw, err := os.ReadFile(filepath.Join(tree, NonEngineCategories)) //nolint:gosec // a manifest of the tree the caller named
 	if errors.Is(err, fs.ErrNotExist) {
 		var tb textbuf.Buffer
@@ -259,7 +258,7 @@ func LoadNonEngineCategories(tree string) (map[string]ManifestRow, []string, err
 		}
 		if !legal[category] {
 			var tb textbuf.Buffer
-			problems = append(problems, manifestProblem(lineNumber, tb.Str("unknown category ").Str(pyfmt.Repr(category)).
+			problems = append(problems, manifestProblem(lineNumber, tb.Str("unknown category ").Str(textrepr.Quote(category)).
 				Str("; expected one of ").Join(LegalNonEngineCategories[:], ", ").String()))
 			continue
 		}
@@ -267,7 +266,7 @@ func LoadNonEngineCategories(tree string) (map[string]ManifestRow, []string, err
 			problems = append(problems, manifestProblem(lineNumber, "planned-violation rationale must cite a spec-* reference"))
 			continue
 		}
-		rows[rel] = ManifestRow{Category: category, Rationale: rationale, Line: lineNumber}
+		rows[rel] = manifestRow{Category: category, Rationale: rationale, Line: lineNumber}
 	}
 	return rows, problems, nil
 }
@@ -304,9 +303,9 @@ func splitN(line string, n int) []string {
 	return fields
 }
 
-// NonEngineArea answers the registry area a manifest row's path sits under, or
+// nonEngineArea answers the registry area a manifest row's path sits under, or
 // the empty string when it sits under neither.
-func NonEngineArea(rel string) string {
+func nonEngineArea(rel string) string {
 	switch {
 	case strings.HasPrefix(rel, "internal/component/"):
 		return AreaComponent
@@ -326,9 +325,9 @@ func setupFeatureRegistration(importer string) bool {
 	return strings.HasPrefix(importer, "cmd/ze/") && setupFeatureRe.MatchString(importer)
 }
 
-// ValidNonEngineCategory reports whether a row's category is legal WHERE it
+// validNonEngineCategory reports whether a row's category is legal WHERE it
 // sits, and says why when it is not.
-func ValidNonEngineCategory(rel, category string, row Row) (bool, string) {
+func validNonEngineCategory(rel, category string, row Row) (bool, string) {
 	switch category {
 	case "framework":
 		if strings.HasPrefix(rel, "internal/component/") {
@@ -358,18 +357,18 @@ func ValidNonEngineCategory(rel, category string, row Row) (bool, string) {
 		return false, "planned-violation rows are allowed only under internal/component or internal/plugins"
 	}
 	var tb textbuf.Buffer
-	return false, tb.Str("unknown category ").Str(pyfmt.Repr(category)).String()
+	return false, tb.Str("unknown category ").Str(textrepr.Quote(category)).String()
 }
 
-// NonEngineCategoryProblems answers everything wrong with the manifest and with
+// nonEngineCategoryProblems answers everything wrong with the manifest and with
 // the placements it is supposed to classify.
-func NonEngineCategoryProblems(tree, module string, edges Edges) ([]string, error) {
-	manifest, problems, err := LoadNonEngineCategories(tree)
+func nonEngineCategoryProblems(tree, module string, edges Edges) ([]string, error) {
+	manifest, problems, err := loadNonEngineCategories(tree)
 	if err != nil {
 		return nil, err
 	}
 
-	engineDirList, err := FindEngineDirs(tree, NestedNamespaces(PluginDirs()))
+	engineDirList, err := findEngineDirs(tree, nestedNamespaces(PluginDirs()))
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +376,7 @@ func NonEngineCategoryProblems(tree, module string, edges Edges) ([]string, erro
 	engines := make(map[string]bool, len(engineDirList))
 	for _, dir := range engineDirList {
 		engineDirs[dir] = true
-		engines[TopSubsystem(dir)] = true
+		engines[topSubsystem(dir)] = true
 	}
 
 	audited := make(map[string]Row)
@@ -394,7 +393,7 @@ func NonEngineCategoryProblems(tree, module string, edges Edges) ([]string, erro
 
 	for _, rel := range sortedManifestKeys(manifest) {
 		meta := manifest[rel]
-		if NonEngineArea(rel) == "" {
+		if nonEngineArea(rel) == "" {
 			var tb textbuf.Buffer
 			problems = append(problems, manifestProblem(meta.Line,
 				tb.Str(rel).Str(" is outside internal/component or internal/plugins").String()))
@@ -415,10 +414,10 @@ func NonEngineCategoryProblems(tree, module string, edges Edges) ([]string, erro
 			problems = append(problems, manifestProblem(meta.Line, tb.Str(rel).
 				Str(" is an engine; engine placement is mechanical, not a non-engine category").String()))
 		}
-		if valid, reason := ValidNonEngineCategory(rel, meta.Category, row); !valid {
+		if valid, reason := validNonEngineCategory(rel, meta.Category, row); !valid {
 			var tb textbuf.Buffer
 			problems = append(problems, manifestProblem(meta.Line, tb.Str(rel).Str(" uses category ").
-				Str(pyfmt.Repr(meta.Category)).Str(": ").Str(reason).String()))
+				Str(textrepr.Quote(meta.Category)).Str(": ").Str(reason).String()))
 		}
 	}
 
@@ -438,13 +437,13 @@ func NonEngineCategoryProblems(tree, module string, edges Edges) ([]string, erro
 }
 
 // nonEngineCategoryGate reports whether the manifest and the placements agree.
-func nonEngineCategoryGate(tree, module string, edges Edges) (GateResult, error) {
-	problems, err := NonEngineCategoryProblems(tree, module, edges)
+func nonEngineCategoryGate(tree, module string, edges Edges) (CheckResult, error) {
+	problems, err := nonEngineCategoryProblems(tree, module, edges)
 	if err != nil {
-		return GateResult{}, err
+		return CheckResult{}, err
 	}
 
-	result := GateResult{Name: "non-engine-categories"}
+	result := CheckResult{Name: "non-engine-categories"}
 	var tb textbuf.Buffer
 	if len(problems) > 0 {
 		tb.Str("FAIL: non-engine tier category manifest mismatch:\n")
@@ -457,9 +456,9 @@ func nonEngineCategoryGate(tree, module string, edges Edges) (GateResult, error)
 		return result, nil
 	}
 
-	manifest, _, err := LoadNonEngineCategories(tree)
+	manifest, _, err := loadNonEngineCategories(tree)
 	if err != nil {
-		return GateResult{}, err
+		return CheckResult{}, err
 	}
 	result.Page = tb.Str("OK: non-engine placement categories clean; ").Int(int64(len(manifest))).
 		Str(" manifest row(s).\n").String()
@@ -470,24 +469,24 @@ func nonEngineCategoryGate(tree, module string, edges Edges) (GateResult, error)
 // Core import direction
 // ---------------------------------------------------------------------------
 
-// CorePair is one upward import out of internal/core: the file that makes it
+// corePair is one upward import out of internal/core: the file that makes it
 // and the package it reaches.
-type CorePair struct {
+type corePair struct {
 	File    string
 	Package string
 }
 
-// CoreDirectionViolations answers every upward import out of internal/core.
+// coreDirectionViolations answers every upward import out of internal/core.
 // Test files count: the grandfathered set includes one.
-func CoreDirectionViolations(module string, edges Edges) []CorePair {
+func coreDirectionViolations(module string, edges Edges) []corePair {
 	bases := make([]string, 0, len(CoreForbidden))
 	for _, area := range CoreForbidden {
 		var tb textbuf.Buffer
 		bases = append(bases, tb.Str(module).Byte('/').Str(area).String())
 	}
 
-	seen := make(map[CorePair]bool)
-	var pairs []CorePair
+	seen := make(map[corePair]bool)
+	var pairs []corePair
 	for imported, importers := range edges {
 		matched := false
 		for _, base := range bases {
@@ -504,7 +503,7 @@ func CoreDirectionViolations(module string, edges Edges) []CorePair {
 			if !strings.HasPrefix(importer, CoreAreaPrefix) {
 				continue
 			}
-			pair := CorePair{File: importer, Package: rel}
+			pair := corePair{File: importer, Package: rel}
 			if seen[pair] {
 				continue
 			}
@@ -516,9 +515,9 @@ func CoreDirectionViolations(module string, edges Edges) []CorePair {
 	return pairs
 }
 
-// ReadCoreImportBaseline parses the shrink-only baseline. An illegal fix route
+// readCoreImportBaseline parses the shrink-only baseline. An illegal fix route
 // is a problem, so nothing can be baselined without a named route.
-func ReadCoreImportBaseline(tree string) ([]CorePair, []string, error) {
+func readCoreImportBaseline(tree string) ([]corePair, []string, error) {
 	raw, err := os.ReadFile(filepath.Join(tree, CoreImportBaseline)) //nolint:gosec // a baseline of the tree the caller named
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil, nil
@@ -532,7 +531,7 @@ func ReadCoreImportBaseline(tree string) ([]CorePair, []string, error) {
 		legal[route] = true
 	}
 
-	var pairs []CorePair
+	var pairs []corePair
 	var problems []string
 	for number, line := range strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n") {
 		lineNumber := number + 1
@@ -550,11 +549,11 @@ func ReadCoreImportBaseline(tree string) ([]CorePair, []string, error) {
 		route = strings.TrimSpace(route)
 		if !legal[route] {
 			var tb textbuf.Buffer
-			problems = append(problems, coreProblem(lineNumber, tb.Str("fix route ").Str(pyfmt.Repr(route)).
-				Str(" not one of ").Str(pyfmt.List(sortedCopy(CoreFixRoutes[:]))).String()))
+			problems = append(problems, coreProblem(lineNumber, tb.Str("fix route ").Str(textrepr.Quote(route)).
+				Str(" not one of ").Str(textrepr.List(sortedCopy(CoreFixRoutes[:]))).String()))
 			continue
 		}
-		pairs = append(pairs, CorePair{File: parts[0], Package: parts[1]})
+		pairs = append(pairs, corePair{File: parts[0], Package: parts[1]})
 	}
 	sortPairs(pairs)
 	return pairs, problems, nil
@@ -568,14 +567,14 @@ func coreProblem(line int, detail string) string {
 
 // coreDirectionGate compares the upward imports against the shrink-only
 // baseline: a new pair and a stale row both fail.
-func coreDirectionGate(tree, module string, edges Edges) (GateResult, error) {
-	current := CoreDirectionViolations(module, edges)
-	baseline, problems, err := ReadCoreImportBaseline(tree)
+func coreDirectionGate(tree, module string, edges Edges) (CheckResult, error) {
+	current := coreDirectionViolations(module, edges)
+	baseline, problems, err := readCoreImportBaseline(tree)
 	if err != nil {
-		return GateResult{}, err
+		return CheckResult{}, err
 	}
 
-	result := GateResult{Name: "core-import-direction"}
+	result := CheckResult{Name: "core-import-direction"}
 	var tb textbuf.Buffer
 	if len(problems) > 0 {
 		tb.Str("FAIL: ").Str(CoreImportBaseline).Str(" malformed:\n")
@@ -626,12 +625,12 @@ func coreDirectionGate(tree, module string, edges Edges) (GateResult, error) {
 }
 
 // pairsNotIn answers the pairs of left that right does not hold.
-func pairsNotIn(left, right []CorePair) []CorePair {
-	held := make(map[CorePair]bool, len(right))
+func pairsNotIn(left, right []corePair) []corePair {
+	held := make(map[corePair]bool, len(right))
 	for _, pair := range right {
 		held[pair] = true
 	}
-	var out []CorePair
+	var out []corePair
 	for _, pair := range left {
 		if !held[pair] {
 			out = append(out, pair)
@@ -642,7 +641,7 @@ func pairsNotIn(left, right []CorePair) []CorePair {
 }
 
 // sortPairs orders pairs by file then package, which is Python's tuple order.
-func sortPairs(pairs []CorePair) {
+func sortPairs(pairs []corePair) {
 	sort.Slice(pairs, func(i, j int) bool {
 		if pairs[i].File != pairs[j].File {
 			return pairs[i].File < pairs[j].File
@@ -655,12 +654,12 @@ func sortPairs(pairs []CorePair) {
 // Disableable-feature direct imports
 // ---------------------------------------------------------------------------
 
-// LoadFeatureGates parses the manifest into a gated-package -> build-tag map.
+// loadFeatureGates parses the manifest into a gated-package -> build-tag map.
 //
 // The manifest is the DISABLEABLE map: the package each //go:build ze_<tag>
 // guards. A manifest that cannot be read stops the gate, because a gate map
 // that came back empty would find no violation anywhere.
-func LoadFeatureGates(tree string) (map[string]string, error) {
+func loadFeatureGates(tree string) (map[string]string, error) {
 	raw, err := os.ReadFile(filepath.Join(tree, FeatureGatesManifest)) //nolint:gosec // a manifest of the tree the caller named
 	if err != nil {
 		return nil, err
@@ -676,7 +675,7 @@ func LoadFeatureGates(tree string) (map[string]string, error) {
 		if len(parts) < 2 {
 			var tb textbuf.Buffer
 			return nil, errors.New(tb.Str(FeatureGatesManifest).Str(": malformed line ").
-				Str(pyfmt.Repr(line)).Str(" (want '<tag> <pkg>')").String())
+				Str(textrepr.Quote(line)).Str(" (want '<tag> <pkg>')").String())
 		}
 		gates[parts[1]] = parts[0]
 	}
@@ -695,13 +694,13 @@ func tagRequired(constraint, tag string) bool {
 	return regexp.MustCompile(tb.Str(`\b`).Str(quoted).Str(`\b`).String()).MatchString(constraint)
 }
 
-// FileRequiresTag reports whether a file carries a build constraint requiring
+// fileRequiresTag reports whether a file carries a build constraint requiring
 // the tag.
 //
 // A file that cannot be read answers false, which REPORTS a violation. That is
 // the fail-closed direction and it is kept: an unreadable importer is treated
 // as an always-on one until somebody looks.
-func FileRequiresTag(tree, rel, tag string) bool {
+func fileRequiresTag(tree, rel, tag string) bool {
 	raw, err := os.ReadFile(filepath.Join(tree, rel)) //nolint:gosec // a Go file of the tree the caller named
 	if err != nil {
 		return false
@@ -734,24 +733,24 @@ func sameFeatureImporter(importer, tag string, gates map[string]string) bool {
 	return false
 }
 
-// DisableableViolation is one always-on file directly importing a gated
+// disableableViolation is one always-on file directly importing a gated
 // package.
-type DisableableViolation struct {
+type disableableViolation struct {
 	Importer string
 	Package  string
 	Tag      string
 }
 
-// DisableableViolations answers every always-on file that directly imports a
+// disableableViolations answers every always-on file that directly imports a
 // disableable feature package.
-func DisableableViolations(tree, module string, edges Edges, gates map[string]string) []DisableableViolation {
+func disableableViolations(tree, module string, edges Edges, gates map[string]string) []disableableViolation {
 	packages := make([]string, 0, len(gates))
 	for pkg := range gates {
 		packages = append(packages, pkg)
 	}
 	sort.Strings(packages)
 
-	var out []DisableableViolation
+	var out []disableableViolation
 	for _, pkg := range packages {
 		tag := gates[pkg]
 		var tb textbuf.Buffer
@@ -763,8 +762,8 @@ func DisableableViolations(tree, module string, edges Edges, gates map[string]st
 			if hasAnyPrefix(importer, DisableableNonProdPrefixes[:]) {
 				continue
 			}
-			if !FileRequiresTag(tree, importer, tag) {
-				out = append(out, DisableableViolation{Importer: importer, Package: pkg, Tag: tag})
+			if !fileRequiresTag(tree, importer, tag) {
+				out = append(out, disableableViolation{Importer: importer, Package: pkg, Tag: tag})
 			}
 		}
 	}
@@ -773,14 +772,14 @@ func DisableableViolations(tree, module string, edges Edges, gates map[string]st
 
 // disableableGate reports an always-on import of a compile-out-able feature. It
 // prints nothing when it passes, which is what the script did.
-func disableableGate(tree, module string, edges Edges) (GateResult, error) {
-	gates, err := LoadFeatureGates(tree)
+func disableableGate(tree, module string, edges Edges) (CheckResult, error) {
+	gates, err := loadFeatureGates(tree)
 	if err != nil {
-		return GateResult{}, err
+		return CheckResult{}, err
 	}
 
-	result := GateResult{Name: "disableable-imports"}
-	violations := DisableableViolations(tree, module, edges, gates)
+	result := CheckResult{Name: "disableable-imports"}
+	violations := disableableViolations(tree, module, edges, gates)
 	if len(violations) == 0 {
 		return result, nil
 	}
@@ -812,12 +811,12 @@ var (
 // read as a list item.
 const golangciComment = "#"
 
-// ParseGolangciBuildTags answers the build tags the lint configuration
+// parseGolangciBuildTags answers the build tags the lint configuration
 // declares.
 //
 // An inline comment is stripped first: YAML allows one and a build tag is a Go
 // identifier, so a '#' never belongs to a tag.
-func ParseGolangciBuildTags(tree string) (map[string]bool, error) {
+func parseGolangciBuildTags(tree string) (map[string]bool, error) {
 	raw, err := os.ReadFile(filepath.Join(tree, Golangci)) //nolint:gosec // the lint configuration of the tree the caller named
 	if err != nil {
 		return nil, err
@@ -852,25 +851,25 @@ func ParseGolangciBuildTags(tree string) (map[string]bool, error) {
 // The lint build-tags list is static YAML and cannot read the manifest, so it
 // is the one consumer that does not derive automatically. Keeping the two in
 // lock-step is what gives every //go:build ze_<feature> file lint coverage.
-func golangciDriftGate(tree string) (GateResult, error) {
-	gates, err := LoadFeatureGates(tree)
+func golangciDriftGate(tree string) (CheckResult, error) {
+	gates, err := loadFeatureGates(tree)
 	if err != nil {
-		return GateResult{}, err
+		return CheckResult{}, err
 	}
 	manifestTags := make(map[string]bool, len(gates))
 	for _, tag := range gates {
 		manifestTags[tag] = true
 	}
 
-	declared, err := ParseGolangciBuildTags(tree)
+	declared, err := parseGolangciBuildTags(tree)
 	if err != nil {
-		return GateResult{}, err
+		return CheckResult{}, err
 	}
 	for _, base := range GolangciBaseTags {
 		delete(declared, base)
 	}
 
-	result := GateResult{Name: "golangci-drift"}
+	result := CheckResult{Name: "golangci-drift"}
 	missing := missingFrom(manifestTags, declared)
 	extra := missingFrom(declared, manifestTags)
 	if len(missing) == 0 && len(extra) == 0 {
@@ -880,12 +879,12 @@ func golangciDriftGate(tree string) (GateResult, error) {
 	var tb textbuf.Buffer
 	tb.Str("FAIL: ").Str(Golangci).Str(" build-tags drifted from ").Str(FeatureGatesManifest).Str(":\n")
 	if len(missing) > 0 {
-		tb.Str("  add to ").Str(Golangci).Str(" build-tags: ").Str(pyfmt.List(missing)).Byte('\n')
+		tb.Str("  add to ").Str(Golangci).Str(" build-tags: ").Str(textrepr.List(missing)).Byte('\n')
 	}
 	if len(extra) > 0 {
-		tb.Str("  remove from ").Str(Golangci).Str(" build-tags (no such gate): ").Str(pyfmt.List(extra)).Byte('\n')
+		tb.Str("  remove from ").Str(Golangci).Str(" build-tags (no such gate): ").Str(textrepr.List(extra)).Byte('\n')
 	}
-	tb.Str("  build-tags must be ").Str(pyfmt.List(sortedCopy(GolangciBaseTags[:]))).
+	tb.Str("  build-tags must be ").Str(textrepr.List(sortedCopy(GolangciBaseTags[:]))).
 		Str(" + every gate tag in ").Str(FeatureGatesManifest).Str(".\n")
 	result.Diagnosis = tb.String()
 	result.Code = 2
@@ -914,7 +913,7 @@ func sortedCopy(items []string) []string {
 }
 
 // sortedManifestKeys and sortedRowKeys answer a map's keys in order.
-func sortedManifestKeys(items map[string]ManifestRow) []string {
+func sortedManifestKeys(items map[string]manifestRow) []string {
 	keys := make([]string, 0, len(items))
 	for key := range items {
 		keys = append(keys, key)
@@ -934,11 +933,11 @@ func sortedRowKeys(items map[string]Row) []string {
 
 // Check runs the five gates in the script's order and answers what each said.
 func Check(tree string) (CheckReport, error) {
-	module, err := ModulePath(tree)
+	module, err := modulePath(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	edges, err := CollectEdges(tree, module)
+	edges, err := collectEdges(tree, module)
 	if err != nil {
 		return CheckReport{}, err
 	}
@@ -948,33 +947,33 @@ func Check(tree string) (CheckReport, error) {
 // CheckWith runs the five gates over an audit already collected, which is what
 // the selftest needs.
 func CheckWith(tree, module string, edges Edges) (CheckReport, error) {
-	steps := []func() (GateResult, error){
-		func() (GateResult, error) { return enginePlacementGate(tree, module, edges) },
-		func() (GateResult, error) { return nonEngineCategoryGate(tree, module, edges) },
-		func() (GateResult, error) { return coreDirectionGate(tree, module, edges) },
-		func() (GateResult, error) { return disableableGate(tree, module, edges) },
-		func() (GateResult, error) { return golangciDriftGate(tree) },
+	steps := []func() (CheckResult, error){
+		func() (CheckResult, error) { return enginePlacementGate(tree, module, edges) },
+		func() (CheckResult, error) { return nonEngineCategoryGate(tree, module, edges) },
+		func() (CheckResult, error) { return coreDirectionGate(tree, module, edges) },
+		func() (CheckResult, error) { return disableableGate(tree, module, edges) },
+		func() (CheckResult, error) { return golangciDriftGate(tree) },
 	}
 
-	report := CheckReport{Gates: make([]GateResult, 0, len(steps))}
+	report := CheckReport{Checks: make([]CheckResult, 0, len(steps))}
 	for _, step := range steps {
 		result, err := step()
 		if err != nil {
 			return CheckReport{}, err
 		}
-		report.Gates = append(report.Gates, result)
+		report.Checks = append(report.Checks, result)
 	}
-	report.Failed = FirstFailure(report.Gates)
+	report.Failed = firstFailure(report.Checks)
 	return report, nil
 }
 
-// FirstFailure answers the FIRST nonzero run code. A later failure gives no
+// firstFailure answers the FIRST nonzero run code. A later failure gives no
 // information about the first failure that a caller must correct.
 //
 // A separate function makes the rule directly testable. All five checks
 // currently answer 0 or 2, so their output cannot expose first-versus-last
 // behavior. Untested rules can silently stop holding.
-func FirstFailure(gates []GateResult) int {
+func firstFailure(gates []CheckResult) int {
 	for _, gate := range gates {
 		if gate.Code != 0 {
 			return gate.Code

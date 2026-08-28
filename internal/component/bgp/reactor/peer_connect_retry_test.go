@@ -98,7 +98,7 @@ func startPeerAgainst(t *testing.T, port uint16) (*Peer, func()) {
 	settings.Connection = ConnectionActive // dial only; this test runs no listener for ze
 
 	peer := NewPeer(settings)
-	peer.SetReconnectDelay(10*time.Millisecond, 20*time.Millisecond)
+	peer.setReconnectDelay(10*time.Millisecond, 20*time.Millisecond)
 	return peer, startAndStop(t, peer)
 }
 
@@ -330,7 +330,7 @@ func TestTeardownKindDecidesConnectRetryCounter(t *testing.T) {
 // TestQueuedAutomaticTeardownStaysAutomatic verifies the manual/automatic
 // distinction survives the operation queue.
 //
-// VALIDATES: Peer.TeardownAutomatic queued while no session exists lands in
+// VALIDATES: Peer.teardownAutomatic queued while no session exists lands in
 // opQueue with Automatic set, and Peer.Teardown lands with it clear.
 //
 // PREVENTS: The flag being dropped at the queue boundary, which would turn
@@ -340,14 +340,14 @@ func TestQueuedAutomaticTeardownStaysAutomatic(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.12"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	require.NoError(t, peer.TeardownAutomatic(message.NotifyCeaseOutOfResources, ""))
+	require.NoError(t, peer.teardownAutomatic(message.NotifyCeaseOutOfResources, ""))
 	require.NoError(t, peer.Teardown(message.NotifyCeaseAdminShutdown, ""))
 
 	peer.mu.Lock()
-	queued := append([]PeerOp(nil), peer.opQueue...)
+	queued := append([]peerOp(nil), peer.opQueue...)
 	peer.mu.Unlock()
 
 	require.Len(t, queued, 2, "both teardowns queue when there is no session")
-	require.True(t, queued[0].Automatic, "TeardownAutomatic must queue as automatic")
+	require.True(t, queued[0].Automatic, "teardownAutomatic must queue as automatic")
 	require.False(t, queued[1].Automatic, "Teardown must queue as an operator stop")
 }

@@ -70,15 +70,15 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 - [ ] `ai/rules/interop-and-goal-validation.md` - "Prove the test discriminates"
   → Constraint: a link/schema proof is not a functional proof; each new test must fail if the behavior under test breaks.
 - [ ] `ai/rules/platform-linux.md` - `option=needs-linux`, the stripped QEMU binary
-  → Constraint: a `.ci` that boots a daemon applying kernel FIB state carries `option=needs-linux` and runs under `make ze-qemu-needs-linux-test`.
+  → Constraint: a `.ci` that boots a daemon applying kernel FIB state carries `option=needs-linux` and runs under `./le qemu run command "./le qemu all-tests"`.
 
 ### RFC Summaries (MUST for protocol work)
 - N/A — this is build-configuration / test-coverage work, no wire protocol change.
 
 **Key insights:**
-- `ze-stripped` (the shipped minimal binary) is built `-tags 'ze_core ze_ssh'` (`mk/test-functional.mk`) — no `ze_bgp` — and is already on PATH in the functional runner, with a working precedent (`test/ui/ze-stripped-surface.ci`). This is the ready-made vehicle for a bgp-absent functional `.ci`.
-- The QEMU stripped binary is built `-tags 'ze_core $(ZE_TAGS)'` (`mk/test-integration.mk`) — `ze_core` only, **no ze_ssh** — so a QEMU/needs-linux test against it must assert via config-file + kernel readback, not SSH CLI.
-- `cmd/ze/hub` unit tests run a second time under bare `ze_core` (`mk/test-unit.mk,51`), so a `//go:build !ze_bgp` Go test there is a deterministic, no-dataplane vehicle for the presence guard.
+- `ze-stripped` (the shipped minimal binary) is built `-tags 'ze_core ze_ssh'` (`internal/le/functional/suites.go`) — no `ze_bgp` — and is already on PATH in the functional runner, with a working precedent (`test/ui/ze-stripped-surface.ci`). This is the ready-made vehicle for a bgp-absent functional `.ci`.
+- The QEMU stripped binary is built `-tags 'ze_core $(ZE_TAGS)'` (`internal/le/integration/gates.go`) — `ze_core` only, **no ze_ssh** — so a QEMU/needs-linux test against it must assert via config-file + kernel readback, not SSH CLI.
+- `cmd/ze/hub` unit tests run a second time under bare `ze_core` (`internal/le/testunit/groups.go,51`), so a `//go:build !ze_bgp` Go test there is a deterministic, no-dataplane vehicle for the presence guard.
 
 ## Current Behavior (MANDATORY)
 
@@ -141,10 +141,10 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | fib-kernel/fib-p4/fib-vpp/mrt/flow-export are always-on (present in `ze_core`) | not in `feature-gates.txt`; `nm` test excludes them | presence guard cannot pass; feature is actually gated | `pluginreg.Has(...)` in a `!ze_bgp` Go test | unvalidated |
-| A-2 | `ze-stripped` (`ze_core ze_ssh`) is on PATH in the functional runner | `test/ui/ze-stripped-surface.ci` invokes it; `mk/test-functional.mk` builds it | no native vehicle; must fall back to QEMU-only | run a trivial `ze-stripped config validate` `.ci` | unvalidated |
+| A-2 | `ze-stripped` (`ze_core ze_ssh`) is on PATH in the functional runner | `test/ui/ze-stripped-surface.ci` invokes it; `internal/le/functional/suites.go` builds it | no native vehicle; must fall back to QEMU-only | run a trivial `ze-stripped config validate` `.ci` | unvalidated |
 | A-3 | FIB installs sysrib-fed static routes with bgp off | `fibkernel.go` consumes `sysribevents`, bgp-independent | AC-4 unachievable; deeper coupling exists | QEMU `.ci`: static route appears in kernel FIB | unvalidated |
 | A-4 | Daemon boots healthy on `ze-stripped` with fib+mrt+flow-export configured | nil-guards read (`dump.go`, `enrichbgp.go`) | AC-3 red = real boot defect to fix | AC-3 `.ci` | unvalidated |
-| A-5 | The QEMU stripped binary (`ze_core`, no ssh) can be driven config-file-only | `mk/test-integration.mk`; needs-linux fib tests already assert via kernel readback | AC-4 must use the native `ze-stripped` + a linux runner instead | inspect an existing kernel-FIB `.ci` assertion mechanism during implementation | unvalidated |
+| A-5 | The QEMU stripped binary (`ze_core`, no ssh) can be driven config-file-only | `internal/le/integration/gates.go`; needs-linux fib tests already assert via kernel readback | AC-4 must use the native `ze-stripped` + a linux runner instead | inspect an existing kernel-FIB `.ci` assertion mechanism during implementation | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -170,7 +170,7 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 | AC-1 | `//go:build !ze_bgp` Go test in `cmd/ze/hub`, run in the bare-`ze_core` unit pass | `pluginreg.Has` is true for `fib-kernel`, `fib-p4`, `fib-vpp`, `mrt`, `flow-export`; the registry is non-empty (all.go linked). Positive mirror of `TestBuildTag_BGP_Absent`. |
 | AC-2 | `ze-stripped config validate -` with `fib{kernel{}}`, `fib{p4{}}`, `fib{vpp{}}`, `mrt{...}`, `flow-export{...}` (one case each); and a `bgp{}` block | All fib/mrt/flow-export snippets validate (exit 0, "valid"); `bgp{}` is rejected as an unknown field (discriminating pair — proves the schemas that survived are real, not that validation is inert). |
 | AC-3 | `ze-stripped -f conf` where `conf` configures `fib{kernel{}}` + `mrt{ ... }` + `flow-export{ ... }` | Daemon reaches ready (`ZE_READY_FILE`), does not exit early / panic; `show health` and `show warnings` report no error for these plugins; plugin "started"/"configured" log lines present. |
-| AC-4 | On a `ze_bgp`-absent Linux binary: `static{ route <p> next-hop <nh> }` + `fib{kernel{}}` | Prefix `<p>` is present in the kernel FIB (readback via the mechanism used by existing kernel-FIB `.ci` tests). `option=needs-linux`; runs under `make ze-qemu-needs-linux-test`. Proves the `routeaction` core-leaf requalification installs routes with bgp compiled out. |
+| AC-4 | On a `ze_bgp`-absent Linux binary: `static{ route <p> next-hop <nh> }` + `fib{kernel{}}` | Prefix `<p>` is present in the kernel FIB (readback via the mechanism used by existing kernel-FIB `.ci` tests). `option=needs-linux`; runs under `./le qemu run command "./le qemu all-tests"`. Proves the `routeaction` core-leaf requalification installs routes with bgp compiled out. |
 | AC-5 | On the AC-3 bgp-off daemon: trigger `request mrt dump-rib` (with `mrt{routes ...}` configured) and let flow-export run | No panic; MRT RIB dump is gracefully skipped (`dump.go` path), command returns cleanly; flow-export runs with an empty BGP-enrichment tree and logs no enrichment-subscription error. Documents+asserts graceful BGP-source absence. |
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -258,7 +258,7 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
    - Verify: daemon healthy; no panic; graceful skip observed.
 4. **Phase: FIB install under bgp off (AC-4)** — `needs-linux` `.ci` with static route + `fib{kernel{}}`, asserting kernel FIB readback. Use config-file + kernel readback (no SSH) so it also holds against the `ze_core` QEMU binary.
    - Verify: route present under QEMU; absent if the install path is broken.
-5. **Full verification** → `make ze-precommit-verify` + `make ze-qemu-needs-linux-test` for AC-4.
+5. **Full verification** → `./le verify current mode full` + `./le qemu run command "./le qemu all-tests"` for AC-4.
 6. **Mutation-verify each behavior-guarding test** (`ai/rules/testing.md`): break the always-on registration / FIB install, confirm the matching test flips red, revert.
 7. **Complete spec** → audit tables, learned summary, two-commit closure.
 
@@ -277,7 +277,7 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 |-------------|---------------------|
 | `build_tag_alwayson_present_test.go` | `GO_TEST_CORE ./cmd/ze/hub -run TestBuildTag_AlwaysOnPluginsPresent` green; and red when a blank import removed |
 | 3 new `.ci` files | `ls test/plugin/bgp-off-*.ci`; run each via `ze-test` |
-| AC-4 runs in QEMU | `make ze-qemu-needs-linux-test` includes it; paste the pass line |
+| AC-4 runs in QEMU | `./le qemu run command "./le qemu all-tests"` includes it; paste the pass line |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -419,8 +419,8 @@ covered: `test/plugin/fib-table.ci`, `fib-ecmp-realtime.ci`,
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
-- [ ] `make ze-precommit-verify` passes; AC-4 verified under `make ze-qemu-needs-linux-test`
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes; AC-4 verified under `./le qemu run command "./le qemu all-tests"`
 - [ ] No production behavior changed (or defect + fix documented in Deviations)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken

@@ -121,7 +121,7 @@ func loginForCookie(t *testing.T, handler http.HandlerFunc, username, password s
 	t.Helper()
 
 	form := url.Values{"username": {username}, "password": {password}}
-	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	handler(rec, req)
@@ -140,8 +140,8 @@ func loginForCookie(t *testing.T, handler http.HandlerFunc, username, password s
 }
 
 // getWithCookie returns the status a protected route gives this session cookie.
-func getWithCookie(handler http.Handler, token string) int {
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+func getWithCookie(t *testing.T, handler http.Handler, token string) int {
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: "ze-session", Value: token})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -169,17 +169,17 @@ func TestSessionCookieFollowsTheRunningConfig(t *testing.T) {
 	aliceToken := loginForCookie(t, login, "alice", "testpass")
 	bobToken := loginForCookie(t, login, "bob", "testpass")
 
-	require.Equal(t, http.StatusOK, getWithCookie(protected, aliceToken),
+	require.Equal(t, http.StatusOK, getWithCookie(t, protected, aliceToken),
 		"alice's cookie must work while the config declares her, or the refusal below proves nothing")
-	require.Equal(t, http.StatusOK, getWithCookie(protected, bobToken),
+	require.Equal(t, http.StatusOK, getWithCookie(t, protected, bobToken),
 		"bob's cookie must work while the config declares him")
 
 	// The reload: alice is removed, bob is kept.
 	live.set(revocationUsers(t)[1])
 
-	assert.Equal(t, http.StatusUnauthorized, getWithCookie(protected, aliceToken),
+	assert.Equal(t, http.StatusUnauthorized, getWithCookie(t, protected, aliceToken),
 		"a cookie whose user the running config no longer declares must be refused")
-	assert.Equal(t, http.StatusOK, getWithCookie(protected, bobToken),
+	assert.Equal(t, http.StatusOK, getWithCookie(t, protected, bobToken),
 		"a user the reload keeps must not be logged out")
 
 	// The refusal is a decision, not a coincidence: the store dropped the
@@ -263,7 +263,7 @@ func TestSessionAnchoredWhenAReloadLandsDuringLogin(t *testing.T) {
 
 	token := loginForCookie(t, login, "alice", "testpass")
 
-	assert.Equal(t, http.StatusUnauthorized, getWithCookie(protected, token),
+	assert.Equal(t, http.StatusUnauthorized, getWithCookie(t, protected, token),
 		"a session the local backend granted must stay revocable when the removal lands during login")
 	assert.Nil(t, store.validateToken(token),
 		"the session must be invalidated, not merely denied once")
@@ -293,7 +293,7 @@ func TestSessionOfRemoteBackendUserSurvivesWhenTheLocalListDeclaresThemToo(t *te
 
 	live.set()
 
-	assert.Equal(t, http.StatusOK, getWithCookie(protected, token),
+	assert.Equal(t, http.StatusOK, getWithCookie(t, protected, token),
 		"the local list must not revoke a session the remote backend granted, even to a name it also declares")
 }
 

@@ -47,45 +47,6 @@ option=timeout:value=35s
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E150001850401020304000B01180A0100038184058150C010088006000000000000
 EOF_PEER
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Wait for the FlowSpec SCTP route to reach the kernel ruleset."""
-import os
-import signal
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-if not wait_until(
-    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-    attempts=400,
-    delay=0.05,
-):
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-state = {"ruleset": ""}
-
-
-def installed():
-    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
-    state["ruleset"] = snap.stdout
-    return "table inet ze_flowspec" in state["ruleset"] and (
-        "l4proto 132" in state["ruleset"] or "l4proto sctp" in state["ruleset"]
-    )
-
-
-ok = wait_until(installed, attempts=200, delay=0.1)
-
-sys.stdout.write(state["ruleset"])
-os.kill(pid, signal.SIGTERM)
-
-if not ok:
-    sys.exit("no sctp rule in the kernel ruleset")
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -125,7 +86,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=python3 driver.py:timeout=35s
+cmd=foreground:seq=3:exec=ze-test fixture plugin/flowspec-fw-protocol-sctp:timeout=35s
 expect=exit:code=0
 expect=stdout:contains=table inet ze_flowspec
 expect=stdout:contains=10.1.0.0/24

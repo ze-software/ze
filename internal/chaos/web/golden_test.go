@@ -491,9 +491,9 @@ func chaosGoldenMux(t *testing.T, d *Dashboard) *http.ServeMux {
 func chaosGoldenRequest(t *testing.T, c chaosGoldenCase) *http.Request {
 	t.Helper()
 
-	req := httptest.NewRequest(c.Method, c.Target, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), c.Method, c.Target, http.NoBody)
 	if len(c.Form) > 0 {
-		req = httptest.NewRequest(c.Method, c.Target, strings.NewReader(c.Form.Encode()))
+		req = httptest.NewRequestWithContext(t.Context(), c.Method, c.Target, strings.NewReader(c.Form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 
@@ -802,9 +802,9 @@ var chaosPortCutover = map[string]string{
 //
 // VALIDATES: no unit of the chaos dashboard renders different content after the
 // cutover, beyond the four changes named above.
-// PREVENTS: a re-baselined fixture hiding a change an operator would see. The
-// capture is recaptured by `make ze-chaos-golden-update`, which rewrites every
-// byte this reads.
+// PREVENTS: a re-baselined fixture hiding a change an operator would see. Run
+// `go test ./internal/chaos/web -run TestChaosGoldenOutput -update-golden` to
+// recapture every byte this reads.
 func TestChaosPortFidelity(t *testing.T) {
 	golden.AssertPortFidelity(t, chaosPreCutoverRef,
 		filepath.Join("testdata", chaosGoldenFixtures), golden.PortResponse, chaosPortCutover)

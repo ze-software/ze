@@ -1,38 +1,9 @@
-# Test (AC-1): a single shared driver (tools/kernel-builder/run.py) replaces the
-# three copies of the docker/qemu build invocation. No Makefile or Go file
-# invokes docker/qemu directly anymore.
+# Test (AC-1): one compiled shared driver owns docker and QEMU kernel builds and
+# emits provenance for the selected backend.
 
 option=timeout:value=20s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-[ -x tools/kernel-builder/run.py ] || { echo "run.py missing/not executable" >&2; exit 1; }
-
-# No inline docker build/run or build.py/qemu-build.py INVOCATION in the Makefiles
-# or Go (a bare prerequisite reference to build.py/qemu-build.py is fine; the
-# forbidden thing is invoking them directly instead of via run.py).
-for f in gokrazy/kernel/Makefile tools/installer-kernel/Makefile internal/appliance/cmd_kernel.go; do
-	# Strip comment lines first ("docker builder" prose must not trip the check).
-	if grep -vE '^[[:space:]]*(#|//)' "$f" | grep -Eq 'docker[[:space:]]+(build|run)|python3[^=]*build\.py'; then
-		echo "$f still invokes docker/qemu/build.py directly:" >&2
-		grep -vE '^[[:space:]]*(#|//)' "$f" | grep -nE 'docker[[:space:]]+(build|run)|python3[^=]*build\.py' >&2
-		exit 1
-	fi
-done
-
-# All three entry points reach run.py.
-grep -q 'run.py' gokrazy/kernel/Makefile
-grep -q 'run.py' tools/installer-kernel/Makefile
-grep -q 'run.py' internal/appliance/cmd_kernel.go
-
-printf 'OK\n'
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/kernel-builder-single-driver "$ZE_REPO_ROOT"
 expect=exit:code=0
 expect=stdout:contains=OK

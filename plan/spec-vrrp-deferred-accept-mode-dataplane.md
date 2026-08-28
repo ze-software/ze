@@ -182,7 +182,7 @@ the "Active router behavior beyond the election" theme.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Filtering can be installed without breaking the virtual-MAC ARP/ND recipe | `dataplane_linux.go` operates on sysctls only, orthogonal to a packet filter | The recipe and the filter must be co-designed; QEMU proof needed early | QEMU lab: VIP unreachable with accept-mode false, ARP still answered from the virtual MAC | unvalidated |
 | A-2 | The existing firewall component can express a per-device destination-address drop | `internal/component/firewall/` installs rules today (surface not yet read for this spec) | A vrrp-owned filter path is needed instead | Design phase: read the firewall install path | unvalidated |
-| A-3 | Interop scenarios that ping the VIP set accept-mode true and so keep passing | `scripts/evidence/effective-vrrp-keepalived.py` sets accept-mode true for QS-1 | Enforcing the flag reds the interop lab | Run the keepalived lab after enforcement | unvalidated |
+| A-3 | Interop scenarios that ping the VIP set accept-mode true and so keep passing | `internal/le/qemu/vrrp_keepalived_linux.go` sets accept-mode true for QS-1 | Enforcing the flag reds the interop lab | Run the keepalived lab after enforcement | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -236,7 +236,7 @@ Skeleton level; the design phase expands these.
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| accept-mode false vs keepalived | `scripts/evidence/effective-vrrp-keepalived.py` lab | keepalived | VIP unreachable on the ze Active while election and virtual-MAC ownership are unaffected | |
+| accept-mode false vs keepalived | `internal/le/qemu/vrrp_keepalived_linux.go` lab | keepalived | VIP unreachable on the ze Active while election and virtual-MAC ownership are unaffected | |
 
 ### Future (if deferring any tests)
 - None; the whole spec is future work and this file is its destination.
@@ -260,7 +260,7 @@ Stage mapping follows `plan/TEMPLATE.md` unchanged.
 3. **Phase: Lifecycle** -- install, remove, reconfigure, restart-safety
 4. **Phase: Tracking** -- config surface, decrement into `EffectivePriority`, advertisement path
 5. **Functional and interop tests** -- `.ci` coverage plus the keepalived lab re-run
-6. **Full verification** -- `make ze-precommit-verify`
+6. **Full verification** -- `./le verify current mode full`
 7. **Complete spec** -- audit, learned summary, two-commit closure
 
 ### Failure Routing
@@ -286,7 +286,7 @@ R014/R030/R031 rows in the `rfc/short/rfc9568.md` checklist.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete, every row a concrete test
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/plugins/vrrp/`)
 - [ ] Documentation Update Checklist answered with source evidence
 

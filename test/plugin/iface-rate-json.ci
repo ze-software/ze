@@ -11,78 +11,11 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=iface-rate-json.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify typed Response error and success paths produce correct wire output."""
-
-import json
-import sys
-
-from ze_api import API, runtime_fail, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # AC-4: Error field test -- rate tracker not running produces StatusError
-    r = dispatch(api, 'show interface rate')
-    if r.get('status') != 'error':
-        runtime_fail(f'interface rate: expected error, got status={r.get("status")}')
-    msg = result_text_data(r)
-    if 'rate tracker not running' not in msg and 'no backend loaded' not in msg:
-        runtime_fail(f'interface rate: expected error about rate tracker, got: {msg}')
-
-    # AC-2: Map test -- system help returns structured JSON with commands array
-    r = dispatch(api, 'system help')
-    if r.get('status') != 'done':
-        runtime_fail(f'system help: status={r.get("status")} data={result_text_data(r)[:200]}')
-
-    raw = result_text_data(r)
-    if not raw:
-        runtime_fail('system help: empty data')
-
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        runtime_fail(f'system help: invalid JSON: {exc}: {raw[:200]}')
-        return
-
-    if not isinstance(parsed, dict):
-        runtime_fail(f'system help: expected dict, got {type(parsed).__name__}')
-
-    if 'commands' not in parsed:
-        runtime_fail(f'system help: missing "commands" key in {list(parsed.keys())}')
-
-    # Verify no double-encoding
-    if raw.startswith('"') and raw.endswith('"'):
-        runtime_fail(f'system help: data is double-encoded: {raw[:100]}')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-rate-json-test {
-		run ./iface-rate-json.run
+		run "ze-test fixture plugin/iface-rate-json"
 		encoder json
 	}
 }

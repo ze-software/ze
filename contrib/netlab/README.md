@@ -38,7 +38,7 @@ netlab daemons usually build their own image. Ze does not, and `ze.yml` sets
 `clab.build: False` with `image: netlab/ze:latest`. Build that image from the ze
 tree first:
 
-    make ze-docker-lab-build
+    docker build -f docker/Dockerfile.lab -t netlab/ze:latest .
 
 It is a SECOND image, not the deployment one. `docker/Dockerfile` stays a static
 binary on a scratch base. The lab image adds a shell and `iproute2`, because
@@ -54,7 +54,7 @@ Copy the two artifacts into the netlab package:
     cp -R contrib/netlab/ze   <netlab>/netsim/daemons/ze
 
 Or keep them out of the install and let a topology carry them. This is what
-`make ze-netlab-render-check` does. It needs two files beside the topology:
+`./le netlab render-check` does. It needs two files beside the topology:
 
 - `topology-defaults.yml`, holding the contents of `ze.yml` under a `daemons: ze:` key
 - a `templates/ze/` directory, holding the templates
@@ -64,7 +64,7 @@ netlab searches both by default (`netsim/defaults/paths.yml`,
 
 ## Running the reference topology
 
-    make ze-docker-lab-build
+    docker build -f docker/Dockerfile.lab -t netlab/ze:latest .
     netlab up -t contrib/netlab/topology.yml
 
 The topology is three ze nodes:
@@ -96,12 +96,12 @@ once, naming the file, because the secret is still in it.
 
 ## Keeping this from drifting
 
-    make ze-netlab-render-check
+    ./le netlab render-check
 
 It renders these templates with a real netlab, compares the result against
 `golden/`, and runs `ze config validate` on each golden file. A missing netlab is
-an error, never a skip. `ARGS=--update` rewrites the golden files. Review the
-diff.
+an error, never a skip. `./le netlab render-update` rewrites the golden files.
+Review the diff.
 
 `test/plugin/netlab-lab-profile.ci` is the other half, and it needs no netlab. It
 starts a daemon from `golden/r3.conf`, logs in as the user that render declared,
@@ -118,5 +118,5 @@ ze still RUNS what they emitted.
 - **No LLDP.** Ze sends and receives no LLDP frame, so a netlab validation that
   reads an LLDP table cannot pass. containerlab does not need LLDP. Its links
   are veths the topology names.
-- **No published image.** `make ze-docker-lab-build` builds it locally. There is
-  nothing to pull.
+- **No published image.** `docker build -f docker/Dockerfile.lab -t
+  netlab/ze:latest .` builds it locally. There is nothing to pull.

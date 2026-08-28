@@ -1,9 +1,8 @@
 # Build artifacts: kernel and initrd resolution
 
 An ISO build needs an installer kernel and an installer initrd. Operators used
-to run two `make -C tools/...` targets by hand and to know which system packages
-those targets needed. `ze appliance kernel` and `ze appliance initrd` own that
-pipeline now.
+to build both artifacts by hand and track their system-package dependencies.
+`ze appliance kernel` and `ze appliance initrd` own that pipeline now.
 
 <!-- source: internal/appliance/cmd_kernel.go -- installer kernel resolution -->
 <!-- source: internal/appliance/cmd_initrd.go -- installer initrd resolution and cpio packing -->
@@ -17,7 +16,7 @@ Each command tries the tiers in order and stops at the first success:
 |------|--------|
 | 1 | XDG cache hit under `~/.cache/ze/` |
 | 2 | Download from the release server, SHA-256 verified before caching |
-| 3 | Local build: Docker for the kernel, `make` for the initrd |
+| 3 | Local native Go build for the kernel and initrd |
 
 A downloaded artifact is also copied into the `tools/` build directory, so
 `ze appliance iso` finds it with no extra flag. `defaultISOKernelPath` checks
@@ -35,9 +34,8 @@ with compiled-in defaults. Partial downloads are removed rather than cached.
   tools are checked only when the build fallback is the tier in use.
 - `ze appliance iso --check` calls the same resolution functions as the ISO
   build itself, so the readiness report cannot drift from the build.
-- The whole surface lives under the `ze_setup` build tag, so `bin/ze-setup` is
-  the complete build-and-deploy tool: kernel, initrd, appliance init, build and
-  iso, plus PXE provisioning.
+- The build-host surface is registered by `internal/appliance`: kernel,
+  initrd, appliance init/build/ISO, and PXE provisioning.
 - Doctor checks register from the package `init()`, the same way the plugin
   doctor registers.
 - Function variables (`httpGetFn`, `initrdMakeBuildFn`, and their siblings) make

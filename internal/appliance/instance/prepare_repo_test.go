@@ -149,7 +149,7 @@ func listModules(t *testing.T, dir, modcache string) (string, error) {
 //
 // the two t.Skip calls below are ENVIRONMENT guards on a new test,
 // not a relaxation of existing coverage. They fire only outside a full checkout
-// or before `make ze-gokrazy-deps-download` has populated the cache, where no baseline
+// or before `./le setup install` has populated the cache, where no baseline
 // exists to compare against. The test cannot skip its way to a false pass: if
 // every module ends up skipped it calls t.Fatal, because a comparison test that
 // compared nothing has proved nothing.
@@ -170,7 +170,7 @@ func TestPreparedModulesResolveIdenticallyToTracked(t *testing.T) {
 	// lost its baseline and the zero-comparison guard below reddened CI on every
 	// push instead of reporting an absent prerequisite.
 	if _, err := os.Stat(filepath.Join(modcache, "cache", "download")); err != nil {
-		t.Skip("gokrazy/modcache download cache not populated; run make ze-gokrazy-deps-download")
+		t.Skip("gokrazy/modcache download cache not populated; run ./le setup install")
 	}
 	srcBuildDir := filepath.Join(root, "gokrazy", Name, buildDirName)
 
@@ -218,11 +218,11 @@ func TestPreparedModulesResolveIdenticallyToTracked(t *testing.T) {
 			// wrongly. The builddir modules pin a toolchain directive; when the
 			// running Go is older and GOPROXY=off forbids fetching it, go reports
 			// "toolchain not available" and resolves nothing. That is exactly the
-			// QEMU VM, whose Go is installed by scripts/evidence/qemu-run.py. The
+			// QEMU VM, whose Go is installed by internal/le/qemu/run.go. The
 			// test still cannot skip its way to a false pass: on a host with the
 			// toolchain it runs in full, and ze-precommit-verify is that host.
 			if strings.Contains(want, "toolchain not available") {
-				t.Skipf("go toolchain pinned by the builddir modules is unavailable offline; run where it is installed, or bump the VM's Go in scripts/evidence/qemu-run.py:\n%s", want)
+				t.Skipf("go toolchain pinned by the builddir modules is unavailable offline; run where it is installed, or bump the VM's Go in internal/le/qemu/run.go:\n%s", want)
 			}
 			t.Logf("no baseline for %s: tracked module does not resolve offline: %v\n%s", rel, wantErr, want)
 			continue
@@ -239,7 +239,7 @@ func TestPreparedModulesResolveIdenticallyToTracked(t *testing.T) {
 	}
 
 	if compared == 0 {
-		t.Fatal("no module could be compared, so this test proved nothing; populate gokrazy/modcache with make ze-gokrazy-deps-download")
+		t.Fatal("no module could be compared, so this test proved nothing; populate gokrazy/modcache with ./le setup install")
 	}
 	t.Logf("compared resolved module graphs for %d/%d builddir modules", compared, len(mods))
 }

@@ -92,7 +92,7 @@ type dialResult struct {
 // reactor goroutine, which is the sole writer of the tunnel map (R-2). Returns
 // ErrReactorStopped if the reactor is not running, ErrMaxTunnels if the limit
 // is reached, or the tunnel-ID allocation error.
-func (r *L2TPReactor) Dial(target DialTarget) (uint16, error) {
+func (r *l2tpReactor) Dial(target DialTarget) (uint16, error) {
 	return r.dialWithCall(target, nil)
 }
 
@@ -101,14 +101,14 @@ func (r *L2TPReactor) Dial(target DialTarget) (uint16, error) {
 // local tunnel ID (the call's local session ID is assigned asynchronously when
 // the tunnel establishes; observe it via the tunnel's session snapshot). Safe
 // to call from any goroutine (marshaled onto the reactor goroutine, R-2).
-func (r *L2TPReactor) PlaceOutgoingCall(target DialTarget, p callParams) (uint16, error) {
+func (r *l2tpReactor) PlaceOutgoingCall(target DialTarget, p callParams) (uint16, error) {
 	return r.dialWithCall(target, &pendingCall{outgoing: true, params: p})
 }
 
 // placeIncomingCall dials target and, once the tunnel establishes, originates
 // a LAC-side incoming call (ICRQ) with the given call parameters. Returns the
 // local tunnel ID. Safe to call from any goroutine (R-2).
-func (r *L2TPReactor) placeIncomingCall(target DialTarget, p callParams) (uint16, error) {
+func (r *l2tpReactor) placeIncomingCall(target DialTarget, p callParams) (uint16, error) {
 	return r.dialWithCall(target, &pendingCall{outgoing: false, params: p})
 }
 
@@ -121,7 +121,7 @@ func (r *L2TPReactor) placeIncomingCall(target DialTarget, p callParams) (uint16
 // came up and why it did not. Safe to call from any goroutine (the dial is
 // marshaled onto the reactor goroutine, R-2; the result channel is buffered
 // so the reactor never blocks on delivery even after a timeout).
-func (r *L2TPReactor) placeOutgoingCallSync(target DialTarget, p callParams, timeout time.Duration) (callOutcome, error) {
+func (r *l2tpReactor) placeOutgoingCallSync(target DialTarget, p callParams, timeout time.Duration) (callOutcome, error) {
 	pc := &pendingCall{outgoing: true, params: p, result: make(chan callOutcome, 1)}
 	if _, err := r.dialWithCall(target, pc); err != nil {
 		return callOutcome{}, err
@@ -143,7 +143,7 @@ func (r *L2TPReactor) placeOutgoingCallSync(target DialTarget, p callParams, tim
 
 // dialWithCall is the shared marshaling path for Dial / PlaceOutgoingCall /
 // placeIncomingCall / placeOutgoingCallSync.
-func (r *L2TPReactor) dialWithCall(target DialTarget, call *pendingCall) (uint16, error) {
+func (r *l2tpReactor) dialWithCall(target DialTarget, call *pendingCall) (uint16, error) {
 	r.mu.Lock()
 	if !r.started {
 		r.mu.Unlock()
@@ -171,7 +171,7 @@ func (r *L2TPReactor) dialWithCall(target DialTarget, call *pendingCall) (uint16
 // (sending the SCCRQ), transmits the datagram after releasing tunnelsMu, and
 // arms the retransmit timer. The result (local TID or error) is returned to
 // the Dial caller.
-func (r *L2TPReactor) handleDial(req dialRequest) {
+func (r *l2tpReactor) handleDial(req dialRequest) {
 	now := r.params.Clock()
 
 	r.tunnelsMu.Lock()
@@ -236,7 +236,7 @@ const dialChanDepth = 16
 // Returns the ICRQ/OCRQ send. Caller MUST hold tunnelsMu and MUST have
 // verified the tunnel just transitioned to established. No-op when there is no
 // pending call.
-func (r *L2TPReactor) placePendingCallLocked(t *L2TPTunnel, now time.Time) []sendRequest {
+func (r *l2tpReactor) placePendingCallLocked(t *L2TPTunnel, now time.Time) []sendRequest {
 	pc := t.pendingCall
 	if pc == nil {
 		return nil
@@ -284,7 +284,7 @@ func (t *L2TPTunnel) resolvePendingCall(o callOutcome) {
 // transmit sends every outbound datagram for a tunnel, mirroring the
 // capture-aware send loop in handle(). Called AFTER releasing tunnelsMu so a
 // slow UDP write does not serialize inbound dispatch.
-func (r *L2TPReactor) transmit(localTID uint16, outbound []sendRequest) {
+func (r *l2tpReactor) transmit(localTID uint16, outbound []sendRequest) {
 	for _, req := range outbound {
 		if r.capture != nil && len(req.bytes) > 12 {
 			outSID := uint16(req.bytes[8])<<8 | uint16(req.bytes[9])

@@ -101,16 +101,18 @@ func TestAMentionInProseIsNotACall(t *testing.T) {
 // PREVENTS: a file prefix exempting a sibling whose name merely starts with it.
 func TestAllowlistMatchesDirectoriesAndExactFiles(t *testing.T) {
 	cases := map[string]bool{
-		"internal/component/iface/resolve.go":       true,
-		"internal/component/iface/deep/nested/x.go": true,
-		"internal/plugins/ldp/register.go":          true,
-		"internal/le/deployment/l2tpdiag_linux_ops.go": true,
-		"internal/le/deployment/l2tpdiag_linux.go":     false,
-		"internal/le/interoplab/bgp/isis_inject_linux.go": true,
-		"internal/le/interoplab/bgp/bgp.go":               false,
-		"internal/plugins/ldp/register.go2.go":      false,
-		"internal/plugins/ldp/other.go":             false,
-		"internal/component/bgp/reactor/reactor.go": false,
+		"internal/component/iface/resolve.go":                true,
+		"internal/component/iface/deep/nested/x.go":          true,
+		"internal/plugins/ldp/register.go":                   true,
+		"internal/le/deployment/l2tpdiag_linux_ops.go":       true,
+		"internal/le/deployment/l2tpdiag_linux.go":           false,
+		"internal/le/interoplab/bgp/isis_inject_linux.go":    true,
+		"internal/le/interoplab/bgp/bgp.go":                  false,
+		"internal/test/fixture/routing_fixture_linux.go":     true,
+		"internal/test/fixture/routing_fixture_linux.go2.go": false,
+		"internal/plugins/ldp/register.go2.go":               false,
+		"internal/plugins/ldp/other.go":                      false,
+		"internal/component/bgp/reactor/reactor.go":          false,
 	}
 	for path, want := range cases {
 		if got := allowed(path); got != want {
@@ -123,7 +125,7 @@ func TestAllowlistMatchesDirectoriesAndExactFiles(t *testing.T) {
 // clean tree.
 // PREVENTS: the fail-open this gate exists to prevent, applied to itself. The
 // script reports OK and exits 0 over a tree holding none of its three roots
-// (scripts/checks/parity_test.go, TestScriptStillPassesOverATreeItNeverRead).
+// (internal/le/parity/parity_test.go, TestScriptStillPassesOverATreeItNeverRead).
 func TestATreeTooSmallToBeTheOneAskedAboutIsAnError(t *testing.T) {
 	dir := tree(t, map[string]string{"internal/a/a.go": "package a\n"})
 
@@ -184,7 +186,7 @@ func TestTextNamesEverySiteAndTheRemedy(t *testing.T) {
 		"iface-resolution: 1 direct kernel resolution site(s) outside the allowlist:",
 		"  internal/a/a.go:12: netlink.LinkByName(n)",
 		"iface.Resolve / iface.Addresses / iface.Subscribe",
-		"scripts/checks/iface_resolution.go",
+		"internal/le/ifaceresolution/ifaceresolution.go",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the page does not carry %q:\n%s", want, text)
@@ -206,7 +208,7 @@ func TestAnswerRefusesAnArgument(t *testing.T) {
 // runs.
 // PREVENTS: a consumer resolving a configured interface name straight against
 // the kernel. This is where TestNoDirectInterfaceResolution
-// (scripts/checks/iface_resolution_test.go) now lives: it forked the script and
+// (internal/le/ifaceresolution/ifaceresolution_test.go) now lives: it forked the script and
 // asserted the tree passes and the verdict reads OK, and both facts are here.
 func TestThisCheckoutPassesTheGate(t *testing.T) {
 	payload, code := Answer(nil)

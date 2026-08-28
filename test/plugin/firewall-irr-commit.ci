@@ -34,48 +34,11 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=20s
 
-tmpfs=firewall-irr-commit.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify config commit succeeds with cached IRR data."""
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Fetch AS-TEST data first.
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    if result.get('status') != 'done':
-        runtime_fail(f'update failed: {result}')
-
-    data = result_json_data(result, {})
-    v4 = data.get('ipv4-count', 0)
-    v6 = data.get('ipv6-count', 0)
-    print(f'OK: cached AS-TEST: v4={v4} v6={v6}', file=sys.stderr)
-
-    # Refresh all cached entries.
-    result = api.dispatch_until_done('update firewall irr all')
-    if result.get('status') != 'done':
-        runtime_fail(f'update all failed: {result}')
-
-    print('OK: update firewall irr all succeeded', file=sys.stderr)
-
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-commit-test {
-		run ./firewall-irr-commit.run
+		run "ze-test fixture plugin/firewall-irr-commit"
 		encoder json
 	}
 }

@@ -15,8 +15,8 @@ interop-testing-protocol-features ## Interop Testing (protocol features)
   conditions-that-need-no-interop-test
   interop-scenario-structure
   a-scenario-directory-is-named-never-numbered
-  the-files-every-interop-scenario-carries
-  the-steps-every-check-py-must-run
+  the-config-files-every-interop-scenario-carries
+  the-native-checker-every-scenario-must-register
 prove-the-test-discriminates-blocking ## Prove the test discriminates (BLOCKING)
   a-test-is-evidence-only-if-it-can-fail
   revert-the-change-and-confirm-the-test-goes-red

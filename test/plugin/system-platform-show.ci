@@ -10,66 +10,11 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=system-platform-show-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        resp = dispatch(api, 'show system platform')
-        status = resp.get('status')
-        if status is None:
-            runtime_fail(f'platform: dispatch returned no status: {resp}')
-        if status != 'done':
-            runtime_fail(f'platform: status={status} data={resp.get("data")}')
-
-        data = result_text_data(resp)
-        if isinstance(data, str) and data:
-            data = json.loads(data)
-
-        if not isinstance(data, dict):
-            runtime_fail(f'platform: expected dict, got {type(data).__name__}')
-        if 'type' not in data:
-            runtime_fail(f'platform: missing "type" in {data}')
-
-        valid_types = ['gokrazy', 'systemd', 'container', 'plain-linux', 'darwin', 'unknown']
-        if data['type'] not in valid_types:
-            runtime_fail(f'platform: type={data["type"]} not in {valid_types}')
-
-        for key in ['read-only-root', 'reboot-allowed', 'fd-limit-raisable']:
-            if key not in data:
-                runtime_fail(f'platform: missing "{key}" in {data}')
-
-        print(f'OK: platform type={data["type"]} reboot={data["reboot-allowed"]}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external system-platform-show-test {
-		run ./system-platform-show-test.run
+		run "ze-test fixture plugin/system-platform-show"
 		encoder json
 	}
 }

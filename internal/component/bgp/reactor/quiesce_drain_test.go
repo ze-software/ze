@@ -7,8 +7,8 @@ import (
 )
 
 // establishedPeer builds a minimal Peer in the Established state, optionally
-// still in initial-route-sync (ShouldQueue true). Only the fields State()/
-// ShouldQueue() read are set, which is all peersSynced inspects.
+// still in initial-route-sync (shouldQueue true). Only the fields State()/
+// shouldQueue() read are set, which is all peersSynced inspects.
 func establishedPeer(syncing bool) *Peer {
 	p := &Peer{}
 	p.state.Store(int32(PeerStateEstablished))
@@ -57,7 +57,7 @@ func TestPeersSyncedSkipsIdleNonEstablished(t *testing.T) {
 // as happens when a plugin send() arrives before the session establishes.
 func queuedPeer() *Peer {
 	p := &Peer{}
-	p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpAnnounce})
+	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce})
 	return p
 }
 

@@ -55,7 +55,7 @@ var sfLabSeq atomic.Int32
 
 // TestDHCPv4SurvivesShortIPv4Payload drives the real client over a veth pair.
 // The guard on the vendored file is asserted separately, and cheaply, by
-// TestNclient4ShortIPv4PayloadGuard (scripts/dev/nclient4_short_payload_test.go).
+// TestNclient4ShortIPv4PayloadGuard (internal/le/qemu/guestlabs_test.go).
 func TestDHCPv4SurvivesShortIPv4Payload(t *testing.T) {
 	zeSide, peerConn := sfSetupLab(t)
 

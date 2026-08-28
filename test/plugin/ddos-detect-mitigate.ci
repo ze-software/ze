@@ -12,10 +12,9 @@
 #   the darwin dev host. Reworked per spec-fixit-ddos-test-infra AC-2a: the
 #   daemon.pid/daemon.ready handshake is KEPT (it is armed for a background `ze`
 #   -- runner_exec_util.go:125-130, runner_exec.go:702-705,777-791 -- and polled
-#   green today by test/vrrp/vrrp-instance-up.ci:123), and the two hand-rolled
-#   `time.sleep` poll loops were migrated to ze_api.wait_until (its internal delay
-#   is ratchet-exempt), so no blind sleep remains. The nft readback stays in the
-#   root driver.py, which the runner keeps privileged for exactly this
+#   green today by test/vrrp/vrrp-instance-up.ci:123). The native fixture uses
+#   bounded Poll waits for daemon readiness and kernel state. The nft readback
+#   remains in the root driver, which the runner keeps privileged
 #   (runner_exec.go:740-744).
 #   The static surface (config leaves, nft table name `ddos-local`, log strings)
 #   is grounded in source; these runtime behaviors are proven by the QEMU run:
@@ -50,85 +49,6 @@ option=env:var=ze.log.ddos.detect:value=info
 option=env:var=ze.log.ddos.local:value=info
 option=timeout:value=40s
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Flood loopback to trip ddos-detect, then assert ddos-local installs an nft drop.
-
-Every wait is a deterministic file/kernel-state poll via ze_api.wait_until (whose
-internal delay is ratchet-exempt); no blind time.sleep remains (spec-fixit-ddos-
-test-infra AC-2a)."""
-import os
-import signal
-import socket
-import subprocess
-import sys
-
-from ze_api import wait_until
-
-# Wait for the daemon to come up (runner writes daemon.pid + daemon.ready).
-if not wait_until(
-    lambda: os.path.exists("daemon.pid") and os.path.exists("daemon.ready"),
-    attempts=400,
-    delay=0.05,
-):
-    print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
-    sys.exit(1)
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# Flood a loopback destination so the detector's RxPps for `lo` exceeds the
-# 1000 pps floor and trafficusage records the victim as the dominant destination.
-# The address is unique per test: the ddos plugin-suite tests share ONE network
-# namespace (the QEMU suite runs `bgp plugin -p 4`, no ZE_TEST_NETNS), so a reused
-# victim/sink pair makes the second binder die EADDRINUSE and a reused victim makes
-# two detectors resolve the same target. Allocation table in
-# ddos-bps-amplification.ci.
-target = "127.0.0.4"
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-payload = b"x" * 64
-
-# Sink bound on the victim port so the kernel delivers the flood to a socket rather
-# than answering each datagram with an ICMP port-unreachable. Those unreachables
-# egress toward the SOURCE (127.0.0.1) carrying the quoted datagram, so
-# trafficusage's by-destination-bytes victim pick (parseTopDestination) latches onto
-# 127.0.0.1 instead of the target -- the loopback-only confound learned/1267
-# documents and ddos-detect-characterize / ddos-direction / ddos-policy already
-# guard against. Unread packets drop silently once the buffer fills.
-sink = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sink.bind((target, 9999))
-sink.setblocking(False)
-
-# Mutable state shared with the wait_until predicate: the flood is sustained
-# across collect ticks (one burst per poll) while we watch for the nft drop.
-state = {"ruleset": "", "sent": 0}
-
-
-def flood_and_check():
-    for _ in range(4000):
-        try:
-            sock.sendto(payload, (target, 9999))
-            state["sent"] += 1
-        except OSError:
-            pass
-    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
-    state["ruleset"] = snap.stdout
-    return "ddos-local" in state["ruleset"] and target in state["ruleset"]
-
-
-# 125 attempts * 0.2s ~= 25s, matching the original bounded flood window.
-installed = wait_until(flood_and_check, attempts=125, delay=0.2)
-
-sys.stdout.write(state["ruleset"])
-os.kill(pid, signal.SIGTERM)
-
-if not installed:
-    print(
-        f"ERROR: ddos-local drop rule for {target} not installed (sent {state['sent']} packets)",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 ddos {
@@ -158,7 +78,7 @@ traffic {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=35s
+cmd=foreground:seq=2:exec=ze-test fixture plugin/ddos-detect-mitigate:timeout=35s
 expect=exit:code=0
 expect=stdout:contains=ddos-local
 expect=stdout:contains=127.0.0.4

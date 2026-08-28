@@ -17,7 +17,7 @@ const msgTypeUpdate = "update"
 // PeerStats holds a snapshot of per-peer counters.
 // Updates = per UPDATE message (engine level, no content parsing).
 // Keepalives = per KEEPALIVE message.
-// EOR = End-of-RIB markers (RFC 4724) that reached the socket; see IncrEORSent
+// EOR = End-of-RIB markers (RFC 4724) that reached the socket; see incrEORSent
 // for the contract and for why the value is per-peer lifetime, not per-session.
 // NLRI-level counters (announce vs withdraw) belong in the RIB plugin.
 type PeerStats struct {
@@ -134,27 +134,27 @@ func (p *Peer) peerAddrLabel() string {
 	return p.addrString
 }
 
-// IncrUpdatesReceived increments the received UPDATE counter.
+// incrUpdatesReceived increments the received UPDATE counter.
 // Also increments the per-peer Prometheus counter with type label.
-func (p *Peer) IncrUpdatesReceived() {
+func (p *Peer) incrUpdatesReceived() {
 	p.counters.updatesReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), msgTypeUpdate).Inc()
 	}
 }
 
-// IncrUpdatesSent increments the sent UPDATE counter.
+// incrUpdatesSent increments the sent UPDATE counter.
 // Also increments the per-peer Prometheus counter with type label.
-func (p *Peer) IncrUpdatesSent() {
+func (p *Peer) incrUpdatesSent() {
 	p.counters.updatesSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), msgTypeUpdate).Inc()
 	}
 }
 
-// IncrKeepalivesReceived increments the received KEEPALIVE counter.
+// incrKeepalivesReceived increments the received KEEPALIVE counter.
 // Also increments the per-peer Prometheus counter with type label.
-func (p *Peer) IncrKeepalivesReceived() {
+func (p *Peer) incrKeepalivesReceived() {
 	p.counters.keepalivesReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "keepalive").Inc()
@@ -170,33 +170,32 @@ func (p *Peer) incrKeepalivesSent() {
 	}
 }
 
-// IncrEORReceived increments the received End-of-RIB counter.
+// incrEORReceived increments the received End-of-RIB counter.
 // Also increments the per-peer Prometheus counter with type label.
-func (p *Peer) IncrEORReceived() {
+func (p *Peer) incrEORReceived() {
 	p.counters.eorReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "eor").Inc()
 	}
 }
 
-// IncrEORSent increments the sent End-of-RIB counter.
+// incrEORSent increments the sent End-of-RIB counter.
 // Also increments the per-peer Prometheus counter with type label.
 //
 // CONTRACT: call this ONLY after the EOR send returned nil. eorSent counts
 // End-of-RIB markers that reached the socket, never sends that were attempted:
-// operators read it as "the peer has been told the initial RIB is complete"
-// (`show bgp peer <sel> detail`, `show bgp`, the CLI dashboard,
-// ze_peer_msg_sent{type="eor"}), and the functional suite reads it as the
-// "end-of-RIB is on the wire" barrier before asserting the frame
-// (test/scripts/ze_api.py wait_peer_eor_sent). Incrementing on a discarded
-// error makes both claims false while looking healthy.
+// operators read it as "the peer has been told the initial RIB is complete" via
+// `show bgp peer <sel> detail`, `show bgp`, and the CLI dashboard. Compiled
+// functional observers use it as an "end-of-RIB is on the wire" barrier before
+// asserting the frame. Incrementing on a discarded error makes that claim false
+// while looking healthy.
 //
 // It is a per-peer LIFETIME counter, not per-session: it is reset only by
 // ClearStats, which runs when the peer object stops (peer_run.go cleanup), so
 // it accumulates across session flaps. A value above the negotiated family count
 // means the peer re-established, or that a second producer emitted an
 // establishment EOR for a family this peer already covered.
-func (p *Peer) IncrEORSent() {
+func (p *Peer) incrEORSent() {
 	p.counters.eorSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "eor").Inc()
@@ -249,11 +248,11 @@ func (p *Peer) recordNotification(code, subcode uint8, recv bool) {
 	p.notificationExchanged.Store(true)
 }
 
-// IncrNotificationSent increments the sent NOTIFICATION counter with code/subcode
+// incrNotificationSent increments the sent NOTIFICATION counter with code/subcode
 // labels and pushes a notification-sent error event onto the report bus.
 // Sets p.notificationExchanged so the FSM Established->Idle transition handler
 // in peer_run.go can suppress the duplicate session-dropped error.
-func (p *Peer) IncrNotificationSent(code, subcode uint8) {
+func (p *Peer) incrNotificationSent(code, subcode uint8) {
 	p.counters.notificationsSent.Add(1)
 	p.recordNotification(code, subcode, false)
 	raiseNotificationError("sent", p.peerAddrLabel(), code, subcode)
@@ -267,12 +266,12 @@ func (p *Peer) IncrNotificationSent(code, subcode uint8) {
 	}
 }
 
-// IncrNotificationReceived increments the received NOTIFICATION counter with
+// incrNotificationReceived increments the received NOTIFICATION counter with
 // code/subcode labels and pushes a notification-received error event onto the
 // report bus. Sets p.notificationExchanged so the FSM Established->Idle
 // transition handler in peer_run.go can suppress the duplicate session-dropped
 // error.
-func (p *Peer) IncrNotificationReceived(code, subcode uint8) {
+func (p *Peer) incrNotificationReceived(code, subcode uint8) {
 	p.counters.notificationsReceived.Add(1)
 	p.recordNotification(code, subcode, true)
 	raiseNotificationError("received", p.peerAddrLabel(), code, subcode)
@@ -322,9 +321,9 @@ func (p *Peer) touchLastWrite() {
 	p.counters.lastWriteTime.Store(p.clock.Now().UnixNano())
 }
 
-// SetEstablishedNow records the current time as session establishment time
+// setEstablishedNow records the current time as session establishment time
 // and increments the lifetime connections-established counter.
-func (p *Peer) SetEstablishedNow() {
+func (p *Peer) setEstablishedNow() {
 	p.counters.establishedAt.Store(p.clock.Now().UnixNano())
 	p.incrConnectionsEstablished()
 }

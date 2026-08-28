@@ -28,6 +28,22 @@
 
 ---
 
+## Build personalities
+
+The repository builds `ze` and `le` from the one `cmd/ze` codebase. The root
+`./ze` and `./le` launchers execute the cached `bin/ze` and `bin/le`
+personalities and build only when that cache is absent.
+
+Both personalities use the command registry and pipe engine. Their composition
+roots remain separate: a normal `ze` build imports no `internal/le` package,
+while the non-default `ze_le` build companion imports `internal/le/register.go`
+and exposes its inventory under `ze le`. Shipped builds do not enable `ze_le`.
+
+<!-- source: cmd/ze/ze_le_register.go -->
+<!-- source: internal/le/leroot/dispatch.go -- Dispatch -->
+
+---
+
 ## Overview
 
 Ze supports two operating modes:

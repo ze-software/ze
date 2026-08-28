@@ -1,4 +1,4 @@
-// Design: test/interop-ipsec/scenarios/*/check.py -- complete strongSwan assertions.
+// Design: complete typed assertions for every checked-in strongSwan scenario.
 // Detail: helpers.go -- bounded observations and fail-closed protocol queries.
 package ipsec
 
@@ -41,7 +41,7 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"responder-raises-child-rekey":   checkResponderRaisesChildRekey,
 }
 
-// ScenarioNames returns every typed checker name in lexical producer order.
+// ScenarioNames returns every typed checker name in lexical selection order.
 func ScenarioNames() []string {
 	names := make([]string, 0, len(scenarioCheckers))
 	for name := range scenarioCheckers {
@@ -197,6 +197,18 @@ func checkResponderPSK(ctx context.Context, lab *scenarioLab) error {
 	return lab.verifyTunnelTraffic(ctx, "no ESP traffic through the responder tunnel")
 }
 
+// RFC requirement: RFC9190-2.5-1 positive -- charon's client_process reads the
+// protected success indication, requires it to be exactly one octet equal to
+// 0, and logs this line only after it has accepted it
+// (src/libcharon/plugins/eap_tls/eap_tls.c). Its presence is another
+// implementation confirming, on the wire, that Ze sent the encrypted TLS
+// record with application data 0x00 the section demands.
+// RFC requirement: RFC9190-2.5-1 negative -- the same client refuses to
+// produce an MSK when the indication is absent, and says so:
+// get_msk logs "missing protected success indication for EAP-TLS with TLS
+// 1.3" and returns FAILED. MEASURED 2026-08-12 with tlsMethod.indicateSuccess
+// reverted: this line appears and wait_sa_established above times out, so the
+// assertion below is what names the cause rather than leaving a bare timeout.
 func checkResponderEAPTLS13(ctx context.Context, lab *scenarioLab) error {
 	if err := establish(ctx, lab); err != nil {
 		return err

@@ -1,13 +1,14 @@
-// Design: docs/architecture/core-design.md -- a selected gate, answered in this binary
-// Overview: docwiring.go -- the router that selects these
+// Design: docs/architecture/core-design.md -- selected native checks.
+// Overview: docwiring.go -- the router that selects these.
 //
-// delegate.go is where a selected gate is run. Every row calls a linked Go
-// owner. A target absent from the table is a programming error and is refused;
-// there is no process fallback.
+// Every row calls a linked Go owner. An action absent from the table is a
+// programming error and is refused; there is no process fallback.
 
 package docwiring
 
 import (
+	"strings"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/commandlist"
 	"github.com/ze-software/ze/internal/le/commandownership"
@@ -15,99 +16,79 @@ import (
 	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/docvalid"
-	"github.com/ze-software/ze/internal/le/functional"
 	"github.com/ze-software/ze/internal/le/inventory"
 	"github.com/ze-software/ze/internal/le/leroot"
 	"github.com/ze-software/ze/internal/le/pluginimports"
 	"github.com/ze-software/ze/internal/le/speccitation"
 )
 
-// call is one linked target invocation. The root is explicit for callbacks
-// whose owner exposes a tree-taking API. Registered command adapters ignore it
-// because their packages resolve the same checkout through lepath.
+// call is one linked action invocation. The root is explicit for callbacks
+// whose owner exposes a tree-taking API.
 type call struct {
 	answer func(root string) (any, int)
 }
 
-// registered adapts an existing native command entry point to the target table.
+// registered adapts an existing native command entry point.
 func registered(answer leroot.Answer, args []string) call {
 	return call{answer: func(string) (any, int) { return answer(args) }}
 }
 
-// goTargets is the complete selected target table. Keeping every target here
-// makes absence fail closed instead of turning into an undeclared process run.
-var goTargets = map[string]call{
-	"ze-command-contract-check":  registered(docvalid.Answer, []string{"command-contract-check"}),
-	"ze-command-ownership-check": registered(commandownership.Answer, nil),
-	"ze-doc-verify":              {answer: answerDocVerify},
-	"ze-doc-index-check":         {answer: answerDocIndex},
-	"ze-discovery-index-check":   registered(discoveryindex.Answer, []string{"check"}),
-	"ze-digest-check":            registered(digest.Answer, nil),
-	"ze-inventory-json":          registered(inventory.Answer, nil),
-	"ze-command-list-json":       registered(commandlist.Answer, nil),
-	"ze-plugin-imports-check":    registered(pluginimports.Answer, []string{"check"}),
-	"ze-templ-output-check":      {answer: answerTemplOutput},
-	// The selftest exercises every scan verdict on a known fixture. A scan after
-	// a failed selftest would use a checker already shown to be broken.
-	"ze-functional-docker-exec-check": registered(functional.Answer,
-		[]string{"docker-exec-selftest", "docker-exec-check"}),
-	"ze-spec-citation-check": {answer: answerSpecCitation},
+// goActions is the complete selected action table.
+var goActions = map[string]call{
+	"docvalid/command-contract": registered(docvalid.Answer, []string{"command-contract"}),
+	"command-ownership":         registered(commandownership.Answer, nil),
+	"doc-check/verify":          {answer: answerDocVerify},
+	"docs-to-code/index-check":  {answer: answerDocIndex},
+	"discovery-index/check":     registered(discoveryindex.Answer, []string{"check"}),
+	"digest":                    registered(digest.Answer, nil),
+	"inventory":                 registered(inventory.Answer, nil),
+	"command-list":              registered(commandlist.Answer, nil),
+	"plugin-imports/check":      registered(pluginimports.Answer, []string{"check"}),
+	"doc-check/templ-output":    {answer: answerTemplOutput},
+	"spec-citation/anchors":     {answer: answerSpecCitation},
 }
 
-// GoTargets answers the selected targets implemented in this binary. The
-// answer comes from the run table, so selection and implementation cannot use
-// separate inventories.
-func GoTargets() []string {
-	out := make([]string, 0, len(goTargets))
-	for target := range goTargets {
-		out = append(out, target)
+// goActionsList answers the selected actions implemented in this binary.
+func goActionsList() []string {
+	out := make([]string, 0, len(goActions))
+	for action := range goActions {
+		out = append(out, action)
 	}
 	return out
 }
 
-// runTarget calls one selected target. An absent callback is a structured
-// failure, never permission to run another program or to report success.
-func (g *gate) runTarget(target string) CheckResult {
-	one, ok := goTargets[target]
+// runAction calls one selected action. An absent callback is a structured
+// failure, never permission to run another program or report success.
+func (g *checker) runAction(action string) CheckResult {
+	one, ok := goActions[action]
 	if !ok || one.answer == nil {
 		var tb textbuf.Buffer
 		return CheckResult{
-			Failed:  true,
-			Code:    2,
-			Message: tb.Str("no native callback for target ").Str(target).String(),
+			Failed: true, Code: 2,
+			Message: tb.Str("no native callback for action ").Str(action).String(),
 		}
 	}
-	return g.runGoTarget(target, one)
+	return g.runGoAction(action, one)
 }
 
-// runGoTarget answers one selected gate by calling the package that owns it.
-//
-// The owner's non-zero code marks the target failed. The complete router keeps
-// its historical binary verdict: any selected-target failure answers 1.
-func (g *gate) runGoTarget(target string, one call) CheckResult {
+func (g *checker) runGoAction(action string, one call) CheckResult {
 	var tb textbuf.Buffer
 	payload, code := one.answer(g.root)
 	if code == 0 && payload == nil {
 		return CheckResult{
-			Failed:  true,
-			Code:    2,
-			Message: tb.Str(target).Str(" native callback returned no result").String(),
+			Failed: true, Code: 2,
+			Message: tb.Str(action).Str(" native callback returned no result").String(),
 		}
 	}
 	if code == 0 {
-		return CheckResult{
-			Message: tb.Str(target).Str(" PASSED").String(),
-			Output:  prose(payload),
-		}
+		return CheckResult{Message: tb.Str(action).Str(" PASSED").String(), Output: prose(payload)}
 	}
-
-	g.declareFailureGroup(target, nil,
-		tb.Str("delegated check ").Str(target).Str(" failed").String(),
-		tb.Reset().Str("make ").Str(target).String())
-
+	rerun := tb.Reset().Str("./le ").Str(strings.ReplaceAll(action, "/", " ")).String()
+	g.declareFailureGroup(action, nil,
+		tb.Reset().Str("delegated check ").Str(action).Str(" failed").String(), rerun)
 	return CheckResult{
 		Failed:  true,
-		Message: tb.Reset().Str(target).Str(" failed").String(),
+		Message: tb.Reset().Str(action).Str(" failed").String(),
 		Output:  prose(payload),
 	}
 }

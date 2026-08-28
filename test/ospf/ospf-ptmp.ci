@@ -12,66 +12,11 @@
 option=needs-linux:caps=net-admin
 option=netns-link:name=ptmp0:address=10.0.0.1/24
 
-tmpfs=ospf-ptmp.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert the runtime OSPF point-to-multipoint interface snapshot."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    result = dispatch(api, 'show ospf interface')
-    if result.get('status') != 'done':
-        runtime_fail(
-            f"show ospf interface: status={result.get('status')} "
-            f"data={result_text_data(result)[:200]}")
-    rows = result_json_data(result, None)
-    if not isinstance(rows, list):
-        runtime_fail(f"show ospf interface: expected list, got {rows!r}")
-
-    by_name = {row.get('name'): row for row in rows if isinstance(row, dict)}
-    row = by_name.get('ptmp0')
-    if row is None:
-        runtime_fail(f"missing ptmp0 in {rows!r}")
-    if row.get('network_type') != 'point-to-multipoint':
-        runtime_fail(f"ptmp0 network_type = {row.get('network_type')!r}, want point-to-multipoint")
-    # Point-to-multipoint takes the point-to-point ISM branch: no DR/BDR election.
-    if row.get('state') not in ('point-to-point', 'down'):
-        runtime_fail(f"ptmp0 state = {row.get('state')!r}, want point-to-point")
-    if row.get('dr') not in ('', '0.0.0.0'):
-        runtime_fail(f"ptmp0 elected a DR {row.get('dr')!r}; PtMP has no DR")
-
-    print('OK: OSPF point-to-multipoint interface renders with no DR', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-ptmp {
-		run ./ospf-ptmp.run
+		run "ze-test fixture ospf/ospf-ptmp"
 		encoder json
 	}
 }

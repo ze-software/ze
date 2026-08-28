@@ -3,7 +3,7 @@
 // actions.go is the Python area, ported. `le generate ze-arch-map-check`
 // selected one gate out of a GateSet; `le arch-map check` selects one action
 // out of the table below. The three fields the Gate carried travel with it: the
-// Make target it still is, the reason `--list` printed, and whether it WRITES.
+// retired Make target, the reason `--list` printed, and whether it WRITES.
 //
 // The dispatch, the listing, the help line and the two refusals live in
 // internal/le/leaction. What stays here is the TABLE, because the table is the only
@@ -22,17 +22,11 @@ const area = "arch-map"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-arch-map-check",
-		Why:    "the architecture lists in ai/INSTRUCTIONS.md are current with the tree",
-		Answer: func() (any, int) { return run(Check) },
-	},
-	leaction.Action{
-		Gate:   "ze-arch-map-update",
-		Why:    "regenerate the architecture lists in ai/INSTRUCTIONS.md",
+	leaction.Action{Verb: "check", Why: "the architecture lists in ai/INSTRUCTIONS.md are current with the tree",
+		Answer: func() (any, int) { return run(Check) }},
+	leaction.Action{Verb: "update", Why: "regenerate the architecture lists in ai/INSTRUCTIONS.md",
 		Writes: true,
-		Answer: func() (any, int) { return run(Update) },
-	},
+		Answer: func() (any, int) { return run(Update) }},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line

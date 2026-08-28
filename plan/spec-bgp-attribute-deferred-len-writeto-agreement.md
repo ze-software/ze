@@ -451,9 +451,9 @@ address FORM, because the form is what changes the count.
 4. **Phase: Allocation and gates**
    - Tests: `TestAttributeWriteToAllocatesNothing`
    - Files: `internal/core/bgp/attribute/simple_test.go`
-   - Verify: `make ze-unit-pkg-test PKG=./internal/core/bgp/attribute`,
-     `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor`,
-     `make ze-lint-changed`, `make ze-rfc-check`, and `make ze-doc-verify` if any doc
+   - Verify: `go test -race ./internal/core/bgp/attribute`,
+     `go test -race ./internal/component/bgp/reactor`,
+     `./le changed scope`, `./le rfc check`, and `./le doc-check verify` if any doc
      changed. Then record the red evidence table by reverting each fix in turn
 
 ### Critical Review Checklist
@@ -473,11 +473,11 @@ address FORM, because the form is what changes the count.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | No `AsSlice()` write remains in a fixed-width attribute field | `grep -n "AsSlice()" internal/core/bgp/attribute/simple.go internal/core/bgp/attribute/as4.go` shows no copy into an AGGREGATOR, AS4_AGGREGATOR or ORIGINATOR_ID field |
-| The invariant holds package-wide | `make ze-unit-pkg-test PKG=./internal/core/bgp/attribute` |
-| The announce plan refuses an unencodable NEXT_HOP | `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor` |
+| The invariant holds package-wide | `go test -race ./internal/core/bgp/attribute` |
+| The announce plan refuses an unencodable NEXT_HOP | `go test -race ./internal/component/bgp/reactor` |
 | Red evidence for every new test | The red evidence table in this spec, filled with the actual failure lines |
-| The RFC ledger is unchanged | `make ze-rfc-check` |
-| Lint clean | `make ze-lint-changed` |
+| The RFC ledger is unchanged | `./le rfc check` |
+| Lint clean | `./le changed scope` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -491,7 +491,7 @@ address FORM, because the form is what changes the count.
 |---------|----------|
 | Compilation error | Fix in the phase that introduced it |
 | A new test fails for the wrong reason (compile, fixture) | Fix the test setup. A red that is not the canary or the count is not the red this spec asks for |
-| `make ze-rfc-check` goes red after a test edit | Remove any `RFC requirement:` tag you added and keep the plain RFC citation comment. The ledger is out of scope for this spec |
+| `./le rfc check` goes red after a test edit | Remove any `RFC requirement:` tag you added and keep the plain RFC citation comment. The ledger is out of scope for this spec |
 | An existing reactor test fails on the NEXT_HOP refusal | Re-read A-4. A valid address must return nil from `ValidateNextHops` |
 | A doc anchor claim is contradicted by the fix | Update that claim with a source anchor, in the same commit |
 | 3 fix attempts failed | STOP. Report all 3 approaches in the handoff. Do not weaken a test to reach green |
@@ -543,7 +543,7 @@ Add the citation above the enforcing code:
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes, or the shared-checkout evidence path in `ai/rules/git-safety.md` is followed with attribution
+- [ ] `./le verify current mode full` passes, or the shared-checkout evidence path in `ai/rules/git-safety.md` is followed with attribution
 - [ ] Feature code integrated (`internal/*`), not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -563,7 +563,7 @@ Add the citation above the enforcing code:
 ### Closure
 - [ ] Status set to `verification` after the implementation commit, and the session stops (Handoff `verify`)
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

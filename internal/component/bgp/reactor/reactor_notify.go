@@ -275,11 +275,11 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		if direction == rpc.DirectionReceived {
 			switch msgType { //nolint:exhaustive // only counting updates and keepalives
 			case msgtype.TypeUPDATE:
-				peer.IncrUpdatesReceived()
+				peer.incrUpdatesReceived()
 				// Additionally count EOR as a subset of updates.
 				if wireUpdate != nil {
 					if _, isEOR := wireUpdate.IsEOR(); isEOR {
-						peer.IncrEORReceived()
+						peer.incrEORReceived()
 						// Cancel EOR timeout warning (AC-11).
 						if peer.health != nil {
 							peer.health.onEORReceived()
@@ -293,13 +293,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 					}
 				}
 			case msgtype.TypeKEEPALIVE:
-				peer.IncrKeepalivesReceived()
+				peer.incrKeepalivesReceived()
 			}
 		} else {
 			switch msgType { //nolint:exhaustive // only counting updates and keepalives
 			case msgtype.TypeUPDATE:
-				peer.IncrUpdatesSent()
-				// EOR sent is counted at BuildEOR call sites via IncrEORSent()
+				peer.incrUpdatesSent()
+				// EOR sent is counted at BuildEOR call sites via incrEORSent()
 				// because wireUpdate is nil for sent messages.
 			case msgtype.TypeKEEPALIVE:
 				peer.incrKeepalivesSent()

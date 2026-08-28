@@ -204,7 +204,7 @@ func (p *Peer) runOnce() error {
 	runOnceStart := p.clock.Now()
 
 	// Reset notification-exchanged flag for the new session lifecycle.
-	// IncrNotificationSent / IncrNotificationReceived will set it true if a
+	// incrNotificationSent / incrNotificationReceived will set it true if a
 	// NOTIFICATION is sent or received before the FSM leaves Established;
 	// the FSM transition handler reads it to decide whether to raise the
 	// session-dropped error.
@@ -232,8 +232,8 @@ func (p *Peer) runOnce() error {
 	// session so each session lands in a file whose header names the peer, the
 	// start time, and whether the coalesced read path was active.
 	capture := p.startCapture(session)
-	session.onNotifSent = p.IncrNotificationSent
-	session.onNotifRecv = p.IncrNotificationReceived
+	session.onNotifSent = p.incrNotificationSent
+	session.onNotifRecv = p.incrNotificationReceived
 	session.onOpenSent = p.incrOpensSent
 	session.onOpenRecv = p.incrOpensReceived
 	session.onRefreshRecv = p.incrRefreshReceived
@@ -254,7 +254,7 @@ func (p *Peer) runOnce() error {
 	// The seal is re-read HERE, in the same hold of p.mu that publishes the
 	// session, and the pairing is what makes the answer ordered instead of
 	// raced. Reactor.stop marks every peer and then reads p.session under this
-	// same lock, through sealSession and ShutdownNotify (peer.go), so:
+	// same lock, through sealSession and shutdownNotify (peer.go), so:
 	//
 	//   - if that read got in first, the mark happened-before this lock and this
 	//     load returns true, so no session is ever published and nothing below
@@ -426,7 +426,7 @@ func (p *Peer) runOnce() error {
 			p.negotiated.Store(NewNegotiatedCapabilities(neg))
 			p.setEncodingContexts(neg)
 			p.setState(PeerStateEstablished)
-			p.SetEstablishedNow()
+			p.setEstablishedNow()
 
 			// Start EOR timeout if GR was negotiated (AC-11).
 			if p.health != nil && neg != nil && neg.GracefulRestart != nil {
@@ -457,7 +457,7 @@ func (p *Peer) runOnce() error {
 			// the KNOWN DEFECT in sendInitialRoutes (peer_initial_sync.go)
 			// therefore survive -- that raw rail, and the overcount where the
 			// hold waits out its whole timeout for a permitted plugin that never
-			// signals plugin-session-ready while keeping ShouldQueue true. Read
+			// signals plugin-session-ready while keeping shouldQueue true. Read
 			// that note before changing either.
 			apiSendCount := 0
 			for _, binding := range p.settings.ProcessBindings {
@@ -465,7 +465,7 @@ func (p *Peer) runOnce() error {
 					apiSendCount++
 				}
 			}
-			p.ResetAPISync(apiSendCount)
+			p.resetAPISync(apiSendCount)
 
 			// Reset the peer-up barrier for this session BEFORE plugins are
 			// notified below: the dispatcher raises its expected count and the
@@ -474,7 +474,7 @@ func (p *Peer) runOnce() error {
 			p.ResetPeerUpBarrier()
 
 			// The initial-sync gate is already closed: p.setState above closes it
-			// in the same call that publishes PeerStateEstablished, so ShouldQueue()
+			// in the same call that publishes PeerStateEstablished, so shouldQueue()
 			// is true here and stays true through the notifications below. It used
 			// to be closed at THIS line instead, which left every line between the
 			// publication and here as a window in which an established peer's route
@@ -638,7 +638,7 @@ func (p *Peer) cleanup() {
 	// was therefore always false, and the Session.Close it guarded -- the one
 	// place that built the shutdown NOTIFICATION -- had no reachable caller at
 	// all. The send now happens in Reactor.Stop, before the cancel that makes
-	// every downstream guard false (reactor.go, ShutdownNotify in peer.go).
+	// every downstream guard false (reactor.go, shutdownNotify in peer.go).
 	inbound := p.inboundConn
 	p.inboundConn = nil
 	p.cancel = nil

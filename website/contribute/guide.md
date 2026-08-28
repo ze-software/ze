@@ -30,7 +30,7 @@ Ze is built spec by spec, and that shapes how contributions flow:
 ```bash
 git clone https://github.com/ze-software/ze.git
 cd ze
-make build          # builds bin/ze
+go build -o bin/ze ./cmd/ze
 bin/ze init         # set up local credentials
 bin/ze cli          # connect to the CLI
 ```
@@ -45,7 +45,7 @@ in the repository.
 
 - **Tests come with it.** Ze is test-driven; a change without tests is not
   finished.
-- **`make ze-precommit-verify` passes.** That is the gate the maintainer runs, so run it
+- **`./le verify current mode full` passes.** That is the gate the maintainer runs, so run it
   yourself before you submit.
 - **It arrives in one piece.** Code, tests, and documentation together, not a
   code change now with the docs to follow.

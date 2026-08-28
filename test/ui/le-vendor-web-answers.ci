@@ -1,165 +1,27 @@
 # Test: the BUILT le binary runs the three vendored-web gates over the real
-#       checkout, reports what the scripts report, and answers as data.
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#       checkout, reports their native contract, and answers as data.
 #
-# The three gates are three ACTIONS of one command, the way the Python le held
-# them as three gates of one area. `le vendor-web` with no action lists them
-# with the writes marker each carries, which is what `le <area> --list` printed.
+# The three gates are three ACTIONS of one command. `le vendor-web` with no
+# action lists them with the writes marker carried by the writing action.
 #
 # VALIDATES: spec-le-is-a-ze-binary AC-11 over the REAL TREE, and AC-7 for the
 #            three commands, against the artifact a developer runs.
-# PREVENTS: a port that agrees with the scripts on fixtures and disagrees on the
-#           checkout. The fixture trees hold seven files; this one holds 3.6 MB
-#           of vendored assets across four consumers, one of them reached by a
-#           targeted rule no fixture exercises.
+# PREVENTS: a port that passes on tiny fixture trees and disagrees on the
+#           checkout. The checkout has megabytes of vendored assets across four
+#           consumers, including a targeted rule not exercised by small trees.
 #
-# The WRITING gate is driven over two COPIES of the vendored subtrees, never
-# over the checkout: a test that writes into the tree it is run from can leave a
-# developer with a dirty working directory it did not explain. Each copy has one
-# consumer file corrupted, so both runs must WRITE, and both resulting trees are
-# compared byte for byte. An output comparison alone would pass a sync that
-# printed the right lines and wrote the wrong bytes.
+# The WRITING gate runs over two COPIES of the vendored subtrees, never over the
+# checkout. Each copy has one consumer file corrupted, so both runs must WRITE.
+# Their output and resulting trees are compared, every resulting file must equal
+# its pristine copy, and the targeted consumer must equal its vendored source.
+# The checkout's relevant subtrees are also verified byte for byte afterward.
 #
-# Both sides are compiled here rather than by the runner, which builds only ze
-# and ze-test (internal/test/runner/runner.go, setupBinShims).
-#
-# The timeout is DECLARED because three cold builds precede two tree copies.
+# The fixture compiles le directly because the runner builds only ze and
+# ze-test. The timeout covers a cold build, two tree copies, and all gate runs.
 
 option=timeout:value=300s
 
-tmpfs=run.py:terminator=EOF_PY
-"""Compile both sides of the migration and check that they agree."""
-import json
-import os
-import shutil
-import subprocess
-import sys
-
-
-def require(condition, message):
-    if not condition:
-        raise SystemExit(f'FAIL: {message}')
-
-
-root = os.environ['ZE_REPO_ROOT']
-here = os.getcwd()
-binary = os.path.join(here, 'le')
-check_script = os.path.join(here, 'check_web')
-sync_script = os.path.join(here, 'sync_web')
-
-for args in (['make', '--no-print-directory', 'le-build',
-              f'ZE_BIN_DIR={os.path.dirname(binary)}'],
-             ['go', 'build', '-o', check_script, 'scripts/vendor/check_web.go'],
-             ['go', 'build', '-o', sync_script, 'scripts/vendor/sync_web.go']):
-    built = subprocess.run(args, cwd=root, capture_output=True, text=True, check=False)
-    require(built.returncode == 0, f'{" ".join(args)} failed: {built.stderr}')
-
-
-def normalize(text, tree):
-    """Two runs over two trees are comparable once the path and the program name are out."""
-    text = text.replace(tree, '<root>')
-    for prefix in ('check_web: ', 'sync_web: ', 'error: '):
-        text = text.replace(prefix, '')
-    return text
-
-
-def compare(name, old, old_root, new, new_root):
-    require(old.returncode == new.returncode,
-            f'{name}: the script exited {old.returncode} and the command exited {new.returncode}\n'
-            f'script stderr: {old.stderr}\ncommand stderr: {new.stderr}')
-    require(normalize(old.stdout, old_root) == normalize(new.stdout, new_root),
-            f'{name}: stdout differs\nscript:\n{old.stdout}\ncommand:\n{new.stdout}')
-    require(normalize(old.stderr, old_root) == normalize(new.stderr, new_root),
-            f'{name}: stderr differs\nscript:\n{old.stderr}\ncommand:\n{new.stderr}')
-
-
-# --- the read-only gate, over the checkout itself ---
-
-old = subprocess.run([check_script, '--root', root], cwd=root, capture_output=True, text=True, check=False)
-new = subprocess.run([binary, 'vendor-web', 'check'], cwd=here, capture_output=True, text=True, check=False)
-compare('vendor-web check', old, root, new, root)
-require('consumer copies' in new.stdout, f'the command reported no verdict:\n{new.stdout}')
-
-# --- one payload, every rendering. Nothing in the tool writes a line of JSON ---
-
-answer = subprocess.run([binary, 'vendor-web', 'check', '|', 'json'], cwd=here,
-                        capture_output=True, text=True, check=False)
-try:
-    report = json.loads(answer.stdout)
-except json.JSONDecodeError as exc:
-    raise SystemExit(f'FAIL: `le vendor-web check | json` did not answer JSON: {exc}\n{answer.stdout[:400]}') from exc
-
-for key in ('problems', 'compared', 'skipped', 'drift-checked'):
-    require(key in report, f'the report answered no {key!r} key: {sorted(report)}')
-require(report['compared'] > 0, f"the report compared {report['compared']} copies, so it proved nothing")
-require(answer.returncode == new.returncode,
-        f'`| json` exited {answer.returncode} and the bare command exited {new.returncode}')
-
-counted = subprocess.run([binary, 'vendor-web', 'check', '|', 'count'], cwd=here,
-                         capture_output=True, text=True, check=False)
-require(str(len(report['problems'])) in counted.stdout,
-        f"`le vendor-web check | count` answered {counted.stdout!r}, want {len(report['problems'])}")
-
-# --- the listing says which action WRITES, where a developer chooses one ---
-
-listing = subprocess.run([binary, 'vendor-web'], cwd=here, capture_output=True, text=True, check=False)
-require(listing.returncode == 0, f'`le vendor-web` exited {listing.returncode}: {listing.stderr}')
-for wanted in ('check', 'sync', 'update-report', 'writes', 'checks'):
-    require(wanted in listing.stdout, f'the listing does not name {wanted!r}:\n{listing.stdout}')
-for line in listing.stdout.splitlines():
-    if line.strip().startswith('sync '):
-        require('writes' in line, f'the sync action is not marked as writing: {line!r}')
-
-# --- the writing gate, over two copies of the vendored subtrees ---
-
-CORRUPTED = 'internal/component/web/assets/htmx.min.js'
-
-trees = []
-for name in ('script-tree', 'command-tree'):
-    tree = os.path.join(here, name)
-    os.makedirs(tree, exist_ok=True)
-    shutil.copytree(os.path.join(root, 'third_party', 'web'),
-                    os.path.join(tree, 'third_party', 'web'))
-    for consumer in ('internal/chaos/web/assets', 'internal/component/lg/assets',
-                     'internal/component/web/assets', 'internal/component/api/rest/assets'):
-        shutil.copytree(os.path.join(root, consumer), os.path.join(tree, consumer))
-    with open(os.path.join(tree, CORRUPTED), 'w', encoding='utf-8') as handle:
-        handle.write('// an edited consumer copy\n')
-    trees.append(tree)
-
-script_tree, command_tree = trees
-
-old = subprocess.run([sync_script, '--root', script_tree], cwd=script_tree,
-                     capture_output=True, text=True, check=False)
-new = subprocess.run([binary, 'vendor-web', 'sync'], cwd=here, capture_output=True, text=True,
-                     check=False, env=dict(os.environ, ZE_REPO_ROOT=command_tree))
-compare('vendor-web sync', old, script_tree, new, command_tree)
-require('synced:' in new.stdout, f'the sync wrote nothing, so this case proves nothing:\n{new.stdout}')
-
-
-def digest(tree):
-    out = {}
-    for base, _, names in os.walk(tree):
-        for name in names:
-            path = os.path.join(base, name)
-            with open(path, 'rb') as handle:
-                out[os.path.relpath(path, tree)] = handle.read()
-    return out
-
-
-script_files, command_files = digest(script_tree), digest(command_tree)
-differing = [path for path in sorted(set(script_files) | set(command_files))
-             if script_files.get(path) != command_files.get(path)]
-require(not differing, f'the two runs left different trees behind: {differing[:10]}')
-
-with open(os.path.join(command_tree, CORRUPTED), 'rb') as handle:
-    restored = handle.read()
-with open(os.path.join(root, 'third_party', 'web', 'htmx', 'htmx.min.js'), 'rb') as handle:
-    source = handle.read()
-require(restored == source, f'{CORRUPTED} was not restored from its third_party/web source')
-
-print('OK')
-EOF_PY
-
-cmd=foreground:seq=1:exec=python3 run.py
+cmd=foreground:seq=1:exec=ze-test fixture ui/le-vendor-web-answers
 expect=exit:code=0
 expect=stdout:contains=OK

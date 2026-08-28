@@ -3,47 +3,6 @@
 # VALIDATES: AC-10/AC-15 -- per-client secrets extracted from config tree.
 # PREVENTS: Hub unable to authenticate managed clients from config.
 
-tmpfs=test-per-client-auth.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
 
-touch daemon.ready
-
-INIT_DIR=$(mktemp -d)
-DB="$INIT_DIR/database.zefs"
-trap 'rm -rf "$INIT_DIR"' EXIT
-
-# Init a database
-printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
-
-# Validate the config with named server blocks and client entries
-ze config validate - <<'CONF' 2>&1 || {
-bgp { peer p1 { connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; } } session { asn { remote 1; local 1; } router-id 1.2.3.4; } } }
-plugin {
-    hub {
-        server local {
-            ip 127.0.0.1;
-            port 1790;
-            secret "local-secret-that-is-at-least-32ch";
-        }
-        server central {
-            ip 0.0.0.0;
-            port 1791;
-            secret "central-secret-that-is-at-least32";
-            client edge-01 {
-                secret "edge01-secret-that-is-at-least-32";
-            }
-        }
-    }
-}
-CONF
-    echo "FAIL: config validation failed" >&2
-    exit 1
-}
-
-echo "OK: per-client auth config parses correctly" >&2
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-per-client-auth.sh:timeout=10s
+cmd=foreground:seq=1:exec=ze-test fixture managed/per-client-auth:timeout=10s
 expect=exit:code=0

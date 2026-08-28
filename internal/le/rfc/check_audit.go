@@ -16,7 +16,7 @@ import (
 var noteIdentRE = regexp.MustCompile(`[A-Za-z_][A-Za-z0-9_]{4,}`)
 
 func checkAuditFiles(tree string, enrolled, stems map[string]bool) ([]string, error) {
-	auditStems, err := AuditStems(tree)
+	auditStems, err := auditStems(tree)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func checkAuditFreshness(requirements []Requirement, states map[string]Freshness
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
 				Str(" has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (").Str(detail).
-				Str("), so nothing was re-judged. Re-stamp it mechanically: make ze-rfc-reseal").String())
+				Str("), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal").String())
 		case StaleRequirementState:
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
@@ -182,7 +182,7 @@ func checkAuditFreshness(requirements []Requirement, states map[string]Freshness
 			}
 			errs = append(errs, tb.Reset().Str(where).Str(": ").Str(req.RID).
 				Str(" has a STALE audit verdict -- what it judged changed: ").Str(detail).
-				Str(". This is NOT a line shift and make ze-rfc-reseal will refuse it. Re-read ").Str(req.RFC).Str(" with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)").String())
+				Str(". This is NOT a line shift and ./le rfc reseal will refuse it. Re-read ").Str(req.RFC).Str(" with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)").String())
 		}
 	}
 	return errs
@@ -288,7 +288,7 @@ func checkAuditVerdictRatchet(requirements []Requirement, enrolled map[string]bo
 		}
 		seen[req.RID] = true
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" carried a verdict at HEAD and carries none now. Audit coverage is monotonic per requirement id: a judgement that was made cannot be un-made by deleting it. Re-judge it (the ze-rfc-audit skill, ai/skills/ze-rfc-audit.md) or re-stamp it (make ze-rfc-reseal) -- removal is not an option").String())
+		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" carried a verdict at HEAD and carries none now. Audit coverage is monotonic per requirement id: a judgement that was made cannot be un-made by deleting it. Re-judge it (the ze-rfc-audit skill, ai/skills/ze-rfc-audit.md) or re-stamp it (./le rfc reseal) -- removal is not an option").String())
 	}
 	return errs
 }

@@ -14,29 +14,12 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00480200000031400101
 EOF_PEER
 
 # Plugin script sends the responder's rendered announce command.
-tmpfs=ddos-flowspec-announce.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
-
-
-def main() -> None:
-    ready()
-    send('peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24')
-    send('peer * update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 192.0.2.0/24 protocol =6 destination-port =80')
-    wait_for_ack(expected_count=2)
-    wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external ddos-flowspec-announce {
-		run ./ddos-flowspec-announce.run
+		run "ze-test fixture plugin/ddos-flowspec-announce"
 		encoder json
 	}
 }

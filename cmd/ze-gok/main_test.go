@@ -35,8 +35,8 @@ func writeInstanceFixture(t *testing.T) (root, parent string) {
 // copy under the project tmp/ before gok sees it, in both pflag spellings, and
 // that the copy carries the builddir pins.
 //
-// VALIDATES: AC-13 and D-1c -- `make ze-gokrazy-build` gets a prepared instance with no
-// change to mk/build-gokrazy.mk.
+// VALIDATES: AC-13 and D-1c -- `./ze appliance build` gets a prepared instance with no
+// change to internal/appliance/cmd_build.go.
 // PREVENTS: an image build running from, or writing to, the tracked gokrazy dir.
 func TestZeGokPreparesParentDir(t *testing.T) {
 	for _, tc := range []struct {
@@ -190,11 +190,11 @@ func TestZeGokFailsClosedOnUnpreparableParentDir(t *testing.T) {
 }
 
 // TestZeGokPassesKernelPackage verifies the out-of-tree kernel selected by
-// `make ze-gokrazy-build KERNEL_PKG=...` reaches the prepared instance, and that
+// `./ze appliance build KERNEL_PKG=...` reaches the prepared instance, and that
 // leaving it unset builds the pinned kernel.
 //
 // This is the wiring proof for AC-7/AC-8 at the entry point an operator actually
-// uses. It replaces `make ze-kernel-build` writing a replace into the tracked
+// uses. It replaces `./ze appliance kernel --target runtime` writing a replace into the tracked
 // gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod, which dirtied the working
 // tree and persisted until ze-kernel-clean was remembered.
 //

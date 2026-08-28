@@ -363,9 +363,9 @@ func TestTheFileRecordsTheFactsItCannotDerive(t *testing.T) {
 }
 
 // TestRenderPublishesWhatTheSiteShows holds this package's idea of a published
-// figure to the site's own. Every string below was measured from fmt_int
-// (website/tools/sitefacts.py), because a check judging by another rule would
-// report a page stale that no reader can see change.
+// figure to internal/le/sitebuild's. Every string below is a published boundary,
+// because a check judging by another rule would report a page stale that no
+// reader can see change.
 func TestRenderPublishesWhatTheSiteShows(t *testing.T) {
 	for value, want := range map[int]string{
 		0:       "0",
@@ -451,8 +451,8 @@ func TestCheckNamesTheStaleFactAndTheFix(t *testing.T) {
 	if got.Committed != "40" || got.Derived != "1" {
 		t.Errorf("the gate reported committed %q derived %q, want \"40\" and \"1\"", got.Committed, got.Derived)
 	}
-	if !strings.Contains(report.Fix, "ze-site-facts-update") {
-		t.Errorf("the gate offers %q as the fix, which names no action to run", report.Fix)
+	if !strings.Contains(report.Fix, "./le site-facts update") {
+		t.Errorf("the check offers %q as the fix, which names no action to run", report.Fix)
 	}
 	if !strings.Contains(report.Text(), "repo.design_comments") {
 		t.Errorf("the rendering a person reads is %q, and it does not name the stale fact", report.Text())

@@ -50,75 +50,11 @@ expect=bgp:conn=1:seq=1:contains=800E1C00020110FD0000000000000000000000000000020
 expect=bgp:conn=1:seq=1:contains=800E1C00020110FD0000000000000000000000000000020030200100040112
 EOF_PEER6
 
-# Python observer plugin: drive `fakeas112 emit add asn 112`, then exit.
-tmpfs=as112-announce-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-from ze_api import API, runtime_fail, result_json_data
-
-PEERS = (('peer4', '127.0.0.1'), ('peer6', '::1'))
-
-
-def dispatch(api, command):
-    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
-
-
-def peer_field(api, name, addr, field, default):
-    result = dispatch(api, f'show bgp peer {name} detail').get('result', {})
-    if result.get('status') != 'done':
-        return default
-    data = result_json_data(result, {})
-    return data.get('peers', {}).get(addr, {}).get(field, default)
-
-
-def wait_all(api, predicate, what, cycles=100):
-    for _ in range(cycles):
-        if all(predicate(name, addr) for name, addr in PEERS):
-            return
-        api.wait_for_event(timeout=0.2)
-    runtime_fail(f'timeout waiting for {what}')
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Both sessions established with initial EOR sent (EOR counts into
-    # updates-sent, so baseline each counter only after its EOR settles).
-    wait_all(api, lambda n, a: peer_field(api, n, a, 'state', '') == 'established',
-             'both peers established')
-    wait_all(api, lambda n, a: peer_field(api, n, a, 'eor-sent', 0) >= 1,
-             'initial EOR sent on both sessions')
-    base = {n: peer_field(api, n, a, 'updates-sent', 0) for n, a in PEERS}
-
-    resp = dispatch(api, 'request fakeas112 emit add asn 112')
-    result = resp.get('result', {})
-    if result.get('status') != 'done':
-        runtime_fail(f'request fakeas112 emit failed: {result}')
-        return
-
-    # Each session carries its own family's covering prefixes; once the engine
-    # counts the sent UPDATEs, TCP FIFO delivers them before shutdown.
-    wait_all(api,
-             lambda n, a: peer_field(api, n, a, 'updates-sent', 0) >= base[n] + 1,
-             'covering-prefix UPDATEs on both wires')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external as112-announce-test {
-		run ./as112-announce-test.run
+		run "ze-test fixture plugin/redistribute-as112-announce"
 		encoder json
 	}
 	internal redistribute-orchestrator {

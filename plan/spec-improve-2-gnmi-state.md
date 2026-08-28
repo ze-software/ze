@@ -175,7 +175,7 @@ is a Ze strength to preserve.
 2. **Phase: Get DataType dispatch** - CONFIG regression-locked, STATE fanout
 3. **Phase: ALL merge + deadlines**
 4. **Phase: first two real providers** (BGP peers, interfaces)
-5. Functional tests, `make ze-precommit-verify`, learned summary, two-commit closure
+5. Functional tests, `./le verify current mode full`, learned summary, two-commit closure
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -248,7 +248,7 @@ is a Ze strength to preserve.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 
 ### TDD
 - [ ] Tests written

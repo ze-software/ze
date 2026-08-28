@@ -62,7 +62,7 @@ func daemonBuildArgsTo(tree, outRel string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []string{"build", "-tags", tags, "-o", filepath.Join(tree, outRel), "./cmd/ze"}, nil
+	return []string{"build", goBuildTagsArg, tags, "-o", filepath.Join(tree, outRel), "./cmd/ze"}, nil
 }
 
 // errBuildFailed is the error a caller receives when the toolchain refuses the

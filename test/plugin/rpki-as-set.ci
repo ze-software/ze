@@ -5,80 +5,14 @@
 # ze-peer: send route 10.0.1.0/24 with AS_SET {65001} (not AS_SEQUENCE)
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
+option=linger:value=true
 option=timeout:value=15s
 option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65001:next-hop=10.0.0.1:as-set=true
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=rpki-asset-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, result_text_data, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def vrp_count(api):
-    d = result_json_data(dispatch(api, 'show bgp rpki status'), {})
-    return d.get('vrp-count-ipv4', 0) if isinstance(d, dict) else 0
-
-def updates_received(api):
-    r = dispatch(api, 'show bgp peer peer1 detail')
-    return r.get('data', {}).get('peers', {}).get('127.0.0.1', {}).get('updates-received', 0)
-
-def wait_until(api, pred, cycles=150):
-    for _ in range(cycles):
-        if pred():
-            return True
-        api.wait_for_event(timeout=0.2)
-    return False
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Deterministic replacement for sleep(4.0): wait for RTR sync (VRP loaded) so
-    # validation has data, then for ze to receive the UPDATE, then quiesce so the
-    # RPKI validation decision has drained before asserting the route is absent.
-    if not wait_until(api, lambda: vrp_count(api) >= 1):
-        print('FAIL: RTR never synced a VRP', file=sys.stderr)
-        sys.exit(1)
-    if not wait_until(api, lambda: updates_received(api) >= 1):
-        print('FAIL: ze never received the UPDATE', file=sys.stderr)
-        sys.exit(1)
-    api.quiesce()
-
-    try:
-        result = dispatch(api, 'show bgp rib received')
-        if result.get('status') != 'done':
-            print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-
-        data = result_text_data(result)
-        # AS_SET -> OriginNone -> covered prefix -> Invalid -> rejected
-        if '10.0.1.0/24' in data:
-            print(f'FAIL: route with AS_SET should be rejected: {data}', file=sys.stderr)
-            sys.exit(1)
-
-        print('OK: route with AS_SET correctly rejected (OriginNone -> Invalid)', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# Native compiled fixture: plugin/rpki-as-set
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	hub {
@@ -89,7 +23,7 @@ plugin {
 		}
 	}
 	external rpki-asset-test {
-		run ./rpki-asset-test.run
+		run "ze-test fixture plugin/rpki-as-set"
 		encoder json
 	}
 	internal rpki {

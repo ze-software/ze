@@ -28,20 +28,20 @@ is unavoidable states the case and STOPS; it does not add its own row.
 
 ## What this governs, and what it does not
 
-It governs **Ze code**: anything under `cmd/`, `internal/`, `pkg/` and
-`scripts/evidence/`, in any build, on any platform. A binary Ze ships or a
-diagnostic Ze ships is Ze.
+It governs shipped **Ze code**: anything under `cmd/`, `pkg/` and `internal/`
+except the native developer harness in `internal/le/`, in any build and on any
+platform. A binary Ze ships or a diagnostic Ze ships is Ze.
 
-It does NOT govern the build and test harness. `Makefile`, `mk/`, `scripts/dev/`,
-`test/` runners and `.ci` fixtures drive a developer machine and a CI runner,
-where the toolchain is present by construction and calling it is the point.
+It does NOT govern the native build and test harness in `internal/le/`, `test/`
+runners or `.ci` fixtures. They drive a developer machine and a CI runner, where
+the toolchain is present by construction and calling it is the point.
 
 ## The three questions before asking for a row
 
 1. **What does the kernel interface say?** `vishvananda/netlink` covers links,
    routes, addresses, qdiscs and generic netlink families. A family it does not
    wrap is still reachable: build the request by hand, as
-   `scripts/evidence/l2tp-tunnel-diag/main.go` does for L2TP, which the library
+   `internal/le/deployment/l2tpdiag_linux.go` does for L2TP, which the library
    does not support at all.
 2. **Is the answer a file?** `/proc` and `/sys` answer most questions a
    command-line tool answers, and `os.ReadFile` needs no binary present.

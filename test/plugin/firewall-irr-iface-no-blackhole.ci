@@ -36,51 +36,11 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=20s
 
-tmpfs=firewall-irr-no-blackhole.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify an empty IRR answer never leaves an interface dropping everything."""
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    if result.get('status') != 'done':
-        runtime_fail(f'initial update failed: {result}')
-    if result_json_data(result, {}).get('ipv4-count', 0) < 1:
-        runtime_fail('expected v4 prefixes on the first refresh')
-
-    # The server now answers "key not found" for every query.
-    result = api.dispatch_until_done('update firewall irr as-set AS-TEST')
-    if result.get('status') == 'done':
-        runtime_fail('a refresh that learned nothing reported success')
-
-    result = api.dispatch_until_done('show firewall ruleset irr_iface')
-    if result.get('status') != 'done':
-        runtime_fail(f'ruleset dump failed: {result}')
-    dumped = str(result_json_data(result, {}))
-    if 'iface_eth1_v4' not in dumped:
-        runtime_fail(f'eth1 lost its accept rule, so its drop rule blackholes the port: {dumped}')
-
-    print('OK: eth1 keeps its accept rule after an empty IRR answer', file=sys.stderr)
-
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-no-blackhole-test {
-		run ./firewall-irr-no-blackhole.run
+		run "ze-test fixture plugin/firewall-irr-iface-no-blackhole"
 		encoder json
 	}
 }

@@ -23,8 +23,8 @@ type drainBudget struct {
 }
 
 const (
-	generatedMissingSuffix = " is missing -- run: make ze-rfc-index-update"
-	generatedStaleSuffix   = " is stale vs its sources -- run: make ze-rfc-index-update"
+	generatedMissingSuffix = " is missing -- run: ./le rfc index-update"
+	generatedStaleSuffix   = " is stale vs its sources -- run: ./le rfc index-update"
 )
 
 func checkExtractionRatchet(tree string, current map[string]Extraction) []string {
@@ -71,7 +71,7 @@ func checkExtractionRatchetAgainst(current map[string]Extraction,
 		}
 		if art.ResignReason == was.resignReason {
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(art.Path).Str(": exclusions rose from ").Int(int64(was.excluded)).Str(" to ").Int(int64(art.Excluded())).Str(", but 'resign-reason' is unchanged from the previous sign-off (").Str(pyRepr(truncateRunes(was.resignReason, 60))).Str("). It is carried forward automatically by make ze-rfc-extraction-create, so an unchanged reason justifies the EARLIER walk, not this one. Say what this walk found that raised the exclusions").String())
+			errs = append(errs, tb.Str(art.Path).Str(": exclusions rose from ").Int(int64(was.excluded)).Str(" to ").Int(int64(art.Excluded())).Str(", but 'resign-reason' is unchanged from the previous sign-off (").Str(pyRepr(truncateRunes(was.resignReason, 60))).Str("). It is carried forward automatically by ./le rfc extraction-create, so an unchanged reason justifies the EARLIER walk, not this one. Say what this walk found that raised the exclusions").String())
 		}
 	}
 	return errs
@@ -162,8 +162,8 @@ func checkDrainFloor(tree string, enrolled map[string]bool, signed map[string]Ex
 	if err != nil {
 		return []string{err.Error()}
 	}
-	credited := Credited(signed, enrolled)
-	counts := RegisterCounts(credited)
+	credited := credited(signed, enrolled)
+	counts := registerCounts(credited)
 	total := len(credited)
 	backlog := len(enrolled) - total
 	if budget.rate > float64(len(enrolled)) {
@@ -175,7 +175,7 @@ func checkDrainFloor(tree string, enrolled map[string]bool, signed map[string]Ex
 		return nil
 	}
 	var tb textbuf.Buffer
-	return []string{tb.Str("rfc/drain-budget.txt: the drain schedule requires ").Int(int64(floor)).Str(" extraction sign-off(s) by now (rate ").Str(formatRate(budget.rate)).Str("/calendar month since ").Str(budget.start.Format("2006-01-02")).Str(", capped at the ").Int(int64(len(enrolled))).Str(" enrolled RFC(s)), and there are ").Int(int64(total)).Str(" (").Str(registerPhrase(counts)).Str("; every register counts, umbrella D6), leaving ").Int(int64(backlog)).Str(" unsigned. Walk another RFC: make ze-rfc-extraction-create STEM=<stem>, then classify every site").String()}
+	return []string{tb.Str("rfc/drain-budget.txt: the drain schedule requires ").Int(int64(floor)).Str(" extraction sign-off(s) by now (rate ").Str(formatRate(budget.rate)).Str("/calendar month since ").Str(budget.start.Format("2006-01-02")).Str(", capped at the ").Int(int64(len(enrolled))).Str(" enrolled RFC(s)), and there are ").Int(int64(total)).Str(" (").Str(registerPhrase(counts)).Str("; every register counts, umbrella D6), leaving ").Int(int64(backlog)).Str(" unsigned. Walk another RFC: ./le rfc extraction-create stem <stem>, then classify every site").String()}
 }
 
 func checkLedgerFresh(tree string, collected Collected, rows map[string]LedgerRow,
@@ -220,7 +220,7 @@ func checkLedgerFresh(tree string, collected Collected, rows map[string]LedgerRo
 		return nil, err
 	}
 	for _, stem := range prunable {
-		errs = append(errs, tb.Reset().Str(shardRelDir).Byte('/').Str(stem).Str(".md renders no requirement section and the generator no longer owns it -- run: make ze-rfc-index-update").String())
+		errs = append(errs, tb.Reset().Str(shardRelDir).Byte('/').Str(stem).Str(".md renders no requirement section and the generator no longer owns it -- run: ./le rfc index-update").String())
 	}
 	return errs, nil
 }

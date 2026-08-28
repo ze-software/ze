@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -46,6 +47,16 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	}
 }
 
+// ScenarioNames returns every typed L2TP scenario in lexical selection order.
+func ScenarioNames() []string {
+	names := make([]string, 0, len(scenarioCheckerMap(0)))
+	for name := range scenarioCheckerMap(0) {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 // Run resolves the repository root and reads the optional native selector.
 func Run(ctx context.Context) interoplab.SuiteReport {
 	root, err := lepath.Root()
@@ -62,6 +73,9 @@ func Run(ctx context.Context) interoplab.SuiteReport {
 
 // RunAt runs the selected L2TP scenarios from an explicit repository tree.
 func RunAt(ctx context.Context, root, selector string) interoplab.SuiteReport {
+	if strings.TrimSpace(selector) == "" {
+		selector = strings.TrimSpace(os.Getenv("ZE_L2TP_INTEROP_SCENARIO"))
+	}
 	absoluteRoot, err := filepath.Abs(root)
 	if err != nil {
 		var tb textbuf.Buffer

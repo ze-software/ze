@@ -56,9 +56,9 @@ func registerIdleEngine(t *testing.T, name string) {
 	t.Helper()
 	// The plugin registry is global to the process and has no unregister, so a
 	// name registered here outlives the test that registered it.
-	// make ze-unit-reactor-test-race runs this package at -count=20 in ONE
-	// process, so without this restore every run after the first fails on a
-	// duplicate plugin name.
+	// Repeated package runs execute in one process, so without this restore every
+	// run after the first fails on a duplicate plugin
+	// name.
 	snap := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snap) })
 	err := registry.Register(registry.Registration{

@@ -1,8 +1,8 @@
 // Design: docs/architecture/testing/interop.md -- the eight real VPP proof scenarios
 // Overview: vppevidence.go -- the run that drives these configurations
 //
-// The constants and configurations are the data shared with effective-vpp.py.
-// The parity test compares every value and every written file until step 14.
+// The constants and configurations are data shared by the eight native scenarios.
+// The parity test compares every value and every written file.
 package deployment
 
 import "github.com/ze-software/ze/internal/core/textbuf"

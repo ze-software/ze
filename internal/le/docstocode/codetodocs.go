@@ -2,9 +2,9 @@
 // Overview: docstocode.go -- the mirror index, from `// Design:` headers
 // Detail: codetodocs_report.go -- what this answers
 //
-// codetodocs.go ports scripts/dev/code_to_docs.py. It is the MIRROR of the
-// package's other index. That index maps `// Design:` headers to documents.
-// This index maps `<!-- source: -->` anchors in docs/ to files.
+// codetodocs.go builds the MIRROR of the package's other index. That index maps
+// `// Design:` headers to documents. This index maps `<!-- source: -->` anchors
+// in docs/ to files.
 //
 // The index also reports two forms of claims that nobody can check. A stale
 // path names a pointer that nobody can follow. A description that names an
@@ -54,7 +54,7 @@ const (
 // directory. Thus, an anchor names two files in one package and does not repeat
 // the directory.
 var pathPrefixes = []string{
-	"Makefile", "go.mod", "internal/", "cmd/", "pkg/", "test/", "scripts/", "rfc/", "mk/",
+	"go.mod", "internal/", "cmd/", "pkg/", "test/", "rfc/",
 }
 
 // These expressions define the scan. Each const is one string literal because
@@ -115,7 +115,7 @@ var (
 // description.
 //
 // The description is a CLAIM about those paths, so it stays with them.
-// CheckAnchors verifies its symbols, and one description covers every path in
+// checkAnchors verifies its symbols, and one description covers every path in
 // the segment.
 type Segment struct {
 	Paths       []string
@@ -130,12 +130,12 @@ type Anchor struct {
 	Descrip string
 }
 
-// AnchorSegments splits one anchor's content into its segments.
+// anchorSegments splits one anchor's content into its segments.
 //
 // Two formats are handled. Semicolons separate segments, each `paths --
 // description`. Commas separate paths inside a segment, and a name that starts
 // with no known root is read relative to the last full path's directory.
-func AnchorSegments(content string) []Segment {
+func anchorSegments(content string) []Segment {
 	var segments []Segment
 	for raw := range strings.SplitSeq(content, ";") {
 		seg := strings.TrimSpace(raw)
@@ -185,13 +185,13 @@ func hasKnownRoot(part string) bool {
 	return false
 }
 
-// AnchorSymbolTokens answers the declaration claims in a description, in order.
+// anchorSymbolTokens answers the declaration claims in a description, in order.
 //
 // The description is a comma-separated list. A token is a claim only when it
 // contains a declaration name. A token with a space, hyphen, or other
 // non-identifier text is prose and is dropped. The same applies to one
 // lowercase word.
-func AnchorSymbolTokens(description string) []string {
+func anchorSymbolTokens(description string) []string {
 	var claims []string
 	for raw := range strings.SplitSeq(description, ",") {
 		token := strings.TrimSpace(raw)
@@ -209,16 +209,16 @@ func AnchorSymbolTokens(description string) []string {
 	return claims
 }
 
-// Declarations is what one Go file declares: the simple names, and the
+// declarations is what one Go file declares: the simple names, and the
 // Recv.Member names.
-type Declarations struct {
+type declarations struct {
 	Names  map[string]bool
 	Dotted map[string]bool
 }
 
-// GoDeclarations reads the declarations of one Go file's text.
-func GoDeclarations(text string) Declarations {
-	decls := Declarations{Names: map[string]bool{}, Dotted: map[string]bool{}}
+// goDeclarations reads the declarations of one Go file's text.
+func goDeclarations(text string) declarations {
+	decls := declarations{Names: map[string]bool{}, Dotted: map[string]bool{}}
 	owner := ""
 	inGroup := false
 
@@ -291,14 +291,14 @@ func splitNames(list string) []string {
 	return names
 }
 
-// ClaimIsDeclared reports whether the anchored files declare what a claim
+// claimIsDeclared reports whether the anchored files declare what a claim
 // names.
 //
 // A dotted claim resolves when the files declare the member itself, or declare
 // the member's name on its own. It does NOT resolve on the prefix: a
 // package-qualified call such as events.Register names another package's
 // declaration, which these files do not hold.
-func ClaimIsDeclared(claim string, names, dotted map[string]bool) bool {
+func claimIsDeclared(claim string, names, dotted map[string]bool) bool {
 	if !strings.Contains(claim, ".") {
 		return names[claim]
 	}
@@ -312,7 +312,7 @@ func ClaimIsDeclared(claim string, names, dotted map[string]bool) bool {
 // in many anchors, and compiling it once per anchor is the cost this removes.
 var wordRe sync.Map
 
-// ClaimAppearsAsWord reports whether one anchored file's text holds the claim
+// claimAppearsAsWord reports whether one anchored file's text holds the claim
 // as a whole word.
 //
 // Severity rule 2. If a reader can find the name in the anchored file, the
@@ -320,7 +320,7 @@ var wordRe sync.Map
 // name can appear in a call, receiver member, string key, local, or comment.
 // Word boundaries find `Run` inside `p.Run()`. They find `events.Register` only
 // inside that exact dotted text.
-func ClaimAppearsAsWord(claim string, texts []string) bool {
+func claimAppearsAsWord(claim string, texts []string) bool {
 	var re *regexp.Regexp
 	if cached, ok := wordRe.Load(claim); ok {
 		re = cached.(*regexp.Regexp) //nolint:errcheck,forcetypeassert // the map holds only what this function stores
@@ -338,7 +338,7 @@ func ClaimAppearsAsWord(claim string, texts []string) bool {
 	return slices.ContainsFunc(texts, re.MatchString)
 }
 
-// CheckAnchors verifies that every symbol a source anchor names is declared
+// checkAnchors verifies that every symbol a source anchor names is declared
 // where it points.
 //
 // A path that does not exist is left to the stale-reference check, which
@@ -348,20 +348,20 @@ func ClaimAppearsAsWord(claim string, texts []string) bool {
 // It FAILS CLOSED when it cannot read a file. An unreadable anchored file is a
 // finding, not a pass. Its unresolved claims are UNKNOWN rather than absent.
 // Otherwise, "not declared" would itself be a false claim about unread text.
-func CheckAnchors(root string, anchors []Anchor) []string {
+func checkAnchors(root string, anchors []Anchor) []string {
 	problems := []string{}
 	// path -> the declarations and the text, or a zero entry with read=false
 	// when the file cannot be read. The text is cached beside the declarations
 	// so rule 2 costs no second read.
 	type cached struct {
-		decls Declarations
+		decls declarations
 		text  string
 		read  bool
 	}
 	seen := map[string]cached{}
 
 	for _, anchor := range anchors {
-		claims := AnchorSymbolTokens(anchor.Descrip)
+		claims := anchorSymbolTokens(anchor.Descrip)
 		if len(claims) == 0 {
 			continue
 		}
@@ -390,7 +390,7 @@ func CheckAnchors(root string, anchors []Anchor) []string {
 				if err != nil {
 					entry = cached{}
 				} else {
-					entry = cached{decls: GoDeclarations(string(body)), text: string(body), read: true}
+					entry = cached{decls: goDeclarations(string(body)), text: string(body), read: true}
 				}
 				seen[path] = entry
 			}
@@ -414,9 +414,9 @@ func CheckAnchors(root string, anchors []Anchor) []string {
 		where := strings.Join(goPaths, ", ")
 		for _, claim := range claims {
 			switch {
-			case ClaimIsDeclared(claim, names, dotted):
+			case claimIsDeclared(claim, names, dotted):
 			case len(unreadable) > 0:
-			case ClaimAppearsAsWord(claim, texts):
+			case claimAppearsAsWord(claim, texts):
 			default:
 				problems = append(problems, undeclaredLine(anchor, where, claim))
 			}
@@ -441,8 +441,8 @@ func undeclaredLine(anchor Anchor, where, claim string) string {
 		Str(" names '").Str(claim).Str("', which is not declared there").String()
 }
 
-// PackageDir answers the package directory a code path belongs to.
-func PackageDir(path string) string {
+// packageDir answers the package directory a code path belongs to.
+func packageDir(path string) string {
 	if strings.HasSuffix(path, "/") {
 		return strings.TrimRight(path, "/")
 	}
@@ -452,7 +452,7 @@ func PackageDir(path string) string {
 	return path
 }
 
-// FilterGitignored drops the paths git ignores, keeping the order.
+// filterGitignored drops the paths git ignores, keeping the order.
 //
 // ai/CODE-TO-DOCS.md is derived from docs/. That tree also contains gitignored
 // research output on machines with local research files. An index of that
@@ -462,7 +462,7 @@ func PackageDir(path string) string {
 // When git is unavailable or the tree is not a repository, the unfiltered list
 // remains usable. This deliberate fallback lets the generator run where git is
 // unrelated to the index request.
-func FilterGitignored(root string, rels []string) []string {
+func filterGitignored(root string, rels []string) []string {
 	if len(rels) == 0 {
 		return rels
 	}
@@ -511,9 +511,9 @@ func exitCodeOf(err error) int {
 	return 128
 }
 
-// CodeIndex is the reverse index: one entry per code path, with the documents
+// codeIndex is the reverse index: one entry per code path, with the documents
 // that anchor it.
-type CodeIndex struct {
+type codeIndex struct {
 	// Refs maps a code path to the documents and lines that name it.
 	Refs map[string][]Ref
 	// Anchors is every anchor segment found, in document order, so the symbol
@@ -527,25 +527,25 @@ type Ref struct {
 	Line int
 }
 
-// BuildCodeIndex reads every markdown file under docs/ and inverts the source
+// buildCodeIndex reads every markdown file under docs/ and inverts the source
 // anchors it finds.
-func BuildCodeIndex(root string) (CodeIndex, error) {
-	index := CodeIndex{Refs: map[string][]Ref{}}
+func buildCodeIndex(root string) (codeIndex, error) {
+	index := codeIndex{Refs: map[string][]Ref{}}
 
 	docs, err := markdownFiles(root)
 	if err != nil {
-		return CodeIndex{}, err
+		return codeIndex{}, err
 	}
 
 	seen := map[string]map[Ref]bool{}
-	for _, rel := range FilterGitignored(root, docs) {
+	for _, rel := range filterGitignored(root, docs) {
 		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // a markdown file of the tree the caller named
 		if err != nil {
-			return CodeIndex{}, err
+			return codeIndex{}, err
 		}
 		for number, line := range strings.Split(string(body), "\n") {
 			for _, match := range anchorRe.FindAllStringSubmatch(line, -1) {
-				for _, segment := range AnchorSegments(match[1]) {
+				for _, segment := range anchorSegments(match[1]) {
 					anchor := Anchor{Doc: rel, Line: number + 1, Paths: segment.Paths, Descrip: segment.Description}
 					index.Anchors = append(index.Anchors, anchor)
 					for _, path := range segment.Paths {

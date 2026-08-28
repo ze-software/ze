@@ -24,7 +24,7 @@ func init() {
 	// broken packages rather than being refused.
 	leroot.RegisterShape(area, command.ShapeMap)
 
-	// No parity.Claim applies. ze-le-tracked-import-check is a Makefile target.
-	// It is not one of the 156 gates that the Python le declares. Therefore, the
-	// census has no gate to move for this port.
+	// No parity.Claim applies. The retired ze-le-tracked-import-check Make
+	// target was not one of the Python registry's census gates, so this port has
+	// no gate row to move.
 }

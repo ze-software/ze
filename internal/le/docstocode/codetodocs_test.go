@@ -56,7 +56,7 @@ func TestAnchorSegmentsReadsBothFormats(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		got := AnchorSegments(tc.content)
+		got := anchorSegments(tc.content)
 		if len(got) != len(tc.want) {
 			t.Errorf("%s: %d segment(s), want %d: %+v", tc.name, len(got), len(tc.want), got)
 			continue
@@ -70,10 +70,10 @@ func TestAnchorSegmentsReadsBothFormats(t *testing.T) {
 }
 
 func TestAnchorSymbolTokensKeepsOnlyDeclarationClaims(t *testing.T) {
-	got := AnchorSymbolTokens("Run(), Peer.Name, the wire format, ze-gok, routing, sa_count, StateIdle..StateEstablished")
+	got := anchorSymbolTokens("Run(), Peer.Name, the wire format, ze-gok, routing, sa_count, StateIdle..StateEstablished")
 	want := []string{"Run", "Peer.Name", "sa_count"}
 	if !slices.Equal(got, want) {
-		t.Errorf("AnchorSymbolTokens answered %v, want %v", got, want)
+		t.Errorf("anchorSymbolTokens answered %v, want %v", got, want)
 	}
 }
 
@@ -104,7 +104,7 @@ func hidden() { Untouched := 1; _ = Untouched }
 `
 
 func TestGoDeclarationsReadsDeclarationsAndNeverABody(t *testing.T) {
-	decls := GoDeclarations(declarationFixture)
+	decls := goDeclarations(declarationFixture)
 
 	for _, name := range []string{"Run", "Send", "Peer", "Name", "Age", "Reader", "Read", "First", "Second", "Third", "Live", "hidden"} {
 		if !decls.Names[name] {
@@ -140,8 +140,8 @@ func TestClaimIsDeclaredNeverResolvesOnThePrefix(t *testing.T) {
 		{"Missing", false},
 	}
 	for _, tc := range cases {
-		if got := ClaimIsDeclared(tc.claim, names, dotted); got != tc.want {
-			t.Errorf("ClaimIsDeclared(%q) = %v, want %v", tc.claim, got, tc.want)
+		if got := claimIsDeclared(tc.claim, names, dotted); got != tc.want {
+			t.Errorf("claimIsDeclared(%q) = %v, want %v", tc.claim, got, tc.want)
 		}
 	}
 }
@@ -150,12 +150,12 @@ func TestClaimAppearsAsWordDemotesAMentionAndNotAPrefix(t *testing.T) {
 	texts := []string{"func Run() { p.Send(); events.Register(x) }\n"}
 
 	for _, claim := range []string{"Send", "events.Register"} {
-		if !ClaimAppearsAsWord(claim, texts) {
+		if !claimAppearsAsWord(claim, texts) {
 			t.Errorf("%q is in the text and was not found", claim)
 		}
 	}
 	for _, claim := range []string{"Sen", "Register.Extra"} {
-		if ClaimAppearsAsWord(claim, texts) {
+		if claimAppearsAsWord(claim, texts) {
 			t.Errorf("%q is not a whole word of the text and was found", claim)
 		}
 	}
@@ -179,7 +179,7 @@ func TestCheckAnchorsFailsClosedOnAFileItCannotRead(t *testing.T) {
 		t.Fatalf("fixture file: %v", err)
 	}
 
-	problems := CheckAnchors(root, []Anchor{
+	problems := checkAnchors(root, []Anchor{
 		{Doc: "docs/one.md", Line: 4, Paths: []string{"internal/a/a.go"}, Descrip: "Nowhere"},
 	})
 
@@ -198,11 +198,10 @@ func TestPackageDirGroupsByDirectory(t *testing.T) {
 	cases := map[string]string{
 		"internal/a/a.go": "internal/a",
 		"internal/a/":     "internal/a",
-		"Makefile":        "Makefile",
 	}
 	for path, want := range cases {
-		if got := PackageDir(path); got != want {
-			t.Errorf("PackageDir(%q) = %q, want %q", path, got, want)
+		if got := packageDir(path); got != want {
+			t.Errorf("packageDir(%q) = %q, want %q", path, got, want)
 		}
 	}
 }
@@ -230,16 +229,16 @@ func TestTheStaleReportNamesThreeDocumentsAndCountsTheRest(t *testing.T) {
 // TestTheRenderingSwitchesToATableAtFourFiles is the other bound: a table of
 // two rows costs more to read than it saves.
 func TestTheRenderingSwitchesToATableAtFourFiles(t *testing.T) {
-	index := CodeIndex{Refs: map[string][]Ref{}}
+	index := codeIndex{Refs: map[string][]Ref{}}
 	for i := range namedInline {
 		index.Refs[filePath(i)] = []Ref{{Doc: "docs/one.md", Line: 1}}
 	}
-	if body := RenderCodeIndex(index); strings.Contains(body, "| File | Docs |") {
+	if body := renderCodeIndex(index); strings.Contains(body, "| File | Docs |") {
 		t.Errorf("%d files rendered as a table:\n%s", namedInline, body)
 	}
 
 	index.Refs[filePath(namedInline)] = []Ref{{Doc: "docs/one.md", Line: 1}}
-	body := RenderCodeIndex(index)
+	body := renderCodeIndex(index)
 	if !strings.Contains(body, "| File | Docs |") {
 		t.Errorf("%d files did not render as a table:\n%s", namedInline+1, body)
 	}
@@ -286,7 +285,7 @@ func TestCheckAnchorsReadsAPathThatCarriesALineNumber(t *testing.T) {
 		t.Fatalf("fixture file: %v", err)
 	}
 
-	problems := CheckAnchors(root, []Anchor{
+	problems := checkAnchors(root, []Anchor{
 		{Doc: "docs/one.md", Line: 3, Paths: []string{"internal/a/a.go:12"}, Descrip: "Nowhere"},
 	})
 	if len(problems) != 1 {
@@ -296,7 +295,7 @@ func TestCheckAnchorsReadsAPathThatCarriesALineNumber(t *testing.T) {
 		t.Errorf("the finding does not name the claim: %q", problems[0])
 	}
 
-	declared := CheckAnchors(root, []Anchor{
+	declared := checkAnchors(root, []Anchor{
 		{Doc: "docs/one.md", Line: 3, Paths: []string{"internal/a/a.go:12"}, Descrip: "Run"},
 	})
 	if len(declared) != 0 {

@@ -21,60 +21,12 @@ option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python observer: emit fakeredist event for ipv6/unicast (rule covers ipv4/unicast only).
-tmpfs=filtered-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-from ze_api import API, runtime_fail
-
-
-def dispatch(api, command):
-    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait on the peer's own state, then on its initial-sync EOR reaching the
-    # wire, instead of holding a fixed 2s and hoping establishment fitted in it.
-    if not api.wait_peer_eor_sent():
-        runtime_fail('initial-sync EOR never reached the wire')
-        return
-
-    # ipv6/unicast prefix; the import rule restricts fakeredist to ipv4/unicast.
-    resp = dispatch(api, 'request fakeredist emit add ipv6/unicast 2001:db8::1/128')
-    result = resp.get('result', {})
-    if result.get('status') != 'done':
-        runtime_fail(f'request fakeredist emit failed: {result}')
-        return
-
-    # The absence assertion, and the barrier that gives it meaning. The former
-    # blind 2s hold was justified by "quiesce blocks ~10s on the forward-pool
-    # quiescer"; that is no longer true, and the hold asserted nothing anyway --
-    # a check-mode ze-peer whose expectations are already satisfied reads and
-    # DISCARDS whatever arrives, so the peer block's single EOR rule cannot see
-    # a leaked UPDATE that follows it. assert_peer_received_only_eor waits for
-    # the EOR, drains the forward pool and each peer's initial-sync opQueue with
-    # `request quiesce`, and only then reads updates-sent - eor-sent. After the
-    # drain, "still zero" is a statement about a forwarding DECISION rather than
-    # about timing.
-    api.assert_peer_received_only_eor('127.0.0.1')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Compiled observer emits a family-rejected route and verifies its absence.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external filtered-test {
-		run ./filtered-test.run
+		run "ze-test fixture plugin/bgp-redistribute-filtered-out"
 		encoder json
 	}
 	internal redistribute-orchestrator {

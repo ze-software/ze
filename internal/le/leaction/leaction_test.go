@@ -7,15 +7,14 @@ import (
 	"testing"
 )
 
-// fixture builds a two-action area of the shape every codegen tool declares:
-// one action a Make target names, and one that writes and has no target.
+// fixture builds a two-action area.
 func fixture(t *testing.T) (Area, *int) {
 	t.Helper()
 
 	ran := 0
 	area := New("web-assets",
 		Action{
-			Gate:   "ze-web-assets-check",
+			Verb:   "check",
 			Why:    "the generated file agrees with the markup",
 			Answer: func() (any, int) { ran++; return "checked", 0 },
 		},
@@ -30,37 +29,16 @@ func fixture(t *testing.T) (Area, *int) {
 	return area, &ran
 }
 
-// VALIDATES: the verb of an action a Make target names is DERIVED from that
-// target, by removing the area's own prefix.
-// PREVENTS: a verb typed beside its gate name, which is where the two come to
-// disagree about what a developer types.
-func TestVerbIsDerivedFromTheGateName(t *testing.T) {
+// VALIDATES: actions expose exactly the verbs declared in their table.
+// PREVENTS: implicit identity derivation from a removed build layer.
+func TestActionsUseDeclaredVerbs(t *testing.T) {
 	area, _ := fixture(t)
-
 	rows := area.Actions().Actions
 	if len(rows) != 2 {
 		t.Fatalf("the area answers %d actions, want 2", len(rows))
 	}
-	if rows[0].Verb != "check" {
-		t.Errorf("ze-web-assets-check derives the verb %q, want %q", rows[0].Verb, "check")
-	}
-	if rows[1].Verb != "write" {
-		t.Errorf("the action with no gate answers the verb %q, want %q", rows[1].Verb, "write")
-	}
-	if rows[1].Gate != "" {
-		t.Errorf("the action with no gate reports the gate %q, want none", rows[1].Gate)
-	}
-}
-
-// VALIDATES: Gates answers the Make target of every action that has one.
-// PREVENTS: a parity claim typed by hand beside the action table, which is how a
-// gate comes to be counted as ported by a command that does not run it.
-func TestGatesAnswersTheTargetsTheTableNames(t *testing.T) {
-	area, _ := fixture(t)
-
-	gates := area.Gates()
-	if len(gates) != 1 || gates[0] != "ze-web-assets-check" {
-		t.Fatalf("the area answers the gates %v, want [ze-web-assets-check]", gates)
+	if rows[0].Verb != "check" || rows[1].Verb != "write" {
+		t.Errorf("action verbs = %q, want [check write]", []string{rows[0].Verb, rows[1].Verb})
 	}
 }
 
@@ -93,18 +71,16 @@ func TestBareAreaListsAndNamedActionRuns(t *testing.T) {
 	}
 }
 
-// VALIDATES: an unknown action answers 2, and a value after an action that takes
-// none answers 1.
-// PREVENTS: a flattened 1 for both. commit_helper.py reads the codes apart, so a
-// mistyped verb and a gate that ran and failed must not answer the same thing.
-func TestRefusalsAnswerDifferentCodes(t *testing.T) {
+// VALIDATES: unknown actions and malformed action arguments both answer 2.
+// PREVENTS: a usage error looking like a check that ran and found a defect.
+func TestRefusalsAnswerUsageCode(t *testing.T) {
 	area, ran := fixture(t)
 
 	if _, code := area.Answer([]string{"nosuch"}); code != 2 {
 		t.Errorf("an unknown action answers %d, want 2", code)
 	}
-	if _, code := area.Answer([]string{"check", "extra"}); code != 1 {
-		t.Errorf("a value after an action that takes none answers %d, want 1", code)
+	if _, code := area.Answer([]string{"check", "extra"}); code != 2 {
+		t.Errorf("a value after a zero-argument action answers %d, want 2", code)
 	}
 	if *ran != 0 {
 		t.Errorf("a refused invocation ran %d actions, want 0", *ran)
@@ -145,8 +121,7 @@ func TestNewRefusesATableItCouldNotDispatch(t *testing.T) {
 		name    string
 		actions []Action
 	}{
-		{"no gate and no verb", []Action{{Why: "why", Answer: answer}}},
-		{"gate and verb both", []Action{{Gate: "ze-a-check", Verb: "check", Why: "why", Answer: answer}}},
+		{"no verb", []Action{{Why: "why", Answer: answer}}},
 		{"no answer", []Action{{Verb: "check", Why: "why"}}},
 		{"no why", []Action{{Verb: "check", Answer: answer}}},
 		{"both answer forms", []Action{{
@@ -163,8 +138,8 @@ func TestNewRefusesATableItCouldNotDispatch(t *testing.T) {
 			Parameters: []Parameter{{Keyword: "name"}, {Keyword: "name"}}, AnswerArgs: answerArgs,
 		}}},
 		{"two actions one verb", []Action{
-			{Gate: "ze-a-check", Why: "why", Answer: answer},
-			{Verb: "check", Why: "why", Answer: answer},
+			{Verb: "check", Why: "first", Answer: answer},
+			{Verb: "check", Why: "second", Answer: answer},
 		}},
 	}
 
@@ -179,6 +154,7 @@ func TestNewRefusesATableItCouldNotDispatch(t *testing.T) {
 		})
 	}
 }
+
 // VALIDATES: argument-aware actions accept only declared keywords, consume a
 // value after its keyword, and keep boolean switches as presence.
 // PREVENTS: a free-form positional value, a missing keyword value, or a second
@@ -220,8 +196,8 @@ func TestArgumentAwareActionValidatesItsClosedGrammar(t *testing.T) {
 	}
 	for _, invocation := range refused {
 		got = nil
-		if _, refusedCode := area.Answer(invocation); refusedCode != 1 {
-			t.Errorf("%v answers %d, want 1", invocation, refusedCode)
+		if _, refusedCode := area.Answer(invocation); refusedCode != 2 {
+			t.Errorf("%v answers %d, want 2", invocation, refusedCode)
 		}
 		if got != nil {
 			t.Errorf("%v reached the handler with %#v", invocation, got)
@@ -229,11 +205,10 @@ func TestArgumentAwareActionValidatesItsClosedGrammar(t *testing.T) {
 	}
 }
 
-
 // ─── The sweep: several actions on one command line ─────────────────────────
 
 // sweepArea builds an area whose actions return the specified codes. A test
-// then drives the exit-code rule. It does not start a gate.
+// then drives the exit-code rule.
 func sweepArea(codes ...int) Area {
 	rows := make([]Action, 0, len(codes))
 	for i, code := range codes {
@@ -249,8 +224,8 @@ func probeAnswer(verb string, code int) func() (any, int) {
 	return func() (any, int) { return map[string]any{"verb": verb}, code }
 }
 
-// TestFirstFailingGateExitCodeWins is AC-8. `commit_helper.py` reads 3 apart
-// from 1, so a sweep that answered 1 for every failure would break it.
+// TestFirstFailingGateExitCodeWins is AC-8. Native commit preparation reads 3
+// apart from 1, so a sweep that answered 1 for every failure would break it.
 func TestFirstFailingGateExitCodeWins(t *testing.T) {
 	area := sweepArea(0, 3, 1)
 	for _, policy := range []SweepPolicy{StopAtFirstFailure, RunEveryAction} {

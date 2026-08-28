@@ -107,7 +107,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 `)
 
 	// The dashboard loads the assets its own markup needs.
-	// scripts/codegen/web_assets.go derives the set from every htmx attribute
+	// internal/le/webassets/webassets.go derives the set from every htmx attribute
 	// this package renders, and page_assets.go is what it writes.
 	for _, src := range pageAssets(pgWriteLayout) {
 		h.writef("<script src=%q></script>\n", src)

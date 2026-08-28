@@ -9,60 +9,11 @@
 # spec-ospf-13 FRR/QEMU interop, matching the IS-IS SPF/RIB functional split.
 option=skip-os:value=darwin
 
-tmpfs=ospf-route.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Assert `show ospf route` is empty with no adjacency (no phantom routes)."""
-
-import sys
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = dispatch(api, 'show ospf route')
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"show ospf route: expected done, got status={r.get('status')} "
-            f"data={result_text_data(r)[:200]}")
-    routes = result_json_data(r, None)
-    if routes is None:
-        routes = []
-    if not isinstance(routes, list):
-        runtime_fail(f"show ospf route: expected list, got {routes!r}")
-    if routes:
-        runtime_fail(f"show ospf route: expected empty list (no peer), got {routes!r}")
-
-    print('OK: OSPF route table empty with no adjacency (SPF wired, no phantom routes)',
-          file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-route {
-		run ./ospf-route.run
+		run "ze-test fixture ospf/ospf-route-daemon"
 		encoder json
 	}
 }

@@ -33,7 +33,7 @@ func renderFixture(t *testing.T, extra map[string]string) RenderInput {
 		// directory is refused rather than read as "nothing runs". Every
 		// fixture therefore carries one, and a case that needs a schedule
 		// replaces it.
-		".github/workflows/ci.yml": "on: push\njobs:\n  a:\n    steps:\n      - run: make ze-unit-test\n",
+		".github/workflows/ci.yml": "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify-deps unit-cached\n",
 	}
 	maps.Copy(files, extra)
 	tree := fixtureTree(t, files)
@@ -169,7 +169,7 @@ func TestAVerdictInAnUnpublishedStateSaysSoRatherThanRenderingAnEmptyCell(t *tes
 	// an unknown STATE and an unknown VERDICT WORD.
 	cases := []struct{ name, reason, want string }{
 		{"a known verdict", "weak", "cannot fail on non-compliance"},
-		{"a known state", "weak (shifted)", "re-stamp it with `make ze-rfc-reseal`"},
+		{"a known state", "weak (shifted)", "re-stamp it with `./le rfc reseal`"},
 		{"an unknown state", "weak (invented)",
 			"unpublished freshness state `invented` -- add it to _STATE_MEANING"},
 		{"an unknown verdict", "invented", "outside the recorded vocabulary"},
@@ -188,10 +188,10 @@ func TestARequirementProvenOnlyByNightlyEvidenceIsMarkedOnItsOwnRow(t *testing.T
 	// Nothing in HEAD is nightly-only, so the marker never renders there. It is
 	// the distinction between "a tag exists" and "a merge blocks on it".
 	in := renderFixture(t, map[string]string{
-		"test/interop/scenarios/one/check.py": "# RFC requirement: RFC9999-2-1 positive\n" +
-			"# RFC requirement: RFC9999-2-1 negative\n",
+		"internal/le/interoplab/bgp/scenario_test.go": "// " + rfcTagMarker + " RFC9999-2-1 positive\n" +
+			"// " + rfcTagMarker + " RFC9999-2-1 negative\n",
 		".github/workflows/nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\n" +
-			"jobs:\n  a:\n    steps:\n      - run: make ze-interop-test\n",
+			"jobs:\n  a:\n    steps:\n      - run: ./le integration interop\n",
 	})
 	shard := RenderShards(in)["rfc9999"]
 	if !strings.Contains(shard, "**nightly-only**") {
@@ -291,7 +291,7 @@ func TestASummaryDeclaringNoMUSTLevelRowRendersNoSectionAtAll(t *testing.T) {
 }
 
 func TestTheAuditTableCannotBeMistakenForTheRollup(t *testing.T) {
-	// scripts/dev/testing_health.py pins the polarity rollup with a nine-cell
+	// internal/le/testhealth/actions.go pins the polarity rollup with a nine-cell
 	// regex and matches it against every line of the ledger, so an audit row
 	// with the same shape would be folded into that tool's proof-density figure.
 	in := renderFixture(t, nil)
@@ -313,7 +313,7 @@ func TestASignOffWithNoSiteRendersADashRatherThanDividingByZero(t *testing.T) {
 	art := Extraction{Stem: "rfc9999", Register: registerManualWalk,
 		SignedOff: "2026-01-01", Reviewer: "someone"}
 	in := renderFixture(t, nil)
-	rows, err := RenderExtractionTable(in)
+	rows, err := renderExtractionTable(in)
 	if err != nil {
 		t.Fatalf("rendering the extraction table: %v", err)
 	}
@@ -359,7 +359,7 @@ func TestTheAuditRowsTwoPartitionsHoldOverEveryRFC(t *testing.T) {
 	// requirement view either. Asserted rather than argued, so the day the two
 	// counters stop nesting the filter has to be decided again.
 	in := renderFixture(t, nil)
-	rows, worklist := AuditCoverageRows(AuditCoverageInput{
+	rows, worklist := auditCoverageRows(auditCoverageInput{
 		Requirements: in.Requirements, Tags: in.Tags, Enrolled: in.Enrolled,
 		Carriers: in.Carriers, Audits: in.Audits, States: in.States,
 	})
@@ -403,19 +403,19 @@ func TestEveryTagTheScanProducesResolvesToACarrier(t *testing.T) {
 		t.Fatal("the fixture produced no tag, so the property below is vacuous")
 	}
 	for _, tag := range in.Tags {
-		if _, held := CarrierFor(tag.File, in.Carriers); !held {
+		if _, held := carrierFor(tag.File, in.Carriers); !held {
 			t.Errorf("the scan produced a tag in %s, which no carrier claims", tag.File)
 		}
-		if EvidenceLabel(tag.File, in.Carriers) == "unknown/unrun" {
+		if evidenceLabel(tag.File, in.Carriers) == "unknown/unrun" {
 			t.Errorf("a scanned tag in %s labeled itself unknown", tag.File)
 		}
 	}
 	// And the fallback still answers visibly wrong rather than plausibly right
 	// for the one caller that can reach it.
-	if got := EvidenceLabel("nothing/at/all.txt", in.Carriers); got != "unknown/unrun" {
+	if got := evidenceLabel("nothing/at/all.txt", in.Carriers); got != "unknown/unrun" {
 		t.Errorf("an unrecognized carrier labeled itself %q", got)
 	}
-	if got := EvidenceTier("nothing/at/all.txt", in.Carriers); got != tierUnrun {
+	if got := evidenceTier("nothing/at/all.txt", in.Carriers); got != tierUnrun {
 		t.Errorf("an unrecognized carrier claimed the %q tier", got)
 	}
 }
@@ -423,7 +423,7 @@ func TestEveryTagTheScanProducesResolvesToACarrier(t *testing.T) {
 func TestAPipelineWithNoSuiteQualifierKeepsItsWholeText(t *testing.T) {
 	// stageOf cuts at the LAST comma, which is where a derived row's suite name
 	// sits. A pipeline with no comma at all must not lose its text.
-	if got := stageOf("ze-precommit-verify (unit stage)"); got != "ze-precommit-verify (unit stage))" {
+	if got := stageOf("./le verify current mode full (unit stage)"); got != "./le verify current mode full (unit stage))" {
 		t.Errorf("a comma-free pipeline rendered as %q", got)
 	}
 	if got := suiteOfPrefix(""); got != "" {
@@ -481,7 +481,7 @@ func TestAnAnnotatedRequirementWithOneTestIsAuditableOnlyWhenTheAnnotationSaysWh
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			if got := PolarityCovered(one.req, one.tags); got != one.want {
+			if got := polarityCovered(one.req, one.tags); got != one.want {
 				t.Errorf("PolarityCovered answered %v, want %v", got, one.want)
 			}
 		})
@@ -505,7 +505,7 @@ func generatorTree(t *testing.T, extra map[string]string) string {
 		// directory is refused rather than read as "nothing runs". Every
 		// fixture therefore carries one, and a case that needs a schedule
 		// replaces it.
-		".github/workflows/ci.yml": "on: push\njobs:\n  a:\n    steps:\n      - run: make ze-unit-test\n",
+		".github/workflows/ci.yml": "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify-deps unit-cached\n",
 	}
 	maps.Copy(files, extra)
 	return fixtureTree(t, files)
@@ -642,7 +642,7 @@ func TestTheGeneratorRefusesToWriteWhenTheRenderProducesNoRowAtAll(t *testing.T)
 		"rfc/enrolled.txt":            "",
 		"docs/features/rfc-status.md": "",
 		"rfc/requirements/rfc9999.md": "# RFC 9999 -- would be deleted\n",
-		".github/workflows/ci.yml":    "on: push\njobs:\n  a:\n    steps:\n      - run: make ze-unit-test\n",
+		".github/workflows/ci.yml":    "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify-deps unit-cached\n",
 	})
 	_, err := IndexUpdate(tree)
 	if err == nil {

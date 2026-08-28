@@ -84,7 +84,7 @@ spec must keep it, and no phase can drop it.
   → Constraint: the whole change is `//go:build linux`, so a QEMU integration test is
     mandatory. "Needs hardware" is never a reason to skip one.
   → Constraint: a package carrying `//go:build integration && linux` is auto-enrolled in
-    `ZE_QEMU_INTEGRATION_PKGS` (`mk/test-integration.mk`). No new make target is needed
+    `ZE_QEMU_INTEGRATION_PKGS` (`internal/le/integration/gates.go`). No new make target is needed
     for a test placed in `internal/component/ike/dataplane/`.
 - [ ] `ai/rules/evidence.md` - a foreign system's semantics come from its source
   → Constraint: every claim about the kernel comes from the kernel, and every claim about
@@ -166,7 +166,7 @@ spec must keep it, and no phase can drop it.
   worked example of a kernel-backed test. `TestXFRMSinglePortSelectorReachesTheKernel`
   (`:157`) installs a port-restricted policy and reads it back.
   `TestXFRMOpaquePortIsRefused` pins the current refusal.
-- [ ] `scripts/dev/reapply-updater-fixes.py` - the repository's precedent for a local patch
+- [ ] `internal/le/` - the repository's precedent for a local patch
   on a vendored dependency. It names the three artifacts a patched vendor tree needs.
 - [ ] `go.mod:22` and `vendor/modules.txt` - `github.com/vishvananda/netlink v1.3.1`, a
   direct dependency, a released semantic version, with no `replace` directive anywhere in
@@ -263,9 +263,9 @@ upstream we will also do that". Route 1 or route 2 is the bridge that lets the f
 before an upstream release exists.
 
 **A vendored fork that silently diverges from upstream is the liability.** The repository
-already knows this and has an answer. `scripts/dev/reapply-updater-fixes.py` carries local
+already knows this and has an answer. `internal/le/` carries local
 fixes to `vendor/github.com/gokrazy/updater/updater.go`, alongside
-`scripts/dev/gokrazy-updater-upstream.patch` (the same fixes as an upstream patch) and
+`internal/le/` (the same fixes as an upstream patch) and
 `TestUpdaterHardeningMarkersPresent`
 (`internal/appliance/updater_hardening_markers_test.go`), which fails when the re-apply
 is forgotten. Its own docstring states the exit condition: "Once merged upstream, bump the
@@ -363,7 +363,7 @@ reader usually loses the read half, and the read half is what blocks the proof.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The Linux kernel honors a port mask of 0xffff with a port value of 0, and matches only a packet presenting port 0 | Not yet read. The kernel is the authority, and no Ze file states this | The whole spec is void: the exact form is unrepresentable in the kernel too, and the refusal is permanent | Read the kernel XFRM selector match path, then prove it in QEMU | unvalidated |
 | A-2 | A packet that presents port 0 to the selector is what RFC 4301 Section 4.4.1.1 calls OPAQUE, and a non-initial IP fragment is one | Not yet read. `rfc/short/rfc4301.md` can be absent | The behavioral half of the QEMU proof has no stimulus, and only the read-back assertion survives | Read RFC 4301 Section 4.4.1.1, then generate the stimulus in a namespace | unvalidated |
-| A-3 | `vendor/` is regenerated only by an explicit `go mod vendor`, so a patched file survives a normal build | `scripts/dev/reapply-updater-fixes.py` states exactly this hazard and this cadence | Route 1 is unusable and route 2 becomes mandatory | Read the makefile targets that touch `vendor/`, and confirm the marker test catches a revert | unvalidated |
+| A-3 | `vendor/` is regenerated only by an explicit `go mod vendor`, so a patched file survives a normal build | `internal/le/` states exactly this hazard and this cadence | Route 1 is unusable and route 2 becomes mandatory | Read the makefile targets that touch `vendor/`, and confirm the marker test catches a revert | unvalidated |
 | A-4 | No caller outside the IKE dataplane sets a port on an `XfrmPolicy` | Measured 2026-08-01. The only other callers are `internal/plugins/iface/netlink/xfrm_linux.go`, `internal/plugins/ospf/doctor_ipsec_linux.go` and the OSPF integration test, and all three list rather than install | An additive patch changes bytes for a caller this spec did not consider | Re-grep at implementation time | unvalidated |
 | A-5 | The VPP dataplane needs no change, because it REFUSES the selector forms it cannot express rather than approximating them | `spec-fixit-vpp-ipsec-inoperable` closed 2026-08-10: the backend installs SAs on a real VPP, and `vppUnsupportedSA` (`internal/component/ike/dataplane/vpp.go`) refuses any SA carrying an explicit state selector. The earlier basis, that it programs nothing at all, is spent | The VPP backend must express or refuse the opaque form in the same work (`ai/rules/architecture.md`) | Read `vpp.go` and the VPP IPsec binary API | unvalidated |
 | A-6 | `TestXFRMOpaquePortIsRefused` (`xfrm_transport_integration_linux_test.go`) is the only test pinning the refusal | Measured 2026-08-01 by grep for `Opaque` under `internal/` | A second test pins the old behavior and reddens unexpectedly | Re-grep at implementation time | unvalidated |
@@ -464,7 +464,7 @@ needs the owner's approval under the `rfc-tagged-test` hook, and a fresh
 | `ipsec-ts-port-opaque-reject` | `test/ipsec/ipsec-ts-port-opaque-reject.ci` | A partial port mask is still refused, and the error names the value | |
 | `ipsec-show-sa-port-opaque` | `test/ipsec/ipsec-show-sa-port-opaque.ci` | The operator reads the installed selector and sees the opaque form | |
 
-The `ipsec` suite runs inside `ze-precommit-verify` (`mk/test-functional.mk`), so a `.ci` there earns
+The `ipsec` suite runs inside `./le verify current mode full` (`internal/le/functional/suites.go`), so a `.ci` there earns
 a verify tier.
 
 ### QEMU Integration Tests (MANDATORY - `ai/rules/platform-linux.md`)
@@ -483,9 +483,9 @@ accepted a wrong mode silently, and only a read-back caught it.
 | `TestXFRMOpaquePortPolicyIsRemoved` | `internal/component/ike/dataplane` | AC-7. The delete selector matches the installed selector | |
 
 The package already carries `//go:build integration && linux` files, so these are
-auto-enrolled in `ZE_QEMU_INTEGRATION_PKGS` (`mk/test-integration.mk`) and run under
-`make ze-qemu-integration-test`. **No new make target is needed.** The VM installs
-`iproute2` (`mk/test-integration.mk`), so `ip xfrm policy show` is available as an
+auto-enrolled in `ZE_QEMU_INTEGRATION_PKGS` (`internal/le/integration/gates.go`) and run under
+`./le qemu run command "./le qemu all-tests"`. **No new make target is needed.** The VM installs
+`iproute2` (`internal/le/integration/gates.go`), so `ip xfrm policy show` is available as an
 independent oracle beside the netlink read-back.
 
 **The read-back is necessary and not sufficient.** It proves the bytes reached the kernel.
@@ -505,7 +505,7 @@ than assumed.
 | `ts-port-opaque` | `test/interop-ipsec/scenarios/` | strongSwan | A strongSwan peer that proposes OPAQUE ports establishes a Child SA with Ze, and Ze answers the OPAQUE form rather than TS_UNACCEPTABLE | |
 
 **This scenario cannot carry an RFC tag.** `test/interop-ipsec/` is declared `TIER_UNRUN`
-(`scripts/dev/rfc_requirements.py`), and a tag there is refused, because nothing runs the
+(`internal/le/rfc/rfc.go`), and a tag there is refused, because nothing runs the
 suite automatically. Write that reason into the scenario header. Compliance evidence stays
 on the existing unit-tier tags.
 
@@ -525,14 +525,14 @@ on the existing unit-tier tags.
 - `rfc/short/rfc7296.md` - no new row. Section 3.13.1 rows stay as they are
 - `docs/features/rfc-status.md` - the Remaining cell for RFC 7296 names the OPAQUE
   platform limit. That disclosure must go when the limit goes
-- `ai/RFC-REQUIREMENTS.md` - regenerated with `make ze-rfc-index-update`
+- `ai/RFC-REQUIREMENTS.md` - regenerated with `./le rfc index-update`
 
 ## Files to Create
 - `internal/component/ike/dataplane/xfrm_opaque_integration_linux_test.go` - the four QEMU
   assertions
 - `internal/component/ike/dataplane/vendor_patch_test.go` - route 1 only, the marker test
-- `scripts/dev/reapply-netlink-portmask.py` - route 1 only, the re-apply script
-- `scripts/dev/netlink-portmask-upstream.patch` - the patch offered upstream
+- `internal/le/` - route 1 only, the re-apply script
+- `internal/le/` - the patch offered upstream
 - `test/ipsec/ipsec-ts-port-opaque.ci`
 - `test/ipsec/ipsec-ts-port-opaque-reject.ci`
 - `test/ipsec/ipsec-show-sa-port-opaque.ci`
@@ -615,7 +615,7 @@ on the existing unit-tier tags.
    - Verify: the commit accepts `port opaque`, and a peer proposing OPAQUE is answered. This
      phase is last on purpose (R-5)
 7. **Phase: The other backend, the tags, and the disclosure**
-   - Tests: `TestVPPBackendHandlesOpaquePort`, `make ze-rfc-check`, `make ze-doc-verify`
+   - Tests: `TestVPPBackendHandlesOpaquePort`, `./le rfc check`, `./le doc-check verify`
    - Files: `internal/component/ike/dataplane/vpp.go`,
      `internal/component/ike/engine/ts_narrow_test.go`,
      `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`
@@ -623,7 +623,7 @@ on the existing unit-tier tags.
      the platform-limit disclosure is removed from the public page
 8. **Phase: Upstream**
    - Tests: none in this repository
-   - Files: `scripts/dev/netlink-portmask-upstream.patch`
+   - Files: `internal/le/`
    - Verify: the patch is sent, its URL is recorded in the learned summary, and the exit
      condition is written down: when it merges and releases, bump the dependency and delete
      the local bridge
@@ -653,14 +653,14 @@ on the existing unit-tier tags.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The kernel holds an exact port-0 mask | `make ze-qemu-integration-test` passes |
+| The kernel holds an exact port-0 mask | `./le qemu run command "./le qemu all-tests"` passes |
 | The exact form is distinguishable from any-port | `TestXFRMOpaquePortIsDistinctFromAnyPort` passes |
 | The matching behavior is proven | `TestXFRMOpaquePortMatchesOnlyPortZero` passes |
 | The refusals are gone | `grep -n 'cannot be programmed' internal/component/ike/ipsec/traffic_selector.go` returns nothing |
 | The public disclosure is gone | `grep -c 'OPAQUE ports' docs/features/rfc-status.md` returns 0 |
 | The vendor patch cannot be silently lost | `TestNetlinkPortMaskPatchPresent` passes, and it fails on a fresh `go mod vendor`. Route 1 only |
 | The upstream patch exists and was sent | The patch file exists, and the learned summary records the URL and the outcome |
-| The RFC tags describe reality | `make ze-rfc-index-update` produces no diff, and the tag comments say the form is programmed |
+| The RFC tags describe reality | `./le rfc index-update` produces no diff, and the tag comments say the form is programmed |
 
 ### Security Review Checklist
 
@@ -741,7 +741,7 @@ the refusal existed.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -759,7 +759,7 @@ the refusal existed.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

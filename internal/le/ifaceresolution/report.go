@@ -45,11 +45,7 @@ func (f Findings) Text() string {
 	tb.Byte('\n')
 	tb.Str("Resolve logical interface names via iface.Resolve / iface.Addresses / iface.Subscribe\n")
 	tb.Str("(or the iface dispatch ops), so os-name / mac-match selectors are honored. If a site\n")
-	// The path is the SCRIPT's, and it stays so until the swap deletes it.
-	// Both copies of the allowlist must agree while both exist, which is what
-	// scripts/checks/parity_test.go compares, so a reader sent to either one
-	// ends up editing both.
-	tb.Str("must resolve directly, add it to the allowlist in scripts/checks/iface_resolution.go\n")
+	tb.Str("must resolve directly, add it to the allowlist in internal/le/ifaceresolution/ifaceresolution.go\n")
 	tb.Str("with a reason.\n")
 	return tb.String()
 }

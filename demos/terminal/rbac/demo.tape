@@ -7,10 +7,10 @@ Type "cd /src/demos/terminal/rbac"
 Enter
 Type "export ZE_CONFIG_DIR=/src/tmp/terminal-demos/state/rbac/config NOC_PASSWORD=noc-secret ADMIN_PASSWORD=admin-secret"
 Enter
-Type "/src/demos/terminal/rbac/run.sh start"
+Type "ze-demo run rbac start"
 Enter
 Wait+Screen /terminal demo ready/
-Type "bash /src/demos/terminal/cards.sh rbac intro"
+Type "ze-demo card rbac intro"
 Enter
 Show
 Wait+Screen /====/
@@ -41,7 +41,7 @@ Enter
 Sleep 5s
 
 Hide
-Type "bash /src/demos/terminal/cards.sh rbac deny"
+Type "ze-demo card rbac deny"
 Enter
 Show
 Sleep 9s
@@ -57,10 +57,10 @@ Sleep 6s
 Sleep 3s
 
 Hide
-Type "/src/demos/terminal/rbac/run.sh stop"
+Type "ze-demo run rbac stop"
 Enter
 Wait+Screen /terminal demo stopped/
-Type "bash /src/demos/terminal/cards.sh rbac recap"
+Type "ze-demo card rbac recap"
 Enter
 Show
 Sleep 9s

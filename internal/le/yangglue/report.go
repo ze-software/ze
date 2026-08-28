@@ -11,7 +11,7 @@
 // stale file is named RELATIVE to the tree rather than by its absolute path.
 // The absolute form names this machine's checkout as much as it names the file,
 // and it would leave `| json` and the default rendering disagreeing about what
-// the value is (ai/rules/cli.md). scripts/codegen/parity_test.go normalizes it.
+// the value is (ai/rules/cli.md). internal/le/parity/parity_test.go normalizes it.
 
 package yangglue
 
@@ -31,23 +31,22 @@ type CheckReport struct {
 	Stale []string `json:"stale"`
 }
 
-// Text renders the verdict in the words the script printed. It ends in a
-// newline.
+// Text renders the native check verdict. It ends in a newline.
 func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
 
 	if r.Dirs == 0 {
-		return "yang_glue: no yang/ directories with .yang files found\n"
+		return "./le yang-glue check: no yang/ directories with .yang files found\n"
 	}
 
 	if len(r.Stale) == 0 {
-		return tb.Str("yang_glue: ").Int(int64(r.Dirs)).Str(" yang/ directories are current\n").String()
+		return tb.Str("./le yang-glue check: ").Int(int64(r.Dirs)).Str(" yang/ directories are current\n").String()
 	}
 
 	for _, file := range r.Stale {
 		tb.Str("stale: ").Str(file).Byte('\n')
 	}
-	tb.Str("yang_glue: ").Int(int64(len(r.Stale))).Str(" generated files are stale; run make generate\n")
+	tb.Str("./le yang-glue check: ").Int(int64(len(r.Stale))).Str(" generated files are stale; run ./le yang-glue write\n")
 
 	return tb.String()
 }
@@ -62,14 +61,13 @@ type WriteReport struct {
 	Written []string `json:"written"`
 }
 
-// Text renders the verdict in the words the script printed. It ends in a
-// newline.
+// Text renders the native write verdict. It ends in a newline.
 func (r WriteReport) Text() string {
 	var tb textbuf.Buffer
 
 	if r.Dirs == 0 {
-		return "yang_glue: no yang/ directories with .yang files found\n"
+		return "./le yang-glue write: no yang/ directories with .yang files found\n"
 	}
 
-	return tb.Str("yang_glue: generated glue for ").Int(int64(r.Dirs)).Str(" yang/ directories\n").String()
+	return tb.Str("./le yang-glue write: generated glue for ").Int(int64(r.Dirs)).Str(" yang/ directories\n").String()
 }

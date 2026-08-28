@@ -22,8 +22,8 @@ var formFieldIDReplacer = strings.NewReplacer("/", "-", ".", "-", ":", "-")
 //nolint:gochecknoglobals // Immutable acronym lookup for friendly field labels.
 var fieldLabelAcronyms = map[string]string{
 	"ip": "IP", "ipv4": "IPv4", "ipv6": "IPv6", "asn": "ASN", "as": "AS",
-	"id": "ID", "dns": "DNS", "mac": "MAC", "vlan": "VLAN", "url": "URL",
-	"mtu": "MTU", "ttl": "TTL", "tcp": "TCP", "udp": "UDP", "rfc": "RFC",
+	"id": "ID", "dns": labelDNS, "mac": labelMAC, "vlan": "VLAN", "url": "URL",
+	"mtu": labelMTU, "ttl": "TTL", "tcp": "TCP", "udp": "UDP", "rfc": "RFC",
 	"bgp": "BGP", "vrf": "VRF", "rd": "RD", "rt": "RT",
 }
 

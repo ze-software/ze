@@ -86,7 +86,7 @@ func checkEnrolment(tree string, current, baseline, summaries, newly, signed map
 		errs = append(errs, tb.Str(rfc).Str(" is enrolled but rfc/short/").Str(rfc).Str(".md does not exist -- there is no requirement list to enforce").String())
 	}
 	for _, rfc := range sortedSet(current) {
-		if _, held := SourceKeywordCount(tree, rfc); held {
+		if _, held := sourceKeywordCount(tree, rfc); held {
 			continue
 		}
 		var tb textbuf.Buffer
@@ -100,7 +100,7 @@ func checkEnrolment(tree string, current, baseline, summaries, newly, signed map
 		}
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(rfc).Str(" is newly enrolled with no valid extraction sign-off at rfc/extraction/").Str(rfc).
-			Str(".json. Enrolling gates the requirements the summary LISTS; nothing bounds what it MISSED until the source text has been walked site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: make ze-rfc-extraction-create STEM=").Str(rfc).
+			Str(".json. Enrolling gates the requirements the summary LISTS; nothing bounds what it MISSED until the source text has been walked site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: ./le rfc extraction-create stem ").Str(rfc).
 			Str(", then classify every site and section. RFCs enrolled before this gate existed are grandfathered and unaffected").String())
 	}
 	return errs
@@ -217,9 +217,9 @@ func checkRetiredRequirements(requirements []Requirement, enrolled, baselineIDs,
 	return errs
 }
 
-func parseCorrections(text string) []Correction {
+func parseCorrections(text string) []correction {
 	lines := strings.Split(text, "\n")
-	var out []Correction
+	var out []correction
 	for start := 0; start < len(lines); {
 		if strings.TrimSpace(lines[start]) == "" {
 			start++
@@ -236,7 +236,7 @@ func parseCorrections(text string) []Correction {
 		open := correctionOpenRE.FindStringSubmatch(body[0])
 		if open != nil {
 			joined := strings.Join(body, " ")
-			correction := Correction{Date: open[1], Line: start + 1}
+			correction := correction{Date: open[1], Line: start + 1}
 			for _, match := range correctionRIDRE.FindAllStringSubmatch(joined, -1) {
 				correction.RIDs = append(correction.RIDs, match[1])
 			}
@@ -252,7 +252,7 @@ func parseCorrections(text string) []Correction {
 
 func squashWhitespace(text string) string { return strings.Join(strings.Fields(text), " ") }
 
-func correctionAuthorizes(rid string, corrections []Correction, source string) bool {
+func correctionAuthorizes(rid string, corrections []correction, source string) bool {
 	haystack := squashWhitespace(source)
 	for _, correction := range corrections {
 		named := false
@@ -277,7 +277,7 @@ func correctionAuthorizes(rid string, corrections []Correction, source string) b
 func checkLevelRatchet(tree string, requirements []Requirement, enrolled map[string]bool,
 	levels map[string]string, baselineEnrolled map[string]bool) []string {
 	seen := map[string]bool{}
-	corrections := map[string][]Correction{}
+	corrections := map[string][]correction{}
 	sources := map[string]string{}
 	var errs []string
 	for _, req := range requirements {
@@ -319,7 +319,7 @@ func checkNewSummaries(deriver *Deriver, stems, baselineStems, enrolled map[stri
 	if !baselineKnown || len(baselineStems) == 0 {
 		return nil
 	}
-	gated := GatedCounts(requirements)
+	gated := gatedCounts(requirements)
 	var errs []string
 	for _, stem := range sortedMissing(stems, baselineStems) {
 		if enrolled[stem] {

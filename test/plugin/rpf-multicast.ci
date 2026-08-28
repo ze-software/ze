@@ -34,136 +34,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000102
 EOF_PEER
 
-# Python test plugin: injects multicast routes then queries RPF
-tmpfs=rpf-multicast-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-import json
-from ze_api import API, result_json_data, result_text_data, runtime_fail
-
-def dispatch(api, command):
-    """Dispatch a command and return its result envelope.
-
-    An RPC-level error means the command never reached the plugin at all -- it
-    is not declared in the plugin's sdk.Registration.Commands, so the engine's
-    registry cannot route it. That is a WIRING failure, distinct from a plugin
-    handler that ran and returned status=error (the non-CIDR case below), so
-    surface it through runtime_fail rather than letting it surface as a bare
-    traceback whose sentinel a later shutdown could race away.
-    """
-    try:
-        resp = api._call_engine(
-            'ze-plugin-engine:dispatch-command', {'command': command})
-    except RuntimeError as exc:
-        runtime_fail(f'dispatch {command!r} rejected by the engine: {exc}')
-        raise
-    if resp is None:
-        runtime_fail(f'dispatch {command!r}: engine call returned None')
-    return resp.get('result', {})
-
-def eor_on_wire(result):
-    """True once peer1's initial-sync End-of-RIB has been written."""
-    if result.get('status') != 'done':
-        return False
-    data = result_text_data(result, '{}')
-    try:
-        parsed = json.loads(data) if isinstance(data, str) else data
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    if not isinstance(parsed, dict):
-        return False
-    peers = parsed.get('peers', {})
-    if not isinstance(peers, dict):
-        return False
-    return any(isinstance(row, dict) and row.get('eor-sent', 0) >= 1
-               for row in peers.values())
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Let peer1 finish its initial sync before shutting down. This gate is what
-    # makes the peer's EOR expectation reachable: `eor-sent` is incremented at
-    # the EOR write itself, so polling it (rather than trusting state=established,
-    # which is reached BEFORE the EOR is sent) guarantees the marker is on the
-    # wire before the run-script asks ze to shut down. Without it the script
-    # shut down inside the OPEN handshake and no EOR was ever written.
-    synced = api.dispatch_until(
-        'show bgp peer peer1 detail', eor_on_wire, attempts=60,
-    )
-    if not eor_on_wire(synced):
-        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
-
-    # Every check below reports through runtime_fail, never `print(...) +
-    # sys.exit(1)`: ze_api.runtime_fail's own docstring records that the old
-    # pattern is a silent no-op (ze exits 0, the observer's exit code never
-    # reaches the runner, the runner reports success). This test carried that
-    # pattern AND a `finally: request shutdown`, which additionally tore down
-    # the engine -- and with it the plugin stderr relay -- before an uncaught
-    # exception's ZE-OBSERVER-FAIL sentinel could ever be relayed. Both defects
-    # are why `# PREVENTS: RPF command not wired` never fired while the command
-    # was in fact unreachable. Shutdown is now on the success path only;
-    # runtime_fail performs its own clean shutdown on the failure path.
-
-    # Inject multicast routes at two specificity levels
-    result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/multicast 224.0.0.0/4 nhop 10.0.0.1')
-    if result.get('status') != 'done':
-        runtime_fail(f'inject /4 status={result.get("status")} err={result.get("data")}')
-
-    result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/multicast 224.1.0.0/16 nhop 10.0.0.2')
-    if result.get('status') != 'done':
-        runtime_fail(f'inject /16 status={result.get("status")} err={result.get("data")}')
-
-    # Wait for best-path computation to propagate to Loc-RIB.
-    api.dispatch_until(
-        'show bgp rib rpf ipv4/multicast 224.1.2.5',
-        lambda r: result_json_data(r, {}).get('matched-prefix') == '224.1.0.0/16',
-    )
-
-    # RPF query: should match the /16 (more specific)
-    result = dispatch(api, 'show bgp rib rpf ipv4/multicast 224.1.2.5')
-    if result.get('status') != 'done':
-        runtime_fail(f'rpf status={result.get("status")} err={result.get("data")}')
-
-    data = result_json_data(result, {})
-    if not data.get('found'):
-        runtime_fail(f'rpf found=false, expected match: {data}')
-    if data.get('matched-prefix') != '224.1.0.0/16':
-        runtime_fail(f'rpf matched-prefix={data.get("matched-prefix")}, expected 224.1.0.0/16')
-
-    # RPF query: no match
-    result = dispatch(api, 'show bgp rib rpf ipv4/multicast 192.168.1.1')
-    if result.get('status') != 'done':
-        runtime_fail(f'rpf no-match status={result.get("status")}')
-
-    data = result_json_data(result, {})
-    if data.get('found') is not False:
-        runtime_fail(f'rpf should be found=false for non-multicast addr: {data}')
-
-    # RPF query: non-CIDR family should error. The handler RUNS and returns
-    # status=error, so this arrives as a result envelope, not an RPC error.
-    result = dispatch(api, 'show bgp rib rpf l2vpn/evpn 10.0.0.1')
-    if result.get('status') != 'error':
-        runtime_fail(f'rpf non-CIDR should error, got status={result.get("status")}')
-
-    print('OK: rpf multicast verified', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# native test plugin: injects multicast routes then queries RPF
+# Native compiled fixture: plugin/rpf-multicast
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rpf-multicast-test {
-		run ./rpf-multicast-test.run
+		run "ze-test fixture plugin/rpf-multicast"
 		encoder json
 	}
 	internal bgp-rib {

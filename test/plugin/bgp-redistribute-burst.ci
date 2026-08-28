@@ -523,54 +523,11 @@ expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"mes
 expect=json:conn=1:seq=500:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["10.0.1.243/32"],"next-hop":"127.0.0.4"}]}
 EOF_PEER
 
-tmpfs=burst-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import time
-from ze_api import API, runtime_fail
-
-
-def dispatch(api, command):
-    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait on the peer's own state, then on its initial-sync EOR reaching the
-    # wire, instead of holding a fixed 2s and hoping establishment fitted in it.
-    if not api.wait_peer_eor_sent():
-        runtime_fail('initial-sync EOR never reached the wire')
-        return
-
-    resp = dispatch(api, 'request fakeredist emit-burst 500 add ipv4/unicast 10.0.0.0/32')
-    result = resp.get('result', {})
-    if result.get('status') != 'done':
-        runtime_fail(f'emit-burst failed: {result}')
-        return
-
-    # There IS a queryable signal: `request quiesce` returns once the BGP
-    # forward pool and every peer's initial-sync opQueue have settled, which is
-    # exactly "the emitted route finished dispatching".
-    if not api.quiesce():
-        runtime_fail('quiesce barrier did not complete')
-        return
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external burst-test {
-		run ./burst-test.run
+		run "ze-test fixture plugin/bgp-redistribute-burst"
 		encoder json
 	}
 	internal redistribute-orchestrator {

@@ -7,11 +7,14 @@
 //   - Python whitespace classes and split functions use Unicode. Go regexp `\s`
 //     uses five ASCII bytes. strings.Fields uses a similar but different set.
 //     Python also treats U+001C through U+001F as whitespace.
+//
 //   - Python `\w` and `\b` use Unicode. Go uses `[0-9A-Za-z_]`.
 //
 //   - Python `\d` includes all Unicode decimal digits. Go uses `[0-9]`.
+//
 //   - Python lengths and slices count CHARACTERS. Go counts BYTES. A byte slice
 //     can split an em dash and create mojibake.
+//
 //   - Go RE2 lacks lookaround, which six patterns require.
 //
 // DEFAULT_GLOBS currently select 8120 files with no non-ASCII whitespace,

@@ -81,7 +81,7 @@ func TestCommandDefConstruction(t *testing.T) {
 // VALIDATES: Direct struct construction integrates with registry registration.
 // PREVENTS: Mismatch between struct fields and registry expectations.
 func TestCommandDefRegistration(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-plugin"})
 
 	defs := []CommandDef{

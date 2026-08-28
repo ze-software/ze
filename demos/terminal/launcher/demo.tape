@@ -2,7 +2,7 @@ Output artifacts/launcher.webm
 Source common.tape
 
 Hide
-Type "bash /src/demos/terminal/cards.sh launcher intro"
+Type "ze-demo card launcher intro"
 Enter
 Show
 Wait+Screen /====/
@@ -51,7 +51,7 @@ Sleep 2s
 Type "clear"
 Enter
 
-Type "bash /src/demos/terminal/cards.sh launcher recap"
+Type "ze-demo card launcher recap"
 Enter
 Show
 Sleep 9s

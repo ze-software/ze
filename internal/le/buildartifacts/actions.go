@@ -11,26 +11,17 @@ import "github.com/ze-software/ze/internal/le/leaction"
 const area = "build-artifacts"
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-host-build",
-		Why: "ze-host, the `ze appliance ...` driver that runs on the BUILD machine. " +
-			"It owns the kernel cache key, so every QEMU target declares it as a " +
-			"prerequisite before taking the staged-kernel guard",
+	leaction.Action{Verb: "host", Why: "ze-host, the `ze appliance ...` driver that runs on the BUILD machine. " +
+		"It owns the kernel cache key, so every QEMU target declares it as a " +
+		"prerequisite before taking the staged-kernel guard",
 		Writes: true,
-		Answer: runHost,
-	},
-	leaction.Action{
-		Gate:   "ze-installer-build-amd64",
-		Why:    "the installer initrd PID 1 for amd64, at bin/ze-installer-amd64",
+		Answer: runHost},
+	leaction.Action{Verb: "installer-amd64", Why: "the installer initrd PID 1 for amd64, at bin/ze-installer-amd64",
 		Writes: true,
-		Answer: func() (any, int) { return runInstaller("amd64") },
-	},
-	leaction.Action{
-		Gate:   "ze-installer-build-arm64",
-		Why:    "the installer initrd PID 1 for arm64, at bin/ze-installer-arm64",
+		Answer: func() (any, int) { return runInstaller("amd64") }},
+	leaction.Action{Verb: "installer-arm64", Why: "the installer initrd PID 1 for arm64, at bin/ze-installer-arm64",
 		Writes: true,
-		Answer: func() (any, int) { return runInstaller("arm64") },
-	},
+		Answer: func() (any, int) { return runInstaller("arm64") }},
 )
 
 // Actions answers the command surface as structured data.

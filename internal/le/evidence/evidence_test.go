@@ -117,7 +117,7 @@ func TestADirtyTreeStartsNothing(t *testing.T) {
 // PREVENTS: a confusing git or docker failure standing in for the plain fact
 // that the tool is not installed.
 func TestAMissingCommandStopsTheRun(t *testing.T) {
-	for _, name := range RequiredCommands() {
+	for _, name := range requiredCommandNames() {
 		t.Run(name, func(t *testing.T) {
 			rec := &recorder{missing: name}
 
@@ -178,7 +178,7 @@ func TestTheContainerScriptClonesAndVerifies(t *testing.T) {
 		"set -euo pipefail",
 		"git clone --no-local /host /work/src",
 		"cd /work/src",
-		"make ze-precommit-verify",
+		"./le verify current mode full",
 	} {
 		if !strings.Contains(ContainerScript, want) {
 			t.Errorf("the container script does not carry %q", want)

@@ -77,7 +77,7 @@ func evidenceCounts(tags []Tag, carriers []Carrier) map[string]int {
 		}
 	}
 	for _, tag := range tags {
-		out[EvidenceLabel(tag.File, carriers)]++
+		out[evidenceLabel(tag.File, carriers)]++
 	}
 	return out
 }
@@ -125,7 +125,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	if err != nil {
 		return CheckReport{}, err
 	}
-	stems, err := SummaryStems(tree)
+	stems, err := summaryStems(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
@@ -140,18 +140,18 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	if !stemsKnown {
 		baselineStems = map[string]bool{}
 	}
-	rows, err := LoadStatusLedger(tree)
+	rows, err := loadStatusLedger(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
 	baselineRows, rowsKnown := baselineStatusRows(tree)
-	dispositions, err := LoadDispositions(tree)
+	dispositions, err := loadDispositions(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
 	baselineDispositionSet := baselineDispositions(tree)
 	deriver := NewDeriver(tree)
-	signed, extractionErrors, err := EvaluateExtractions(deriver, collected.Requirements)
+	signed, extractionErrors, err := evaluateExtractions(deriver, collected.Requirements)
 	if err != nil {
 		return CheckReport{}, err
 	}
@@ -174,7 +174,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		collected.Requirements, collected.ParseByStem, stemsKnown)...)
 	if intersects(collected.Enrolled, baseEnrolled) {
 		baselineTagSet := baselineTags(tree)
-		carriers, err := Carriers(tree)
+		carriers, err := carriers(tree)
 		if err != nil {
 			return CheckReport{}, err
 		}
@@ -190,12 +190,12 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	violations = append(violations, collected.ParseErrors...)
 	violations = append(violations, checkIDAllocation(collected.Requirements, ids)...)
 	violations = append(violations, evaluate(collected.Requirements, collected.Tags, collected.Enrolled)...)
-	successors, err := SummarySuccessors(tree, stems)
+	successors, err := summarySuccessors(tree, stems)
 	if err != nil {
 		return CheckReport{}, err
 	}
 	violations = append(violations, checkSuperseded(tree, collected.Requirements, successors, stems)...)
-	carriers, err := Carriers(tree)
+	carriers, err := carriers(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
@@ -216,7 +216,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		signed, derived)...)
 	violations = append(violations, checkGapCountAgreement(collected.Requirements, rows)...)
 
-	audits, err := LoadAudits(tree, collected.Enrolled)
+	audits, err := loadAudits(tree, collected.Enrolled)
 	if err != nil {
 		return CheckReport{}, err
 	}
@@ -259,14 +259,14 @@ func check(tree string, today time.Time) (CheckReport, error) {
 			report.Gated++
 		}
 	}
-	credited := Credited(signed, collected.Enrolled)
+	credited := credited(signed, collected.Enrolled)
 	report.Enrolled = len(collected.Enrolled)
 	report.Tags = len(collected.Tags)
 	report.Evidence = evidenceCounts(collected.Tags, carriers)
 	report.Signed = len(credited)
-	report.SignedByRegister = RegisterCounts(credited)
+	report.SignedByRegister = registerCounts(credited)
 	report.Unsigned = len(collected.Enrolled) - len(credited)
-	auditRows, worklist := AuditCoverageRows(AuditCoverageInput{Requirements: collected.Requirements,
+	auditRows, worklist := auditCoverageRows(auditCoverageInput{Requirements: collected.Requirements,
 		Tags: collected.Tags, Enrolled: collected.Enrolled, Carriers: carriers, Audits: audits, States: states})
 	for _, row := range auditRows {
 		report.AuditProven += row.Proven

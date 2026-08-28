@@ -4,62 +4,12 @@
 # PREVENTS:  regression where the show RPC is unregistered or the manager
 #            pointer is never wired, breaking `show storage smart`.
 
-tmpfs=smart-show-done.run:mode=755:terminator=EOF_DONE
-#!/usr/bin/env python3
-"""Dispatch `show storage smart` against a configured daemon: expect done + devices."""
-
-import json
-
-from ze_api import API, runtime_fail, result_json_data, result_text_data
-
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    r = dispatch(api, 'show storage smart')
-    if r.get('status') != 'done':
-        runtime_fail(
-            f"show storage smart (configured): expected done, "
-            f"got status={r.get('status')} data={result_text_data(r)[:200]}")
-
-    try:
-        data = result_json_data(r, {})
-    except json.JSONDecodeError as exc:
-        runtime_fail(f"show storage smart: invalid JSON: {exc}: {result_text_data(r)[:200]}")
-        data = {}
-
-    if 'devices' not in data:
-        runtime_fail(f"show storage smart: missing 'devices' key: {data!r}")
-    if not isinstance(data['devices'], list):
-        runtime_fail(
-            f"show storage smart: 'devices' is {type(data['devices']).__name__}, not list")
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_DONE
+# Native observer fixture: plugin/smart-show.
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external smart-show-done {
-        run ./smart-show-done.run
+        run "ze-test fixture plugin/smart-show"
         encoder json
     }
 }

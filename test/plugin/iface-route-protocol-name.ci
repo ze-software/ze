@@ -26,7 +26,7 @@
 #
 # needs-linux:caps=net-admin: creating a dummy device and installing a route
 # needs CAP_NET_ADMIN, which the verify runner does not have. Runs as root under
-# `make ze-qemu-needs-linux-test`.
+# `./le qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the device zertproto0, the address block
 # 198.51.100.160/28, and the destinations 203.0.113.160/28 and 203.0.113.176/28.
@@ -34,7 +34,7 @@
 # at the end, which removes both routes with it.
 #
 # The blocks are /28s because the plugin suite runs 8-wide
-# (ZE_PLUGIN_PARALLEL, mk/test-functional.mk) and the QEMU run gives every test
+# (ZE_PLUGIN_PARALLEL, internal/le/functional/budget.go) and the QEMU run gives every test
 # ONE namespace. This file used to claim 198.51.100.0/24 and 203.0.113.0/24 were
 # unique to it, and both claims were false: iface-learned-route-metric.ci
 # addressed the same /24 and installed a `proto static` route at the same
@@ -42,123 +42,16 @@
 # route and see "static" where it wants "ze-iface". Per-test /28s were the fix
 # rather than option=netns-link, which applyNetnsLinkGate
 # (internal/test/runner/caps.go) SKIPS unless the per-test netns launch mode is
-# on -- that would take this test out of `make ze-qemu-needs-linux-test`
+# on -- that would take this test out of `./le qemu all-tests`
 # entirely. option=exclusive:group= is the other route, and it serializes; it is
 # for state that cannot be made unique, such as the cos tests' real eth0.
 option=needs-linux:caps=net-admin
 
-tmpfs=iface-route-protocol-name.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Install a route stamped proto 253 and assert `show route` names it ze-iface.
-
-Setup goes through `ip` so that nothing but the rendering is under test: a
-failure here can only mean the protocol column is wrong. The read goes through
-ze-plugin-engine:dispatch-command, which is the path an operator's `show route`
-takes.
-"""
-
-import subprocess
-import sys
-
-from ze_api import API
-from ze_api import result_json_data
-from ze_api import runtime_fail
-
-DEV = "zertproto0"
-# Per-test /28s: the suite runs 8-wide in one namespace, so a shared /24 lets a
-# sibling's route answer this test's `show route`. See the header.
-LOCAL = "198.51.100.161/28"
-GW = "198.51.100.162"
-IFACE_DEST = "203.0.113.160/28"
-BOOT_DEST = "203.0.113.176/28"
-METRIC = 7
-
-
-def ip(*args, check=True):
-    result = subprocess.run(["ip", *args], capture_output=True, text=True, check=False)
-    if check and result.returncode != 0:
-        runtime_fail(f'ip {" ".join(args)}: exit {result.returncode}: {result.stderr.strip()}')
-    return result
-
-
-def dispatch(api, command):
-    try:
-        resp = api._call_engine(
-            'ze-plugin-engine:dispatch-command', {'command': command})
-    except Exception as e:  # unwired command -> loud RED, never a vacuous pass
-        return {'status': 'error', 'error': f'engine call raised: {e}'}
-    if resp is None:
-        return {'status': 'error', 'error': 'engine call returned None'}
-    return resp.get('result', {})
-
-
-def route_protocol(api, dest):
-    resp = dispatch(api, f'show route {dest}')
-    if resp.get('status') != 'done':
-        runtime_fail(
-            f'show route {dest}: expected status=done, got status={resp.get("status")!r} '
-            f'error={resp.get("error")!r}')
-    data = result_json_data(resp, None)
-    if not isinstance(data, dict):
-        runtime_fail(f'show route {dest}: expected an object, got {data!r}')
-    routes = data.get('routes') or []
-    for route in routes:
-        if route.get('destination') == dest:
-            return route
-    runtime_fail(f'show route {dest}: the kernel route is absent from the dump: {routes!r}')
-    return None
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        ip("link", "add", DEV, "type", "dummy")
-        ip("address", "add", LOCAL, "dev", DEV)
-        ip("link", "set", DEV, "up")
-        # 253 is rtproto.Iface: what AddRoute stamps for a DHCP, RA, PPPoE or
-        # PPP route. 3 (boot) is what the same route carried before the spec.
-        ip("route", "add", IFACE_DEST, "via", GW, "dev", DEV,
-           "proto", "253", "metric", str(METRIC))
-        ip("route", "add", BOOT_DEST, "via", GW, "dev", DEV,
-           "proto", "boot", "metric", str(METRIC))
-
-        route = route_protocol(api, IFACE_DEST)
-        if route.get('protocol') != 'ze-iface':
-            runtime_fail(
-                f'{IFACE_DEST}: protocol column reads {route.get("protocol")!r}, '
-                f'expected "ze-iface"; full row {route!r}')
-        if route.get('device') != DEV or route.get('nexthop') != GW:
-            runtime_fail(f'{IFACE_DEST}: wrong route matched: {route!r}')
-
-        control = route_protocol(api, BOOT_DEST)
-        if control.get('protocol') != 'boot':
-            runtime_fail(
-                f'{BOOT_DEST}: protocol column reads {control.get("protocol")!r}, '
-                f'expected "boot"; naming 253 must not have renamed the rest')
-
-        print('OK: show route names proto 253 ze-iface and proto 3 boot',
-              file=sys.stderr)
-    finally:
-        ip("link", "del", DEV, check=False)
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-route-protocol-name {
-		run ./iface-route-protocol-name.run
+		run "ze-test fixture plugin/iface-route-protocol-name"
 		encoder json
 	}
 }

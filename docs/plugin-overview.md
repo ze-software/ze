@@ -36,13 +36,13 @@ in is decided by **dependency direction**, not by the registration mechanism:
 for platform plugins that other plugins depend on (BGP, iface, the RIB),
 `internal/plugins/` for edge plugins nothing depends on (NTP, static, IS-IS,
 OSPF). A config-driven engine (`sdk.NewWithConn`) in the wrong tier fails the
-`make ze-tier-check` gate, as does a new `internal/core/` import of
+`./le tier check` gate, as does a new `internal/core/` import of
 `internal/component/` or `internal/plugins/` (core is the leaf tier; the
-grandfathered pairs live in the shrink-only `scripts/dev/core_import_baseline.txt`).
+grandfathered pairs live in `internal/le/tier/testdata/core_import_baseline.txt`).
 Full rule and the audit tool:
 [`ai/rules/architecture.md`](../ai/rules/architecture.md).
 <!-- source: ai/rules/architecture.md -- tier taxonomy and the engine-placement gate -->
-<!-- source: scripts/dev/dep_audit.py -- dep audit report + Path C --check gate -->
+<!-- source: internal/le/tier/actions.go -- Answer -->
 <!-- source: internal/plugins/ospf/register.go -- OSPF edge plugin registration -->
 
 OSPF is also a Loc-RIB source named `ospf`: SPF inserts one path per equal-cost
@@ -109,7 +109,7 @@ when you configure the corresponding address family. You do not need to declare 
 
 ## Shipped Plugins
 
-`bin/ze --plugins` is the runtime source of truth for the complete registered
+`./ze --plugins` is the runtime source of truth for the complete registered
 plugin list. The groups below mirror the current registrations in
 `internal/component/plugin/all/all.go`.
 

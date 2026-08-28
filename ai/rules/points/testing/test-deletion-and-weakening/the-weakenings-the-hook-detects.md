@@ -28,6 +28,6 @@ from three consolidated into one:
 
 **The reported set MUST still be judged by the agent making the edit, and the
 COMMIT that carries it MUST carry a row for it.** `weakened_problems`
-(`scripts/dev/commit_helper.py`) records every weakening kind, count drops
+(`internal/le/commit`) records every weakening kind, count drops
 included, so the commit asks for a row the hook did not. Say in the row which
 happened: the coverage moved, or it went.

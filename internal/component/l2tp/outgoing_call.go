@@ -51,7 +51,7 @@ type OutgoingCallResult struct {
 func (s *Subsystem) PlaceOutgoingCall(remoteName, calledNumber string) (OutgoingCallResult, error) {
 	s.mu.Lock()
 	rem, ok := s.params.LookupRemote(remoteName)
-	var reactor *L2TPReactor
+	var reactor *l2tpReactor
 	if len(s.reactors) > 0 {
 		reactor = s.reactors[0]
 	}

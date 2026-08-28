@@ -1,7 +1,7 @@
 # Required-symbol manifest for the shared efi-console fragment.
 #
-# Intentionally EMPTY: the shared fragment adds NO new enforcement. The builder
-# (build.py required_symbols_for_fragments) requires a paired .require for every
-# fragment, so this file must exist, but it declares no symbols. Each profile's
+# Intentionally EMPTY: the shared fragment adds NO new enforcement. The native
+# worker requires a paired .require manifest for every fragment, so this file
+# must exist, but it declares no symbols. Each profile's
 # own *.require manifest is unchanged, so removing or changing this fragment
 # fails at include-RESOLUTION (file-not-found), never silently at enforcement.

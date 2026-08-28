@@ -24,32 +24,32 @@ tea issue list
 tea issue create --title "..."
 ```
 
-## Why `ze-precommit-verify` Runs Foreground
+## Why `./le verify current mode full` Runs Foreground
 
 Running foreground means the tool result IS the completion signal -- no
 polling, no missed notifications, log is ready to read on return. The
 two-pass strategy (cached full pass + `-race` only on changed groups) is
 what keeps the common case short enough for that to be practical. How
-short is not stated here: `_release` (`scripts/dev/ze-run.sh`)
+short is not stated here: `_release` (`internal/le/lejob/answer.go`)
 appends the real elapsed seconds to `tmp/.ze-verify-duration.txt`, and a
 duration typed into a document is a claim, not a measurement.
 
 If a previous run is still going, the admission wrapper blocks the second
 invocation inside the same foreground Bash call until a slot frees. There is
-no lock file: `scripts/dev/verify-lock.sh` is an alias for
-`scripts/dev/ze-run.sh`, which keeps one entry per running job under
+no lock file: `internal/le/verifylock/register.go` is an alias for
+`internal/le/lejob/answer.go`, which keeps one entry per running job under
 `tmp/.ze-jobs/` and admits `ZE_RUN_SLOTS` of them at a time.
 
 Anti-patterns that look like "smart" backgrounding but break:
 
 | Anti-pattern | What actually happens |
 |--------------|-----------------------|
-| `run_in_background: true` + `until pgrep -f ze-precommit-verify; do sleep 2; done` | The polling loop becomes the "running" task; you never see the completion notification for the real run |
+| `run_in_background: true` + `until pgrep -f ./le verify current mode full; do sleep 2; done` | The polling loop becomes the "running" task; you never see the completion notification for the real run |
 | `run_in_background: true` + `stat -c %Y` mtime check on `tmp/ze-verify.log` | Log is written continuously during the run; mtime never "settles" reliably |
 | `run_in_background: true` then assume you'll be notified | You will be, but a concurrent polling/sleep loop in Bash can swallow the notification |
 
 There is no legitimate reason to background it. `ai/rules/git-safety.md`
-("Running ze-precommit-verify") says foreground, wait, never poll, and `ai/skills/ze-verify.md`
+("Running ./le verify current mode full") says foreground, wait, never poll, and `ai/skills/ze-verify.md`
 step 2 says the same. This paragraph used to carve out an exception for
 "genuinely independent work to do for >60s while it runs", contradicting the
 rule it exists to explain, and enumerating "both cases" under a single bullet.

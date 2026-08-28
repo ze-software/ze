@@ -17,16 +17,10 @@ const area = "port-defaults"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-port-defaults-check",
-		Why:    "the hand-written Go listener table and each service's YANG refine port default still agree, so the daemon binds the port the schema documents",
-		Answer: runCheck,
-	},
-	leaction.Action{
-		Gate:   "ze-port-defaults-selftest",
-		Why:    "the comparison itself still works, proved against eight synthetic cases rather than against the table it judges",
-		Answer: runSelftest,
-	},
+	leaction.Action{Verb: "check", Why: "the hand-written Go listener table and each service's YANG refine port default still agree, so the daemon binds the port the schema documents",
+		Answer: runCheck},
+	leaction.Action{Verb: "selftest", Why: "the comparison itself still works, proved against eight synthetic cases rather than against the table it judges",
+		Answer: runSelftest},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line

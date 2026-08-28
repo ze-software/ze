@@ -9,57 +9,11 @@ option=timeout:value=20s
 option=bind:value=0.0.0.0
 EOF_PEER
 
-tmpfs=policy-test-errors.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys  # noqa: F401
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Valid BGP UPDATE so input validation passes and resolution is reached.
-    update_hex = 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020E02030000FBF00000FC000000FBF14003040101010140050400000064180A0000'
-
-    # AC-11: peer selector matching no configured peer must error.
-    result = dispatch(api, f'show policy test peer 192.0.2.99 export update {update_hex}')
-    if result.get('status') != 'error':
-        runtime_fail(f'peer-not-found expected error, got {result.get("status")}')
-        print('FAIL: peer-not-found not rejected', file=sys.stderr)
-        sys.exit(1)
-    print(f'OK: peer not found rejected: {result.get("error", "")}')
-
-    # AC-4: unknown filter override must error (and not call any filter plugin).
-    result = dispatch(api, f'show policy test peer test-peer export filter NOPE update {update_hex}')
-    if result.get('status') != 'error':
-        runtime_fail(f'unknown-filter expected error, got {result.get("status")}')
-        print('FAIL: unknown filter not rejected', file=sys.stderr)
-        sys.exit(1)
-    print(f'OK: unknown filter rejected: {result.get("error", "")}')
-
-    print('ALL PASS: policy test error paths')
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external policy-test-errors {
-		run ./policy-test-errors.run
+		run "ze-test fixture plugin/policy-test-errors"
 		encoder json
 	}
 }

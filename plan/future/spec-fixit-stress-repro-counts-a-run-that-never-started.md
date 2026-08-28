@@ -17,7 +17,7 @@ defect: it matches none of the five defect kinds in `plan/future/README.md`.
 The Task section below states a mechanism that does not occur, so it must be
 rewritten before anyone implements it. The captured never-dispatched output
 carries NO usage banner, so `usage_error_signature`
-(`scripts/dev/stress-repro.py`) returns `None` because neither half matches,
+(`internal/le/stressrepro/run.go`) returns `None` because neither half matches,
 not because only the signature half misses. Keying the guard on the banner is
 therefore not the fix, and a `.ci` fixture already asserts that same banner
 over a real command, so keying on it would discard a genuine failure. The
@@ -26,7 +26,7 @@ marker must read as never-dispatched.
 
 ## Task
 
-`scripts/dev/stress-repro.py` reports `*** REPRODUCED on invocation 1` for a run
+`internal/le/stressrepro/run.go` reports `*** REPRODUCED on invocation 1` for a run
 that started no test. The tool exists to answer "is this failure real or
 load-dependent", and a false REPRODUCED is the one answer that ends the
 investigation with the wrong verdict.
@@ -76,7 +76,7 @@ emitted in that case is not yet captured and is the first deliverable.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/dev/stress-repro.py` -- `usage_error_signature`,
+- [ ] `internal/le/stressrepro/run.go` -- `usage_error_signature`,
       `USAGE_SIGNATURES`, `USAGE_BANNER`, `run_once`, and the reporting site that
       prints `*** REPRODUCED on invocation`
   → Constraint: the banner test is documented as a property of "no test ran".
@@ -101,7 +101,7 @@ emitted in that case is not yet captured and is the first deliverable.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `python3 scripts/dev/stress-repro.py <suite> [selector]`, run by an agent
+- `./le stress-repro run suite <suite> [test <selector>]`, run by an agent
   chasing a suspected flake.
 
 ### Transformation Path
@@ -127,7 +127,7 @@ emitted in that case is not yet captured and is the first deliverable.
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | one guard, one reporting site |
-| No unintended coupling (components stay isolated) | Yes | stays inside `scripts/dev/` |
+| No unintended coupling (components stay isolated) | Yes | stays inside `internal/le/` |
 | No duplicated functionality (extends existing, does not recreate) | Yes | the guard is extended, not replaced |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | Python tooling |
 | Registration over hardcoding | No | `USAGE_SIGNATURES` is a hardcoded list of three messages. Whether ze-test can be asked instead is worth one question during design |
@@ -149,14 +149,14 @@ emitted in that case is not yet captured and is the first deliverable.
 
 ## Blast Radius
 
-`scripts/dev/stress-repro.py` and, if A-1 is broken, whatever ze-test prints on a
+`internal/le/stressrepro/run.go` and, if A-1 is broken, whatever ze-test prints on a
 bad suite token. No daemon code, no wire behavior, no test corpus change.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `stress-repro.py` over an output that carries the banner and no listed signature | -> | `usage_error_signature` | a case in `scripts/dev/stress_repro_test.py` |
+| `stress-repro.py` over an output that carries the banner and no listed signature | -> | `usage_error_signature` | a case in `internal/le/` |
 | the same over a real failure quoting `unknown command:` with no banner | -> | the same | a second case, counted as a reproduction |
 
 ## Acceptance Criteria
@@ -180,9 +180,9 @@ bad suite token. No daemon code, no wire behavior, no test corpus change.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| banner without a listed signature is a usage error | `scripts/dev/stress_repro_test.py` | AC-1 | |
-| a listed signature without the banner is a reproduction | `scripts/dev/stress_repro_test.py` | AC-2 | |
-| banner with a listed signature stays a usage error | `scripts/dev/stress_repro_test.py` | AC-3 | |
+| banner without a listed signature is a usage error | `internal/le/` | AC-1 | |
+| a listed signature without the banner is a reproduction | `internal/le/` | AC-2 | |
+| banner with a listed signature stays a usage error | `internal/le/` | AC-3 | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -191,14 +191,14 @@ bad suite token. No daemon code, no wire behavior, no test corpus change.
 
 ## Files to Modify
 
-- `scripts/dev/stress-repro.py` -- `usage_error_signature`, and
+- `internal/le/stressrepro/run.go` -- `usage_error_signature`, and
   `USAGE_SIGNATURES` if the list stops being the discriminator
-- `scripts/dev/stress_repro_test.py` -- the failing case first
+- `internal/le/` -- the failing case first
 - `internal/test/cli/` -- only if A-1 is broken and ze-test must say so plainly
 
 ## Files to Create
 
-- `scripts/dev/stress_repro_test.py`, if no sibling suite exists yet
+- `internal/le/`, if no sibling suite exists yet
 
 ## Implementation Steps
 
@@ -212,7 +212,7 @@ bad suite token. No daemon code, no wire behavior, no test corpus change.
    - Verify: AC-1, AC-2, AC-3, AC-4
 4. **Phase: Confirm the original**
    - Verify: AC-5
-5. **Phase: `make ze-unit-pkg-test PKG=./scripts/dev`**
+5. **Phase: `go test -race ./scripts/dev`**
    - Verify: no sibling regressed
 
 ## Checklist
@@ -220,7 +220,7 @@ bad suite token. No daemon code, no wire behavior, no test corpus change.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
@@ -230,7 +230,7 @@ bad suite token. No daemon code, no wire behavior, no test corpus change.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] **Commit A:** code + tests + spec
 - [ ] **Commit B:** `git rm plan/<spec>` only
 

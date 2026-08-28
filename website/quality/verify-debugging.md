@@ -1,19 +1,18 @@
 # Verify and Debugging Workflow
 
-Use this page when `make ze-precommit-verify` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
+Use this page when `./le verify current mode full` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
 
-<!-- source: ../main/Makefile -- verify entry points -->
-<!-- source: ../main/scripts/status/verify_run.go -- staged verify runner -->
-<!-- source: ../main/scripts/dev/verify-lock.sh -- verify lock -->
+<!-- source: ../main/internal/le/verify/run.go -- verify entry point -->
+<!-- source: ../main/internal/le/verifylock/register.go -- verify lock -->
 <!-- source: ../main/internal/test/runner/failure_group.go -- failure grouping -->
 <!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->
 <!-- source: ../main/docs/guide/debugging-tools.md -- debugging tools -->
 
-`make ze-precommit-verify` is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.
+`./le verify current mode full` is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.
 
 ```bash
-make ze-precommit-verify-changed
-make ze-precommit-verify
+./le verify current mode changed
+./le verify current mode full
 ```
 
 ## What verify does
@@ -21,14 +20,14 @@ make ze-precommit-verify
 <table>
 <thead><tr><th>Stage</th><th>Purpose</th><th>Typical rerun</th></tr></thead>
 <tbody>
-<tr><td>Lint and architecture checks</td><td>Formatting, static analysis, generated docs, wiring, and project rules.</td><td><code>make ze-lint</code> or the printed validation target.</td></tr>
+<tr><td>Lint and architecture checks</td><td>Formatting, static analysis, generated docs, wiring, and project rules.</td><td><code>./le verify-lint run</code> or the printed validation target.</td></tr>
 <tr><td>Unit and race checks</td><td>Package contracts, changed groups, and race-sensitive paths.</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
 <tr><td>Functional suites</td><td><code>.ci</code>, <code>.wb</code>, and <code>.et</code> behavior that an operator or browser can observe.</td><td><code>bin/ze-test &lt;suite&gt; NAME -v</code></td></tr>
 <tr><td>Compatibility checks</td><td>ExaBGP and related protocol compatibility gates that belong in the local pass.</td><td>The command printed by the failure group.</td></tr>
 </tbody>
 </table>
 
-The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. The lock in `scripts/dev/verify-lock.sh` prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
+The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. The lock in `internal/le/verifylock/register.go` prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
 
 ## Reading the failure
 
@@ -43,7 +42,7 @@ If the rerun prints a temporary directory, keep it only when you need the artifa
 
 ```bash
 ZE_TEST_KEEP_TMP=1 bin/ze-test bgp plugin 42 -v
-make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp plugin 79 -v'
+./le qemu run command 'bin/ze-test-linux-arm64 bgp plugin 79 -v' keep-alive
 ```
 
 ## Trace output
@@ -68,7 +67,7 @@ Ze logging is controlled per subsystem through environment variables. Enable the
 <tr><td>BGP peer behavior</td><td><code>ze.log.bgp.reactor.peer=debug bin/ze-test bgp plugin NAME -v</code></td></tr>
 <tr><td>Plugin server behavior</td><td><code>ze.log.plugin.server=debug bin/ze-test bgp plugin NAME -v</code></td></tr>
 <tr><td>Config parsing</td><td><code>ze.log.config=debug bin/ze-test bgp parse NAME -v</code></td></tr>
-<tr><td>Linux diagnosis</td><td><code>make ze-qemu-shell</code>, then inspect <code>ip</code>, <code>nft</code>, <code>dmesg</code>, and temp files.</td></tr>
+<tr><td>Linux diagnosis</td><td><code>./le qemu run command '...' keep-alive</code>, then inspect <code>ip</code>, <code>nft</code>, <code>dmesg</code>, and temp files.</td></tr>
 </tbody>
 </table>
 

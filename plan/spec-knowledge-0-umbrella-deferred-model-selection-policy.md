@@ -30,10 +30,10 @@ three gates are keyed on it.
 1. If the split is still wanted, the rule needs a dated confirmation so the next
    reader stops re-asking, and nothing else changes.
 2. If it is not, three gates keyed on `REVIEW_TIER` in
-   `scripts/dev/running_model.py` need fixing, together with their callers: the
+   `internal/le/` need fixing, together with their callers: the
    spawn gate in `.claude/hooks/pretool-agent-skill.py`, the edit gate
    `c_model_phase` in `.claude/hooks/pretool-writeedit.py`, and the record gate
-   in `scripts/dev/review_gate.py`. All three currently refuse work on a model
+   in `internal/le/speclifecycle/review.go`. All three currently refuse work on a model
    they classify as review-tier.
 3. Either way, the model-era JUSTIFICATION sentences come out of
    `ai/INSTRUCTIONS.md` "STANDING REQUEST: delegate to subagents" and
@@ -141,7 +141,7 @@ plus three call sites, not a sweep.
 <!-- BLOCKING: proves the feature is reachable from its intended entry point.
      Without it the feature exists in isolation: unit tests pass, nothing calls it.
      Every row needs a concrete test name. "Deferred"/"TODO"/empty is rejected
-     by .claude/hooks/validate-spec.sh, which is the point: an unedited row fails. -->
+     by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
@@ -329,7 +329,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -347,7 +347,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

@@ -208,7 +208,7 @@ Sibling OSPF already exposes configurable SPF timers (`spf-delay-ms`,
 4. **Phase: LSP-gen floor** - enforce the generation interval.
    - Tests: `TestISISLSPGenIntervalFloor`
 5. **Functional (QEMU)** - timers change convergence on a real adjacency.
-6. **Full verification** -> `make ze-precommit-verify`
+6. **Full verification** -> `./le verify current mode full`
 7. **Complete spec** -> audit, learned summary, two-commit closure.
 
 ### Critical Review Checklist (/implement stage 6)
@@ -263,7 +263,7 @@ Sibling OSPF already exposes configurable SPF timers (`spf-delay-ms`,
 - [ ] End-to-End User Stories: working path + passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

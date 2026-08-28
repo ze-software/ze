@@ -2,7 +2,7 @@
 // Detail: rules.go -- the ordered migration rules this scanner applies.
 // Detail: tree.go -- package discovery, explanation parsing, and gate verdicts.
 //
-// The vendored scanner has two halves. Markup builds a lenient tree so an
+// The upstream scanner has two halves. Markup builds a lenient tree so an
 // attribute on an ancestor can be related to a request on a descendant. Raw
 // text is then scanned for JavaScript, event, configuration, and header names.
 // This file keeps that split so a text-only rewrite cannot silently replace the
@@ -109,18 +109,22 @@ func checkFile(path string) ([]Issue, error) {
 	}
 	checkText(raw, path, &issues)
 
+	return normalizeIssues(issues), nil
+}
+
+func normalizeIssues(issues []Issue) []Issue {
 	seen := make(map[issueKey]bool, len(issues))
-	deduped := make([]Issue, 0, len(issues))
+	unique := make([]Issue, 0, len(issues))
 	for _, issue := range issues {
 		key := issueKey{line: issue.Line, category: issue.Category, message: issue.Message}
 		if seen[key] {
 			continue
 		}
 		seen[key] = true
-		deduped = append(deduped, issue)
+		unique = append(unique, issue)
 	}
-	slices.SortStableFunc(deduped, func(a, b Issue) int { return a.Line - b.Line })
-	return deduped, nil
+	slices.SortStableFunc(unique, func(a, b Issue) int { return a.Line - b.Line })
+	return unique
 }
 
 type issueKey struct {
@@ -272,7 +276,7 @@ func htmlSpace(value byte) bool {
 	return value == ' ' || value == '\t' || value == '\n' || value == '\f' || value == '\r'
 }
 
-func pythonSpace(value rune) bool {
+func scannerSpace(value rune) bool {
 	return unicode.IsSpace(value) || value >= '\x1c' && value <= '\x1f'
 }
 
@@ -383,7 +387,7 @@ func findSwapSyntax(value string) (string, string, string, bool) {
 		end := start
 		for end < len(value) {
 			current, width := utf8.DecodeRuneInString(value[end:])
-			if current == ':' || pythonSpace(current) {
+			if current == ':' || scannerSpace(current) {
 				break
 			}
 			end += width
@@ -549,7 +553,7 @@ func hasHXOnAttribute(line string) bool {
 		}
 		after := remaining[index+len("hx-on"):]
 		for _, current := range after {
-			if pythonSpace(current) {
+			if scannerSpace(current) {
 				break
 			}
 			if current == '=' {
@@ -568,7 +572,7 @@ func hasCall(line, name string) bool {
 			return false
 		}
 		after := remaining[index+len(name):]
-		after = strings.TrimLeftFunc(after, pythonSpace)
+		after = strings.TrimLeftFunc(after, scannerSpace)
 		if strings.HasPrefix(after, "(") {
 			return true
 		}
@@ -589,7 +593,7 @@ func hasConfigKey(line, key string) bool {
 			if strings.HasPrefix(after, `"`) || strings.HasPrefix(after, `'`) {
 				return true
 			}
-			after = strings.TrimLeftFunc(after, pythonSpace)
+			after = strings.TrimLeftFunc(after, scannerSpace)
 			if strings.HasPrefix(after, "=") || strings.HasPrefix(after, ":") {
 				return true
 			}

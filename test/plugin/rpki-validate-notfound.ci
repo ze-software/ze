@@ -6,65 +6,13 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=linger:value=true
 option=update:value=send-route:prefix=192.168.0.0/24:origin-as=65001:next-hop=10.0.0.1
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies route accepted with NotFound state
-tmpfs=rpki-notfound-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API, result_text_data
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Poll adj-rib-in until the NotFound route lands. Deterministic replacement
-    # for a blind time.sleep: an inbound route needs a payload-predicate poll.
-    def _notfound_route(r):
-        d = result_text_data(r)
-        return '192.168.0.0/24' in d and (
-            '"validation-state":2' in d or '"validation-state": 2' in d)
-
-    try:
-        result = api.dispatch_until('show bgp rib received', _notfound_route, attempts=40)
-        if result.get('status') != 'done':
-            print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-
-        data = result_text_data(result)
-        if '192.168.0.0/24' not in data:
-            print(f'FAIL: route 192.168.0.0/24 not in adj-rib-in: {data}', file=sys.stderr)
-            sys.exit(1)
-
-        # Check validation state is NotFound (2)
-        if '"validation-state":2' not in data and '"validation-state": 2' not in data:
-            print(f'FAIL: validation-state not 2 (NotFound): {data}', file=sys.stderr)
-            sys.exit(1)
-
-        print('OK: route 192.168.0.0/24 accepted with validation-state=NotFound', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Native observer fixture: plugin/rpki-validate-notfound.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -76,7 +24,7 @@ plugin {
 		}
 	}
 	external rpki-notfound-test {
-		run ./rpki-notfound-test.run
+		run "ze-test fixture plugin/rpki-validate-notfound"
 		encoder json
 	}
 	internal rpki {

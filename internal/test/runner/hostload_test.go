@@ -60,9 +60,9 @@ func TestNearTimeoutClassification(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := IsNearTimeout(tc.elapsedRatio, tc.failureType)
+			got := isNearTimeout(tc.elapsedRatio, tc.failureType)
 			if got != tc.expectNear {
-				t.Errorf("IsNearTimeout(%v, %q) = %v, want %v", tc.elapsedRatio, tc.failureType, got, tc.expectNear)
+				t.Errorf("isNearTimeout(%v, %q) = %v, want %v", tc.elapsedRatio, tc.failureType, got, tc.expectNear)
 			}
 		})
 	}

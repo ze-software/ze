@@ -18,6 +18,35 @@ All new code MUST follow these patterns.
 | **API Model** | Pipe communication with text OR raw wire bytes |
 | **Route Building** | Unified parser with family-specific NLRI builders |
 
+
+### Command engine and composition roots
+
+`ze` and `le` are personalities of the single `cmd/ze` codebase. Both use the
+local-data registry and pipe renderers in `internal/component/command`; there is
+no second command engine for repository tooling. The root `./ze` and `./le`
+launchers select the cached `bin/ze` and `bin/le` personalities.
+
+Composition, not dispatch, separates the programs. Product registrations enter
+through the normal `cmd/ze` build. Development tools register below one `le`
+root through `internal/le/register.go`. A normal `ze` build imports no
+`internal/le` package. The non-default `ze_le` companion file
+`cmd/ze/ze_le_register.go` blank-imports that composition root and exposes the
+same command inventory as `ze le`; no shipped build enables the tag.
+
+To add a repository tool, add one package under `internal/le/`, register its
+area through `leroot.Register`, and add one blank import to
+`internal/le/register.go`. Keep each action callable as Go. Go callers invoke
+that function directly, and repository workflows invoke
+`./le <area> <action>`. A package must return structured answers through the
+shared renderer rather than add a private JSON mode.
+
+The retired auxiliary tooling tree has no current role. Data fixtures live
+under the `testdata/` directory of the Go package that owns them.
+
+<!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch -->
+<!-- source: internal/le/leroot/leroot.go -- Register -->
+<!-- source: cmd/ze/ze_le_register.go -->
+
 ---
 
 ## 1. System Architecture

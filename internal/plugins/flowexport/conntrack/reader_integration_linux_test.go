@@ -1,7 +1,7 @@
 // VALIDATES: the live conntrack netlink paths — NewReader/Dump/Close and
 // NewDestroyListener/Close — construct against the real kernel and return
-// well-typed results without panicking. Auto-enrolled in the QEMU integration
-// run via the derived `integration && linux` package list (mk/test-integration.mk).
+// well-typed results without panicking. Auto-enrolled in the native QEMU
+// integration run through the derived `integration && linux` package list.
 // PREVENTS: a regression in the netlink handle lifecycle or the destroy-listener
 // socket setup going unnoticed until a live appliance scrapes conntrack.
 

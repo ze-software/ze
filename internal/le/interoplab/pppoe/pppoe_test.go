@@ -354,9 +354,9 @@ func TestRESTSessionQueryRefusesEmptyOutput(t *testing.T) {
 }
 
 func TestScenarioPlansPreserveImagesConfigsAndArguments(t *testing.T) {
-	// VALIDATES: The native suite builds the same three images and mounts the
-	// producer's config files with the same container argv.
-	// PREVENTS: A native port that silently substitutes a different peer or config.
+	// VALIDATES: The native suite builds the three reviewed images and mounts
+	// the checked-in config files with the exact container argv.
+	// PREVENTS: A native plan silently substituting a different peer or config.
 	root := t.TempDir()
 	suite := filepath.Join(root, suitePath)
 	scenarioClient := filepath.Join(suite, "scenarios", "01-pppoe-chap-ipv4")
@@ -468,7 +468,7 @@ func TestScenarioPlansPreserveImagesConfigsAndArguments(t *testing.T) {
 }
 
 func TestPPPDFailureStagePreservesEveryDiagnosticBranch(t *testing.T) {
-	// VALIDATES: Every producer diagnostic branch remains callable natively.
+	// VALIDATES: Every reviewed diagnostic branch remains callable natively.
 	// PREVENTS: Collapsing discovery, LCP, auth, and IPCP failures into one timeout.
 	tests := []struct {
 		name string

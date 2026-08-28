@@ -14,21 +14,31 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+const (
+	routeAttributeNextHop           = "next-hop"
+	routeAttributeLocalPreference   = "local-preference"
+	routeAttributeMED               = "med"
+	routeAttributeExtendedCommunity = "extended-community"
+	routeAttributeLargeCommunity    = "large-community"
+	routeAttributeCommunity         = "community"
+	routeAttributeOriginatorID      = "originator-id"
+)
+
 // flexAttrKeywords lists path attribute keywords that go in the attribute block
 // when converting flex container entries (mcast-vpn, mup) to update blocks.
 // Everything else is treated as NLRI fields.
 var flexAttrKeywords = map[string]bool{
-	"next-hop":            true,
-	"origin":              true,
-	"local-preference":    true,
-	"med":                 true,
-	"extended-community":  true,
-	"large-community":     true,
-	"community":           true,
-	"originator-id":       true,
-	"cluster-list":        true,
-	"as-path":             true,
-	"bgp-prefix-sid-srv6": true,
+	routeAttributeNextHop:           true,
+	"origin":                        true,
+	routeAttributeLocalPreference:   true,
+	routeAttributeMED:               true,
+	routeAttributeExtendedCommunity: true,
+	routeAttributeLargeCommunity:    true,
+	routeAttributeCommunity:         true,
+	routeAttributeOriginatorID:      true,
+	"cluster-list":                  true,
+	"as-path":                       true,
+	"bgp-prefix-sid-srv6":           true,
 }
 
 // convertAnnounceToUpdate converts ExaBGP announce blocks to Ze update blocks.
@@ -43,7 +53,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 		}
 
 		// Process each SAFI (unicast, multicast, nlri-mpls, mpls-vpn, flow, vpls, evpn)
-		safis := []string{"unicast", "multicast", "nlri-mpls", "mpls-vpn", "flow", "vpls", "evpn"}
+		safis := []string{"unicast", "multicast", safiNLRIMPLS, "mpls-vpn", "flow", "vpls", "evpn"}
 		for _, safi := range safis {
 			// With ze:syntax "inline-list", routes are stored as list entries, not container values.
 			// Each list entry has: Key=prefix, Value=Tree containing attributes.
@@ -74,8 +84,8 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 				}
 
 				// Copy common attributes from the route's tree
-				attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
-					"extended-community", "large-community", "aggregator", "originator-id", "cluster-list",
+				attrFields := []string{routeAttributeNextHop, routeAttributeLocalPreference, routeAttributeMED, "as-path", routeAttributeCommunity,
+					routeAttributeExtendedCommunity, routeAttributeLargeCommunity, "aggregator", routeAttributeOriginatorID, "cluster-list",
 					"rd", "label", "labels", "path-information"}
 				for _, field := range attrFields {
 					if v, ok := attrTree.Get(field); ok {
@@ -134,7 +144,7 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 		route := entry.Value
 
 		rd, _ := route.Get("rd")
-		nextHop, _ := route.Get("next-hop")
+		nextHop, _ := route.Get(routeAttributeNextHop)
 
 		// Parse match criteria and detect IPv6.
 		isIPv6 := false
@@ -203,9 +213,9 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 					extComms = append(extComms, "mark "+value)
 				case "action":
 					extComms = append(extComms, "action "+value)
-				case "community":
+				case routeAttributeCommunity:
 					community = strings.Trim(value, "[] ")
-				case "extended-community":
+				case routeAttributeExtendedCommunity:
 					// Inline extended communities: "[ origin:... origin:... ]"
 					inner := strings.Trim(value, "[] ")
 					extComms = append(extComms, strings.Fields(inner)...)
@@ -257,15 +267,15 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 
 		attrBlock := config.NewTree()
 		if nextHop != "" {
-			attrBlock.Set("next-hop", nextHop)
+			attrBlock.Set(routeAttributeNextHop, nextHop)
 		}
 		if len(extComms) > 0 {
 			var tb textbuf.Buffer
-			attrBlock.Set("extended-community", tb.Byte('[').Join(extComms, " ").Byte(']').String())
+			attrBlock.Set(routeAttributeExtendedCommunity, tb.Byte('[').Join(extComms, " ").Byte(']').String())
 		}
 		if community != "" {
 			var tb textbuf.Buffer
-			attrBlock.Set("community", tb.Byte('[').Str(community).Byte(']').String())
+			attrBlock.Set(routeAttributeCommunity, tb.Byte('[').Str(community).Byte(']').String())
 		}
 		if rawAttr != "" {
 			attrBlock.Set("attribute", rawAttr)
@@ -304,14 +314,14 @@ func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
 
 	// Extract path attributes from the VPLS block.
 	// Simple values (single word) are stored as-is.
-	simpleFields := []string{"next-hop", "origin", "local-preference", "med", "originator-id"}
+	simpleFields := []string{routeAttributeNextHop, "origin", routeAttributeLocalPreference, routeAttributeMED, routeAttributeOriginatorID}
 	for _, field := range simpleFields {
 		if v, ok := vpls.Get(field); ok {
 			attrBlock.Set(field, v)
 		}
 	}
 	// Array fields: value-or-array strips brackets, so re-wrap multi-word values.
-	arrayFields := []string{"as-path", "community", "extended-community", "large-community", "cluster-list"}
+	arrayFields := []string{"as-path", routeAttributeCommunity, routeAttributeExtendedCommunity, routeAttributeLargeCommunity, "cluster-list"}
 	for _, field := range arrayFields {
 		if v, ok := vpls.Get(field); ok {
 			if strings.Contains(v, " ") && !strings.HasPrefix(v, "[") {
@@ -363,8 +373,8 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 
 	// Path attributes that go in the attribute block.
 	// Note: rd and label are NOT here — they go inline in the NLRI line.
-	attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
-		"extended-community", "large-community", "aggregator", "originator-id", "cluster-list",
+	attrFields := []string{routeAttributeNextHop, routeAttributeLocalPreference, routeAttributeMED, "as-path", routeAttributeCommunity,
+		routeAttributeExtendedCommunity, routeAttributeLargeCommunity, "aggregator", routeAttributeOriginatorID, "cluster-list",
 		"path-information", "labels", "split"}
 	for _, field := range attrFields {
 		if v, ok := attrTree.Get(field); ok {

@@ -39,8 +39,8 @@ var (
 	identListRe = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*)*)\b`)
 )
 
-// ExportedSymbols answers every exported declaration in one file's content.
-func ExportedSymbols(path, content string) []Symbol {
+// exportedSymbols answers every exported declaration in one file's content.
+func exportedSymbols(path, content string) []Symbol {
 	var symbols []Symbol
 	blockKind := ""
 
@@ -113,12 +113,12 @@ func leadingExportedIdents(code string) []string {
 	return names
 }
 
-// CheckWiring answers one issue line per exported symbol this change adds that
+// checkWiring answers one issue line per exported symbol this change adds that
 // no non-test file in internal/ or cmd/ names.
 //
 // baseline answers a path's content at the change's baseline, which is HEAD for
 // the running gate and a fixture for a test.
-func CheckWiring(root string, changed []string, baseline func(string) string) ([]string, error) {
+func checkWiring(root string, changed []string, baseline func(string) string) ([]string, error) {
 	// A pure relocation (a rename, or a tier move) deletes a file and re-adds
 	// its exported symbols at a new path. Those names are pre-existing API, not
 	// new, so a behavior-preserving move must contribute zero added symbols.
@@ -127,7 +127,7 @@ func CheckWiring(root string, changed []string, baseline func(string) string) ([
 	// empty.
 	relocated := make(map[string]bool)
 	for _, path := range changed {
-		if !IsWiringSource(path) {
+		if !isWiringSource(path) {
 			continue
 		}
 		current, err := readCurrentOrEmpty(root, path)
@@ -137,14 +137,14 @@ func CheckWiring(root string, changed []string, baseline func(string) string) ([
 		if current != "" {
 			continue // still on disk: not a deletion
 		}
-		for _, sym := range ExportedSymbols(path, baseline(path)) {
+		for _, sym := range exportedSymbols(path, baseline(path)) {
 			relocated[sym.Name] = true
 		}
 	}
 
 	var added []Symbol
 	for _, path := range changed {
-		if !IsWiringSource(path) {
+		if !isWiringSource(path) {
 			continue
 		}
 		current, err := readCurrentOrEmpty(root, path)
@@ -155,10 +155,10 @@ func CheckWiring(root string, changed []string, baseline func(string) string) ([
 			continue
 		}
 		old := make(map[string]bool)
-		for _, sym := range ExportedSymbols(path, baseline(path)) {
+		for _, sym := range exportedSymbols(path, baseline(path)) {
 			old[sym.Name] = true
 		}
-		for _, sym := range ExportedSymbols(path, current) {
+		for _, sym := range exportedSymbols(path, current) {
 			if old[sym.Name] || relocated[sym.Name] {
 				continue
 			}

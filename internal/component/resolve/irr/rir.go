@@ -2,8 +2,8 @@
 //
 // RIR lookup: maps an ASN to its Regional Internet Registry and whois server.
 // Two data sources:
-//   - Seed data: compiled-in from scripts/codegen/iana_asn.go (committed to repo)
-//   - Runtime update: downloaded from RIR delegation files via LoadRIRTable
+//   - Seed data: compiled-in from internal/le/ianaasn/ianaasn.go (committed to repo)
+//   - Runtime update: downloaded from RIR delegation files via loadRIRTable
 //
 // The seed data provides offline operation. `ze update bgp irr` refreshes
 // from the 5 RIR delegation files and stores in zefs.
@@ -76,9 +76,9 @@ var internedWhois = map[string]string{
 	WhoisAFRINIC: WhoisAFRINIC, WhoisLACNIC: WhoisLACNIC,
 }
 
-// InternRIREntry replaces the RIR and Whois strings in an entry with
+// internRIREntry replaces the RIR and Whois strings in an entry with
 // their interned constants. Returns false if the RIR is unknown.
-func InternRIREntry(e *RIREntry) bool {
+func internRIREntry(e *RIREntry) bool {
 	rir, ok := internedRIR[e.RIR]
 	if !ok {
 		return false
@@ -107,21 +107,21 @@ type RIREntry struct {
 	Whois string // Whois server for this range
 }
 
-// RIRTable holds the ASN-to-RIR mapping. Thread-safe after loading.
-type RIRTable struct {
+// rirTable holds the ASN-to-RIR mapping. Thread-safe after loading.
+type rirTable struct {
 	entries []RIREntry
 	mu      sync.RWMutex
 }
 
-// SeedRIRTable returns an RIRTable using the compiled-in seed data.
+// newSeedRIRTable returns a rirTable using the compiled-in seed data.
 // No network access needed. Use this for offline operation or as initial state.
-func SeedRIRTable() *RIRTable {
-	return &RIRTable{entries: seedRIRTable}
+func newSeedRIRTable() *rirTable {
+	return &rirTable{entries: seedRIRTable}
 }
 
-// LoadRIRTable downloads all 5 RIR delegation files and builds a fresh
+// loadRIRTable downloads all 5 RIR delegation files and builds a fresh
 // ASN-to-RIR lookup table. Used by `ze update bgp irr` to refresh data.
-func LoadRIRTable(ctx context.Context) (*RIRTable, error) {
+func loadRIRTable(ctx context.Context) (*rirTable, error) {
 	client := &http.Client{Timeout: 60 * time.Second}
 
 	var allEntries []RIREntry
@@ -142,14 +142,14 @@ func LoadRIRTable(ctx context.Context) (*RIRTable, error) {
 	if err != nil {
 		return nil, fmt.Errorf("irr: load RIR table: %w", err)
 	}
-	return &RIRTable{entries: collapsed}, nil
+	return &rirTable{entries: collapsed}, nil
 }
 
-// RIRForASN returns the RIR entry for the given ASN, or nil if the ASN
+// rirForASN returns the RIR entry for the given ASN, or nil if the ASN
 // is not allocated to any RIR (reserved, unallocated, or documentation range).
-// The returned pointer is valid for the lifetime of the RIRTable. If the table
+// The returned pointer is valid for the lifetime of the rirTable. If the table
 // is replaced (e.g., by a runtime update), old pointers remain valid but stale.
-func (t *RIRTable) RIRForASN(asn uint32) *RIREntry {
+func (t *rirTable) rirForASN(asn uint32) *RIREntry {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
@@ -169,17 +169,17 @@ func (t *RIRTable) RIRForASN(asn uint32) *RIREntry {
 	return nil
 }
 
-// WhoisForASN returns the whois server for the given ASN's RIR.
+// whoisForASN returns the whois server for the given ASN's RIR.
 // Returns empty string if the ASN is not allocated.
-func (t *RIRTable) WhoisForASN(asn uint32) string {
-	if e := t.RIRForASN(asn); e != nil {
+func (t *rirTable) whoisForASN(asn uint32) string {
+	if e := t.rirForASN(asn); e != nil {
 		return e.Whois
 	}
 	return ""
 }
 
 // Len returns the number of collapsed ranges in the table.
-func (t *RIRTable) Len() int {
+func (t *rirTable) Len() int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return len(t.entries)

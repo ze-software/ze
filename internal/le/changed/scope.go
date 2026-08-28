@@ -1,41 +1,23 @@
 // Design: docs/architecture/testing/verify-freshness-scope.md -- what a scoped run covers
 // Overview: changed.go -- the other question this area answers
 //
-// scope.go answers which Go packages a scoped verify stage must cover.
+// scope.go publishes the selector through the changed area's structured action
+// surface and lets a verify run reuse one precomputed package answer.
 //
-// IT HOLDS NO SELECTION LOGIC. Exactly one program computes the change set:
-// scripts/checks/verify_scope_selector.go. It uses a tag-aware reverse import
-// graph and a classification table for non-Go file kinds. This file dispatches
-// between two ways to reach that answer. A verify run can supply a precomputed
-// file, and an independent caller can start a fresh selector run.
-//
-// EVERY failure route WIDENS. A selector refusal must not mean "no package to
-// verify." That result would let the scoped gate cover nothing and report
-// success (ai/rules/evidence.md -- a zero value must never be a valid-looking
-// answer). An EMPTY answer is not a widening. It means that no changed path is
-// compiled by a Go package.
+// EVERY failure route that can safely continue WIDENS. A selector refusal must
+// not mean "no package to verify." An EMPTY answer is not a widening. It means
+// that no changed path is compiled by a Go package.
 
 package changed
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 )
-
-// everyPackage is the widest answer. `go test`, `go build` and `golangci-lint`
-// all accept it, and it is the same word the selector itself widens with.
-const everyPackage = "./..."
-
-// selectorPath names the only change-set producer relative to the checkout. It
-// remains a `//go:build ignore` program under scripts/, so this command starts
-// it instead of calling it. Porting the selector is a separate migration step
-// (plan/spec-le-is-a-ze-binary.md, amendment A).
-const selectorPath = "scripts/checks/verify_scope_selector.go"
 
 // ScopeFileKey is the dot-notation spelling of ZE_VERIFY_SCOPE_PACKAGES. A
 // verify run computes the change set ONCE before the first stage. It publishes
@@ -53,67 +35,68 @@ var scopeFileEntry = env.MustRegister(env.EnvEntry{
 	Private: true,
 })
 
-// ScopeReport is what `le changed packages` answers.
+// ScopeReport is the selector's structured answer.
 //
-// The payload includes Widened and Reason because Packages alone does not show
-// the verdict. `./...` is a legitimate narrow answer when a change reaches
-// everything. It is a widening when the selector fails. Both cases look the
-// same on stdout, so a reader needs the other fields to distinguish them.
+// Print controls only the plain-text rendering. Packages and Tags both remain
+// available to JSON and YAML consumers, including in the legacy tags-only mode.
 type ScopeReport struct {
 	Packages []string `json:"packages"`
+	Tags     []string `json:"tags,omitempty"`
+	Print    string   `json:"print,omitempty"`
 	Widened  bool     `json:"widened"`
 	Reason   string   `json:"reason,omitempty"`
 }
 
-// Text names one package per line, which is what every scoped recipe consumes.
-// An empty answer renders the empty string rather than a blank line: a caller
-// reading `$(...)` cannot tell a blank line from a package name.
+// Text preserves the deleted producer's three print modes exactly.
 func (r ScopeReport) Text() string {
-	if len(r.Packages) == 0 {
+	switch printMode(r.Print) {
+	case printTags:
+		return lineText(r.Tags)
+	case printBoth:
+		var tb textbuf.Buffer
+		return tb.Str("# packages\n").Str(lineText(r.Packages)).
+			Str("# tags\n").Str(lineText(r.Tags)).String()
+	default:
+		return lineText(r.Packages)
+	}
+}
+
+func lineText(lines []string) string {
+	if len(lines) == 0 {
 		return ""
 	}
 	var tb textbuf.Buffer
-	for _, pkg := range r.Packages {
-		tb.Str(pkg).Byte('\n')
+	for _, line := range lines {
+		tb.Str(line).Byte('\n')
 	}
 	return tb.String()
 }
 
-// Scope resolves the changed-package set for one checkout.
+// Scope resolves the change set for one checkout.
 type Scope struct {
 	// Root is the checkout the answer is about.
 	Root string
-	// File is the precomputed answer this verify run published, or empty when
-	// there is no run. The zero value reads the environment.
+	// File is the precomputed package answer this verify run published, or empty
+	// when there is no run. The zero value reads the native selector.
 	File string
-	// Run runs one command. The zero value means RunCommand.
-	Run Run
 }
 
-// NewScope reads the scope for the checkout at root, honoring the file a verify
+// newScope reads the scope for the checkout at root, honoring the file a verify
 // run published.
-func NewScope(root string) Scope {
+func newScope(root string) Scope {
 	return Scope{Root: root, File: env.Get(scopeFileEntry.Key)}
 }
 
-// run answers through the scope's command runner, defaulted.
-func (s Scope) run(dir string, argv []string) (string, error) {
-	if s.Run == nil {
-		return RunCommand(dir, argv)
-	}
-	return s.Run(dir, argv)
-}
-
-// Resolve answers the packages a scoped stage must cover.
+// Resolve answers the native selector's change set and exit code.
 //
-// args are the selector's own arguments (--depth=, --paths-from=, --drop-log=).
-// An argument asks a different question than the one the run precomputed, so
-// the precomputed answer is taken only when there is none.
-func (s Scope) Resolve(args []string) ScopeReport {
+// args use the deleted producer's flag grammar. The le action translates its
+// closed keywords to these arguments at its boundary. A precomputed package
+// answer applies only to the argument-free package query.
+func (s Scope) Resolve(args []string) (ScopeReport, int) {
 	if len(args) == 0 && s.File != "" {
-		return s.fromFile()
+		return s.fromFile(), 0
 	}
-	return s.fromSelector(args)
+	return s.resolveSelector(args)
 }
 
 // fromFile hands back the answer a verify run already computed.
@@ -131,40 +114,16 @@ func (s Scope) fromFile() ScopeReport {
 	return ScopeReport{Packages: lines(body)}
 }
 
-// fromSelector runs the one producer of the change set.
-func (s Scope) fromSelector(args []string) ScopeReport {
-	out, err := s.run(s.Root, selectorArgv(s.Root, args))
-	if err != nil {
-		var tb textbuf.Buffer
-		return widen(tb.Str("the selector could not answer: ").Err(err).String())
-	}
-	return ScopeReport{Packages: lines([]byte(out))}
-}
-
-// selectorArgv is the command line that reaches the selector.
-//
-// The path is absolute. Thus, a caller can run this command from any directory,
-// and the answer still describes the selected checkout.
-//
-// CGO_ENABLED travels as an `env` prefix instead of this process's environment.
-// A command's environment is part of the command. A process-wide setting would
-// affect every other command that this binary starts.
-func selectorArgv(root string, args []string) []string {
-	argv := make([]string, 0, len(args)+6)
-	argv = append(argv, "env", "CGO_ENABLED=0", "go", "run",
-		filepath.Join(root, selectorPath), "--print=packages")
-	return append(argv, args...)
-}
-
-// widen answers for every route that fails to resolve a change set.
-//
-// The reason goes to stderr and the payload, matching the shell half. stdout is
-// the package list that a recipe consumes. A sentence there would become a
-// package name.
+// widen answers for every route that fails to resolve a precomputed package
+// set. The reason goes to stderr and the structured payload.
 func widen(reason string) ScopeReport {
 	var tb textbuf.Buffer
 	gaterun.Note(tb.Str("changed: ").Str(reason).Str(", so every package is selected").String())
-	return ScopeReport{Packages: []string{everyPackage}, Widened: true, Reason: reason}
+	return ScopeReport{
+		Packages: []string{everyPackage},
+		Widened:  true,
+		Reason:   reason,
+	}
 }
 
 // lines splits a command's answer into the non-empty lines it holds, in the

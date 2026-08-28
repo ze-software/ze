@@ -10,8 +10,8 @@
 // point. Other refusals cover a nested directory, a `##` heading that no manifest
 // section names, and a slug that is not a bare path component. Partial rendering
 // is invalid.
-// `make ze-generated-files-update` uses WRITE mode, so partial output would
-// delete an instruction while every gate stayed green.
+// `./le rules condensed-update` uses WRITE mode, so partial output would delete
+// an instruction while every gate stayed green.
 
 package rules
 
@@ -26,8 +26,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// RenderDir renders the rule text from a point directory on disk.
-func RenderDir(ruleDir string) (string, error) {
+// renderDir renders the rule text from a point directory on disk.
+func renderDir(ruleDir string) (string, error) {
 	stem := filepath.Base(ruleDir)
 	var tb textbuf.Buffer
 
@@ -36,7 +36,7 @@ func RenderDir(ruleDir string) (string, error) {
 	if err != nil {
 		return "", errors.New(tb.Str(stem).Str(": no manifest at ").Str(manifestPath).String())
 	}
-	header, listed, err := ParseManifest(string(raw), stem)
+	header, listed, err := parseManifest(string(raw), stem)
 	if err != nil {
 		return "", err
 	}
@@ -142,7 +142,7 @@ func RenderDir(ruleDir string) (string, error) {
 
 // readSection reads one section directory into the points the manifest lists,
 // refusing every shape that would drop or duplicate an instruction.
-func readSection(ruleDir, stem string, listed ManifestSection) (Section, error) {
+func readSection(ruleDir, stem string, listed manifestSectionSpec) (Section, error) {
 	var tb textbuf.Buffer
 	sectionDir := filepath.Join(ruleDir, listed.Slug)
 	info, err := os.Stat(sectionDir)
@@ -212,7 +212,7 @@ func readSection(ruleDir, stem string, listed ManifestSection) (Section, error) 
 		if err != nil {
 			return Section{}, err
 		}
-		point, err := ParsePoint(string(raw), slug)
+		point, err := parsePoint(string(raw), slug)
 		if err != nil {
 			return Section{}, err
 		}
@@ -285,7 +285,7 @@ func (r RenderReport) Text() string {
 			tb.Str("rules-points: ").Str(line).Byte('\n')
 		}
 		return tb.Str("rules-points: ").Int(int64(len(r.Failures))).
-			Str(" rule(s) are stale; run `make ze-rules-render-update`\n").String()
+			Str(" rule(s) are stale; run `./le rules render-update`\n").String()
 	}
 	verb := "are fresh"
 	if r.Written {
@@ -298,11 +298,11 @@ func (r RenderReport) Text() string {
 // it compares the content but does not write.
 //
 // It fails closed in four directions:
-// - An absent or empty point tree is an error, not a vacuous pass.
-// - A rule without a point directory is an error because nothing renders it.
-// - A generated-artifact point directory is an error because another generator
-//   owns its output file.
-// - In check mode, any byte of drift fails instead of causing a silent rewrite.
+//   - An absent or empty point tree is an error, not a vacuous pass.
+//   - A rule without a point directory is an error because nothing renders it.
+//   - A generated-artifact point directory is an error because another generator
+//     owns its output file.
+//   - In check mode, any byte of drift fails instead of causing a silent rewrite.
 func RenderAll(tree, rulesDir, pointsDir string, check bool) (RenderReport, error) {
 	report := RenderReport{Written: !check}
 	var tb textbuf.Buffer
@@ -316,7 +316,7 @@ func RenderAll(tree, rulesDir, pointsDir string, check bool) (RenderReport, erro
 	}
 	report.Rules = len(dirs)
 
-	files, err := RuleFiles(rulesDir)
+	files, err := ruleFiles(rulesDir)
 	if err != nil {
 		return report, err
 	}
@@ -337,7 +337,7 @@ func RenderAll(tree, rulesDir, pointsDir string, check bool) (RenderReport, erro
 
 	for _, ruleDir := range dirs {
 		stem := filepath.Base(ruleDir)
-		// pointDirs accepts any directory carrying a manifest, while RuleFiles
+		// pointDirs accepts any directory carrying a manifest, while ruleFiles
 		// excludes an all-caps stem and the two named artifacts. Without this
 		// the two disagree, and a `points/CORE/` directory would render over
 		// ai/rules/CORE.md, which another generator owns.
@@ -351,7 +351,7 @@ func RenderAll(tree, rulesDir, pointsDir string, check bool) (RenderReport, erro
 		}
 		tb.Reset()
 		target := filepath.Join(rulesDir, tb.Str(stem).Str(".md").String())
-		rendered, err := RenderDir(ruleDir)
+		rendered, err := renderDir(ruleDir)
 		if err != nil {
 			tb.Reset()
 			report.Failures = append(report.Failures, tb.Str(stem).Str(": ").Err(err).String())
@@ -413,12 +413,12 @@ func (r RoundTripReport) Text() string {
 
 // RoundTrip splits and renders each rule in outDir, then compares the bytes.
 //
-// The split uses the FILESYSTEM, as the script does. FormatPoint and ParsePoint
+// The split uses the FILESYSTEM, as the script does. formatPoint and parsePoint
 // form half the partition. An in-memory round trip would skip them and prove
 // only that the splitter agrees with itself.
 func RoundTrip(rulesDir, outDir string) (RoundTripReport, error) {
 	var report RoundTripReport
-	files, err := RuleFiles(rulesDir)
+	files, err := ruleFiles(rulesDir)
 	if err != nil {
 		return report, err
 	}
@@ -463,12 +463,12 @@ func RoundTrip(rulesDir, outDir string) (RoundTripReport, error) {
 
 // roundTripOne splits one rule into outDir and renders it straight back.
 func roundTripOne(source, stem, outDir string) (string, error) {
-	split, err := SplitRule(source, stem)
+	split, err := splitRule(source, stem)
 	if err != nil {
 		return "", err
 	}
-	if err := WriteSplit(split, outDir); err != nil {
+	if err := writeSplit(split, outDir); err != nil {
 		return "", err
 	}
-	return RenderDir(filepath.Join(outDir, stem))
+	return renderDir(filepath.Join(outDir, stem))
 }

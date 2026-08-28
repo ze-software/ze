@@ -526,7 +526,7 @@ func usage() {
 				{Name: "--address", Desc: "Override server IP (default: first IPv4 on --interface)"},
 				{Name: "--kernel", Desc: "Path to installer kernel (copied to boot directory)"},
 				{Name: "--initrd", Desc: "Path to installer initrd (copied to boot directory)"},
-				{Name: "--pxe-dir", Desc: "PXE serve root, resolved against the working directory unless absolute; boot files under <dir>/boot, TFTP under <dir>/tftp (default: build/pxe, where make ze-pxe-build stages from the repo root)"},
+				{Name: "--pxe-dir", Desc: "PXE serve root, resolved against the working directory unless absolute; boot files under <dir>/boot, TFTP under <dir>/tftp (default: build/pxe, staged by the native appliance builder from the repo root)"},
 			}},
 		},
 		Examples: []string{

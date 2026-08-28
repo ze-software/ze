@@ -28,6 +28,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+const pipeAvailabilityAlways = "always"
+
 // commandArg describes a typed argument for a command.
 type commandArg struct {
 	Name      string   `json:"name"`
@@ -109,12 +111,12 @@ func operatorsFor(cliPath string) ([]commandOperator, string) {
 			})
 		case op.Class == command.ClassGlobal:
 			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(), Available: "always",
+				Name: op.Name, Class: op.Class.String(), Available: pipeAvailabilityAlways,
 				LocalOnly: op.LocalOnly, Description: op.Description,
 			})
 		case declared && op.Applies(shape):
 			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(), Available: "always",
+				Name: op.Name, Class: op.Class.String(), Available: pipeAvailabilityAlways,
 				LocalOnly: op.LocalOnly, Description: op.Description,
 			})
 		case declared:
@@ -183,7 +185,7 @@ func aliasesFor(cliPath string) []commandAlias {
 func splitOperators(ops []commandOperator) (always, withRows []string) {
 	for _, op := range ops {
 		switch op.Available {
-		case "always":
+		case pipeAvailabilityAlways:
 			always = append(always, op.Name)
 		case "with-rows":
 			withRows = append(withRows, op.Name)
@@ -253,7 +255,7 @@ func printHelpCommand(args []string) int {
 // renderHelpCommand writes the catalog to w and returns the exit code. Split
 // from printHelpCommand so tests can drive a failing writer.
 func renderHelpCommand(w io.Writer, args []string) int {
-	jsonOutput := slices.Contains(args, "--json")
+	jsonOutput := slices.Contains(args, flagJSON)
 	verbose := slices.Contains(args, "--verbose") || slices.Contains(args, "-v")
 	filter := extractCommandFilter(args)
 
@@ -338,7 +340,7 @@ func collectCommands() []commandEntry {
 		}
 		mode := lc.Meta.Mode
 		if mode == "" {
-			mode = "offline"
+			mode = commandModeOffline
 		}
 		entries = append(entries, commandEntry{
 			Path:        lc.Path,
@@ -392,7 +394,7 @@ func argKindString(k command.ArgKind) string {
 	case command.ArgUnion:
 		return "union"
 	default:
-		return "string"
+		return typeNameString
 	}
 }
 
@@ -616,10 +618,10 @@ func helpCommandUsage() {
 		Summary: "List all available commands with descriptions",
 		Usage:   []string{"ze help command [<filter>] [--json] [--verbose]"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Options", Entries: []helpfmt.HelpEntry{
+			{Title: helpOptionsSectionTitle, Entries: []helpfmt.HelpEntry{
 				{Name: "<filter>", Desc: "Show only commands matching this string (path or description)"},
 				{Name: "--verbose, -v", Desc: "Show full description, arguments, pipes, and subcommands"},
-				{Name: "--json", Desc: "Output as JSON array (for tooling, wiki generation)"},
+				{Name: flagJSON, Desc: "Output as JSON array (for tooling, wiki generation)"},
 			}},
 		},
 	}

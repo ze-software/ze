@@ -12,5 +12,5 @@ An error MUST carry these three legs:
    values with `%q` so empty, whitespace, or look-alike values are visible:
    `expected exit code %d, got %d`, `unknown field %q (want one of ...)`.
 3. **What to do next** -- the corrective action, or a stable handle the reader
-   can act on: a directive to add, a flag to set, a make target to run, or a
+   can act on: a directive to add, a flag to set, a native action to run, or a
    registered `doctor-*` diagnostic code that `ze explain` expands.

@@ -32,7 +32,7 @@ const oneRule = `# A Title
 `
 
 func TestASplitPartitionsEveryLine(t *testing.T) {
-	split, err := SplitRule(oneRule, "sample")
+	split, err := splitRule(oneRule, "sample")
 	if err != nil {
 		t.Fatalf("SplitRule: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestASplitRefusesEveryShapeItCannotPutBack(t *testing.T) {
 			"must stand alone"},
 	}
 	for _, tc := range cases {
-		_, err := SplitRule(tc.text, "sample")
+		_, err := splitRule(tc.text, "sample")
 		if err == nil {
 			t.Errorf("%s: SplitRule accepted it", tc.name)
 			continue
@@ -130,7 +130,7 @@ func TestATightHeadingKeepsItsMissingBlankLine(t *testing.T) {
 	// it. The renderer would otherwise insert one, and the rendered bytes would
 	// change for a rule nobody edited.
 	tight := "# T\n\n**When:** when x\n**Severity:** blocking\n\n## One\n\n- **MUST a.**\n## Two\n\n- **MUST b.**\n"
-	split, err := SplitRule(tight, "sample")
+	split, err := splitRule(tight, "sample")
 	if err != nil {
 		t.Fatalf("SplitRule: %v", err)
 	}
@@ -140,8 +140,8 @@ func TestATightHeadingKeepsItsMissingBlankLine(t *testing.T) {
 	if got := RenderText(split.Header, split.Sections); got != tight {
 		t.Errorf("the render is\n%q\nwant\n%q", got, tight)
 	}
-	if !strings.Contains(FormatManifest(split), "\n^two ## Two\n") {
-		t.Errorf("the manifest does not carry the tight mark: %s", FormatManifest(split))
+	if !strings.Contains(formatManifest(split), "\n^two ## Two\n") {
+		t.Errorf("the manifest does not carry the tight mark: %s", formatManifest(split))
 	}
 }
 
@@ -149,7 +149,7 @@ func TestAFencedBlockKeepsItsBlankLines(t *testing.T) {
 	// The corpus carries blank lines inside fences. A walker without fence
 	// state would cut the fence in half and make each half its own point.
 	fenced := "# T\n\n**When:** when x\n**Severity:** blocking\n\n## S\n\n```\nfirst\n\nsecond\n```\n"
-	split, err := SplitRule(fenced, "sample")
+	split, err := splitRule(fenced, "sample")
 	if err != nil {
 		t.Fatalf("SplitRule: %v", err)
 	}
@@ -177,8 +177,8 @@ func TestAPointFileRoundTripsThroughItsFrontmatter(t *testing.T) {
 		Body:      []string{"- **MUST do it.**", "  and keep doing it."},
 		Rationale: "ai/rationale/x.md", ExceptedBy: "other/section/slug",
 	}
-	text := FormatPoint(point)
-	back, err := ParsePoint(text, "p")
+	text := formatPoint(point)
+	back, err := parsePoint(text, "p")
 	if err != nil {
 		t.Fatalf("ParsePoint: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestAPointFileRoundTripsThroughItsFrontmatter(t *testing.T) {
 	}
 	// An empty rationale is written as no line at all: the split cannot derive
 	// one, so an empty line would say "examined and has none".
-	bare := FormatPoint(Point{Slug: "p", Kind: kindNote, Body: []string{"x"}})
+	bare := formatPoint(Point{Slug: "p", Kind: kindNote, Body: []string{"x"}})
 	if strings.Contains(bare, "rationale:") || strings.Contains(bare, exceptedBy) {
 		t.Errorf("an unlinked point wrote a link line: %s", bare)
 	}
@@ -203,7 +203,7 @@ func TestAPointBodyMayOpenWithTheDelimiter(t *testing.T) {
 	// The header ends at the first delimiter AFTER line 1, so a body whose own
 	// first line is the delimiter round-trips.
 	point := Point{Slug: "p", Kind: kindNote, Body: []string{"---", "after"}}
-	back, err := ParsePoint(FormatPoint(point), "p")
+	back, err := parsePoint(formatPoint(point), "p")
 	if err != nil {
 		t.Fatalf("ParsePoint: %v", err)
 	}
@@ -223,7 +223,7 @@ func TestAPointFileRefusesWhatItCannotMean(t *testing.T) {
 		{"empty body", "---\nkind: note\n---\n", "has an empty body"},
 	}
 	for _, tc := range cases {
-		_, err := ParsePoint(tc.text, "p")
+		_, err := parsePoint(tc.text, "p")
 		if err == nil {
 			t.Errorf("%s: ParsePoint accepted it", tc.name)
 			continue
@@ -237,15 +237,15 @@ func TestAPointFileRefusesWhatItCannotMean(t *testing.T) {
 func TestAManifestLineThatIsNeitherShapeIsRefused(t *testing.T) {
 	// A skipped line is an instruction that stops being rendered with nothing
 	// going red, which is the one failure this design exists to prevent.
-	_, _, err := ParseManifest("---\ntitle: T\nwhen: when x\nseverity: blocking\n---\nnot a shape\n", "s")
+	_, _, err := parseManifest("---\ntitle: T\nwhen: when x\nseverity: blocking\n---\nnot a shape\n", "s")
 	if err == nil || !strings.Contains(err.Error(), "is neither a section line") {
 		t.Fatalf("ParseManifest said %v", err)
 	}
-	_, _, err = ParseManifest("---\ntitle: T\nwhen: when x\nseverity: blocking\n---\n  orphan\n", "s")
+	_, _, err = parseManifest("---\ntitle: T\nwhen: when x\nseverity: blocking\n---\n  orphan\n", "s")
 	if err == nil || !strings.Contains(err.Error(), "comes before any section line") {
 		t.Fatalf("ParseManifest said %v", err)
 	}
-	_, _, err = ParseManifest("---\ntitle: T\nwhen: when x\n---\ns ## S\n  p\n", "s")
+	_, _, err = parseManifest("---\ntitle: T\nwhen: when x\n---\ns ## S\n  p\n", "s")
 	if err == nil || !strings.Contains(err.Error(), "missing 'severity'") {
 		t.Fatalf("ParseManifest said %v", err)
 	}
@@ -286,7 +286,7 @@ func TestARenderRefusesAPointNothingWouldRead(t *testing.T) {
 		"sample/manifest.md": "---\ntitle: T\nwhen: when x\nseverity: blocking\n---\ns ## S\n  p\n",
 		"sample/s/p.md":      "---\nkind: directive\nlevel: MUST\n---\n- **MUST x.**\n",
 	}
-	if _, err := RenderDir(build(t, good)); err != nil {
+	if _, err := renderDir(build(t, good)); err != nil {
 		t.Fatalf("RenderDir refused a clean tree: %v", err)
 	}
 
@@ -304,7 +304,7 @@ func TestARenderRefusesAPointNothingWouldRead(t *testing.T) {
 		files := map[string]string{}
 		maps.Copy(files, good)
 		maps.Copy(files, tc.extra)
-		_, err := RenderDir(build(t, files))
+		_, err := renderDir(build(t, files))
 		if err == nil {
 			t.Errorf("%s: RenderDir accepted it", tc.name)
 			continue
@@ -327,7 +327,7 @@ func TestARenderRefusesASlugThatIsAPath(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(ruleDir, manifestName), []byte(manifest), 0o600); err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	_, err := RenderDir(ruleDir)
+	_, err := renderDir(ruleDir)
 	if err == nil || !strings.Contains(err.Error(), "must be a bare lowercase path component") {
 		t.Fatalf("RenderDir said %v", err)
 	}
@@ -350,7 +350,7 @@ func TestARenderRefusesAHeadingHidingInAPointBody(t *testing.T) {
 			t.Fatalf("fixture: %v", err)
 		}
 	}
-	_, err := RenderDir(ruleDir)
+	_, err := renderDir(ruleDir)
 	if err == nil || !strings.Contains(err.Error(), "sit(s) inside a point BODY") {
 		t.Fatalf("RenderDir said %v", err)
 	}
@@ -359,19 +359,19 @@ func TestARenderRefusesAHeadingHidingInAPointBody(t *testing.T) {
 func TestWriteSplitRefusesToDeleteAnAuthorsFile(t *testing.T) {
 	// Deleting would destroy an author's file on a slug or a section rename, so
 	// reporting is the only safe answer.
-	split, err := SplitRule(oneRule, "sample")
+	split, err := splitRule(oneRule, "sample")
 	if err != nil {
 		t.Fatalf("SplitRule: %v", err)
 	}
 	out := t.TempDir()
-	if err := WriteSplit(split, out); err != nil {
+	if err := writeSplit(split, out); err != nil {
 		t.Fatalf("WriteSplit: %v", err)
 	}
 	stray := filepath.Join(out, "sample", "first-section", "stray.md")
 	if err := os.WriteFile(stray, []byte("mine\n"), 0o600); err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	err = WriteSplit(split, out)
+	err = writeSplit(split, out)
 	if err == nil || !strings.Contains(err.Error(), "which this split does not produce") {
 		t.Fatalf("WriteSplit said %v", err)
 	}

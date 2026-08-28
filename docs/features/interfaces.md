@@ -217,10 +217,10 @@ name that differs from the OS device (via the `os-name` or `mac/match` selector)
 is honored uniformly: the `iface` CLI ops (set MTU, add/remove address, admin
 up/down, bridge, mirror, ...), the DHCP client socket binding, and the
 routing/protocol consumers all act on the bound kernel device. The dispatch
-layer performs this translation for the by-name backend ops, leaving
-`GetInterface`/`ListInterfaces` raw because the resolver is built on them. A
-checks gate (`make ze-iface-resolution-check`) keeps new consumers from
-resolving the kernel directly instead of through the resolver.
+layer performs this translation for the by-name backend ops and leaves
+`GetInterface` and `ListInterfaces` raw because the resolver is built on them.
+`./le iface-resolution check` keeps new consumers from resolving the kernel
+directly instead of through the resolver.
 
 The **config apply path** resolves separately, and on purpose. It takes ONE interface
 listing per apply and binds every ethernet entry from it, so each logical name resolves
@@ -245,7 +245,7 @@ to the capture port's kernel device.
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
-<!-- source: scripts/checks/iface_resolution.go -- no-direct-resolution guard -->
+<!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
 
 A MAC address validator (`ze:validate "mac-address"`) provides format checking (colon-separated
 hex octets) and live OS autocomplete. The `CompleteFn` calls `DiscoverInterfaces` on each

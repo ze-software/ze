@@ -30,9 +30,9 @@ func (v VPPProofVerdict) String() string {
 	case VPPProofFail:
 		return "fail"
 	case VPPProofUnspecified:
-		return "unspecified"
+		return reportValueUnspecified
 	}
-	return "unspecified"
+	return reportValueUnspecified
 }
 
 // MarshalJSON writes the report word instead of its numeric identity.

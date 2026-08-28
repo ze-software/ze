@@ -196,7 +196,7 @@ the reconcile read it.
 3. **Interface reconcile** in `OnConfigApply`: track `configuredInterfaces`, call `removeInterface` for dropped ones (mirror `configuredTunnels`); `TestReconcileInterfacesRemovesDropped`.
 4. **Live-config timers**: extract a small loop-body helper that reads `eng.cfg()` for the period (reset the ticker only on change) and the multiplier; wire into `runRefreshLoop`/`runCleanupLoop`; `TestRefreshLoopAdoptsReloadedPeriod`. Keep an unchanged-period reload idempotent (AC-3).
 5. **Functional test** `test/reload/rsvpte-reload.ci`.
-6. **Verify + close**: `make ze-precommit-verify`; `/ze-review` gate to 0 BLOCKER/ISSUE; learned summary; two-commit closure.
+6. **Verify + close**: `./le verify current mode full`; `/ze-review` gate to 0 BLOCKER/ISSUE; learned summary; two-commit closure.
 
 ### Critical Review Checklist (/implement stage 7)
 | Check | What to verify for this spec |
@@ -250,7 +250,7 @@ Verification sections.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `make ze-standard-test` passes
+- [ ] `./le verify current mode full` passes
 - [ ] Feature code integrated (no unused `removeInterface`)
 
 ### TDD

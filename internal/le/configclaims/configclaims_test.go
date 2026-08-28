@@ -17,11 +17,11 @@ import (
 // PREVENTS: an enumeration that broke reporting a clean tree.
 //
 // This is where TestConfigClaimsGate and TestConfigClaimsGateReportsItsInventory
-// (scripts/checks/config_claims_test.go) now live. Those two forked
-// `make ze-config-claims-check` and `-json` and asserted, between them, that the
-// tree passes, that the page says OK, and that the JSON carries at least 25
-// roots, at least 50 claims, a non-empty exception list and no findings. All
-// four facts are asserted below, from a function call.
+// now live. Those tests ran the config-claims gate and its JSON renderer as
+// subprocesses. Between them, they asserted that the tree passes, that the page
+// says OK, and that the JSON carries at least 25 roots, at least 50 claims, a
+// non-empty exception list, and no findings. All four facts are asserted below,
+// from a function call.
 func TestAuditReadsTheLiveRegistry(t *testing.T) {
 	report, err := Audit()
 	if err != nil {

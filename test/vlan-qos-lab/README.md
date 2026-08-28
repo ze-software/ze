@@ -50,25 +50,28 @@ L3, PCP marking at L2.
 
 ## Usage
 
-```bash
-# Interactive (requires Linux root):
-sudo ./run.sh
+The compiled integration test creates and removes its own network namespace,
+veth pair, VLAN interfaces, addresses, neighbors, and nftables counters:
 
-# Selftest (CI smoke, exits 0 on success):
-sudo ./run.sh --selftest
+```bash
+sudo env PATH="$PATH" go test -tags=integration ./internal/plugins/iface/netlink \
+  -run '^TestVLANQoS' -count=1
 ```
+
+The native test covers mapped and unmapped egress PCP, mapped and unmapped
+ingress classification, and the complete DSCP CS6 to priority 6 to PCP 6
+pipeline. Each assertion reads the packet counter produced by the kernel path.
 
 ## Prerequisites
 
 - Linux with network namespace support
-- Root access (CAP_NET_ADMIN)
-- `ip` (iproute2), `tcpdump`, `python3`
+- Root or equivalent `CAP_NET_ADMIN` and `CAP_NET_RAW` capabilities
+- `nft`
 
 ## Limitations
 
 - Proves behavior on veth pairs (software), not physical NICs with
-  hardware VLAN offload. veth has VLAN offload fixed off, so tagged
-  frames are always visible to AF_PACKET.
+  hardware VLAN offload.
 - Single-tag 802.1Q only. QinQ (double-tag) requires stacked VLAN
   support in Ze, which is out of scope.
 - No throughput or latency assertions. This lab proves marking

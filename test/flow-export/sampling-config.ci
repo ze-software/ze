@@ -19,24 +19,6 @@
 # qdisc state. The netlink Apply path itself is covered by the Linux unit tests
 # in internal/plugins/flowexport/sampling/*_linux_test.go.
 
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Block on the daemon-ready barrier for the background ze, then exit.
-
-The runner arms ZE_READY_FILE for a BACKGROUND ze daemon exactly as it does for
-a foreground one (zeReadyFileEnabled, internal/test/runner/runner_exec_util.go),
-so daemon.ready IS available here. ze creates it only after
-apiServer.WaitForStartupComplete returns (cmd/ze/hub/main.go), that is after
-every plugin startup phase settled -- and the flow-export plugin's Stage-2
-configure calls startFlowSubsystems -> samplingWorker.Start
-(internal/plugins/flowexport/register.go, sampling_worker.go), which logs the
-asserted line synchronously before it returns. daemon.ready is therefore a real
-barrier for the assertion below, not a proxy for one."""
-from ze_api import wait_for_daemon_ready
-
-wait_for_daemon_ready()
-EOF_PY
-
 stdin=ze-conf:terminator=EOF_CONF
 environment {
 	log {
@@ -86,6 +68,6 @@ EOF_CONF
 option=env:var=ze.log.flow.export:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-conf
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
+cmd=foreground:seq=2:exec=ze-test fixture flow-export/sampling-config:timeout=10s
 expect=exit:code=0
 expect=stderr:pattern=flow-export: (packet sampling enabled|psample reader unavailable)

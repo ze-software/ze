@@ -3,34 +3,6 @@
 # VALIDATES: AC-5 -- blob store supports meta/ namespace keys.
 # PREVENTS: CLI commands failing to read namespaced keys.
 
-tmpfs=test-cli-meta-keys.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
 
-touch daemon.ready
-
-INIT_DIR=$(mktemp -d)
-DB="$INIT_DIR/database.zefs"
-
-# Init with piped prompts
-printf 'admin\nsecret123\n10.0.0.1\n3333\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
-
-# Verify default pointer
-DEFAULT=$(ze data --path "$DB" cat meta/ssh/default)
-[ "$DEFAULT" = "10.0.0.1/3333" ] || { echo "FAIL: default expected '10.0.0.1/3333', got '$DEFAULT'" >&2; exit 1; }
-
-# Verify scoped username
-USER=$(ze data --path "$DB" cat meta/ssh/10.0.0.1/3333/username)
-[ "$USER" = "admin" ] || { echo "FAIL: username expected 'admin', got '$USER'" >&2; exit 1; }
-
-# Password is stored as bcrypt hash under scoped path
-PASSWORD=$(ze data --path "$DB" cat meta/ssh/10.0.0.1/3333/password)
-echo "$PASSWORD" | grep -q '^\$2' || { echo "FAIL: password expected bcrypt hash, got '$PASSWORD'" >&2; exit 1; }
-
-rm -rf "$INIT_DIR"
-echo "OK: ze data reads meta/ssh/* keys" >&2
-exit 0
-EOF_SH
-
-cmd=foreground:seq=1:exec=./test-cli-meta-keys.sh:timeout=10s
+cmd=foreground:seq=1:exec=ze-test fixture managed/cli-reads-meta-keys:timeout=10s
 expect=exit:code=0

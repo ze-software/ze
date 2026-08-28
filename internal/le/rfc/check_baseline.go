@@ -103,7 +103,7 @@ func baselineEnrolled(tree string) (map[string]bool, bool) {
 	if !ok {
 		return nil, false
 	}
-	return ParseEnrolled(string(raw)), true
+	return parseEnrolled(string(raw)), true
 }
 
 func baselineDispositions(tree string) map[string]bool {
@@ -112,7 +112,7 @@ func baselineDispositions(tree string) map[string]bool {
 	if !held {
 		return map[string]bool{}
 	}
-	found, err := ParseDispositions(text)
+	found, err := parseDispositions(text)
 	if err != nil {
 		return map[string]bool{}
 	}
@@ -128,7 +128,7 @@ func baselineStatusRows(tree string) (map[string]LedgerRow, bool) {
 	if !held {
 		return nil, false
 	}
-	return ParseStatusLedger(text), true
+	return parseStatusLedger(text), true
 }
 
 func baselineSummaryStems(tree string) (map[string]bool, bool) {
@@ -156,7 +156,7 @@ func baselineLevels(tree string) map[string]string {
 			continue
 		}
 		stem := strings.TrimSuffix(filepath.Base(rel), ".md")
-		requirements, err := ParseSummaryText(text, stem, rel)
+		requirements, err := parseSummaryText(text, stem, rel)
 		if err != nil {
 			continue
 		}
@@ -261,7 +261,7 @@ func headCarriers(tree string) ([]Carrier, error) {
 			suites = found
 		}
 	}
-	scheduled, err := ScheduledWorkflowTargets(tree)
+	scheduled, err := scheduledWorkflowActions(tree)
 	if err != nil {
 		return nil, err
 	}
@@ -275,15 +275,16 @@ func headCarriers(tree string) ([]Carrier, error) {
 		for rel, text := range gitCatBlobs(tree, paths) {
 			sources[filepath.Base(rel)] = text
 		}
-		if len(sources) > 0 {
-			scheduled = ScheduledTargetsFrom(sources)
+		if parsed := scheduledActionsFrom(sources); len(parsed) > 0 {
+			scheduled = parsed
 		}
 	}
-	return carriersFor(suites, scheduled), nil
+	carriers := carriersFor(suites, scheduled)
+	return append(carriers, legacyInteropCarriers(scheduled)...), nil
 }
 
 func scanTagsTolerant(blob, rel string, carriers []Carrier) []Tag {
-	carrier, held := CarrierFor(rel, carriers)
+	carrier, held := carrierFor(rel, carriers)
 	if !held {
 		return nil
 	}
@@ -327,7 +328,7 @@ func baselineTags(tree string) []Tag {
 			continue
 		}
 		rel := strings.TrimPrefix(entry, "HEAD:")
-		carrier, held := CarrierFor(rel, carriers)
+		carrier, held := carrierFor(rel, carriers)
 		if !held || carrier.Tier == tierUnrun || strings.Contains(rel, "\n") {
 			continue
 		}
@@ -369,7 +370,7 @@ func baselinePolarities(tags []Tag) map[string]map[string]bool {
 func nonunitEvidence(tags []Tag, carriers []Carrier) map[string]map[string]bool {
 	out := map[string]map[string]bool{}
 	for _, tag := range tags {
-		carrier, held := CarrierFor(tag.File, carriers)
+		carrier, held := carrierFor(tag.File, carriers)
 		if !held || carrier.Kind == "unit" {
 			continue
 		}

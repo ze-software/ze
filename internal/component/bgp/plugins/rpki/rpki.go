@@ -36,6 +36,13 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+const (
+	configRootBGP   = "bgp"
+	commandShowRPKI = "show bgp rpki"
+	shapeTab        = "tab"
+	columnAddress   = "address"
+)
+
 // rpkiMetrics holds Prometheus metrics for the RPKI plugin.
 type rpkiMetrics struct {
 	vrpsCached         metrics.Gauge      // VRPs currently in ROA cache
@@ -179,15 +186,15 @@ type rPKIPlugin struct {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show bgp rpki",
+			Name:        commandShowRPKI,
 			Description: "Show RPKI validation counters with one row for each cache server",
 			// appendSummaryFields writes the aggregate keys and
 			// appendCacheServers the rows, as siblings at one level. The order
 			// names the row keys: the aggregate half carries none of them, so
 			// it keeps the alphabetical rendering it has today.
-			Shape:         "tab",
-			Columns:       []string{"address", "port", "state", "synced", "version"},
-			AddressFields: []string{"address"},
+			Shape:         shapeTab,
+			Columns:       []string{columnAddress, "port", "state", "synced", "version"},
+			AddressFields: []string{columnAddress},
 		},
 		{
 			Name:        "show bgp rpki status",
@@ -203,13 +210,13 @@ func commandDecls() []sdk.CommandDecl {
 			Description: "Show RTR cache server sessions with protocol details",
 			// cacheCommand writes the rows, adding the protocol detail of a
 			// session to what the overview carries.
-			Shape: "tab",
+			Shape: shapeTab,
 			Columns: []string{
-				"address", "port", "preference", "state", "synced", "version",
+				columnAddress, "port", "preference", "state", "synced", "version",
 				"session-id", "serial", "refresh-interval", "retry-interval",
 				"expire-interval",
 			},
-			AddressFields: []string{"address"},
+			AddressFields: []string{columnAddress},
 		},
 		{
 			Name:        "show bgp rpki roa",
@@ -217,7 +224,7 @@ func commandDecls() []sdk.CommandDecl {
 			// roaCommand and roaLookupCommand both write their rows under
 			// "entries" in these three keys, so one declaration describes the
 			// command whichever branch its argument takes.
-			Shape:         "tab",
+			Shape:         shapeTab,
 			Columns:       []string{"prefix", "max-length", "asn"},
 			AddressFields: []string{"prefix"},
 		},
@@ -240,7 +247,7 @@ func commandDecls() []sdk.CommandDecl {
 			// aspaCommand writes its rows under "entries" in both branches. A
 			// row holds an AS number and the AS numbers that AS authorizes, and
 			// neither is an address.
-			Shape:   "tab",
+			Shape:   shapeTab,
 			Columns: []string{"customer-asn", "providers"},
 		},
 	}
@@ -304,7 +311,7 @@ func runRPKIPlugin(conn net.Conn) int {
 	// Called during Stage 2 of the 5-stage plugin startup protocol.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			cfg, err := parseRPKIConfig(section.Data)
@@ -353,12 +360,12 @@ func runRPKIPlugin(conn net.Conn) int {
 		// derives from the command list above the empty declaration that stops
 		// this name reaching a command below the one it sits on.
 		Pipes: []sdk.PipeDecl{{
-			Command:     "show bgp rpki",
+			Command:     commandShowRPKI,
 			Name:        "summary",
 			Description: "The validation counters, without the cache server rows",
 			Expansion:   summaryAliasExpansion,
 		}},
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	})
 	if err != nil {
 		logger().Error("bgp-rpki plugin failed", "error", err)
@@ -421,12 +428,10 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		return
 	}
 
-	// Extract AS_PATH once for both origin AS and ASPA verification.
+	// RFC requirement: RFC6811-2-1 -- every route reaches the lookup and
+	// retains its result, including a route whose origin is NONE.
 	asp := rpkiASPathFromWire(msg.AttrsWire)
-	originAS := rpkiOriginASFromASPath(asp)
-	if originAS == OriginNone {
-		return
-	}
+	originAS := rpkiOriginASFromASPath(asp, se.LocalAS)
 
 	peerAddr := se.PeerAddress
 	peerName := se.PeerName
@@ -685,7 +690,7 @@ func (rp *rPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, m
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err := rp.plugin.EmitEvent(ctx, "bgp", "rpki", "received", peerAddr, event)
+	_, err := rp.plugin.EmitEvent(ctx, configRootBGP, "rpki", "received", peerAddr, event)
 	if err != nil {
 		logger().Warn("rpki: emit event failed", "error", err)
 	}
@@ -1096,27 +1101,31 @@ func rpkiASPathFromWire(attrs *attribute.AttributesWire) *attribute.ASPath {
 	return asp
 }
 
-// rpkiOriginASFromASPath extracts the origin AS from an already-parsed ASPath.
-func rpkiOriginASFromASPath(asp *attribute.ASPath) uint32 {
+// rpkiOriginASFromASPath derives the Route Origin ASN as RFC 6811 Section 2
+// defines it. The final segment type is significant. An AS_SET is NONE, and an
+// empty or confederation path uses the local speaker AS.
+func rpkiOriginASFromASPath(asp *attribute.ASPath, localAS uint32) uint32 {
 	if asp == nil || len(asp.Segments) == 0 {
+		return localAS
+	}
+	last := &asp.Segments[len(asp.Segments)-1]
+	if len(last.ASNs) == 0 {
 		return OriginNone
 	}
-	var lastASN uint32
-	for _, seg := range asp.Segments {
-		if len(seg.ASNs) > 0 {
-			lastASN = seg.ASNs[len(seg.ASNs)-1]
-		}
-	}
-	if lastASN == 0 {
+	switch last.Type {
+	case attribute.ASSequence:
+		return last.ASNs[len(last.ASNs)-1]
+	case attribute.ASConfedSequence, attribute.ASConfedSet:
+		return localAS
+	default:
 		return OriginNone
 	}
-	return lastASN
 }
 
 // handleCommand processes RPKI CLI commands.
 func (rp *rPKIPlugin) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
-	case "show bgp rpki":
+	case commandShowRPKI:
 		return rp.overviewCommand()
 	case "show bgp rpki status":
 		return rp.statusCommand()

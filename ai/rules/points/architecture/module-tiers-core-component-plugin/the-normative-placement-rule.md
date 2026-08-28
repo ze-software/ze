@@ -8,4 +8,4 @@ stage:
 >
 > A non-engine package outside `internal/core/` MUST either be classified by the
 > existing registration mechanics or have a manifest row in
-> `scripts/dev/tier_non_engine_categories.txt`.
+> `internal/le/tier_non_engine_categories.txt`.

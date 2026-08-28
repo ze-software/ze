@@ -17,19 +17,19 @@ const (
 
 // HostLoad is the shared host-load snapshot type. The "contended" verdict and
 // the load/process sampling live in internal/core/hostload so this runner and
-// the verify status tool (scripts/status) share one definition.
+// the native verification-status action share one definition.
 type HostLoad = hostload.Load
 
-// SnapshotHostLoad samples the current host load. See hostload.Snapshot.
-func SnapshotHostLoad() HostLoad {
+// snapshotHostLoad samples the current host load. See hostload.Snapshot.
+func snapshotHostLoad() HostLoad {
 	return hostload.Snapshot()
 }
 
-// IsNearTimeout returns true when a test failure should be reclassified
+// isNearTimeout returns true when a test failure should be reclassified
 // from "unknown" to "near_timeout". This happens when the test consumed
 // more than 80% of its timeout budget and the failure type is non-specific
 // (empty or "unknown"), indicating CPU starvation rather than a real bug.
-func IsNearTimeout(elapsedRatio float64, failureType string) bool {
+func isNearTimeout(elapsedRatio float64, failureType string) bool {
 	if elapsedRatio <= nearTimeoutThreshold {
 		return false
 	}

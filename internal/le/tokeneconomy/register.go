@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -36,5 +35,5 @@ func init() {
 	// the count cannot fall for a tool nothing can reach. Claim rather than
 	// ClaimForked: the report reads the store and renders it in Go, so nothing
 	// here starts a script.
-	parity.Claim(area, "ze-token-economy-report")
+
 }

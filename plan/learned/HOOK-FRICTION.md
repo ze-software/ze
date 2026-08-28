@@ -225,7 +225,7 @@ DISCUSSES deferral policy: `completion.md` ("genuinely separable, out-of-scope
 ("Speculative `future work`"), `config.md` ("as `follow-up work`"), and
 one true word-sense collision — `performance.md`'s "buffer goes `out of
 scope`" (lexical scope, unrelated to deferring work). The generated digest
-flattened all of them, so every `make ze-rules-condensed-update` regeneration commit
+flattened all of them, so every `./le rules condensed-update` regeneration commit
 re-tripped the gate. (That digest, CONDENSED.md, was deleted on 2026-08-03; the
 exemption still covers the rule corpus itself.)
 
@@ -263,9 +263,11 @@ batch at the end of a session instead of one at a time as they were hit.
 
 ### F1: `validate-spec.sh` false-greened when invoked via argv
 
-**Friction:** `bash .claude/hooks/validate-spec.sh plan/spec-foo.md` exited **0**
-without running a single check, which reads as "spec valid". The script takes a
-PostToolUse JSON payload on stdin: `INPUT=$(cat)` at `:7`, then jq for
+**Friction:** The retired `bash .claude/hooks/validate-spec.sh plan/spec-foo.md`
+invocation exited **0** without running a single check, which read as "spec valid".
+The current producer is `internal/le/hookruntime/lifecycle.go`, and its fixture
+action is `./le hook-check validate-spec`.
+The script took a PostToolUse JSON payload on stdin: `INPUT=$(cat)` at `:7`, then jq for
 `.tool_name` (at `:8` before the fix, `:32` after). Under argv, stdin is empty,
 jq returns empty, `TOOL_NAME` is `""`, and the pre-fix guard at `:11-14`
 (`if [[ "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "Edit" ]]; then exit 0; fi`)
@@ -297,10 +299,10 @@ unparseable payload or an absent tool name calls
 `usage_refusal()` and exits 2 with the correct invocation; a tool name
 that is present but not `Write`/`Edit` still exits 0 quietly. The early
 exit was never the bug and is kept: a hook MUST no-op on tools it does not
-handle. Locked by three new fixtures in `scripts/dev/hook-fixture-check.py`
+handle. Locked by three new fixtures in the retired `scripts/dev/hook-fixture-check.py` (current producer: `internal/le/`)
 (`validate-spec-argv-no-stdin-refuses`, `-absent-tool-name-refuses`,
 `-other-tool-quiet-pass`), which drive a structurally INVALID spec so that a pass
-can only mean no check ran. `make ze-unit-hook-test`: 131/131 parity + 37/37 fixtures.
+can only mean no check ran. the retired `ze-unit-hook-test` (current: `./le hook-check unit`): 131/131 parity + 37/37 fixtures.
 
 ---
 
@@ -320,13 +322,13 @@ Verified against the live regex, six forms:
 | `` - [ ] `commit_helper.py` line 193 `` | ACCEPT |
 | `` - [ ] `internal/component/authz/authz.go` `` | REJECT |
 | `` - [ ] `internal/component/authz/authz.go` `` | ACCEPT |
-| `` - [ ] `.claude/hooks/validate-spec.sh` `` | REJECT |
-| `` - [ ] `Makefile:243` `` | REJECT |
+| `` - [ ] the retired `.claude/hooks/validate-spec.sh` (current producer: `internal/le/hookruntime/lifecycle.go`) `` | REJECT |
+| `` - [ ] the retired `Makefile:243` (current producers: `internal/le/` native action tables) `` | REJECT |
 
 Two further limits confirmed: the section is truncated to its first 30 lines
 (`:122` `| head -30`), so a spec listing many files silently loses the tail; and
 the extension allowlist has no `.sh`, `.mk`, `.py`-adjacent shell, or
-extensionless `Makefile`, which is perverse for a spec about shell or build code
+extensionless the retired `Makefile` (current producers: `internal/le/` native action tables), which is perverse for a spec about shell or build code
 and such a spec cannot satisfy the check at all except by citing an unrelated
 `.go` file.
 
@@ -345,7 +347,7 @@ the project's own mandated style.
 
 **Proposed fix:** Widen the regex to accept an optional `:<line>` or
 `:<start>-<end>` suffix inside the backticks, add `sh|mk|yang|ci` and an
-extensionless `Makefile` to the allowlist, and raise or remove the `head -30`
+extensionless the retired `Makefile` (current producers: `internal/le/` native action tables) to the allowlist, and raise or remove the `head -30`
 truncation. NOT done here: out of scope for this task, and the change deserves a
 survey across `plan/spec-*.md` first (as spec-followup-hooks AC-4 did for arrows)
 to confirm it does not turn ~40 legacy specs red. Filed rather than fixed.
@@ -395,17 +397,17 @@ here: `.claude/rules/session-start.md` was out of scope for this task.
 ### F4: the commit gate's structural-red advice does not do what it says
 
 **Friction:** `commit_helper.py`'s structural-gate refusal says:
-"re-run `make " + gate_reds[0] + "` (or `make ze-precommit-verify`) until green. If you
+"re-run `make " + gate_reds[0] + "` (or `./le verify current mode full`) until green. If you
 already fixed it, that re-run refreshes tmp/ze-verify-failures.json and clears
 this." It does not. `gate_reds[0]` is a stage name from `STRUCTURAL_GATES`
-(`:492-503`: `ze-lint`, `ze-lint-changed`, `ze-tier-check`, ...), and running that
+(`:492-503`: `./le verify-lint run`, `./le changed scope`, `./le tier check`, ...), and running that
 stage directly never writes the JSON. Verified at the producer: the only writer of
-`tmp/ze-verify-failures.json` is `scripts/status/verify_run.go`
+`tmp/ze-verify-failures.json` is the retired `scripts/status/verify_run.go` (current producer: `internal/le/verify/run.go`)
 (`os.WriteFile(filepath.Join(root, failuresJSONPath), ...)`, path constant at
-`:28`), and `verify_run.go` is invoked only by `ze-precommit-verify` (Makefile:279-280) and
-`ze-precommit-verify-changed`. `make ze-lint-changed` is
+`:28`), and `verify_run.go` is invoked only by `./le verify current mode full` (the retired Makefile (current producers: `internal/le/` native action tables):279-280) and
+`./le verify current mode changed`. `./le changed scope` is
 `golangci-lint run $pkgs` and touches nothing else. Only the parenthetical
-`make ze-precommit-verify` actually clears the gate; the advice the message leads with does
+`./le verify current mode full` actually clears the gate; the advice the message leads with does
 not, for any of the eight gates.
 
 **Pattern:** Recurs for anyone who hits a structural red and follows the
@@ -422,27 +424,27 @@ correctly ("which `verify_run.go` rewrites after every run"). The rule is right;
 the error message contradicts it.
 
 **Proposed fix:** Reword `:1132-1134` to name a target that actually refreshes the
-artifact: fix at the source, then `make ze-precommit-verify` (or `make ze-precommit-verify-changed`)
+artifact: fix at the source, then `./le verify current mode full` (or `./le verify current mode changed`)
 (optionally suggesting `make <stage>` as a fast inner-loop check while making it
 explicit that only a full verify run rewrites the routing index and clears the
-gate). NOT done here: `scripts/dev/commit_helper.py` is explicitly out of scope for
+gate). NOT done here: the retired `scripts/dev/commit_helper.py` (current producer: `internal/le/commit/prepare.go`) is explicitly out of scope for
 this task (it changed today).
 
 ---
 
-### F5: `c_throwaway_tests` blocks legitimate `scripts/dev/` test filenames
+### F5: `c_throwaway_tests` blocks legitimate the retired `scripts/dev/` (current producer: `internal/le/`) test filenames
 
 **Friction:** `c_throwaway_tests` in `.claude/hooks/pretool-writeedit.py`
 (`:1225-1233`) blocks a `Write` whose basename matches `test_.*\.(go|py|sh)$` OR
 `_test_.*\.(go|py|sh)$` unless the path contains `/internal/`, `/test/`, or
-`/cmd/`. `scripts/dev/` is none of those, so `audit_test_relaxation_test.py` was
+`/cmd/`. the retired `scripts/dev/` (current producer: `internal/le/`) is none of those, so `audit_test_relaxation_test.py` was
 rejected and had to be renamed `audit_relaxation_test.py`. Verified: the infix
 `_test_` in `audit_test_relaxation` matches, and the renamed file matches neither
 pattern (`audit_relaxation_test.py` ends `test.py`, not `test_`), which is why the
 rename worked.
 
-**Pattern:** Recurs for any `scripts/dev/` tool whose name contains a `test_` or
-`_test_` token, a live category, since `scripts/dev/` is exactly where this
+**Pattern:** Recurs for any the retired `scripts/dev/` (current producer: `internal/le/`) tool whose name contains a `test_` or
+`_test_` token, a live category, since the retired `scripts/dev/` (current producer: `internal/le/`) is exactly where this
 repo's test *infrastructure* lives (`hook-fixture-check.py`,
 `hook-parity-check.py`, `audit-test-relaxation.py`, `commit_helper_test.py`).
 
@@ -452,9 +454,9 @@ is a worse name than `audit_test_relaxation_test.py` for a thing that audits tes
 relaxation. The next reader has no idea why.
 
 **Rule decision:** Update the hook. The intent, no throwaway tests in scratch
-locations, is sound and worth keeping; `scripts/dev/` is not a scratch location.
+locations, is sound and worth keeping; the retired `scripts/dev/` (current producer: `internal/le/`) is not a scratch location.
 
-**Proposed fix:** Add `scripts/` to the allowed-path set alongside `internal/`,
+**Proposed fix:** Add the retired `scripts/` (current producer: `internal/le/`) to the allowed-path set alongside `internal/`,
 `test/`, and `cmd/` at `:1228-1232`. Note `/tmp/` and `/var/tmp/` are already
 handled separately at `:1222-1224`, so the scratch-location intent survives
 intact. NOT done here: outside this task's scope, and `pretool-writeedit.py` is
@@ -607,7 +609,7 @@ for each). It was recoverable only because the authoring agent still had it in
 context. After a compaction it would simply have been gone -- which is exactly
 the case post-compaction.md exists to cover.
 
-**Exact mechanism** (`.claude/hooks/session-end-summary.sh`): the write is
+**Exact mechanism** (the retired `.claude/hooks/session-end-summary.sh` (current producer: `internal/le/hookruntime/lifecycle.go`)): the write is
 `{ echo "# Session State"; echo "$NEW_SNAPSHOT"; ...previous... } > "$STATE_FILE"`
 -- a truncating redirect. What it carries forward is only what its awk at
 `:60-66` extracts from the old file: printing starts at the FIRST line matching
@@ -635,7 +637,7 @@ shared and changing it mid-session would race other live sessions.
 ### F10: `stress-repro.py` was broken for every sub-suite, and said so as "reproduced"
 
 **Friction:** `ai/rules/testing.md` sends you to
-`scripts/dev/stress-repro.py` for exactly the failure class this session was
+the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`) for exactly the failure class this session was
 working. Three defects, in descending cost:
 
 1. It appended `-v` AFTER the test selector. The suite runners parse
@@ -668,7 +670,7 @@ stale binary until you rebuild.
 flakes" paragraph, and the stale-`bin/ze` warning; `ai/INDEX.md`'s tool row
 gains the same three facts, since that is where an agent looks first.
 
-**Proposed fix:** DONE for all three defects in `scripts/dev/stress-repro.py`
+**Proposed fix:** DONE for all three defects in the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`)
 (`-v` before the selector, `shlex.split` on both suite and selector,
 `--any-failure`). The tool still cannot tell a runner usage error from a product
 failure; a cheap improvement would be to treat a first-invocation non-zero exit
@@ -681,13 +683,13 @@ a reproduction.
 
 ### F14: `verify_run.go` dry-run guard vs `ZE_VERIFY_LOG=` make override (FIXED at source)
 
-**Friction:** `make ze-precommit-verify ZE_VERIFY_LOG=tmp/ze-verify-gate12.log` -- the
+**Friction:** `./le verify current mode full ZE_VERIFY_LOG=tmp/ze-verify-gate12.log` -- the
 exact invocation `ai/rules/commands.md` and the `pipe-tail` Bash hook print
 as the sanctioned form -- exited 2 with the "refusing to run under make -n"
 message. GNU make 3.81 (the macOS system make) writes a command-line variable
 override into MAKEFLAGS as the FIRST word with no `--` separator
 (`MAKEFLAGS="ZE_VERIFY_LOG=tmp/ze-verify-gate12.log"`, captured), and
-`makeDryRun` (scripts/status/verify_run.go) read that word as concatenated
+`makeDryRun` (scripts/status/verify_run.go (retired; current producer: `internal/le/verify/run.go`)) read that word as concatenated
 short flags: `ContainsAny(field, "ntq")` matched the 't' in "tmp".
 
 **Pattern:** the guard's negative-side test table was built from GNU make 4.x
@@ -740,11 +742,11 @@ one.
 Every Bash tool call then failed, because the tool could not create its own
 output file -- an unrecoverable state from inside the session.
 
-`Makefile:17` sets `export GOCACHE := $(CURDIR)/cache/go-cache`, with `cache/`
-symlinked to `~/.cache/ze` (`scripts/dev/ensure-links.py`). Make `export`
+the retired `Makefile:17` (current producers: `internal/le/` native action tables) sets `export GOCACHE := $(CURDIR)/cache/go-cache`, with `cache/`
+symlinked to `~/.cache/ze` (the retired `scripts/dev/ensure-links.py` (current producer: `internal/le/scratch/scratch.go`)). Make `export`
 only reaches processes make spawns. A `go` command run directly inherits nothing
 and falls back to Go's platform default, `os.UserCacheDir()/go-build` =
-`~/Library/Caches/go-build` on macOS. `GOLANGCI_LINT_CACHE` (`Makefile:18`) has
+`~/Library/Caches/go-build` on macOS. `GOLANGCI_LINT_CACHE` (the retired `Makefile:18` (current producers: `internal/le/` native action tables)) has
 the same scope, and the post-edit format hook runs `golangci-lint` directly.
 
 **Pattern:** two rules pull in opposite directions. `ai/rules/commands.md`
@@ -753,16 +755,16 @@ says prefer `make`, but also that a bare `go test` lies without the feature tags
 times, and every distinct tag set / `GOOS` / `-race` combination is a separate
 cache key. Cross-compiling for `linux/arm64` and `linux/amd64` multiplies it
 again. The tag guidance is right; it just silently opts out of the cache
-relocation the Makefile arranges.
+relocation the retired Makefile (current producers: `internal/le/` native action tables) arranges.
 
 **Proposed fix:** export `GOCACHE` at the shell level (profile or `.envrc`) so it
 covers direct invocations, and state in `ai/rules/commands.md` that a direct
 `go test` must carry `GOCACHE=$(pwd)/cache/go-cache` alongside the tags. `go
 clean -cache` is the safe recovery; nothing but rebuild time is lost.
 
-**Related, same area:** `Makefile:22-24` states the `tmp/go.mod` sentinel is
+**Related, same area:** the retired `Makefile:22-24` (current producers: `internal/le/` native action tables) states the `tmp/go.mod` sentinel is
 obsolete because `go list` skips a *symlinked* `tmp/`. That holds only after the
-opt-in `make ze-scratch-migrate`. In a checkout where `tmp/` is still a real
+opt-in `./le scratch migrate`. In a checkout where `tmp/` is still a real
 directory (`ensure-links.py` reports `SKIP tmp: a real path exists here`), the
 sentinel is load-bearing and deleting it lets `go list ./...` walk the caches.
 
@@ -770,16 +772,16 @@ sentinel is load-bearing and deleting it lets `go list ./...` walk the caches.
 
 **Friction:** `bin/ze-test-<session> bgp plugin 145` failed with a 30s timeout,
 "No messages received, no client output -- server likely failed to start or
-crashed". The same test had passed in 857ms in a full `make ze-precommit-verify` two hours
+crashed". The same test had passed in 857ms in a full `./le verify current mode full` two hours
 earlier. Roughly an hour went into isolating it: the editor, the test runner's
 production files and the concurrent session's commits were each reverted to HEAD
 and re-tested, and the daemon was run by hand against the extracted config (where
 it emitted the awaited line immediately). All of them were innocent.
 
 The mechanism: the functional suites are NOT meant to be launched by running the
-runner binary. `mk/test-functional.mk` builds ISOLATED, BARE-NAMED binaries
+runner binary. the retired `mk/test-functional.mk` (current producer: `internal/le/functional/suites.go`) builds ISOLATED, BARE-NAMED binaries
 into `$(ZE_ALT_BIN)` -- and the daemon it builds carries the `zetest` build tag
-(`ze_core ze_distro ze_setup zetest ...`), which the ordinary `make ze-build` daemon
+(`ze_core ze_distro ze_setup zetest ...`), which the ordinary `go build -o bin/ze ./cmd/ze` daemon
 does not. `:145` then runs the suite as
 `env ZE_TEST_NO_BUILD=1 ZE_BIN=$(ZE_ALT_BIN)/ze ZE_TEST_BIN=$(ZE_ALT_BIN)/ze-test
 $(ZE_ALT_BIN)/ze-test ...`. Launched directly, the runner instead rebuilds a ze
@@ -799,14 +801,14 @@ scratch dir, symlink them bare-named, and export ZE_BIN/ZE_TEST_BIN.
 
 **Proposed fix:** have the runner detect that it was launched without
 ZE_BIN/ZE_TEST_BIN for a suite that needs the isolated pair and say so ("run via
-make ze-functional-plugin-test; a directly launched runner builds a ze without the zetest
+./le functional plugin; a directly launched runner builds a ze without the zetest
 tag"), rather than letting the daemon start and the assertion time out. The
 `--server`/`--client` debug hints it prints on failure inherit the same problem
 and would mislead the same way.
 
 ### F18: the RFC audit-freshness fingerprint covers the whole file, so untouched tests go stale
 
-**Friction:** `make ze-rfc-check` and `TestRFCRequirementsGate` both failed with
+**Friction:** `./le rfc check` and `TestRFCRequirementsGate` both failed with
 "RFC7606-2-5 has a STALE audit verdict -- the requirement text or a tagged test
 changed since it was judged". Neither had. The requirement's own
 `requirement_sha` was byte-identical (`a8534d7b2f2b4ae6`), and `git log -p`
@@ -816,7 +818,7 @@ file: `b8f64e345` added a `maxMsgID` argument to `buildReplayRoutes` call sites
 elsewhere in `adj_rib_in/rib_test.go`.
 
 The mechanism is documented and deliberate: `tagged_unit_shas`
-(`scripts/dev/rfc_requirements.py`) says "Coarse on purpose: the whole enclosing
+(the retired `scripts/dev/rfc_requirements.py` (current producer: `internal/le/rfc/rfc.go`)) says "Coarse on purpose: the whole enclosing
 file, not the function. Over-triggering costs a re-read; under-triggering ships a
 verdict for a test that has since changed." The bias is the right one -- a false
 "fresh" would ship an unenforced compliance claim.
@@ -846,7 +848,7 @@ semantics change, and it would have removed the whole investigation both times.
 
 ### F11: `validate-spec.sh` RFC-existence check is dead code (regex typo)
 
-**Friction:** the RFC-summary existence check at `.claude/hooks/validate-spec.sh`
+**Friction:** the RFC-summary existence check at the retired `.claude/hooks/validate-spec.sh` (current producer: `internal/le/hookruntime/lifecycle.go`)
 greps with the pattern `'\rfc/short/rfc[0-9]+\.md'`. The leading `\r` is a
 carriage-return escape in grep -E, so the pattern can never match a literal
 `rfc/short/...` path; `RFC_REFS` is always empty and the check silently
@@ -864,7 +866,7 @@ block unrelated edits; treat missing summaries as a warning or fix them first.
 
 ### F12: `spec-closure-check.py` high-confidence signal misfires on slice-scoped learned summaries
 
-**Friction:** the closure advisory (surfaced by `make ze-spec-status`) listed
+**Friction:** the closure advisory (surfaced by `./le spec-status`) listed
 four specs as "Completed but not closed -- high confidence" because a committed
 `plan/learned/NNN-<exact-spec-slug>.md` exists while the spec is in-progress.
 For three of the four (`fixit-bgp-session-fsm-lifecycle` learned 1202,
@@ -881,7 +883,7 @@ closed three specs with live AC work outstanding.
 spec; parallel-session file-contention workflows now legitimately produce
 partial, slug-named learned summaries.
 
-**Proposed fix:** in `scripts/dev/spec-closure-check.py`, demote an
+**Proposed fix:** in the retired `scripts/dev/spec-closure-check.py` (current producer: `internal/le/`), demote an
 exact-slug match to NEEDS VERIFICATION when the learned summary body contains
 partial-scope markers (e.g. "slice", "parked", "not committed", "deferred to",
 "scope was narrowed"), or require the spec's own Pre-Commit Verification
@@ -947,7 +949,7 @@ strictly shorter improvement lands. Three of every four `test-relax:`
 tokens in the retired corpus excused exactly this shape.
 
 **The commit still records a count drop.** `weakened_problems`
-(`scripts/dev/commit_helper.py`) records every weakening kind, so an edit
+(the retired `scripts/dev/commit_helper.py` (current producer: `internal/le/commit/prepare.go`)) records every weakening kind, so an edit
 the hook waved through with a notice still needs a row in the commit. Say
 in the row which happened: the coverage moved, or it went.
 
@@ -1013,7 +1015,7 @@ trips `c_ignored_errors`. Before this change those three rules left CLI packages
 outside `cmd/` with no legal way to print at all.
 
 **Evidence.** 282, 622, 633; measurement + removal 2026-07-16 (l2tp `--user`
-session; `make ze-unit-hook-test` 131/131 golden + 33/33 fixtures still green after).
+session; `./le hook-check unit` 131/131 golden + 33/33 fixtures still green after).
 
 ---
 
@@ -1043,7 +1045,7 @@ to output of `make`, `go`, `golangci-lint`, or `bin/ze-*`.
 the `Read` tool:
 
 ```bash
-make ze-precommit-verify > tmp/ze-verify.log 2>&1
+./le verify current mode full > tmp/ze-verify.log 2>&1
 ```
 
 Then use `Read` with `offset` and `limit` to page through the log.
@@ -1294,7 +1296,7 @@ tag has ever been counted as proof.
 **What it cost.** Writing a new RFC pair means writing the assertion and the tag
 together, then discovering the assertion was wrong about the producing function.
 The file was authored minutes earlier, the checklist row did not exist yet, and
-`make ze-rfc-check` reported the id as unknown. Nothing was proven, so there was
+`./le rfc check` reported the id as unknown. Nothing was proven, so there was
 no proof to weaken. The file was still frozen: the guard refuses an edit to the
 body, and it refuses an edit that removes the tag. The draft had to be moved to
 `tmp/` and rewritten.
@@ -1305,7 +1307,7 @@ iterate to green, then convert the placeholders to real `RFC requirement:` tags
 as the last edit. A comment-only edit leaves the behavior bytes untouched, so it
 passes, and adding a tag drops none.
 
-**Suggested fix.** The guard protects a claim that `make ze-rfc-check` already
+**Suggested fix.** The guard protects a claim that `./le rfc check` already
 counts. When the requirement id the tag names is absent from every
 `rfc/short/*.md` checklist, the tag proves nothing and the block buys nothing.
 Resolve the ids in the edited hunk against the summaries and let an edit through
@@ -1318,7 +1320,7 @@ gate reads and drops this class of false positive.
 
 **Status: FIXED** in commit `0a5de3eb3`.
 
-**Trigger.** `check_frozen_verbs` (`scripts/dev/ste_check.py`) scans with
+**Trigger.** `check_frozen_verbs` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`)) scans with
 `GERUND_CLAUSE`, which is
 `\b(before|after|while|without|when)\s+([a-z]+ing)\b`. The second group accepts
 any lowercase word that ends in `ing`, so a pronoun after one of the five
@@ -1338,13 +1340,13 @@ better, so the cost was small. But a reader who trusts the finding learns the
 wrong rule. And a gate that is wrong twice in one file teaches its readers to
 skip it.
 
-**Why the fix waited.** `scripts/dev/ste_check.py` was untracked at the time, and
+**Why the fix waited.** the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`) was untracked at the time, and
 a concurrent session was editing it. `ai/rules/never-destroy-work.md` outranks
 the STE rule's own "fix the tool" instruction, so the defect was filed rather
 than patched. Three agents hit it independently in one rewrite, which is the
 recurrence signal, not a single unlucky sentence.
 
-**The fix.** `NOT_GERUND` (`scripts/dev/ste_check.py`) holds the indefinite
+**The fix.** `NOT_GERUND` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`)) holds the indefinite
 pronouns and the common `-ing` nouns that are not verb forms.
 `check_frozen_verbs` skips a match whose second group is in that set. A denylist
 is the right shape, because the `-ing` ending carries no information about
@@ -1358,7 +1360,7 @@ gerund clauses are still reported, so the fix cannot decay into a no-op.
 
 **Status: FIXED** in commit `f8751a908`.
 
-**Trigger.** `ABBREVIATIONS` (`scripts/dev/ste_check.py`) contained `No.`,
+**Trigger.** `ABBREVIATIONS` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`)) contained `No.`,
 together with `Dr.`, `Fig.`, `Mr.`, `Ms.`, `approx.`, `e.g.`, `etc.`, `i.e.` and
 `vs.`. `sentences()` held every dot in that tuple unconditionally.
 
@@ -1370,7 +1372,7 @@ finding. The fix was to move the quotation into its own paragraph, which is
 better STE anyway.
 
 **The fix.** `No.` and `Fig.` abbreviate only in front of the number they label,
-so `NUMBERED_ABBREVIATION` (`scripts/dev/ste_check.py`) holds their dot only
+so `NUMBERED_ABBREVIATION` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`)) holds their dot only
 when a digit follows. The other eight entries stay unconditional. Two tests pin
 both directions: `No. 5` stays one sentence, and `answered Yes/No. Every Yes
 names a file` is two.
@@ -1411,7 +1413,7 @@ NOT reproduce that. It is recorded as unverified and it is not filed as fact
 `nothing`, `anything`, `everything`, `something`, `string`, `thing`, `ring`,
 `spring`, `king`, `during`. A negative lookahead in the second group is enough,
 and it changes no true positive. `ai/rules/writing.md` asks
-for the case to land in `scripts/dev/ste_check_test.py` in the same change. The
+for the case to land in the retired `scripts/dev/ste_check_test.py` (current producer: `internal/le/`) in the same change. The
 checker is untracked while its author is still writing it, so this session left
 the tool alone rather than edit another session's uncommitted file.
 
@@ -1419,7 +1421,7 @@ the tool alone rather than edit another session's uncommitted file.
 
 **Status: OPEN.** No fix applied. The workaround is at the end.
 
-**Trigger.** `ste_problems` (`scripts/dev/commit_helper.py`) hands the
+**Trigger.** `ste_problems` (the retired `scripts/dev/commit_helper.py` (current producer: `internal/le/commit/prepare.go`)) hands the
 commit's own `.md`, `.go` and `.yang` paths to `ste_check.py --check`.
 The checker reads each path from the WORKING TREE and compares it against that
 path's HEAD version.
@@ -1454,7 +1456,7 @@ add that file once the other session commits. Establish ownership first with
 
 **Suggested fix.** Judge the lines the commit ADDS, not the whole file. Note that
 nothing is staged at gate time: `ste_problems` runs from `commit_gate_problems`
-(`scripts/dev/commit_helper.py`) during `create()`, and `git add` is only
+(the retired `scripts/dev/commit_helper.py` (current producer: `internal/le/commit/prepare.go`)) during `create()`, and `git add` is only
 emitted into the generated script (`render_git_add`, `:380-385`). So the source
 is `git diff HEAD -- <add_paths>`, never `--cached`. That diff and
 `ste_check.py`, which already reports a line number for every finding, are the
@@ -1463,7 +1465,7 @@ two halves. Intersect them.
 A habit that grows on a line you did not touch then belongs to whoever touched
 it. This keeps the per-author attribution the docstring asks for, and it removes
 the shared-file deadlock. `ai/rules/writing.md` asks for the
-case to land in `scripts/dev/ste_check_test.py` in the same change.
+case to land in the retired `scripts/dev/ste_check_test.py` (current producer: `internal/le/`) in the same change.
 
 ---
 
@@ -1497,7 +1499,7 @@ blocking side.
 the guard permits by design. The end state is identical, and a typo stays fixable
 for as long as the file is untagged.
 
-**A second, quieter finding.** `make ze-rfc-check` read the tags in that file and
+**A second, quieter finding.** `./le rfc check` read the tags in that file and
 reported the rows as proven while the package did not build. The gate scans text
 and never compiles. A tag in a file that fails `go vet` is not evidence.
 
@@ -1516,14 +1518,14 @@ and never compiles. A tag in a file that fails `go vet` is not evidence.
 **Impact:** The umbrella stays open until a manual audit notices the contradiction.
 **Rule decision:** No new rule. The closure workflow already assigns this transition to the final child.
 **Proposed fix:** Treat an exact umbrella summary plus closed children as a high-confidence signal.
-<!-- source: scripts/dev/spec-closure-check.py -- SpecReport.completed_not_closed, SpecReport.needs_verification -->
+<!-- source: internal/le/specstatus/closure.go -- closureCompletedNotClosed, closureNeedsVerification -->
 
 ### F22: `check_poll_loop` blocks a command that QUOTES a wait loop
 
 **Friction:** `echo`-ing or here-doc-ing a `while`/`until` + `sleep` string to test the gate is refused, because the check matches the command TEXT.
 **Pattern:** Same class as the git-verb false positive in `ai/rules/commands.md`: a coarse text match cannot tell a loop you RUN from one you QUOTE.
 **Impact:** One rejected call while testing or demonstrating the gate.
-**Workaround (session-verified):** Feed the payload from Python, as `scripts/dev/hook-parity-check.py` does; the loop string then never reaches a Bash command line.
+**Workaround (session-verified):** Feed the payload from Python, as the retired `scripts/dev/hook-parity-check.py` (current producer: `internal/le/`) does; the loop string then never reaches a Bash command line.
 **Already handled:** A loop keyword inside a SEARCH argument is exempt (`SEARCH_COMMANDS`), so `grep -rn 'until ! pgrep' ai/rules` and `git log -S` pass. Only the run-shaped quoting above is refused.
 <!-- source: .claude/hooks/pretool-bash.py -- check_poll_loop, SEARCH_COMMANDS -->
 
@@ -1531,7 +1533,7 @@ and never compiles. A tag in a file that fails `go vet` is not evidence.
 
 ## `stress-repro.py` silently falls back to stale `bin/ze-test` and calls it a REPRODUCTION
 
-**Date:** 2026-08-01. **Tool:** `scripts/dev/stress-repro.py`.
+**Date:** 2026-08-01. **Tool:** the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`).
 
 **What happened.** Proving a new `.ci` under load with
 `stress-repro.py "bgp plugin --draft" --test 1 --any-failure` reported
@@ -1549,13 +1551,11 @@ The failure is indistinguishable from a genuine assertion flake by exit code, an
 the empty capture removes the one thing that would disambiguate it. The script
 already has a "never reached a test" hint path, and it did not fire here.
 
-**Workaround.** Pass the session binaries explicitly, which is what the make
-targets do:
+**Current route.** The native command resolves the current suite binaries and
+uses the closed keyword grammar:
 
 ```
-bindir=$PWD/$(dirname "$(make -s ze-session-binary-path)")
-env ZE_BIN=$bindir/ze ZE_TEST_BIN=$bindir/ze-test \
-    python3 scripts/dev/stress-repro.py "bgp plugin --draft" --test 1 --any-failure
+./le stress-repro run suite "bgp plugin --draft" test 1 any-failure
 ```
 
 **Suggested fixes.** Any one of these closes it.
@@ -1651,15 +1651,15 @@ costs an operator approval even when no existing assertion is touched.
 ## Filed 2026-08-01 (bgp-update-withdraw-order): "regen the ledger in the SAME commit" cannot be obeyed in a shared checkout
 
 **What happened.** `ai/rules/testing.md` requires that adding or moving an
-`RFC requirement:` tagged test be accompanied by `make ze-rfc-index-update` and a
+`RFC requirement:` tagged test be accompanied by `./le rfc index-update` and a
 committed `ai/RFC-REQUIREMENTS.md`, in the same commit. I added two tagged tests
 and could not comply. The ledger is a WHOLE-TREE derivative, and a concurrent
 session held uncommitted tagged tests of its own, so every regeneration also
 captured their in-flight `file:line` positions.
 
 Committing it would have swept their work into a commit titled as a BGP fix.
-Omitting it left the ledger stale, which reds four `ze-precommit-verify` stages at once
-(`ze-rfc-check`, `ze-doc-verify`, `ze-doc-wiring-check` and `ze-unit-test-cached`,
+Omitting it left the ledger stale, which reds four `./le verify current mode full` stages at once
+(`./le rfc check`, `./le doc-check verify`, `./le doc-wiring` and `ze-unit-test-cached`,
 all one cause).
 
 **How it resolved, which is the interesting part.** The other session committed
@@ -1724,17 +1724,16 @@ It cost two move-and-rewrite cycles rather than two edits. A third block, same
 guard, refused removing a dead `maxRounds` parameter from `driveEAPTLSFlight`
 (`rfc5216_success_flight_test.go`) that `unparam` had started reporting: the
 helper's own scope carries no tag, but its three call sites sit inside tagged
-tests, so the fix `make ze-lint-changed` asked for needs owner approval the agent
+tests, so the fix `./le changed scope` asked for needs owner approval the agent
 cannot give itself. It passed a second, MEASURED round cap from the new tests
 instead, which makes the parameter genuinely non-constant. Suggested fix 1 above
 (exempt a path untracked in git) would have removed the first two blocks and not
 the third.
 
-**Second friction, same session, smaller.** `validate-spec.sh` takes its payload
-on stdin and NOTHING on argv, and says so loudly when given argv. That is good
-design, but the manual-invocation line it prints is the only place the contract
-is written; a reader who reaches for `bash validate-spec.sh <path>` first learns
-it by failing. Worth one line in `ai/rules/repo-maintenance.md`.
+**Second friction, same session, smaller.** The retired `validate-spec.sh`
+accepted its payload on stdin and nothing on argv. The current producer is
+`internal/le/hookruntime/lifecycle.go`; `./le hook-check validate-spec` exercises
+the native contract and its fixtures.
 
 ---
 
@@ -1742,7 +1741,7 @@ it by failing. Worth one line in `ai/rules/repo-maintenance.md`.
 
 **Trigger.** `pretool-writeedit.py` refuses a code edit with
 `No session state (tmp/session/<date>-<SID>/state/session-state-<spec-stem>-<SID>.md)`.
-The stem comes from `scripts/dev/spec-session.sh current`, which is ONE marker per
+The stem comes from the retired `scripts/dev/spec-session.sh current` (current producer: `internal/le/speclifecycle/session.go`), which is ONE marker per
 Claude session id -- and one session id now runs many subagents concurrently.
 
 **What happens.** Agent A is running `/ze-implement` on spec X and has

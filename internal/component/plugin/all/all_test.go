@@ -183,7 +183,7 @@ func TestGeneratedPluginImportsCurrent(t *testing.T) {
 		ctx, cancel = context.WithDeadline(ctx, deadline)
 		defer cancel()
 	}
-	cmd := exec.CommandContext(ctx, "go", "run", "../../../../scripts/codegen/plugin_imports.go", "--check")
+	cmd := exec.CommandContext(ctx, "go", "run", "../../../../internal/le/pluginimports/pluginimports.go", "--check")
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	out, err := cmd.CombinedOutput()
 	if err != nil {

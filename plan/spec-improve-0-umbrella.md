@@ -46,7 +46,7 @@ any external behavior that shapes a design decision against primary sources dire
 |----------------|----------|--------|
 | 3: uniform typed routing-protocol contract (the reviewed daemon's per-protocol trait shape) | Declined as a standalone registration layer | Ze's generic plugin `Registration` (`internal/component/plugin/registry/registry.go`) is load-bearing (see `ai/rules/plugins.md`); protocols in Ze are components plus many small plugins, not per-protocol monoliths. The predictability benefit ("a maintainer knows where config, state, RPC, tests live") is delivered instead by the conformance fixture format (improve-4) and the state-provider registry (improve-2). Revisit only if OSPF/IS-IS maturation shows real drift between protocol implementations |
 | 4: protocol breadth (RIP, VRRP, IGMP...) | Declined | The review itself recommends against chasing breadth before contracts. Ze's product center (appliance NOS + BGP + growing IGP work) does not need RIP/VRRP/IGMP now. No spec |
-| 9: CI fuzz-target and benchmark buildability checks | Declined | The reviewed daemon is Rust, where fuzz targets are separate crates not built by `cargo test`, so buildability needs its own CI check. In Go, fuzz targets and benchmarks are ordinary `_test.go` functions (e.g. `internal/component/l2tp/avp_fuzz_test.go`, run via `go test -fuzz` in `mk/test-fuzz.mk`) compiled by every `make ze-unit-test` run, and `bin/ze-perf` builds from `cmd/ze` + `internal` (`Makefile:184`), covered by lint/build. The buildability gap the review's CI check closes does not exist in Ze. Arm64 smoke coverage may deserve its own future discussion (gokrazy targets) but is unrelated to this set |
+| 9: CI fuzz-target and benchmark buildability checks | Declined | The reviewed daemon is Rust, where fuzz targets are separate crates not built by `cargo test`, so buildability needs its own CI check. In Go, fuzz targets and benchmarks are ordinary `_test.go` functions (e.g. `internal/component/l2tp/avp_fuzz_test.go`, run via `go test -fuzz` in `internal/le/fuzz/actions.go`) compiled by every `./le test-unit` run, and `bin/ze-perf` builds from `cmd/ze` + `internal` (`internal/le/` native action tables), covered by lint/build. The buildability gap the review's CI check closes does not exist in Ze. Arm64 smoke coverage may deserve its own future discussion (gokrazy targets) but is unrelated to this set |
 
 ## Required Reading
 
@@ -226,7 +226,7 @@ Umbrella only: user stories live in child specs.
 
 ### Goal Gates (MUST pass)
 - [ ] All six child specs individually pass their own gates
-- [ ] `make ze-standard-test` passes after each child lands
+- [ ] `./le verify current mode full` passes after each child lands
 
 ### TDD
 - [ ] Tests written (per child)

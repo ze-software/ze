@@ -163,7 +163,7 @@ func TestValuePinnedVector(t *testing.T) {
 	if got != pinnedValue {
 		t.Errorf("Value(%q, %s) =\n  %s\nwant\n  %s\n"+
 			"if the argon2 parameters changed on purpose, update pinnedValue here AND "+
-			"RESCUE_AUTH in scripts/evidence/effective-install-scenarios-qemu.py",
+			"RESCUE_AUTH in internal/le/qemu/install_scenarios.go",
 			pinnedToken, pinnedSaltHex, got, pinnedValue)
 	}
 	if !Check(pinnedToken, pinnedValue) {

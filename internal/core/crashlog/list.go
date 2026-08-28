@@ -5,6 +5,7 @@ package crashlog
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -26,13 +27,13 @@ func ListCrashes() []CrashSummary {
 	}
 
 	result := make([]CrashSummary, 0, len(names))
-	for i := len(names) - 1; i >= 0; i-- {
-		info, err := os.Stat(filepath.Join(crashDir, names[i]))
+	for _, name := range slices.Backward(names) {
+		info, err := os.Stat(filepath.Join(crashDir, name))
 		if err != nil {
 			continue
 		}
 		result = append(result, CrashSummary{
-			Name: names[i],
+			Name: name,
 			Size: info.Size(),
 		})
 	}

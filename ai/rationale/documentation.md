@@ -29,7 +29,7 @@ docs/
 
 .claude/
   rules/                   # Auto-loaded Claude-specific rules
-  skills/                  # Generated from ai/skills/ (make ze-ai-skills-sync)
+  skills/                  # Generated from ai/skills/ (./le ai skills-sync)
   hooks/                   # Session hooks
 
 plan/
@@ -50,7 +50,7 @@ plan/journal/
 
 | Content | Canonical Location | Others Should |
 |---------|-------------------|---------------|
-| Make targets | `Makefile` + `ai/rules/testing.md` | Reference, not list |
+| Native actions | `./le` + `ai/rules/testing.md` | Reference, not list |
 | Architecture doc paths | `ai/INDEX.md` | Point to INDEX |
 | Rule content | `.claude/rules/<name>.md` | Point to rule file |
 | CLI patterns | `ai/rules/cli.md` | Point to rule file |

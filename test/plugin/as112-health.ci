@@ -5,8 +5,8 @@
 # healthy and unhealthy exit codes) by proving the RPC WIRING itself: the
 # ze-as112:health wire method is reachable and the YANG command resolves.
 # The service cannot bind the real privileged port 53 in this unprivileged
-# functional-test sandbox (see mk/test-integration.mk's
-# ze-integration-as112-test for the privileged, real-bind proof), so this
+# functional-test sandbox (see internal/le/integration/gates.go and its
+# `./le integration as112` action for the privileged, real-bind proof), so this
 # test exercises the unhealthy path -- proving the command completes and
 # reports healthy=false, not a dispatch/wiring failure.
 # Also dispatches the documented "target <ip>" keyword form through the real
@@ -25,72 +25,6 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=as112-health-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail, result_text_data
-
-DEFAULT_TARGET = '127.0.0.1:53'
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def check_health(resp, command, target):
-    """Assert the command RAN and reported a health verdict, and return it.
-
-    An unhealthy node is a command that ran and failed, and it states its reason
-    on the terminator, which is the one line an answer states an outcome on. A
-    command that never reached the handler states a different reason, so the
-    target is what tells the two apart. A healthy node answers with the data.
-    """
-    status = resp.get('status')
-    if status not in ('done', 'error'):
-        runtime_fail(f'{command}: unexpected status={status} resp={resp}')
-
-    if status == 'error':
-        reason = resp.get('error', '')
-        if target not in reason:
-            runtime_fail(f'{command}: failed without naming the target {target!r}: {reason!r}')
-        return False
-
-    data = result_text_data(resp)
-    if isinstance(data, str) and data:
-        data = json.loads(data)
-    if not isinstance(data, dict) or data.get('healthy') is not True:
-        runtime_fail(f'{command}: a done answer must carry healthy=true, got {data}')
-    if data.get('target') != target:
-        runtime_fail(f'{command}: expected target={target!r} in response, got {data}')
-    return True
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        resp = dispatch(api, 'request as112 healthcheck')
-        healthy = check_health(resp, 'request as112 healthcheck', DEFAULT_TARGET)
-        print(f'OK: request as112 healthcheck dispatched, healthy={healthy}', file=sys.stderr)
-
-        resp = dispatch(api, 'request as112 healthcheck target 127.0.0.1')
-        check_health(resp, 'request as112 healthcheck target 127.0.0.1', DEFAULT_TARGET)
-        print(f'OK: request as112 healthcheck target 127.0.0.1 dispatched, target={DEFAULT_TARGET}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 service {
@@ -101,7 +35,7 @@ service {
 
 plugin {
 	external as112-health-test {
-		run ./as112-health-test.run
+		run "ze-test fixture plugin/as112-health"
 		encoder json
 	}
 }

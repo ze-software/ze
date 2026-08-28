@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md -- native Go gates run through le
+// Design: docs/architecture/core-design.md -- native Go checks run through le
 // Detail: ../gotoolchain/gotoolchain.go -- the environment for the Go command
 //
 // Package platformvet checks the host and interface package trees against the
@@ -27,8 +27,8 @@ const (
 	PlatformFreeBSD
 )
 
-// packagePatterns is the complete population the former ze-platform-vet recipe
-// judged. No feature tags are added because the producer ran plain `go vet`.
+// packagePatterns is the complete population each platform action vets. No
+// feature tags are added because the action runs plain `go vet`.
 var packagePatterns = [...]string{
 	"./internal/component/host/...",
 	"./internal/component/iface/...",
@@ -38,7 +38,7 @@ var packagePatterns = [...]string{
 type platformSpec struct {
 	platform Platform
 	goos     string
-	gate     string
+	verb     string
 	why      string
 }
 
@@ -46,7 +46,7 @@ var platformSpecs = [...]platformSpec{
 	{
 		platform: PlatformDarwin,
 		goos:     "darwin",
-		gate:     "ze-platform-vet-darwin",
+		verb:     "darwin",
 		why: "the iface and host trees still compile under GOOS=darwin. Nothing in the " +
 			"default host-GOOS build exercises default_other.go, backend_other.go or " +
 			"host/platform_other.go, so a stub that stops compiling rots silently",
@@ -54,7 +54,7 @@ var platformSpecs = [...]platformSpec{
 	{
 		platform: PlatformFreeBSD,
 		goos:     "freebsd",
-		gate:     "ze-platform-vet-freebsd",
+		verb:     "freebsd",
 		why: "the same trees under GOOS=freebsd. An int64-versus-uint64 syscall.Rlimit " +
 			"drift is the shape of break this catches",
 	},
@@ -64,7 +64,7 @@ var platformSpecs = [...]platformSpec{
 // environment. It is excluded from JSON because inherited variables can contain
 // credentials, and the action report needs only the declared command contract.
 type Plan struct {
-	Gate        string   `json:"gate"`
+	Action      string   `json:"action"`
 	Platform    string   `json:"platform"`
 	Packages    []string `json:"packages"`
 	Command     []string `json:"command"`
@@ -74,7 +74,7 @@ type Plan struct {
 // Report is the structured answer for one platform. The child output streams
 // unchanged while this report records what ran and its exit code.
 type Report struct {
-	Gate     string   `json:"gate"`
+	Action   string   `json:"action"`
 	Platform string   `json:"platform"`
 	Packages []string `json:"packages"`
 	Command  []string `json:"command"`
@@ -82,14 +82,14 @@ type Report struct {
 	Error    string   `json:"error,omitempty"`
 }
 
-type gateExecutor func(string, []string, string, []string) (gaterun.GateReport, int)
+type actionExecutor func(string, []string, string, []string) (gaterun.ActionReport, int)
 
 // Runner owns the derived toolchain for both platform actions. It reads the
 // checkout once when a sweep names Darwin and FreeBSD together.
 type Runner struct {
 	root    string
 	chain   gotoolchain.Toolchain
-	execute gateExecutor
+	execute actionExecutor
 }
 
 // NewRunner derives the toolchain data for root. Missing manifest or go.mod
@@ -98,7 +98,7 @@ func NewRunner(root string) (Runner, error) {
 	return newRunner(root, gaterun.Run)
 }
 
-func newRunner(root string, execute gateExecutor) (Runner, error) {
+func newRunner(root string, execute actionExecutor) (Runner, error) {
 	if root == "" {
 		return Runner{}, fmt.Errorf("platform vet checkout root is empty")
 	}
@@ -112,8 +112,8 @@ func newRunner(root string, execute gateExecutor) (Runner, error) {
 	return Runner{root: root, chain: chain, execute: execute}, nil
 }
 
-// PackagePatterns returns the exact three package patterns the gate vets.
-func PackagePatterns() []string { return slices.Clone(packagePatterns[:]) }
+// packagePatternsForVet returns the exact three package patterns the action vets.
+func packagePatternsForVet() []string { return slices.Clone(packagePatterns[:]) }
 
 // Plan derives one invocation. GOOS is the only cross-target override. GOARCH
 // remains inherited, CGO remains disabled, and no tag flag is added.
@@ -126,13 +126,13 @@ func (r Runner) Plan(platform Platform) (Plan, error) {
 		return Plan{}, err
 	}
 
-	packages := PackagePatterns()
+	packages := packagePatternsForVet()
 	command := make([]string, 0, 2+len(packages))
 	command = append(command, "go", "vet")
 	command = append(command, packages...)
 
 	return Plan{
-		Gate:        spec.gate,
+		Action:      spec.verb,
 		Platform:    spec.goos,
 		Packages:    packages,
 		Command:     command,
@@ -150,9 +150,9 @@ func (r Runner) Run(platform Platform) (Report, int) {
 		return report, report.Code
 	}
 
-	_, code := r.execute(plan.Gate, plan.Command, r.root, plan.Environment)
+	_, code := r.execute(plan.Action, plan.Command, r.root, plan.Environment)
 	return Report{
-		Gate:     plan.Gate,
+		Action:   plan.Action,
 		Platform: plan.Platform,
 		Packages: slices.Clone(plan.Packages),
 		Command:  slices.Clone(plan.Command),
@@ -165,12 +165,12 @@ func failedReport(platform Platform, err error) Report {
 	if specErr != nil {
 		return Report{Code: 2, Error: err.Error()}
 	}
-	packages := PackagePatterns()
+	packages := packagePatternsForVet()
 	command := make([]string, 0, 2+len(packages))
 	command = append(command, "go", "vet")
 	command = append(command, packages...)
 	return Report{
-		Gate:     spec.gate,
+		Action:   spec.verb,
 		Platform: spec.goos,
 		Packages: packages,
 		Command:  command,

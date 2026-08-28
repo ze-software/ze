@@ -13,13 +13,13 @@ are available inside Claude Code when working in the ze repository.
 | `/ze-design` | Stress-test a design through structured decisions |
 | `/ze-audit` | Pre-implementation: what code already exists for this spec? |
 | `/ze-implement` | Implement a spec end-to-end (TDD, review loops, docs) |
-| `/ze-precommit-verify` | Run `make ze-precommit-verify` and report results |
+| `/./le verify current mode full` | Run `./le verify current mode full` and report results |
 | `/ze-debug` | Investigate failing tests with parallel hypotheses |
 | `/ze-review` | Quick single-pass code review of uncommitted changes |
 | `/ze-review-deep` | Multi-agent exhaustive review (9 specialized agents) |
 | `/ze-review-spec` | Post-implementation: did we build what the spec says? |
 | `/ze-review-docs` | Documentation accuracy, completeness, and quality |
-| `/ze-commit` | Prepare a scoped commit script through `scripts/dev/commit_helper.py` (does not commit directly) |
+| `/ze-commit` | Prepare a scoped commit script through `internal/le/commit.Answer` (does not commit directly) |
 | `/ze-debrief` | Summarize current session state |
 | `/ze-handoff` | Generate a handoff document for the next session |
 | `/ze-rfc` | Generate an implementation summary from an RFC |
@@ -31,7 +31,7 @@ are available inside Claude Code when working in the ze repository.
 
 
 <!-- source: ai/skills/ze-commit.md -- scoped commit workflow -->
-<!-- source: scripts/dev/commit_helper.py -- generated message file and user-run script -->
+<!-- source: internal/le/commit/actions.go -- Answer -->
 <!-- source: ai/skills/ze-weekly-update.md -- weekly update drafting, site update, and Discord post workflow -->
 ## Typical Workflows
 
@@ -42,7 +42,7 @@ are available inside Claude Code when working in the ze repository.
 /ze-spec                   -- write the spec (design, ACs, test plan)
 /ze-audit                  -- check what's already implemented
 /ze-implement              -- TDD implementation with built-in reviews
-/ze-precommit-verify                 -- run full test suite
+/./le verify current mode full                 -- run full test suite
 /ze-review-deep            -- multi-agent review before submission
 /ze-commit                 -- prepare the commit
 ```
@@ -51,7 +51,7 @@ are available inside Claude Code when working in the ze repository.
 
 ```
 /ze-debug                  -- paste test output, get parallel investigation
-/ze-precommit-verify                 -- confirm fix doesn't break anything
+/./le verify current mode full                 -- confirm fix doesn't break anything
 /ze-review                 -- quick review of the fix
 /ze-commit                 -- prepare the commit
 ```
@@ -96,9 +96,9 @@ The four review commands serve different purposes:
 
 ## Notes
 
-- `/ze-commit` does **not** run `git commit`. It generates a message file and executable commit script through `scripts/dev/commit_helper.py`; you run the script yourself.
-<!-- source: scripts/dev/commit_helper.py -- generated message file and user-run script -->
-- `/ze-precommit-verify` is the same as `make ze-precommit-verify` but formats the output as a structured report.
+- `/ze-commit` does **not** run `git commit`. It generates a message file and executable commit script through `internal/le/commit.Answer`; you run the script yourself.
+<!-- source: internal/le/commit/actions.go -- Answer -->
+- `/./le verify current mode full` is the same as `./le verify current mode full` but formats the output as a structured report.
 - `/ze-review-deep` accepts arguments: path scope, agent names, or `branch` for branch review.
 - `/ze-hunt` differs from the review family: the reviews look at the **diff**, `/ze-hunt` sweeps the **existing tree** for the recurring bug classes recorded in `plan/learned/RECURRING-PATTERNS.md`. Use it for periodic latent-bug sweeps, not for checking a change.
 - All commands are read-only unless explicitly stated. Reviews report findings without making changes.

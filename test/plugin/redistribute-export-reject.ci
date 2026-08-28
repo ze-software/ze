@@ -35,113 +35,6 @@ expect=bgp:conn=1:seq=2:contains=180A0900
 reject=bgp:conn=1:pattern=180A0000
 EOF_PEER2
 
-# Python test plugin: declares an export filter that rejects the subject route
-# and passes the fence
-tmpfs=filter-export-reject-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import sys
-from ze_api import API, runtime_fail
-
-export_rejected = []
-export_passed = []
-
-def filter_handler(params):
-    """Reject the export of 10.0.0.0/24, pass the fence route 10.9.0.0/24."""
-    direction = params.get('direction', '')
-    update = params.get('update', '')
-    if direction != 'export':
-        # Accept imports
-        return {'action': 'accept'}
-    if '10.0.0.0/24' in update:
-        export_rejected.append(update)
-        print(f'filter-update EXPORT REJECT: peer={params.get("peer")} update={update!r}', file=sys.stderr)
-        return {'action': 'reject'}
-    export_passed.append(update)
-    print(f'filter-update EXPORT PASS (fence): peer={params.get("peer")} update={update!r}', file=sys.stderr)
-    return {'action': 'accept'}
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'None'}
-    return resp.get('result', {})
-
-def serve_until(api, predicate, attempts=100):
-    """Answer plugin callbacks until predicate() holds, or attempts run out.
-
-    ze asks for a filter decision over the callback connection, and only
-    api.read_line() answers it. An observer parked in a dispatch RPC leaves that
-    request unanswered until the reactor's IPC deadline expires, and on-error
-    then decides the route instead of the filter. read_line blocks in select for
-    its timeout, so this loop costs no CPU and adds no sleep.
-    """
-    for _ in range(attempts):
-        if predicate():
-            return True
-        api.read_line(timeout=0.1)
-    return predicate()
-
-def main():
-    api = API()
-    api.declare_filter(
-        name='block-export',
-        direction='export',
-        attributes=['as-path'],
-        on_error='reject',
-    )
-    api.on_filter_update(filter_handler)
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Two barriers, in this order.
-    # 1. serve_until answers the filter callback for each forward ze makes, and
-    #    returns once both verdicts have been given. A poll cannot come first:
-    #    it parks this observer in a dispatch RPC, and ze's initial-sync drain
-    #    is waiting for the verdict only read_line can deliver.
-    # 2. updates-sent on peer2 reaches 2 when the fence UPDATE has been written
-    #    to peer2's socket (IncrUpdatesSent, reactor/reactor_notify.go), so the
-    #    shutdown below cannot beat the frame peer2 asserts. The threshold is 2
-    #    and not 1 because the initial-sync End-of-RIB is itself an UPDATE and
-    #    this counter cannot tell it apart: the sent branch of onMessageReceived
-    #    (reactor/reactor_notify.go) increments on msgtype.TypeUPDATE, and
-    #    wireUpdate is nil for a sent message, so no IsEOR test is possible
-    #    there. A threshold of 1 is therefore satisfied by establishment alone
-    #    and waits for nothing. peer2 receives exactly two frames on this
-    #    session: its EOR, and the one forward the export filter passes.
-    #
-    # Neither wait_peer_eor_sent nor quiesce is used here. Both peers assert ze's
-    # End-of-RIB as their own seq=1 expectation, so ze-peer already proves the
-    # marker on the wire, and each barrier costs 10s of a 15s budget waiting on
-    # an initial-sync drain that this observer is itself holding up.
-    serve_until(api, lambda: export_rejected and export_passed)
-    # attempts=40 (10s) rather than the 60 (15s) default. The break this error
-    # text names is "the verdict was given and the frame was never written": the
-    # line above has already returned, so 10s leaves room inside the test's 15s
-    # budget for this message to be printed rather than for the runner to report
-    # its own timeout. A daemon that forwards NOTHING gives no verdict either, so
-    # serve_until spends its own 10s first and that break stays a timeout.
-    if not api.wait_peer_counter('updates-sent', 2, peer='127.0.0.2', attempts=40):
-        runtime_fail('ze never wrote the fence UPDATE to peer2')
-
-    # peer2 is the only forward target for the routes peer1 sends, so the export
-    # filter must have been consulted for both of them.
-    if not export_rejected:
-        runtime_fail('export filter never saw the forward of 10.0.0.0/24 to peer2')
-    if not export_passed:
-        runtime_fail('export filter never saw the fence forward of 10.9.0.0/24 to peer2')
-    print(f'OK: export filter rejected {len(export_rejected)} forward(s), passed {len(export_passed)}', file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
 # ze bgp configuration: the export filter sits on peer2, the peer ze forwards TO.
 # On peer1 it would never be consulted: the route arrives from peer1 and ze does
 # not send it back to its source.
@@ -157,7 +50,7 @@ plugin {
         use bgp-rs;
     }
     external filter-export-reject-test {
-        run ./filter-export-reject-test.run;
+        run "ze-test fixture plugin/redistribute-export-reject";
         encoder json;
     }
 }

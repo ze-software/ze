@@ -1,61 +1,56 @@
 // Design: docs/architecture/core-design.md -- the rfc area, as one command
 // Overview: rfc.go -- the types, the paths and the closed sets every reader here shares
 //
-// actions.go is the Python area, ported. `le rfc --extraction-status` selected
-// one mode out of an argv; `le rfc extraction-status` selects one action out of
-// the table below. The three fields the Gate carried travel with it: the Make
-// target it still is, the reason the listing printed, and whether it WRITES.
-//
-// Four of the five `ze-rfc-*` gates are here: extraction-status, check,
-// reseal, and index-update. Selftest joins this area with its own fixture
-// suite. The verb is derived by removing the area's prefix from the gate name,
-// so one gate-name family is one area whatever stands behind it.
+// The action table is the single source for dispatch, help, listings, write
+// metadata, and the closed keyword grammar.
 package rfc
 
 import (
+	"errors"
+
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-rfc-extraction-status",
-		Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
-			"signed and enrolled counts, the per-register split, and the unsigned backlog",
-		Answer: extractionStatusAnswer,
-	},
-	leaction.Action{
-		Gate:   "ze-rfc-check",
-		Why:    "verify RFC requirement coverage, evidence strength, public status, audit verdicts, extraction sign-off, and generated ledger freshness without writing",
-		Answer: checkAnswer,
-	},
-	leaction.Action{
-		Gate: "ze-rfc-selftest",
-		Why: "exercise every RFC engine concern against in-process fixtures and report one " +
-			"structured row per property",
-		Answer: selftestAnswer,
-	},
-	leaction.Action{
-		Gate: "ze-rfc-reseal",
-		Why: "rewrite the file-level fingerprints of the audit verdicts a mechanical edit " +
-			"staled: the tagged unit is byte-identical and only the file around it moved, " +
-			"so nothing was re-judged and no human should be asked to re-read. A verdict " +
-			"whose unit, cited producer code, or requirement text MOVED is refused and " +
-			"stays stale: that one needs /ze-rfc-audit <rfc>, then ze-rfc-index-update",
+	leaction.Action{Verb: "extraction-create", Why: "derive one RFC or draft's unsigned extraction skeleton, preserving authored classifications only where the same locator still carries the same sentence",
 		Writes: true,
-		Answer: resealAnswer,
-	},
+		Parameters: []leaction.Parameter{
+			{Keyword: "stem", Value: "stem"},
+		},
+		AnswerArgs: extractionCreateAnswer},
+	leaction.Action{Verb: "extraction-status", Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
+		"signed and enrolled counts, the per-register split, and the unsigned backlog",
+		Answer: extractionStatusAnswer},
 	leaction.Action{
-		Gate: "ze-rfc-index-update",
-		Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
-			"rfc/requirements/, from the summaries and the `RFC requirement:` tags the " +
-			"tests themselves carry. It DELETES a table the render no longer produces, " +
-			"so it refuses outright when a summary did not parse: that RFC's rows would " +
-			"be absent from the render and its file removed as an orphan",
-		Writes: true,
-		Answer: indexUpdateAnswer,
+		Verb: "tagged-scope",
+		Why: "judge one proposed file from stdin against its existing RFC-tagged test units, " +
+			"and return the carrier predicate, widened edit scope, and owner-approval decision",
+		Parameters: []leaction.Parameter{
+			{Keyword: "path", Value: "path"},
+		},
+		AnswerArgs: taggedScopeAnswer,
 	},
+	leaction.Action{Verb: "check", Why: "verify RFC requirement coverage, evidence strength, public status, audit verdicts, extraction sign-off, and generated ledger freshness without writing",
+		Answer: checkAnswer},
+	leaction.Action{Verb: "selftest", Why: "exercise every RFC engine concern against in-process fixtures and report one " +
+		"structured row per property",
+		Answer: selftestAnswer},
+	leaction.Action{Verb: "reseal", Why: "rewrite the file-level fingerprints of the audit verdicts a mechanical edit " +
+		"staled: the tagged unit is byte-identical and only the file around it moved, " +
+		"so nothing was re-judged and no human should be asked to re-read. A verdict " +
+		"whose unit, cited producer code, or requirement text MOVED is refused and " +
+		"stays stale: that one needs /ze-rfc-audit <rfc>, then ze-rfc-index-update",
+		Writes: true,
+		Answer: resealAnswer},
+	leaction.Action{Verb: "index-update", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
+		"rfc/requirements/, from the summaries and the `RFC requirement:` tags the " +
+		"tests themselves carry. It DELETES a table the render no longer produces, " +
+		"so it refuses outright when a summary did not parse: that RFC's rows would " +
+		"be absent from the render and its file removed as an orphan",
+		Writes: true,
+		Answer: indexUpdateAnswer},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line
@@ -67,6 +62,26 @@ func Subs() string { return actions.Subs() }
 
 // Answer is the `le rfc` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
+
+// extractionCreateAnswer writes one unsigned skeleton in this checkout.
+func extractionCreateAnswer(args leaction.Arguments) (any, int) {
+	stem, held := args["stem"]
+	if !held {
+		leaction.ReportError(errors.New("rfc extraction-create requires stem <stem>"))
+		return nil, 2
+	}
+	tree, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	report, err := createExtraction(tree, stem)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	return report, 0
+}
 
 // extractionStatusAnswer derives the envelope over this checkout.
 //
@@ -85,7 +100,7 @@ func extractionStatusAnswer() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	status, err := ExtractionStatus(NewDeriver(tree), collected.Requirements, collected.Enrolled)
+	status, err := extractionStatus(NewDeriver(tree), collected.Requirements, collected.Enrolled)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
@@ -115,7 +130,7 @@ func resealAnswer() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := Reseal(tree)
+	report, err := resealTree(tree)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

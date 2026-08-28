@@ -50,78 +50,11 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E
 EOF_PEER
 
-tmpfs=med-store-check.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Read the Adj-RIB-In and judge what a decision process would weigh."""
-
-import sys
-
-from ze_api import API, result_json_data, result_text_data, runtime_fail
-
-# The MULTI_EXIT_DISC attribute as the peer sent it: flags 0x80, code 0x04,
-# length 4, value 100. Searched for in the STORED attribute bytes.
-MED_ATTR = '80040400000064'
-
-# What must survive: ORIGIN, AS_PATH and COMMUNITIES, exactly as they arrived.
-SURVIVORS = ('40010100', '40020602010000FDE9', 'C008040000FDE9')
-
-PEER = '127.0.0.1'
-
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Poll until the UPDATE has been stored. A blind sleep would read an empty
-    # store under load and call it a removal.
-    stored = api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: '"total-routes":1' in result_text_data(r, ''),
-        attempts=80,
-    )
-    if '"total-routes":1' not in result_text_data(stored, ''):
-        runtime_fail('adj-rib-in never stored the route: %s' % result_text_data(stored, '<none>'))
-
-    rib = result_json_data(dispatch(api, 'show bgp adj-rib-in'), {}).get('adj-rib-in', {})
-    routes = rib.get(PEER, [])
-    if len(routes) != 1:
-        runtime_fail('%s stored %d routes, expected 1: %r' % (PEER, len(routes), routes))
-    attrs = (routes[0].get('attr-hex') or '').upper()
-
-    if MED_ATTR in attrs:
-        runtime_fail(
-            'RFC 4271 Section 5.1.4: the configured removal did not happen before the route '
-            'reached the store a decision process reads: %s' % attrs
-        )
-    for survivor in SURVIVORS:
-        if survivor not in attrs:
-            runtime_fail(
-                'the removal took more than attribute 4, so the absence above proves nothing: '
-                '%s is gone from %s' % (survivor, attrs)
-            )
-    print('OK: stored attributes without a metric: %s' % attrs, file=sys.stderr)
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external med-store-check {
-		run ./med-store-check.run
+		run "ze-test fixture plugin/med-removal-before-decision"
 		encoder json
 	}
 	internal adj-rib-in {

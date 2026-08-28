@@ -133,16 +133,23 @@ func (r *AdjRIBInManager) removePending(peerAddr netip.Addr, routeKey compactRou
 	delete(r.pending, key)
 }
 
-// parseValidationState converts a string state argument to uint8.
-// Valid values: "1" (Valid), "2" (NotFound).
+// parseValidationState converts a string state argument to an RFC 6811 state.
+//
+// RFC requirement: RFC6811-2-1 -- RFC 6811 Section 2 requires the route's
+// validation state to reflect the lookup result. Valid, NotFound, and Invalid
+// are all lookup results, so an operator policy that accepts Invalid must be
+// able to retain state 3 on the route.
 func parseValidationState(s string) (uint8, error) {
-	if s == "1" {
+	switch s {
+	case "1":
 		return ValidationValid, nil
-	}
-	if s == "2" {
+	case "2":
 		return ValidationNotFound, nil
+	case "3":
+		return ValidationInvalid, nil
+	default:
+		return 0, fmt.Errorf("invalid validation state: %s (expected 1=Valid, 2=NotFound, or 3=Invalid)", s)
 	}
-	return 0, fmt.Errorf("invalid validation state: %s (expected 1=Valid or 2=NotFound)", s)
 }
 
 // earlyDecision stores a validation decision that arrived before the route.

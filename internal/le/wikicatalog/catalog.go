@@ -18,7 +18,31 @@ import (
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	_ "github.com/ze-software/ze/internal/component/doctor"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+
+	// Offline command packages are the direct registration half of
+	// cmd/ze/ze_core_dispatch.go. The live product and this catalog must compose
+	// the same local command registry.
+	_ "github.com/ze-software/ze/internal/component/aaa/all"
+	_ "github.com/ze-software/ze/internal/component/config/cli"
+	_ "github.com/ze-software/ze/internal/component/config/schema/cli"
+	_ "github.com/ze-software/ze/internal/component/config/storage/cli"
+	_ "github.com/ze-software/ze/internal/component/config/yang/cli"
+	_ "github.com/ze-software/ze/internal/component/plugin/cli"
+	_ "github.com/ze-software/ze/internal/component/resolve/cli"
+	_ "github.com/ze-software/ze/internal/component/traffic/cli"
+	_ "github.com/ze-software/ze/internal/plugins/completion"
+	_ "github.com/ze-software/ze/internal/plugins/crashes"
+	_ "github.com/ze-software/ze/internal/plugins/debug"
+	_ "github.com/ze-software/ze/internal/plugins/diag"
+	_ "github.com/ze-software/ze/internal/plugins/explain"
+	_ "github.com/ze-software/ze/internal/plugins/host"
+	_ "github.com/ze-software/ze/internal/plugins/init"
+	_ "github.com/ze-software/ze/internal/plugins/passwd"
+	_ "github.com/ze-software/ze/internal/plugins/signal"
+	_ "github.com/ze-software/ze/internal/plugins/skills"
+	_ "github.com/ze-software/ze/internal/plugins/support"
 )
 
 // Argument describes one typed argument in the published command grammar.
@@ -81,6 +105,7 @@ func Collect() []Entry {
 	for wireMethod, cliPaths := range wireToPaths {
 		for _, cliPath := range cliPaths {
 			if seen[cliPath] {
+
 				continue
 			}
 			mode := "daemon"
@@ -105,6 +130,21 @@ func Collect() []Entry {
 		}
 	}
 
+	// These four local handlers live in cmd/ze's main package, which an
+	// internal package cannot import. The doc-drift producer comparison checks
+	// every field against the live registry and rejects any drift here.
+	for _, entry := range []Entry{
+		{Path: "help ai", Description: "AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).", Mode: "offline"},
+		{Path: "help command", Description: "List every command with its description. Use a filter to narrow the list.", Mode: "offline"},
+		{Path: "show version", Description: "Show the running Ze version and build date", Mode: "offline"},
+		{Path: "update serve", Description: "Run a local update server for firmware checks", Mode: "offline"},
+	} {
+		if seen[entry.Path] {
+			continue
+		}
+		entries = append(entries, entry)
+		seen[entry.Path] = true
+	}
 	for _, local := range registry.ListLocal() {
 		// leroot registers every development command under "le ". The wiki is
 		// the ze product catalog, so those process-local registrations are not

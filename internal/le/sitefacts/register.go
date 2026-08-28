@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -31,9 +30,7 @@ func init() {
 	leroot.RegisterShape(area, command.ShapeMap)
 
 	// Both gates are claimed from the same table the dispatch reads, in the
-	// init() that registers the command, so a gate cannot be counted as ported
-	// by a command nothing can reach. The Python le declares both
-	// (scripts/le/application/repository.py) and its rows RUN this code, which
-	// is what keeps one derivation behind two entry points.
-	parity.Claim(area, Gates()...)
+	// init() that registers the command. A gate cannot be counted as ported by
+	// a command nothing can reach.
+
 }

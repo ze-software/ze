@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes with telemetry enabled
-# 2. Python plugin dispatches "show metrics values" via dispatch-command
+# 2. compiled Go plugin dispatches "show metrics values" via dispatch-command
 # 3. Verifies overflow-specific Prometheus metrics appear in output
 # 4. Shuts down daemon
 #
@@ -18,88 +18,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies overflow metrics appear in Prometheus output
-tmpfs=overflow-metrics-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test: overflow metrics visible in metrics values output."""
-
-import json
-import sys
-import time
-
-from ze_api import API, result_text_data
-
-
-def dispatch(api, command):
-    """Call dispatch-command and return result dict."""
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for BGP session to establish
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Test: metrics values should contain overflow metric names
-    r = dispatch(api, 'show metrics values')
-    status = r.get('status')
-    if status != 'done':
-        print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
-        sys.exit(1)
-
-    data_str = result_text_data(r, '{}')
-    try:
-        data = json.loads(data_str) if isinstance(data_str, str) else data_str
-    except (json.JSONDecodeError, TypeError):
-        data = {}
-
-    metrics_text = data.get('metrics', '')
-    if not metrics_text:
-        print(f'FAIL: empty metrics text, data={data}', file=sys.stderr)
-        sys.exit(1)
-
-    # Scalar gauge: always registered and present with value 0
-    required = [
-        'ze_bgp_pool_used_ratio',
-        'ze_forward_workers_active',
-    ]
-    missing = []
-    for name in required:
-        if name not in metrics_text:
-            missing.append(name)
-
-    if missing:
-        print(f'FAIL: missing metrics: {missing}', file=sys.stderr)
-        print(f'Got metrics text ({len(metrics_text)} bytes):', file=sys.stderr)
-        for line in metrics_text.split('\n'):
-            if 'ze_' in line:
-                print(f'  {line}', file=sys.stderr)
-        sys.exit(1)
-
-    print(f'OK: overflow metrics present in {len(metrics_text)} bytes', file=sys.stderr)
-
-    # Shutdown daemon
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# compiled Go test plugin: verifies overflow metrics appear in Prometheus output
 
 # ze bgp configuration with telemetry enabled
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external overflow-metrics-test {
-		run ./overflow-metrics-test.run
+		run "ze-test fixture plugin/forward-congestion-overflow-metrics"
 		encoder json
 	}
 }

@@ -346,7 +346,7 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) <-ch
 	require.NotNil(t, peer, "peer must be stored under its own address:port key")
 
 	peer.SetClock(sim.NewFakeClock(time.Now()))
-	peer.ResetAPISync(1)
+	peer.resetAPISync(1)
 
 	synced := make(chan struct{})
 	go func() {

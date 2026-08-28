@@ -4,8 +4,8 @@ The PXE installer boots an operator-supplied Linux kernel alongside the pure-Go
 installer initrd (a single static `cmd/ze-installer` binary, built by
 `ze appliance initrd`; see `docs/guide/ze-install.md`). `ze` ships no
 installer kernel, because the right kernel is site-specific. This directory
-builds one suitable for the QEMU end-to-end test (`make ze-qemu-install-test`,
-`test/install/qemu-full.ci`) and for real hardware PXE/ISO deployment.
+contains the profiles used by `ze appliance kernel` for QEMU tests and real
+hardware PXE/ISO deployment.
 
 ## Why a purpose-built kernel
 
@@ -43,10 +43,10 @@ boot time.
 
 Two build backends are available:
 
-| Backend | Variable | Prerequisites | Best for |
-|---------|----------|---------------|----------|
-| `qemu` (default) | `BUILDER=qemu` | qemu, python3, curl | Same-arch builds (near-native via HVF/KVM) |
-| `docker` | `BUILDER=docker` | docker | Cross-arch builds (Rosetta 2 is much faster than TCG) |
+| Backend | Option | Prerequisites | Best for |
+|---------|--------|---------------|----------|
+| `qemu` | `--builder qemu` | qemu, go | Same-arch builds (near-native via HVF/KVM) |
+| `docker` | `--builder docker` | docker | Cross-arch builds (Rosetta 2 is much faster than TCG) |
 
 When the host architecture matches the target, QEMU uses HVF (macOS) or KVM
 (Linux) for near-native speed. Cross-arch builds under QEMU use TCG (full
@@ -61,43 +61,32 @@ The first build populates the cache; subsequent builds with the same kernel
 version skip unchanged translation units.
 
 ```sh
-make                                  # qemu builder, qemu profile, arm64
-make BUILDER=docker                   # docker builder (faster cross-arch)
-make PROFILE=hardware                 # real hardware, headless, arm64
-make PROFILE=hardware-kms ARCH=amd64  # real hardware + i915 KMS, x86_64
-make BUILDER=docker PROFILE=hardware-kms ARCH=amd64  # docker + hardware-kms
-make PROFILE=hardware ARCH=amd64      # real hardware, headless, x86_64
-make ARCH=amd64                       # qemu profile, x86_64
+ze appliance kernel --arch arm64 --profile qemu
+ze appliance kernel --arch arm64 --profile hardware
+ze appliance kernel --arch amd64 --profile hardware
+ze appliance kernel --arch amd64 --profile hardware-kms --builder docker
 ```
 
-The kernel version is single-sourced in `internal/appliance/kernel.version` and
-read by the driver; the Makefile no longer takes a version variable.
+The kernel version is single-sourced in `internal/appliance/kernel.version`.
 
-Output: `build/Image` (the kernel), `build/config` (the resolved config), and
-`build/kernel.version` (a provenance sidecar recording what was built). If you
-want to keep both architectures side by side, copy or rename the kernel after
-each build and pass it back to `ze appliance iso --kernel ...`.
+Output: `build/kernel/Image` (the kernel), `build/kernel/config` (the resolved
+config), and `build/kernel/kernel.version` (a provenance sidecar recording what
+was built). The command also populates the target- and profile-specific XDG
+cache used by later appliance operations.
 
-The Makefile calls the single shared driver `../kernel-builder/run.py` (the same
-driver the runtime gokrazy kernel build uses), which selects Docker or QEMU and
-invokes `build.py`. `ze appliance kernel` resolves the profile registry
-(`<name>.config` + `<name>.require`, with optional one-level `# ze-base:`
-layering and `# ze-include:` shared fragments), passes the resolved fragments to
-the builder, then enforces the required symbols from Go. See `PROFILES.md` for
+`ze appliance kernel` resolves the profile registry (`<name>.config` +
+`<name>.require`, with optional one-level `# ze-base:` layering and
+`# ze-include:` shared fragments), passes the resolved fragments to the compiled
+shared builder, then enforces the required symbols. See `PROFILES.md` for
 profile authoring.
-The recipe can also be used directly inside any Linux environment (VM, container, bare metal):
-
-```sh
-python3 ../kernel-builder/build.py --src-dir /path/to/tools/installer-kernel --out-dir /path/to/output --fragment /path/to/tools/installer-kernel/kernel.config --fragment /path/to/tools/installer-kernel/qemu.config
-```
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
-<!-- source: tools/kernel-builder/build.py -- main -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 ## Use with the QEMU install test
 
 ```sh
-ZE_INSTALL_KERNEL=$(pwd)/build/kernel/Image make ze-qemu-install-test
+ZE_INSTALL_KERNEL=$(pwd)/build/kernel/Image ze-test install --pattern qemu-full -a
 ```
 
 Without `ZE_INSTALL_KERNEL` the test self-skips: there is no safe default kernel.

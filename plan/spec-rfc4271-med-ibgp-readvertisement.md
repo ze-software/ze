@@ -312,10 +312,10 @@ Closure is blocked: no current runnable normal BGP RIB-selected route-to-peer pr
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Reachability proof for the raw egress producer | Focused wiring test through `forwardUpdateCore`; route-server rail proof only for functional and interop tests |
-| RFC-tagged positive and negative tests | `make ze-rfc-check` plus mutation run for the common egress guard; future normal producer needs its own proof |
+| RFC-tagged positive and negative tests | `./le rfc check` plus mutation run for the common egress guard; future normal producer needs its own proof |
 | No MED syntax overlap | Scoped changed-file review excludes syntax, parser, formatter, help, and public syntax docs |
-| Reactor package behavior | `make ze-unit-pkg-test PKG=./internal/component/bgp/reactor` |
-| Changed Go quality | `make ze-lint-changed` |
+| Reactor package behavior | `go test -race ./internal/component/bgp/reactor` |
+| Changed Go quality | `./le changed scope` |
 | Functional wire behavior | Focused plugin suite target for the new `.ci` on the route-server rail |
 | Foreign-peer behavior | Focused GoBGP interop scenario on the route-server rail |
 
@@ -374,7 +374,7 @@ If implementation proceeds, add the RFC 4271 Section 9.1.2.2 requirement comment
 - [ ] AC-1 through AC-9 demonstrated for normal BGP selected-route readvertisement
 - [ ] Every user story has a working normal BGP path and a passing test
 - [x] Wiring Test table complete for the common egress boundary
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [x] Feature code integrated through the applicable forward rail
 - [x] Integration and Documentation checklists revalidated for the route-server rail
 - [x] Architectural Verification revalidated

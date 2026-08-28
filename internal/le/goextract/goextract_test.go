@@ -13,7 +13,7 @@ import (
 
 // VALIDATES: internal/le/goextract moves the declarations it is asked for, moves
 // nothing else, and refuses in a way that leaves both files as they were.
-// PREVENTS: the three fail-open behaviors of scripts/dev/go_extract.go, each of
+// PREVENTS: the three fail-open behaviors of internal/le/goextract/register.go, each of
 // which can destroy a working file -- a symbol that is not there being ignored,
 // a destination that cannot be read being overwritten, and the source being
 // truncated before the destination write is known to have succeeded.

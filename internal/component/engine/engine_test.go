@@ -390,6 +390,5 @@ func (p *testPlugins) StartAll(context.Context, ze.EventBus, ze.ConfigProvider) 
 func (p *testPlugins) StopAll(context.Context) error          { return nil }
 func (p *testPlugins) Plugin(string) (ze.PluginProcess, bool) { return ze.PluginProcess{}, false }
 func (p *testPlugins) Plugins() []ze.PluginProcess            { return nil }
-func (p *testPlugins) Capabilities() []ze.Capability          { return nil }
 
 func stubPlugins() ze.PluginManager { return &testPlugins{} }

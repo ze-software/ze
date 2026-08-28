@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Three MUST-level requirements of RFC 9552 are gated, unproven, and unannotated,
-so `make ze-rfc-check` exits 2 on them and has done since the RFC was enrolled:
+so `./le rfc check` exits 2 on them and has done since the RFC was enrolled:
 
 | Row | Level | Text |
 |-----|-------|------|
@@ -80,7 +80,7 @@ stays valid for exactly that long and not one commit longer.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `scripts/dev/rfc_requirements.py` - `ANNOTATION_KINDS` is
+- [ ] `internal/le/rfc/rfc.go` - `ANNOTATION_KINDS` is
       `{"not-applicable", "gap", "single-polarity"}`; `_ANNOTATION_RE` anchors
       one `{...}` group at end of line; `_strip_markers` loops so one line carries
       at most one coverage annotation and at most one `{superseded}`, in either
@@ -112,7 +112,7 @@ stays valid for exactly that long and not one commit longer.
 - The counts `ai/RFC-REQUIREMENTS.md` publishes for every other RFC.
 
 **Behavior to change:**
-- `make ze-rfc-check` stops erroring on a gated requirement that carries a valid
+- `./le rfc check` stops erroring on a gated requirement that carries a valid
   `{scheduled}` marker, and starts erroring on one whose named spec is gone.
 - Ze gains a BGP-LS Producer (Phase 2).
 
@@ -122,8 +122,8 @@ stays valid for exactly that long and not one commit longer.
 Two, one per phase.
 
 - Phase 1: a requirement line in `rfc/short/rfc9552.md`, read by
-  `scripts/dev/rfc_requirements.py` when `make ze-rfc-check` or
-  `make ze-rfc-index-update` runs.
+  `internal/le/rfc/rfc.go` when `./le rfc check` or
+  `./le rfc index-update` runs.
 - Phase 2: the operator's configuration, as a YANG leaf carrying the 8-octet
   BGP-LS Instance-ID, plus the IGP link-state database ze already holds in its
   IS-IS and OSPF plugins.
@@ -151,7 +151,7 @@ Two, one per phase.
 | Config ↔ Plugin | the Instance-ID leaf reaches the ls plugin as JSON | No |
 
 ### Integration Points
-- `scripts/dev/rfc_requirements.py` `ANNOTATION_KINDS` and `Annotation` - the new
+- `internal/le/rfc/rfc.go` `ANNOTATION_KINDS` and `Annotation` - the new
   kind and its spec field.
 - `internal/component/bgp/plugins/nlri/ls/plugin.go` `main` - the registration
   whose Mode changes.
@@ -190,33 +190,33 @@ Two, one per phase.
 |----------|--------|
 | What breaks if this is wrong? | Phase 1: the RFC gate mis-reports coverage for every enrolled RFC, which is a claim about compliance rather than a runtime failure. Phase 2: ze originates link-state into a BGP-LS mesh, and a wrong key corrupts every Consumer's topology, which is the worst outcome in this spec |
 | How is it reverted? | Phase 1 is a single commit revert; no data outlives it. Phase 2 is not revertible once peers have seen the NLRI: withdrawal is itself an origination act |
-| Who else touches this path? | `scripts/dev/rfc_requirements.py` is edited by every RFC enrolment; the ls plugin is touched by `plan/spec-bgp-ls-receiver-fault-management.md` |
+| Who else touches this path? | `internal/le/rfc/rfc.go` is edited by every RFC enrolment; the ls plugin is touched by `plan/spec-bgp-ls-receiver-fault-management.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | a `{scheduled: plan/spec-<name>.md; why}` on a gated requirement line | → | `_parse_annotation` | `test_scheduled_marker_parses_and_names_its_spec` |
-| `make ze-rfc-check` over a summary carrying a valid marker | → | the per-requirement loop | `test_scheduled_marker_clears_the_unproven_error` |
-| `make ze-rfc-check` over a marker whose spec file is absent | → | the precondition check | `test_scheduled_marker_refuses_an_absent_spec` |
-| `make ze-rfc-index-update` | → | `render_shards` | `test_scheduled_row_publishes_as_debt_naming_its_spec` |
+| `./le rfc check` over a summary carrying a valid marker | → | the per-requirement loop | `test_scheduled_marker_clears_the_unproven_error` |
+| `./le rfc check` over a marker whose spec file is absent | → | the precondition check | `test_scheduled_marker_refuses_an_absent_spec` |
+| `./le rfc index-update` | → | `render_shards` | `test_scheduled_row_publishes_as_debt_naming_its_spec` |
 | operator configures a BGP-LS Instance-ID | → | the ls plugin's config parse | `TestBGPLSInstanceIDReachesTheOriginator` |
-| operator runs the RFC gate over a scheduled row | → | `make ze-rfc-check` | `test/plugin/rfc-scheduled-marker.ci` |
+| operator runs the RFC gate over a scheduled row | → | `./le rfc check` | `test/plugin/rfc-scheduled-marker.ci` |
 | operator configures origination and watches the wire | → | `originate.go` → `WriteTo` | `test/decode/bgp-ls-originate.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | a gated requirement carries `{scheduled: plan/spec-<name>.md; why}` and `plan/spec-<name>.md` exists | `make ze-rfc-check` reports no violation for that row |
+| AC-1 | a gated requirement carries `{scheduled: plan/spec-<name>.md; why}` and `plan/spec-<name>.md` exists | `./le rfc check` reports no violation for that row |
 | AC-2 | the same marker, and `plan/spec-<name>.md` does NOT exist | the check errors, naming the row and the missing spec |
 | AC-3 | a `{scheduled}` marker with no reason after the `;` | the check errors, as `_parse_annotation` already does for every bare annotation |
 | AC-4 | a row carrying `{scheduled}` AND a tagged test | the check errors that the marker is stale, as it does for `{gap}` |
-| AC-5 | `make ze-rfc-index-update` over a scheduled row | `ai/RFC-REQUIREMENTS.md` shows it as DEBT with the owning spec named, never as covered |
+| AC-5 | `./le rfc index-update` over a scheduled row | `ai/RFC-REQUIREMENTS.md` shows it as DEBT with the owning spec named, never as covered |
 | AC-6 | a row that had a tagged test at HEAD now carries `{scheduled}` | `check_coverage_ratchet` fires; the marker is not an escape |
 | AC-7 | a commit removes a spec while a `{scheduled}` row still names it | the check errors on the removal, before the row goes silently stale |
 | AC-8 | `docs/features/rfc-status.md` Remaining prose | its spelled count agrees with the real scheduled count as well as the gap count |
-| AC-9 | the three RFC 9552 rows | each carries `{scheduled}` naming this spec, and `make ze-rfc-check` exits 0 on rfc9552 |
+| AC-9 | the three RFC 9552 rows | each carries `{scheduled}` naming this spec, and `./le rfc check` exits 0 on rfc9552 |
 | AC-10 | ze configured with a BGP-LS Instance-ID and an IGP topology | it originates node, link and prefix NLRI carrying that Instance-ID in the 8-octet Identifier field |
 | AC-11 | ze configured to originate BGP-LS with NO Instance-ID | it refuses to originate and says which leaf is missing |
 | AC-12 | two nodes in one IGP domain | each is originated under exactly one key, and no two under the same key |
@@ -234,15 +234,15 @@ Two, one per phase.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `test_scheduled_marker_parses_and_names_its_spec` | `scripts/dev/rfc_requirements_test.py` | AC-1 parse half | |
-| `test_scheduled_marker_clears_the_unproven_error` | `scripts/dev/rfc_requirements_test.py` | AC-1 verdict half | |
-| `test_scheduled_marker_refuses_an_absent_spec` | `scripts/dev/rfc_requirements_test.py` | AC-2 | |
-| `test_scheduled_marker_refuses_an_empty_reason` | `scripts/dev/rfc_requirements_test.py` | AC-3 | |
-| `test_scheduled_marker_is_stale_when_a_test_exists` | `scripts/dev/rfc_requirements_test.py` | AC-4 | |
-| `test_scheduled_row_publishes_as_debt_naming_its_spec` | `scripts/dev/rfc_requirements_test.py` | AC-5 | |
-| `test_scheduled_does_not_escape_the_coverage_ratchet` | `scripts/dev/rfc_requirements_test.py` | AC-6 | |
-| `test_closing_a_spec_that_owns_a_scheduled_row_is_refused` | `scripts/dev/rfc_requirements_test.py` | AC-7 | |
-| `test_status_remaining_count_covers_scheduled_rows` | `scripts/dev/rfc_requirements_test.py` | AC-8 | |
+| `test_scheduled_marker_parses_and_names_its_spec` | `internal/le/` | AC-1 parse half | |
+| `test_scheduled_marker_clears_the_unproven_error` | `internal/le/` | AC-1 verdict half | |
+| `test_scheduled_marker_refuses_an_absent_spec` | `internal/le/` | AC-2 | |
+| `test_scheduled_marker_refuses_an_empty_reason` | `internal/le/` | AC-3 | |
+| `test_scheduled_marker_is_stale_when_a_test_exists` | `internal/le/` | AC-4 | |
+| `test_scheduled_row_publishes_as_debt_naming_its_spec` | `internal/le/` | AC-5 | |
+| `test_scheduled_does_not_escape_the_coverage_ratchet` | `internal/le/` | AC-6 | |
+| `test_closing_a_spec_that_owns_a_scheduled_row_is_refused` | `internal/le/` | AC-7 | |
+| `test_status_remaining_count_covers_scheduled_rows` | `internal/le/` | AC-8 | |
 | `TestBGPLSInstanceIDReachesTheOriginator` | `internal/component/bgp/plugins/nlri/ls/config_test.go` | AC-10 wiring | |
 | `TestBGPLSOriginationRefusesWithoutAnInstanceID` | `internal/component/bgp/plugins/nlri/ls/originate_test.go` | AC-11 | |
 | `TestBGPLSNodeKeyIsUniquePerNode` | `internal/component/bgp/plugins/nlri/ls/originate_test.go` | AC-12 | |
@@ -264,9 +264,9 @@ Two, one per phase.
 | `bgp-ls-originate-gobgp` | `test/interop/scenarios/` | GoBGP | a real peer accepts ze-originated Link-State NLRI and reports one node per key | |
 
 ## Files to Modify
-- `scripts/dev/rfc_requirements.py` - the new annotation kind, its spec-path
+- `internal/le/rfc/rfc.go` - the new annotation kind, its spec-path
   precondition, the ratchet interaction, and the published debt row
-- `scripts/dev/rfc_requirements_test.py` - the nine unit tests above
+- `internal/le/` - the nine unit tests above
 - `rfc/short/rfc9552.md` - the three rows gain `{scheduled}` naming this spec
 - `ai/rules/rfc-compliance.md` - the marker's register, its preconditions, and the
   rule that it never says ze owes less
@@ -319,25 +319,25 @@ Two, one per phase.
 | 13 | Route metadata keys added/changed? | No | no new metadata key |
 | 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/features/plugins.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | run `python3 scripts/dev/spec_doc_anchors.py plan/spec-bgp-ls-origination-and-the-scheduled-marker.md` at implementation time |
+| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | run `./le spec-citation anchors spec plan/spec-bgp-ls-origination-and-the-scheduled-marker.md` at implementation time |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | verify every BGP-LS example against the new YANG |
 
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- the marker exists and is reachable
    - Tests: `test_scheduled_marker_parses_and_names_its_spec`, `test_scheduled_marker_clears_the_unproven_error`
-   - Files: `scripts/dev/rfc_requirements.py` (`ANNOTATION_KINDS`, `Annotation`, `_parse_annotation`), `scripts/dev/rfc_requirements_test.py`
+   - Files: `internal/le/rfc/rfc.go` (`ANNOTATION_KINDS`, `Annotation`, `_parse_annotation`), `internal/le/`
    - Verify: the parser accepts the kind and the checker's verdict changes. The precondition is still a stub, so the absent-spec test fails
 2. **Phase: The precondition and its reverse** -- the marker dies with its spec
    - Tests: `test_scheduled_marker_refuses_an_absent_spec`, `test_scheduled_marker_refuses_an_empty_reason`, `test_scheduled_marker_is_stale_when_a_test_exists`, `test_closing_a_spec_that_owns_a_scheduled_row_is_refused`
-   - Files: `scripts/dev/rfc_requirements.py`
+   - Files: `internal/le/rfc/rfc.go`
    - Verify: deleting the named spec reds the gate; removing a spec that owns a row is refused
 3. **Phase: Publication** -- the debt is visible, and counted
    - Tests: `test_scheduled_row_publishes_as_debt_naming_its_spec`, `test_status_remaining_count_covers_scheduled_rows`, `test_scheduled_does_not_escape_the_coverage_ratchet`
-   - Files: `scripts/dev/rfc_requirements.py`, `docs/features/rfc-status.md`
-   - Verify: `make ze-rfc-index-update` names the owning spec on each scheduled row
+   - Files: `internal/le/rfc/rfc.go`, `docs/features/rfc-status.md`
+   - Verify: `./le rfc index-update` names the owning spec on each scheduled row
 4. **Phase: Adopt the three rows** -- Phase 1 closes here and MAY be committed alone
-   - Tests: `rfc-scheduled-marker`, and `make ze-rfc-check` exits 0 on rfc9552 (AC-9)
+   - Tests: `rfc-scheduled-marker`, and `./le rfc check` exits 0 on rfc9552 (AC-9)
    - Files: `rfc/short/rfc9552.md`, `ai/rules/rfc-compliance.md`, the new rule point, `test/plugin/rfc-scheduled-marker.ci`
    - Verify: the three rows carry `{scheduled}` naming this spec, and the gate is green on them
 5. **Phase: The Instance-ID leaf** -- config before origination
@@ -364,10 +364,10 @@ Two, one per phase.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| the marker parses and clears the error | `make ze-rfc-check` exits 0 with the three rows marked |
+| the marker parses and clears the error | `./le rfc check` exits 0 with the three rows marked |
 | the marker dies with its spec | delete the spec file, re-run the check, expect exit 2 naming all three rows |
 | the debt is published | `grep -c 'scheduled' ai/RFC-REQUIREMENTS.md` is 3 and each names this spec |
-| ze originates BGP-LS | `make ze-interop-test` with `bgp-ls-originate-gobgp` PASS |
+| ze originates BGP-LS | `./le integration interop` with `bgp-ls-originate-gobgp` PASS |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -427,7 +427,7 @@ the Instance-ID's use in the Identifier field (§5.2).
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -445,7 +445,7 @@ the Instance-ID's use in the Identifier field (§5.2).
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

@@ -7,7 +7,7 @@ stage:
 the mere existence of a sibling matching the LEFT segment, so it cannot tell a real
 namespace from two names that share a word by accident (test 3). When test 2 wins -- the
 token is one indivisible protocol / LSA / object name -- MUST list the full command path in
-`treeNamespaceExempt` (`scripts/checks/cli_grammar.go`) with a one-line reason. It is the
+`treeNamespaceExempt` (`internal/le/cligrammar/cligrammar.go`) with a one-line reason. It is the
 tree-side counterpart of `rootNamespaceExempt`, is counted and printed (`Tree
 namespace-exempt`), and leaves every unlisted collision blocking. MUST reach for it only when
 splitting would state something false about the object model; `show ospf database

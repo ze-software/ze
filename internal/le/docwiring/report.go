@@ -1,12 +1,8 @@
-// Design: docs/architecture/core-design.md -- what the wiring and docs gate answers
-// Overview: docwiring.go -- the run that fills this in
+// Design: docs/architecture/core-design.md -- changed-file verification report.
+// Overview: docwiring.go -- the run that fills this report.
 //
-// report.go holds what `le doc-wiring` ANSWERS, apart from what produced it.
-//
-// The payload is an object because a reader needs several facts: judged files,
-// selected checks, results, and failure groups. The verify runner reads those
-// groups. These separate lists do not form one row set, so the command declares
-// a document shape.
+// The payload is a document because a reader needs judged files, selected
+// actions, results, and failure groups.
 
 package docwiring
 
@@ -34,7 +30,7 @@ type CheckResult struct {
 // Report is the whole answer of one run.
 type Report struct {
 	Changed        []string      `json:"changed"`
-	Targets        []string      `json:"targets"`
+	Actions        []string      `json:"actions"`
 	Checks         []CheckResult `json:"checks"`
 	Advisory       string        `json:"advisory"`
 	DryRun         bool          `json:"dry-run"`
@@ -44,9 +40,7 @@ type Report struct {
 	Error          string        `json:"error"`
 }
 
-// The names of the checks this gate runs itself. They are the group ids the
-// verify runner reads back and the keys the two rendering tables below use, so
-// each is spelled once.
+// The names of checks implemented directly by this package.
 const (
 	checkSleepRatchetName       = "ci-sleep-ratchet"
 	checkSleepJustificationName = "ci-sleep-justification"
@@ -60,8 +54,8 @@ const (
 // while this text tells the reader what to do.
 var advice = map[string][]string{
 	checkSleepRatchetName: {
-		"  Replace the new sleep with ze_api wait_for_event / wait_for_shutdown",
-		"  (test/scripts/ze_api.py), or raise the ceiling only with explicit user",
+		"  Replace the new sleep with a compiled fixture.Poll, SDK callback,",
+		"  or declarative runner wait. Raise the ceiling only with explicit user",
 		"  approval (append a `+N` line).",
 	},
 	checkSleepJustificationName: {
@@ -69,9 +63,9 @@ var advice = map[string][]string{
 		"  or no queryable readiness signal). See ai/rules/testing.md.",
 	},
 	checkLoadExcuseName: {
-		"  Fix the test to wait on the condition (ze_api wait_until /",
-		"  dispatch_until / wait_for_event), then delete the shard. Raising a",
-		"  timeout is not a fix. See ai/rules/completion.md.",
+		"  Fix the test to wait on the condition through fixture.Poll, an SDK",
+		"  event, or a condition-specific helper, then delete the shard. Raising",
+		"  a timeout is not a fix. See ai/rules/completion.md.",
 	},
 	checkLogSubsystemName: {
 		"  An internal plugin's logger name is CanonicalSubsystemName of its",
@@ -118,7 +112,7 @@ func (r Report) Text() string {
 		renderCheck(&tb, check)
 	}
 
-	if len(r.Targets) == 0 {
+	if len(r.Actions) == 0 {
 		tb.Str("No wiring/doc/inventory checks needed\n")
 	}
 	if r.Advisory != "" {
@@ -131,7 +125,7 @@ func (r Report) Text() string {
 	if r.DeclaredGroups > 0 || r.Failed {
 		tb.Str(failureGroupsCompletePrefix).Byte(' ').Int(int64(r.DeclaredGroups)).Byte('\n')
 	}
-	if !r.Failed && len(r.Targets) > 0 {
+	if !r.Failed && len(r.Actions) > 0 {
 		tb.Str("Wiring/doc/inventory gates passed\n")
 	}
 	return tb.String()
@@ -175,10 +169,10 @@ func renderCheck(tb *textbuf.Buffer, check CheckResult) {
 // or the sentence that says there are none.
 func (r Report) dryRunText() string {
 	var tb textbuf.Buffer
-	if len(r.Targets) == 0 {
+	if len(r.Actions) == 0 {
 		tb.Str("No wiring/doc/inventory checks needed\n")
 	} else {
-		tb.Join(r.Targets, "\n").Byte('\n')
+		tb.Join(r.Actions, "\n").Byte('\n')
 	}
 	if r.Advisory != "" {
 		tb.Str(r.Advisory).Byte('\n')

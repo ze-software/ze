@@ -84,8 +84,8 @@ func TestDispatchUsesSharedPipeRenderers(t *testing.T) {
 	const name = "pipe-local-data-probe"
 	Register(name, func([]string) (any, int) {
 		return map[string]any{
-			"gates": 2,
-			"unported-gates": []string{"ze-tier-check", "ze-repository-check"},
+			"actions":        2,
+			"native-actions": []string{"tier/check", "repository/check"},
 		}, 0
 	}, registry.Meta{Description: "a test probe", Mode: "offline", Section: registry.SectionTest})
 	RegisterShape(name, command.ShapeMap)
@@ -97,7 +97,7 @@ func TestDispatchUsesSharedPipeRenderers(t *testing.T) {
 			if code != 0 {
 				t.Fatalf("%s rendering answered %d: %s", format, code, out)
 			}
-			if !strings.Contains(out, "gates") || !strings.Contains(out, "ze-tier-check") {
+			if !strings.Contains(out, "actions") || !strings.Contains(out, "tier/check") {
 				t.Errorf("%s rendering dropped structured data: %q", format, out)
 			}
 		})
@@ -107,11 +107,10 @@ func TestDispatchUsesSharedPipeRenderers(t *testing.T) {
 			t.Errorf("match rendering answered %d", code)
 		}
 	})
-	if !strings.Contains(out, "ze-tier-check") {
+	if !strings.Contains(out, "tier/check") {
 		t.Errorf("match rendering dropped the matching row: %q", out)
 	}
 }
-
 
 func TestDispatchRefusesTwoFormatOperators(t *testing.T) {
 	const name = "pipe-refusal-local-data-probe"

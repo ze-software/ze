@@ -46,102 +46,6 @@ option=env:var=ze.log.ddos.detect:value=info
 option=env:var=ze.log.ddos.local:value=info
 option=timeout:value=50s
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Reflection flood (UDP src-port 11211) -> assert ddos-local narrows to it."""
-import os
-import signal
-import socket
-import subprocess
-import sys
-import time
-
-# Wait for the daemon to come up (runner writes daemon.pid + daemon.ready).
-for _ in range(400):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
-    sys.exit(1)
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-victim = "127.0.0.2"
-# Source port 11211 (memcached) is in the classifier's reflection table and is
-# non-privileged, so no root is needed to bind it and it is unlikely to be in use.
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# The source ADDRESS is per-test: ddos-incident-confidence also binds :11211 and
-# the ddos plugin-suite tests share ONE network namespace (`bgp plugin -p 4`, no
-# ZE_TEST_NETNS), so a shared source socket makes the second binder die EADDRINUSE.
-sock.bind(("127.0.1.2", 11211))
-payload = b"x" * 64
-
-# Bind the victim port so the flood lands on an OPEN port. Without a listener the
-# kernel answers each UDP to the closed 127.0.0.2:9999 with an ICMP port-unreachable
-# back to 127.0.1.2 -- a loopback-only artifact (attacker and victim share the box).
-# Those ICMP replies EGRESS toward 127.0.1.2 and, carrying the quoted datagram, are
-# larger per packet than the forward flood, so trafficusage's by-destination-bytes
-# victim pick (parseTopDestination) latches onto 127.0.1.2 (the source) instead of
-# 127.0.0.2, and characterization can never narrow to a victim it is not tracking.
-# On a real transit box forwarding a flood the victim egress dominates and there is
-# no such confound; the bound socket models that. It only receives (buffer fills and
-# drops silently); no drain needed.
-victim_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-victim_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1 << 20)
-victim_sock.bind((victim, 9999))
-
-
-def blast(n):
-    sent = 0
-    for _ in range(n):
-        try:
-            sock.sendto(payload, (victim, 9999))
-            sent += 1
-        except OSError:
-            pass
-    return sent
-
-
-# 1. Pre-warm: low rate (below the 1000 pps absolute-floor, so no trigger) that
-#    establishes the 127.0.1.2:11211 -> 127.0.0.2 conntrack flow and lets at least
-#    one conntrack dump (active-timeout=1s) land it in the recent-flow ring.
-for _ in range(3):
-    blast(50)
-    # deliberate pacing: 1s between pre-warm blasts so a conntrack dump (active-timeout 1s) lands the flow in the recent-flow ring before the flood
-    time.sleep(1.0)
-
-# 2. Flood hard so the detector confirms and characterization runs against the
-#    now-warm ring; poll for the NARROWED rule (udp source port 11211 to victim).
-narrowed = False
-ruleset = ""
-deadline = time.time() + 30.0
-sent = 0
-while time.time() < deadline:
-    sent += blast(4000)
-    snap = subprocess.run(["nft", "list", "ruleset"], capture_output=True, text=True)
-    ruleset = snap.stdout
-    # The coarse rule carries only the destination; "sport 11211" appears only once
-    # the classifier narrows to the reflection source port.
-    if "ddos-local" in ruleset and victim in ruleset and "11211" in ruleset:
-        narrowed = True
-        break
-    # poll interval; the loop above breaks once the narrowed nft rule appears in the ruleset, bounded wait not a blind sleep
-    time.sleep(0.2)
-
-sys.stdout.write(ruleset)
-os.kill(pid, signal.SIGTERM)
-
-if not narrowed:
-    print(f"ERROR: ddos-local did not narrow to udp sport 11211 -> {victim} "
-          f"(sent {sent} packets); rule stayed coarse or classifier missed the flow",
-          file=sys.stderr)
-    sys.exit(1)
-print("OK: ddos-local narrowed the drop to the reflection source port 11211",
-      file=sys.stderr)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 ddos {
@@ -183,7 +87,7 @@ flow-export {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=45s
+cmd=foreground:seq=2:exec=ze-test fixture plugin/ddos-detect-characterize:timeout=45s
 expect=exit:code=0
 expect=stdout:contains=ddos-local
 expect=stdout:contains=127.0.0.2

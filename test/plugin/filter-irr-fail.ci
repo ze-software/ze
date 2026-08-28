@@ -25,72 +25,11 @@ option=timeout:value=20s
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FE4C40030401010101180A0000
 EOF_PEER
 
-tmpfs=test-filter-irr-fail.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Verify update bgp irr asn fails when PeeringDB returns no AS-SET."""
-import json
-import sys
-from ze_api import API, result_json_data, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-def wait_for_irr_settled(api):
-    """Poll show bgp irr until the initial refresh for ASN 65100 completes."""
-    for _ in range(20):
-        result = dispatch(api, 'show bgp irr')
-        data = result_json_data(result, {})
-        for entry in data.get('entries', []):
-            if entry.get('asn') == 65100 and entry.get('status') != 'pending':
-                return
-        api.wait_for_event(timeout=0.5)
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    wait_for_irr_settled(api)
-
-    # Update command must fail: IRR server unreachable for AS65100.
-    result = dispatch(api, 'update bgp irr asn 65100')
-    status = result.get('status', '')
-    if status != 'error':
-        runtime_fail(f'expected status=error from update bgp irr asn 65100, got status={status}')
-
-    # Show command must report error status for the ASN.
-    result = dispatch(api, 'show bgp irr')
-    status = result.get('status', '')
-    if status != 'done':
-        runtime_fail(f'show bgp irr status={status}, expected done')
-
-    data = result_json_data(result, {})
-    entries = data.get('entries', [])
-    found_error = False
-    for entry in entries:
-        if entry.get('asn') == 65100 and entry.get('status') == 'error':
-            found_error = True
-            break
-
-    if not found_error:
-        runtime_fail('show bgp irr does not show error status for ASN 65100')
-
-    print('OK: update bgp irr asn 65100 correctly failed, show bgp irr shows error', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-filter-irr-fail {
-		run ./test-filter-irr-fail.run
+		run "ze-test fixture plugin/filter-irr-fail"
 		encoder json
 	}
 }

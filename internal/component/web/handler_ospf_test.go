@@ -36,7 +36,7 @@ func fakeOSPFDispatch(payload string, gotCmd *string) CommandDispatcher {
 func TestOSPFNeighborsJSON(t *testing.T) {
 	var got string
 	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[{"router-id":"10.0.0.2","state":"Full"}]`, &got)}
-	req := httptest.NewRequest("GET", "/ospf?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/ospf?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.HandleOSPFNeighbors()(rec, req)
 
@@ -54,7 +54,7 @@ func TestOSPFNeighborsJSON(t *testing.T) {
 func TestOSPFDatabaseJSON(t *testing.T) {
 	var got string
 	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[{"area":"0.0.0.0","lsas":[]}]`, &got)}
-	req := httptest.NewRequest("GET", "/ospf/database?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/ospf/database?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.HandleOSPFDatabase()(rec, req)
 
@@ -68,7 +68,7 @@ func TestOSPFDatabaseJSON(t *testing.T) {
 
 func TestOSPFNeighborsHTML(t *testing.T) {
 	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[]`, nil)}
-	req := httptest.NewRequest("GET", "/ospf", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/ospf", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.HandleOSPFNeighbors()(rec, req)
 
@@ -83,7 +83,7 @@ func TestOSPFNeighborsHTML(t *testing.T) {
 
 func TestOSPFNoDispatch(t *testing.T) {
 	h := &OSPFHandlers{}
-	req := httptest.NewRequest("GET", "/ospf?format=json", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/ospf?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.HandleOSPFNeighbors()(rec, req)
 	if rec.Code != 503 {
@@ -93,8 +93,8 @@ func TestOSPFNoDispatch(t *testing.T) {
 
 func TestOSPFSSEEmitsAndCloses(t *testing.T) {
 	h := &OSPFHandlers{Dispatch: fakeOSPFDispatch(`[{"router-id":"10.0.0.3"}]`, nil)}
-	ctx, cancel := context.WithCancel(context.Background())
-	req := httptest.NewRequest("GET", "/ospf/neighbors/stream", http.NoBody).WithContext(ctx)
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/ospf/neighbors/stream", http.NoBody).WithContext(ctx)
 	rec := httptest.NewRecorder()
 
 	done := make(chan struct{})

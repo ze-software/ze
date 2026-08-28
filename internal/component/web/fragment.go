@@ -278,7 +278,7 @@ func extractPath(r *http.Request) []string {
 	}
 
 	// Show/monitor endpoint: /show/bgp/peer or /monitor/bgp/peer.
-	raw := strings.TrimPrefix(r.URL.Path, "/show/")
+	raw := strings.TrimPrefix(r.URL.Path, showPathPrefix)
 	raw = strings.TrimPrefix(raw, "/monitor/")
 	raw = strings.TrimPrefix(raw, "/fragment/detail/")
 	raw = strings.TrimSuffix(raw, "/")
@@ -329,10 +329,10 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 		parentPath := path[:len(path)-1]
 		data.ParentHxPath = textbuf.Join(parentPath, "/")
 		if len(parentPath) == 0 {
-			data.ParentURL = "/show/"
+			data.ParentURL = showPathPrefix
 		} else {
 			var tb textbuf.Buffer
-			data.ParentURL = tb.Str("/show/").Join(parentPath, "/").Byte('/').String()
+			data.ParentURL = tb.Str(showPathPrefix).Join(parentPath, "/").Byte('/').String()
 		}
 	}
 
@@ -347,7 +347,7 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 	}
 
 	var tbPrefix textbuf.Buffer
-	prefix := tbPrefix.Str("/show/").Join(path, "/").String()
+	prefix := tbPrefix.Str(showPathPrefix).Join(path, "/").String()
 
 	switch n := schemaNode.(type) {
 	case *config.ContainerNode:
@@ -371,7 +371,7 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 			if len(uniqueFields) > 0 {
 				keys := collectListKeys(tree, schema, path)
 				var tb textbuf.Buffer
-				baseURL := tb.Str("/show/").Join(path, "/").Byte('/').String()
+				baseURL := tb.Str(showPathPrefix).Join(path, "/").Byte('/').String()
 				data.ListTable = buildListTable(tree, schema, path, n, keys, uniqueFields, baseURL)
 			}
 		}
@@ -413,7 +413,7 @@ func populateFragmentFields(data *FragmentData, provider childLister, subtree *c
 			Name:   name,
 			Kind:   nodeKindString(child.Kind()),
 			URL:    childURL,
-			HxPath: strings.TrimPrefix(strings.TrimSuffix(childURL, "/"), "/show/"),
+			HxPath: strings.TrimPrefix(strings.TrimSuffix(childURL, "/"), showPathPrefix),
 		})
 	}
 }
@@ -534,7 +534,7 @@ func buildSidebarHierarchy(schema *config.Schema, tree *config.Tree, path []stri
 		childPath := append(append([]string{}, path...), name)
 		var tb textbuf.Buffer
 		hxPath := tb.Join(childPath, "/").String()
-		url := tb.Reset().Str("/show/").Str(hxPath).Byte('/').String()
+		url := tb.Reset().Str(showPathPrefix).Str(hxPath).Byte('/').String()
 		section := SidebarSection{
 			Name:        name,
 			Description: nodeDescription(child),
@@ -654,7 +654,7 @@ func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, se
 		childPath := append(append([]string{}, prefix...), name)
 		var tb textbuf.Buffer
 		hxPath := tb.Join(childPath, "/").String()
-		url := tb.Reset().Str("/show/").Str(hxPath).Byte('/').String()
+		url := tb.Reset().Str(showPathPrefix).Str(hxPath).Byte('/').String()
 
 		item := ColumnItem{
 			Name:     name,
@@ -689,7 +689,7 @@ func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, 
 	col := &FinderColumn{}
 	keys := collectListKeys(tree, schema, prefix)
 	var tb textbuf.Buffer
-	url := tb.Str("/show/").Join(prefix, "/").Byte('/').String()
+	url := tb.Str(showPathPrefix).Join(prefix, "/").Byte('/').String()
 
 	// Show entries in the column.
 	keyless := listNode.KeyName == ""

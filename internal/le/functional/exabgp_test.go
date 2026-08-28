@@ -13,13 +13,13 @@ import (
 )
 
 type exaBGPRecorder struct {
-	commands      []ExaBGPCommand
-	failures      map[string]ExaBGPExecution
+	commands      []exaBGPCommand
+	failures      map[string]exaBGPExecution
 	skipArtifacts bool
 	contextErr    error
 }
 
-func (r *exaBGPRecorder) Run(ctx context.Context, command ExaBGPCommand) ExaBGPExecution {
+func (r *exaBGPRecorder) Run(ctx context.Context, command exaBGPCommand) exaBGPExecution {
 	r.commands = append(r.commands, command)
 	r.contextErr = ctx.Err()
 	if result, exists := r.failures[command.Stage]; exists {
@@ -27,14 +27,14 @@ func (r *exaBGPRecorder) Run(ctx context.Context, command ExaBGPCommand) ExaBGPE
 	}
 	if command.Artifact != "" {
 		if r.skipArtifacts {
-			return ExaBGPExecution{}
+			return exaBGPExecution{}
 		}
 		if err := os.WriteFile(command.Artifact, []byte("artifact"), 0o700); err != nil {
-			return ExaBGPExecution{Error: err.Error(), Code: 1}
+			return exaBGPExecution{Error: err.Error(), Code: 1}
 		}
-		return ExaBGPExecution{Stdout: command.Stage + " complete\n"}
+		return exaBGPExecution{Stdout: command.Stage + " complete\n"}
 	}
-	return ExaBGPExecution{Stdout: "42/42 ExaBGP compatibility tests passed\n"}
+	return exaBGPExecution{Stdout: "42/42 ExaBGP compatibility tests passed\n"}
 }
 
 // VALIDATES: the native adapter preserves the Make producer's artifact tags,
@@ -44,7 +44,7 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	root := exaBGPFixture(t)
 	recorder := &exaBGPRecorder{}
 
-	report, code := RunExaBGP(t.Context(), root, recorder)
+	report, code := runExaBGP(t.Context(), root, recorder)
 	if code != 0 || report.Code != 0 {
 		t.Fatalf("exit = %d report code = %d error = %q", code, report.Code, report.Error)
 	}
@@ -128,11 +128,11 @@ func TestRunExaBGPPreservesFirstFailureCodeAndCleanup(t *testing.T) {
 	for _, one := range tests {
 		t.Run(one.name, func(t *testing.T) {
 			root := exaBGPFixture(t)
-			recorder := &exaBGPRecorder{failures: map[string]ExaBGPExecution{
+			recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
 				one.stage: {Stderr: "subject failed\n", Error: "exit status", Code: one.code},
 			}}
 
-			report, code := RunExaBGP(t.Context(), root, recorder)
+			report, code := runExaBGP(t.Context(), root, recorder)
 			if code != one.code || report.Code != one.code {
 				t.Fatalf("exit = %d report code = %d, want %d", code, report.Code, one.code)
 			}
@@ -156,7 +156,7 @@ func TestRunExaBGPFailsClosedOnMissingArtifactAndOutput(t *testing.T) {
 	t.Run("artifact", func(t *testing.T) {
 		root := exaBGPFixture(t)
 		recorder := &exaBGPRecorder{skipArtifacts: true}
-		report, code := RunExaBGP(t.Context(), root, recorder)
+		report, code := runExaBGP(t.Context(), root, recorder)
 		if code != 1 || report.Code != 1 {
 			t.Fatalf("exit = %d report code = %d, want 1", code, report.Code)
 		}
@@ -170,10 +170,10 @@ func TestRunExaBGPFailsClosedOnMissingArtifactAndOutput(t *testing.T) {
 
 	t.Run("suite output", func(t *testing.T) {
 		root := exaBGPFixture(t)
-		recorder := &exaBGPRecorder{failures: map[string]ExaBGPExecution{
+		recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
 			"exabgp": {},
 		}}
-		report, code := RunExaBGP(t.Context(), root, recorder)
+		report, code := runExaBGP(t.Context(), root, recorder)
 		if code != 1 || report.Code != 1 {
 			t.Fatalf("exit = %d report code = %d, want 1", code, report.Code)
 		}
@@ -194,7 +194,7 @@ func TestRunExaBGPUsesTimeoutAliasAndRetainsNamedArtifacts(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 	recorder := &exaBGPRecorder{}
 
-	report, code := RunExaBGP(t.Context(), root, recorder)
+	report, code := runExaBGP(t.Context(), root, recorder)
 	if code != 0 {
 		t.Fatalf("exit = %d error = %q", code, report.Error)
 	}
@@ -220,7 +220,7 @@ func TestRunExaBGPFailsBeforeChildrenWhenPopulationCannotBeDerived(t *testing.T)
 	root := t.TempDir()
 	recorder := &exaBGPRecorder{}
 
-	report, code := RunExaBGP(t.Context(), root, recorder)
+	report, code := runExaBGP(t.Context(), root, recorder)
 	if code != 1 || report.Code != 1 {
 		t.Fatalf("exit = %d report code = %d, want 1", code, report.Code)
 	}
@@ -238,11 +238,11 @@ func TestRunExaBGPPassesCallerContextToEveryChild(t *testing.T) {
 	root := exaBGPFixture(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	recorder := &exaBGPRecorder{failures: map[string]ExaBGPExecution{
+	recorder := &exaBGPRecorder{failures: map[string]exaBGPExecution{
 		"build-ze": {Error: "context canceled", Code: 130},
 	}}
 
-	report, code := RunExaBGP(ctx, root, recorder)
+	report, code := runExaBGP(ctx, root, recorder)
 	if code != 130 || report.Code != 130 {
 		t.Fatalf("exit = %d report code = %d, want 130", code, report.Code)
 	}

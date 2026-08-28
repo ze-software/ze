@@ -4,14 +4,11 @@
 //
 // Each answer carries one row set -- the generated files -- so `| json` feeds a
 // script and `| count` says how many the run compared. Each also renders ITSELF
-// in the words the script printed, because the script printed a verdict rather
-// than a table (internal/le/leroot, Prose).
+// as a native actionable verdict (internal/le/leroot, Prose).
 //
-// One deliberate change: a file is named RELATIVE to the tree, where the script
-// printed the absolute path it had joined. An absolute path names this machine's
-// checkout as much as it names the file, and it would leave `| json` and the
-// default rendering disagreeing about what the value is (ai/rules/cli.md).
-// scripts/codegen/parity_test.go normalizes it.
+// A file is named RELATIVE to the tree, which keeps the diagnostic reusable
+// across checkouts and keeps `| json` consistent with the default rendering
+// (ai/rules/cli.md).
 
 package pluginimports
 
@@ -54,14 +51,13 @@ type CheckReport struct {
 	Reason string `json:"reason,omitempty"`
 }
 
-// Text renders the verdict in the words the script printed. It ends in a
-// newline.
+// Text renders the native check verdict. It ends in a newline.
 func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
 
 	if r.Stale != "" {
-		return tb.Str("plugin_imports: ").Str(r.Stale).Byte(' ').Str(r.Reason).
-			Str("; run make generate\n").String()
+		return tb.Str("./le plugin-imports check: ").Str(r.Stale).Byte(' ').Str(r.Reason).
+			Str("; run ./le plugin-imports write\n").String()
 	}
 
 	return tb.Str(allFile).Str(" is current (").Str(r.Counts.text()).Str(")\n").String()
@@ -79,8 +75,7 @@ type WriteReport struct {
 	Removed []string `json:"removed"`
 }
 
-// Text renders the verdict in the words the script printed. It ends in a
-// newline.
+// Text renders the native write verdict. It ends in a newline.
 func (r WriteReport) Text() string {
 	var tb textbuf.Buffer
 

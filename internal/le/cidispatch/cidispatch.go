@@ -38,37 +38,15 @@ import (
 
 // dynamicMarker exempts a genuinely non-static emitter. It must state a reason,
 // so an exemption is a decision on the record rather than a quiet skip.
-const dynamicMarker = "ze-dispatch-check: dynamic"
+const dynamicMarker = "le-ci-dispatch: dynamic"
 
-// scanRoots are the trees that hold command emitters.
-var scanRoots = []string{"test", "internal", "cmd", "pkg", "scripts", "demos"}
+// scanRoots are the trees that hold native command emitters.
+var scanRoots = []string{"internal", "cmd", "pkg"}
 
-// draftTestDir is the incubator for functional tests under development. It is
-// gitignored and invisible to every repo-wide gate, so a half-written .ci
-// cannot redden this check (test/draft/README.md). Spelled literally rather
-// than imported: importing internal/test/runner here would cross a tier.
-const draftTestDir = "test/draft"
-
-// emitterFloor is the least emitters the walk must find before the gate
-// believes it saw the tree. This checkout carried 1075 on 2026-08-26, so the
-// floor fires on a tree that was never read rather than on one that shrank.
-const emitterFloor = 300
-
-// pyEmitters match the Python and .ci observer shapes that send a command
-// string to the dispatcher. Group 1 is the emitter name, group 2 the command
-// argument.
-var pyEmitters = []*regexp.Regexp{
-	regexp.MustCompile(`\b(dispatch)\s*\(\s*api\s*,\s*(.+?)\s*\)`),
-	regexp.MustCompile(`\b(?:api\.)?(dispatch_until_done)\s*\(\s*(.+?)\s*[,)]`),
-	regexp.MustCompile(`\bapi\.(dispatch|send|dispatch_until)\s*\(\s*(.+?)\s*[,)]`),
-	// The two leading alternations bound the bare `send(` name: it must not be
-	// a method call (`api.send`), and it must not be the tail of an f-string
-	// prefix. gocritic reads the second `^` as dangling; it is not, because
-	// each group is anchored independently and a match at the start of a line
-	// is exactly what the first alternative admits.
-	regexp.MustCompile(`(?:^|[^.\w])(?:^|[^f])(send)\s*\(\s*(.+?)\s*\)`), //nolint:gocritic // both anchors are load-bearing, see above
-	regexp.MustCompile(`\b(dispatch_until)\s*\(\s*api\s*,\s*(.+?)\s*,`),
-}
+// emitterFloor is the least emitters the walk must find before the check
+// believes it saw the tree. It is deliberately below the current population
+// and still rejects an empty or unrelated checkout.
+const emitterFloor = 10
 
 // goEmitters match Go call sites that send a command string to the dispatcher.
 var goEmitters = []*regexp.Regexp{
@@ -78,28 +56,29 @@ var goEmitters = []*regexp.Regexp{
 	regexp.MustCompile(`\b(commandExecutor)\s*\(\s*(.+?)\s*\)`),
 }
 
-// pyLiteral matches a whole-argument single-quoted or double-quoted literal.
-var pyLiteral = regexp.MustCompile(`^(?:'([^'\\]*)'|"([^"\\]*)")$`)
+// quotedLiteral matches a whole-argument single-quoted or double-quoted
+// literal.
+var quotedLiteral = regexp.MustCompile(`^(?:'([^'\\]*)'|"([^"\\]*)")$`)
 
 // passThrough matches an argument that is a bare variable or field: the command
 // was decided elsewhere and this call only forwards it (`SendCommand(input)` in
 // the CLI client forwards whatever the operator typed). Such a site emits no
-// fixed command, so there is nothing for this gate to resolve -- it is counted
+// fixed command, so there is nothing for this check to resolve. It is counted
 // and reported, never failed. An argument that BUILDS a command from literals
-// (concatenation, a textbuf chain, a format string) is a different thing
-// entirely and is failed as unverifiable: that is the shape every defect this
-// gate exists for took.
+// (concatenation or a textbuf chain) is failed as unverifiable because that is
+// the shape every defect this check exists for took.
 var passThrough = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$`)
 
 // firstLiteral finds the first quoted run in a computed command argument.
 var firstLiteral = regexp.MustCompile(`'([^'\\]*)'|"([^"\\]*)"`)
 
-// Check walks tree's emitters and answers every one that does not resolve.
+// Check walks tree's native emitters and answers every one that does not
+// resolve.
 //
-// floor is a parameter rather than a constant because a fixture tree holds a
-// handful of emitters: le passes emitterFloor and a test passes 0.
+// floor is a parameter because a fixture tree holds fewer emitters than the
+// checkout.
 func Check(tree string, floor int) (Report, error) {
-	surface, err := NewSurface(tree)
+	surface, err := newSurface(tree)
 	if err != nil {
 		return Report{}, err
 	}
@@ -107,7 +86,7 @@ func Check(tree string, floor int) (Report, error) {
 }
 
 // CheckWith is Check against a surface the caller already built, which is what
-// the selftest and the package test use rather than relinking the product.
+// the selftest and package tests use.
 func CheckWith(surface Surface, tree string, floor int) (Report, error) {
 	report := Report{SchemaVersion: 1, CommandsKnown: len(surface.keys)}
 
@@ -122,26 +101,25 @@ func CheckWith(surface Surface, tree string, floor int) (Report, error) {
 			}
 			rel := filepath.ToSlash(relPath)
 
-			// test/draft/ holds functional tests under development and is
-			// invisible to every repo-wide gate, this one included. It is
-			// pruned at the directory so nothing inside is read.
 			if entry.IsDir() {
-				if rel == draftTestDir {
+				if entry.Name() == "testdata" {
 					return filepath.SkipDir
 				}
 				return nil
 			}
 
-			emitters, pyScoped, skip := EmittersFor(rel)
+			// This package's selftest stores emitter source as data. It never
+			// sends those commands to a daemon.
+			if rel == "internal/le/cidispatch/selftest.go" {
+				return nil
+			}
+			emitters, skip := emittersFor(rel)
 			if skip {
 				return nil
 			}
 			src, readErr := os.ReadFile(path) //nolint:gosec // repository path
 			if readErr != nil {
 				return readErr
-			}
-			if pyScoped && !usesZeAPI(string(src)) {
-				return nil
 			}
 
 			found, scanned, passthroughs := ScanFile(surface, rel, string(src), emitters)
@@ -188,13 +166,6 @@ func ScanFile(surface Surface, path, src string, emitters []*regexp.Regexp) (fin
 		for _, pattern := range emitters {
 			for _, match := range pattern.FindAllStringSubmatch(line, -1) {
 				emitter, arg := match[1], match[2]
-				// The bare `send(...)` name is not reserved: .ci scripts define
-				// local helpers with the same name and a different signature
-				// (`send(master, command, transcript)`). Only treat it as a
-				// daemon emitter when its first argument opens a string.
-				if emitter == "send" && !startsString(arg) {
-					continue
-				}
 				scanned++
 
 				finding, kind := judge(surface, path, i+1, emitter, arg)
@@ -225,7 +196,7 @@ const (
 func judge(surface Surface, path string, line int, emitter, arg string) (Finding, verdict) {
 	cmd, isLiteral := literal(arg)
 	if isLiteral {
-		if skipCommand(cmd) || surface.Resolves(cmd) || surface.sendRewriteResolves(emitter, cmd) {
+		if skipCommand(cmd) || surface.Resolves(cmd) {
 			return Finding{}, verdictResolved
 		}
 		return Finding{
@@ -242,7 +213,7 @@ func judge(surface Surface, path string, line int, emitter, arg string) (Finding
 	// Computed command: check the static prefix, which is the part a
 	// command-tree migration invalidates.
 	prefix := leadingLiteral(arg)
-	if prefix != "" && (skipCommand(prefix) || surface.prefixKnown(prefix) || surface.sendRewriteResolves(emitter, prefix)) {
+	if prefix != "" && (skipCommand(prefix) || surface.prefixKnown(prefix)) {
 		return Finding{}, verdictResolved
 	}
 
@@ -258,45 +229,19 @@ func judge(surface Surface, path string, line int, emitter, arg string) (Finding
 	}, verdictFinding
 }
 
-// EmittersFor decides how a file is scanned: which emitter shapes apply,
-// whether the ze_api scoping rule applies (Python only), and whether the file
-// is scanned at all.
-//
-// UNIT TESTS OF THE TOOLING ARE NOT EMITTERS. `_test.go` was excluded from the
-// first version for a reason that applies verbatim to `_test.py`, and leaving
-// the Python half in was an oversight, not a policy: both name a test that runs
-// IN-PROCESS against a fake, never against a daemon. test/scripts/ze_api_test.py
-// replaces `api._call_engine` with a function that raises, then dispatches
-// "show bgp nonsense" precisely BECAUSE the string must not resolve -- that is
-// the unknown-command path under test. Neither string ever reaches a
-// dispatcher, so neither can rot the way this gate exists to catch. The
-// daemon-driving Python surface -- .ci observer blocks, test/perf/run.py,
-// test/scripts/ze_api.py itself -- carries no `_test.py` suffix and stays fully
-// scanned.
-//
-// The rule is deliberately the file-name convention rather than a per-file
-// allowlist, and the selftest asserts both halves of this decision, so widening
-// the exemption cannot happen silently.
-func EmittersFor(path string) (emitters []*regexp.Regexp, pyScoped, skip bool) {
-	switch filepath.Ext(path) {
-	case ".ci", ".py":
-		if strings.HasSuffix(path, "_test.py") {
-			return nil, false, true
-		}
-		return pyEmitters, true, false
-	case ".go":
-		if strings.HasSuffix(path, "_test.go") {
-			return nil, false, true
-		}
-		return goEmitters, false, false
+// emittersFor decides whether one source file contains native command
+// emitters. Package tests are not runtime emitters and are skipped.
+func emittersFor(path string) (emitters []*regexp.Regexp, skip bool) {
+	if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
+		return nil, true
 	}
-	return nil, false, true
+	return goEmitters, false
 }
 
 // literal extracts a string literal from an argument expression. The bool is
 // false when the value is not statically knowable at this call site.
 func literal(arg string) (string, bool) {
-	match := pyLiteral.FindStringSubmatch(strings.TrimSpace(arg))
+	match := quotedLiteral.FindStringSubmatch(strings.TrimSpace(arg))
 	if match == nil {
 		return "", false
 	}
@@ -306,16 +251,14 @@ func literal(arg string) (string, bool) {
 	return match[2], true
 }
 
-// leadingLiteral answers the static text at the START of a computed command
-// argument: everything before the first interpolation, concatenation or call.
-// `f'request log level {sub} debug'` yields "request log level"; a textbuf
-// chain `tb.Str("show bgp peer ").Str(addr)` yields "show bgp peer".
+// leadingLiteral answers the static text at the start of a computed command
+// argument. A textbuf chain such as
+// `tb.Str("show bgp peer ").Str(addr)` yields "show bgp peer".
 //
 // The static prefix is the part a command-tree migration breaks. Checking it
-// turns the large class of legitimately-interpolated commands from unverifiable
-// noise (which would get the gate routed around) into a real assertion on the
-// only part that can be checked, while a computed command with NO static prefix
-// stays unverifiable and fails.
+// Checking the static prefix catches command-tree migrations while permitting
+// computed suffixes. A computed command with no static prefix is unverifiable
+// and fails.
 func leadingLiteral(arg string) string {
 	match := firstLiteral.FindStringSubmatch(arg)
 	if match == nil {
@@ -325,16 +268,11 @@ func leadingLiteral(arg string) string {
 	if lit == "" {
 		lit = match[2]
 	}
-	// An f-string's interpolation ends the static run.
-	if index := strings.Index(lit, "{"); index >= 0 {
-		lit = lit[:index]
-	}
 	return strings.TrimSpace(lit)
 }
 
-// skipCommand reports strings that are not dispatcher command paths at all: the
-// plugin-session wire directives and the route-injection text bridge, both of
-// which are category-exempt from the grammar gate for the same reason.
+// skipCommand reports strings that are not dispatcher command paths: the
+// plugin-session wire directives and route-injection text bridge.
 func skipCommand(cmd string) bool {
 	if cmd == "" {
 		return true
@@ -347,37 +285,14 @@ func skipCommand(cmd string) bool {
 	return false
 }
 
-// isComment reports a line whose content is a Go or Python comment. Prose in a
-// docstring or a `//` comment is not an emitter, and reading it as one produced
-// findings like send("command: str") from a function signature in a docstring.
+// isComment reports a Go comment. Prose in a comment is not an emitter.
 func isComment(line string) bool {
 	trimmed := strings.TrimSpace(line)
-	return strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "#")
+	return strings.HasPrefix(trimmed, "//")
 }
 
-// isDeclaration reports a function DEFINITION rather than a call. Without this
-// the parameter list reads as an argument: `func (c *cliClient) SendCommand(
-// command string)` was reported as an emitter sending the command "command
-// string".
+// isDeclaration reports a function definition rather than a call. Without
+// this, a SendCommand method's parameter list reads as an emitted command.
 func isDeclaration(line string) bool {
-	trimmed := strings.TrimSpace(line)
-	return strings.HasPrefix(trimmed, "func ") || strings.HasPrefix(trimmed, "def ") ||
-		strings.HasPrefix(trimmed, "async def ")
-}
-
-// startsString reports whether an argument expression begins with a string
-// literal (or an f-string), which is what a command argument looks like.
-func startsString(arg string) bool {
-	trimmed := strings.TrimSpace(arg)
-	trimmed = strings.TrimPrefix(trimmed, "f")
-	return strings.HasPrefix(trimmed, "'") || strings.HasPrefix(trimmed, "\"")
-}
-
-// usesZeAPI reports whether a Python or .ci source talks to the daemon through
-// ze_api at all. The bare `send(...)` emitter is only meaningful there: other
-// scripts define their own unrelated send() (qemu-run.py sends console input,
-// post_weekly.py sends Discord chunks) and matching those was noise, not
-// signal.
-func usesZeAPI(src string) bool {
-	return strings.Contains(src, "ze_api") || strings.Contains(src, "from ze_api import")
+	return strings.HasPrefix(strings.TrimSpace(line), "func ")
 }

@@ -61,8 +61,8 @@ type Tally struct {
 
 // CoverageReport is what `le rules gate-map-report` answers.
 type CoverageReport struct {
-	// Refused names the dispatcher-roster problems that stopped the join from
-	// running at all. Nothing else in this report is filled when it is set.
+	// Refused names native roster problems that stopped the join from running.
+	// Nothing else in this report is filled when it is set.
 	Refused []string `json:"refused"`
 	// Empty names the population the join read nothing from.
 	Empty []string `json:"empty"`
@@ -75,17 +75,15 @@ type CoverageReport struct {
 	Dangling []DanglingBinding `json:"dangling"`
 	Unbound  []UnboundCheck    `json:"unbound"`
 
-	// Baseline says whether any dispatcher had a version at git HEAD. Without
-	// one the two ratchets below cannot fire, and the report says so rather
-	// than printing a zero that reads as a pass.
+	// Baseline says whether any hookruntime Go source existed at git HEAD.
+	// Without one the ratchets cannot fire, and the report says so.
 	Baseline     bool     `json:"baseline"`
 	Regressed    []string `json:"regressed"`
 	NoHeadFor    []string `json:"no-head-for"`
 	DeclaredNone []string `json:"declared-none"`
 
 	// CorpusBaseline reports whether git named the points at HEAD. It is a
-	// SECOND baseline. Point-tree listing can fail while all dispatchers remain
-	// at HEAD, so Baseline does not determine it.
+	// second baseline and does not depend on the Go source baseline.
 	CorpusBaseline bool     `json:"corpus-baseline"`
 	Shrunk         []string `json:"shrunk"`
 	RetiredLedger  []string `json:"retired-ledger"`
@@ -125,9 +123,9 @@ func (r *CoverageReport) Failed() bool {
 		len(r.Published) > 0
 }
 
-// WriteDiagnosis sends each stderr line the script sends, in its order. Only a
+// writeDiagnosis sends each stderr line the script sends, in its order. Only a
 // genuine failure reaches this stream.
-func (r *CoverageReport) WriteDiagnosis() {
+func (r *CoverageReport) writeDiagnosis() {
 	for _, line := range r.Diagnosis {
 		fmt.Fprintln(os.Stderr, line) //nolint:errcheck // CLI output
 	}
@@ -178,8 +176,8 @@ func (r *CoverageReport) Text() string {
 			tb.Str("  ").Str(line).Byte('\n')
 		}
 	} else {
-		tb.Byte('\n').Str("REGRESSED: no HEAD baseline (git could not answer, or no dispatcher ").
-			Str("has a version at HEAD); not ratcheted\n")
+		tb.Byte('\n').Str("REGRESSED: no HEAD baseline (git could not answer, or no hookruntime ").
+			Str("Go source has a version at HEAD); not ratcheted\n")
 		r.writeNoHead(&tb)
 	}
 
@@ -253,9 +251,8 @@ func (r *CoverageReport) writePublished(tb *textbuf.Buffer) {
 	}
 }
 
-// writeNoHead names each dispatcher absent at git HEAD. That absence removes
-// all its bindings from the baseline, which a count cannot show. The report
-// prints the name because a rename looks like an uncommitted file.
+// writeNoHead names each native Go source absent at git HEAD. That absence
+// removes all its bindings from the baseline.
 func (r *CoverageReport) writeNoHead(tb *textbuf.Buffer) {
 	for _, name := range r.NoHeadFor {
 		tb.Str("  no version at HEAD: ").Str(name).Str(" (its bindings are not ratcheted)\n")
@@ -290,7 +287,7 @@ func Coverage(tree string) (*CoverageReport, error) {
 	var report CoverageReport
 	var tb textbuf.Buffer
 
-	gateFiles, problems := dispatchers(tree)
+	sources, problems := nativeHookSources(tree)
 	if len(problems) > 0 {
 		report.Refused = problems
 		for _, problem := range problems {
@@ -301,15 +298,12 @@ func Coverage(tree string) (*CoverageReport, error) {
 	}
 
 	pointsDir := filepath.Join(tree, filepath.FromSlash(pointsRel))
-	gm, err := buildGateMap(gateFiles, pointsDir, tree)
+	gm, err := buildGateMap(sources, pointsDir, tree)
 	if err != nil {
 		return nil, err
 	}
 
-	names := make([]string, 0, len(gateFiles))
-	for _, path := range gateFiles {
-		names = append(names, filepath.Base(path))
-	}
+	names := sortedKeys(sources)
 	head, noHeadFor, gitAnswered := headSources(tree, names)
 	haveBaseline := gitAnswered && len(head) > 0
 
@@ -322,7 +316,10 @@ func Coverage(tree string) (*CoverageReport, error) {
 
 	var regressed, declaredNone, shrunk []string
 	if haveBaseline {
-		atHead := bindingsAtHead(head)
+		atHead, err := bindingsAtHead(head)
+		if err != nil {
+			return nil, err
+		}
 		regressed = gatedRegressions(gm, atHead)
 		declaredNone = unboundRegressions(gm, atHead, retired)
 	}
@@ -363,14 +360,6 @@ func Coverage(tree string) (*CoverageReport, error) {
 		return &report, nil //nolint:nilerr // the missing doc is reported, not raised
 	}
 
-	sources := map[string]string{}
-	for _, path := range gateFiles {
-		raw, err := os.ReadFile(path) // #nosec G304 -- a dispatcher path settings.json named
-		if err != nil {
-			return nil, err
-		}
-		sources[filepath.Base(path)] = string(raw)
-	}
 	report.Published = hookTableProblems(gm, string(docText), sources)
 	if len(report.Published) > 0 {
 		tb.Reset()
@@ -385,7 +374,7 @@ func Coverage(tree string) (*CoverageReport, error) {
 //
 // An EMPTY result is never a pass: no point, or no binding at all, means the
 // join read nothing and must say so.
-func fillCoverage(gm GateMap, baseline, corpusBaseline bool) CoverageReport {
+func fillCoverage(gm gateMap, baseline, corpusBaseline bool) CoverageReport {
 	report := CoverageReport{Baseline: baseline, CorpusBaseline: corpusBaseline}
 	if len(gm.Points) == 0 {
 		report.Empty = []string{
@@ -394,7 +383,7 @@ func fillCoverage(gm GateMap, baseline, corpusBaseline bool) CoverageReport {
 	}
 	if len(gm.Bindings) == 0 {
 		report.Empty = []string{
-			"no `# ze point:` binding in any dispatcher; the gate map read nothing and must not report success"}
+			"no `// ze point:` binding on any registered native check; the gate map read nothing and must not report success"}
 		return report
 	}
 
@@ -474,7 +463,7 @@ func fillCoverage(gm GateMap, baseline, corpusBaseline bool) CoverageReport {
 }
 
 // countByKind answers how many ungated points carry each kind, by kind name.
-func countByKind(gm GateMap) []Tally {
+func countByKind(gm gateMap) []Tally {
 	counts := map[string]int{}
 	for _, ref := range gm.Ungated {
 		counts[gm.Points[ref]]++

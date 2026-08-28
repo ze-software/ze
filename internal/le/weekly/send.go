@@ -9,7 +9,7 @@
 // The transport is a parameter rather than a call. discord.sh carries the bot
 // token, so it lives outside this public repository, and a test that reached it
 // would post to a real channel. Sender is the seam: the binary passes
-// ExecSender and a test passes a recorder.
+// execSender and a test passes a recorder.
 package weekly
 
 import (
@@ -27,8 +27,7 @@ import (
 )
 
 // DiscordShKey is the dot-notation spelling of DISCORD_SH. env.Get treats a dot
-// and an underscore as the same character and matches case-insensitively, so
-// this key reads the variable the Python tool reads.
+// and an underscore as the same character and matches case-insensitively.
 const DiscordShKey = "discord.sh"
 
 var discordShEntry = env.MustRegister(env.EnvEntry{
@@ -49,11 +48,7 @@ var discordShEntry = env.MustRegister(env.EnvEntry{
 // `message` field and drops `retry_after`.
 var rateLimitBackoff = [...]time.Duration{5 * time.Second, 15 * time.Second, 30 * time.Second, 60 * time.Second}
 
-// RateLimitBackoff answers the retry schedule, which is a number the two
-// implementations of this tool MUST agree on and which no comparison of their
-// output can see: a schedule that waits longer sends the same messages.
-// scripts/zeledon/parity_test.go reads it for that reason.
-func RateLimitBackoff() []time.Duration {
+func rateLimitBackoffSchedule() []time.Duration {
 	return rateLimitBackoff[:]
 }
 
@@ -103,12 +98,12 @@ func (r SendResult) report() string {
 // said rather than an error, because a refusal is data this package classifies.
 type Sender func(channel, text string) SendResult
 
-// ExecSender answers the Sender that runs discord.sh at script.
+// execSender answers the Sender that runs discord.sh at script.
 //
-// The invocation is `bash <script> --channel <channel> --text <text>`, which is
-// the form discord.sh takes and the form the Python tool used, so one fake
-// script stands in for both implementations.
-func ExecSender(script string) Sender {
+// The invocation is `bash <script> --channel <channel> --text <text>`, the
+// external discord.sh transport's interface. A fake transport script exercises
+// the same boundary in tests.
+func execSender(script string) Sender {
 	return func(channel, text string) SendResult {
 		// One HTTPS request is what the transport makes, so a call still
 		// running after this is hung rather than slow. Without the bound a
@@ -146,12 +141,12 @@ func ExecSender(script string) Sender {
 // ErrNoTransport says discord.sh is not where the search expected it.
 var ErrNoTransport = errors.New("discord.sh not found")
 
-// SendFailed says a message was refused for something waiting cannot fix, and
+// sendFailed says a message was refused for something waiting cannot fix, and
 // carries the resume point that finishes the post.
 //
 // The messages before it are in the channel. That is why this error names them: a
 // fresh run would send every one of them a second time.
-type SendFailed struct {
+type sendFailed struct {
 	// Number is the 1-based message that failed, and the one to resume from.
 	Number int
 	// Total is how many messages the post splits into.
@@ -162,7 +157,7 @@ type SendFailed struct {
 	Report string
 }
 
-func (e *SendFailed) Error() string {
+func (e *sendFailed) Error() string {
 	var tb textbuf.Buffer
 	return tb.Str("send failed on message ").Int(int64(e.Number)).Byte('/').Int(int64(e.Total)).
 		Str(": ").Str(e.Report).
@@ -177,12 +172,12 @@ func (e *SendFailed) Error() string {
 //
 // Sending them back-to-back is what meets Discord's per-channel rate limit, so
 // a message refused that way is retried on rateLimitBackoff rather than killing
-// the post. Anything else stops the post and answers a *SendFailed naming the
+// the post. Anything else stops the post and answers a *sendFailed naming the
 // resume point.
 //
 // resumeFrom is 1-based and names the first message to send, so a post left half
 // delivered is finished without repeating what already landed.
-func (p *Poster) send(messages []string, resumeFrom int) (sent int, err error) {
+func (p *publisher) send(messages []string, resumeFrom int) (sent int, err error) {
 	// Before the loop, so a missing transport costs nothing to recover from:
 	// nothing has been sent, so nothing has to be resumed.
 	if _, statErr := os.Stat(p.DiscordSh); statErr != nil {
@@ -216,14 +211,14 @@ func (p *Poster) send(messages []string, resumeFrom int) (sent int, err error) {
 // sendOne delivers one message, waiting out a rate limit up to the length of the
 // schedule. The loop is bounded by rateLimitBackoff, so a channel that never
 // lets up ends the run rather than waiting for ever.
-func (p *Poster) sendOne(message string, number, total int) error {
+func (p *publisher) sendOne(message string, number, total int) error {
 	for attempt := 0; attempt <= len(rateLimitBackoff); attempt++ {
 		result := p.Send(p.Channel, message)
 		if result.landed() {
 			return nil
 		}
 		if attempt == len(rateLimitBackoff) || !result.rateLimited() {
-			return &SendFailed{Number: number, Total: total, Channel: p.Channel, Report: result.report()}
+			return &sendFailed{Number: number, Total: total, Channel: p.Channel, Report: result.report()}
 		}
 
 		wait := rateLimitBackoff[attempt]
@@ -237,7 +232,7 @@ func (p *Poster) sendOne(message string, number, total int) error {
 	}
 	// Unreachable: the last iteration returns either way. Stated rather than
 	// panicked, because nothing a peer or an operator does can reach it.
-	return &SendFailed{Number: number, Total: total, Channel: p.Channel}
+	return &sendFailed{Number: number, Total: total, Channel: p.Channel}
 }
 
 // archive writes down the week that just landed and answers the file it wrote.
@@ -246,7 +241,7 @@ func (p *Poster) sendOne(message string, number, total int) error {
 // the archive is a byte-accurate record of what is in the channel. Its presence
 // is also what marks a week as posted, which is what stops a sweep sending it
 // again.
-func (p *Poster) archive(date, covers, body string, dateStamped bool) (string, error) {
+func (p *publisher) archive(date, covers, body string, dateStamped bool) (string, error) {
 	if err := os.MkdirAll(p.ArchiveDir, 0o750); err != nil {
 		return "", err
 	}
@@ -275,7 +270,7 @@ func (p *Poster) archive(date, covers, body string, dateStamped bool) (string, e
 // into the payload: an operator watching a post that takes minutes needs to see
 // each message land, and a caller piping the answer into a script needs the
 // answer alone (ai/rules/cli.md).
-func (p *Poster) say(write func(tb *textbuf.Buffer)) {
+func (p *publisher) say(write func(tb *textbuf.Buffer)) {
 	if p.Progress == nil {
 		return
 	}
@@ -285,13 +280,13 @@ func (p *Poster) say(write func(tb *textbuf.Buffer)) {
 	io.WriteString(p.Progress, tb.String()) //nolint:errcheck // progress output
 }
 
-// FindDiscordSh answers where the transport is.
+// resolveDiscordSh answers where the transport is.
 //
 // DISCORD_SH wins. Otherwise the known private bins are searched in turn and
 // PATH answers the rest. The token means discord.sh cannot live in this public
 // repository, and which private bin holds it differs per machine: a single
 // hardcoded default sent one weekly update to a "not found" exit.
-func FindDiscordSh() string {
+func resolveDiscordSh() string {
 	return findDiscordSh(discordShCandidates())
 }
 

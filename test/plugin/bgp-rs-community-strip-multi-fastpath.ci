@@ -89,12 +89,6 @@ expect=bgp:conn=2:seq=1:contains=D0080008FDE90064FDE900C8
 EOF_PEER
 
 # Observer: wait until the route server has replayed to every peer, then stop.
-tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-from ze_api import API
-
-API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -105,7 +99,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external shutdown-after-up {
-		run ./shutdown-after-up.run
+		run "ze-test fixture plugin/bgp-rs-community-strip-multi-fastpath"
 		encoder json
 	}
 }

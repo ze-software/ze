@@ -1,7 +1,5 @@
 // Design: docs/architecture/core-design.md -- the language-server plugins the LSP tool needs
 //
-// editor.go is the port of scripts/le/devtools/editor.py.
-//
 // The LSP tool does not contain a hardcoded set of languages. Each plugin tells
 // the harness which server binary to run for specified file extensions. If a
 // language has no installed plugin, every call returns
@@ -37,72 +35,60 @@ import (
 // published.
 const officialMarketplace = "claude-plugins-official"
 
-// LspPlugin defines one language-server plugin and the file types it supports.
+// lspPlugin defines one language-server plugin and the file types it supports.
 //
 // Binary is the server that the plugin runs. The report lists it to distinguish
 // two failures. Either the plugin is missing, or the plugin is installed but
 // its named binary is missing. These failures require different corrections.
 // The tool table already installs the binaries.
-type LspPlugin struct {
+type lspPlugin struct {
 	Plugin     string
 	Binary     string
 	Extensions []string
 	Why        string
 }
 
-// Qualified answers the name an install command takes.
-func (p LspPlugin) Qualified() string {
+// qualified answers the name an install command takes.
+func (p lspPlugin) qualified() string {
 	var tb textbuf.Buffer
 	return tb.Str(p.Plugin).Byte('@').Str(officialMarketplace).String()
 }
 
-// InstallCommand gives the command that a person must run to install it.
+// installCommand gives the command that a person must run to install it.
 //
 // Use the slash command, not the shell command. When `claude plugin ...` runs
 // from a shell inside a session, it does not return. The reader can use the
 // slash command from that session.
-func (p LspPlugin) InstallCommand() string {
+func (p lspPlugin) installCommand() string {
 	var tb textbuf.Buffer
-	return tb.Str("/plugin install ").Str(p.Qualified()).String()
+	return tb.Str("/plugin install ").Str(p.qualified()).String()
 }
 
-// pyrightWhy says what a session pays when the Python plugin is absent.
-const pyrightWhy = "without it the LSP tool refuses every .py file and a session reads" +
-	" whole scripts to find one symbol (ai/rules/context-economy.md)"
-
-// LSPPlugins is every language-server plugin this repository needs installed.
-func LSPPlugins() []LspPlugin {
-	return []LspPlugin{
-		{
-			Plugin:     "gopls-lsp",
-			Binary:     toolGopls,
-			Extensions: []string{".go"},
-			Why:        "every LSP call on a .go file is refused without it",
-		},
-		{
-			Plugin:     "pyright-lsp",
-			Binary:     toolPyright,
-			Extensions: []string{".py", ".pyi"},
-			Why:        pyrightWhy,
-		},
-	}
+// lspPlugins lists the language-server plugins this Go repository needs.
+func lspPlugins() []lspPlugin {
+	return []lspPlugin{{
+		Plugin:     "gopls-lsp",
+		Binary:     toolGopls,
+		Extensions: []string{".go"},
+		Why:        "every LSP call on a .go file is refused without it",
+	}}
 }
 
-// PluginRecord answers where the harness records what is installed, for every
+// pluginRecord answers where the harness records what is installed, for every
 // scope.
-func (s *Setup) PluginRecord() string {
+func (s *Setup) pluginRecord() string {
 	return filepath.Join(s.home(), ".claude", "plugins", "installed_plugins.json")
 }
 
-// InstalledPlugins returns all installed plugins by their name@marketplace key.
+// installedPlugins returns all installed plugins by their name@marketplace key.
 //
 // If the record is absent or unreadable, this function returns the empty set
 // instead of an error. The harness does not always write a record before setup
 // runs, so "nothing installed" is the correct interpretation. This is also the
 // safe interpretation. The caller reports a plugin that it cannot see as
 // PENDING, which fails the run instead of passing it.
-func (s *Setup) InstalledPlugins() map[string]bool {
-	raw, err := os.ReadFile(s.PluginRecord())
+func (s *Setup) installedPlugins() map[string]bool {
+	raw, err := os.ReadFile(s.pluginRecord())
 	if err != nil {
 		return nil
 	}
@@ -119,13 +105,13 @@ func (s *Setup) InstalledPlugins() map[string]bool {
 	return have
 }
 
-// MissingLSPPlugins answers the language-server plugins this machine does not
-// have, in the order LSPPlugins declares them.
-func (s *Setup) MissingLSPPlugins() []LspPlugin {
-	have := s.InstalledPlugins()
-	var missing []LspPlugin
-	for _, plugin := range LSPPlugins() {
-		if !have[plugin.Qualified()] {
+// missingLSPPlugins answers the language-server plugins this machine does not
+// have, in the order lspPlugins declares them.
+func (s *Setup) missingLSPPlugins() []lspPlugin {
+	have := s.installedPlugins()
+	var missing []lspPlugin
+	for _, plugin := range lspPlugins() {
+		if !have[plugin.qualified()] {
 			missing = append(missing, plugin)
 		}
 	}

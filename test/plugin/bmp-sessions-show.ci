@@ -11,119 +11,6 @@
 option=env:var=ze.log.bgp.bmp:value=info
 option=timeout:value=20s
 
-tmpfs=bmp-sessions.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""BMP test client: sends Initiation + Peer Up, verifies via show bmp sessions."""
-import json
-import socket
-import struct
-import sys
-import time
-from ze_api import API, result_text_data
-
-def bmp_header(msg_type, length):
-    return struct.pack('!BIB', 3, length, msg_type)
-
-def bmp_initiation():
-    name = b'test-router'
-    name_tlv = struct.pack('!HH', 2, len(name)) + name
-    return bmp_header(4, 6 + len(name_tlv)) + name_tlv
-
-def bgp_open(asn):
-    marker = b'\xff' * 16
-    body = struct.pack('!BHHIB', 4, asn, 90, 0x01020304, 0)
-    length = 19 + len(body)
-    return marker + struct.pack('!HB', length, 1) + body
-
-def bmp_peer_header(peer_as=65001):
-    ph = struct.pack('!BB', 0, 0)
-    ph += struct.pack('!Q', 0)
-    ph += b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 1])
-    ph += struct.pack('!II', peer_as, 0x01020304)
-    ph += struct.pack('!II', int(time.time()), 0)
-    return ph
-
-def bmp_peer_up():
-    ph = bmp_peer_header()
-    local_addr = b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 100])
-    ports = struct.pack('!HH', 179, 54321)
-    sent_open = bgp_open(65000)
-    recv_open = bgp_open(65001)
-    payload = ph + local_addr + ports + sent_open + recv_open
-    return bmp_header(3, 6 + len(payload)) + payload
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(('127.0.0.1', $PORT2))
-    sock.sendall(bmp_initiation())
-    sock.sendall(bmp_peer_up())
-
-    # Poll until the BMP session appears instead of blind settle sleeps. The
-    # peer-up is processed asynchronously, so retry the show until a session
-    # is listed (or attempts run out, then the assertions below fail).
-    def _has_session(r):
-        if r.get('status') != 'done':
-            return False
-        d = result_text_data(r, '{}')
-        try:
-            p = json.loads(d) if isinstance(d, str) else d
-        except (json.JSONDecodeError, TypeError, ValueError):
-            return False
-        s = p.get('sessions', []) if isinstance(p, dict) else p
-        return isinstance(s, list) and len(s) > 0
-
-    result = api.dispatch_until('show bmp sessions', _has_session, attempts=40)
-    status = result.get('status')
-    if status != 'done':
-        print(f'FAIL: show bmp sessions status={status}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    data = result_text_data(result, '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    sessions = parsed.get('sessions', []) if isinstance(parsed, dict) else parsed
-    if not isinstance(sessions, list) or len(sessions) == 0:
-        print(f'FAIL: expected non-empty session list, got: {data}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    session = sessions[0]
-    if 'sys-name' not in session and 'sys_name' not in session and 'sysName' not in session:
-        print(f'FAIL: session missing sys-name field: {session}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    print(f'PASS: show bmp sessions returned {len(sessions)} session(s)', file=sys.stderr, flush=True)
-
-    api.read_line(timeout=0.1)
-
-    result = dispatch(api, 'show bmp collectors')
-    status = result.get('status')
-    if status != 'done':
-        print(f'FAIL: show bmp collectors status={status}', file=sys.stderr, flush=True)
-        sys.exit(1)
-
-    print('PASS: show bmp collectors returned valid response', file=sys.stderr, flush=True)
-
-    sock.close()
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 environment {
@@ -137,7 +24,7 @@ environment {
 }
 plugin {
     external bmp-sessions-test {
-        run ./bmp-sessions.run;
+        run "ze-test fixture plugin/bmp-sessions-show $PORT2;"
         encoder json;
     }
 }

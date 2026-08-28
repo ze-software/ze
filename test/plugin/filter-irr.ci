@@ -35,33 +35,12 @@ option=timeout:value=20s
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE940030401010101180A000018C0A800
 EOF_PEER
 
-tmpfs=test-filter-irr.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Shutdown observer for the IRR per-prefix modify test."""
-from ze_api import API
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    # Wait for the peer's UPDATE to be processed and delivered (this observer
-    # subscribes to update events) rather than sleeping a fixed interval.
-    api.wait_for_event(timeout=5.0)
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze configuration with mock IRR server and IRR filter
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-filter-irr {
-		run ./test-filter-irr.run
+		run "ze-test fixture plugin/filter-irr"
 		encoder json
 	}
 }

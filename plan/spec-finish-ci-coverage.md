@@ -36,7 +36,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
   **DONE.** This is the phase this spec closes on: AC-1 to AC-8 below.
 - **cli-dispatch `.ci` (L83)** - validate-config done; missing `set interface create` and `update peeringdb`.
   **RE-HOMED 2026-08-17** at `plan/future/spec-ci-coverage-remaining-surfaces.md`, item 2.
-- **no-congestion-initial chaos `.ci` (L118)** - UNBLOCKED - ze-chaos multi-peer orchestration now exists (`mk/test-chaos.mk --peers`); just needs writing.
+- **no-congestion-initial chaos `.ci` (L118)** - UNBLOCKED - ze-chaos multi-peer orchestration now exists (`internal/le/testchaos/actions.go --peers`); just needs writing.
   **RE-HOMED 2026-08-17** at `plan/future/spec-ci-coverage-remaining-surfaces.md`, item 3, carrying the port-range constraint recorded below.
 - **gRPC-over-wire `.ci` (L40)** - engine path covered by `test/plugin/grpc-execute.ci`; a true gRPC-wire test needs grpcio/grpcurl vendored (tooling gate).
   **RE-HOMED 2026-08-17** at `plan/future/spec-ci-coverage-remaining-surfaces.md`, item 4, which records the three candidate clients and that the choice is the owner's.
@@ -46,7 +46,7 @@ This is a consolidation skeleton created from verified deferral survivors (backl
   `option=netns:veth=` was never a real directive; the repair extends the option that already
   provisions netns interfaces, `netns-link`, with `peer=` (veth pair) and `vlan=` (802.1Q
   sub-interface on each end), rather than adding a second directive family for the same job.
-  `registerCIRoot("pppoe", ...)` roots the suite and `make ze-qemu-pppoe-test` runs it: the
+  `registerCIRoot("pppoe", ...)` roots the suite and `./le qemu pppoe-test` runs it: the
   netns launch mode is required (each test asks for a veth pair) and so is ze's runtime kernel
   (`handlePADR` opens AF_PPPOX before it sends PADS, and stock Alpine has no `CONFIG_PPPOE`).
   Running them found the reason the feature had no test: **PPPoE never started from a real
@@ -218,7 +218,7 @@ phase uncovered.
 | `interface-errors-show.ci` | `test/plugin/` | AC-5: find the links with errors or drops | done |
 | `cli-generate-wireguard-keypair.ci` | `test/parse/` | AC-6: the offline CLI command resolves and rejects arguments | done |
 | `interface-rate-show.ci` (corrected) | `test/plugin/` | AC-8: its assertion had pinned the aliasing defect | done |
-| `design-gate` fixtures | `scripts/dev/hook-fixture-check.py` | T-4: an agent writes a spec about a hook, a model or the daemon; the gate asks for that subject and refuses the rest. A hook has no `.ci`, so its driving surface is the fixture suite | done |
+| `design-gate` fixtures | `internal/le/` | T-4: an agent writes a spec about a hook, a model or the daemon; the gate asks for that subject and refuses the rest. A hook has no `.ci`, so its driving surface is the fixture suite | done |
 
 Every one is proven by mutation: each was re-run with the behaviour under test
 broken at the producer and observed to FAIL. The interface pair needs no
@@ -229,9 +229,9 @@ unfixed dispatcher and turned green only with the wire methods split.
 
 - `internal/test/runner/` - see Task work items
 - `internal/component/cmd/show/show.go` - see Task work items
-- `.claude/hooks/mark-source-read.sh` - T-4: records the kind of source read
+- `internal/le/hookruntime/lifecycle.go` - T-4: records the kind of source read
 - `.claude/hooks/pretool-writeedit.py` - T-4: `c_design_without_lsp` asks for the spec's subject
-- `scripts/dev/hook-fixture-check.py` - T-4: the `design-gate` fixtures, both directions
+- `internal/le/` - T-4: the `design-gate` fixtures, both directions
 
 ## Implementation Steps
 
@@ -239,7 +239,7 @@ unfixed dispatcher and turned green only with the wire methods split.
 2. **Phase: design** - for the chosen item, re-verify the `file:line` evidence and fill the Data Flow / Wiring / AC sections above.
 3. **Phase: wiring** - register entry points, write the failing wiring test.
 4. **Phase: implement (TDD)** - write test, fail, implement, pass, per work item.
-5. **Full verification** - `make ze-precommit-verify`.
+5. **Full verification** - `./le verify current mode full`.
 6. **Complete spec** - fill audit tables, write `plan/learned/NNN-<name>.md`, two-commit closure.
 
 ## Deliverables Checklist
@@ -256,7 +256,7 @@ unfixed dispatcher and turned green only with the wire methods split.
 | Both YANG self-containment halves | read both test bodies | owner declares the four, central schema bans them |
 | T-4 / T-5 agent-tooling gates | `make --no-print-directory ze-unit-hook-test` | 448/448, 52 `design-gate` fixtures pass |
 | The four undesigned items re-homed, not dropped | `ls` the successor spec and read its item list | `plan/future/spec-ci-coverage-remaining-surfaces.md`, items 1 to 4 |
-| Every citer of this spec repaired before commit B | `grep -ln` over `plan/spec-*.md`, then `make ze-spec-citation-check` | zero spec citers; gate exit 0 |
+| Every citer of this spec repaired before commit B | `grep -ln` over `plan/spec-*.md`, then `./le spec-citation anchors` | zero spec citers; gate exit 0 |
 
 ### Integration Checklist
 
@@ -294,7 +294,7 @@ unfixed dispatcher and turned green only with the wire methods split.
 | 13 | Route metadata keys added/changed? | N-A | None |
 | 14 | Prometheus counters added/changed? | N-A | None |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes, already done | Four new wire methods, present in `wire-methods.snapshot` and asserted by `TestRegisteredWireMethods` |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes, checked | `docs/guide/command-reference.md` carries `<!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->`, and its claim is current. `make ze-repository-check` reports no stale anchor over any file this spec changed |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes, checked | `docs/guide/command-reference.md` carries `<!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->`, and its claim is current. `./le repository check` reports no stale anchor over any file this spec changed |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes, checked | The `show interface` and `show system` examples in `docs/guide/command-reference.md` match the handlers, including the note that `ze show interface brief` used to look for an interface called "brief" |
 
 ### Security Review Checklist
@@ -333,27 +333,27 @@ diff. Round 2 read only what round 1's fixes touched.
 produces the behavior and was read at that function. The owner stopped test, lint
 and build execution on this machine during the closure, so no finding rests on a
 run this session did not see. The step-0 automated pre-checks
-(`make ze-repository-check`, `scripts/dev/audit-test-relaxation.py`) ran BEFORE
+(`./le repository check`, `internal/le/weakened/audit.go`) ran BEFORE
 that instruction; both are recorded under "Reds attributed" below.
 
 ### Reds attributed (none of them this closure's, and none in its files)
 | Red | Owning file | Attribution |
 |-----|-------------|-------------|
-| `make ze-repository-check`: 1 ISSUE, `NewFeed` has no cross-package non-test caller | `internal/core/observation/observation.go` | Another session's in-flight `anomaly-observe` work. The file is uncommitted in this tree and is not in this commit |
-| `scripts/dev/audit-test-relaxation.py`: 2 `[WEAKENED]`, RFC-tagged tests changed without an approval token | `internal/component/bgp/reactor/session_negotiate_test.go`, `internal/core/bgp/capability/negotiated_test.go` | Another session's in-flight RFC work. Both are uncommitted; neither is in this commit |
-| `make ze-doc-verify`: `ai/DOCS-TO-CODE.md is stale` | `ai/DOCS-TO-CODE.md` | Generated index, stale from the untracked `anomaly-observe` plugin. On this closure's do-not-touch list. Its `Documentation drift`, `YANG/handler contract` and changed-file wiring stages all passed |
-| `make ze-doc-links-check`: 95 dead path references repo-wide | 20+ files under `plan/` and `website/` | Pre-existing rot. The count was 96 before this closure and 95 after: the one that was this spec's was fixed. No file in this commit appears in the remaining 95 |
-| `make ze-unit-hook-test`: 4 of 448 fixtures fail | the `ze-unit-hook-test` recipe in `Makefile` | Not a product defect and not a fixture defect. The recipe does not set `MAKEFLAGS=--no-print-directory`, so four `session-id-*-make-path` fixtures read a `make[1]: Entering directory` banner. `make --no-print-directory ze-unit-hook-test` is 448/448. Recorded as review finding 6 |
+| `./le repository check`: 1 ISSUE, `NewFeed` has no cross-package non-test caller | `internal/core/observation/observation.go` | Another session's in-flight `anomaly-observe` work. The file is uncommitted in this tree and is not in this commit |
+| `internal/le/weakened/audit.go`: 2 `[WEAKENED]`, RFC-tagged tests changed without an approval token | `internal/component/bgp/reactor/session_negotiate_test.go`, `internal/core/bgp/capability/negotiated_test.go` | Another session's in-flight RFC work. Both are uncommitted; neither is in this commit |
+| `./le doc-check verify`: `ai/DOCS-TO-CODE.md is stale` | `ai/DOCS-TO-CODE.md` | Generated index, stale from the untracked `anomaly-observe` plugin. On this closure's do-not-touch list. Its `Documentation drift`, `YANG/handler contract` and changed-file wiring stages all passed |
+| `./le doc-check links`: 95 dead path references repo-wide | 20+ files under `plan/` and `website/` | Pre-existing rot. The count was 96 before this closure and 95 after: the one that was this spec's was fixed. No file in this commit appears in the remaining 95 |
+| the retired `ze-unit-hook-test` (current: `./le hook-check unit`): 4 of 448 fixtures fail | the `ze-unit-hook-test` recipe in the retired `Makefile` (current producers: `internal/le/` native action tables) | Not a product defect and not a fixture defect. The recipe does not set `MAKEFLAGS=--no-print-directory`, so four `session-id-*-make-path` fixtures read a `make[1]: Entering directory` banner. `make --no-print-directory ze-unit-hook-test` is 448/448. Recorded as review finding 6 |
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
 | 1 | ISSUE | The `Exercises:` header names the pre-AC-8 aliased path, `ze-show:interface -> handleShowInterface`. `init` in `internal/component/iface/cmd/show_interface.go` registers `ze-show:interface-type` to `handleShowInterfaceType` and `ze-show:interface-errors` to `handleShowInterfaceErrors`. The comment describes the defect AC-8 removed (`ai/rules/stale-comments.md`) | `test/plugin/interface-type-show.ci`, `test/plugin/interface-errors-show.ci` | fixed: each header now names its own wire method and handler |
 | 2 | ISSUE | Two false claims in the header. (a) "setupWorkDir writes every tmpfs file 0644, so a `mode=755` fixture is never executable": `parsingRunner.setupWorkDir` (`internal/test/runner/parsing.go`) materializes through `test.Tmpfs.WriteTo(workDir)`, so `mode=` reaches disk in the parse suite. The claim would stop the next author writing the success-path `.ci` for a reason that no longer exists. (b) it homes both limits at a path for `spec-fixit-ci-peer-block-silent-directives`, a spec no longer on disk | `test/parse/cli-generate-wireguard-keypair.ci` | fixed: the mode half is recorded as fixed, the still-true `childEnv` PATH half is stated at its producer, and the homing is the bare stem `spec-fixit-parse-suite-helper-cannot-invoke-ze` |
-| 3 | ISSUE | Twelve live `deferred` rows in nine shards under `plan/deferrals/` name this spec as their Destination. Commit B removes it, leaving each row homed at nothing. No gate sees it: the FAIL pass of `scripts/dev/spec-citation-check.py` globs `plan/spec-*.md` and never reads `plan/deferrals/` | `plan/deferrals/` (9 files) | fixed: each live row's Destination now names `plan/future/spec-ci-coverage-remaining-surfaces.md`, which lists all twelve. Terminal rows keep the historical reference as the bare stem |
+| 3 | ISSUE | Twelve live `deferred` rows in nine shards under `plan/deferrals/` name this spec as their Destination. Commit B removes it, leaving each row homed at nothing. No gate sees it: the FAIL pass of `internal/le/speccitation/speccitation.go` globs `plan/spec-*.md` and never reads `plan/deferrals/` | `plan/deferrals/` (9 files) | fixed: each live row's Destination now names `plan/future/spec-ci-coverage-remaining-surfaces.md`, which lists all twelve. Terminal rows keep the historical reference as the bare stem |
 | 4 | NOTE | The TDD Unit Tests table named `TestShowYANGDoesNotOwnRelocatedCommands`. No such symbol exists; the test is `TestShowSchemaHasNoMigratedOwnerCommands` | this spec, TDD Test Plan | fixed: the row names the real test and what its banned map holds |
-| 5 | NOTE | `showInterfaceByType("")` returns every interface whose `Type` is empty with status `done`, because `wantedLower == ""` matches them and `filtered` is then non-empty, so the unknown-type refusal is never reached. Not reachable from the CLI: an empty token cannot survive tokenization, and `handleShowInterfaceType` refuses `len(args) == 0`. Reachable only by a direct RPC passing `[""]` | `showInterfaceByType`, `internal/component/iface/cmd/show_interface.go` | acknowledged, not fixed. The fix is a Go edit, and the owner requires a full `make ze-precommit-verify` before any commit carrying Go; the tree does not compile today (three sessions mid-TDD). Reported to the main thread instead of committed |
-| 6 | NOTE | `make ze-unit-hook-test` does not set `MAKEFLAGS=--no-print-directory` in its recipe, so the four `session-id-*-make-path` fixtures read a `make[1]: Entering directory` banner and fail: 444/448. `make --no-print-directory ze-unit-hook-test` is 448/448. `mk/test-unit.mk` already carries this exact fix for the sibling target `ze-unit-pkg-test`, with a comment saying a scoped target whose verdict disagrees with the full gate is worse than no scoped target | `Makefile`, the `ze-unit-hook-test` recipe | acknowledged, not fixed here. The goal does not depend on it, and a `Makefile` edit would take this commit's single focus and demand a full verify (`ai/rules/rule-precedence.md`). Reported to the main thread with the journal row text |
+| 5 | NOTE | `showInterfaceByType("")` returns every interface whose `Type` is empty with status `done`, because `wantedLower == ""` matches them and `filtered` is then non-empty, so the unknown-type refusal is never reached. Not reachable from the CLI: an empty token cannot survive tokenization, and `handleShowInterfaceType` refuses `len(args) == 0`. Reachable only by a direct RPC passing `[""]` | `showInterfaceByType`, `internal/component/iface/cmd/show_interface.go` | acknowledged, not fixed. The fix is a Go edit, and the owner requires a full `./le verify current mode full` before any commit carrying Go; the tree does not compile today (three sessions mid-TDD). Reported to the main thread instead of committed |
+| 6 | NOTE | the retired `ze-unit-hook-test` (current: `./le hook-check unit`) does not set `MAKEFLAGS=--no-print-directory` in its recipe, so the four `session-id-*-make-path` fixtures read a `make[1]: Entering directory` banner and fail: 444/448. `make --no-print-directory ze-unit-hook-test` is 448/448. `internal/le/testunit/groups.go` already carries this exact fix for the sibling target `ze-unit-pkg-test`, with a comment saying a scoped target whose verdict disagrees with the full gate is worse than no scoped target | the retired `Makefile` (current producers: `internal/le/` native action tables), the `ze-unit-hook-test` recipe | acknowledged, not fixed here. The goal does not depend on it, and a retired `Makefile` (current producers: `internal/le/` native action tables) edit would take this commit's single focus and demand a full verify (`ai/rules/rule-precedence.md`). Reported to the main thread with the journal row text |
 
 ### Fixes applied
 - `test/plugin/interface-type-show.ci`, `test/plugin/interface-errors-show.ci`: the `Exercises:` header names the wire method and handler the producer actually registers.
@@ -365,7 +365,7 @@ that instruction; both are recorded under "Reds attributed" below.
 ### Run 2 (over the fixes)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | none | The three `.ci` header rewrites carry no directive change, so no suite behavior changed. `make ze-spec-citation-check` is green and the successor spec exists in the same commit. Every finding in this round would have been a record defect, so this is the last round (`ai/rules/planning.md`) | - | - |
+|   | none | The three `.ci` header rewrites carry no directive change, so no suite behavior changed. `./le spec-citation anchors` is green and the successor spec exists in the same commit. Every finding in this round would have been a record defect, so this is the last round (`ai/rules/planning.md`) | - | - |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -376,7 +376,7 @@ that instruction; both are recorded under "Reds attributed" below.
 ### Goal Gates (MUST pass)
 - [ ] Every chosen work item has feature code + test
 - [ ] Wiring Test table complete (concrete test names, none deferred)
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Registration over hardcoding respected
 
 ### TDD
@@ -410,11 +410,11 @@ before it closed.
   handler in `internal/component/iface/cmd/show_interface.go`, and
   `test/plugin/interface-rate-show.ci` was corrected: its old assertion had
   pinned the defect.
-- The agent-tooling gates T-4 and T-5 (`.claude/hooks/mark-source-read.sh`
+- The agent-tooling gates T-4 and T-5 (`internal/le/hookruntime/lifecycle.go`
   records the KIND read; `c_design_without_lsp` in
   `.claude/hooks/pretool-writeedit.py` asks for every kind the spec's own Files to
   Modify names, each on its own clock), proven by 52 `design-gate` fixtures in
-  `scripts/dev/hook-fixture-check.py`.
+  `internal/le/`.
 - The `test/pppoe/` orphan repair (2026-08-07), which found that PPPoE never
   started from a real config: `ExtractParameters` read `interface` as a `[]any`
   while `Tree.ToMap` emits a keyed YANG list as a map.
@@ -439,7 +439,7 @@ already documents all six commands, their fields, and the aliasing defect itself
 brief | type <type> | errors`, and the note that `ze show interface brief` used
 to look for an interface called "brief". The file carries the source anchor
 `<!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->`.
-`make ze-repository-check` reports no stale anchor over any file this spec
+`./le repository check` reports no stale anchor over any file this spec
 changed. That file is uncommitted in another session's working tree today, so it
 is deliberately NOT in this commit.
 
@@ -456,7 +456,7 @@ is deliberately NOT in this commit.
 - The closure commit carries NO Go file. Three sessions are mid-TDD in
   `internal/plugins/anomaly/observe`, `internal/component/trafficfeature` and
   `internal/plugins/flowexport`, so the tree does not compile and the full
-  `make ze-precommit-verify` the owner requires before a Go commit cannot run.
+  `./le verify current mode full` the owner requires before a Go commit cannot run.
   op-1's Go was already committed, so nothing is held back by this.
 
 ## Mistake Log
@@ -476,8 +476,8 @@ is deliberately NOT in this commit.
 | cli-dispatch `.ci` (L83) | Changed | `plan/future/spec-ci-coverage-remaining-surfaces.md` item 2 | Re-homed with what blocks each half |
 | no-congestion-initial chaos `.ci` (L118) | Changed | `plan/future/spec-ci-coverage-remaining-surfaces.md` item 3 | Re-homed with the `ValidateConfigRangeConflicts` constraint |
 | gRPC-over-wire `.ci` (L40) | Changed | `plan/future/spec-ci-coverage-remaining-surfaces.md` item 4 | Re-homed. The tooling question is stated with all three candidates measured at HEAD |
-| `test/pppoe/` orphan | Done | `test/pppoe/`, `make ze-qemu-pppoe-test` | 2026-08-07 |
-| Agent-tooling gates T-4 / T-5 | Done | `.claude/hooks/mark-source-read.sh`, `.claude/hooks/pretool-writeedit.py`, `scripts/dev/hook-fixture-check.py` | 2026-08-07 |
+| `test/pppoe/` orphan | Done | `test/pppoe/`, the retired `ze-qemu-pppoe-test` (current: `./le qemu pppoe-test`) | 2026-08-07 |
+| Agent-tooling gates T-4 / T-5 | Done | `internal/le/hookruntime/lifecycle.go`, `.claude/hooks/pretool-writeedit.py`, `internal/le/` | 2026-08-07 |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -503,16 +503,16 @@ is deliberately NOT in this commit.
 | `TestIfaceInterfaceCmdSchemaOwnsInterface` | Done | `internal/component/iface/yang/show_cmd_schema_test.go` | |
 | `TestShowSchemaHasNoMigratedOwnerCommands` | Done | `internal/component/cmd/show/yang/self_containment_test.go` | The plan named it `TestShowYANGDoesNotOwnRelocatedCommands`, which is not a symbol in the tree. Corrected |
 | Five op-1 `.ci` plus the corrected `interface-rate-show.ci` | Done | `test/plugin/`, `test/parse/` | |
-| `design-gate` fixtures | Done | `scripts/dev/hook-fixture-check.py` | 52 pass |
+| `design-gate` fixtures | Done | `internal/le/` | 52 pass |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
 | `internal/test/runner/` | Changed | Not edited by this phase. Two runner limits were found instead and are recorded: one is fixed (`Tmpfs.WriteTo`), one is homed at `spec-fixit-parse-suite-helper-cannot-invoke-ze` |
 | `internal/component/cmd/show/show.go` | Done | Registers `ze-show:system-cpu` and `ze-show:system-date` |
-| `.claude/hooks/mark-source-read.sh` | Done | Records the KIND read |
+| `internal/le/hookruntime/lifecycle.go` | Done | Records the KIND read |
 | `.claude/hooks/pretool-writeedit.py` | Done | `c_design_without_lsp` asks for the spec's own subject kinds |
-| `scripts/dev/hook-fixture-check.py` | Done | The `design-gate` fixtures, both directions |
+| `internal/le/` | Done | The `design-gate` fixtures, both directions |
 
 ### Audit Summary
 - **Total items:** 7 Task requirements, 8 AC, 10 test rows, 5 file rows
@@ -527,7 +527,7 @@ is deliberately NOT in this commit.
 |------------------|---------------|-------------------|
 | Write the deferred `.ci` whose feature code already exists and is unit-tested, for the op-1 Tier-1 commands | functional | Five `.ci` written and one corrected, each read in full at closure and each asserting the behavior its AC names. **The discrimination claim is INHERITED from the implementation record, not observed at closure:** that record states each `.ci` was re-run with the behavior broken at the producer and observed to FAIL, and that the interface trio was RED against the unfixed dispatcher and turned green only when the wire methods were split. The closure did not re-run the functional suites (see "What was not run" below), so it verified the assertions by reading and did not re-measure the mutations |
 | Do it without vacuous assertions | functional | Each `.ci` refuses its own vacuous case rather than passing quietly. `interface-errors-show.ci` fails the run when no link with stats exists, and again when no CLEAN link exists, because the exclusion half of the assertion would otherwise be untested. `interface-type-show.ci` carries the unknown-type rejection precisely because a host with one interface type would let a broken filter pass the equality check. `system-date-show.ci` bounds `unix` to the observer's own window so a constant cannot pass |
-| Every chosen work item has feature code and a test | functional + unit | AC-1 to AC-8 above, each mapped to its producer and its test. `make ze-unit-pkg-test` green on all four owning packages (output below) |
+| Every chosen work item has feature code and a test | functional + unit | AC-1 to AC-8 above, each mapped to its producer and its test. `go test -race ./...` green on all four owning packages (output below) |
 | Give the agent-tooling gates a driving surface | fixture suite | A hook has no `.ci`, so the driving surface is the fixture suite: 52 `design-gate` and 35 `mark-source-read` fixtures pass, 0 fail, and 13 of the `design-gate` set red against the pre-fix gates |
 | The four undesigned items are not lost | spec | `plan/future/spec-ci-coverage-remaining-surfaces.md`, items 1 to 4, each stating what is missing and what blocks it from a producer read on 2026-08-17, plus the twelve inherited deferral rows |
 
@@ -543,7 +543,7 @@ are still live, so the shard outlives this spec (`ai/rules/planning.md`).
 | 2026-07-16 HOOK-FRICTION F4 (commit gate advises a target that writes no record) | resolved | `spec-fixit-agent-tooling-misleads` T-3, closed |
 | 2026-08-07 SECURITY: a one-prefix anomaly allowlist parses empty | deferred | `plan/spec-review-typed-config-decode.md`. Still live, still homed, verified on disk |
 | 2026-08-07 Four more readers assert a config shape `Tree.ToMap` does not emit | deferred | `plan/spec-review-typed-config-decode.md`. Still live, still homed, verified on disk |
-| 2026-08-07 `make ze-qemu-pppoe-test` is named by no aggregate target or workflow | resolved | Landed 2026-08-12 in `dee3b9aae` |
+| 2026-08-07 the retired `ze-qemu-pppoe-test` (current: `./le qemu pppoe-test`) is named by no aggregate target or workflow | resolved | Landed 2026-08-12 in `dee3b9aae` |
 | 2026-08-03 `tmpfs=...:mode=` discarded, and a parse-suite helper cannot invoke `ze` | homed | Half one landed in `dc591ec72` for the parse suite; the orchestrated half is recorded in `plan/journal/helper-bypassed-by-an-open-coded-copy.md`. Half two is `plan/future/spec-fixit-parse-suite-helper-cannot-invoke-ze.md`. `test/parse/cli-generate-wireguard-keypair.ci` was corrected in this closure: it still claimed the mode limit that `dc591ec72` fixed |
 
 **Foreign shards this closure had to touch.** Twelve live rows in nine other
@@ -563,9 +563,9 @@ seen to pass. After it, verification continued by READING producers.
 
 | Not run | Why, and what stands in for it |
 |---------|-------------------------------|
-| `make ze-precommit-verify` | Owner instruction, and it could not have passed anyway: three sessions are mid-TDD in `internal/plugins/anomaly/observe`, `internal/component/trafficfeature` and `internal/plugins/flowexport`, so the tree does not compile. The commit carries no Go, no `Makefile`, no `scripts/`, no `.yang` and nothing that reaches a binary, so the gate's own applicability table does not reach it |
+| `./le verify current mode full` | Owner instruction, and it could not have passed anyway: three sessions are mid-TDD in `internal/plugins/anomaly/observe`, `internal/component/trafficfeature` and `internal/plugins/flowexport`, so the tree does not compile. The commit carries no Go, no the retired `Makefile` (current producers: `internal/le/` native action tables), no the retired `scripts/` (current producer: `internal/le/`), no `.yang` and nothing that reaches a binary, so the gate's own applicability table does not reach it |
 | The functional suites (`ze-functional-plugin-test`, `ze-functional-parse-test`) | Owner instruction, and the same non-compiling tree. The six `.ci` were read in full instead. The only `.ci` edits in this commit are header comments: no `cmd=`, `expect=`, `reject=`, `option=` or `tmpfs=` directive changed, so no suite behavior can have changed |
-| `make ze-doc-verify` (full) | Started before the instruction and read: its `Documentation drift` and `YANG/handler contract` stages passed, and its ONLY failure was `WARNING: ai/DOCS-TO-CODE.md is stale -- run: make ze-discovery-index-update`. That generated index is stale from an untracked `anomaly-observe` plugin belonging to another session, and it is on this closure's do-not-touch list |
+| `./le doc-check verify` (full) | Started before the instruction and read: its `Documentation drift` and `YANG/handler contract` stages passed, and its ONLY failure was `WARNING: ai/DOCS-TO-CODE.md is stale -- run: ./le discovery-index update`. That generated index is stale from an untracked `anomaly-observe` plugin belonging to another session, and it is on this closure's do-not-touch list |
 | A re-measurement of the `.ci` mutation discrimination | Owner instruction. The claim is inherited from the implementation record and is labelled as inherited in Goal Validation |
 
 ### Files Exist (ls)
@@ -582,10 +582,10 @@ seen to pass. After it, verification continued by READING producers.
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1, AC-2 | The two system handlers produce the named fields | Read `internal/component/cmd/show/system.go` at the producer: `handleShowSystemCPU` and `handleShowSystemDate`. `make ze-unit-pkg-test PKG=./internal/component/cmd/show` -> `ok github.com/ze-software/ze/internal/component/cmd/show 1.119s` |
-| AC-3, AC-4, AC-5, AC-8 | The four forms reach their own handlers and shapes | Read `internal/component/iface/cmd/show_interface.go`: eight `RPCRegistration` entries, `showInterfaceByType`, `showInterfaceErrors`, `showInterfaceBrief`. `make ze-unit-pkg-test PKG=./internal/component/iface/cmd` -> `ok ... 1.063s` (race-instrumented) |
-| AC-6, AC-7 | The argument guard fires before `wg genkey`, and the pipe is genkey -> pubkey | Read `RunWgKeypair` (`internal/plugins/diag/diag.go`). `make ze-unit-pkg-test PKG=./internal/plugins/diag` -> `ok ... 1.029s` |
-| AC-8 (schema halves) | The owning module declares the four, the central one declares none | `make ze-unit-pkg-test PKG=./internal/component/iface/yang` and `PKG=./internal/component/cmd/show/yang`, both `ok` |
+| AC-1, AC-2 | The two system handlers produce the named fields | Read `internal/component/cmd/show/system.go` at the producer: `handleShowSystemCPU` and `handleShowSystemDate`. `go test -race ./internal/component/cmd/show` -> `ok github.com/ze-software/ze/internal/component/cmd/show 1.119s` |
+| AC-3, AC-4, AC-5, AC-8 | The four forms reach their own handlers and shapes | Read `internal/component/iface/cmd/show_interface.go`: eight `RPCRegistration` entries, `showInterfaceByType`, `showInterfaceErrors`, `showInterfaceBrief`. `go test -race ./internal/component/iface/cmd` -> `ok ... 1.063s` (race-instrumented) |
+| AC-6, AC-7 | The argument guard fires before `wg genkey`, and the pipe is genkey -> pubkey | Read `RunWgKeypair` (`internal/plugins/diag/diag.go`). the retired `ze-unit-pkg-test PKG=./internal/plugins/diag` (current: `go test -race ./internal/plugins/diag`) -> `ok ... 1.029s` |
+| AC-8 (schema halves) | The owning module declares the four, the central one declares none | `go test -race ./internal/component/iface/yang` and `PKG=./internal/component/cmd/show/yang`, both `ok` |
 | T-4 | The gate asks for the kind the spec names | `make --no-print-directory ze-unit-hook-test` -> `hook fixture check: 448/448 passed`, `OK`. 52 `design-gate` fixtures pass, 0 fail |
 
 ### Wiring Verified (end-to-end)
@@ -597,8 +597,8 @@ seen to pass. After it, verification continued by READING producers.
 | `.ci` dispatches `show interface errors` | `test/plugin/interface-errors-show.ci` | read in full: reference set built from `show interface`, both directions asserted, both vacuity cases refused |
 | `.ci` runs `ze generate wireguard keypair` | `test/parse/cli-generate-wireguard-keypair.ci` | read in full: `exec=ze generate wireguard keypair extra-arg`, exit 1, both stderr strings, `reject=stdout:contains=private:` |
 | `.ci` dispatches `show interface rate` and `rate <name>` | `test/plugin/interface-rate-show.ci` | read in full: both forms, and the named form asserts the exact refusal string so a dropped argument reddens it |
-| a Read of a hook / model / tool | `scripts/dev/hook-fixture-check.py` | `mark-source-read-writes-*` fixtures cover go, py, sh, make and yang, with must-not-fire cases for docs, specs, JSON and `.ci` |
-| a spec Write | `scripts/dev/hook-fixture-check.py` | 52 `design-gate` fixtures |
+| a Read of a hook / model / tool | `internal/le/` | `mark-source-read-writes-*` fixtures cover go, py, sh, make and yang, with must-not-fire cases for docs, specs, JSON and `.ci` |
+| a spec Write | `internal/le/` | 52 `design-gate` fixtures |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -609,7 +609,7 @@ seen to pass. After it, verification continued by READING producers.
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
 | CLI reference for the six commands | `docs/guide/command-reference.md` lists `show system cpu` and `show system date` with their exact field sets, and the `show interface` forms `brief`, `type <type>` and `errors` with the aliasing note | yes, already current. No edit needed, and the file is another session's uncommitted work today so it is not in this commit |
-| Source anchors over the changed files | `grep "source: internal/component/cmd/show/system.go"` finds the anchor in `docs/guide/command-reference.md`; `make ze-repository-check` reports no stale anchor over any file this spec changed | yes |
+| Source anchors over the changed files | `grep "source: internal/component/cmd/show/system.go"` finds the anchor in `docs/guide/command-reference.md`; `./le repository check` reports no stale anchor over any file this spec changed | yes |
 | New gate or tool needing an `ai/INDEX.md` row | T-4 and T-5 changed existing gates rather than adding one; `ai/rules/repo-maintenance.md` already routes the hook gates | yes |
 
 ## Core Insight
@@ -617,7 +617,7 @@ seen to pass. After it, verification continued by READING producers.
 A spec that becomes the catch-all destination for a class of deferred work
 acquires citers that no gate reads. Twelve live deferral rows named this spec as
 their home, and commit B would have orphaned every one of them silently: the FAIL
-pass of `scripts/dev/spec-citation-check.py` globs `plan/spec-*.md`, so
+pass of `internal/le/speccitation/speccitation.go` globs `plan/spec-*.md`, so
 `plan/deferrals/` is invisible to it. The closure step added on 2026-08-10 checks
 spec-to-spec citations and nothing else. An umbrella is therefore more expensive
 to close than the work it holds, and the cost is proportional to how many rows

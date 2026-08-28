@@ -13,6 +13,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+const protocolKey = "protocol"
+
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
@@ -132,7 +134,7 @@ func renderFlow(f ConntrackFlow) plugin.Map {
 		"dst-addr":  f.DstAddr.String(),
 		"src-port":  int(f.SrcPort),
 		"dst-port":  int(f.DstPort),
-		"protocol":  int(f.Protocol),
+		protocolKey: int(f.Protocol),
 		"bytes":     f.Bytes,
 		"packets":   f.Packets,
 		"tcp-state": int(f.TCPState),

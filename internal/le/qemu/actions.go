@@ -6,15 +6,15 @@
 // actions.go is the table. The dispatch, the listing, the help line and the two
 // refusals are internal/le/leaction, which every ported area shares.
 //
-// THE AREA IS THE GATE-NAME FAMILY, not the directory the script came from.
+// THE AREA IS THE GATE-NAME FAMILY, not its former script directory.
 // `ze-qemu-vpp-hugepages-test` begins ze-qemu-. leaction removes `ze-<area>-`
 // and nothing else to derive each verb. This gate therefore cannot be a row of
-// internal/le/integration unless it is typed as its own whole name. It came out of
-// scripts/evidence beside the ze-deployment- family. The two split here for the
-// same reason that they are two Make target families.
+// internal/le/integration unless it is typed as its own whole name. The qemu
+// and deployment families remain separate because they own separate evidence
+// concerns.
 //
-// Host-side ze-qemu- Make gates keep their Gate identity here. Guest-side
-// evidence has no Make route until the step-14 swap, so those actions use Verb.
+// Host-side and guest-side evidence actions share this native area and its
+// explicit verbs.
 
 package qemu
 
@@ -33,15 +33,12 @@ import (
 const area = "qemu"
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-qemu-vpp-hugepages-test",
-		Why: "boot-time hugepage reservation, end to end: build an appliance carrying" +
-			" image.hugepages, boot it, then assert `show host kernel` and `show host" +
-			" memory` over the Ze CLI. Self-skips when qemu, sshpass, e2fsprogs or go" +
-			" are absent; on Linux it needs membership of the kvm group" +
-			" (make ze-dev-setup checks it as kvm-access)",
-		Answer: runHugepagesHere,
-	},
+	leaction.Action{Verb: "vpp-hugepages-test", Why: "boot-time hugepage reservation, end to end: build an appliance carrying" +
+		" image.hugepages, boot it, then assert `show host kernel` and `show host" +
+		" memory` over the Ze CLI. Self-skips when qemu, sshpass, e2fsprogs or go" +
+		" are absent; on Linux it needs membership of the kvm group" +
+		" (`./le setup check` reports it as kvm-access)",
+		Answer: runHugepagesHere},
 	leaction.Action{
 		Verb: "run",
 		Why: "boot an Alpine Linux guest, share this checkout, install the requested" +
@@ -106,21 +103,12 @@ var actions = leaction.New(area,
 		Answer: runPPPoENetnsHere,
 	},
 	leaction.Action{
-		// No Make target names this one, and that is not an oversight. The
-		// ze-qemu- targets run on the HOST: each cross-compiles three binaries
-		// and boots a VM. This action is what runs INSIDE that VM, so its
-		// caller is the guest command line rather than a gate
-		// (mk/test-integration.mk, the --run string).
+		// This action runs inside the VM. Its caller is the command value passed
+		// to the host qemu run action.
 		Verb: "all-tests",
 		Why: "the whole ze test suite, inside the QEMU Linux VM: every functional suite at a" +
 			" VM-appropriate concurrency, the unit pass, and the integration-tagged tests." +
 			" Refuses to start outside the guest, or with a suite list that has a hole in it",
-		// The unit phase still delegates its work to another program. It calls
-		// the Makefile's own -impl body and does not compile the package set
-		// itself. The table declares this call so the census reads what this
-		// action starts from the table rather than from the code
-		// (internal/le/leaction, Forks).
-		Forks:  []string{"make", "_ze-unit-test-cached-impl"},
 		Answer: runAllTestsHere,
 	},
 )
@@ -128,10 +116,6 @@ var actions = leaction.New(area,
 // Actions answers the command surface as data, so the listing, the Subs line
 // help renders, and the test that checks them all read one table.
 func Actions() leaction.List { return actions.Actions() }
-
-// Gates answers the Make target of every action that has one, which is what the
-// census claims.
-func Gates() []string { return actions.Gates() }
 
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
@@ -147,7 +131,7 @@ func runHugepagesHere() (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runHugepages(NewHugepages(root))
+	return runHugepages(newHugepages(root))
 }
 
 // runHugepages answers the proof over one run.
@@ -169,7 +153,7 @@ func runHugepages(run *Hugepages) (HugepagesReport, int) {
 
 // runQEMUHere runs the host harness over this checkout.
 func runQEMUHere(args leaction.Arguments) (any, int) {
-	options, err := ParseRunArguments(args)
+	options, err := parseRunArguments(args)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -269,7 +253,7 @@ func signalExitCode(caught os.Signal) int {
 // another location, it would use the host's tree with the guest's assumptions.
 // The mount is the precondition, and the refusal names it.
 func runAllTestsHere() (any, int) {
-	report, code := NewAllTests().Execute()
+	report, code := newAllTests().Execute()
 	if len(report.Phases) == 0 {
 		// The run never started. Its refusal is already on stderr. A report with
 		// no phases does not answer "what did the VM prove". `| json` would put

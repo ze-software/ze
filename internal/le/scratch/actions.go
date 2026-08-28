@@ -4,6 +4,7 @@ package scratch
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -12,25 +13,20 @@ import (
 )
 
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate: "ze-scratch-links-ensure",
-		Why: "point the tmp/ and cache/ symlinks at their out-of-tree targets before any" +
-			" target writes scratch. This replaces the old tmp/go.mod nested-module" +
-			" sentinel: `go list ./...` skips a directory SYMLINK named tmp/ (verified)," +
-			" so no marker file is needed (plan/spec-relocate-scratch-and-cache.md)",
+	leaction.Action{Verb: "links-ensure", Why: "point the tmp/ and cache/ symlinks at their out-of-tree targets before any" +
+		" target writes scratch. This replaces the old tmp/go.mod nested-module" +
+		" sentinel: `go list ./...` skips a directory SYMLINK named tmp/ (verified)," +
+		" so no marker file is needed (plan/spec-relocate-scratch-and-cache.md)",
+		Writes:     true,
+		Parameters: []leaction.Parameter{{Keyword: "quiet"}},
+		AnswerArgs: runEnsure},
+	leaction.Action{Verb: "migrate", Why: "the same cutover for a checkout whose tmp/ or cache/ is still a REAL" +
+		" directory: move its entries to the out-of-tree target and leave a symlink" +
+		" behind, refusing rather than clobbering a name the target already holds" +
+		" (internal/le/scratch/move.go, migrate). A path that is already a symlink" +
+		" needs no migration and takes the ensure route instead",
 		Writes: true,
-		Answer: runEnsure,
-	},
-	leaction.Action{
-		Gate: "ze-scratch-migrate",
-		Why: "the same cutover for a checkout whose tmp/ or cache/ is still a REAL" +
-			" directory: move its entries to the out-of-tree target and leave a symlink" +
-			" behind, refusing rather than clobbering a name the target already holds" +
-			" (scripts/dev/ensure-links.py, migrate). A path that is already a symlink" +
-			" needs no migration and takes the ensure route instead",
-		Writes: true,
-		Answer: runMigrate,
-	},
+		Answer: runMigrate},
 )
 
 // Actions answers the command surface as data.
@@ -42,14 +38,19 @@ func Subs() string { return actions.Subs() }
 // Answer is the le scratch command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-func runEnsure() (any, int) {
+func runEnsure(arguments leaction.Arguments) (any, int) {
 	manager, err := managerHere()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	return answerEnsure(manager, arguments, os.Stderr)
+}
+
+func answerEnsure(manager *Manager, arguments leaction.Arguments, stderr io.Writer) (Report, int) {
 	report, code := manager.Ensure(false)
-	writeErrors(report)
+	report.Quiet = arguments.Has("quiet")
+	writeErrors(stderr, report)
 	return report, code
 }
 
@@ -60,7 +61,7 @@ func runMigrate() (any, int) {
 		return nil, 1
 	}
 	report, code := manager.Migrate(false)
-	writeErrors(report)
+	writeErrors(os.Stderr, report)
 	return report, code
 }
 
@@ -80,10 +81,10 @@ func managerHere() (*Manager, error) {
 	return New(root, os.Environ()), nil
 }
 
-func writeErrors(report Report) {
+func writeErrors(stderr io.Writer, report Report) {
 	for _, result := range report.Results {
 		if result.Stderr {
-			fmt.Fprintln(os.Stderr, result.Line) //nolint:errcheck // CLI diagnostic output
+			fmt.Fprintln(stderr, result.Line) //nolint:errcheck // CLI diagnostic output
 		}
 	}
 }

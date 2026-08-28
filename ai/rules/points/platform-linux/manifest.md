@@ -40,9 +40,9 @@ how-to-write-a-qemu-integration-test ## How to Write a QEMU Integration Test
   skip-example-for-a-missing-net-admin-capability
   dataplane-counters-need-a-real-remote-peer
   a-dataplane-counter-owes-an-egress-and-a-positive-control
-  register-the-package-in-the-makefile
-  add-your-package-to-the-qemu-run-argument
-  where-to-add-a-package-in-the-target
+  register-the-package-in-the-native-qemu-inventory
+  add-your-package-to-the-native-qemu-inventory
+  where-to-add-a-package-in-the-native-inventory
   add-extra-alpine-packages-to-packages
 interop-labs-and-docker-based-tests-need-a-qemu-runner-too ## Interop Labs and Docker-Based Tests Need a QEMU Runner Too
   ship-a-qemu-path-beside-every-docker-interop-lab

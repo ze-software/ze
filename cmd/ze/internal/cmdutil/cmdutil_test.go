@@ -664,7 +664,7 @@ func TestLocalHandlerWithFormatKeywordPathStillRuns(t *testing.T) {
 // argv, one by one so a failure says which one.
 //
 // IT DOES NOT PROTECT THE HARNESS, AND NOTHING HERE DOES. Every scenario query
-// now goes through Ze.cli (test/interop/interop.py), which runs `ze cli -c` and
+// now goes through the native interop runner, which dispatches `ze cli -c` and
 // therefore never enters RunCommand at all. `show isis neighbor` is asked of
 // FRR's vtysh, not of ze, and `show bgp peer list` appears nowhere under
 // test/interop/. Only `show bgp rib status` is a live harness query, and it

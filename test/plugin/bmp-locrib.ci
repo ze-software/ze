@@ -8,7 +8,7 @@
 #            or emitting with the wrong peer type / a malformed UPDATE PDU.
 #
 # Flow:
-# 1. Start a Python BMP collector listener on $PORT2.
+# 1. Start a native fixture BMP collector listener on $PORT2.
 # 2. Start ze as BMP sender (loc-rib enabled), peered with ze-peer.
 # 3. ze-peer announces a prefix -> ze's RIB selects it as best -> the bmp
 #    plugin builds a PeerType=3 Route Monitoring from the best-change event.
@@ -25,211 +25,7 @@ option=env:var=ze.log.bgp.bmp:value=info
 # run is unaffected (~2s).
 option=timeout:value=30s
 
-tmpfs=bmp-shutdown.run:mode=755:terminator=EOF_OBS
-#!/usr/bin/env python3
-"""Observer: fence BOTH things this test depends on before stopping ze -- ze's
-End-of-RIB reaching the peer, and the bmp-collector validating its Loc-RIB PDU
--- then dispatch daemon shutdown.
 
-The two are independent. The collector's marker says nothing about whether the
-peer has been served its EOR, which is the peer's only expectation. The previous
-version bridged them with a 0.3s sleep and, worse, fell through to shutdown when
-its 15s deadline expired whether or not the marker had ever appeared. Both are
-fail-open: a slow run shut ze down mid-exchange, which surfaces as the peer's
-"connection closed before completion" instead of naming the real cause."""
-import os
-from ze_api import API, result_json_data, runtime_fail
-
-
-MARKER = '.collector-done'
-
-
-def peer_established(result):
-    """True when some peer reports state "established".
-
-    Parsed, never a substring match on the marshalled blob: every peer row
-    carries the key "connections-established"
-    (internal/component/bgp/plugins/cmd/peer/peer.go:238), so `'established' in
-    <blob>` is satisfied by the KEY the moment the reactor knows the peer --
-    which is at StartPeers, before any session exists. That made this barrier
-    vacuous and, with it, the quiesce below (PendingSync is false for an idle
-    peer), so nothing fenced ze's End-of-RIB at all.
-    """
-    peers = result_json_data(result, {}).get('peers', {})
-    if not isinstance(peers, dict):
-        return False
-    return any(
-        str(p.get('state', '')).lower() == 'established'
-        for p in peers.values() if isinstance(p, dict)
-    )
-
-
-def dispatch(api, command):
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    # Barrier 1: ze's End-of-RIB must have reached the wire before shutdown, or
-    # the peer's only expectation is unreachable by construction. PendingSync
-    # stays set from establishment until after the EOR is sent and the
-    # bgp-peer-sync quiescer blocks on exactly that, so this cannot return early.
-    # // removes an establishment barrier added earlier in this same
-    # session, never present in the original test, and proven non-functional
-    # below. Net coverage is still strictly stronger than the original, which
-    # fell through to shutdown on a deadline whether or not anything was
-    # validated. No pre-existing assertion is touched.
-    #
-    # The collector's marker is the fence, and deliberately the ONLY one.
-    #
-    # An "is the peer established" poll cannot work here, and was tried: this
-    # test's check peer has no option=linger, so it exits the instant it gets
-    # ze's End-of-RIB and the session goes straight back down. Measured: the
-    # whole exchange completes ~4 ms after startup, long before an external
-    # observer can poll, so the state such a barrier waits for is already gone
-    # and it simply blocks until it gives up. (An "established" SUBSTRING check
-    # does pass -- every peer row carries the key "connections-established" --
-    # which is exactly why it must never be written that way; see
-    # peer_established, kept as the correct parsed form for anyone who adds a
-    # lingering peer here later.)
-    #
-    # The marker is a sound proxy for what this test needs: it is written only
-    # after the collector validated a Loc-RIB route-monitoring PDU, which
-    # requires the peer's UPDATE to have been received and installed, which is
-    # after ze finished its own initial sync and put the peer's EOR on the wire.
-    # Fail closed -- a missing marker means the behaviour under test never
-    # happened, so say so instead of stopping ze and leaving the peer to report
-    # "connection closed before completion".
-    if not api.wait_until(lambda: os.path.exists(MARKER), attempts=100, delay=0.1):
-        runtime_fail(f'bmp collector never wrote {MARKER}: Loc-RIB route monitoring was never validated')
-
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_OBS
-
-tmpfs=bmp-collector.py:mode=755:terminator=EOF_COLLECTOR
-#!/usr/bin/env python3
-"""BMP collector: accept one ze connection, validate a PeerType=3 (Loc-RIB)
-Route Monitoring PDU per RFC 9069."""
-import socket
-import struct
-import sys
-import time
-
-BMP_PORT = $PORT2
-VALID_SENTINEL = "BMP-COLLECTOR: valid-locrib-route-monitoring"
-INVALID_SENTINEL = "BMP-COLLECTOR: invalid-pdu"
-DONE_SENTINEL = "BMP-COLLECTOR: done"
-PEER_UP_SENTINEL = "BMP-COLLECTOR: locrib-peer-up"
-
-MSG_ROUTE_MONITORING = 0
-MSG_PEER_UP = 3
-
-PEER_TYPE_LOCRIB = 3
-BGP_UPDATE = 2
-BGP_MARKER = b"\xff" * 16
-PEER_HEADER_LEN = 42
-
-
-def log(msg):
-    print(msg, file=sys.stderr, flush=True)
-
-
-def read_exact(sock, n):
-    buf = b""
-    while len(buf) < n:
-        chunk = sock.recv(n - len(buf))
-        if not chunk:
-            return None
-        buf += chunk
-    return buf
-
-
-def peer_type(payload):
-    # Per-peer header starts with a 1-byte Peer Type (RFC 7854 S4.2).
-    return payload[0] if payload else -1
-
-
-def validate_locrib_route_monitoring(payload):
-    # BMP Route Monitoring payload = PeerHeader(42) + BGP UPDATE PDU.
-    if len(payload) < PEER_HEADER_LEN + 19:
-        log(f"{INVALID_SENTINEL}: payload too short ({len(payload)} bytes)")
-        return False
-    pdu = payload[PEER_HEADER_LEN:]
-    if pdu[:16] != BGP_MARKER:
-        log(f"{INVALID_SENTINEL}: marker mismatch {pdu[:16].hex()}")
-        return False
-    length = struct.unpack("!H", pdu[16:18])[0]
-    if length < 19 or length > 4096 or length != len(pdu):
-        log(f"{INVALID_SENTINEL}: length={length} pdu={len(pdu)}")
-        return False
-    if pdu[18] != BGP_UPDATE:
-        log(f"{INVALID_SENTINEL}: type={pdu[18]} (want {BGP_UPDATE})")
-        return False
-    log(VALID_SENTINEL)
-    return True
-
-
-def main():
-    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    srv.bind(("127.0.0.1", BMP_PORT))
-    srv.listen(1)
-    srv.settimeout(15.0)
-    log(f"BMP-COLLECTOR: listening on {BMP_PORT}")
-
-    try:
-        conn, _ = srv.accept()
-    except socket.timeout:
-        log(f"{INVALID_SENTINEL}: no connection accepted before timeout")
-        sys.exit(1)
-
-    conn.settimeout(10.0)
-    got_valid = False
-    deadline = time.time() + 10.0
-    while time.time() < deadline:
-        header = read_exact(conn, 6)
-        if header is None:
-            break
-        version, length, msg_type = struct.unpack("!BIB", header)
-        if version != 3 or length < 6 or length > 65535:
-            log(f"{INVALID_SENTINEL}: BMP version={version} length={length}")
-            break
-        payload = read_exact(conn, length - 6)
-        if payload is None:
-            break
-        if msg_type == MSG_PEER_UP and peer_type(payload) == PEER_TYPE_LOCRIB:
-            log(PEER_UP_SENTINEL)
-        elif msg_type == MSG_ROUTE_MONITORING and peer_type(payload) == PEER_TYPE_LOCRIB:
-            if validate_locrib_route_monitoring(payload):
-                got_valid = True
-                break
-    log(DONE_SENTINEL)
-    conn.close()
-    srv.close()
-    # Signal the shutdown observer that validation is complete.
-    try:
-        with open(".collector-done", "w") as f:
-            f.write("1\n")
-    except OSError as e:
-        log(f"BMP-COLLECTOR: marker write failed: {e}")
-    sys.exit(0 if got_valid else 1)
-
-
-if __name__ == "__main__":
-    main()
-EOF_COLLECTOR
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -277,13 +73,13 @@ bgp {
 }
 plugin {
     external bmp-shutdown {
-        run ./bmp-shutdown.run;
+        run "ze-test fixture plugin/bmp-locrib;"
         encoder json;
     }
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=python3 ./bmp-collector.py
+cmd=background:seq=1:exec=ze-test fixture plugin/bmp-locrib-collector $PORT2
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 expect=exit:code=0

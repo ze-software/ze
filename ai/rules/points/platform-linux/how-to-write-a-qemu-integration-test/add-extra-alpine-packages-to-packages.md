@@ -3,5 +3,4 @@ kind: note
 level:
 stage:
 ---
-If your tests need extra Alpine packages (e.g., `strace`, `util-linux`), add
-them to `--packages`.
+If a focused VM run needs extra Alpine packages such as `strace` or `util-linux`, pass them after the `packages` keyword to `./le qemu run`.

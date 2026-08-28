@@ -5,9 +5,9 @@
 // //go:embed cannot reach outside its own package. check.go is the read-only
 // twin that gates the result.
 //
-// `make generate` and `make ze-vendor-web-sync` still reach the script this
-// replaces: nothing routes here until the swap (plan/spec-le-is-a-ze-binary.md,
-// step 14).
+// `./le vendor-web sync` is the sole first-party producer for consumer copies.
+// Check and sync therefore share this implementation and cannot drift across
+// separate helpers.
 //
 // Source of truth: third_party/web/. See third_party/web/MANIFEST.md.
 

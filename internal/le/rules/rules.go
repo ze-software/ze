@@ -3,15 +3,14 @@
 // Detail: points.go -- the split these spellings are printed by
 // Detail: digest.go -- the parse the two generated artifacts are built from
 // Detail: index.go -- the greppable map of the corpus
-// Detail: actions.go -- the eleven actions this corpus is read for
+// Detail: actions.go -- the eleven gates and transcript report this corpus serves
 //
-// Package rules owns the checks for `ai/rules/`. These checks cover the rendered
-// rule format, source point files, and hook-to-point bindings.
+// Package rules owns the checks and reports for `ai/rules/`. They cover the
+// rendered rule format, source point files, hook bindings, and session reads.
 //
-// One package answers all three questions from one corpus predicate. The Python
-// scripts each defined which files were rules. A rules_points.py comment warned
-// that a fourth definition would drift. Go uses one RuleFiles function, so this
-// drift has no place to occur.
+// Every consumer uses one corpus predicate. The Python scripts each defined
+// which files were rules. Go uses one ruleFiles function, so this drift has no
+// place to occur.
 //
 // Python formats answers with str.strip, repr(), and list literals. This port
 // preserves those forms instead of improving them. Both implementations run
@@ -51,18 +50,18 @@ const (
 var skip = map[string]bool{"INDEX.md": true, "CONDENSED.md": true}
 
 // isArtifact reports whether a file beside the rules is a generated aggregate
-// rather than a rule. It is the predicate rules_lint.main, rules_points.rule_files
-// and rule_coverage.load_rules each spelled separately.
+// rather than a rule. The Python tools rules_lint, rules_points, and
+// rule_coverage each spelled this predicate separately.
 func isArtifact(name string) bool {
 	return skip[name] || isUpperStem(strings.TrimSuffix(name, ".md"))
 }
 
-// RuleFiles answers the rule corpus under rulesDir: every `*.md` that is not a
+// ruleFiles answers the rule corpus under rulesDir: every `*.md` that is not a
 // generated artifact, sorted by name.
 //
 // The glob is not recursive, so `points/` stays invisible to it, which is what
 // lets the point tree live inside the rules directory.
-func RuleFiles(rulesDir string) ([]string, error) {
+func ruleFiles(rulesDir string) ([]string, error) {
 	entries, err := os.ReadDir(rulesDir)
 	if err != nil {
 		return nil, err

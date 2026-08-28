@@ -1,0 +1,4 @@
+failed     2 [0, A]
+timed out  1 [B]
+To debug failed tests, run individually:
+  ze-test exabgp 0

@@ -137,11 +137,11 @@ func TestRootPrefersAnExistingDatedDirectory(t *testing.T) {
 	}
 }
 
-// VALIDATES: Root resolves a path without creating it, so make and Go can both
-// ask for the directory and neither mints one (make's recipes and
-// EnsureScratchRoot are the two places that create it).
-// PREVENTS: `make ze-session-binary-path` or a runner probe leaving an empty dated directory
-// behind for every id it was ever asked about.
+// VALIDATES: Root resolves a path without creating it, so native session
+// actions and Go callers can both ask for the directory without minting one;
+// EnsureScratchRoot and native session actions are the places that create it.
+// PREVENTS: a native session path probe or runner probe leaving an empty dated
+// directory behind for every id it was ever asked about.
 func TestRootCreatesNothing(t *testing.T) {
 	base := t.TempDir()
 	setSession(t, "sid-one")
@@ -216,7 +216,7 @@ func TestDefaultScratchRootEmptyOffSession(t *testing.T) {
 }
 
 // VALIDATES: ZE_TEST_NO_BUILD keeps working under a session when the binaries
-// were pre-built into the SHARED bin/ (make ze-build off-session, or a cross-compile).
+// were pre-built into the SHARED bin/ by a manual or cross-compile.
 // PREVENTS: session scoping turning a good prebuilt binary into a "missing
 // binary" error -- scoping is about builds clobbering, not about reads.
 func TestFindPrebuiltDirPrefersSessionThenShared(t *testing.T) {
@@ -266,7 +266,7 @@ func TestFindPrebuiltDirPrefersSessionThenShared(t *testing.T) {
 
 // VALIDATES: the checkout root is found past tmp/'s tracked sentinel module.
 // PREVENTS: repoRoot stopping at tmp/go.mod (`module ze-tmp-scratch`, written by
-// scripts/dev/ensure-links.py so `go list ./...` skips the caches) and reporting
+// internal/le/scratch/move.go so `go list ./...` skips the caches) and reporting
 // tmp/ as the root -- which puts the scratch root at
 // tmp/tmp/session/<date>-<id>, a real directory returned with no error and
 // owned by nothing.

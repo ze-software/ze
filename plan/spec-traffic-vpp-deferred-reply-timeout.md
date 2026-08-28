@@ -90,7 +90,7 @@ This work was homed from the 2026-08-07 row of
 - [ ] `internal/component/vpp/conn.go` - `(*Connector).NewChannel` delegates to `c.conn.NewAPIChannel()` on the one shared govpp `Connection`.
 - [ ] `vendor/go.fd.io/govpp/core/channel.go` - `SetReplyTimeout` writes the field; `receiveReplyInternal` substitutes `maxInt64` for a value at or below zero; `ErrReplyTimeout` is what it returns when the timer fires; `Reset` does not touch the field.
 - [ ] `vendor/go.fd.io/govpp/core/connection.go` - `DefaultReplyTimeout` is 0, and the `channelPool` factory installs it on every freshly allocated channel.
-- [ ] `mk/test-integration.mk` - `ZE_QEMU_INTEGRATION_PKGS` derives from the `integration && linux` tag; the `ze-qemu-integration-test` recipe appends `./internal/plugins/firewall/vpp/...` explicitly, and the comment above the variable gives the reason: that package's tests are linux-tagged but not integration-tagged, and still need a Linux GOOS to compile.
+- [ ] `internal/le/integration/gates.go` - `ZE_QEMU_INTEGRATION_PKGS` derives from the `integration && linux` tag; the `ze-qemu-integration-test` recipe appends `./internal/plugins/firewall/vpp/...` explicitly, and the comment above the variable gives the reason: that package's tests are linux-tagged but not integration-tagged, and still need a Linux GOOS to compile.
 - [ ] `internal/component/traffic/yang/ze-traffic-control-conf.yang` - the config tree is `traffic / control / backend` and `traffic / control / interface`. No `environment` container exists under it.
 
 **Behavior to preserve:**
@@ -144,7 +144,7 @@ This work was homed from the 2026-08-07 row of
 - `(*backend).Apply` (`backend_linux.go`) - the one call site that constructs the ops value.
 - `govppOps` (`ops_linux.go`) - the type the constructor returns; unchanged.
 - `env.MustRegister` and `env.GetDuration` (`internal/core/env`) - the knob.
-- `ze-qemu-integration-test` (`mk/test-integration.mk`) - the target that must name this package so a darwin checkout still runs its Linux-only tests.
+- `ze-qemu-integration-test` (`internal/le/integration/gates.go`) - the target that must name this package so a darwin checkout still runs its Linux-only tests.
 
 ### Architectural Verification
 
@@ -174,7 +174,7 @@ This work was homed from the 2026-08-07 row of
 |----|------|--------------|----------------------|
 | R-1 | The deadline fires on a legitimately slow apply and turns a working configuration into a failed one | a traffic apply fails with a reply-timeout error on a VPP that later answers | the 60s ceiling is reachable through the env knob without a rebuild; the default matches the firewall backend that has run with it since 2026-08-10 |
 | R-2 | The test binds the deadline on a fake and never proves the production path, because `Apply` needs a live VPP connection that a unit test cannot make | the test passes while `Apply` still builds the inline literal | RETIRED 2026-08-23. The planned mitigation was a one-off audit grep, and review round 1 judged that too weak for what the code's own comments were claiming: an audit step nobody repeats is not an invariant. `TestGovppOpsIsBuiltOnlyByItsConstructor` (`internal/plugins/traffic/vpp/ops_construction_test.go`) now parses the package's own sources and fails on a `govppOps` built outside the constructor, and fails again when it finds none at all. The link the unit test could not make is made by a test rather than by a habit |
-| R-3 | The QEMU line is edited and the package still does not run there, because the recipe's shell command accepts a package pattern that matches nothing | `make ze-qemu-integration-test` passes without naming a traffic test | read the run output for a line naming `internal/plugins/traffic/vpp`, not only for a zero exit |
+| R-3 | The QEMU line is edited and the package still does not run there, because the recipe's shell command accepts a package pattern that matches nothing | `./le qemu run command "./le qemu all-tests"` passes without naming a traffic test | read the run output for a line naming `internal/plugins/traffic/vpp`, not only for a zero exit |
 | R-4 | The reviewer reads the missing error tagging as an omission rather than a decision | a review finding proposing a traffic equivalent of `firewall.ErrKernelTimeout` | Key Design Decisions records why the sentinel is firewall-only: it exists to drive a metric and a rollback skip, and traffic has neither |
 
 ## Blast Radius
@@ -205,7 +205,7 @@ dependency.
 | AC-2 | `ze.traffic.vpp.reply-timeout` is unset | The deadline is 10 seconds |
 | AC-3 | `ze.traffic.vpp.reply-timeout` is set to zero, to a negative duration, to a value below 1 second, above 60 seconds, or to text that does not parse as a duration | The deadline clamps into the range 1 second to 60 seconds. Zero is never installed, because zero is govpp's spelling of "no deadline" and is the defect being removed |
 | AC-4 | `ze env list` runs on Linux | `ze.traffic.vpp.reply-timeout` appears, with its type, its default and a description that says what an unbounded call would cost |
-| AC-5 | `make ze-qemu-integration-test` runs from any host | The run output names `internal/plugins/traffic/vpp` and its tests pass inside the VM, so the Linux-only proof of AC-1 is not reachable only from a Linux workstation |
+| AC-5 | `./le qemu run command "./le qemu all-tests"` runs from any host | The run output names `internal/plugins/traffic/vpp` and its tests pass inside the VM, so the Linux-only proof of AC-1 is not reachable only from a Linux workstation |
 | AC-6 | The `SetReplyTimeout` call is removed from the constructor and the tests are re-run | `TestNewGovppOpsBindsReplyTimeout` fails and names the missing call. The RED output is pasted into the TDD checklist |
 
 ## End-to-End User Stories
@@ -291,7 +291,7 @@ any wire; it installs a client-side deadline.
 ## Files to Modify
 
 - `internal/plugins/traffic/vpp/backend_linux.go` - the last statement of `(*backend).Apply` uses the constructor instead of the inline `&govppOps{ch: ch}` literal. Its `// Design:` annotation points at `docs/architecture/traffic/fw-7-traffic-vpp.md`, which describes the apply path and not the channel lifetime, so that doc needs no edit; the seam doc does.
-- `mk/test-integration.mk` - the `ze-qemu-integration-test` recipe names `./internal/plugins/traffic/vpp/...` beside the firewall package, and the comment above `ZE_QEMU_INTEGRATION_PKGS` names both for the same reason.
+- `internal/le/integration/gates.go` - the `ze-qemu-integration-test` recipe names `./internal/plugins/traffic/vpp/...` beside the firewall package, and the comment above `ZE_QEMU_INTEGRATION_PKGS` names both for the same reason.
 - `docs/architecture/traffic/fw-7b-backend-hardening.md` - the "The `vppOps` seam" section records that the production implementation is built by a constructor that binds the reply deadline, and why the binding sits there.
 
 ## Files to Create
@@ -348,19 +348,19 @@ any wire; it installs a client-side deadline.
 2. **Phase: bind the deadline** -- write the constants, the env entry, the clamping reader and the constructor.
    - Tests: the two above turn green
    - Files: `internal/plugins/traffic/vpp/timeout_linux.go` <!-- doc-links: ignore (planned by this spec, written when the spec is implemented) -->
-   - Verify: `make ze-unit-pkg-test PKG=./internal/plugins/traffic/vpp`
+   - Verify: `go test -race ./internal/plugins/traffic/vpp`
 3. **Phase: use the constructor** -- replace the inline literal in `(*backend).Apply`.
    - Tests: every test in `apply_test.go` stays green and unedited
    - Files: `internal/plugins/traffic/vpp/backend_linux.go`
-   - Verify: `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns exactly one hit, inside the constructor. Then `make ze-lint-changed`
+   - Verify: `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns exactly one hit, inside the constructor. Then `./le changed scope`
 4. **Phase: QEMU reach** -- name the package in the QEMU target.
    - Tests: the two unit tests run inside the VM
-   - Files: `mk/test-integration.mk`
-   - Verify: `make ze-qemu-integration-test`, and read the output for a line naming `internal/plugins/traffic/vpp`. A zero exit alone does not satisfy AC-5 (R-3)
+   - Files: `internal/le/integration/gates.go`
+   - Verify: `./le qemu run command "./le qemu all-tests"`, and read the output for a line naming `internal/plugins/traffic/vpp`. A zero exit alone does not satisfy AC-5 (R-3)
 5. **Phase: documentation** -- the seam doc, and any stale source anchor the checklist grep finds.
    - Files: `docs/architecture/traffic/fw-7b-backend-hardening.md`
-   - Verify: `make ze-doc-verify`
-6. **Full verification** -- `make ze-precommit-verify`, then set Status to `verification`, commit, and stop. Closure belongs to a later Opus 5 session (`Handoff | verify`).
+   - Verify: `./le doc-check verify`
+6. **Full verification** -- `./le verify current mode full`, then set Status to `verification`, commit, and stop. Closure belongs to a later Opus 5 session (`Handoff | verify`).
 
 ### Critical Review Checklist
 
@@ -382,7 +382,7 @@ any wire; it installs a client-side deadline.
 | The constructor binds the deadline | `grep -n 'SetReplyTimeout' internal/plugins/traffic/vpp/timeout_linux.go` |
 | No unbounded construction survives | `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns one hit, inside `newGovppOps` |
 | The env key is registered | `bin/ze env list` on Linux lists `ze.traffic.vpp.reply-timeout` |
-| The package runs in QEMU | `make ze-qemu-integration-test` output names `internal/plugins/traffic/vpp` |
+| The package runs in QEMU | `./le qemu run command "./le qemu all-tests"` output names `internal/plugins/traffic/vpp` |
 | The test discriminates | The RED output pasted under TDD, taken with the `SetReplyTimeout` call absent |
 | The seam doc records the binding | `git diff docs/architecture/traffic/fw-7b-backend-hardening.md` is non-empty |
 
@@ -468,7 +468,7 @@ any wire; it installs a client-side deadline.
 - [ ] AC-1 to AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -489,4 +489,4 @@ any wire; it installs a client-side deadline.
 
 - [ ] Status set to `verification` before the commit
 - [ ] ONE commit: code, tests, docs, the deferral shard row, and this spec. No `plan/learned/` file and no spec removal, or `commit_helper.py` reads it as a closure commit
-- [ ] `scripts/dev/spec-session.sh release`, report the SHA, then stop. A later Opus 5 session runs the Review Gate over the committed diff and closes
+- [ ] `internal/le/speclifecycle/session.go release`, report the SHA, then stop. A later Opus 5 session runs the Review Gate over the committed diff and closes

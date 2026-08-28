@@ -117,24 +117,34 @@ type Rule struct {
 	Trigger  string     `json:"trigger"`
 	Severity string     `json:"severity"`
 	// CoreReason says WHY this rule is always-on, and is empty for a routed
-	// rule. It is set by CoreMembers and by nothing else.
+	// rule. It is set by coreMembers and by nothing else.
 	CoreReason string `json:"core-reason,omitempty"`
 }
 
-// LoadRules answers every rule under rulesDir, parsed once.
+// loadRules answers every rule under rulesDir, parsed once.
 //
 // It refuses a directory that contains no rules. Python returns an empty list
 // and relies on artifact comparison. That works only while the artifacts have
 // rows. A fresh checkout of both sources would agree on nothing and pass.
-func LoadRules(rulesDir string) ([]Rule, error) {
-	files, err := RuleFiles(rulesDir)
+func loadRules(rulesDir string) ([]Rule, error) {
+	rules, err := loadRulesAllowEmpty(rulesDir)
 	if err != nil {
 		return nil, err
 	}
-	if len(files) == 0 {
+	if len(rules) == 0 {
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str("no rule file under ").Str(rulesRel).
 			Str("/; the digest read nothing and must not report success").String())
+	}
+	return rules, nil
+}
+
+// loadRulesAllowEmpty is the shared parser for consumers whose empty-corpus contract is
+// not the digest gate's fail-closed contract.
+func loadRulesAllowEmpty(rulesDir string) ([]Rule, error) {
+	files, err := ruleFiles(rulesDir)
+	if err != nil {
+		return nil, err
 	}
 
 	rules := make([]Rule, 0, len(files))
@@ -210,7 +220,7 @@ func parseRule(raw []string) (title string, meta []MetaPair, body []string) {
 // because its marker is not a single hash followed by whitespace.
 //
 // A whitespace-only heading answers false instead of Python's empty title. That
-// shape never reaches a generator. ze-rules-lint first requires the initial
+// shape never reaches a generator. ./le rules lint first requires the initial
 // nonblank line to contain `# ` and a nonspace character (lint.go, lintH1).
 func headingOne(line string) (string, bool) {
 	if !strings.HasPrefix(line, "#") {
@@ -377,13 +387,13 @@ type Task struct {
 	Text   string `json:"-"`
 }
 
-// Corpus is that input and records whether any caller READ it.
+// taskCorpus is that input and records whether any caller READ it.
 //
 // The zero value says that the caller did not request reachability. The router
-// report does this intentionally. A read Corpus with no task is different: the
+// report does this intentionally. A read taskCorpus with no task is different: the
 // caller requested a derivation that is absent. Both contain no task, so Read
 // states the difference.
-type Corpus struct {
+type taskCorpus struct {
 	Read  bool
 	Tasks []Task
 }
@@ -396,7 +406,7 @@ type Corpus struct {
 // the router report does on purpose. An EMPTY corpus is a different fact: the
 // caller DID ask and the read returned nothing. Both answer the same set, so
 // the empty case is reported rather than passing for a real result.
-func unreachableBlocking(rules []Rule, corpus Corpus, empty *bool) map[string]bool {
+func unreachableBlocking(rules []Rule, corpus taskCorpus, empty *bool) map[string]bool {
 	if !corpus.Read {
 		return nil
 	}
@@ -422,17 +432,17 @@ func unreachableBlocking(rules []Rule, corpus Corpus, empty *bool) map[string]bo
 	return out
 }
 
-// LadderError says that the precedence ladder was unreadable. Thus, the core
+// ladderError says that the precedence ladder was unreadable. Thus, the core
 // cannot be derived.
 //
 // The function returns this error instead of an empty set. Empty and unreadable
 // ladders otherwise produce the same value. Only the layer that detected the
 // missing ladder can report it.
-type LadderError struct {
+type ladderError struct {
 	Reason string
 }
 
-func (e *LadderError) Error() string { return e.Reason }
+func (e *ladderError) Error() string { return e.Reason }
 
 // ladderRungs contains the two rungs that derive the always-on core:
 // irreversible action and correctness owed outside this repository.
@@ -444,7 +454,7 @@ var ladderRungs = [...]int{1, 2}
 // The parser locates markdown table columns by HEADER text, not index. Thus,
 // column reordering cannot silently empty the core. But a renamed header or a
 // list representation makes the parser skip every row. Each empty parse returns
-// a LadderError that names its cause.
+// a ladderError that names its cause.
 func precedenceRungSlugs(rules []Rule) (map[string]bool, *Rule, error) {
 	var source *Rule
 	for i := range rules {
@@ -454,7 +464,7 @@ func precedenceRungSlugs(rules []Rule) (map[string]bool, *Rule, error) {
 		}
 	}
 	if source == nil {
-		return nil, nil, &LadderError{Reason: "ai/rules/rule-precedence.md is absent: the always-on core is derived " +
+		return nil, nil, &ladderError{Reason: "ai/rules/rule-precedence.md is absent: the always-on core is derived " +
 			"from its ladder, so there is nothing left to derive it from"}
 	}
 
@@ -500,15 +510,15 @@ func precedenceRungSlugs(rules []Rule) (map[string]bool, *Rule, error) {
 	var tb textbuf.Buffer
 	switch {
 	case !sawHeader:
-		return nil, nil, &LadderError{Reason: "no table in ai/rules/rule-precedence.md has both a `Rung` and a " +
+		return nil, nil, &ladderError{Reason: "no table in ai/rules/rule-precedence.md has both a `Rung` and a " +
 			"`Rules` column: the columns are found by header text, so renaming " +
 			"either one, or rewriting the ladder as a list, empties the core"}
 	case !sawRungRow:
-		return nil, nil, &LadderError{Reason: tb.Str("the ladder in ai/rules/rule-precedence.md has no rung ").
+		return nil, nil, &ladderError{Reason: tb.Str("the ladder in ai/rules/rule-precedence.md has no rung ").
 			Str(rungWord()).
 			Str(" row: those rungs are what the always-on core is derived from").String()}
 	case len(slugs) == 0:
-		return nil, nil, &LadderError{Reason: tb.Str("rung ").Str(rungWord()).
+		return nil, nil, &ladderError{Reason: tb.Str("rung ").Str(rungWord()).
 			Str(" of the ladder in ai/rules/rule-precedence.md names no ").
 			Str("rule under ai/rules/: the core would lose every destructive-action ").
 			Str("and outside-facing-correctness guard").String()}
@@ -616,7 +626,7 @@ func backtickTokens(text string) []string {
 	}
 }
 
-// CoreMembers answers the always-on set, derived. Each member carries WHY it is
+// coreMembers answers the always-on set, derived. Each member carries WHY it is
 // eager.
 //
 // Four derivations, no list:
@@ -628,7 +638,7 @@ func backtickTokens(text string) []string {
 //
 // Order follows the rule list, so CORE.md reads in the same order as the
 // trigger index and a reader can diff the two.
-func CoreMembers(rules []Rule, corpus Corpus, emptyCorpus *bool) ([]Rule, error) {
+func coreMembers(rules []Rule, corpus taskCorpus, emptyCorpus *bool) ([]Rule, error) {
 	ladder, source, err := precedenceRungSlugs(rules)
 	if err != nil {
 		return nil, err

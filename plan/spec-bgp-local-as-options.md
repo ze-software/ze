@@ -187,7 +187,7 @@ and the Section 4.2 four are that spec's.
 | R-2 | Implementing before A-1 is answered means implementing a compliance decision nobody took. | This spec sitting at `design` with A-1 `unvalidated`. | A-1 blocks implementation. The spec does not move to `ready` until Thomas rules. |
 | R-3 | Removing or rejecting an enum is a breaking config change for anyone using it. | Config parse failing on a previously accepted file. | If A-1 resolves to rejection, it must be a named parse error naming the leaf and the alternative, never a silent ignore. |
 | R-4 | A test that asserts "two ASNs were prepended" passes for the wrong reason if the peer is two-octet and the real values hide in AS4_PATH. | A case with a four-octet local AS against a two-octet peer. | Every wire assertion reads AS_PATH and AS4_PATH together, and the boundary table below carries the four-octet case. |
-| R-5 | Tagging the five Section 3.3 tests enrols nothing on its own, so the tree stays red on `ze-rfc-check` until `plan/spec-bgp-as-migration.md` closes. | `make ze-rfc-check` still failing after this spec lands. | Stated up front. This spec makes the evidence exist; the other spec makes the ledger admit it. |
+| R-5 | Tagging the five Section 3.3 tests enrols nothing on its own, so the tree stays red on `./le rfc check` until `plan/spec-bgp-as-migration.md` closes. | `./le rfc check` still failing after this spec lands. | Stated up front. This spec makes the evidence exist; the other spec makes the ledger admit it. |
 
 ## Blast Radius
 
@@ -342,7 +342,7 @@ and the Section 4.2 four are that spec's.
 5. **Phase: tag the Section 3.3 requirements**
    - Tests: every test named above gains its `RFC requirement: RFC7705-3.3-N <polarity>` tag
    - Files: `internal/component/bgp/reactor/peer_forward_facts_test.go`, `internal/component/bgp/reactor/config_test.go`, `internal/component/bgp/reactor/session_validation_test.go`
-   - Verify: AC-10 passes; `make ze-rfc-index-update` renders the five rows with enforcing tests. `make ze-rfc-check` still fails on enrolment, which `plan/spec-bgp-as-migration.md` closes
+   - Verify: AC-10 passes; `./le rfc index-update` renders the five rows with enforcing tests. `./le rfc check` still fails on enrolment, which `plan/spec-bgp-as-migration.md` closes
 6. **Phase: configuration surface and documentation**
    - Tests: existing `test/parse/session-policy-config.ci`
    - Files: `internal/component/bgp/yang/ze-bgp-conf.yang`, `docs/guide/configuration.md`, `docs/features/rfc-status.md`
@@ -371,8 +371,8 @@ and the Section 4.2 four are that spec's.
 | Wire-level coverage exists | `ls test/plugin/bgp-local-as-*.ci` returns four files |
 | The collapse is gone | `grep -n "!s.LocalASNoPrepend && !s.LocalASReplaceAS" internal/component/bgp/reactor/peer_forward_facts.go` returns nothing |
 | Section 3.3 is evidenced | `grep -c "RFC7705-3.3" ai/RFC-REQUIREMENTS.md` shows all five with enforcing tests |
-| Ledger regenerated in the same commit | `make ze-rfc-index-update` then `git diff --stat ai/RFC-REQUIREMENTS.md` |
-| No unrelated regressions | `make ze-precommit-verify` |
+| Ledger regenerated in the same commit | `./le rfc index-update` then `git diff --stat ai/RFC-REQUIREMENTS.md` |
+| No unrelated regressions | `./le verify current mode full` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -414,7 +414,7 @@ and the Section 4.2 four are that spec's.
 ## Known Limitations
 
 - This spec does not implement RFC 7705 Section 4.2. That is `plan/spec-bgp-as-migration.md`.
-- `make ze-rfc-check` stays red until that sibling closes, because tagging tests does not enrol an RFC.
+- `./le rfc check` stays red until that sibling closes, because tagging tests does not enrol an RFC.
 - The `.ci` files cover IPv4 unicast. Other families take the same egress prepend path, so the coverage is representative rather than exhaustive.
 - If A-1 resolves to removing an enum, operators using it need a release note; there is no config migration machinery for a removed enum value.
 
@@ -438,7 +438,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `make ze-precommit-verify` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `./le verify current mode full` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -456,7 +456,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `scripts/dev/review_gate.py`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-bgp-local-as-options.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-bgp-local-as-options.md` only (commit A preserves the spec in history)

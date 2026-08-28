@@ -2,7 +2,7 @@
 # VALIDATES: cmd-9 AC-4 -- resolve ping 127.0.0.1 returns RTT and status (success)
 # PREVENTS: resolve ping handler not wired or crashing
 
-# Python plugin dispatches resolve ping 127.0.0.1 via engine API and verifies
+# Native fixture dispatches resolve ping 127.0.0.1 via engine API and verifies
 # the response contains success output.
 
 # The raw-ICMP resolve ping path currently has no unprivileged darwin
@@ -14,7 +14,7 @@
 # the kernel refuses without CAP_NET_RAW. skip-os hid the test from macOS and
 # therefore ran it, unprivileged, on the Linux CI runner -- where it failed every
 # time with `resolve ping status=error`. Declaring the capability relocates it to
-# `make ze-qemu-needs-linux-test`, which has it, instead of failing where it
+# `./le qemu all-tests`, which has it, instead of failing where it
 # cannot pass.
 option=needs-linux:caps=net-raw
 
@@ -24,93 +24,11 @@ option=timeout:value=20s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=ping-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for peer1's initial sync (the EOR this test's ze-peer expects) to
-    # reach the wire. This is the ONLY fence in this test: the `finally` below
-    # dispatches `request shutdown` as soon as the ping assertions finish, and
-    # `resolve ping 127.0.0.1` does not touch BGP at all, so without a barrier
-    # here the script can shut ze down inside the OPEN handshake window and the
-    # peer's EOR expectation becomes unreachable by construction.
-    #
-    # // the `'established' in <detail json>` check removed here was
-    # doubly inert: it was VACUOUS (every peer row carries the KEY
-    # `connections-established`, cmd/peer/peer.go:238, so the substring matched
-    # on the FIRST poll before any session existed) AND its result was discarded
-    # without a guard, so it could not fail. Replaced by a wait on the per-peer
-    # `eor-sent` counter (peer.go:217; peer_stats.go IncrEORSent, which increments
-    # it only once peer_initial_sync.go's sendInitialRoutes has written AND
-    # flushed the EOR to the peer's socket) that fails loudly via runtime_fail.
-    if not api.wait_peer_eor_sent('peer1', attempts=40):
-        runtime_fail('peer1 initial-sync EOR never reached the wire')
-
-    try:
-        result = dispatch(api, 'resolve ping 127.0.0.1')
-        if result.get('status') != 'done':
-            runtime_fail(f'resolve ping status={result.get("status")} data={result.get("data")}')
-
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-
-        # Assert the contract the handler actually emits (runPingBatch,
-        # internal/component/ping/cmd/ping.go: destination / sent / received /
-        # loss-percent / replies). The previous assertions read 'target' and
-        # 'output' and scanned that output for "bytes from" -- the shape of a
-        # shell-out to /sbin/ping, which ze has not used since the in-process
-        # ICMP engine landed. Neither key has ever existed in the response, so
-        # `target != '127.0.0.1'` compared '' against '127.0.0.1' and failed by
-        # construction. Nothing caught it: the test is Linux-only and CI had
-        # never gone green.
-        dest = data.get('destination', '')
-        if dest != '127.0.0.1':
-            runtime_fail(f'expected destination 127.0.0.1, got: {dest!r} (keys: {sorted(data)})')
-
-        sent = data.get('sent', 0)
-        received = data.get('received', 0)
-        if sent <= 0:
-            runtime_fail(f'ping sent nothing: {data}')
-        if received <= 0:
-            runtime_fail(f'ping received no replies from loopback: {data}')
-        if data.get('loss-percent', 100.0) != 0.0:
-            runtime_fail(f'loopback ping lost packets: {data}')
-        if not isinstance(data.get('replies'), list) or not data['replies']:
-            runtime_fail(f'ping reported no per-reply detail: {data}')
-        if 'avg-rtt-ms' not in data:
-            runtime_fail(f'ping recorded replies but no RTT summary: {data}')
-
-        print(f'OK: resolve ping 127.0.0.1 sent={sent} received={received}', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external ping-test {
-		run ./ping-test.run
+		run "ze-test fixture plugin/resolve-ping"
 		encoder json
 	}
 }

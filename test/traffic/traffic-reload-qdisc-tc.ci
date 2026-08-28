@@ -9,47 +9,7 @@
 #           installed in the kernel.
 #
 # Gated option=needs-linux: SKIPs on non-Linux (macOS dev box) and runs as root
-# in the QEMU VM via `make ze-qemu-needs-linux-test`.
 option=needs-linux
-
-tmpfs=reload.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Wait for ze, snapshot the qdisc, reload to remove traffic-control, snapshot
-again, then SIGTERM for a clean exit."""
-import os
-import shutil
-import signal
-import subprocess
-import sys
-import time
-
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    print("ERROR: daemon.pid or daemon.ready never appeared", file=sys.stderr)
-    sys.exit(1)
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# blind settle: let the initial apply finish before the reload; this standalone driver has no post-apply signal to poll
-time.sleep(0.5)
-with open("tc-before.txt", "w") as out:
-    subprocess.run(["tc", "qdisc", "show", "dev", "eth0"], stdout=out, check=False)
-
-shutil.copy("config2.conf", "ze-bgp.conf")
-os.kill(pid, signal.SIGHUP)
-
-# blind hold: SIGHUP reload exposes no completion signal to this standalone driver; hold for the reactor to re-apply and emit the asserted log, then SIGTERM
-time.sleep(2.0)
-with open("tc-after.txt", "w") as out:
-    subprocess.run(["tc", "qdisc", "show", "dev", "eth0"], stdout=out, check=False)
-
-os.kill(pid, signal.SIGTERM)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
@@ -146,7 +106,7 @@ option=env:var=ze.log.traffic:value=debug
 # stale migrated copy instead of the config2.conf this test writes over it.
 option=env:var=ze.config.dir:value=.
 
-cmd=background:seq=1:exec=python3 reload.py
+cmd=background:seq=1:exec=ze-test fixture traffic/traffic-reload-qdisc-tc
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=traffic-control config reloaded

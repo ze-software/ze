@@ -191,7 +191,7 @@ func TestShutdownNotifySendsCeaseFromEveryConnectedState(t *testing.T) {
 			peer.mu.Unlock()
 
 			got := readOne(client)
-			peer.ShutdownNotify()
+			peer.shutdownNotify()
 
 			select {
 			case msg, ok := <-got:
@@ -243,7 +243,7 @@ func TestShutdownNotifyWithoutSessionIsQuiet(t *testing.T) {
 	)
 	peer := NewPeer(settings)
 
-	peer.ShutdownNotify()
+	peer.shutdownNotify()
 
 	peer.mu.Lock()
 	queued := len(peer.opQueue)
@@ -384,7 +384,7 @@ func (d *countingPipeDialer) DialContext(_ context.Context, _, _ string) (net.Co
 //
 // Stop notifies before it cancels, because the cancel closes the sockets the
 // NOTIFICATION needs (reactor.go). So for the whole shutdownNotifyBudget every
-// peer context is still live -- and ShutdownNotify tears its session down with
+// peer context is still live -- and shutdownNotify tears its session down with
 // ErrTeardown, which is the one error Peer.run answers by resetting the delay
 // and continuing with NO wait (peer_run.go). A healthy peer therefore re-dialed
 // a listener that is still open, could reach Established again, and was then
@@ -417,7 +417,7 @@ func TestReactorStopDoesNotRedialAPeerItHasAlreadyNotified(t *testing.T) {
 	dialer := &countingPipeDialer{}
 	healthy := NewPeer(settings)
 	healthy.SetDialer(dialer)
-	healthy.SetReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
+	healthy.setReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
 
 	r.mu.Lock()
 	r.peers[peerKeyFromAddrPort(settings.Address, settings.Port)] = healthy
@@ -566,7 +566,7 @@ func TestReactorStopAcceptsNoInboundSessionWhileItNotifies(t *testing.T) {
 // what the direct call reproduces.
 //
 // Building a peer there is the miss: Stop's snapshot was taken before that peer
-// existed, so no ShutdownNotify covers it, and the session it would reach
+// existed, so no shutdownNotify covers it, and the session it would reach
 // OpenSent on dies on the cancel with nothing on the wire (RFC 4271 Section
 // 8.2.2, ManualStop). Returning nil makes the caller close the connection
 // (reactor_connection.go), which owes nothing.
@@ -797,7 +797,7 @@ func TestPeerStartWithContextDoesNotLiftTheStopsSeal(t *testing.T) {
 	dialer := &countingPipeDialer{}
 	late := NewPeer(settings)
 	late.SetDialer(dialer)
-	late.SetReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
+	late.setReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
 
 	// In r.peers before the stop, so the seal marks it. A peer added after the
 	// seal is refused by AddPeer and tryCreateDynamicPeer instead.
@@ -853,13 +853,13 @@ func TestPeerStartWithContextDoesNotLiftTheStopsSeal(t *testing.T) {
 //
 // Round 3 read Peer.stopping at the top of run() and nowhere else, so a cycle
 // that had already entered runOnce carried on: it published p.session and dialed,
-// and Reactor.stop's ShutdownNotify -- whose read of p.session may have got in
+// and Reactor.stop's shutdownNotify -- whose read of p.session may have got in
 // first and seen nil -- never covered it. The session then reached OpenSent and
 // the cancel closed it with nothing on the wire (RFC 4271 Section 8.2.2,
 // ManualStop).
 //
 // The seam is the p.mu hold that publishes p.session, which is the same lock
-// ShutdownNotify reads that field under, so this test drives runOnce directly:
+// shutdownNotify reads that field under, so this test drives runOnce directly:
 // the direct call reproduces exactly the ordering the run loop would have, the
 // way TestTryCreateDynamicPeerRefusesAfterTheStopHasSealed drives
 // tryCreateDynamicPeer for the r.mu seam.
@@ -893,7 +893,7 @@ func TestRunOncePublishesNoSessionAfterTheStopHasMarkedThePeer(t *testing.T) {
 	// them is the dial that did not happen and the session never published.
 	require.Equal(t, int32(1), dialer.dials.Load(),
 		"a connection cycle that was already past run()'s loop top dialed after the "+
-			"stop had marked the peer: Stop's ShutdownNotify may have read p.session "+
+			"stop had marked the peer: Stop's shutdownNotify may have read p.session "+
 			"before it was published, so nothing notifies that session and the cancel "+
 			"closes it in silence")
 
@@ -901,7 +901,7 @@ func TestRunOncePublishesNoSessionAfterTheStopHasMarkedThePeer(t *testing.T) {
 	published := peer.session
 	peer.mu.RUnlock()
 	require.Nil(t, published,
-		"a session was published after the seal, so ShutdownNotify's snapshot can miss it")
+		"a session was published after the seal, so shutdownNotify's snapshot can miss it")
 
 	require.NoError(t, refused,
 		"a refused cycle is not a failed one: run() ends the loop at its own top, and "+
@@ -911,7 +911,7 @@ func TestRunOncePublishesNoSessionAfterTheStopHasMarkedThePeer(t *testing.T) {
 // TestSessionConnectSendsNoOpenOnceTeardownHasRun is the fifth rail, and the one
 // no flag on the peer can close: a dial already IN FLIGHT when the stop landed.
 //
-// Peer.ShutdownNotify tears the session down (peer.go), and Session.teardown
+// Peer.shutdownNotify tears the session down (peer.go), and Session.teardown
 // writes the Cease only when s.conn is already set (session_connection.go). For
 // a peer in Connect or Active the conn is still nil, so teardown sets
 // s.tearingDown and sends nothing -- and then the dial completes,
@@ -965,7 +965,7 @@ func TestSessionConnectSendsNoOpenOnceTeardownHasRun(t *testing.T) {
 			require.NoError(t, session.Start())
 
 			if tc.teardown {
-				// Exactly what ShutdownNotify does to a peer whose session has no
+				// Exactly what shutdownNotify does to a peer whose session has no
 				// conn yet: tearingDown is set, and nothing goes on the wire.
 				require.NoError(t, session.Teardown(message.NotifyCeaseAdminShutdown, ""))
 			}

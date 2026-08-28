@@ -1,15 +1,14 @@
 // Design: docs/architecture/testing/verify-freshness-scope.md -- fixed pre-commit stage population
-// Package verify orchestrates the native actions that make up the full
-// pre-commit verification gate. It does not discover stages at run time: the
-// ordered population is part of the gate's contract.
+// Package verify orchestrates the native actions that make up full
+// verification. The ordered population is declared here rather than discovered
+// at run time.
 package verify
 
-// Identity names the historical gate and the exact native root/action that owns
-// it. Gate keeps diagnostics and parity stable. Command and Args let an
-// injected dispatcher invoke the registered action without deriving a verb or
-// carrying a second gate switch.
+import "strings"
+
+// Identity names one native root/action invocation.
 type Identity struct {
-	Gate    string   `json:"gate"`
+	Name    string   `json:"name"`
 	Command string   `json:"command"`
 	Args    []string `json:"args,omitempty"`
 }
@@ -19,60 +18,91 @@ type Stage struct {
 	Identity Identity `json:"identity"`
 }
 
-// FullStages returns the current ze-precommit-verify native action population
-// in execution order. The generated-files aggregate is expanded at its original
-// position so every invoked action has one explicit registered identity. The
-// returned slice is independent and may be changed by its caller.
-func FullStages() []Stage {
+// fullStages returns the native verification actions in execution order.
+func fullStages() []Stage {
 	stages := []Stage{
-		stage("ze-lint", "verify-lint", "run"),
-		stage("ze-tier-check", "tier", "check"),
-		stage("ze-rfc-check", "rfc", "check"),
-		stage("ze-iface-resolution-check", "iface-resolution"),
-		stage("ze-plugin-boundary-check", "plugin-boundary", "check"),
-		stage("ze-config-coercion-check", "config-coercion", "check"),
-		stage("ze-fs-persistence-check", "fs-persistence", "check"),
-		stage("ze-dash-stdio-check", "dash-stdio", "check"),
-		stage("ze-port-defaults-check", "port-defaults", "check"),
-		stage("ze-config-claims-check", "config-claims"),
-		stage("ze-test-sensitivity-check", "test-sensitivity", "check"),
-		stage("ze-test-weakened-check", "test-weakened", "check"),
-		stage("ze-staticcheck-feature-matrix-check", "staticcheck-feature-matrix", "check"),
-		stage("ze-repository-tracked-build-check", "repository-tracked-build", "check"),
-		stage("ze-platform-vet", "platform-vet", "darwin", "freebsd"),
-		stage("ze-doc-wiring-check", "doc-wiring"),
-		stage("ze-doc-verify", "doc-check", "verify"),
-		stage("ze-doc-links-check", "doc-check", "links"),
-		stage("ze-repository-tree-check", "repository", "tree-check"),
-		stage("ze-plugin-imports-check", "plugin-imports", "check"),
-		stage("ze-yang-glue-check", "yang-glue", "check"),
-		stage("ze-feature-tags-check", "feature-tags", "check"),
-		stage("ze-templ-output-check", "doc-check", "templ-output"),
-		stage("ze-vendor-web-check", "vendor-web", "check"),
-		stage("ze-web-assets-check", "web-assets", "check"),
-		stage("ze-doc-index-check", "docs-to-code", "ze-doc-index-check"),
-		stage("ze-rules-render-check", "rules", "render-check"),
-		stage("ze-rules-index-check", "rules", "index-check"),
-		stage("ze-rules-condensed-check", "rules", "condensed-check"),
-		stage("ze-rules-lint", "rules", "lint"),
-		stage("ze-arch-map-check", "arch-map", "check"),
-		stage("ze-discovery-index-check", "discovery-index", "check"),
-		stage("ze-test-health-check", "test-health", "check"),
-		stage("ze-site-facts-check", "site-facts", "check"),
-		stage("ze-vendor-web-check", "vendor-web", "check"),
-		stage("ze-htmx-upgrade-check", "htmx-upgrade", "check"),
-		stage("ze-evidence-vet", "verify-deps", "evidence-vet"),
-		stage("ze-unit-hook-test", "hook-check", "unit"),
-		stage("ze-dependency-vulnerability-check", "verify-deps", "vulnerability"),
-		stage("ze-unit-test-cached", "verify-deps", "unit-cached"),
-		stage("ze-unit-test-race-changed", "verify-deps", "unit-race-changed"),
-		stage("ze-alloc-check", "verify-deps", "alloc"),
-		stage("ze-functional-test", "functional"),
-		stage("ze-functional-exabgp-test", "functional", "exabgp-test"),
+		stage("verify-lint", "run"),
+		stage("tier", "check"),
+		stage("rfc", "check"),
+		stage("iface-resolution"),
+		stage("plugin-boundary", "check"),
+		stage("config-coercion", "check"),
+		stage("fs-persistence", "check"),
+		stage("dash-stdio", "check"),
+		stage("port-defaults", "check"),
+		stage("config-claims"),
+		stage("test-sensitivity", "check"),
+		stage("test-weakened", "check"),
+		stage("staticcheck-feature-matrix", "check"),
+		stage("repository-tracked-build", "check"),
+		stage("platform-vet", "darwin", "freebsd"),
+		stage("doc-wiring"),
+		stage("doc-check", "verify"),
+		stage("doc-check", "links"),
+		stage("repository", "tree-check"),
+		stage("plugin-imports", "check"),
+		stage("yang-glue", "check"),
+		stage("feature-tags", "check"),
+		stage("doc-check", "templ-output"),
+		stage("vendor-web", "check"),
+		stage("web-assets", "check"),
+		stage("docs-to-code", "index-check"),
+		stage("rules", "render-check"),
+		stage("rules", "index-check"),
+		stage("rules", "condensed-check"),
+		stage("rules", "lint"),
+		stage("arch-map", "check"),
+		stage("discovery-index", "check"),
+		stage("test-health", "check"),
+		stage("site-facts", "check"),
+		stage("htmx-upgrade", "check"),
+		stage("verify-deps", "evidence-vet"),
+		stage("hook-check", "unit"),
+		stage("verify-deps", "vulnerability"),
+		stage("verify-deps", "unit-cached"),
+		stage("verify-deps", "unit-race-changed"),
+		stage("verify-deps", "alloc"),
+		stage("functional"),
+		stage("functional", "exabgp-test"),
 	}
 	return stages
 }
 
-func stage(gate, command string, args ...string) Stage {
-	return Stage{Identity: Identity{Gate: gate, Command: command, Args: args}}
+// changedStages returns the cheaper per-edit population. Generated-file checks
+// stay expanded into their native actions. Full-only evidence and allocation
+// passes are omitted, while lint and unit testing use their changed-tree
+// identities.
+func changedStages() []Stage {
+	full := fullStages()
+	stages := make([]Stage, 0, len(full)-3)
+	for _, current := range full {
+		switch current.Identity.Name {
+		case "verify-deps/evidence-vet", "verify-deps/unit-cached", "verify-deps/alloc":
+			continue
+		default:
+			stages = append(stages, current)
+		}
+	}
+	return stages
+}
+
+// StagesForMode returns a fresh stage population for a supported certificate
+// mode. Unknown modes return nil and therefore cannot certify a tree.
+func StagesForMode(mode string) []Stage {
+	switch mode {
+	case Mode:
+		return fullStages()
+	case ChangedMode:
+		return changedStages()
+	default:
+		return nil
+	}
+}
+
+func stage(command string, args ...string) Stage {
+	name := command
+	if len(args) > 0 {
+		name += "/" + strings.Join(args, "/")
+	}
+	return Stage{Identity: Identity{Name: name, Command: command, Args: args}}
 }

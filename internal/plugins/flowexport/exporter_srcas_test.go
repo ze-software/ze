@@ -2,7 +2,7 @@
 // producer stamps the origin AS it already holds onto every observation it
 // publishes, and leaves the 0 sentinel when no enricher is attached.
 // PREVENTS: a consumer in another plugin importing flowexport/enrich to fetch
-// the AS itself, which fails `make ze-tier-check`.
+// the AS itself, which fails `./le tier check`.
 //
 // These tests live beside exporter_test.go rather than inside it because that
 // file carries RFC-tagged NetFlow and sFlow proofs; a new file keeps this

@@ -3,4 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-**The pre-commit gate MUST run against a COMMIT in a throwaway worktree, never against the working tree (owner directive, 2026-08-21).** `make ze-verify-worktree` does it: it adds a detached worktree at the commit, runs `ze-precommit-verify` there, and removes it on every exit path. `COMMIT=<rev>` picks the commit and defaults to HEAD; `KEEP=1` leaves the tree for inspection when it goes red.
+**The pre-commit gate MUST run against a COMMIT in a throwaway worktree, never against the working tree (owner directive, 2026-08-21).** `./le verify worktree` adds a detached worktree at HEAD, runs every native verification stage, and removes it on every exit path. `commit <revision>` selects another commit; `keep` leaves the tree for inspection when it goes red.

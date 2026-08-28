@@ -4,9 +4,9 @@ Third-party files served from this site. Nothing here is fetched at build time
 or at page load: the site is self-hosted, so a reader's browser talks to no CDN
 and to no third-party host.
 
-`sitepaths._SOURCE_ONLY_FILES` keeps this file out of the published artifact.
-Every other file in this directory is staged verbatim by `build-site`, because
-`assets/vendor` is not a source-only directory.
+`internal/le/sitebuild.IsSourceOnly` keeps this file out of the published
+artifact. Every other file in this directory is staged verbatim because
+`assets/vendor` is a public asset directory.
 
 ## asciinema-player
 
@@ -41,10 +41,9 @@ Both files come from `dist/bundle/` of that tarball, unmodified.
   driver. The site passes a plain `.cast` path, so neither driver is selected.
 - `innerHTML` is written twice, once with a template string from the bundle and
   once with a fixed SVG path chosen by a `switch`. Neither takes recording data.
-- The recordings are produced by `demos/terminal/render.py` from tapes in this
-  repository, and each one is verified against the digest in the artifact
-  manifest before a page can embed it. The player is the only code that reads a
-  cast; no page script parses one.
+- The recordings are produced by `internal/le/terminaldemo` from tapes in this
+  repository, then checked against the digest in the artifact manifest before
+  a page can embed one. The player is the only code that reads a cast.
 
 ### Upgrading
 

@@ -19,7 +19,7 @@
 # The old form raced -- SIGHUP and SIGTERM were sent back-to-back, so under load
 # the daemon was killed before it finished the reload, and the message the test
 # asserts was never emitted. Reproduced 2026-07-23 on invocation 1 of
-# `scripts/dev/stress-repro.py "bgp reload" --any-failure` (64 burners / 32 cores);
+# `internal/le/stressrepro/actions.go "bgp reload" --any-failure` (64 burners / 32 cores);
 # the capture shows `received SIGHUP, reloading config...` as the daemon's last
 # line. See plan/known-failures/reload-transaction-tests-load-sensitive.md.
 
@@ -36,7 +36,7 @@ action=sighup:conn=1:seq=2
 # rejection was actually logged". The old form raced: SIGHUP and SIGTERM went
 # back-to-back, so under load the daemon died mid-reload and never emitted the
 # asserted line. Reproduced 2026-07-23 on invocation 1 of
-# `stress-repro.py "bgp reload" --any-failure` (64 burners / 32 cores).
+# `./le stress-repro run suite "bgp reload" any-failure` (64 burners / 32 cores).
 EOF_PEER
 
 # Initial config: the peer authenticates with a pre-shared secret, which needs

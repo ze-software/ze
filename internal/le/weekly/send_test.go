@@ -43,12 +43,12 @@ func (r *recorder) send(_, text string) SendResult {
 	return reply
 }
 
-// poster builds a Poster whose transport is the recorder and whose waits are
+// poster builds a publisher whose transport is the recorder and whose waits are
 // recorded rather than taken. DiscordSh names a file that exists, exactly as
 // the Python test points it at its own source file.
-func poster(t *testing.T, rec *recorder, slept *[]time.Duration) *Poster {
+func poster(t *testing.T, rec *recorder, slept *[]time.Duration) *publisher {
 	t.Helper()
-	return &Poster{
+	return &publisher{
 		Channel:    "ze-test",
 		Send:       rec.send,
 		DiscordSh:  filepath.Join(t.TempDir(), "discord.sh"),
@@ -141,8 +141,8 @@ func TestOtherFailuresStopThePostAndNameTheResumePoint(t *testing.T) {
 	if err == nil {
 		t.Fatal("send accepted a permission refusal")
 	}
-	if _, ok := errors.AsType[*SendFailed](err); !ok {
-		t.Fatalf("send err = %T, want *SendFailed", err)
+	if _, ok := errors.AsType[*sendFailed](err); !ok {
+		t.Fatalf("send err = %T, want *sendFailed", err)
 	}
 	for _, want := range []string{"resume-from 3", "messages 1 to 2", "ze-test"} {
 		if !strings.Contains(err.Error(), want) {
@@ -278,8 +278,8 @@ func TestFindDiscordShPrefersTheEnvironmentOverride(t *testing.T) {
 	t.Setenv("DISCORD_SH", "/somewhere/discord.sh")
 	resetEnvCache(t)
 
-	if got := FindDiscordSh(); got != "/somewhere/discord.sh" {
-		t.Errorf("FindDiscordSh = %q, want the override", got)
+	if got := resolveDiscordSh(); got != "/somewhere/discord.sh" {
+		t.Errorf("resolveDiscordSh = %q, want the override", got)
 	}
 }
 

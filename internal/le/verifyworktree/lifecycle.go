@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	gateName   = "ze-verify-worktree"
+	actionName = "worktree"
 	gitTimeout = 30 * time.Second
 )
 
@@ -41,9 +41,9 @@ type CleanupFailure struct {
 	Message   string `json:"message"`
 }
 
-// Report is the complete lifecycle and gate verdict.
+// Report is the complete lifecycle and action verdict.
 type Report struct {
-	Gate        string           `json:"gate"`
+	Action      string           `json:"action"`
 	Commit      string           `json:"commit"`
 	Worktree    string           `json:"worktree,omitempty"`
 	Code        int              `json:"code"`
@@ -73,14 +73,14 @@ type dependencies struct {
 // Run resolves Options.Commit, creates a detached worktree, runs every native
 // stage, preserves red logs, and removes and prunes the worktree unless Keep is
 // set. Git is the only subprocess boundary.
-func Run(ctx context.Context, root string, options Options, gates verify.GateRunner) Report {
-	return run(ctx, root, options, gates, dependencies{
+func Run(ctx context.Context, root string, options Options, actions verify.ActionRunner) Report {
+	return run(ctx, root, options, actions, dependencies{
 		git: runGit, now: time.Now, pid: os.Getpid, alive: processAlive,
 	})
 }
 
-func run(ctx context.Context, root string, options Options, gates verify.GateRunner, deps dependencies) (report Report) {
-	report = Report{Gate: gateName, Code: 1, Diagnostics: []string{}, Cleanup: []CleanupFailure{}}
+func run(ctx context.Context, root string, options Options, actions verify.ActionRunner, deps dependencies) (report Report) {
+	report = Report{Action: actionName, Code: 1, Diagnostics: []string{}, Cleanup: []CleanupFailure{}}
 	var text textbuf.Buffer
 	revision := strings.TrimSpace(options.Commit)
 	if revision == "" {
@@ -186,22 +186,22 @@ func run(ctx context.Context, root string, options Options, gates verify.GateRun
 		text.Reset().Str("verify-worktree: ").Str(shortSHA(sha)).Str(" -> ").Str(path).String(),
 		text.Reset().Str("verify-worktree: native ").Str(verify.Mode).String(),
 	)
-	gateReport := verify.Run(ctx, path, sha, gates)
-	report.Verify = &gateReport
-	report.Code = gateReport.Code
+	verification := verify.Run(ctx, path, sha, actions)
+	report.Verify = &verification
+	report.Code = verification.Code
 	report.Diagnostics = append(report.Diagnostics, text.Reset().Str("verify-worktree: ").
 		Str(verify.Mode).Str(" exit=").Int(int64(report.Code)).String())
-	if gateReport.Failure != nil {
-		report.Failure = gateReport.Failure
-	} else if gateReport.Code != 0 {
-		for _, stage := range gateReport.Stages {
+	if verification.Failure != nil {
+		report.Failure = verification.Failure
+	} else if verification.Code != 0 {
+		for _, stage := range verification.Stages {
 			if stage.Failure != nil {
 				report.Failure = stage.Failure
 				break
 			}
 		}
 	}
-	if gateReport.Code != 0 {
+	if verification.Code != 0 {
 		logs, logErr := saveLogs(root, path, filepath.Base(path))
 		switch {
 		case logErr != nil:
@@ -211,8 +211,8 @@ func run(ctx context.Context, root string, options Options, gates verify.GateRun
 				text.Reset().Str("verify-worktree: save logs failed: ").Err(logErr).String())
 		case logs == "":
 			report.Diagnostics = append(report.Diagnostics, text.Reset().
-				Str("verify-worktree: the gate wrote no stage logs (").Str(path).
-				Str("/tmp/verify/ is absent), so it went red before the first stage").String())
+				Str("verify-worktree: verification wrote no stage logs (").Str(path).
+				Str("/tmp/verify/ is absent), so it stopped before the first stage").String())
 		default:
 			report.Logs = logs
 			report.Diagnostics = append(report.Diagnostics,

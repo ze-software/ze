@@ -15,70 +15,6 @@ option=needs-linux:caps=net-admin
 # mode, so the host is never touched.
 option=netns-link:name=eth1:address=10.0.0.2/24
 
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import os, signal, subprocess, sys
-from ze_api import wait_for_daemon_ready, wait_for_output
-
-# // two WAITS replaced, no assertion touched. The hand-rolled
-# daemon-readiness for-loop became ze_api.wait_for_daemon_ready (same 200x0.05s
-# budget, ratchet-exempt internal sleep), and the blind post-apply settle became
-# ze_api.wait_for_output. Every expect= below is unchanged and still evaluated
-# against real `nft list table` / `ip rule show` / `ip route show` readbacks.
-pid = wait_for_daemon_ready()
-
-
-def auto_table_rule(dump):
-    """The fwmark ip rule pointing at an AUTO-allocated table (2000-2999).
-
-    Same predicate as the emit loop below, so the wait cannot gate on a rule the
-    test would not report.
-    """
-    for line in dump.splitlines():
-        if "fwmark" not in line or "lookup" not in line:
-            continue
-        try:
-            if 2000 <= int(line.split("lookup")[-1].strip()) <= 2999:
-                return True
-        except ValueError:
-            continue
-    return False
-
-
-# Was a blind 0.5s "settle" covering all three readbacks. The wait gates on the
-# ip rule, and the order is load-bearing: applyPolicies programs nftables FIRST
-# (firewall.ApplyAll, internal/plugins/policyroute/register.go:200) and the ip
-# rules and auto-allocated routes SECOND (rm.applyAll, :204). Waiting on ze_pr
-# would prove nothing about the later two and would leave
-# `expect=stdout:contains=IP_RULE_AUTO:` racing exactly as the sleep did.
-#
-# attempts=100 (5s), not the 200 default: this driver already spent up to 10s on
-# the readiness wait and the whole test is capped at 10s, so a full-budget second
-# wait would be cut short by the harness and report an opaque test-level timeout
-# instead of the assertion message below.
-rule_out = wait_for_output(["ip", "rule", "show"], auto_table_rule, attempts=100)
-
-nft_out = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
-sys.stdout.write(nft_out)
-
-for line in rule_out.splitlines():
-    if "fwmark" in line and "lookup" in line:
-        tbl = line.split("lookup")[-1].strip()
-        try:
-            tbl_num = int(tbl)
-            if 2000 <= tbl_num <= 2999:
-                sys.stdout.write("IP_RULE_AUTO: " + line + "\n")
-        except ValueError:
-            pass
-
-route_out = subprocess.check_output(["ip", "route", "show", "table", "all"], text=True)
-for line in route_out.splitlines():
-    if "10.0.0.1" in line and "proto" in line:
-        sys.stdout.write("AUTO_ROUTE: " + line + "\n")
-
-os.kill(pid, signal.SIGTERM)
-EOF_PY
-
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
 	backend nft;
@@ -103,7 +39,7 @@ option=env:var=ze.log.policy.routes:value=info
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+cmd=foreground:seq=2:exec=ze-test fixture policy/policy-next-hop:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=policy routes applied
 expect=stdout:contains=table inet ze_pr

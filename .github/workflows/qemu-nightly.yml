@@ -1,67 +1,8 @@
 name: qemu-nightly
 
-# The Linux-only functional surface, run for real in the QEMU Alpine VM.
-#
-# WHY THIS EXISTS. `option=needs-linux` tests skip on the darwin dev host, and
-# `make ze-precommit-verify` runs on an UNPRIVILEGED GitHub runner, so any test that
-# programs the kernel (interfaces, nftables, FIB, eBPF) can execute in neither.
-# Before this workflow those tests ran unprivileged in the verify job and simply
-# failed: in CI run 30219943935 sixteen of them died with "operation not
-# permitted", which is not coverage, it is noise. They now carry
-# `option=needs-linux:caps=...`, which makes them skip cleanly when the
-# capability is absent -- and THIS workflow is the place the capabilities are
-# present, so the skip is a redirection rather than a deletion
-# (ai/rules/platform-linux.md, ai/rules/completion.md).
-# TestCapabilityGatedTestsHaveAQemuHome fails if that redirection is ever
-# broken, either by dropping this target or by a gated test opting out of it.
-#
-# ACCELERATION. scripts/evidence/qemu-run.py passes `-machine accel=hvf:kvm:tcg`,
-# so QEMU falls through to TCG emulation when /dev/kvm is unusable: the run is
-# slower but it STARTS. The udev step below grants the runner user access when
-# the device is present, which is the difference between minutes and tens of
-# minutes. An earlier ruling (evidence-nightly.yml) kept every QEMU target out of
-# CI on the grounds that hosted runners "do not reliably provide" nested virt;
-# that is why this is a separate, scheduled, advisory workflow with a fallback
-# rather than a merge gate -- unreliable acceleration costs time here, it does
-# not stop the pipeline.
-#
-# NOT A MERGE GATE. `ze-qemu-needs-linux-test` boots a VM, cross-compiles three
-# binaries and runs every functional suite inside it; the make target alone
-# budgets 5400s. Putting that in front of a merge is exactly what
-# scripts/dev/github_workflows_test.go's fast-gate pin exists to prevent.
-#
-# MEASURED, not assumed. Everything below was sized before this workflow had ever
-# run; its first scheduled execution (run 30249183064, 2026-07-27) settled it:
-#
-#   * /dev/kvm IS usable on a hosted ubuntu-latest runner once the udev rule
-#     below runs -- `crw-rw-rw- 1 root kvm 10, 232`. The TCG fallback was not
-#     exercised, so the raised boot budget remains untested and stays as insurance.
-#   * The guest sizing holds: 8192 MB / 3 vCPU booted and ran to completion with
-#     no OOM kill.
-#   * The 300s boot budget was never approached -- boot to login took 9.8s with
-#     KVM. It exists for the TCG path, which has still not happened.
-#   * The inner budget did NOT survive comfortably: the run took 3269s of the
-#     then-3600s cap, 91%. Raised to 5400s in mk/test-integration.mk with the
-#     per-phase measurements recorded there.
-#
-# The step failed (exit 2) on real test failures, not on infrastructure, which is
-# the outcome this workflow exists to produce.
-#
-# It has not produced it since 2026-08-03. The runs of 08-04, 08-06 and 08-07
-# died in about a minute on a cross-compile break in
-# internal/component/ssh/ssh.go. From 08-08 the cause changed: the QEMU targets
-# moved onto ze's own runtime kernel (b38706464), which added a precondition
-# this file did not supply, and four more nightlies died before the VM. The
-# job-level `continue-on-error` below reported every one of those runs as
-# `success`, so the only visible signal was the job badge. The kernel steps and
-# the make-target split close the second cause. The wiring test in
-# scripts/dev/github_workflows_test.go closes the class: it refuses a job that
-# runs a kernel-guarded target and stages no kernel.
-#
-# scripts/dev/github_workflows_test.go pins this shape (scheduled-only, runs the
-# QEMU needs-linux target, every job advisory, and stages the kernel that target
-# demands in this same job).
-
+# Linux and appliance evidence that needs a real kernel remains scheduled and
+# advisory. Each job keeps its historical budget, accelerator fallback, and
+# independent failure signal.
 on:
   schedule:
     - cron: "43 4 * * *"
@@ -74,152 +15,63 @@ jobs:
   needs-linux:
     runs-on: ubuntu-latest
     continue-on-error: true
-    # The make target's own qemu-run budget is 5400s; this adds room for the
-    # Alpine ISO fetch, the in-VM Go toolchain, and three cross-compiles. The
-    # extra hour over that is the runtime kernel: about 30 minutes on a cache
-    # miss (docker builder), near zero on a hit. 120 minutes left no room for a
-    # miss, which is a wall-clock kill presenting as an opaque QEMU timeout.
     timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-
-      - name: Install system packages
+      - name: Install QEMU dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential git make python3 qemu-system-x86 qemu-utils \
-            openssh-client curl
-
-      # /dev/kvm exists on GitHub's Linux runners but is root-owned, and
-      # existence is not access: qemu refuses to use an unreadable device. This
-      # is the documented udev workaround. It is best-effort on purpose -- if the
-      # device is absent the rule is a no-op and qemu-run.py's accel fallback
-      # takes TCG, so the suite still runs.
+            build-essential git qemu-system-x86 qemu-utils openssh-client curl
       - name: Grant KVM access (best effort)
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules || true
           sudo udevadm trigger --name-match=kvm || true
-          ls -l /dev/kvm || echo "no /dev/kvm: QEMU will fall back to TCG (slower, still correct)"
-
-      # The QEMU targets boot ze's own runtime kernel and refuse stock Alpine
-      # (mk/test-integration.mk, ze-qemu-kernel-guard). A hosted runner starts
-      # with an empty ~/.cache/ze, so without these two steps the guard denies
-      # before the VM: every run from 2026-08-08 to 2026-08-11 died in about a
-      # minute on "tmp/kernel/vmlinuz not found", and `continue-on-error` made
-      # the run read green while it happened.
-      #
-      # ze-kernel-vmlinuz-stage, not ze-kernel-build: the second half of ze-kernel-build assembles
-      # the gokrazy kernel package from the module cache `make ze-gokrazy-deps-download`
-      # downloads, which a VM boot never touches.
-      #
-      # restore + save, never plain actions/cache. That action's post step carries
-      # `post-if: "success()"`, and job-level continue-on-error does not make
-      # success() true for it. This workflow exists to end on a FAILING test step,
-      # so the post save would be skipped on exactly the nights it runs for, and
-      # every night would pay the cold build again and throw it away. The save
-      # sits straight after the kernel step instead, before the suite can fail it,
-      # and it is skipped on a hit (nothing to add) and on a failed build (the
-      # step's own failure stops the job, so no partial tree is ever stored).
-      #
-      # The key hashes what BOTH keys read. ze-host keys the durable cache on the
-      # kernel version (internal/appliance/kernel.version, embedded as
-      # defaultKernelVersion and read by kernelCachePathFor) plus the config
-      # fragments and builder scripts (kernelCacheVariantFor,
-      # internal/appliance/cache.go). Omitting the version file let a kernel bump
-      # keep the same GH key: restore hits, the durable lookup misses, the build
-      # runs, and the save is skipped for the hit -- every night, permanently.
-      #
-      # NO restore-keys, on purpose. gokrazy/kernel/patches is in this key and NOT
-      # in the durable one, so a prefix restore could serve a tree built from a
-      # different patch set under a durable key that still matches. An exact-key
-      # miss rebuilds, which is the honest answer.
+          ls -l /dev/kvm || echo "no /dev/kvm: QEMU will fall back to TCG"
       - name: Restore the runtime kernel cache
         id: kernel-cache
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
-
-      # amd64 because runs-on is ubuntu-latest. The guard keys its comparison on
-      # QEMU_GOARCH, which follows uname, so moving this job to an arm runner
-      # without changing this line stages a kernel the guard then refuses by
-      # architecture. That is an error exit with a message naming the cause, not
-      # a silent boot of the wrong kernel.
-      - name: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
-        run: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
-
+      - name: Materialize the native runtime kernel
+        run: |
+          ./le build-artifacts host
+          ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
-
-      # Size the guest for the RUNNER, not for a workstation. qemu-run.py
-      # defaults to 16384 MB / 8 vCPU (scripts/evidence/qemu-run.py:35-36),
-      # which is the whole of an ubuntu-latest box (4 vCPU / 16 GB) -- and
-      # Alpine live-boots its root filesystem onto a tmpfs sized from guest RAM,
-      # so asking for all of it invites the host OOM-killing qemu rather than a
-      # readable test failure. ZE_QEMU_PARALLEL likewise drops: 4 concurrent ze
-      # daemons inside a 3-vCPU guest is the same over-subscription that killed
-      # the verify runner in the first place.
-      #
-      # The boot budget is raised because it may be paid under TCG: qemu-run.py
-      # gives 60s to reach the login prompt (:37) and does NOT retry -- the
-      # 3-attempt loop at :312 starts only after `login:` is seen, so a slow
-      # boot is fatal rather than retried. 60s was sized on an accelerated host.
-      - name: make ze-qemu-needs-linux-test
+      - name: Cross-build native guest binaries
+        run: |
+          FEATURES='ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_core zetest ze_distro ze_setup $FEATURES" -o bin/ze-linux-amd64 ./cmd/ze
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags 'ze_core' -o bin/ze-stripped-linux-amd64 ./cmd/ze
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_test $FEATURES" -o bin/ze-test-linux-amd64 ./cmd/ze
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_le $FEATURES" -o bin/ze-le-linux-amd64 ./cmd/ze
+      - name: Run every Linux-only functional test in the VM
         env:
           ZE_QEMU_MEMORY: "8192"
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_PARALLEL: "2"
           ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: make ze-qemu-needs-linux-test
+        run: >-
+          ./le qemu run
+          kernel tmp/kernel/build/vmlinuz
+          packages "coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs e2fsprogs-extra"
+          timeout 5400s
+          command 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN=bin/ze-linux-amd64 ZE_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_TEST_BIN=bin/ze-test-linux-amd64 ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 bin/ze-le-linux-amd64 le qemu all-tests'
 
-  # The protocol labs: ze's LDP, IS-IS and VRRP against a real FRR ldpd, a real
-  # FRR isisd and a real keepalived, on the wire in the VM. They booted stock
-  # Alpine until 2026-08-24 and boot ze's runtime kernel now, like every other
-  # QEMU target.
-  #
-  # WHY A JOB EXISTS FOR THEM. All three worked and none was invoked by anything.
-  # ze-qemu-ldp-frr-test was named only by its own `.PHONY` line, by `make help`,
-  # and by the comment in mk/test-integration.mk that EXCLUDED internal/plugins/ldp
-  # from ze-qemu-integration-test in its favor -- so ze's only
-  # cross-implementation LDP proof ran nowhere, and the exclusion pointed at a
-  # target nothing called. ze-qemu-vrrp-keepalived-test left VRRP with 150 unit
-  # tags and no executed interop at all.
-  # TestQemuAndInteropTargetsHaveACaller (scripts/dev/github_workflows_test.go)
-  # now refuses that state for the whole class.
-  #
-  # SEPARATE FROM needs-linux, and separate from the runtime-kernel job below.
-  # Not needs-linux: that job measured 3269s of its 5400s budget on a good night,
-  # and appending three more VM boots to it buys a wall-clock kill that presents
-  # as an opaque QEMU timeout. Not the runtime-kernel job either: these three are
-  # routing-protocol interop labs against frr and keepalived, and their own job is
-  # what keeps each job's budget sized for the boots it makes. The kernel is not
-  # what separates them: all three boot ze's runtime kernel, exactly as that job's
-  # four do.
-  #
-  # BUDGET, 120 minutes. The make targets cap themselves at 150s + 180s + 900s of
-  # in-VM run time; the rest is three boots, the 9p Go toolchain, and an apk fetch
-  # of frr and keepalived. It was 60 while the labs booted stock Alpine. All three
-  # boot ze's runtime kernel since 2026-08-24, so the job now carries what every
-  # other kernel-consuming job carries -- a cache restore, the stage, and a cache
-  # save -- and the budget follows runtime-kernel-labs for the same reason it does:
-  # a cold kernel build costs about 30 minutes and a hit costs a copy.
-  #
-  # Each target is its own step so a red one is named by the step that failed
-  # rather than by a shell exit code, and so a failing lab does not hide the two
-  # after it -- `if: ${{ !cancelled() }}` keeps the later steps running.
   protocol-labs:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -227,90 +79,76 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-
-      - name: Install system packages
+      - name: Install QEMU dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential git make python3 qemu-system-x86 qemu-utils \
-            openssh-client curl
-
+            build-essential git qemu-system-x86 qemu-utils openssh-client curl
       - name: Grant KVM access (best effort)
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules || true
           sudo udevadm trigger --name-match=kvm || true
-          ls -l /dev/kvm || echo "no /dev/kvm: QEMU will fall back to TCG (slower, still correct)"
-
+          ls -l /dev/kvm || echo "no /dev/kvm: QEMU will fall back to TCG"
       - name: Restore the runtime kernel cache
         id: kernel-cache
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
-
-      - name: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
-        run: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
-
+      - name: Materialize the native runtime kernel
+        run: |
+          ./le build-artifacts host
+          ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
-
-      - name: make ze-qemu-ldp-frr-test
+      - name: Cross-build the guest LE personality
+        run: |
+          FEATURES='ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_le $FEATURES" -o bin/ze-le-linux-amd64 ./cmd/ze
+      - name: LDP against FRR
         env:
           ZE_QEMU_MEMORY: "8192"
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: make ze-qemu-ldp-frr-test
-
-      - name: make ze-qemu-isis-frr-test
+        run: >-
+          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          packages "frr iproute2 kmod"
+          timeout 150s
+          command 'go test -tags integration -count=1 -timeout 150s -run TestLDPInteropFRR ./internal/plugins/ldp/...'
+      - name: IS-IS against FRR
         if: ${{ !cancelled() }}
         env:
           ZE_QEMU_MEMORY: "8192"
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: make ze-qemu-isis-frr-test
-
-      - name: make ze-qemu-vrrp-keepalived-test
+        run: >-
+          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          packages "frr iproute2 kmod tcpdump"
+          timeout 180s
+          command 'go test -tags integration -count=1 -timeout 180s -run TestISISInteropFRR ./internal/plugins/isis/...'
+      - name: VRRP against keepalived
         if: ${{ !cancelled() }}
         env:
           ZE_QEMU_MEMORY: "8192"
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: make ze-qemu-vrrp-keepalived-test
+        run: >-
+          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          packages "keepalived tcpdump iproute2 iputils-ping kmod"
+          timeout 900s
+          command 'bin/ze-le-linux-amd64 le qemu vrrp-keepalived-test'
 
-  # The runtime-kernel labs: the four targets that boot ze's OWN kernel because
-  # stock Alpine cannot run them. L2TP needs CONFIG_PPPOL2TP, both PPPoE labs need
-  # CONFIG_PPPOE, and traffic-usage attaches eBPF TCX programs that exist to be
-  # proven against the kernel ze actually ships.
-  #
-  # Same defect as protocol-labs above: all four worked and none was invoked by
-  # anything. The kernel is no longer what separates the two jobs -- both stage
-  # tmp/kernel/vmlinuz and both boot it. They stay apart because these four are
-  # the slowest targets and a red one here should not hide a red protocol lab,
-  # and because two jobs restore the same kernel cache in parallel rather than
-  # one job serialising seven targets behind a single ~30-minute cold build.
-  #
-  # The kernel steps are the same shape as the needs-linux job above, for the same
-  # reasons, and TestQemuKernelPreconditionIsMetInTheSameJob refuses this job
-  # without them: it derives the guarded targets from mk/test-integration.mk and
-  # the stagers from mk/build-gokrazy.mk, so it sees these four the moment they appear
-  # here. restore + save rather than actions/cache, because that action's post step
-  # is skipped on a failing job and this job exists to end on a failing test.
-  #
-  # BUDGET. The four make targets cap themselves at 600 + 600 + 1200 + 600 seconds
-  # of in-VM run time. 150 minutes covers that, four Alpine boots, the cross-builds
-  # ze-host and $(ze-qemu-crossbuild) do on the runner, and a cold kernel build.
   runtime-kernel-labs:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -318,73 +156,79 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-
-      - name: Install system packages
+      - name: Install runtime lab dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential git make python3 qemu-system-x86 qemu-utils \
-            openssh-client curl
-
+            build-essential git qemu-system-x86 qemu-utils openssh-client curl \
+            dnsmasq xl2tpd ppp iputils-ping
       - name: Grant KVM access (best effort)
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules || true
           sudo udevadm trigger --name-match=kvm || true
-          ls -l /dev/kvm || echo "no /dev/kvm: QEMU will fall back to TCG (slower, still correct)"
-
+          ls -l /dev/kvm || echo "no /dev/kvm: QEMU will fall back to TCG"
       - name: Restore the runtime kernel cache
         id: kernel-cache
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
-
-      - name: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
-        run: make ze-kernel-vmlinuz-stage KERNEL_ARCH=amd64
-
+      - name: Materialize the native runtime kernel
+        run: |
+          ./le build-artifacts host
+          ./ze-host appliance kernel --target runtime --arch amd64
       - name: Save the runtime kernel cache
         if: steps.kernel-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/ze
           key: ze-runtime-kernel-amd64-${{ hashFiles('internal/appliance/kernel.version', 'gokrazy/kernel/**', 'tools/kernel-builder/**') }}
-
-      - name: make ze-qemu-l2tp-ppp-test
-        env:
-          ZE_QEMU_MEMORY: "8192"
-          ZE_QEMU_CPUS: "3"
-          ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: make ze-qemu-l2tp-ppp-test
-
-      - name: make ze-qemu-pppoe-accel-test
+      - name: Cross-build native guest binaries
+        run: |
+          FEATURES='ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_core zetest ze_distro ze_setup $FEATURES" -o bin/ze-linux-amd64 ./cmd/ze
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags 'ze_core' -o bin/ze-stripped-linux-amd64 ./cmd/ze
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_test $FEATURES" -o bin/ze-test-linux-amd64 ./cmd/ze
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_le $FEATURES" -o bin/ze-le-linux-amd64 ./cmd/ze
+      - name: L2TP PPP appliance proof
+        run: sudo -E env "PATH=$PATH" "XDG_CACHE_HOME=$HOME/.cache" ./le deployment gokrazy-l2tp-ppp-test
+      - name: PPPoE against accel-ppp
         if: ${{ !cancelled() }}
         env:
           ZE_QEMU_MEMORY: "8192"
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: make ze-qemu-pppoe-accel-test
-
-      - name: make ze-qemu-pppoe-test
-        if: ${{ !cancelled() }}
-        env:
-          ZE_QEMU_MEMORY: "8192"
-          ZE_QEMU_CPUS: "3"
-          ZE_QEMU_PARALLEL: "2"
-          ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: make ze-qemu-pppoe-test
-
-      - name: make ze-qemu-traffic-usage-test
+        run: >-
+          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          packages "accel-ppp ppp iproute2 iputils-ping kmod"
+          timeout 600s
+          command 'bin/ze-le-linux-amd64 le qemu pppoe-accel-test'
+      - name: PPPoE functional suite
         if: ${{ !cancelled() }}
         env:
           ZE_QEMU_MEMORY: "8192"
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
-        run: make ze-qemu-traffic-usage-test
+        run: >-
+          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          packages "nftables iproute2 libcap kmod"
+          timeout 1200s
+          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_TEST_BIN=bin/ze-test-linux-amd64 bin/ze-le-linux-amd64 le qemu pppoe-test'
+      - name: Traffic-usage eBPF proof
+        if: ${{ !cancelled() }}
+        env:
+          ZE_QEMU_MEMORY: "8192"
+          ZE_QEMU_CPUS: "3"
+          ZE_QEMU_BOOT_TIMEOUT: "300"
+        run: >-
+          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          packages "iproute2 kmod"
+          timeout 600s
+          command 'go test -tags integration -count=1 -timeout 180s -run "TestProgram_|TestAttachTCX_CountsTraffic|TestMetricsScrape" ./internal/plugins/trafficusage/...'

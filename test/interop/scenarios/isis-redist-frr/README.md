@@ -35,8 +35,10 @@ redistributes IS-IS routes out to BGP:
   destination isis { import connected static bgp } }`.
 - `frr.conf`  -- FRR: `router isis` on the shared link, same area, so it forms an
   adjacency with Ze and learns the redistributed reachability.
-- `check.py`  -- asserts FRR installs the redistributed prefixes and that an IS-IS
-  route reaches the BGP peer (and is withdrawn on removal).
+- `internal/le/interoplab/bgp/check_engine.go` `checkScenario` executes the
+  `scenarioOperations` and `scenarioExtras` registered for `isis-redist-frr`;
+  those assertions require FRR to install the redistributed prefixes and an
+  IS-IS route to reach the BGP peer.
 
 ## Status
 

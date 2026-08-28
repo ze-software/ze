@@ -63,7 +63,7 @@ func (r Report) Text() string {
 		tb.Str("  ... and ").Int(int64(unnamed)).Str(" more\n")
 	}
 
-	tb.Str("  Run:  make ze-evidence-perf-record   (Docker; records the baseline so this clears)\n")
+	tb.Str("  After the Docker perf run, record it: ./le perf-bench record\n")
 	tb.Str("  This is advisory -- it never blocks a build.\n")
 	return tb.String()
 }

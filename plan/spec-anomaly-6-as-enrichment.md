@@ -18,7 +18,7 @@ facts surface the detector already reads. It adds no detector logic and no opera
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/spec-anomaly-0-umbrella.md` - child-6 row, R-3 (degrade-to-prefix), A-3 (tier violation)
-4. `ai/rules/architecture.md` + `scripts/dev/dep_audit.py` (the `ze-tier-check` gate; `engine_depended` at dep_audit.py)
+4. `ai/rules/architecture.md` + `internal/le/` (the `./le tier check` gate; `engine_depended` at dep_audit.py)
 5. Source: `internal/plugins/flowexport/exporter.go` (producer), `internal/core/observation/observation.go` (feed type), `internal/component/trafficfeature/{feature.go,service.go}` (facts surface)
 
 ## Task
@@ -29,7 +29,7 @@ security-domain consumer (child 7) can read AS on the `trafficfeature.FeatureEnt
 consumes -- **without any plugin importing another plugin**.
 
 The load-bearing constraint: a direct `internal/plugins/anomaly/detect` ->
-`internal/plugins/flowexport/enrich` import is **forbidden** and fails `make ze-tier-check`
+`internal/plugins/flowexport/enrich` import is **forbidden** and fails `./le tier check`
 (`dep_audit.py` `engine_depended`, dep_audit.py: flowexport is a config-driven engine
 in the edge tier; a feature importing its subtree flips its expected tier to `component`, which
 is a misplacement -> exit 2). The sanctioned ze data path is **producer -> core feed -> component
@@ -43,7 +43,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 
 ### Architecture Docs
 <!-- NEVER tick [ ] to [x]. Capture insights as → Decision: / → Constraint: annotations. -->
-- [ ] `ai/rules/architecture.md` - the tier taxonomy and the `ze-tier-check` gate this spec must pass
+- [ ] `ai/rules/architecture.md` - the tier taxonomy and the `./le tier check` gate this spec must pass
   → Constraint: tier = dependency direction. `internal/core` (observation) is imported by everyone; `internal/component` (trafficfeature) is depended on by plugins; `internal/plugins` (flowexport, anomaly) is an edge nobody depends on. Adding a field to a core or component struct is tier-safe; a plugin importing another plugin's engine subtree is not.
   → Constraint: flowexport is a config-driven engine (`sdk.NewWithConn`, register.go) living in `internal/plugins`; it is NOT in `tier_migration_baseline.txt` (clean edge). If any `internal/component/*` or `internal/plugins/*` file imports `internal/plugins/flowexport/...`, `engine_depended` returns True, its expected tier becomes `component`, and the gate fails. The stamp must add zero new importer of flowexport.
 - [ ] `ai/rules/architecture.md` - cross-plugin data path rule (referenced by umbrella)
@@ -52,9 +52,9 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
   → Constraint: removing flowexport must not break the observation/trafficfeature types. The AS field is an inert `uint32` on core/component structs that defaults to `0`; it carries meaning only while flowexport is loaded and enriching. Nothing in core/component may spell "flowexport".
 
 ### Source of the constraint (gate code, MUST read)
-- [ ] `scripts/dev/dep_audit.py` - `engine_depended(engine_rel, module, edges)` at dep_audit.py
+- [ ] `internal/le/` - `engine_depended(engine_rel, module, edges)` at dep_audit.py
   → Constraint: returns True when a non-test, non-registration importer under `internal/component/` or `internal/plugins/` (excluding the engine's own subtree and `NON_FEATURE_PREFIXES` core/chaos/test) imports the engine's package subtree. This is exactly what a `detect -> flowexport/enrich` import would trigger. The producer-stamp path adds no such importer, so the gate stays green.
-  → Constraint: `make ze-tier-check` runs `dep_audit.py --selftest` then `--check` (Makefile:288-290); it is part of `_ze-verify-impl` (Makefile:274). The tier assertion in this spec is a gate run, not a Go test.
+  → Constraint: `./le tier check` runs `dep_audit.py --selftest` then `--check` (the native action tables under `internal/le/`:288-290); it is part of `_ze-verify-impl` (the native action tables under `internal/le/`:274). The tier assertion in this spec is a gate run, not a Go test.
 
 ### RFC Summaries (MUST for protocol work)
 - N/A -- no wire protocol change. Origin-AS already exists on the flow (populated from the BGP RIB by the flowexport enricher); this spec moves an in-process value between existing structs.
@@ -108,7 +108,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 | flowexport (plugin) -> observation (core) | existing `observation.Global().Publish` at exporter.go; AS rides as a new struct field, no new import | [ ] |
 | observation (core) -> trafficfeature (component) | existing feed subscription (service.go); field read in `ingest` | [ ] |
 | trafficfeature (component) -> detect (plugin, child 7) | existing `Snapshot()` / `FeatureEntry` value read; `fe.SrcAS` adds no import | [ ] |
-| detect -/-> flowexport (FORBIDDEN) | must remain absent; `ze-tier-check` proves no such edge exists | [ ] |
+| detect -/-> flowexport (FORBIDDEN) | must remain absent; `./le tier check` proves no such edge exists | [ ] |
 
 ### Integration Points
 - `internal/plugins/flowexport/exporter.go` - the publish loop that gains the stamp.
@@ -117,7 +117,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 
 ### Architectural Verification
 - [ ] No bypassed layers (AS follows producer -> core feed -> component global -> consumer; the consumer never fetches from flowexport)
-- [ ] No unintended coupling (no new import edge; `detect` still does not import flowexport; `ze-tier-check` green)
+- [ ] No unintended coupling (no new import edge; `detect` still does not import flowexport; `./le tier check` green)
 - [ ] No duplicated functionality (reuses the already-computed `ConntrackFlow.SrcAS`; no second enricher lookup)
 - [ ] Zero-copy preserved where applicable (AS is a `uint32` scalar on an already-copied value; no heap, no slice)
 - [ ] Registration over hardcoding (no new registry needed; additive fields on existing types; no per-plugin switch in a core package)
@@ -127,11 +127,11 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Producer-stamping is tier-safe; only a `detect -> flowexport/enrich` import trips the gate | `dep_audit.py` `engine_depended` 486-506; flowexport is an edge engine (register.go) not in `tier_migration_baseline.txt` | design invalid | run `make ze-tier-check` after the change; grep for any `internal/plugins/anomaly` -> `internal/plugins/flowexport` import | **confirmed** (gate code read; no new importer is introduced) |
+| A-1 | Producer-stamping is tier-safe; only a `detect -> flowexport/enrich` import trips the gate | `dep_audit.py` `engine_depended` 486-506; flowexport is an edge engine (register.go) not in `tier_migration_baseline.txt` | design invalid | run `./le tier check` after the change; grep for any `internal/plugins/anomaly` -> `internal/plugins/flowexport` import | **confirmed** (gate code read; no new importer is introduced) |
 | A-2 | The AS is already on the flow at publish time, so the stamp is a field copy with no extra lookup | `ConntrackFlow.SrcAS` flowtypes.go; set at exporter.go before the publish loop at exporter.go | need a second enricher call | read exporter.go 246-324 | **confirmed** |
 | A-3 | `SrcAS == 0` is a safe "unknown" sentinel (public ASNs are never 0; AS0 is reserved) | `Enrich` leaves 0 on RIB miss (enricher.go); flowtypes.go "0 if unknown"; RFC 7607 reserves AS0 | a real AS0 flow reads as unknown | none needed (AS0 is reserved and never announced) | **confirmed** |
 | A-4 | Only source entities are emitted, so a source-branch stamp fully populates every `FeatureEntry` | `sent := st.outBytes > 0` gate feature.go; dest-only entities carry `inBytes` and are not emitted | dest entities would carry wrong/zero AS | read feature.go 141-209; unit test asserts `FeatureEntry.SrcAS` matches the source's AS | **confirmed** |
-| A-5 | Adding a `uint32` to `Observation` does not break the value-copy feed or other consumers | `Feed.Publish` copies the value (observation.go); other consumers (`trafficstat/window.go`) read only fields they know | feed regression | `make ze-unit-test`; existing observation/trafficstat tests | **confirmed** -- `make ze-unit-pkg-test` green for `internal/core/observation`, `internal/component/trafficstat`, `internal/plugins/trafficusage`, `internal/component/iface`, `internal/component/trafficfeature`, `internal/plugins/flowexport`, `internal/plugins/anomaly/detect`; `TestObservationSrcASFieldZeroValue` asserts the field survives `Publish` |
+| A-5 | Adding a `uint32` to `Observation` does not break the value-copy feed or other consumers | `Feed.Publish` copies the value (observation.go); other consumers (`trafficstat/window.go`) read only fields they know | feed regression | `./le test-unit`; existing observation/trafficstat tests | **confirmed** -- `go test -race ./...` green for `internal/core/observation`, `internal/component/trafficstat`, `internal/plugins/trafficusage`, `internal/component/iface`, `internal/component/trafficfeature`, `internal/plugins/flowexport`, `internal/plugins/anomaly/detect`; `TestObservationSrcASFieldZeroValue` asserts the field survives `Publish` |
 | A-6 | AS on a source entity is stable within a window (same prefix -> same origin AS) so last-non-zero-write-wins is correct | AS is a function of the source prefix in the RIB | flapping AS within a window | stamp only on non-zero `obs.SrcAS`, keep persistent | **confirmed** (design choice records last known AS) |
 
 ### Risks
@@ -141,7 +141,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 | R-2 | An unknown-AS flow (RIB miss) overwrites a previously known AS on the same source within a window | source entity's `SrcAS` drops to 0 mid-window | stamp only when `obs.SrcAS != 0`; keep `srcAS` in the persistent (non-reset) part of `sourceState` |
 | R-3 | Enlarging `Observation` raises per-observation copy cost / channel memory | throughput regression under high flow rate | field is a single `uint32` (4 bytes, likely absorbed by struct alignment); no allocation; measure with existing flow-export benchmarks if concerned |
 | R-4 | A future dest-entity axis (child 5) needs the dest AS, which this spec does not carry | child 5 finds no dest AS on the observation | documented in Known Limitations: `DstAS` is a one-line additive follow-up owned by child 5 when it emits dest entities; `ConntrackFlow.DstAS` already exists (flowtypes.go) |
-| R-5 | Someone "simplifies" by importing `flowexport/enrich` from the detector to get AS directly | `make ze-tier-check` exit 2 naming flowexport | the gate is the guardrail; this spec exists precisely to make that import unnecessary |
+| R-5 | Someone "simplifies" by importing `flowexport/enrich` from the detector to get AS directly | `./le tier check` exit 2 naming flowexport | the gate is the guardrail; this spec exists precisely to make that import unnecessary |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -150,7 +150,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 | flowexport publishes an enriched flow (`f.SrcAS` set) | → | stamp in `exportFlows` publish loop (exporter.go) | `TestExportFlowsStampsSrcAS` (flowexport: subscribe to a feed, run `exportFlows`, assert published `Observation.SrcAS == f.SrcAS`) |
 | a `KindFlow` observation with `SrcAS=N` enters the feed | → | `agg.ingest` source branch + `snapshot` (feature.go) | `TestFeatureEntryCarriesSrcAS` (trafficfeature: ingest an obs with `SrcAS=N`, tick, assert `Snapshot().Sources[i].SrcAS == N`) |
 | an unknown-AS flow (`SrcAS=0`) | → | same path, sentinel behavior | `TestFeatureEntrySrcASUnsetWhenUnknown` (assert `FeatureEntry.SrcAS == 0`, no clobber of a prior known AS) |
-| the whole change compiled | → | no forbidden import edge | `make ze-tier-check` passes (`dep_audit.py --check` exit 0); grep proves no `anomaly -> flowexport` import |
+| the whole change compiled | → | no forbidden import edge | `./le tier check` passes (`dep_audit.py --check` exit 0); grep proves no `anomaly -> flowexport` import |
 
 ## Acceptance Criteria
 
@@ -159,7 +159,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 | AC-1 | flowexport enriches a flow with source origin-AS N and publishes it | the published `observation.Observation` carries `SrcAS == N` (stamped at the producer, no second enricher lookup) |
 | AC-2 | a `KindFlow`+`FeatureFlowBytes` observation with `SrcAS=N` for source addr S is ingested and a tick elapses | `trafficfeature.Snapshot()` returns a `FeatureEntry` for S with `SrcAS == N` |
 | AC-3 | flowexport enrichment is absent (nil enricher or RIB miss), so `SrcAS=0` | the observation and the resulting `FeatureEntry` carry `SrcAS == 0`; a later unknown-AS flow does not overwrite a previously known AS on the same source |
-| AC-4 | the change is built | `make ze-tier-check` passes (exit 0); no file under `internal/plugins/anomaly` or `internal/component/trafficfeature` imports `internal/plugins/flowexport`; flowexport is not promoted to `component` |
+| AC-4 | the change is built | `./le tier check` passes (exit 0); no file under `internal/plugins/anomaly` or `internal/component/trafficfeature` imports `internal/plugins/flowexport`; flowexport is not promoted to `component` |
 | AC-5 | flowexport is removed / disabled | `internal/core/observation` and `internal/component/trafficfeature` still compile and behave; the AS field defaults to `0` (self-containment preserved) |
 | AC-6 | this spec is closed | its closure names the spec that CONSUMES `FeatureEntry.SrcAS`. Added 2026-08-18 by an independent review of `d85aa3720~1..a0c8486bb`, which landed this spec's producer and found no non-test reader of the field: `feature.go` writes it, `service.go` returns it, and nothing reads it. The design says so on purpose ("child 6 does NOT modify the detector"), so this is a SEQUENCING obligation, not a defect. It is recorded because a producer with no consumer is exactly what a closed spec makes invisible: nothing in the tree fails if child 7 never lands, and the field then costs memory in every snapshot to feed nobody |
 
@@ -191,7 +191,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N/A for child 6 | -- | child 6 adds an internal facts field with no operator-facing surface of its own. The operator-visible AS surface (AS cohorts / per-ASN entities in `show anomaly detect`) lands in child 7, which owns the functional `.ci`. The end-to-end daemon proof rides child 4's `interop-harness` `fakeflow` once child 7 consumes the field. Child 6 is proven by the unit + wiring tests above and the `ze-tier-check` gate. | N/A |
+| N/A for child 6 | -- | child 6 adds an internal facts field with no operator-facing surface of its own. The operator-visible AS surface (AS cohorts / per-ASN entities in `show anomaly detect`) lands in child 7, which owns the functional `.ci`. The end-to-end daemon proof rides child 4's `interop-harness` `fakeflow` once child 7 consumes the field. Child 6 is proven by the unit + wiring tests above and the `./le tier check` gate. | N/A |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -260,7 +260,7 @@ N/A -- this spec adds no SAFI, capability, or attribute; no wire format changes.
 | 3. Wiring phase | Wiring Test table -- add the failing propagation tests first |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `make ze-precommit-verify` (includes `ze-tier-check`) |
+| 6. Full verification | `./le verify current mode full` (includes `./le tier check`) |
 | 7-13 | Critical / Deliverables / Security review below |
 | 14. Present summary | Executive Summary + learned summary |
 
@@ -270,7 +270,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- add the failing propagation + tier assertions
    - Tests: `TestFeatureEntryCarriesSrcAS`, `TestExportFlowsStampsSrcAS` (fail: field does not exist yet)
-   - Files: test additions only; confirm `make ze-tier-check` is green BEFORE the change (baseline)
+   - Files: test additions only; confirm `./le tier check` is green BEFORE the change (baseline)
    - Verify: tests fail to compile (no `SrcAS` field) -- proves the surface is not yet wired
 2. **Phase: core field** -- add `SrcAS uint32` to `observation.Observation`
    - Tests: `TestObservationSrcASFieldZeroValue`
@@ -285,8 +285,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `internal/component/trafficfeature/service.go`, `internal/component/trafficfeature/feature.go`
    - Verify: source-branch-only stamp; persists across window reset; `Snapshot` carries it
 5. **Phase: tier + full verify** -- prove the guardrail holds
-   - Tests: `make ze-tier-check` (exit 0); grep proves no `anomaly -> flowexport` import
-   - Verify: `make ze-precommit-verify` (or `ze-precommit-verify-changed`) green
+   - Tests: `./le tier check` (exit 0); grep proves no `anomaly -> flowexport` import
+   - Verify: `./le verify current mode full` (or `./le verify current mode changed`) green
 6. **Docs** -- update the subsystem/meta doc (checklist row 12/16) with a source anchor
 7. **Complete spec** -- fill audit tables; learned summary to `plan/learned/NNN-anomaly-6-as-enrichment.md`; two commits (A: code+tests+spec+learned; B: `git rm` spec)
 
@@ -300,7 +300,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Data flow | stamp at the producer only; consumer (child 7) reads, never fetches; no new import edge |
 | Registration over hardcoding | additive fields, no new registry, no per-plugin switch in a core package |
 | Doctor checks | none added (no new runtime dependency) -- confirm N/A holds |
-| Rule: module-tiers | `make ze-tier-check` green; flowexport not promoted to component |
+| Rule: module-tiers | `./le tier check` green; flowexport not promoted to component |
 | Rule: plugin-self-containment | removing flowexport leaves observation/trafficfeature compiling with `SrcAS` defaulting to 0 |
 
 ### Deliverables Checklist (/implement stage 10)
@@ -309,7 +309,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | `Observation.SrcAS` exists | `grep -n "SrcAS" internal/core/observation/observation.go` |
 | producer stamp present | `grep -n "SrcAS" internal/plugins/flowexport/exporter.go` shows the copy in the publish loop |
 | `FeatureEntry.SrcAS` carried to Snapshot | `TestFeatureEntryCarriesSrcAS` passes |
-| tier gate green | `make ze-tier-check` exit 0 |
+| tier gate green | `./le tier check` exit 0 |
 | no forbidden import | `grep -rn "plugins/flowexport" internal/plugins/anomaly internal/component/trafficfeature` returns nothing (excluding test comments) |
 
 ### Security Review Checklist (/implement stage 11)
@@ -325,7 +325,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Compilation error | Fix in the phase that introduced it |
 | Test fails wrong reason | Fix test assertion or setup |
 | Test fails behavior mismatch | Re-read source from Current Behavior |
-| `ze-tier-check` fails | A forbidden import slipped in -- remove it; the whole point is to avoid it |
+| `./le tier check` fails | A forbidden import slipped in -- remove it; the whole point is to avoid it |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
 
 ## Mistake Log
@@ -348,7 +348,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Stamp `SrcAS` at the flowexport producer onto `observation.Observation` | (a) import `flowexport/enrich` from the detector; (b) a separate AS side-channel feed | (a) fails `ze-tier-check` (`engine_depended`, dep_audit.py); (b) duplicates the feed. Producer-stamp reuses the value already on the flow and adds zero import edges |
+| Stamp `SrcAS` at the flowexport producer onto `observation.Observation` | (a) import `flowexport/enrich` from the detector; (b) a separate AS side-channel feed | (a) fails `./le tier check` (`engine_depended`, dep_audit.py); (b) duplicates the feed. Producer-stamp reuses the value already on the flow and adds zero import edges |
 | Carry `SrcAS` only (not `DstAS`) in this spec | carry both now | only source entities are emitted (`sent := st.outBytes > 0`, feature.go) and child 7 reads `fe.SrcAS`; `DstAS` is unused until child 5 emits dest entities. No-speculative-features. `DstAS` is a one-line additive follow-up (`ConntrackFlow.DstAS` already exists) |
 | Stamp in the SOURCE-role ingest branch only | stamp in both roles | in the DEST branch `obs.SrcAS` is the OTHER endpoint's AS; stamping it would mislabel the entity (A-4). The source branch sees the entity-as-source, where `obs.SrcAS` is correct |
 | Persist `srcAS` across window reset; overwrite only on non-zero | reset per window; always overwrite | AS is an entity property (its prefix), stable across windows; a later unknown-AS flow (RIB miss) must not clobber a known AS (R-2) |
@@ -421,7 +421,7 @@ by construction, not by exception.
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
 | Origin-AS stamped at the flowexport producer onto the facts surface | unit test | `TestExportFlowsStampsSrcAS`, `TestFeatureEntryCarriesSrcAS` |
-| Tier-safe (no `detect -> flowexport` import) | gate run | `make ze-tier-check` exit 0 + grep for absent import |
+| Tier-safe (no `detect -> flowexport` import) | gate run | `./le tier check` exit 0 + grep for absent import |
 | Optional: unset when AS unknown, degrades to prefix cohorts | unit test | `TestFeatureEntrySrcASUnsetWhenUnknown` |
 
 ## Review Gate
@@ -462,7 +462,7 @@ by construction, not by exception.
 - [ ] End-to-End User Stories: story 1 and 2 have a working path + passing test; story 3 documented as child 7
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `make ze-standard-test` passes (lint + all ze tests, incl. `ze-tier-check`)
+- [ ] `./le verify current mode full` passes (lint + all ze tests, incl. `./le tier check`)
 - [ ] Feature code integrated (`internal/core/observation`, `internal/plugins/flowexport`, `internal/component/trafficfeature`)
 - [ ] Integration completeness proven end-to-end (facts surface carries `SrcAS`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

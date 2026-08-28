@@ -281,8 +281,8 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	// chaos-integration test then fails on a refused connection, and no client
 	// output explains it.
 	//
-	// The Makefile `chaos` rule carries the same pair for the same reason.
-	// These two must not drift apart.
+	// zeTestBuildChaos carries the same pair for the same reason. These two
+	// native Go build paths must not drift apart.
 	const chaosTags = "ze_chaos ze_bgp"
 	switch cli.command {
 	case cmdChaosWeb:

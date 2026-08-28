@@ -407,6 +407,7 @@ func FilterTypesMap() map[string]string {
 func SetMetricsRegistry(reg metrics.Registry) {
 	mu.Lock()
 	metricsRegistry = reg
+	server := pluginServerInstance
 	if reg == nil {
 		// Nothing to inject, so the deferred hooks stay deferred. Draining them
 		// here would mark them configured and then run nothing, which is the
@@ -423,6 +424,9 @@ func SetMetricsRegistry(reg metrics.Registry) {
 	}
 	mu.Unlock()
 
+	if server != nil {
+		server.SetMetricsRegistry(reg)
+	}
 	// Invoked outside the lock: a plugin's ConfigureMetrics builds its collectors
 	// and is free to call back into this package.
 	for _, fn := range pending {
@@ -485,8 +489,12 @@ func GetEventBus() ze.EventBus {
 // SetPluginServer stores the plugin server instance for injection into plugins.
 func SetPluginServer(server PluginServerAccessor) {
 	mu.Lock()
-	defer mu.Unlock()
 	pluginServerInstance = server
+	reg := metricsRegistry
+	mu.Unlock()
+	if server != nil && reg != nil {
+		server.SetMetricsRegistry(reg)
+	}
 }
 
 // GetPluginServer returns the stored plugin server instance, or nil.

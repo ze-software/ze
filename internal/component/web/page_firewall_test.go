@@ -897,7 +897,7 @@ func TestWorkbench_FirewallTablesPageDispatch(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/firewall/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/firewall/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -921,7 +921,7 @@ func TestWorkbench_FirewallTablesHTMXPartial(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/firewall/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/firewall/", http.NoBody)
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -945,7 +945,7 @@ func TestWorkbench_FirewallChainsPageDispatch(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/firewall/chain/?table=filter", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/firewall/chain/?table=filter", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -968,7 +968,7 @@ func TestWorkbench_FirewallRulesPageDispatch(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/firewall/rule/?table=filter&chain=input", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/firewall/rule/?table=filter&chain=input", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -991,7 +991,7 @@ func TestWorkbench_FirewallSetsPageDispatch(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/firewall/set/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/firewall/set/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -1011,7 +1011,7 @@ func TestWorkbench_FirewallConnectionsPageDispatch(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/firewall/connections/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/firewall/connections/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -1034,7 +1034,7 @@ func TestWorkbench_FirewallTablesEmptyPageDispatch(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/firewall/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/firewall/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

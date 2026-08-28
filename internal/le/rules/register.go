@@ -9,13 +9,12 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
 	leroot.Register(area, Answer, registry.Meta{
-		Description: "the rule corpus in ai/rules/: lint its format, render it from its points, " +
-			"and map each hook check to the point it enforces",
+		Description: "the rule corpus in ai/rules/: lint and render it, map hook enforcement, " +
+			"and report matched rules unread in a session transcript",
 		Mode: "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
@@ -25,12 +24,12 @@ func init() {
 		SubsFunc: Subs,
 	})
 
-	// Every answer contains one row set: actions or gate-map sets. Thus, row
-	// operators apply to each answer.
+	// Every answer contains one row set: actions, gate-map sets, or a transcript
+	// coverage report. Thus, row operators apply to each answer.
 	leroot.RegisterShape(area, command.ShapeMap)
 
 	// The census counts these gates as ported from here, in the same init()
 	// that registers the command. A claim whose command never registered is
 	// red, so the count cannot fall for a tool nothing can reach.
-	parity.Claim(area, actions.Gates()...)
+
 }

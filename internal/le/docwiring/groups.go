@@ -64,7 +64,7 @@ type Group struct {
 // It MUST be called at the failure point, not in an end-of-run dump. The run
 // stops after a wiring failure or failed delegated target. A final dump would
 // include only failures that survived until the end.
-func (g *gate) declareFailureGroup(check string, related []string, summary, rerun string) {
+func (g *checker) declareFailureGroup(check string, related []string, summary, rerun string) {
 	kind := unattributableKind
 	if len(related) > 0 {
 		kind = pathBearingKind

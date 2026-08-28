@@ -11,7 +11,6 @@
 # client credentials with `ze init` into a sandbox config dir, then runs `ze cli`
 # against that dir with ze.ssh.password. The SSH port is fixed (per-test netns
 # isolates it) so no log-scrape is needed. Requires CAP_NET_ADMIN (nft) + SSH,
-# so the daemon must be built with ze_ssh (see the make target); ze init lives
 # in ze_core.
 #
 # // this rewrite replaces the previous no-SSH-setup version (which
@@ -21,89 +20,6 @@
 # in intent; this is not test weakening.
 
 option=needs-linux:caps=net-admin
-
-tmpfs=driver.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-import os
-import signal
-import socket
-import subprocess
-import sys
-import tempfile
-
-from ze_api import wait_for_daemon_ready, wait_until
-
-# // two WAITS replaced, no assertion touched. The hand-rolled
-# daemon-readiness for-loop became ze_api.wait_for_daemon_ready (same 200x0.05s
-# budget, ratchet-exempt internal sleep), and the blind pre-connect hold became
-# a wait on the SSH listener actually accepting. Every expect= below is
-# unchanged.
-pid = wait_for_daemon_ready()
-
-
-def ssh_listening():
-    """True once something accepts on 127.0.0.1:2222.
-
-    The SSH CLI server binds separately from OnConfigure, so daemon.ready does
-    NOT imply it is listening -- which is why a blind 0.5s hold sat here. A
-    connect attempt is the direct signal, and it is what `ze init` below does
-    anyway: waiting for it turns a first-attempt ECONNREFUSED (which `ze init`
-    reports as a hard failure, not a retryable one) into a wait.
-    """
-    with socket.socket() as probe:
-        probe.settimeout(0.2)
-        return probe.connect_ex(("127.0.0.1", 2222)) == 0
-
-
-if not wait_until(ssh_listening, attempts=100, delay=0.05):
-    sys.exit("SSH CLI server never listened on 127.0.0.1:2222")
-
-# Provision client credentials in a sandbox config dir (super-admin path),
-# matching the daemon's operator/testpass and SSH server address. ze init reads
-# username, password, host, port (newline-delimited).
-client_dir = tempfile.mkdtemp()
-init_env = dict(os.environ)
-init_env["ze.config.dir"] = client_dir
-init_env["ze.ssh.insecure"] = "true"
-try:
-    init = subprocess.run(
-        ["ze", "init"], input="operator\ntestpass\n127.0.0.1\n2222\n",
-        text=True, env=init_env, capture_output=True, timeout=8)
-except subprocess.TimeoutExpired as e:
-    sys.exit("ze init TIMED OUT: %s%s" % (e.stdout or "", e.stderr or ""))
-if init.returncode != 0:
-    sys.exit("ze init failed: %s%s" % (init.stdout, init.stderr))
-
-cli_env = dict(os.environ)
-cli_env["ze.config.dir"] = client_dir
-cli_env["ze.ssh.password"] = "testpass"
-cli_env["ze.ssh.insecure"] = "true"
-
-out = None
-last = None
-for attempt in range(10):
-    try:
-        r = subprocess.run(
-            ["ze", "cli", "--user", "operator", "-c", "show firewall ruleset fw10_004"],
-            text=True, env=cli_env, capture_output=True, timeout=3)
-    except subprocess.TimeoutExpired as e:
-        last = "attempt %d TIMED OUT: %s%s" % (attempt, e.stdout or "", e.stderr or "")
-        continue
-    if r.returncode == 0:
-        out = r.stdout
-        break
-    last = "attempt %d rc=%d: %s%s" % (attempt, r.returncode, r.stdout or "", r.stderr or "")
-    # // retry interval -> ze_api.wait_until with a predicate that is
-    # never satisfied, used purely as the ratchet-exempt pacer for this loop. The
-    # loop keeps its own 10-attempt bound and its own `last` diagnostic; only the
-    # sleep call moved. Rewriting the whole loop as a wait_until would lose the
-    # per-attempt failure text that `sys.exit(last)` reports.
-    wait_until(lambda: False, attempts=1, delay=0.1)
-if out is None:
-    sys.exit("ze cli never succeeded: %s" % last)
-sys.stdout.write(out)
-os.kill(pid, signal.SIGTERM)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 firewall {
@@ -155,7 +71,7 @@ EOF_CONF
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 driver.py:timeout=20s
+cmd=foreground:seq=2:exec=ze-test fixture firewall/firewall-cli-show:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=fw10_004
 expect=stdout:contains=allow-https

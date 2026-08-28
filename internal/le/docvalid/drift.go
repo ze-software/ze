@@ -54,7 +54,6 @@ func (c *checker) run() []Issue {
 	issues = append(issues, c.checkReadmeMD(ciTotal, interopCount, fuzzCount, goTestCount)...)
 	issues = append(issues, c.checkFeaturesMD()...)
 	issues = append(issues, c.checkFunctionalTestsMD(releaseGateSuites)...)
-	issues = append(issues, c.checkMakefileHelp(releaseGateSuites)...)
 	issues = append(issues, c.checkForbiddenDocClaims()...)
 	issues = append(issues, c.checkPipeOperatorReference()...)
 	issues = append(issues, c.checkPublishedCommandSurfaces("")...)
@@ -80,7 +79,6 @@ const (
 	readmeDoc          = "README.md"
 	featuresDoc        = "docs/features.md"
 	functionalTestsDoc = "docs/functional-tests.md"
-	makefileName       = "Makefile"
 )
 
 var forbiddenDocClaims = []forbiddenDocClaim{
@@ -518,13 +516,9 @@ func (c *checker) checkFunctionalTestsMD(gateSuites []string) []Issue {
 	if err != nil {
 		return nil
 	}
-	// Same order and the same reason as checkMakefileHelp: the read decides
-	// whether there is anything here to check, and only then does an empty
-	// population mean the derivation failed.
 	if len(gateSuites) == 0 {
 		return []Issue{{
 			File:    functionalTestsDoc,
-			Line:    0,
 			Message: suiteDerivationFailed,
 		}}
 	}
@@ -533,119 +527,48 @@ func (c *checker) checkFunctionalTestsMD(gateSuites []string) []Issue {
 	var tb textbuf.Buffer
 	joined := strings.Join(lines, " ")
 	re := regexp.MustCompile(`functional test target runs (\d+) suites: ([^.]+)\.`)
-	m := re.FindStringSubmatch(joined)
-	if len(m) < 3 {
+	match := re.FindStringSubmatch(joined)
+	if len(match) < 3 {
 		issues = append(issues, Issue{
 			File:    functionalTestsDoc,
-			Line:    0,
 			Message: "could not find release gate suite list",
 			Detail:  "expected: functional test target runs N suites: a, b, c.",
 		})
 	} else {
-		claimedCount, _ := strconv.Atoi(m[1]) //nolint:errcheck // a non-number cannot reach here: the group is \d+
-		claimedSuites := splitSuiteList(m[2])
+		claimedCount, _ := strconv.Atoi(match[1]) //nolint:errcheck // regexp accepts digits only
+		claimedSuites := splitSuiteList(match[2])
 		if claimedCount != len(gateSuites) {
-			tb.Reset()
-			message := tb.Str("claims ").Int(int64(claimedCount)).
-				Str(" release-gate suites, Makefile has ").Int(int64(len(gateSuites))).String()
-			tb.Reset()
 			issues = append(issues, Issue{
-				File: functionalTestsDoc, Line: lineNumberContaining(lines, m[0]),
-				Message: message,
-				Detail:  tb.Str("Makefile: ").Join(gateSuites, ", ").String(),
+				File: functionalTestsDoc, Line: lineNumberContaining(lines, match[0]),
+				Message: tb.Reset().Str("claims ").Int(int64(claimedCount)).
+					Str(" release-gate suites, native catalog has ").Int(int64(len(gateSuites))).String(),
+				Detail: tb.Reset().Str("native catalog: ").Join(gateSuites, ", ").String(),
 			})
 		}
 		if !sameStrings(claimedSuites, gateSuites) {
-			tb.Reset()
 			issues = append(issues, Issue{
-				File: functionalTestsDoc, Line: lineNumberContaining(lines, m[0]),
-				Message: "release-gate suite list does not match Makefile",
-				Detail: tb.Str("docs: ").Join(claimedSuites, ", ").
-					Str("; Makefile: ").Join(gateSuites, ", ").String(),
+				File: functionalTestsDoc, Line: lineNumberContaining(lines, match[0]),
+				Message: "release-gate suite list does not match the native catalog",
+				Detail: tb.Reset().Str("docs: ").Join(claimedSuites, ", ").
+					Str("; native catalog: ").Join(gateSuites, ", ").String(),
 			})
 		}
 	}
 
 	manualSuites := extractTableColumn(lines, "Suite", "Runner", 0)
-	gateSet := make(map[string]bool, len(gateSuites))
+	gated := make(map[string]bool, len(gateSuites))
 	for _, suite := range gateSuites {
-		gateSet[strings.ToLower(suite)] = true
+		gated[strings.ToLower(suite)] = true
 	}
 	for _, suite := range manualSuites {
-		name := strings.ToLower(strings.Trim(strings.TrimSpace(suite), "`"))
-		if gateSet[name] {
-			tb.Reset()
+		if gated[strings.ToLower(strings.Trim(strings.TrimSpace(suite), "`"))] {
 			issues = append(issues, Issue{
-				File: functionalTestsDoc, Line: 0,
-				Message: tb.Str("gated suite ").Quoted(suite).Str(" is listed as manual-only").String(),
+				File:    functionalTestsDoc,
+				Message: tb.Reset().Str("gated suite ").Quoted(suite).Str(" is listed as manual-only").String(),
 			})
 		}
 	}
 	return issues
-}
-
-func (c *checker) checkMakefileHelp(gateSuites []string) []Issue {
-	path := filepath.Join(c.root, makefileName)
-	lines, err := c.readLines(path)
-	if err != nil {
-		return nil
-	}
-	// Emptiness is judged AFTER the read and separately from it. The read
-	// answers "is there anything here to check", and a fixture root with no
-	// Makefile must stay silent. Once the file exists, an empty population
-	// means the derivation FAILED, and reading that as "no suites to check"
-	// would disable this check on exactly the failure it must report.
-	if len(gateSuites) == 0 {
-		return []Issue{{
-			File:    makefileName,
-			Line:    0,
-			Message: suiteDerivationFailed,
-		}}
-	}
-
-	var tb textbuf.Buffer
-	listRe := regexp.MustCompile(`ze-functional-test\s+- Run ze functional tests \(([^)]*)\)`)
-	countRe := regexp.MustCompile(`ze-functional-test\s+All\s+(\d+)\s+gating suites`)
-	for i, line := range lines {
-		m := listRe.FindStringSubmatch(line)
-		if len(m) < 2 {
-			count := countRe.FindStringSubmatch(line)
-			if len(count) != 2 {
-				continue
-			}
-			claimed, _ := strconv.Atoi(count[1]) //nolint:errcheck // a non-number cannot reach here: the group is \d+
-			if claimed == len(gateSuites) {
-				return nil
-			}
-			message := tb.Str("ze-functional-test help claims ").Int(int64(claimed)).
-				Str(" suites, target has ").Int(int64(len(gateSuites))).String()
-			tb.Reset()
-			return []Issue{{
-				File:    makefileName,
-				Line:    i + 1,
-				Message: message,
-				Detail:  tb.Str("target: ").Join(gateSuites, ", ").String(),
-			}}
-		}
-		claimed := splitSuiteList(m[1])
-		if sameStrings(claimed, gateSuites) {
-			return nil
-		}
-		tb.Reset()
-		return []Issue{{
-			File:    makefileName,
-			Line:    i + 1,
-			Message: "ze-functional-test help suite list does not match target",
-			Detail: tb.Str("help: ").Join(claimed, ", ").
-				Str("; target: ").Join(gateSuites, ", ").String(),
-		}}
-	}
-
-	return []Issue{{
-		File:    makefileName,
-		Line:    0,
-		Message: "ze-functional-test help line not found",
-	}}
 }
 
 // splitSuiteList answers the suite names in a comma-separated prose list.
@@ -706,7 +629,7 @@ func (c *checker) checkPipeOperatorReference() []Issue {
 		return []Issue{{
 			File:    pipeOperatorReferencePath,
 			Message: "the generated pipe operator reference is missing",
-			Detail:  "run `make ze-docs-pipe-operators-update`",
+			Detail:  "run `./le docvalid pipe-operators-update`",
 		}}
 	}
 	if string(published) == command.RenderOperatorReference() {
@@ -716,13 +639,13 @@ func (c *checker) checkPipeOperatorReference() []Issue {
 		File:    pipeOperatorReferencePath,
 		Message: "the published pipe operator table and the operator catalog disagree",
 		Detail: "the catalog in internal/component/command/pipe_catalog.go is the source; " +
-			"run `make ze-docs-pipe-operators-update`",
+			"run `./le docvalid pipe-operators-update`",
 	}}
 }
 
-// WriteGenerated rewrites the generated documentation the drift gate checks, so
+// writeGenerated rewrites the generated documentation the drift gate checks, so
 // the writer and the checker are one program and cannot render differently.
-func WriteGenerated(root string) (WriteReport, error) {
+func writeGenerated(root string) (WriteReport, error) {
 	path := filepath.Join(root, pipeOperatorReferencePath)
 	if err := os.WriteFile(path, []byte(command.RenderOperatorReference()), 0o644); err != nil { //nolint:gosec // generated documentation
 		return WriteReport{}, err

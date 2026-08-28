@@ -43,7 +43,7 @@
 # then holds the daemon up until the withdrawal has been written.
 #
 # The first of those two barriers was added after a load run reproduced its
-# absence on invocation 8 of 40 (scripts/dev/stress-repro.py): the source's own
+# absence on invocation 8 of 40 (internal/le/stressrepro/actions.go): the source's own
 # session came up first, it announced immediately, and the route server dropped
 # the UPDATE with
 #   "forward matched no target ... why=127.0.0.2=not-yet-up, 127.0.0.1=source".
@@ -131,112 +131,6 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0034020000001D800F1A
 EOF_RECEIVER
 
 # Observer: makes the departure and the shutdown wait on STATE, never on a clock.
-tmpfs=bgpls-withdraw.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Drive the source client: announce when the route server can forward, then leave."""
-import json
-import sys
-
-from ze_api import API, dispatch, result_json_data, runtime_fail
-
-SOURCE = '127.0.0.1'
-RECEIVER = '127.0.0.2'
-
-
-def rs_peers_up(api):
-    """Addresses the ROUTE SERVER itself counts as up, as a set.
-
-    This is peerStatus (internal/component/bgp/plugins/rs/server_handlers.go)
-    reporting PeerState.Up, which handleState writes under rs.mu in the same
-    critical section that makes the peer a forward target. The reactor's own
-    session state is a DIFFERENT fact set in a different place, and forwarding
-    reads this one.
-
-    Empty on any transient -- a command that has not completed, a payload of
-    another shape -- so a poller keeps waiting instead of raising. The guarded
-    module-level dispatch is used for the same reason (see API.peer_fields).
-    """
-    result = dispatch(api, 'show bgp rs peers') or {}
-    result = result.get('result', result)
-    if result.get('status') != 'done':
-        return set()
-    try:
-        payload = result_json_data(result, {})
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return set()
-    if not isinstance(payload, dict):
-        return set()
-    return {
-        row.get('address')
-        for row in payload.get('peers', [])
-        if isinstance(row, dict) and row.get('up')
-    }
-
-
-def receiver_updates(api):
-    """Real UPDATEs written to the receiver, End-of-RIB markers excluded.
-
-    updates-sent counts EVERY UPDATE written to the peer, the initial-sync EoR
-    included (IncrUpdatesSent in reactor/reactor_notify.go sees only the message
-    type). eor-sent is the separate marker counter, so the difference is the
-    relayed traffic this test is about.
-    """
-    return (api.peer_counter('updates-sent', peer=RECEIVER)
-            - api.peer_counter('eor-sent', peer=RECEIVER))
-
-
-def barrier(api, prefix):
-    """Release one of the source client's waits.
-
-    The route reaches the SOURCE alone, so it never disturbs the receiver's
-    UPDATE count. nhop 1.1.1.1 is neither peer's own address, so
-    originatedNextHopIsPeerOwn does not withhold it (RFC 4271 Section 5.1.3).
-    """
-    api.send('peer ' + SOURCE + ' update text origin igp nhop 1.1.1.1'
-             ' nlri ipv4/unicast add ' + prefix)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # BARRIER ONE. Both clients must be forward targets IN THE ROUTE SERVER's
-    # own view before the source announces. On darwin this is the slow step: 15s
-    # or more when one peer binds 127.0.0.2.
-    if not api.wait_until(lambda: rs_peers_up(api) >= {SOURCE, RECEIVER}, attempts=100):
-        runtime_fail('the route server never reported both clients up')
-    print('OK: the route server reports both clients up', file=sys.stderr)
-    barrier(api, '192.0.2.0/24')
-
-    # quiesce FIRST so the poll behind it is a safety net rather than the
-    # mechanism: it drains the forward pool in one RPC.
-    api.quiesce()
-    if not api.wait_until(lambda: receiver_updates(api) >= 1, attempts=60):
-        runtime_fail('the receiver was never sent the BGP-LS announcement')
-    print('OK: receiver was sent the BGP-LS announcement', file=sys.stderr)
-
-    # BARRIER TWO releases the departure.
-    before = receiver_updates(api)
-    barrier(api, '198.51.100.0/24')
-
-    # Hold the daemon up until the withdrawal has actually been written to the
-    # receiver. Counting from `before` rather than from zero keeps the barrier
-    # routes above from satisfying this poll: both went to the source only.
-    if not api.wait_until(lambda: receiver_updates(api) > before, attempts=60):
-        runtime_fail('the receiver was never sent the BGP-LS withdrawal')
-    print('OK: receiver was sent the BGP-LS withdrawal', file=sys.stderr)
-
-    api.dispatch('request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -244,7 +138,7 @@ plugin {
 		use bgp-rs
 	}
 	external bgpls-withdraw {
-		run ./bgpls-withdraw.run
+		run "ze-test fixture plugin/rfc9552-52-rs-opaque-withdraw-peer-down"
 		encoder json
 	}
 }

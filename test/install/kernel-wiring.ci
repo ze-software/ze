@@ -1,54 +1,8 @@
-# Kernel builder wiring: runtime and installer Makefiles must delegate to the
-# shared tools/kernel-builder/run.py driver without running an actual kernel build.
-#
-# // kernel-build-consolidation moved the build invocation from inline
-# docker/qemu branches in each Makefile to the single run.py driver. The old
-# assertions on `docker run`, `--platform`, `-e SRC_DIR`/`PATCHES_DIR`, and the
-# Makefile choosing qemu-build.py no longer apply; this asserts the equivalent
-# run.py delegation (the spec's "rewrites, not edits" note).
-
+# Kernel builder wiring: one compiled driver owns installer and runtime backend
+# selection and provenance.
 option=timeout:value=20s
 
-tmpfs=run.sh:terminator=EOF_SH
-#!/bin/sh
-set -eu
 
-repo=${ZE_REPO_ROOT:-$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)}
-cd "$repo"
-
-check() {
-	case "$2" in
-		*"$3"*) : ;;
-		*) echo "$1: missing $3" >&2; printf '%s\n' "$2" >&2; exit 1 ;;
-	esac
-}
-nope() {
-	case "$2" in
-		*"$3"*) echo "$1: unexpected $3" >&2; printf '%s\n' "$2" >&2; exit 1 ;;
-		*) : ;;
-	esac
-}
-
-rt=$(make -n -B -C gokrazy/kernel BUILDER=docker ARCH=amd64 2>&1)
-check runtime "$rt" "tools/kernel-builder/run.py"
-check runtime "$rt" "--target runtime"
-check runtime "$rt" "--modules yes"
-check runtime "$rt" "--patches-dir gokrazy/kernel/patches"
-check runtime "$rt" "--common-dir tools/kernel-builder/common"
-nope runtime "$rt" "docker run"
-nope runtime "$rt" "--platform"
-
-inst=$(make -n -B -C tools/installer-kernel BUILDER=qemu ARCH=arm64 PROFILE=hardware 2>&1)
-check installer "$inst" "../kernel-builder/run.py"
-check installer "$inst" "--target installer"
-check installer "$inst" "--profile hardware"
-check installer "$inst" "--common-dir tools/kernel-builder/common"
-nope installer "$inst" "docker run"
-nope installer "$inst" "--modules yes"
-
-printf 'OK\n'
-EOF_SH
-
-cmd=foreground:seq=1:exec=sh run.sh
+cmd=foreground:seq=1:exec=ze-test fixture install/kernel-wiring "$ZE_REPO_ROOT"
 expect=exit:code=0
 expect=stdout:contains=OK

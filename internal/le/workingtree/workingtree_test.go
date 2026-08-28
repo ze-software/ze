@@ -1,10 +1,8 @@
 // VALIDATES: spec-le-is-a-ze-binary AC-5, AC-7, AC-8 -- the working-tree report
 // is called as a function, answers structured data, and answers 1 only when a
 // ceiling was asked for and exceeded.
-// PREVENTS: a port that groups paths differently from the script. The grouping
-// is the whole answer here: first match wins in the prefix table, so a table
-// read in the wrong order files ai/rules/ under ai-docs and tells a reader the
-// tree is narrower than it is.
+// PREVENTS: a report whose first-match prefix order files ai/rules/ under
+// ai-docs or native development tools under the generic internal area.
 
 package workingtree
 
@@ -26,10 +24,8 @@ func TestTheFirstMatchingPrefixWins(t *testing.T) {
 		{"plan/spec-x.md", "specs"},
 		{"docs/x.md", "docs"},
 		{"test/ui/x.ci", "tests"},
-		{"scripts/evidence/x.py", "evidence-tools"},
-		{"scripts/dev/x.py", "tooling"},
-		{"mk/x.mk", "build"},
-		{"Makefile", "build"},
+		{"internal/le/evidence/docker_run.go", "evidence-tools"},
+		{"internal/le/commit/actions.go", "tooling"},
 		{".golangci.yml", "build"},
 		{"pkg/plugin/x.go", "plugin-sdk"},
 		{"internal/component/bgp/x.go", "bgp"},
@@ -40,28 +36,28 @@ func TestTheFirstMatchingPrefixWins(t *testing.T) {
 		{"README.md", "other"},
 	}
 	for _, tc := range cases {
-		if got := AreaOf(tc.path); got != tc.want {
+		if got := areaOf(tc.path); got != tc.want {
 			t.Errorf("AreaOf(%q) = %q, want %q", tc.path, got, tc.want)
 		}
 	}
 }
 
 func TestPorcelainCarriesTheNewNameOfARename(t *testing.T) {
-	paths := ParsePorcelain("R  docs/old.md -> docs/new.md\n")
+	paths := parsePorcelain("R  docs/old.md -> docs/new.md\n")
 	if len(paths) != 1 || paths[0] != "docs/new.md" {
 		t.Fatalf("ParsePorcelain answered %q, want the new name", paths)
 	}
 }
 
 func TestPorcelainSkipsBlankLines(t *testing.T) {
-	paths := ParsePorcelain(" M a.go\n\n?? b.go\n")
+	paths := parsePorcelain(" M a.go\n\n?? b.go\n")
 	if len(paths) != 2 {
 		t.Fatalf("ParsePorcelain answered %q, want two paths", paths)
 	}
 }
 
 func TestPorcelainStripsTheQuotesGitAddsToAnUnusualName(t *testing.T) {
-	paths := ParsePorcelain("?? \"docs/a b.md\"\n")
+	paths := parsePorcelain("?? \"docs/a b.md\"\n")
 	if len(paths) != 1 || paths[0] != "docs/a b.md" {
 		t.Fatalf("ParsePorcelain answered %q", paths)
 	}
@@ -145,7 +141,7 @@ func TestTwoAreasGetTheAdvice(t *testing.T) {
 // The ceiling is the numeric input of this tool. 0 means advisory, so the
 // boundary runs 0, the exact ceiling, and one past it.
 func TestTheCeilingIsAdvisoryAtZero(t *testing.T) {
-	report := Group([]string{"docs/a.md", "cmd/x.go", "mk/y.mk"}, 0)
+	report := Group([]string{"docs/a.md", "cmd/x.go", ".golangci.yml"}, 0)
 
 	if report.Exceeded() {
 		t.Error("a zero ceiling made three areas a failure")
@@ -164,7 +160,7 @@ func TestAreasEqualToTheCeilingPass(t *testing.T) {
 }
 
 func TestOneAreaPastTheCeilingFails(t *testing.T) {
-	report := Group([]string{"docs/a.md", "cmd/x.go", "mk/y.mk"}, 2)
+	report := Group([]string{"docs/a.md", "cmd/x.go", ".golangci.yml"}, 2)
 
 	if !report.Exceeded() {
 		t.Fatal("three areas did not exceed a ceiling of two")

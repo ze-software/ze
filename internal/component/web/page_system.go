@@ -216,7 +216,7 @@ func buildUsersTableData(users []userEntry) WorkbenchTableData {
 			userURL := tb.Reset().Str("/show/system/authentication/user/").Str(u.Name).Byte('/').String()
 			row.URL = userURL
 			row.Actions = []WorkbenchRowAction{
-				{Label: "Edit", URL: userURL},
+				{Label: labelEdit, URL: userURL},
 			}
 		}
 		rows = append(rows, row)
@@ -544,7 +544,7 @@ func collectSysctlProfiles(tree *config.Tree) []sysctlProfileEntry {
 // buildSysctlProfilesTableData constructs a WorkbenchTableData for the sysctl profiles page.
 func buildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: "Name", Sortable: true},
+		{Key: "name", Label: labelName, Sortable: true},
 		{Key: "settings", Label: "Settings", Sortable: true},
 	}
 
@@ -561,7 +561,7 @@ func buildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableD
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "View", URL: profileURL},
-				{Label: "Edit", URL: profileURL},
+				{Label: labelEdit, URL: profileURL},
 			},
 		})
 	}

@@ -66,8 +66,13 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 	}
 	peerAddrs := make([]netip.Addr, len(decisions))
 	for i := range decisions {
-		if decisions[i].Accept && decisions[i].ValState != ValidationValid && decisions[i].ValState != ValidationNotFound {
-			return nil, fmt.Errorf("batch-validate: invalid validation state %d at index %d (expected 1=Valid or 2=NotFound)", decisions[i].ValState, i)
+		// RFC requirement: RFC6811-2-1 -- accepted routes retain any of the
+		// three lookup results defined by RFC 6811 Section 2.
+		if decisions[i].Accept &&
+			decisions[i].ValState != ValidationValid &&
+			decisions[i].ValState != ValidationNotFound &&
+			decisions[i].ValState != ValidationInvalid {
+			return nil, fmt.Errorf("batch-validate: invalid validation state %d at index %d (expected 1=Valid, 2=NotFound, or 3=Invalid)", decisions[i].ValState, i)
 		}
 		addr, err := netip.ParseAddr(decisions[i].PeerAddr)
 		if err != nil {

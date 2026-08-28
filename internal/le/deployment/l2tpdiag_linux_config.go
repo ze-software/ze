@@ -1,8 +1,7 @@
-//go:build linux && !ze_test
+//go:build linux && !zetest
 
 // Design: ai/rules/platform-linux.md -- production diagnostics use real Linux operations
-// Related: l2tpdiag_linux_record.go -- the ze_test-only built-binary seam
-
+// Related: l2tpdiag_linux_record.go -- the zetest-only built-binary seam
 package deployment
 
 func l2tpDiagnosticRecordingEnabled() bool { return false }

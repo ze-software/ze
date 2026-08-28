@@ -96,7 +96,7 @@ func fullPageBody(t *testing.T, handler http.HandlerFunc, path, from string) str
 	t.Helper()
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, http.NoBody))
+	handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, http.NoBody))
 
 	if rec.Code != http.StatusOK {
 		t.Errorf("GET %s (pushed by %s) answered %d, want 200", path, from, rec.Code)

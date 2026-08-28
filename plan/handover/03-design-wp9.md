@@ -52,7 +52,7 @@ The spec says `wire.PayloadCP` is "a dead codec" with "no consumer and no produc
 (the rfcgate-1b RFC 7296 pilot spec). **That is true, and it is only half the
 story. The other half is worse and better at the same time.**
 
-An exhaustive grep (28 hits over `internal/`, `cmd/`, `pkg/`, `test/`, `scripts/`)
+An exhaustive grep (28 hits over `internal/`, `cmd/`, `pkg/`, `test/`, the retired `scripts/` (current producer: `internal/le/`))
 confirms the codec claim: the only non-test construction of `PayloadCP` is the generic
 decoder arm `case PayloadTypeCP: p = &PayloadCP{}` in FUNCTION `decodePayload`
 (`internal/component/ike/wire/payload.go`). Nothing type-switches on it. Nothing
@@ -828,13 +828,13 @@ gain rows** -- an unextracted obligation is still an obligation
 
 ### 9.1 Where a tag may live
 
-`CARRIERS` (`scripts/dev/rfc_requirements.py`) admits four carriers, and the choice
+`CARRIERS` (the retired `scripts/dev/rfc_requirements.py` (current producer: `internal/le/rfc/rfc.go`)) admits four carriers, and the choice
 is not free:
 
 | Carrier | Cell | Tier | Usable here? |
 |---------|------|------|--------------|
 | `*_test.go` | `unit/verify` | every push | **yes** |
-| `*.ci` in a suite `ze-functional-test` names | `functional/verify` | every push | **yes** -- `ipsec` is in the `all_suites` line (`mk/test-functional.mk`) |
+| `*.ci` in a suite `./le functional` names | `functional/verify` | every push | **yes** -- `ipsec` is in the `all_suites` line (the retired `mk/test-functional.mk` (current producer: `internal/le/functional/suites.go`)) |
 | `*.et` | `editor/verify` | every push | not applicable |
 | `test/interop/scenarios/*/check.py` | `interop/nightly` | scheduled, advisory | not applicable |
 
@@ -848,7 +848,7 @@ rather than weak evidence".
 evidence**. It proves the feature works against a real peer, and it earns no row a
 polarity. Every one of the 34 tags below lives in a `_test.go` or in
 `test/ipsec/ipsec-remote-access-cp.ci`. An implementer who tags the interop `check.py`
-will fail `make ze-rfc-check` with an error naming the file.
+will fail `./le rfc check` with an error naming the file.
 
 ### 9.2 Test homes
 
@@ -908,7 +908,7 @@ Not row-tagged (they prove no RFC obligation), but required by
 
 ## 10. Id allocation
 
-`check_id_allocation` (`scripts/dev/rfc_requirements.py`) refuses a new id whose
+`check_id_allocation` (the retired `scripts/dev/rfc_requirements.py` (current producer: `internal/le/rfc/rfc.go`)) refuses a new id whose
 ordinal is at or below its section's high-water mark. The mark comes from the **committed
 HEAD** summaries, and **a section with no mark at all is skipped entirely** (`:500-502`).
 
@@ -1027,7 +1027,7 @@ from nothing.
 | D | **The consumer** | `engine/cp.go`; the CP case at all **three** drop sites; the `startResponderEAP` signature; the reply insertion at `responder.go`; TS narrowing before `:613`; P1 (`_ = ipPool` → real wiring) | `2.19-2`, `2.19-3`, `4-2`, `4-3`, `3.15.1-1` | 1.5 days |
 | E | **Authorization and error paths** | The two fail-closed guards (8.1, 8.2); `FAILED_CP_REQUIRED` emission and its pre-`:623` short-circuit; `INTERNAL_ADDRESS_FAILURE` (8.4) | `2.19-5`, `2.19-6` | 0.5 day |
 | F | **Tests** | 34 tagged tests, every mutation in 9.3 run and reverted, the pool tests in 9.4, `test/ipsec/ipsec-remote-access-cp.ci`, and the strongSwan scenario `remote-access-cp` | all 17 proven | 1.5 days |
-| G | **Discovery and closure** | `docs/features.md`, the guide, `docs/architecture/wire/`, `docs/features/rfc-status.md` rows, the 17 summary rows, `make ze-rfc-index-update`, the R-8 Integration Checklist re-answer | -- | 0.5 day |
+| G | **Discovery and closure** | `docs/features.md`, the guide, `docs/architecture/wire/`, `docs/features/rfc-status.md` rows, the 17 summary rows, `./le rfc index-update`, the R-8 Integration Checklist re-answer | -- | 0.5 day |
 
 **Total: roughly 6 days**, and phases A, B and C are genuinely parallel.
 
@@ -1066,7 +1066,7 @@ exhaustion-by-churn failure (P3). Neither depends on the CP consumer.
 | R-WP9-7 | **`2.19-6` tears down the IKE SA.** "Fail the request" reads as "kill the session" | the client retries in a loop; `rfc/full/rfc7296.txt:3185` is violated | `2.19-6`'s positive asserts `StateEstablished` after the refusal |
 | R-WP9-8 | **An authenticated client drains the pool through parallel IKE SAs.** `Allocate()` has no identity and no quota | pool utilisation spikes from one identity | `maximum-leases-per-identity`, default 1, plus address reuse per `rfc/full/rfc7296.txt:6374-6375` |
 | R-WP9-9 | **`plan/spec-ipsec-remote-access.md` already holds decisions this design re-litigates.** It is named by `engine/config.go` as the owner of this surface and was NOT read in this pass | the implementer finds a conflicting design mid-phase | **Read it and `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` before phase A.** If it is the real owner, OI-5 answers itself |
-| R-WP9-10 | **The interop scenario is tagged and `make ze-rfc-check` refuses it.** `test/interop-ipsec/` is not a carrier | the gate fails naming the file | Section 9.1. Every tag lives in a `_test.go` or in `test/ipsec/*.ci` |
+| R-WP9-10 | **The interop scenario is tagged and `./le rfc check` refuses it.** `test/interop-ipsec/` is not a carrier | the gate fails naming the file | Section 9.1. Every tag lives in a `_test.go` or in `test/ipsec/*.ci` |
 | R-WP9-11 | **P6 hands out addresses outside the configured prefix.** `allocateV6` writes the host ID into `ip6[8:]` only, while the validator permits `/48../126` | a `/96` pool leases addresses in a different subnet | Phase B, `TestAllocateV6RespectsPrefixLongerThan64`. This bug is live today |
 | R-WP9-12 | **Engine line numbers move under a concurrent agent.** `internal/component/ike/engine/` is being edited now | a tag cites a line holding different code | Every citation here names its function. Re-locate by function name before quoting a line |
 
@@ -1207,8 +1207,8 @@ changing an obligation:
   string or no CP payload if CP is not supported", leaving "that case" unresolvable.
   Restore enough of `rfc/full/rfc7296.txt:3206-3208` to name the antecedent.
 
-After the rows land, run `make ze-rfc-index-update` and commit `ai/RFC-REQUIREMENTS.md` **in the
+After the rows land, run `./le rfc index-update` and commit `ai/RFC-REQUIREMENTS.md` **in the
 same commit**. The ledger records each tagged test's `file:line`, and both verify modes of
-`ze-rfc-check` fail on a stale ledger (`ai/rules/testing.md`, RFC-Tagged Tests). With 34
+`./le rfc check` fail on a stale ledger (`ai/rules/testing.md`, RFC-Tagged Tests). With 34
 new tags across four files, this is not optional bookkeeping -- a skipped regen lands on
 the next session as a cross-commit diff.

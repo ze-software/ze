@@ -377,7 +377,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Reclassify "unknown" as "near_timeout" when the test consumed most of
 	// its budget. This distinguishes CPU-starvation near-misses from genuine
 	// unknown failures so failure groups are actionable under load.
-	if IsNearTimeout(float64(rec.Duration)/float64(timeout), rec.FailureType) {
+	if isNearTimeout(float64(rec.Duration)/float64(timeout), rec.FailureType) {
 		rec.FailureType = FailTypeNearTimeout
 	}
 
@@ -423,8 +423,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	// Fix B: opt-in per-test network-namespace isolation. When ZE_TEST_NETNS is
 	// set (Linux only) this locks the goroutine's OS thread into a fresh netns
-	// before spawning any child. ze / ze-peer / driver.py fork-inherit it (A-5),
-	// so they share one throwaway namespace, reach each other over 127.0.0.1, and
+	// before spawning any child. ze, ze-peer, and compiled fixture helpers
+	// fork-inherit it (A-5), so they share one throwaway namespace, reach each
+	// other over 127.0.0.1, and
 	// the nft firewall the daemon programs stays in that netns -- the host
 	// firewall is untouched. The whole orchestration below (syslog socket, HTTP
 	// checks) runs on this locked thread so it too reaches the daemon inside the
@@ -463,19 +464,6 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.Error = nlErr
 			rec.FailureType = stateUnknown
 			return false
-		}
-		// Observer plugins forked by ze import ze_api from test/scripts, but a
-		// uid-dropped observer cannot traverse the (often 0700) repo root to reach
-		// it via PYTHONPATH. Copy the test-script modules into the tmpfs workdir,
-		// which is the observer script's OWN directory (so it lands on sys.path[0])
-		// and is chowned to the child uid just below. Without this, netns-mode
-		// observer tests fail "ModuleNotFoundError: No module named 'ze_api'".
-		if netnsHasUID && rec.TmpfsTempDir != "" {
-			if cpErr := copyTestScripts(r.baseDir, rec.TmpfsTempDir); cpErr != nil {
-				rec.Error = fmt.Errorf("provide ze_api to netns child: %w", cpErr)
-				rec.FailureType = stateUnknown
-				return false
-			}
 		}
 		// The ze daemon is dropped to a normal user; make it own its tmpfs workdir
 		// so it can chdir in, read config, and write daemon.ready (see chownTree).
@@ -523,8 +511,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Each ze-peer gets its own syncWriter/stderr so WaitFor works independently.
 	var peerOutputs []peerOutput
 	// Every non-peer client process (the ze daemon plus each cmd=background
-	// helper: python collectors, mock servers, observers) shares these two
-	// accumulators, and os/exec runs one copy goroutine per stream per process.
+	// helper, mock server, or observer) shares these two accumulators, and
+	// os/exec runs one copy goroutine per stream per process.
 	// They MUST be concurrency-safe: a plain strings.Builder loses whole lines
 	// when two processes write at once, which silently turns an
 	// expect=stderr:pattern= into a spurious failure under load.
@@ -778,7 +766,6 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// run's ze for "ze plugin ..." commands, not a stale or
 		// wrong-architecture one left in bin/ (see Runner.setupBinShims).
 		proc.Env = childEnv(
-			"PYTHONPATH="+filepath.Join(r.baseDir, "test", "scripts"),
 			r.childPathEnv(),
 			// Repo root for shell-script tests that must run repo-anchored
 			// tools (e.g. `ze appliance build` resolves gokrazy/modcache from
@@ -836,8 +823,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Tell ze daemons to write a readiness file after signal handlers are
 		// registered. The test runner waits for this file before writing
 		// daemon.pid, eliminating a startup race condition. Armed for both
-		// foreground (default daemon path) and background ze (driver.py-style
-		// suites poll daemon.pid/daemon.ready) -- see zeReadyFileEnabled.
+		// foreground (default daemon path) and background-daemon suites that poll
+		// daemon.pid/daemon.ready; see zeReadyFileEnabled.
 		if zeReadyFileEnabled(cmd.Mode, binName, rec.TmpfsTempDir) {
 			proc.Env = append(proc.Env,
 				"ZE_READY_FILE="+filepath.Join(rec.TmpfsTempDir, "daemon.ready"))
@@ -887,8 +874,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Fix B: drop the ze daemon to a normal user so its readiness handshake
 		// works (A-4: the readiness file is written after dropPrivileges, so a
 		// root ze never writes it). The setcap'd binary keeps ambient CAP_NET_ADMIN
-		// for nft. ze-peer / driver.py stay privileged (root under sudo) so they
-		// can read nft state and signal the daemon.
+		// for nft. Peer and fixture helpers stay privileged (root under sudo) so
+		// they can read nft state and signal the daemon.
 		if netnsMode && netnsHasUID && binName == "ze" {
 			proc.SysProcAttr = &syscall.SysProcAttr{
 				Credential: &syscall.Credential{Uid: uint32(netnsUID), Gid: uint32(netnsGID)}, //nolint:gosec // uid/gid from local dev env
@@ -956,8 +943,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					waitCancel()
 				}
 			case zeReadyFileEnabled(cmd.Mode, binName, rec.TmpfsTempDir):
-				// Background ze daemon (driver.py-style suites poll
-				// daemon.pid/daemon.ready). ZE_READY_FILE was armed above, so
+				// Background-daemon suites poll daemon.pid/daemon.ready.
+				// ZE_READY_FILE was armed above, so
 				// mirror the foreground daemon path: when no ze-peer provides
 				// BGP-level synchronization, wait for the readiness file, then
 				// publish daemon.pid. Without this the poller times out by
@@ -1032,11 +1019,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// Foreground daemon (ze): start but don't wait - we wait for peer instead
 			bgProcs = append(bgProcs, proc) // Track for cleanup
 
-			// Write daemon PID to tmpfs dir so background scripts can send signals.
-			// Guard on ze: a foreground helper script that is the last command
-			// (e.g. driver.py) also lands here, and must NOT clobber daemon.pid
-			// with its own pid -- a driver that reads daemon.pid to signal the
-			// daemon would otherwise signal itself.
+			// Write daemon PID to tmpfs dir so background helpers can send signals.
+			// Guard on ze: a foreground helper that is the last command also lands
+			// here and must NOT clobber daemon.pid with its own pid. A helper that
+			// reads daemon.pid to signal the daemon would otherwise signal itself.
 			if zeReadyFileEnabled(cmd.Mode, binName, rec.TmpfsTempDir) && proc.Process != nil {
 				// When no ze-peer provides BGP-level synchronization, wait for
 				// the process readiness file before writing daemon.pid. This
@@ -1221,10 +1207,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Observer sentinel takes precedence in the orchestrated path too --
-	// see the non-orchestrated branch above for rationale. Keep both paths
-	// in sync: a runtime_fail from a python observer must surface as the
-	// authoritative failure even when the daemon subsequently times out.
+	// Observer sentinel takes precedence in the orchestrated path too.
+	// Keep both paths in sync: a failure from a compiled observer must surface
+	// as the authoritative reason even when the daemon subsequently times out.
 	if sentinelErr := checkObserverSentinel(clientStderr.String()); sentinelErr != nil {
 		rec.Error = sentinelErr
 		rec.FailureType = FailTypeLoggingMismatch
@@ -1363,7 +1348,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			default:
 				rec.FailureType = stateUnknown
 			}
-			if IsNearTimeout(float64(rec.Duration)/float64(timeout), rec.FailureType) {
+			if isNearTimeout(float64(rec.Duration)/float64(timeout), rec.FailureType) {
 				rec.FailureType = FailTypeNearTimeout
 			}
 			if err != nil {

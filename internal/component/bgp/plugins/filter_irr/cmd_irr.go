@@ -16,6 +16,7 @@ const (
 	cmdUpdateIRRAll   = "update bgp irr all"
 	cmdUpdateIRRAsn   = "update bgp irr asn"
 	cmdUpdateIRRAsSet = "update bgp irr as-set"
+	columnASN         = "asn"
 )
 
 func init() {
@@ -86,7 +87,7 @@ func registerIRRShapes() {
 	// is written only when the status is "error".
 	command.RegisterColumns([]string{cmdShowIRR},
 		command.ColumnOrder{
-			"asn", "as-set", "status", "error",
+			columnASN, "as-set", "status", "error",
 			"ipv4-count", "ipv6-count", "last-refresh", "peers",
 		},
 		command.ColumnOrder{"server", "last-refresh", "next-refresh", "entries"},
@@ -102,7 +103,7 @@ func registerIRRShapes() {
 	// re-sequences columns, is refused by name.
 	command.RegisterShape([]string{cmdShowIRRPrefix}, command.ShapeMap)
 	command.RegisterColumns([]string{cmdShowIRRPrefix},
-		command.ColumnOrder{"asn", "as-set", "prefixes"},
+		command.ColumnOrder{columnASN, "as-set", "prefixes"},
 	)
 
 	// `show bgp irr check` answers ONE verdict for one peer and one prefix
@@ -111,7 +112,7 @@ func registerIRRShapes() {
 	// dropping the verdict the operator asked for.
 	command.RegisterShape([]string{cmdShowIRRCheck}, command.ShapeDoc)
 	command.RegisterColumns([]string{cmdShowIRRCheck},
-		command.ColumnOrder{"prefix", "asn", "accepted", "matched-entry"},
+		command.ColumnOrder{"prefix", columnASN, "accepted", "matched-entry"},
 	)
 
 	// None of the three declares an address field, and each has a value that

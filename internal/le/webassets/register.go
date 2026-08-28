@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -34,5 +33,5 @@ func init() {
 
 	// The census counts the gate as ported from here, read out of the action
 	// table rather than from a second hand-typed list.
-	parity.Claim(area, actions.Gates()...)
+
 }

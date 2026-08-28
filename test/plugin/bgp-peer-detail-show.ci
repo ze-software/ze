@@ -9,107 +9,13 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for peer detail
-tmpfs=detail-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-    api.wait_for_post_startup(timeout=5.0)
-
-    try:
-        result = dispatch(api, 'show bgp peer 127.0.0.1 detail')
-        if result.get('status') != 'done':
-            print(f'FAIL: status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-
-        data = result.get('data', {})
-        if isinstance(data, str):
-            data = json.loads(data)
-
-        peers = data.get('peers', {})
-        peer = peers.get('127.0.0.1', {})
-        if not peer:
-            print(f'FAIL: 127.0.0.1 not in peers: {list(peers.keys())}', file=sys.stderr)
-            sys.exit(1)
-
-        errors = []
-
-        if 'peer-type' not in peer:
-            errors.append('missing peer-type')
-        elif peer['peer-type'] not in ('internal', 'external'):
-            errors.append(f'bad peer-type: {peer["peer-type"]}')
-
-        if 'messages' not in peer:
-            errors.append('missing messages block')
-        else:
-            msgs = peer['messages']
-            for direction in ('received', 'sent'):
-                if direction not in msgs:
-                    errors.append(f'missing messages.{direction}')
-                else:
-                    for field in ('opens', 'updates', 'notifications', 'keepalives', 'route-refresh', 'total'):
-                        if field not in msgs[direction]:
-                            errors.append(f'missing messages.{direction}.{field}')
-
-        if 'capabilities' not in peer:
-            errors.append('missing capabilities block')
-        else:
-            caps = peer['capabilities']
-            for field in ('negotiation-complete', 'asn4', 'extended-message', 'route-refresh', 'enhanced-route-refresh'):
-                if field not in caps:
-                    errors.append(f'missing capabilities.{field}')
-
-        if 'connections-established' not in peer:
-            errors.append('missing connections-established')
-        if 'connections-dropped' not in peer:
-            errors.append('missing connections-dropped')
-        if 'flap-count' not in peer:
-            errors.append('missing flap-count')
-        # RFC 4271 8.1.1 mandatory session attribute 2. Presence only: an
-        # established peer has made no failed attempt, so the value is 0 here.
-        if 'connect-retry-counter' not in peer:
-            errors.append('missing connect-retry-counter')
-
-        # Backward compat: flat fields must still exist
-        for field in ('updates-received', 'updates-sent', 'keepalives-received', 'keepalives-sent', 'eor-received', 'eor-sent'):
-            if field not in peer:
-                errors.append(f'missing backward-compat field {field}')
-
-        if errors:
-            print(f'FAIL: {"; ".join(errors)}', file=sys.stderr)
-            print(f'keys: {sorted(peer.keys())}', file=sys.stderr)
-            sys.exit(1)
-
-        print(f'OK: peer detail has all expected fields', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
+# Compiled observer exercises dispatch-command for peer detail.
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external detail-test {
-		run ./detail-test.run
+		run "ze-test fixture plugin/bgp-peer-detail-show"
 		encoder json
 	}
 }

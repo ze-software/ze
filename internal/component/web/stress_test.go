@@ -6,8 +6,7 @@
 // a real editor (full YANG schema load + parse), so the storm is too heavy for
 // the pre-commit gate. Run it with:
 //
-//	go test -tags 'ze_core stress' -race ./internal/component/web/ -run TestWebConcurrentEditStress
-//	make ze-stress-web-test
+//	./le integration stress-web
 package web
 
 import (

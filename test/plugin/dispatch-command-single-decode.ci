@@ -12,110 +12,12 @@ option=update:value=send-default-route
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: dispatches a command and verifies single-decode
-tmpfs=dispatch-decode-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-from ze_api import API, result_text_data, runtime_fail
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return None
-    return resp.get('result', {})
-
-def eor_on_wire(result):
-    """True once peer1's initial-sync End-of-RIB has been written."""
-    if result.get('status') != 'done':
-        return False
-    data = result_text_data(result, '{}')
-    try:
-        parsed = json.loads(data) if isinstance(data, str) else data
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return False
-    if not isinstance(parsed, dict):
-        return False
-    peers = parsed.get('peers', {})
-    if not isinstance(peers, dict):
-        return False
-    return any(isinstance(row, dict) and row.get('eor-sent', 0) >= 1
-               for row in peers.values())
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Let peer1 finish its initial sync before dispatching. The old script ran
-    # every dispatch and then shut down inside the OPEN handshake, so ze closed
-    # the session before sending its End-of-RIB and the peer's expectation was
-    # unreachable by construction. Waiting on eor-sent also means the dispatch
-    # assertions below run against a real established session rather than an
-    # empty pre-establishment RIB.
-    synced = api.dispatch_until(
-        'show bgp peer peer1 detail', eor_on_wire, attempts=60,
-    )
-    if not eor_on_wire(synced):
-        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
-
-    try:
-        # AC-1: dispatch a command that returns structured data.
-        # Poll session establishment deterministically instead of a blind sleep.
-        result = api.dispatch_until_done('show bgp rib status')
-        if result is None:
-            runtime_fail('dispatch returned None')
-        if result.get('status') != 'done':
-            runtime_fail(f'dispatch status={result.get("status")}, want done')
-
-        data = result.get('data')
-        if data is None:
-            runtime_fail('data is None')
-
-        # The key assertion: data must be a dict (already decoded JSON),
-        # NOT a string requiring a second json.loads call.
-        if isinstance(data, str):
-            runtime_fail(f'data is a string (double-encoded): {data!r}')
-        if not isinstance(data, dict):
-            runtime_fail(f'data is {type(data).__name__}, want dict')
-
-        print(f'OK: data is dict with keys: {list(data.keys())}', file=sys.stderr)
-
-        # AC-2: verify error field on the wire.
-        # Dispatch a command with a missing required argument so the handler
-        # runs and returns statusError + error text. This exercises the
-        # DispatchCommandOutput.Error field (vs RPC-level errors which bypass it).
-        result = dispatch(api, 'clear bgp rib in')
-        if result is not None:
-            error_text = result.get('error')
-            if error_text and isinstance(error_text, str):
-                print(f'OK: error field present: {error_text!r}', file=sys.stderr)
-            else:
-                # Handler error may arrive via RPC error path depending on
-                # how the engine wraps the response. Unit tests cover the
-                # Error field directly (TestResponseToDispatchOutputErrorField).
-                print('OK: error returned (RPC path or Error field)', file=sys.stderr)
-        else:
-            print('OK: error dispatch returned None (RPC error)', file=sys.stderr)
-
-        print('PASS: single-decode verified', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration with rib plugin (provides structured command responses)
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external dispatch-decode-test {
-		run ./dispatch-decode-test.run
+		run "ze-test fixture plugin/dispatch-command-single-decode"
 		encoder json
 	}
 	internal bgp-rib {

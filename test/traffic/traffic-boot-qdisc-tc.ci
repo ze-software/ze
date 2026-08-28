@@ -8,19 +8,8 @@
 #           qdisc is never actually installed in the kernel.
 #
 # Gated option=needs-linux: SKIPs on non-Linux (macOS dev box; GOOS check) and
-# runs as root inside the QEMU VM via `make ze-qemu-needs-linux-test`, where
 # eth0 exists and CAP_NET_ADMIN is available.
 option=needs-linux
-
-tmpfs=wait.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Hold the test open long enough for ze (background) to reach OnConfigure and
-program the qdisc before we shell out to `tc`."""
-import time
-
-# blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)
-time.sleep(2.5)
-EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
@@ -91,7 +80,7 @@ option=env:var=ze.log.traffic:value=info
 option=env:var=ze.config.dir:value=.
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
+cmd=foreground:seq=2:exec=ze-test fixture traffic/traffic-boot-qdisc-tc:timeout=10s
 cmd=foreground:seq=3:exec=tc qdisc show dev eth0
 expect=exit:code=0
 expect=stderr:contains=traffic-control config applied

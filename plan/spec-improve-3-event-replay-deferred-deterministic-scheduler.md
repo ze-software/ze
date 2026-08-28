@@ -219,7 +219,7 @@ improve-3 specified capture costs one nil check when disabled.
 3. **Phase: Event queue** - (fill during design)
 4. **Phase: Scheduler ordering** - (fill during design)
 5. **Functional test** - `.ci` proving a developer-visible reproduction.
-6. **Full verification** - `make ze-precommit-verify`.
+6. **Full verification** - `./le verify current mode full`.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -240,7 +240,7 @@ improve-3 specified capture costs one nil check when disabled.
 - [ ] improve-3 landed and its A-2 has a final status
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete, every row has a concrete test name
-- [ ] `make ze-standard-test` passes (lint + all ze tests)
+- [ ] `./le verify current mode full` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 
 ### TDD

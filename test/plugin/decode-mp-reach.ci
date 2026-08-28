@@ -12,73 +12,12 @@ cmd=api:conn=1:seq=1:text=peer * update text nhop 192.168.1.1 nlri ipv4/unicast 
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C0A8010140050400000064180A0000
 EOF_PEER
 
-# Python plugin script
-tmpfs=decode-mp-reach.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test decode-mp-reach RPC: plugin calls engine to decode MP_REACH_NLRI."""
-
-from ze_api import API, runtime_fail
-
-
-def main() -> None:
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # MP_REACH_NLRI for IPv4 unicast:
-    # AFI=1(0001), SAFI=1(01), NHLen=4(04), NH=192.168.1.1(C0A80101),
-    # Reserved=0(00), NLRI=10.0.0.0/24(180A0000)
-    # RFC 4760 Section 3
-    params = {'hex': '00010104C0A8010100180A0000', 'add-path': False}
-    resp = api._call_engine('ze-plugin-engine:decode-mp-reach', params)
-
-    result = resp.get('result')
-    if result is None:
-        runtime_fail('decode-mp-reach returned no result')
-
-    if result.get('family') != 'ipv4/unicast':
-        runtime_fail(f'expected family ipv4/unicast, got {result.get("family")}')
-
-    if result.get('next-hop') != '192.168.1.1':
-        runtime_fail(f'expected next-hop 192.168.1.1, got {result.get("next-hop")}')
-
-    nlri = result.get('nlri')
-    # Exactly one, so a decoder that over-reads the NLRI field and returns a
-    # trailing extra prefix is caught here. Only nlri[0] reaches the wire, so
-    # the expect=bgp line below cannot see that particular defect.
-    if not isinstance(nlri, list) or len(nlri) != 1:
-        runtime_fail(f'expected exactly one decoded prefix, got {nlri!r}')
-    if '10.0.0.0/24' not in str(nlri):
-        runtime_fail(f'expected 10.0.0.0/24 in nlri, got {nlri}')
-
-    # Success signal: announce a route whose family, next hop and prefix are the
-    # RPC's OWN answer, never a literal. ze has no other source for those bytes,
-    # so the expect=bgp line above cannot match unless decode-mp-reach worked.
-    # A bare EOR was the old signal and could not discriminate: ze emits its own
-    # initial-sync EOR, so that assertion passed with the plugin dead.
-    api.send(
-        f'peer * update text nhop {result["next-hop"]} '
-        f'nlri {result["family"]} add {nlri[0]}'
-    )
-    # The quiesce barrier returns only once the announce above is on the wire,
-    # so asking for shutdown here cannot race the expect=bgp match.
-    api.wait_for_ack(expected_count=1)
-    api.shutdown_fire_and_forget()
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external decode-test {
-        run ./decode-mp-reach.run
+        run "ze-test fixture plugin/decode-mp-reach"
         encoder json
     }
 }

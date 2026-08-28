@@ -187,7 +187,7 @@ func (r *Reactor) removeDynamicPeer(peer *Peer) {
 	// remove/recreate path this function serves) would otherwise race its own
 	// stale claim and refuse the new session with Bad BGP Identifier.
 	peer.releaseRouterIDClaim()
-	ClearPrefixStale(settings.Address.String())
+	clearPrefixStale(settings.Address.String())
 	if peer.health != nil {
 		peer.health.stop()
 	}
@@ -266,7 +266,7 @@ func (r *Reactor) tryCreateDynamicPeer(addr netip.Addr) *Peer {
 	// listeners under this same lock (reactor.go), so the only connection that
 	// still reaches here is one a Listener had already accepted at that
 	// instant, and its handler goroutine is holding it. Building a peer for it
-	// would put a session in OpenSent that no ShutdownNotify will ever cover --
+	// would put a session in OpenSent that no shutdownNotify will ever cover --
 	// its snapshot was taken before the peer existed -- and the cancel would
 	// then close that socket with nothing on the wire to say why, which is the
 	// RFC 4271 Section 8.2.2 ManualStop miss the stop exists to prevent.

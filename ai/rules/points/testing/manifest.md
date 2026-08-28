@@ -98,7 +98,7 @@ test-sensitivity-ratchets-blocking ## Test Sensitivity Ratchets (BLOCKING)
   what-each-detector-fires-on-and-how-to-fix-it
   why-benchmarks-and-fuzz-targets-are-exempt
   read-the-test-health-report-before-claiming-health
-  which-target-enforces-what
+  which-action-enforces-what
   why-the-report-is-published-and-not-byte-gated
 the-affected-population-is-not-the-edited-population ## The Affected Population Is Not the Edited Population
   re-check-the-tests-a-change-can-reach
@@ -112,31 +112,31 @@ no-throw-away-tests ## No Throw-Away Tests
   never-write-a-throw-away-test
   where-each-kind-of-test-lives-and-its-format
   put-each-test-in-the-suite-that-runs-its-format
-make-targets ## Make Targets
+native-test-actions ## Native Test Actions
   component-group-unit-tests
   test-one-area-during-development-not-every-package
-  the-component-group-targets-and-their-cost
+  the-component-group-actions-and-their-cost
   use-the-group-that-matches-your-change
-  verification-targets
-  what-each-verification-target-runs
+  verification-actions
+  what-each-verification-action-runs
   contended-run-verdicts
   what-a-contended-run-verdict-means
   how-to-read-contended-failures
   linux-only-tests-qemu
   read-the-platform-linux-rule-before-linux-code
-  the-qemu-integration-target-and-when-it-is-required
+  the-qemu-integration-action-and-when-it-is-required
   capability-requiring-ci-tests-linux-host-per-test-netns
-  the-netns-targets-and-when-they-are-required
-  how-the-netns-targets-get-their-privilege
+  the-netns-actions-and-when-they-are-required
+  how-the-netns-actions-get-their-privilege
   prefer-a-knob-that-skips-the-privileged-work
   test-vpp-apply-through-the-fakeops-seam
   vpp-backend-testing-is-mandatory-blocking
   every-vpp-backend-ships-with-functional-tests
   how-to-test-each-part-of-a-vpp-backend
   a-real-daemon-is-never-a-reason-to-skip-vpp-tests
-  two-pass-verification-how-ze-verify-works
-  why-ze-verify-runs-two-passes
-  the-stages-of-a-ze-verify-run
+  two-pass-verification-how-native-verify-works
+  why-native-verify-runs-two-passes
+  the-stages-of-a-native-verify-run
   how-long-a-full-verify-actually-takes
 iteration-workflow-blocking ## Iteration Workflow (BLOCKING)
   change-one-file-test-it-then-scale
@@ -148,10 +148,9 @@ iteration-workflow-blocking ## Iteration Workflow (BLOCKING)
   never-keep-a-numeric-test-id-past-the-turn
   when-to-use-an-id-and-when-to-use-a-pattern
   a-positional-name-selector-is-as-stable-as-pattern
-  always-spell-pattern-in-full-never-p
   name-a-real-slog-subsystem-in-a-ze-log-key
   the-escalation-ladder-and-where-to-rerun
-  ze-verify-is-the-final-gate-not-a-development-tool
+  native-verify-is-the-final-gate-not-a-development-tool
   never-run-two-test-runs-at-once
   read-one-test-s-output-before-bulk-editing
 individual-commands ## Individual Commands
@@ -163,12 +162,12 @@ timing-baseline ## Timing Baseline
 test-tools ## Test Tools
   the-test-peer-and-the-test-runner
   update-the-discovery-paths-when-you-add-a-tool
-testing-python-tooling-scripts ## Testing Python Tooling (scripts/)
-  a-python-test-nothing-invokes-never-runs
-  the-wired-conventions-for-python-tests
-  both-conventions-run-inside-go-test
-  the-runner-counts-what-each-file-ran
-  never-add-a-python-test-outside-a-covered-directory
+native-go-tooling ## Native Go Tooling
+  a-tool-with-no-native-action-never-runs
+  the-wired-conventions-for-native-tools
+  native-tool-tests-run-inside-go-test
+  the-native-runner-proves-its-population
+  keep-first-party-tooling-in-native-go-packages
 temporary-files ## Temporary Files
   use-project-tmp-for-scratch-files
   prefer-your-session-s-own-scratch-directory
@@ -209,13 +208,13 @@ reactor-concurrency-code-blocking ## Reactor Concurrency Code (BLOCKING)
   run-ze-race-reactor-when-you-touch-reactor-state
   the-verification-each-reactor-change-requires
   paste-the-race-reactor-output-as-evidence
-observer-exit-antipattern-in-ci-tests-blocking ## Observer-Exit Antipattern in `.ci` Tests (BLOCKING)
-  never-signal-failure-with-sys-exit-in-an-observer
-  use-runtime-fail-to-signal-an-observer-failure
+compiled-observer-failures-blocking ## Compiled Observer Failures (BLOCKING)
+  return-an-error-from-a-failing-observer
+  the-fixture-runner-publishes-observer-errors
   the-bad-observer-form-and-its-replacement
   assert-on-production-log-lines-where-you-can
   which-assertion-pattern-to-use-when
-  fail-a-ci-observer-with-runtime-fail-not-sys-exit
+  the-native-fixture-tests-own-the-failure-boundary
   the-sleep-count-may-only-go-down
   every-tolerated-sleep-still-needs-a-justification
 ci-sleep-justification ## CI Sleep Justification
@@ -231,22 +230,22 @@ ci-sleep-justification ## CI Sleep Justification
   justify-every-sleep-in-a-ci-test
   related-ci-sleep
   the-specs-that-block-converting-these-sleeps
-python-observer-api-test-scripts-ze-api-py ## Python Observer API (`test/scripts/ze_api.py`)
-  what-an-embedded-python-plugin-can-import
-  every-ze-api-function-and-what-it-does
-  prefer-run-rs-observer-for-a-route-server-ci
+compiled-observer-api ## Compiled Observer API (`internal/test/fixture`)
+  what-a-compiled-observer-uses
+  the-compiled-fixture-functions-and-their-purpose
+  prefer-a-payload-barrier-for-route-server-tests
   prefer-a-payload-predicate-wait-over-a-sleep
-  the-full-protocol-form-of-the-api-class
-  where-the-ze-api-source-and-examples-live
+  the-full-compiled-observer-protocol
+  where-the-compiled-fixture-api-and-examples-live
   the-declarative-form-of-a-ci-engine-step
 mutation-testing ## Mutation Testing
   what-mutation-testing-does-and-that-it-is-advisory
   gomu-is-vendored-and-needs-no-install
-  the-mutation-testing-targets
+  the-mutation-testing-commands
   the-environment-variables-that-tune-gomu
   what-is-excluded-because-gomu-has-no-tag-support
   mutate-a-file-you-own-never-a-shared-one
   state-whether-a-discrimination-re-run-was-real
 pre-commit ## Pre-Commit
   where-the-full-pre-commit-workflow-lives
-  ze-verify-is-the-only-acceptable-pre-commit-check
+  native-verify-is-the-only-acceptable-pre-commit-check

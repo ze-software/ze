@@ -18,7 +18,7 @@ cross-commit each other's rows. It replaces the single tracked file
 - **`README.md`** (this file) holds the logging instructions below. Neither
   `README.md` nor `RESOLVED.md` counts as a live failure.
 - The live count is folded on read, never stored: `collect_known_failures`
-  in `scripts/dev/testing_health.py` counts the shard files (excluding
+  in the retired `scripts/dev/testing_health.py` (current producer: `internal/le/testhealth/testhealth.go`) counts the shard files (excluding
   `README.md` and `RESOLVED.md`) as live and the `### ` entries in
   `RESOLVED.md` as resolved.
 
@@ -26,10 +26,10 @@ Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before An
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
 **Scope: TEST reds whose MECHANISM you could not determine.** Deterministic
-structural gates (`ze-lint`, `ze-lint-changed`, `ze-tier-check`, `ze-evidence-vet`,
-`ze-plugin-boundary-check`, `ze-iface-resolution-check`, `ze-generated-files-check`,
-`ze-doc-wiring-check`) are NEVER logged here -- a red means the tree is
-structurally broken; fix it at the source. `scripts/dev/commit_helper.py` enforces
+structural gates (`./le verify-lint run`, `./le changed scope`, `./le tier check`, `ze-evidence-vet`,
+`./le plugin-boundary check`, `ze-iface-resolution-check`, `./le repository generated-check`,
+`./le doc-wiring`) are NEVER logged here -- a red means the tree is
+structurally broken; fix it at the source. the retired `scripts/dev/commit_helper.py` (current producer: `internal/le/commit/prepare.go`) enforces
 this by refusing `--unverified` while a structural gate is red (see
 `ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").
 
@@ -42,18 +42,17 @@ set rotates" and "not reproducible on a quiet host" are all that same diagnosis
 restated, and none of them opens a shard. Raising a timeout is not a fix either --
 it only moves the load level at which the test lies.
 
-## BEFORE LOGGING ANYTHING HERE: reproduce with the Makefile's build tags
+## BEFORE LOGGING ANYTHING HERE: reproduce through the native test toolchain
 
-Bare `go test ./...` is **NOT** equivalent to `make ze-unit-test` in this repo.
-Features compile out behind build tags (`//go:build ze_isis`, `ze_ospf`, `ze_web`,
-`ze_ssh`, ...), and the Makefile always supplies them (`Makefile:51` `ZE_FEATURES`
-read from `feature-gates.txt`, `Makefile:65` `GO_TEST_TAGS`). A bare run silently
-drops those plugins, so their registrations, validators and listeners never exist
-and unrelated tests fail with phantom reds.
+Bare `go test ./...` is **NOT** equivalent to the native repository actions.
+Features compile out behind build tags (`//go:build ze_isis`, `ze_ospf`,
+`ze_web`, `ze_ssh`, ...). `internal/le/gotoolchain` derives the full tag set
+from `feature-gates.txt`; a bare run silently drops those plugins, so their
+registrations, validators and listeners never exist and unrelated tests fail
+with phantom reds.
 
-```
-go test -tags "ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')" ./path/...
-```
+Run `./le verify-deps unit-cached` for the full cacheable package pass, or the
+owning `./le test-unit <group>` action for a named race-instrumented group.
 
 This is not hypothetical: on 2026-07-15 two of the four entries below (7 tests)
 were disproven as pure tags artifacts. Both had been logged with a confident but
@@ -115,7 +114,7 @@ Two remain open, for different reasons:
   the recorded `mismatch` symptom and the shard says so.
 
 The sweep also found bugs that were NOT tracked here, which is the other reason
-to run the suite rather than read about it: `make ze-unit-test` was red on every
+to run the suite rather than read about it: the retired `ze-unit-test` (current: `./le test-unit`) was red on every
 darwin host (`ze-unit-installer-test` cross-compiled a linux test binary and then
 tried to exec it); the test runner put the wrong `ze` on a child's PATH (under a
 session the binary is `ze-<id>`, so a bare `ze` lookup found whatever stale

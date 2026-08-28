@@ -1,4 +1,4 @@
-// Design: scripts/dev/check_weakened_tests.py -- old/new behavioral parity
+// Design: docs/architecture/testing/test-health.md -- old/new behavioral parity
 package weakened
 
 import (
@@ -197,29 +197,16 @@ func TestCheckQualifiesAmbiguousRemovedUnits(t *testing.T) {
 	}
 }
 
-func TestWeakenedAreaClaimsExactNativeGates(t *testing.T) {
+func TestWeakenedAreaPublishesNativeActions(t *testing.T) {
 	t.Parallel()
 
-	wantGates := []string{"ze-test-weakened-check", "ze-test-weakened-selftest"}
-	wantWhy := []string{
-		"test/weakened.md still parses for the commit gate. Whether a commit is " +
-			"covered is a question about THAT commit's paths and a verify stage has none, " +
-			"so this checks the one thing true for every session in a shared checkout: a " +
-			"header that drifted would leave commit_helper.py reading no rows",
-		"on a fixture repository whose answer is known, the checker still refuses a " +
-			"weakening with no row and accepts the same weakening once a row names it",
-	}
-	if !slices.Equal(Gates(), wantGates) {
-		t.Fatalf("Gates() = %q, want %q", Gates(), wantGates)
-	}
 	list := Actions()
-	if list.Area != "test-weakened" || len(list.Actions) != len(wantGates) {
+	if list.Area != "test-weakened" || len(list.Actions) != 3 {
 		t.Fatalf("Actions() = %#v", list)
 	}
-	wantVerbs := []string{"check", "selftest"}
+	wantVerbs := []string{"check", "selftest", "proposed"}
 	for index, row := range list.Actions {
-		if row.Gate != wantGates[index] || row.Verb != wantVerbs[index] ||
-			row.Why != wantWhy[index] || row.Writes || len(row.Forks) != 0 {
+		if row.Verb != wantVerbs[index] || row.Why == "" || row.Writes {
 			t.Fatalf("Actions()[%d] = %#v", index, row)
 		}
 	}
@@ -253,7 +240,7 @@ func TestPythonFixtureStringsStayOutsideExecutableVerdicts(t *testing.T) {
 	text := "def test_fixture():\n" +
 		"    fixture = \"pytest.skip('later')\\nassert True\"\n" +
 		"    assert value\n"
-	masked := executableTestText("scripts/dev/fixture_test.py", text)
+	masked := executableTestText("test/fixtures/fixture_test.py", text)
 	if strings.Contains(masked, "pytest.skip") || strings.Contains(masked, "assert True") {
 		t.Fatalf("executableTestText() retained fixture source: %q", masked)
 	}

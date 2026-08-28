@@ -270,16 +270,12 @@ func TestClassifyStderrLinePanicInMessageNotMatched(t *testing.T) {
 // `expected 'add' or 'del' before prefix: got "destination-ipv4"`.
 const observerSentinelReason = `RPC error: got "destination-ipv4" and a back\slash`
 
-// observerSentinelLine is the exact stderr line that `_write_sentinel`
-// (test/scripts/ze_api.py) writes for observerSentinelReason.
+// observerSentinelLine is the exact stderr line fixture.ReportFailure
+// (internal/test/fixture/fixture.go) writes for observerSentinelReason.
 //
-// The observer helper is Python and the parser is Go, so the format contract
-// spans two languages with no compiler over the join. This literal IS the join:
-// test_the_escaped_line_matches_the_go_relay_fixture in
-// test/scripts/ze_api_test.py reads both constants out of this file and asserts
-// the Python writer emits exactly this. Change one side and that test goes red,
-// which is the whole point -- before it existed, a writer that emitted a raw
-// quote here truncated every relayed reason at the quote and nothing noticed.
+// The literal pins the compiled producer's slog text contract at the relay
+// boundary. Before this test existed, a writer that emitted an unescaped quote
+// truncated every relayed reason at the quote and nothing noticed.
 const observerSentinelLine = `time=runtime level=ERROR msg="ZE-OBSERVER-FAIL: RPC error: got \"destination-ipv4\" and a back\\slash" subsystem=test.observer`
 
 // TestClassifyStderrLineDecodesObserverSentinelEscapes drives the relay's own

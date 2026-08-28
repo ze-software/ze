@@ -419,8 +419,20 @@ func (s *Server) EventRing() *EventRing {
 func (s *Server) SetProcessSpawner(sp plugin.ProcessSpawner) {
 	s.spawner = sp
 	// Thread metrics registry to the spawner if it supports it.
-	if setter, ok := sp.(interface{ SetMetricsRegistry(any) }); ok && s.config.MetricsRegistry != nil {
+	if setter, ok := sp.(interface{ SetMetricsRegistry(metrics.Registry) }); ok && s.config.MetricsRegistry != nil {
 		setter.SetMetricsRegistry(s.config.MetricsRegistry)
+	}
+}
+
+// SetMetricsRegistry forwards a registry that becomes available after the
+// server and its process spawner were created. BGP creates the registry during
+// plugin configuration, after external processes have already been spawned.
+func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
+	if s.config != nil {
+		s.config.MetricsRegistry = reg
+	}
+	if setter, ok := s.spawner.(interface{ SetMetricsRegistry(metrics.Registry) }); ok && reg != nil {
+		setter.SetMetricsRegistry(reg)
 	}
 }
 

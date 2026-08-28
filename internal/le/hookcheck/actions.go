@@ -1,20 +1,41 @@
-// Design: docs/architecture/core-design.md -- hook selftests are one le action area
-// Overview: hookcheck.go -- the native selftest implementation
+// Design: docs/architecture/core-design.md -- hook selftests and runtime are one le action area
+// Overview: hookcheck.go -- native selftest implementation
 package hookcheck
 
 import (
+	"os"
+
+	"github.com/ze-software/ze/internal/le/hookruntime"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 const area = "hook-check"
 
-var actions = leaction.New(area, leaction.Action{
-	Verb: "unit",
-	Why: "run every hook dispatcher golden row and every behavioral fixture category " +
-		"in-process, without Make, Python, or repository hook subprocesses",
-	Answer: runHere,
-})
+var actions = func() leaction.Area {
+	list := []leaction.Action{{
+		Verb:   "unit",
+		Why:    "run every hook dispatcher golden row and every behavioral fixture category in-process",
+		Answer: runHere,
+	}}
+	for _, verb := range []string{
+		"session-start", "compaction-reminder", "verify-claim-reminder", "delegation-reminder",
+		"block-until-lsp", "pretool-bash", "pretool-writeedit", "pretool-agent-skill",
+		"pre-compact-save", "block-premature-stop", "rule-coverage-report", "session-end-summary",
+		"session-end-deferrals", "subagent-context", "mark-lsp-invoked", "mark-source-read",
+		"mark-agent-spawned", "validate-spec", "posttool-writeedit", "session-id",
+	} {
+		kind := verb
+		list = append(list, leaction.Action{
+			Verb: kind,
+			Why:  "run the " + kind + " hook JSON protocol in the native le process",
+			Answer: func() (any, int) {
+				return nil, hookruntime.Run(kind, os.Stdin, os.Stdout, os.Stderr)
+			},
+		})
+	}
+	return leaction.New(area, list...)
+}()
 
 // Actions answers the command surface as structured data.
 func Actions() leaction.List { return actions.Actions() }

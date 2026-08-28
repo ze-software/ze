@@ -6,7 +6,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/parity"
 )
 
 func init() {
@@ -17,5 +16,5 @@ func init() {
 		SubsFunc:    Subs,
 	})
 	leroot.RegisterShape(area, command.ShapeMap)
-	parity.Claim(area, actionTable().Gates()...)
+
 }

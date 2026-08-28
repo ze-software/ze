@@ -13,4 +13,4 @@ stage:
 | 6 | If I deliberately broke the production code path, would the test catch it? | Re-run after breaking it. Observer-exit antipattern hides this (`ai/rules/testing.md`) |
 | 7 | Did I rename a registered name (plugin / subsystem / log / dispatch key)? Did I grep every consumer? | `ai/rules/plugins.md` "Renaming a Registered Name" |
 | 8 | Did I add a guard / fallback to a function? Did I check sibling call sites? | `ai/rules/architecture.md` "Sibling Call-Site Audit" |
-| 9 | Did I touch reactor concurrency code? Did `make ze-unit-reactor-test-race` pass? | `ai/rules/testing.md` "Reactor Concurrency Code" |
+| 9 | Did I touch reactor concurrency code? Did `go test -race -count=20 ./internal/component/bgp/reactor/...` pass? | `ai/rules/testing.md` "Reactor Concurrency Code" |

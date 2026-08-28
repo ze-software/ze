@@ -93,103 +93,6 @@ EOF_DEST
 # ---------------------------------------------------------------------------
 # Observer: sequences the run. It never drives the replay itself.
 # ---------------------------------------------------------------------------
-tmpfs=unowned-peer.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Store a route, bounce a peer bgp-rs is not fed, prove adj-rib-in replays it."""
-import sys
-
-from ze_api import API, result_json_data, runtime_fail
-
-SOURCE = '127.0.0.1'
-DEST = '127.0.0.2'
-
-
-def dest_updates(api):
-    """Route-bearing UPDATEs written to the dest peer, End-of-RIB excluded.
-
-    updates-sent counts every UPDATE written, the initial-sync marker included
-    (IncrUpdatesSent, reactor/reactor_notify.go, sees only the message type), and
-    eor-sent is the separate marker counter, so the difference is route traffic.
-
-    Both are LIFETIME counters here: Peer.ClearStats zeroes them from
-    Peer.cleanup (reactor/peer_run.go), which runs when the peer STOPS, not
-    between the sessions of one peer. So this keeps counting across the reconnect
-    and the caller waits for a total rather than for a per-session count.
-    """
-    return (api.peer_counter('updates-sent', peer=DEST)
-            - api.peer_counter('eor-sent', peer=DEST))
-
-
-def dest_sessions(api):
-    """Lifetime session count for the dest peer."""
-    return api.peer_counter('connections-established', peer=DEST)
-
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Every poll carries an explicit budget and they sum well inside the 40s
-    # envelope, so a starved daemon reports the barrier that failed rather than an
-    # opaque runner timeout.
-    if not api.wait_peers_established(expected_peers=2, attempts=32):
-        runtime_fail('both peers did not establish')
-
-    if not api.wait_peer_eor_sent(peer='*', expected_peers=2, attempts=20):
-        runtime_fail('ze never sent its initial-sync EOR to both peers')
-
-    # Release the source's announcement: this marker goes to the SOURCE only and
-    # its NLRI (192.0.2.0/24 -> 18 C0 00 02) is what the source's seq=2 matches.
-    api.send(f'peer {SOURCE} update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24')
-
-    # quiesce first so each poll behind it is a safety net rather than the
-    # mechanism: it drains the forward pool in one RPC.
-    api.quiesce()
-
-    # The route must be STORED before the dest bounces, or the second session's
-    # replay would be a correct no-op and this test would prove nothing.
-    status = api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', 0) > 0,
-        attempts=20,
-    )
-    if result_json_data(status, {}).get('total-routes', 0) <= 0:
-        runtime_fail('adj-rib-in stored no route from the source peer')
-    print('OK: the source route is stored', file=sys.stderr)
-
-    sessions_before = dest_sessions(api)
-
-    # THE BOUNCE, driven by the dest's own script: this marker completes conn=1,
-    # the peer closes it, and ze re-dials. Nothing here times anything.
-    api.send(f'peer {DEST} update text origin igp nhop 2.2.2.2 nlri ipv4/unicast add 203.0.113.0/24')
-    api.quiesce()
-    if not api.wait_until(lambda: dest_updates(api) >= 1, attempts=20):
-        runtime_fail('the observer marker never reached the dest peer')
-    marker_updates = dest_updates(api)
-    print('OK: the marker closed the dest first session', file=sys.stderr)
-
-    if not api.wait_until(lambda: dest_sessions(api) > sessions_before, attempts=60):
-        runtime_fail('the dest peer never established a second session')
-    print('OK: dest established its second session', file=sys.stderr)
-
-    # THE SUBJECT. Nothing live is in flight on the second session, so the next
-    # route-bearing UPDATE written to this peer is the peer-up replay. Held before
-    # shutdown so the daemon outlives the write.
-    if not api.wait_until(lambda: dest_updates(api) > marker_updates, attempts=40):
-        runtime_fail('the dest peer was replayed nothing when it came back')
-    print('OK: dest was replayed the stored route', file=sys.stderr)
-
-    api.dispatch('request shutdown')
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ---------------------------------------------------------------------------
 # ze -- AS 65000, two external peers on separate loopbacks.
@@ -204,7 +107,7 @@ plugin {
 		use bgp-rs
 	}
 	external unowned-peer {
-		run ./unowned-peer.run
+		run "ze-test fixture plugin/adj-rib-in-replay-unowned-peer"
 		encoder json
 	}
 	internal adj-rib-in {

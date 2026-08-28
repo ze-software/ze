@@ -46,8 +46,8 @@ func newBrowser(baseURL string) *Browser {
 	return &Browser{baseURL: baseURL}
 }
 
-// NewBrowserWithSession creates a browser bound to an isolated agent-browser session.
-func NewBrowserWithSession(baseURL, session string) *Browser {
+// newBrowserWithSession creates a browser bound to an isolated agent-browser session.
+func newBrowserWithSession(baseURL, session string) *Browser {
 	return &Browser{baseURL: baseURL, session: session}
 }
 
@@ -58,7 +58,7 @@ func (b *Browser) Open(path string) error {
 	if err := b.runAgentEnsureDaemon("open", url); err != nil {
 		return fmt.Errorf("open %s: %w", url, err)
 	}
-	return b.WaitLoad()
+	return b.waitLoad()
 }
 
 // runAgentEnsureDaemon runs an agent-browser command, guaranteeing the daemon is
@@ -81,7 +81,7 @@ func (b *Browser) runAgentEnsureDaemon(args ...string) error {
 	return nil
 }
 
-// WaitLoad waits for in-flight fetch/XHR requests to drain. The finder UI
+// waitLoad waits for in-flight fetch/XHR requests to drain. The finder UI
 // keeps a persistent EventSource(/events) open, so `wait --load networkidle`
 // never settles and burns a fixed ~1.44s on every call. Instead we poll an
 // in-flight counter installed via AGENT_BROWSER_INIT_SCRIPTS (inflightInitJS)
@@ -90,7 +90,7 @@ func (b *Browser) runAgentEnsureDaemon(args ...string) error {
 // settles degrades to "proceed after the deadline" instead of hanging until
 // the process is killed mid-command, which wedges the agent-browser daemon.
 // Falls back to networkidle when the init script could not be written.
-func (b *Browser) WaitLoad() error {
+func (b *Browser) waitLoad() error {
 	if ensureInitScript() == "" {
 		return b.runAgent("wait", "--load", "networkidle")
 	}
@@ -150,11 +150,11 @@ func (b *Browser) waitMs(ms string) error {
 	return nil
 }
 
-// WaitUntil re-opens path until the page it serves contains want. It is the
-// state-based counterpart of WaitMs: the test waits for the server to REPORT the
+// waitUntil re-opens path until the page it serves contains want. It is the
+// state-based counterpart of waitMs: the test waits for the server to REPORT the
 // condition instead of guessing how long the server needs to reach it.
 //
-// Neither existing wait covers this. WaitLoad settles on the browser's own
+// Neither existing wait covers this. waitLoad settles on the browser's own
 // in-flight counter, whose predicate (inflightIdleExpr) is true both before a
 // request begins and after it ends, so it cannot prove a click's mutation reached
 // the server. A retried expectation cannot either: it re-reads the DOM the page
@@ -174,11 +174,11 @@ func (b *Browser) waitMs(ms string) error {
 // (expect.go), and fails naming the path and the wanted text. That deadline is
 // NOT a wall-clock cap on the step: retryCommand checks it between rounds, never
 // inside one, so the round in flight when it expires still runs to completion. A
-// round issues an `open`, one or more `eval` polls (WaitLoad) and a `get html`,
+// round issues an `open`, one or more `eval` polls (waitLoad) and a `get html`,
 // each capped only by agentTimeout, so a stalled round overshoots. The file's own
 // option=timeout is what bounds the test above this, checked between steps by
 // runWBTestCase.
-func (b *Browser) WaitUntil(path, want string) error {
+func (b *Browser) waitUntil(path, want string) error {
 	if path == "" || want == "" {
 		return errWaitUntilRequiresPathAndContains
 	}
@@ -232,7 +232,7 @@ func (b *Browser) Login(user, password string) error {
 	if err := b.Press("Enter"); err != nil {
 		return err
 	}
-	return b.WaitLoad()
+	return b.waitLoad()
 }
 
 // Snapshot returns the interactive accessibility snapshot.
@@ -250,7 +250,7 @@ func (b *Browser) Press(key string) error {
 	if err := b.runAgent("press", key); err != nil {
 		return fmt.Errorf("press %s: %w", key, err)
 	}
-	return b.WaitLoad()
+	return b.waitLoad()
 }
 
 // pressOn finds an element by visible text, focuses it, and presses a key.
@@ -272,7 +272,7 @@ func (b *Browser) pressOn(text, key string) error {
 	if err := b.runAgent("press", key); err != nil {
 		return fmt.Errorf("press %s on %s (text=%q): %w", key, ref, text, err)
 	}
-	return b.WaitLoad()
+	return b.waitLoad()
 }
 
 // pressOnID focuses an element by HTML id and presses a key.
@@ -285,7 +285,7 @@ func (b *Browser) pressOnID(id, key string) error {
 	if err := b.runAgent("press", key); err != nil {
 		return fmt.Errorf("press %s on #%s: %w", key, id, err)
 	}
-	return b.WaitLoad()
+	return b.waitLoad()
 }
 
 // Click finds an element by visible text in the snapshot, then clicks its @ref.
@@ -310,7 +310,7 @@ func (b *Browser) Click(text string) error {
 	}); err != nil {
 		return err
 	}
-	return b.WaitLoad()
+	return b.waitLoad()
 }
 
 // clickID clicks an element by its HTML id attribute using a CSS selector.
@@ -323,7 +323,7 @@ func (b *Browser) clickID(id string) error {
 	if err := retryCommand(func() error { return b.runAgent("click", sel) }); err != nil {
 		return fmt.Errorf("click #%s: %w", id, err)
 	}
-	return b.WaitLoad()
+	return b.waitLoad()
 }
 
 // Fill finds an input by placeholder/label text and fills it.
@@ -348,8 +348,8 @@ func (b *Browser) fillID(id, value string) error {
 	return b.runAgent("fill", sel, value)
 }
 
-// Hover finds an element by text and hovers.
-func (b *Browser) Hover(text string) error {
+// hover finds an element by text and hovers.
+func (b *Browser) hover(text string) error {
 	snap, err := b.Snapshot()
 	if err != nil {
 		return fmt.Errorf("snapshot before hover: %w", err)
@@ -408,7 +408,7 @@ func (b *Browser) Forward() error {
 
 // getHeadHTML returns the page HEAD's HTML, which is where a page states what
 // it loads. Each page loads the assets its own markup needs
-// (scripts/codegen/web_assets.go), so what a head does NOT carry is as much a
+// (internal/le/webassets/webassets.go), so what a head does NOT carry is as much a
 // property of the page as what it does.
 func (b *Browser) getHeadHTML() (string, error) {
 	return b.runAgentOutput("get", "html", "head")
@@ -511,7 +511,7 @@ const inflightInitJS = `(function () {
 })();
 `
 
-// inflightIdleExpr is the predicate WaitLoad polls: no in-flight fetch/XHR
+// inflightIdleExpr is the predicate waitLoad polls: no in-flight fetch/XHR
 // and quiet for a short debounce. The debounce bridges chained requests --
 // cli.js issues fetch(/cli) -> htmx refresh -> fetch(/config/changes) in
 // sequence, so the counter dips to zero for a microtask between them.
@@ -523,7 +523,7 @@ var (
 )
 
 // ensureInitScript writes the in-flight instrumentation to a temp file once
-// and returns its path, or "" if it could not be written (WaitLoad then
+// and returns its path, or "" if it could not be written (waitLoad then
 // falls back to networkidle). agent-browser loads it via the
 // AGENT_BROWSER_INIT_SCRIPTS env set in agentEnv.
 func ensureInitScript() string {
@@ -543,9 +543,17 @@ func ensureInitScript() string {
 }
 
 func (b *Browser) agentEnv() []string {
-	env := os.Environ()
+	inherited := os.Environ()
+	env := make([]string, 0, len(inherited)+3)
 	hasIdle, hasInit, hasSession := false, false, false
-	for _, e := range env {
+	for _, e := range inherited {
+		// Chrome launches crash before DevTools starts when TMPDIR points at the
+		// functional suite's noexec scratch filesystem. Let Chrome use the
+		// platform temp directory. Ze's own test processes keep the scratch path.
+		if strings.HasPrefix(e, "TMPDIR=") {
+			continue
+		}
+		env = append(env, e)
 		if strings.HasPrefix(e, "AGENT_BROWSER_IDLE_TIMEOUT_MS=") {
 			hasIdle = true
 		}
@@ -596,24 +604,18 @@ func RunWBFileWithSession(path, baseURL, session string) *WBTestResult {
 func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	var browser *Browser
 	if session != "" {
-		browser = NewBrowserWithSession(baseURL, session)
+		browser = newBrowserWithSession(baseURL, session)
 	} else {
 		browser = newBrowser(baseURL)
 	}
 	// Free this test's browser session when it finishes. Sessions are keyed per
-	// test (unique nick), so without a per-test close they accumulate in the
-	// shared agent-browser daemon for the whole suite -- 80+ live pages that
-	// starve later tests of resources and surface as flaky empty snapshots. The
-	// suite-end sweep is a backstop, not a substitute.
+	// test. Without this close, more than 80 live pages accumulate and starve the
+	// later tests. The suite-end sweep is only a backstop.
 	//
-	// There is deliberately NO leading Close() here. A close immediately followed
-	// by the first Open() on the same session makes agent-browser tear down and
-	// relaunch that session's daemon back-to-back; under concurrency the relaunch
-	// races the navigation and the page ends up stuck on about:blank ("(empty
-	// page)" in snapshots). The session nick is unique per test, so the context is
-	// already pristine -- the first Open() navigates a clean page with no prior
-	// close needed. (Verified: with the leading close, ~10/12 concurrent opens
-	// landed on about:blank; without it, 12/12 navigated correctly.)
+	// There is no leading Close here. A close immediately followed by Open makes
+	// agent-browser stop and start the same session back-to-back. The navigation
+	// can then stay on about:blank. Each test has a unique session, so its first
+	// Open already starts with a clean context.
 	defer browser.Close()
 
 	var (
@@ -652,15 +654,12 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	// nothing. Reading it literally would expire the deadline before step one and
 	// fail every such run. That is a zero value that looks like a valid answer
 	// (docs/contributing/ze-go-style.md, "Types that cannot lie").
-	// The declared value is scaled by the SAME contention headroom every other
-	// budget in this suite uses. `zeTestReadyTimeout` (internal/test/cli/cmd_web.go)
-	// states the reason: under `make ze-precommit-verify` the web suite runs four
-	// ways concurrent and overlaps the -race unit stage, so a step that takes 2s
-	// standalone can take far longer under that CPU starvation. Every declared
-	// timeout in the corpus was authored while this field was INERT, so no run
-	// ever measured one, and enforcing them literally would turn a green suite
-	// red with a message blaming the test author. A standalone run keeps the
-	// tight declared value, so a genuine hang still surfaces fast.
+	// The declared value uses the same verification headroom as the other suite
+	// budgets. The full verification run can overlap this suite with the race
+	// unit stage. CPU starvation can make a 2s standalone step take much longer.
+	// The files declared their timeouts before this field was enforced. Headroom
+	// keeps those existing values usable, while a standalone run keeps the
+	// declared value and reports a real hang quickly.
 	budget := tc.Timeout
 	if budget <= 0 {
 		budget = defaultWBTimeout
@@ -719,22 +718,18 @@ const (
 	// none. ParseWBFile seeds WBTestCase.Timeout with it and
 	// `option=timeout:value=` replaces it.
 	defaultWBTimeout = 30 * time.Second
-	// Generous: under parallel CPU load an HTMX/JS render can land seconds after
-	// WaitLoad reports the network idle, so the assertion must out-wait the slow
-	// render without out-waiting the test's own option=timeout.
+	// Generous: under CPU load an HTMX/JS render can land seconds after waitLoad
+	// reports network idle. The assertion must out-wait the render without
+	// out-waiting the test timeout.
 	expectRetryDeadline = 5 * time.Second
-	// Poll gently: each retry re-snapshots via agent-browser subprocesses, so a
-	// tight interval would itself load the shared daemon under parallel runs.
+	// Poll gently because each retry starts an agent-browser subprocess.
 	expectRetryPoll = 250 * time.Millisecond
 )
 
-// checkExpectationRetry polls an expectation until it passes or a short deadline
-// elapses. A browser snapshot is a point-in-time read: under parallel CPU load a
-// page's HTMX/JS render can land a few hundred milliseconds after WaitLoad reports
-// the network idle, so a single snapshot occasionally catches a half-rendered
-// ("empty") page. Retrying converts that race into a bounded wait -- the standard
-// auto-waiting-assertion pattern -- so a correct page is never failed for being
-// briefly late, while a genuinely wrong page still fails after the deadline.
+// checkExpectationRetry polls an expectation until a short deadline expires.
+// A browser snapshot is a point-in-time read. Under CPU load, an HTMX or
+// JavaScript render can land after waitLoad reports network idle. Retrying turns
+// that race into a bounded wait. A wrong page still fails after the deadline.
 func checkExpectationRetry(b *Browser, e *WBExpectation) error {
 	deadline := time.Now().Add(expectRetryDeadline)
 	for {
@@ -767,14 +762,14 @@ func executeAction(b *Browser, a *WBAction) error {
 		if id, ok := a.Values["id"]; ok {
 			return b.hoverID(id)
 		}
-		return b.Hover(a.Values["text"])
+		return b.hover(a.Values["text"])
 	case "wait":
 		if ms, ok := a.Values["ms"]; ok {
 			return b.waitMs(ms)
 		}
-		return b.WaitLoad()
+		return b.waitLoad()
 	case "wait-until":
-		return b.WaitUntil(a.Values["path"], a.Values["contains"])
+		return b.waitUntil(a.Values["path"], a.Values["contains"])
 	case "back":
 		return b.Back()
 	case "forward":

@@ -22,10 +22,10 @@ FAILED command into a passing assertion over nothing. `"DIS" in ""` is False, so
 the scenario reports a green it never measured.
 
 **The risk is already capped, which is why this is separable.**
-`scripts/dev/docker_exec_checked.py` derives the fail-open set to a fixpoint and
+`internal/le/docwiring/delegate.go` derives the fail-open set to a fixpoint and
 refuses the next new call site. The floor in `test/health/docker-exec-baseline.json`
-goes DOWN only, so the count cannot grow. `make ze-functional-docker-exec-check` is the
-gate, and `TestRepoRatchet` re-runs it under `make ze-unit-test`.
+goes DOWN only, so the count cannot grow. `./le functional docker-exec-check` is the
+gate, and `TestRepoRatchet` re-runs it under `./le test-unit`.
 
 What remains is mechanical: 171 sites across 67 files. Each one either gets its
 return value tested, or an opt-out `# fail-open-ok: <reason>` naming why the

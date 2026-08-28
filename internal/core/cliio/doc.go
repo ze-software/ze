@@ -9,7 +9,7 @@
 // reached from other tiers, so most commands drifted. This leaf lives under
 // internal/core so every consumer -- component, plugin, analyze, perf, test,
 // appliance -- can route through it, and a build gate
-// (scripts/checks/cli_dash_stdio.go) fails any command that reads or writes a
+// (internal/le/dashstdio/actions.go) fails any command that reads or writes a
 // user-supplied path with a raw os call instead of this helper.
 //
 // stdin is consumable exactly once. ReadFile("-") and OpenReader("-") claim it

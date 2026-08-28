@@ -7,7 +7,7 @@
 // every session until somebody regenerates.
 //
 // The whole-tool comparison against the script lives beside the script, in
-// scripts/dev/testing_health_parity_test.go, so the commit that deletes the
+// internal/le/testhealth/testhealth_test.go, so the commit that deletes the
 // script deletes its proof with it. What is here is the arithmetic, the
 // orderings and the guards, each reachable without a tree.
 
@@ -106,20 +106,17 @@ func TestAnIndentedDocumentSortsItsKeysAndSpellsEveryNonASCIIRune(t *testing.T) 
 }
 
 func TestACompactDocumentKeepsTheOrderItsKeysWereSetIn(t *testing.T) {
-	// One history row is written once and read back as a record, so its order
-	// is the author's rather than the sorter's -- and the committed file already
-	// holds rows in that order.
 	row := object{}
 	row.set("ts", "2026-01-01T00:00:00Z")
 	row.set("sha", "abc")
 	row.set("assert_nothing", 133)
-	row.set("mutation_percent", nil)
+	row.set("rfc_proof_percent", nil)
 
 	got, err := dumpCompact(row)
 	if err != nil {
 		t.Fatalf("encoding: %v", err)
 	}
-	const want = `{"ts":"2026-01-01T00:00:00Z","sha":"abc","assert_nothing":133,"mutation_percent":null}`
+	const want = `{"ts":"2026-01-01T00:00:00Z","sha":"abc","assert_nothing":133,"rfc_proof_percent":null}`
 	if got != want {
 		t.Errorf("the row is\n%s\nwant\n%s", got, want)
 	}
@@ -180,22 +177,21 @@ func TestARatchetedCountWithNoFloorWarnsOnlyWhenItCountedSomething(t *testing.T)
 
 func TestAQualityFloorWarnsOnlyOnARealRegression(t *testing.T) {
 	floors := qualityFloors{values: object{}}
-	floors.values.set(keyMutation, pyNum{f: 60.4})
+	floors.values.set(keyProofDensity, pyNum{f: 60.4})
 
-	if got := floors.status(keyMutation, 60.4); got != statusOK {
+	if got := floors.status(keyProofDensity, 60.4); got != statusOK {
 		t.Errorf("a metric sitting on its floor read %q, want %q", got, statusOK)
 	}
-	// The tolerance absorbs a rounding wobble that is really the same value.
-	if got := floors.status(keyMutation, 60.35); got != statusOK {
+	if got := floors.status(keyProofDensity, 60.35); got != statusOK {
 		t.Errorf("a 0.05 wobble read %q, want %q", got, statusOK)
 	}
-	if got := floors.status(keyMutation, 60.0); got != statusWarn {
+	if got := floors.status(keyProofDensity, 60.0); got != statusWarn {
 		t.Errorf("a 0.4 regression read %q, want %q", got, statusWarn)
 	}
 	if got := floors.status("no-such-metric", 1.0); got != statusOK {
 		t.Errorf("a metric with no recorded floor read %q, want %q", got, statusOK)
 	}
-	if got := floors.status(keyMutation, nil); got != statusUnknown {
+	if got := floors.status(keyProofDensity, nil); got != statusUnknown {
 		t.Errorf("a metric that measured nothing read %q, want %q", got, statusUnknown)
 	}
 }
@@ -298,34 +294,30 @@ func TestASensitivityFloorFallsToTheMeasuredCountAndNeverRises(t *testing.T) {
 }
 
 func TestAQualityFloorRisesToABetterNumberAndNeverFallsToAWorseOne(t *testing.T) {
-	// The mirror of the sensitivity ratchet: improvement is locked in, so a
-	// later regression shows as a warning. A floor that followed the measured
-	// value down would re-bless every regression as the new best and the
-	// attention table would never name one.
 	root := t.TempDir()
-	writeFixtureFile(t, root, QualityBaseline, "{\n  \"mutation\": 90.0\n}\n")
+	writeFixtureFile(t, root, QualityBaseline, "{\n  \"rfc-proof-density\": 90.0\n}\n")
 
-	regressed := []Metric{{Key: keyMutation, Data: ratioData("kill_rate", 15, 20)}}
+	regressed := []Metric{{Key: keyProofDensity, Data: ratioData("proof_density", 15, 20)}}
 	moved, err := tightenQuality(root, regressed)
 	if err != nil {
 		t.Fatalf("tightening against a regression: %v", err)
 	}
 	if moved {
-		t.Errorf("a 75%% kill rate under a floor of 90 moved the floor")
+		t.Errorf("a 75%% proof rate under a floor of 90 moved the floor")
 	}
-	if got := readFixtureFile(t, root, QualityBaseline); got != "{\n  \"mutation\": 90.0\n}\n" {
+	if got := readFixtureFile(t, root, QualityBaseline); got != "{\n  \"rfc-proof-density\": 90.0\n}\n" {
 		t.Errorf("the floor is\n%s\nwant it held at 90.0", got)
 	}
 
-	improved := []Metric{{Key: keyMutation, Data: ratioData("kill_rate", 19, 20)}}
+	improved := []Metric{{Key: keyProofDensity, Data: ratioData("proof_density", 19, 20)}}
 	moved, err = tightenQuality(root, improved)
 	if err != nil {
 		t.Fatalf("tightening against an improvement: %v", err)
 	}
 	if !moved {
-		t.Errorf("a 95%% kill rate under a floor of 90 reported no movement")
+		t.Errorf("a 95%% proof rate under a floor of 90 reported no movement")
 	}
-	if got := readFixtureFile(t, root, QualityBaseline); got != "{\n  \"mutation\": 95.0\n}\n" {
+	if got := readFixtureFile(t, root, QualityBaseline); got != "{\n  \"rfc-proof-density\": 95.0\n}\n" {
 		t.Errorf("the floor is\n%s\nwant it raised to 95.0", got)
 	}
 }
@@ -539,19 +531,17 @@ func TestAWorstTableTakesItsColumnsFromEveryRow(t *testing.T) {
 }
 
 func TestASampleIdenticalApartFromItsTimestampIsTheSameSample(t *testing.T) {
-	// Recording runs from every mutation target, so a re-run at one commit would
-	// otherwise stack duplicate points into the sparkline and overstate n.
 	last := object{}
 	last.set("ts", "2026-01-01T00:00:00Z")
 	last.set("sha", "abc")
 	last.set("assert_nothing", pyNum{isInt: true, i: 133})
-	last.set("mutation_percent", pyNum{f: 60.4})
+	last.set("rfc_proof_percent", pyNum{f: 60.4})
 
 	same := object{}
 	same.set("ts", "2026-02-02T00:00:00Z")
 	same.set("sha", "abc")
 	same.set("assert_nothing", 133)
-	same.set("mutation_percent", 60.4)
+	same.set("rfc_proof_percent", 60.4)
 
 	if !sameSample(last, same) {
 		t.Errorf("two samples differing only in their timestamp were counted as different")
@@ -612,25 +602,19 @@ func TestACommitHeaderIsToldApartFromAFileName(t *testing.T) {
 	}
 }
 
-func TestTheActionTableClaimsTheThreeGatesAndNamesTheTwoThatWrite(t *testing.T) {
-	gates := Gates()
-	want := []string{"ze-test-health-check", "ze-test-health-update", "ze-test-health-record"}
-	if len(gates) != len(want) {
-		t.Fatalf("the area claims %v, want %v", gates, want)
+func TestTheActionTableDeclaresThreeNativeActionsAndTwoWrites(t *testing.T) {
+	want := []string{"check", "update", "record"}
+	rows := Actions().Actions
+	if len(rows) != len(want) {
+		t.Fatalf("the area declares %v, want %v", rows, want)
 	}
-	for index, gate := range want {
-		if gates[index] != gate {
-			t.Errorf("gate %d is %q, want %q", index, gates[index], gate)
-		}
-	}
-
 	writes := 0
-	for _, row := range Actions().Actions {
+	for index, row := range rows {
+		if row.Verb != want[index] {
+			t.Errorf("action %d is %q, want %q", index, row.Verb, want[index])
+		}
 		if row.Writes {
 			writes++
-		}
-		if len(row.Forks) != 0 {
-			t.Errorf("the %q action still starts %v, so its work is not ported", row.Verb, row.Forks)
 		}
 	}
 	if writes != 2 {
@@ -649,8 +633,8 @@ func TestAnActionThisAreaDoesNotHoldAnswersTwo(t *testing.T) {
 	}
 	// A value after a verb that takes none is a usage error: the tree is the
 	// checkout and the rendering is a pipe operator (ai/rules/cli.md).
-	if _, code := Answer([]string{"check", "docs/features/test-health.md"}); code != 1 {
-		t.Errorf("a value after check answered %d, want 1", code)
+	if _, code := Answer([]string{"check", "docs/features/test-health.md"}); code != 2 {
+		t.Errorf("a value after check answered %d, want 2", code)
 	}
 	listing, code := Answer(nil)
 	if code != 0 {
@@ -708,7 +692,7 @@ func TestTheCheckReportRendersEachVerdictOnce(t *testing.T) {
 	for _, want := range [...]string{
 		"a STRUCTURAL fact changed", "rfc-unproven",
 		"left the committed list: rfc1000", "new in the generated list: rfc1002",
-		"Run `make ze-test-health-update`",
+		"Run `./le test-health update`",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the stale verdict does not carry %q:\n%s", want, text)

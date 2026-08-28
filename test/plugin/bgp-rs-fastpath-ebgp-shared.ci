@@ -69,25 +69,13 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E40010
 # conn=2:seq=1 turned that permitted ordering into a flake -- the forward hits the
 # still-pending EOR rule. Same conclusion as bgp-rs-asn4-transcode.ci and
 # bgp-rs-reactor-fastpath.ci. That both EORs ARE sent (the RFC MUST) is still
-# enforced by run_rs_observer(expected_peers=2), which fails closed if either is
+# enforced by the compiled observer, which fails closed if either is
 # missing; conn=1's EOR (no forward races it) stays as a direct wire assertion.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE840030401010101180A0000
 EOF_PEER
 
-# Observer: shut down cleanly after forwarding completes.
-tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-# // the observer's synchronous `show bgp` eor-sent poll +
-# `request shutdown` is replaced by ze_api.run_rs_observer -- event-driven readiness
-# (subscribe + wait_for_event on the async channel) plus a fire-and-forget shutdown.
-# A more robust rewrite, not a relaxation: same "wait until the RS replayed to every
-# peer" semantics, no expect/action/reject assertion removed. The old poll's dispatch
-# RPC could stall ~30s under load and strand the shutdown until ze was killed.
-from ze_api import API
-
-API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
-EOF_RUN
+# Compiled observer shuts down cleanly after forwarding completes.
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -98,7 +86,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external shutdown-after-up {
-		run ./shutdown-after-up.run
+		run "ze-test fixture plugin/bgp-rs-fastpath-ebgp-shared"
 		encoder json
 	}
 }

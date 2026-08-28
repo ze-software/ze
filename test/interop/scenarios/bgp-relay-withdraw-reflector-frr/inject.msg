@@ -18,7 +18,8 @@ option=timeout:value=240s
 option=open:value=router-id:id=172.30.0.9
 
 # (1) The reflected ADVERTISEMENT of FRR's 10.20.0.0/24. Matched loosely on the
-# prefix, because the attribute block is the SUBJECT of check.py's positive
+# prefix, because the attribute block is the SUBJECT of the internal/le/interoplab/bgp checker's
+# positive
 # assertion rather than of this barrier, and pinning it here would duplicate that
 # assertion in a place whose failure the harness reports less clearly.
 expect=bgp:conn=1:seq=1:contains=180A1400
@@ -28,15 +29,18 @@ expect=bgp:conn=1:seq=1:contains=180A1400
 # says a message that withdraws only "will not include path attributes", and RFC
 # 4456 Section 8 conditions ORIGINATOR_ID and CLUSTER_LIST on reflecting a ROUTE.
 # One stamped attribute makes the body `0004180A1400000E8009...` and this rule
-# stops matching, so the peer errors out, the session drops, and check.py's own
-# byte-exact wait then fails too. check.py drives the withdrawal with `no network`
+# stops matching, so the peer errors out, the session drops, and the internal/le/interoplab/bgp
+# checker's own
+# byte-exact wait then fails too. the internal/le/interoplab/bgp checker drives the withdrawal with
+# `no network`
 # on FRR.
 expect=bgp:conn=1:seq=2:contains=0004180A14000000
 
-# Stay established while check.py finishes reading. Nothing but KEEPALIVEs
+# Stay established while the internal/le/interoplab/bgp checker finishes reading. Nothing but
+# KEEPALIVEs
 # follows the withdrawal, and Ze sends one every 30s (a third of the 90s hold). A
 # peer whose script is exhausted exits, and its session dropping would end the
-# reflection under check.py's feet.
+# reflection under the internal/le/interoplab/bgp checker's feet.
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304

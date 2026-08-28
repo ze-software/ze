@@ -38,7 +38,7 @@ func TestRegisterRoutes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := httptest.NewRequest(tt.method, tt.path, http.NoBody)
+			r := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, http.NoBody)
 			w := httptest.NewRecorder()
 			mux.ServeHTTP(w, r)
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -49,7 +49,7 @@ func TestRegisterRoutes(t *testing.T) {
 // TestParseURL_ShowPath verifies verb-first URL parsing for /show/ paths.
 // VALIDATES: URL scheme verb-first parsing -- show prefix produces TierView with correct segments.
 func TestParseURL_ShowPath(t *testing.T) {
-	r := httptest.NewRequest("GET", "/show/bgp/peer/192.168.1.1/", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/show/bgp/peer/192.168.1.1/", http.NoBody)
 
 	parsed, err := ParseURL(r)
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ func TestParseURL_ShowPath(t *testing.T) {
 // TestParseURL_MonitorPath verifies verb-first URL parsing for /monitor/ paths.
 // VALIDATES: monitor prefix produces TierView with verb "monitor" and correct path segments.
 func TestParseURL_MonitorPath(t *testing.T) {
-	r := httptest.NewRequest("GET", "/monitor/bgp/summary", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/monitor/bgp/summary", http.NoBody)
 
 	parsed, err := ParseURL(r)
 	require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestParseURL_MonitorPath(t *testing.T) {
 // TestParseURL_ConfigEdit verifies /config/edit/<path> parsing.
 // VALIDATES: config tier edit verb extracts YANG path after the verb.
 func TestParseURL_ConfigEdit(t *testing.T) {
-	r := httptest.NewRequest("GET", "/config/edit/bgp/peer/192.168.1.1/", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/config/edit/bgp/peer/192.168.1.1/", http.NoBody)
 
 	parsed, err := ParseURL(r)
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func TestParseURL_ConfigEdit(t *testing.T) {
 // TestParseURL_ConfigSet verifies /config/set/<path> parsing.
 // VALIDATES: config tier set verb extracts YANG path after the verb.
 func TestParseURL_ConfigSet(t *testing.T) {
-	r := httptest.NewRequest("GET", "/config/set/bgp/peer/192.168.1.1/", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/config/set/bgp/peer/192.168.1.1/", http.NoBody)
 
 	parsed, err := ParseURL(r)
 	require.NoError(t, err)
@@ -100,7 +100,7 @@ func TestParseURL_ConfigSet(t *testing.T) {
 
 // TestParseURL_ConfigRenameAccepted verifies /config/rename/<path> parsing.
 func TestParseURL_ConfigRenameAccepted(t *testing.T) {
-	r := httptest.NewRequest("POST", "/config/rename/bgp/peer/london/", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "POST", "/config/rename/bgp/peer/london/", http.NoBody)
 
 	parsed, err := ParseURL(r)
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestParseURL_ConfigRenameAccepted(t *testing.T) {
 // TestParseURL_ConfigCommit verifies /config/commit parsing with no trailing path.
 // VALIDATES: config verbs with no YANG path produce empty Path slice.
 func TestParseURL_ConfigCommit(t *testing.T) {
-	r := httptest.NewRequest("GET", "/config/commit", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/config/commit", http.NoBody)
 
 	parsed, err := ParseURL(r)
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestParseURL_ConfigCommit(t *testing.T) {
 // TestParseURL_AdminPath verifies /admin/<path> parsing.
 // VALIDATES: admin prefix produces TierAdmin with all path segments preserved.
 func TestParseURL_AdminPath(t *testing.T) {
-	r := httptest.NewRequest("POST", "/admin/peer/192.168.1.1/teardown", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "POST", "/admin/peer/192.168.1.1/teardown", http.NoBody)
 
 	parsed, err := ParseURL(r)
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestParseURL_AdminPath(t *testing.T) {
 // TestParseURL_Root verifies that / returns a redirect-equivalent ParsedURL (show with no path).
 // VALIDATES: root URL produces TierView with verb "show" and no path segments.
 func TestParseURL_Root(t *testing.T) {
-	r := httptest.NewRequest("GET", "/", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/", http.NoBody)
 
 	parsed, err := ParseURL(r)
 	require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestParseURL_Root(t *testing.T) {
 // VALIDATES: unknown prefixes are rejected, not silently routed.
 // PREVENTS: arbitrary paths being accepted as valid.
 func TestParseURL_InvalidPrefix(t *testing.T) {
-	r := httptest.NewRequest("GET", "/invalid/path", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), "GET", "/invalid/path", http.NoBody)
 
 	_, err := ParseURL(r)
 	require.Error(t, err)
@@ -283,7 +283,7 @@ func TestNegotiateContentType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := httptest.NewRequest("GET", tt.url, http.NoBody)
+			r := httptest.NewRequestWithContext(t.Context(), "GET", tt.url, http.NoBody)
 			if tt.accept != "" {
 				r.Header.Set("Accept", tt.accept)
 			}

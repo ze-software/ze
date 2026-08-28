@@ -279,7 +279,7 @@ func tightenQuality(root string, metrics []Metric) (bool, error) {
 
 // metricPercent answers the ratio percent a quality metric ratchets on, or nil.
 func metricPercent(metric Metric) any {
-	for _, key := range [...]string{"proof_density", "kill_rate", "overall"} {
+	for _, key := range [...]string{"proof_density", "overall"} {
 		part, ok := metric.Data.get(key).(object)
 		if !ok {
 			continue

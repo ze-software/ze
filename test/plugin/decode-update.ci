@@ -12,100 +12,12 @@ cmd=api:conn=1:seq=1:text=peer * update text nhop 192.168.1.1 nlri ipv4/unicast 
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304C0A8010140050400000064180A0000
 EOF_PEER
 
-# Python plugin script
-tmpfs=decode-update.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Test decode-update RPC: plugin calls engine to decode full UPDATE body."""
-
-import json
-from ze_api import API, runtime_fail
-
-
-def main() -> None:
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # UPDATE body (after 19-byte BGP header):
-    # Withdrawn Routes Length=0(0000), Attr Length=11(000B),
-    # ORIGIN=IGP(40010100), NEXT_HOP=192.168.1.1(400304C0A80101),
-    # NLRI=10.0.0.0/24(180A0000)
-    # RFC 4271 Section 4.3
-    params = {'hex': '0000000B40010100400304C0A80101180A0000', 'add-path': False}
-    resp = api._call_engine('ze-plugin-engine:decode-update', params)
-
-    result = resp.get('result')
-    if result is None:
-        runtime_fail('decode-update returned no result')
-
-    json_str = result.get('json', '')
-    if not json_str:
-        runtime_fail('decode-update returned empty json')
-
-    # Parse the ze-bgp JSON and validate content
-    try:
-        update = json.loads(json_str)
-    except json.JSONDecodeError as e:
-        runtime_fail(f'invalid JSON from decode-update: {e}')
-
-    # Check for expected content in ze-bgp JSON
-    update_data = update.get('update', {})
-    attr = update_data.get('attr', {})
-
-    # Ze native JSON wraps each attribute with RFC 4271 flag booleans.
-    origin_attr = attr.get('origin', {})
-    if not isinstance(origin_attr, dict) or origin_attr.get('value') != 'igp':
-        runtime_fail(f'expected origin value igp, got {origin_attr}')
-
-    if origin_attr.get('transitive') is not True:
-        runtime_fail(f'origin must be transitive, got {origin_attr}')
-
-    if origin_attr.get('optional') is not False:
-        runtime_fail(f'origin must not be optional, got {origin_attr}')
-
-    if '10.0.0.0/24' not in json_str:
-        runtime_fail('expected 10.0.0.0/24 in update JSON')
-
-    # Success signal: rebuild the announce from the decoded JSON itself, never
-    # from a literal. ze has no other source for these bytes, so the expect=bgp
-    # line cannot match unless decode-update produced the right JSON. A bare EOR
-    # was the old signal and could not discriminate: ze emits its own
-    # initial-sync EOR, so that assertion passed with the plugin dead.
-    next_hop = attr.get('next-hop', {}).get('value')
-    families = update_data.get('nlri', {})
-    if not isinstance(families, dict) or len(families) != 1:
-        runtime_fail(f'expected exactly one decoded family, got {families!r}')
-    family = next(iter(families))
-    entries = families[family]
-    if not isinstance(entries, list) or not entries:
-        runtime_fail(f'expected a non-empty entry list for {family}, got {entries!r}')
-    prefixes = entries[0].get('nlri')
-    # Exactly one, so a decoder that over-reads the NLRI field and returns a
-    # trailing extra prefix is caught here. Only prefixes[0] reaches the wire,
-    # so the expect=bgp line below cannot see that particular defect.
-    if not isinstance(prefixes, list) or len(prefixes) != 1:
-        runtime_fail(f'expected exactly one decoded prefix, got {prefixes!r}')
-
-    api.send(f'peer * update text nhop {next_hop} nlri {family} add {prefixes[0]}')
-    # The quiesce barrier returns only once the announce above is on the wire,
-    # so asking for shutdown here cannot race the expect=bgp match.
-    api.wait_for_ack(expected_count=1)
-    api.shutdown_fire_and_forget()
-    api.wait_for_shutdown()
-
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external decode-test {
-        run ./decode-update.run
+        run "ze-test fixture plugin/decode-update"
         encoder json
     }
 }

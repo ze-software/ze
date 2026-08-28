@@ -11,62 +11,8 @@ option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65001:next-hop=10.0.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: subscribes to rpki events, verifies validation event received
-tmpfs=rpki-event-test.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-import json
-import sys
-import time
-from ze_api import API
-
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-
-    # Subscribe to rpki events before ready
-    api.subscribe(['rpki direction received'])
-    api.ready()
-
-    # Wait for the rpki validation event via wait_for_event instead of a blind
-    # sleep + hand-rolled read_line loop. The predicate skips early
-    # status=unavailable events (cache not synced yet) and returns the first
-    # event that reports 10.0.1.0/24 = valid.
-    def _valid(evt):
-        if not isinstance(evt, dict):
-            return False
-        bgp = evt.get('bgp', {})
-        if bgp.get('message', {}).get('type') != 'rpki':
-            return False
-        rpki = bgp.get('rpki', {})
-        if not isinstance(rpki, dict) or rpki.get('status') == 'unavailable':
-            return False
-        return rpki.get('ipv4/unicast', {}).get('10.0.1.0/24') == 'valid'
-
-    try:
-        event_str = api.wait_for_event(timeout=15.0, predicate=_valid)
-        if event_str is None:
-            print('FAIL: no rpki event with valid state for 10.0.1.0/24', file=sys.stderr)
-            sys.exit(1)
-
-        print('OK: rpki event has 10.0.1.0/24=valid', file=sys.stderr)
-    finally:
-        dispatch(api, 'request shutdown')
-        api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# native test plugin: subscribes to rpki events, verifies validation event received
+# Native compiled fixture: plugin/rpki-event-valid
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	hub {
@@ -77,7 +23,7 @@ plugin {
 		}
 	}
 	external rpki-event-test {
-		run ./rpki-event-test.run
+		run "ze-test fixture plugin/rpki-event-valid"
 		encoder json
 	}
 	internal rpki {

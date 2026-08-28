@@ -1,7 +1,7 @@
 //go:build linux
 
-// Design: scripts/evidence/l2tp-pppox-diag/main.go -- native PPPoL2TP operation order
-// Related: scripts/evidence/l2tp-tunnel-diag/main.go -- native tunnel operation order
+// Design: docs/labs/l2tp-interop.md -- native PPPoL2TP operation order
+// Related: internal/le/deployment/l2tpdiag_linux.go -- native tunnel operation order
 // Detail: l2tpdiagreport.go -- the shared report
 
 package deployment
@@ -108,17 +108,17 @@ type diagnosticLink struct {
 
 type l2tpDiagnosticLinuxOps interface {
 	Socket(domain, kind, protocol int) (int, error)
-	SetReusePort(fd int) error
-	BindIPv4(fd int, address [4]byte, port uint16) error
+	setReusePort(fd int) error
+	bindIPv4(fd int, address [4]byte, port uint16) error
 	Family(name string) (uint16, error)
 	Execute(operation string, request *nl.NetlinkRequest) ([][]byte, error)
 	Connect(fd int, address []byte) error
-	IoctlGetInt(fd int, request uint) (int, error)
-	IoctlSetInt(fd int, request uint, value int) error
-	IoctlGetSetInt(fd int, request uint, value int) (int, error)
-	OpenPPP() (int, error)
-	ProcPPPoL2TP() string
-	DevPPP() string
+	ioctlGetInt(fd int, request uint) (int, error)
+	ioctlSetInt(fd int, request uint, value int) error
+	ioctlGetSetInt(fd int, request uint, value int) (int, error)
+	openPPP() (int, error)
+	procPPPoL2TP() string
+	devPPPText() string
 	Link(name string) (diagnosticLink, error)
 	Operations() []string
 }
@@ -126,8 +126,8 @@ type l2tpDiagnosticLinuxOps interface {
 var newL2TPDiagnosticLinuxOps = configuredL2TPDiagnosticLinuxOps
 var checkL2TPDiagnosticPrerequisites = l2tpDiagnosticPrerequisites
 
-func executeL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticReport, error) {
-	report := L2TPDiagnosticReport{Diagnostic: l2tpPPPoXDiagnosticName, Dumps: []L2TPDiagnosticDump{}, Retained: []L2TPDiagnosticObject{}}
+func executeL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (l2tpDiagnosticReport, error) {
+	report := l2tpDiagnosticReport{Diagnostic: l2tpPPPoXDiagnosticName, Dumps: []L2TPDiagnosticDump{}, Retained: []L2TPDiagnosticObject{}}
 	var page textbuf.Buffer
 	page.Str("=== L2TP PPPoL2TP Full-Path Diagnostic ===\n").
 		Str("Using packed sockaddr size: ").Int(sockaddrPPPoL2TPSize).Str(" bytes\n\n")
@@ -137,7 +137,7 @@ func executeL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticRep
 		return report, fatalDiagnosticError("FATAL: ", err)
 	}
 	operations := newL2TPDiagnosticLinuxOps()
-	finish := func(err error) (L2TPDiagnosticReport, error) {
+	finish := func(err error) (l2tpDiagnosticReport, error) {
 		report.Output = page.String()
 		report.Operations = operations.Operations()
 		return report, err
@@ -148,10 +148,10 @@ func executeL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticRep
 	if err != nil {
 		return finish(fatalDiagnosticError("FATAL: ", l2tpDiagnosticError("socket: ", err)))
 	}
-	if err := operations.SetReusePort(udpFD); err != nil {
+	if err := operations.setReusePort(udpFD); err != nil {
 		page.Str("note: SO_REUSEPORT refused on the UDP socket: ").Err(err).Byte('\n')
 	}
-	if err := operations.BindIPv4(udpFD, options.Local, options.SourcePort); err != nil {
+	if err := operations.bindIPv4(udpFD, options.Local, options.SourcePort); err != nil {
 		return finish(fatalDiagnosticError("FATAL: ", l2tpDiagnosticError("bind: ", err)))
 	}
 	page.Str("  UDP socket fd=").Int(int64(udpFD)).Str(" bound to ").Str(ipv4Text(options.Local)).
@@ -172,11 +172,11 @@ func executeL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticRep
 	if _, err := operations.Execute("tunnel-create", tunnel); err != nil {
 		return finish(fatalDiagnosticError("FATAL: ", l2tpDiagnosticError("tunnel create: ", err)))
 	}
-	report.Retained = append(report.Retained, L2TPDiagnosticObject{Kind: "tunnel", ID: options.TunnelID, PeerID: options.PeerTunnelID, Retained: true})
+	report.Retained = append(report.Retained, L2TPDiagnosticObject{Kind: tunnelObjectName, ID: options.TunnelID, PeerID: options.PeerTunnelID, Retained: true})
 	page.Str("  TUNNEL CREATE: SUCCESS\n\n")
 
 	page.Str("--- Step 3b: Verify tunnel ---\n")
-	showL2TPDiagnosticDump(&page, &report, operations, familyID, l2tpCmdTunnelGet, "tunnel")
+	showL2TPDiagnosticDump(&page, &report, operations, familyID, l2tpCmdTunnelGet, tunnelObjectName)
 	page.Byte('\n')
 
 	page.Str("--- Step 4: Create session ---\n").
@@ -206,14 +206,14 @@ func executeL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticRep
 	page.Str("  PPPoL2TP socket fd=").Int(int64(pppoxFD)).Byte('\n')
 	if err := operations.Connect(pppoxFD, sockaddr); err != nil {
 		page.Str("  PPPOX CONNECT: FAILED: ").Err(err).Str(" (errno=").Int(errnoNumber(err)).Str(")\n\n").
-			Str("--- /proc/net/pppol2tp ---\n").Str(operations.ProcPPPoL2TP()).Byte('\n').
-			Str("--- Check /dev/ppp ---\n").Str(operations.DevPPP())
+			Str("--- /proc/net/pppol2tp ---\n").Str(operations.procPPPoL2TP()).Byte('\n').
+			Str("--- Check /dev/ppp ---\n").Str(operations.devPPPText())
 		report.Verdict = L2TPDiagnosticFailed
 		return finish(nil)
 	}
 	page.Str("  PPPOX CONNECT: SUCCESS\n\n--- Step 6: /dev/ppp setup ---\n")
 
-	channel, err := operations.IoctlGetInt(pppoxFD, pppiocGChan)
+	channel, err := operations.ioctlGetInt(pppoxFD, pppiocGChan)
 	if err != nil {
 		page.Str("  PPPIOCGCHAN: FAILED: ").Err(err).Byte('\n')
 		report.Verdict = L2TPDiagnosticFailed
@@ -221,29 +221,29 @@ func executeL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticRep
 	}
 	page.Str("  PPPIOCGCHAN: channel index = ").Int(int64(channel)).Byte('\n')
 
-	channelFD, err := operations.OpenPPP()
+	channelFD, err := operations.openPPP()
 	if err != nil {
 		return finish(fatalDiagnosticError("FATAL: ", l2tpDiagnosticError("open /dev/ppp: ", err)))
 	}
-	if err := operations.IoctlSetInt(channelFD, pppiocAttChan, channel); err != nil {
+	if err := operations.ioctlSetInt(channelFD, pppiocAttChan, channel); err != nil {
 		page.Str("  PPPIOCATTCHAN: FAILED: ").Err(err).Byte('\n')
 		report.Verdict = L2TPDiagnosticFailed
 		return finish(nil)
 	}
 	page.Str("  PPPIOCATTCHAN: attached channel ").Int(int64(channel)).Str(" to fd ").Int(int64(channelFD)).Byte('\n')
 
-	unitFD, err := operations.OpenPPP()
+	unitFD, err := operations.openPPP()
 	if err != nil {
 		return finish(fatalDiagnosticError("FATAL: ", l2tpDiagnosticError("open /dev/ppp (unit): ", err)))
 	}
-	unit, err := operations.IoctlGetSetInt(unitFD, pppiocNewUnit, -1)
+	unit, err := operations.ioctlGetSetInt(unitFD, pppiocNewUnit, -1)
 	if err != nil {
 		page.Str("  PPPIOCNEWUNIT: FAILED: ").Err(err).Byte('\n')
 		report.Verdict = L2TPDiagnosticFailed
 		return finish(nil)
 	}
 	page.Str("  PPPIOCNEWUNIT: allocated ppp").Int(int64(unit)).Str(" (fd ").Int(int64(unitFD)).Str(")\n")
-	if err := operations.IoctlSetInt(channelFD, pppiocConnect, unit); err != nil {
+	if err := operations.ioctlSetInt(channelFD, pppiocConnect, unit); err != nil {
 		page.Str("  PPPIOCCONNECT: FAILED: ").Err(err).Byte('\n')
 		report.Verdict = L2TPDiagnosticFailed
 		return finish(nil)
@@ -264,14 +264,14 @@ func executeL2TPPPoXDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticRep
 	return finish(nil)
 }
 
-func executeL2TPTunnelDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticReport, error) {
-	report := L2TPDiagnosticReport{Diagnostic: l2tpTunnelDiagnosticName, Dumps: []L2TPDiagnosticDump{}, Retained: []L2TPDiagnosticObject{}}
+func executeL2TPTunnelDiagnostic(options l2tpDiagnosticOptions) (l2tpDiagnosticReport, error) {
+	report := l2tpDiagnosticReport{Diagnostic: l2tpTunnelDiagnosticName, Dumps: []L2TPDiagnosticDump{}, Retained: []L2TPDiagnosticObject{}}
 	var page textbuf.Buffer
 	if err := checkL2TPDiagnosticPrerequisites("the L2TP tunnel diagnostic"); err != nil {
 		return report, fatalDiagnosticError("", err)
 	}
 	operations := newL2TPDiagnosticLinuxOps()
-	finish := func(err error) (L2TPDiagnosticReport, error) {
+	finish := func(err error) (l2tpDiagnosticReport, error) {
 		report.Output = page.String()
 		report.Operations = operations.Operations()
 		return report, err
@@ -292,7 +292,7 @@ func executeL2TPTunnelDiagnostic(options l2tpDiagnosticOptions) (L2TPDiagnosticR
 			Str(" EADDRNOTAVAIL=").Int(int64(unix.EADDRNOTAVAIL)).Byte('\n')
 		return finish(reportedDiagnosticError(l2tpDiagnosticError("tunnel create: ", err)))
 	}
-	report.Retained = append(report.Retained, L2TPDiagnosticObject{Kind: "tunnel", ID: options.TunnelID, PeerID: options.PeerTunnelID, Retained: true})
+	report.Retained = append(report.Retained, L2TPDiagnosticObject{Kind: tunnelObjectName, ID: options.TunnelID, PeerID: options.PeerTunnelID, Retained: true})
 	page.Str("SUCCESS: tunnel created\n")
 	showTunnelDiagnosticDump(&page, &report, operations, familyID)
 	report.Verdict = L2TPDiagnosticWorking
@@ -390,7 +390,7 @@ func appendPPPoXSockaddrBreakdown(page *textbuf.Buffer, buffer []byte) {
 		Str("    [36:38] d_session   = ").Uint16(binary.LittleEndian.Uint16(buffer[36:38])).Str("\n\n")
 }
 
-func showL2TPDiagnosticDump(page *textbuf.Buffer, report *L2TPDiagnosticReport, operations l2tpDiagnosticLinuxOps, familyID uint16, command uint8, label string) {
+func showL2TPDiagnosticDump(page *textbuf.Buffer, report *l2tpDiagnosticReport, operations l2tpDiagnosticLinuxOps, familyID uint16, command uint8, label string) {
 	var operation textbuf.Buffer
 	messages, err := operations.Execute(operation.Str(label).Str("-dump").String(), newDumpRequest(familyID, command))
 	entry := L2TPDiagnosticDump{Kind: label, Messages: len(messages)}
@@ -419,9 +419,9 @@ func showL2TPDiagnosticDump(page *textbuf.Buffer, report *L2TPDiagnosticReport, 
 	}
 }
 
-func showTunnelDiagnosticDump(page *textbuf.Buffer, report *L2TPDiagnosticReport, operations l2tpDiagnosticLinuxOps, familyID uint16) {
+func showTunnelDiagnosticDump(page *textbuf.Buffer, report *l2tpDiagnosticReport, operations l2tpDiagnosticLinuxOps, familyID uint16) {
 	messages, err := operations.Execute("tunnel-dump", newDumpRequest(familyID, l2tpCmdTunnelGet))
-	entry := L2TPDiagnosticDump{Kind: "tunnel", Messages: len(messages)}
+	entry := L2TPDiagnosticDump{Kind: tunnelObjectName, Messages: len(messages)}
 	if err != nil {
 		entry.Note = err.Error()
 		report.Dumps = append(report.Dumps, entry)

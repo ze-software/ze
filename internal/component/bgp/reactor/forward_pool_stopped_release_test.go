@@ -14,7 +14,7 @@ func freeCount(pp *peerPool) int {
 // TestDispatchOverflowReleasesItemWhenStopped pins the buffer return on the
 // shutdown path.
 //
-// VALIDATES: an item handed to DispatchOverflow after the pool has stopped gives
+// VALIDATES: an item handed to dispatchOverflow after the pool has stopped gives
 // its Outgoing Peer Pool buffer back.
 // PREVENTS: the leak this replaces. Both stopped branches called item.done() and
 // returned false without releaseItem. done() releases the recent-update cache
@@ -46,7 +46,7 @@ func TestDispatchOverflowReleasesItemWhenStopped(t *testing.T) {
 		done:        func() { doneCalled = true },
 	}
 
-	if fp.DispatchOverflow(fwdKey{}, item) {
+	if fp.dispatchOverflow(fwdKey{}, item) {
 		t.Fatal("a stopped pool must refuse the dispatch")
 	}
 
@@ -71,7 +71,7 @@ func TestDispatchOverflowStoppedIsSafeWithoutABuffer(t *testing.T) {
 	fp.stopped = true
 
 	var doneCalled bool
-	if fp.DispatchOverflow(fwdKey{}, fwdItem{done: func() { doneCalled = true }}) {
+	if fp.dispatchOverflow(fwdKey{}, fwdItem{done: func() { doneCalled = true }}) {
 		t.Fatal("a stopped pool must refuse the dispatch")
 	}
 	if !doneCalled {
@@ -82,7 +82,7 @@ func TestDispatchOverflowStoppedIsSafeWithoutABuffer(t *testing.T) {
 // COVERAGE NOTE, recorded because the gap is real and a reader should not assume
 // otherwise.
 //
-// DispatchOverflow has TWO stopped branches and these tests reach only the first.
+// dispatchOverflow has TWO stopped branches and these tests reach only the first.
 // Setting fp.stopped before the call makes the fast path (RLock) return
 // immediately, so the slow path is never entered. The second branch is reachable
 // only when the pool is running at the RLock check, the worker for the key does
@@ -95,6 +95,6 @@ func TestDispatchOverflowStoppedIsSafeWithoutABuffer(t *testing.T) {
 //
 // It is kept because it is the same obligation on the same item and omitting it
 // would leave a leak on a path that does occur, not because a test proves it.
-// Closing the gap needs a synchronization seam in DispatchOverflow that does not
+// Closing the gap needs a synchronization seam in dispatchOverflow that does not
 // exist today, and adding one to the forwarding hot path to test a shutdown race
 // is a worse trade than recording this.

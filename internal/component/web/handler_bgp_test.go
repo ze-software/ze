@@ -320,7 +320,7 @@ func TestFetchBGPSummaryPeersJSON(t *testing.T) {
 	dispatch := func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(jsonOutput)), nil
 	}
-	r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	live := fetchBGPSummaryPeers(r, dispatch)
 
 	require.NotNil(t, live)
@@ -501,7 +501,7 @@ func TestWorkbench_BGPPeersPageDispatch(t *testing.T) {
 	tree := buildTestBGPTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/peer/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/peer/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -522,7 +522,7 @@ func TestWorkbench_BGPPeersHTMXPartial(t *testing.T) {
 	tree := buildTestBGPTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/peer/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/peer/", http.NoBody)
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -543,7 +543,7 @@ func TestWorkbench_BGPGroupsPageDispatch(t *testing.T) {
 	tree := buildTestBGPTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/group/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/group/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -563,7 +563,7 @@ func TestWorkbench_BGPSummaryPageDispatch(t *testing.T) {
 	tree := buildTestBGPTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/summary/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/summary/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -584,7 +584,7 @@ func TestWorkbench_BGPFamiliesPageDispatch(t *testing.T) {
 	tree := buildTestBGPTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/family/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/family/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -605,7 +605,7 @@ func TestWorkbench_BGPPolicyPageDispatch(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/policy/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/policy/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -626,7 +626,7 @@ func TestWorkbench_BGPRootStillYANG(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -646,7 +646,7 @@ func TestWorkbench_BGPPeersEmptyPageDispatch(t *testing.T) {
 	tree := config.NewTree()
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/peer/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/bgp/peer/", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

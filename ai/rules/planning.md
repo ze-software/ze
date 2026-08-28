@@ -11,7 +11,7 @@ Rationale: `ai/rationale/planning.md`
 
 - **The main thread supervises. It does not perform the spec work itself.** Each phase runs in a subagent through its `ze-*` skill, except the four the `Runs in` column names ("Spec Work Runs in Subagents", below).
 - **Each phase of Ze work runs on a specific model.** The model is chosen by phase, never by convenience, and never by "the session I happen to be in" ("Model Selection by Work Phase", below).
-- **Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by `commit_helper.py`.**
+- **Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by `internal/le/commit`.**
 - **Obligation on you (not a hard gate):** Every decision to not perform in-scope work MUST be recorded AND land in a destination spec.
 - **A spec that passes its Review Gate is not done until it is deleted from `plan/`,** and the completed spec MUST be committed to git first so it is preserved in history.
 - **When the user asks how to continue, start with a short rationale section, then output exact edits.**
@@ -32,18 +32,18 @@ Rationale: `ai/rationale/planning.md`
 | Review gate, deep | `/ze-review-deep` | **main thread**, and it fans out itself | verifies each finding, decides which are real, loops until zero |
 | Close | `/ze-close` | subagent | confirms the Review Gate artifact is clean, then that the two closure commits actually ran |
 | Debug a red test or gate | `/ze-debug` | **main thread**, and it fans out itself | confirms the diagnosis names a root-cause function, not a symptom |
-| Verify | `/ze-precommit-verify` | subagent | reads the failure index, decides what to fix next |
+| Verify | `/ze-verify` | subagent | reads the failure index, decides what to fix next |
 
 **MUST launch independent phases in ONE message with parallel `Agent` calls.** Two review lenses, two research questions, or two independent spec areas are concurrent work, not a queue.
 
 - **Give every subagent the spec path, its phase, the rules that govern it, the parent session ID, and the exact per-session scratch path.** Name `plan/<spec>.md`, the applicable `ai/rules/` files, and what the report MUST contain.
-- **When a delegation API does not run `.claude/hooks/subagent-context.sh`, the main thread MUST put the parent session ID and exact per-session scratch path in the shared task context.** The OMP `task` delegation API uses this fallback.
+- **When a delegation API does not run the native `subagent-context` action, the main thread MUST put the parent session ID and exact per-session scratch path in shared task context.** The OMP `task` API uses this fallback.
 - **The subagent MUST use the provided scratch path.** When its environment does not contain `CLAUDE_CODE_SESSION_ID`, it MUST set that variable to the parent session ID for shell commands. It MUST NOT resolve a fresh session ID in this case.
 - **A subagent cannot ask the user.** The main thread MUST NOT give it work that needs an answer from the user.
 - **A subagent CAN resolve symbols.** It uses the LSP tool where its registry carries one, or `gopls` from Bash where it does not (`ai/rules/context-economy.md`).
 - **A brief whose agent will write Go MUST name `docs/contributing/ze-go-style.md` as a PRECONDITION, in the brief's opening, and MUST NOT file it under a closing heading.** The owner directive is that the guide is read in full before any code, and a subagent inherits the session-start checklist through no mechanism you can verify from the main thread, so the brief is the only place the requirement reliably reaches it.
 - **A precondition MUST be written where it is read BEFORE the work, never in a "before you finish" or "when done" list.** Measured 2026-08-19: three fix agents were briefed with "Read `docs/contributing/ze-go-style.md` before writing Go" under a heading reading "Before you finish", which reads as a closing checklist item and arrives after the code exists. The instruction was present and still bought nothing.
-- **The brief MUST require the agent to REPORT whether it read the guide before writing, and MUST say that "no" carries no penalty.** The main thread cannot check: subagent transcripts live under `/tmp`, which `check_system_tmp` (`.claude/hooks/pretool-bash.py`) refuses, so a reported fact is the only evidence available and a brief that invites a reassuring answer gets one.
+- **The brief MUST require the agent to report whether it read the guide before writing.** Native subagent context and the agent report are the repository-visible evidence.
 
 **MUST verify what a subagent reports; MUST NOT relay it as fact.** An agent's report is a claim, not evidence (`ai/rules/evidence.md`). Before acting on a finding or repeating it to the user, confirm the code it cites actually produces the behavior it describes.
 
@@ -55,7 +55,7 @@ Rationale: `ai/rationale/planning.md`
 
 **MUST supervise THINLY: launch, verify the report against source, decide, gate the next phase. The main thread MUST NOT run the exploration itself.** Exploration belongs in an agent because only its report needs to survive into the supervising context (`ai/rules/context-economy.md`).
 
-**A main thread whose context passes 600k MUST write its per-spec state file and hand off rather than continuing.** The file is `tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md`, and `_find_latest_state_for_spec` (`.claude/hooks/lib/state-file.sh`) is what the next session reads it back with. Measured: 49.5% of main-thread context was fed at calls already above 600k, against a 1M ceiling, where every later call pays the whole context again.
+**A main thread whose context passes 600k MUST write its per-spec state file and hand off rather than continuing.** Resolve the newest file with `./le spec-session state latest spec <spec-stem>`.
 
 **Implementation MUST be delegated ONE agent per implementation phase, not one agent per spec.** Give each agent the spec path, the phase it owns, and the per-spec state file; it writes its handoff there when the phase is green, and the next agent reads that file instead of re-deriving the phase before it. Measured: implementation agents ran 144 API calls each at 294k mean context, more of both than any other phase, because context grows with turns inside one agent.
 
@@ -76,11 +76,11 @@ Rationale: `ai/rationale/planning.md`
 ### Enforcement (delegation)
 
 - **You never need to ask permission to spawn an agent here.** `ai/INSTRUCTIONS.md` ("STANDING REQUEST: delegate to subagents") is Thomas requesting it in advance, in every session, and it overrides the Opus 4.6/4.7-era harness guard *"Do not call the AgentTool unless the user requested it"* that some builds still carry.
-- **`.claude/hooks/delegation-reminder.sh` repeats that standing request on every turn.** The harness guard arrives near the END of the system prompt and wins on position. UserPromptSubmit stdout is the one position known to land after the whole system prompt, so the counter goes there. Both halves of that premise are convention, not proof: nothing in this repository demonstrates where the harness puts hook stdout, or that it reads it at all. The bullet above is the authority. This hook makes that authority arrive late enough to count. Its line names the main-thread exceptions on purpose. A reminder that wins on position would otherwise push `/ze-design` into a subagent, and a subagent cannot call `AskUserQuestion`.
-- **Each `ze-*` skill states its own disposition in a `## Delegation` section**, so the routing is visible at the moment the skill is invoked rather than only in this rule: `/ze-explore`, `/ze-audit`, `/ze-implement`, `/ze-review`, `/ze-review-spec`, `/ze-close` and `/ze-precommit-verify` delegate; `/ze-spec` and `/ze-design` stay in the main thread because their gates require `AskUserQuestion`; `/ze-review-deep` and `/ze-debug` stay in the main thread and do their OWN fan-out (wrapping them in one agent buries the parallel lenses a level down and costs the independence they exist to provide).
-- **When a harness runs the `SubagentStart` hook, `.claude/hooks/subagent-context.sh` adds the parent's claimed spec, its Status, and the subagent contract.** The main thread MUST still give each subagent the complete briefing required above.
-- **`.claude/hooks/block-premature-stop.sh` IS registered on `Stop`, and it fires.** It warns with exit 1 when `tmp/session/.session-${SID}` names a claimed spec and `tmp/session/.agent-spawned-${SID}` does not exist. It refreshes each existing marker with `touch -c`. The nudge never blocks and a session with no claim marker has no spec-state check.
-- **The nudge survives past turn one.** Position in the `Stop` array is necessary and not sufficient: the claim marker MUST outlive the turn it was made. No hook releases it. `scripts/dev/spec-session.sh release` does, from `/ze-close`, so the claim lives until the spec closes. Fixtures pin registration, order, the claim surviving a `Stop`, and that no `SessionEnd` hook exists to delete it: `python3 scripts/dev/hook-fixture-check.py --only delegation`.
+- **The native `delegation-reminder` action repeats that standing request.**
+- **Each `ze-*` skill states its own delegation disposition**, so routing is visible when the skill runs.
+- **The native `subagent-context` action adds the parent's claimed spec, status, and contract.** The main thread still gives each subagent the complete briefing.
+- **The native `block-premature-stop` action is registered on Stop.** `./le hook-check unit` pins its behavior and claim survival.
+- **The nudge survives past turn one.** The claim marker MUST outlive the turn it was made. No hook releases it. `./le spec-session release` does, from `/ze-close`, so the claim lives until the spec closes. `./le hook-check unit` pins registration, order, claim survival, and the absence of a SessionEnd cleanup hook.
 ## Work Phases
 
 Ze work has three phases: planning and design, implementation, and review and
@@ -96,10 +96,9 @@ audit. They are distinguished by what the work IS, never by convenience.
 The review-independence rule below provides the relevant quality gate. It does
 not constrain the implementation model.
 
-**Review MUST still run on Opus 5, and that half is unchanged.** `review_gate.py record`
-refuses to record a review performed off it, and `.claude/hooks/pretool-agent-skill.py`
-refuses to spawn one. Those remain, because a review's worth depends on the
-judgment behind it in a way that writing a test does not.
+**Review MUST run on Opus 5.** `./le spec-session review record` refuses an
+off-tier artifact, and the native agent-skill hook in
+`internal/le/hookruntime/agent.go` refuses the spawn.
 
 ### The boundary that matters most is INDEPENDENCE, not model
 
@@ -125,12 +124,12 @@ This never overrides "Critical Review Is the Central Deliverable" below.
 
 - **A spec whose metadata carries `| Handoff | verify |` is implemented, COMMITTED and stopped by one session, then reviewed and closed by another.** The row is declared before implementation starts, because not every spec is worked this way. Absent, or `-`, closure stays in the implementing session and nothing below applies.
 - **The implementing session MUST set `| Status | verification |` before it commits, and MUST stop after the commit.** That status says the code is written, tested and in git, and that the spec awaits an independent review. It MUST NOT be used to park unfinished work: every acceptance criterion is implemented and green first (`ai/rules/completion.md`).
-- **The handoff commit MUST carry neither a `plan/learned/` file nor a removal of the spec.** Either one makes `commit_helper.py` read it as a closure commit and demand the Review Gate artifact, which the implementing session MUST NOT produce over its own work.
+- **The handoff commit MUST carry neither a `plan/learned/` file nor a removal of the spec.** Either one makes `internal/le/commit` read it as a closure commit and demand the Review Gate artifact, which the implementing session MUST NOT produce over its own work.
 - **This mode serves review INDEPENDENCE (above), and that is the only thing it buys.** The reviewing session reads a committed diff it did not write. A same-session close cannot give that.
 
 | Session | Skill | Commits it produces |
 |---------|-------|---------------------|
-| Implementation, any model | `/ze-implement` | ONE commit: code, tests, docs, and the spec at `Status: verification`. Then `scripts/dev/spec-session.sh release`, report the SHA, stop |
+| Implementation, any model | `/ze-implement` | ONE commit: code, tests, docs, and the spec at `Status: verification`. Then `./le spec-session release`, report the SHA, stop |
 | Review and closure, Opus 5 | `/ze-close` | commit A (journal row, spec, closure edits) and commit B (`git rm` the spec), after a Review Gate over that committed diff |
 
 ### Subagents
@@ -150,12 +149,11 @@ This never overrides "Critical Review Is the Central Deliverable" below.
 
 ### Enforcement (model phases)
 
-- **NO gate blocks an implementation edit by model, and none MUST be written.** `c_model_phase` in `.claude/hooks/pretool-writeedit.py` did, and it went with the Opus 4.8 requirement above. What is gated now is review independence, at both ends. Which files you edit on which model is yours to judge.
-- **The escape from the spawn gate is a deliberate act, not a flag.** When the operator decides to proceed on this model, record the reason in `tmp/session/.model-ack-<sid>`. MUST NOT write that file except on the operator's instruction. It is the same contract as the spec-closure ack.
-- **Review is gated at both ends.** `.claude/hooks/pretool-agent-skill.py` refuses to SPAWN a review agent when the session is not on Opus 5, and `scripts/dev/review_gate.py record` refuses to RECORD the artifact. The second is the one that matters, because recording is the moment a review is claimed.
-- **A subagent inherits the PHASE, not the task shape.** Spawning a reviewer from an implementation session still reviews on the wrong model, and it is usually the session that wrote the code.
-- **The record gate has an operator escape: `--model-override "<reason>"`.** Their call, not yours.
-- **Both gates share one reader, `scripts/dev/running_model.py`.** It resolves the model from the session transcript, skips subagent lines, and answers nothing when it cannot tell. Every caller then stands down and SAYS so, rather than going quiet.
+- **No gate blocks an implementation edit by model.**
+- **Review is gated at both ends.** The native agent-skill hook refuses a review spawn on the wrong model, and `./le spec-session review record` refuses the artifact.
+- **A subagent inherits the phase, not the task shape.**
+- **The record gate takes `model-override <reason>` only on operator instruction.**
+- **Both gates share `internal/le/speclifecycle/model.go`.**
 
 ## Spec Selection
 
@@ -184,10 +182,10 @@ them were untouched in 0%. Distance from use is what empties a section.
 
 **Placeholders MAY appear only at `skeleton`.** A deferral holder fills `## Task`
 and leaves the rest ("Creating the Deferral Spec", below). From `design` onward
-the placeholder guards in `.claude/hooks/validate-spec.sh` block, because the
-status is a claim that those sections are written.
+the native placeholder guards in `internal/le/hookruntime/lifecycle.go` block,
+because the status is a claim that those sections are written.
 
-**One verification command.** The spec's Goal Gates name `make ze-precommit-verify`, the
+**One verification command.** The spec's Goal Gates name `./le verify worktree`, the
 pre-commit gate (`ai/rules/precommit-verify.md`). Fast targets are for the inner
 iteration loop and MUST NOT appear as the gate.
 
@@ -278,7 +276,7 @@ When multiple specs form a related set (umbrella + child specs), use a shared pr
 
 ## Spec Metadata (BLOCKING)
 
-Every spec MUST have a metadata table immediately after the `# Spec:` title. This is the source of truth for spec status, parsed by `make ze-spec-status` and validated by `validate-spec.sh`.
+Every spec MUST have a metadata table immediately after the `# Spec:` title. This is the source of truth for spec status, parsed by `./le spec-status` and validated by `hookValidateSpec` in `internal/le/hookruntime/lifecycle.go`.
 
 | Field | Purpose | Values |
 |-------|---------|--------|
@@ -317,7 +315,7 @@ A spec that stays in `design` during implementation is lying about its state.
 
 ### Viewing Status
 
-`make ze-spec-status` shows the full inventory table. `make ze-spec-status-json` for machine-readable output.
+`./le spec-status` shows the full inventory table. Use `./le spec-status | json` for machine-readable output.
 
 ## Pre-Spec Verification
 
@@ -370,19 +368,19 @@ After all tests pass, complete IN ORDER:
       - Assumptions Resolved: every A-N row is `confirmed` or `broken` with evidence --
         none `unvalidated`; broken ones have Mistake Log + Deviations entries
       Fill the "## Pre-Commit Verification" section in the spec.
-      Hook `pre-commit-spec-audit.sh` (exit 2) checks this section is filled.
+      The closure review and `./le commit create` consume the completed spec.
 [ ] 6. Critical Review (BLOCKING -- rules/quality.md)
 [ ] 7. Review Mistake Log -- check MEMORY.md, promote if seen before
 [ ] 7. Update spec -- Implementation Summary, Documentation Updates, Deviations
 [ ] 7. Write journal row: append a row to `plan/journal/<class>.md` naming the spec in the Spec column
-[ ] 7. Verify: `make ze-precommit-verify` + git status + git diff, no unintended changes
+[ ] 7. Verify: `./le verify worktree` + git status + git diff, no unintended changes
 [ ] 7. Executive Summary Report -- present to user with what was done and what is left (including deferred).
         BLOCKING: journal row (step 10) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.
 [ ] 7. Commit (when user says so) -- ONE helper-generated script, TWO commits (per Spec Closure below):
-        - **Commit A:** `scripts/dev/commit_helper.py create --replace` with `--file` for all implementation files (code, tests, docs, schema)
+        - **Commit A:** `./le commit create replace` with `--file` for all implementation files (code, tests, docs, schema)
           + `--file plan/journal/<class>.md` + `--file plan/spec-<name>.md` (preserves edits)
-        - **Commit B:** `scripts/dev/commit_helper.py create --append --remove plan/spec-<name>.md` (spec closure)
+        - **Commit B:** `./le commit create append remove plan/spec-<name>.md` (spec closure)
         Run the generated script yourself and the work is done. There is no
         second step. If spec closure or the journal row is missing, it never happens.
         Disjoint systems (e.g., CLI and BGP encoding) get separate commits.
@@ -445,7 +443,7 @@ reviewers caught on the same diff minutes later.
    assertion that "SHOULD fire" either fires or does not; run it).
 4. **Looped to zero over a SHRINKING scope.** Every fix is new code and earns a fresh pass. Each pass reviews less than the one before it. Five passes are the session's to spend. The sixth is Thomas's to grant. Each pass carries a hard bound on what it covers. See "Bounding the loop" below.
 5. **Evidenced by an artifact, not narrated.** Record the pass with
-   `scripts/dev/review_gate.py record` → `tmp/review/<spec-stem>-<session-id>.md`
+   `./le spec-session review record` → `tmp/review/<spec-stem>-<session-id>.md`
    (session-scoped, so concurrent same-spec sessions never clobber each other). It pins the
    SHA-256 of every code/test file the reviewers examined. The spec's Review Gate
    section pastes the reviewers' actual findings and each fix.
@@ -478,7 +476,7 @@ reviewers caught on the same diff minutes later.
 - **A round whose findings are ALL record defects is the last round.** The loop
   has stopped converging on the product: each prose fix creates fresh text to
   audit, so another round cannot establish product quality.
-- **`scripts/dev/review_gate.py record` takes `--rounds N` and refuses more than
+- **`./le spec-session review record` takes `--rounds N` and refuses more than
   five without `--rounds-reason`, which MUST name the PRODUCT defect a later
   round found.** The cap is not a ban: a genuinely defective implementation can
   need a sixth round and gets one for the cost of a sentence. That sentence is
@@ -490,7 +488,7 @@ reviewers caught on the same diff minutes later.
   stays required alongside it. The product defect and his word are both owed,
   and neither substitutes for the other.
 - **You MUST NOT set `--owner-authorised` on your own initiative.** The same ban
-  covers `--push` on `scripts/dev/commit_helper.py` (`ai/rules/git-safety.md`).
+  covers `--push` on `internal/le/commit` (`ai/rules/git-safety.md`).
   At the cap you MUST stop. Report what the loop keeps finding, then ask him
   whether it runs another pass. A script cannot check who typed a flag. Setting
   it unasked is a recorded false statement about the owner, not a shortcut.
@@ -507,8 +505,8 @@ reviewers caught on the same diff minutes later.
 
 ### Enforcement (critical review, structural: a hook, not discipline)
 
-`scripts/dev/commit_helper.py` refuses a spec-closure commit (one that adds a
-`plan/journal/*.md` row naming the spec, or removes a `plan/spec-*.md`) unless `review_gate.py
+`internal/le/commit` refuses a spec-closure commit (one that adds a
+`plan/journal/*.md` row naming the spec, or removes a `plan/spec-*.md`) unless `./le spec-session review
 check` passes: a CLEAN artifact exists, covers every reviewable file in the commit
 (the ze-close closure commits all of a spec's code in commit A, so that is
 full coverage), and its hashes still match (any edit after the review invalidates
@@ -539,7 +537,7 @@ stop and spawn the reviewers.
 | "The tests pass, so it's correct." | Tests can be vacuous (dead exit codes, cumulative-match needles). A reviewer finds the vacuous test; the green bar does not. |
 | "It's a small/mechanical change." | Renames collide roots; one-line guards fail open. Size is judged after review. |
 | "I already know this code is correct." | The bug is precisely what you're sure isn't there. |
-| "ze-repository-check / lint passed." | Those are mechanical gates. They are not a critical review. |
+| "./le repository check / lint passed." | Those are mechanical gates. They are not a critical review. |
 | "Re-running review is wasteful." | The fix is new code. Unreviewed new code is the next bug. |
 
 ### Scope
@@ -561,10 +559,10 @@ status updates, corrected assumptions). Those edits are valuable design history.
 deletion, the design work is lost from git history forever.
 
 The helper-generated commit script MUST produce two commits:
-1. **Commit A (implementation + spec):** `scripts/dev/commit_helper.py create --replace`
+1. **Commit A (implementation + spec):** `./le commit create replace`
    with `--file` for all code, tests, docs, journal row,
    AND the spec file itself (with all edits from implementation).
-2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
+2. **Commit B (spec closure):** `./le commit create append remove plan/<spec>` only.
    If the spec has a deferral shard AND every row in it is terminal,
    `--remove plan/deferrals/<spec-stem>.md` in the SAME commit B: deferrals are
    sharded per source ("Central Log", below). **A shard still holding a
@@ -592,9 +590,9 @@ other two red:
 
 | Gate | Reads | Missed by a `// Design:`-only grep |
 |------|-------|-------------------------------------|
-| `check_doc_links.py --design-only` | `// Design:` lines in `.go` | no |
-| `spec-citation-check.py` | ANY `plan/spec-*.md` string inside a `plan/spec-*.md` | YES -- spec-to-spec citations |
-| `check_doc_links.py` check 5 (`check_tracked_citations`) | ANY path reference in ANY tracked file, a `plan/spec-*.md` target included | YES -- a citation from `docs/`, a script, or a test. `scripts/dev/doc_citation_baseline.txt` grandfathers only the pairs that predate the check, so commit B reds the gate for every tracked file that cites the spec it removes |
+| `./le doc-check links` (`internal/le/doccheck`) | `// Design:` lines and tracked path citations | no |
+| `./le spec-citation` (`internal/le/speccitation`) | every `plan/spec-*.md` citation inside a spec | yes |
+| `internal/le/doccheck.CheckLinks` tracked-citation pass | every tracked path citation, including a `plan/spec-*.md` target | yes |
 
 A grep limited to `// Design:` misses other spec citations and dead learned-summary paths. Closure must search every citation form.
 
@@ -611,9 +609,9 @@ about a file that is gone: the citation gate matches the path, not the name.
 Repoint the citation at the durable document that replaced the spec. Restate the
 fact inline. Add the stem to `plan/.citation-baseline` when the citation is a
 historical record of the closed spec. All three ride on commit A, because commit
-B removes a spec and adds nothing. `spec-citation-check.py --write-baseline` is
-banned at closure: it regenerates the whole list from the current tree, so it
-grandfathers a citation that a repoint MUST fix.
+B removes a spec and adds nothing. Editing `plan/.citation-baseline` to absorb
+the dangling reference is banned at closure: `./le spec-citation` must pass
+after the citation is repointed to a live source.
 
 **Closure resolves the spec's deferral rows.** Before commit B, grep
 `plan/deferrals/` for this spec's filename (a row naming it as Destination MAY live in
@@ -627,7 +625,7 @@ a sourced row homed at another spec stays live, and its shard outlives this clos
 ("Deferral Tracking", below). Only an all-terminal shard is removed.
 
 Why: closure DELETES the spec, and `deferral_unassigned_problems`
-(`scripts/dev/commit_helper.py`) checks that every live row's destination exists on
+(`internal/le/commit`) checks that every live row's destination exists on
 disk. A row left pointing at a closed spec can therefore never be satisfied: it
 dangles forever, is reported on every future commit (as a WARNING: that gate is
 advisory and does not block), and the next reader cannot tell whether the work was
@@ -666,11 +664,11 @@ gates exist for it, and all three run. The `Stop` array in
 
 | Gate | Where | Fires when |
 |------|-------|-----------|
-| Detector | `scripts/dev/spec-closure-check.py` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** journal row in `plan/journal/*.md` whose Spec cell exactly equals the spec stem, or a `plan/learned/NNN-<slug>.md` whose slug exactly equals the stem, while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates are listed under NEEDS VERIFICATION. Only the high-confidence set triggers the `--spec` block. |
-| Stop-hook block | `.claude/hooks/block-premature-stop.sh` | This session CLAIMED a spec, the detector exits 3 for it, and no ack exists. The hook refuses the session an end (exit 2). Escape: record why the spec is genuinely open in `tmp/session/.closure-ack-<stem>`. A session that claimed no spec is never asked to close one. The gate carries no retry bound on purpose: a refused stop leaves it armed next turn, and it has two escapes of its own (run commit B, or write the ack). |
-| Commit reminder | `scripts/dev/commit_helper.py` | A commit adds a journal row or learned summary but removes no spec: it prints the closure-commit reminder to stderr. |
+| Detector | `./le spec-status closure` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** journal row in `plan/journal/*.md` whose Spec cell exactly equals the spec stem, or a `plan/learned/NNN-<slug>.md` whose slug exactly equals the stem, while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates are listed under NEEDS VERIFICATION. Only the high-confidence set triggers the `--spec` block. |
+| Stop-hook block | native `block-premature-stop` action in `internal/le/hookruntime/lifecycle.go` | This session claimed a spec, the detector exits 3 for it, and no acknowledgement exists. The hook refuses the stop. |
+| Commit reminder | `internal/le/commit` | A commit adds a journal row or learned summary but removes no spec: it prints the closure-commit reminder to stderr. |
 
-Run `scripts/dev/spec-closure-check.py --list` any time to see the backlog.
+Run `./le spec-status closure list` any time to see the backlog.
 
 ## Spec Preservation
 
@@ -760,11 +758,11 @@ disjoint shard creations without conflict.
 
 **A shard that still holds a live row MUST survive its source spec, and keep its source-keyed name.** The row's home is the destination spec named in its Destination cell. The shard is only where the row is written down, so deleting the shard deletes a record of live work whose home is somewhere else entirely.
 
-**You MUST delete a shard at closure only when all rows are terminal. A homed live row MUST remain until its destination is complete. You MUST run `scripts/dev/deferral_orphans.py` instead of counting rows.**
+**You MUST delete a shard at closure only when all rows are terminal. A homed live row MUST remain until its destination is complete. You MUST run `internal/le/commit` instead of counting rows.**
 
 **An orphaned shard is not a defect to sweep.** A shard whose `plan/spec-<stem>.md` is gone while live rows remain is the correct end state of the paragraph above, not leftover mess. MUST NOT bulk-delete orphaned shards to tidy the directory: read the rows first, and delete only a shard in which every row is terminal.
 
-**`deferral_shard_removal_problems` (`scripts/dev/commit_helper.py`) refuses the removal, so this is not honor-system: a shard MUST NOT be removed while any row is non-terminal.** It reads the shard at HEAD and BLOCKS when any row is non-terminal. It has to block rather than warn: every other signal over these rows folds across the `plan/deferrals/` DIRECTORY, so deleting a live-bearing shard LOWERS their counts instead of raising them, and the forbidden action is the one that silences every observer of the rows it destroys (`ai/rules/evidence.md`).
+**`deferral_shard_removal_problems` (`internal/le/commit`) refuses the removal, so this is not honor-system: a shard MUST NOT be removed while any row is non-terminal.** It reads the shard at HEAD and BLOCKS when any row is non-terminal. It has to block rather than warn: every other signal over these rows folds across the `plan/deferrals/` DIRECTORY, so deleting a live-bearing shard LOWERS their counts instead of raising them, and the forbidden action is the one that silences every observer of the rows it destroys (`ai/rules/evidence.md`).
 
 **An all-terminal orphaned shard is residue, and the actor who MUST delete it is the closer of the LAST spec that homed one of its rows.** Setting the final row to `done` makes the shard residue, so the same commit removes the file.
 
@@ -798,7 +796,7 @@ disjoint shard creations without conflict.
 
 ### Status Vocabulary (the gate reads this)
 
-`deferral_unassigned_problems` (`scripts/dev/commit_helper.py`) checks the
+`deferral_unassigned_problems` (`internal/le/commit`) checks the
 Destination of every row whose Status is NOT terminal. The terminal set is
 `DEFERRAL_TERMINAL_STATUSES` in that file:
 
@@ -870,7 +868,7 @@ the moment the deferral is made:
 
 | Order | Action | Detail |
 |-------|--------|--------|
-| 1 | Find an existing spec that already covers the topic | `grep -l "<topic>" plan/spec-*.md`, and scan `make ze-spec-status`. Prefer a `spec-finish-<subsystem>` / `spec-followup-<subsystem>` umbrella when one owns the area |
+| 1 | Find an existing spec that already covers the topic | Search `plan/spec-*.md` for the topic, and scan `./le spec-status`. Prefer a `spec-finish-<subsystem>` / `spec-followup-<subsystem>` umbrella when one owns the area |
 | 2 | If one exists, add the work to its `## Task` section | That spec is the home. Record the deferral with it as Destination, Status `deferred` |
 | 3 | Only if no spec covers the topic, create a deferral spec | Named `plan/spec-<source>-deferred-<subtask>.md` (see below). Record the row with it as Destination, Status `deferred`, exactly as in step 2 |
 
@@ -915,7 +913,7 @@ Keep it small. The goal is zero lost work, not a finished design: a skeleton is
 captured intent, not a designed spec. It moves to `design` when someone picks it
 up (status table in "Spec Metadata", above).
 
-The commit gate `deferral_unassigned_problems` (`scripts/dev/commit_helper.py`)
+The commit gate `deferral_unassigned_problems` (`internal/le/commit`)
 folds over every shard in `plan/deferrals/` and WARNS, it surfaces, it does not
 block, on any LIVE deferral (any non-terminal Status, see Status Vocabulary) that
 names no destination or names a spec file that does not exist, and on any row it
@@ -995,7 +993,7 @@ narrative (`ai/rules/writing.md`).
 | Deviations | What differed from spec/plan/instructions and why. "None" is valid. |
 | Not done | Explicit scope boundary. Prevents the assumption that everything related was handled. Surfaces deferred items. |
 | Risks & observations | Things that might bite later: new coupling, stale references elsewhere, edge cases not covered, follow-up work needed. Start from the spec's Risks table (R-N rows that survived implementation): this section is a copy-forward, not an invention at the end. |
-| Verification | What was run, what passed. Not "make ze-standard-test passes" but actual output or specific test names. |
+| Verification | What was run, what passed. Not "./le verify worktree passes" but actual output or specific test names. |
 
 ## Documentation Update Checklist (BLOCKING)
 
@@ -1014,8 +1012,8 @@ Every row must be answered Yes/No. Every Yes must name the file and what to add.
 - **When there is one, append a row to `plan/journal/<class>.md`** (create the file when the class is new). Include the journal file in the Commit A `--file` list.
 - **When there is none, you MUST write nothing and pass no flag.**
 - **The file name is the PROBLEM class in kebab-case, never the subsystem.** Recurrence is the row count, so a repeat is countable only when two sessions writing the same failure pick the same file. `plan/journal/README.md` holds the format, and the directory listing is the class vocabulary.
-- **Fill the `Spec` cell with the spec stem, or `-` when the work ran outside a spec.** `spec_closure_stem` (`scripts/dev/commit_helper.py`) reads that cell to recognise commit A as a spec closure and hands the stem to `review_gate_problems`, so a row that leaves it empty drops the review gate off the commit that carries the code.
-- **A row holds exactly five cells, so a pipe anywhere else in the file is read as a row.** `journal_row_cells` (`scripts/dev/journal.py`) counts raw pipes, and a backslash does not escape one. Reword the pipe out of the prose, and keep one table in the file. `c_journal_row_shape` (`.claude/hooks/posttool-writeedit.py`) names a broken line at the edit, and `journal_row_problems` (`scripts/dev/commit_helper.py`) refuses the commit that adds one.
+- **Fill the `Spec` cell with the spec stem, or `-` when the work ran outside a spec.** `spec_closure_stem` (`internal/le/commit`) reads that cell to recognise commit A as a spec closure and hands the stem to `review_gate_problems`, so a row that leaves it empty drops the review gate off the commit that carries the code.
+- **A row holds exactly five cells.** `journal_row_cells` in `internal/le/journal/journal.go` and the native post-write hook name a malformed row.
 - **No gate asks for a lesson, and none MUST be added (owner directive, 2026-08-10).** A gate that demands an artifact buys an archive instead of useful guidance.
 - **A row is useful only if it helps future software development, explains past design, or prevents a past mistake from being repeated (owner directive, 2026-08-03). If it does none of the three, it is not useful and does not get written or kept.** The cells are the test: `Symptom` prevents a repeat when it names the trap in the words a future session would recognise, and `Fix` explains past design when it names what was done rather than that something was done.
 - **Usefulness is a property of the content, not of whether anything cites it.** An uncited row carrying a real constraint is a ROUTING failure, so route it. Only a row that fails the content test AND is uncited is waste.

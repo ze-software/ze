@@ -81,7 +81,7 @@ var knownComponents = []componentDef{
 	{Name: "BGP", ConfigKey: "bgp", HealthName: "bgp"},
 	{Name: "Interfaces", ConfigKey: "iface", HealthName: "iface"},
 	{Name: "L2TP", ConfigKey: "l2tp", HealthName: "l2tp"},
-	{Name: "DNS", ConfigKey: "dns"},
+	{Name: labelDNS, ConfigKey: "dns"},
 	{Name: "SSH", ConfigKey: "environment/ssh"},
 	{Name: "Web", ConfigKey: "environment/web", AlwaysUp: true},
 	{Name: "Telemetry", ConfigKey: "telemetry"},
@@ -97,7 +97,7 @@ func handleDashboardHealthPage(renderer *Renderer, viewTree *config.Tree, _ *htt
 	data := dashboardHealthData{
 		Title: "Component Health",
 		Columns: []WorkbenchTableColumn{
-			{Key: "component", Label: "Component"},
+			{Key: "component", Label: labelComponent},
 			{Key: "status", Label: "Status"},
 			{Key: "summary", Label: "Summary"},
 		},
@@ -185,7 +185,7 @@ func handleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch Com
 		Columns: []WorkbenchTableColumn{
 			{Key: "time", Label: "Time"},
 			{Key: "namespace", Label: "Namespace"},
-			{Key: "message", Label: "Message"},
+			{Key: "message", Label: labelMessage},
 		},
 		SelectedNS:   selectedNS,
 		EmptyMessage: "No recent events.",

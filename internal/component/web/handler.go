@@ -236,7 +236,7 @@ func RegisterRoutes(mux *http.ServeMux, auth, assets http.Handler) {
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			http.Redirect(w, r, "/show/", http.StatusFound)
+			http.Redirect(w, r, showPathPrefix, http.StatusFound)
 			return
 		}
 		auth.ServeHTTP(w, r)

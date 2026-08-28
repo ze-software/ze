@@ -320,8 +320,8 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	// Channel is full (4/4). TryDispatch should fail.
 	ok = pool.TryDispatch(key, fwdItem{})
 	require.False(t, ok, "TryDispatch should fail (channel full)")
-	ok = pool.DispatchOverflow(key, fwdItem{})
-	require.True(t, ok, "DispatchOverflow should succeed")
+	ok = pool.dispatchOverflow(key, fwdItem{})
+	require.True(t, ok, "dispatchOverflow should succeed")
 	pool.recordOverflowed(netip.MustParseAddr("10.0.0.1"))
 
 	// Verify source stats: 2 forwarded, 1 overflowed = 1/3 ratio.

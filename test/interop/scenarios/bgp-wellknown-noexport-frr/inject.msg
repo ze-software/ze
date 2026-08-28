@@ -39,7 +39,8 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B40010
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009C00804FDE90064180A0B00
 action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Hold the session open while check.py finishes. A peer whose script is exhausted
+# Hold the session open while the internal/le/interoplab/bgp checker finishes. A peer whose script
+# is exhausted
 # exits, and its session dropping would make Ze withdraw both routes -- which is
 # the other way an absence assertion passes for the wrong reason.
 expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304

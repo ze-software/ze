@@ -17,7 +17,7 @@ import (
 // VALIDATES: Commands can be registered with name, description, and options.
 // PREVENTS: Silent failures on registration, missing metadata.
 func TestCommandRegistry_Register(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	results := registry.Register(proc, []CommandDef{
@@ -67,7 +67,7 @@ func TestCommandRegistry_Register(t *testing.T) {
 // VALIDATES: Plugin commands cannot shadow builtin commands.
 // PREVENTS: Security issues from shadowing daemon shutdown, etc.
 func TestCommandRegistry_BuiltinConflict(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	// Add a builtin
@@ -93,7 +93,7 @@ func TestCommandRegistry_BuiltinConflict(t *testing.T) {
 // VALIDATES: First process to register a command wins.
 // PREVENTS: Later processes from stealing commands.
 func TestCommandRegistry_ProcessConflict(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
@@ -125,7 +125,7 @@ func TestCommandRegistry_ProcessConflict(t *testing.T) {
 // VALIDATES: Commands can be unregistered by owning process.
 // PREVENTS: One process unregistering another's commands.
 func TestCommandRegistry_Unregister(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
@@ -154,7 +154,7 @@ func TestCommandRegistry_Unregister(t *testing.T) {
 // VALIDATES: All commands from a process are removed on death.
 // PREVENTS: Orphaned commands after process exits.
 func TestCommandRegistry_UnregisterAll(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
@@ -167,10 +167,10 @@ func TestCommandRegistry_UnregisterAll(t *testing.T) {
 		t.Fatalf("expected 3 commands, got %d", len(registry.All()))
 	}
 
-	registry.UnregisterAll(proc)
+	registry.unregisterAll(proc)
 
 	if len(registry.All()) != 0 {
-		t.Errorf("expected 0 commands after UnregisterAll, got %d", len(registry.All()))
+		t.Errorf("expected 0 commands after unregisterAll, got %d", len(registry.All()))
 	}
 }
 
@@ -179,7 +179,7 @@ func TestCommandRegistry_UnregisterAll(t *testing.T) {
 // VALIDATES: Partial command names return matching completions.
 // PREVENTS: CLI completion failing to find plugin commands.
 func TestCommandRegistry_Complete(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
@@ -223,7 +223,7 @@ func completeTexts(tree *command.Node, input string) map[string]string {
 // VALIDATES: AC-1 -- registered plugin commands appear in the completion tree.
 // PREVENTS: plugin commands that dispatch but never surface in tab-completion.
 func TestCommandRegistryInjectsIntoCompletionTree(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 	registry.Register(proc, []CommandDef{
 		{Name: "show status", Description: "Show status"},
@@ -254,7 +254,7 @@ func TestCommandRegistryInjectsIntoCompletionTree(t *testing.T) {
 // PREVENTS: a Hidden command leaking into tab-completion, or becoming
 // un-runnable.
 func TestHiddenCommandExcludedFromInjectedTree(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 	registry.Register(proc, []CommandDef{
 		{Name: "show status", Description: "Visible"},
@@ -285,7 +285,7 @@ func TestHiddenCommandExcludedFromInjectedTree(t *testing.T) {
 // VALIDATES: AC-3 -- unregistering removes the command from completion.
 // PREVENTS: stale completions for commands whose owning plugin is gone.
 func TestUnregisteredCommandRemovedFromCompletion(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 	registry.Register(proc, []CommandDef{
 		{Name: "show status", Description: "Show status"},
@@ -298,7 +298,7 @@ func TestUnregisteredCommandRemovedFromCompletion(t *testing.T) {
 		t.Fatal("command should be present before unregister")
 	}
 
-	registry.UnregisterAll(proc)
+	registry.unregisterAll(proc)
 
 	// A tree rebuilt from current registry state (as each SSH session does) no
 	// longer offers it.
@@ -314,7 +314,7 @@ func TestUnregisteredCommandRemovedFromCompletion(t *testing.T) {
 // VALIDATES: Commands are matched case-insensitively.
 // PREVENTS: Case sensitivity issues in command lookup.
 func TestCommandRegistry_CaseInsensitive(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
@@ -335,7 +335,7 @@ func TestCommandRegistry_CaseInsensitive(t *testing.T) {
 // VALIDATES: Completable flag is stored and accessible.
 // PREVENTS: Missing completion support for arg-completing commands.
 func TestCommandRegistry_Completable(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
@@ -362,7 +362,7 @@ func TestCommandRegistry_Completable(t *testing.T) {
 // VALIDATES: AC-10 -- After Freeze(), Lookup uses atomic.Load on frozen snapshot.
 // PREVENTS: Post-startup RLock overhead on the dispatch hot path.
 func TestCommandRegistryFreeze(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
@@ -390,7 +390,7 @@ func TestCommandRegistryFreeze(t *testing.T) {
 // VALIDATES: AC-11 -- Lookup falls back to RLock path before Freeze.
 // PREVENTS: Crash if Lookup called during startup before Freeze.
 func TestCommandRegistryPreFreezeFallback(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
@@ -408,7 +408,7 @@ func TestCommandRegistryPreFreezeFallback(t *testing.T) {
 // VALIDATES: AC-12 -- 100 concurrent Lookup calls after Freeze are race-safe.
 // PREVENTS: Race conditions on the frozen dispatch hot path.
 func TestCommandRegistryConcurrentLookup(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
@@ -436,7 +436,7 @@ func TestCommandRegistryConcurrentLookup(t *testing.T) {
 // VALIDATES: Unregister after Freeze publishes new snapshot; Lookup reflects removal.
 // PREVENTS: Stale frozen snapshot serving dead-process commands after plugin crash.
 func TestCommandRegistryUnregisterAfterFreeze(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
@@ -457,12 +457,12 @@ func TestCommandRegistryUnregisterAfterFreeze(t *testing.T) {
 	assert.NotNil(t, registry.Lookup("show b"))
 }
 
-// TestCommandRegistryUnregisterAllAfterFreeze verifies UnregisterAll republishes frozen snapshot.
+// TestCommandRegistryUnregisterAllAfterFreeze verifies unregisterAll republishes frozen snapshot.
 //
-// VALIDATES: UnregisterAll after Freeze publishes new snapshot; Lookup reflects removal.
+// VALIDATES: unregisterAll after Freeze publishes new snapshot; Lookup reflects removal.
 // PREVENTS: Stale frozen snapshot after process death cleanup.
 func TestCommandRegistryUnregisterAllAfterFreeze(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
@@ -476,8 +476,8 @@ func TestCommandRegistryUnregisterAllAfterFreeze(t *testing.T) {
 	assert.NotNil(t, registry.Lookup("show b"))
 	assert.NotNil(t, registry.Lookup("show c"))
 
-	// Kill proc1 -- UnregisterAll
-	registry.UnregisterAll(proc1)
+	// Kill proc1 -- unregisterAll
+	registry.unregisterAll(proc1)
 
 	// proc1 commands gone, proc2 commands remain
 	assert.Nil(t, registry.Lookup("show a"))
@@ -491,7 +491,7 @@ func TestCommandRegistryUnregisterAllAfterFreeze(t *testing.T) {
 // VALIDATES: Alias plumbing can map a retired spelling to a canonical command.
 // PREVENTS: Future released-command deprecations breaking dispatch.
 func TestDeprecatedCommandWarning(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	results := registry.Register(proc, []CommandDef{
@@ -519,7 +519,7 @@ func TestDeprecatedCommandWarning(t *testing.T) {
 // VALIDATES: Deprecated lookup works on the frozen snapshot path (hot path).
 // PREVENTS: Deprecated aliases silently breaking after startup barrier.
 func TestDeprecatedCommandAfterFreeze(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	registry.Register(proc, []CommandDef{
@@ -544,7 +544,7 @@ func TestDeprecatedCommandAfterFreeze(t *testing.T) {
 // VALIDATES: dispatchPlugin prefix matching resolves deprecated aliases.
 // PREVENTS: Old command forms failing in the plugin dispatch path.
 func TestDeprecatedPrefixLookup(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	registry.Register(proc, []CommandDef{
@@ -566,10 +566,10 @@ func TestDeprecatedPrefixLookup(t *testing.T) {
 
 // TestDeprecatedUnregisterAll verifies deprecated aliases are cleaned up on process death.
 //
-// VALIDATES: UnregisterAll removes deprecated aliases for the dying process.
+// VALIDATES: unregisterAll removes deprecated aliases for the dying process.
 // PREVENTS: Stale deprecated aliases after plugin crash/restart.
 func TestDeprecatedUnregisterAll(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	registry.Register(proc, []CommandDef{
@@ -583,7 +583,7 @@ func TestDeprecatedUnregisterAll(t *testing.T) {
 	assert.NotNil(t, registry.Lookup("show fixture state"))
 	assert.NotNil(t, registry.Lookup("show fixture old"))
 
-	registry.UnregisterAll(proc)
+	registry.unregisterAll(proc)
 
 	// Both gone after unregister
 	assert.Nil(t, registry.Lookup("show fixture state"))
@@ -694,7 +694,7 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 	}
 
 	t.Run("malformed alias rejected before registration", func(t *testing.T) {
-		registry := NewCommandRegistry()
+		registry := newCommandRegistry()
 		proc := newProc()
 		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
 		err := registry.registerDeprecated(proc, "Frob fixture", "show fixture state")
@@ -703,14 +703,14 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 	})
 
 	t.Run("unknown verb alias", func(t *testing.T) {
-		registry := NewCommandRegistry()
+		registry := newCommandRegistry()
 		proc := newProc()
 		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
 		assert.ErrorContains(t, registry.registerDeprecated(proc, "frob fixture", "show fixture state"), "unknown verb")
 	})
 
 	t.Run("alias conflicts with builtin", func(t *testing.T) {
-		registry := NewCommandRegistry()
+		registry := newCommandRegistry()
 		proc := newProc()
 		registry.AddBuiltin("show builtin thing")
 		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
@@ -718,7 +718,7 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 	})
 
 	t.Run("alias conflicts with registered command", func(t *testing.T) {
-		registry := NewCommandRegistry()
+		registry := newCommandRegistry()
 		proc := newProc()
 		registry.Register(proc, []CommandDef{
 			{Name: "show fixture state"},
@@ -728,7 +728,7 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 	})
 
 	t.Run("alias conflicts with existing alias", func(t *testing.T) {
-		registry := NewCommandRegistry()
+		registry := newCommandRegistry()
 		proc := newProc()
 		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
 		assert.NoError(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"))
@@ -736,7 +736,7 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 	})
 
 	t.Run("alias to unregistered canonical", func(t *testing.T) {
-		registry := NewCommandRegistry()
+		registry := newCommandRegistry()
 		proc := newProc()
 		assert.ErrorContains(t, registry.registerDeprecated(proc, "show fixture old", "show fixture missing"), "unregistered command")
 	})
@@ -748,7 +748,7 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 // VALIDATES: AC-2 -- Hidden commands do not appear in tab-completion but work when typed.
 // PREVENTS: Hidden commands leaking into CLI completion suggestions.
 func TestHiddenCommandExcludedFromCompletion(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
@@ -780,7 +780,7 @@ func TestHiddenCommandExcludedFromCompletion(t *testing.T) {
 // VALIDATES: All() is unchanged -- dispatch path still finds hidden commands.
 // PREVENTS: Hidden commands becoming unreachable for dispatch.
 func TestHiddenCommandPreservedInAll(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
@@ -806,7 +806,7 @@ func TestHiddenCommandPreservedInAll(t *testing.T) {
 // cannot go up is indistinguishable from a plugin that registered nothing, which
 // is why this asserts a NON-zero number rather than agreement between two readers.
 func TestCommandRegistry_CommandCountsByProcess(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
@@ -855,7 +855,7 @@ func TestCommandRegistry_CommandCountsByProcess(t *testing.T) {
 // and the plugin runs unreachable. Unregister republished from the start; only
 // the addition did not.
 func TestCommandRegistryRegisterAfterFreezeIsVisible(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	first := process.NewProcess(plugin.PluginConfig{Name: "frozen-first"})
 	late := process.NewProcess(plugin.PluginConfig{Name: "frozen-late"})
 
@@ -882,7 +882,7 @@ func TestCommandRegistryRegisterAfterFreezeIsVisible(t *testing.T) {
 // stale snapshot, which would make the plugin's old command names disappear on
 // exactly the reloads its new ones survive.
 func TestCommandRegistryDeprecatedAliasAfterFreezeIsVisible(t *testing.T) {
-	registry := NewCommandRegistry()
+	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "frozen-alias"})
 
 	registry.Freeze()
@@ -893,4 +893,52 @@ func TestCommandRegistryDeprecatedAliasAfterFreezeIsVisible(t *testing.T) {
 	cmd := registry.Lookup("show old")
 	require.NotNil(t, cmd, "an alias registered after Freeze must resolve")
 	assert.Equal(t, "show new", cmd.Name)
+}
+
+// TestRegistrationRejectsBadGrammar proves the plugin command-registration boundary
+// (CommandRegistry.Register) enforces grammar, not just validateCommandName in
+// isolation. A future refactor that drops the validate call from Register would pass
+// every existing validateCommandName unit test but fail this one.
+//
+// VALIDATES: Feeder 2 wired at the Register boundary -- a non-conforming plugin
+//
+//	command name is rejected (OK=false) and never enters the registry; a conforming
+//	name registers.
+//
+// PREVENTS: a plugin registering a noun-first / --flag / mutation-token command name
+//
+//	at runtime, which the compile-time gate (Feeder 1) can never see.
+func TestRegistrationRejectsBadGrammar(t *testing.T) {
+	proc := process.NewProcess(plugin.PluginConfig{Name: "grammar-audit-test"})
+
+	bad := []struct {
+		name   string
+		reason string
+	}{
+		{"status show", "noun-first: first token is not a verb (R1)"},
+		{"--status", "flag-style token (R3)"},
+		{"request interface addr add", "operational mutation token (R7)"},
+		{"Show status", "non-lowercase token (R2)"},
+	}
+
+	registry := newCommandRegistry()
+	for _, tc := range bad {
+		t.Run("rejects/"+tc.name, func(t *testing.T) {
+			results := registry.Register(proc, []CommandDef{{Name: tc.name}})
+			require.Len(t, results, 1)
+			assert.False(t, results[0].OK, "expected rejection (%s) for %q", tc.reason, tc.name)
+			assert.NotEmpty(t, results[0].Error, "rejection must name a reason")
+			assert.Nil(t, registry.Lookup(tc.name), "rejected command must not enter the registry")
+		})
+	}
+
+	// Control: a conforming verb-first name registers, so the guard is not rejecting
+	// everything indiscriminately.
+	t.Run("accepts/show grammar-audit status", func(t *testing.T) {
+		fresh := newCommandRegistry()
+		results := fresh.Register(proc, []CommandDef{{Name: "show grammar-audit status"}})
+		require.Len(t, results, 1)
+		assert.True(t, results[0].OK, "conforming command should register: %s", results[0].Error)
+		assert.NotNil(t, fresh.Lookup("show grammar-audit status"))
+	})
 }

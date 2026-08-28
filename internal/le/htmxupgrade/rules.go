@@ -1,11 +1,18 @@
 // Design: docs/architecture/core-design.md -- the htmx upgrade gate, as compiled Go
 // Detail: scanner.go -- the DOM, inheritance, and text scanner that reads these rules.
 //
-// The rule order is part of the vendored scanner's output. The Python source
-// uses insertion-ordered dictionaries. Slices preserve that order here and keep
-// two issues on one source line deterministic.
+// These tables transcribe htmx 4.0.0-beta6's upgrade checker. Dictionary order
+// is observable when several findings share a line, so ordered source tables
+// remain slices. TestUpstreamScannerContractDigest guards every value and order.
 
 package htmxupgrade
+
+const (
+	upstreamScannerVersion = "4.0.0-beta6"
+	upstreamScannerURL     = "https://unpkg.com/htmx.org@4.0.0-beta6/dist/scripts/upgrade-check.py"
+	upstreamSourceSHA256   = "9633ce96b7d16d8ef2c11a6da91a6f0adcea891bec663e005249aea39df7a58b"
+	scannerContractSHA256  = "889b22c7c227548392f8567e65a7472beb9243516a97c399a5e35c5b6402fcf8"
+)
 
 type renameRule struct {
 	old string

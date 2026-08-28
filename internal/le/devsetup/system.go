@@ -1,9 +1,9 @@
 // Design: docs/architecture/core-design.md -- machine state that is not a binary
 //
-// system.go is a Go port of scripts/le/devtools/system.py. It handles a kernel
-// tunable, a group, and two loopback addresses. These items cannot be installed,
-// so they do not belong in the tool table. Each item has three questions: What
-// is its state? Which command changes it? Can that command run now?
+// This file handles a kernel tunable, a group, and two loopback addresses.
+// These items cannot be installed, so they do not belong in the tool table.
+// Each item has three questions: What is its state? Which command changes it?
+// Can that command run now?
 
 package devsetup
 
@@ -32,40 +32,40 @@ const usernsProcDefault = "/proc/sys/kernel/apparmor_restrict_unprivileged_usern
 
 const usernsConf = "/etc/sysctl.d/60-ze-userns.conf"
 
-// Userns is the unprivileged-userns restriction state.
-type Userns string
+// userns is the unprivileged-userns restriction state.
+type userns string
 
 const (
-	// UsernsOK means unprivileged user namespaces are allowed (value 0).
-	UsernsOK Userns = "ok"
-	// UsernsRestricted means they are blocked (value 1).
-	UsernsRestricted Userns = "restricted"
-	// UsernsNA means the kernel has no such knob, so there is nothing to do.
+	// usernsOK means unprivileged user namespaces are allowed (value 0).
+	usernsOK userns = "ok"
+	// usernsRestricted means they are blocked (value 1).
+	usernsRestricted userns = "restricted"
+	// usernsNA means the kernel has no such knob, so there is nothing to do.
 	// A non-AppArmor host reaches this.
-	UsernsNA Userns = "na"
+	usernsNA userns = "na"
 )
 
-// UsernsState reports whether unprivileged user namespaces are permitted. It
+// usernsState reports whether unprivileged user namespaces are permitted. It
 // also reports whether the question applies.
 //
-// If a knob EXISTS but cannot be READ, the result is an error, not UsernsNA.
+// If a knob EXISTS but cannot be READ, the result is an error, not usernsNA.
 // The script returned NA in this state. That result means "no such knob, nothing
 // to do", although the knob is present. The unreadable value is unknown and CAN
 // be 1. The restriction then reports [present], and the run passes on a machine
 // where Chrome cannot start
 // (plan/journal/zero-value-as-valid-answer.md, 2026-08-26).
-func (s *Setup) UsernsState() (Userns, error) {
+func (s *Setup) usernsState() (userns, error) {
 	raw, err := os.ReadFile(s.usernsProc())
 	if os.IsNotExist(err) {
-		return UsernsNA, nil
+		return usernsNA, nil
 	}
 	if err != nil {
-		return UsernsNA, err
+		return usernsNA, err
 	}
 	if strings.TrimSpace(string(raw)) == "1" {
-		return UsernsRestricted, nil
+		return usernsRestricted, nil
 	}
-	return UsernsOK, nil
+	return usernsOK, nil
 }
 
 // privilegedStep is one root command, what to feed it on stdin, and the line a
@@ -105,21 +105,21 @@ func noteUsernsFix(report *Report) {
 	report.Note(apply.Str("  Run: sudo sysctl -w ").Str(usernsSysctl).Str("=0").String())
 }
 
-// ApplyUserns records, then runs, the commands that lift the restriction.
+// applyUserns records, then runs, the commands that lift the restriction.
 //
 // It answers true only when the restriction is actually cleared. On any failure
 // the caller falls back to naming the manual commands.
-func (s *Setup) ApplyUserns(report *Report) bool {
+func (s *Setup) applyUserns(report *Report) bool {
 	for _, step := range usernsSteps() {
-		ok, detail := s.Shell.RunPrivileged(report, step.argv, step.stdin, step.shown)
+		ok, detail := s.Shell.runPrivileged(report, step.argv, step.stdin, step.shown)
 		if !ok {
 			var tb textbuf.Buffer
 			report.Note(tb.Str("  FAIL: ").Str(detail).String())
 			return false
 		}
 	}
-	state, err := s.UsernsState()
-	return err == nil && state == UsernsOK
+	state, err := s.usernsState()
+	return err == nil && state == usernsOK
 }
 
 // --- KVM device access ----------------------------------------------------
@@ -139,24 +139,24 @@ const kvmDevDefault = "/dev/kvm"
 // KVMGroup is the group /dev/kvm belongs to.
 const KVMGroup = "kvm"
 
-// Kvm is whether QEMU can use KVM as this user.
-type Kvm string
+// kvm is whether QEMU can use KVM as this user.
+type kvm string
 
 const (
-	// KvmOK means /dev/kvm is readable and writable in this process now.
-	KvmOK Kvm = "ok"
-	// KvmPendingLogin means that the user IS in the kvm group, but the session
+	// kvmOK means /dev/kvm is readable and writable in this process now.
+	kvmOK kvm = "ok"
+	// kvmPendingLogin means that the user IS in the kvm group, but the session
 	// started before that membership changed. Group membership is fixed at login.
-	KvmPendingLogin Kvm = "pending-login"
-	// KvmNoGroup means the device exists and the user is not in the group.
-	KvmNoGroup Kvm = "no-group"
-	// KvmNA means no /dev/kvm at all (no hardware virt, or a VM without nested
+	kvmPendingLogin kvm = "pending-login"
+	// kvmNoGroup means the device exists and the user is not in the group.
+	kvmNoGroup kvm = "no-group"
+	// kvmNA means no /dev/kvm at all (no hardware virt, or a VM without nested
 	// virt). QEMU still runs under tcg, only slower, so there is nothing to
 	// fix.
-	KvmNA Kvm = "na"
+	kvmNA kvm = "na"
 )
 
-// InKvmGroup reports whether the group database lists this user in the kvm
+// inKvmGroup reports whether the group database lists this user in the kvm
 // group.
 //
 // This function intentionally does not test device access. After `usermod -aG`,
@@ -169,7 +169,7 @@ const (
 // the current user include primary and supplementary groups. The two methods can
 // differ only for a user who cannot reach this branch. A primary-group member
 // can already open the device.
-func (s *Setup) InKvmGroup() bool {
+func (s *Setup) inKvmGroup() bool {
 	if s.KvmGroupMember != nil {
 		return s.KvmGroupMember()
 	}
@@ -188,19 +188,19 @@ func (s *Setup) InKvmGroup() bool {
 	return slices.Contains(ids, group.Gid)
 }
 
-// KvmState answers whether QEMU can use KVM as this user.
-func (s *Setup) KvmState() Kvm {
+// kvmState answers whether QEMU can use KVM as this user.
+func (s *Setup) kvmState() kvm {
 	device := s.kvmDev()
 	if _, err := os.Stat(device); err != nil {
-		return KvmNA
+		return kvmNA
 	}
 	if deviceOpenable(device) {
-		return KvmOK
+		return kvmOK
 	}
-	if s.InKvmGroup() {
-		return KvmPendingLogin
+	if s.inKvmGroup() {
+		return kvmPendingLogin
 	}
-	return KvmNoGroup
+	return kvmNoGroup
 }
 
 // deviceOpenable reports whether this process can open the device for reading
@@ -240,19 +240,19 @@ func (s *Setup) noteKvmFix(report *Report) {
 		Str(KVMGroup).Str(" -c '<command>'").String())
 }
 
-// ApplyKvm adds the invoking user to the kvm group.
+// applyKvm adds the invoking user to the kvm group.
 //
 // It answers true when the group database lists the user afterwards. That is
 // NOT the same as usable: this process keeps the groups it started with, so the
 // caller must still say to log back in.
-func (s *Setup) ApplyKvm(report *Report) bool {
-	ok, detail := s.Shell.RunPrivileged(report, []string{"usermod", "-aG", KVMGroup, s.userName()}, nil, "")
+func (s *Setup) applyKvm(report *Report) bool {
+	ok, detail := s.Shell.runPrivileged(report, []string{"usermod", "-aG", KVMGroup, s.userName()}, nil, "")
 	if !ok {
 		var tb textbuf.Buffer
 		report.Note(tb.Str("  FAIL: ").Str(detail).String())
 		return false
 	}
-	return s.InKvmGroup()
+	return s.inKvmGroup()
 }
 
 // --- Loopback addresses the functional suite binds ------------------------
@@ -293,26 +293,26 @@ const LoopbackIPv6 = "fd00::2"
 // peers by source address, not by port.
 var loopbackIPv4Darwin = []string{"127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5"}
 
-// LoopbackAddresses answers the addresses this host must carry for the
+// loopbackAddresses answers the addresses this host must carry for the
 // functional suite to run.
 //
 // Linux is IPv6-only here: 127.0.0.0/8 already routes to lo, so an IPv4 alias
 // would be work with no effect.
-func (s *Setup) LoopbackAddresses() []string {
+func (s *Setup) loopbackAddresses() []string {
 	if s.goos() == osDarwin {
 		return append(slices.Clone(loopbackIPv4Darwin), LoopbackIPv6)
 	}
 	return []string{LoopbackIPv6}
 }
 
-// LoopbackBindable reports whether a socket can bind addr now.
+// loopbackBindable reports whether a socket can bind addr now.
 //
 // This function attempts a bind instead of scanning the interface list. Every
 // fixture must bind successfully, and the two methods can give different results.
 // An IPv6 address can be listed while duplicate-address detection still rejects
 // it. The test runner uses the same method (loopbackBindable,
 // internal/test/runner/loopback.go).
-func (s *Setup) LoopbackBindable(addr string) bool {
+func (s *Setup) loopbackBindable(addr string) bool {
 	if s.Bindable != nil {
 		return s.Bindable(addr)
 	}
@@ -324,12 +324,12 @@ func (s *Setup) LoopbackBindable(addr string) bool {
 	return true
 }
 
-// MissingLoopback answers the subset of LoopbackAddresses this host does not
+// missingLoopback answers the subset of loopbackAddresses this host does not
 // carry.
-func (s *Setup) MissingLoopback() []string {
+func (s *Setup) missingLoopback() []string {
 	var missing []string
-	for _, addr := range s.LoopbackAddresses() {
-		if !s.LoopbackBindable(addr) {
+	for _, addr := range s.loopbackAddresses() {
+		if !s.loopbackBindable(addr) {
 			missing = append(missing, addr)
 		}
 	}
@@ -360,20 +360,20 @@ func (s *Setup) noteLoopbackFix(report *Report, missing []string) {
 	}
 }
 
-// ApplyLoopback records, then runs, the commands that add the missing
+// applyLoopback records, then runs, the commands that add the missing
 // addresses.
 //
 // Idempotent by construction: only addresses that failed the bind probe are
 // passed in, so a re-run on a configured host runs nothing. It answers true only
 // when every address binds afterwards.
-func (s *Setup) ApplyLoopback(report *Report, missing []string) bool {
+func (s *Setup) applyLoopback(report *Report, missing []string) bool {
 	for _, addr := range missing {
-		ok, detail := s.Shell.RunPrivileged(report, s.loopbackAddArgv(addr), nil, "")
+		ok, detail := s.Shell.runPrivileged(report, s.loopbackAddArgv(addr), nil, "")
 		if !ok {
 			var tb textbuf.Buffer
 			report.Note(tb.Str("  FAIL: ").Str(detail).String())
 			return false
 		}
 	}
-	return len(s.MissingLoopback()) == 0
+	return len(s.missingLoopback()) == 0
 }

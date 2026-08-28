@@ -33,7 +33,7 @@
 # stopped this peer and closed its connection, so the peer reads EOF and fails with
 # "connection closed before completion" instead of these octets.
 #
-# The signals come from trigger.sh rather than from peer actions: ze-peer waits a
+# The signals come from the native trigger rather than from peer actions: ze-peer waits a
 # fixed 500ms after signalling (pauseForSignal, internal/test/peer/peer.go) and a
 # reload of this config takes longer than that, so a peer-driven SIGTERM could
 # reach the daemon while the reload it is meant to follow was still running.
@@ -69,7 +69,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D69
 EOF_PEER
 
 # Initial ze configuration: one dynamic group and nothing else. tmpfs, not stdin:
-# the daemon must read a FILE that trigger.sh can rewrite under it, and the runner
+# the daemon must read a FILE that the native trigger can rewrite under it, and the runner
 # writes daemon.pid into the same directory.
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 bgp {
@@ -192,23 +192,13 @@ EOF_CONF2
 # machine with other test runs and a reload of this config was measured taking
 # over 3s under that load, while the first only has to cover a dial the peer
 # retries every 500ms against a daemon that has already written daemon.ready.
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-sleep 3
-cp config2.conf ze-bgp.conf
-kill -HUP $(cat daemon.pid)
-sleep 8
-kill -TERM $(cat daemon.pid)
-EOF_TRIGGER
 
 # Process orchestration. The peer is the background process, as in every other
 # reload test, so the runner collects its output and drives the verdict from it.
 # It binds no listener, so it retries the dial until ze binds (dialTarget,
 # internal/test/peer/peer.go).
 cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture reload/reload-dynamic-peer-survives-trigger
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
 
 # The session above really was a DYNAMIC peer's. Without this the wire assertion

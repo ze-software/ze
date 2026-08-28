@@ -1,4 +1,4 @@
-// These tests prove each detection property that scripts/dev/ste_check.py
+// These tests prove each detection property that internal/le/ste/actions.go
 // states.
 //
 // VALIDATES: spec-le-is-a-ze-binary AC-5. Every case calls a function, not a
@@ -644,28 +644,26 @@ func TestTheNamedFileFormNeedsAKeywordBeforeEachPath(t *testing.T) {
 	}
 }
 
-func TestEveryActionCarriesItsGateAndNoneWrites(t *testing.T) {
+func TestEveryActionIsNativeAndReadOnly(t *testing.T) {
 	want := map[string]bool{
-		"ze-ste-check": true, "ze-ste-review": true, "ze-ste-review-changed": true,
-	}
-	for _, gate := range Gates() {
-		if !want[gate] {
-			t.Errorf("unexpected gate %q", gate)
-		}
-		delete(want, gate)
-	}
-	if len(want) != 0 {
-		t.Errorf("gates missing from the table: %v", want)
+		"check": true, "review": true, "review-changed": true,
 	}
 	for _, row := range Actions().Actions {
+		if !want[row.Verb] {
+			t.Errorf("unexpected action %q", row.Verb)
+		}
+		delete(want, row.Verb)
 		if row.Writes {
 			t.Errorf("%q writes; this tool reads prose and reports", row.Verb)
 		}
 	}
+	if len(want) != 0 {
+		t.Errorf("actions missing from the table: %v", want)
+	}
 }
 
 func TestTheReportsAreStructuredDataWithKebabCaseKeys(t *testing.T) {
-	review := NewReviewReport([]Finding{{
+	review := newReviewReport([]Finding{{
 		File: "doc.md", Line: 3, Surface: SurfaceMarkdown, Habit: "hedging",
 		Number: 2, Detail: `"may"`, Fix: "CAN", Excerpt: "x",
 	}}, 1, 0)
@@ -673,7 +671,7 @@ func TestTheReportsAreStructuredDataWithKebabCaseKeys(t *testing.T) {
 		t.Errorf("the tally is wrong: %v", review.Totals)
 	}
 	assertKebabKeys(t, review)
-	assertKebabKeys(t, NewGateReport([]Growth{{File: "doc.md", Habit: "hedging", Number: 2, Was: 0, Now: 1}}, 1))
+	assertKebabKeys(t, newCheckReport([]Growth{{File: "doc.md", Habit: "hedging", Number: 2, Was: 0, Now: 1}}, 1))
 }
 
 // assertKebabKeys fails when any JSON key of the payload carries an underscore
@@ -688,11 +686,11 @@ func assertKebabKeys(t *testing.T, payload any) {
 	}
 }
 
-func TestTheGateCodeIsThreeSoACallerCanTellItFromAUsageError(t *testing.T) {
-	if got := NewGateReport(nil, 3).Code(); got != 0 {
-		t.Errorf("a clean gate answers 0, got %d", got)
+func TestCheckCodeIsThreeSoACallerCanTellItFromAUsageError(t *testing.T) {
+	if got := newCheckReport(nil, 3).Code(); got != 0 {
+		t.Errorf("a clean check answers 0, got %d", got)
 	}
-	grew := NewGateReport([]Growth{{File: "doc.md", Habit: "hedging", Number: 2, Was: 0, Now: 1}}, 1)
+	grew := newCheckReport([]Growth{{File: "doc.md", Habit: "hedging", Number: 2, Was: 0, Now: 1}}, 1)
 	if got := grew.Code(); got != 3 {
 		t.Errorf("a grown habit answers 3, got %d", got)
 	}

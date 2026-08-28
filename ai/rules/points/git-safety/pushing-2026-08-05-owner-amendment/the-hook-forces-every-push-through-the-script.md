@@ -9,6 +9,6 @@ the next reader. Writing a throwaway script that carries a push and deleting it
 afterwards is banned for the same reason. It reaches the same remote by the same
 hand and leaves no record of why the push happened, and `ai/INSTRUCTIONS.md`
 carries that ban into every session. A remote history that needs rewriting is
-the owner's decision, made at his own terminal, which is why `--force` and `-f`
-have no `--push` path (`ai/INSTRUCTIONS.md`, "Destructive git commands are
-FORBIDDEN").
+the owner's decision, made at his own terminal. `./le commit create` has no
+force keyword, and the `push "<owner authorisation>"` route never rewrites
+remote history (`ai/INSTRUCTIONS.md`, "Destructive git commands are FORBIDDEN").

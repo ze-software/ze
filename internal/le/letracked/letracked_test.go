@@ -30,7 +30,7 @@ import (
 `
 
 func TestTheToolImportsAreRead(t *testing.T) {
-	got, err := ToolImports([]byte(registerGo))
+	got, err := toolImports([]byte(registerGo))
 	if err != nil {
 		t.Fatalf("ToolImports: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestTheToolImportsAreRead(t *testing.T) {
 // being a list of tools.
 func TestAnImportThatIsNotAToolIsRefused(t *testing.T) {
 	src := "package main\n\nimport _ \"github.com/ze-software/ze/internal/component/bgp\"\n"
-	if _, err := ToolImports([]byte(src)); err == nil {
+	if _, err := toolImports([]byte(src)); err == nil {
 		t.Error("a product import in the composition root was accepted")
 	}
 }
@@ -52,7 +52,7 @@ func TestAnImportThatIsNotAToolIsRefused(t *testing.T) {
 // TestNamedSupportImportsAreIgnored separates root implementation imports from
 // the blank-import composition population.
 func TestNamedSupportImportsAreIgnored(t *testing.T) {
-	got, err := ToolImports([]byte(registerGo))
+	got, err := toolImports([]byte(registerGo))
 	if err != nil {
 		t.Fatalf("ToolImports: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestNamedSupportImportsAreIgnored(t *testing.T) {
 }
 
 func TestUnparsableSourceIsAnError(t *testing.T) {
-	if _, err := ToolImports([]byte("this is not Go")); err == nil {
+	if _, err := toolImports([]byte("this is not Go")); err == nil {
 		t.Error("unparsable source answered an import list")
 	}
 }
@@ -82,7 +82,7 @@ Commands:
 `
 
 func TestTheCommandNamesAreReadFromTheHelpPage(t *testing.T) {
-	got := CommandNames(helpPage)
+	got := commandNames(helpPage)
 	if !slices.Equal(got, []string{"fuzz", "lint", "tracked"}) {
 		t.Errorf("CommandNames = %v", got)
 	}
@@ -91,7 +91,7 @@ func TestTheCommandNamesAreReadFromTheHelpPage(t *testing.T) {
 // TestTheUsageLineIsNotACommand is the trap in that page: it is indented the
 // same way and it sits under a heading of its own.
 func TestTheUsageLineIsNotACommand(t *testing.T) {
-	for _, name := range CommandNames(helpPage) {
+	for _, name := range commandNames(helpPage) {
 		if strings.HasPrefix(name, "le") && name != "lint" {
 			t.Errorf("the usage line was read as a command: %q", name)
 		}
@@ -99,7 +99,7 @@ func TestTheUsageLineIsNotACommand(t *testing.T) {
 }
 
 func TestAPageWithNoCommandsSectionAnswersNothing(t *testing.T) {
-	if got := CommandNames("le - a program\n\nUsage:\n  le <command>\n"); len(got) != 0 {
+	if got := commandNames("le - a program\n\nUsage:\n  le <command>\n"); len(got) != 0 {
 		t.Errorf("CommandNames = %v, want none", got)
 	}
 }

@@ -1,0 +1,12 @@
+# Test: the built le binary runs the native development gates over the real
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+# checkout and exposes every verdict as command data.
+#
+# The native fixture compiles the cmd/ze le personality into fixture-owned
+# storage. A cold build cache can make that first compile comparatively slow.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=ze-test fixture ui/le-dev-gates-answers
+expect=exit:code=0
+expect=stdout:contains=OK

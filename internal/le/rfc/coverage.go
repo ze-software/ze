@@ -6,7 +6,7 @@
 // render.go is a formatting of a number produced here.
 //
 // Two rollups, over two different questions, and they are deliberately not one.
-// RFCCoverage answers which POLARITIES exist for a requirement. AuditCoverage
+// rfcCoverage answers which POLARITIES exist for a requirement. auditCoverage
 // answers whether a human read the test and believed it. A requirement can have
 // both polarities and a `weak` verdict, so a single "proven" column would have
 // to lie about one of them.
@@ -38,48 +38,48 @@ func (c Carrier) Label() string {
 	return tb.Str(c.Kind).Byte('/').Str(c.Tier).String()
 }
 
-// EvidenceLabel answers the `kind/tier` cell for one repo-relative path.
+// evidenceLabel answers the `kind/tier` cell for one repo-relative path.
 //
 // A path with no carrier can only arrive from a synthetic tag -- nothing in the
 // tree can produce one -- and it is labeled visibly wrong rather than
 // plausibly right: an unrecognized carrier must never render as though
 // something proved something.
-func EvidenceLabel(rel string, carriers []Carrier) string {
-	if c, held := CarrierFor(rel, carriers); held {
+func evidenceLabel(rel string, carriers []Carrier) string {
+	if c, held := carrierFor(rel, carriers); held {
 		return c.Label()
 	}
 	return "unknown/unrun"
 }
 
-// EvidenceTier answers the execution tier for one repo-relative path, and
+// evidenceTier answers the execution tier for one repo-relative path, and
 // tierUnrun for a path no carrier claims.
-func EvidenceTier(rel string, carriers []Carrier) string {
-	if c, held := CarrierFor(rel, carriers); held {
+func evidenceTier(rel string, carriers []Carrier) string {
+	if c, held := carrierFor(rel, carriers); held {
 		return c.Tier
 	}
 	return tierUnrun
 }
 
-// IsNightlyOnly answers: this requirement HAS evidence, and none of it runs
-// inside ze-precommit-verify.
+// isNightlyOnly answers: this requirement HAS evidence, and none of it runs
+// inside ./le verify current mode full.
 //
 // A nightly-advisory scenario and a merge-gate unit test are both "a tag", and
 // flattening them into one proven cell is how a claim nothing blocks on gets
 // read as a claim every merge enforces.
-func IsNightlyOnly(found []Tag, carriers []Carrier) bool {
+func isNightlyOnly(found []Tag, carriers []Carrier) bool {
 	if len(found) == 0 {
 		return false
 	}
 	for _, tag := range found {
-		if EvidenceTier(tag.File, carriers) == tierVerify {
+		if evidenceTier(tag.File, carriers) == tierVerify {
 			return false
 		}
 	}
 	return true
 }
 
-// RFCCoverage is one RFC's polarity row. Every field is derived.
-type RFCCoverage struct {
+// rfcCoverage is one RFC's polarity row. Every field is derived.
+type rfcCoverage struct {
 	RFC       string `json:"rfc"`
 	Gated     int    `json:"gated"`
 	Both      int    `json:"both"`
@@ -88,27 +88,27 @@ type RFCCoverage struct {
 	// Missing counts gated requirements with no tag and no annotation.
 	Missing int `json:"missing"`
 	// NightlyOnly counts gated requirements whose evidence exists but runs in
-	// NO ze-precommit-verify stage. Its OWN column, never folded into Both or
+	// NO ./le verify current mode full stage. Its OWN column, never folded into Both or
 	// One: those two are the merge-gate view, and a nightly-only requirement is
 	// not merge-gate-proven.
 	NightlyOnly int `json:"nightly-only"`
 }
 
 // Outstanding is the work still owed before this RFC could be enrolled.
-func (c RFCCoverage) Outstanding() int { return c.One + c.Missing }
+func (c rfcCoverage) Outstanding() int { return c.One + c.Missing }
 
-// RFCCoverageRows answers per-RFC polarity coverage. This is the backlog,
+// rfcCoverageRows answers per-RFC polarity coverage. This is the backlog,
 // derived rather than maintained.
 //
 // A hand-kept TODO list of missing tests would rot the moment someone wrote one
 // and forgot the list. Counting the tags is the only version that cannot lie.
-func RFCCoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier) []RFCCoverage {
+func rfcCoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier) []rfcCoverage {
 	byRID := tagsByRID(tags)
 	order, byRFC := requirementsByRFC(requirements)
 
-	out := make([]RFCCoverage, 0, len(order))
+	out := make([]rfcCoverage, 0, len(order))
 	for _, rfc := range order {
-		row := RFCCoverage{RFC: rfc}
+		row := rfcCoverage{RFC: rfc}
 		gated := 0
 		for _, req := range byRFC[rfc] {
 			if !req.Gated() {
@@ -116,7 +116,7 @@ func RFCCoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier)
 			}
 			gated++
 			found := byRID[req.RID]
-			if IsNightlyOnly(found, carriers) {
+			if isNightlyOnly(found, carriers) {
 				row.NightlyOnly++
 			}
 			switch {
@@ -181,7 +181,7 @@ func bothPolarities(found []Tag) bool {
 	return positive && negative
 }
 
-// AuditCoverage is one RFC's audit row. Every field derived; nothing here is
+// auditCoverage is one RFC's audit row. Every field derived; nothing here is
 // authored anywhere.
 //
 // TWO partitions, over two different populations, because one denominator
@@ -198,7 +198,7 @@ func bothPolarities(found []Tag) bool {
 // counting only the both-polarity subset left a verdict on an ANNOTATED
 // requirement in no column at all, and, when it was a fresh enforced, in no
 // worklist row either. Five of the tree's 52 verdicts were invisible.
-type AuditCoverage struct {
+type auditCoverage struct {
 	RFC string `json:"rfc"`
 	// Auditable is gated, enrolled, and polarity coverage complete.
 	Auditable int `json:"auditable"`
@@ -212,18 +212,18 @@ type AuditCoverage struct {
 	Verdicts int `json:"verdicts"`
 }
 
-// Unaudited is the auditable remainder carrying no verdict at all.
-func (a AuditCoverage) Unaudited() int { return a.Auditable - a.Audited }
+// unaudited is the auditable remainder carrying no verdict at all.
+func (a auditCoverage) unaudited() int { return a.Auditable - a.Audited }
 
-// WorklistRow names one requirement whose verdict is anything other than a
+// worklistRow names one requirement whose verdict is anything other than a
 // fresh `enforced`.
-type WorklistRow struct {
+type worklistRow struct {
 	RFC    string `json:"rfc"`
 	RID    string `json:"rid"`
 	Reason string `json:"reason"`
 }
 
-// PolarityCovered answers whether a requirement's polarity coverage is
+// polarityCovered answers whether a requirement's polarity coverage is
 // COMPLETE, by the rule the audit schema uses.
 //
 // A `{single-polarity}` requirement is exempt from the both-polarity demand:
@@ -232,7 +232,7 @@ type WorklistRow struct {
 // alone, without reading the annotation, made the coverage rollup and the
 // schema disagree about what complete coverage is -- and every annotated
 // requirement fell outside Auditable while the schema was happy to judge it.
-func PolarityCovered(req Requirement, found []Tag) bool {
+func polarityCovered(req Requirement, found []Tag) bool {
 	if bothPolarities(found) {
 		return true
 	}
@@ -240,8 +240,8 @@ func PolarityCovered(req Requirement, found []Tag) bool {
 		req.Annotation.Kind == annotationSinglePolarity
 }
 
-// AuditCoverageInput is what the audit rollup reads.
-type AuditCoverageInput struct {
+// auditCoverageInput is what the audit rollup reads.
+type auditCoverageInput struct {
 	Requirements []Requirement
 	Tags         []Tag
 	Enrolled     map[string]bool
@@ -250,12 +250,12 @@ type AuditCoverageInput struct {
 	States       map[string]Freshness
 }
 
-// AuditCoverageRows answers per-RFC audit coverage, and the worklist of every
+// auditCoverageRows answers per-RFC audit coverage, and the worklist of every
 // requirement that is not proven.
 //
 // This is deliberately NOT the polarity rollup. That one answers "which
 // polarities exist"; subtracting an audit verdict from it would contradict that
-// doctrine outright, and would break the partition scripts/dev/testing_health.py
+// doctrine outright, and would break the partition internal/le/testhealth/actions.go
 // asserts. So Proven is a SEPARATE count in a separate section: a requirement
 // with both polarities and a `weak` verdict is counted in Both (it has both
 // polarities -- true) and NOT in Proven (it is not proven -- also true), and the
@@ -264,12 +264,12 @@ type AuditCoverageInput struct {
 // Proven requires the verdict to be FRESH as well as `enforced`: a stale verdict
 // describes a test that has since changed, so publishing it as proof is the
 // stale assurance this whole machinery exists to stop.
-func AuditCoverageRows(in AuditCoverageInput) ([]AuditCoverage, []WorklistRow) {
+func auditCoverageRows(in auditCoverageInput) ([]auditCoverage, []worklistRow) {
 	byRID := tagsByRID(in.Tags)
-	rows := make([]AuditCoverage, 0, len(in.Enrolled))
-	worklist := make([]WorklistRow, 0)
+	rows := make([]auditCoverage, 0, len(in.Enrolled))
+	worklist := make([]worklistRow, 0)
 	for _, rfc := range sortedSet(in.Enrolled) {
-		row := AuditCoverage{RFC: rfc}
+		row := auditCoverage{RFC: rfc}
 		seen := map[string]bool{}
 		recorded := in.Audits[rfc]
 		for _, req := range in.Requirements {
@@ -280,7 +280,7 @@ func AuditCoverageRows(in AuditCoverageInput) ([]AuditCoverage, []WorklistRow) {
 			verdict, held := recorded.Verdict(req.RID)
 			// The requirement view: gated, and polarity coverage complete,
 			// reading the same coverage rule the schema reads.
-			if req.Gated() && PolarityCovered(req, byRID[req.RID]) {
+			if req.Gated() && polarityCovered(req, byRID[req.RID]) {
 				row.Auditable++
 				if held {
 					row.Audited++
@@ -315,7 +315,7 @@ func AuditCoverageRows(in AuditCoverageInput) ([]AuditCoverage, []WorklistRow) {
 				var tb textbuf.Buffer
 				reason = tb.Str(value).Str(" (").Str(state).Byte(')').String()
 			}
-			worklist = append(worklist, WorklistRow{RFC: rfc, RID: req.RID, Reason: reason})
+			worklist = append(worklist, worklistRow{RFC: rfc, RID: req.RID, Reason: reason})
 		}
 		rows = append(rows, row)
 	}
@@ -347,14 +347,14 @@ func verdictValue(verdict map[string]any) string {
 	return value
 }
 
-// SourceKeywordCount counts MUST-level keywords in the RFC's own text, or
+// sourceKeywordCount counts MUST-level keywords in the RFC's own text, or
 // answers held=false when this checkout does not have it.
 //
 // This is the ground truth the summary is supposed to capture. Comparing it
 // against the captured count is what exposes a summary that quietly captured
 // nothing. Never 0 for an absent source: "I could not look" must not render as
 // "nothing was there".
-func SourceKeywordCount(tree, stem string) (int, bool) {
+func sourceKeywordCount(tree, stem string) (int, bool) {
 	text, held := SourceText(tree, stem)
 	if !held {
 		return 0, false
@@ -362,14 +362,14 @@ func SourceKeywordCount(tree, stem string) (int, bool) {
 	return len(sourceKeywordRE.FindAllString(text, -1)), true
 }
 
-// SourceProseKeywordCount counts LOWERCASE must/shall in the RFC's own text.
+// sourceProseKeywordCount counts LOWERCASE must/shall in the RFC's own text.
 //
-// Read alongside SourceKeywordCount, not instead of it. A zero uppercase count
+// Read alongside sourceKeywordCount, not instead of it. A zero uppercase count
 // with a large lowercase count is the pre-2119 signature: RFC 1035 (1987) has 0
 // uppercase MUST and 23 lowercase `must`, and reading the uppercase count alone
 // declares the DNS wire format free of obligations. The pair is what tells that
 // apart from a genuinely non-normative document, which shows 0 for both.
-func SourceProseKeywordCount(tree, stem string) (int, bool) {
+func sourceProseKeywordCount(tree, stem string) (int, bool) {
 	text, held := SourceText(tree, stem)
 	if !held {
 		return 0, false
@@ -377,10 +377,10 @@ func SourceProseKeywordCount(tree, stem string) (int, bool) {
 	return len(sourceProseKeywordRE.FindAllString(text, -1)), true
 }
 
-// UnconvertedSummary is one summary that declares no MUST-level requirement,
+// unconvertedSummary is one summary that declares no MUST-level requirement,
 // with both source keyword counts. Held is false for a stem with no source
 // text: the verdict cell says "cannot judge" rather than showing a zero.
-type UnconvertedSummary struct {
+type unconvertedSummary struct {
 	Stem      string `json:"stem"`
 	Upper     int    `json:"upper"`
 	UpperHeld bool   `json:"upper-held"`
@@ -388,7 +388,7 @@ type UnconvertedSummary struct {
 	ProseHeld bool   `json:"prose-held"`
 }
 
-// UnconvertedSummaries answers every summary that captured no GATED
+// unconvertedSummaries answers every summary that captured no GATED
 // requirement, with the source keyword counts beside it.
 //
 // A summary listing zero obligations is either a genuinely non-normative
@@ -400,16 +400,16 @@ type UnconvertedSummary struct {
 // requirement at any level bought a summary immunity from this table for ONE
 // advisory row: a summary with four SHOULDs and zero MUSTs counted as captured
 // and never appeared, which is exactly the shape this table exists to expose.
-func UnconvertedSummaries(tree string, stems map[string]bool,
-	captured map[string]bool) []UnconvertedSummary {
-	out := make([]UnconvertedSummary, 0)
+func unconvertedSummaries(tree string, stems map[string]bool,
+	captured map[string]bool) []unconvertedSummary {
+	out := make([]unconvertedSummary, 0)
 	for _, stem := range sortedSet(stems) {
 		if captured[stem] {
 			continue
 		}
-		row := UnconvertedSummary{Stem: stem}
-		row.Upper, row.UpperHeld = SourceKeywordCount(tree, stem)
-		row.Prose, row.ProseHeld = SourceProseKeywordCount(tree, stem)
+		row := unconvertedSummary{Stem: stem}
+		row.Upper, row.UpperHeld = sourceKeywordCount(tree, stem)
+		row.Prose, row.ProseHeld = sourceProseKeywordCount(tree, stem)
 		out = append(out, row)
 	}
 	return out

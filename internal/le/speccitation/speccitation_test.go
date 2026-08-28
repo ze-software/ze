@@ -51,7 +51,7 @@ func TestValidSiblingCitationPasses(t *testing.T) {
 	if code := verdict(report); code != 0 {
 		t.Fatalf("verdict = %d, want 0", code)
 	}
-	if got, want := report.Text(), "spec-citation-check OK (2 specs, 0 baselined dangling)\n"; got != want {
+	if got, want := report.Text(), "./le spec-citation OK (2 specs, 0 baselined dangling)\n"; got != want {
 		t.Errorf("Text:\n%s\nwant:\n%s", got, want)
 	}
 }
@@ -72,9 +72,9 @@ func TestDanglingCitationIsStructuredAndFatal(t *testing.T) {
 	if code := verdict(report); code != 1 {
 		t.Fatalf("verdict = %d, want 1", code)
 	}
-	want := "spec-citation-check FAILED: dangling plan/spec-*.md references\n" +
+	want := "./le spec-citation FAILED: dangling plan/spec-*.md references\n" +
 		"  plan/spec-a.md:2: references plan/spec-gone.md which is absent on disk (not in baseline)\n" +
-		"\n1 dangling reference(s). Either fix the citing reference, or -- if the target is legitimately gone -- add it to plan/.citation-baseline (or run spec-citation-check.py --write-baseline).\n"
+		"\n1 dangling reference(s). Either fix the citing reference, or -- if the target is legitimately gone -- add it to plan/.citation-baseline.\n"
 	if got := report.Text(); got != want {
 		t.Errorf("Text:\n%s\nwant:\n%s", got, want)
 	}
@@ -122,7 +122,7 @@ func TestBaselineShrinkPasses(t *testing.T) {
 		"plan/.citation-baseline": "# all known dangling references were cleaned\n",
 		"plan/spec-a.md":          "No citation remains.\n",
 	})
-	if got, want := report.Text(), "spec-citation-check OK (1 specs, 0 baselined dangling)\n"; got != want {
+	if got, want := report.Text(), "./le spec-citation OK (1 specs, 0 baselined dangling)\n"; got != want {
 		t.Errorf("Text = %q, want %q", got, want)
 	}
 }
@@ -137,7 +137,7 @@ func TestUnreferencedBaselineEntryDoesNotBlockCleanup(t *testing.T) {
 	if code := verdict(report); code != 0 {
 		t.Fatalf("verdict = %d, want 0", code)
 	}
-	if got, want := report.Text(), "spec-citation-check OK (1 specs, 1 baselined dangling)\n"; got != want {
+	if got, want := report.Text(), "./le spec-citation OK (1 specs, 1 baselined dangling)\n"; got != want {
 		t.Errorf("Text = %q, want %q", got, want)
 	}
 }
@@ -161,7 +161,7 @@ func TestTokenDriftWarnsWithoutFailing(t *testing.T) {
 		t.Fatalf("verdict = %d, want advisory code 0", code)
 	}
 	want := "WARN plan/spec-a.md:1: citation `src/foo.go:2` no longer shows token `oldToken` on that line (line-token drift)\n" +
-		"spec-citation-check OK (1 specs, 0 baselined dangling, 1 line-token WARN)\n"
+		"./le spec-citation OK (1 specs, 0 baselined dangling, 1 line-token WARN)\n"
 	if got := report.Text(); got != want {
 		t.Errorf("Text:\n%s\nwant:\n%s", got, want)
 	}
@@ -261,14 +261,14 @@ func TestUnreadableCitationTextFailsClosed(t *testing.T) {
 	}
 }
 
-// Goal: prove that the native action rejects private producer flags. Method:
-// hand it --repo and require leroot's argument-refusal code.
+// Goal: prove that the native action rejects private producer flags through
+// the shared argument-refusal path.
 func TestAnswerRefusesArguments(t *testing.T) {
 	answer, code := Answer([]string{"--repo"})
 	if answer != nil {
 		t.Errorf("Answer payload = %#v, want nil", answer)
 	}
-	if code != 1 {
-		t.Errorf("Answer code = %d, want 1", code)
+	if code != 2 {
+		t.Errorf("Answer code = %d, want 2", code)
 	}
 }

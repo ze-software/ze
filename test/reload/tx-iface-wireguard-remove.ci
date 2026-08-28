@@ -87,16 +87,9 @@ EOF_CONF2
 # and an `expect=stderr` assertion is added below, so this file's assertion count
 # rises. The first sleep let the check peer finish and the runner kill the daemon
 # before the SIGHUP; the second raced the reload it was meant to follow.
-tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
-#!/bin/sh
-while [ ! -f daemon.pid ]; do sleep 0.1; done
-while [ ! -f daemon.ready ]; do sleep 0.1; done
-cp config2.conf ze-bgp.conf
-kill -HUP $(cat daemon.pid)
-EOF_TRIGGER
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=sh trigger.sh
+cmd=background:seq=2:exec=ze-test fixture reload/tx-iface-wireguard-remove-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 # The asserted OnConfigApply success log is Info level and the default log level
 # is WARN, so the interface subsystem must be raised for it to reach stderr.

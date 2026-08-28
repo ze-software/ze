@@ -24,16 +24,10 @@ const area = "test-sensitivity"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{
-		Gate:   "ze-test-sensitivity-check",
-		Why:    "no more tests than the committed floor assert nothing or sit behind a build tag nothing supplies, over the WORKING TREE so an inert test is caught before it is committed",
-		Answer: runCheck,
-	},
-	leaction.Action{
-		Gate:   "ze-test-sensitivity-selftest",
-		Why:    "both detectors still tell an asserting test from an inert one and a reachable build tag from an orphan, proved against fixtures rather than against the tree they judge",
-		Answer: runSelftest,
-	},
+	leaction.Action{Verb: "check", Why: "no more tests than the committed floor assert nothing or sit behind a build tag nothing supplies, over the WORKING TREE so an inert test is caught before it is committed",
+		Answer: runCheck},
+	leaction.Action{Verb: "selftest", Why: "both detectors still tell an asserting test from an inert one and a reachable build tag from an orphan, proved against fixtures rather than against the tree they judge",
+		Answer: runSelftest},
 	leaction.Action{
 		// No Make target names this one: it is the script's default mode, the
 		// page a person reads when they want the list rather than the verdict.
@@ -107,7 +101,7 @@ func runCheck() (any, int) {
 	// The breach is advice rather than an answer: it tells a person what to do
 	// next, and a caller who typed `| json` has no use for it. stderr is where
 	// the script put it and where it stays.
-	if breach := verdict.Breach(); breach != "" {
+	if breach := verdict.breach(); breach != "" {
 		fmt.Fprint(os.Stderr, breach) //nolint:errcheck // CLI output
 	}
 	if !verdict.Result.Valid {

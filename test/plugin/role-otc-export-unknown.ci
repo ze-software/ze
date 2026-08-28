@@ -47,61 +47,9 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000014400101
 # above are this test's actual subject and are unchanged.
 EOF_DEST
 
-# Python test plugin: keeps the daemon alive while the destination wire
+# native test plugin: keeps the daemon alive while the destination wire
 # assertion proves backward-compatible forwarding.
-tmpfs=test-unknown.run:mode=755:terminator=EOF_RUN
-#!/usr/bin/env python3
-"""Keep the daemon alive while the dest peer verifies untagged forwarding."""
-import json
-import sys
-from ze_api import API, runtime_fail, result_json_data
-
-def dispatch(api, command):
-    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
-    return resp.get('result', {})
-
-def main():
-    api = API()
-    api.declare_done()
-    api.wait_for_config()
-    api.capability_done()
-    api.wait_for_registry()
-    api.ready()
-
-    # Wait for the source route to land in adj-rib-in, then drain outbound so the
-    # destination forwarding wire assertion is deterministic.
-    api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,
-    )
-    api.quiesce()
-
-    # Query adj-rib-in: route should be stored (no role = no OTC filtering).
-    result = dispatch(api, 'show bgp adj-rib-in status')
-    data = result_json_data(result, {})
-    total = data.get('total-routes', -1)
-
-    # Fail CLOSED on zero, not just on a missing key. `total < 0` could only fire
-    # when the key was absent, so a present-but-zero total -- which is what the
-    # source peer's early close produced on EVERY run before option=linger above
-    # -- fell straight through to the OK print, and the adj-rib-in half of this
-    # test asserted nothing at all. total >= 1 IS the assertion this observer
-    # exists to make (ai/rules/fail-closed-guards.md: a zero value must never be
-    # a valid-looking answer).
-    if total < 1:
-        msg = f'adj-rib-in never stored the route, got total={total}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
-
-    print('OK: route from untagged peer accepted while dest wire assertion verified forwarding', file=sys.stderr)
-    dispatch(api, 'request shutdown')
-    api.wait_for_shutdown()
-
-if __name__ == '__main__':
-    main()
-EOF_RUN
-
+# Native compiled fixture: plugin/role-otc-export-unknown
 # ze configuration: no role config for either peer (backward compatible)
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -112,7 +60,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-unknown {
-		run ./test-unknown.run
+		run "ze-test fixture plugin/role-otc-export-unknown"
 		encoder json
 	}
 }

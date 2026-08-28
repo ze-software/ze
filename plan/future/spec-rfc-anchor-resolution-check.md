@@ -77,7 +77,7 @@ it by machine rather than by care.
 ### (b) An audited id-rename map
 
 A requirement id is frozen twice over. `_validate_id` in
-`scripts/dev/rfc_requirements.py` locks the id to its trailing `(§N)` anchor, and
+`internal/le/rfc/rfc.go` locks the id to its trailing `(§N)` anchor, and
 `check_retired_requirements` refuses an id that leaves an enrolled summary. So a
 wrong anchor cannot be corrected. RFC 2661 carries nine ids in that state, each
 one now annotated with a sentence saying the anchor is frozen and naming the real

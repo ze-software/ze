@@ -1,26 +1,20 @@
 package doccheck
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-func TestDocumentActionsCoverVerifierIdentities(t *testing.T) {
-	// VALIDATES: the three missing verifier identities have stable native actions.
-	// PREVENTS: a stage falling back because its gate name has no callable verb.
+func TestDocumentActionsCoverNativeOperations(t *testing.T) {
 	want := []ActionRow{
-		{Verb: "links", Gate: "ze-doc-links-check", Why: actions[0].why},
-		{Verb: "verify", Gate: "ze-doc-verify", Why: actions[1].why},
-		{Verb: "templ-output", Gate: "ze-templ-output-check", Why: actions[2].why},
+		{Verb: "links", Why: actions[0].why},
+		{Verb: "verify", Why: actions[1].why},
+		{Verb: "templ-output", Why: actions[2].why},
 	}
 	got := Actions().Actions
 	if len(got) != len(want) {
@@ -33,11 +27,11 @@ func TestDocumentActionsCoverVerifierIdentities(t *testing.T) {
 	}
 }
 func TestCitationGrammarPreservesFileTargets(t *testing.T) {
-	// VALIDATES: symbol, pytest node-id, digest line-run, and brace references reduce to files.
+	// VALIDATES: symbol, test node-id, digest line-run, and brace references reduce to files.
 	// PREVENTS: live source citations being reported because their location suffix stayed attached.
 	root := t.TempDir()
 	for _, rel := range []string{
-		"test/interop/lab_test.py",
+		"internal/x/owner_test.go",
 		"internal/x/owner.go",
 		"internal/x/first.go",
 		"internal/x/second.go",
@@ -48,7 +42,7 @@ func TestCitationGrammarPreservesFileTargets(t *testing.T) {
 		raw  string
 		want string
 	}{
-		{raw: "test/interop/lab_test.py::test_case", want: "test/interop/lab_test.py"},
+		{raw: "internal/x/owner_test.go::TestCase", want: "internal/x/owner_test.go"},
 		{raw: "internal/x/owner.go:Owner", want: "internal/x/owner.go"},
 		{raw: "internal/x/owner.go,47,64,82-90", want: "internal/x/owner.go"},
 		{raw: "internal/x/{first,second}.go", want: "internal/x/first.go,internal/x/second.go"},
@@ -69,7 +63,7 @@ func TestTrackedCitationFixtureParity(t *testing.T) {
 		"docs/architecture/dead.md": "Read `internal/absent/owner.go`.\n",
 		"internal/live/owner.go":    "package live\n",
 	})
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +80,7 @@ func TestInstructionCorpusGeneratedAndMissingTargets(t *testing.T) {
 		".gitignore":         "CLAUDE.md\n",
 		"ai/rules/sample.md": "`CLAUDE.md` is generated; `ai/rules/absent.md` is not.\n",
 	})
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +101,7 @@ func TestDeclaredAbsentPopulationsStayFailOpen(t *testing.T) {
 		"third_party/source.md":  "Read `internal/upstream/missing.go`.\n",
 		"plan/handover/old.md":   "Read `internal/retired/owner.go`.\n",
 	})
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +118,7 @@ func TestSuppressionReasonsAreAuditedAcrossTrackedFiles(t *testing.T) {
 		"docs/empty.md":    "`internal/gone.go` <!-- doc-links: ignore () -->\n",
 		"docs/prose.md":    "Type doc-links: ignore beside `internal/gone.go`.\n",
 	})
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +145,7 @@ func TestBaselinePairsGrandfatherOnlyTheirCiter(t *testing.T) {
 		"docs/old.md": "Read `internal/gone.go`.\n",
 		"docs/new.md": "Read `internal/gone.go`.\n",
 	})
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +164,7 @@ func TestStaleBaselineIsWarningInProducerOrder(t *testing.T) {
 		baselineRel:   "docs/old.md\tinternal/gone.go\n",
 		"docs/old.md": "No citation remains.\n",
 	})
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +184,7 @@ func TestBaselineRatchetComparesPairsAgainstHead(t *testing.T) {
 		"docs/new.md": "Read `internal/new.go`.\n",
 	})
 	writeFixture(t, root, baselineRel, "docs/new.md\tinternal/new.go\n")
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +200,7 @@ func TestDesignReferencesUseTheNativeOwner(t *testing.T) {
 		"internal/x/x_test.go": "// Design: plan/spec-live.md\npackage x\n",
 		"plan/spec-live.md":    "# Live\n",
 	})
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +212,7 @@ func TestDesignReferencesUseTheNativeOwner(t *testing.T) {
 func TestMissingTrackedPopulationFailsClosed(t *testing.T) {
 	// VALIDATES: a missing Git population is an operational failure, never an empty green scan.
 	// PREVENTS: losing Git or invoking the action outside a checkout disabling every check.
-	_, err := CheckLinks(t.TempDir(), false)
+	_, err := checkLinks(t.TempDir(), false)
 	if err == nil || !strings.Contains(err.Error(), "listing tracked") {
 		t.Fatalf("err=%v", err)
 	}
@@ -230,64 +224,13 @@ func TestDeadNameSourcePopulationFailsClosed(t *testing.T) {
 	root := fixtureRepository(t, map[string]string{
 		"plan/learned/HOOK-FRICTION.md": "The hook calls `check_missing_source`.\n",
 	})
-	report, err := CheckLinks(root, false)
+	report, err := checkLinks(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(report.Text(), "dead-name lint source is missing from the tree") {
 		t.Fatalf("missing source did not fail closed:\n%s", report.Text())
 	}
-}
-func TestMalformedPythonCheckSourceFailsClosed(t *testing.T) {
-	// VALIDATES: an unreadable checker definition cannot yield a shortened live-name roster.
-	// PREVENTS: malformed source turning missing checks into apparently valid documentation.
-	if _, err := scrubPython("def broken(:\n"); err == nil {
-		t.Fatal("malformed checker source parsed")
-	}
-}
-
-func TestLiveDocumentCorpusMatchesLegacyProducer(t *testing.T) {
-	// VALIDATES: the native scan returns the legacy producer's output and code
-	// over the live repository, whether that shared tree is green or red.
-	// PREVENTS: fixture-only masking or population rules that add or omit live
-	// citations while an in-flight deletion legitimately makes both gates red.
-	root, err := lepath.Root()
-	if err != nil {
-		t.Fatal(err)
-	}
-	payload, nativeCode := runLinks(root)
-	rendered, ok := payload.(interface{ Text() string })
-	if !ok {
-		t.Fatalf("native payload %T has no text rendering", payload)
-	}
-	nativeText := rendered.Text()
-	legacyText, legacyCode := legacyLinks(t, root)
-	if nativeCode != legacyCode {
-		t.Errorf("native code=%d, legacy code=%d", nativeCode, legacyCode)
-	}
-	if nativeText != legacyText {
-		t.Errorf("native output differs from legacy producer\nnative:\n%s\nlegacy:\n%s", nativeText, legacyText)
-	}
-}
-
-func legacyLinks(t *testing.T, root string) (string, int) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Minute)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "python3", filepath.Join(root, "scripts", "dev", "check_doc_links.py"))
-	cmd.Dir = root
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err == nil {
-		return stdout.String() + stderr.String(), 0
-	}
-	var exit *exec.ExitError
-	if !errors.As(err, &exit) {
-		t.Fatalf("legacy doc-links producer: %v", err)
-	}
-	return stdout.String() + stderr.String(), exit.ExitCode()
 }
 
 func fixtureRepository(t *testing.T, files map[string]string) string {

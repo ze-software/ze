@@ -7,7 +7,7 @@
 # PREVENTS:  accidental acceptance of Simple Password via config
 #            drift; regression that silently falls back to no auth.
 #
-# Method: a Python orchestrator launches ze with a simple-password
+# Method: a native Go fixture launches ze with a simple-password
 # auth block, waits briefly, and looks for the rejection message in
 # stderr. ze continues running after the bfd configure callback
 # fails (BFD is non-fatal) so the orchestrator SIGTERMs on success.
@@ -25,84 +25,7 @@ option=env:var=ze.bfd.test-parallel:value=true
 option=exclusive:group=bfd-ports
 
 
-tmpfs=test-bfd-auth-mismatch.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-"""Drive ze with a simple-password auth block; assert parser refusal."""
 
-import os
-import signal
-import subprocess
-import sys
-import time
-
-from ze_api import wait_for_stderr_lines
-
-REQUIRED = ["simple-password rejected"]
-
-CONFIG = """environment {
-}
-
-bfd {
-\tenabled true;
-\tprofile insecure {
-\t\tauth {
-\t\t\ttype simple-password
-\t\t\tkey-id 1
-\t\t\tsecret "plaintext"
-\t\t}
-\t}
-}
-"""
-
-
-def main() -> int:
-    env = os.environ.copy()
-    env["ze.log.bfd"] = "debug"
-
-    proc = subprocess.Popen(
-        ["ze", "-"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=env,
-    )
-    assert proc.stdin is not None
-    proc.stdin.write(CONFIG)
-    proc.stdin.close()
-
-    captured = wait_for_stderr_lines(proc, REQUIRED, timeout=8.0)
-
-    if proc.poll() is None:
-        proc.send_signal(signal.SIGTERM)
-        try:
-            proc.wait(timeout=3.0)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait(timeout=2.0)
-
-    if proc.stderr is not None:
-        try:
-            tail = proc.stderr.read()
-        except (ValueError, OSError):
-            tail = ""
-        if tail:
-            captured += tail
-            sys.stderr.write(tail)
-            sys.stderr.flush()
-
-    missing = [n for n in REQUIRED if n not in captured]
-    if missing:
-        sys.stderr.write(f"FAIL: missing required patterns: {missing}\n")
-        return 1
-    sys.stderr.write("OK: simple-password rejection observed\n")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-EOF_PY
-
-cmd=foreground:seq=1:exec=python3 ./test-bfd-auth-mismatch.py:timeout=15s
+cmd=foreground:seq=1:exec=ze-test fixture plugin/bfd-auth-mismatch:timeout=15s
 expect=exit:code=0
 expect=stderr:pattern=simple-password rejected
