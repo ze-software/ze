@@ -1835,8 +1835,8 @@ func markdownInlineDelimiter(value, delimiter string) (int, bool) {
 			index = len(value) - len(suffix)
 			continue
 		case '<':
-			end, tag := markdownInlineHTMLTagEnd(value, index)
-			if tag {
+			end, html := markdownInlineHTMLEnd(value, index)
+			if html {
 				if end < 0 {
 					return -1, false
 				}
@@ -1860,6 +1860,34 @@ func markdownInlineDelimiter(value, delimiter string) (int, bool) {
 		index++
 	}
 	return -1, true
+}
+
+func markdownInlineHTMLEnd(value string, start int) (int, bool) {
+	switch {
+	case strings.HasPrefix(value[start:], "<!--"):
+		return markdownInlineHTMLTerminatorEnd(value, start+4, "-->")
+	case strings.HasPrefix(value[start:], "<?"):
+		return markdownInlineHTMLTerminatorEnd(value, start+2, "?>")
+	case strings.HasPrefix(value[start:], "<![CDATA["):
+		return markdownInlineHTMLTerminatorEnd(value, start+9, "]]>")
+	case start+2 < len(value) && value[start+1] == '!' &&
+		markdownASCIIAlpha(value[start+2]):
+		return markdownInlineHTMLTerminatorEnd(value, start+3, ">")
+	default:
+		return markdownInlineHTMLTagEnd(value, start)
+	}
+}
+
+func markdownInlineHTMLTerminatorEnd(
+	value string,
+	contentStart int,
+	terminator string,
+) (int, bool) {
+	end := strings.Index(value[contentStart:], terminator)
+	if end < 0 {
+		return -1, true
+	}
+	return contentStart + end + len(terminator), true
 }
 
 func markdownInlineHTMLTagEnd(value string, start int) (int, bool) {
@@ -1912,6 +1940,19 @@ func markdownASCIIAlpha(value byte) bool {
 // wrapper opener when deciding whether a malformed label must be reported.
 func malformedWikiOperatorLabelCandidate(rawLabel string) bool {
 	label := strings.TrimLeft(strings.TrimSpace(rawLabel), "*_`[")
+	if commandOperatorLabelCandidate(label) {
+		return true
+	}
+	switch {
+	case strings.HasPrefix(label, "<!--"):
+		label = label[4:]
+	case strings.HasPrefix(label, "<?"):
+		label = label[2:]
+	case strings.HasPrefix(label, "<![CDATA["):
+		label = label[9:]
+	case strings.HasPrefix(label, "<!"):
+		label = label[2:]
+	}
 	if commandOperatorLabelCandidate(label) {
 		return true
 	}

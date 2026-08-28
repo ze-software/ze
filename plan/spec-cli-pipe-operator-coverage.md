@@ -1139,6 +1139,16 @@ An owner-authorized independent context reviewed the committed Round-21 fix.
 
 **Independent round 22: 1 BLOCKER, 0 ISSUE, 0 outstanding.** The finding is fixed.
 
+### Independent review, round 23 (2026-08-27)
+
+An owner-authorized independent context reviewed the committed Round-22 fix.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR23-1 | BLOCKER | Wiki label splitting does not skip every CommonMark inline HTML form | FIXED |
+
+**Independent round 23: 1 BLOCKER, 0 ISSUE, 0 outstanding.** The finding is fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

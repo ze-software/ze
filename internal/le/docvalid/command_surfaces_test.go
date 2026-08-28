@@ -743,6 +743,10 @@ func TestDocDriftRejectsUnknownWikiPipeLabel(t *testing.T) {
 		{"[Pipes](https://example.invalid/), legacy: `catalog-absent`", "Pipes, legacy"},
 		{"<strong>Pipes</strong>, legacy: `catalog-absent`", "Pipes, legacy"},
 		{"<span title=\"availability: legacy\">Pipes</span>, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"<!-- note: hidden -->Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"<?note: hidden?>Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"<!NOTE availability: hidden>Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"<![CDATA[note: hidden]]>Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
 		{"*Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
 		{"**Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
 		{"`Pipes, legacy: catalog-absent", "Pipes, legacy"},
@@ -799,6 +803,30 @@ func TestWikiPipeGroupLabelScansStructuralBoundary(t *testing.T) {
 			"",
 		},
 		{
+			"HTML comment",
+			"<!-- note: hidden -->Pipes, legacy: `catalog-absent`",
+			"Pipes, legacy",
+			"",
+		},
+		{
+			"HTML processing instruction",
+			"<?note: hidden?>Pipes, legacy: `catalog-absent`",
+			"Pipes, legacy",
+			"",
+		},
+		{
+			"HTML declaration",
+			"<!NOTE availability: hidden>Pipes, legacy: `catalog-absent`",
+			"Pipes, legacy",
+			"",
+		},
+		{
+			"HTML CDATA",
+			"<![CDATA[note: hidden]]>Pipes, legacy: `catalog-absent`",
+			"Pipes, legacy",
+			"",
+		},
+		{
 			"matching code span",
 			"`Pipes: legacy`, legacy: `catalog-absent`",
 			"Pipes: legacy, legacy",
@@ -843,6 +871,36 @@ func TestWikiPipeGroupLabelScansStructuralBoundary(t *testing.T) {
 				t.Fatalf("wiki pipe label classified as (%q, %t, %q), want (%q, true, %q)",
 					label, candidate, wikiOperatorAvailability(label),
 					test.label, test.availability)
+			}
+		})
+	}
+}
+
+// VALIDATES: every recognized CommonMark inline HTML opener requires its exact
+// terminator before structural delimiter scanning may resume, and malformed
+// operator-like lines remain validation candidates.
+// PREVENTS: truncated or near-miss HTML constructs hiding an obsolete group.
+func TestDocDriftRejectsUnclosedWikiInlineHTML(t *testing.T) {
+	for _, line := range []string{
+		"<!--Pipes, legacy: `catalog-absent`",
+		"<!--Pipes --!>, legacy: `catalog-absent`",
+		"Pipes<?note: hidden>, legacy: `catalog-absent`",
+		"<!Pipes, legacy: `catalog-absent`",
+		"<![CDATA[Pipes]>, legacy: `catalog-absent`",
+	} {
+		t.Run(line, func(t *testing.T) {
+			if separator, valid := markdownInlineDelimiter(line, ": "); valid || separator != -1 {
+				t.Errorf("markdownInlineDelimiter() = (%d, %t), want (-1, false)",
+					separator, valid)
+			}
+			out, err := runRenderedWikiMutationFixture(
+				t,
+				"- `family` `<value>` -- Filter by family",
+				"- `family` `<value>` -- Filter by family\n\n"+line,
+			)
+			if err == nil ||
+				!strings.Contains(out, "malformed operator availability group") {
+				t.Fatalf("unclosed inline HTML escaped validation:\n%s", out)
 			}
 		})
 	}
