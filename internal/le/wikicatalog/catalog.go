@@ -133,17 +133,18 @@ func Collect() []Entry {
 	// These four local handlers live in cmd/ze's main package, which an
 	// internal package cannot import. The doc-drift producer comparison checks
 	// every field against the live registry and rejects any drift here.
-	for _, entry := range []Entry{
-		{Path: "help ai", Description: "AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).", Mode: "offline"},
-		{Path: "help command", Description: "List every command with its description. Use a filter to narrow the list.", Mode: "offline"},
-		{Path: "show version", Description: "Show the running Ze version and build date", Mode: "offline"},
-		{Path: "update serve", Description: "Run a local update server for firmware checks", Mode: "offline"},
-	} {
-		if seen[entry.Path] {
+	builtins := []Entry{
+		{Path: "help ai", Description: "AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).", Mode: modeOffline},
+		{Path: "help command", Description: "List every command with its description. Use a filter to narrow the list.", Mode: modeOffline},
+		{Path: "show version", Description: "Show the running Ze version and build date", Mode: modeOffline},
+		{Path: "update serve", Description: "Run a local update server for firmware checks", Mode: modeOffline},
+	}
+	for index := range builtins {
+		if seen[builtins[index].Path] {
 			continue
 		}
-		entries = append(entries, entry)
-		seen[entry.Path] = true
+		entries = append(entries, builtins[index])
+		seen[builtins[index].Path] = true
 	}
 	for _, local := range registry.ListLocal() {
 		// leroot registers every development command under "le ". The wiki is
@@ -154,7 +155,7 @@ func Collect() []Entry {
 		}
 		mode := local.Meta.Mode
 		if mode == "" {
-			mode = "offline"
+			mode = modeOffline
 		}
 		entries = append(entries, Entry{
 			Path:        local.Path,
@@ -242,9 +243,9 @@ func operatorsFor(path string) ([]Operator, string) {
 		case catalog.Class == command.ClassStream:
 			operator.Available = "when-streaming"
 		case catalog.Class == command.ClassGlobal:
-			operator.Available = "always"
+			operator.Available = modeAlways
 		case declared && catalog.Applies(shape):
-			operator.Available = "always"
+			operator.Available = modeAlways
 		case declared:
 			continue
 		default:
@@ -298,3 +299,9 @@ func pipesFor(path string) []Pipe {
 	}
 	return pipes
 }
+
+// The command availability modes this catalog publishes.
+const (
+	modeOffline = "offline"
+	modeAlways  = "always"
+)
