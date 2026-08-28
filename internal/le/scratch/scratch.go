@@ -547,7 +547,7 @@ func deviceOf(path string) (uint64, error) {
 			if !ok {
 				return 0, fmt.Errorf("stat %s has no device id", probe)
 			}
-			return stat.Dev, nil
+			return uint64(stat.Dev), nil //nolint:gosec // device IDs are non-negative
 		}
 		if !errors.Is(err, os.ErrNotExist) {
 			return 0, err
