@@ -1808,7 +1808,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // nothing here changes the page's height.
     //
     // terminalLineHeight matches the ratio the mount reserved its box with and
-    // the one demos/terminal/pty-session.py derived the recorded grid with.
+    // the grid derived by internal/le/terminaldemo/pty.go for the recording.
     // terminalFontFamily is passed here rather than set in CSS because the
     // player MEASURES the font to size a character cell, and a stack it renders
     // with but did not measure gives the wrong cell.
@@ -1873,6 +1873,22 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(mountAll);
     }
 
+    function initBlogCards() {
+        slice(document.querySelectorAll("article.blog-card")).forEach(function (card) {
+            var titleLink = card.querySelector("h3 a[href]");
+            if (!titleLink) return;
+
+            var title = cleanLabel(titleLink.textContent);
+            var overlay = document.createElement("a");
+            overlay.className = "blog-card-overlay";
+            overlay.setAttribute("href", titleLink.getAttribute("href"));
+            overlay.setAttribute("aria-label", title);
+            titleLink.replaceWith(document.createTextNode(title));
+            card.appendChild(overlay);
+        });
+    }
+
+    initBlogCards();
     initTaglineCarousel();
     initSearchPage();
     initFeatureFilters();

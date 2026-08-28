@@ -1,76 +1,115 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
   <title id="title">Reference stays attached to code</title>
-  <desc id="desc">A code-owned source publishes a reference view while an agent follows a lookup route back to the same source.</desc>
+  <desc id="desc">Repository-owned facts publish a checked public reference view, while an agent follows a maintained lookup route back to the same source.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#17141f"/>
       <stop offset="0.5" stop-color="#172331"/>
       <stop offset="1" stop-color="#162b28"/>
     </linearGradient>
-    <linearGradient id="rail" x1="0" x2="1">
-      <stop offset="0" stop-color="#b990ff"/>
-      <stop offset="0.52" stop-color="#5bc4f0"/>
-      <stop offset="1" stop-color="#42d8bd"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-25%" width="140%" height="160%">
-      <feDropShadow dx="0" dy="16" stdDeviation="22" flood-color="#000000" flood-opacity="0.44"/>
+    <filter id="shadow" x="-14%" y="-18%" width="128%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.22"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.38"/>
     </filter>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#5bc4f0"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#42d8bd"/>
+    </marker>
+    <marker id="arrow-grape" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#b990ff"/>
+    </marker>
     <style>
-      .heading{font:900 46px Inter,ui-sans-serif,system-ui,sans-serif;fill:#f7f3fb;letter-spacing:-.035em}
-      .label{font:900 38px Inter,ui-sans-serif,system-ui,sans-serif;fill:#f7f3fb;letter-spacing:-.03em}
-      .small{font:760 29px Inter,ui-sans-serif,system-ui,sans-serif;fill:#d7cadd}
-      .mono{font:850 25px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#c9aaff}
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #f7f3fb; }
+      .headline { font-family: Poppins, "Avenir Next", sans-serif; font-size: 43px; font-weight: 800; letter-spacing: -1.1px; }
+      .subhead { font-size: 18px; font-weight: 700; fill: #d7cadd; }
+      .eyebrow { font-family: Poppins, "Avenir Next", sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.7px; }
+      .card-title { font-family: Poppins, "Avenir Next", sans-serif; font-size: 27px; font-weight: 800; letter-spacing: -0.45px; }
+      .route-title { font-family: Poppins, "Avenir Next", sans-serif; font-size: 18px; font-weight: 800; letter-spacing: 0.7px; }
+      .body { font-size: 16px; font-weight: 700; }
+      .detail { font-size: 14px; font-weight: 700; fill: #d7cadd; }
+      .chip { font-family: Poppins, "Avenir Next", sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+      .panel { fill: #1d1b29; stroke-width: 2; }
     </style>
   </defs>
 
-  <rect width="1200" height="675" rx="42" fill="url(#bg)"/>
-  <circle cx="1060" cy="90" r="190" fill="#264660" opacity="0.5"/>
-  <circle cx="100" cy="608" r="220" fill="#3b2a50" opacity="0.52"/>
-  <circle cx="1010" cy="596" r="160" fill="#1f554b" opacity="0.42"/>
+  <rect width="1200" height="675" rx="38" fill="url(#canvas)"/>
 
-  <g filter="url(#shadow)">
-    <rect x="54" y="52" width="1092" height="570" rx="36" fill="#1d1b29" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
-    <rect x="54" y="52" width="1092" height="13" rx="7" fill="url(#rail)"/>
+  <text x="74" y="104" class="headline">Facts stay with the owner.</text>
+  <text x="74" y="137" class="subhead">One repository source serves the public view and the next edit.</text>
+
+  <g aria-hidden="true">
+    <path d="M444 269 H486" fill="none" stroke="#5bc4f0" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow-sky)"/>
+    <path d="M676 269 H716" fill="none" stroke="#42d8bd" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow-teal)"/>
+    <path d="M716 470 H676" fill="none" stroke="#b990ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 7"/>
+    <path d="M486 470 H444" fill="none" stroke="#b990ff" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 7" marker-end="url(#arrow-grape)"/>
   </g>
 
-  <text x="92" y="138" class="heading">Facts stay with the owner</text>
+  <g aria-label="Repository source that owns the facts" filter="url(#shadow)">
+    <rect x="74" y="182" width="370" height="372" rx="26" class="panel" stroke="#b990ff"/>
+    <rect x="74" y="182" width="370" height="8" rx="4" fill="#b990ff"/>
+    <text x="102" y="222" class="eyebrow" fill="#b990ff">REPOSITORY OWNER</text>
+    <text x="102" y="264" class="card-title">Code-owned facts</text>
+    <text x="102" y="290" class="detail">kept where the system enforces them</text>
 
-  <g transform="translate(82 232)" filter="url(#shadow)">
-    <rect width="300" height="222" rx="30" fill="#2b2338" stroke="#7654a0" stroke-width="3"/>
-    <circle cx="42" cy="42" r="12" fill="#b990ff"/>
-    <text x="30" y="90" class="label">Reference</text>
-    <text x="30" y="130" class="label">view</text>
-    <text x="30" y="174" class="small">published from</text>
-    <text x="30" y="208" class="small">the source</text>
+    <g aria-label="Owned fact examples">
+      <rect x="102" y="315" width="314" height="48" rx="13" fill="#b990ff" fill-opacity="0.07" stroke="#b990ff" stroke-opacity="0.45"/>
+      <path d="M121 327 H128 V351 H121" fill="none" stroke="#b990ff" stroke-width="2.5" stroke-linecap="round"/>
+      <text x="145" y="346" class="body">Command registry</text>
+
+      <rect x="102" y="375" width="314" height="48" rx="13" fill="#b990ff" fill-opacity="0.07" stroke="#b990ff" stroke-opacity="0.45"/>
+      <path d="M121 387 H128 V411 H121" fill="none" stroke="#b990ff" stroke-width="2.5" stroke-linecap="round"/>
+      <text x="145" y="406" class="body">YANG schema</text>
+
+      <rect x="102" y="435" width="314" height="48" rx="13" fill="#b990ff" fill-opacity="0.07" stroke="#b990ff" stroke-opacity="0.45"/>
+      <path d="M121 447 H128 V471 H121" fill="none" stroke="#b990ff" stroke-width="2.5" stroke-linecap="round"/>
+      <text x="145" y="466" class="body">RFC requirement ledger</text>
+
+      <rect x="102" y="495" width="314" height="35" rx="17.5" fill="#b990ff" fill-opacity="0.12"/>
+      <circle cx="123" cy="512.5" r="6" fill="#b990ff"/>
+      <text x="140" y="518" class="detail">one maintained source of truth</text>
+    </g>
   </g>
 
-  <g transform="translate(450 202)" filter="url(#shadow)">
-    <rect width="300" height="282" rx="34" fill="#1b2835" stroke="#397394" stroke-width="3"/>
-    <circle cx="42" cy="42" r="12" fill="#5bc4f0"/>
-    <text x="30" y="100" class="label">Code-owned</text>
-    <text x="30" y="140" class="label">fact</text>
-    <text x="30" y="190" class="mono">command registry</text>
-    <text x="30" y="226" class="mono">YANG schema</text>
-    <text x="30" y="262" class="mono">RFC evidence</text>
+  <g aria-label="Publish route" filter="url(#shadow)">
+    <rect x="486" y="230" width="190" height="78" rx="20" class="panel" stroke="#5bc4f0"/>
+    <path d="M511 249 L523 261 L511 273 L499 261 Z" fill="#5bc4f0" fill-opacity="0.12" stroke="#5bc4f0" stroke-width="2"/>
+    <text x="540" y="260" class="route-title" fill="#5bc4f0">PUBLISH</text>
+    <text x="511" y="289" class="detail">generate and check</text>
   </g>
 
-  <g transform="translate(818 232)" filter="url(#shadow)">
-    <rect width="300" height="222" rx="30" fill="#19322d" stroke="#338b79" stroke-width="3"/>
-    <circle cx="42" cy="42" r="12" fill="#42d8bd"/>
-    <text x="30" y="90" class="label">Agent</text>
-    <text x="30" y="130" class="label">context</text>
-    <text x="30" y="174" class="small">lookup route to</text>
-    <text x="30" y="208" class="small">the same source</text>
+  <g aria-label="Published public reference view" filter="url(#shadow)">
+    <rect x="716" y="182" width="410" height="172" rx="26" class="panel" stroke="#42d8bd"/>
+    <rect x="716" y="182" width="410" height="8" rx="4" fill="#42d8bd"/>
+    <text x="744" y="222" class="eyebrow" fill="#42d8bd">PUBLISHED REFERENCE</text>
+    <text x="744" y="262" class="card-title">Current public view</text>
+    <text x="744" y="288" class="detail">checked links route each claim to evidence</text>
+    <g aria-label="Reference views">
+      <rect x="744" y="307" width="68" height="28" rx="14" fill="#42d8bd" fill-opacity="0.12"/>
+      <text x="778" y="326" text-anchor="middle" class="chip" fill="#42d8bd">CLI</text>
+      <rect x="822" y="307" width="92" height="28" rx="14" fill="#42d8bd" fill-opacity="0.12"/>
+      <text x="868" y="326" text-anchor="middle" class="chip" fill="#42d8bd">CONFIG</text>
+      <rect x="924" y="307" width="160" height="28" rx="14" fill="#42d8bd" fill-opacity="0.12"/>
+      <text x="1004" y="326" text-anchor="middle" class="chip" fill="#42d8bd">RFC STATUS</text>
+    </g>
   </g>
 
-  <path d="M440 376 L392 376" fill="none" stroke="#b990ff" stroke-width="10" stroke-linecap="round"/>
-  <path d="M410 358 L390 376 L410 394" fill="none" stroke="#b990ff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M808 376 L760 376" fill="none" stroke="#42d8bd" stroke-width="10" stroke-linecap="round"/>
-  <path d="M778 358 L758 376 L778 394" fill="none" stroke="#42d8bd" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <g aria-label="Agent lookup route" filter="url(#shadow)">
+    <rect x="486" y="431" width="190" height="78" rx="20" class="panel" stroke="#5bc4f0"/>
+    <circle cx="511" cy="458" r="11" fill="none" stroke="#5bc4f0" stroke-width="2.5"/>
+    <path d="M519 466 L529 476" stroke="#5bc4f0" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="540" y="460" class="route-title" fill="#5bc4f0">LOOK UP</text>
+    <text x="511" y="490" class="detail">follow the route back</text>
+  </g>
 
-  <g transform="translate(246 532)">
-    <rect width="708" height="58" rx="29" fill="#241c2a" stroke="#74415e" stroke-width="2"/>
-    <circle cx="36" cy="29" r="8" fill="#5bc4f0"/>
-    <text x="58" y="38" class="small">One source owns the facts behind both views.</text>
+  <g aria-label="Agent context for the next edit" filter="url(#shadow)">
+    <rect x="716" y="384" width="410" height="170" rx="26" class="panel" stroke="#5bc4f0"/>
+    <rect x="716" y="384" width="410" height="8" rx="4" fill="#5bc4f0"/>
+    <text x="744" y="424" class="eyebrow" fill="#5bc4f0">AGENT CONTEXT</text>
+    <text x="744" y="464" class="card-title">Same route, next edit</text>
+    <text x="744" y="490" class="detail">the source supplies context before code changes</text>
+    <rect x="744" y="510" width="354" height="28" rx="14" fill="#5bc4f0" fill-opacity="0.1"/>
+    <text x="921" y="529" text-anchor="middle" class="chip" fill="#5bc4f0">RULE · OWNER · EVIDENCE · DECISION</text>
   </g>
 </svg>

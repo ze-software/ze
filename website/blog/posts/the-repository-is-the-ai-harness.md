@@ -3,7 +3,13 @@ title: The repository is half the AI harness
 date: 2026-08-09
 author: Thomas Mangin
 description: AI coding needs more than a capable model. The repository must carry its architecture, relationships, tests and checks in a form the agent can discover and the project can enforce.
+
 deck: The harness gives an agent tools. The repository provides project-specific meaning and checks that reject work which does not belong.
+
+image: assets/blog/the-repository-is-the-ai-harness.svg
+image-dark: assets/blog/the-repository-is-the-ai-harness-dark.svg
+image-alt: General harness abilities and repository-specific meaning converge on an agent change; checks return failures to the rule and example that guide the next revision.
+
 ---
 
 Ze is a network operating system spread over {{ze:repo-go-packages}} Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.
@@ -17,6 +23,8 @@ I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) by saying tha
 *This article was co-authored with Claude. The architecture, design decisions and conclusions come from my work on Ze. Claude helped organise the material and draft the text.*
 
 ## What the repository has to carry
+
+<p class="blog-section-reveal">Repository links turn scattered design knowledge into context an agent can discover and verify.</p>
 
 Ze carries that meaning in several layers.
 
@@ -43,6 +51,8 @@ Humans benefit from all of this too. We have longer-lived memory than an AI sess
 
 ## A rule needs teeth
 
+<p class="blog-section-reveal">A written rule becomes useful when checks reject violations and explain the correction.</p>
+
 Consider command dispatch. A switch is simple and efficient when every possible command is known:
 
 ```go
@@ -65,7 +75,7 @@ Register("configure", runConfigure)
 
 The main program looks up the name in the table, and a third party can register another command without touching the core.
 
-A requirement like that needs more than a sentence in an architecture document. The repository provides a chain. `ai/patterns/registration.md` explains why registration is required and what the accepted shape looks like. Nearly four hundred `register.go` files show the normal implementation. `make generate` scans for those files and writes the list of modules loaded at startup, so nobody maintains it by hand. An edit hook rejects hard-coded command lists and registration hidden inside `init()`. A separate check catches dependencies crossing a plugin boundary. Tests prove that registration and discovery actually work.
+A requirement like that needs more than a sentence in an architecture document. The repository provides a chain. `ai/patterns/registration.md` explains why registration is required and what the accepted shape looks like. Nearly four hundred `register.go` files show the normal implementation. `./le repository generate` scans for those files and writes the list of modules loaded at startup, so nobody maintains it by hand. An edit hook rejects hard-coded command lists and registration hidden inside `init()`. A separate check catches dependencies crossing a plugin boundary. Tests prove that registration and discovery actually work.
 
 Whatever the hook prints becomes the agent's next prompt, so it has to point somewhere useful:
 
@@ -87,6 +97,8 @@ Those twenty-five stages are scar tissue. Almost every one exists because someth
 
 ## Testing has two directions
 
+<p class="blog-section-reveal">Test depth must cover system reach and the conditions most likely to expose failure.</p>
+
 Unit testing is one form of testing. It answers a small question, and it can give a dangerously reassuring answer when the real requirement is larger.
 
 The functional direction asks how far through the system a behaviour has been proved. At the shallowest level a small piece of code returns the expected result. Deeper, the connected parts work together as a subsystem. Deeper still, a user achieves the result through the real program. At the far end, the program works with software written by somebody else.
@@ -104,6 +116,8 @@ The two directions cross each other. A parser can be tested for correct output a
 All of that is ordinary engineering judgement, and judgement is the part an agent is worst at. It has to place a change on both axes before writing a line, and everything about its situation pushes the choice downwards. A unit test is faster to write, faster to run and far easier to turn green. So Ze takes the choice away from it, and testing goes through the same chain as the registration rule above.
 
 ## Which test a change owes
+
+<p class="blog-section-reveal">Repository rules should assign each change the test depth its risk requires.</p>
 
 `ai/rules/testing.md` is one of the rule files the task index routes to, and it is marked blocking, which puts it in front of the agent before the implementation exists rather than during review. Most of it is a lookup. The kind of change decides the test the change owes and the directory that test lives in.
 
@@ -124,6 +138,8 @@ The writing happens in an incubator. `test/draft/` is gitignored and skipped by 
 
 ## A test can gate nothing and still be green
 
+<p class="blog-section-reveal">A green test is evidence only when the intended defect can make it fail.</p>
+
 A test which exists can still guard nothing. A scenario passes happily when the result it observes arrives through some path other than the one under test. Three of Ze's redistribution tests stayed green with the late-join replay they existed to prove disabled: the route reached the peer another way, and nothing had ever asked them to prove otherwise.
 
 So a new behavioural test is broken on purpose before it is trusted. Disable the function the test exists to prove, rebuild the real program, confirm the scenario fails, restore the function and confirm it passes again. Claude 5 started doing that on its own, and nobody had asked for it.
@@ -142,6 +158,8 @@ Test volume alone creates false confidence. Ze's test-health page records volume
 
 ## Protect the proof from its author
 
+<p class="blog-section-reveal">Evidence stays credible when weakening it requires visible and independent approval.</p>
+
 An AI which sees a failing test will sometimes change the test to match its implementation. The result is green, internally consistent and wrong. Humans do this too, usually more slowly and with better excuses.
 
 A single edit does the damage, and every later stage then agrees with it, which is why this check sits at the earliest point there is. An edit hook reads every write to a test file and refuses the recognisable moves: adding a skip, dropping assertions, downgrading a fatal assertion to a warning, deleting table rows, removing expectations from a scenario. When a relaxation is genuine, the reason goes on the line and the edit proceeds:
@@ -159,7 +177,7 @@ A test tagged with an RFC requirement is the evidence behind a public compliance
   grmarker_test.go enforces RFC obligations:
     - RFC4724-4.1-4 positive
   These are the proof behind a public compliance claim
-  (docs/features/rfc-status.md), counted by `make ze-rfc-check`.
+  (docs/features/rfc-status.md), counted by `./le rfc check`.
   Editing the test to match the code inverts that: the obligation stops
   being proven while still being advertised.
   Fix the CODE. If you believe the test is genuinely wrong, STOP and show
@@ -174,6 +192,8 @@ I described the ledger behind those tags in [The proof is the expensive part](..
 
 ## What this costs
 
+<p class="blog-section-reveal">Repository context and deeper checks trade maintainer time for stronger automated evidence.</p>
+
 I would rather not pretend this machinery is free.
 
 The generated indexes are large. `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md` are around a quarter of a megabyte each, and the RFC requirement ledger is over a megabyte. Nobody reads those files, but they are regenerated, checked and committed, and they make diffs noisier.
@@ -187,6 +207,8 @@ The hooks fire on code which is correct. A pattern which is right ninety-five ti
 I still think the trade is worth it, because the alternative is reading every diff myself. None of that is automated, and it spends my time instead of machine time. It is a trade though, and a smaller project should pick the parts which pay for themselves rather than copying all of it.
 
 ## A project can build this incrementally
+
+<p class="blog-section-reveal">Projects can add repository context gradually through conventions that prevent repeated mistakes.</p>
 
 Ze's machinery is large because Ze is large and because we have been learning while building it. Another project can start with the useful core, roughly in this order.
 

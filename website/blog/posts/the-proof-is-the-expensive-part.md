@@ -3,7 +3,13 @@ title: The proof is the expensive part
 date: 2026-08-06
 author: Thomas Mangin
 description: Ze uses AI to write code, but an RFC claim only counts after the standard, the tests, the public gap list and the commit process all agree.
+
 deck: A feature is unfinished until every support claim can be traced from the standard through tests, known gaps and the exact change being committed.
+
+image: assets/blog/the-proof-is-the-expensive-part.svg
+image-dark: assets/blog/the-proof-is-the-expensive-part-dark.svg
+image-alt: A public RFC claim connects to the standard and requirement ID, executed positive and negative tests, a disclosed partial status and gap, and the exact verified change.
+
 ---
 
 I ended [AI slop is the wrong test](../ai-slop-is-the-wrong-test/) with this line: the code is cheap, the proof is the expensive part. This post is the missing explanation.
@@ -24,6 +30,8 @@ That is the system Ze is being built around.
 
 ## Start with the standard
 
+<p class="blog-section-reveal">Naming each obligation gives its tests and public status a stable point of reference.</p>
+
 A routing feature often starts with an RFC. That already makes life difficult.
 
 RFCs are prose. They were written by many people, over many years, for human readers. Some are crisp. Some carry old history. Some use the capitalised words `MUST`, `SHOULD` and `MAY`, as described by RFC 2119. Some important rules are in a table, a diagram, a state machine, or an ordinary sentence which never says `MUST` at all. Some describe behaviour for a role Ze does not play. Some quote another RFC, where the real rule actually lives.
@@ -39,6 +47,8 @@ The gate treats `MUST`, `MUST NOT`, `SHALL`, `SHALL NOT` and `REQUIRED` as oblig
 Cloudflare arrived at the same conclusion from the other end. Their standards are internal documents rather than IETF ones, and [How Cloudflare enforces engineering standards using AI](https://blog.cloudflare.com/engineering-standards-enforcement/) describes giving each statement a stable name which survives edits to the text around it, for the same reason: a rule nobody can point at cannot be checked later. Naming the obligation is what makes everything after it possible, whoever wrote the document. I come back to that convergence in [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/).
 
 ## Then check the checklist
+
+<p class="blog-section-reveal">Bidirectional extraction checks expose requirements omitted from either the RFC or its checklist.</p>
 
 A checklist can still miss something. Anyone who has worked with standards, audits or change control knows this failure mode. If the obligation was never written down, every later check can be green while the implementation is still wrong.
 
@@ -59,6 +69,8 @@ That helps a lot with AI. A model can read an RFC and produce a plausible list o
 The process is boring on purpose. Boring checks are harder to fool.
 
 ## Tests have to say what they prove
+
+<p class="blog-section-reveal">A test supports an RFC claim only when its tag is valid and its runner executes it.</p>
 
 A normal test name is not enough. `TestBadOriginLength` tells a programmer roughly what is being tested. It does not tell the rest of the system which standard claim depends on that test.
 
@@ -82,6 +94,8 @@ This is one of the places where the system helps AI a lot. Claude will happily c
 
 ## Gaps are allowed to exist
 
+<p class="blog-section-reveal">Published gaps let operators judge whether partial RFC support fits their deployment.</p>
+
 A useful compliance system has to admit failure.
 
 Some RFC requirements do not apply to Ze. Some can only sensibly be tested on the good side or the bad side. Some are real gaps. Ze records those cases as annotations.
@@ -94,31 +108,37 @@ Networks are operated on risk, not slogans. A missing corner of an RFC may be ha
 
 ## The gates push back
 
+<p class="blog-section-reveal">Early gates block generated changes that weaken RFC evidence or leave its ledger stale.</p>
+
 The same idea appears while code is being edited. Ze's edit rules reject some changes before they can become part of Ze.
 
 RFC-tagged tests are one example. They are part of a public compliance claim. If Claude tries to change the behaviour of an RFC-tagged test, or remove the tag, the edit hook blocks the change unless the text carries an explicit approval marker. The marker is not magic. It is a human process boundary.
 
 The failure it prevents is common with generated code. The model sees a failing test, changes the test to match the bug, gets a green run, and presents that as progress. For normal code this is already bad. For a public RFC claim it is much worse.
 
-The generated ledger is protected too. `ai/RFC-REQUIREMENTS.md` is built by `make ze-rfc-index-update`. It maps requirements back to tests, annotations, evidence type and audit state. If the ledger is stale, `make ze-rfc-check` says so. The fix is to regenerate it from source, not edit the table by hand.
+The generated ledger is protected too. `ai/RFC-REQUIREMENTS.md` is built by `./le rfc index-update`. It maps requirements back to tests, annotations, evidence type and audit state. If the ledger is stale, `./le rfc check` says so. The fix is to regenerate it from source rather than edit the table by hand.
 
 Again, this is for the AI as much as for the human. The model gets concrete failure messages: missing bad-packet test, unknown requirement id, tag in a file that no pipeline runs, gap missing from the public status page, stale audit verdict, stale generated ledger. Those messages are much better prompts than "make the quality better".
 
 ## Commits have to carry the proof
 
+<p class="blog-section-reveal">Commit evidence belongs to the exact tree and file set that passed verification.</p>
+
 The final guard is the commit path. A commit should carry evidence that this exact set of files was checked. That matters more when several agents can share one working tree and one git index. A failed commit can leave files staged, and the next commit could accidentally carry them.
 
-Ze does not let an agent type `git add` and `git commit` directly. The approved path goes through `scripts/dev/commit_helper.py`.
+Ze does not let an agent type `git add` and `git commit` directly. The approved path is `./le commit create`, followed by the exact generated script it reports.
 
 Before the helper prepares a commit script, it asks whether the current tree is byte-for-byte identical to the last successful verify run. The fingerprint includes the current commit, tracked changes and untracked file contents. If the tree changed, or the last verify failed, the helper refuses a normal commit.
 
 When the helper does prepare a commit, it writes a message file and an executable script. The script stages only the explicit files listed for that commit. Then it checks the shared index. If any staged file exists which is not part of this commit, the script aborts. Only then does it run `git commit -F`.
 
-There is one extra check after commits containing Go code. `make ze-repository-tracked-build-check` runs after the commit because it tests the source tree git now holds. A pre-commit test can check the working tree. This check catches the case where the committed set itself does not build.
+There is one extra check after commits containing Go code. `./le repository-tracked-build check` runs after the commit because it tests the source tree git now holds. A pre-commit test can check the working tree. This check catches the case where the committed set itself does not build.
 
 That sounds fussy because it is fussy. It is change control for generated code.
 
 ## Why this makes AI useful
+
+<p class="blog-section-reveal">AI becomes useful when precise failures direct its speed towards evidence the system can check.</p>
 
 The usual way to use an AI coding tool is to ask for a feature and then inspect the diff. That is weak. The diff can look reasonable and still break the protocol.
 
@@ -131,6 +151,8 @@ The model is good at the repetitive work: read the failure, find the requirement
 This is the part people miss when they ask whether AI can write production code. The answer depends on the production system around it. If the system accepts plausible output, AI will produce plausible output. If the system demands evidence, AI can help produce evidence.
 
 ## This is still not finished
+
+<p class="blog-section-reveal">Checks make the remaining risks visible while imperfect tests and human decisions still limit the proof.</p>
 
 There are limits.
 

@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
+  <title id="title">The repository supplies the meaning.</title>
+  <desc id="desc">General harness abilities and repository-specific meaning converge on an agent change. Checks return failures to the rule and example that guide the next revision.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17141f"/>
+      <stop offset="0.5" stop-color="#172331"/>
+      <stop offset="1" stop-color="#162b28"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b990ff"/>
+      <stop offset="0.52" stop-color="#5bc4f0"/>
+      <stop offset="1" stop-color="#42d8bd"/>
+    </linearGradient>
+    <filter id="shadow" x="-18%" y="-22%" width="136%" height="152%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.28"/>
+      <feDropShadow dx="0" dy="13" stdDeviation="18" flood-color="#000000" flood-opacity="0.48"/>
+    </filter>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#5bc4f0"/>
+    </marker>
+    <marker id="arrow-grape" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#b990ff"/>
+    </marker>
+    <marker id="arrow-coral" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#ff8a61"/>
+    </marker>
+    <style>
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #f7f3fb; }
+      .headline { font-family: Poppins, Avenir, sans-serif; font-size: 44px; font-weight: 800; letter-spacing: -1.2px; }
+      .eyebrow { font-family: Poppins, Avenir, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.6px; }
+      .group-title { font-family: Poppins, Avenir, sans-serif; font-size: 22px; font-weight: 800; }
+      .change-title { font-family: Poppins, Avenir, sans-serif; font-size: 27px; font-weight: 800; letter-spacing: -0.4px; }
+      .body { font-size: 15px; font-weight: 700; fill: #d7cadd; }
+      .detail { font-size: 12px; font-weight: 800; fill: #d7cadd; }
+      .chip { font-family: Poppins, Avenir, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 0.5px; }
+      .flow-sky { fill: none; stroke: #5bc4f0; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-sky); }
+      .flow-grape { fill: none; stroke: #b990ff; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-grape); }
+      .flow-coral { fill: none; stroke: #ff8a61; stroke-width: 5; stroke-dasharray: 9 7; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-coral); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" rx="42" fill="url(#canvas)"/>
+  <g filter="url(#shadow)">
+    <rect x="54" y="52" width="1092" height="570" rx="36" fill="#1d1b29"/>
+    <rect x="54" y="52" width="1092" height="12" rx="6" fill="url(#rail)"/>
+  </g>
+
+  <text x="88" y="99" class="eyebrow" fill="#d7cadd">GENERAL ABILITY + PROJECT CONTEXT</text>
+  <text x="88" y="151" class="headline">The repository supplies the meaning.</text>
+
+  <g aria-label="General harness abilities" filter="url(#shadow)">
+    <rect x="88" y="202" width="330" height="140" rx="24" fill="#1b2835" stroke="#5bc4f0" stroke-width="3"/>
+    <text x="112" y="238" class="eyebrow" fill="#5bc4f0">GENERAL HARNESS</text>
+    <text x="112" y="270" class="group-title">Abilities every project gets</text>
+    <g>
+      <rect x="112" y="292" width="63" height="30" rx="15" fill="#1d1b29" stroke="#5bc4f0" stroke-width="2"/>
+      <text x="143.5" y="312" text-anchor="middle" class="chip" fill="#5bc4f0">READ</text>
+      <rect x="183" y="292" width="71" height="30" rx="15" fill="#1d1b29" stroke="#5bc4f0" stroke-width="2"/>
+      <text x="218.5" y="312" text-anchor="middle" class="chip" fill="#5bc4f0">SEARCH</text>
+      <rect x="262" y="292" width="61" height="30" rx="15" fill="#1d1b29" stroke="#5bc4f0" stroke-width="2"/>
+      <text x="292.5" y="312" text-anchor="middle" class="chip" fill="#5bc4f0">EDIT</text>
+      <rect x="331" y="292" width="63" height="30" rx="15" fill="#1d1b29" stroke="#5bc4f0" stroke-width="2"/>
+      <text x="362.5" y="312" text-anchor="middle" class="chip" fill="#5bc4f0">RUN</text>
+    </g>
+  </g>
+
+  <g aria-label="Repository-specific meaning" filter="url(#shadow)">
+    <rect x="88" y="370" width="330" height="178" rx="24" fill="#2b2338" stroke="#b990ff" stroke-width="3"/>
+    <text x="112" y="406" class="eyebrow" fill="#b990ff">REPOSITORY MEANING</text>
+    <text x="112" y="438" class="group-title">Project-specific context</text>
+    <rect x="112" y="460" width="126" height="30" rx="15" fill="#1d1b29" stroke="#b990ff" stroke-width="2"/>
+    <text x="175" y="480" text-anchor="middle" class="chip" fill="#b990ff">ARCHITECTURE</text>
+    <rect x="248" y="460" width="146" height="30" rx="15" fill="#1d1b29" stroke="#b990ff" stroke-width="2"/>
+    <text x="321" y="480" text-anchor="middle" class="chip" fill="#b990ff">PATTERNS</text>
+    <rect x="112" y="500" width="126" height="30" rx="15" fill="#1d1b29" stroke="#b990ff" stroke-width="2"/>
+    <text x="175" y="520" text-anchor="middle" class="chip" fill="#b990ff">TASK INDEX</text>
+    <rect x="248" y="500" width="146" height="30" rx="15" fill="#1d1b29" stroke="#b990ff" stroke-width="2"/>
+    <text x="321" y="520" text-anchor="middle" class="chip" fill="#b990ff">TEST DUTY</text>
+  </g>
+
+  <g aria-hidden="true">
+    <path d="M418 272 H468 V330 H516" class="flow-sky"/>
+    <path d="M418 459 H468 V402 H516" class="flow-grape"/>
+  </g>
+
+  <g aria-label="Agent change" filter="url(#shadow)">
+    <path d="M556 278 H758 L790 365 L758 452 H556 L524 365 Z" fill="#19322d" stroke="#42d8bd" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M573 298 H741" stroke="#42d8bd" stroke-width="7" stroke-linecap="round"/>
+    <text x="657" y="335" text-anchor="middle" class="eyebrow" fill="#42d8bd">AGENT CHANGE</text>
+    <text x="657" y="373" text-anchor="middle" class="change-title">Code + evidence</text>
+    <text x="657" y="403" text-anchor="middle" class="body">fit the repository</text>
+  </g>
+
+  <g aria-label="Rules and checks feedback loop">
+    <path d="M790 335 H824 V274 H858" class="flow-sky" aria-hidden="true"/>
+    <g filter="url(#shadow)">
+      <rect x="866" y="216" width="246" height="116" rx="24" fill="#1b2835" stroke="#5bc4f0" stroke-width="3"/>
+      <text x="890" y="252" class="eyebrow" fill="#5bc4f0">CHECKS</text>
+      <text x="890" y="284" class="group-title">Change inspected</text>
+      <text x="890" y="311" class="body">structure + behaviour</text>
+    </g>
+
+    <path d="M989 332 V418" class="flow-coral" aria-hidden="true"/>
+    <rect x="1010" y="365" width="82" height="25" rx="12.5" fill="#2d211f" stroke="#ff8a61" stroke-width="1.5"/>
+    <text x="1051" y="382" text-anchor="middle" class="detail" fill="#ff8a61">FAILURE</text>
+
+    <g filter="url(#shadow)">
+      <rect x="866" y="434" width="246" height="116" rx="24" fill="#2b2338" stroke="#b990ff" stroke-width="3"/>
+      <text x="890" y="470" class="eyebrow" fill="#b990ff">RULE + EXAMPLE</text>
+      <text x="890" y="502" class="group-title">Repair explained</text>
+      <text x="890" y="529" class="body">next edit follows the project</text>
+    </g>
+    <path d="M866 492 H824 V410 H798" class="flow-grape" aria-hidden="true"/>
+  </g>
+</svg>

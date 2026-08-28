@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
+  <title id="title">The tree becomes an interface.</title>
+  <desc id="desc">A recognised generated repository tree is compared with an arbitrary tree whose design, rules, and tests sit apart. A shared convention joins project meaning to predictable locations.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff7fb"/>
+      <stop offset="0.5" stop-color="#edf8ff"/>
+      <stop offset="1" stop-color="#eefbf8"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9d64f5"/>
+      <stop offset="0.52" stop-color="#009fe3"/>
+      <stop offset="1" stop-color="#1abc9c"/>
+    </linearGradient>
+    <filter id="shadow" x="-18%" y="-22%" width="136%" height="152%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#331f40" flood-opacity="0.08"/>
+      <feDropShadow dx="0" dy="13" stdDeviation="18" flood-color="#331f40" flood-opacity="0.13"/>
+    </filter>
+    <style>
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #331f40; }
+      .headline { font-family: Poppins, Avenir, sans-serif; font-size: 44px; font-weight: 800; letter-spacing: -1.2px; }
+      .eyebrow { font-family: Poppins, Avenir, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.6px; }
+      .group-title { font-family: Poppins, Avenir, sans-serif; font-size: 24px; font-weight: 800; }
+      .beam-title { font-family: Poppins, Avenir, sans-serif; font-size: 16px; font-weight: 800; letter-spacing: 1.4px; }
+      .body { font-size: 15px; font-weight: 700; fill: #6a4478; }
+      .detail { font-size: 12px; font-weight: 800; fill: #6a4478; }
+      .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 17px; font-weight: 800; }
+      .chip { font-family: Poppins, Avenir, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 0.7px; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" rx="42" fill="url(#canvas)"/>
+  <g filter="url(#shadow)">
+    <rect x="54" y="52" width="1092" height="570" rx="36" fill="#fffefe" fill-opacity="0.95"/>
+    <rect x="54" y="52" width="1092" height="12" rx="6" fill="url(#rail)"/>
+  </g>
+
+  <text x="88" y="99" class="eyebrow" fill="#6a4478">CONVENTION OVER REDISCOVERY</text>
+  <text x="88" y="151" class="headline">The tree becomes an interface.</text>
+
+  <g aria-label="Recognised generated repository tree" filter="url(#shadow)">
+    <rect x="88" y="202" width="336" height="286" rx="26" fill="#eefbf8" stroke="#1abc9c" stroke-width="3"/>
+    <rect x="88" y="202" width="336" height="8" rx="4" fill="#1abc9c"/>
+    <text x="112" y="242" class="eyebrow" fill="#1abc9c">RECOGNISED TREE</text>
+    <text x="112" y="275" class="group-title">Generated project</text>
+
+    <path d="M123 303 H148 V426 M148 327 H171 M148 358 H171 M148 389 H171 M148 420 H171" fill="none" stroke="#1abc9c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M112 295 H124 L130 302 H152 V316 H112 Z" fill="#1abc9c" fill-opacity="0.15" stroke="#1abc9c" stroke-width="2" stroke-linejoin="round"/>
+    <text x="166" y="310" class="mono" fill="#1abc9c">project/</text>
+    <circle cx="148" cy="327" r="5" fill="#1abc9c"/>
+    <circle cx="148" cy="358" r="5" fill="#1abc9c"/>
+    <circle cx="148" cy="389" r="5" fill="#1abc9c"/>
+    <circle cx="148" cy="420" r="5" fill="#1abc9c"/>
+    <text x="181" y="333" class="mono">app/</text>
+    <text x="181" y="364" class="mono">config/</text>
+    <text x="181" y="395" class="mono">db/</text>
+    <text x="181" y="426" class="mono">test/</text>
+    <rect x="112" y="445" width="288" height="25" rx="12.5" fill="#1abc9c" fill-opacity="0.1"/>
+    <text x="256" y="462" text-anchor="middle" class="detail" fill="#1abc9c">KNOWN TO PEOPLE + TOOLS</text>
+  </g>
+
+  <g aria-label="Arbitrary repository with detached project knowledge" filter="url(#shadow)">
+    <rect x="740" y="202" width="372" height="286" rx="26" fill="#fff9e8" stroke="#b76a00" stroke-width="3" stroke-dasharray="10 7"/>
+    <text x="764" y="242" class="eyebrow" fill="#b76a00">ARBITRARY TREE</text>
+    <text x="764" y="275" class="group-title">Meaning sits apart</text>
+
+    <rect x="764" y="294" width="166" height="160" rx="18" fill="#fffefe" stroke="#b76a00" stroke-width="2" stroke-dasharray="7 6"/>
+    <text x="785" y="324" class="mono" fill="#b76a00">repo/</text>
+    <path d="M790 340 V424 M790 359 H809 M790 390 H809 M790 421 H809" fill="none" stroke="#b76a00" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="819" y="365" class="mono">src/</text>
+    <text x="819" y="396" class="mono">pkg/</text>
+    <text x="819" y="427" class="mono">misc/</text>
+
+    <path d="M930 325 H945 M963 325 H974 M930 374 H945 M963 374 H974 M930 423 H945 M963 423 H974" fill="none" stroke="#c2410c" stroke-width="3" stroke-dasharray="5 5" stroke-linecap="round"/>
+    <text x="954" y="330" text-anchor="middle" class="chip" fill="#c2410c">×</text>
+    <text x="954" y="379" text-anchor="middle" class="chip" fill="#c2410c">×</text>
+    <text x="954" y="428" text-anchor="middle" class="chip" fill="#c2410c">×</text>
+
+    <rect x="974" y="304" width="114" height="42" rx="16" fill="#f3edfe" stroke="#9d64f5" stroke-width="2"/>
+    <text x="1031" y="330" text-anchor="middle" class="chip" fill="#9d64f5">DESIGN</text>
+    <rect x="974" y="353" width="114" height="42" rx="16" fill="#f3edfe" stroke="#9d64f5" stroke-width="2"/>
+    <text x="1031" y="379" text-anchor="middle" class="chip" fill="#9d64f5">RULES</text>
+    <rect x="974" y="402" width="114" height="42" rx="16" fill="#edf8ff" stroke="#009fe3" stroke-width="2"/>
+    <text x="1031" y="428" text-anchor="middle" class="chip" fill="#009fe3">TESTS</text>
+  </g>
+
+  <g aria-label="Shared repository convention">
+    <path d="M256 488 V520 M926 488 V520" fill="none" stroke="#1abc9c" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="256" cy="504" r="7" fill="#fffefe" stroke="#1abc9c" stroke-width="3"/>
+    <circle cx="926" cy="504" r="7" fill="#fffefe" stroke="#1abc9c" stroke-width="3"/>
+    <g filter="url(#shadow)">
+      <rect x="160" y="520" width="880" height="70" rx="24" fill="#eefbf8" stroke="#1abc9c" stroke-width="3"/>
+      <path d="M186 543 H219 V567 H186 Z M981 543 H1014 V567 H981 Z" fill="#1abc9c" fill-opacity="0.15" stroke="#1abc9c" stroke-width="2"/>
+      <circle cx="202" cy="555" r="5" fill="#1abc9c"/>
+      <circle cx="998" cy="555" r="5" fill="#1abc9c"/>
+      <text x="600" y="551" text-anchor="middle" class="beam-title" fill="#1abc9c">SHARED CONVENTION</text>
+      <text x="600" y="575" text-anchor="middle" class="body">Known locations carry design, rules, and tests into the tree.</text>
+    </g>
+  </g>
+</svg>

@@ -3646,6 +3646,18 @@ footer {
     text-underline-offset: 0.18em;
 }
 
+.blog-card-overlay {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    border-radius: var(--radius-2xl);
+}
+
+.blog-card-overlay:focus-visible {
+    outline: 0.18rem solid var(--acc-deep);
+    outline-offset: -0.18rem;
+}
+
 .blog-card-meta {
     display: flex;
     flex-wrap: wrap;
@@ -3811,9 +3823,10 @@ footer {
     opacity: 0.7;
 }
 
-.blog-article-hero :is(h1, h2) {
+.blog-article-hero h1,
+.blog-article-hero h2 {
     max-width: 13.5ch;
-    font-size: clamp(2.6rem, 5.35vw, 4.35rem);
+    font-size: clamp(2.1rem, 4.5vw, 3.6rem);
     line-height: 1.02;
     letter-spacing: -0.052em;
     text-wrap: balance;
@@ -3825,8 +3838,9 @@ footer {
         padding: 2rem clamp(1.7rem, 3.6vw, 3rem);
     }
 
-    .blog-article-shell.has-visual .blog-article-hero :is(h1, h2) {
-        font-size: clamp(2.6rem, 4.2vw, 3.85rem);
+    .blog-article-shell.has-visual .blog-article-hero h1,
+    .blog-article-shell.has-visual .blog-article-hero h2 {
+        font-size: clamp(2.1rem, 3.3vw, 3.25rem);
     }
 }
 
@@ -4763,9 +4777,9 @@ footer {
     }
 }
 
-/* Evidence source citations: render-doc.py lifts file:line refs out of the
-   cell prose into this block so each citation group sits on its own line
-   under the text, instead of cluttering the sentence. */
+/* Evidence source citations: the native site renderer lifts file:line refs
+   out of cell prose into this block so each citation group sits on its own
+   line under the text instead of cluttering the sentence. */
 .md-content td .ev-src {
     display: block;
     margin-top: 0.45rem;

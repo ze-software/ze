@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
+  <title id="title">Generated fast. Accepted through evidence.</title>
+  <desc id="desc">Fast generated output enters a narrowing evidence path through protocol checks, fuzzing, integration, and benchmarking before it is accepted or rejected.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17141f"/>
+      <stop offset="0.5" stop-color="#172331"/>
+      <stop offset="1" stop-color="#162b28"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b990ff"/>
+      <stop offset="0.52" stop-color="#5bc4f0"/>
+      <stop offset="1" stop-color="#42d8bd"/>
+    </linearGradient>
+    <filter id="shadow" x="-18%" y="-22%" width="136%" height="152%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.28"/>
+      <feDropShadow dx="0" dy="13" stdDeviation="18" flood-color="#000000" flood-opacity="0.48"/>
+    </filter>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#5bc4f0"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#42d8bd"/>
+    </marker>
+    <marker id="arrow-coral" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#ff8a61"/>
+    </marker>
+    <style>
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #f7f3fb; }
+      .headline { font-family: Poppins, Avenir, sans-serif; font-size: 42px; font-weight: 800; letter-spacing: -1.1px; }
+      .eyebrow { font-family: Poppins, Avenir, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.6px; }
+      .group-title { font-family: Poppins, Avenir, sans-serif; font-size: 22px; font-weight: 800; }
+      .gate-title { font-family: Poppins, Avenir, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.6px; }
+      .status { font-family: Poppins, Avenir, sans-serif; font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
+      .body { font-size: 15px; font-weight: 700; fill: #d7cadd; }
+      .detail { font-size: 12px; font-weight: 800; fill: #d7cadd; }
+      .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 14px; font-weight: 800; }
+      .flow-sky { fill: none; stroke: #5bc4f0; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-sky); }
+      .flow-teal { fill: none; stroke: #42d8bd; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-teal); }
+      .flow-coral { fill: none; stroke: #ff8a61; stroke-width: 5; stroke-dasharray: 9 7; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow-coral); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" rx="42" fill="url(#canvas)"/>
+  <g filter="url(#shadow)">
+    <rect x="54" y="52" width="1092" height="570" rx="36" fill="#1d1b29"/>
+    <rect x="54" y="52" width="1092" height="12" rx="6" fill="url(#rail)"/>
+  </g>
+
+  <text x="88" y="99" class="eyebrow" fill="#d7cadd">UNTRUSTED OUTPUT · EVIDENCE GATE</text>
+  <text x="88" y="151" class="headline">Generated fast. Accepted through evidence.</text>
+
+  <g aria-label="Fast generated output" filter="url(#shadow)">
+    <rect x="88" y="210" width="224" height="258" rx="26" fill="#1b2835" stroke="#5bc4f0" stroke-width="3"/>
+    <text x="112" y="245" class="eyebrow" fill="#5bc4f0">GENERATED OUTPUT</text>
+    <g aria-hidden="true">
+      <rect x="112" y="276" width="176" height="46" rx="12" fill="#1d1b29" stroke="#397394" stroke-width="2"/>
+      <path d="M128 291 H165 M128 305 H198" stroke="#5bc4f0" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+      <rect x="122" y="316" width="166" height="46" rx="12" fill="#1d1b29" stroke="#397394" stroke-width="2"/>
+      <path d="M138 331 H190 M138 345 H218" stroke="#5bc4f0" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+      <rect x="132" y="356" width="156" height="46" rx="12" fill="#1d1b29" stroke="#5bc4f0" stroke-width="2"/>
+      <path d="M148 371 H184 M148 385 H236" stroke="#5bc4f0" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <text x="112" y="430" class="group-title">Candidate code</text>
+    <text x="112" y="453" class="body">plausible, still untrusted</text>
+  </g>
+
+  <path d="M312 339 H345" class="flow-sky" aria-hidden="true"/>
+
+  <g aria-label="Narrowing evidence path">
+    <path d="M344 204 L872 270 L872 402 L344 468 Z" fill="#5bc4f0" fill-opacity="0.07" stroke="#5bc4f0" stroke-width="3" stroke-linejoin="round"/>
+    <text x="365" y="240" class="eyebrow" fill="#5bc4f0">EVIDENCE PATH NARROWS</text>
+    <path d="M365 339 H856" class="flow-sky" aria-hidden="true"/>
+
+    <g filter="url(#shadow)">
+      <rect x="365" y="302" width="100" height="74" rx="18" fill="#2b2338" stroke="#b990ff" stroke-width="3"/>
+      <path d="M381 315 H449" stroke="#b990ff" stroke-width="4" stroke-linecap="round"/>
+      <text x="415" y="340" text-anchor="middle" class="gate-title" fill="#b990ff">PROTOCOL</text>
+      <text x="415" y="359" text-anchor="middle" class="detail">wire rules</text>
+    </g>
+
+    <g filter="url(#shadow)">
+      <rect x="481" y="302" width="86" height="74" rx="18" fill="#1b2835" stroke="#5bc4f0" stroke-width="3"/>
+      <circle cx="500" cy="317" r="4" fill="#5bc4f0"/>
+      <circle cx="512" cy="317" r="4" fill="#5bc4f0"/>
+      <circle cx="524" cy="317" r="4" fill="#5bc4f0"/>
+      <text x="524" y="340" text-anchor="middle" class="gate-title" fill="#5bc4f0">FUZZ</text>
+      <text x="524" y="359" text-anchor="middle" class="detail">bad input</text>
+    </g>
+
+    <g filter="url(#shadow)">
+      <rect x="583" y="302" width="126" height="74" rx="18" fill="#1b2835" stroke="#5bc4f0" stroke-width="3"/>
+      <path d="M602 315 H620 M612 307 V323" stroke="#5bc4f0" stroke-width="3" stroke-linecap="round"/>
+      <text x="646" y="340" text-anchor="middle" class="gate-title" fill="#5bc4f0">INTEGRATION</text>
+      <text x="646" y="359" text-anchor="middle" class="detail">real program</text>
+    </g>
+
+    <g filter="url(#shadow)">
+      <rect x="725" y="302" width="124" height="74" rx="18" fill="#1b2835" stroke="#5bc4f0" stroke-width="3"/>
+      <path d="M743 321 L751 311 L759 318 L769 307" fill="none" stroke="#5bc4f0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="787" y="340" text-anchor="middle" class="gate-title" fill="#5bc4f0">BENCHMARK</text>
+      <text x="787" y="359" text-anchor="middle" class="detail">repeatable cost</text>
+    </g>
+  </g>
+
+  <g aria-label="Evidence decision">
+    <text x="936" y="223" class="eyebrow" fill="#d7cadd">DECISION</text>
+    <path d="M872 339 H900 V280 H928" class="flow-teal" aria-hidden="true"/>
+    <g filter="url(#shadow)">
+      <rect x="936" y="240" width="174" height="82" rx="22" fill="#19322d" stroke="#42d8bd" stroke-width="3"/>
+      <circle cx="964" cy="281" r="15" fill="none" stroke="#42d8bd" stroke-width="3"/>
+      <path d="M956 281 L962 287 L973 274" fill="none" stroke="#42d8bd" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="989" y="278" class="status" fill="#42d8bd">ACCEPTED</text>
+      <text x="989" y="300" class="detail">evidence matched</text>
+    </g>
+
+    <path d="M872 339 H900 V408 H928" class="flow-coral" aria-hidden="true"/>
+    <g filter="url(#shadow)">
+      <rect x="936" y="366" width="174" height="82" rx="22" fill="#2d211f" stroke="#ff8a61" stroke-width="3" stroke-dasharray="8 6"/>
+      <path d="M954 396 L974 416 M974 396 L954 416" stroke="#ff8a61" stroke-width="3" stroke-linecap="round"/>
+      <text x="989" y="404" class="status" fill="#ff8a61">REJECTED</text>
+      <text x="989" y="426" class="detail">gate exposed gap</text>
+    </g>
+  </g>
+</svg>
