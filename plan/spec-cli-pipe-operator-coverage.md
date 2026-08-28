@@ -1159,6 +1159,14 @@ An owner-authorized independent context reviewed the committed Round-23 fix.
 
 **Independent round 24: 1 BLOCKER, 0 ISSUE, 0 outstanding.** The finding is fixed.
 
+### Independent review, round 25 (2026-08-27)
+
+The owner-authorized independent documentation context returned clean after
+reviewing the committed Round-24 fix. The independent compiled-coverage context
+from round 14 remains clean because that path did not change.
+
+**Independent round 25: 0 BLOCKER, 0 ISSUE. CLEAN.**
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and
