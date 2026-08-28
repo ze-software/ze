@@ -30,7 +30,13 @@ type PhaseResult struct {
 
 // AllTestsReport is the whole answer of one run.
 type AllTestsReport struct {
-	Phases []PhaseResult `json:"phases"`
+	// Selection names the population the functional suites ran over, when it
+	// was not all of it. It is carried because a filtered run reads exactly
+	// like a whole one: the same suites start, and each answers 0. A reader
+	// who cannot see the filter reads "ALL PHASES PASSED" as a verdict over
+	// tests that never ran.
+	Selection string        `json:"selection,omitempty"`
+	Phases    []PhaseResult `json:"phases"`
 	// Failed names every phase that answered non-zero, in the order they ran.
 	// It is carried rather than derived at render time so `| json` and the
 	// summary line cannot disagree about what failed.
@@ -49,8 +55,8 @@ func (r *AllTestsReport) add(phase PhaseResult) {
 // ends in a newline.
 //
 // The phase-by-phase progress went to stderr while it happened. What this adds
-// is the verdict: how many phases ran, how many were skipped, and the name of
-// every one that failed.
+// is the verdict: which population the run covered, how many phases ran, how
+// many were skipped, and the name of every one that failed.
 func (r AllTestsReport) Text() string {
 	var tb textbuf.Buffer
 
@@ -70,6 +76,10 @@ func (r AllTestsReport) Text() string {
 		return tb.Str("no phase ran\n").String()
 	}
 
+	if r.Selection != "" {
+		tb.Str("selection: only the .ci tests marked option=").Str(r.Selection).
+			Str(" ran; the unit, installer and integration phases are unfiltered\n")
+	}
 	tb.Str("phases: ").Int(int64(ran)).Str(" ran, ").Int(int64(skipped)).Str(" skipped\n")
 	if len(r.Failed) == 0 {
 		return tb.Str("ALL PHASES PASSED\n").String()

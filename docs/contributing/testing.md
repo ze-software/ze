@@ -45,8 +45,14 @@ machine.
 | `./le test-unit plugins` | All plugins | about 40 seconds |
 | `./le test-unit config` | Config parsing and YANG | about 20 seconds |
 | `./le test-unit cli` | CLI component | about 10 seconds |
+| `./le test-unit installer` | Installer initrd logic behind the `ze_installer` tag | about 10 seconds |
 
 Pick the group matching your change.
+
+The `installer` group runs the tests on Linux. On another host `go test`
+cross-compiles a Linux binary it cannot start, so the group runs `go vet`
+and type-checks the same files instead. `./le qemu all-tests` runs them for
+real inside the Alpine virtual machine.
 
 ## Test types
 

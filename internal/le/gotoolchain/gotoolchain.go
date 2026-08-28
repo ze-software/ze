@@ -474,19 +474,49 @@ type TestOptions struct {
 	Core bool
 	// Race turns the race detector on. It needs EnvOptions.CGO as well.
 	Race bool
+	// Tags are build tags this one command needs on top of the set Core or the
+	// feature manifest selects. A personality tag lives here rather than in
+	// feature-gates.txt: the manifest declares features that register
+	// themselves and that the linker can drop, and ze_installer selects the
+	// initrd's own PID 1 instead.
+	Tags []string
+}
+
+// tags answers the tag string these options ask for.
+func (t Toolchain) tags(opts TestOptions) string {
+	base := t.TestTags()
+	if opts.Core {
+		base = t.coreTags()
+	}
+	if len(opts.Tags) == 0 {
+		return base
+	}
+	var tb textbuf.Buffer
+	tb.Str(base)
+	for _, tag := range opts.Tags {
+		tb.Byte(' ').Str(tag)
+	}
+	return tb.String()
 }
 
 // GoTest answers the argv for `go test` with this checkout's tags, timeout and
 // flags.
 func (t Toolchain) GoTest(opts TestOptions, args ...string) []string {
-	tags := t.TestTags()
-	if opts.Core {
-		tags = t.coreTags()
-	}
 	argv := make([]string, 0, 7+len(args))
-	argv = append(argv, "go", "test", "-timeout", t.Timeout, "-tags", tags)
+	argv = append(argv, "go", "test", "-timeout", t.Timeout, "-tags", t.tags(opts))
 	if opts.Race {
 		argv = append(argv, "-race")
 	}
+	return append(argv, args...)
+}
+
+// GoVet answers the argv for `go vet` over the same tag set.
+//
+// Vet type-checks a package's _test.go files without running them, and unlike
+// `go test -c` it accepts a package pattern, so a second package under the same
+// tree cannot silently drop out of the check.
+func (t Toolchain) GoVet(opts TestOptions, args ...string) []string {
+	argv := make([]string, 0, 5+len(args))
+	argv = append(argv, "go", "vet", "-tags", t.tags(opts))
 	return append(argv, args...)
 }

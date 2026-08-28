@@ -11,11 +11,13 @@
 // on the host and shared in over that mount. The remaining task is to run every
 // phase and report which phases failed.
 //
-// Three phases run. The functional suites use concurrency that an 8-vCPU VM can
+// Four phases run. The functional suites use concurrency that an 8-vCPU VM can
 // carry, rather than the concurrency that a build host can carry. The unit tests
 // include the //go:build linux files that never compile on a macOS dev box. The
-// integration tests are the VM's whole reason for existing. They exercise
-// netlink, nft, fib and procfs code paths that need a real kernel.
+// installer tests are behind ze_installer, a personality tag no other phase's
+// tag set names, so nothing else in the tree compiles them. The integration
+// tests are the VM's whole reason for existing. They exercise netlink, nft, fib
+// and procfs code paths that need a real kernel.
 //
 // THE SUITE LIST IS CHECKED AGAINST THE ONE THE REPOSITORY DECLARES. A run whose
 // list has a hole refuses to start. The retired shell helper had 25 hand-written
@@ -76,16 +78,28 @@ const (
 	pathKey     = "PATH"
 )
 
-// The two make variables the unit phase passes on the command line, spelled
-// with their assignment so a value is appended rather than concatenated.
+// The needs-linux selection.
+//
+// linuxOnlyKey is the variable the .ci runner reads to skip every test that
+// carries no `option=needs-linux` marker (parseAndAdd,
+// internal/test/runner/record_parse.go). The filter therefore lives in the
+// runner and the run only says which population it wants. linuxOnlySelection
+// is how a caller asks for it, and how the report records that it was asked
+// for.
 const (
-	buildCacheAssignment  = "GOCACHE="
-	moduleCacheAssignment = "GOMODCACHE="
+	linuxOnlyKey       = "ZE_QEMU_LINUX_ONLY"
+	linuxOnlyValue     = "1"
+	linuxOnlySelection = "needs-linux"
 )
 
 // bgpVerb is the ze-test subcommand the four BGP suites run under. It is the
 // same word internal/le/functional spells for the same reason.
 const bgpVerb = "bgp"
+
+// tagsFlag is the go command's build-tag selector. Three phases pass one, and
+// they deliberately pass different sets: the unit and integration phases carry
+// the feature manifest's, and the installer phase carries the initrd's own.
+const tagsFlag = "-tags"
 
 // allTests is the ze-test flag that selects every .ci of a suite. It is the
 // same word internal/le/functional spells for the same reason.
@@ -267,6 +281,14 @@ type allTestsRun struct {
 	TestBin     string
 	// Skip names the suites this run must not start.
 	Skip []string
+	// LinuxOnly runs only the .ci tests marked `option=needs-linux`. It is the
+	// tight loop for a developer who changed one Linux-only path: the whole
+	// suite list still starts, and each suite runs the marked tests alone.
+	//
+	// It filters the FUNCTIONAL suites and nothing else. The unit, installer
+	// and integration phases compile and run whole, so the report says the run
+	// was filtered rather than leaving a reader to infer it.
+	LinuxOnly bool
 	// Parallel is the concurrency a scaled suite takes, and Timeout the
 	// wall-clock cap each suite runs under.
 	Parallel string
@@ -292,6 +314,7 @@ func newAllTests() *allTestsRun {
 		StrippedBin: envOr("ZE_STRIPPED_BIN", "bin/ze-stripped"),
 		TestBin:     envOr("ZE_TEST_BIN", "bin/ze-test"),
 		Skip:        splitList(envOr("ZE_QEMU_SKIP_SUITES", defaultSkip)),
+		LinuxOnly:   os.Getenv(linuxOnlyKey) == linuxOnlyValue,
 		Parallel:    envOr("ZE_QEMU_PARALLEL", defaultParallel),
 		Timeout:     envOr("ZE_QEMU_SUITE_TIMEOUT", defaultTimeout),
 		BuildCache:  os.Getenv("GOCACHE"),
@@ -354,6 +377,9 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 
 	environ := a.environment()
 	var report AllTestsReport
+	if a.LinuxOnly {
+		report.Selection = linuxOnlySelection
+	}
 
 	for _, suite := range vmSuites {
 		report.add(a.suite(suite, environ))
@@ -364,6 +390,7 @@ func (a *allTestsRun) Execute() (AllTestsReport, int) {
 		return report, 1
 	}
 	report.add(unit)
+	report.add(a.installerPhase(environ))
 
 	integration, err := a.integrationPhase(environ)
 	if err != nil {
@@ -475,6 +502,9 @@ func (a *allTestsRun) environment() []string {
 	environ = setEnv(environ, inVMKey, "1")
 	environ = setEnv(environ, repoRootKey, a.Workspace)
 	environ = setEnv(environ, zeBinKey, filepath.Join(a.BinDir, "ze"))
+	if a.LinuxOnly {
+		environ = setEnv(environ, linuxOnlyKey, linuxOnlyValue)
+	}
 	if a.BuildCache != "" {
 		environ = setEnv(environ, "GOCACHE", a.BuildCache)
 	}
@@ -553,12 +583,34 @@ func (a *allTestsRun) unitPhase(environ []string) (PhaseResult, error) {
 	argv := []string{
 		"env", "CGO_ENABLED=0", "go", "test",
 		"-timeout", "20m",
-		"-tags", tags,
+		tagsFlag, tags,
 		"./...",
 	}
 	const name = "unit tests (no -race, cacheable)"
 	a.note(banner(name))
 	return PhaseResult{Name: name, Command: argv, Code: a.child(argv, environ)}, nil
+}
+
+// installerPhase runs the installer initrd's own tests, which no other phase
+// compiles.
+//
+// The initrd is built with ze_installer, a personality tag rather than a
+// feature the manifest declares, so integrationTags never names it and
+// unitPhase's `go test ./...` excludes every file guarded by it without saying
+// so. Five test files sit behind that tag, the rescue console's fatal-branch
+// policy among them. Off Linux a host can only type-check them
+// (`le test-unit installer`), so this VM is where they run.
+func (a *allTestsRun) installerPhase(environ []string) PhaseResult {
+	argv := []string{
+		"env", "CGO_ENABLED=0", "go", "test",
+		"-count=1",
+		"-timeout", "120s",
+		tagsFlag, "ze_core ze_installer",
+		"./internal/install/...",
+	}
+	const name = "installer initrd tests (-tags ze_core ze_installer)"
+	a.note(banner(name))
+	return PhaseResult{Name: name, Command: argv, Code: a.child(argv, environ)}
 }
 
 // integrationPhase runs the linux-only, integration-tagged tests.
@@ -604,7 +656,7 @@ func (a *allTestsRun) integrationArgs() ([]string, error) {
 	}
 
 	argv := make([]string, 0, len(packages)+9)
-	argv = append(argv, "env", "CGO_ENABLED=0", "go", "test", "-tags", tags,
+	argv = append(argv, "env", "CGO_ENABLED=0", "go", "test", tagsFlag, tags,
 		"-count=1", "-timeout", "120s")
 	return append(argv, packages...), nil
 }

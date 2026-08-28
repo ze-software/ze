@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the unit-test area as one command
-// Overview: groups.go -- the five package groups and their order
+// Overview: groups.go -- the six package groups and their order
 //
-// A bare `le test-unit` runs all five groups. Named actions run in command-line
+// A bare `le test-unit` runs all six groups. Named actions run in command-line
 // order. Every sweep returns the first failure's exit code.
 package testunit
 

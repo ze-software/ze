@@ -59,6 +59,7 @@ host                                      QEMU Alpine VM
        └─ SSH native guest command           → le qemu all-tests
                                                 ├─ functional suites
                                                 ├─ Linux unit pass
+                                                ├─ installer initrd tests
                                                 └─ integration-tagged tests
 ```
 
@@ -68,6 +69,13 @@ Staging remains cache-backed. `ze-kernel-vmlinuz-stage` materializes from
 <!-- source: internal/le/qemu/run.go -- Run, Plan -->
 <!-- source: internal/le/qemu/actions.go -- Answer -->
 <!-- source: internal/le/qemu/alltests.go -- AllTestsRun.Run -->
+
+The installer phase runs `go test -tags 'ze_core ze_installer'` over
+`./internal/install/...`. No other phase compiles those files. The tag is a
+personality, not a feature the manifest declares. The unit pass therefore
+excludes every file behind it. On a host that is not Linux,
+`./le test-unit installer` can only type-check them, so this virtual machine
+is where they run.
 
 ## Writing Integration Tests
 

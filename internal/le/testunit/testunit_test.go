@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,11 +35,18 @@ func fixtureToolchain() gotoolchain.Toolchain {
 // package patterns, reasons, and non-writing contract.
 func TestTablePinsEveryUnitGroup(t *testing.T) {
 	want := []Group{
-		{"bgp", "./internal/component/bgp/...", "the BGP component group: reactor, fsm, wire, message, attribute (~1:30)"},
-		{"core", "./internal/core/...", "the core leaf libraries every tier above depends on (~30s)"},
-		{"plugins", "./internal/plugins/...", "the system plugins: DHCP, NTP, static, firewall, the CLI verb providers (~40s)"},
-		{"config", "./internal/component/config/...", "the YANG-modeled config pipeline: file, tree, resolve (~20s)"},
-		{"cli", "./internal/component/cli/...", "the CLI: modes, completion, diff, commit, dashboard (~10s)"},
+		{Verb: "bgp", Pattern: "./internal/component/bgp/...", Race: true,
+			Why: "the BGP component group: reactor, fsm, wire, message, attribute (~1:30)"},
+		{Verb: "core", Pattern: "./internal/core/...", Race: true,
+			Why: "the core leaf libraries every tier above depends on (~30s)"},
+		{Verb: "plugins", Pattern: "./internal/plugins/...", Race: true,
+			Why: "the system plugins: DHCP, NTP, static, firewall, the CLI verb providers (~40s)"},
+		{Verb: "config", Pattern: "./internal/component/config/...", Race: true,
+			Why: "the YANG-modeled config pipeline: file, tree, resolve (~20s)"},
+		{Verb: "cli", Pattern: "./internal/component/cli/...", Race: true,
+			Why: "the CLI: modes, completion, diff, commit, dashboard (~10s)"},
+		{Verb: "installer", Pattern: "./internal/install/...", Tags: []string{"ze_installer"}, GOOS: "linux",
+			Why: "the installer initrd's own logic behind the ze_installer tag: bootstrap, console, fault, rescue, initrd (~10s)"},
 	}
 	if got := Table(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("unit group table differs:\n got: %#v\nwant: %#v", got, want)
@@ -125,19 +133,32 @@ func TestNamedSweepPreservesSelectionOrder(t *testing.T) {
 }
 
 // TestEachActionPinsArgvAndEnvironment proves that every package pattern runs
-// with the full feature set, race detector, cgo, and concurrency cap.
+// with the full feature set, race detector, cgo, and concurrency cap, and that
+// the cross-targeted group carries its own tag, platform and command instead.
 func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 	tc := fixtureToolchain()
-	wantEnvironment := []string{
-		"GOCACHE=" + filepath.Join(tc.Root, "cache", "go-cache"),
-		"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "tmp", "golangci-lint-cache"),
-		"CGO_ENABLED=1",
-		"GOTOOLCHAIN=go1.26.6",
-		"GOMAXPROCS=8",
-	}
 
 	for _, group := range Table() {
 		t.Run(group.Verb, func(t *testing.T) {
+			wantEnvironment := []string{
+				"GOCACHE=" + filepath.Join(tc.Root, "cache", "go-cache"),
+				"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "tmp", "golangci-lint-cache"),
+				"CGO_ENABLED=1",
+				"GOTOOLCHAIN=go1.26.6",
+				"GOMAXPROCS=8",
+			}
+			if group.GOOS != "" {
+				// The detector needs cgo, which a cross build cannot have, so
+				// the platform group runs without either and pins its GOOS.
+				wantEnvironment = []string{
+					"GOCACHE=" + filepath.Join(tc.Root, "cache", "go-cache"),
+					"GOLANGCI_LINT_CACHE=" + filepath.Join(tc.Root, "tmp", "golangci-lint-cache"),
+					"CGO_ENABLED=0",
+					"GOTOOLCHAIN=go1.26.6",
+					"GOMAXPROCS=8",
+					"GOOS=" + group.GOOS,
+				}
+			}
 			var gotArgv, gotEnvironment []string
 			run := func(name string, argv []string, root string, environment []string) (gaterun.ActionReport, int) {
 				if name != group.Verb {
@@ -161,6 +182,14 @@ func TestEachActionPinsArgvAndEnvironment(t *testing.T) {
 			}
 
 			wantArgv := []string{"go", "test", "-timeout", "20m", "-tags", fixtureTags, "-race", group.Pattern}
+			if group.GOOS != "" {
+				// A group whose platform is not the host is type-checked, and
+				// a group naming its own tags takes the bare core set.
+				wantArgv = []string{"go", "test", "-timeout", "20m", "-tags", "ze_core ze_installer", group.Pattern}
+				if group.GOOS != runtime.GOOS {
+					wantArgv = []string{"go", "vet", "-tags", "ze_core ze_installer", group.Pattern}
+				}
+			}
 			if !reflect.DeepEqual(gotArgv, wantArgv) {
 				t.Errorf("argv differs:\n got: %q\nwant: %q", gotArgv, wantArgv)
 			}

@@ -20,10 +20,12 @@ package qemu
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
@@ -31,6 +33,10 @@ import (
 // area is the name this command is typed as, and the prefix leaction removes
 // from each gate name to derive its verb.
 const area = "qemu"
+
+// onlyKeyword types the population an in-VM run covers, so the name of that
+// population never sits in an untyped positional slot (ai/rules/cli.md).
+const onlyKeyword = "only"
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "vpp-hugepages-test", Why: "boot-time hugepage reservation, end to end: build an appliance carrying" +
@@ -108,8 +114,13 @@ var actions = leaction.New(area,
 		Verb: "all-tests",
 		Why: "the whole ze test suite, inside the QEMU Linux VM: every functional suite at a" +
 			" VM-appropriate concurrency, the unit pass, and the integration-tagged tests." +
-			" Refuses to start outside the guest, or with a suite list that has a hole in it",
-		Answer: runAllTestsHere,
+			" Refuses to start outside the guest, or with a suite list that has a hole in it." +
+			" `only needs-linux` narrows the functional suites to the .ci tests marked" +
+			" option=needs-linux, which is the tight loop for a change to a Linux-only path",
+		Parameters: []leaction.Parameter{
+			{Keyword: onlyKeyword, Value: linuxOnlySelection},
+		},
+		AnswerArgs: runAllTestsHere,
 	},
 )
 
@@ -252,8 +263,25 @@ func signalExitCode(caught os.Signal) int {
 // guest mounts the repository at one known path. If a run used a checkout from
 // another location, it would use the host's tree with the guest's assumptions.
 // The mount is the precondition, and the refusal names it.
-func runAllTestsHere() (any, int) {
-	report, code := newAllTests().Execute()
+//
+// `only` selects the population the functional suites run over. The one
+// population a caller can name is needs-linux, and any other word is refused:
+// a value this action cannot honor would otherwise run the whole suite while
+// the caller believed it had narrowed it.
+func runAllTestsHere(args leaction.Arguments) (any, int) {
+	run := newAllTests()
+	if selection, named := args[onlyKeyword]; named {
+		if selection != linuxOnlySelection {
+			var tb textbuf.Buffer
+			leaction.ReportError(errors.New(tb.Str("qemu all-tests only takes ").
+				Str(linuxOnlySelection).Str(", got ").Quoted(selection).
+				Str(" -- needs-linux runs the .ci tests marked option=needs-linux and no others").String()))
+			return nil, 2
+		}
+		run.LinuxOnly = true
+	}
+
+	report, code := run.Execute()
 	if len(report.Phases) == 0 {
 		// The run never started. Its refusal is already on stderr. A report with
 		// no phases does not answer "what did the VM prove". `| json` would put

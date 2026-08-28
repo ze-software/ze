@@ -113,11 +113,13 @@ func TestEveryDeclaredSuiteIsEitherRunOrExcluded(t *testing.T) {
 	}
 }
 
-// One command per suite that is not skipped, plus the unit phase and the
-// integration phase. The count is ABSOLUTE: a run that stopped after five
-// suites and a comparison against another run that stopped after five would
-// agree.
-func TestTheRunEmitsOneCommandPerSuitePlusTheTwoPhases(t *testing.T) {
+// phaseCount is the unit phase, the installer phase and the integration phase.
+const phaseCount = 3
+
+// One command per suite that is not skipped, plus every phase. The count is
+// ABSOLUTE: a run that stopped after five suites and a comparison against
+// another run that stopped after five would agree.
+func TestTheRunEmitsOneCommandPerSuitePlusEveryPhase(t *testing.T) {
 	run := vmFixture(t)
 	rec := &recorder{}
 	run.Run = rec.run
@@ -127,12 +129,49 @@ func TestTheRunEmitsOneCommandPerSuitePlusTheTwoPhases(t *testing.T) {
 		t.Fatalf("a run whose every child answered 0 exited %d: %v", code, report.Failed)
 	}
 
-	wantCommands := len(vmSuites) - 1 + 2 // every suite but the skipped one, then two phases
+	wantCommands := len(vmSuites) - 1 + phaseCount // every suite but the skipped one, then the phases
 	if len(rec.calls) != wantCommands {
 		t.Fatalf("%d commands ran, want exactly %d", len(rec.calls), wantCommands)
 	}
-	if len(report.Phases) != len(vmSuites)+2 {
-		t.Fatalf("%d phases reported, want exactly %d", len(report.Phases), len(vmSuites)+2)
+	if len(report.Phases) != len(vmSuites)+phaseCount {
+		t.Fatalf("%d phases reported, want exactly %d", len(report.Phases), len(vmSuites)+phaseCount)
+	}
+}
+
+// VALIDATES: the VM run compiles and runs the installer initrd's tests under
+// their own tag.
+// PREVENTS: the tag-orphan class returning. ze_installer is a personality tag
+// and not a feature the manifest declares, so integrationTags never names it
+// and the unit phase's `go test ./...` excludes those files in silence. Five
+// test files sit behind that tag. Off Linux a host can only type-check them, so
+// a run that drops this phase leaves them executed by nothing anywhere.
+func TestTheRunExecutesTheInstallerTestsUnderTheirOwnTag(t *testing.T) {
+	run := vmFixture(t)
+	rec := &recorder{}
+	run.Run = rec.run
+
+	report, code := run.Execute()
+	if code != 0 {
+		t.Fatalf("a run whose every child answered 0 exited %d: %v", code, report.Failed)
+	}
+
+	var found []string
+	for _, call := range rec.calls {
+		line := strings.Join(call, " ")
+		if strings.Contains(line, "ze_installer") {
+			found = append(found, line)
+		}
+	}
+	if len(found) != 1 {
+		t.Fatalf("%d commands carry ze_installer, want exactly 1: %q", len(found), found)
+	}
+	for _, want := range []string{"go test", "-tags ze_core ze_installer", "./internal/install/..."} {
+		if !strings.Contains(found[0], want) {
+			t.Errorf("the installer command does not carry %q: %s", want, found[0])
+		}
+	}
+	if strings.Contains(found[0], "go vet") {
+		t.Errorf("the VM must RUN the installer tests, not type-check them: %s", found[0])
 	}
 }
 
@@ -199,7 +238,7 @@ func TestAFailingSuiteIsNamedAndTheRunExitsNonZero(t *testing.T) {
 	if len(report.Failed) != 1 || report.Failed[0] != "functional/parse" {
 		t.Errorf("failures are %v, want exactly [functional/parse]", report.Failed)
 	}
-	wantCommands := len(vmSuites) - 1 + 2
+	wantCommands := len(vmSuites) - 1 + phaseCount
 	if len(rec.calls) != wantCommands {
 		t.Errorf("%d commands ran after a failure, want exactly %d: a failing suite"+
 			" must not stop the run", len(rec.calls), wantCommands)
