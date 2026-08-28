@@ -1792,10 +1792,10 @@ func scanWikiPipeGroups(content string) wikiPipeGroupScan {
 }
 
 func wikiPipeGroupLabel(line string) (string, bool) {
+	separator, valid := markdownInlineDelimiter(line, ": ")
 	rawLabel := ""
-	parts, valid := splitMarkdownOutsideCode(line, ": ")
-	if valid && len(parts) >= 2 {
-		rawLabel = parts[0]
+	if valid && separator >= 0 {
+		rawLabel = line[:separator]
 	} else if strings.HasPrefix(line, "**") {
 		end := strings.Index(line[2:], "**")
 		if end < 0 {
@@ -1803,7 +1803,7 @@ func wikiPipeGroupLabel(line string) (string, bool) {
 		}
 		rawLabel = line[:2+end+2]
 	} else if !valid {
-		separator := strings.Index(line, ": ")
+		separator = strings.Index(line, ": ")
 		if separator < 0 {
 			return "", false
 		}
@@ -1819,6 +1819,93 @@ func wikiPipeGroupLabel(line string) (string, bool) {
 		candidate = malformedWikiOperatorLabelCandidate(rawLabel)
 	}
 	return label, candidate
+}
+
+func markdownInlineDelimiter(value, delimiter string) (int, bool) {
+	for index := 0; index < len(value); {
+		switch value[index] {
+		case '\\':
+			index += min(2, len(value)-index)
+			continue
+		case '`':
+			_, suffix, _, closed := markdownCodeSpanPrefix(value[index:])
+			if !closed {
+				return -1, false
+			}
+			index = len(value) - len(suffix)
+			continue
+		case '<':
+			end, tag := markdownInlineHTMLTagEnd(value, index)
+			if tag {
+				if end < 0 {
+					return -1, false
+				}
+				index = end
+				continue
+			}
+		case ']':
+			if index+1 < len(value) &&
+				(value[index+1] == '(' || value[index+1] == '[') {
+				end := markdownLinkSuffixEnd(value, index+1)
+				if end < 0 {
+					return -1, false
+				}
+				index = end
+				continue
+			}
+		}
+		if strings.HasPrefix(value[index:], delimiter) {
+			return index, true
+		}
+		index++
+	}
+	return -1, true
+}
+
+func markdownInlineHTMLTagEnd(value string, start int) (int, bool) {
+	index := start + 1
+	if index < len(value) && value[index] == '/' {
+		index++
+	}
+	if index >= len(value) || !markdownASCIIAlpha(value[index]) {
+		return 0, false
+	}
+	for index < len(value) &&
+		(markdownASCIIAlpha(value[index]) ||
+			value[index] >= '0' && value[index] <= '9' ||
+			value[index] == '-') {
+		index++
+	}
+	if index < len(value) &&
+		!strings.ContainsRune(" \t\r\n/>", rune(value[index])) {
+		return 0, false
+	}
+	var quote byte
+	for index < len(value) {
+		if quote != 0 {
+			if value[index] == '\\' {
+				index += min(2, len(value)-index)
+				continue
+			}
+			if value[index] == quote {
+				quote = 0
+			}
+			index++
+			continue
+		}
+		switch value[index] {
+		case '\'', '"':
+			quote = value[index]
+		case '>':
+			return index + 1, true
+		}
+		index++
+	}
+	return -1, true
+}
+
+func markdownASCIIAlpha(value byte) bool {
+	return value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z'
 }
 
 // CommonMark renders unmatched openers literally. Ignore only a leading inline

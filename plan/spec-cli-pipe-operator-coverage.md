@@ -1129,6 +1129,16 @@ An owner-authorized independent context reviewed the committed Round-20 fixes.
 
 **Independent round 21: 1 BLOCKER, 0 ISSUE, 0 outstanding.** The finding is fixed.
 
+### Independent review, round 22 (2026-08-27)
+
+An owner-authorized independent context reviewed the committed Round-21 fix.
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| IR22-1 | BLOCKER | Wiki label splitting treats delimiters inside inline HTML attributes as structural | FIXED |
+
+**Independent round 22: 1 BLOCKER, 0 ISSUE, 0 outstanding.** The finding is fixed.
+
 ## Design Insights
 
 The audit's own evidence made the design: the wiki page is ALREADY generated and

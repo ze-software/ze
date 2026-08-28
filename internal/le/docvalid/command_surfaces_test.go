@@ -742,6 +742,7 @@ func TestDocDriftRejectsUnknownWikiPipeLabel(t *testing.T) {
 		{"`Pipes`, legacy: `catalog-absent`", "Pipes, legacy"},
 		{"[Pipes](https://example.invalid/), legacy: `catalog-absent`", "Pipes, legacy"},
 		{"<strong>Pipes</strong>, legacy: `catalog-absent`", "Pipes, legacy"},
+		{"<span title=\"availability: legacy\">Pipes</span>, legacy: `catalog-absent`", "Pipes, legacy"},
 		{"*Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
 		{"**Pipes, legacy: `catalog-absent`", "Pipes, legacy"},
 		{"`Pipes, legacy: catalog-absent", "Pipes, legacy"},
@@ -764,14 +765,86 @@ func TestDocDriftRejectsUnknownWikiPipeLabel(t *testing.T) {
 	}
 }
 
-// VALIDATES: the renderer's canonical plain-text wiki label still maps to its
-// expected availability.
-// PREVENTS: inline normalization rejecting the unwrapped output it is meant to
-// protect.
-func TestWikiPipeGroupLabelAcceptsCanonicalUnwrappedLabel(t *testing.T) {
-	label, candidate := wikiPipeGroupLabel("Always: `json`, `save`")
-	if label != "Always" || !candidate || wikiOperatorAvailability(label) != "always" {
-		t.Fatalf("canonical wiki pipe label classified as (%q, %t)", label, candidate)
+// VALIDATES: structural delimiters embedded in inline markup do not truncate
+// the CommonMark-visible wiki operator label, while every renderer-owned plain
+// label still maps to its expected availability.
+// PREVENTS: attribute prose, code, escapes, or link destinations hiding an
+// obsolete label, or boundary scanning rejecting canonical renderer output.
+func TestWikiPipeGroupLabelScansStructuralBoundary(t *testing.T) {
+	for _, test := range []struct {
+		name, line, label, availability string
+	}{
+		{
+			"single quoted HTML attribute",
+			"<span title='availability: legacy'>Pipes</span>, legacy: `catalog-absent`",
+			"Pipes, legacy",
+			"",
+		},
+		{
+			"double quoted HTML attribute",
+			"<span title=\"availability: legacy\">Pipes</span>, legacy: `catalog-absent`",
+			"Pipes, legacy",
+			"",
+		},
+		{
+			"escaped double quotes in HTML attribute",
+			"<span title=\"availability: \\\"legacy: only\\\"\">Pipes</span>, legacy: `catalog-absent`",
+			"Pipes, legacy",
+			"",
+		},
+		{
+			"escaped single quotes in HTML attribute",
+			"<span title='availability: \\'legacy: only\\''>Pipes</span>, legacy: `catalog-absent`",
+			"Pipes, legacy",
+			"",
+		},
+		{
+			"matching code span",
+			"`Pipes: legacy`, legacy: `catalog-absent`",
+			"Pipes: legacy, legacy",
+			"",
+		},
+		{
+			"escaped delimiter",
+			"Pipes\\: legacy, legacy: `catalog-absent`",
+			"Pipes: legacy, legacy",
+			"",
+		},
+		{
+			"link destination",
+			"[Pipes](https://example.invalid/availability: legacy), legacy: `catalog-absent`",
+			"Pipes, legacy",
+			"",
+		},
+		{"always", "Always: `json`, `save`", "Always", "always"},
+		{
+			"with rows",
+			"When the answer has rows: `match`",
+			"When the answer has rows",
+			"with-rows",
+		},
+		{
+			"streaming",
+			"While the command keeps answering: `log`",
+			"While the command keeps answering",
+			"when-streaming",
+		},
+		{
+			"local only",
+			"Local process only: `save`",
+			"Local process only",
+			"local-only",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			label, candidate := wikiPipeGroupLabel(test.line)
+			if label != test.label || !candidate ||
+				wikiOperatorAvailability(label) != test.availability {
+				t.Fatalf("wiki pipe label classified as (%q, %t, %q), want (%q, true, %q)",
+					label, candidate, wikiOperatorAvailability(label),
+					test.label, test.availability)
+			}
+		})
 	}
 }
 
