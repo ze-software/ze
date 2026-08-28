@@ -9,8 +9,8 @@ go 1.27.0
 // so no build can restore it.
 
 require (
-	charm.land/bubbles/v2 v2.1.1
-	charm.land/bubbletea/v2 v2.0.8
+	charm.land/bubbles/v2 v2.2.1
+	charm.land/bubbletea/v2 v2.0.9
 	charm.land/lipgloss/v2 v2.0.6
 	charm.land/ssh v0.4.3
 	charm.land/wish/v2 v2.0.3
@@ -29,7 +29,7 @@ require (
 	github.com/mdlayher/genetlink v1.4.0
 	github.com/mdlayher/netlink v1.11.2
 	github.com/mdlayher/packet v1.1.2
-	github.com/miekg/dns v1.1.72
+	github.com/miekg/dns v1.1.73
 	github.com/muesli/reflow v0.3.0
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/goyang v1.6.3
@@ -48,10 +48,10 @@ require (
 	golang.org/x/sys v0.47.0
 	golang.org/x/term v0.45.0
 	golang.org/x/tools v0.49.0
-	golang.org/x/tools/gopls v0.0.0-20260827201838-8471f958f05f // first Go 1.27-compatible revision after v0.23.0
-	golang.org/x/vuln v1.6.0
+	golang.org/x/tools/gopls v0.23.0 // first Go 1.27-compatible revision after v0.23.0
+	golang.org/x/vuln v1.7.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
-	google.golang.org/grpc v1.83.0
+	google.golang.org/grpc v1.83.1
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.2
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
@@ -205,7 +205,7 @@ require (
 	github.com/matoous/godox v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
-	github.com/mattn/go-runewidth v0.0.24 // indirect
+	github.com/mattn/go-runewidth v0.0.27 // indirect
 	github.com/mdlayher/socket v0.6.0 // indirect
 	github.com/mgechev/revive v1.15.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect

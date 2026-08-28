@@ -39,13 +39,13 @@ import (
 	"golang.org/x/tools/gopls/internal/util/constraints"
 	"golang.org/x/tools/gopls/internal/util/immutable"
 	"golang.org/x/tools/gopls/internal/util/memoize"
+	"golang.org/x/tools/gopls/internal/util/moremaps"
 	"golang.org/x/tools/gopls/internal/util/pathutil"
 	"golang.org/x/tools/gopls/internal/util/persistent"
 	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/moremaps"
 )
 
 // A Snapshot represents the current state for a given view.
@@ -567,8 +567,6 @@ func (s *Snapshot) References(ctx context.Context, ids ...PackageID) ([]xrefInde
 	ctx, done := event.Start(ctx, "cache.snapshot.References")
 	defer done()
 
-	var enc objectpath.Encoder // amortize encoding across the batch
-
 	indexes := make([]xrefIndex, len(ids))
 	pre := func(i int, ph *packageHandle) bool {
 		if idx, ok := filecache.GetOrFatal(xrefsKind, ph.key, xrefs.Decode); ok {
@@ -578,7 +576,7 @@ func (s *Snapshot) References(ctx context.Context, ids ...PackageID) ([]xrefInde
 		return true
 	}
 	post := func(i int, pkg *Package) {
-		indexes[i] = xrefIndex{mp: pkg.metadata, idx: pkg.pkg.xrefs(&enc)}
+		indexes[i] = xrefIndex{mp: pkg.metadata, idx: pkg.pkg.xrefs()}
 	}
 	return indexes, s.forEachPackage(ctx, ids, pre, post)
 }
@@ -601,8 +599,6 @@ func (s *Snapshot) MethodSets(ctx context.Context, ids ...PackageID) ([]*methods
 	ctx, done := event.Start(ctx, "cache.snapshot.MethodSets")
 	defer done()
 
-	var enc objectpath.Encoder // amortize encoding across the batch
-
 	indexes := make([]*methodsets.Index, len(ids))
 	pre := func(i int, ph *packageHandle) bool {
 		pkgPath := ph.mp.PkgPath // capture for decode closure
@@ -615,7 +611,7 @@ func (s *Snapshot) MethodSets(ctx context.Context, ids ...PackageID) ([]*methods
 		return true
 	}
 	post := func(i int, pkg *Package) {
-		indexes[i] = pkg.pkg.methodsets(&enc)
+		indexes[i] = pkg.pkg.methodsets()
 	}
 	return indexes, s.forEachPackage(ctx, ids, pre, post)
 }
