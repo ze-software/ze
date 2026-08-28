@@ -377,7 +377,7 @@ func (runner *Runner) RunCLI(args []string) int {
 		return 0
 	}
 	if info, err := os.Stat(runner.PerfBinary); err != nil || !info.Mode().IsRegular() {
-		_, _ = fmt.Fprintf(runner.Stderr, "error: ze-perf not found at %s. Build it with: go build -o bin/ze-perf ./cmd/ze-perf\n", runner.PerfBinary)
+		_, _ = fmt.Fprintf(runner.Stderr, "error: ze-perf not found at %s. Build it with: ./le perf-bench run, or go build -tags 'ze_perf ze_bgp' -o bin/ze-perf ./cmd/ze\n", runner.PerfBinary)
 		return 1
 	}
 	if err := runner.buildLinuxBinary(); err != nil {

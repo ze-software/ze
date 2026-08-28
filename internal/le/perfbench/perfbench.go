@@ -72,8 +72,8 @@ var HotPathPrefixes = []string{
 }
 
 // MarkerPath is where the last perf run's SHA is recorded, relative to the
-// checkout. The perf recipes write it, so a real perf run clears the
-// suggestion.
+// checkout. The three benchmark verbs in bench.go write it, so a real perf run
+// clears the suggestion.
 const MarkerPath = "tmp/.ze-perf-lastrun"
 
 // unknownSHA marks a record operation when HEAD is unreadable.

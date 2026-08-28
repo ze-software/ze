@@ -127,6 +127,25 @@ DUT_ROUTES=10000 DUT_REPEAT=5 go run ./cmd/ze-perf-run --test ze
 <!-- source: cmd/ze-perf-run/main.go -- main -->
 <!-- source: internal/test/perfrunner/run.go -- RunCLI -->
 
+The native action runs the same chain, and it records the run so the perf nudge
+(`./le perf-bench suggestion-report`) stops asking for one:
+
+```bash
+# Build bin/ze-perf, measure every DUT, and record the run.
+./le perf-bench run
+
+# Measure one DUT, or several.
+./le perf-bench run dut ze
+./le perf-bench run dut "ze bird"
+
+# Append the results of the last measurement to the committed NDJSON history.
+./le perf-bench history-record
+
+# The release evidence gate: measure ze, append the result, fail on a regression.
+./le perf-bench evidence-record
+```
+<!-- source: internal/le/perfbench/bench.go -- Bench -->
+
 Results are written to `test/perf/results/` as JSON files. An HTML comparison report is generated automatically.
 
 ### Manual Reports
@@ -212,7 +231,7 @@ Limit the comparison window to the last N entries with `--last`:
 ze-perf track --check --last 5 history.ndjson
 ```
 
-For the full flag reference, see [ze-perf track](command-reference.md#ze-perf-history-record).
+For the full flag reference, see [ze-perf track](command-reference.md#ze-perf-track).
 
 ## Understanding Results
 

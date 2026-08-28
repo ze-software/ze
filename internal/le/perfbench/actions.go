@@ -4,7 +4,9 @@
 // actions.go is the table. The dispatch, the listing, the help line and the two
 // refusals are internal/le/leaction, which every ported area shares.
 //
-// The area is perf-bench and its native verbs are suggestion-report and record.
+// The area is perf-bench. Two verbs read the checkout and answer at once, and
+// three run the benchmark: bench.go holds those three and the chain each one
+// carries.
 // The action table is the sole command surface.
 
 package perfbench
@@ -25,6 +27,29 @@ var actions = leaction.New(area,
 		Why:    "record the current HEAD as the commit perf last ran at, which clears the suggestion",
 		Writes: true,
 		Answer: recordHere,
+	},
+	leaction.Action{
+		Verb: runVerb,
+		Why: "build bin/ze-perf and measure BGP convergence, UPDATE throughput and p99" +
+			" latency against every DUT, then record the run. Needs Docker and minutes." +
+			" `dut ze` measures one, `dut \"ze bird\"` measures several",
+		Writes:     true,
+		Parameters: []leaction.Parameter{{Keyword: dutKeyword, Value: "names"}},
+		AnswerArgs: runHere,
+	},
+	leaction.Action{
+		Verb: historyVerb,
+		Why: "append every result of the last measurement to its DUT's committed" +
+			" NDJSON history under " + historyDir + ", then record the run",
+		Writes: true,
+		Answer: historyHere,
+	},
+	leaction.Action{
+		Verb: evidenceVerb,
+		Why: "the release evidence gate: measure the ze DUT, append its result to the" +
+			" committed history, and exit non-zero when that history shows a regression",
+		Writes: true,
+		Answer: evidenceHere,
 	},
 )
 
@@ -60,6 +85,36 @@ func recordHere() (any, int) {
 		return Report{Error: err.Error()}, 1
 	}
 	return run.Record()
+}
+
+// runHere measures the DUTs the invocation named, over this checkout.
+func runHere(args leaction.Arguments) (any, int) {
+	bench, err := newBench()
+	if err != nil {
+		leaction.ReportError(err)
+		return RunReport{Action: runVerb, Error: err.Error(), Code: 1}, 1
+	}
+	return bench.Run(splitDUTs(args[dutKeyword]))
+}
+
+// historyHere appends the last measurement's results over this checkout.
+func historyHere() (any, int) {
+	bench, err := newBench()
+	if err != nil {
+		leaction.ReportError(err)
+		return RunReport{Action: historyVerb, Error: err.Error(), Code: 1}, 1
+	}
+	return bench.HistoryRecord()
+}
+
+// evidenceHere runs the release evidence gate over this checkout.
+func evidenceHere() (any, int) {
+	bench, err := newBench()
+	if err != nil {
+		leaction.ReportError(err)
+		return RunReport{Action: evidenceVerb, Error: err.Error(), Code: 1}, 1
+	}
+	return bench.EvidenceRecord()
 }
 
 // here answers a runner over the checkout this command was run in.
