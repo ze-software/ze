@@ -14,10 +14,18 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/lepath"
 )
+
+// toolWrite is the Claude tool that replaces a whole file. Several checks judge
+// it differently from an Edit, which changes one region.
+const toolWrite = "Write"
+
+// specUnassigned is what a session marker holds when the session claims no spec.
+const specUnassigned = "unassigned"
 
 const (
 	red    = "\033[31m"
@@ -77,7 +85,7 @@ var nativeHookActions = map[string]hookAction{
 		},
 	},
 	"pretool-writeedit": {
-		tools: []string{"Write", "Edit", "MultiEdit", "NotebookEdit"},
+		tools: []string{toolWrite, "Edit", "MultiEdit", "NotebookEdit"},
 		checks: []hookCheck{
 			writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite,
 			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeGoPatterns,
@@ -85,7 +93,7 @@ var nativeHookActions = map[string]hookAction{
 		},
 	},
 	"posttool-writeedit": {
-		tools: []string{"Write", "Edit"},
+		tools: []string{toolWrite, "Edit"},
 		checks: []hookCheck{
 			postFormatGo, postFileSize, postDeferral, postJournal, postRFCHeader,
 			postTestDocs, postFuzz, postVague, postBoundary,
@@ -202,8 +210,26 @@ func standardContent(input map[string]any) string {
 }
 
 func oneOf(value string, choices ...string) bool {
-	for _, choice := range choices {
-		if value == choice {
+	return slices.Contains(choices, value)
+}
+
+// anyPrefix reports whether value starts with one of the prefixes. It names
+// the membership test so a caller states the invariant positively instead of
+// negating a chain of HasPrefix calls.
+func anyPrefix(value string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(value, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// anyContains reports whether value holds one of the parts. It names the
+// membership test for the same reason anyPrefix does.
+func anyContains(value string, parts ...string) bool {
+	for _, part := range parts {
+		if strings.Contains(value, part) {
 			return true
 		}
 	}

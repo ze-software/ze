@@ -13,7 +13,7 @@ var (
 	goBuildCall      = regexp.MustCompile(`(^|[^A-Za-z0-9_])go\s+build([^A-Za-z0-9_]|$)`)
 	goBuildBin       = regexp.MustCompile(`-o\s+bin/`)
 	goBuildSession   = regexp.MustCompile(`-o\s+tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[A-Za-z0-9._-]+/bin/`)
-	goBuildAll       = regexp.MustCompile(`go\s+build\s+(-[A-Za-z0-9_]+\s+)*\./\.\.\.`)
+	goBuildAll       = regexp.MustCompile(`go\s+build\s+(-[A-Za-z0-9_]+\s+)*\./\.{3}`)
 	systemTmp        = regexp.MustCompile(`(^|[\s='"$(` + "`" + `:,])/tmp(/|\s|$)`)
 	scratchWrite     = regexp.MustCompile(`(?:>>?\s*|\btee\s+(?:-a\s+)?)(["']?)([A-Za-z0-9_./-]*tmp/[^\s;|&)'\"]+)`)
 	waitKeyword      = regexp.MustCompile(`\b(while|until)\b`)
@@ -23,14 +23,23 @@ var (
 	rootTestPath     = regexp.MustCompile(`[^\s'\"]*(?:test/|_test\.go)[^\s'\"]*`)
 	governedPath     = regexp.MustCompile(`(?:plan/|ai/rules/)`)
 	governedRedirect = regexp.MustCompile(`>>?[ \t]*["']?(?:plan/|ai/rules/)`)
-	governedSed      = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:sed|perl)[ \t]+[^|;&\n]*(?:[ \t])-i\b[^|;&\n]*(?:plan/|ai/rules/)`)
-	governedTee      = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])tee[ \t]+(?:-a[ \t]+)?["']?(?:plan/|ai/rules/)`)
-	governedCopy     = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:mv|cp)[ \t]+[^|;&\n]*[ \t]["']?(?:plan/|ai/rules/)`)
-	governedRuntime  = regexp.MustCompile(`\b(?:perl|ruby)\b`)
-	governedWrite    = regexp.MustCompile(`(?:open\([^)]*["'][wa]|write_text\(|\.write\(|writelines\(|truncate\()`)
+	// The in-place flag is matched with an OPTIONAL argument prefix and inside a
+	// CLUSTER of short flags, because both halves were holes. It can be the first
+	// argument, `sed -i 's/a/b/' plan/x`, which a mandatory intervening argument
+	// made unreachable. It can also be bundled with its neighbors: `perl -0pi`,
+	// `perl -pi`, `sed -Ei`, `sed -i.bak` and `sed --in-place` all edit in place,
+	// and a standalone `-i` saw none of them.
+	governedSed     = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:sed|perl|ruby)[ \t]+(?:[^|;&\n]*[ \t])?-[-A-Za-z0-9]*i[^|;&\n]*(?:plan/|ai/rules/)`)
+	governedTee     = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])tee[ \t]+(?:-a[ \t]+)?["']?(?:plan/|ai/rules/)`)
+	governedCopy    = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:mv|cp)[ \t]+[^|;&\n]*[ \t]["']?(?:plan/|ai/rules/)`)
+	governedRuntime = regexp.MustCompile(`\b(?:perl|ruby)\b`)
+	governedWrite   = regexp.MustCompile(`(?:open\([^)]*["'][wa]|write_text\(|\.write\(|writelines\(|truncate\()`)
 )
 
 // ze point: none -- the worktree prohibition lives in ai/INSTRUCTIONS.md, outside the rule corpus
+// bashWorktreeCopy refuses a file copy out of a worktree into the main tree.
+// A worktree agent lands its work by committing, and a direct copy overwrites
+// whatever another session left uncommitted at the destination.
 func bashWorktreeCopy(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if command == "" || !strings.Contains(command, ".claude/worktrees") {
@@ -48,6 +57,9 @@ func bashWorktreeCopy(ctx context) *verdict {
 }
 
 // ze point: git-safety/before-destructive-actions/never-run-a-destructive-git-verb
+// bashDestructiveGit refuses every git verb that discards work or publishes it.
+// Committing and pushing are allowed, through the prepared script alone, because
+// sessions share one index and a loose verb carries another session's changes.
 func bashDestructiveGit(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if strings.Contains(command, "git restore --staged") {
@@ -66,6 +78,9 @@ func bashDestructiveGit(ctx context) *verdict {
 }
 
 // ze point: none -- build hygiene; no rule states where a Go binary must be written
+// bashRootBuild refuses a Go compile that names no output path. Without -o the
+// binary lands in the working directory under the package name, where the next
+// tracked-file check reports it as an untracked artifact.
 func bashRootBuild(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if !goBuildCall.MatchString(command) || goBuildBin.MatchString(command) ||
@@ -134,7 +149,7 @@ func commandExpensive(segment string) bool {
 		}
 		tokens = tokens[1:]
 		if head == "timeout" || head == "nice" {
-			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || regexp.MustCompile(`^-?[0-9]+(?:\.[0-9]+)?[smhd]?$`).MatchString(tokens[0])) {
+			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || regexp.MustCompile(`^-?\d+(?:\.\d+)?[smhd]?$`).MatchString(tokens[0])) {
 				tokens = tokens[1:]
 			}
 		}
@@ -167,6 +182,9 @@ func commandExpensive(segment string) bool {
 
 // ze point: commands/no-pipes-on-expensive-commands/never-pipe-an-expensive-command-read-the-log
 // ze point: commands/directives/run-commands-through-native-actions-and-never-poll
+// bashLossyPipe refuses piping an expensive command through a filter that drops
+// output. The truncated text is what the caller would judge the run by, and the
+// part a filter removes is usually the part that says why the run failed.
 func bashLossyPipe(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	flat := strings.ReplaceAll(command, "\\\n", " ")
@@ -225,7 +243,7 @@ func rawHeavy(segment string) (string, string) {
 		}
 		if oneOf(head, "bash", "sh", "perl", "ruby", "sudo", "time", "nice", "env", "timeout") {
 			tokens = tokens[1:]
-			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?[smhd]?$`).MatchString(tokens[0])) {
+			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || regexp.MustCompile(`^\d+(?:\.\d+)?[smhd]?$`).MatchString(tokens[0])) {
 				tokens = tokens[1:]
 			}
 			continue
@@ -256,7 +274,7 @@ func rawHeavy(segment string) (string, string) {
 		suite := "<suite>"
 		positional := make([]string, 0, 2)
 		for _, token := range tokens[1:] {
-			if !strings.HasPrefix(token, "-") && !regexp.MustCompile(`^[0-9]+$`).MatchString(token) {
+			if !strings.HasPrefix(token, "-") && !regexp.MustCompile(`^\d+$`).MatchString(token) {
 				positional = append(positional, token)
 			}
 		}
@@ -276,6 +294,8 @@ func admittedCommand(label string, tokens []string) string {
 }
 
 // ze point: commands/directives/heavy-jobs-are-admitted-by-native-actions-never-typed-raw
+// bashRawHeavy refuses a heavy job typed raw, outside job admission. One machine
+// carries several sessions, and an unadmitted job oversubscribes it.
 func bashRawHeavy(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	for _, segment := range commandSegments(command) {
@@ -295,6 +315,8 @@ func bashRawHeavy(ctx context) *verdict {
 }
 
 // ze point: commands/directives/run-commands-through-native-actions-and-never-poll
+// bashPollLoop refuses an unbounded wait loop. A loop with no timeout holds the
+// session until something outside it intervenes.
 func bashPollLoop(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	locations := waitKeyword.FindAllStringIndex(command, -1)
@@ -336,6 +358,8 @@ func bashPollLoop(ctx context) *verdict {
 }
 
 // ze point: testing/temporary-files/use-project-tmp-for-scratch-files
+// bashSystemTmp refuses the system temporary directory. Session scratch belongs
+// under the per-session directory, which is isolated and reaped with the session.
 func bashSystemTmp(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if command == "" || !systemTmp.MatchString(command) {
@@ -345,6 +369,8 @@ func bashSystemTmp(ctx context) *verdict {
 }
 
 // ze point: commands/write-ad-hoc-scratch-under-your-per-session-dir/write-ad-hoc-scratch-under-this-session-s-private-directory
+// bashScratch refuses ad-hoc scratch written at the tmp/ root. Sessions share
+// that tree, so an unqualified name collides with whatever another session wrote.
 func bashScratch(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	seen := map[string]bool{}
@@ -381,10 +407,12 @@ func draftOnly(command string) bool {
 }
 
 // ze point: testing/directives/write-the-test-first-and-never-weaken-it
+// bashTestDeletion refuses deleting a test without approval. A deleted test is
+// indistinguishable from a test that never existed, and its coverage goes with it.
 func bashTestDeletion(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	errors := make([]string, 0, 2)
-	if regexp.MustCompile(`(^|[\s]|&&|\|)(rm|git rm)[\s]`).MatchString(command) {
+	if regexp.MustCompile(`(^|\s|&&|\|)(rm|git rm)\s`).MatchString(command) {
 		if strings.Contains(command, "_test.go") || strings.Contains(command, ".ci") {
 			errors = append(errors, "Attempting to delete test file via: "+command)
 		}
@@ -406,21 +434,52 @@ func bashTestDeletion(ctx context) *verdict {
 	return &verdict{2, strings.Join(lines, "\n")}
 }
 
+// governedReason reports whether the command states a reason for reaching a
+// governed tree from the shell. The reason must be non-empty after quotes are
+// stripped, because an empty one admits every command while recording nothing.
 func governedReason(command string) bool {
-	marker := "ZE_ADMIT_GOVERNED_WRITE="
-	index := strings.Index(command, marker)
-	if index < 0 {
+	_, stated, found := strings.Cut(command, "ZE_ADMIT_GOVERNED_WRITE=")
+	if !found {
 		return false
 	}
-	value := strings.Fields(command[index+len(marker):])
+	value := strings.Fields(stated)
 	return len(value) != 0 && strings.Trim(value[0], "'\"") != ""
 }
 
+// governedShellWrite reports whether the command writes into a governed tree by
+// any of the five routes: a redirect, an in-place editor, tee, a copy or move,
+// or an interpreter script that opens a file for writing.
+//
+// Each route is its own named test rather than one compound condition, so a
+// reader can see which route fired and a new route is a new line.
+func governedShellWrite(command string) bool {
+	if governedRedirect.MatchString(command) {
+		return true
+	}
+	if governedSed.MatchString(command) {
+		return true
+	}
+	if governedTee.MatchString(command) {
+		return true
+	}
+	if governedCopy.MatchString(command) {
+		return true
+	}
+	return governedRuntime.MatchString(command) &&
+		governedPath.MatchString(command) &&
+		governedWrite.MatchString(command)
+}
+
 // ze point: commands/directives/bash-must-not-edit-a-governed-document
+//
+// bashGovernedWrite refuses a shell write into plan/ or ai/rules/. Those trees
+// are guarded by the Write/Edit hook, and a shell write runs none of its checks.
 func bashGovernedWrite(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	scriptWrite := governedRuntime.MatchString(command) && governedPath.MatchString(command) && governedWrite.MatchString(command)
-	if !(governedRedirect.MatchString(command) || governedSed.MatchString(command) || governedTee.MatchString(command) || governedCopy.MatchString(command) || scriptWrite) || governedReason(command) {
+	if !governedShellWrite(command) {
+		return nil
+	}
+	if governedReason(command) {
 		return nil
 	}
 	return &verdict{2, strings.Join([]string{

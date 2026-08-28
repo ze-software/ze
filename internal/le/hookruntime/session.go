@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"strings"
 
@@ -57,9 +58,7 @@ func writeParentSessionPrefix(ctx context, out io.Writer) {
 		return
 	}
 	updated := make(map[string]any, len(ctx.input))
-	for key, value := range ctx.input {
-		updated[key] = value
-	}
+	maps.Copy(updated, ctx.input)
 	updated["command"] = "export CLAUDE_CODE_SESSION_ID=" + id + "; " + command
 	response := map[string]any{
 		"hookSpecificOutput": map[string]any{

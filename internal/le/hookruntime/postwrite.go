@@ -15,7 +15,7 @@ import (
 )
 
 func existingGo(ctx context, skipTest bool) bool {
-	if !oneOf(ctx.tool, "Write", "Edit") || !strings.HasSuffix(ctx.path, ".go") || skipTest && strings.HasSuffix(ctx.path, "_test.go") {
+	if !oneOf(ctx.tool, toolWrite, "Edit") || !strings.HasSuffix(ctx.path, ".go") || skipTest && strings.HasSuffix(ctx.path, "_test.go") {
 		return false
 	}
 	info, err := os.Stat(absolutePath(ctx))
@@ -31,6 +31,8 @@ func readEdited(ctx context) string {
 }
 
 // ze point: quality/linting/fix-lint-issues-never-disable-a-linter
+// postFormatGo formats the edited Go file, then refuses it while the linter
+// still reports an issue in its package.
 func postFormatGo(ctx context) *verdict {
 	if !existingGo(ctx, false) {
 		return nil
@@ -47,20 +49,20 @@ func postFormatGo(ctx context) *verdict {
 	}
 	if binary, err := exec.LookPath("gofmt"); err == nil {
 		timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), 30*time.Second)
-		command := exec.CommandContext(timeout, binary, "-w", absolutePath(ctx))
+		command := exec.CommandContext(timeout, binary, "-w", absolutePath(ctx)) //nolint:gosec // gofmt from PATH, run on the file the developer just edited
 		_, _ = command.CombinedOutput()
 		cancel()
 	}
 	if binary, err := exec.LookPath("goimports"); err == nil {
 		timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), 30*time.Second)
-		command := exec.CommandContext(timeout, binary, "-local", "github.com/ze-software/ze", "-format-only", "-w", absolutePath(ctx))
+		command := exec.CommandContext(timeout, binary, "-local", "github.com/ze-software/ze", "-format-only", "-w", absolutePath(ctx)) //nolint:gosec // goimports from PATH, run on the file the developer just edited
 		_, _ = command.CombinedOutput()
 		cancel()
 	}
 	if binary, err := exec.LookPath("golangci-lint"); err == nil {
 		relative, _ := filepath.Rel(module, absolutePath(ctx))
 		timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), 60*time.Second)
-		command := exec.CommandContext(timeout, binary, "run", "--new-from-rev=HEAD", "--timeout=30s", "./"+filepath.ToSlash(filepath.Dir(relative))+"/...")
+		command := exec.CommandContext(timeout, binary, "run", "--new-from-rev=HEAD", "--timeout=30s", "./"+filepath.ToSlash(filepath.Dir(relative))+"/...") //nolint:gosec // golangci-lint from PATH, run on the package the developer just edited
 		command.Dir = module
 		output, _ := command.CombinedOutput()
 		cancel()
@@ -68,7 +70,7 @@ func postFormatGo(ctx context) *verdict {
 		if text != "" && !strings.Contains(text, "no issues") && !strings.HasPrefix(text, "0 issues") {
 			lines := make([]string, 0, 3)
 			issues := 0
-			for _, line := range strings.Split(text, "\n") {
+			for line := range strings.SplitSeq(text, "\n") {
 				if strings.Contains(line, ":") {
 					issues++
 				}
@@ -85,6 +87,7 @@ func postFormatGo(ctx context) *verdict {
 }
 
 // ze point: none -- the 1,000-line advisory is Go style guidance outside the rule corpus
+// postFileSize reports a Go file past the 1,000-line advisory.
 func postFileSize(ctx context) *verdict {
 	if !existingGo(ctx, true) {
 		return nil
@@ -98,13 +101,14 @@ func postFileSize(ctx context) *verdict {
 }
 
 // ze point: none -- the deferral-language advisory has no one rule point that states its heuristic
+// postDeferral reports deferral language in a document that is not a deferral.
 func postDeferral(ctx context) *verdict {
 	path := filepath.ToSlash(ctx.path)
 	if !strings.HasSuffix(path, ".md") || strings.Contains(path, "plan/deferrals") || strings.Contains(path, ".claude/memory/") || strings.Contains(path, ".claude/plan/") || strings.Contains(path, "tmp/session/") || strings.Contains(path, "plan/learned/") {
 		return nil
 	}
 	content := stringInput(ctx.input, "new_string")
-	if ctx.tool == "Write" {
+	if ctx.tool == toolWrite {
 		content = stringInput(ctx.input, "content")
 	}
 	for _, phrase := range []string{"deferred to", "deferred for", "defer to", "out of scope", "future work", "future spec", "handle later", "address later", "skip for now", "skipping for now", "postpone", "not yet implemented", "not yet wired"} {
@@ -116,6 +120,7 @@ func postDeferral(ctx context) *verdict {
 }
 
 // ze point: none -- journal row validation is defined by the journal format, not a rule point
+// postJournal reports a journal file that ./le commit create would refuse.
 func postJournal(ctx context) *verdict {
 	path := filepath.ToSlash(ctx.path)
 	if !regexp.MustCompile(`(^|/)plan/journal/.+\.md$`).MatchString(path) || strings.HasSuffix(path, "/README.md") {
@@ -132,6 +137,7 @@ func postJournal(ctx context) *verdict {
 }
 
 // ze point: none -- RFC header placement is Go style guidance outside the rule corpus
+// postRFCHeader reports a file citing RFCs with no // RFC: header.
 func postRFCHeader(ctx context) *verdict {
 	if !existingGo(ctx, false) {
 		return nil
@@ -142,13 +148,14 @@ func postRFCHeader(ctx context) *verdict {
 	}
 	text := readEdited(ctx)
 	head := strings.Join(strings.Split(text, "\n")[:min(10, len(strings.Split(text, "\n")))], "\n")
-	if strings.Contains(head, "// RFC:") || len(regexp.MustCompile(`RFC [0-9]{4}|rfc[0-9]{4}`).FindAllString(text, -1)) < 2 {
+	if strings.Contains(head, "// RFC:") || len(regexp.MustCompile(`RFC \d{4}|rfc\d{4}`).FindAllString(text, -1)) < 2 {
 		return nil
 	}
 	return &verdict{0, yellow + "⚠ " + base + " references RFCs but has no // RFC: rfc/short/rfcNNNN.md header" + reset}
 }
 
 // ze point: none -- test-file documentation is Go style guidance outside the rule corpus
+// postTestDocs reports a test file with no VALIDATES:/PREVENTS: comment.
 func postTestDocs(ctx context) *verdict {
 	if !strings.HasSuffix(ctx.path, "_test.go") || !existingGo(ctx, false) {
 		return nil
@@ -161,12 +168,13 @@ func postTestDocs(ctx context) *verdict {
 }
 
 // ze point: none -- fuzz-test discovery is an advisory with no bound rule point
+// postFuzz reports a wire parser whose package carries no fuzz target.
 func postFuzz(ctx context) *verdict {
 	if !existingGo(ctx, true) {
 		return nil
 	}
 	path := filepath.ToSlash(ctx.path)
-	if !(strings.Contains(path, "/message/") || strings.Contains(path, "/nlri/") || strings.Contains(path, "/attribute/") || strings.Contains(path, "/capability/")) {
+	if !anyContains(path, "/message/", "/nlri/", "/attribute/", "/capability/") {
 		return nil
 	}
 	text := readEdited(ctx)
@@ -175,7 +183,7 @@ func postFuzz(ctx context) *verdict {
 	}
 	entries, _ := filepath.Glob(filepath.Join(filepath.Dir(absolutePath(ctx)), "*_test.go"))
 	for _, entry := range entries {
-		body, _ := os.ReadFile(entry)
+		body, _ := os.ReadFile(entry) //nolint:gosec // a *_test.go path this hook globbed beside the edited file
 		if regexp.MustCompile(`(?m)^func Fuzz[A-Z]`).Match(body) {
 			return nil
 		}
@@ -184,6 +192,7 @@ func postFuzz(ctx context) *verdict {
 }
 
 // ze point: none -- vague-name detection is Go style guidance outside the rule corpus
+// postVague reports a vague variable name in the edited Go file.
 func postVague(ctx context) *verdict {
 	if !existingGo(ctx, true) {
 		return nil
@@ -195,6 +204,7 @@ func postVague(ctx context) *verdict {
 }
 
 // ze point: none -- boundary-test discovery is an advisory with no bound rule point
+// postBoundary reports numeric validation whose sibling test names no boundary.
 func postBoundary(ctx context) *verdict {
 	if !existingGo(ctx, true) {
 		return nil
@@ -203,7 +213,7 @@ func postBoundary(ctx context) *verdict {
 		return nil
 	}
 	testPath := strings.TrimSuffix(absolutePath(ctx), ".go") + "_test.go"
-	body, err := os.ReadFile(testPath)
+	body, err := os.ReadFile(testPath) //nolint:gosec // the sibling test of the file the tool just edited
 	if err != nil {
 		return &verdict{0, yellow + "⚠️  Numeric validation but no test file: " + filepath.Base(testPath) + reset}
 	}
