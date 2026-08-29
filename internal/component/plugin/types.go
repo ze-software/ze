@@ -333,6 +333,12 @@ type HubServerConfig struct {
 	Port    uint16            // Listen port
 	Secret  string            `json:"-"` // Auth token for plugin connections
 	Clients map[string]string `json:"-"` // Per-client secrets: name -> secret
+	// Certificate names the pki store certificate the managed-client listener
+	// on this block serves. Empty serves a self-signed certificate no client
+	// can verify against a CA. Every block that accepts managed clients serves
+	// the same certificate: ExtractHubConfig refuses a config where two of them
+	// disagree.
+	Certificate string
 }
 
 // Address returns "host:port" for net.Listen.
@@ -349,6 +355,9 @@ type HubClientConfig struct {
 	Port          uint16 // Remote hub port
 	Secret        string `json:"-"` // Auth token
 	SourceAddress string // Optional source IP for outbound connection
+	// CertificateFingerprint pins the hub certificate by hex SHA-256, for a hub
+	// whose certificate no CA in this client's trust store issued.
+	CertificateFingerprint string
 }
 
 // Address returns "host:port" for net.Dial.

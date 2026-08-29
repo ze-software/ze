@@ -387,7 +387,11 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		Token:         cli.Secret,
 		TLSInsecure:   env.GetBool("ze.managed.tls.insecure", false),
 		SourceAddress: cli.SourceAddress,
-		Version:       fleet.VersionHash(data),
+		// Without this the configured leaf reaches nothing and only the
+		// environment variable can pin the hub, so a client configured through
+		// its config file falls through to the system CA it cannot satisfy.
+		CertificateFingerprint: cli.CertificateFingerprint,
+		Version:                fleet.VersionHash(data),
 		Handler: &managed.Handler{
 			Validate: func(cfgData []byte) error {
 				_, parseErr := config.LoadConfig(string(cfgData), "", nil)
@@ -405,14 +409,15 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), env.GetDuration("ze.managed.connect.timeout", 5*time.Second))
 	defer cancel()
 
-	tlsInsecure := env.GetBool("ze.managed.tls.insecure", false)
-	tlsConf := &tls.Config{
-		InsecureSkipVerify: tlsInsecure, //nolint:gosec // opt-in via explicit env var
-		MinVersion:         tls.VersionTLS13,
-	}
-	if tlsInsecure {
-		slog.Warn("managed TLS: certificate verification disabled (insecure)")
-	}
+	// The SAME rules RunManagedClient uses, through managed.ClientTLSConfig
+	// rather than a second tls.Config spelled here. This path is first boot:
+	// there is no config yet, so it carries the token to a hub the client has
+	// never spoken to, and it was the least authenticated exchange of them all.
+	// Only the environment variable is available, which is where a first-boot
+	// client's server, name and token come from too.
+	tlsConf := managed.ClientTLSConfig(server,
+		env.GetBool("ze.managed.tls.insecure", false),
+		env.Get("ze.managed.tls.certificate-fingerprint"))
 
 	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", server)
 	if err != nil {

@@ -38,15 +38,21 @@ var logger = slogutil.LazyLogger("hub.managed")
 
 // ClientConfig holds the configuration for a managed client connection.
 type ClientConfig struct {
-	Name          string // Client identity (from hub client block name)
-	Server        string // Hub address (host:port)
-	Token         string // Auth token
-	Version       string // Current config version hash (empty on first boot)
-	TLSInsecure   bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
-	SourceAddress string // Optional source IP for outbound connection
-	Handler       *Handler
-	OnCommit      func([]byte) error // Called to transactionally commit fetched config
-	CheckManaged  func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
+	Name        string // Client identity (from hub client block name)
+	Server      string // Hub address (host:port)
+	Token       string // Auth token
+	Version     string // Current config version hash (empty on first boot)
+	TLSInsecure bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
+	// CertificateFingerprint pins the hub certificate by its hex SHA-256
+	// fingerprint (plugin/hub/client/certificate-fingerprint). It authenticates
+	// a hub whose certificate no CA in the client's trust store issued, which
+	// is what a self-signed or privately issued fleet hub presents. Empty means
+	// the trust anchor comes from the system CA pool. See clientTLSConfig.
+	CertificateFingerprint string
+	SourceAddress          string // Optional source IP for outbound connection
+	Handler                *Handler
+	OnCommit               func([]byte) error // Called to transactionally commit fetched config
+	CheckManaged           func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
 }
 
 // RunManagedClient connects to the hub and maintains the connection with
@@ -101,14 +107,7 @@ func serverNameFromAddr(server string) string {
 // fetch config, run heartbeat + notification loop. Returns on any error
 // (caller retries with backoff). Resets backoff on successful auth.
 func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) error {
-	tlsConf := &tls.Config{
-		ServerName:         serverNameFromAddr(cfg.Server),
-		InsecureSkipVerify: cfg.TLSInsecure, //nolint:gosec // opt-in via explicit config flag
-		MinVersion:         tls.VersionTLS13,
-	}
-	if cfg.TLSInsecure {
-		logger().Warn("managed TLS: certificate verification disabled (insecure)")
-	}
+	tlsConf := clientTLSConfig(cfg)
 
 	connectCtx, connectCancel := context.WithTimeout(ctx, connectTimeout)
 	defer connectCancel()

@@ -702,6 +702,10 @@ func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 		hub.Servers = append(hub.Servers, srv)
 	}
 
+	if err := checkManagedCertificateAgreement(hub.Servers); err != nil {
+		return plugin.HubConfig{}, err
+	}
+
 	for _, entry := range hubContainer.GetListOrdered("client") {
 		cli, err := extractHubClientConfig(entry.Key, entry.Value)
 		if err != nil {
@@ -711,6 +715,31 @@ func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 	}
 
 	return hub, nil
+}
+
+// checkManagedCertificateAgreement refuses a config whose managed-client server
+// blocks name different certificates. One managed server serves every such
+// block, from one certificate, exactly as it merges their client secrets into
+// one map. A second name would therefore be dropped, and the clients of that
+// block would meet a certificate their configured fingerprint cannot match.
+func checkManagedCertificateAgreement(servers []plugin.HubServerConfig) error {
+	var first plugin.HubServerConfig
+	seen := false
+	for _, srv := range servers {
+		if len(srv.Clients) == 0 {
+			continue // Not a managed-client-serving block.
+		}
+		if !seen {
+			first, seen = srv, true
+			continue
+		}
+		if srv.Certificate != first.Certificate {
+			return fmt.Errorf("hub server %q: certificate %q disagrees with server %q certificate %q "+
+				"(every server block that accepts managed clients serves one certificate)",
+				srv.Name, srv.Certificate, first.Name, first.Certificate)
+		}
+	}
+	return nil
 }
 
 func extractHubServerConfig(name string, tree *Tree) (plugin.HubServerConfig, error) {
@@ -733,6 +762,10 @@ func extractHubServerConfig(name string, tree *Tree) (plugin.HubServerConfig, er
 			return srv, fmt.Errorf("secret too short: minimum %d characters, got %d", minTokenLength, len(secret))
 		}
 		srv.Secret = secret
+	}
+
+	if cert, ok := tree.Get("certificate"); ok {
+		srv.Certificate = cert
 	}
 
 	clients := tree.GetList("client")
@@ -926,6 +959,10 @@ func extractHubClientConfig(name string, tree *Tree) (plugin.HubClientConfig, er
 
 	if sa, ok := tree.Get("source-address"); ok {
 		cli.SourceAddress = sa
+	}
+
+	if fp, ok := tree.Get("certificate-fingerprint"); ok {
+		cli.CertificateFingerprint = fp
 	}
 
 	return cli, nil

@@ -35,6 +35,15 @@ module ze-plugin-conf {
                     description "Auth token for plugin connections (min 32 chars)";
                 }
 
+                leaf certificate {
+                    type string { length "1..64"; }
+                    description
+                        "Name of a pki certificate the managed-client listener on this
+                         block serves. An empty name serves a self-signed certificate
+                         that changes on every restart. No CA can vouch for that one, so
+                         a client must pin its fingerprint or skip verification.";
+                }
+
                 list client {
                     key "name";
                     description "Accepted remote managed clients";
@@ -80,6 +89,17 @@ module ze-plugin-conf {
                 leaf source-address {
                     type zt:ip-address;
                     description "Source IP address for outbound hub connections.";
+                }
+
+                leaf certificate-fingerprint {
+                    type string { pattern "[0-9a-fA-F]{64}"; }
+                    description
+                        "SHA-256 fingerprint of the hub certificate, in hex. The client
+                         refuses any other certificate and sends no token to it. Use it
+                         when the hub certificate comes from no CA the client trusts.
+                         The hub logs this value when its managed listener starts. The
+                         ze.managed.tls.certificate-fingerprint environment variable
+                         overrides this leaf.";
                 }
             }
         }

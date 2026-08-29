@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-06 |
+| Updated | 2026-08-29 |
 
 ## Post-Compaction Recovery
 
@@ -35,6 +35,30 @@ capturing three gaps surfaced by that spec's `/ze-review`:
 3. **Two-instance daemon `.ci`.** Add a `test/managed/*.ci` that runs a real `ze` hub serving a
    real `ze` managed client end-to-end (fetch + config-changed), complementing the Go integration
    test `cmd/ze/hub/managed_server_test.go` which exercises `startManagedServer` directly.
+
+### Certificate decision (2026-08-29)
+
+Two shapes were on the table for AC-1/AC-2. **The hub serves a pki store
+certificate (shape a).**
+
+| Shape | Verdict |
+|-------|---------|
+| (a) The hub serves a certificate from the pki component, and the client verifies it | **Picked.** `pki.ServerTLSMaterial` already resolves a certificate NAME into serving PEM, and the web, DoT and DoH listeners already take it that way. The managed listener was the only TLS server in ze that could not be given a certificate. The hub gains a `certificate` leaf and nothing else |
+| (b) The hub keeps a generated self-signed certificate and persists it, and the client pins its fingerprint | **Rejected.** Persisting the generated pair means a second certificate store beside pki: key material, permissions, regeneration when it expires, and a command to read the fingerprint back. It also leaves the operator with a certificate no CA issued and no way to rotate it through config |
+
+The fingerprint pin stays, on the CLIENT side, as the trust anchor for a hub
+certificate no CA in the client's trust store issued. That is what a private
+fleet CA produces, and it is the case a system CA pool cannot serve. Pinning is
+only meaningful because shape (a) makes the served certificate stable: an
+ephemeral certificate changes on every restart, so a pin on it would break at
+the first restart. The mechanism is `pluginipc.TLSConfigWithFingerprint`, which
+the plugin process rail already uses through `ZE_PLUGIN_CERT_FP`.
+
+The defect this closes: `NewManagedServer` always minted a 24-hour self-signed
+certificate whose only SAN was 127.0.0.1, and `runConnection` verified against
+the system CA pool. No real deployment could connect without
+`ze.managed.tls.insecure`, and with it the client sent its token to whatever
+answered on the hub address.
 
 ### Post-wave corrections (2026-07-10)
 
@@ -84,7 +108,7 @@ an indefinite block.
 - `tls-insecure` remains a valid opt-in for development.
 
 **Behavior to change:**
-- A managed client can verify the hub's identity without `tls-insecure` (CA cert or pinned fingerprint).
+- A managed client can verify the hub's identity without `tls-insecure` (CA cert or pinned fingerprint). DONE 2026-08-29.
 
 ## Data Flow (MANDATORY)
 
@@ -126,20 +150,49 @@ an indefinite block.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestManagedClientPinsCert` | `internal/component/managed/client_test.go` | AC-1/AC-2 | |
-| `TestManagedServerCollisionDoctor` | doctor check test | AC-3 | |
+| `TestManagedClientPinsCertificate` | `internal/component/managed/client_tls_test.go` | AC-1 | PASS |
+| `TestManagedClientRefusesWrongCertificate` | `internal/component/managed/client_tls_test.go` | AC-2 | PASS |
+| `TestManagedClientDefaultFailsClosed` | `internal/component/managed/client_tls_test.go` | AC-2 | PASS |
+| `TestManagedClientFingerprintSources` | `internal/component/managed/client_tls_test.go` | AC-1 (env override, hex case) | PASS |
+| `TestManagedServerServesConfiguredCertificate` | `internal/component/plugin/server/managed_cert_test.go` | AC-1 | PASS |
+| `TestManagedServerFailsClosedOnCertificate` | `internal/component/plugin/server/managed_cert_test.go` | AC-1 | PASS |
+| `TestHubTrustLeavesReachTheStructs` | `internal/component/config/hub_certificate_test.go` | AC-1 (both leaves) | PASS |
+| `TestHubFingerprintRejectsNonHex` | `internal/component/config/hub_certificate_test.go` | AC-1 (leaf pattern) | PASS |
+| `TestHubRefusesDisagreeingCertificates` | `internal/component/config/hub_certificate_test.go` | AC-1 (one certificate per managed server) | PASS |
+| `TestManagedServerCollisionDoctor` | doctor check test | AC-3 | NOT STARTED |
+
+Each test was proved to discriminate by reverting the behavior it covers: the
+pin branch removed, the pin branch replaced by `InsecureSkipVerify`, the default
+branch made insecure, the env lookup and the lowercasing dropped, the server
+made to ignore its configured certificate name, the two extraction assignments
+dropped, the YANG pattern dropped, and the agreement check dropped. Every
+mutation turned exactly the covering test red.
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `managed-hub-secure` | `test/managed/*.ci` | client verifies the hub cert and fetches (AC-1/AC-4) | |
 
+## Remaining Work (2026-08-29)
+
+| Item | State |
+|------|-------|
+| AC-1/AC-2 mechanism and tests | Done, in `internal/` |
+| Hub wiring: `cmd/ze/hub/managed_server.go` MUST pass `Certificate: blk.Certificate` and `TLSMaterialResolver: zepki.ServerTLSMaterial` into `ManagedServerConfig` | NOT DONE. Held by another session at the time of writing. Until it lands, `Certificate` is always empty and the hub still serves a self-signed certificate |
+| Client wiring: `cmd/ze/ze_core_start.go` `extractManagedClientConfig` MUST pass `CertificateFingerprint: cli.CertificateFingerprint` into `managed.ClientConfig` | NOT DONE, same reason. The `ze.managed.tls.certificate-fingerprint` environment variable reaches `runConnection` today without this line; the config leaf does not |
+| First boot: `fetchInitialConfig` (`cmd/ze/ze_core_start.go`) builds its own `tls.Config` and MUST use the same trust rules, or a first boot still sends its token to an unauthenticated server | NOT DONE, same reason |
+| AC-3 port-collision doctor check | NOT STARTED |
+| AC-4 two-instance daemon `.ci` | NOT STARTED |
+
 ## Files to Modify
-- `internal/component/plugin/server/managed_serve.go` - accept an optional/PKI cert
-- `internal/component/managed/client.go` - cert pinning / CA verification
-- `internal/component/plugin/*/yang/` - `cert-fp` leaf on the hub client block (if pinning)
-- doctor check registration + `internal/core/diagnostic/codes.go`
-- `test/managed/managed-hub-secure.ci`
+- `internal/component/plugin/server/managed_serve.go` - serves the named pki certificate, fails closed, reports its fingerprint (DONE)
+- `internal/component/managed/tls.go` - the client trust decision (DONE)
+- `internal/component/managed/client.go` - `CertificateFingerprint` on ClientConfig (DONE)
+- `internal/component/plugin/yang/ze-plugin-conf.yang` - `certificate` and `certificate-fingerprint` leaves (DONE)
+- `internal/component/plugin/types.go`, `internal/component/config/loader_extract.go` - extraction (DONE)
+- `docs/architecture/fleet-config.md` - hub certificate and client trust (DONE)
+- doctor check registration + `internal/core/diagnostic/codes.go` (AC-3, not started)
+- `test/managed/managed-hub-secure.ci` (AC-4, not started)
 
 ## Implementation Steps
 1. Decide the cert approach (PKI/CA cert vs pinned fingerprint) - present to user.
@@ -182,4 +235,4 @@ an indefinite block.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes

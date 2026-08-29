@@ -60,6 +60,22 @@ type ManagedServerConfig struct {
 	ClientSecrets map[string]string // Per-client name -> secret (authoritative for managed clients).
 	ReadConfig    ConfigReader      // Reads a client's config by name (over the hub blob store).
 	Metrics       metrics.Registry  // Optional; nil installs no-op counters.
+
+	// Certificate names the pki store certificate the listener serves
+	// (plugin/hub/server/certificate). An empty name generates an ephemeral
+	// self-signed certificate. A client can verify that one only by pinning its
+	// fingerprint, and the fingerprint changes on every hub restart.
+	Certificate string
+
+	// TLSMaterialResolver resolves a certificate NAME into serving PEM material
+	// (leaf plus any intermediates, and the private key). It exists because the
+	// pki component imports this package, so this package cannot import pki:
+	// the hub injects pki.ServerTLSMaterial here. Same shape as
+	// dnsserver.Options.TLSMaterialResolver, which the DoT/DoH listeners use.
+	//
+	// nil means no store reference is supported. A Certificate name given
+	// anyway is an error, never a silent fallback.
+	TLSMaterialResolver func(name string) (certPEM, keyPEM []byte, err error)
 }
 
 // ManagedServer authenticates managed fleet clients (per-client secret), answers
@@ -70,6 +86,9 @@ type ManagedServer struct {
 	lookup func(name string) (string, bool)
 	addrs  []string
 	cert   tls.Certificate
+	// certName is the configured pki certificate name, empty for the
+	// self-signed fallback. Kept only so Start can name it in its log.
+	certName string
 
 	mu    sync.Mutex
 	conns map[string]*rpc.MuxConn // Connected client name -> mux, for config-changed push.
@@ -89,18 +108,21 @@ type ManagedServer struct {
 	wg        sync.WaitGroup
 }
 
-// NewManagedServer builds a managed server. ReadConfig is required. A self-signed
-// TLS certificate is generated: the transport is encrypted, but a remote managed
-// client cannot verify a self-signed cert against a CA, so today it must connect with
-// tls-insecure. Verifiable server-cert distribution (CA cert or pinned fingerprint in
-// the client config) is tracked in plan/spec-managed-server-hardening.md.
+// NewManagedServer builds a managed server. ReadConfig is required.
+//
+// The listener serves the named pki store certificate when cfg.Certificate is
+// set. A managed client then verifies the hub the way it verifies any other TLS
+// server: against the CA that issued the certificate, or against the
+// fingerprint it pins. With no name it serves an ephemeral self-signed
+// certificate. That certificate is encrypted, unverifiable, and different after
+// every restart, so it is for development only.
 func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	if cfg.ReadConfig == nil {
 		return nil, errors.New("managed server: ReadConfig is required")
 	}
-	cert, err := pluginipc.GenerateSelfSignedCert()
+	cert, err := managedCertificate(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("managed server: generate cert: %w", err)
+		return nil, err
 	}
 	secrets := cfg.ClientSecrets
 	reg := cfg.Metrics
@@ -115,6 +137,7 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		},
 		addrs:    cfg.Addrs,
 		cert:     cert,
+		certName: cfg.Certificate,
 		conns:    make(map[string]*rpc.MuxConn),
 		notifyCh: make(chan string, managedNotifyBuffer),
 		sem:      make(chan struct{}, managedMaxConns),
@@ -125,6 +148,46 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		mPushed: reg.Counter("ze_managed_config_changed_pushed_total",
 			"config-changed notifications pushed to connected managed clients."),
 	}, nil
+}
+
+// managedCertificate returns the certificate the managed listener serves.
+//
+// It FAILS CLOSED on a configured name. An unresolvable name returns an error
+// and no certificate, and the caller disables the listener. It never falls back
+// to the self-signed path. Such a listener looks like a working deployment
+// while the config names a real certificate, until a client refuses the
+// handshake. hub.webTLSMaterial fails closed for the same reason.
+func managedCertificate(cfg ManagedServerConfig) (tls.Certificate, error) {
+	if cfg.Certificate == "" {
+		cert, err := pluginipc.GenerateSelfSignedCert()
+		if err != nil {
+			return tls.Certificate{}, fmt.Errorf("managed server: generate cert: %w", err)
+		}
+		return cert, nil
+	}
+	if cfg.TLSMaterialResolver == nil {
+		var tb textbuf.Buffer
+		tb.Str("managed server: certificate ").Str(cfg.Certificate).
+			Str(" is configured but this hub resolves no certificate names")
+		return tls.Certificate{}, errors.New(tb.String())
+	}
+	certPEM, keyPEM, err := cfg.TLSMaterialResolver(cfg.Certificate)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("managed server: certificate %q: %w", cfg.Certificate, err)
+	}
+	pair, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("managed server: certificate %q: %w", cfg.Certificate, err)
+	}
+	return pair, nil
+}
+
+// CertificateFingerprint returns the hex SHA-256 fingerprint of the served
+// certificate. It is what an operator writes into a client's
+// plugin/hub/client/certificate-fingerprint leaf, and Start logs it for that
+// reason.
+func (s *ManagedServer) CertificateFingerprint() string {
+	return pluginipc.CertFingerprint(s.cert)
 }
 
 // Addrs returns the bound listener addresses (useful when a port-0 was requested,
@@ -168,7 +231,14 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 		s.wg.Go(s.notifyWorker) // long-lived pool: drains config-changed pushes
 	}
 	s.wg.Go(s.closeOnDone) // long-lived: closes listeners on shutdown
-	managedLogger().Info("managed config server listening", "listeners", len(s.listeners))
+	managedLogger().Info("managed config server listening",
+		"listeners", len(s.listeners),
+		"certificate-fingerprint", s.CertificateFingerprint(),
+		"certificate", s.certName)
+	if s.certName == "" {
+		managedLogger().Warn("managed config server: no certificate configured, so it serves a self-signed " +
+			"certificate that changes on every restart. Set plugin/hub/server/certificate to a pki certificate name")
+	}
 	return nil
 }
 

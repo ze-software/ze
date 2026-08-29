@@ -307,6 +307,8 @@ CLI flag overrides (optional, for troubleshooting):
 | `--name <name>` | `ze.managed.name` | Override client name |
 | `--token <token>` | `ze.managed.token` | Override auth token |
 | `--connect-timeout <dur>` | `ze.managed.connect.timeout` | Connection timeout (default: 5s) |
+| (none) | `ze.managed.tls.certificate-fingerprint` | Pin the hub certificate before any config exists |
+| (none) | `ze.managed.tls.insecure` | Skip server certificate verification (development only) |
 
 Priority: CLI flag > env var > config block > blob metadata.
 
@@ -318,10 +320,60 @@ Priority: CLI flag > env var > config block > blob metadata.
 |---------|-----------|
 | Token per client | Each client has its own secret; token bound to name at auth |
 | Token in config | Config blob permissions 0600; token not logged |
-| TLS MITM | TLS 1.3 minimum; server certificate verification is now the default. Insecure mode is opt-in via config for development/testing. |
+| TLS MITM | TLS 1.3 minimum. The client authenticates the hub before it sends its token, against the CA that issued the hub certificate or against the fingerprint it pins. See "Hub certificate and client trust" below. `ze.managed.tls.insecure` turns verification off and is for development only. |
 | Client impersonation | Per-client secret + name binding; one connection per name |
 | Config isolation | Client can only fetch its own config (name implicit from auth session) |
 | Multiple servers | Different secrets for different trust levels (local vs. remote) |
+
+### Hub certificate and client trust
+
+The hub serves the pki store certificate its server block names:
+
+```
+plugin {
+    hub {
+        server central {
+            ip 0.0.0.0;
+            port 1791;
+            certificate fleet-hub;
+            client edge-01 { secret "..."; }
+        }
+    }
+}
+```
+
+With no `certificate` the listener serves a self-signed certificate that changes
+on every restart. No client can verify that certificate, so the name is what a
+production hub sets. Every server block that accepts managed clients serves one
+certificate: a config where two of them name different certificates is refused
+at load.
+
+A client authenticates the hub in one of two ways:
+
+| The hub certificate | The client configuration |
+|---------------------|--------------------------|
+| Comes from a CA in the client's trust store | Nothing. Verification against the system CA pool is the default |
+| Comes from a private CA, or is self-signed | `certificate-fingerprint`, the hex SHA-256 of the hub certificate |
+
+```
+plugin {
+    hub {
+        client edge-01 {
+            host 10.0.0.1;
+            port 1791;
+            secret "...";
+            certificate-fingerprint "3b1f...";
+        }
+    }
+}
+```
+
+The hub logs the fingerprint when its managed listener starts, which is where
+the operator copies it from. `ze.managed.tls.certificate-fingerprint` carries the
+same value before a client has any config, and overrides the leaf.
+
+The client sends its token only after the handshake, so a certificate the client
+cannot authenticate ends the connection before the token is written.
 
 ---
 

@@ -7,6 +7,7 @@ import (
 	"maps"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	zepki "github.com/ze-software/ze/internal/component/pki"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -33,6 +34,7 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 	}
 
 	var addrs []string
+	var certificate string
 	secrets := map[string]string{}
 	for _, blk := range hubConfig.Servers {
 		if len(blk.Clients) == 0 {
@@ -40,6 +42,12 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		}
 		addrs = append(addrs, blk.Address())
 		maps.Copy(secrets, blk.Clients)
+		// One certificate across every serving block. The extraction refuses two
+		// blocks that name different ones (internal/component/config/loader_extract.go),
+		// so the last non-empty name is the only name.
+		if blk.Certificate != "" {
+			certificate = blk.Certificate
+		}
 	}
 	if len(addrs) == 0 {
 		return nil // No managed clients configured on any server block.
@@ -52,6 +60,13 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 			return store.ReadFile(pluginserver.ClientConfigKey(name))
 		},
 		Metrics: registry.GetMetricsRegistry(),
+		// Without these two the listener serves an ephemeral self-signed
+		// certificate no client can verify, so the only deployment that connects
+		// is one that turned verification off. The resolver is injected because
+		// pki imports plugin/server; managedCertificate fails closed when a name
+		// is configured and does not resolve.
+		Certificate:         certificate,
+		TLSMaterialResolver: zepki.ServerTLSMaterial,
 	})
 	if err != nil {
 		managedServerLog().Error("managed config server disabled", "error", err)
