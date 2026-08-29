@@ -22,7 +22,7 @@ module ze-policy-cmd {
                     config false;
                     ze:command "ze-show:policy-chain";
                     description "Show the import/export filter chain applied to a peer.
-Usage: show policy chain peer <selector> [import|export]. The selector
+The selector
 (IP, name, as<N>) and the optional direction are parsed by the handler.
 Shows the effective chain after group inheritance is resolved. Without
 a direction keyword, shows both import and export.";
@@ -61,6 +61,12 @@ update <hex> [source-asn4 true|false]. The selector and the
 import/export/filter/update/source-asn4 tokens are parsed by the
 handler so the peer selector can be a free-form name or address.";
                     leaf selector { type string; mandatory true; description "Peer selector"; }
+                    // The handler refuses a call with no direction (errMissingDirection in
+                    // handler.go), so this leaf is mandatory. Undeclared, positionalDef had
+                    // no enum to bind the bare import or export token to and offered it to
+                    // the filter leaf instead, which refused the documented form outright and
+                    // silently read the direction as a filter NAME in the form it accepted.
+                    leaf direction { type enumeration { enum import; enum export; } mandatory true; description "Which half of the chain to test"; }
                     leaf filter { type string { length "1..64"; } description "Test one named filter instead of the whole chain"; }
                     leaf update { type string { pattern '(0[xX])?[0-9a-fA-F]+'; } description "The BGP UPDATE to feed through the chain, hex-encoded"; }
                     leaf source-asn4 { type enumeration { enum true; enum false; } description "Read the UPDATE as though the sender had four-byte AS support"; }

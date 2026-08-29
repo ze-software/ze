@@ -50,7 +50,7 @@ Shows archived snapshots and the active config.";
                 config false;
                 ze:command "ze-show:config-cat";
                 description "Print the full text of a stored configuration snapshot.
-Usage: show config cat <id>. Outputs the config as-is.";
+Outputs the config as-is.";
                 leaf id { type string { length "1..128"; } mandatory true; description "Stored configuration snapshot id"; }
             }
 

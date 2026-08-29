@@ -32,8 +32,7 @@ output.";
                 ze:command "ze-show:route-lookup";
                 description "Look up which route the kernel would use for a given IP.
 Performs a longest-prefix-match and returns the matching route with
-gateway, interface, protocol, and metric. Usage: show route lookup
-<ip>.";
+gateway, interface, protocol, and metric.";
                 leaf ip { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } mandatory true; description "Destination IP address to look up"; }
             }
         }

@@ -349,7 +349,7 @@ whether it is stuck not-synchronized after having been synchronized.";
                 config false;
                 ze:command "ze-clear:ospf-process";
                 description "Full OSPF reset: tear down every adjacency and re-run SPF.
-Usage: clear ospf process. Adjacencies re-form from the next Hello;
+Adjacencies re-form from the next Hello;
 the configuration is unchanged.";
             }
 
@@ -357,14 +357,14 @@ the configuration is unchanged.";
                 config false;
                 ze:command "ze-clear:ospf-neighbor";
                 description "Tear down every OSPF adjacency so neighbors re-form.
-Usage: clear ospf neighbor. Adjacencies re-learn from the next Hello.";
+Adjacencies re-learn from the next Hello.";
             }
 
             container counters {
                 config false;
                 ze:command "ze-clear:ospf-counters";
                 description "Reset the OSPF SPF-run history.
-Usage: clear ospf counters. Monotonic Prometheus series are not reset;
+Monotonic Prometheus series are not reset;
 the SPF-run log is cleared.";
             }
         }
@@ -381,7 +381,7 @@ the SPF-run log is cleared.";
                 config false;
                 ze:command "ze-ospf:graceful-restart-prepare";
                 description "Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).
-Usage: request ospf graceful-restart. The engine originates one Grace-LSA per
+The engine originates one Grace-LSA per
 interface, persists the non-volatile restart fact, and suppresses route churn
 so the FIB is retained across the ensuing control-plane restart. Refused when
 graceful-restart is not configured.";
@@ -579,12 +579,12 @@ scope that disagrees with the LS Type is refused; supplying none accepts the LS 
                     config false;
                     ze:command "ze-debug:ospf-inject-enable";
                     description "Enable OSPF debug LSA injection (shared across both address
-families). Off by default. Usage: debug ospf inject enable.";
+families). Off by default.";
                 }
                 container disable {
                     config false;
                     ze:command "ze-debug:ospf-inject-disable";
-                    description "Disable OSPF debug LSA injection. Usage: debug ospf inject disable.";
+                    description "Disable OSPF debug LSA injection.";
                 }
             }
         }

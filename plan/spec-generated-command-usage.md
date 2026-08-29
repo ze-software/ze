@@ -697,6 +697,19 @@ then its children are listed, which is new output where today there is none.
   through `hasSubcommand`, so `show bgp peer <selector> rib [sent|...]` and
   `show policy chain peer <selector> [import|export]` pass while a real
   subcommand beside a group still fails.
+- **AC-9 is unreachable as written, and it needs a floor of 1 rather than a
+  reword.** The criterion refuses any commit that raises the `ze:usage` count
+  above the count at HEAD. That count is 0 and every deletion phase keeps it at
+  0, so the ratchet is monotonic non-increasing from zero and the first use of
+  the extension is refused for ever. The Key Design Decision that admits
+  `ze:usage` for the announce route specification therefore names a route no
+  commit can take. The criterion is left exactly as the owner approved it: this
+  is a spec defect to rule on, not an implementer's edit.
+- **`ze:usage` is not implemented and phase 8 did not implement it.**
+  `TestUsageContractRefusesNewDeclaredTail` in the TDD plan has no subject while
+  the extension is unreachable, so the ratchet AC-9 describes has no code. The
+  gate's HEAD comparison covers the deletion half of R-2 and nothing covers R-3.
+
 - **Enum values render in declaration order, and that was a precondition rather
   than a nicety.** `enumNames` (`internal/component/config/yang/command.go`)
   sorted on the NAME, so the one command whose authored line the model could
@@ -831,6 +844,50 @@ Each row says what the spec claimed, what the code says, and why the change.
   `id` and treats `scope` as a cross-check, so the model states it optional.
   Correcting those three sentences is what closes the two differences, and this
   phase left every authored sentence untouched.
+- **The prose deletion stopped at 49 of the 81 sentences, and 32 stand.**
+  `./le docvalid usage-contract` reported 379 command nodes, 81 authored
+  sentences and 32 differences before this phase, and 379, 32 and 32 after it.
+  The 49 removed are every sentence the model already reproduced byte for byte.
+  The 32 that stand are the 25 whose generated line differs in token structure
+  and the 7 whose generated line differs only in the word inside the angle
+  brackets.
+- **The 7 placeholder-only sentences are refused by AC-7's own gate.** Their
+  generated line states the same tokens in the same order and names the LEAF
+  where the prose named a type: `resolve ping <target> [source <source>] [count
+  <count>] [size <size>]` against `[source <ip>] [count <n>] [size <bytes>]`,
+  and the same for `create interface unit`, `request as112 healthcheck`,
+  `request l2tp outgoing-call remote called`, `request log level`, `show
+  announcements` and `show firewall irr prefix`. The Failure Routing table says
+  to delete a sentence the generated line is right about, and AC-7 compares
+  whole lines, so the gate refuses the deletion the table asks for. One of the
+  two has to give, and which one is the owner's to say.
+- **Fifteen commands render the value in the wrong position, and the RENDERER is
+  what is wrong.** Owner ruling, 2026-08-29: the authored spelling is correct
+  and the generated spelling is not. `request interface <name> down` is right
+  and `request interface down <name>` is wrong; `request peer <selector> flush`
+  is right and `request peer flush <selector>` is wrong. The prose therefore
+  MUST NOT be deleted until the renderer produces the authored form. Thirteen
+  differ in this and nothing else: `request interface up`, `request interface
+  down`, `request interface mtu`, `request interface mac`, `request peer flush`,
+  `request peer pause`, `request peer resume`, `request peer plugin session
+  ready`, `show bgp peer capabilities`, `show bgp peer detail`, `show bgp peer
+  history`, `show bgp peer statistics` and `update bgp peer prefix`. Two more
+  carry it beside a second difference: `request peer teardown` and `show bgp
+  peer rib`.
+  The mechanism: `request interface down` declares its `name` leaf on the `down`
+  container (`internal/component/iface/yang/ze-iface-cmd.yang`, lines 181 to
+  187). The Rendering Rules table anchors a leaf only when its NAME equals a
+  container on the path, `name` equals no container in `request interface down`,
+  so the leaf falls through to "appended after the last path keyword" and lands
+  at the end of the line. The authored form places it after `interface`, which
+  means the value belongs to the container ONE ABOVE the one that declares it.
+  Whether the model moves the leaf or the renderer learns a second anchor is a
+  separate decision and no part of this phase.
+- **The other ten standing differences each have their own reason above.**
+  `announce`, `debug ip ospf inject opaque`, `debug ipv6 ospf inject lsa`,
+  `delete interface name unit`, `resolve traceroute`, `show capture`, `show
+  metrics name`, `show pki certificate name`, `show policy test peer` and `show
+  system sockets`.
 - **`ze:usage` cannot be added while AC-9 stands.** The extension's count at HEAD
   is 0 and AC-9 makes the ratchet monotonic non-increasing, so the first use is
   refused. The one command the Key Design Decisions reserve it for, the

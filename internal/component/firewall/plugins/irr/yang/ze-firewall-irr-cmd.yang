@@ -64,7 +64,7 @@ existing cache and report an error.";
                     config false;
                     ze:command "ze-update:firewall-irr-asn";
                     description "Fetch or refresh IRR prefix-list for an ASN.
-Usage: update firewall irr asn <asn>. Queries the IRR server and
+Queries the IRR server and
 saves resolved prefixes to the zefs cache. Creates the cache entry
 if it does not exist.";
                     leaf asn { type string; mandatory true; description "ASN number"; }
@@ -74,7 +74,7 @@ if it does not exist.";
                     config false;
                     ze:command "ze-update:firewall-irr-as-set";
                     description "Fetch or refresh IRR prefix-list for an AS-SET.
-Usage: update firewall irr as-set <as-set>. Queries the IRR server
+Queries the IRR server
 and saves resolved prefixes to the zefs cache.";
                     leaf as-set { type string; mandatory true; description "AS-SET name"; }
                 }
@@ -103,7 +103,7 @@ AS-SET that no longer exists upstream.";
                     config false;
                     ze:command "ze-clear:firewall-irr-asn";
                     description "Remove the cached IRR prefix-list for an ASN.
-Usage: clear firewall irr asn <asn>. Drops the entry from memory and
+Drops the entry from memory and
 from the persisted cache, then re-applies the firewall tables. Config
 that still references the ASN fails to verify until it is fetched again
 with 'update firewall irr asn <asn>'.";
@@ -114,7 +114,7 @@ with 'update firewall irr asn <asn>'.";
                     config false;
                     ze:command "ze-clear:firewall-irr-as-set";
                     description "Remove the cached IRR prefix-list for an AS-SET.
-Usage: clear firewall irr as-set <as-set>. Drops the entry from memory
+Drops the entry from memory
 and from the persisted cache, then re-applies the firewall tables.";
                     leaf as-set { type string; mandatory true; description "AS-SET name"; }
                 }

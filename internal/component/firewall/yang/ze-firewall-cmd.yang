@@ -20,7 +20,7 @@ module ze-firewall-cmd {
                 ze:command "ze-show:firewall-ruleset";
                 ze:backend "nft";
                 description "Show the live firewall ruleset with per-term counters.
-Usage: show firewall ruleset <name>. Joins applied desired state with
+Joins applied desired state with
 kernel counters from the nft backend.";
                 leaf name { type string { length "1..64"; } mandatory true; description "Firewall table name"; }
             }

@@ -39,7 +39,7 @@ views. Useful during initial setup to see what the box has.";
                 config false;
                 ze:command "ze-show:interface-type";
                 description "Show only interfaces of a given type.
-Usage: show interface type <type>. Types include ethernet, bridge,
+Types include ethernet, bridge,
 vxlan, wireguard, tunnel, bond, and more. If you pick an invalid
 type, the error lists all valid ones.";
                 leaf type { type string { length "1..32"; } mandatory true; description "Ze interface type to filter by"; }
@@ -69,8 +69,7 @@ monitoring, use 'monitor interface rate' instead.";
                 container detail {
                     config false;
                     ze:command "ze-show:interface-detail";
-                    description "Show full detail for one interface.
-Usage: show interface name <name> detail.";
+                    description "Show full detail for one interface.";
                     leaf name {
                         type string;
                         mandatory true;
@@ -81,8 +80,7 @@ Usage: show interface name <name> detail.";
                 container counters {
                     config false;
                     ze:command "ze-show:interface-counters";
-                    description "Show counters for one interface.
-Usage: show interface name <name> counters.";
+                    description "Show counters for one interface.";
                     leaf name {
                         type string;
                         mandatory true;
@@ -122,8 +120,7 @@ Optionally pass an interface name to watch just one link.";
             container counters {
                 config false;
                 ze:command "ze-clear:interface-counters";
-                description "Zero the Rx/Tx counters for every managed interface.
-Usage: clear interface counters.";
+                description "Zero the Rx/Tx counters for every managed interface.";
             }
 
             container name {
@@ -133,8 +130,7 @@ Usage: clear interface counters.";
                 container counters {
                     config false;
                     ze:command "ze-clear:interface-counters";
-                    description "Zero the Rx/Tx counters for one interface.
-Usage: clear interface name <name> counters.";
+                    description "Zero the Rx/Tx counters for one interface.";
                     leaf name {
                         type string;
                         mandatory true;

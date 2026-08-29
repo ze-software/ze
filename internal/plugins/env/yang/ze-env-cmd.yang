@@ -26,7 +26,7 @@ Shows which env vars are set and their defaults.";
                 ze:command "ze-show:env-get";
                 description "Show one environment variable in detail.
 Returns the variable name, current value, default, and what it
-controls. Usage: show env get <name>.";
+controls.";
                 leaf name { type string { length "1..128"; } mandatory true; description "Environment variable name"; }
             }
 

@@ -153,6 +153,24 @@ func TestDeclaredValuesKeepAcceptedInvocations(t *testing.T) {
 			selectors: map[string]string{"name": "eth0"},
 		},
 		{
+			// The documented form of `show policy test peer`, which 5f5b73261
+			// refused: it declared selector, filter, update and source-asn4 and
+			// no direction, so the bare `export` token reached the filter leaf
+			// and the enum that should have claimed it did not exist. The
+			// mis-binding is the half a passing test hid: `... export update
+			// <hex>` was accepted with `export` read as a filter NAME, and only
+			// survived because the handler re-parses the raw tokens. Binding
+			// `export` to direction rather than to filter is what this asserts.
+			path:  "show policy test peer",
+			input: "show policy test peer receiver-peer export filter STRIP update 0xffff",
+			// The whole tail reaches the handler, selector included, because
+			// parsePolicyTestArgs reads it itself. The declared leaves exist so
+			// validateCommandArgs can PLACE each token, not so it can consume
+			// them: what matters is that `export` is placed on the direction
+			// enum rather than offered to the filter string.
+			args: []string{"receiver-peer", "export", "filter", "STRIP", "update", "0xffff"},
+		},
+		{
 			path:      "create interface unit",
 			input:     "create interface eth0 unit 100",
 			args:      []string{"100"},

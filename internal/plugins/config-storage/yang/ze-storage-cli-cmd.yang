@@ -26,7 +26,7 @@ the content of a specific entry.";
                 config false;
                 ze:command "ze-show:data-cat";
                 description "Print the raw content of a blob store entry.
-Usage: show data cat <key>. Outputs the value for the given key,
+Outputs the value for the given key,
 like 'cat' for ZeFS.";
                 leaf key { type string { length "1..512"; } mandatory true; description "Blob store key to print"; }
             }

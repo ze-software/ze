@@ -83,7 +83,7 @@ func TestUsageContractVerbRegistered(t *testing.T) {
 // and the failure names the command and the sentence.
 // PREVENTS: the 80 authored sentences drifting on, unreported.
 func TestUsageContractRefusesAuthoredProse(t *testing.T) {
-	report := usageContract(fixtureLoader(t, proseModule))
+	report := usageContract(fixtureLoader(t, proseModule), nil)
 
 	if report.Valid {
 		t.Fatal("the gate accepted a description that prescribes a CLI spelling")
@@ -113,7 +113,7 @@ func TestUsageContractRefusesProseUnderEveryMarker(t *testing.T) {
 	for _, marker := range []string{"Usage:", "Syntax:", "Filters:"} {
 		t.Run(marker, func(t *testing.T) {
 			module := strings.Replace(proseModule, "Usage:", marker, 1)
-			report := usageContract(fixtureLoader(t, module))
+			report := usageContract(fixtureLoader(t, module), nil)
 
 			if report.Valid {
 				t.Fatalf("the gate accepted a CLI spelling prescribed under %q", marker)
@@ -138,7 +138,7 @@ func TestUsageContractRefusesProseUnderEveryMarker(t *testing.T) {
 func TestUsageContractAcceptsAValueExample(t *testing.T) {
 	module := strings.Replace(proseModule,
 		"Usage: show sockets [port <N>].", "Example: 127.0.0.1:9559.", 1)
-	report := usageContract(fixtureLoader(t, module))
+	report := usageContract(fixtureLoader(t, module), nil)
 
 	if len(report.Prose) != 0 {
 		t.Fatalf("the gate read a value example as a CLI spelling: %+v", report.Prose)
@@ -151,7 +151,7 @@ func TestUsageContractAcceptsAValueExample(t *testing.T) {
 func TestUsageContractAcceptsDescriptionsWithoutProse(t *testing.T) {
 	clean := strings.Replace(proseModule,
 		"List open sockets.\nUsage: show sockets [port <N>].", "List open sockets.", 1)
-	report := usageContract(fixtureLoader(t, clean))
+	report := usageContract(fixtureLoader(t, clean), nil)
 
 	if len(report.Prose) != 0 {
 		t.Fatalf("the gate found authored prose in a clean module: %+v", report.Prose)
@@ -166,7 +166,7 @@ func TestUsageContractAcceptsDescriptionsWithoutProse(t *testing.T) {
 // PREVENTS: a gate that names the prose but never says what the model would
 // render instead, which leaves the reader to guess what closing the gap costs.
 func TestUsageContractShowsTheGeneratedLineBesideTheAuthoredOne(t *testing.T) {
-	report := usageContract(fixtureLoader(t, proseModule))
+	report := usageContract(fixtureLoader(t, proseModule), nil)
 
 	if len(report.Differ) != 1 {
 		t.Fatalf("the gate counted %d differences, want 1: %+v", len(report.Differ), report.Differ)
@@ -189,7 +189,7 @@ func TestUsageContractShowsTheGeneratedLineBesideTheAuthoredOne(t *testing.T) {
 func TestUsageContractCountsNoDifferenceWhenTheModelAgrees(t *testing.T) {
 	agreed := strings.Replace(proseModule,
 		"Usage: show sockets [port <N>].", "Usage: show sockets [port <port>].", 1)
-	report := usageContract(fixtureLoader(t, agreed))
+	report := usageContract(fixtureLoader(t, agreed), nil)
 
 	if len(report.Prose) != 1 {
 		t.Fatalf("the gate found %d authored sentences, want 1", len(report.Prose))
@@ -199,5 +199,96 @@ func TestUsageContractCountsNoDifferenceWhenTheModelAgrees(t *testing.T) {
 	}
 	if report.Valid {
 		t.Error("the gate accepted a description that still prescribes a CLI spelling")
+	}
+}
+
+// cleanModule is proseModule with its authored sentence already gone, which is
+// the tree state a deletion commit produces.
+var cleanModule = strings.Replace(proseModule,
+	"List open sockets.\nUsage: show sockets [port <N>].", "List open sockets.", 1)
+
+// VALIDATES: deleting an authored sentence whose generated line differed at
+// HEAD fails the gate, and the failure quotes both lines.
+// PREVENTS: the cheapest route from red to green. R-2 in
+// plan/spec-generated-command-usage.md names it: a session drops the sentence,
+// the authored count falls, and the model still cannot state the grammar. The
+// difference is then unrecorded anywhere.
+func TestUsageContractRefusesHiddenGap(t *testing.T) {
+	head := map[string]usageRow{
+		"show sockets": {Path: "show sockets", Authored: "show sockets [port <N>]", Marker: "Usage:"},
+	}
+	report := usageContract(fixtureLoader(t, cleanModule), head)
+
+	if report.Valid {
+		t.Fatal("the gate accepted a deletion that hid a difference")
+	}
+	if len(report.Hidden) != 1 {
+		t.Fatalf("the gate found %d hidden differences, want 1: %+v", len(report.Hidden), report.Hidden)
+	}
+	row := report.Hidden[0]
+	if row.Path != "show sockets" {
+		t.Errorf("the finding names the path %q, want \"show sockets\"", row.Path)
+	}
+	if row.Authored != "show sockets [port <N>]" {
+		t.Errorf("the finding quotes %q as the line HEAD carried", row.Authored)
+	}
+	if row.Generated != "show sockets [port <port>]" {
+		t.Errorf("the finding quotes %q as the line the model renders", row.Generated)
+	}
+	text := report.Text()
+	for _, want := range []string{"show sockets [port <N>]", "show sockets [port <port>]"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the rendered report does not quote %q:\n%s", want, text)
+		}
+	}
+}
+
+// VALIDATES: deleting an authored sentence the model already reproduced is
+// allowed, and the gate then reports nothing.
+// PREVENTS: a ratchet that refuses every deletion, which would freeze the 49
+// sentences this phase removes and make the gate impossible to satisfy.
+func TestUsageContractAllowsDeletingAMatchingLine(t *testing.T) {
+	head := map[string]usageRow{
+		"show sockets": {Path: "show sockets", Authored: "show sockets [port <port>]", Marker: "Usage:"},
+	}
+	report := usageContract(fixtureLoader(t, cleanModule), head)
+
+	if len(report.Hidden) != 0 {
+		t.Fatalf("the gate refused a deletion the model closes: %+v", report.Hidden)
+	}
+	if !report.Valid {
+		t.Errorf("the gate failed a tree with no prose and no hidden difference:\n%s", report.Text())
+	}
+}
+
+// VALIDATES: a command whose authored sentence is still present is not reported
+// as a deletion, whether or not the model reproduces it.
+// PREVENTS: the same difference counted twice, once as prose and once as a
+// hidden gap, which would double every number the gate prints.
+func TestUsageContractCountsAStandingSentenceOnceOnly(t *testing.T) {
+	head := map[string]usageRow{
+		"show sockets": {Path: "show sockets", Authored: "show sockets [port <N>]", Marker: "Usage:"},
+	}
+	report := usageContract(fixtureLoader(t, proseModule), head)
+
+	if len(report.Hidden) != 0 {
+		t.Fatalf("a standing sentence was reported as deleted: %+v", report.Hidden)
+	}
+	if len(report.Prose) != 1 || len(report.Differ) != 1 {
+		t.Fatalf("prose=%d differ=%d, want 1 and 1", len(report.Prose), len(report.Differ))
+	}
+}
+
+// VALIDATES: a command that left the tree with its sentence is not reported.
+// PREVENTS: a gate that refuses to let a command be removed or renamed, which
+// is a different change from hiding a difference.
+func TestUsageContractIgnoresARetiredCommand(t *testing.T) {
+	head := map[string]usageRow{
+		"show retired": {Path: "show retired", Authored: "show retired now", Marker: "Usage:"},
+	}
+	report := usageContract(fixtureLoader(t, cleanModule), head)
+
+	if len(report.Hidden) != 0 {
+		t.Fatalf("a retired command was reported as a hidden difference: %+v", report.Hidden)
 	}
 }

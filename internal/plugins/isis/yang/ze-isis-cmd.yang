@@ -101,7 +101,7 @@ duration, and node count.";
                 config false;
                 ze:command "ze-clear:isis-adjacency";
                 description "Tear down every IS-IS adjacency so neighbors re-form.
-Usage: clear isis adjacency. Adjacencies re-learn from the next Hello;
+Adjacencies re-learn from the next Hello;
 the circuit is not closed and the configuration is unchanged.";
             }
 
@@ -109,7 +109,7 @@ the circuit is not closed and the configuration is unchanged.";
                 config false;
                 ze:command "ze-clear:isis-counters";
                 description "Reset IS-IS observational counters and the SPF log.
-Usage: clear isis counters. Monotonic Prometheus series are not reset;
+Monotonic Prometheus series are not reset;
 the SPF-run history is cleared.";
             }
         }

@@ -28,32 +28,28 @@ retain and consumer state.";
             container retain {
                 config false;
                 ze:command "ze-bgp:cache-retain";
-                description "Prevent eviction of a cached message.
-Usage: request cache retain <id>.";
+                description "Prevent eviction of a cached message.";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
             }
 
             container release {
                 config false;
                 ze:command "ze-bgp:cache-release";
-                description "Ack without forwarding (cache consumer) or undo retain (API).
-Usage: request cache release <id>.";
+                description "Ack without forwarding (cache consumer) or undo retain (API).";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
             }
 
             container expire {
                 config false;
                 ze:command "ze-bgp:cache-expire";
-                description "Remove a cached message immediately.
-Usage: request cache expire <id>.";
+                description "Remove a cached message immediately.";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
             }
 
             container forward {
                 config false;
                 ze:command "ze-bgp:cache-forward";
-                description "Forward a cached UPDATE to peers matching a selector.
-Usage: request cache forward <id> <selector>.";
+                description "Forward a cached UPDATE to peers matching a selector.";
                 leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
                 leaf selector { type string; mandatory true; description "Peer selector (IP, name, or *)"; }
             }

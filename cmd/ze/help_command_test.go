@@ -96,6 +96,29 @@ func TestCommandJSONDoesNotEscapeAngleBrackets(t *testing.T) {
 		"the answer must still parse back to the description it was given")
 }
 
+// mandatoryTail returns the usage line with every bracketed group removed, so
+// what is left is the part of the invocation an operator cannot omit.
+//
+// The brackets do not nest: writeUsageToken (internal/component/command/usage.go)
+// writes one pair around one group and its values.
+func mandatoryTail(usage string) string {
+	var kept strings.Builder
+	depth := 0
+	for _, r := range usage {
+		switch r {
+		case '[':
+			depth++
+		case ']':
+			depth--
+		default:
+			if depth == 0 {
+				kept.WriteRune(r)
+			}
+		}
+	}
+	return kept.String()
+}
+
 // VALIDATES: AC-1 and AC-12 -- every catalog entry that carries a wire method
 // publishes a non-empty usage string and an ordered grammar, rendering the
 // grammar reproduces the usage byte for byte, and `args` is unchanged.
@@ -115,18 +138,32 @@ func TestHelpCommandJSONPublishesUsage(t *testing.T) {
 		assert.NotEmpty(t, e.Grammar, "%s publishes no grammar", e.Path)
 		assert.Equal(t, e.Usage, command.UsageLine(e.Grammar),
 			"%s: the grammar and the usage string disagree", e.Path)
-		// The keywords of the grammar ARE the path, in order. A value belongs
-		// to the container that declares it, so it sits between two path
-		// keywords rather than after all of them, and the rendered line is
-		// therefore not a prefix match on the flat path.
+		// The path keywords open the grammar, in order. A value belongs to the
+		// container that declares it, so it sits between two path keywords
+		// rather than after all of them, and the rendered line is therefore not
+		// a prefix match on the flat path.
+		//
+		// A keyword AFTER the path is a mandatory group, which is the one shape
+		// that flattens into a keyword and its values rather than into a group
+		// token (`ze:modifier "required"`, internal/component/command/usage.go,
+		// appendGroupTokens). `debug ip ospf inject opaque scope <link|area|as>
+		// id <opaque-id>` is that case. Every optional group keeps its own
+		// token kind, so it can never reach this list.
 		keywords := make([]string, 0, len(e.Grammar))
 		for _, token := range e.Grammar {
 			if token.Kind == command.UsageKeyword {
 				keywords = append(keywords, token.Text)
 			}
 		}
-		assert.Equal(t, strings.Fields(e.Path), keywords,
-			"%s: the generated keywords are not the command path", e.Path)
+		path := strings.Fields(e.Path)
+		require.GreaterOrEqual(t, len(keywords), len(path),
+			"%s: the grammar states fewer keywords than the command path", e.Path)
+		assert.Equal(t, path, keywords[:len(path)],
+			"%s: the grammar does not open with the command path", e.Path)
+		for _, extra := range keywords[len(path):] {
+			assert.Contains(t, mandatoryTail(e.Usage), extra,
+				"%s: the keyword %q is not in the mandatory part of %q", e.Path, extra, e.Usage)
+		}
 	}
 	assert.Positive(t, withWireMethod, "no entry carries a wire method")
 

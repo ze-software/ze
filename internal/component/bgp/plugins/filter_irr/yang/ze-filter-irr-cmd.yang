@@ -28,7 +28,7 @@ prefix-lists are loaded and current.";
                     config false;
                     ze:command "ze-show:irr-prefix";
                     description "Show IRR-resolved prefixes for a peer.
-Usage: show bgp irr prefix <peer>. Lists all IPv4 and IPv6 prefixes
+Lists all IPv4 and IPv6 prefixes
 in the IRR-resolved prefix-list for the given peer address.";
                     leaf peer { type string; mandatory true; description "Peer address"; }
                 }
@@ -37,7 +37,7 @@ in the IRR-resolved prefix-list for the given peer address.";
                     config false;
                     ze:command "ze-show:irr-check";
                     description "Check if a prefix is accepted by the IRR filter.
-Usage: show bgp irr check <peer> <prefix>. Reports whether the
+Reports whether the
 prefix would be accepted or rejected, and which entry matches.";
                     leaf peer { type string; mandatory true; description "Peer address"; }
                     leaf prefix { type string; mandatory true; description "Prefix to check (CIDR)"; }
@@ -70,7 +70,7 @@ existing prefix-list and report an error.";
                     config false;
                     ze:command "ze-update:irr-asn";
                     description "Refresh IRR prefix-list for a specific ASN.
-Usage: update bgp irr asn <asn>. Re-queries the IRR server for
+Re-queries the IRR server for
 the given ASN only.";
                     leaf asn { type string; mandatory true; description "ASN number"; }
                 }
@@ -79,7 +79,7 @@ the given ASN only.";
                     config false;
                     ze:command "ze-update:irr-as-set";
                     description "Refresh IRR prefix-list for a specific AS-SET.
-Usage: update bgp irr as-set <as-set>. Re-queries the IRR server
+Re-queries the IRR server
 for all peers using the given AS-SET name.";
                     leaf as-set { type string; mandatory true; description "AS-SET name"; }
                 }

@@ -115,7 +115,12 @@ type publishedCommandAlias struct {
 type publishedCommandToken struct {
 	Text   string   `json:"text"`
 	Values []string `json:"values,omitempty"`
-	Kind   string   `json:"kind"`
+	// Group holds the values a modifier group carries, in declaration order.
+	// Only a group token has one (internal/component/command/usage.go,
+	// UsageToken), and the parser rejects an unknown field, so a catalog
+	// carrying a group is unreadable without it.
+	Group []publishedCommandToken `json:"group,omitempty"`
+	Kind  string                  `json:"kind"`
 }
 
 type publishedCommand struct {

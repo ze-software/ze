@@ -90,7 +90,7 @@ script CAN test it. A rekey window holds two SPIs and is not drift.";
                         ze:command "ze-show:vpn-ipsec-peer";
                         description "Show full detail for one IPsec peer.
 Returns IKE SA state, all child SAs with traffic selectors, and
-byte counts. Usage: show vpn ipsec peer name <name>.";
+byte counts.";
                         leaf name {
                             type string;
                             mandatory true;
