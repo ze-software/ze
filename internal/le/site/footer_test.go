@@ -153,6 +153,10 @@ func TestCarryPublicationStampsKeepsTheStampOfAnUnchangedPage(t *testing.T) {
 // the retired Python build was the only thing that had ever written one.
 func TestBuildStampsEveryPublishedPage(t *testing.T) {
 	stubLiveCommandCatalog(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	// This build is about staging, so the page producers are stubbed out: a
+	// synthetic checkout carries no docs/ tree for them to publish, and
+	// TestBuildRunsEveryRegisteredProducer already pins the registry itself.
+	stubProducers(t)
 	stubBuildClock(t, time.Date(2026, time.August, 29, 11, 51, 0, 0, time.UTC))
 	parent := t.TempDir()
 	root := filepath.Join(parent, "main")

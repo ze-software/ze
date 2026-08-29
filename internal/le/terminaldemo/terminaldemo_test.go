@@ -715,7 +715,7 @@ func readJSONForTest(t *testing.T, path string, value any) {
 // had gone stale in the direction that costs most -- actions.go and register.go
 // were absent, so a change to the command surface a demo records moved no
 // digest and invalidated no recording. A recorded demo went on claiming to show
-// the behaviour of code that had moved under it.
+// the behavior of code that had moved under it.
 func TestRecorderSourcesFollowThePackage(t *testing.T) {
 	fixture := newDemoFixture(t)
 	fixture.writeTree(t)

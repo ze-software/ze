@@ -190,16 +190,16 @@ Interface state, counters, addressing, type-specific details.
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
 | List all interfaces | `show interfaces` | `show interfaces terse` | `show router interface` | `show interfaces` | `show interface brief` | `show interface brief` | shipped | nl+vpp-if | |
 | Interface detail | `show interfaces <name>` | `show interfaces <name> extensive` | `show router interface <name> detail` | `show interfaces <name>` | `show interface <name>` | `show interface <name>` | shipped | nl+vpp-if | |
-| Filter by type | `show interfaces ethernet` / `bridge` / `vxlan` / ... | `show interfaces terse | match <type>` | ~ | `show interfaces type ...` | - | `show interface type <type>` | shipped | nl+vpp-if | |
-| Filter by error counters | `show interfaces counters error` (dup below) | `show interfaces extensive | match errors` | - | - | - | `show interface errors` | shipped | nl+vpp-if | |
+| Filter by type | `show interfaces ethernet` / `bridge` / `vxlan` / ... | `show interfaces terse \| match <type>` | ~ | `show interfaces type ...` | - | `show interface type <type>` | shipped | nl+vpp-if | |
+| Filter by error counters | `show interfaces counters error` (dup below) | `show interfaces extensive \| match errors` | - | - | - | `show interface errors` | shipped | nl+vpp-if | |
 | Interface counters | `show interfaces counters` | inside extensive | `show port statistics` | `show interfaces counters` | `show interface counters` | part of `show interface` | shipped | nl+vpp-if | |
 | Counter reset | `clear interfaces counters [name]` | `clear interfaces statistics [name]` | `clear router statistics` | `clear counters [name]` | `clear counters [name]` | `clear interface [<name>] counters` | shipped | nl+vpp-if | Linux netlink has no generic reset -- baseline-delta fallback stored in iface component; VPP real reset pending sw_interface_clear_stats |
 | Interface IP addresses | `show interfaces ethernet <name> address` | shown in terse | `show router interface <name> address` | `show ip interface` | `show ip interface` | `show interface <name>` | shipped | nl+vpp-if | |
 | Interface MAC table (bridge) | `show bridge <br>` | `show ethernet-switching table` | `show service fdb` | `show mac address-table` | `show bridge` | | planned | nl+vpp-if | Requires bridge FDB dump |
-| Interface errors only | `show interfaces counters error` | `show interfaces extensive | match errors` | `show port statistics error` | `show interfaces counters errors` | `show interface errors` | | planned | nl+vpp-if | Filter existing counters |
+| Interface errors only | `show interfaces counters error` | `show interfaces extensive \| match errors` | `show port statistics error` | `show interfaces counters errors` | `show interface errors` | | planned | nl+vpp-if | Filter existing counters |
 | LLDP neighbors | `show lldp neighbors` | `show lldp neighbors` | `show system lldp neighbor` | `show lldp neighbors` | - | | scope | - | No LLDP subsystem |
 | Interface transceivers / optics | `show interfaces ethernet <n> physical` | `show interfaces diagnostics optics <n>` | `show port <n> detail` | `show interfaces transceiver` | - | | scope | - | Hardware-specific |
-| Interface flap history | ~ | `show interfaces <n> | find flapped` | `show port history` | `show interfaces status` | - | | planned | nl | Event bus already tracks |
+| Interface flap history | ~ | `show interfaces <n> \| find flapped` | `show port history` | `show interfaces status` | - | | planned | nl | Event bus already tracks |
 | Bond / LAG state | `show interfaces bonding <b>` | `show interfaces ae<n>` | `show lag <n>` | `show port-channel <n>` | `show interface bond<n>` | | partial | nl+vpp-if | |
 | Bridge state | `show interfaces bridge <br>` | `show bridge` | `show service fdb` | `show bridge` | `show bridge` | | partial | nl+vpp-if | |
 | VLAN interfaces | `show interfaces vif <v>` | `show interfaces irb` | `show router interface tag` | `show vlan` | `show vlan` | | partial | nl+vpp-if | |
@@ -301,8 +301,8 @@ subsystem lands.
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
 | Recent log tail | `show log` | `show log messages` | `show log log-id <id>` | `show logging` | - | `log show` | partial | process | |
 | Log levels runtime | `show log level` | set command | `admin debug` | `show logging level` | - | `log set` | shipped | process | |
-| Warnings report | - | - | `show log log-id warning` | `show logging | include warn` | - | `show warnings` | shipped | process | |
-| Errors report | - | - | `show log log-id error` | `show logging | include error` | - | `show errors` | shipped | process | |
+| Warnings report | - | - | `show log log-id warning` | `show logging \| include warn` | - | `show warnings` | shipped | process | |
+| Errors report | - | - | `show log log-id error` | `show logging \| include error` | - | `show errors` | shipped | process | |
 | Prometheus metrics | - | - | - | - | - | `metrics show` | shipped | process | |
 | Structured event stream (SSE) | - | `monitor *` | - | - | - | `bgp monitor` | shipped | bgp | SSE |
 | Operational reports (healthcheck) | - | - | - | - | - | `show bgp healthcheck` | shipped | process | ze-unique |
@@ -329,13 +329,13 @@ Runtime-level config manipulation that is not `set` / `del`.
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
 | Show running config | `show configuration` | `show configuration` | `admin display-config` | `show running-config` | `show running-config` | `ze config dump` | shipped | config | |
-| Show candidate config | - | `show | compare` | `candidate view` | - | `show running-config differences` | editor dashboard | shipped | config | |
-| Validate config | - | `commit check` | `candidate check` | `show running-config | section ...` | `configure terminal`+checks | `ze config validate` | shipped | config | |
+| Show candidate config | - | `show \| compare` | `candidate view` | - | `show running-config differences` | editor dashboard | shipped | config | |
+| Validate config | - | `commit check` | `candidate check` | `show running-config \| section ...` | `configure terminal`+checks | `ze config validate` | shipped | config | |
 | Commit config | - | `commit` | `commit` | `commit` | `end` | editor `commit` | shipped | config | |
 | Rollback revision | `configure > rollback` | `rollback <n>` | `rollback <n>` | `configure replace` | - | `ze config rollback <N>` | shipped | config | spec-config-2-archive |
 | List revisions | - | `show system rollback` | `admin rollback list` | `show configuration sessions` | - | `ze config history` | shipped | config | |
 | Archive to URL | `copy file ... scp://...` | `file copy` | `file copy` | `copy running-config scp://` | `copy running-config` | `ze config archive` | shipped | config | |
-| Diff two configs | - | `show | compare <file>` | `compare` | `diff` | - | `ze config diff` | shipped | config | |
+| Diff two configs | - | `show \| compare <file>` | `compare` | `diff` | - | `ze config diff` | shipped | config | |
 | Import / merge config | - | `load merge` | `load <file>` | `copy running-config` | `copy running-config` | `ze config import` | shipped | config | |
 | Format / canonicalise | - | - | - | - | - | `ze config fmt` | shipped | config | Ze-unique |
 | Force commit archive | `force commit-archive` | - | `admin save` | - | - | | planned | config | |

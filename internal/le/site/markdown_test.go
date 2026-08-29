@@ -229,3 +229,35 @@ func TestMirrorIsWrittenBesideThePage(t *testing.T) {
 		t.Errorf("the mirror must carry what it was given: %q", content)
 	}
 }
+
+// TestTheContentsListKeepsAHeadingShallowerThanTheFirst covers the level the
+// contents walk starts at.
+//
+// A page can open with a level 3 heading and carry a level 2 one later:
+// docs/features/configuration.md is nine level 3 sections followed by one
+// level 2. Starting the walk at the FIRST heading's level makes that level 2
+// heading shallower than the walk, so the walk stops there and the page's last
+// section disappears from its own contents. Starting at the SHALLOWEST level
+// lists every section, which is what the published page carries.
+func TestTheContentsListKeepsAHeadingShallowerThanTheFirst(t *testing.T) {
+	contents := renderDocTOC([]docHeading{
+		{Level: 3, ID: "peer-settings", Label: "Peer Settings"},
+		{Level: 3, ID: "route-configuration", Label: "Route Configuration"},
+		{Level: 2, ID: "dependency-graph", Label: "Dependency Graph"},
+	})
+	for _, section := range []string{"Peer Settings", "Route Configuration", "Dependency Graph"} {
+		if !strings.Contains(contents, ">"+section+"</a>") {
+			t.Errorf("the contents list must name %q:\n%s", section, contents)
+		}
+	}
+
+	// The ordinary shape still nests: a deeper heading sits inside the item
+	// above it rather than beside it.
+	nested := renderDocTOC([]docHeading{
+		{Level: 2, ID: "peers", Label: "Peers"},
+		{Level: 3, ID: "policy", Label: "Policy"},
+	})
+	if !strings.Contains(nested, `<li><a href="#peers">Peers</a>`+"\n<ol>\n"+`<li><a href="#policy">Policy</a></li>`) {
+		t.Errorf("a deeper heading must nest under the one above it:\n%s", nested)
+	}
+}

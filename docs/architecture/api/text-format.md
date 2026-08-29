@@ -205,7 +205,7 @@ The unified text protocol work already landed the pieces used by the current for
 | Short keyword aliases (`path`, `next`, `pref`, `s-com`, `l-com`, `x-com`) | Implemented in formatter, command parser, and event parser |
 | Alias resolution for long, short, and selected legacy forms | Implemented in `textparse/keywords.go` |
 | Shared keyword tables across formatter, command parser, and event parser | Implemented in `textparse/keywords.go` |
-| Event UPDATE operations as `nlri <family> add|del` | Implemented in formatter and route-server parser |
+| Event UPDATE operations as `nlri <family> add\|del` | Implemented in formatter and route-server parser |
 <!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps -->
 <!-- source: internal/component/bgp/textparse/keywords.go -- ShortPath, ShortNext, ShortPref, ShortSCom, ShortLCom, ShortXCom, aliasToCanonical -->

@@ -203,6 +203,10 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	}
 	catalog := `[{"path":"show test","description":"Show rows","mode":"read-only","operators":[{"name":"json","class":"global","available":"always","description":"JSON"}]}]`
 	stubLiveCommandCatalog(t, catalog)
+	// This build is about staging, so the page producers are stubbed out: a
+	// synthetic checkout carries no docs/ tree for them to publish, and
+	// TestBuildRunsEveryRegisteredProducer already pins the registry itself.
+	stubProducers(t)
 	if err := os.WriteFile(filepath.Join(source, "data", "cli-commands.json"), []byte(catalog), 0o644); err != nil {
 		t.Fatal(err)
 	}

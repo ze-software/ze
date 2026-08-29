@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 2 of 10 |
+| Phase | 3 of 10 |
 | Deferral shard | `plan/deferrals/site-renderers-in-go.md` |
 | Handoff | - |
 | Updated | 2026-08-29 |
@@ -314,9 +314,23 @@ loses text under goldmark.
 | an unescaped `\|` inside a code span inside a table row | did not split the cell | splits the cell as GFM requires, which breaks the code span and shows literal backticks | goldmark reads WORSE, and the fix is in the SOURCE |
 
 The third class is the only regression, and the correction is one-time: write the
-pipe as `\|`. Twenty lines carry it across `docs/` and `website/`, listed in
-`tmp/session/2026-08-29-36ab4fc7-fd4f-4e52-892c-be2eaf79ddcd/scratch/a3/unescaped-pipes.txt`. They are NOT corrected here: the owner decides whether to correct the
-source or accept the reading, and phase 3 is the first phase that publishes them.
+pipe as `\|`. Twenty lines carried it across `docs/` and `website/`, listed in
+`tmp/session/2026-08-29-36ab4fc7-fd4f-4e52-892c-be2eaf79ddcd/scratch/a3/unescaped-pipes.txt`.
+
+**Phase 3 corrected fourteen of them, in the four files that were not held by
+another session**: `docs/architecture/api/text-format.md`,
+`docs/architecture/wire/nlri-flowspec.md`, `docs/features.md` and
+`docs/guide/command-catalogue.md`. Two files are left, and their sites are
+named in the phase 3 handoff: `docs/architecture/api/commands.md` and
+`website/compare/nos.md` both carried another session's uncommitted edits, so
+editing them would have cross-committed that session's work.
+
+  → Constraint: the escape belongs ONLY inside a table. `docs/features.md`
+  carries four `<!-- source: ... -->` comments on lines of their own, each of
+  which ends the table it sits in, so seventy rows after the first one are
+  ordinary paragraph text where `\|` reaches the reader as a backslash. Eight
+  such escapes were already published that way and are removed here.
+  `TestACodeSpanHoldingAPipeStaysInOneTableCell` covers both directions.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -446,6 +460,29 @@ and its carry-over are untouched.
 | `TestMirrorIsWrittenBesideThePage` | `internal/le/site/markdown_test.go` | AC-5, the mirror sits at the page's own URL | pass |
 | `TestAnAssetEditReachesTheArtifact` | `internal/le/site/assets_build_test.go` | AC-18 | pass |
 | `TestTheCommandPageRendererKeepsItsAbsentOnlyGuard` | `internal/le/site/assets_build_test.go` | AC-18, the other half of the asymmetry | pass |
+| `TestDocsDestinationPrefersAnExactMappingOverAPrefix` | `internal/le/site/docs_test.go` | AC-4, the exact table wins over a prefix | pass |
+| `TestDocsDestinationRefusesAnUnmappedSource` | `internal/le/site/docs_test.go` | AC-4, there is no docs/<stem> fallback | pass |
+| `TestDocsManifestNamesEachSourceOnce` | `internal/le/site/docs_test.go` | AC-4, the recovered 115 rows, deduped | pass |
+| `TestEveryDocsProducerSourceExists` | `internal/le/site/docs_test.go` | AC-4, all 148 sources are in the tree | pass |
+| `TestDocsProducerClaimsOnlyPublishedRoutes` | `internal/le/site/docs_test.go` | AC-1, 148 of the 712 published routes | pass |
+| `TestDocsProducerRendersAManifestRoute` | `internal/le/site/docsrender_test.go` | AC-3, AC-4, AC-5, rendered parity on one page | pass |
+| `TestEveryPageTakesTheEyebrowThePublishedPageCarries` | `internal/le/site/docsrender_test.go` | AC-4, the eyebrow of all 148 published pages | pass |
+| `TestACodeSpanHoldingAPipeStaysInOneTableCell` | `internal/le/site/docsrender_test.go` | AC-4, the source correction A-3 owed | pass |
+| `TestDocsProducerPublishesEveryPage` | `internal/le/site/docscorpus_test.go` | AC-3, AC-4, AC-5 over the whole population | pass |
+| `TestEvidenceCellsLiftCitationsOntoTheirOwnLines` | `internal/le/site/doctransform_test.go` | AC-4, the comparison-table citation layout | pass |
+| `TestEvidenceCleanupKeepsACharacterReferenceWhole` | `internal/le/site/doctransform_test.go` | AC-4, the goldmark entity the cleanup broke | pass |
+| `TestAVerdictCellTakesItsSymbol` | `internal/le/site/doctransform_test.go` | AC-4, Yes/No/Partial/N-A cells | pass |
+| `TestALinkThatLeavesTheSiteOpensInANewTab` | `internal/le/site/doctransform_test.go` | AC-4, external link targets | pass |
+| `TestACrossDocumentLinkResolvesToThePublishedPage` | `internal/le/site/doctransform_test.go` | AC-4, AC-5, link rewriting in both flavours | pass |
+| `TestAJourneyHeroWrapsTheTitleAndItsLead` | `internal/le/site/doctransform_test.go` | AC-3, the hero block every page opens with | pass |
+| `TestANumberTokenResolvesFromTheFactsSnapshot` | `internal/le/site/doctransform_test.go` | AC-4, the prose number tokens | pass |
+| `TestPageMetadataIsRefusedRatherThanGuessed` | `internal/le/site/doctransform_test.go` | AC-4, a bad category or flag is refused | pass |
+| `TestTheContentsListKeepsAHeadingShallowerThanTheFirst` | `internal/le/site/markdown_test.go` | AC-4, the contents walk starts at the shallowest level | pass |
+| `TestATerminalDemoMarkerBecomesAPlayer` | `internal/le/site/demo_test.go` | AC-4, a recorded demonstration publishes | pass |
+| `TestAPageWithNoMarkerLinksNoPlayer` | `internal/le/site/demo_test.go` | AC-4, the other pages link no player | pass |
+| `TestATerminalDemoIsRefusedRatherThanPublishedWrong` | `internal/le/site/demo_test.go` | AC-4, four refusals a wrong page would hide | pass |
+| `TestARunningTimeReadsAsAPhrase` | `internal/le/site/demo_test.go` | AC-4, the duration read from the recording | pass |
+| `TestTheFixtureCastParsesAsAsciicastV2` | `internal/le/site/demo_test.go` | AC-4, the demo fixture is a real recording | pass |
 | `TestBlogPostsSharingADateOrderByFilename` | `internal/le/site/blog_test.go` | AC-7 | |
 | `TestPluginCatalogCarriesTheFieldsThePageShows` | `internal/le/site/plugins_test.go` | AC-9 | |
 | `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts/sitefacts_test.go` | AC-11 | |

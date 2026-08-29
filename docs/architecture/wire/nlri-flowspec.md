@@ -30,7 +30,7 @@
 | Condition | Encoding |
 |-----------|----------|
 | length < 240 | Single byte |
-| length >= 240 | `(0xF0 | (len >> 8))` + `(len & 0xFF)` |
+| length >= 240 | `(0xF0 \| (len >> 8))` + `(len & 0xFF)` |
 
 ### Decoding
 

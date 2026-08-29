@@ -299,7 +299,7 @@ const recorderPackageDir = "internal/le/terminaldemo"
 // stale in the direction that costs the most: actions.go and register.go were
 // absent, so a change to the command surface a demo records moved no digest and
 // invalidated no recording. A recorded demo then kept claiming to show the
-// behaviour of code that had moved under it.
+// behavior of code that had moved under it.
 //
 // The order is sorted, because the digest is over the sequence.
 func nativeRecorderSources(root string) ([]string, error) {

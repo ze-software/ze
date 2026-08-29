@@ -23,11 +23,11 @@ var noscriptHubLinks = []struct {
 }{
 	{"index.html#top", "Home"},
 	{"docs/", "Docs"},
-	{"features/", "Features"},
+	{sectionFeatures, "Features"},
 	{"compare/", "Compare"},
 	{"project/roadmap/", "Roadmap"},
 	{"project/changes/", "Changes"},
-	{"faq/", "FAQ"},
+	{"faq/", labelFAQ},
 	{"contribute/", "Contribute"},
 }
 

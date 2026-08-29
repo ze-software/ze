@@ -194,13 +194,32 @@ func renderDocTOC(headings []docHeading) string {
 	if len(listed) == 0 {
 		return ""
 	}
-	items, _ := tocItems(listed, 0, listed[0].Level)
+	items, _ := tocItems(listed, 0, shallowestLevel(listed))
 	if items == "" {
 		return ""
 	}
 	return `<nav class="doc-toc" aria-labelledby="doc-toc-title">` +
 		`<h2 id="doc-toc-title">On this page</h2>` +
 		"<ol>\n" + items + "\n</ol></nav>"
+}
+
+// shallowestLevel answers the smallest heading level a page carries, which is
+// the level its contents list starts at.
+//
+// It is the SMALLEST rather than the FIRST heading's level, and the difference
+// is a page that opens with a level 3 heading and later carries a level 2 one:
+// starting at 3 makes the level 2 heading shallower than the walk, so the walk
+// stops there and the page's last section disappears from its own contents.
+// docs/features/configuration.md is such a page, with nine level 3 headings
+// followed by one level 2.
+func shallowestLevel(headings []docHeading) int {
+	shallowest := headings[0].Level
+	for _, heading := range headings[1:] {
+		if heading.Level < shallowest {
+			shallowest = heading.Level
+		}
+	}
+	return shallowest
 }
 
 // tocItems renders the headings at one level and answers the index it stopped
