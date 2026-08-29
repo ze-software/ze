@@ -165,7 +165,7 @@ func Create(root string, options *Options) (Prepared, error) {
 	}
 	reviewCheck := ""
 	if stem != "" {
-		review := CheckReview(root, session, stem, paths)
+		review := CheckReview(root, stem, paths)
 		result.Review = &review
 		if !review.Clean && strings.TrimSpace(options.ReviewOverride) == "" {
 			return result, errors.New(strings.Join(review.Problems, "\n"))

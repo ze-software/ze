@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	specsession "github.com/ze-software/ze/internal/le/spec/session"
 )
 
 func TestNormalizePathRefusesNonFilePopulations(t *testing.T) {
@@ -278,26 +280,81 @@ func TestDebtRowsDeduplicateOnlyWhileOpen(t *testing.T) {
 
 func TestReviewArtifactIsHashPinnedToEveryCodeFile(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "harness-session-id")
 	writeCommitFixture(t, root, "internal/a.go", "package internal\n")
-	session := "12345678"
 	stem := "native-port"
-	artifact := filepath.Join(root, "tmp", "review", stem+"-"+session+".md")
-	if err := os.MkdirAll(filepath.Dir(artifact), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	content := "<!-- ze-review verdict=clean -->\n  " +
-		reviewHash(filepath.Join(root, "internal", "a.go")) + "  internal/a.go\n"
-	if err := os.WriteFile(artifact, []byte(content), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	clean := CheckReview(root, session, stem, []string{"internal/a.go", "docs/note.md"})
+	writeReviewArtifact(t, root, stem, "internal/a.go")
+
+	clean := CheckReview(root, stem, []string{"internal/a.go", "docs/note.md"})
 	if !clean.Clean || len(clean.CodeFiles) != 1 {
 		t.Fatalf("clean review = %#v", clean)
 	}
 	writeCommitFixture(t, root, "internal/a.go", "package changed\n")
-	stale := CheckReview(root, session, stem, []string{"internal/a.go"})
+	stale := CheckReview(root, stem, []string{"internal/a.go"})
 	if stale.Clean || !slices.Equal(stale.Stale, []string{"internal/a.go"}) {
 		t.Fatalf("stale review = %#v", stale)
+	}
+}
+
+// TestTheReviewGateReadsTheArtifactTheRecorderWrites pins the ONE name a review
+// artifact has.
+//
+// VALIDATES: CheckReview looks the artifact up where internal/le/spec/session
+// writes it, which is under the HARNESS session id.
+// PREVENTS: the regression the native port shipped. This gate built the name
+// itself from the eight-hex commit namespace that SessionID mints, so
+// `le spec session review record` wrote tmp/review/<stem>-<harness>.md, the gate
+// asked for tmp/review/<stem>-<namespace>.md, and every spec closure was refused
+// with "no independent-review artifact at ...". Neither package's tests could see
+// it: each chose its own session id and wrote the fixture under it, so both
+// passed while the two names disagreed on a real checkout.
+func TestTheReviewGateReadsTheArtifactTheRecorderWrites(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "harness-session-id")
+	writeCommitFixture(t, root, "internal/a.go", "package internal\n")
+	stem := "native-port"
+
+	namespace, err := SessionID(root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if namespace == "harness-session-id" {
+		t.Fatal("the commit namespace equals the harness session id, so this test cannot tell the two names apart")
+	}
+	misnamed := filepath.Join(root, "tmp", "review", stem+"-"+namespace+".md")
+	writeArtifactAt(t, root, misnamed, "internal/a.go")
+	if wrong := CheckReview(root, stem, []string{"internal/a.go"}); wrong.Clean {
+		t.Fatalf("the gate accepted an artifact named with the commit namespace: %#v", wrong)
+	}
+
+	writeReviewArtifact(t, root, stem, "internal/a.go")
+	if clean := CheckReview(root, stem, []string{"internal/a.go"}); !clean.Clean {
+		t.Fatalf("the gate did not read the artifact the recorder writes: %#v", clean)
+	}
+}
+
+// writeReviewArtifact plants a clean artifact at the path the recording package
+// owns, so a fixture cannot invent a name of its own.
+func writeReviewArtifact(t *testing.T, root, stem string, files ...string) {
+	t.Helper()
+	relative, err := specsession.ReviewArtifactPath(root, stem)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeArtifactAt(t, root, filepath.Join(root, filepath.FromSlash(relative)), files...)
+}
+
+func writeArtifactAt(t *testing.T, root, path string, files ...string) {
+	t.Helper()
+	content := "<!-- ze-review spec=native-port verdict=clean rounds=1 -->\nfiles:\n"
+	for _, file := range files {
+		content += "  " + reviewHash(filepath.Join(root, filepath.FromSlash(file))) + "  " + file + "\n"
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 

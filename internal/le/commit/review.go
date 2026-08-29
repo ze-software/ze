@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/journal"
+	specsession "github.com/ze-software/ze/internal/le/spec/session"
 )
 
 var (
@@ -111,8 +112,17 @@ func closureStem(root string, paths, removed []string) (string, error) {
 
 // CheckReview verifies that the current session's clean review artifact covers
 // every code-bearing path and still hashes to the reviewed bytes.
-func CheckReview(root, session, stem string, paths []string) ReviewResult {
-	artifact := filepath.ToSlash(filepath.Join("tmp", "review", stem+"-"+session+".md"))
+//
+// The artifact's name comes from the package that WRITES it. Building it here
+// gave this gate a second opinion about which session id names the file, and it
+// was the wrong one: `le spec session review record` writes under the harness
+// session, this read asked for the eight-hex commit namespace, and no closure
+// could satisfy the gate (specsession.ReviewArtifactPath).
+func CheckReview(root, stem string, paths []string) ReviewResult {
+	artifact, err := specsession.ReviewArtifactPath(root, stem)
+	if err != nil {
+		return ReviewResult{Spec: stem, Problems: []string{"resolve review artifact path: " + err.Error()}}
+	}
 	result := ReviewResult{Spec: stem, Artifact: artifact}
 	for _, path := range unique(paths) {
 		if isReviewCode(path) {

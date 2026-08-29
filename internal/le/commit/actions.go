@@ -133,11 +133,7 @@ func Answer(args []string) (any, int) {
 		if values.one("spec") == "" {
 			return commandError(fmt.Errorf("review-check requires spec <stem>"), 2)
 		}
-		session, err := SessionID(root, "")
-		if err != nil {
-			return commandError(err, 2)
-		}
-		review := CheckReview(root, session, values.one("spec"), values["file"])
+		review := CheckReview(root, values.one("spec"), values["file"])
 		if !review.Clean {
 			return review, 3
 		}

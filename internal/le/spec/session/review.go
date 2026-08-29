@@ -260,6 +260,26 @@ func reviewArtifactPath(root, spec, sid string) string {
 	return filepath.Join(root, filepath.FromSlash(reviewDir), spec+"-"+sid+".md")
 }
 
+// ReviewArtifactPath answers, repository-relative, where THIS session's review
+// artifact for spec lives. A reader outside this package calls it instead of
+// spelling the name again.
+//
+// The identity in that name is the HARNESS session, which is what recordReview
+// writes with. It is not the eight-hex commit namespace that names a session's
+// commit scripts and message files. The two were one identity until the native
+// port: scripts/dev/review_gate.py wrote the artifact and scripts/dev/
+// commit_helper.py read it back through that script, so neither side could name
+// it differently. The port gave the reader a name of its own and it stopped
+// finding the file, which blocks every spec closure rather than one.
+func ReviewArtifactPath(root, spec string) (string, error) {
+	session, err := lepath.ResolveSession(root, false)
+	if err != nil {
+		return "", err
+	}
+
+	return relativeReviewPath(root, reviewArtifactPath(root, specStem(spec), session.ID)), nil
+}
+
 var errMalformedArtifact = errors.New("malformed review artifact")
 
 func parseReviewArtifact(path string) (reviewArtifact, error) {
