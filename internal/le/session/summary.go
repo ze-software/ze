@@ -62,7 +62,7 @@ func endSummary(root string, paths lepath.SessionPaths, at time.Time, query gitQ
 		return report, fmt.Errorf("create session state directory: %w", err)
 	}
 	preserved := ""
-	content, err := os.ReadFile(statePath)
+	content, err := os.ReadFile(statePath) //nolint:gosec // the path is a session state file under the checkout root
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			return report, fmt.Errorf("read session state %q: %w", filepath.ToSlash(stateRel), err)
@@ -94,11 +94,11 @@ func endSummary(root string, paths lepath.SessionPaths, at time.Time, query gitQ
 
 func selectedSpec(root, id string) string {
 	marker := filepath.Join(root, "tmp", "session", ".session-"+id)
-	content, err := os.ReadFile(marker)
+	content, err := os.ReadFile(marker) //nolint:gosec // the path is a session state file under the checkout root
 	if err != nil {
 		return ""
 	}
-	spec := strings.SplitN(string(content), "\n", 2)[0]
+	spec, _, _ := strings.Cut(string(content), "\n")
 	if spec == "unassigned" {
 		return ""
 	}
@@ -149,7 +149,7 @@ func preserveState(content string, keep int) string {
 		if kind == "" {
 			return
 		}
-		if kind == "snapshot" {
+		if kind == snapshotKind {
 			current = trimSnapshot(current)
 			if len(current) != 0 {
 				snapshots = append(snapshots, strings.Join(current, "\n"))
@@ -170,17 +170,17 @@ func preserveState(content string, keep int) string {
 		}
 		if strings.HasPrefix(line, "## Session:") {
 			flush()
-			kind = "snapshot"
+			kind = snapshotKind
 			current = []string{line}
 			continue
 		}
-		if kind == "snapshot" {
+		if kind == snapshotKind {
 			if snapshotGrammar(line) {
 				current = append(current, line)
 				continue
 			}
 		}
-		if kind == "snapshot" {
+		if kind == snapshotKind {
 			flush()
 		}
 		if kind == "" {
@@ -192,7 +192,9 @@ func preserveState(content string, keep int) string {
 	if len(snapshots) > keep {
 		snapshots = snapshots[:keep]
 	}
-	blocks := append(snapshots, others...)
+	blocks := make([]string, 0, len(snapshots)+len(others))
+	blocks = append(blocks, snapshots...)
+	blocks = append(blocks, others...)
 	return strings.Join(blocks, "\n\n---\n")
 }
 

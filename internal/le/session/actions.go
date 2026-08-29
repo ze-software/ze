@@ -101,8 +101,13 @@ func reapHere(args leaction.Arguments) (any, int) {
 	dry := reapDry(args, os.Getenv)
 	report, err := Reap(root, os.Getenv("CLAUDE_CONFIG_DIR"), dry)
 	if err != nil {
+		// No report on a failure. A zero one reads as an answer -- "0 dead
+		// session directories, 0 kept running" is what a clean tree looks
+		// like, and it was printed for years beside an error that said the
+		// process scan never ran. A reader cannot tell those apart, and the
+		// one that means "nothing was examined" is the dangerous one.
 		leaction.ReportError(err)
-		return report, 1
+		return nil, 1
 	}
 	return report, 0
 }
