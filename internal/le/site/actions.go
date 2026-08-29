@@ -50,6 +50,17 @@ type checkReport struct {
 	Output         string   `json:"output"`
 	SourceOnly     []string `json:"source-only,omitempty"`
 	MissingMirrors []string `json:"missing-mirrors,omitempty"`
+	Coverage       Coverage `json:"coverage"`
+}
+
+// exit answers the status one check reports. An artifact is refused when it
+// carries a source-only input, when a public route has no Markdown mirror, and
+// when a published route has no producer or has two.
+func (report checkReport) exit() int {
+	if len(report.SourceOnly) != 0 || len(report.MissingMirrors) != 0 || report.Coverage.Red() {
+		return 1
+	}
+	return 0
 }
 
 func runCheck() (any, int) {
@@ -92,10 +103,12 @@ func runCheck() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	if len(report.SourceOnly) != 0 || len(report.MissingMirrors) != 0 {
-		return report, 1
+	report.Coverage, err = checkCoverage(paths)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
 	}
-	return report, 0
+	return report, report.exit()
 }
 
 func runBundle(arguments leaction.Arguments) (any, int) {

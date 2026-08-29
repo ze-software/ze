@@ -32,6 +32,11 @@ type BuildOptions struct {
 // Unstamped names every public page that carries no footer for the publication
 // stamp to live in. A build reports them rather than failing, because a page
 // without a footer is a page defect and not a broken build.
+//
+// Coverage names every published route no producer wrote and every route two
+// producers wrote. A build reports them rather than failing, for the same
+// reason: the artifact it produced is the evidence, and refusing to produce it
+// would remove the evidence.
 type BuildReport struct {
 	SourceDigest string   `json:"source-digest"`
 	Output       string   `json:"output"`
@@ -39,12 +44,13 @@ type BuildReport struct {
 	Published    string   `json:"published"`
 	Carried      int      `json:"carried-stamps"`
 	Unstamped    []string `json:"unstamped,omitempty"`
+	Coverage     Coverage `json:"coverage"`
 }
 
 // Build stages the website source tree, preserves the last complete artifact as
-// an incremental seed, refreshes native generated surfaces, removes every
-// source-only input from deployment, and stamps the publication time into the
-// footer of every published page.
+// an incremental seed, refreshes native generated surfaces, runs every
+// registered page producer, removes every source-only input from deployment,
+// and stamps the publication time into the footer of every published page.
 func Build(options BuildOptions) (BuildReport, error) {
 	paths, err := resolvePaths(options.Repository, options.Output)
 	if err != nil {
@@ -81,6 +87,19 @@ func Build(options BuildOptions) (BuildReport, error) {
 	if err := refreshNativeSurfaces(paths); err != nil {
 		return BuildReport{}, err
 	}
+
+	// Every page a producer writes is written before the artifact is trimmed
+	// and stamped, so a produced page is trimmed and stamped like any other.
+	// The record of what they wrote goes to the checkout, never to the artifact,
+	// because the artifact is published.
+	claims, err := renderProducers(paths)
+	if err != nil {
+		return BuildReport{}, err
+	}
+	if err := writeProducerRecord(paths, claims); err != nil {
+		return BuildReport{}, err
+	}
+
 	if err := removeSourceOnly(paths.Output); err != nil {
 		return BuildReport{}, err
 	}
@@ -93,6 +112,14 @@ func Build(options BuildOptions) (BuildReport, error) {
 	if err != nil {
 		return BuildReport{}, err
 	}
+
+	// Coverage is read from the finished artifact, so a page the trimming
+	// removed is not counted as published and a page a producer wrote is.
+	coverage, err := coverageOf(paths.Output, claims)
+	if err != nil {
+		return BuildReport{}, err
+	}
+
 	return BuildReport{
 		SourceDigest: digest,
 		Output:       paths.Output,
@@ -100,6 +127,7 @@ func Build(options BuildOptions) (BuildReport, error) {
 		Published:    publishedDisplay(published),
 		Carried:      carried,
 		Unstamped:    unstamped,
+		Coverage:     coverage,
 	}, nil
 }
 
@@ -325,14 +353,28 @@ func refreshNativeSurfaces(paths Paths) error {
 // the real reader does with `go run ./cmd/ze`.
 var liveCommandCatalog = docvalid.LiveCommandCatalog
 
-// refreshCommandSurfaces republishes the command catalog and every page derived
-// from it, on every build.
+// refreshCommandSurfaces republishes the command catalog, and bootstraps the
+// pages derived from it only when they are absent.
 //
-// The catalog is read from the binary rather than kept as a website source,
-// and the pages are rewritten rather than kept when they already exist. A page
-// that survives a build publishes the commands of whichever release last wrote
-// it, which is how the published surfaces reached 2940 disagreements with the
-// live registries while every build reported success.
+// The catalog IS read from the binary on every build. It is derived data with
+// no other producer since the interpreter cutover, so a build is the right
+// place to write it.
+//
+// The PAGES are a different matter, and the asymmetry is deliberate.
+// docvalid.RenderCommandSurfaces emits the contract FIXTURE that the
+// documentation drift check compares a published page against: a bare doctype,
+// a body, and one definition list. It carries no head, no title, no meta, no
+// navigation, no stylesheet, and on a command-equivalents page none of the
+// vendor equivalents the page exists for. Publishing it overwrites a 10KB page
+// with 481 bytes. So it runs only to give a fresh checkout something rather
+// than nothing, which is the role it has always had.
+//
+// The consequence is stated rather than hidden: the published pages have no Go
+// producer. The Python renderer that wrote them was retired at the interpreter
+// cutover and nothing replaced it, so the drift the checker reports against
+// those pages is TRUE, and this function does not fix it. Making the check
+// green by publishing the fixture is what commit 9f45348a7 did, and it cost
+// 396 pages.
 func refreshCommandSurfaces(paths Paths) error {
 	raw, err := liveCommandCatalog(paths.Repository)
 	if err != nil {
@@ -344,6 +386,13 @@ func refreshCommandSurfaces(paths Paths) error {
 	}
 	if err := os.WriteFile(catalog, raw, 0o644); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return fmt.Errorf("publish command catalog %s: %w", catalog, err)
+	}
+
+	primary := filepath.Join(paths.Output, "reference", "cli", "index.html")
+	if _, err := os.Stat(primary); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
 	}
 	return docvalid.RenderCommandSurfaces(paths.Output, raw)
 }

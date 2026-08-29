@@ -306,7 +306,8 @@ Every deleted renderer is recoverable from `eae282592^`.
 | R-3 | The first full build rewrites all 895 pages at once and the diff is unreviewable | phase 10 lands and `git status` in the artifact shows everything modified | each phase lands its own commit, so the artifact diff is reviewed one population at a time. The build is never run to completion until phase 10 |
 | R-4 | The facts snapshot reaches the network during a build, so a build is not reproducible and can fail closed in CI | a build in a sandbox hangs for five seconds and publishes a stale star count | AC-11 requires the offline path to keep the previous value and say so; the timeout stays and the failure stays non-fatal |
 | R-5 | Restoring `llms.txt` collides with the docvalid producer that owns it today | two writers, last one wins, and the file's content depends on producer order | phase 4 makes the command section one section of the restored file, and the coverage check refuses two claimants |
-| R-6 | The retired renderers encode behaviour nobody wants back, and restoring them faithfully restores the mistakes | a restored page carries a fact nobody can trace, or a section referring to a retired tool | `ai/rules/evidence.md`: a claim on a published page traces to a committed file or it is not published. The RFC-compliance page's agent-guard block counts text in files that no longer exist and needs redefinition, not a port |
+| R-6 | Running `./le site build` before phase 4 DESTROYS the published artifact | it already has: 826 paths degraded in the `gh-pages` working tree | NO phase may run the `./le site build` action from a shell until phase 4 lands. Commit `9f45348a7` made `refreshNativeSurfaces` call `docvalid.RenderCommandSurfaces` unconditionally, and that renderer emits a contract fixture for the drift checker rather than a publishable page, so a build overwrites 396 pages with fragments. A Go test may call `Build` because it builds into a temporary output. `gh-pages` HEAD is intact and the damage is working-tree only; the restore is the owner's, because `git restore` is forbidden here |
+| R-7 | The retired renderers encode behaviour nobody wants back, and restoring them faithfully restores the mistakes | a restored page carries a fact nobody can trace, or a section referring to a retired tool | `ai/rules/evidence.md`: a claim on a published page traces to a committed file or it is not published. The RFC-compliance page's agent-guard block counts text in files that no longer exist and needs redefinition, not a port |
 
 ## Blast Radius
 
@@ -386,17 +387,31 @@ and its carry-over are untouched.
 | AC-9 | the plugin catalog | it renders from `inventory.Collect`, extended to carry the optional dependencies, source directory and YANG files the page shows |
 | AC-10 | the test-health and RFC-compliance pages | they render from `internal/le/testhealth` and `internal/le/rfc` rather than from the retired Python inputs |
 | AC-11 | the facts snapshot | every published number is re-derived from the current tree, and a build with no network keeps the previously published star count and says so |
-| AC-12 | the 177 legacy URLs | each resolves to the target the recovered table names, with the replacements applied in the recorded order |
+| AC-12 | the 177 legacy URLs | each resolves to the target the recovered table names, with the replacements applied in the recorded order. AC-1's coverage check CANNOT witness this: `pageRegistry` drops redirect pages through `isRedirectPage`, which is why phase 1 measured 712 unclaimed routes rather than 889. A green coverage is therefore not evidence for this row, and phase 10 owes it a test of its own |
 | AC-13 | the search index, sitemap and robots file | each is regenerated from the built artifact rather than carried forward |
 | AC-14 | a second build over an unchanged tree | the artifact is byte-identical to the first, network access aside |
+| AC-15 | the built artifact | `llms-full.txt` is published beside `llms.txt`, carrying the full Markdown mirror of every published page, each preceded by its title and canonical URL. Frozen talk decks are excluded, as they are from every other mirror pass. The ORDER is the reading order stated below, never route order: what the software is and why it is worth evaluating comes first, how to use it comes second |
+| AC-15a | the order of `llms-full.txt` | it follows `llms.txt`'s own curated section order, and the page bodies are grouped by the `website/data/nav.json` dropdowns in their declared order: Start, Evaluate, Docs, Examples, Reference, Project. One curation, two renderings: `llms.txt` links, `llms-full.txt` inlines |
+| AC-15b | a page that belongs to no section, or to two | the build refuses it by name. A page is never appended to the end because nothing claimed it, and never emitted twice because two sections did |
+| AC-15c | a section declared in the reading order that no page fills | the build refuses it by name, so a section that silently empties is a red rather than a gap a reader meets |
+| AC-15d | `website/data/nav.json` reordered so a usage section precedes an evaluation section | the build refuses it, naming both sections. The reading order is a CONTRACT stated in the code, and nav.json supplies each section's membership and the order WITHIN a section. A menu is ordered for a menu; slaving the document's argument to it means a menu reshuffle silently rewrites what the file argues, with nothing to notice |
+| AC-17 | the wiki section of `llms-full.txt` | it REFERENCES the Codeberg wiki rather than republishing it: each page's title, its public URL and a one-line summary. The wiki stays its own source of truth, which is what `spec-website-wiki-content-migration` settled on 2026-07-22 |
+| AC-17a | the source of that section | `website/data/wiki.json`, committed, refreshed by its own `./le` action. The build reads only the committed file and never `../wiki`, so a machine without the sibling checkout builds the same artifact. A stale index is reported by the refresh action's check, never silently omitted |
+| AC-17b | the ORDER and grouping of the wiki section | it comes from the wiki's `_Sidebar.md`, which is the curation this repository cannot generate. Measured 2026-08-29: 167 sidebar entries against 171 pages, zero sidebar links resolving to no page. Its groups are About, First Steps, Configuration, Operation, Interfaces, Plugins, Plugin Development, Chaos Testing, Blueprints, Development, Reference, which is already evaluation before usage |
+| AC-17c | a wiki page the sidebar does not list | the refresh action refuses it by name, so it cannot become a silent omission in a committed artifact. Four exist today: `CLAUDE` and `command-catalog` are excluded deliberately, as agent instructions and a 302KB generated dump; `community-filters` and `telemetry` are genuine sidebar omissions and are reader content |
+| AC-18 | an edit to `website/assets/css/site.css` or `website/assets/js/site.js` | it reaches the published artifact. `refreshNativeSurfaces` renders each only when the output file is ABSENT, so a seeded stylesheet is never refreshed from source |
+| AC-16 | a named non-route artifact that disappears from the artifact | `./le site check` refuses it. The route check answers for pages; this answers for `llms.txt`, `llms-full.txt`, `sitemap.xml`, `robots.txt`, `data/search-index.json` and both `feed.xml` files, each of which is published, none of which is a route, and one of which lost seventeen of its eighteen sections without any check noticing |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestCheckRefusesAPublishedRouteWithNoProducer` | `internal/le/site/producer_test.go` | AC-1 | |
-| `TestBuildRunsEveryRegisteredProducer` | `internal/le/site/producer_test.go` | AC-2 | |
+| `TestCheckRefusesAPublishedRouteWithNoProducer` | `internal/le/site/producer_test.go` | AC-1 | pass |
+| `TestCheckRefusesARouteTwoProducersWrote` | `internal/le/site/producer_test.go` | AC-1, the doubly-claimed half | pass |
+| `TestProducerRecordsAreKeyedByArtifact` | `internal/le/site/producer_test.go` | AC-1, two artifacts keep separate records | pass |
+| `TestAnArtifactWithNoRecordIsFullyUnclaimed` | `internal/le/site/producer_test.go` | AC-1, an absent record fails closed | pass |
+| `TestBuildRunsEveryRegisteredProducer` | `internal/le/site/producer_test.go` | AC-2 | pass |
 | `TestShellCarriesEveryChromeElement` | `internal/le/site/shell_test.go` | AC-3 | |
 | `TestShellPutsCanonicalBeforeTheStylesheet` | `internal/le/site/shell_test.go` | AC-3 | |
 | `TestSidebarClassFollowsAnEmptySidebar` | `internal/le/site/shell_test.go` | AC-3 | |
@@ -406,6 +421,11 @@ and its carry-over are untouched.
 | `TestPluginCatalogCarriesTheFieldsThePageShows` | `internal/le/site/plugins_test.go` | AC-9 | |
 | `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts/sitefacts_test.go` | AC-11 | |
 | `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12 | |
+| `TestLLMSFullCarriesEveryPublishedMirror` | `internal/le/site/derived_test.go` | AC-15 | |
+| `TestLLMSFullPutsEvaluationBeforeUsage` | `internal/le/site/derived_test.go` | AC-15a, AC-15d | |
+| `TestLLMSFullRefusesAnUnsectionedPage` | `internal/le/site/derived_test.go` | AC-15b | |
+| `TestLLMSFullRefusesAnEmptySection` | `internal/le/site/derived_test.go` | AC-15c | |
+| `TestCheckRefusesAMissingNamedArtifact` | `internal/le/site/producer_test.go` | AC-16 | |
 | `TestASecondBuildChangesNothing` | `internal/le/site/site_test.go` | AC-14 | |
 
 ### Functional Tests
@@ -476,10 +496,26 @@ and its carry-over are untouched.
 1. **Phase: Wiring (MANDATORY FIRST)** -- the producer registry and the coverage
    check, with no producer registered yet
    - Tests: `TestBuildRunsEveryRegisteredProducer`,
-     `TestCheckRefusesAPublishedRouteWithNoProducer`
-   - Files: `producer.go`, `build.go`, `actions.go`, `pages.go`
-   - Verify: `./le site check` goes red and names all 895 published routes as
+     `TestCheckRefusesAPublishedRouteWithNoProducer`,
+     `TestCheckRefusesARouteTwoProducersWrote`
+   - Files: `producer.go`, `build.go`, `actions.go`
+     → Decision 2026-08-29 (owner): the record naming which producer wrote which
+     route lives in the CHECKOUT at `tmp/site/producers-<artifact digest>.json`,
+     never in the artifact. The artifact is published, so a bookkeeping file
+     written there is served to the public, which is how
+     `plan/verification-debt/c7beceff.md` reached the live site. Adding the path
+     to `sourceOnlyFiles` is NOT the fix: `removeSourceOnly` runs after the
+     producer pass, so the record would be written and then deleted, and the
+     next check would call every claimed route unclaimed.
+   - Verify: `./le site check` goes red and names all 712 published routes as
      unclaimed. That red IS the defect, stated for the first time
+     → Correction 2026-08-29: 712, measured, not the 895 predicted above.
+     `pageRegistry` counts a non-redirect `index.html` only, and the artifact
+     holds 889 `index.html` of which 177 are redirect stubs. The check therefore
+     cannot see the 177 stubs phase 10 restores, so phase 10 needs its own
+     evidence for AC-12 and MUST NOT read a green coverage as proof of them.
+     `pages.go` needed no change: `pageRegistry` already answers the route set
+     the coverage arithmetic subtracts from.
 2. **Phase: Shell and Markdown** -- the shared page shell, the goldmark
    pipeline, the mirror writer, the nav header and the page sidebar. Validate A-3
    FIRST against the ten most list-heavy and table-heavy published pages, before
@@ -511,9 +547,13 @@ and its carry-over are untouched.
 9. **Phase: Facts and homepage** -- the facts snapshot, then the homepage that
    depends on it
    - Files: `internal/le/site/facts/`, `home.go`
-10. **Phase: Derived** -- the search index, the sitemap, the robots file, and the
-    177 redirect stubs in their recorded order
-    - Files: `derived.go`, `redirect.go`
+10. **Phase: Derived** -- the search index, the sitemap, the robots file,
+    `llms-full.txt`, and the 177 redirect stubs in their recorded order. The
+    coverage check extends from routes to the named non-route artifacts
+    - Tests: `TestRedirectsApplyInTheRecordedOrder`,
+      `TestLLMSFullCarriesEveryPublishedMirror`,
+      `TestCheckRefusesAMissingNamedArtifact`
+    - Files: `derived.go`, `redirect.go`, `producer.go`
     - Verify: the unclaimed list is empty and `./le site check` goes green
 
 ### Triple Challenge
@@ -572,6 +612,10 @@ and its carry-over are untouched.
 | Rendered parity against the published artifact | byte parity; structural equivalence with fresh markup | Owner decision, 2026-08-29, in two steps. Parity against the published page was chosen first, then relaxed from bytes to rendering: "the exact escaping does not matter much if the rendering reads the same". Byte parity would have forced a Ze reimplementation of Python's two escaping regimes and of python-markdown's non-CommonMark list handling, to buy a difference no reader sees. Anchor slugs, routes, mirrors and the redirect order stay binding because each one breaks a link rather than changing an appearance |
 | `github.com/yuin/goldmark` for Markdown | write a renderer for the four extensions the Python used | Owner decision, 2026-08-29 |
 | goldmark's own behaviour wins wherever it differs from python-markdown, breaking external links included | write compatibility shims: a python-markdown slugifier, its escaping regimes, its non-CommonMark list handling | Owner decision, 2026-08-29: "I do not mind to break external link to better use the new library". This governs the whole pipeline, not the slugs alone. Where a construct reads differently, the SOURCE Markdown is corrected, because the source is ours and the correction is one-time; a shim would be permanent. In-page tables of contents regenerate from the same slugifier and stay self-consistent |
+| `llms-full.txt` carries every published mirror, the 396 command-equivalent pages included | restrict it to the documentation pages | Owner request, 2026-08-29. This is NEW work: no `llms-full.txt` has ever been published and the retired Python never wrote one. Measured before deciding: the mirrors total 3.8MB across 709 pages, of which the 396 command-equivalent pages are 148KB and the 97 plugin pages 87KB. Excluding them would save 6% of the file and cost a reader the command reference, so the simple rule wins |
+| The CSS and JS renderers lose their absent-only guard; the page renderers keep theirs until they produce pages | remove every absent-only guard together; leave all of them | The guard is right for a producer that emits a FIXTURE and wrong for one that emits the real artifact. `renderCSS` expands the `@import` chain and minifies a real stylesheet, so refreshing it on every build is what makes a CSS edit reach a reader; `TestRenderCSSExpandsNestedImports` already pins that output. The command-page renderer emits a drift-checker fixture, and removing ITS guard in `9f45348a7` overwrote 396 published pages with fragments. Same shape, opposite answer, which is why they are decided separately rather than as a policy |
+| The reading order is a contract in the code; nav.json supplies membership and within-section order | derive the whole order from nav.json | Owner directive, 2026-08-29: the code must ENSURE the file is generated logically, not merely happen to emit it that way. nav.json is ordered for a menu, so slaving the document's argument to it means a menu reshuffle silently rewrites what the file argues, with nothing to notice. Stating the order in the code and refusing a nav.json that contradicts it makes the guarantee mechanical: an unsectioned page, a duplicated page, an empty section and an inverted evaluate/use split are each a named red rather than a silent reordering |
+| `llms-full.txt` reuses `llms.txt`'s curation for its order | order by route; invent a second ordering for this file alone | Owner directive, 2026-08-29: features and what makes the software worth evaluating come first, how to use it second. That ordering already exists and is already committed. The Python-era `llms.txt` opens with Product snapshot, Quality and verification model, Comparison positioning and Feature inventory, and only then reaches Configuration model, Plugin registry and the CLI surface; its page map groups by the six `nav.json` dropdowns, Start and Evaluate before Docs, Examples and Reference. A second ordering would be a second thing to keep true |
 | The docs pipeline is the first population after the shell | retrofit the two live regressions first | Owner decision, 2026-08-29. It is the largest population and the one that exercises goldmark hardest, so the Markdown unknowns surface earliest. The two regressions ship for longer as a result |
 
 ## Known Limitations

@@ -315,12 +315,13 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 	}
 }
 
-// VALIDATES: a build rewrites the published command catalog and the pages
-// derived from it, so a surface published by an earlier release cannot survive.
-// PREVENTS: the state the documentation drift check found on 2026-08-29, where
-// every build reported success and the published pages still named the commands
-// of whichever release last wrote them.
-func TestBuildRepublishesStaleCommandSurfaces(t *testing.T) {
+// VALIDATES: a build refreshes the published command catalog from the binary,
+// and leaves an EXISTING published page alone.
+// PREVENTS: commit 9f45348a7, which published the drift checker's contract
+// fixture over the real pages and cut 396 of them from about 10KB to 481 bytes.
+// The fixture carries no head, no title, no navigation and no vendor
+// equivalents, so it is a comparison input and never a page.
+func TestBuildLeavesAPublishedPageAlone(t *testing.T) {
 	stubLiveCommandCatalog(t, `[{"path":"show live","description":"Show live rows","mode":"read-only"}]`)
 	parent := t.TempDir()
 	root := filepath.Join(parent, "main")
@@ -328,11 +329,14 @@ func TestBuildRepublishesStaleCommandSurfaces(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "website"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// A real published page: a head, a title and a body the fixture renderer
+	// does not produce. Its survival is what this test is about.
+	const publishedPage = "<!doctype html><html><head><title>CLI</title></head><body>show retired</body></html>\n"
 	stale := filepath.Join(output, "reference", "cli", "index.html")
 	if err := os.MkdirAll(filepath.Dir(stale), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(stale, []byte("<html>show retired</html>\n"), 0o644); err != nil {
+	if err := os.WriteFile(stale, []byte(publishedPage), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(output, "data"), 0o755); err != nil {
@@ -368,8 +372,8 @@ func TestBuildRepublishesStaleCommandSurfaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(page), "show live") {
-		t.Errorf("the published command page was not rewritten from the live catalog: %s", page)
+	if string(page) != publishedPage {
+		t.Errorf("a published page was overwritten by the contract fixture:\n got: %s\nwant: %s", page, publishedPage)
 	}
 }
 
