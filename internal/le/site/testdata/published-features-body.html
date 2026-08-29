@@ -1,0 +1,851 @@
+
+
+            <section aria-labelledby="features-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Project</span>
+                    <h1 id="features-title">Every feature Ze ships.</h1>
+                    <p>52 shipped features plus the planned roadmap.</p>
+                </div>
+                <div class="section-note reveal">
+                    <p>Each card's color is its category: how the feature fits into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards at the bottom are specs, not code. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
+                </div>
+                <div class="legend reveal" role="group" aria-label="Filter features by category">
+                    <button class="cat-operate" data-cat="operate" aria-pressed="false" aria-label="Filter features by Operate, 6 features">Operate <span class="legend-count" aria-hidden="true">6</span></button>
+                    <button class="cat-routing" data-cat="routing" aria-pressed="false" aria-label="Filter features by Routing, 9 features">Routing <span class="legend-count" aria-hidden="true">9</span></button>
+                    <button class="cat-services" data-cat="services" aria-pressed="false" aria-label="Filter features by Services, 9 features">Services <span class="legend-count" aria-hidden="true">9</span></button>
+                    <button class="cat-automate" data-cat="automate" aria-pressed="false" aria-label="Filter features by Automate, 7 features">Automate <span class="legend-count" aria-hidden="true">7</span></button>
+                    <button class="cat-observe" data-cat="observe" aria-pressed="false" aria-label="Filter features by Observe, 9 features">Observe <span class="legend-count" aria-hidden="true">9</span></button>
+                    <button class="cat-secure" data-cat="secure" aria-pressed="false" aria-label="Filter features by Secure, 6 features">Secure <span class="legend-count" aria-hidden="true">6</span></button>
+                    <button class="cat-platform" data-cat="platform" aria-pressed="false" aria-label="Filter features by Platform, 6 features">Platform <span class="legend-count" aria-hidden="true">6</span></button>
+                </div>
+                <p id="feature-filter-status" class="feature-filter-status search-status" aria-live="polite"></p>
+            </section>
+
+            <section id="core" aria-labelledby="core-title" data-cards>
+                <div class="section-head reveal">
+                    <h2 id="core-title">Built for demanding operators.</h2>
+                    <p>Ze starts with a configuration and protocol engine. The shipped network operating system adds BGP, interface management, FIB programming, plugins, operator tools, a minimal appliance runtime, and diagnostics as one product.</p>
+                </div>
+                <div class="cards feature-grid reveal">
+                    <article class="card feature-card cat-automate" data-cat="automate">
+                    <span class="cat">Automate</span>
+                    <h3><a href="../features/ai-first/">AI Tool Interfaces</a></h3>
+                    <div class="chips">
+                    <span class="chip">MCP</span>
+                    <span class="chip">Generated</span>
+                    <span class="chip">AI tools</span>
+                    </div>
+                    <ul>
+                    <li><strong>MCP</strong> exposes CLI/API commands</li>
+                    <li>AI tools read <strong>structured output</strong></li>
+                    <li>Plugins expose <strong>discoverable tools</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-operate" data-cat="operate">
+                    <span class="cat">Operate</span>
+                    <h3><a href="../features/cli-commands/">SSH CLI</a></h3>
+                    <div class="chips">
+                    <span class="chip">Built-in SSH</span>
+                    <span class="chip">RBAC</span>
+                    </div>
+                    <ul>
+                    <li>Manage Ze without <strong>OS shell</strong> accounts</li>
+                    <li><strong>Profiles</strong>, audit, and accounting</li>
+                    <li><strong>commit</strong>, rollback, diff, completion</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-operate" data-cat="operate">
+                    <span class="cat">Operate</span>
+                    <h3><a href="../features/bgp-configuration/">YANG Configuration</a></h3>
+                    <div class="chips">
+                    <span class="chip">YANG</span>
+                    <span class="chip">ExaBGP</span>
+                    </div>
+                    <ul>
+                    <li>Schema-driven <strong>validation</strong></li>
+                    <li><strong>One model</strong> feeds every surface</li>
+                    <li><strong>Plugin</strong> defined config and commands</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-operate" data-cat="operate">
+                    <span class="cat">Operate</span>
+                    <h3><a href="../features/formatting/">Output Formatting</a></h3>
+                    <div class="chips">
+                    <span class="chip">Shell-like pipes</span>
+                    <span class="chip">Offline</span>
+                    </div>
+                    <ul>
+                    <li><strong>table</strong>, <strong>json</strong>, <strong>yaml</strong>, <strong>ndjson</strong></li>
+                    <li><strong>match</strong>, <strong>count</strong>, <strong>first</strong>/<strong>last</strong></li>
+                    <li>Offline via <strong>ze format</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-operate" data-cat="operate">
+                    <span class="cat">Operate</span>
+                    <h3><a href="../features/web-interface/">Web Workbench</a></h3>
+                    <div class="chips">
+                    <span class="chip">HTMX</span>
+                    <span class="chip">SSE</span>
+                    </div>
+                    <ul>
+                    <li>YANG-driven <strong>config tree</strong></li>
+                    <li>Same <strong>CLI grammar</strong> in browser</li>
+                    <li><strong>Live updates</strong> via SSE</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-operate" data-cat="operate">
+                    <span class="cat">Operate</span>
+                    <h3><a href="../features/looking-glass/">Looking Glass</a></h3>
+                    <div class="chips">
+                    <span class="chip">Routes</span>
+                    <span class="chip">Topology</span>
+                    <span class="chip">Birdwatcher</span>
+                    </div>
+                    <ul>
+                    <li>Peer and <strong>route viewer</strong></li>
+                    <li><strong>Topology</strong> graph</li>
+                    <li>SSE streaming for <strong>live state</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-operate" data-cat="operate">
+                    <span class="cat">Operate</span>
+                    <h3><a href="../guides/production-diagnostics/">System Readiness</a></h3>
+                    <div class="chips">
+                    <span class="chip">ze doctor</span>
+                    <span class="chip">ze explain</span>
+                    </div>
+                    <ul>
+                    <li>Offline <strong>pre-start checks</strong></li>
+                    <li>Health, warnings, and <strong>errors</strong></li>
+                    <li>Structured <strong>remediation</strong> with <code>ze explain</code></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <h3><a href="../features/bgp-protocol/">Native BGP Engine</a></h3>
+                    <div class="chips">
+                    <span class="chip">BGP</span>
+                    <span class="chip">IPv4/IPv6</span>
+                    <span class="chip">FlowSpec</span>
+                    </div>
+                    <ul>
+                    <li>Full implementation in <strong>Go</strong></li>
+                    <li><strong>Lazy parsing</strong>, buffer-first encoding</li>
+                    <li>Negotiated <strong>capabilities</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <h3><a href="../guides/static-routes/">Static Routes</a></h3>
+                    <div class="chips">
+                    <span class="chip">ECMP</span>
+                    <span class="chip">BFD</span>
+                    <span class="chip">PBR</span>
+                    </div>
+                    <ul>
+                    <li>Named tables, <strong>policy routing</strong></li>
+                    <li><strong>BFD</strong>-tracked failover</li>
+                    <li>Multi-path <strong>ECMP</strong> groups</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <h3><a href="../features/bgp-protocol/">BFD</a></h3>
+                    <div class="chips">
+                    <span class="chip">RFC 5880</span>
+                    <span class="chip">Auth</span>
+                    </div>
+                    <ul>
+                    <li><strong>Single-hop</strong> and <strong>multi-hop</strong></li>
+                    <li>GTSM, jitter, <strong>BGP</strong> integration</li>
+                    <li>SHA1/MD5 <strong>auth</strong>, echo mode</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <h3><a href="../guides/mrt-analysis/">MRT Recording</a></h3>
+                    <div class="chips">
+                    <span class="chip">RFC 6396</span>
+                    <span class="chip">Analysis</span>
+                    </div>
+                    <ul>
+                    <li>Updates, messages, <strong>RIB snapshots</strong></li>
+                    <li><strong>Strftime</strong> file rotation</li>
+                    <li>Show, inject, replay, <strong>filter</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-services" data-cat="services">
+                    <span class="cat">Services</span>
+                    <h3><a href="../features/dns-resolver/">DNS Resolver</a></h3>
+                    <div class="chips">
+                    <span class="chip">Cache</span>
+                    <span class="chip">Pipes</span>
+                    </div>
+                    <ul>
+                    <li>Built-in <strong>cached</strong> resolver</li>
+                    <li><strong>| resolve</strong> and <strong>| origin</strong> pipe operators</li>
+                    <li>No external <strong>daemon</strong> needed</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-automate" data-cat="automate">
+                    <span class="cat">Automate</span>
+                    <h3><a href="../reference/plugins/">Plugin System</a></h3>
+                    <div class="chips">
+                    <span class="chip">ExaBGP</span>
+                    <span class="chip">RPKI</span>
+                    <span class="chip">Policy</span>
+                    </div>
+                    <ul>
+                    <li>Plugins add <strong>commands</strong>, RPCs, events</li>
+                    <li>YANG roots join <strong>CLI</strong> and web</li>
+                    <li>Independent, <strong>composable</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-automate" data-cat="automate">
+                    <span class="cat">Automate</span>
+                    <h3><a href="../features/api-commands/">Programmable</a></h3>
+                    <div class="chips">
+                    <span class="chip">REST</span>
+                    <span class="chip">gRPC</span>
+                    <span class="chip">gNMI</span>
+                    </div>
+                    <ul>
+                    <li><strong>REST API</strong>, <strong>gRPC</strong>, <strong>gNMI</strong></li>
+                    <li>Shared engine for <strong>identical output</strong></li>
+                    <li>Automate from <strong>any language</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-automate" data-cat="automate">
+                    <span class="cat">Automate</span>
+                    <h3><a href="../features/ai-first/">AI-First Design</a></h3>
+                    <div class="chips">
+                    <span class="chip">Self-describing</span>
+                    <span class="chip">Skills</span>
+                    </div>
+                    <ul>
+                    <li><strong>Self-describing</strong> command catalogue from the live binary</li>
+                    <li>Every command is an <strong>automation</strong> surface</li>
+                    <li>Structured <strong>diagnostics</strong> and repair plans</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-automate" data-cat="automate">
+                    <span class="cat">Automate</span>
+                    <h3><a href="../features/mcp-integration/">MCP Integration</a></h3>
+                    <div class="chips">
+                    <span class="chip">MCP</span>
+                    <span class="chip">OAuth 2.1</span>
+                    </div>
+                    <ul>
+                    <li><strong>Streamable HTTP</strong> transport, OAuth 2.1 resource server</li>
+                    <li>Server-initiated <strong>elicitation</strong>, task-augmented tool calls</li>
+                    <li><strong>MCP Apps UI</strong> with embedded panels</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-automate" data-cat="automate">
+                    <span class="cat">Automate</span>
+                    <h3><a href="../features/exabgp-compatibility/">ExaBGP Compatibility</a></h3>
+                    <div class="chips">
+                    <span class="chip">Migration</span>
+                    <span class="chip">Bridge</span>
+                    </div>
+                    <ul>
+                    <li>Automatic config <strong>migration</strong></li>
+                    <li><strong>Plugin bridge</strong> for existing workflows</li>
+                    <li>Migration path for existing scripts</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-observe" data-cat="observe">
+                    <span class="cat">Observe</span>
+                    <h3><a href="../features/interoperability-testing/">Evidence Over Claims</a></h3>
+                    <div class="chips">
+                    <span class="chip">Fuzz</span>
+                    <span class="chip">Interop</span>
+                    <span class="chip">Docker</span>
+                    </div>
+                    <ul>
+                    <li>Unit, functional, <strong>fuzz</strong>, chaos</li>
+                    <li>Performance <strong>benchmarks</strong></li>
+                    <li><strong>Interop</strong> vs FRR, BIRD, GoBGP</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-observe" data-cat="observe">
+                    <span class="cat">Observe</span>
+                    <h3><a href="../project/activity/">Development Activity</a></h3>
+                    <div class="chips">
+                    <span class="chip">Heatmap</span>
+                    <span class="chip">Live data</span>
+                    </div>
+                    <ul>
+                    <li>A year of <strong>commits</strong> and added lines, at a glance</li>
+                    <li>Built from git history each time</li>
+                    <li>Current Go code composition</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-observe" data-cat="observe">
+                    <span class="cat">Observe</span>
+                    <h3><a href="../guides/monitoring/">Prometheus Telemetry</a></h3>
+                    <div class="chips">
+                    <span class="chip">Netdata</span>
+                    <span class="chip">Prometheus</span>
+                    </div>
+                    <ul>
+                    <li><strong>138 metrics</strong> from /proc and /sys</li>
+                    <li><strong>Netdata</strong> naming, drop-in replacement</li>
+                    <li>Existing <strong>Grafana</strong> dashboards keep working</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-observe" data-cat="observe">
+                    <span class="cat">Observe</span>
+                    <h3><a href="../features/">Health Registry</a></h3>
+                    <div class="chips">
+                    <span class="chip">HTTP</span>
+                    <span class="chip">503</span>
+                    </div>
+                    <ul>
+                    <li><strong>/health</strong> HTTP endpoint</li>
+                    <li>Per-component <strong>status</strong> checks</li>
+                    <li>BGP, FIB, IPsec, L2TP, <strong>VPP</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-observe" data-cat="observe">
+                    <span class="cat">Observe</span>
+                    <h3><a href="../features/">Host Inventory</a></h3>
+                    <div class="chips">
+                    <span class="chip">CPU</span>
+                    <span class="chip">NIC</span>
+                    <span class="chip">SMART</span>
+                    </div>
+                    <ul>
+                    <li><strong>CPU</strong>, NIC, DMI, memory, thermal</li>
+                    <li><strong>SMART</strong> disk health and self-tests</li>
+                    <li><strong>JSON</strong> output for pipelines</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-observe" data-cat="observe">
+                    <span class="cat">Observe</span>
+                    <h3><a href="../features/">Crash Capture</a></h3>
+                    <div class="chips">
+                    <span class="chip">Panic</span>
+                    <span class="chip">Syslog</span>
+                    </div>
+                    <ul>
+                    <li>Automatic <strong>panic</strong> stack traces</li>
+                    <li>Ring buffer <strong>context</strong> (last 64 entries)</li>
+                    <li><strong>show crashes</strong> CLI command</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-observe" data-cat="observe">
+                    <span class="cat">Observe</span>
+                    <h3><a href="../features/">Tech-Support Bundle</a></h3>
+                    <div class="chips">
+                    <span class="chip">Offline</span>
+                    <span class="chip">JSON</span>
+                    </div>
+                    <ul>
+                    <li><strong>20 modules</strong>, pure Go, no shell-outs</li>
+                    <li>Structured <strong>JSON</strong> per module</li>
+                    <li>Privacy-by-default, <strong>gokrazy</strong>-safe</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-observe" data-cat="observe">
+                    <span class="cat">Observe</span>
+                    <h3><a href="../guides/production-diagnostics/">Production Diagnostics</a></h3>
+                    <div class="chips">
+                    <span class="chip">CLI</span>
+                    <span class="chip">MCP</span>
+                    </div>
+                    <ul>
+                    <li>11 built-in tools replacing <strong>ss, dmesg, lsof</strong></li>
+                    <li><strong>tcpdump</strong>, traceroute, ping, mtr</li>
+                    <li>All exposed via <strong>MCP</strong> for AI debugging</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-secure" data-cat="secure">
+                    <span class="cat">Secure</span>
+                    <h3><a href="../reference/plugins/">Secure by Default</a></h3>
+                    <div class="chips">
+                    <span class="chip">SSH</span>
+                    <span class="chip">RBAC</span>
+                    <span class="chip">RPKI</span>
+                    <span class="chip">ASPA</span>
+                    </div>
+                    <ul>
+                    <li><strong>SSH</strong> access to the CLI</li>
+                    <li><strong>RPKI</strong> route origin validation</li>
+                    <li>No <strong>other daemons</strong> needed</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-secure" data-cat="secure">
+                    <span class="cat">Secure</span>
+                    <h3><a href="../guides/tacacs/">TACACS+ AAA</a></h3>
+                    <div class="chips">
+                    <span class="chip">RFC 8907</span>
+                    <span class="chip">Accounting</span>
+                    </div>
+                    <ul>
+                    <li>SSH login via <strong>TACACS+</strong></li>
+                    <li>Command <strong>accounting</strong> START/STOP</li>
+                    <li>Server failover, <strong>local</strong> fallback</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-secure" data-cat="secure">
+                    <span class="cat">Secure</span>
+                    <h3><a href="../guides/audit/">Audit Trail</a></h3>
+                    <div class="chips">
+                    <span class="chip">Commits</span>
+                    <span class="chip">Auth</span>
+                    </div>
+                    <ul>
+                    <li>Config <strong>commit</strong>, discard, and reload</li>
+                    <li>Failed <strong>auth</strong> on every interface</li>
+                    <li>Filter by action, actor, and <strong>time</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-secure" data-cat="secure">
+                    <span class="cat">Secure</span>
+                    <h3><a href="../features/">PKI Store</a></h3>
+                    <div class="chips">
+                    <span class="chip">X.509</span>
+                    <span class="chip">TLS</span>
+                    </div>
+                    <ul>
+                    <li>YANG-modelled <strong>certificate</strong> management</li>
+                    <li>Chain validation, <strong>expiry</strong> checks</li>
+                    <li>Shared by IPsec, <strong>TLS</strong>, mutual auth</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-platform" data-cat="platform">
+                    <span class="cat">Platform</span>
+                    <h3><a href="../guides/appliance/">Minimal Appliance Mode</a></h3>
+                    <div class="chips">
+                    <span class="chip">Appliance</span>
+                    <span class="chip">Server</span>
+                    </div>
+                    <ul>
+                    <li><strong>Kernel, init, Ze</strong> runtime</li>
+                    <li>No <strong>package manager</strong> or general shell</li>
+                    <li><strong>ISO/PXE</strong> bare-metal install</li>
+                    <li>Linux server with <strong>systemd</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-platform" data-cat="platform">
+                    <span class="cat">Platform</span>
+                    <h3><a href="../features/introspection/">Runs Itself</a></h3>
+                    <div class="chips">
+                    <span class="chip">Update</span>
+                    <span class="chip">Systemd</span>
+                    </div>
+                    <ul>
+                    <li>Binary <strong>self-update</strong></li>
+                    <li>Built-in <strong>readiness</strong> checks</li>
+                    <li>No <strong>orchestrator</strong> needed</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-platform" data-cat="platform">
+                    <span class="cat">Platform</span>
+                    <h3><a href="../features/">Docker Support</a></h3>
+                    <div class="chips">
+                    <span class="chip mode">Daemon only</span>
+                    <span class="chip">Scratch</span>
+                    <span class="chip">Compose</span>
+                    </div>
+                    <ul>
+                    <li><strong>Static binary</strong> on scratch base</li>
+                    <li><strong>Compose</strong> support included</li>
+                    <li>Optional <strong>build tags</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card cat-platform" data-cat="platform">
+                    <span class="cat">Platform</span>
+                    <h3><a href="../guides/quickstart/">Feature Gates</a></h3>
+                    <div class="chips">
+                    <span class="chip mode">36 subsystems</span>
+                    <span class="chip">Default on</span>
+                    </div>
+                    <ul>
+                    <li>Compile out <strong>whole subsystems</strong>, BGP included</li>
+                    <li>Smaller binary, smaller <strong>attack surface</strong></li>
+                    <li>Config <strong>fails closed</strong> on blocks the build lacks</li>
+                    </ul>
+                    </article>
+                </div>
+            </section>
+
+            <section id="experimental" aria-labelledby="experimental-title" data-cards>
+                <div class="section-head reveal">
+                    <h2 id="experimental-title">Experimental and growing.</h2>
+                    <p>Implemented and tested, still waiting for production evidence.</p>
+                </div>
+                <div class="section-note reveal">
+                    <p>These still need deployment evidence or hardening before production claims. Configuration may change.</p>
+                </div>
+                <div class="cards feature-grid reveal">
+                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <span class="cat">Services</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../features/">IPsec VPN</a></h3>
+                    <div class="chips">
+                    <span class="chip">IKEv2</span>
+                    <span class="chip">X.509</span>
+                    <span class="chip">EAP</span>
+                    </div>
+                    <ul>
+                    <li>Full <strong>IKEv2</strong> engine, rekeying, DPD</li>
+                    <li><strong>NAT-T</strong>, keepalive, XFRM interfaces</li>
+                    <li>EAP-MSCHAPv2, <strong>EAP-TLS</strong>, road warrior</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <span class="cat">Services</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/l2tp/">L2TPv2 BNG</a></h3>
+                    <div class="chips">
+                    <span class="chip">PPP</span>
+                    <span class="chip">RADIUS</span>
+                    <span class="chip">CQM</span>
+                    </div>
+                    <ul>
+                    <li>RFC 2661 <strong>LNS and LAC</strong> with PPP</li>
+                    <li><strong>RADIUS</strong> auth, accounting, CoA</li>
+                    <li>CQM monitoring, <strong>shaping</strong>, web UI</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <span class="cat">Services</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/pppoe/">PPPoE Access</a></h3>
+                    <div class="chips">
+                    <span class="chip">RFC 2516</span>
+                    <span class="chip">PPP</span>
+                    </div>
+                    <ul>
+                    <li><strong>Access concentrator</strong> with discovery FSM</li>
+                    <li>Shared <strong>PPP driver</strong> with L2TP</li>
+                    <li><strong>PAP</strong>, <strong>CHAP-MD5</strong>, and <strong>MS-CHAPv2</strong> authentication</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <span class="cat">Services</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../features/interfaces/">Interface Management</a></h3>
+                    <div class="chips">
+                    <span class="chip">Netlink</span>
+                    <span class="chip">DHCP</span>
+                    </div>
+                    <ul>
+                    <li>Ethernet, VLAN, bridge, <strong>WireGuard</strong></li>
+                    <li>8 tunnel kinds, <strong>DHCP</strong> client</li>
+                    <li>NTP sync, <strong>offload</strong> tuning, mirroring</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <span class="cat">Services</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/firewall/">Firewall</a></h3>
+                    <div class="chips">
+                    <span class="chip">nftables</span>
+                    <span class="chip">NAT</span>
+                    </div>
+                    <ul>
+                    <li><strong>15 match</strong> types, 19 actions</li>
+                    <li>SNAT, DNAT, <strong>masquerade</strong></li>
+                    <li>FlowSpec-to-firewall <strong>bridge</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <span class="cat">Services</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/policy-routing/">Policy Routing</a></h3>
+                    <div class="chips">
+                    <span class="chip">nftables</span>
+                    <span class="chip">PBR</span>
+                    </div>
+                    <ul>
+                    <li><strong>L3/L4 match</strong> criteria</li>
+                    <li>Table steering, <strong>next-hop</strong> actions</li>
+                    <li>TCP-MSS clamping, <strong>interface</strong> wildcards</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <span class="cat">Services</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/vpp/">VPP Data Plane</a></h3>
+                    <div class="chips">
+                    <span class="chip">DPDK</span>
+                    <span class="chip">GoVPP</span>
+                    </div>
+                    <ul>
+                    <li><strong>FIB</strong> programming via GoVPP</li>
+                    <li>MPLS <strong>label</strong> operations</li>
+                    <li>Per-interface <strong>Prometheus</strong> metrics</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../features/">MPLS / LDP / RSVP-TE</a></h3>
+                    <div class="chips">
+                    <span class="chip">Labels</span>
+                    <span class="chip">Signaling</span>
+                    </div>
+                    <ul>
+                    <li>Kernel MPLS FIB, <strong>push/swap/pop</strong></li>
+                    <li>LDP <strong>discovery</strong> and sessions</li>
+                    <li>RSVP-TE <strong>ERO</strong>, bandwidth admission</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/ospf/">OSPFv2 / OSPFv3</a></h3>
+                    <div class="chips">
+                    <span class="chip">RFC 2328</span>
+                    <span class="chip">RFC 5340</span>
+                    <span class="chip">ECMP</span>
+                    </div>
+                    <ul>
+                    <li>One <strong>ospf</strong> engine, IPv4 and IPv6 address families</li>
+                    <li>SPF/ABR, <strong>NSSA</strong>, virtual links, NBMA/P2MP</li>
+                    <li>Redistribution, <strong>SR</strong>, BFD, graceful restart</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/isis/">IS-IS</a></h3>
+                    <div class="chips">
+                    <span class="chip">ISO 10589</span>
+                    <span class="chip">Dual-stack</span>
+                    </div>
+                    <ul>
+                    <li><strong>L1/L2</strong> link-state IGP over Layer 2</li>
+                    <li>RFC 5304/5310 <strong>authentication</strong>, key chains</li>
+                    <li>Dual-stack <strong>IPv6</strong>, redistributes with BGP</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/vrrp/">VRRP</a></h3>
+                    <div class="chips">
+                    <span class="chip">RFC 9568</span>
+                    <span class="chip">RFC 3768</span>
+                    <span class="chip">Virtual MAC</span>
+                    </div>
+                    <ul>
+                    <li>First-hop <strong>gateway redundancy</strong>, IPv4 and IPv6</li>
+                    <li>Per-group <strong>virtual-MAC</strong> macvlan for L2 failover</li>
+                    <li><strong>keepalived</strong> interop, compile-out</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <span class="cat">Observe</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/flow-export/">Flow Export</a></h3>
+                    <div class="chips">
+                    <span class="chip">sFlow</span>
+                    <span class="chip">NetFlow</span>
+                    <span class="chip">IPFIX</span>
+                    </div>
+                    <ul>
+                    <li><strong>sFlow v5</strong>, NetFlow v9, IPFIX</li>
+                    <li>Packet sampling, <strong>conntrack</strong> flows</li>
+                    <li>BGP <strong>next-hop</strong> enrichment</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-secure" data-cat="secure">
+                    <span class="cat">Secure</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/anomaly/">DDoS and Anomaly Detection</a></h3>
+                    <div class="chips">
+                    <span class="chip">DDoS</span>
+                    <span class="chip">Anomaly</span>
+                    <span class="chip">FlowSpec</span>
+                    </div>
+                    <ul>
+                    <li><strong>Volumetric</strong> and behavioral detection</li>
+                    <li>Bounded incident <strong>history</strong> with durations</li>
+                    <li>Local and upstream <strong>auto-mitigation</strong></li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-platform" data-cat="platform">
+                    <span class="cat">Platform</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/ze-install/">ISO and PXE Install</a></h3>
+                    <div class="chips">
+                    <span class="chip">PXE</span>
+                    <span class="chip">ISO</span>
+                    </div>
+                    <ul>
+                    <li><strong>PXE</strong> bare-metal provisioning</li>
+                    <li>Installer <strong>ISO</strong> media</li>
+                    <li>Local <strong>systemd</strong> install and uninstall</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-platform" data-cat="platform">
+                    <span class="cat">Platform</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../features/">Kernel Tunables</a></h3>
+                    <div class="chips">
+                    <span class="chip">Sysctl</span>
+                    <span class="chip">Profiles</span>
+                    </div>
+                    <ul>
+                    <li>Three-layer <strong>precedence</strong></li>
+                    <li>Named <strong>profiles</strong> (DSR, router, hardened)</li>
+                    <li>Originals <strong>restored</strong> on stop</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <span class="cat">Services</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/as112/">AS112 Anycast DNS</a></h3>
+                    <div class="chips">
+                    <span class="chip">AS112</span>
+                    <span class="chip">Anycast</span>
+                    </div>
+                    <ul>
+                    <li>Authoritative <strong>sink zones</strong> on four fixed anycast addresses (RFC 7534/7535)</li>
+                    <li>Conditional <strong>BGP origination</strong> via healthcheck-gated watchdog</li>
+                    <li>Anycast IPs bound on <strong>lo</strong> automatically, never operator-typed</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy" target="_blank" rel="noopener">Segment Routing</a></h3>
+                    <div class="chips">
+                    <span class="chip">SAFI 73</span>
+                    <span class="chip">SRv6</span>
+                    </div>
+                    <ul>
+                    <li><strong>SR-Policy</strong> NLRI (RFC 9830), SAFI 73</li>
+                    <li>MPLS and <strong>SRv6</strong> binding SID, tunnel encap</li>
+                    <li><strong>ExaBGP bridge</strong> for SR-Policy migration</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-automate" data-cat="automate">
+                    <span class="cat">Automate</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/fleet-config/">Fleet Management</a></h3>
+                    <div class="chips">
+                    <span class="chip">Managed config</span>
+                    <span class="chip">TLS hub</span>
+                    </div>
+                    <ul>
+                    <li>Per-client <strong>configuration</strong> and authentication</li>
+                    <li>Cached config with <strong>reconnect</strong> and heartbeat</li>
+                    <li>Version hashing and <strong>two-phase</strong> fetch</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card experimental cat-secure" data-cat="secure">
+                    <span class="cat">Secure</span>
+                    <span class="status">Experimental</span>
+                    <h3><a href="../guides/irr-filtering/">IRR Route Filtering</a></h3>
+                    <div class="chips">
+                    <span class="chip">IRR</span>
+                    <span class="chip">as-set</span>
+                    </div>
+                    <ul>
+                    <li><strong>Prefix-lists</strong> from IRR data, live in the engine</li>
+                    <li>Sourced from <strong>PeeringDB</strong> and <strong>RADB</strong></li>
+                    <li>Opt-in per peer, group or <strong>global filter chain</strong></li>
+                    </ul>
+                    </article>
+                </div>
+            </section>
+
+            <section id="roadmap" aria-labelledby="roadmap-title" data-cards>
+                <div class="section-head reveal">
+                    <h2 id="roadmap-title">Specified, not built.</h2>
+                    <p>Aspirations with written, reviewed specs. Nothing here is usable today.</p>
+                </div>
+                <div class="section-note reveal">
+                    <p>Every card links to a pending spec in the main repo's <code>plan/</code> directory. Captured intent moves from skeleton, to design, to ready, to in progress. A spec is deleted only when the work ships.</p>
+                </div>
+                <div class="cards feature-grid reveal">
+                    <article class="card feature-card aspiration cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <span class="status">Spec&#x27;d</span>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md" target="_blank" rel="noopener">OSPF L3VPN PE-CE</a></h3>
+                    <div class="chips">
+                    <span class="chip">RFC 4576</span>
+                    <span class="chip">RFC 4577</span>
+                    <span class="chip">L3VPN</span>
+                    </div>
+                    <ul>
+                    <li>PE-CE <strong>DN bit</strong> loop prevention</li>
+                    <li>Domain ID, route type, <strong>VPN route tag</strong></li>
+                    <li>Blocked on <strong>VRF/MPLS L3VPN</strong> infrastructure</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card aspiration cat-routing" data-cat="routing">
+                    <span class="cat">Routing</span>
+                    <span class="status">Spec&#x27;d</span>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-vrf-0-umbrella.md" target="_blank" rel="noopener">VRF</a></h3>
+                    <div class="chips">
+                    <span class="chip">VRF</span>
+                    <span class="chip">L3VPN</span>
+                    </div>
+                    <ul>
+                    <li>VRF as a <strong>first-class</strong> concept</li>
+                    <li>Per-VRF <strong>BGP stacks</strong>, YANG config</li>
+                    <li>Kernel <strong>VRF devices</strong>, table binding</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card aspiration cat-secure" data-cat="secure">
+                    <span class="cat">Secure</span>
+                    <span class="status">Spec&#x27;d</span>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md" target="_blank" rel="noopener">Kernel Lockdown</a></h3>
+                    <div class="chips">
+                    <span class="chip">Lockdown</span>
+                    <span class="chip">Integrity</span>
+                    </div>
+                    <ul>
+                    <li>Kernel <strong>lockdown</strong> integrity mode</li>
+                    <li>Blocks unsigned <strong>modules</strong>, kexec, /dev/mem</li>
+                    <li>Design <strong>reviewed</strong>, waiting for schedule</li>
+                    </ul>
+                    </article>
+                    <article class="card feature-card aspiration cat-platform" data-cat="platform">
+                    <span class="cat">Platform</span>
+                    <span class="status">Spec&#x27;d</span>
+                    <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-install-9-cloud-init.md" target="_blank" rel="noopener">Cloud-Init Provisioning</a></h3>
+                    <div class="chips">
+                    <span class="chip">Cloud-init</span>
+                    <span class="chip">User-data</span>
+                    </div>
+                    <ul>
+                    <li>Appliance identity from <strong>cloud metadata</strong></li>
+                    <li>SSH keys and config via <strong>user-data</strong></li>
+                    <li>No <strong>pre-baked</strong> seed image needed</li>
+                    </ul>
+                    </article>
+                </div>
+            </section>
+
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Research</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Use the catalogue</h2>
+                    <a class="page-sidebar-link" href="../docs/">
+                        <span class="page-sidebar-link-label">Documentation</span>
+                        <small>Learn how to use the features.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../reference/plugins/">
+                        <span class="page-sidebar-link-label">Plugin catalogue</span>
+                        <small>Runtime plugins behind feature areas.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../compare/">
+                        <span class="page-sidebar-link-label">Comparisons</span>
+                        <small>Check how coverage compares externally.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>See what is still planned.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        

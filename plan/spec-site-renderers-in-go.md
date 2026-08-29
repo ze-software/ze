@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 5 of 10 |
+| Phase | 6 of 10 |
 | Deferral shard | `plan/deferrals/site-renderers-in-go.md` |
 | Handoff | - |
 | Updated | 2026-08-29 |
@@ -526,6 +526,34 @@ and its carry-over are untouched.
 | `TestTheChangesFeedIsPublishedAtBothAddresses` | `internal/le/site/changes_test.go` | AC-7, AC-16's two changes feeds | pass |
 | `TestARetiredWeekLosesItsPage` | `internal/le/site/changes_test.go` | AC-2, and a directory that is not a week is left alone | pass |
 | `TestTheChangesClaimOnlyPublishedRoutes` | `internal/le/site/changes_test.go` | AC-1, 38 of the 712 | pass |
+| `TestTheFeaturesPageKeepsTheDataFilesOwnOrder` | `internal/le/site/datapages_test.go` | AC-8, manifest order for 3 sections and 56 cards | pass |
+| `TestTheFeatureLegendFollowsItsOwnCategoryOrder` | `internal/le/site/datapages_test.go` | AC-8, the legend is the page's order, not the data's | pass |
+| `TestTheFeaturesPageReadsAsThePublishedPage` | `internal/le/site/datapages_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror | pass |
+| `TestEveryFeatureSectionIsLabelledByItsOwnHeading` | `internal/le/site/datapages_test.go` | AC-3, the attribute visibleText cannot see | pass |
+| `TestAnExternalFeatureCardLeavesTheSite` | `internal/le/site/datapages_test.go` | AC-8, link target and rel for an off-site card | pass |
+| `TestAFeatureCardWithAnUnknownCategoryIsRefused` | `internal/le/site/datapages_test.go` | AC-8, refused by name | pass |
+| `TestFeaturesWithNoShippedSectionAreRefused` | `internal/le/site/datapages_test.go` | AC-8, the feature count fails closed | pass |
+| `TestTheTimelineSortsNewestFirstAndGroupsByQuarter` | `internal/le/site/datapages_test.go` | AC-8, date descending and run-length quarters | pass |
+| `TestTwoMilestonesOnOneDateKeepTheFilesOrder` | `internal/le/site/datapages_test.go` | AC-8, the stable tie order | pass |
+| `TestTheTimelineReadsAsThePublishedPage` | `internal/le/site/datapages_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror | pass |
+| `TestTheTalksListingReadsAsThePublishedListing` | `internal/le/site/datapages_test.go` | AC-3, AC-4, AC-5, and the listing carries no sidebar | pass |
+| `TestTheTalksListingSortsNewestFirst` | `internal/le/site/datapages_test.go` | AC-8, date descending | pass |
+| `TestTheTalksProducerLeavesTheDecksAlone` | `internal/le/site/datapages_test.go` | AC-2, the frozen-deck asymmetry | pass |
+| `TestATalkWithNoDateIsRefused` | `internal/le/site/datapages_test.go` | AC-8, refused by name | pass |
+| `TestTheDataPagesClaimEachPublishedRouteOnce` | `internal/le/site/datapages_test.go` | AC-1, 4 of 712 and no doubled claim | pass |
+| `TestTheDependencyPageKeepsTheCuratedOrder` | `internal/le/site/dependencies_test.go` | AC-8, 8 groups and 42 modules in the curated order | pass |
+| `TestGoModSuppliesTheVersionAndNeverTheOrder` | `internal/le/site/dependencies_test.go` | AC-8, go.mod is versions only | pass |
+| `TestAnIndirectRequirementIsNotADependency` | `internal/le/site/dependencies_test.go` | AC-8, an indirect require is not a dependency | pass |
+| `TestADirectDependencyWithNoCuratedEntryIsRefused` | `internal/le/site/dependencies_test.go` | AC-8, drift refused by name | pass |
+| `TestACuratedEntryGoModNoLongerRequiresIsRefused` | `internal/le/site/dependencies_test.go` | AC-8, the other drift direction | pass |
+| `TestTheDependencyPageReadsAsThePublishedPage` | `internal/le/site/dependencies_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror | pass |
+| `TestTheDependencyPageIsLabelledByItsOwnHeading` | `internal/le/site/dependencies_test.go` | AC-3, the attribute visibleText cannot see | pass |
+| `TestThisCheckoutHasNoDependencyDrift` | `internal/le/site/dependencies_test.go` | AC-8, this tree can build its own page | pass |
+| `TestAPipeInADependencyReasonStaysInItsCell` | `internal/le/site/dependencies_test.go` | AC-5, a pipe does not split a mirror row | pass |
+| `TestAMalformedDataFileIsRefusedByName` | `internal/le/site/datapages_test.go` | AC-8, eight malformed data files, each refused by name | pass |
+| `TestADataFileThatIsNotJSONIsRefused` | `internal/le/site/datapages_test.go` | AC-8, the decoder's own complaint reaches the build | pass |
+| `TestACuratedModuleNamedTwiceIsRefused` | `internal/le/site/dependencies_test.go` | AC-8, a doubled curated entry | pass |
+| `TestAGoModWithNoDirectRequirementIsRefused` | `internal/le/site/dependencies_test.go` | AC-8, an all-indirect go.mod | pass |
 | `TestPluginCatalogCarriesTheFieldsThePageShows` | `internal/le/site/plugins_test.go` | AC-9 | |
 | `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts/sitefacts_test.go` | AC-11 | |
 | `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12 | |
@@ -689,6 +717,32 @@ and its carry-over are untouched.
      branch rather than three and fails closed.
 6. **Phase: Data pages** -- features, milestones, dependencies, the talks listing
    - Files: `datapages.go`
+     -> Landed 2026-08-29. Four routes claimed, one for each page, which leaves
+     117 for phases 7 to 10. No non-route artifact is written, so AC-16 gains
+     nothing from this phase.
+     -> Decision 2026-08-29: `dependencies.go` is a second file rather than a
+     fourth producer inside `datapages.go`. The other three read one committed
+     JSON file and nothing else; this one reads `go.mod` as well, and the drift
+     check between the two sources is its own concern.
+     -> Decision 2026-08-29: the dependency drift the retired renderer WARNED
+     about is now REFUSED by name, as phase 5 refused its four warned inputs.
+     `website/tools/build.py` exited non-zero on any warning, so a drifted list
+     never reached a reader. This checkout carried that drift: five direct
+     dependencies of `go.mod` had no entry in `website/data/dependencies.json`
+     (`anmitsu/go-shlex`, `golangci-lint/v2`, `yuin/goldmark`, `golang.org/x/vuln`,
+     `honnef.co/go/tools`), so the published page listed 42 of the 47 modules Ze
+     takes and named none of the five. Each is curated here from its import site.
+     `TestThisCheckoutHasNoDependencyDrift` holds the tree to it.
+     -> Decision 2026-08-29: `llmsdata.go` declared a second, narrower model of
+     `data/features.json` and `data/dependencies.json`. Two models of one file
+     drift, so its `featureInventory`, `featureSection`, `featureCard`,
+     `featureChip`, `dependencyRationale`, `dependencyCategory` and
+     `dependencyModule` are deleted and it reads `featureData` and
+     `dependencyData` from these two files.
+     -> Constraint: the category legend order is the page's own
+     (`legendCategories`), never the data's. A legend derived from the data
+     reorders its buttons whenever a card moves and drops a category no card
+     carries. The features data's first card is `automate`, which sits fourth.
 7. **Phase: Plugin catalog and config reference** -- extend `inventory.Collect`,
    then render both pages
    - Files: `plugins.go`, `config.go`, `internal/le/inventory/inventory.go`

@@ -180,10 +180,6 @@
                 {
                     "module": "golang.org/x/tools",
                     "why": "Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries."
-                },
-                {
-                    "module": "golang.org/x/vuln",
-                    "why": "Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors."
                 }
             ]
         },
@@ -204,27 +200,11 @@
                 },
                 {
                     "module": "github.com/sivchari/gomu",
-                    "why": "Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate."
+                    "why": "Mutation-testing tool, run via the Makefile to advisory-score how well the test suite actually exercises the code. Not a build or CI gate."
                 },
                 {
                     "module": "gopkg.in/yaml.v3",
                     "why": "Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed."
-                },
-                {
-                    "module": "github.com/golangci/golangci-lint/v2",
-                    "why": "The linter behind `./le verify lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version."
-                },
-                {
-                    "module": "honnef.co/go/tools",
-                    "why": "Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry."
-                },
-                {
-                    "module": "github.com/yuin/goldmark",
-                    "why": "Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers."
-                },
-                {
-                    "module": "github.com/anmitsu/go-shlex",
-                    "why": "Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives."
                 }
             ]
         }

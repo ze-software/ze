@@ -62,51 +62,12 @@ type registryPlugin struct {
 	YangFiles            []string `json:"yang_files"`
 }
 
-// featureInventory is the product's own card wall.
-type featureInventory struct {
-	Sections []featureSection `json:"sections"`
-}
-
-type featureSection struct {
-	Heading string        `json:"heading"`
-	Lead    string        `json:"lead"`
-	Cards   []featureCard `json:"cards"`
-}
-
-type featureCard struct {
-	Title    string        `json:"title"`
-	Category string        `json:"category"`
-	Status   string        `json:"status"`
-	Href     string        `json:"href"`
-	Chips    []featureChip `json:"chips"`
-	Bullets  []string      `json:"bullets"`
-}
-
-type featureChip struct {
-	Text string `json:"text"`
-}
-
 // configNode is one node of the YANG-derived configuration tree.
 type configNode struct {
 	Description string       `json:"description"`
 	Kind        string       `json:"kind"`
 	Name        string       `json:"name"`
 	Children    []configNode `json:"children"`
-}
-
-// dependencyRationale is why Ze takes each direct Go module.
-type dependencyRationale struct {
-	Categories []dependencyCategory `json:"categories"`
-}
-
-type dependencyCategory struct {
-	Name    string             `json:"name"`
-	Modules []dependencyModule `json:"modules"`
-}
-
-type dependencyModule struct {
-	Module string `json:"module"`
-	Why    string `json:"why"`
 }
 
 // siteNav is the curated navigation the site's own header is built from.
@@ -140,9 +101,9 @@ type navLink struct {
 type llmsInputs struct {
 	Facts        siteFacts
 	Plugins      []registryPlugin
-	Features     featureInventory
+	Features     featureData
 	ConfigTree   map[string]configNode
-	Dependencies dependencyRationale
+	Dependencies dependencyData
 	Nav          siteNav
 	Commands     []catalogCommand
 	Equivalents  *equivalentMapping
