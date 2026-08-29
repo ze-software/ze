@@ -8,8 +8,6 @@
 # PREVENTS: a config that gates autoconf but leaves accept-ra open, which
 #           would let the operator set the receiving half of one behavior on
 #           a backend that carries neither half.
-# PLATFORM: the sibling ipv6 leaf tests are linux-only; this one matches them.
-option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;

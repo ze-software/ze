@@ -10,8 +10,6 @@
 # PREVENTS: a silent-wrong path where the verifier accepts autoconf under
 #           backend vpp, the commit succeeds, and the operator waits for an
 #           address that no dataplane path can produce.
-# PLATFORM: the sibling ipv6 leaf tests are linux-only; this one matches them.
-option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;

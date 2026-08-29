@@ -10,9 +10,11 @@
 #           router-advertisement under backend vpp. Hosts on the link then
 #           wait for advertisements that no backend ever sends, and the
 #           operator sees a valid config with no route being announced.
-# PLATFORM: the ipv6 container carries ze:os "linux", so the schema walker
-#           prunes it on other platforms. This test is linux-only, like the
-#           sibling iface-vpp-rejects-dhcp.ci.
+# PLATFORM: the router-advertisement container itself carries ze:os "linux",
+#           so the schema walker prunes it on other platforms and the config
+#           is refused for an unknown field instead of by the backend gate.
+#           The ipv6 container carries no ze:os, so a fixture that names only
+#           its unannotated leaves runs everywhere and must not skip.
 option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {

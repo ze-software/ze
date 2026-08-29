@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | plugin |
-| Depends | `plan/spec-fixit-vpp-slaac-no-dataplane-path.md` |
+| Depends | none. `spec-fixit-vpp-slaac-no-dataplane-path` landed the gate and closed on 2026-08-29 |
 | Phase | - |
 | Deferral shard | - |
 | Handoff | - |
@@ -17,8 +17,10 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Measure whether a VPP-owned NIC delivers IPv6 Router Advertisements to the Linux
 Control Plane tap, and record the answer.
 
-`plan/spec-fixit-vpp-slaac-no-dataplane-path.md` gated the `autoconf` and
-`accept-ra` leaves to the netlink backend on 2026-08-24. It landed that gate
+The closed spec `spec-fixit-vpp-slaac-no-dataplane-path` gated the `autoconf`
+and `accept-ra` leaves to the netlink backend on 2026-08-24. The annotation it
+wrote is in `internal/component/iface/yang/ze-iface-conf.yang`, and the five
+`.ci` fixtures that pin the refusal are in `test/parse/`. It landed that gate
 WITHOUT this measurement, on an owner ruling, because the measurement needs a
 QEMU harness that does not exist and the spec was stalling behind it.
 
@@ -42,15 +44,15 @@ on the link, enable `autoconf` on the unit, and record whether the kernel learns
 an address on the tap. Record the negative result as carefully as the positive
 one. A negative result is the evidence the landed gate currently lacks.
 
-**Blocking prerequisite: `test/qemu/` does not exist.** The scenario has no home
+**Blocking prerequisite: `test/qemu/` <!-- doc-links: ignore (this spec's blocking prerequisite is that the tree does not exist) --> does not exist.** The scenario has no home
 yet, and choosing one is the first design question. The repository does carry a
 QEMU harness family: driver scripts under `internal/le/` (for example
 `effective-vpp-hugepages-qemu.py`, which builds a host `ze`, initializes an
 appliance, builds the gokrazy image, boots it under QEMU and asserts through the
 Ze CLI over SSH), driven from `.ci` files in `test/appliance/` and
-`test/install/`, with `internal/le/qemu/netns.go` for namespace isolation.
+`test/install/`, with `internal/le/qemu/netns_linux.go` for namespace isolation.
 R-1 of the parent spec says to reuse that harness rather than build a new one.
-Whether this scenario lands beside it or in a new `test/qemu/` tree is for the
+Whether this scenario lands beside it or in a new `test/qemu/` <!-- doc-links: ignore (this spec's blocking prerequisite is that the tree does not exist) --> tree is for the
 design phase to answer.
 
 ## Required Reading
@@ -151,7 +153,7 @@ design phase to answer.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A QEMU guest can be given a NIC that VPP takes over, with a second endpoint on the same link to send advertisements | the existing appliance QEMU drivers boot a gokrazy image with VPP present, and `internal/le/qemu/netns.go` isolates namespaces | the measurement needs different infrastructure, and the spec must say what | build the topology and confirm VPP owns the NIC and the tap exists | unvalidated |
+| A-1 | A QEMU guest can be given a NIC that VPP takes over, with a second endpoint on the same link to send advertisements | the existing appliance QEMU drivers boot a gokrazy image with VPP present, and `internal/le/qemu/netns_linux.go` isolates namespaces | the measurement needs different infrastructure, and the spec must say what | build the topology and confirm VPP owns the NIC and the tap exists | unvalidated |
 | A-2 | A negative result is trustworthy: no address appeared because the packets never arrived, not because the sender was silent or the sysctl never landed | the run can assert both independently | a negative result proves nothing, and the landed gate stays unevidenced | assert the sender transmitted and the two sysctl keys read back on the tap, before reading the address | unvalidated |
 | A-3 | The tap's kernel behavior under `accept-ra` is the same as any other device's | RFC 4861 and the kernel treat the tap as an ordinary interface | the measurement answers a question about taps rather than about VPP | run the same assertions on the netlink backend as a control | unvalidated |
 | A-4 | The result generalizes from the parent NIC to a VLAN sub-interface | `lcp-auto-subint` creates the sub-interface tap, and the sub-interface is a `unit` entry reaching the same leaf | the two disagree and each needs its own verdict | run the scenario a second time on a VLAN sub-interface | unvalidated |
@@ -170,7 +172,7 @@ design phase to answer.
 |----------|--------|
 | What breaks if this is wrong? | A false negative leaves a gate refusing a configuration that works, so an operator loses IPv6 autoconfiguration on the vpp backend for no reason. A false positive removes a gate and restores the silent accept the parent spec deleted |
 | How is it reverted? | Single commit revert. The gate is one YANG annotation and five `.ci` fixtures |
-| Who else touches this path? | `plan/spec-fixit-vpp-slaac-no-dataplane-path.md` landed the gate; `plan/future/spec-fixit-vpp-vlan-promiscuous.md` works the same VLAN surface; `plan/spec-dataplane-seams-4-control-packet-rx.md` owns the shared receive-path question |
+| Who else touches this path? | the closed spec `spec-fixit-vpp-slaac-no-dataplane-path` landed the gate; `plan/future/spec-fixit-vpp-vlan-promiscuous.md` works the same VLAN surface; `plan/spec-dataplane-seams-4-control-packet-rx.md` owns the shared receive-path question |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -212,12 +214,12 @@ design phase to answer.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `vpp-slaac-tap.ci` | the design phase chooses between a new `test/qemu/` tree and the existing `test/appliance/` route, which is where `vpp-hugepages-qemu.ci` sits | the operator learns whether autoconfiguration can work on a VPP-owned NIC | |
+| `vpp-slaac-tap.ci` | the design phase chooses between a new `test/qemu/` <!-- doc-links: ignore (this spec's blocking prerequisite is that the tree does not exist) --> tree and the existing `test/appliance/` route, which is where `vpp-hugepages-qemu.ci` sits | the operator learns whether autoconfiguration can work on a VPP-owned NIC | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `vpp-slaac-tap` | decided by the design phase; `test/qemu/` does not exist today | an advertisement sender on the link, running on a separate endpoint | whether the VPP dataplane delivers Router Advertisements to the Linux Control Plane tap | |
+| `vpp-slaac-tap` | decided by the design phase; `test/qemu/` <!-- doc-links: ignore (this spec's blocking prerequisite is that the tree does not exist) --> does not exist today | an advertisement sender on the link, running on a separate endpoint | whether the VPP dataplane delivers Router Advertisements to the Linux Control Plane tap | |
 
 The scenario is named, never numbered (`ai/rules/interop-and-goal-validation.md`,
 and the de-numbering that landed in `9aaa03e3d`).
@@ -270,7 +272,7 @@ and the de-numbering that landed in `9aaa03e3d`).
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `internal/component/iface/yang/ze-iface-conf.yang` is anchored from `docs/features/interfaces.md`, named above. Re-derive with `./le spec-citation anchors spec plan/spec-vpp-slaac-tap-premise.md` once the file list is final |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `internal/component/iface/yang/ze-iface-conf.yang` is anchored from `docs/features/interfaces.md`, named above. Re-derive with `./le spec citation anchors spec plan/spec-vpp-slaac-tap-premise.md` once the file list is final |
 | 17 | Existing docs show config/CLI/API examples for this area? | | re-check every `autoconf` and `accept-ra` mention in `docs/` against whichever verdict this spec produces |
 
 ## Implementation Steps
@@ -354,7 +356,7 @@ the RFC 4862 requirement the host cannot meet without the packets.
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -372,7 +374,7 @@ the RFC 4862 requirement the host cannot meet without the packets.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

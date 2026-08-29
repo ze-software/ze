@@ -4,8 +4,6 @@
 #            names the unit, so the operator reads which sub-interface it is.
 # PREVENTS: a parent and a sub-interface disagreeing about one behavior, which
 #           is the shape the gate exists to remove.
-# PLATFORM: the sibling ipv6 leaf tests are linux-only; this one matches them.
-option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;
