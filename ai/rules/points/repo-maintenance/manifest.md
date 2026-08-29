@@ -50,6 +50,7 @@ canonical-sources-and-sync-direction ## Canonical Sources and Sync Direction
   a-regeneration-reads-the-whole-working-tree
   drift-detection
   git-diff-cannot-show-drift-in-the-mirrors
+  a-build-writes-its-records-to-the-checkout-never-the-artifact
   banned-actions
   banned-edits-and-the-canonical-source-to-use
 hook-to-rule-mapping ## Hook-to-Rule Mapping
@@ -111,6 +112,7 @@ gate-population ## Gate Population
   compile-the-tests-before-you-call-it-committable
   judge-the-commit-not-the-repository
   a-change-that-enters-a-gate-s-population-owes-that-gate-a-green
+  key-a-gate-on-the-act-not-on-an-artifact-that-accompanies-it
 ze-project-knowledge ## Ze Project Knowledge
   project-knowledge-not-in-other-rules
   project-facts-that-no-other-rule-carries

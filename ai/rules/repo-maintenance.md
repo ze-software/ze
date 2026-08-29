@@ -207,6 +207,12 @@ The output is correct for the tree it read. It is wrong for the commit you are a
 **The `CLAUDE.md`, `AGENTS.md`, and skill mirrors are gitignored, so `git diff` can NEVER show drift for them.** `./le ai sync-check` compares them against a fresh generation; the session-start hook warns `generated agent files are stale` when a resync is needed. So drift in a mirror MUST be read from `./le ai sync-check` rather than from a
 diff, and it MUST be fixed with `./le ai skills-sync`. `ai/rules/<rule>.md` is the one generated rule surface that IS tracked, so `git diff` shows its drift, and `./le rules render-check` reaches the same verdict without writing.
 
+**A build MUST NOT write its own bookkeeping into the artifact it publishes.** A record of what a run did belongs to the checkout that ran it. The artifact holds what a reader came for and nothing else, so a build MUST resolve a record path from the repository root and never from the output root, whatever `ZE_REPO_ROOT` names at the time.
+
+The failure is quiet in the only place that matters: the record is correct, the build succeeds, and the file is served. Three instances landed in one day, from three different producers. `plan/verification-debt/c7beceff.md` is committed in the `gh-pages` tree and live on ze-software.net, where no route map explains it and no source produces it. `plan/verification-debt/d97ae77d.md` reached the wiki through `ZE_REPO_ROOT=../wiki ./le commit create`, into a repository that had no `plan/` directory at all. A producer record was heading for `data/site-producers.json` inside the published tree before review moved it to `tmp/site` under the repository.
+
+The tell is the same each time, and it is worth checking by hand rather than waiting for a gate: a path a build writes is joined to `paths.Output`, or to a root a caller supplied, when the thing being written is evidence about the RUN rather than content for a reader. `ZE_REPO_ROOT` makes this reachable from every sibling checkout, so a route that is correct in the ze tree publishes tooling state the moment it is pointed at a published one.
+
 ### Banned Actions
 
 | Action | Fix |
@@ -569,6 +575,30 @@ the two agree. A sample that passes is not evidence about the rest.
 requirement, that record MUST NOT be rewritten to satisfy the new one.** It
 describes a run that happened. Migrating it forward replaces a fact with a claim
 that was never true, which costs more than the red it clears.
+
+**A gate that judges an INTENT MUST key on the artifact only that intent
+produces, never on one that merely accompanies it.** An accompanying artifact is
+a proxy, and a proxy is wider than the thing it stands for: it matches the
+intended act and every other act that happens to leave the same trace. The gate
+then refuses correct work, and each refusal costs a session the time to
+discover that the rule it seems to state is not the rule it enforces.
+
+**The tell is a gate that fires on work nobody would describe the way the gate
+describes it.** When that happens, MUST ask what the intended act would
+uniquely leave behind, and key on that instead. Widening the proxy to admit the
+case in hand is the wrong repair: it trades one wrong population for another.
+
+**A carve-out MUST be tested from both sides before it lands.** A test that the
+excluded case now passes proves only that the gate got weaker. The test that
+matters asserts the gate still catches what it was built for, because a
+carve-out written from the refused case alone is indistinguishable from
+disarming the gate.
+
+**A gate whose input is a per-commit scratch file MUST be cleared by the commit
+that used it.** Such a file states something about ONE commit, so a stale entry
+is a false statement about the next one, and it refuses that commit for a
+reason its author cannot act on. Leaving the file dirty moves the cost onto
+whoever commits next, which is the property that makes it worth a rule.
 
 ## Ze Project Knowledge
 
