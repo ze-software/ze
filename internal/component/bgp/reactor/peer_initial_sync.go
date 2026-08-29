@@ -75,6 +75,12 @@ func (p *Peer) sendInitialRoutes() {
 	// Uses atomic flag checked by notifyMessageReceiver to tag sent events.
 	p.sendingConfigStatic.Store(true)
 
+	// RFC 8669 Section 8: "The propagation to other ASes MUST be explicitly
+	// configured." One answer for this whole send, because it is a property of
+	// the session rather than of a route (Peer.prefixSIDAllowed,
+	// forward_prefix_sid.go).
+	prefixSIDAllowed := p.prefixSIDAllowed()
+
 	// Calculate max message size for this peer
 	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, nc.ExtendedMessage))
 
@@ -94,7 +100,7 @@ func (p *Peer) sendInitialRoutes() {
 					continue
 				}
 				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-				update := buildStaticRouteUpdateNew(ub, &routes[0], nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load())
+				update := buildStaticRouteUpdateNew(ub, &routes[0], nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
 				err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
 				message.PutUpdateBuilder(ub)
 				if err != nil {
@@ -113,7 +119,7 @@ func (p *Peer) sendInitialRoutes() {
 						routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", r.Prefix, "error", nhErr)
 						continue
 					}
-					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load()))
+					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed))
 				}
 				if len(params) == 0 {
 					message.PutUpdateBuilder(ub)
@@ -143,7 +149,7 @@ func (p *Peer) sendInitialRoutes() {
 			}
 			addPath := p.addPathFor(routeFamily(route))
 			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-			update := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load())
+			update := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
 			err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
 			message.PutUpdateBuilder(ub)
 			if err != nil {
@@ -652,7 +658,9 @@ func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
 
 		addPath := p.addPathFor(fam)
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
-		update := ub.BuildPlugin(toPluginParams(*route, fam))
+		// RFC 8669 Section 8, as for the static routes above: a plugin route's
+		// pre-built attribute bytes can carry type code 40.
+		update := ub.BuildPlugin(toPluginParams(*route, fam, p.prefixSIDAllowed()))
 		// A single plugin route (e.g. an atomic FlowSpec rule) cannot be split;
 		// skip it rather than emit an UPDATE the peer would reject.
 		if pluginUpdateSize(update) > maxMsgSize {
@@ -687,7 +695,8 @@ func concatNLRIs(nlris [][]byte) []byte {
 // same-attribute groups are uncommon and this runs only at session establishment).
 func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, maxMsgSize int, sendFn func(*message.Update) error, addr string) {
 	addPath := p.addPathFor(g.fam)
-	base := toPluginParams(*g.rep, g.fam)
+	// RFC 8669 Section 8, as in the non-grouped pass (sendPluginRoutesVia).
+	base := toPluginParams(*g.rep, g.fam, p.prefixSIDAllowed())
 	emit := func(nlri []byte) {
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		params := base

@@ -3,6 +3,7 @@
 // Related: peer_forward_facts.go -- the sibling applyFacts* egress decisions
 // Related: reactor_api_forward.go -- forwardUpdateCore, the general forward rail
 // Related: forward_rs.go -- reactorForwardRS, the route-server forward rail
+// Related: forward_prefix_sid.go -- the sibling prohibition, and the other caller of payloadHasAttr
 package reactor
 
 import (
@@ -35,6 +36,16 @@ func localPrefAllowedTo(isIBGP bool) bool { return isIBGP }
 // Allocation-free: ParseUpdateSections computes offsets and AttrFind walks the
 // attribute headers in place.
 func payloadHasLocalPref(payload []byte) bool {
+	return payloadHasAttr(payload, attribute.AttrLocalPref)
+}
+
+// payloadHasAttr reports whether an UPDATE payload carries the attribute code.
+// It is the general form of the paragraph above: the two egress prohibitions
+// that strip an attribute already on the wire -- LOCAL_PREF toward an external
+// peer (RFC 4271 Section 5.1.5) and the Prefix-SID outside the SR domain
+// (RFC 8669 Section 8, forward_prefix_sid.go) -- ask the same question of the
+// same bytes, and one fold cannot disagree with itself.
+func payloadHasAttr(payload []byte, code attribute.AttributeCode) bool {
 	sections, err := wire.ParseUpdateSections(payload)
 	if err != nil {
 		return false
@@ -43,7 +54,7 @@ func payloadHasLocalPref(payload []byte) bool {
 	if attrs == nil {
 		return false
 	}
-	_, _, _, found := attribute.AttrFind(attrs, attribute.AttrLocalPref)
+	_, _, _, found := attribute.AttrFind(attrs, code)
 	return found
 }
 

@@ -52,12 +52,15 @@ type peerForwardFacts struct {
 	peerAS        uint32
 	isEBGP        bool
 
-	rsClient      bool
-	rrClient      bool
-	asOverride    bool
-	name          string
-	groupName     string
-	exportFilters []filterapi.FilterRef
+	rsClient   bool
+	rrClient   bool
+	asOverride bool
+	// propagatePrefixSID is the operator's statement that this EBGP neighbor is
+	// inside ze's SR domain (RFC 8669 Section 8, forward_prefix_sid.go).
+	propagatePrefixSID bool
+	name               string
+	groupName          string
+	exportFilters      []filterapi.FilterRef
 
 	clusterID      uint32
 	clusterIDBytes [4]byte
@@ -168,12 +171,13 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		peerAS:        peerAS,
 		isEBGP:        isEBGP,
 
-		rsClient:      s.RSClient,
-		rrClient:      s.RouteReflectorClient,
-		asOverride:    s.ASOverride,
-		name:          s.Name,
-		groupName:     s.GroupName,
-		exportFilters: exportFilters,
+		rsClient:           s.RSClient,
+		rrClient:           s.RouteReflectorClient,
+		asOverride:         s.ASOverride,
+		propagatePrefixSID: s.PropagateSRv6PrefixSID,
+		name:               s.Name,
+		groupName:          s.GroupName,
+		exportFilters:      exportFilters,
 
 		sendCtxID:   sendCtxID,
 		sendASN4:    sendASN4,
