@@ -242,18 +242,7 @@ func copyPath(source, target string) error {
 }
 
 func refreshNativeSurfaces(paths Paths) error {
-	catalog := filepath.Join(paths.Output, "data", "cli-commands.json")
-	primaryCommandPage := filepath.Join(paths.Output, "reference", "cli", "index.html")
-	if _, err := os.Stat(primaryCommandPage); os.IsNotExist(err) {
-		raw, readErr := os.ReadFile(catalog) //nolint:gosec // a site build reads the checkout it was pointed at
-		if readErr == nil {
-			if err := docvalid.RenderCommandSurfaces(paths.Output, raw); err != nil {
-				return err
-			}
-		} else if !os.IsNotExist(readErr) {
-			return readErr
-		}
-	} else if err != nil {
+	if err := refreshCommandSurfaces(paths); err != nil {
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(paths.Output, "assets", "site.css")); os.IsNotExist(err) {
@@ -270,6 +259,34 @@ func refreshNativeSurfaces(paths Paths) error {
 		return err
 	}
 	return nil
+}
+
+// liveCommandCatalog answers the command catalog a build publishes. It is a
+// variable so a test can state a catalog rather than build the daemon, which
+// the real reader does with `go run ./cmd/ze`.
+var liveCommandCatalog = docvalid.LiveCommandCatalog
+
+// refreshCommandSurfaces republishes the command catalog and every page derived
+// from it, on every build.
+//
+// The catalog is read from the binary rather than kept as a website source,
+// and the pages are rewritten rather than kept when they already exist. A page
+// that survives a build publishes the commands of whichever release last wrote
+// it, which is how the published surfaces reached 2940 disagreements with the
+// live registries while every build reported success.
+func refreshCommandSurfaces(paths Paths) error {
+	raw, err := liveCommandCatalog(paths.Repository)
+	if err != nil {
+		return err
+	}
+	catalog := filepath.Join(paths.Output, "data", "cli-commands.json")
+	if err := os.MkdirAll(filepath.Dir(catalog), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
+		return err
+	}
+	if err := os.WriteFile(catalog, raw, 0o644); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
+		return fmt.Errorf("publish command catalog %s: %w", catalog, err)
+	}
+	return docvalid.RenderCommandSurfaces(paths.Output, raw)
 }
 
 func removeSourceOnly(root string) error {
