@@ -1,0 +1,395 @@
+announce
+clear bgp rib in
+clear bgp rib out
+clear debug
+clear dns cache
+clear dns cache record
+clear dns cache stats
+clear firewall irr as-set
+clear firewall irr asn
+clear interface counters
+clear interface name counters
+clear isis adjacency
+clear isis counters
+clear l2tp session all
+clear l2tp session id
+clear l2tp tunnel all
+clear l2tp tunnel id
+clear ospf counters
+clear ospf neighbor
+clear ospf process
+clear vpn ipsec sa
+clear vrrp statistics
+create interface address
+create interface bridge name
+create interface bridge name address
+create interface bridge name unit
+create interface dummy name
+create interface dummy name address
+create interface dummy name unit
+create interface unit
+create interface veth name
+debug ip ospf inject opaque
+debug ipv6 ospf inject lsa
+debug ospf inject disable
+debug ospf inject enable
+delete bgp peer
+delete debug module
+delete debug profile name
+delete interface name
+delete interface name address
+delete interface name unit
+doctor
+explain
+generate wireguard keypair
+help
+help ai
+help command
+monitor bgp
+monitor event
+monitor interface rate
+monitor ping
+monitor system netlink
+monitor traceroute
+monitor traffic stat
+monitor vpn ipsec
+peer raw
+peer update
+plugin ack
+plugin command complete
+plugin command help
+plugin command list
+plugin encoding
+plugin format
+plugin help
+plugin session bye
+plugin session ping
+plugin session ready
+request as112 healthcheck
+request bgp rib inject
+request bgp rib withdraw
+request cache expire
+request cache forward
+request cache release
+request cache retain
+request commit
+request config archive
+request halt
+request interface down
+request interface mac
+request interface migrate
+request interface mtu
+request interface up
+request l2tp outgoing-call remote called
+request log level
+request ospf graceful-restart
+request peer borr
+request peer clear soft
+request peer eorr
+request peer flush
+request peer pause
+request peer plugin session ready
+request peer refresh
+request peer resume
+request peer teardown
+request quiesce
+request reboot
+request reload
+request shutdown
+request subscribe
+request unsubscribe
+resolve cymru asn-name
+resolve dns a
+resolve dns aaaa
+resolve dns ptr
+resolve dns txt
+resolve irr expand
+resolve irr prefix
+resolve peeringdb as-set
+resolve peeringdb max-prefix
+resolve ping
+resolve traceroute
+set debug active name
+set debug module
+set debug profile name
+set debug timeout
+set system file-descriptors
+show aaa accounting
+show announcements
+show anomaly detect
+show anomaly observe
+show anomaly shape
+show arp
+show as112
+show audit
+show bfd profile
+show bfd profile name
+show bfd session address
+show bfd sessions
+show bgp
+show bgp decode
+show bgp encode
+show bgp health
+show bgp irr
+show bgp irr check
+show bgp irr prefix
+show bgp peer capabilities
+show bgp peer detail
+show bgp peer history
+show bgp peer list
+show bgp peer rib
+show bgp peer statistics
+show bgp rib
+show bgp rib best
+show bgp rib best status
+show bgp rib rpf
+show bgp rib status
+show bmp collectors
+show bmp peers
+show bmp rib
+show bmp sessions
+show cache
+show capture
+show capture interface
+show capture raw
+show command complete
+show command help
+show command list
+show config cat
+show config diff
+show config dump
+show config fmt
+show config graph
+show config history
+show config ls
+show crashes
+show data cat
+show data ls
+show data registered
+show ddos flowspec
+show ddos incidents
+show ddos local
+show ddos status
+show debug
+show debug profile
+show dns cache list
+show dns cache record
+show dns cache stats
+show dns lookup
+show doctor
+show env get
+show env list
+show env registered
+show errors
+show event delivery
+show event list
+show event namespaces
+show event recent
+show firewall group
+show firewall irr
+show firewall irr prefix
+show firewall ruleset
+show flow export
+show flow recent
+show geodns
+show gnmi
+show health
+show host
+show host all
+show host cpu
+show host dmi
+show host kernel
+show host memory
+show host nic
+show host platform
+show host storage
+show host thermal
+show interface
+show interface brief
+show interface errors
+show interface name counters
+show interface name detail
+show interface rate
+show interface scan
+show interface type
+show isis database
+show isis database detail
+show isis hostname
+show isis interface
+show isis neighbor
+show isis route
+show isis route ipv6
+show isis spf-log
+show l2tp
+show l2tp config
+show l2tp cqm
+show l2tp echo
+show l2tp health
+show l2tp listeners
+show l2tp observer
+show l2tp reliable
+show l2tp session history
+show l2tp session id
+show l2tp session traffic
+show l2tp sessions
+show l2tp statistics
+show l2tp tunnel history
+show l2tp tunnel id
+show l2tp tunnels
+show ldp binding
+show ldp neighbor
+show log levels
+show log recent
+show metrics list
+show metrics name
+show metrics pool
+show metrics values
+show mpls forwarding
+show neighbor
+show ospf
+show ospf border-routers
+show ospf database
+show ospf database asbr-summary
+show ospf database external
+show ospf database network
+show ospf database nssa-external
+show ospf database opaque-area
+show ospf database opaque-area detail
+show ospf database opaque-as
+show ospf database opaque-as detail
+show ospf database opaque-link
+show ospf database opaque-link detail
+show ospf database router
+show ospf database router-information
+show ospf database summary
+show ospf graceful-restart
+show ospf instance
+show ospf interface
+show ospf interface detail
+show ospf ipv6
+show ospf ipv6 database
+show ospf ipv6 database detail
+show ospf ipv6 database extended
+show ospf ipv6 database router detail
+show ospf ipv6 database router-information
+show ospf ipv6 database scope area
+show ospf ipv6 database scope as
+show ospf ipv6 database scope link
+show ospf ipv6 database segment-routing
+show ospf ipv6 graceful-restart
+show ospf ipv6 instance
+show ospf ipv6 interface
+show ospf ipv6 interface detail
+show ospf ipv6 neighbor
+show ospf ipv6 neighbor detail
+show ospf ipv6 segment-routing
+show ospf ipv6 spf
+show ospf ipv6 spf detail
+show ospf ldp-sync
+show ospf neighbor
+show ospf neighbor detail
+show ospf route
+show ospf route fast-reroute
+show ospf segment-routing
+show ospf spf
+show ospf spf detail
+show ospf te-database
+show ospf virtual-links
+show ping
+show pki certificate name
+show pki certificates
+show policy chain peer
+show policy list
+show policy routes
+show policy test peer
+show pppoe
+show pppoe interfaces
+show pppoe session id
+show pppoe sessions
+show pppoe statistics
+show probe-round
+show reload-status
+show route
+show route lookup
+show rr peers
+show rr status
+show rsvp-te fast-reroute
+show rsvp-te interface
+show rsvp-te lsp
+show rsvp-te tunnel
+show runtime memory
+show schema events
+show schema handlers
+show schema list
+show schema methods
+show schema protocol
+show static
+show status
+show storage smart
+show subscriber
+show subscriber id detail
+show system conntrack
+show system cpu
+show system date
+show system file-descriptors
+show system goroutines
+show system kernel-log
+show system memory
+show system ntp
+show system ntp peers
+show system platform
+show system profile
+show system sockets
+show system subsystem list
+show system update
+show system update history
+show tcp-check
+show traceroute
+show traffic control
+show traffic feature
+show traffic stat
+show traffic usage
+show uptime
+show version
+show vpn ipsec dataplane drift
+show vpn ipsec dataplane policy
+show vpn ipsec dataplane sa
+show vpn ipsec peer name
+show vpn ipsec sa
+show vpn ipsec status
+show vpp runtime
+show vpp trace clear
+show vpp trace show
+show vpp trace start
+show vrrp
+show vrrp interface name
+show vrrp statistics
+show warnings
+show yang completion
+show yang doc
+show yang tree
+skills
+support
+system command complete
+system command help
+system command list
+system dispatch
+system help
+system subsystem list
+system version api
+system version software
+update bgp irr all
+update bgp irr as-set
+update bgp irr asn
+update bgp peer prefix
+update firewall irr all
+update firewall irr as-set
+update firewall irr asn
+update serve
+update system firmware apply
+update system firmware check
+update system firmware download
+update system firmware restart
+update system firmware rollback
+validate config
+withdraw

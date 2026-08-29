@@ -330,23 +330,17 @@ func copyPath(source, target string) error {
 
 // refreshNativeSurfaces republishes the generated surfaces a build owns.
 //
-// The asset bundles are rendered on EVERY build, and the command PAGES are
-// bootstrapped only when they are absent. The two guards look alike and the
-// answers are opposite, so the reason is stated here rather than left for a
-// reader to infer from the shape.
+// Each of these is rendered on EVERY build. renderCSS expands the @import chain
+// and minifies a real stylesheet, and renderJS writes the authored script: each
+// produces the artifact a reader downloads. Guarding them on absence meant a
+// seeded bundle survived every build, so no edit under website/assets/css or
+// website/assets/js ever reached a reader.
 //
-// renderCSS expands the @import chain and minifies a real stylesheet, and
-// renderJS writes the authored script: each produces the artifact a reader
-// downloads. Guarding them on absence meant a seeded bundle survived every
-// build, so no edit under website/assets/css or website/assets/js ever reached
-// a reader.
-//
-// refreshCommandSurfaces keeps its guard because its renderer emits a contract
-// fixture rather than a page. Removing that one is what commit 9f45348a7 did,
-// and it overwrote 396 published pages with fragments. The guard goes when a
-// producer writes those pages, not before.
+// These run BEFORE the producer registry, because a producer reads what they
+// wrote: publishCommandCatalog writes data/cli-commands.json, and the CLI
+// reference, the vendor command map and llms.txt each read it back.
 func refreshNativeSurfaces(paths Paths) error {
-	if err := refreshCommandSurfaces(paths); err != nil {
+	if err := publishCommandCatalog(paths); err != nil {
 		return err
 	}
 	if err := renderCSS(paths.Source, paths.Output); err != nil {
@@ -366,48 +360,33 @@ func refreshNativeSurfaces(paths Paths) error {
 // the real reader does with `go run ./cmd/ze`.
 var liveCommandCatalog = docvalid.LiveCommandCatalog
 
-// refreshCommandSurfaces republishes the command catalog, and bootstraps the
-// pages derived from it only when they are absent.
+// publishCommandCatalog republishes the command catalog read from the binary.
 //
-// The catalog IS read from the binary on every build. It is derived data with
-// no other producer since the interpreter cutover, so a build is the right
-// place to write it.
+// It is derived data with no other producer since the interpreter cutover, so a
+// build is the right place to write it, and it is written UNCONDITIONALLY: the
+// catalog is what every command surface then reads.
 //
-// The PAGES are a different matter, and the asymmetry is deliberate.
-// docvalid.RenderCommandSurfaces emits the contract FIXTURE that the
-// documentation drift check compares a published page against: a bare doctype,
-// a body, and one definition list. It carries no head, no title, no meta, no
-// navigation, no stylesheet, and on a command-equivalents page none of the
-// vendor equivalents the page exists for. Publishing it overwrites a 10KB page
-// with 481 bytes. So it runs only to give a fresh checkout something rather
-// than nothing, which is the role it has always had.
-//
-// The consequence is stated rather than hidden: the published pages have no Go
-// producer. The Python renderer that wrote them was retired at the interpreter
-// cutover and nothing replaced it, so the drift the checker reports against
-// those pages is TRUE, and this function does not fix it. Making the check
-// green by publishing the fixture is what commit 9f45348a7 did, and it cost
-// 396 pages.
-func refreshCommandSurfaces(paths Paths) error {
+// It does NOT write the pages. Between commit 9f45348a7 and this one, a build
+// bootstrapped them from docvalid's contract FIXTURE, which is a bare doctype
+// and one definition list: no head, no title, no navigation, no stylesheet, and
+// on a command-equivalents page none of the vendor equivalents the page exists
+// for. Publishing it overwrote 396 pages of about 10KB with 481 bytes each. The
+// pages now have their own producers, in commands.go and equivalents.go, and
+// docvalid keeps rendering its fixture into a temporary tree of its own, where
+// the drift check compares it against what those producers published.
+func publishCommandCatalog(paths Paths) error {
 	raw, err := liveCommandCatalog(paths.Repository)
 	if err != nil {
 		return err
 	}
-	catalog := filepath.Join(paths.Output, "data", "cli-commands.json")
+	catalog := filepath.Join(paths.Output, filepath.FromSlash(catalogFile))
 	if err := os.MkdirAll(filepath.Dir(catalog), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return err
 	}
 	if err := os.WriteFile(catalog, raw, 0o644); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return fmt.Errorf("publish command catalog %s: %w", catalog, err)
 	}
-
-	primary := filepath.Join(paths.Output, "reference", "cli", "index.html")
-	if _, err := os.Stat(primary); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	return docvalid.RenderCommandSurfaces(paths.Output, raw)
+	return nil
 }
 
 func removeSourceOnly(root string) error {

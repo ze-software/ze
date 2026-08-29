@@ -1,0 +1,764 @@
+[
+ {
+  "path": "announce",
+  "description": "Announce a route on demand to selected peers.\nUsage: announce <unicast|blackhole|flowspec> <args> [tag <key> <value>] [for <duration>]",
+  "mode": "daemon",
+  "wire-method": "ze-bgp:announce",
+  "args": [
+   {
+    "name": "selector",
+    "type": "string",
+    "mandatory": true
+   }
+  ],
+  "operators": [
+   {
+    "name": "json",
+    "class": "global",
+    "available": "always",
+    "description": "JSON output"
+   },
+   {
+    "name": "ndjson",
+    "class": "global",
+    "available": "always",
+    "description": "One JSON object per line"
+   },
+   {
+    "name": "table",
+    "class": "global",
+    "available": "always",
+    "description": "Render as table"
+   },
+   {
+    "name": "text",
+    "class": "global",
+    "available": "always",
+    "description": "Space-aligned columns"
+   },
+   {
+    "name": "yaml",
+    "class": "global",
+    "available": "always",
+    "description": "YAML output"
+   },
+   {
+    "name": "raw",
+    "class": "global",
+    "available": "always",
+    "description": "Dispatcher JSON, unformatted"
+   },
+   {
+    "name": "no-more",
+    "class": "global",
+    "available": "always",
+    "description": "Disable paging"
+   },
+   {
+    "name": "log",
+    "class": "stream",
+    "available": "when-streaming",
+    "description": "Append each update instead of replacing it, where the command keeps answering"
+   },
+   {
+    "name": "save",
+    "class": "global",
+    "available": "always",
+    "local-only": true,
+    "description": "Write the answer to a file"
+   },
+   {
+    "name": "match",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Keep the rows holding this text"
+   },
+   {
+    "name": "count",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Count the rows"
+   },
+   {
+    "name": "first",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Take first N rows"
+   },
+   {
+    "name": "last",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Take last N rows"
+   },
+   {
+    "name": "display",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Answer with these fields, in this order"
+   },
+   {
+    "name": "fill",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Bring the remaining columns back, in the command's order or a named one"
+   }
+  ]
+ },
+ {
+  "path": "clear debug",
+  "description": "Clear the default debug profile.",
+  "mode": "offline"
+ },
+ {
+  "path": "show bgp",
+  "description": "BGP peers, sessions, RIB, and protocol tools.\nTyped with no subcommand, lists every peer with state, ASN, prefixes\nreceived, and uptime. Optionally scope by address family: ipv4,\nipv6, or l2vpn.",
+  "mode": "read-only",
+  "wire-method": "ze-bgp:overview",
+  "operators": [
+   {
+    "name": "json",
+    "class": "global",
+    "available": "always",
+    "description": "JSON output"
+   },
+   {
+    "name": "ndjson",
+    "class": "global",
+    "available": "always",
+    "description": "One JSON object per line"
+   },
+   {
+    "name": "table",
+    "class": "global",
+    "available": "always",
+    "description": "Render as table"
+   },
+   {
+    "name": "text",
+    "class": "global",
+    "available": "always",
+    "description": "Space-aligned columns"
+   },
+   {
+    "name": "yaml",
+    "class": "global",
+    "available": "always",
+    "description": "YAML output"
+   },
+   {
+    "name": "raw",
+    "class": "global",
+    "available": "always",
+    "description": "Dispatcher JSON, unformatted"
+   },
+   {
+    "name": "no-more",
+    "class": "global",
+    "available": "always",
+    "description": "Disable paging"
+   },
+   {
+    "name": "log",
+    "class": "stream",
+    "available": "when-streaming",
+    "description": "Append each update instead of replacing it, where the command keeps answering"
+   },
+   {
+    "name": "save",
+    "class": "global",
+    "available": "always",
+    "local-only": true,
+    "description": "Write the answer to a file"
+   },
+   {
+    "name": "match",
+    "class": "data",
+    "available": "always",
+    "description": "Keep the rows holding this text"
+   },
+   {
+    "name": "count",
+    "class": "data",
+    "available": "always",
+    "description": "Count the rows"
+   },
+   {
+    "name": "first",
+    "class": "data",
+    "available": "always",
+    "description": "Take first N rows"
+   },
+   {
+    "name": "last",
+    "class": "data",
+    "available": "always",
+    "description": "Take last N rows"
+   },
+   {
+    "name": "display",
+    "class": "data",
+    "available": "always",
+    "description": "Answer with these fields, in this order"
+   },
+   {
+    "name": "fill",
+    "class": "data",
+    "available": "always",
+    "description": "Bring the remaining columns back, in the command's order or a named one"
+   },
+   {
+    "name": "resolve",
+    "class": "data",
+    "available": "always",
+    "description": "Reverse DNS for IP addresses"
+   },
+   {
+    "name": "origin",
+    "class": "data",
+    "available": "always",
+    "description": "ASN and network for IP addresses"
+   }
+  ],
+  "answer-shape": "tab",
+  "address-fields": [
+   "address"
+  ],
+  "pipe-aliases": [
+   {
+    "name": "peers",
+    "description": "The peer rows, without the aggregate fields",
+    "expansion": "display peers"
+   },
+   {
+    "name": "summary",
+    "description": "The aggregate fields, without the peer rows",
+    "expansion": "display router-id local-as uptime peers-configured peers-established"
+   }
+  ],
+  "subcommands": [
+   "decode",
+   "encode",
+   "health",
+   "irr",
+   "peer",
+   "rib"
+  ]
+ },
+ {
+  "path": "show bgp rib",
+  "description": "Query routes in the BGP RIB.\nLook at received or advertised routes with flexible filters: peer,\nfamily, prefix, AS path regex, community, match expression. Pipe\noperators: | count, | histogram, | graph. This is the main\nroute inspection command.",
+  "mode": "read-only",
+  "wire-method": "ze-rib-api:routes",
+  "task-support": "required",
+  "pipes": [
+   {
+    "name": "advertised",
+    "description": "Select advertised routes"
+   },
+   {
+    "name": "community",
+    "description": "Filter by standard community",
+    "takes-arg": true
+   },
+   {
+    "name": "count",
+    "description": "Count matching routes without serializing rows"
+   },
+   {
+    "name": "family",
+    "description": "Filter by AFI/SAFI",
+    "takes-arg": true
+   },
+   {
+    "name": "first",
+    "description": "Take first N routes",
+    "takes-arg": true
+   },
+   {
+    "name": "graph",
+    "description": "Render AS-path topology graph"
+   },
+   {
+    "name": "histogram",
+    "description": "Count routes by family and prefix length"
+   },
+   {
+    "name": "last",
+    "description": "Take last N routes",
+    "takes-arg": true
+   },
+   {
+    "name": "match",
+    "description": "Cross-field structured match",
+    "takes-arg": true
+   },
+   {
+    "name": "path",
+    "description": "Filter by AS path",
+    "takes-arg": true
+   },
+   {
+    "name": "peer",
+    "description": "Filter by peer",
+    "takes-arg": true
+   },
+   {
+    "name": "prefix",
+    "description": "Filter by prefix",
+    "takes-arg": true
+   },
+   {
+    "name": "received",
+    "description": "Select received routes"
+   }
+  ],
+  "operators": [
+   {
+    "name": "json",
+    "class": "global",
+    "available": "always",
+    "description": "JSON output"
+   },
+   {
+    "name": "ndjson",
+    "class": "global",
+    "available": "always",
+    "description": "One JSON object per line"
+   },
+   {
+    "name": "table",
+    "class": "global",
+    "available": "always",
+    "description": "Render as table"
+   },
+   {
+    "name": "text",
+    "class": "global",
+    "available": "always",
+    "description": "Space-aligned columns"
+   },
+   {
+    "name": "yaml",
+    "class": "global",
+    "available": "always",
+    "description": "YAML output"
+   },
+   {
+    "name": "raw",
+    "class": "global",
+    "available": "always",
+    "description": "Dispatcher JSON, unformatted"
+   },
+   {
+    "name": "no-more",
+    "class": "global",
+    "available": "always",
+    "description": "Disable paging"
+   },
+   {
+    "name": "log",
+    "class": "stream",
+    "available": "when-streaming",
+    "description": "Append each update instead of replacing it, where the command keeps answering"
+   },
+   {
+    "name": "save",
+    "class": "global",
+    "available": "always",
+    "local-only": true,
+    "description": "Write the answer to a file"
+   },
+   {
+    "name": "match",
+    "class": "data",
+    "available": "always",
+    "description": "Keep the rows holding this text"
+   },
+   {
+    "name": "count",
+    "class": "data",
+    "available": "always",
+    "description": "Count the rows"
+   },
+   {
+    "name": "first",
+    "class": "data",
+    "available": "always",
+    "description": "Take first N rows"
+   },
+   {
+    "name": "last",
+    "class": "data",
+    "available": "always",
+    "description": "Take last N rows"
+   },
+   {
+    "name": "display",
+    "class": "data",
+    "available": "always",
+    "description": "Answer with these fields, in this order"
+   },
+   {
+    "name": "fill",
+    "class": "data",
+    "available": "always",
+    "description": "Bring the remaining columns back, in the command's order or a named one"
+   },
+   {
+    "name": "resolve",
+    "class": "data",
+    "available": "always",
+    "description": "Reverse DNS for IP addresses"
+   },
+   {
+    "name": "origin",
+    "class": "data",
+    "available": "always",
+    "description": "ASN and network for IP addresses"
+   }
+  ],
+  "answer-shape": "tab",
+  "address-fields": [
+   "peer",
+   "next-hop"
+  ],
+  "subcommands": [
+   "best",
+   "rpf",
+   "status"
+  ]
+ },
+ {
+  "path": "monitor ping",
+  "description": "Continuous ping with live loss and RTT statistics.\nPings <target> until you stop it. Adjust interval and timeout as\nneeded. Shows running min/avg/max RTT and packet loss.",
+  "mode": "read-only",
+  "wire-method": "ze-monitor:ping",
+  "task-support": "required",
+  "operators": [
+   {
+    "name": "json",
+    "class": "global",
+    "available": "always",
+    "description": "JSON output"
+   },
+   {
+    "name": "ndjson",
+    "class": "global",
+    "available": "always",
+    "description": "One JSON object per line"
+   },
+   {
+    "name": "table",
+    "class": "global",
+    "available": "always",
+    "description": "Render as table"
+   },
+   {
+    "name": "text",
+    "class": "global",
+    "available": "always",
+    "description": "Space-aligned columns"
+   },
+   {
+    "name": "yaml",
+    "class": "global",
+    "available": "always",
+    "description": "YAML output"
+   },
+   {
+    "name": "raw",
+    "class": "global",
+    "available": "always",
+    "description": "Dispatcher JSON, unformatted"
+   },
+   {
+    "name": "no-more",
+    "class": "global",
+    "available": "always",
+    "description": "Disable paging"
+   },
+   {
+    "name": "log",
+    "class": "stream",
+    "available": "when-streaming",
+    "description": "Append each update instead of replacing it, where the command keeps answering"
+   },
+   {
+    "name": "save",
+    "class": "global",
+    "available": "always",
+    "local-only": true,
+    "description": "Write the answer to a file"
+   },
+   {
+    "name": "match",
+    "class": "data",
+    "available": "always",
+    "description": "Keep the rows holding this text"
+   },
+   {
+    "name": "count",
+    "class": "data",
+    "available": "always",
+    "description": "Count the rows"
+   },
+   {
+    "name": "first",
+    "class": "data",
+    "available": "always",
+    "description": "Take first N rows"
+   },
+   {
+    "name": "last",
+    "class": "data",
+    "available": "always",
+    "description": "Take last N rows"
+   },
+   {
+    "name": "display",
+    "class": "data",
+    "available": "always",
+    "description": "Answer with these fields, in this order"
+   },
+   {
+    "name": "fill",
+    "class": "data",
+    "available": "always",
+    "description": "Bring the remaining columns back, in the command's order or a named one"
+   },
+   {
+    "name": "resolve",
+    "class": "data",
+    "available": "always",
+    "description": "Reverse DNS for IP addresses"
+   },
+   {
+    "name": "origin",
+    "class": "data",
+    "available": "always",
+    "description": "ASN and network for IP addresses"
+   }
+  ],
+  "answer-shape": "tab",
+  "address-fields": [
+   "target"
+  ]
+ },
+ {
+  "path": "doctor",
+  "description": "Verify kernel features, file descriptor limits, sockets, and required dependencies. Run this before first start or after platform changes.",
+  "mode": "offline"
+ },
+ {
+  "path": "clear interface counters",
+  "description": "Zero the Rx/Tx counters for every managed interface.\nUsage: clear interface counters.",
+  "mode": "daemon",
+  "wire-method": "ze-clear:interface-counters",
+  "operators": [
+   {
+    "name": "json",
+    "class": "global",
+    "available": "always",
+    "description": "JSON output"
+   },
+   {
+    "name": "ndjson",
+    "class": "global",
+    "available": "always",
+    "description": "One JSON object per line"
+   },
+   {
+    "name": "table",
+    "class": "global",
+    "available": "always",
+    "description": "Render as table"
+   },
+   {
+    "name": "text",
+    "class": "global",
+    "available": "always",
+    "description": "Space-aligned columns"
+   },
+   {
+    "name": "yaml",
+    "class": "global",
+    "available": "always",
+    "description": "YAML output"
+   },
+   {
+    "name": "raw",
+    "class": "global",
+    "available": "always",
+    "description": "Dispatcher JSON, unformatted"
+   },
+   {
+    "name": "no-more",
+    "class": "global",
+    "available": "always",
+    "description": "Disable paging"
+   },
+   {
+    "name": "log",
+    "class": "stream",
+    "available": "when-streaming",
+    "description": "Append each update instead of replacing it, where the command keeps answering"
+   },
+   {
+    "name": "save",
+    "class": "global",
+    "available": "always",
+    "local-only": true,
+    "description": "Write the answer to a file"
+   },
+   {
+    "name": "match",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Keep the rows holding this text"
+   },
+   {
+    "name": "count",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Count the rows"
+   },
+   {
+    "name": "first",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Take first N rows"
+   },
+   {
+    "name": "last",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Take last N rows"
+   },
+   {
+    "name": "display",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Answer with these fields, in this order"
+   },
+   {
+    "name": "fill",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Bring the remaining columns back, in the command's order or a named one"
+   }
+  ]
+ },
+ {
+  "path": "show interface",
+  "description": "Show network interfaces on this box.\nWithout arguments, returns all interfaces with full detail.\nSubcommands: brief, type <t>, errors, rate [<name>], name <name> detail,\nname <name> counters.",
+  "mode": "read-only",
+  "wire-method": "ze-show:interface",
+  "operators": [
+   {
+    "name": "json",
+    "class": "global",
+    "available": "always",
+    "description": "JSON output"
+   },
+   {
+    "name": "ndjson",
+    "class": "global",
+    "available": "always",
+    "description": "One JSON object per line"
+   },
+   {
+    "name": "table",
+    "class": "global",
+    "available": "always",
+    "description": "Render as table"
+   },
+   {
+    "name": "text",
+    "class": "global",
+    "available": "always",
+    "description": "Space-aligned columns"
+   },
+   {
+    "name": "yaml",
+    "class": "global",
+    "available": "always",
+    "description": "YAML output"
+   },
+   {
+    "name": "raw",
+    "class": "global",
+    "available": "always",
+    "description": "Dispatcher JSON, unformatted"
+   },
+   {
+    "name": "no-more",
+    "class": "global",
+    "available": "always",
+    "description": "Disable paging"
+   },
+   {
+    "name": "log",
+    "class": "stream",
+    "available": "when-streaming",
+    "description": "Append each update instead of replacing it, where the command keeps answering"
+   },
+   {
+    "name": "save",
+    "class": "global",
+    "available": "always",
+    "local-only": true,
+    "description": "Write the answer to a file"
+   },
+   {
+    "name": "match",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Keep the rows holding this text"
+   },
+   {
+    "name": "count",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Count the rows"
+   },
+   {
+    "name": "first",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Take first N rows"
+   },
+   {
+    "name": "last",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Take last N rows"
+   },
+   {
+    "name": "display",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Answer with these fields, in this order"
+   },
+   {
+    "name": "fill",
+    "class": "data",
+    "available": "with-rows",
+    "description": "Bring the remaining columns back, in the command's order or a named one"
+   }
+  ],
+  "subcommands": [
+   "brief",
+   "errors",
+   "name",
+   "rate",
+   "scan",
+   "type"
+  ]
+ },
+ {
+  "path": "support",
+  "description": "Bundle logs, config, state, and diagnostics into one archive file. Send the result to support when reporting an issue.",
+  "mode": "offline"
+ }
+]

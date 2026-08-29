@@ -245,3 +245,38 @@ func TestAnArtifactWithNoRecordIsFullyUnclaimed(t *testing.T) {
 		t.Fatal("an artifact no producer ever wrote to left the coverage green")
 	}
 }
+
+// VALIDATES: the command surfaces are claimed by exactly one producer each, and
+// llms.txt by exactly one that claims no route.
+//
+// R-2 in the spec: a route two producers write is as red as a route none
+// writes, because the second write wins and nothing says so. The three
+// producers here all read the same command catalog, so a route drifting from
+// one to another is the concrete way that could happen.
+func TestExactlyOneProducerClaimsEachCommandRoute(t *testing.T) {
+	paths := llmsPaths(t)
+	stubProducers(t,
+		Producer{Name: "cli-reference", Render: renderCLIReference},
+		Producer{Name: "command-equivalents", Render: renderCommandEquivalents},
+		Producer{Name: "llms", Render: renderLLMS},
+	)
+
+	claims, err := renderProducers(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(claims) != 11 {
+		t.Fatalf("the producers claimed %d routes, want the CLI reference, the vendor index and nine detail pages", len(claims))
+	}
+	for _, claim := range claims {
+		if len(claim.Producers) != 1 {
+			t.Errorf("%s is claimed by %v, want exactly one producer", claim.Route, claim.Producers)
+		}
+	}
+	if claims[0].Route != "/reference/cli/" || claims[1].Route != "/reference/command-equivalents/" {
+		t.Errorf("the claimed routes open with %s and %s", claims[0].Route, claims[1].Route)
+	}
+	if _, err := os.Stat(filepath.Join(paths.Output, llmsFile)); err != nil {
+		t.Errorf("llms.txt was not written by the producer that claims no route: %v", err)
+	}
+}

@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 3 of 10 |
+| Phase | 4 of 10 |
 | Deferral shard | `plan/deferrals/site-renderers-in-go.md` |
 | Handoff | - |
 | Updated | 2026-08-29 |
@@ -340,6 +340,9 @@ editing them would have cross-committed that session's work.
 | R-3 | The first full build rewrites all 895 pages at once and the diff is unreviewable | phase 10 lands and `git status` in the artifact shows everything modified | each phase lands its own commit, so the artifact diff is reviewed one population at a time. The build is never run to completion until phase 10 |
 | R-4 | The facts snapshot reaches the network during a build, so a build is not reproducible and can fail closed in CI | a build in a sandbox hangs for five seconds and publishes a stale star count | AC-11 requires the offline path to keep the previous value and say so; the timeout stays and the failure stays non-fatal |
 | R-5 | Restoring `llms.txt` collides with the docvalid producer that owns it today | two writers, last one wins, and the file's content depends on producer order | phase 4 makes the command section one section of the restored file, and the coverage check refuses two claimants |
+| R-8 | Phase 10 cannot run a full build until the terminal-demo media is rendered | 17 of the 148 docs pages refuse with `errDemoMediaAbsent` | Found in phase 3. Those pages carry a `<!-- terminal-demo: -->` marker and read `website/assets/demos/`, which is generated, gitignored and absent from this checkout. The retired build could not render them here either. `./le terminal-demo render-all` is the producer, and it MUST run before phase 10 attempts a whole-site build |
+| R-9 | The published demo media disagrees with the published demo manifest | 11 of 17 recordings mismatch | Found in phase 3 at `gh-pages` HEAD: `assets/demos/launcher.cast` is 23445 bytes where `assets/demos/manifest.json` states 23416. The published artifact is internally inconsistent, so it CANNOT be used as fixture data for the demo path. Fixtures for that path come from a fresh render, never from the artifact |
+| R-10 | `docs/features.md` publishes about 70 feature rows as paragraph text | the `reference/feature-status` page shows a run of prose where a table belongs | Found in phase 3, and it is a SOURCE defect on both renderers, not a rendering one: four `<!-- source: ... -->` comments sit on lines of their own inside the table, and an HTML block ends a GFM table. The fix is to move each comment into the cell it documents, which is not derivable from the file. Not fixed here: it needs whoever knows which cell each anchor belongs to |
 | R-6 | Running `./le site build` before phase 4 DESTROYS the published artifact | it already has: 826 paths degraded in the `gh-pages` working tree | NO phase may run the `./le site build` action from a shell until phase 4 lands. Commit `9f45348a7` made `refreshNativeSurfaces` call `docvalid.RenderCommandSurfaces` unconditionally, and that renderer emits a contract fixture for the drift checker rather than a publishable page, so a build overwrites 396 pages with fragments. A Go test may call `Build` because it builds into a temporary output. `gh-pages` HEAD is intact and the damage is working-tree only; the restore is the owner's, because `git restore` is forbidden here |
 | R-7 | The retired renderers encode behaviour nobody wants back, and restoring them faithfully restores the mistakes | a restored page carries a fact nobody can trace, or a section referring to a retired tool | `ai/rules/evidence.md`: a claim on a published page traces to a committed file or it is not published. The RFC-compliance page's agent-guard block counts text in files that no longer exist and needs redefinition, not a port |
 
@@ -410,6 +413,7 @@ and its carry-over are untouched.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
+| AC-1a | a gate or checker that READS the same source a producer reads | it is not a claimant and never appears in the coverage arithmetic. The check counts WRITERS. `./le docvalid usage-contract` walks the command tree phase 4's producer also walks and writes no route; counting it would make that route look doubly claimed and turn the check red on a correct tree. The definition of the check says so, not only this spec |
 | AC-1 | any published route in the artifact | exactly one registered producer claims it; `./le site check` exits non-zero and names every route that none claims, and every route that two claim. It is armed from phase 1, so it is red for the duration of the work, and its message names this spec so another session does not diagnose it as its own breakage. It is not a verify stage (`internal/le/verify/engine/stages.go` registers `site facts check`, not `site check`), so the red blocks no commit |
 | AC-2 | a full build over a tree whose sources are unchanged | every published page is rewritten by its producer, and no page survives on the strength of the seed alone |
 | AC-3 | a page rendered by a restored producer | it carries the shared shell: head, theme bootstrap, canonical, header mount with its noscript fallback, `<main>` with the correct sidebar class, page sidebar, deferred script, footer with the publication stamp |
@@ -459,7 +463,7 @@ and its carry-over are untouched.
 | `TestMirrorMatchesThePublishedConversion` | `internal/le/site/mirror_test.go` | AC-5, byte parity with one published mirror | pass |
 | `TestMirrorIsWrittenBesideThePage` | `internal/le/site/markdown_test.go` | AC-5, the mirror sits at the page's own URL | pass |
 | `TestAnAssetEditReachesTheArtifact` | `internal/le/site/assets_build_test.go` | AC-18 | pass |
-| `TestTheCommandPageRendererKeepsItsAbsentOnlyGuard` | `internal/le/site/assets_build_test.go` | AC-18, the other half of the asymmetry | pass |
+| `TestNoBuildStagePublishesTheCommandFixture` | `internal/le/site/assets_build_test.go` | AC-18, the other half of the asymmetry: the guard is gone because a producer replaced it, so nothing in a build stage may write a command page | pass |
 | `TestDocsDestinationPrefersAnExactMappingOverAPrefix` | `internal/le/site/docs_test.go` | AC-4, the exact table wins over a prefix | pass |
 | `TestDocsDestinationRefusesAnUnmappedSource` | `internal/le/site/docs_test.go` | AC-4, there is no docs/<stem> fallback | pass |
 | `TestDocsManifestNamesEachSourceOnce` | `internal/le/site/docs_test.go` | AC-4, the recovered 115 rows, deduped | pass |
@@ -483,6 +487,22 @@ and its carry-over are untouched.
 | `TestATerminalDemoIsRefusedRatherThanPublishedWrong` | `internal/le/site/demo_test.go` | AC-4, four refusals a wrong page would hide | pass |
 | `TestARunningTimeReadsAsAPhrase` | `internal/le/site/demo_test.go` | AC-4, the duration read from the recording | pass |
 | `TestTheFixtureCastParsesAsAsciicastV2` | `internal/le/site/demo_test.go` | AC-4, the demo fixture is a real recording | pass |
+| `TestTheCLIReferencePageCarriesTheFullSiteShell` | `internal/le/site/commands_test.go` | AC-3, AC-6, the first live regression | pass |
+| `TestACommandRowReadsAsThePublishedRow` | `internal/le/site/commands_test.go` | AC-6, rendered parity per command row | pass |
+| `TestTheOperatorGuideReadsAsThePublishedGuide` | `internal/le/site/commands_test.go` | AC-6, the shared pipe-operator table | pass |
+| `TestTheCatalogPublishesUsageAndNotTheScrapedSyntax` | `internal/le/site/commands_test.go` | AC-6, the retired `syntax` field stays retired | pass |
+| `TestAnUnknownOperatorAvailabilityStopsTheBuild` | `internal/le/site/commands_test.go` | AC-6, a qualifier nobody named is refused | pass |
+| `TestAnOversizedVerbSplitsBySubjectWithACatchAll` | `internal/le/site/commands_test.go` | AC-6, the grouping rule the page is scannable by | pass |
+| `TestACommandEquivalentPageReadsAsThePublishedPage` | `internal/le/site/equivalents_test.go` | AC-3, AC-5, AC-6, rendered parity on a detail page and its mirror | pass |
+| `TestTheEquivalentIndexRowNamesTheCommandAndItsDetailPage` | `internal/le/site/equivalents_test.go` | AC-6, the index row and its link targets | pass |
+| `TestARetiredCommandLosesItsDetailPage` | `internal/le/site/equivalents_test.go` | AC-2, a producer removes what it stops owning | pass |
+| `TestAStaleCuratedCommandStopsTheBuild` | `internal/le/site/equivalents_test.go` | AC-6, a curated command the binary lost is refused | pass |
+| `TestTheCommandSurfacesClaimOnlyPublishedRoutes` | `internal/le/site/equivalents_test.go` | AC-1, 397 of 712 | pass |
+| `TestLLMSCarriesEverySectionThePublishedFileHas` | `internal/le/site/derived_test.go` | AC-6, the second live regression | pass |
+| `TestEachLLMSSectionCarriesItsOwnInput` | `internal/le/site/derived_test.go` | AC-6, a heading with nothing under it is not a section | pass |
+| `TestThePageMapTakesItsCountsFromTheFactsSnapshot` | `internal/le/site/derived_test.go` | AC-6, the four counted navigation descriptions | pass |
+| `TestAMissingLLMSInputStopsTheBuild` | `internal/le/site/derived_test.go` | AC-6, a partial file is refused rather than published | pass |
+| `TestExactlyOneProducerClaimsEachCommandRoute` | `internal/le/site/producer_test.go` | AC-1, R-2, and llms.txt claiming no route | pass |
 | `TestBlogPostsSharingADateOrderByFilename` | `internal/le/site/blog_test.go` | AC-7 | |
 | `TestPluginCatalogCarriesTheFieldsThePageShows` | `internal/le/site/plugins_test.go` | AC-9 | |
 | `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts/sitefacts_test.go` | AC-11 | |
@@ -611,6 +631,16 @@ and its carry-over are untouched.
      leave `docvalid.RenderCommandSurfaces` publishing
    - Files: `internal/le/docvalid/command_render.go`, `derived.go`
    - Verify: both live regressions are closed
+     -> Landed 2026-08-29. `refreshCommandSurfaces` became `publishCommandCatalog`
+     and writes `data/cli-commands.json` and nothing else; the guard is gone
+     because `commands.go` and `equivalents.go` now publish the pages, and
+     `docvalid.RenderCommandSurfaces` was deleted because removing its only
+     cross-package caller left the exported wrapper dead. docvalid still renders
+     its fixture into its own temporary tree through the unexported
+     `renderCommandSurfaces`, which is what the drift check compares against.
+     `derived.go` and `llmsdata.go` publish llms.txt, and it is the only writer
+     of that path. The command surfaces claim 397 of the 712 published routes,
+     which leaves 167 for phases 5 to 10.
 5. **Phase: Blog and changes** -- index, detail pages, both feeds, `changes.json`
    - Files: `blog.go`, `changes.go`
 6. **Phase: Data pages** -- features, milestones, dependencies, the talks listing
@@ -692,6 +722,9 @@ and its carry-over are untouched.
 | The CSS and JS renderers lose their absent-only guard; the page renderers keep theirs until they produce pages | remove every absent-only guard together; leave all of them | The guard is right for a producer that emits a FIXTURE and wrong for one that emits the real artifact. `renderCSS` expands the `@import` chain and minifies a real stylesheet, so refreshing it on every build is what makes a CSS edit reach a reader; `TestRenderCSSExpandsNestedImports` already pins that output. The command-page renderer emits a drift-checker fixture, and removing ITS guard in `9f45348a7` overwrote 396 published pages with fragments. Same shape, opposite answer, which is why they are decided separately rather than as a policy |
 | The reading order is a contract in the code; nav.json supplies membership and within-section order | derive the whole order from nav.json | Owner directive, 2026-08-29: the code must ENSURE the file is generated logically, not merely happen to emit it that way. nav.json is ordered for a menu, so slaving the document's argument to it means a menu reshuffle silently rewrites what the file argues, with nothing to notice. Stating the order in the code and refusing a nav.json that contradicts it makes the guarantee mechanical: an unsectioned page, a duplicated page, an empty section and an inverted evaluate/use split are each a named red rather than a silent reordering |
 | `llms-full.txt` reuses `llms.txt`'s curation for its order | order by route; invent a second ordering for this file alone | Owner directive, 2026-08-29: features and what makes the software worth evaluating come first, how to use it second. That ordering already exists and is already committed. The Python-era `llms.txt` opens with Product snapshot, Quality and verification model, Comparison positioning and Feature inventory, and only then reaches Configuration model, Plugin registry and the CLI surface; its page map groups by the six `nav.json` dropdowns, Start and Evaluate before Docs, Examples and Reference. A second ordering would be a second thing to keep true |
+| The command catalog publishes `usage` and never the retired `syntax` | restore `syntax`; derive a display form from the path and its args | Decision carried from the session that owns the command catalog, 2026-08-29. `syntax` was scraped from each description's "Usage:" sentence by a retired Python helper that split on ". ", so several published values were cut mid-bracket: `show metrics name <name> [label=value` and `show pki certificate name <name> [pem \| bundle pem \| fingerprint` are both unbalanced. `cmd/ze/help_command.go` states `usage` and `grammar` from the command model instead, and `commandEntry` has never declared a Syntax field in any revision of the Go source. A field no producer writes is worse than an absent one |
+| A command row opens with its registry PATH, on every surface | keep the published layout, which opened 80 rows with the scraped syntax form | The row's own anchor is `id="cmd-<slug-of-path>"` and its detail page's directory is the same slug, so a row whose visible text is a different string disagrees with two identifiers it carries. One value for one identity. The invocation form is published beside it, from `usage`, where the description already carried a "Usage:" sentence |
+| The pipe-availability label has ONE spelling on a page and its mirror | keep the retired renderer's three spellings | The published detail page wrote "Pipes, on its rows" and its own mirror wrote "Pipes, on rows" for one field. `ai/rules/writing.md` bans synonym rotation, and the page's spelling is the one that says whose rows they are |
 | The docs pipeline is the first population after the shell | retrofit the two live regressions first | Owner decision, 2026-08-29. It is the largest population and the one that exercises goldmark hardest, so the Markdown unknowns surface earliest. The two regressions ship for longer as a result |
 
 ## Known Limitations
@@ -708,6 +741,16 @@ and its carry-over are untouched.
 - `plan/verification-debt/c7beceff.md` is published on the live site and no map
   explains it. Removing a published file is the owner's call and is not done
   here.
+- The command pages read `data/site-facts.json`, `data/plugin-registry.json` and
+  `data/yang-config-tree.json` for three of llms.txt's sections, and no producer
+  writes those three yet: phase 7 writes the plugin registry and phase 9 the
+  facts snapshot. Until then llms.txt states what the seed carries for those
+  sections. The producer refuses an ABSENT input rather than writing a shorter
+  file, so a fresh artifact fails loudly instead of publishing a partial claim.
+- The published `Usage` row and the description prose still say the same thing
+  for 32 of 379 commands, because the YANG descriptions carrying the authored
+  "Usage:" sentence are another spec's cleanup and it has not run. `usage` is
+  authoritative; the prose is rendered as the catalog states it.
 
 ## Checklist
 

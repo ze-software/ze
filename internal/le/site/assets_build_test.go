@@ -49,32 +49,37 @@ func TestAnAssetEditReachesTheArtifact(t *testing.T) {
 	}
 }
 
-// TestTheCommandPageRendererKeepsItsAbsentOnlyGuard pins the other half of the
-// asymmetry AC-18 creates.
+// TestNoBuildStagePublishesTheCommandFixture pins the replacement for the
+// absent-only guard AC-18 left standing on the command pages.
 //
-// docvalid.RenderCommandSurfaces emits the contract FIXTURE the documentation
-// drift check compares a published page against, not a publishable page.
-// Removing ITS guard in commit 9f45348a7 overwrote 396 published pages with
-// 481-byte fragments. So the guard stays until a producer writes those pages,
-// and this test fails if somebody removes it while tidying up after AC-18.
-func TestTheCommandPageRendererKeepsItsAbsentOnlyGuard(t *testing.T) {
-	stubLiveCommandCatalog(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+// The guard existed because docvalid rendered a contract FIXTURE, and commit
+// 9f45348a7 published that fixture over 396 real pages: a bare doctype, a body
+// and one definition list, 481 bytes where a 10KB page had been. Phase 4 gives
+// the pages a producer, so the guard goes because something better replaced it.
+// This test is what stops the fixture coming back: it runs a build with the
+// page producers stubbed out and checks that NOTHING in the build's own stages
+// wrote a command page.
+func TestNoBuildStagePublishesTheCommandFixture(t *testing.T) {
+	catalog := `[{"path":"show test","description":"Show rows","mode":"read-only"}]`
+	stubLiveCommandCatalog(t, catalog)
 	stubProducers(t)
 	root, output := siteFixture(t)
 
-	page := filepath.Join(filepath.Dir(root), "gh-pages", "reference", "cli", "index.html")
-	if err := os.MkdirAll(filepath.Dir(page), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	published := "<!doctype html>\n<html lang=\"en\">the published command page</html>\n"
-	if err := os.WriteFile(page, []byte(published), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	if _, err := Build(BuildOptions{Repository: root, Output: output}); err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	if got := readArtifact(t, output, "reference/cli/index.html"); got != published {
-		t.Errorf("a published command page must survive a build until a producer writes it; got %q", got)
+	for _, fixture := range []string{
+		"reference/cli/index.html", "reference/cli/index.md",
+		"reference/command-equivalents/index.html", llmsFile,
+	} {
+		if _, err := os.Stat(filepath.Join(output, filepath.FromSlash(fixture))); !os.IsNotExist(err) {
+			t.Errorf("a build stage published %s; only a registered producer may write it: %v", fixture, err)
+		}
+	}
+	// The catalog is the one surface a build stage does own, so the check above
+	// must not be passing because the whole command surface stopped working.
+	if got := readArtifact(t, output, catalogFile); got != catalog {
+		t.Errorf("the published command catalog is %q, want the live one", got)
 	}
 }
 

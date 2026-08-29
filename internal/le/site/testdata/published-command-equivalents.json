@@ -1,0 +1,175 @@
+{
+ "schema-version": 1,
+ "updated": "2026-07-04",
+ "title": "Command equivalents",
+ "summary": "Curated vendor command equivalents joined with the live Ze command catalog generated from ze help command --json. Ze paths are exact join keys; vendor commands are migration hints with provenance and confidence.",
+ "vendors": {
+  "junos-mx": {
+   "label": "Juniper Junos MX",
+   "short-label": "Junos MX",
+   "rooting-model": "object-rooted",
+   "documentation": [
+    {
+     "id": "junos-bgp-summary",
+     "label": "show bgp summary",
+     "url": "https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/show-bgp-summary.html"
+    },
+    {
+     "id": "junos-clear-bgp",
+     "label": "clear bgp neighbor",
+     "url": "https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/clear-bgp-neighbor.html"
+    },
+    {
+     "id": "junos-route",
+     "label": "show route family",
+     "url": "https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/ref/command/show-route.html"
+    }
+   ]
+  },
+  "cisco-ios-xr": {
+   "label": "Cisco IOS XR",
+   "short-label": "IOS XR",
+   "rooting-model": "family-rooted-for-routing",
+   "documentation": [
+    {
+     "id": "iosxr-bgp-commands",
+     "label": "BGP commands",
+     "url": "https://www.cisco.com/c/en/us/td/docs/ios_xr_sw/iosxr_r3-7/routing/command/reference/rr37bgp.html"
+    },
+    {
+     "id": "iosxr-bgp-guide",
+     "label": "BGP configuration guide",
+     "url": "https://www.cisco.com/c/en/us/td/docs/iosxr/cisco8000/bgp/72x/b-bgp-cg-8k-72x/implementing-bgp.html"
+    }
+   ]
+  },
+  "nokia-sros": {
+   "label": "Nokia SR OS",
+   "short-label": "SR OS",
+   "rooting-model": "instance-rooted",
+   "documentation": [
+    {
+     "id": "nokia-mdcli",
+     "label": "MD-CLI user guide",
+     "url": "https://infocenter.nokia.com/public/7750SR195R1A/topic/com.sr.mdcli/html/using_mdcli.html"
+    },
+    {
+     "id": "nokia-bgp-show",
+     "label": "BGP show commands",
+     "url": "https://infocenter.nokia.com/public/7750SR140R1/topic/com.sr.unicast/html/bgp-cli-show-cli.html"
+    }
+   ]
+  },
+  "vyos": {
+   "label": "VyOS",
+   "short-label": "VyOS",
+   "rooting-model": "family-rooted-for-routing",
+   "documentation": [
+    {
+     "id": "vyos-cli",
+     "label": "Command Line Interface",
+     "url": "https://docs.vyos.io/en/1.4/cli.html"
+    },
+    {
+     "id": "vyos-bgp",
+     "label": "BGP",
+     "url": "https://docs.vyos.io/en/1.4/configuration/protocols/bgp.html"
+    }
+   ]
+  }
+ },
+ "entries": [
+  {
+   "id": "bgp-summary",
+   "category": "BGP",
+   "intent": "BGP session summary",
+   "ze": [
+    "show bgp"
+   ],
+   "vendors": {
+    "junos-mx": [
+     {
+      "command": "show bgp summary",
+      "mode": "operational",
+      "confidence": "verified",
+      "source-refs": [
+       "junos-bgp-summary"
+      ]
+     }
+    ],
+    "cisco-ios-xr": [
+     {
+      "command": "show bgp summary",
+      "mode": "operational",
+      "confidence": "verified",
+      "source-refs": [
+       "iosxr-bgp-commands"
+      ]
+     },
+     {
+      "command": "show bgp ipv4 unicast summary",
+      "mode": "operational",
+      "confidence": "verified",
+      "source-refs": [
+       "iosxr-bgp-commands"
+      ]
+     }
+    ],
+    "nokia-sros": [
+     {
+      "command": "show router bgp summary",
+      "mode": "operational",
+      "confidence": "verified",
+      "source-refs": [
+       "nokia-bgp-show"
+      ]
+     }
+    ],
+    "vyos": [
+     {
+      "command": "show bgp ipv4 summary",
+      "mode": "operational",
+      "confidence": "verified",
+      "source-refs": [
+       "vyos-bgp"
+      ]
+     },
+     {
+      "command": "show ip bgp summary",
+      "mode": "operational",
+      "confidence": "legacy",
+      "source-refs": [
+       "vyos-bgp"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "lldp-neighbors",
+   "category": "Vendor-only gaps",
+   "intent": "LLDP neighbor discovery",
+   "ze": [],
+   "vendors": {
+    "junos-mx": [],
+    "cisco-ios-xr": [],
+    "nokia-sros": [],
+    "vyos": []
+   },
+   "notes": "No Ze LLDP subsystem is present in the live command catalog."
+  },
+  {
+   "id": "nat-translations",
+   "category": "Vendor-only gaps",
+   "intent": "NAT translations and pools",
+   "ze": [],
+   "vendors": {
+    "junos-mx": [],
+    "cisco-ios-xr": [],
+    "nokia-sros": [],
+    "vyos": []
+   },
+   "notes": "No Ze NAT command is present in the live command catalog."
+  }
+ ]
+}

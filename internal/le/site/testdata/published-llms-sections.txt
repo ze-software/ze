@@ -1,0 +1,19 @@
+# Ze
+## Product snapshot
+## Quality and verification model
+## Comparison positioning
+## Feature inventory
+## Configuration model roots
+## Plugin registry
+## CLI command surface
+## Vendor command equivalents
+## Dependency rationale
+## Complete documentation index
+## Page map
+## Start
+## Evaluate
+## Docs
+## Examples
+## Reference
+## Project
+## More

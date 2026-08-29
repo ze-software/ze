@@ -1,0 +1,29 @@
+<section class="cli-pipe-guide" aria-labelledby="cli-pipe-guide-title">
+<div class="cli-pipe-guide-head">
+<span class="tag">Pipes</span>
+<div><h2 id="cli-pipe-guide-title">Pipe operators</h2>
+<p>Each command row names the operators it accepts after <code>|</code>. Availability comes from the live command registry: operators may require row data, a streaming answer, or expansion by the operator's local process.</p></div>
+</div>
+<details>
+<summary>Operator reference <span>17</span></summary>
+<table><thead><tr><th>Operator</th><th>Class</th><th>Available</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>json</code></td><td>Output and control</td><td>Always</td><td>JSON output</td></tr>
+<tr><td><code>ndjson</code></td><td>Output and control</td><td>Always</td><td>One JSON object per line</td></tr>
+<tr><td><code>table</code></td><td>Output and control</td><td>Always</td><td>Render as table</td></tr>
+<tr><td><code>text</code></td><td>Output and control</td><td>Always</td><td>Space-aligned columns</td></tr>
+<tr><td><code>yaml</code></td><td>Output and control</td><td>Always</td><td>YAML output</td></tr>
+<tr><td><code>raw</code></td><td>Output and control</td><td>Always</td><td>Dispatcher JSON, unformatted</td></tr>
+<tr><td><code>no-more</code></td><td>Output and control</td><td>Always</td><td>Disable paging</td></tr>
+<tr><td><code>log</code></td><td>Streaming</td><td>While streaming</td><td>Append each update instead of replacing it, where the command keeps answering</td></tr>
+<tr><td><code>save</code></td><td>Output and control</td><td>Always, Local process only</td><td>Write the answer to a file</td></tr>
+<tr><td><code>match</code></td><td>Row data</td><td>Always, With rows</td><td>Keep the rows holding this text</td></tr>
+<tr><td><code>count</code></td><td>Row data</td><td>Always, With rows</td><td>Count the rows</td></tr>
+<tr><td><code>first</code></td><td>Row data</td><td>Always, With rows</td><td>Take first N rows</td></tr>
+<tr><td><code>last</code></td><td>Row data</td><td>Always, With rows</td><td>Take last N rows</td></tr>
+<tr><td><code>display</code></td><td>Row data</td><td>Always, With rows</td><td>Answer with these fields, in this order</td></tr>
+<tr><td><code>fill</code></td><td>Row data</td><td>Always, With rows</td><td>Bring the remaining columns back, in the command&#x27;s order or a named one</td></tr>
+<tr><td><code>resolve</code></td><td>Row data</td><td>Always</td><td>Reverse DNS for IP addresses</td></tr>
+<tr><td><code>origin</code></td><td>Row data</td><td>Always</td><td>ASN and network for IP addresses</td></tr>
+</tbody></table>
+</details>
+</section>

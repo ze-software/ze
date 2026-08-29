@@ -207,7 +207,9 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	// synthetic checkout carries no docs/ tree for them to publish, and
 	// TestBuildRunsEveryRegisteredProducer already pins the registry itself.
 	stubProducers(t)
-	if err := os.WriteFile(filepath.Join(source, "data", "cli-commands.json"), []byte(catalog), 0o644); err != nil {
+	// The staged source carries a STALE catalog, so the assertion below tells
+	// the published catalog apart from the file staging copied.
+	if err := os.WriteFile(filepath.Join(source, "data", "cli-commands.json"), []byte("[]\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(source, "talks", "netmcr", "index.html"), []byte("<html><script></script></html>"), 0o644); err != nil {
@@ -244,8 +246,10 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(output, "CNAME")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(output, "reference", "cli", "index.html")); err != nil {
-		t.Fatal(err)
+	// The command catalog is published from the live binary on every build,
+	// over whatever the source staged, because every command surface reads it.
+	if got := readArtifact(t, output, catalogFile); got != catalog {
+		t.Errorf("the published command catalog is %q, want the live one", got)
 	}
 	if _, err := os.Stat(filepath.Join(output, "talks", "netmcr", "index-inlined.html")); err != nil {
 		t.Fatal(err)

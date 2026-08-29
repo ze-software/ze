@@ -15,10 +15,17 @@ import (
 	"strings"
 )
 
+// renderCommandSurfaces writes the contract FIXTURE the drift check compares a
+// published page against. It is unexported, and stays that way.
+//
+// What it emits is a bare doctype and one definition list, not a publishable
+// page: internal/le/site publishes the real pages from its own producers, and
+// this package renders the fixture into a temporary tree to compare them
+// against. It was reachable from outside as RenderCommandSurfaces until
+// 2026-08-29, and commit 9f45348a7 used that route to publish the fixture over
+// 396 pages of about 10KB each.
 var renderCommandSurfaces = renderNativeCommandSurfaces
 
-// RenderCommandSurfaces writes the native command-facing HTML, Markdown, and
-// llms surfaces represented by catalogJSON.
 // LiveCommandCatalog answers `ze help command --json` for the checkout at root,
 // built with every feature tag feature-gates.txt names.
 //
@@ -29,14 +36,6 @@ var renderCommandSurfaces = renderNativeCommandSurfaces
 func LiveCommandCatalog(root string) ([]byte, error) {
 	raw, _, err := loadLiveCommandCatalog(root, "")
 	return raw, err
-}
-
-func RenderCommandSurfaces(root string, catalogJSON []byte) error {
-	commands, err := parseCommandCatalog("command catalog", catalogJSON)
-	if err != nil {
-		return err
-	}
-	return renderCommandSurfaces(root, commands)
 }
 
 func renderNativeCommandSurfaces(root string, commands []publishedCommand) error {
