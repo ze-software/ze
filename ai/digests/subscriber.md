@@ -136,6 +136,13 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
     L2TP `startPoolDrain` (`l2tp/drain.go`), both resolving through
     `subscriber.GetPoolHandler()` (`subscriber/handler_registry.go`), e.g. the static-pool
     plugin's `handle` (`plugins/pool/register.go` registers via `l2tp.RegisterPoolHandler`).
+    RELEASE is not a handler: `poolPlugin.setEventBus` (`plugins/pool/register.go`)
+    subscribes to `subevents.SessionDown` and reads the allocation key back through
+    `subscriber.Session.PPPKey` (`subscriber/session.go`). It holds that one
+    subscription, not both: the bridge re-emits every L2TP teardown onto the same topic,
+    so subscribing to `l2tpevents.SessionDown` as well would deliver each L2TP teardown
+    twice. Until 2026-08-29 it subscribed to the L2TP topic ALONE, which PPPoE never
+    emits, so every PPPoE session leaked one address.
 20. **Session up.** After `runNCPPhase` succeeds, `afterLCPOpen` emits `EventSessionUp`
     (`session_run.go`) on `EventsOut()`.
 
@@ -143,10 +150,12 @@ asks a kernel worker to build the PPPoX/L2TP kernel socket before handing fds to
 21. **Registration.** Each transport's own event-consumer goroutine turns PPP lifecycle
     events into `subscriber.Session` entries in the one process-wide
     `subscriber.DefaultRegistry` (`subscriber/service.go`). PPPoE:
-    `Subsystem.eventConsumer` (`pppoe/subsystem.go`) handles `EventSessionUp`
-    (`pppoe/subsystem.go`, builds the session and calls `reg.Add`, `pppoe/subsystem.go`),
-    `EventSessionIPAssigned` (`pppoe/subsystem.go`), `EventSessionDown`
-    (`pppoe/subsystem.go`, calls `reg.Remove` then `srv.handleSessionDown`). L2TP:
+    `Subsystem.eventConsumer` (`pppoe/subsystem.go`) reads the driver channel and hands
+    each event to `handlePPPEvent` (`pppoe/subsystem.go`), which dispatches to
+    `onSessionUp` (builds the session and calls `reg.Add`), `onSessionIPAssigned`, and
+    `onSessionDown` (calls `reg.Remove`, publishes, then `srv.handleSessionDown`). The
+    teardown publishes whether or not the registry held the session, because a session
+    that failed an NCP still holds the address IPCP took for it. L2TP:
     `subscriberBridge` (`subscriber_bridge.go`) subscribes to L2TP's own EventBus
     namespace (`l2tpevents.SessionUp/Down/IPAssigned`, `subscriber_bridge.go`) rather
     than hooking the reactor directly, and re-emits on the `subscriber` namespace

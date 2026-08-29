@@ -33,6 +33,20 @@ until PPPoE needs DHCPv6 prefix delegation.
 **`DefaultRegistry` is a package-level singleton.** L2TP and PPPoE both write to
 it and the show commands need one query point.
 
+**A lifecycle consumer subscribes to the subscriber topic alone, never to both
+topics.** The address pool was the first to move. It reads
+`subevents.SessionDown` and no longer reads `l2tpevents.SessionDown`, because
+the bridge re-emits every L2TP teardown onto the subscriber topic. Holding both
+subscriptions would deliver each L2TP teardown twice. The two emitters cannot
+disagree about whether the bridge exists: `Subsystem.Start` gives the reactor
+and the bridge the same event bus, and builds neither when that bus is nil.
+
+**`Session.PPPKey` names the PPP driver's identifier pair.** A consumer that
+stored per-session state when the driver asked it for an address reads that
+state back under the same pair. It is the tunnel and session id for L2TP, and
+the access interface index with the PPPoE session id for PPPoE. The branch lives
+on the session rather than in each consumer.
+
 ## Consequences worth knowing
 
 - A new access type such as IPoE follows the same three steps: populate the
@@ -53,8 +67,17 @@ it and the show commands need one query point.
 first handled only session-down. Expanding it to session-up and IP-assigned
 required that ordering, or a subscriber to the event does not see the session.
 
-<!-- source: internal/component/l2tp/pppoe/subsystem.go -- eventConsumer -->
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -- handlePPPEvent, onSessionUp, onSessionDown -->
 <!-- source: internal/component/l2tp/pppoe/drain.go -- startPPPoEAuthDrain, startPPPoEPoolDrain -->
+
+**A teardown is published even when the registry holds no session.** A session
+that fails an NCP, or whose peer disconnects between IPCP and session-up, never
+reaches the registry. It does hold the address IPCP allocated for it, so a
+publication gated on a registry hit leaks that address. Both transports fall
+back to a session built from the identifiers in hand.
+
+<!-- source: internal/component/l2tp/subscriber/session.go -- PPPKey, AccessIfIndex -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- setEventBus, onSessionDown -->
 
 **The bridge must not be built on a nil event bus.** L2TP subsystem tests start
 with a nil bus, and the bridge panics on one. Guard before constructing it.

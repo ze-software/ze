@@ -13,9 +13,9 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/l2tp"
-	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/plugins/pool/yang"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/configvalue"
@@ -61,6 +61,9 @@ type sessionAddr struct {
 	poolName string // "" = default pool, non-empty = named pool
 }
 
+// configRootL2TP is the YANG container this plugin reads.
+const configRootL2TP = "l2tp"
+
 func init() {
 	l2tp.RegisterPoolHandler(poolInstance.handle)
 	l2tp.RegisterPrefixHandler(poolInstance.handlePrefix)
@@ -71,7 +74,7 @@ func init() {
 		Description:             "IPv4 address and IPv6 prefix pool for L2TP PPP sessions",
 		Features:                "yang",
 		YANG:                    yang.ZeL2TPPoolConfYANG,
-		ConfigRoots:             []string{"l2tp"},
+		ConfigRoots:             []string{configRootL2TP},
 		InProcessConfigVerifier: verifyPoolConfig,
 		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -96,7 +99,7 @@ func init() {
 
 func verifyPoolConfig(sections []sdk.ConfigSection) error {
 	for _, sec := range sections {
-		if sec.Root != "l2tp" {
+		if sec.Root != configRootL2TP {
 			continue
 		}
 		if _, _, err := parsePoolConfig(sec.Data); err != nil {
@@ -113,20 +116,33 @@ func (p *poolPlugin) setEventBus(eb ze.EventBus) {
 		p.unsub()
 	}
 	p.bus = eb
-	p.unsub = l2tpevents.SessionDown.Subscribe(eb, func(payload *l2tpevents.SessionDownPayload) {
+	p.unsub = subevents.SessionDown.Subscribe(eb, func(payload *subevents.SessionDownPayload) {
 		p.onSessionDown(payload)
 	})
 }
 
-func (p *poolPlugin) onSessionDown(payload *l2tpevents.SessionDownPayload) {
-	key := sessionKey{tunnelID: payload.TunnelID, sessionID: payload.SessionID}
+// onSessionDown returns whatever the session held to the pool it came from.
+//
+// It reads the transport-generic subscriber topic rather than the L2TP one:
+// PPPoE emits only subevents.SessionDown (pppoe.Subsystem.onSessionDown), and
+// subscriberBridge.onSessionDown re-emits every L2TP teardown on the same
+// topic, so one subscription covers both transports. Subscribing to
+// l2tpevents.SessionDown as well would deliver each L2TP teardown twice.
+//
+// Safe against a repeated delivery either way: sessionAddrs.LoadAndDelete and
+// sessionPrefixes.LoadAndDelete hand the entry to exactly one caller, so no
+// second call reaches pool.release and no reassigned address is freed.
+func (p *poolPlugin) onSessionDown(payload *subevents.SessionDownPayload) {
+	tunnelID, sessionID := payload.Session.PPPKey()
+
+	key := sessionKey{tunnelID: tunnelID, sessionID: sessionID}
 	val, ok := p.sessionAddrs.LoadAndDelete(key)
 	if ok {
 		sa, ok2 := val.(sessionAddr)
 		if ok2 {
 			if !sa.fromPool {
 				logger().Info("l2tp-pool: RADIUS-assigned address cleared on session-down",
-					"tunnel", payload.TunnelID, "session", payload.SessionID, "address", sa.addr)
+					"session", payload.Session.ID, "address", sa.addr)
 			} else {
 				p.mu.RLock()
 				var pool *ipv4Pool
@@ -141,14 +157,14 @@ func (p *poolPlugin) onSessionDown(payload *l2tpevents.SessionDownPayload) {
 				if pool != nil {
 					pool.release(sa.addr)
 					logger().Info("l2tp-pool: released address on session-down",
-						"tunnel", payload.TunnelID, "session", payload.SessionID,
+						"session", payload.Session.ID,
 						"address", sa.addr, "pool", sa.poolName)
 				}
 			}
 		}
 	}
 
-	p.releasePrefix(payload.TunnelID, payload.SessionID)
+	p.releasePrefix(tunnelID, sessionID)
 }
 
 func (p *poolPlugin) handlePrefix(req l2tp.PrefixRequest) l2tp.PrefixResult {
@@ -332,7 +348,7 @@ func runPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, sec := range sections {
-			if sec.Root != "l2tp" {
+			if sec.Root != configRootL2TP {
 				continue
 			}
 			result, err := parseFullPoolConfig(sec.Data)
@@ -426,7 +442,7 @@ func runPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"l2tp"},
+		WantsConfig:  []string{configRootL2TP},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
@@ -572,7 +588,7 @@ func parseFullPoolConfig(data string) (poolConfigResult, error) {
 		return poolConfigResult{}, fmt.Errorf("%s: invalid config JSON: %w", Name, err)
 	}
 
-	l2tpBlock, ok := tree["l2tp"].(map[string]any)
+	l2tpBlock, ok := tree[configRootL2TP].(map[string]any)
 	if !ok {
 		return poolConfigResult{}, nil
 	}

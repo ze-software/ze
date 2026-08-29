@@ -285,103 +285,146 @@ func pppoeSessionID(ifindex int, sid uint16) string {
 func (s *Subsystem) eventConsumer() {
 	defer close(s.eventDone)
 
-	reg := subscriber.DefaultRegistry
-
 	for ev := range s.pppDriver.EventsOut() {
-		switch e := ev.(type) {
-		case ppp.EventSessionUp:
-			ifindex := int(e.TunnelID)
-			s.mu.Lock()
-			srv := s.servers[ifindex]
-			s.mu.Unlock()
-			if srv == nil {
-				continue
-			}
-			snap := srv.sessions.Lookup(e.SessionID)
-			sess := subscriber.Session{
-				ID:          pppoeSessionID(ifindex, e.SessionID),
-				AccessType:  subscriber.AccessPPPoE,
-				State:       subscriber.StateActive,
-				PPPoESID:    e.SessionID,
-				ActivatedAt: time.Now(),
-			}
-			if snap != nil {
-				sess.MAC = snap.MAC
-				sess.AccessInterface = snap.IfName
-				sess.ServiceName = snap.ServiceName
-				sess.PppInterface = "ppp" + textbuf.StringUint(uint64(snap.UnitNum))
-			}
-			authKey := pendingAuthKey{ifindex: ifindex, sessionID: e.SessionID}
-			if val, ok := s.pendingAuth.LoadAndDelete(authKey); ok {
-				if info, ok2 := val.(pendingAuthInfo); ok2 {
-					sess.Username = info.username
-					sess.AuthMethod = info.authMethod
-				}
-			}
-			sess.AcctSessionID = sess.ID
-			reg.Add(&sess)
-			subscriber.RecordSessionUp(subscriber.AccessPPPoE)
+		s.handlePPPEvent(ev)
+	}
+}
 
-			if sh := subscriber.GetShaperHandler(); sh != nil && sess.PppInterface != "" {
-				sh(sess.PppInterface, sess.DownloadRate, sess.UploadRate)
-			}
+// handlePPPEvent applies one PPP driver lifecycle event: it updates the
+// shared subscriber registry and publishes the matching event on the
+// subscriber namespace, where the address pool, accounting and shaping
+// consumers read it. eventConsumer calls it for every event the driver
+// produces, one at a time.
+func (s *Subsystem) handlePPPEvent(ev ppp.Event) {
+	switch e := ev.(type) {
+	case ppp.EventSessionUp:
+		s.onSessionUp(e)
+	case ppp.EventSessionIPAssigned:
+		s.onSessionIPAssigned(e)
+	case ppp.EventSessionDown:
+		s.onSessionDown(e)
+	}
+}
 
-			if s.bus != nil {
-				if _, err := subevents.SessionUp.Emit(s.bus, &subevents.SessionUpPayload{
-					Session: sess,
-				}); err != nil {
-					s.logger.Warn("pppoe: subscriber session-up emit failed", "error", err)
-				}
-			}
+// onSessionUp records a session that has completed LCP, authentication and
+// every enabled NCP, then publishes it.
+func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
+	ifindex := int(e.TunnelID)
+	s.mu.Lock()
+	srv := s.servers[ifindex]
+	s.mu.Unlock()
+	if srv == nil {
+		return
+	}
 
-		case ppp.EventSessionIPAssigned:
-			ifindex := int(e.TunnelID)
-			id := pppoeSessionID(ifindex, e.SessionID)
-			sess, ok := reg.Get(id)
-			if !ok {
-				continue
-			}
-			if e.Peer.IsValid() {
-				sess.IPv4Addr = e.Peer
-			}
-			sess.DNSPrimary = e.DNSPrimary
-			sess.DNSSecondary = e.DNSSecondary
-			sess.IPv6InterfaceID = e.InterfaceID
-			reg.Add(&sess)
-
-			if s.bus != nil {
-				if _, err := subevents.SessionIPAssigned.Emit(s.bus, &subevents.SessionIPAssignedPayload{
-					Session: sess,
-				}); err != nil {
-					s.logger.Warn("pppoe: subscriber session-ip-assigned emit failed", "error", err)
-				}
-			}
-
-		case ppp.EventSessionDown:
-			ifindex := int(e.TunnelID)
-			s.pendingAuth.Delete(pendingAuthKey{ifindex: ifindex, sessionID: e.SessionID})
-			id := pppoeSessionID(ifindex, e.SessionID)
-			sess, found := reg.Get(id)
-			if found {
-				sess.State = subscriber.StateTerminating
-				reg.Remove(id)
-				subscriber.RecordSessionDown(subscriber.AccessPPPoE)
-				if s.bus != nil {
-					if _, err := subevents.SessionDown.Emit(s.bus, &subevents.SessionDownPayload{
-						Session: sess,
-						Reason:  e.Reason,
-					}); err != nil {
-						s.logger.Warn("pppoe: subscriber session-down emit failed", "error", err)
-					}
-				}
-			}
-
-			s.mu.Lock()
-			srv := s.servers[ifindex]
-			s.mu.Unlock()
-			if srv != nil {
-				srv.handleSessionDown(e.SessionID)
-			}
+	snap := srv.sessions.Lookup(e.SessionID)
+	sess := subscriber.Session{
+		ID:            pppoeSessionID(ifindex, e.SessionID),
+		AccessType:    subscriber.AccessPPPoE,
+		State:         subscriber.StateActive,
+		PPPoESID:      e.SessionID,
+		AccessIfIndex: ifindex,
+		ActivatedAt:   time.Now(),
+	}
+	if snap != nil {
+		sess.MAC = snap.MAC
+		sess.AccessInterface = snap.IfName
+		sess.ServiceName = snap.ServiceName
+		sess.PppInterface = "ppp" + textbuf.StringUint(uint64(snap.UnitNum))
+	}
+	authKey := pendingAuthKey{ifindex: ifindex, sessionID: e.SessionID}
+	if val, ok := s.pendingAuth.LoadAndDelete(authKey); ok {
+		if info, ok2 := val.(pendingAuthInfo); ok2 {
+			sess.Username = info.username
+			sess.AuthMethod = info.authMethod
 		}
+	}
+	sess.AcctSessionID = sess.ID
+	subscriber.DefaultRegistry.Add(&sess)
+	subscriber.RecordSessionUp(subscriber.AccessPPPoE)
+
+	if sh := subscriber.GetShaperHandler(); sh != nil && sess.PppInterface != "" {
+		sh(sess.PppInterface, sess.DownloadRate, sess.UploadRate)
+	}
+
+	if s.bus == nil {
+		return
+	}
+	if _, err := subevents.SessionUp.Emit(s.bus, &subevents.SessionUpPayload{
+		Session: sess,
+	}); err != nil {
+		s.logger.Warn("pppoe: subscriber session-up emit failed", "error", err)
+	}
+}
+
+// onSessionIPAssigned adds the addresses one completed NCP negotiated to the
+// registered session, then publishes the updated snapshot.
+func (s *Subsystem) onSessionIPAssigned(e ppp.EventSessionIPAssigned) {
+	id := pppoeSessionID(int(e.TunnelID), e.SessionID)
+	sess, ok := subscriber.DefaultRegistry.Get(id)
+	if !ok {
+		return
+	}
+
+	if e.Peer.IsValid() {
+		sess.IPv4Addr = e.Peer
+	}
+	sess.DNSPrimary = e.DNSPrimary
+	sess.DNSSecondary = e.DNSSecondary
+	sess.IPv6InterfaceID = e.InterfaceID
+	subscriber.DefaultRegistry.Add(&sess)
+
+	if s.bus == nil {
+		return
+	}
+	if _, err := subevents.SessionIPAssigned.Emit(s.bus, &subevents.SessionIPAssignedPayload{
+		Session: sess,
+	}); err != nil {
+		s.logger.Warn("pppoe: subscriber session-ip-assigned emit failed", "error", err)
+	}
+}
+
+// onSessionDown publishes the teardown and sends the PADT that ends the
+// PPPoE session on the wire.
+//
+// The event is published whether or not the registry holds the session. A
+// session that fails an NCP, or whose peer disconnects between IPCP and
+// session-up, never reaches the registry and still holds the address IPCP
+// allocated for it, so a registry miss must not swallow the teardown.
+// subscriberBridge.onSessionDown falls back the same way for L2TP.
+func (s *Subsystem) onSessionDown(e ppp.EventSessionDown) {
+	ifindex := int(e.TunnelID)
+	s.pendingAuth.Delete(pendingAuthKey{ifindex: ifindex, sessionID: e.SessionID})
+
+	id := pppoeSessionID(ifindex, e.SessionID)
+	sess, found := subscriber.DefaultRegistry.Get(id)
+	if !found {
+		sess = subscriber.Session{
+			ID:            id,
+			AccessType:    subscriber.AccessPPPoE,
+			PPPoESID:      e.SessionID,
+			AccessIfIndex: ifindex,
+		}
+	}
+	sess.State = subscriber.StateTerminating
+	subscriber.DefaultRegistry.Remove(id)
+	if found {
+		subscriber.RecordSessionDown(subscriber.AccessPPPoE)
+	}
+
+	if s.bus != nil {
+		if _, err := subevents.SessionDown.Emit(s.bus, &subevents.SessionDownPayload{
+			Session: sess,
+			Reason:  e.Reason,
+		}); err != nil {
+			s.logger.Warn("pppoe: subscriber session-down emit failed", "error", err)
+		}
+	}
+
+	s.mu.Lock()
+	srv := s.servers[ifindex]
+	s.mu.Unlock()
+	if srv != nil {
+		srv.handleSessionDown(e.SessionID)
 	}
 }

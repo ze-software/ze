@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 1/10 (D-1 only) |
 | Deferral shard | `-` (corrected 2026-08-03: the row named a shard that never existed; not started; the shard is listed under Files to Create. Create `plan/deferrals/lifecycle-invariants.md` on the first deferral) |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-29 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -76,7 +76,7 @@ Found during research for this spec.
 | D-7 | `L2TPReactor.startSessionTimeouts` (`l2tp/session_timeout.go`) | assigns `sess.sessionTimeoutCancel` and `sess.idleTimeoutCancel` over the previous value without cancelling it, then starts a second `runSessionTimeout` and `runIdleTimeout` goroutine. RFC 2865 Section 5.27 Session-Timeout restarts, so a subscriber extends service past the RADIUS limit by renegotiating. The file's own header says *"teardown cancels them"*, which now reaches only the last-written cancel |
 | D-8 | `applyIKERekeyResponse` and `respondIKERekey` (`ike/engine/rekey.go`) | the two rekey paths disagree, and RFC 7296 says **both are wrong**. The initiator path sets `CreatedAt` and `EstablishedAt` both to the current time; the responder path sets both from `oldSA.EstablishedAt`. Section 2.18 calls the result "the new IKE SA" with new SPIs and new keys, so `CreatedAt` should advance. Section 2.8.3 says rekeying *"does not authenticate the parties again"*, and reserves a from-scratch IKE_SA_INIT/IKE_AUTH for reauthentication, so `EstablishedAt` (the authenticated relationship, which is what `uptime-seconds` measures in `saToMap`) should carry forward. Today `show ipsec` uptime zeroes on a locally-initiated rekey, and `created-at` misreports the new SA's age on a peer-initiated one |
 | D-9 | `newExporter` (`plugins/flowexport/exporter.go`) | stamps `startTime` from the current time, and the `configure` closure in `register.go` is explicitly shared by boot and reload. RFC 3954 Section 5.1 defines sysUpTime as time since the device booted. `FIRST_SWITCHED` (22) and `LAST_SWITCHED` (21) are emitted as sysUpTime-relative milliseconds from the same value, so a reload corrupts every flow record's timestamps, not only the header |
-| D-10 | `StoreSessionMetadata` (`l2tp/session_metadata.go`) | one package-level `sessionMeta` map keyed on a pair of uint16s, shared by both transports. L2TP stores under (tunnel id, session id); PPPoE stores under (ifindex, PPPoE session id). The namespaces collide, so whichever session authenticates second overwrites the other's Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id rate and CoS profile |
+| D-10 | `StoreSessionMetadata` (`l2tp/session_metadata.go`) | one package-level `sessionMeta` map keyed on a pair of uint16s, shared by both transports. L2TP stores under (tunnel id, session id); PPPoE stores under (ifindex, PPPoE session id). The namespaces collide, so whichever session authenticates second overwrites the other's Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id rate and CoS profile. Found while landing D-1 (2026-08-29): the same collision reaches operator output through `lookupSessionUsername` (`l2tp/plugins/pool/register.go`), which `showPool` calls with each allocation's pair. For a PPPoE allocation that pair is (ifindex, PPPoE session id), so `show l2tp pool` reports an empty username, or another subscriber's, whenever an L2TP session holds the same numbers |
 
 ## Why the gates are green
 
@@ -100,6 +100,30 @@ without asking.
 "Supported for subscriber access" while PPPoE, a subscriber access type, has no
 accounting at all and takes a CoA-ACK with no effect. Landing this spec makes
 those two rows true rather than changing them.
+
+## Implementation progress
+
+| Deliverable | State |
+|---|---|
+| D-1 pool release for PPPoE | **done** (2026-08-29). `poolPlugin.setEventBus` subscribes to `subevents.SessionDown`; `pppoe.Subsystem.onSessionDown` publishes with the pool's key; `subscriber.Session.PPPKey` names that key. Proven by `TestPoolReleasesPPPoEAddressOnSessionDown`, `TestPoolReleasesL2TPAddressOnSessionDown`, `TestPoolSessionDownReleasesOnce`, `TestPPPoESessionDownPublishesPoolKey`, `TestPPPoESessionDownPublishesWithoutSessionUp`, `TestBridgeSessionDownCarriesPoolKey`, `TestBridgeSessionDownCarriesPoolKeyWithoutSessionUp` |
+| D-2 PPPoE RADIUS accounting | open |
+| D-3 CoA ACK without effect | open |
+| D-4 shaper and CoS PPPoE state | open |
+| D-5 replacement session resets ActivatedAt | open |
+| D-6 duplicate Accounting-Start | open |
+| D-7 timeout goroutine leak | open |
+| D-8 IKE rekey timestamps | open |
+| D-9 flow-export epoch | open |
+| D-10 metadata keyspace collision | open |
+| I-1 emit-without-subscribe guard | open |
+| I-2 vacuity-trap and sibling-audit rows | open |
+| I-3 poll-sleep, VPP evidence image, checkVPPVersion | open |
+| I-4 PPPoE Disconnect-Request and Framed-Route | open |
+
+AC-1 is met for the address pool. The rest of AC-1..AC-19 are untouched, and no
+functional `.ci` or interop test from the TDD plan has been written: D-1's proof
+is at Go-test level, driven from `pppoe.Subsystem.handlePPPEvent` and from the
+plugin's own bus subscription rather than from a release helper.
 
 ## Improvements in scope (operator-selected 2026-08-02)
 
@@ -359,7 +383,7 @@ tests instead.
 | `TestSessionMetadataNoCrossTransportCollision` | `internal/component/l2tp/session_metadata_test.go` | AC-11 and A-2 | |
 | `TestSubscriberIDBuildersNeverCollide` | `internal/component/l2tp/subscriber/registry_test.go` | A-2: the two ID builders cannot produce equal strings | |
 | `TestRegistryAddPreservesActivatedAt` | `internal/component/l2tp/subscriber/registry_test.go` | AC-6 | |
-| `TestPoolReleaseOnSubscriberSessionDown` | `internal/component/l2tp/plugins/pool/register_test.go` | AC-1 at unit level | |
+| `TestPoolReleasesPPPoEAddressOnSessionDown`, `TestPoolReleasesL2TPAddressOnSessionDown`, `TestPoolSessionDownReleasesOnce` | `internal/component/l2tp/plugins/pool/register_test.go` | AC-1 at unit level, both transports, and release-once under a repeated delivery | done |
 | `TestShaperRecordsPPPoESession` | `internal/component/l2tp/plugins/shaper/shaper_test.go` | AC-5: `s.sessions` is populated on the PPPoE path | |
 | `TestCoSSessionDownRestoresStaticProfile` | `internal/plugins/cos/handler_test.go` | AC-18 | |
 | `TestCoAUnappliedAnswersNAK` | `internal/component/l2tp/plugins/authradius/coa_test.go` | AC-4 | |
@@ -565,6 +589,7 @@ tests instead.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Split the session-up topic so it fires once, and add a params-changed topic | make each consumer idempotent; suppress the side effects at the source with one latch | every existing consumer already assumes once-per-session, so the split makes six consumers correct without touching their logic, and a consumer that wants renegotiation opts in. Suppression alone would silently drop a legitimate MRU or address change |
+| D-1: the pool subscribes to `subevents.SessionDown` ALONE, and reads its release key from `subscriber.Session.PPPKey()` | subscribe to BOTH topics; merge the two SessionDown topics into one event now | Both topics say one thing, and two spellings is what let them drift, so the consumer must hold one. Subscribing to both keeps the drift AND double-fires on L2TP, because `subscriberBridge.onSessionDown` re-emits every L2TP teardown onto the subscriber topic. Merging the topics outright is the right end state and is NOT one pass: five other consumers (cos, observer, shaper, authradius, the bridge itself) each carry a distinct blocker in the Consumer migration map, and D-10's keyspace phase precedes them. The pool needed no re-key because the driver's pair is recoverable from the session; `PPPKey` names that pair once rather than branching on access type in each consumer |
 | Re-key session metadata by the subscriber session ID string | add a transport discriminator to the existing pair; leave it and block on a separate spec | the string key is already namespaced per transport and is the identifier every migrated consumer holds. A discriminator would keep a key whose meaning depends on transport, leaving the same trap for the next consumer |
 | Extend the existing `check_wiring` checker for the I-1 guard | a new AST-walking checker; a runtime subscriber count on the bus | `check_wiring` is already a symbol-versus-reference checker with an allowlist for reviewed exceptions and is already wired into `./le repository check`. The `Emit` return value cannot serve, because its contract excludes in-process subscribers |
 | On rekey, advance `CreatedAt` and carry `EstablishedAt` forward, in both directions | make both paths stamp the current time; make both carry the old time; add a third field for tunnel-first-established | RFC 7296 draws exactly this line and ze already has both fields. Section 2.18 makes the SA new (new SPIs, new keys), Section 2.8.3 makes the authentication unchanged and reserves a reset for reauthentication. Using the existing fields keeps `show ipsec` output shape unchanged; a third field would restate a distinction the two already carry |
@@ -572,6 +597,7 @@ tests instead.
 
 ## Known Limitations
 - Nothing in the current functional harness can drive a mid-session Configure-Request, which is why building that capability is its own early phase with AC-19. If it cannot be built the spec stops there and the scope returns to the operator; dropping to unit-level proof is not an outcome this spec may choose for itself.
+- **The two SessionDown topics are still two topics.** D-1 moved the address pool onto the subscriber one; `l2tpevents.SessionDown` keeps four subscribers (`cos.cosHandler.onSessionDown`, `l2tp.observer`, `shaper.shaperPlugin.onSessionDown`, `authradius.radiusAcct.onSessionDown`) plus the bridge that produces the subscriber one. Retiring it needs, in order: D-10's metadata re-key, a `SessionCoSChange` topic on the subscriber namespace, the peer address carried through `subscriberBridge.onSessionIPAssigned`, a decision on `EchoRTT` (transport-level, so it stays), and then the reactor emitting the subscriber event directly and the bridge being deleted.
 - IPv6-only PPPoE subscribers are not separately covered; the accounting and pool tests use IPv4.
 - RFC 7296 Section 2.8.3 says reauthentication resets what a rekey preserves, so a from-scratch IKE_SA_INIT/IKE_AUTH should start a fresh `EstablishedAt`. Whether ze implements reauthentication at all was not established here, and AC-9 asserts rekey behaviour only.
 - The IKE and flow-export defects share no code with the subscriber work. They ride along because they are the same invariant, not because they are coupled.
