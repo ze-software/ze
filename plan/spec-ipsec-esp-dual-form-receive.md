@@ -122,6 +122,9 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - the native IKEv2 state machine above the wire codec and the crypto layer
+- [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - ESP Child SA creation after IKE_AUTH, and the dataplane abstraction
+- [ ] `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` - EAP authentication and NAT traversal, for site-to-site and road-warrior peers
 - [ ] `ai/rules/architecture.md` - both dataplanes
   → Constraint: a netlink-only capability creates drift. The VPP backend needs the
     capability or an explicit refusal in the same work.
@@ -801,6 +804,61 @@ only one common SPI to advance and Ze's own outbound counter does. Scenario esp-
 | Phase 1 is evidence, and it precedes wiring | Start with route A immediately | Four routes are open and none is measured. Committing to a seam before A-1, A-3 and A-5 are answered risks building a seam that a cheaper route makes unnecessary |
 | The spec exists even though Ze is conformant as bounded | Close the question with the landed rows | The owner's step two. A landed limit that nobody owns becomes permanent, and `ai/rules/completion.md` names that failure |
 
+## Correction 2026-08-29: AC-5's evidence was WITHDRAWN by its own producer
+
+Found while triaging this spec for closure. It is NOT ready to close, and the
+reason is AC-5.
+
+AC-5 is recorded below as "not applicable, by measurement", on the ground that
+"VPP CAN receive both forms on one SA, so there is nothing to refuse", and it
+cites `dataplane/vpp.go` as where that measurement is recorded. Phase 1's route
+table cites `ipsec_tun_in.c` `ipsec_tun_protect_input_inline` and `ipsec_tun.c`
+`ipsec_tun_register_nodes` as the reading behind it.
+
+The producing file no longer says that. `internal/component/ike/dataplane/vpp.go`,
+in the `SAParams.AcceptBothESPForms` comment above the `IpsecSadEntryAddDelV3`
+send, states in the tree today:
+
+> This comment cited ipsec_tun_in.c and ipsec_tun.c as MEASURED. Those files are
+> VPP source and are not in this tree, so no reader here can re-derive the claim.
+> It is withdrawn.
+
+and, two paragraphs on:
+
+> what is known here is that nobody has measured it, which is not the same finding.
+
+The withdrawal landed in `7ec29b6e6` (2026-08-10, "fix(ipsec): the VPP dataplane
+backend programs a real VPP"), eight days after this spec recorded AC-5. So the
+spec's AC-5 row cites evidence its own producer has retracted.
+
+**What this changes.** AC-5's condition is "the VPP dataplane is selected and
+CANNOT receive both forms". That condition is now UNKNOWN rather than false, and
+`ai/rules/protocol.md` requires a backend that cannot receive both forms to
+reject rather than report success. `vpp.go` deliberately does not reject, and
+says why: refusing on an unmeasured property would reject every inbound SA the
+IKE engine installs, since `child.go` sets `AcceptBothESPForms` on all of them.
+That is a defensible engineering choice and it is not the same as
+"not applicable". AC-5 is therefore neither met nor not-applicable; it is
+unresolved, and resolving it needs a real VPP receiving both forms on one
+inbound SA and decrypting both, which `run_ipsec_evidence`
+(`internal/le/deployment/vppevidence.go`) does not do because it sends no ESP.
+
+**Also unresolved at closure.** Two rows in
+`plan/deferrals/ipsec-esp-dual-form-receive.md` name THIS spec as their
+Destination. Closure deletes that destination, so both need a real home before
+this spec can be removed, and neither is carried by a journal row: one asks for
+the `esp-encap-no-nat` interop scenario and one asks for the throughput
+measurement of the re-presented bare form (R-1).
+
+AC-1, AC-2, AC-3, AC-4, AC-6 and AC-7 were re-verified at their producers on
+2026-08-29 and hold: `espFormBypassInboundPolicy`
+(`internal/component/ike/dataplane/espform_linux.go:226`),
+`TestEncapOneStateAcceptsBothForms`
+(`encap_hybrid_integration_linux_test.go:111`),
+`TestEncapEstablishedSAServesAPeerFormChange`
+(`encap_formchange_integration_linux_test.go:161`) and
+`test/interop-ipsec/scenarios/esp-form-change/` are all present.
+
 ## Acceptance Criteria status (2026-08-02)
 
 | AC | Status | Evidence |
@@ -853,7 +911,7 @@ on its header rules.
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -873,7 +931,7 @@ on its header rules.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
