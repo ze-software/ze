@@ -574,10 +574,22 @@ The BART-vs-map dispatch is factored into `storage.Store[T]` (a generic
 NLRI-keyed store). `FamilyRIB` is one user; the best-path change tracker
 (`rib_bestchange.go`) is the other. `FamilyRIB` is single-mode (mode fixed at
 peer-OPEN time from negotiated ADD-PATH capability). Best-path tracking is
-cross-peer, so its `bestPrevStore` holds **two** `*Store[bestPathRecord]` --
-one non-ADD-PATH (trie), one ADD-PATH (map) -- and dispatches per call on the
-incoming `addPath` flag. This lets one family host peers with mixed ADD-PATH
-capability without key collision between the two wire shapes.
+cross-peer, so a CIDR family's `bestPrevStore` holds **two** BART-backed
+stores -- one non-ADD-PATH (`*Store[bestPathRecord]`), one ADD-PATH
+(`*Store[bestPrevSet]`) -- and dispatches per call on the incoming `addPath`
+flag. This lets one family host peers with mixed ADD-PATH capability without
+key collision between the two wire shapes.
+
+A non-CIDR family takes the same opaque-map backend `FamilyRIB` does, for the
+same reason: its NLRI leads with a label stack and a Route Distinguisher, or
+with a route type, so `store.NLRIToPrefix` names no `netip.Prefix` for it. The
+key is the full wire bytes, which already carry the ADD-PATH path-id, and
+`storage.IsCIDRFamily` is the one predicate both stores partition by. Such a
+route is published on `(bgp-rib, best-change)` through
+`ribevents.BestChangeEntry.NLRI` with a zero `Prefix`, and it is NOT mirrored
+into the unified Loc-RIB: that store is `netip.Prefix`-keyed down to sysrib's
+FIB arbitration, two Route Distinguishers share one IP prefix, and ze has no
+VRF to install them into.
 
 The `maprib` build tag degrades `Store[T]` to map-only storage for both
 backends; `FamilyRIB` retains its two build-tagged files
@@ -585,7 +597,7 @@ backends; `FamilyRIB` retains its two build-tagged files
 `Store[T]` variant.
 <!-- source: internal/core/rib/store/store_bart.go -- Store[T] default BART+map dispatch -->
 <!-- source: internal/core/rib/store/store_map.go -- Store[T] map-only under maprib -->
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore pairs two Store[bestPathRecord] -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore picks BART or opaque map per family -->
 
 `bestPathRecord` is a named `uint64` -- four 16-bit fields (MetricIdx,
 PeerIdx, NextHopIdx, Flags bit 0 = isEBGP) packed into one scalar. The

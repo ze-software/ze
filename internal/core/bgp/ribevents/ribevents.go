@@ -53,8 +53,10 @@ const (
 	BestChangeWithdraw = routeaction.Withdraw
 )
 
-// BestChangeEntry is one per-prefix entry in a BestChangeBatch. Json tags
-// define the wire format delivered to external plugin processes.
+// BestChangeEntry is one per-route entry in a BestChangeBatch. Json tags
+// define the wire format delivered to external plugin processes. The route is
+// named by Prefix for a CIDR family and by NLRI for every other one; see the
+// NLRI field below.
 //
 // AddPath flags whether the entry came from an ADD-PATH-negotiated family
 // (RFC 7911). Consumers MUST read AddPath before interpreting PathID --
@@ -64,8 +66,23 @@ const (
 // for ADD-PATH entries (including pathID=0) and omitted for everything
 // else.
 type BestChangeEntry struct {
-	Action       routeaction.Action       `json:"action"`
-	Prefix       netip.Prefix             `json:"prefix"`
+	Action routeaction.Action `json:"action"`
+	Prefix netip.Prefix       `json:"prefix"`
+	// NLRI carries the wire bytes that identify the route for a family whose
+	// NLRI is not a CIDR prefix: VPN (RFC 4364, RFC 4659), EVPN (RFC 7432),
+	// MVPN (RFC 6514), MUP, flowspec (RFC 8955), VPLS (RFC 4761) and BGP-LS
+	// (RFC 9552). Each of those NLRIs puts a label stack, a Route Distinguisher
+	// or a route type ahead of any address, so no netip.Prefix names it and
+	// Prefix stays zero. NLRI is the same key the Adj-RIB-In stores the route
+	// under. Under ADD-PATH it still carries the leading 4-byte path-id, and
+	// AddPath and PathID stay zero for these families rather than repeating it:
+	// NLRI alone identifies the route, so the two cannot drift apart.
+	//
+	// A CIDR family (IPv4/IPv6 unicast, multicast and labeled unicast) leaves
+	// NLRI nil and names the route in Prefix. A consumer that installs routes
+	// MUST read Prefix and skip an entry that has none: such an entry names a
+	// route the consumer holds no key for.
+	NLRI         []byte                   `json:"nlri,omitempty"`
 	AddPath      bool                     `json:"add-path,omitempty"`
 	PathID       uint32                   `json:"path-id,omitempty"`
 	NextHop      netip.Addr               `json:"next-hop,omitzero"`

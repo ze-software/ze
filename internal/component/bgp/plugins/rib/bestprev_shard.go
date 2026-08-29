@@ -79,9 +79,23 @@ func newBestPrevFamilyShards(fam family.Family, n int) *bestPrevFamilyShards {
 	return fs
 }
 
-// shardFor returns the shard owning prefix p.
+// shardFor returns the shard owning prefix p. CIDR families only; a non-CIDR
+// family has no prefix and uses shardForNLRI.
 func (fs *bestPrevFamilyShards) shardFor(p netip.Prefix) *bestPrevShard {
 	return &fs.shards[bestPrevShardIndex(p, len(fs.shards))]
+}
+
+// shardForNLRI returns the shard owning the route named by nlriBytes. It is
+// the non-CIDR counterpart of shardFor: those families key their store on the
+// wire bytes, so the bytes are what the shard index has to hash. The seed is
+// the same one shardFor uses, which costs nothing -- the two key spaces never
+// share a family, so they never collide.
+func (fs *bestPrevFamilyShards) shardForNLRI(nlriBytes []byte) *bestPrevShard {
+	if len(fs.shards) <= 1 {
+		return &fs.shards[0]
+	}
+	h := maphash.Bytes(bestPrevHashSeed, nlriBytes)
+	return &fs.shards[h%uint64(len(fs.shards))]
 }
 
 // bestPrevShards holds one bestPrevFamilyShards per address family. The
@@ -144,9 +158,10 @@ type bestprevLabelKey struct {
 	shard  string
 }
 
-// shardDepth returns the per-shard prefix counts for fam, in shard-index
-// order. Returns nil when fam has no shards. Each shard's count includes
-// both direct entries and the sum of AP path-id entries.
+// shardDepth returns the per-shard route counts for fam, in shard-index
+// order. Returns nil when fam has no shards. For a CIDR family each shard's
+// count includes both direct entries and the sum of AP path-id entries; for a
+// non-CIDR family it is the opaque map size.
 func (b *bestPrevShards) shardDepth(fam family.Family) []int {
 	fs := b.familyShards(fam, false)
 	if fs == nil {
@@ -156,11 +171,16 @@ func (b *bestPrevShards) shardDepth(fam family.Family) []int {
 	for i := range fs.shards {
 		sh := &fs.shards[i]
 		sh.mu.RLock()
-		count := sh.store.direct.Len()
-		sh.store.multi.Iterate(func(_ netip.Prefix, ps bestPrevSet) bool {
-			count += len(ps.entries)
-			return true
-		})
+		count := 0
+		if sh.store.cidr {
+			count = sh.store.direct.Len()
+			sh.store.multi.Iterate(func(_ netip.Prefix, ps bestPrevSet) bool {
+				count += len(ps.entries)
+				return true
+			})
+		} else {
+			count = len(sh.store.opaque)
+		}
 		sh.mu.RUnlock()
 		out[i] = count
 	}

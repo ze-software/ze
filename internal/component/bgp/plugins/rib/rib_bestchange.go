@@ -13,6 +13,7 @@
 package rib
 
 import (
+	"bytes"
 	"net/netip"
 	"slices"
 	"sync"
@@ -390,16 +391,41 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action routeaction.A
 	}
 }
 
-// bestPrevStore holds the previously-recorded best path per prefix for one
-// family. It carries both a non-ADD-PATH BART-backed Store and an ADD-PATH
-// BART-backed Store so a family can host peers with mixed ADD-PATH capability
-// without key collision -- pathID=0 from a non-AP peer must not be conflated
-// with a real AP-advertised pathID=0 from a different peer. Both backends are
-// prefix-keyed (netip.Prefix); under AP the per-prefix value is a small
-// path-id map (bestPrevSet), matching the pathSet pattern used by FamilyRIB.
+// bestPrevStore holds the previously-recorded best path per route for one
+// family. It picks its backend from the family exactly as FamilyRIB does, so
+// the best-prev record and the Adj-RIB-In route it tracks are keyed the same
+// way:
+//
+//	                 | !addPath          | addPath
+//	-----------------+-------------------+-----------------------
+//	CIDR family      | direct (BART)     | multi (BART, bestPrevSet)
+//	non-CIDR family  | opaque (map)      | opaque (map; path-id
+//	                 |                   | baked into the wire key)
+//
+// A CIDR family carries both BART backends so it can host peers with mixed
+// ADD-PATH capability without key collision -- pathID=0 from a non-AP peer
+// must not be conflated with a real AP-advertised pathID=0 from a different
+// peer. Under AP the per-prefix value is a small path-id list (bestPrevSet),
+// matching the pathSet pattern used by FamilyRIB.
+//
+// A non-CIDR family (VPN, EVPN, MVPN, MUP, flowspec, VPLS, BGP-LS) has no
+// netip.Prefix to key on: octet 0 of its NLRI is a total bit length counting
+// a label stack and a Route Distinguisher, or a route type, so
+// store.NLRIToPrefix rejects it. Those families key on the full wire bytes,
+// which are unique per route and already carry the ADD-PATH path-id, so no
+// bestPrevSet layer is needed. Before this backend existed, every such route
+// failed to key and no best-path change was ever recorded or published for
+// it (plan/journal/silent-fall-through.md).
+//
+// The record holds no pointer, so the map's string keys are the only
+// GC-traceable memory here. That is why a CIDR family keeps BART rather than
+// sharing the map: the packed bestPathRecord exists to keep a million-prefix
+// fringe opaque to the GC mark phase.
 type bestPrevStore struct {
-	direct *store.Store[bestPathRecord] // non-AP: one record per prefix
-	multi  *store.Store[bestPrevSet]    // AP: per-prefix path-id -> record map
+	cidr   bool
+	direct *store.Store[bestPathRecord] // cidr && non-AP: one record per prefix
+	multi  *store.Store[bestPrevSet]    // cidr && AP: per-prefix path-id -> record map
+	opaque map[string]bestPathRecord    // !cidr: one record per wire NLRI
 }
 
 // bestPrevSet holds the per-path-id bestPathRecord list for one prefix under
@@ -446,13 +472,19 @@ func (s *bestPrevSet) remove(pathID uint32) bool {
 	return false
 }
 
-// newBestPrevStore creates a bestPrevStore for a family. Both backends are
-// allocated eagerly so mixed-mode sessions route each call to the correct
-// key space without collision. The empty backend pays only a small idle cost
-// (one empty BART root) regardless of which keys the family ends up using --
-// accepted trade-off for correctness on mixed sessions.
+// newBestPrevStore creates a bestPrevStore for a family. For a CIDR family
+// both BART backends are allocated eagerly so mixed-mode sessions route each
+// call to the correct key space without collision. The empty backend pays
+// only a small idle cost (one empty BART root) regardless of which keys the
+// family ends up using -- accepted trade-off for correctness on mixed
+// sessions. A non-CIDR family allocates the opaque map instead and leaves
+// both BART pointers nil; every reader below branches on cidr first.
 func newBestPrevStore(fam family.Family) *bestPrevStore {
+	if !storage.IsCIDRFamily(fam) {
+		return &bestPrevStore{opaque: make(map[string]bestPathRecord)}
+	}
 	return &bestPrevStore{
+		cidr:   true,
 		direct: store.NewStore[bestPathRecord](fam),
 		multi:  store.NewStore[bestPrevSet](fam),
 	}
@@ -478,6 +510,10 @@ func parsePrevKey(fam family.Family, nlriBytes []byte, addPath bool) (uint32, ne
 
 // lookup returns the previously-recorded best path for (nlriBytes, addPath).
 func (s *bestPrevStore) lookup(fam family.Family, nlriBytes []byte, addPath bool) (bestPathRecord, bool) {
+	if !s.cidr {
+		rec, ok := s.opaque[string(nlriBytes)]
+		return rec, ok
+	}
 	pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath)
 	if !ok {
 		return 0, false
@@ -495,6 +531,10 @@ func (s *bestPrevStore) lookup(fam family.Family, nlriBytes []byte, addPath bool
 // insert stores rec for (nlriBytes, addPath). Overwrites any previous record
 // at the same key.
 func (s *bestPrevStore) insert(fam family.Family, nlriBytes []byte, addPath bool, rec bestPathRecord) {
+	if !s.cidr {
+		s.opaque[string(nlriBytes)] = rec
+		return
+	}
 	pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath)
 	if !ok {
 		return
@@ -511,6 +551,14 @@ func (s *bestPrevStore) insert(fam family.Family, nlriBytes []byte, addPath bool
 // delete removes the record at (nlriBytes, addPath). Returns true when a
 // record existed.
 func (s *bestPrevStore) delete(fam family.Family, nlriBytes []byte, addPath bool) bool {
+	if !s.cidr {
+		key := string(nlriBytes)
+		if _, exists := s.opaque[key]; !exists {
+			return false
+		}
+		delete(s.opaque, key)
+		return true
+	}
 	pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath)
 	if !ok {
 		return false
@@ -584,6 +632,24 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 		for i := range fs.shards {
 			sh := &fs.shards[i]
 			sh.mu.Lock()
+			if !sh.store.cidr {
+				// Non-CIDR family: one map keyed by the wire NLRI. Deleting
+				// during the range is defined in Go, so no victim list is
+				// needed. No locrib.Remove: the mirror never ran for these
+				// families (see mirrorToLocRIB).
+				for key, rec := range sh.store.opaque {
+					if rec.peerIdx() != peerIdx {
+						continue
+					}
+					delete(sh.store.opaque, key)
+					changes = append(changes, bestChangeEntry{
+						Action: ribevents.BestChangeWithdraw,
+						NLRI:   []byte(key),
+					})
+				}
+				sh.mu.Unlock()
+				continue
+			}
 			// direct: collect prefixes to delete, then delete after Iterate.
 			var directVictims []netip.Prefix
 			sh.store.direct.Iterate(func(pfx netip.Prefix, rec bestPathRecord) bool {
@@ -758,20 +824,48 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		}
 	}
 
-	// Parse prefix once so we can route to the owning shard. Malformed
-	// NLRI bails before touching any shard, regardless of newBest state
-	// -- we have no way to key the stored record without a prefix.
-	pathID, pfx, prefixOK := parsePrevKey(fam, nlriBytes, addPath)
-	if !prefixOK {
-		return bestChangeEntry{}, false
+	// Key the record. A CIDR family parses its NLRI into a (path-id, prefix)
+	// pair and routes to the shard owning that prefix; malformed bytes bail
+	// before touching any shard, regardless of newBest state, because there is
+	// no way to key the stored record without a prefix.
+	//
+	// A non-CIDR family (VPN, EVPN, MVPN, MUP, flowspec, VPLS, BGP-LS) has no
+	// prefix at all: its NLRI leads with a total bit length counting a label
+	// stack and a Route Distinguisher, or with a route type. parsePrevKey
+	// rejects every one of them, so keying through it published NO best-path
+	// change for any of those families. The wire bytes are the key instead,
+	// which is what the Adj-RIB-In already stores the route under.
+	//
+	// RFC 7911: for a non-CIDR family the path-id leads the wire bytes and
+	// stays part of the key, so one record per (NLRI, path-id) pair falls out
+	// of the bytes alone. Such an entry therefore leaves AddPath and PathID
+	// zero and lets NLRI carry the whole identity: a second copy of the
+	// path-id is a field the purge and replay paths would have to keep in
+	// step, and neither can derive it from the store.
+	cidr := storage.IsCIDRFamily(fam)
+	var (
+		pathID uint32
+		pfx    netip.Prefix
+	)
+	if cidr {
+		var prefixOK bool
+		pathID, pfx, prefixOK = parsePrevKey(fam, nlriBytes, addPath)
+		if !prefixOK {
+			return bestChangeEntry{}, false
+		}
 	}
 
 	// RFC 7999 Section 3.3: does this winner become a discard route? Resolved
 	// here, before the shard lock, for the same reason the next-hop is: the
 	// lookup takes r.peerMu.RLock, and the lock order is r.peerMu -> shard.mu.
 	// Zero for every peer that stated no rule, which is every peer by default.
+	//
+	// Asked for CIDR families only. Section 3.3 authorizes a BLACKHOLE by the
+	// covering IP prefix the operator configured, and a non-CIDR route names no
+	// prefix to cover, so the question has no answer there rather than the
+	// answer "not a discard".
 	var blackholeType routetype.Type
-	if newBest != nil {
+	if newBest != nil && cidr {
 		blackholeType = r.blackholeRouteTypeForBest(fam, nlriBytes, pfx, newBest.PeerIP)
 	}
 
@@ -784,7 +878,10 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	if fs == nil {
 		fs = r.bestPrev.familyShards(fam, true)
 	}
-	sh := fs.shardFor(pfx)
+	sh := fs.shardForNLRI(nlriBytes)
+	if cidr {
+		sh = fs.shardFor(pfx)
+	}
 
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
@@ -797,8 +894,16 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			return bestChangeEntry{}, false
 		}
 		sh.store.delete(fam, nlriBytes, addPath)
-		if r.locRIB != nil {
+		// The Loc-RIB is prefix-keyed and feeds the kernel FIB, so it takes
+		// CIDR families only. See mirrorToLocRIB below for why.
+		if r.locRIB != nil && cidr {
 			r.locRIB.Remove(fam, pfx, bgpProtocolID, pathID)
+		}
+		if !cidr {
+			return bestChangeEntry{
+				Action: ribevents.BestChangeWithdraw,
+				NLRI:   entryNLRI(cidr, nlriBytes),
+			}, true
 		}
 		return bestChangeEntry{
 			Action:  ribevents.BestChangeWithdraw,
@@ -827,6 +932,18 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	// best, not the sibling set); the Loc-RIB dedups a true no-op via Path.Equal.
 	mirrorToLocRIB := func() {
 		if r.locRIB == nil {
+			return
+		}
+		// NOT MIRRORED for a non-CIDR family, and this is a deliberate limit
+		// rather than an oversight. The Loc-RIB is keyed by netip.Prefix all
+		// the way down (locrib.shardFor, its BART store, and sysrib's
+		// prefixKey), and it exists to arbitrate what the kernel FIB installs.
+		// A VPN or EVPN route has no such key: two VPN routes that differ only
+		// in Route Distinguisher share one IP prefix and would overwrite each
+		// other, and ze has no VRF plumbing to install them into anyway. The
+		// event-bus rail carries them instead, identified by entry.NLRI.
+		// Making the Loc-RIB carry them is a storage-shape change of its own.
+		if !cidr {
 			return
 		}
 		// AdminDistance is the classical Cisco/Juniper default (eBGP=20, iBGP=200)
@@ -913,7 +1030,10 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	if havePrev {
 		action = ribevents.BestChangeUpdate
 	}
-	entry := newRec.resolve(r.bestPathInterner, action, pfx, pathID, addPath)
+	// pfx, pathID and the ADD-PATH flag are all zero for a non-CIDR family:
+	// the NLRI carries the whole identity there (see the keying comment above).
+	entry := newRec.resolve(r.bestPathInterner, action, pfx, pathID, addPath && cidr)
+	entry.NLRI = entryNLRI(cidr, nlriBytes)
 	entry.Labels = bestLabels
 	entry.SRv6SID = srv6SID
 	// RFC 7999 Section 3.3. Zero for every route that is not a honored
@@ -932,6 +1052,22 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		}
 	}
 	return entry, true
+}
+
+// entryNLRI returns the wire bytes a published bestChangeEntry names its route
+// by, which is nothing for a CIDR family (Prefix names it) and an owned copy
+// for every other one.
+//
+// The copy is not optional and it is not free. nlriBytes points into the
+// WireUpdate buffer the reactor reuses, while the entry outlives this call:
+// subscribers retain the batch and the bus marshals it lazily. Called only at
+// the sites that emit an entry, never on the same-best path, which is most
+// UPDATEs.
+func entryNLRI(cidr bool, nlriBytes []byte) []byte {
+	if cidr {
+		return nil
+	}
+	return bytes.Clone(nlriBytes)
 }
 
 // lookupLabelsForBest retrieves MPLS labels from the winning peer's PeerRIB
@@ -1172,6 +1308,7 @@ func entryNextHopAddr(entry storage.RouteEntry) netip.Addr {
 // OtherAttrs as a netip.Addr. Returns zero Addr on missing / malformed input.
 // OtherAttrs format: [type(1)][flags(1)][length_16bit(2)][value(n)]...
 // MP_REACH value: AFI(2) + SAFI(1) + NH_len(1) + NH(variable) + ...
+// The SAFI in that value selects the next-hop encoding; see mpNextHopAddr.
 func extractMPNextHopAddr(b storage.Bundle) netip.Addr {
 	data, err := pool.OtherAttrs.Get(b.OtherAttrs)
 	if err != nil {
@@ -1199,17 +1336,46 @@ func extractMPNextHopAddr(b storage.Bundle) netip.Addr {
 			if len(value) < 4+nhLen {
 				return netip.Addr{}
 			}
-			nhBytes := value[4 : 4+nhLen]
-			// For 32-byte next-hop (IPv6 global + link-local), use the first 16 bytes.
-			if nhLen == 32 {
-				nhBytes = nhBytes[:16]
-			}
-			return parseNextHopAddr(nhBytes)
+			return mpNextHopAddr(family.SAFI(value[2]), value[4:4+nhLen])
 		}
 
 		off += length
 	}
 	return netip.Addr{}
+}
+
+// mpNextHopAddr reads the address out of an MP_REACH_NLRI Network Address of
+// Next Hop field of nhLen octets.
+//
+// RFC 4760 Section 3 leaves the encoding to the family, and the VPN families
+// prefix it with a Route Distinguisher: RFC 4364 Section 6.1 says a PE's own
+// address "is encoded as a VPN-IPv4 address with an RD of 0", 12 octets, and
+// RFC 4659 Section 3.2.1.1 says the VPN-IPv6 form is "24 when only a global
+// address is present, and 48 if a link-local address is also included". Read
+// as a bare address those lengths match nothing and the next hop comes back
+// invalid, which is what published a VPN best path with no next hop.
+//
+// A trailing link-local address is dropped for the same reason the 32-octet
+// IPv6 unicast form drops it: the global address is the one to forward to.
+func mpNextHopAddr(safi family.SAFI, nhBytes []byte) netip.Addr {
+	if safi == family.SAFIVPN {
+		// RD(8) + address. Anything shorter names no address.
+		if len(nhBytes) < 8 {
+			return netip.Addr{}
+		}
+		nhBytes = nhBytes[8:]
+		// VPN-IPv6 global + link-local: RD(8)+IPv6(16) twice. The second RD
+		// starts where the global address ends.
+		if len(nhBytes) == 40 {
+			nhBytes = nhBytes[:16]
+		}
+		return parseNextHopAddr(nhBytes)
+	}
+	// RFC 2545 Section 3: IPv6 global followed by link-local.
+	if len(nhBytes) == 32 {
+		nhBytes = nhBytes[:16]
+	}
+	return parseNextHopAddr(nhBytes)
 }
 
 // replayBestPaths emits the entire current best-path table as one batch per
@@ -1239,11 +1405,15 @@ func (r *RIBManager) replayBestPaths(req *replay.Request) {
 		for i := range fs.shards {
 			sh := &fs.shards[i]
 			sh.mu.RLock()
-			total += sh.store.direct.Len()
-			sh.store.multi.Iterate(func(_ netip.Prefix, ps bestPrevSet) bool {
-				total += len(ps.entries)
-				return true
-			})
+			if sh.store.cidr {
+				total += sh.store.direct.Len()
+				sh.store.multi.Iterate(func(_ netip.Prefix, ps bestPrevSet) bool {
+					total += len(ps.entries)
+					return true
+				})
+			} else {
+				total += len(sh.store.opaque)
+			}
 			sh.mu.RUnlock()
 		}
 		changes := make([]bestChangeEntry, 0, total)
@@ -1256,6 +1426,18 @@ func (r *RIBManager) replayBestPaths(req *replay.Request) {
 		for i := range fs.shards {
 			sh := &fs.shards[i]
 			sh.mu.RLock()
+			if !sh.store.cidr {
+				// Non-CIDR family: the wire bytes name the route, and the
+				// prefix stays zero. appendRec is the CIDR path and refuses a
+				// zero prefix, so replay builds these entries directly.
+				for key, rec := range sh.store.opaque {
+					e := rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, netip.Prefix{}, 0, false)
+					e.NLRI = []byte(key)
+					changes = append(changes, e)
+				}
+				sh.mu.RUnlock()
+				continue
+			}
 			sh.store.direct.Iterate(func(pfx netip.Prefix, rec bestPathRecord) bool {
 				appendRec(rec, pfx, 0, false)
 				return true

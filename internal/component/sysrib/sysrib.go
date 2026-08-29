@@ -296,6 +296,14 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 	for i := range batch.Changes {
 		c := batch.Changes[i]
 		if !c.Prefix.IsValid() {
+			if len(c.NLRI) > 0 {
+				// A family whose NLRI is not a CIDR prefix (VPN, EVPN, MVPN,
+				// MUP, flowspec, VPLS, BGP-LS). The route is named by its wire
+				// bytes and there is no prefix to key the FIB by, so sysrib has
+				// nothing to arbitrate. Expected, not a fault: warning here
+				// would log once per VPN route on any box carrying one.
+				continue
+			}
 			logger().Warn("sysrib: skipping change with empty prefix")
 			continue
 		}

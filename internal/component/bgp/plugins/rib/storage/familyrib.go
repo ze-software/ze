@@ -54,7 +54,7 @@ func newFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 	r := &FamilyRIB{
 		fam:     fam,
 		addPath: addPath,
-		cidr:    isCIDRFamily(fam),
+		cidr:    IsCIDRFamily(fam),
 		labeled: fam.SAFI == family.SAFIMPLSLabel,
 	}
 	switch {
@@ -71,10 +71,17 @@ func newFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 	return r
 }
 
-// isCIDRFamily reports whether fam uses the simple [prefix-len][addr]
-// NLRI wire format that BART can key on. Mirrors the CIDR set recognized
-// by rib.isSimplePrefixFamily (IPv4/IPv6 unicast + multicast).
-func isCIDRFamily(fam family.Family) bool {
+// IsCIDRFamily reports whether fam uses the simple [prefix-len][addr]
+// NLRI wire format that BART can key on: IPv4/IPv6 unicast, multicast and
+// labeled unicast. Labeled unicast qualifies because the ingest path strips
+// the label stack before the RIB sees the key (rib.insertLabeled), so what
+// FamilyRIB stores is a bare prefix.
+//
+// It is exported because the BGP plugin's best-prev store must partition
+// families exactly as the Adj-RIB-In does. A second copy of the predicate
+// would let the two disagree, and the route would then be keyed one way on
+// insert and looked up another.
+func IsCIDRFamily(fam family.Family) bool {
 	switch fam.SAFI {
 	case family.SAFIUnicast, family.SAFIMulticast, family.SAFIMPLSLabel:
 	default:

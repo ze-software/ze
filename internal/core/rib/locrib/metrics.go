@@ -22,6 +22,13 @@ type locribMetrics struct {
 
 var locribMetricsPtr atomic.Pointer[locribMetrics]
 
+// shardLabels are the two labels every Loc-RIB shard metric carries: the
+// address family the shard holds and the shard's own index. A new slice is
+// returned on each call because the registry keeps the slice it is given.
+func shardLabels() []string {
+	return []string{"family", "shard"}
+}
+
 // SetMetricsRegistry wires Prometheus (or any metrics.Registry) into the
 // locrib package. Calling with nil unregisters; idempotent. Safe to call
 // from any goroutine.
@@ -34,22 +41,22 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		inserts: reg.CounterVec(
 			"ze_locrib_shard_inserts_total",
 			"Inserts handled by each Loc-RIB shard, partitioned by family.",
-			[]string{"family", "shard"},
+			shardLabels(),
 		),
 		removes: reg.CounterVec(
 			"ze_locrib_shard_removes_total",
 			"Removes handled by each Loc-RIB shard, partitioned by family.",
-			[]string{"family", "shard"},
+			shardLabels(),
 		),
 		lookups: reg.CounterVec(
 			"ze_locrib_shard_lookups_total",
 			"Lookups served by each Loc-RIB shard, partitioned by family.",
-			[]string{"family", "shard"},
+			shardLabels(),
 		),
 		depth: reg.GaugeVec(
 			"ze_locrib_shard_depth",
 			"Number of prefixes currently held by each Loc-RIB shard.",
-			[]string{"family", "shard"},
+			shardLabels(),
 		),
 	}
 	locribMetricsPtr.Store(m)
