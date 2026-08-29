@@ -105,15 +105,25 @@ func newTestRASender(rec *raRecorder) *raSender {
 	}
 }
 
-// sleepClock records what the stop path asked the clock to sleep for.
+// sleepClock records what the stop path asked the clock to sleep for, and moves
+// the fake clock forward by that much.
 // sim.FakeClock.Sleep returns at once, which is what keeps these tests fast and
 // is also what leaves nothing to assert without this wrapper.
+//
+// The advance is what makes the ORDER of the stop path observable. Recording
+// the duration alone says the stop path asked for the right wait; it says
+// nothing about whether the wait came before the advertisement it exists to
+// delay. With the clock moving, the send time carries that answer, so swapping
+// the sleep and the send is a change a test can see.
 type sleepClock struct {
 	*sim.FakeClock
 	slept []time.Duration
 }
 
-func (c *sleepClock) Sleep(d time.Duration) { c.slept = append(c.slept, d) }
+func (c *sleepClock) Sleep(d time.Duration) {
+	c.slept = append(c.slept, d)
+	c.Add(d)
+}
 
 // raStepInterval is how far each pass of advanceUntil moves the fake clock. It
 // is far below MIN_DELAY_BETWEEN_RAS and MAX_RA_DELAY_TIME, so the sender never
@@ -322,6 +332,7 @@ func TestStopRASenderWaitsOutTheRateLimit(t *testing.T) {
 			sched.clk = clk
 
 			sched.advertised()
+			advertisedAt := clk.Now()
 			clk.Add(test.sinceLast)
 
 			senderDone := make(chan struct{})
@@ -333,6 +344,15 @@ func TestStopRASenderWaitsOutTheRateLimit(t *testing.T) {
 			}
 			if clk.slept[0] != test.wantSleep {
 				t.Errorf("the stop path slept %v before the final advertisement, want %v", clk.slept[0], test.wantSleep)
+			}
+			// The wait is only worth anything if it happens BEFORE the send it
+			// delays. Asserting the gap on the clock, rather than the duration
+			// alone, is what fails when the two are the other way round.
+			if rec.sends() != 1 {
+				t.Fatalf("the stop path sent %d advertisement(s), want one", rec.sends())
+			}
+			if gap := rec.sentAt(0).Sub(advertisedAt); gap < ndp.MinDelayBetweenRAs {
+				t.Errorf("the final advertisement left %v after the previous one, want at least %v", gap, ndp.MinDelayBetweenRAs)
 			}
 		})
 	}
