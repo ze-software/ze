@@ -514,7 +514,16 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.outgoingPool(peerKey)
 			if withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool); withdrawal != nil {
+				srcID := peerWire.SourceID()
 				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
+				// The conversion changes the BYTES, never the peer they came
+				// from. buildFwdBody keys ze's RFC 7911 Path Identifier on the
+				// ingress path, so a rebuilt wire that lost its source withdraws
+				// under an identifier the destination never received, and RFC
+				// 7911 Section 5 has it silently ignore the withdraw: the route
+				// stays for good. Every other rebuild site preserves it
+				// (reactor_api_forward.go, wireu/split.go, session_validation.go).
+				peerWire.SetSourceID(srcID)
 				modBufIdx = bufIdx
 				modPoolRef = modPool
 			} else {
@@ -560,7 +569,17 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 				if aspathWidthChanged {
 					ctxID = fwdContextIDWithASN4(peerWire.SourceCtxID(), facts.sendASN4)
 				}
+				srcID := peerWire.SourceID()
 				peerWire = wireu.NewWireUpdate(modified, ctxID)
+				// Same obligation as the general rail, and it matters most here:
+				// this is the rail a route server takes, and the community strip
+				// RFC 7947 asks for puts every client that carries a policy on
+				// this branch. A rebuilt wire that lost its source would key
+				// every such client's paths under the singleton config source,
+				// so two clients that both chose identifier 1 for different
+				// prefixes reach a destination under ONE identifier and the
+				// second replaces the first (RFC 7911 Section 5).
+				peerWire.SetSourceID(srcID)
 				modBufIdx = bufIdx
 				modPoolRef = modPool
 			}

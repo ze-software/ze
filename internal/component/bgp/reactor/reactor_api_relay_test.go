@@ -639,6 +639,23 @@ func storedAddPathRoute(pathID uint32) rpc.StoredRoute {
 	return route
 }
 
+// relayIngressPathID is the identifier ze assigns to the relayed path, read from
+// the generator the way the relay reaches it. The source of these fixtures
+// declares ADD-PATH, so the path is keyed on the NLRI the source framed as well
+// as on the identifier it chose (forward_path_id.go): one key per path, freed
+// when ze relays that path's withdraw.
+func relayIngressPathID(t *testing.T, src *Peer, received uint32) uint32 {
+	t.Helper()
+	var key fwdPathKey
+	require.NoError(t, fwdPathKeyFor(&key, family.IPv4Unicast, received, relayStoredNLRIWire))
+	return fwdPathIDs.generatePath(src.SourceID(), &key)
+}
+
+// relayStoredNLRIWire is the RFC 4271 encoding of the prefix every stored route
+// in these tests carries: 10.0.0.0/24, one length octet then three significant
+// octets.
+var relayStoredNLRIWire = []byte{0x18, 0x0a, 0x00, 0x00}
+
 // TestRelayAddPathRoundTrip verifies a route stored from an ADD-PATH source is
 // relayed, and reaches each destination in that destination's own framing.
 //
@@ -679,7 +696,7 @@ func TestRelayAddPathRoundTrip(t *testing.T) {
 				"RFC 7911 Section 3: the NLRI encoding is extended by prepending the four-octet Path Identifier")
 			assert.Equal(t, "180a0000", hex.EncodeToString(nlri[relayPathIDLen:]),
 				"the prefix reaches the destination unchanged")
-			assert.Equal(t, fwdPathIDs.generate(src.SourceID(), sourcePathID), binary.BigEndian.Uint32(nlri),
+			assert.Equal(t, relayIngressPathID(t, src, sourcePathID), binary.BigEndian.Uint32(nlri),
 				"RFC 7911 Section 2: a re-advertised route carries ze's own identifier for this ingress path")
 
 			require.Eventually(t, func() bool { return cache.Len() == 0 }, 2*time.Second, 10*time.Millisecond,
@@ -730,8 +747,8 @@ func TestRelayMultiPathPreserved(t *testing.T) {
 	}
 
 	want := map[uint32]struct{}{
-		fwdPathIDs.generate(src.SourceID(), 1): {},
-		fwdPathIDs.generate(src.SourceID(), 2): {},
+		relayIngressPathID(t, src, 1): {},
+		relayIngressPathID(t, src, 2): {},
 	}
 	assert.Equal(t, want, got, "two paths for one prefix reach the destination under two identifiers")
 }
@@ -755,7 +772,7 @@ func TestRelayAddPathZeroPathIDIsRelayed(t *testing.T) {
 	require.Len(t, nlri, relayPathIDLen+4, "identifier 0 is encoded, not omitted")
 	assert.Equal(t, "180a0000", hex.EncodeToString(nlri[relayPathIDLen:]),
 		"the prefix survives an identifier of 0")
-	assert.Equal(t, fwdPathIDs.generate(src.SourceID(), 0), binary.BigEndian.Uint32(nlri),
+	assert.Equal(t, relayIngressPathID(t, src, 0), binary.BigEndian.Uint32(nlri),
 		"the path arriving under identifier 0 gets ze's own identifier like any other")
 }
 

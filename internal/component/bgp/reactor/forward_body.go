@@ -492,17 +492,29 @@ func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.En
 	//
 	// A destination that reads path IDs gets ze's own, never the source's (RFC
 	// 7911 Section 2), so this runs even when both contexts frame alike and only
-	// the value changes. The identifier the iterator reports is 0 for every
-	// prefix when the SOURCE negotiated no ADD-PATH, and 0 is then the ingress
-	// key of every path that source sends: one key, one identifier per source,
-	// which is what separates two such sources at the destination.
+	// the value changes. What the ingress path is keyed on follows what the
+	// SOURCE framed. A source that negotiated no ADD-PATH sends every prefix
+	// under identifier 0, so one key and one identifier serve that source's whole
+	// session, which is what separates two such sources at the destination. A
+	// source that did negotiate it names a path by (identifier, prefix), so each
+	// pair is keyed and freed on its own withdraw (forward_path_id.go).
 	iter := nlri.NewNLRIIterator(data, srcAddPath)
 	out := make([]byte, 0, fwdReencodedNLRILen(data, iter, srcAddPath, destAddPath))
 	iter.Reset()
 	for prefix, pathID, ok := iter.Next(); ok; prefix, pathID, ok = iter.Next() {
 		if destAddPath {
+			var id uint32
+			if srcAddPath {
+				framed, err := memo.framed(fam, pathID, prefix)
+				if err != nil {
+					return nil, err
+				}
+				id = framed
+			} else {
+				id = memo.unframed(pathID)
+			}
 			var pathBuf [4]byte
-			binary.BigEndian.PutUint32(pathBuf[:], memo.generate(pathID))
+			binary.BigEndian.PutUint32(pathBuf[:], id)
 			out = append(out, pathBuf[:]...)
 		}
 		out = append(out, prefix...)

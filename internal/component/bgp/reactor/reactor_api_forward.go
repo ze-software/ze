@@ -888,7 +888,14 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := a.r.fwdPool.outgoingPool(peerKey)
 			if withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool); withdrawal != nil {
+				srcID := peerWire.SourceID()
 				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
+				// The conversion changes the BYTES, never the peer they came
+				// from, and the same reasoning as the modification branch below
+				// applies: a withdraw that lost its source leaves under an
+				// identifier the destination never received, and RFC 7911
+				// Section 5 has it silently ignore that withdraw.
+				peerWire.SetSourceID(srcID)
 				modBufIdx = bufIdx
 				modPoolRef = modPool
 			} else {

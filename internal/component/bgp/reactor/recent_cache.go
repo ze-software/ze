@@ -586,12 +586,16 @@ func (c *RecentUpdateCache) ackEntryLocked(id uint64, e *cacheEntry) {
 
 // evictLocked removes an entry from the cache and returns its buffer to the pool.
 // Returns all pool buffers: the original read buffer, and every per-forward wire
-// variant adopted onto the entry (adoptFwdHandle).
+// variant adopted onto the entry (adoptFwdHandle). Frees ze's RFC 7911 Path
+// Identifier for every path the UPDATE withdrew as well: eviction is the first
+// moment no rail can still forward this entry, and one UPDATE reaches both rails
+// (forward_path_id.go fwdReleaseWithdrawnPathIDs).
 // Updates highestFullyAcked for gap detection.
 // Must be called with c.mu held.
 func (c *RecentUpdateCache) evictLocked(id uint64, e *cacheEntry) {
 	ReturnReadBuffer(e.update.poolBuf)
 	e.update.returnFwdHandles()
+	fwdReleaseWithdrawnPathIDs(e.update.WireUpdate)
 	c.entries.Delete(id)
 	if id > c.highestFullyAcked {
 		c.highestFullyAcked = id
@@ -644,7 +648,9 @@ func (c *RecentUpdateCache) Contains(id uint64) bool {
 	return ok
 }
 
-// Delete removes an update from the cache and returns its buffer to pool.
+// Delete removes an update from the cache and returns its buffer to pool. It
+// frees ze's Path Identifiers for the paths the UPDATE withdrew as well, for the
+// reason evictLocked does.
 // Returns true if the entry was found and deleted.
 func (c *RecentUpdateCache) Delete(id uint64) bool {
 	c.mu.Lock()
@@ -653,6 +659,7 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 	if e, ok := c.entries.Get(id); ok {
 		ReturnReadBuffer(e.update.poolBuf)
 		e.update.returnFwdHandles()
+		fwdReleaseWithdrawnPathIDs(e.update.WireUpdate)
 		c.entries.Delete(id)
 		return true
 	}

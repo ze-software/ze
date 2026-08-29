@@ -7,14 +7,14 @@
 | Depends | - |
 | Phase | 6/6 |
 | Deferral shard | `-` |
-| Updated | 2026-08-17 |
+| Updated | 2026-08-29 |
 
-**The closure review found a BLOCKER, so this spec stays open.** The generator's
-table keeps an entry for every identifier a peer ever used, and a peer grows it
-from the socket. The finding, its producing function and the two fix shapes are in
-the Review Gate section at the end of this file. The fix is Go and was NOT made in
-the closure session: the tree did not compile (other sessions mid-TDD) and a Go
-commit owes a full `./le verify current mode full`.
+**BLOCKER 1 is FIXED (2026-08-29).** The identifier is now keyed on the path
+rather than on the source alone whenever the SOURCE frames Path Identifiers, and
+it is freed when the recent-update cache evicts the UPDATE that withdrew that
+path. The release contract, the design it rejects and the tests that prove it are
+in the Review Gate section at the end of this file. The spec stays open for its
+closure review.
 
 **Answered 2026-08-14, kept for the record.** The phase-2 question was whether
 `TestForwardPathIDsDifferForCollidingSources`
@@ -125,7 +125,7 @@ forward rail or the peer-up stored-route replay.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|------------|--------------------------------|----------|--------------|--------|
 | A-1 | `fwdReencodeNLRIs` is the only producer of re-advertised NLRI bytes | read at the producer 2026-08-14 | a second site needs the same generator, or the rails diverge | `gopls references` over the NLRI writers | broken 2026-08-14. `buildFwdBody`'s same-context branch emits re-advertised NLRI bytes without ever calling `fwdReencodeNLRIs`, and that branch is the route-server case. Two WRITERS now exist, `fwdRegenerateRawPathIDs` and `fwdReencodeNLRIs`; the design still holds because both read ONE generator, `fwdPathIDs` |
-| A-2 | An identifier can be held per destination and family without unbounded growth | the RIB already keys paths per peer | the generator needs its own eviction | count the live paths a route server holds | confirmed 2026-08-14, with the key corrected. The identifier is held per (source, received identifier) rather than per destination and family: a client that negotiated no ADD-PATH costs ONE entry for its whole session, and a client that sends ADD-PATH costs one per identifier it uses. Released at peer removal (`doRemovePeer`) |
+| A-2 | An identifier can be held per destination and family without unbounded growth | the RIB already keys paths per peer | the generator needs its own eviction | count the live paths a route server holds | broken 2026-08-14 as first written, then corrected twice. FINAL (2026-08-29): the key follows what the SOURCE frames. A client that frames no identifier costs ONE entry for its whole session, released at peer removal (`doRemovePeer`). A client that frames one costs one entry per (family, identifier, prefix) it currently advertises, released when the cache evicts the UPDATE that withdrew that path (`fwdReleaseWithdrawnPathIDs`). The table is bounded by the paths ze advertises |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -328,7 +328,7 @@ a tagged test in both polarities.
 
 ### Goal Gates (MUST pass)
 - [ ] `./le rfc check` green with `RFC7911-2-2` carrying both polarities
-- [ ] `./le verify current mode full` green, or scoped evidence with attribution
+- [ ] `./le verify worktree` green, or scoped evidence with attribution
 
 ### TDD
 - [ ] Tests written
@@ -396,7 +396,7 @@ a tagged test in both polarities.
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | assumption | A-1 said `fwdReencodeNLRIs` was the only producer of re-advertised NLRI bytes | `buildFwdBody`'s same-context branch emits them without ever calling it, and that is the route-server case | `gopls references` over the NLRI writers, 2026-08-14 | the generator sits behind both writers, and `TestForwardPathIDsDifferForCollidingSources` drives `buildFwdBody` rather than the re-encode |
-| assumption | A-2 said the table cannot grow without bound because it is released at peer removal | it bounds the identifiers a peer is USING and says nothing about the ones it stops using; a withdraw creates an entry that nothing removes | the closure review, 2026-08-17 | Review Gate BLOCKER 1, spec stays open |
+| assumption | A-2 said the table cannot grow without bound because it is released at peer removal | it bounds the identifiers a peer is USING and says nothing about the ones it stops using; a withdraw creates an entry that nothing removes | the closure review, 2026-08-17 | Review Gate BLOCKER 1, spec stays open and, since 2026-08-29, the fix: the prefix-less key was the cause, so the key now carries the path for a source that frames identifiers, and the withdraw frees exactly the path it withdraws |
 
 ## Implementation Audit
 
@@ -406,7 +406,7 @@ a tagged test in both polarities.
 | A re-advertised route carries ze's own Path Identifier, never the received one | Done | `fwdPathIDTable.generate`, `fwdPatchPathIDs`, `fwdReencodeNLRIs` | both rails |
 | One generator, so replay and live forward agree | Done | package-level `fwdPathIDs`, read by both writers | `TestForwardPathIDIdenticalForEveryDestination` |
 | `RFC7911-2-2` stops being a gap and gains both polarities | Done | `rfc/short/rfc7911.md`, `rfc/requirements/rfc7911.md` | no `{gap}` in the summary |
-| The identifier state stays bounded | Partial | `fwdPathIDTable.releaseSource`, called only from `doRemovePeer` | Review Gate BLOCKER 1 |
+| The identifier state stays bounded | Done | `fwdPathIDTable.generatePath` and `releasePath`, `fwdReleaseWithdrawnPathIDs`, called from `RecentUpdateCache.evictLocked` and `Delete` | `TestForwardPathIDsFreedOnRelayedWithdraw`, `TestForwardPathIDWithdrawOfUnknownPathLeavesNothing` |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -414,7 +414,7 @@ a tagged test in both polarities.
 | AC-1 | Done | `TestForwardPathIDStableAcrossUpdates` | asserts the emitted value is not the received 0xDEADBEEF |
 | AC-2 | Done | `TestForwardPathIDsDifferForCollidingSources`, `TestForwardPathIDDiffersForTwoSourcePeers`, `bgp-addpath-readvertise-collision-frr` | |
 | AC-3 | Done | `TestForwardPathIDSurvivesAttributeChange` | key is the ingress path, not the attributes |
-| AC-4 | Partial | `TestForwardPathIDMatchesAnnounceAndWithdraw`, `TestForwardPathIDReleaseReturnsValues` | reuse ordering is correct and conservative; the release is so late that the table is unbounded (BLOCKER 1) |
+| AC-4 | Done | `TestForwardPathIDMatchesAnnounceAndWithdraw`, `TestForwardPathIDReleaseReturnsValues`, `TestForwardPathIDsFreedOnRelayedWithdraw`, `TestForwardPathIDWithdrawCarriesTheAnnouncedValue` | the value returns to the pool at the relayed withdraw, and the withdraw carries the value the announcement carried |
 | AC-5 | Done | `TestForwardPathIDBoundaryReceivedValues` | 0 and 2^32-1 both regenerated; `mintLocked` issues 0 like any value |
 | AC-6 | Done | `TestForwardPathIDLeavesNonAddPathDestinationAlone` | asserts the same backing array and a nil handle |
 | AC-7 | Done | `TestForwardPathIDIdenticalForEveryDestination`, `bgp-addpath-rail-agreement-speaker` | |
@@ -424,8 +424,8 @@ a tagged test in both polarities.
 |------|--------|----------|-------|
 | all ten unit tests | Done | `forward_path_id_test.go`, `forward_path_id_gen_test.go` | present and green |
 | boundary values 0 and 2^32-1 | Done | `TestForwardPathIDBoundaryReceivedValues` | |
-| the two interop scenarios | Done | `test/interop/scenarios/bgp-addpath-readvertise-collision-frr`, `.../bgp-addpath-rail-agreement-speaker` | auto-discovered by `test/interop/run.py`, which lists the scenarios directory |
-| a test that drives the table's growth from the socket | Missing | -- | owed with the BLOCKER 1 fix |
+| the two interop scenarios | Done | `test/interop/scenarios/bgp-addpath-readvertise-collision-frr`, `.../bgp-addpath-rail-agreement-speaker` | auto-discovered by `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, which lists the scenarios directory |
+| a test that drives the table's growth from the socket | Done | `internal/component/bgp/reactor/forward_path_id_churn_test.go`, `internal/component/bgp/reactor/zz_pathid_growth_probe_test.go` | the first drives `reactorForwardRS` with a published cache entry and asserts EXACT entry counts across announce/withdraw cycles. The second is the 2026-08-17 measurement probe, REWRITTEN rather than deleted: it asserts what it used to print, at the scale that makes the leak an attack. It now carries two `RFC7911-2-2` tags where it carried none |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -434,15 +434,15 @@ a tagged test in both polarities.
 | `forward_body.go`, `context.go`, `reactor_peers.go` | Done | changed |
 | `rfc/short/rfc7911.md`, `rfc/requirements/rfc7911.md`, `docs/features/rfc-status.md`, `internal/le/` | Done | judged-count pin dropped to 57 |
 | the two `.ci` | Changed | replaced by the interop scenarios, with the reason in the TDD plan |
-| `docs/architecture/bgp/structural-forwarding.md` | Missing | see Documentation Updates |
+| `docs/architecture/bgp/structural-forwarding.md` | Done | gained "How long a Path Identifier lives", and its bucket-merge exclusion claim is corrected (Review Gate NOTE 4) |
 
 ### Audit Summary
 - **Total items:** 21
-- **Done:** 17
-- **Partial:** 2 (the bound on the identifier state, and AC-4 with it)
+- **Done:** 20
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 1 (the two `.ci`, recorded in Deviations)
-- **Missing:** 2 (the architecture page, and a test driving the table's growth)
+- **Missing:** 0
 
 ## Goal Validation (BLOCKING)
 
@@ -452,7 +452,7 @@ a tagged test in both polarities.
 | The replay rail and the live rail put the same bytes on the wire | interop | `bgp-addpath-rail-agreement-speaker/check.py` compares the two UPDATE bodies and fails when the NLRI is not ADD-PATH framed, so a lost capability cannot pass it vacuously. NOT re-run in the closure session |
 | `RFC7911-2-2` is proven in both polarities | ledger | `rfc/requirements/rfc7911.md` shows positive tags in `forward_path_id_gen_test.go` and the interop check, and the negative in `forward_path_id_test.go` |
 | The fix costs the sessions that cannot use it nothing | unit | `TestForwardPathIDLeavesNonAddPathDestinationAlone` asserts the same backing array and a nil buffer handle |
-| The state the fix adds stays bounded | NOT MET | Review Gate BLOCKER 1 |
+| The state the fix adds stays bounded | unit | `TestForwardPathIDsFreedOnRelayedWithdraw` drives eight announce/withdraw cycles through `reactorForwardRS`, each under a fresh received identifier, and asserts the table holds EXACTLY one entry after the announce and EXACTLY zero after the withdraw. Removing the release from `evictLocked` and `Delete` reddens it at cycle 0 |
 
 ## Deferrals Resolved
 
@@ -472,9 +472,90 @@ a tagged test in both polarities.
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | BLOCKER | The identifier table keeps an entry for every identifier a peer ever used. `generate` inserts one per distinct received identifier; the only release is `releaseSource`, called from `doRemovePeer` alone. A withdraw creates entries too (`fwdPatchPathIDs` runs over the withdrawn sections) and `reactorForwardRS` relays a received UPDATE without consulting a RIB, so withdrawals for paths that were never announced grow the table permanently. A five-octet withdraw NLRI buys about 30 to 40 octets of table, so one full-size UPDATE carries hundreds of them and an established route-server client exhausts the daemon's memory | `internal/component/bgp/reactor/forward_path_id.go` (`fwdPathIDTable.generate`, `fwdPathIDTable.releaseSource`, `fwdPatchPathIDs`), `internal/component/bgp/reactor/reactor_peers.go` (`doRemovePeer`) | NOT FIXED, and the fix shape below was DISPROVEN on 2026-08-17 — read the correction before writing code. ~~The fix is Go: release `(source, received)` when ze has relayed the withdraw for that ingress path, which is the reuse point AC-4 names.~~ A session-scoped release is not a substitute either, because `bgp-addpath-readvertise-collision-frr` pins that a session reset must not renumber. The closure session could not commit Go: the tree did not compile and a Go commit owes a full `./le verify current mode full` |
+| 1 | BLOCKER | The identifier table keeps an entry for every identifier a peer ever used. `generate` inserts one per distinct received identifier; the only release is `releaseSource`, called from `doRemovePeer` alone. A withdraw creates entries too (`fwdPatchPathIDs` runs over the withdrawn sections) and `reactorForwardRS` relays a received UPDATE without consulting a RIB, so withdrawals for paths that were never announced grow the table permanently. A five-octet withdraw NLRI buys about 30 to 40 octets of table, so one full-size UPDATE carries hundreds of them and an established route-server client exhausts the daemon's memory | `internal/component/bgp/reactor/forward_path_id.go` (`fwdPathIDTable.generate`, `fwdPathIDTable.releaseSource`, `fwdPatchPathIDs`), `internal/component/bgp/reactor/reactor_peers.go` (`doRemovePeer`) | FIXED 2026-08-29; the analysis below is kept because it is what forced the key change, and it is answered under "BLOCKER 1: the release contract, settled". ~~The fix is Go: release `(source, received)` when ze has relayed the withdraw for that ingress path, which is the reuse point AC-4 names.~~ A session-scoped release is not a substitute either, because `bgp-addpath-readvertise-collision-frr` pins that a session reset must not renumber. The closure session could not commit Go: the tree did not compile and a Go commit owes a full `./le verify current mode full` |
 
-### BLOCKER 1: why "release on the relayed withdraw" is WRONG (2026-08-17)
+### BLOCKER 1: the release contract, settled (2026-08-29)
+
+**A withdraw is not enough on its own, and the missing half was the KEY, not the
+trigger.** The 2026-08-17 analysis below is correct and stands: one
+`(source, received identifier)` key carried many prefixes, so releasing it on one
+prefix's withdraw renumbered every other prefix still advertised under it. The
+answer is to stop that key from carrying many prefixes.
+
+**RFC 7911 Section 2, the sentence the contract rests on** (read in
+`rfc/full/rfc7911.txt`, lines 132-136):
+
+> "The assignment of the Path Identifier for a path by a BGP speaker is purely a
+> local matter. However, the Path Identifier MUST be assigned in such a way that
+> the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely
+> identify a path advertised to a neighbor."
+
+The obligation is over the pairs currently ADVERTISED. A value is free to name a
+second path once no advertisement of the first one is outstanding, and nothing in
+the section makes an identifier permanent.
+
+**The contract.** Ze mirrors the key the SOURCE uses to name a path.
+
+| The source | Ze's key | Freed when |
+|------------|----------|-----------|
+| framed no Path Identifier (no ADD-PATH for the family) | the source | the peer is removed (`releaseSource`) |
+| framed one | the source, the family, that identifier, and the NLRI bytes | ze has relayed the withdraw of that pair |
+
+The first row cannot grow: every path of such a source arrives under received
+identifier 0, so the source holds ONE entry for its whole session however many
+prefixes it sends or churns. The second row is bounded by the paths ze
+advertises, which is the exposure this feature exists for and the smallest exact
+state that answers "is this pair still advertised".
+
+**The release runs at ONE point, and it is neither rail: the recent-update cache
+evicting the UPDATE that carried the withdraw** (`RecentUpdateCache.evictLocked`
+and `Delete`, calling `fwdReleaseWithdrawnPathIDs`). One UPDATE reaches BOTH
+rails -- `reactorForwardRS` serves the destinations it can and hands the rest to
+the rs plugin as `FastPathSkipped`, which forwards them through
+`forwardUpdateCore` -- so a release at the end of the first rail would mint a
+fresh identifier for the second rail's destinations, and each would hold a route
+ze can never withdraw. The same argument rules out releasing inside the
+per-destination rewrite.
+
+**Two edges, and how they are closed.**
+
+| Edge | Answer |
+|------|--------|
+| A withdraw for a pair ze never advertised | mints an identifier no live path holds, writes it, and frees it at the same eviction. The destination has never seen the pair and RFC 7911 Section 5 has it silently ignore the withdraw. The cost is bounded by one UPDATE's NLRI count, not by the session (`TestForwardPathIDWithdrawOfUnknownPathLeavesNothing`) |
+| An UPDATE that withdraws AND announces one pair (RFC 7606 Section 5.1 forbids the sender, ze must still accept it) | the release skips a pair the same UPDATE announces, so the destination's surviving route keeps the identifier that names it. The scan costs nothing for every conforming sender, whose UPDATE carries one of the two fields |
+
+**Why it does not break `bgp-addpath-readvertise-collision-frr`.** That scenario
+resets the DESTINATION's session (`clear bgp <ze>` at FRR) and asserts the
+identifiers do not move. Its two colliding sources are bird and gobgp, neither of
+which carries an add-path stanza, so both sit in the first row of the table above:
+one permanent entry each, nothing released by a session reset and nothing
+released by a withdraw. The destination's reset frees nothing because a
+destination holds no entries at all.
+
+**The 2026-08-17 measurement probe was rewritten, not deleted.**
+`zz_pathid_growth_probe_test.go` is TRACKED (it landed in `df44d8d27`, and its own
+header claiming otherwise was wrong). Its
+`TestProbeOneReceivedIDCoversManyPrefixes` asserted "one key, one identifier,
+several prefixes", which is the property this fix deliberately removes, so it had
+to move with the contract. Its subject survives the change: how many prefixes one
+received identifier covers is still the question, and the answer is now decided by
+what the SOURCE framed. It is `TestPathIDKeyFollowsWhatTheSourceFramed`, and it
+pins all three cases -- a framing source on the raw rail, a framing source on the
+re-encode rail, and a source that frames none. Its sibling is
+`TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys`, which asserts the number it
+used to log: one withdraw-only UPDATE of 1623 octets buys 200 entries and holds
+none once the cache evicts it. That is 8.1 octets of wire per entry, cheaper for
+the sender than the 30 to 40 octets the Review Gate finding estimated.
+
+**What is NOT observed, stated plainly.** The release is driven by the withdraw
+ze RELAYS. A path a source stops advertising WITHOUT sending a withdraw -- the
+session goes down, or the peer is torn down -- is not observed here, and its
+entries live until `doRemovePeer` calls `releaseSource`. That is bounded by the
+peer's advertised paths and it is deliberate: an entry freed at session down
+would renumber the paths a reconnecting peer re-announces, which is the property
+the collision scenario pins.
+
+### BLOCKER 1: why the PREFIX-LESS key made "release on the relayed withdraw" wrong (2026-08-17, answered above)
 
 **One table key carries MANY prefixes, by design, so releasing it on one
 prefix's withdraw renumbers every other prefix still advertised under it.**
@@ -531,7 +612,7 @@ ONE entry for its whole session, so the exposure is the ADD-PATH route-server
 case this feature exists for, not every peer.
 | 2 | NOTE | The same patched payload is copied and re-walked once per destination, though ze's identifiers are destination-independent. `fwdParseCache` is already the per-source memo across that fan-out and does not carry the patched payload | `internal/component/bgp/reactor/forward_path_id.go` (`fwdRegenerateRawPathIDs`), `internal/component/bgp/reactor/forward_rs.go` | Not fixed, not blocking: the buffer is pooled, the shape matches the existing RFC 6793 transcode, and sharing one buffer needs adopt-once handle work |
 | 3 | NOTE | The generator's tests share the package global and two source constants, so two of them key on the same (source, received) pair | `internal/component/bgp/reactor/forward_path_id_gen_test.go` | Not fixed, not blocking: both assert only inequality and stability, and the package passes race-instrumented |
-| 4 | NOTE | `docs/architecture/bgp/structural-forwarding.md` claims the bucket-merge conditions exclude every copy-on-modify path | `docs/architecture/bgp/structural-forwarding.md` | Not fixed: it belongs with the BLOCKER 1 fix, which settles the release contract the same page owes |
+| 4 | NOTE | `docs/architecture/bgp/structural-forwarding.md` claims the bucket-merge conditions exclude every copy-on-modify path | `docs/architecture/bgp/structural-forwarding.md` | Fixed 2026-08-29: the claim now excepts the Path Identifier rewrite and says why merging it is correct, and the page gained "How long a Path Identifier lives" |
 
 ## Pre-Commit Verification
 
@@ -556,20 +637,20 @@ case this feature exists for, not every peer.
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| UPDATE forwarded to an ADD-PATH peer | `test/interop/scenarios/bgp-addpath-readvertise-collision-frr/check.py` | Yes: read the file. It negotiates ADD-PATH with FRR, checks the capability before asserting, injects the second path from GoBGP and reads FRR's `show bgp ipv4 unicast detail json`, which is the only form carrying the identifier |
-| Peer-up replay to an ADD-PATH peer | `test/interop/scenarios/bgp-addpath-rail-agreement-speaker/check.py` | Yes: read the file. It asserts speaker2 was NOT established when the route was stored, so its copy can only be the replay, and it fails when the NLRI is not ADD-PATH framed |
+| UPDATE forwarded to an ADD-PATH peer | `test/interop/scenarios/bgp-addpath-readvertise-collision-frr/check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | Yes: read the file. It negotiates ADD-PATH with FRR, checks the capability before asserting, injects the second path from GoBGP and reads FRR's `show bgp ipv4 unicast detail json`, which is the only form carrying the identifier |
+| Peer-up replay to an ADD-PATH peer | `test/interop/scenarios/bgp-addpath-rail-agreement-speaker/check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | Yes: read the file. It asserts speaker2 was NOT established when the route was stored, so its copy can only be the replay, and it fails when the NLRI is not ADD-PATH framed |
 | The same path advertised twice | `forward_path_id_test.go` `TestForwardPathIDStableAcrossUpdates` | Yes: drives `buildFwdBody` twice and compares the identifier field of each destination frame |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
 | A-1 | broken | `buildFwdBody`'s same-context branch is a second writer; both read one table |
-| A-2 | broken | the bound holds for identifiers in use and not for identifiers a peer stopped using; Review Gate BLOCKER 1 |
+| A-2 | confirmed 2026-08-29 | the bound holds once the key carries the path: one entry per session for a source that frames no identifier, one per advertised path for a source that frames one |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
 | 9. RFC compliance | `rfc/short/rfc7911.md` carries `RFC7911-2-2` with no `{gap}`; `rfc/requirements/rfc7911.md` shows both polarities and the interop tag; `docs/features/rfc-status.md` records "Closed 2026-08-14: RFC7911-2-2" | Yes |
 | 9. RFC compliance, feature pages | `docs/features.md` and `docs/features/bgp-protocol.md` describe the ingress key, the legality of 0 and the live-value set, each anchored on `forward_path_id.go`; each claim matches `fwdPathIDTable` | Yes |
-| 12. Internal architecture | `docs/architecture/bgp/structural-forwarding.md` gained nothing, and one of its claims is now imprecise | No: owed with the BLOCKER 1 fix |
+| 12. Internal architecture | `docs/architecture/bgp/structural-forwarding.md` gained "How long a Path Identifier lives", and its bucket-merge exclusion claim is corrected | Yes, 2026-08-29 |
 | 16. Source anchors | `grep -rn "forward_body.go\|forward_path_id.go" docs/` names six pages; the five that make a Path Identifier claim are accurate, the sixth is the architecture page above | Partial |
