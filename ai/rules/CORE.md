@@ -245,6 +245,9 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
 | An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
 **Before claiming a protocol behaviour is correct, the RFC text MUST be read**, not only the summary and not only the surrounding code. The section relied on MUST be cited.
+**A claim that Ze violates an RFC MUST quote the RFC's own text before it is
+**A `rfc/short/` summary is not the source.** It is a derived artifact and it is
+**The failure this prevents is fabrication, not sloppiness.** A requirement id
 **An RFC that the current one OBSOLETES MUST NOT be read as evidence about what Ze
 **The lineage that matters runs FORWARD: the documents that UPDATE the current one,
 **A predecessor MAY be opened for one purpose alone: to see why a clause is worded

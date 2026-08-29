@@ -10,6 +10,7 @@ directives ## Directives
   record-an-authorised-deviation-in-the-journal
   what-to-do-in-each-conformance-situation
   read-the-rfc-text-before-claiming-conformance
+  quote-the-rfc-text-before-reporting-a-violation
   an-obsoleted-predecessor-is-not-evidence
   where-the-rationale-lives
 implement-full-compliance-ask-thomas-only-before-doing-less ## Implement Full Compliance. Ask Thomas Only Before Doing LESS (owner directive, 2026-07-27, clarified 2026-08-01)

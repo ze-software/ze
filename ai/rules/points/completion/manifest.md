@@ -83,6 +83,7 @@ making-a-test-load-proof ## Making a test load-proof
   a-real-wait-often-exposes-a-genuine-race
   the-stress-tools-diagnose-they-never-absolve
 recording ## Recording
+  search-plan-for-an-existing-spec-before-fixing
   a-shard-is-a-running-log-not-a-destination
   ask-what-did-i-fix-before-writing-a-record
   what-never-earns-a-shard
