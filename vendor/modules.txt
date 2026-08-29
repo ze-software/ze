@@ -1268,6 +1268,8 @@ github.com/ykadowak/zerologlint
 # github.com/yosida95/uritemplate/v3 v3.0.2
 ## explicit; go 1.14
 github.com/yosida95/uritemplate/v3
+# github.com/yuin/goldmark v1.8.5
+## explicit; go 1.22
 # gitlab.com/bosi/decorder v0.4.2
 ## explicit; go 1.20
 gitlab.com/bosi/decorder
