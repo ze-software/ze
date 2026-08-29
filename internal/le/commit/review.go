@@ -37,12 +37,38 @@ type ReviewResult struct {
 	Clean      bool     `json:"clean"`
 }
 
+// relocatedSpecs answers the spec basenames this commit MOVES rather than
+// closes: removed from plan/ and added under plan/future/ in the same commit.
+//
+// The distinction is the whole of it. A closure retires a spec because its work
+// is done, and one commit may close one, so the review gate below refuses a
+// second. A relocation retires nothing: the spec is still open, still
+// unimplemented, and has only been re-filed as work that does not hold the
+// release (plan/future/README.md). Counting a relocation as a closure made the
+// gate refuse every batch of them, which is the shape the 2026-08-24 row in
+// plan/journal/gate-fires-outside-its-population.md asks for: the question is
+// not "does this commit remove a spec" but "does this commit CLOSE it".
+func relocatedSpecs(paths []string) map[string]bool {
+	moved := make(map[string]bool)
+	for _, path := range paths {
+		base := filepath.Base(path)
+		if filepath.ToSlash(filepath.Dir(path)) == "plan/future" &&
+			strings.HasPrefix(base, "spec-") && strings.HasSuffix(base, ".md") {
+			moved[base] = true
+		}
+	}
+
+	return moved
+}
+
 func closureStem(root string, paths, removed []string) (string, error) {
+	moved := relocatedSpecs(paths)
 	stems := make(map[string]bool)
 	for _, path := range removed {
 		base := filepath.Base(path)
 		if filepath.ToSlash(filepath.Dir(path)) == "plan" &&
-			strings.HasPrefix(base, "spec-") && strings.HasSuffix(base, ".md") {
+			strings.HasPrefix(base, "spec-") && strings.HasSuffix(base, ".md") &&
+			!moved[base] {
 			stems[strings.TrimSuffix(strings.TrimPrefix(base, "spec-"), ".md")] = true
 		}
 	}
