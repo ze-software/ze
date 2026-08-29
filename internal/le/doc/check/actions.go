@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/doc/wiring"
+	docwiring "github.com/ze-software/ze/internal/le/doc/wiring"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 

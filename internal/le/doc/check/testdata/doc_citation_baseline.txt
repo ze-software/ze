@@ -302,7 +302,6 @@ plan/deferrals/fixit-learned-1366-has-no-files-section.md	plan/.learned-stalenes
 plan/deferrals/fixit-learned-1366-has-no-files-section.md	scripts/dev/learned_staleness.py
 plan/deferrals/fixit-private-asn-leak.md	plan/spec-fixit-private-asn-leak-deferred-nil-api-fail-open.md
 plan/deferrals/fixit-unexport-package-private-symbols.md	plan/spec-problem-journal.md
-plan/deferrals/improve-7-yang-handler-gate.md	plan/spec-improve-7-yang-handler-gate-deferred-strict-unknown-key.md
 plan/deferrals/ipsec-dataplane-inspection.md	test/ipsec/ipsec-show-dataplane-kernel.ci
 plan/deferrals/ipsec-esp-dual-form-receive.md	test/ipsec/ipsec-esp-encap-no-nat.ci
 plan/deferrals/ipsec-esp-dual-form-receive.md	test/ipsec/ipsec-esp-form-change.ci
@@ -710,8 +709,6 @@ plan/spec-improve-4-conformance-fixtures.md	test/protocol/bgp/basic-session/
 plan/spec-improve-4-conformance-fixtures.md	test/protocol/runner.ci
 plan/spec-improve-5-panic-boundaries.md	internal/component/bgp/reactor/session_panic_test.go
 plan/spec-improve-6-yang-coverage.md	test/plugin/yang-coverage.ci
-plan/spec-improve-7-yang-handler-gate.md	internal/component/plugin/all/testdata/config-claims-allowlist.json
-plan/spec-improve-7-yang-handler-gate.md	test/plugin/doctor-config-claims.ci
 plan/spec-improve-8-fuzz-decode-context.md	internal/component/bgp/message/fuzz_test.go,:147,
 plan/spec-improve-8-fuzz-decode-context.md	internal/component/bgp/plugins/rib/storage/attrparse_fuzz_test.go,
 plan/spec-improve-8-fuzz-decode-context.md	internal/component/bgp/wireu/mpwire_test.go,
