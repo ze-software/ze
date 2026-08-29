@@ -5,7 +5,7 @@
 // working heuristic until something is known to be CONSUMED, so the fixture
 // carries one leaf that must be reported and two that must not.
 //
-// The table is declared ONCE and read twice: `le yang-leaf-mentions selftest`
+// The table is declared ONCE and read twice: `le yang leaf-mentions selftest`
 // runs it, and the package test runs the same rows so a failure names the case
 // rather than a count.
 
@@ -207,7 +207,7 @@ func Selftest() (leroot.SelftestReport, error) {
 	), nil
 }
 
-// runSelftest is the `le yang-leaf-mentions selftest` action.
+// runSelftest is the `le yang leaf-mentions selftest` action.
 func runSelftest() (any, int) {
 	report, err := Selftest()
 	if err != nil {

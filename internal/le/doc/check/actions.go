@@ -88,7 +88,7 @@ func Subs() string {
 	return strings.Join(verbs, " | ")
 }
 
-// Answer is the `le doc-check` command.
+// Answer is the `le doc check` command.
 func Answer(args []string) (any, int) {
 	if len(args) == 0 {
 		return Actions(), 0

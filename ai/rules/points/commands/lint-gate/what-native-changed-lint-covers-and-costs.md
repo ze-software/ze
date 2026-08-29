@@ -12,7 +12,7 @@ The native action starts with the host build, then runs `GOOS=linux` with the
 `integration` build tag. The second pass is the only one that reads a
 `//go:build integration` file. On a non-Linux host it is also the only one that
 reads a `//go:build linux` file. The rest come from
-`internal/le/verifylint/matrix.go`, one for each personality tag (`ze_installer`,
+`internal/le/verify/lint/matrix.go`, one for each personality tag (`ze_installer`,
 `ze_distro`, `ze_appliance`, `ze_setup`), the capability tags, `tinygo`, and each
 GOOS and GOARCH a tracked file names. Each flavor lints only the packages holding
 a file the first two passes do not load. That package set is derived from the

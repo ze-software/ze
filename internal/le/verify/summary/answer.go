@@ -19,7 +19,7 @@ func Answer(args []string) (any, int) {
 		}}}, 0
 	}
 	if len(args) != 7 {
-		refuse("usage: le verify-summary append failures <failures-log> stage <stage> log <stage-log>")
+		refuse("usage: le verify summary append failures <failures-log> stage <stage> log <stage-log>")
 		return nil, 2
 	}
 	if args[0] != "append" {
@@ -58,5 +58,5 @@ type Actions struct {
 }
 
 func refuse(message string) {
-	leaction.ReportError(errors.New("verify-summary: " + message))
+	leaction.ReportError(errors.New(name + ": " + message))
 }

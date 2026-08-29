@@ -19,6 +19,18 @@ var renderCommandSurfaces = renderNativeCommandSurfaces
 
 // RenderCommandSurfaces writes the native command-facing HTML, Markdown, and
 // llms surfaces represented by catalogJSON.
+// LiveCommandCatalog answers `ze help command --json` for the checkout at root,
+// built with every feature tag feature-gates.txt names.
+//
+// It is exported for the site build, which publishes the catalog and every page
+// derived from it. The publisher and this checker therefore read the same
+// producer, so a page can only disagree with the registries between one build
+// and the next.
+func LiveCommandCatalog(root string) ([]byte, error) {
+	raw, _, err := loadLiveCommandCatalog(root, "")
+	return raw, err
+}
+
 func RenderCommandSurfaces(root string, catalogJSON []byte) error {
 	commands, err := parseCommandCatalog("command catalog", catalogJSON)
 	if err != nil {

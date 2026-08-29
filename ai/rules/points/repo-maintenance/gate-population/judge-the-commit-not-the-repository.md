@@ -19,7 +19,7 @@ distinction:
 
 | Reader | Derives from | Effect |
 |--------|--------------|--------|
-| `check_weakened_tests` | recomputes the weakenings of the paths the commit NAMES | refuses only a commit that actually weakens a test |
+| `CheckCommit` in `internal/le/testweakened` | recomputes the weakenings of the paths the commit NAMES | refuses only a commit that actually weakens a test |
 | `rfc_changed_problems` | reads `test/rfc-changed.md` from DISK | one open row refuses every commit in the repository until its author lands it |
 
 Both files are per-commit by their own contract. Only the second turns that

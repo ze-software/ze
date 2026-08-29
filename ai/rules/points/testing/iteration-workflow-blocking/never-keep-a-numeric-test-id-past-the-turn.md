@@ -1,6 +1,6 @@
 ---
 kind: directive
-level: MUST NOT
+level: MUST
 stage:
 ---
 **A numeric id is a position, not an identity (BLOCKING for anything you keep).**

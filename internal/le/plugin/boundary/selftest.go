@@ -9,7 +9,7 @@
 // resolution would leave the gate silent and green; and a derivation that
 // answered an empty list would do the same.
 //
-// The table is declared ONCE and read twice: `le plugin-boundary selftest` runs
+// The table is declared ONCE and read twice: `le plugin boundary selftest` runs
 // it, and the package test runs the same rows so a failure names the case
 // rather than a count.
 
@@ -224,7 +224,7 @@ func Selftest() (leroot.SelftestReport, error) {
 	), nil
 }
 
-// runSelftest is the `le plugin-boundary selftest` action.
+// runSelftest is the `le plugin boundary selftest` action.
 func runSelftest() (any, int) {
 	report, err := Selftest()
 	if err != nil {

@@ -1,10 +1,10 @@
 // Design: docs/architecture/core-design.md -- le's spec inventory
 //
 // Package specstatus reads the metadata table at the top of every plan/spec-*.md
-// and answers the inventory `./le spec-status` prints: one record per spec,
+// and answers the inventory `./le spec status` prints: one record per spec,
 // carrying its status, its bucket, and whether a skeleton is past its TTL.
 //
-// It is the port of internal/le/specstatus/answer.go together with the two leaf
+// It is the port of internal/le/spec/status/answer.go together with the two leaf
 // packages that file kept beside it. Those two existed for one reason, stated in
 // their own headers: the front end was a single-file `go run` script excluded
 // from its own directory's package, so nothing could import it and its logic had

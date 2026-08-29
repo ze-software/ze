@@ -17,6 +17,6 @@ files this commit carries cannot have caused the red. It never says the red is
 somebody else's work rather than yours from an earlier session.
 
 The declared-group protocol is available to EVERY stage, not only this one
-(`parseDeclaredGroups` and `classifyStage`, `internal/le/verifyengine/run.go`).
+(`parseDeclaredGroups` and `classifyStage`, `internal/le/verify/engine/run.go`).
 Teaching another producer to declare its groups is separable work with its own
 evidence, and until it is done that stage's red charges whoever is committing.

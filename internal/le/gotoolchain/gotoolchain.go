@@ -260,7 +260,7 @@ func extraTags() []string {
 // eighth of this machine's RAM, floored.
 //
 // ZE_LINT_MEMLIMIT in the environment wins, so
-// `ZE_LINT_MEMLIMIT=16GiB ./le verify-lint run` reaches this setting directly.
+// `ZE_LINT_MEMLIMIT=16GiB ./le verify lint run` reaches this setting directly.
 // The default is derived below when the caller names no value.
 func lintMemLimit() string {
 	if named := env.Get(memLimitEntry.Aliases[0]); named != "" {

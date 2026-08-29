@@ -3,7 +3,7 @@ kind: note
 level:
 stage:
 ---
-Enforced: `checkLoadExcuses` in `internal/le/docwiring/docwiring.go`
+Enforced: `checkLoadExcuses` in `internal/le/doc/wiring/docwiring.go`
 (`./le doc wiring`, inside `./le verify worktree`) fails a CHANGED
 `plan/known-failures/` shard containing "under load", "loaded host", "load
 average", "load-sensitive", "passes in isolation", "resource contention" or

@@ -353,7 +353,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "vet",
-		Reason: "the subject is one Go toolchain command: `go vet ./...`. The repository's own vetting is `le verify-lint run` over every build flavor",
+		Reason: "the subject is one Go toolchain command: `go vet ./...`. The repository's own vetting is `le verify lint run` over every build flavor",
 	},
 	{
 		Target: "tidy",
@@ -569,11 +569,11 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-unit-test",
-		Reason: "absorbed: the whole-tree race pass is the five component groups a bare `le test-unit` sweeps (internal/le/testunit.sweep) beside the full non-race pass of `le verify-deps unit-cached`, so one ZE_PACKAGES command has no separate identity",
+		Reason: "absorbed: the whole-tree race pass is the five component groups a bare `le test-unit` sweeps (internal/le/testunit.sweep) beside the full non-race pass of `le verify deps unit-cached`, so one ZE_PACKAGES command has no separate identity",
 	},
 	{
 		Target: "ze-unit-rest-test",
-		Reason: "absorbed: the complement of the five component groups is selection.Rest, which planUnitRaceChanged appends to the race package list (internal/le/verifydeps/verifydeps.go), so the rest group has no command of its own",
+		Reason: "absorbed: the complement of the five component groups is selection.Rest, which planUnitRaceChanged appends to the race package list (internal/le/verify/deps/verifydeps.go), so the rest group has no command of its own",
 	},
 	{
 		Target: "ze-unit-test-coverage",

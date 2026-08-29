@@ -24,7 +24,7 @@ import (
 // name is the word this command is typed as.
 const name = "doc wiring"
 
-const actionRerun = "./le doc-wiring"
+const actionRerun = "./le doc wiring"
 
 // zeroArgumentActions holds exact actions that share this area but do not run
 // the changed-file router.
@@ -52,7 +52,7 @@ type checker struct {
 	report Report
 }
 
-// Answer is the `le doc-wiring` command.
+// Answer is the `le doc wiring` command.
 //
 // The templ-orphans action is exact and takes no arguments. A bare command and
 // the changed-file and dry-run keywords retain the router contract.

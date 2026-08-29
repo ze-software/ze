@@ -125,13 +125,13 @@ func classifyVerb(path string) string {
 	return "-"
 }
 
-// Answer is the `le command-list` command. It takes no arguments: the registry
+// Answer is the `le command list` command. It takes no arguments: the registry
 // is the product's own, and the rendering is the operator's to choose with a
 // pipe operator (ai/rules/cli.md).
 func Answer(args []string) (any, int) {
 	if len(args) > 0 {
 		fmt.Fprintf(os.Stderr, "error: command-list takes no arguments, got %q\n", args[0]) //nolint:errcheck // CLI output
-		fmt.Fprintln(os.Stderr, "usage: le command-list [| json | yaml | table]")           //nolint:errcheck // CLI output
+		fmt.Fprintln(os.Stderr, "usage: le command list [| json | yaml | table]")           //nolint:errcheck // CLI output
 		return nil, 1
 	}
 

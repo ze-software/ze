@@ -1,11 +1,11 @@
 // Design: docs/architecture/api/commands.md -- the command verb taxonomy
 //
-// report.go holds what `le command-list` ANSWERS, apart from what produced it.
+// report.go holds what `le command list` ANSWERS, apart from what produced it.
 //
 // The answer is a row per command, which is structured data every operator can
 // act on: `| json` feeds a script, `| match show` keeps one verb's rows,
 // `| count` says how many. It also renders ITSELF (Text), because the Markdown
-// table is what `./le command-list` prints and what a reader pastes into a
+// table is what `./le command list` prints and what a reader pastes into a
 // document.
 
 package commandlist
@@ -36,7 +36,7 @@ type Command struct {
 // straight out of it (internal/component/command/answer_shape.go, rowsIn).
 type Commands []Command
 
-// Text renders the inventory as the Markdown table `./le command-list` prints.
+// Text renders the inventory as the Markdown table `./le command list` prints.
 // It ends in a newline.
 //
 // This is the Prose rendering leroot uses for the bare command, and every pipe

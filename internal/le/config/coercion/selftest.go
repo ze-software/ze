@@ -5,7 +5,7 @@
 // reported nothing because its detection broke, and a guard over a clean tree,
 // print the same page, and this is what tells them apart.
 //
-// The table is declared ONCE and read twice: `le config-coercion selftest` runs
+// The table is declared ONCE and read twice: `le config coercion selftest` runs
 // it, and configcoercion_test.go runs the same rows so a failure names the case
 // rather than a count. A second copy of these fixtures is where the two would
 // begin to disagree about what the guard catches.

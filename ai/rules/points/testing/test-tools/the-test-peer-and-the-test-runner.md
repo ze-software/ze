@@ -1,6 +1,6 @@
 ---
 kind: directive
-level: MAY
+level: MUST
 stage:
 ---
 - `ze-peer` MAY be used as a BGP test peer through the owning native fixture.

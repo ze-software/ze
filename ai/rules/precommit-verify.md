@@ -69,7 +69,7 @@ certify one.
 | a path under `examples/plugin/go`, matched BEFORE the `.go` rule | no package. It is a separate module, so `go list ./...` never reports it and nothing here compiles or reads it. Ordering is load-bearing: the `.go` rule would seed a directory no package owns and widen the whole run |
 | a path under `gokrazy/modcache/` | no package. A third-party module cache every tree walker names in a skip list |
 | a `.go` file the unit tag set never compiles, in the module root | `./internal/le`, whose tree-walking tests read it. `./...` does not compile it either, so widening would buy nothing |
-| a `.go` file under `cmd/ze-installer` | `./...`. The row was no-widen until 2026-08-24. `internal/le/verifylint/matrix.go` now lints that package under a `ze_installer` flavor whenever the lint runs over `./...`. As a result, the wide answer is the only one that reports on an edit to the initrd's PID 1 |
+| a `.go` file under `cmd/ze-installer` | `./...`. The row was no-widen until 2026-08-24. `internal/le/verify/lint/matrix.go` now lints that package under a `ze_installer` flavor whenever the lint runs over `./...`. As a result, the wide answer is the only one that reports on an edit to the initrd's PID 1 |
 | a kind no rule names | the package it sits in when that directory holds Go source, the tooling packages otherwise. The path is NAMED on stderr, which is the evidence for writing it a rule |
 | nothing, and `tmp/ze-verify.status` holds no green commit | `./...`, and the widening names the condition. Without a proven commit, every commit in history is unverified, so a clean tree must not select nothing |
 
@@ -288,7 +288,7 @@ unreachable by construction. You MUST NOT wait for one and you MUST NOT re-run f
 | Clean and tracked, and unrelated to your diff | Pre-existing | Attribute it against `git log`, name it in `--unverified`, and commit |
 | Any deterministic structural gate | Yours until you prove otherwise | Fix it. Those read files rather than a moving tree. The helper drops the charge only when every file the failure groups name lies outside your commit |
 
-**A structural gate red is charged to your commit unless EVERY file its failure groups name lies outside your `--file` list. You MUST NOT expect attribution to drop a red whose groups name no file at all.** `structural_gate_reds` (`internal/le/commit`) reports three sets: `charged` refuses the commit, `foreign` names each gate the file list ruled out, and `unattributed` names each group that carries a check name, a suite name or the stage's own name. A group that names nothing is charged exactly as before, and the refusal prints which one it was. Attribution reaches the gates whose groups name a file or a package directory, and `./le doc wiring` is one of them: its sub-checks declare their own failure groups (`declare_failure_group`, `internal/le/docwiring/docwiring.go`). Its ci-sleep ratchet and its delegated targets judge a population rather than a file, so those two still charge.
+**A structural gate red is charged to your commit unless EVERY file its failure groups name lies outside your `--file` list. You MUST NOT expect attribution to drop a red whose groups name no file at all.** `structural_gate_reds` (`internal/le/commit`) reports three sets: `charged` refuses the commit, `foreign` names each gate the file list ruled out, and `unattributed` names each group that carries a check name, a suite name or the stage's own name. A group that names nothing is charged exactly as before, and the refusal prints which one it was. Attribution reaches the gates whose groups name a file or a package directory, and `./le doc wiring` is one of them: its sub-checks declare their own failure groups (`declare_failure_group`, `internal/le/doc/wiring/docwiring.go`). Its ci-sleep ratchet and its delegated targets judge a population rather than a file, so those two still charge.
 
 | What the red gate's failure groups name | What the helper does | What you do |
 |---|---|---|
@@ -301,7 +301,7 @@ unreachable by construction. You MUST NOT wait for one and you MUST NOT re-run f
 | `./le verify lint run`, `./le changed scope` | the `.go` file each finding sits in | a drop when none of them is in your `--file` list |
 | `ze-evidence-vet` | the package pattern of each red | a drop when your list holds no file under it |
 | `./le doc wiring` | the files each sub-check is about, one declared group per failure | a drop, except for the ci-sleep ratchet and a delegated target, which name no file and charge |
-| Every other stage, `./le repository generated-check`, `./le doc check links` and `./le test-weakened check` among them | the stage's own name, through `genericGroup` (`internal/le/verifyengine/run.go`) | a charge, always. Read that stage's log and attribute the red by hand |
+| Every other stage, `./le repository generated-check`, `./le doc check links` and `./le test-weakened check` among them | the stage's own name, through `genericGroup` (`internal/le/verify/engine/run.go`) | a charge, always. Read that stage's log and attribute the red by hand |
 
 `./le doc wiring` is the gate most open `structural gates (red)` rows in
 `plan/verification-debt/` name, so attribution now reaches the largest single
@@ -317,7 +317,7 @@ files this commit carries cannot have caused the red. It never says the red is
 somebody else's work rather than yours from an earlier session.
 
 The declared-group protocol is available to EVERY stage, not only this one
-(`parseDeclaredGroups` and `classifyStage`, `internal/le/verifyengine/run.go`).
+(`parseDeclaredGroups` and `classifyStage`, `internal/le/verify/engine/run.go`).
 Teaching another producer to declare its groups is separable work with its own
 evidence, and until it is done that stage's red charges whoever is committing.
 
@@ -500,7 +500,7 @@ commit a CONSUMER while its PRODUCER stays uncommitted: it is green for you and
 broken for everybody who builds what git holds. This is a structural blind
 spot.
 
-`./le repository tracked-build check` (`internal/le/repositorytrackedbuild/repositorytrackedbuild.go`) is the one
+`./le repository tracked-build check` (`internal/le/repository/trackedbuild/repositorytrackedbuild.go`) is the one
 check that reads what git holds: it extracts the commit with `git archive` and
 compiles six build flavors of the extracted tree. Three rules follow.
 
@@ -530,22 +530,22 @@ tree in place for inspection.
 test file committed without its fixture producer stays invisible here.
 
 `./le doc check verify` and `./le repository generated-check` are separate
-native actions. `internal/le/docwiring.Verify` owns the ordered documentation
+native actions. `internal/le/doc/wiring.Verify` owns the ordered documentation
 gate, including `internal/le/docvalid` command and drift checks,
-`internal/le/doccheck` links, and RFC freshness. `internal/le/repository` owns
+`internal/le/doc/check` links, and RFC freshness. `internal/le/repository` owns
 generated repository artifacts. Run the documentation action when the changed
 surface selects it; never invoke a retired producer directly.
 
 This list is the prose mirror of `STRUCTURAL_GATES` in `internal/le/commit`,
 and every name in it must be a stage `stagesForMode` actually emits
-(`internal/le/verifyengine/run.go`) -- otherwise the entry matches nothing and gates
+(`internal/le/verify/engine/run.go`) -- otherwise the entry matches nothing and gates
 nothing. `test_structural_gates_are_live_stages` (`internal/le/commit/commit_test.go`)
-and `TestStructuralGatesAreLiveStages` (`internal/le/verifyengine/verifyengine_test.go`) enforce
+and `TestStructuralGatesAreLiveStages` (`internal/le/verify/engine/verifyengine_test.go`) enforce
 that. Every named gate is a live verify stage. The underlying CLI grammar gate
 runs through `TestCLIGrammarGateStatic` (`internal/le/cligrammar/cligrammar_test.go`).
 
 This is enforced, not honor-system: `./le commit create` reads
-the native failure index produced by `internal/le/verifyengine` and refuses to prepare
+the native failure index produced by `internal/le/verify/engine` and refuses to prepare
 a script while `structuralGateReds` in `internal/le/commit/verification.go`
 charges a deterministic structural red to this commit.
 A red is charged unless every file its failure groups name lies outside the
@@ -565,7 +565,7 @@ The pass clears no row whose gate no command produces. A row naming
 `independent critical review` prints UNRUNNABLE and stays open, and a row naming
 a gate string the runner table does not hold stays open the same way. Those rows
 are answered by doing the work the row names, which for a review is `/ze-review`
-recorded through `internal/le/specsession/review.go`. Read what the pass printed before
+recorded through `internal/le/spec/session/review.go`. Read what the pass printed before
 you report the ledger clear.
 
 ## Concurrency

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	pluginGenerator = "internal/le/pluginimports/pluginimports.go"
+	pluginGenerator = "internal/le/plugin/imports/pluginimports.go"
 	generatedAll    = "internal/component/plugin/all/all.go"
 )
 

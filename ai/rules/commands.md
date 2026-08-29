@@ -297,7 +297,7 @@ Before claiming any Go implementation work is done, run:
 
 **You MUST lint through `./le verify lint run`, never by calling
 `golangci-lint` directly.** The native action derives the pinned toolchain and
-every build flavor through `internal/le/verifylint`; a bare invocation inherits
+every build flavor through `internal/le/verify/lint`; a bare invocation inherits
 host defaults and can report an environment failure as a code finding.
 
 The same rule applies to every tool whose native action configures its
@@ -313,7 +313,7 @@ The native action starts with the host build, then runs `GOOS=linux` with the
 `integration` build tag. The second pass is the only one that reads a
 `//go:build integration` file. On a non-Linux host it is also the only one that
 reads a `//go:build linux` file. The rest come from
-`internal/le/verifylint/matrix.go`, one for each personality tag (`ze_installer`,
+`internal/le/verify/lint/matrix.go`, one for each personality tag (`ze_installer`,
 `ze_distro`, `ze_appliance`, `ze_setup`), the capability tags, `tinygo`, and each
 GOOS and GOARCH a tracked file names. Each flavor lints only the packages holding
 a file the first two passes do not load. That package set is derived from the

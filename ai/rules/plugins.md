@@ -787,7 +787,7 @@ plugin's commands.
 #### How to carve a command into its owner
 
 1. **Handler:** add `func init() { pluginserver.RegisterRPCs(...) }` + the handler in the owner package. If the owner package is already blank-imported (it has a `register.go` found by the generator's `pluginDirs`, or sits in `rpcDirs`), the registration links with NO generator or manual-island change. The handler imports only `plugin` + `pluginserver` (+ the owner's own API), so it does not create an import cycle.
-2. **Schema (container merge, NOT `augment`):** add `<owner>/yang/ze-<x>-cmd.yang`, a standalone module that re-declares the path from the root: `container show { container <x> { ... ze:command "ze-show:<x>"; } }`. The YANG loader unions same-named top-level containers across all registered modules, so the owner module needs no `import`/`augment` of the central schema and has no base-module coupling. Give it a unique `namespace`/`prefix` and `import ze-extensions`. Add the embed var + `yang.RegisterModule` call. A NEW `<owner>/yang/` package whose `register.go` imports `config/yang` is auto-discovered, so run `go run internal/le/pluginimports/pluginimports.go` to refresh `internal/component/plugin/all/all.go`.
+2. **Schema (container merge, NOT `augment`):** add `<owner>/yang/ze-<x>-cmd.yang`, a standalone module that re-declares the path from the root: `container show { container <x> { ... ze:command "ze-show:<x>"; } }`. The YANG loader unions same-named top-level containers across all registered modules, so the owner module needs no `import`/`augment` of the central schema and has no base-module coupling. Give it a unique `namespace`/`prefix` and `import ze-extensions`. Add the embed var + `yang.RegisterModule` call. A NEW `<owner>/yang/` package whose `register.go` imports `config/yang` is auto-discovered, so run `go run internal/le/plugin/imports/pluginimports.go` to refresh `internal/component/plugin/all/all.go`.
 3. **Schema location:** the command YANG MUST live in `<owner>/yang/` (top level, sibling of `cli`/`cmd`), and MUST NOT be nested under `<owner>/cmd/yang`.
 4. **Both halves of the invariant:** the owner `yang/` gets a presence test asserting its command tokens ARE declared; the central verb schema test bans the moved tokens (below).
 
@@ -914,10 +914,10 @@ Do not copy-paste the severity choice between plugins: judge each one on what ac
 
 ### The mechanical check
 
-`./le plugin boundary check` (wired into `./le verify current mode full`/`./le verify current mode changed`) runs `internal/le/pluginboundary/pluginboundary.go`: it scans every package under the generator's plugin search roots, derived at runtime from `internal/le/pluginimports/pluginimports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list, for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
-<!-- source: internal/le/pluginboundary/pluginboundary.go -- loadScanRootsFrom -->
+`./le plugin boundary check` (wired into `./le verify current mode full`/`./le verify current mode changed`) runs `internal/le/plugin/boundary/pluginboundary.go`: it scans every package under the generator's plugin search roots, derived at runtime from `internal/le/plugin/imports/pluginimports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list, for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
+<!-- source: internal/le/plugin/boundary/pluginboundary.go -- loadScanRootsFrom -->
 
-Add a new entry to `internal/le/pluginboundary/pluginboundary.go`'s `dangerousCalls` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.
+Add a new entry to `internal/le/plugin/boundary/pluginboundary.go`'s `dangerousCalls` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.
 
 ## Registration-Based Dispatch
 
@@ -990,7 +990,7 @@ this list is illustrative.
 Read this before touching `feature-gates.txt`, `cmd/ze/hub/service_registry.go`,
 a `register_<x>.go` or `service_<x>.go` file, an `*_infra.go` seam,
 `internal/le/gotoolchain`, `.golangci.yml` build tags, `TestBuildTags`,
-`internal/le/pluginimports`, or `internal/le/tier`.
+`internal/le/plugin/imports`, or `internal/le/tier`.
 
 Companion rule: `ai/rules/architecture.md` (disable-ability + the gate). Inside
 this file: "Plugin Self-Containment" (the delete-the-folder invariant) and
@@ -1031,7 +1031,7 @@ DERIVES from this file**. Do NOT hand-edit a parallel list:
 |----------|------|-----------|
 | `internal/le/gotoolchain` | feature tags for native builds and tests | reads `feature-gates.txt` |
 | `internal/test/runner` `TestBuildTags` | tags for the functional-test daemon | reads `feature-gates.txt` |
-| `internal/le/pluginimports` | gated composition imports | reads `feature-gates.txt` |
+| `internal/le/plugin/imports` | gated composition imports | reads `feature-gates.txt` |
 | `internal/le/tier` | disable-able package import checks | reads `feature-gates.txt` |
 | `./le stress-repro run` | full-feature race build | uses the native Go toolchain configuration |
 | `.golangci.yml` `build-tags` | lint feature-on build | generated by `./le feature-tags write` |
@@ -1050,7 +1050,7 @@ DERIVES from this file**. Do NOT hand-edit a parallel list:
 6. Write present/absent build-tag tests: `cmd/ze/hub/build_tag_<x>_present_test.go` (`//go:build ze_<x>`) and `_absent_test.go` (`//go:build !ze_<x>`); an absent test asserts via `go tool nm` that zero feature symbols are linked.
 
 That is the whole list. Step 3 (edit `feature-gates.txt`) is the ONLY manifest
-declaration point. The native runner, `internal/le/pluginimports`,
+declaration point. The native runner, `internal/le/plugin/imports`,
 `internal/le/featuretags`, tier checks, and stress tooling all derive from it.
 `./le repository generate` refreshes every generated consumer. There is nothing to hand-sync.
 

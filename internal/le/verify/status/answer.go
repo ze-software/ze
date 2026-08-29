@@ -149,5 +149,5 @@ func actions() Actions {
 }
 
 func refuse(message string) {
-	leaction.ReportError(errors.New("verify-status: " + message))
+	leaction.ReportError(errors.New(name + ": " + message))
 }

@@ -6,6 +6,7 @@ package lepath
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -14,12 +15,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const sessionRoot = "session"
+
+// procRoot is the Linux process filesystem. A host without it falls back to ps.
+const procRoot = "/proc"
 
 // SessionPaths is one session's identity and checkout-root-relative paths.
 // Dir owns all session state. Scratch is the subdirectory for temporary work.
@@ -70,7 +75,9 @@ func resolveSession(root string, ensureScratch bool, process sessionProcess) (Se
 	if !ensureScratch {
 		return paths, nil
 	}
-	if err := os.MkdirAll(filepath.Join(absoluteRoot, paths.Scratch), 0o777); err != nil {
+	// 0o777 is deliberate: every agent account on this host shares one session
+	// scratch tree, and a narrower mode locks the second account out of it.
+	if err := os.MkdirAll(filepath.Join(absoluteRoot, paths.Scratch), 0o777); err != nil { //nolint:gosec // shared across agent accounts, see above
 		return SessionPaths{}, fmt.Errorf("create session scratch %s: %w", paths.Scratch, err)
 	}
 	return paths, nil
@@ -208,7 +215,8 @@ func mintSessionID(root string, process sessionProcess) (string, error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("read session identity cache %s: %w", cache, err)
 	}
-	if err := os.MkdirAll(cacheDir, 0o777); err != nil {
+	// 0o777 is deliberate: the identity cache is shared by every agent account.
+	if err := os.MkdirAll(cacheDir, 0o777); err != nil { //nolint:gosec // shared across agent accounts, see above
 		return "", fmt.Errorf("create session identity cache directory %s: %w", cacheDir, err)
 	}
 	minted, err := randomSessionID()
@@ -235,7 +243,7 @@ func mintSessionID(root string, process sessionProcess) (string, error) {
 }
 
 func readCachedSessionID(path string) (string, error) {
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path) //nolint:gosec // path is the identity cache this package composes
 	if err != nil {
 		return "", err
 	}
@@ -248,7 +256,8 @@ func readCachedSessionID(path string) (string, error) {
 }
 
 func writeSessionID(path, id string) error {
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o666)
+	// 0o666 is deliberate: the identity cache is rewritten by every agent account.
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o666) //nolint:gosec // shared across agent accounts, see above
 	if err != nil {
 		return err
 	}
@@ -364,10 +373,8 @@ func processIsCLI(process sessionProcess, pid int) bool {
 	}
 	argv, _ := process.Argv(pid)
 	for _, argument := range argv {
-		for _, component := range strings.Split(argument, "/") {
-			if component == "claude" {
-				return true
-			}
+		if slices.Contains(strings.Split(argument, "/"), "claude") {
+			return true
 		}
 	}
 	return false
@@ -387,7 +394,7 @@ func (nativeProcess) PID() int { return os.Getpid() }
 
 func (nativeProcess) ps(pid int, field string) (string, error) {
 	//nolint:gosec // pid is a numeric process identifier and field is a package constant
-	output, err := exec.Command("ps", "-o", field, "-p", strconv.Itoa(pid)).Output()
+	output, err := exec.CommandContext(context.Background(), "ps", "-o", field, "-p", strconv.Itoa(pid)).Output()
 	if err != nil {
 		return "", err
 	}
@@ -395,7 +402,7 @@ func (nativeProcess) ps(pid int, field string) (string, error) {
 }
 
 func (nativeProcess) parentPID(pid int) (int, error) {
-	content, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "status"))
+	content, err := os.ReadFile(filepath.Join(procRoot, strconv.Itoa(pid), "status"))
 	if err != nil {
 		parent, psErr := (nativeProcess{}).ps(pid, "ppid=")
 		if psErr != nil {
@@ -417,7 +424,7 @@ func (nativeProcess) parentPID(pid int) (int, error) {
 }
 
 func (nativeProcess) Argv(pid int) ([]string, error) {
-	content, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "cmdline"))
+	content, err := os.ReadFile(filepath.Join(procRoot, strconv.Itoa(pid), "cmdline"))
 	if err != nil {
 		command, psErr := (nativeProcess{}).ps(pid, "command=")
 		if psErr != nil {
@@ -436,7 +443,7 @@ func (nativeProcess) Argv(pid int) ([]string, error) {
 }
 
 func (nativeProcess) comm(pid int) (string, error) {
-	content, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "comm"))
+	content, err := os.ReadFile(filepath.Join(procRoot, strconv.Itoa(pid), "comm"))
 	if err != nil {
 		return (nativeProcess{}).ps(pid, "comm=")
 	}
@@ -444,7 +451,7 @@ func (nativeProcess) comm(pid int) (string, error) {
 }
 
 func (nativeProcess) Start(pid int) (string, error) {
-	content, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "stat"))
+	content, err := os.ReadFile(filepath.Join(procRoot, strconv.Itoa(pid), "stat"))
 	if err != nil {
 		return (nativeProcess{}).ps(pid, "lstart=")
 	}

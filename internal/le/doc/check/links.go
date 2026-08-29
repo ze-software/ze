@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/le/doc/wiring"
 )
 
-const baselineRel = "internal/le/doccheck/testdata/doc_citation_baseline.txt"
+const baselineRel = "internal/le/doc/check/testdata/doc_citation_baseline.txt"
 const baselineGrowthShown = 10
 
 var markdownGlobs = [...]string{
@@ -42,7 +42,40 @@ var markdownGlobs = [...]string{
 	"plan/learned/DESIGN-HISTORY.md",
 }
 
-var citationExcludePrefixes = [...]string{"vendor/", "third_party/", "plan/handover/"}
+// citationExcludePrefixes names the trees whose prose is not policed for a
+// path that no longer resolves.
+//
+// The plan trees are RECORDS, and that is the whole reason (owner decision,
+// 2026-08-29). A spec, a journal row, a deferral and a debt row each describe
+// what was true when it was written, so a path inside one is a fact about that
+// moment rather than a claim about the tree today. Repointing it at whatever
+// replaced the file rewrites the record into something that was never true, and
+// leaving it dangling is not a defect to be repaired later: it is the record
+// working. A rename that moves a package therefore owes these trees nothing.
+//
+// The cost of the opposite policy was measured. One package rename left 383
+// dangling references across plan/, and the gate reported them as breakage of
+// the same kind as a live doc pointing at a deleted file. Chasing them touched
+// hundreds of historical files, each edit racing another session that was
+// writing its own rows, to make records say something they had not said.
+//
+// Live instruction files under plan/ stay in scope and are listed by name in
+// markdownGlobs: plan/README.md, the two templates, and the learned indexes.
+// Those are read for what is true NOW, so a dead path in one misleads.
+//
+// The rule for everything else is fix-on-touch: repair a stale path in a file
+// you are already editing for another reason, and leave the rest alone.
+var citationExcludePrefixes = [...]string{
+	"vendor/",
+	"third_party/",
+	"plan/handover/",
+	"plan/spec-",
+	"plan/journal/",
+	"plan/verification-debt/",
+	"plan/deferrals/",
+	"plan/future/",
+	"plan/known-failures/",
+}
 
 type citationPair struct {
 	citer  string
@@ -325,10 +358,10 @@ func sweepTracked(root string, _ bool) (result trackedSweep, err error) {
 }
 
 func sweepExcluded(rel string) bool {
-	if rel == "internal/le/doccheck/links.go" {
+	if rel == "internal/le/doc/check/links.go" {
 		return true
 	}
-	if rel == "internal/le/doccheck/links_test.go" {
+	if rel == "internal/le/doc/check/links_test.go" {
 		return true
 	}
 	return false

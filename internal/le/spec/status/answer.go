@@ -103,6 +103,6 @@ func reportError(err error) {
 }
 
 func refuseStatus(got string) int {
-	fmt.Fprintf(os.Stderr, "usage: le spec-status [closure list|closure check spec <name>] (got %q)\n", got) //nolint:errcheck // CLI output
+	fmt.Fprintf(os.Stderr, "usage: le spec status [closure list|closure check spec <name>] (got %q)\n", got) //nolint:errcheck // CLI output
 	return 2
 }

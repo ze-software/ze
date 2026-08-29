@@ -384,7 +384,7 @@ func TestVerifyInstallsPinnedNativeTools(t *testing.T) {
 	source := stripComments(workflowSource(t, "verify.yml"))
 	for _, command := range []string{
 		"github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1",
-		"honnef.co/go/tools/cmd/staticcheck@2026.1",
+		"honnef.co/go/tools/cmd/staticcheck@2026.2.1",
 		"golang.org/x/vuln/cmd/govulncheck@v1.4.0",
 	} {
 		if strings.Count(source, command) != 1 {

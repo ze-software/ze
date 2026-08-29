@@ -19,7 +19,7 @@ wrong reason or loses the output it was watching for.
 This has already recurred here often enough to earn a gate. A log subsystem was
 registered as `bgp-adj-rib-in` when the real key is `ze.log.bgp.adj.rib.in`; the
 key set nothing, the level stayed at the WARN default, and the test quietly lost
-the lines it existed to assert on. `internal/le/docwiring/docwiring.go` was
+the lines it existed to assert on. `internal/le/doc/wiring/docwiring.go` was
 written to catch that one shape after it landed three times, and it can only
 check hyphen-bearing subsystems declared literally in Go source. A constant
 would have made all three a compile error at the first occurrence.

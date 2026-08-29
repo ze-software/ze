@@ -70,13 +70,13 @@ func Answer(args []string) (any, int) {
 
 func parse(args []string) (string, []string, error) {
 	if len(args) == 0 || args[0] != runAction {
-		return "", nil, errors.New("verify-lock: expected " + usage)
+		return "", nil, errors.New(name + ": " + "expected " + usage)
 	}
 	if len(args) < 3 || args[1] != labelKeyword || args[2] == "" {
-		return "", nil, errors.New("verify-lock: expected " + usage)
+		return "", nil, errors.New(name + ": " + "expected " + usage)
 	}
 	if len(args) < 5 || args[3] != commandKeyword {
-		return "", nil, errors.New("verify-lock: expected " + usage)
+		return "", nil, errors.New(name + ": " + "expected " + usage)
 	}
 	return args[2], args[4:], nil
 }

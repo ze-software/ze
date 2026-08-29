@@ -308,7 +308,14 @@ func stageLogPath(logDir string, number int, stage string) string {
 	if number < 10 {
 		text.Byte('0')
 	}
+	// Both separators flatten to a hyphen, so an artifact path never moves and
+	// never holds a space. A stage names a command and its verb, and a command
+	// is now an object and a member: `verify lint/run` is three words and one
+	// file, 01-verify-lint-run.log, which is the name it had when the command
+	// was spelled verify-lint. The failure index, every rerun line and the
+	// functional fixtures all read these paths.
 	stage = strings.ReplaceAll(stage, "/", "-")
+	stage = strings.ReplaceAll(stage, " ", "-")
 	name := text.Int(int64(number)).Byte('-').Str(stage).Str(".log").String()
 	return filepath.ToSlash(filepath.Join(logDir, name))
 }

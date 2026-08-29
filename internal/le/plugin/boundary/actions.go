@@ -39,10 +39,10 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le plugin-boundary` command.
+// Answer is the `le plugin boundary` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// runCheck is the `le plugin-boundary check` action.
+// runCheck is the `le plugin boundary check` action.
 func runCheck() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
@@ -63,5 +63,5 @@ func runCheck() (any, int) {
 	return findings, 0
 }
 
-// runRoots is the `le plugin-boundary roots` action.
+// runRoots is the `le plugin boundary roots` action.
 func runRoots() (any, int) { return RootList(Roots()), 0 }

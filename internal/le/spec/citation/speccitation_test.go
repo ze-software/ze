@@ -51,7 +51,7 @@ func TestValidSiblingCitationPasses(t *testing.T) {
 	if code := verdict(report); code != 0 {
 		t.Fatalf("verdict = %d, want 0", code)
 	}
-	if got, want := report.Text(), "./le spec-citation OK (2 specs, 0 baselined dangling)\n"; got != want {
+	if got, want := report.Text(), "./le spec citation OK (2 specs, 0 baselined dangling)\n"; got != want {
 		t.Errorf("Text:\n%s\nwant:\n%s", got, want)
 	}
 }
@@ -72,7 +72,7 @@ func TestDanglingCitationIsStructuredAndFatal(t *testing.T) {
 	if code := verdict(report); code != 1 {
 		t.Fatalf("verdict = %d, want 1", code)
 	}
-	want := "./le spec-citation FAILED: dangling plan/spec-*.md references\n" +
+	want := "./le spec citation FAILED: dangling plan/spec-*.md references\n" +
 		"  plan/spec-a.md:2: references plan/spec-gone.md which is absent on disk (not in baseline)\n" +
 		"\n1 dangling reference(s). Either fix the citing reference, or -- if the target is legitimately gone -- add it to plan/.citation-baseline.\n"
 	if got := report.Text(); got != want {
@@ -122,7 +122,7 @@ func TestBaselineShrinkPasses(t *testing.T) {
 		"plan/.citation-baseline": "# all known dangling references were cleaned\n",
 		"plan/spec-a.md":          "No citation remains.\n",
 	})
-	if got, want := report.Text(), "./le spec-citation OK (1 specs, 0 baselined dangling)\n"; got != want {
+	if got, want := report.Text(), "./le spec citation OK (1 specs, 0 baselined dangling)\n"; got != want {
 		t.Errorf("Text = %q, want %q", got, want)
 	}
 }
@@ -137,7 +137,7 @@ func TestUnreferencedBaselineEntryDoesNotBlockCleanup(t *testing.T) {
 	if code := verdict(report); code != 0 {
 		t.Fatalf("verdict = %d, want 0", code)
 	}
-	if got, want := report.Text(), "./le spec-citation OK (1 specs, 1 baselined dangling)\n"; got != want {
+	if got, want := report.Text(), "./le spec citation OK (1 specs, 1 baselined dangling)\n"; got != want {
 		t.Errorf("Text = %q, want %q", got, want)
 	}
 }
@@ -161,7 +161,7 @@ func TestTokenDriftWarnsWithoutFailing(t *testing.T) {
 		t.Fatalf("verdict = %d, want advisory code 0", code)
 	}
 	want := "WARN plan/spec-a.md:1: citation `src/foo.go:2` no longer shows token `oldToken` on that line (line-token drift)\n" +
-		"./le spec-citation OK (1 specs, 0 baselined dangling, 1 line-token WARN)\n"
+		"./le spec citation OK (1 specs, 0 baselined dangling, 1 line-token WARN)\n"
 	if got := report.Text(); got != want {
 		t.Errorf("Text:\n%s\nwant:\n%s", got, want)
 	}

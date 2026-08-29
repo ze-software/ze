@@ -1,4 +1,4 @@
-// Design: plan/spec-le-is-a-ze-binary.md -- native port of internal/le/yangmigration/actions.go
+// Design: plan/spec-le-is-a-ze-binary.md -- native port of internal/le/yang/migration/actions.go
 package yangmigration
 
 import (

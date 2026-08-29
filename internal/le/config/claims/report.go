@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md -- the claim gate's answer
 //
-// report.go holds what `le config-claims` ANSWERS, apart from what produced it.
+// report.go holds what `le config claims` ANSWERS, apart from what produced it.
 //
 // The answer is the inventory the gate read and the findings it drew, which is
 // structured data an operator can act on: `| json` feeds a script and `| yaml`

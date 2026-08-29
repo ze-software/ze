@@ -28,7 +28,7 @@ func (r ClaimReport) Text() string {
 		}
 		return tb.Str("\n  Closing a spec: /ze-close (learned summary + git rm).\n").
 			Str("  Deliberately going wider: ZE_SPEC_WIP_CAP=").Int(int64(r.InProgress + 1)).
-			Str(" le spec-session claim spec ").Str(r.Spec).Byte('\n').String()
+			Str(" le spec session claim spec ").Str(r.Spec).Byte('\n').String()
 	}
 	tb.Str("claimed ").Str(r.Spec)
 	if r.Transitioned {

@@ -124,7 +124,7 @@ func TestNativeDocIndexAndSpecCitationCallbacksPreserveFixtureVerdicts(t *testin
 		t.Errorf("stale doc index code=%d output=%q", code, prose(payload))
 	}
 	if payload, code := answerSpecCitation(root); code != 0 ||
-		!strings.Contains(prose(payload), "./le spec-citation OK") {
+		!strings.Contains(prose(payload), "./le spec citation OK") {
 		t.Errorf("clean spec citation code=%d output=%q", code, prose(payload))
 	}
 
@@ -132,7 +132,7 @@ func TestNativeDocIndexAndSpecCitationCallbacksPreserveFixtureVerdicts(t *testin
 		t.Fatal(err)
 	}
 	payload, code := answerSpecCitation(root)
-	if code != 1 || !strings.Contains(prose(payload), "./le spec-citation FAILED") {
+	if code != 1 || !strings.Contains(prose(payload), "./le spec citation FAILED") {
 		t.Errorf("dangling spec citation code=%d output=%q", code, prose(payload))
 	}
 }

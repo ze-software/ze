@@ -120,7 +120,7 @@ func floorFindings(roots, claimed int) []string {
 	return findings
 }
 
-// Answer is the `le config-claims` command. The tree it judges is the linked
+// Answer is the `le config claims` command. The tree it judges is the linked
 // registry rather than a directory, so the command takes no argument at all.
 func Answer(args []string) (any, int) {
 	if len(args) > 0 {

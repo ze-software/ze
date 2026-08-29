@@ -43,13 +43,13 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le repository-tracked-build` command.
+// Answer is the `le repository tracked-build` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// runMatrix is the `le repository-tracked-build matrix` action.
+// runMatrix is the `le repository tracked-build matrix` action.
 func runMatrix() (any, int) { return buildMatrix, 0 }
 
-// runCheck is the `le repository-tracked-build check` action.
+// runCheck is the `le repository tracked-build check` action.
 //
 // The three codes stay apart: 0 for a commit that compiles, 1 for one that does
 // not, and 2 for a run that could not judge it. A killed build and a broken

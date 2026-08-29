@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/commands.md -- the ownership gate's answer
 //
-// report.go holds what `le command-ownership` ANSWERS, apart from what produced
+// report.go holds what `le command ownership` ANSWERS, apart from what produced
 // it.
 //
 // The answer IS the rows, so the payload is a slice rather than a struct

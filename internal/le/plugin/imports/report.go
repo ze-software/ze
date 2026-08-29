@@ -38,7 +38,7 @@ type Counts struct {
 	GatedGroups int `json:"gated-groups"`
 }
 
-// CheckReport is what `le plugin-imports check` answers.
+// CheckReport is what `le plugin imports check` answers.
 type CheckReport struct {
 	Counts
 	// Files names every generated file the run compared, relative to the tree,
@@ -56,14 +56,14 @@ func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
 
 	if r.Stale != "" {
-		return tb.Str("./le plugin-imports check: ").Str(r.Stale).Byte(' ').Str(r.Reason).
-			Str("; run ./le plugin-imports write\n").String()
+		return tb.Str("./le plugin imports check: ").Str(r.Stale).Byte(' ').Str(r.Reason).
+			Str("; run ./le plugin imports write\n").String()
 	}
 
 	return tb.Str(allFile).Str(" is current (").Str(r.Counts.text()).Str(")\n").String()
 }
 
-// WriteReport is what `le plugin-imports write` answers.
+// WriteReport is what `le plugin imports write` answers.
 type WriteReport struct {
 	Counts
 	// Written names every generated file whose bytes this run changed, relative

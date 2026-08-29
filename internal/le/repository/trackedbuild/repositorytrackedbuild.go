@@ -44,7 +44,7 @@ import (
 // its own: the tree is the checkout and the rendering is a pipe operator.
 //
 // RevKey carries the retained REV environment alias, so
-// `REV=<sha> ./le repository-tracked-build check` keeps working.
+// `REV=<sha> ./le repository tracked-build check` keeps working.
 const (
 	RevKey      = "ze.tracked.build.rev"
 	KeepKey     = "ze.tracked.build.keep"
@@ -70,7 +70,7 @@ var revEntry = env.MustRegister(env.EnvEntry{
 	Default:     "HEAD",
 	Description: "the commit this gate compiles; a past sha reproduces a break that has already landed",
 	// REV is retained as an environment alias so
-	// `REV=<sha> ./le repository-tracked-build check` reproduces a past build.
+	// `REV=<sha> ./le repository tracked-build check` reproduces a past build.
 	Aliases: []string{"REV"},
 	// Private keeps the key out of `ze env list`. It names a build-host commit
 	// and an operator has nothing to do with it.

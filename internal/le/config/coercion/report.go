@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md -- the coercion guard's answers
 //
-// report.go holds what the two actions of `le config-coercion` ANSWER, apart
+// report.go holds what the two actions of `le config coercion` ANSWER, apart
 // from what produced them.
 //
 // Each answer IS its rows, so each payload is a slice rather than a struct

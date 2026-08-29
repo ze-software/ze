@@ -5,7 +5,7 @@ stage:
 ---
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
-| `bashWorktreeCopy` | `ai/INSTRUCTIONS.md` prohibition, no rule point | Bash | Blocks copies, moves, installs, rsync, and redirects from `.claude/worktrees`. BLOCKING. |
+| `bashWorktreeCopy` | `ai/INSTRUCTIONS.md` prohibition, no rule point | Bash | Blocks copies, moves, installs, rsync, and redirects from `.claude/worktrees`. BLOCKING. | <!-- doc-links: ignore (.claude/worktrees is created at runtime by a worktree agent and is never tracked) -->
 | `bashDestructiveGit` | `git-safety.md` | Bash | Blocks destructive and repository-changing git verbs. `git restore --staged` remains permitted. BLOCKING. |
 | `bashRootBuild` | build hygiene, no rule point | Bash | Blocks `go build` that would place a binary at the repository root, while explicit session or `bin/` outputs pass. BLOCKING. |
 | `bashLossyPipe` | `commands.md` | Bash | Blocks a lossy filter after an expensive command and directs the output to a log. BLOCKING. |

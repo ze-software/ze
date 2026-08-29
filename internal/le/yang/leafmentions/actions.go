@@ -31,10 +31,10 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le yang-leaf-mentions` command.
+// Answer is the `le yang leaf-mentions` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// runReport is the `le yang-leaf-mentions report` action.
+// runReport is the `le yang leaf-mentions report` action.
 //
 // It answers 0 for any tree it could read, findings or none: the signal is a
 // heuristic, so a finding is a candidate to read rather than a defect. A tree

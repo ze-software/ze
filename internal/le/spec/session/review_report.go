@@ -80,7 +80,7 @@ func (c ReviewCheck) Text() string {
 	switch c.Reason {
 	case reasonMissing:
 		tb.Str("review-gate: BLOCKED — no independent-review artifact at ").Str(c.Path).Str("\n").
-			Str("  Run an INDEPENDENT critical review (subagents / fresh session, never your own inline reasoning) and record it with le spec-session review record. See ai/rules/planning.md.\n")
+			Str("  Run an INDEPENDENT critical review (subagents / fresh session, never your own inline reasoning) and record it with le spec session review record. See ai/rules/planning.md.\n")
 	case keywordVerdict:
 		tb.Str("review-gate: BLOCKED — review artifact ").Str(c.Path).Str(" verdict is '").Str(c.Verdict).Str("', not clean\n").
 			Str("  Fix every BLOCKER/ISSUE, then re-run the independent review to a clean pass.\n")

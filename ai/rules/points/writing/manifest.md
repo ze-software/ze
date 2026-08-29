@@ -74,6 +74,7 @@ documentation ## Documentation
   validation
   run-native-doc-check-after-editing-any-file-under-docs
   native-doc-check-runs-on-demand-not-inside-native-verify
+  a-path-in-a-record-is-a-fact-about-when-it-was-written
   not-documentation
   where-non-documentation-text-is-covered
 comparison-honesty ## Comparison Honesty

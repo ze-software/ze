@@ -16,7 +16,7 @@ import (
 
 const commandName = "spec session"
 
-// Answer is `le spec-session`. Every value follows a closed keyword.
+// Answer is `le spec session`. Every value follows a closed keyword.
 func Answer(args []string) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -332,7 +332,7 @@ func firstArgument(args []string, index int) string {
 }
 
 func refuseLifecycle(got string) int {
-	fmt.Fprintf(os.Stderr, "usage: le spec-session {claim spec <spec>|current|release|wip|state current|state latest spec <stem>|model current [transcript <absolute-path>]|review <hash|record|check>} (got %q)\n", got) //nolint:errcheck // CLI output
+	fmt.Fprintf(os.Stderr, "usage: le spec session {claim spec <spec>|current|release|wip|state current|state latest spec <stem>|model current [transcript <absolute-path>]|review <hash|record|check>} (got %q)\n", got) //nolint:errcheck // CLI output
 	return 2
 }
 

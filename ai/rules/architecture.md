@@ -236,7 +236,7 @@ Decide the tier by the two axes and the non-engine categories BEFORE you pick a 
 - 4. Engine that other plugins will depend on -> `internal/component/<x>`.
 - 5. Engine that is a self-contained leaf feature -> `internal/plugins/<x>`.
 
-**A sub-plugin of an existing subsystem (e.g. a BGP capability or NLRI codec) MUST go under that subsystem's own plugin namespace (`internal/component/bgp/plugins/<x>`), not at the top level. Those nested namespaces are listed in the generator's `pluginDirs` (`internal/le/pluginimports/pluginimports.go`).**
+**A sub-plugin of an existing subsystem (e.g. a BGP capability or NLRI codec) MUST go under that subsystem's own plugin namespace (`internal/component/bgp/plugins/<x>`), not at the top level. Those nested namespaces are listed in the generator's `pluginDirs` (`internal/le/plugin/imports/pluginimports.go`).**
 
 ### Scope of enforcement
 
@@ -254,7 +254,7 @@ The "wired as a plugin" signal is mechanical: the advisory reads composition roo
 `./le tier check` enforces engine placement, the non-engine manifest, core import direction, disable-ability, and build-tag drift. Grandfathered pairs remain non-code data in `internal/le/tier/testdata/core_import_baseline.txt`; new pairs and stale rows both fail.
 
 **`dep-audit` MUST behave as follows:**
-- parses `pluginDirs` from `internal/le/pluginimports/pluginimports.go` to exclude nested sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
+- parses `pluginDirs` from `internal/le/plugin/imports/pluginimports.go` to exclude nested sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
 - treats generated `all.go` files, gated `all_<tag>.go` files, `cmd/ze` dispatch/import companions, and `cmd/ze/setup_features_*.go` as registration importers, not functional dependencies;
 - fails (exit 2) on any **new** misplaced engine, naming the dir and its required tier, pointing here;
 - fails on a **stale** engine baseline entry (one no longer misplaced), forcing cleanup;
@@ -518,7 +518,7 @@ Not every `os.WriteFile` is state. These stay raw and are allowlisted in the gua
 | `TestTemplatesAvoidInlineScriptAndStyle` | `internal/test/markupcheck`, `AssertNoInlineScriptOrStyle` | an inline `<script>` block, an inline `style=`, an `on*` handler, an `hx-on` attribute |
 | `TestTemplAssetsResolve` | `internal/test/markupcheck`, `AssertAssetsResolve` | a `src` or `href` the served filesystem does not hold, and one naming an asset tree the package does not serve |
 | `TestWebViewDataIsTyped`, `TestLGViewDataIsTyped` | `internal/test/templcheck`, `AssertTyped` | a component parameter that is a map, a named map, a bare `any`, or a struct wrapping any of them |
-| `./le doc check templ-output` | `internal/le/doccheck` and `internal/le/docwiring` | a `*_templ.go` its `.templ` source no longer produces |
+| `./le doc check templ-output` | `internal/le/doc/check` and `internal/le/doc/wiring` | a `*_templ.go` its `.templ` source no longer produces |
 | `go test ./internal/component/web ./internal/component/lg` | `internal/test/golden` and the package capture tests | a rendered byte that moved with no fixture behind it |
 
 ## Architecture Summary

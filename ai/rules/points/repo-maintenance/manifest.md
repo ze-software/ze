@@ -110,6 +110,7 @@ gate-population ## Gate Population
   share-the-input-contract-not-only-the-check
   compile-the-tests-before-you-call-it-committable
   judge-the-commit-not-the-repository
+  a-change-that-enters-a-gate-s-population-owes-that-gate-a-green
 ze-project-knowledge ## Ze Project Knowledge
   project-knowledge-not-in-other-rules
   project-facts-that-no-other-rule-carries

@@ -29,7 +29,7 @@ var nameLintSources = [...]string{
 	"internal/le/hookruntime/postwrite.go",
 	"internal/le/hookruntime/session.go",
 	"internal/le/hookruntime/writeedit.go",
-	"internal/le/docwiring/checks.go",
+	"internal/le/doc/wiring/checks.go",
 }
 
 var (

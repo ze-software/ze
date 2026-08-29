@@ -407,7 +407,7 @@ func TestTheNativeTemplCheckerSelectsTheOutputGate(t *testing.T) {
 	if !isTemplSource(templCheckerSource) {
 		t.Errorf("%s does not select ze-templ-output-check", templCheckerSource)
 	}
-	if isTemplSource("internal/le/docwiring/native_test.go") {
+	if isTemplSource("internal/le/doc/wiring/native_test.go") {
 		t.Error("an unrelated test file selects the templ output gate")
 	}
 }

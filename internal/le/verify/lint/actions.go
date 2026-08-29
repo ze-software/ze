@@ -27,7 +27,7 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs returns the one-line action hint for command help.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le verify-lint` command.
+// Answer is the `le verify lint` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 func runHere(arguments leaction.Arguments) (any, int) {

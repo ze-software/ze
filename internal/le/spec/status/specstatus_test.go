@@ -13,14 +13,14 @@ import (
 // spec_status.go through exec. Each case below names the old assertion it
 // carries and what it now calls instead.
 //
-//	internal/le/specstatus/answer.go
+//	internal/le/spec/status/answer.go
 //	  TestCategory                   -> TestCategorySplitsCommittedBacklogFromIdeaCapture
 //	  TestSkeletonStaleBoundary      -> TestSkeletonStaleBoundary (same name, same cases)
-//	internal/le/specstatus/answer.go
+//	internal/le/spec/status/answer.go
 //	  TestRowsFindsTablePastAFixedWindow -> TestMetaRowsFindsTablePastAFixedWindow
 //	  TestRowsStopsAtTheFirstHeading     -> TestMetaRowsStopsAtTheFirstHeading
 //	  TestRowsReportsAMissingTable       -> TestMetaRowsReportsAMissingTable
-//	internal/le/specstatus/closure_test.go
+//	internal/le/spec/status/closure_test.go
 //	  TestSpecStatusBacklogSplit          -> TestCategorySplitsCommittedBacklogFromIdeaCapture
 //	  TestSkeletonTTLBoundary             -> TestSkeletonStaleBoundary
 //	  TestSpecStatusReportsAnUnreadableSpec -> TestCollectDistinguishesUnparsedFromUnknown

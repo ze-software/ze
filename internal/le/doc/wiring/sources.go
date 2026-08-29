@@ -38,7 +38,7 @@ const wiringTarget = "wiring"
 const gitTimeout = 2 * time.Minute
 
 // templCheckerSource is the Go owner of the orphan and freshness scope checks.
-const templCheckerSource = "internal/le/docwiring/templ.go"
+const templCheckerSource = "internal/le/doc/wiring/templ.go"
 
 // actionOrder is the deterministic order selected checks run in.
 var actionOrder = [...]string{
@@ -132,7 +132,7 @@ func isTemplSource(path string) bool {
 // baseline. Spec closure removes a spec file, so the gate detects a dangling
 // citation from a sibling spec.
 func isPlanSource(path string) bool {
-	if path == "internal/le/speccitation/anchors.go" || path == "plan/.citation-baseline" {
+	if path == "internal/le/spec/citation/anchors.go" || path == "plan/.citation-baseline" {
 		return true
 	}
 	if !strings.HasSuffix(path, ".md") {
@@ -145,7 +145,7 @@ func isPlanSource(path string) bool {
 // gate. Sources include the checker, registry, shim, owner register.go files,
 // and the ze dispatch and central-registration files.
 func isCommandOwnershipSource(path string) bool {
-	if path == "internal/le/commandownership/register.go" || path == "cmd/ze/main.go" {
+	if path == "internal/le/command/ownership/register.go" || path == "cmd/ze/main.go" {
 		return true
 	}
 	if strings.HasPrefix(path, "internal/component/command/registry/") {
@@ -171,7 +171,7 @@ var commandMarkers = [...]string{
 // isCommandSource reports a change that must re-run the command contract gate.
 func isCommandSource(root, path string) (bool, error) {
 	switch path {
-	case "internal/le/docvalid/actions.go", "internal/le/commandlist/register.go",
+	case "internal/le/docvalid/actions.go", "internal/le/command/list/register.go",
 		"internal/component/config/yang/command.go",
 		"internal/component/plugin/server/command.go":
 		return true, nil
@@ -312,7 +312,7 @@ var registryMarkers = [...]string{
 // isInventorySource reports a change that must re-run the inventory gates.
 func isInventorySource(root, path string) (bool, error) {
 	switch path {
-	case "internal/le/inventory/inventory.go", "internal/le/pluginimports/pluginimports.go",
+	case "internal/le/inventory/inventory.go", "internal/le/plugin/imports/pluginimports.go",
 		"internal/component/plugin/all/all.go":
 		return true, nil
 	}

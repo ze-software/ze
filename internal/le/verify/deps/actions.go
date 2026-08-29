@@ -69,7 +69,7 @@ func Actions() leaction.List { return metadataOnly().Actions() }
 // Subs returns the one-line action hint for command help.
 func Subs() string { return metadataOnly().Subs() }
 
-// Answer is the `le verify-deps` command.
+// Answer is the `le verify deps` command.
 func Answer(args []string) (any, int) {
 	if len(args) == 0 {
 		return Actions(), 0

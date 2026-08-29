@@ -1,5 +1,5 @@
 // The tool is called as a function here, which is the whole point of compiling
-// it. Its predecessor, internal/le/commandlist/commandlist_test.go, forked `go run` and
+// it. Its predecessor, internal/le/command/list/commandlist_test.go, forked `go run` and
 // asserted on the process's combined output; every case below says what the old
 // assertion proved and where that proof now lives.
 
@@ -174,7 +174,7 @@ func TestTextCountsWhatItRendered(t *testing.T) {
 
 // TestAnswerRefusesArguments: the tree and the registry are this process's, so
 // there is nothing for an argument to select. Accepting one silently would let
-// `le command-list --json` look like it worked while doing nothing.
+// `le command list --json` look like it worked while doing nothing.
 func TestAnswerRefusesArguments(t *testing.T) {
 	payload, code := Answer([]string{"--json"})
 	if code == 0 {

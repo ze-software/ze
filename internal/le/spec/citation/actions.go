@@ -11,7 +11,7 @@ import (
 
 const name = "spec citation"
 
-// Answer is the `le spec-citation` command. Its existing bare form runs the
+// Answer is the `le spec citation` command. Its existing bare form runs the
 // citation gate. `anchors spec <path>` runs the design-document owner audit.
 func Answer(args []string) (any, int) {
 	root, err := lepath.Root()
@@ -59,6 +59,6 @@ func firstCitationArgument(args []string) string {
 }
 
 func refuseCitation(got string) int {
-	fmt.Fprintf(os.Stderr, "usage: le spec-citation anchors spec plan/spec-<name>.md (got %q)\n", got) //nolint:errcheck // CLI output
+	fmt.Fprintf(os.Stderr, "usage: le spec citation anchors spec plan/spec-<name>.md (got %q)\n", got) //nolint:errcheck // CLI output
 	return 2
 }

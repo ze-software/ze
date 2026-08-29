@@ -4,7 +4,7 @@ level:
 stage:
 ---
 This is enforced, not honor-system: `./le commit create` reads
-the native failure index produced by `internal/le/verifyengine` and refuses to prepare
+the native failure index produced by `internal/le/verify/engine` and refuses to prepare
 a script while `structuralGateReds` in `internal/le/commit/verification.go`
 charges a deterministic structural red to this commit.
 A red is charged unless every file its failure groups name lies outside the

@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/tracked-build-gate.md -- the tracked-build gate's answer
 //
-// report.go holds what `le repository-tracked-build check` ANSWERS, apart from
+// report.go holds what `le repository tracked-build check` ANSWERS, apart from
 // what produced it.
 //
 // The payload is an object, because the counts and the commit are the point: a

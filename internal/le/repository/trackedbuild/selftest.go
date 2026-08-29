@@ -8,7 +8,7 @@
 // is deleted from Build's switch, which is exactly the edit that would disarm
 // the gate.
 //
-// The table is declared ONCE and read twice: `le repository-tracked-build
+// The table is declared ONCE and read twice: `le repository tracked-build
 // selftest` runs it, and the package test runs the same rows so a failure names
 // the case rather than a count.
 
@@ -292,7 +292,7 @@ func Selftest(root string) (leroot.SelftestReport, error) {
 	), nil
 }
 
-// runSelftest is the `le repository-tracked-build selftest` action.
+// runSelftest is the `le repository tracked-build selftest` action.
 func runSelftest() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {

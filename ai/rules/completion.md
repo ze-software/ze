@@ -334,7 +334,7 @@ one.
 | "pre-existing" anywhere as a reason | it is yours: the word says when it started, not whose it is. Blocks your goal, fix it now; does not, spec it, close, ask |
 | the same failure in a shard, a commit body, a report and a summary | pick one place |
 
-Enforced: `checkLoadExcuses` in `internal/le/docwiring/docwiring.go`
+Enforced: `checkLoadExcuses` in `internal/le/doc/wiring/docwiring.go`
 (`./le doc wiring`, inside `./le verify worktree`) fails a CHANGED
 `plan/known-failures/` shard containing "under load", "loaded host", "load
 average", "load-sensitive", "passes in isolation", "resource contention" or

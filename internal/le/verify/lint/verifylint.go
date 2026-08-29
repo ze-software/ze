@@ -795,7 +795,7 @@ func renderCoverage(coverage Coverage) error {
 		}
 	}
 	if len(coverage.Unexpected) != 0 {
-		return writeLintf(os.Stderr, "lint_flavors: %d tracked Go file(s) are linted by nothing. Add the flavor that selects them, or state the reason in RESIDUE (internal/le/verifylint/verifylint.go).\n", len(coverage.Unexpected))
+		return writeLintf(os.Stderr, "lint_flavors: %d tracked Go file(s) are linted by nothing. Add the flavor that selects them, or state the reason in RESIDUE (internal/le/verify/lint/verifylint.go).\n", len(coverage.Unexpected))
 	}
 	if len(coverage.Healed) != 0 {
 		return writeLintf(os.Stderr, "lint_flavors: %d RESIDUE entr(y|ies) are now linted: %s. Delete the entry -- a stated remainder that is no longer a remainder hides the next one.\n", len(coverage.Healed), strings.Join(coverage.Healed, ", "))

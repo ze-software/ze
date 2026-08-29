@@ -450,7 +450,7 @@ func (s *scan) forEachRegistryCall(path string, fn func(method string, call *ast
 	return nil
 }
 
-// Answer is the `le command-ownership` command. The tree is the checkout, so
+// Answer is the `le command ownership` command. The tree is the checkout, so
 // the command takes no argument.
 func Answer(args []string) (any, int) {
 	if len(args) > 0 {

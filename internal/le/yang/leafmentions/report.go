@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md -- the leaf-mention report
 //
-// report.go holds what `le yang-leaf-mentions report` ANSWERS, apart from what
+// report.go holds what `le yang leaf-mentions report` ANSWERS, apart from what
 // produced it.
 //
 // The payload is an object rather than a slice, because the two counts are the

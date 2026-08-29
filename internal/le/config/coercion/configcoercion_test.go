@@ -230,7 +230,7 @@ func TestTheAreaDispatchesItsTwoGates(t *testing.T) {
 // runs.
 // PREVENTS: a config parser that silently ignores what an operator wrote. This
 // is where TestNoNativeTypeConfigCoercion and TestConfigStringCoercionSelftest
-// (internal/le/configcoercion/configcoercion_test.go) now live: the first forked the
+// (internal/le/config/coercion/configcoercion_test.go) now live: the first forked the
 // script and asserted the tree passes and the verdict reads OK, and the second
 // forked --selftest for the same two facts. TestSelftestAnswersOneResultPerCase
 // and TestEachSelftestFixtureDrawsWhatItDeclares carry the second one, per

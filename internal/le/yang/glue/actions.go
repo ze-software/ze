@@ -37,7 +37,7 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le yang-glue` command.
+// Answer is the `le yang glue` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 func runCheckHere() (any, int) {

@@ -2,7 +2,7 @@
 // Detail: verifylint.go -- scope derivation and direct golangci-lint execution
 //
 // Package verifylint owns the native full-tree lint stage. The matrix below is the
-// Go form of the builds formerly selected by internal/le/verifylint/matrix.go.
+// Go form of the builds formerly selected by internal/le/verify/lint/matrix.go.
 package verifylint
 
 import "sort"

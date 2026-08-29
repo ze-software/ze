@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the config-coercion area, as one command
 //
 // actions.go is the Python area, ported. `le repository ze-config-coercion-check`
-// selected one gate out of an area's GateSet; `le config-coercion check` selects
+// selected one gate out of an area's GateSet; `le config coercion check` selects
 // one action out of the table below. The three fields the Gate carried travel
 // with it: the retired Make target, the reason `--list` printed, and whether
 // it WRITES.
@@ -35,7 +35,7 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le config-coercion` command.
+// Answer is the `le config coercion` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 // reportError writes one failure line to stderr, in the spelling every ported

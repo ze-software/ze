@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- the process-boundary guard's answers
 //
-// report.go holds what the actions of `le plugin-boundary` ANSWER, apart from
+// report.go holds what the actions of `le plugin boundary` ANSWER, apart from
 // what produced them.
 //
 // Each answer IS its rows, so each payload is a slice rather than a struct
@@ -47,7 +47,7 @@ func (f Findings) Text() string {
 	return tb.String()
 }
 
-// RootList is what `le plugin-boundary roots` answers: the scan roots, derived
+// RootList is what `le plugin boundary roots` answers: the scan roots, derived
 // from the composition-root generator rather than declared a second time.
 //
 // It is a named slice rather than a bare []string so it can render itself, one

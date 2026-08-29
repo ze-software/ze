@@ -46,6 +46,9 @@ option):
 Two QEMU entry points run these tests, both **one VM for all of them** (never
 one VM per test):
 
+A tight loop MAY be used while iterating, but the full pass MUST be the one that
+reports the result, because it is the only form that covers the whole population.
+
 - `./le qemu netns-test suites <comma-separated-suites>` runs the selected kernel-dependent functional suites for a tight iteration.
 - `./le qemu all-tests` runs every functional suite, the unit pass, and every registered integration package inside the prepared VM.
 - `./le qemu all-tests only needs-linux` starts the same suites and narrows each one to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered.
@@ -213,10 +216,14 @@ as an excuse to skip it.
 
 The pattern (do all four in the same change):
 
+A lab that needs a QEMU runner MUST be built with all four steps below. Three
+of them fail closed on their own; the fourth, registration, does not, so a lab
+that skips it is invisible rather than red.
+
 1. **Native netns evidence:** implement the lab under `internal/le` and register a named `./le deployment <verb>` or `./le qemu <verb>` action. Run Ze and the peer daemon in separate network namespaces joined by a veth, without Docker.
 2. **Peer from Alpine packages:** install the peer daemon through the `packages` parameter of `./le qemu run`, or declare it in the dedicated native QEMU action. Use the same packaged peer in the Docker and QEMU proofs where Alpine supplies it.
 3. **Runtime kernel, always:** pass Ze's staged runtime kernel through `./le qemu run kernel <vmlinuz>`. `Run.assertRuntimeKernel` refuses a guest whose `uname -r` does not match `internal/appliance/kernel.version`. Add every required `CONFIG_*` symbol to `gokrazy/kernel/runtime.config` and `gokrazy/kernel/runtime.require`.
-4. **Registered action:** add the feature action to the owning Go action table and expose it through `./le qemu` or `./le deployment`. The bare area command is the inventory and must list the new action.
+4. **Registered action:** add the feature action to the owning Go action table and expose it through `./le qemu` or `./le deployment`. The bare area command is the inventory, and it MUST list the new action.
 
 | Lab | Docker action | QEMU action | Native producer |
 |-----|---------------|-------------|-----------------|
