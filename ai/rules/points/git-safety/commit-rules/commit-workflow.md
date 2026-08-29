@@ -21,7 +21,7 @@ stage:
    hand-written fallback.
 5. You MUST run the finished script yourself with `bash` and the printed path.
    For a commit carrying Go/module/vendor paths, run
-   `./le repository-tracked-build check` immediately afterwards. Report the commit SHA,
+   `./le repository tracked-build check` immediately afterwards. Report the commit SHA,
    included files, message file, script path, push status, and verification
    evidence or skip reason.
 6. Before creating the script, read `.gitignore`; add only canonical sources.

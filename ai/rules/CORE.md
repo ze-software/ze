@@ -37,7 +37,7 @@ Core reasons: no past task would surface it, precedence rung 1/2, the ladder its
 - A hunk is another session's, and the file is a shared plan log or journal class
 - A hunk is another session's, and the file is anything else: drop the path from
 **Explicit commit requests are a fast path.** When the user asks for a
-**One check is exempt, because it cannot run earlier: `./le repository-tracked-build check`
+**One check is exempt, because it cannot run earlier: `./le repository tracked-build check`
 **Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It is settled, so you
 **Commit workflow:**
 1. You MUST use `./le commit session` to create or reuse this harness session's

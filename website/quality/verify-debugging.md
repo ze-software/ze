@@ -20,7 +20,7 @@ Use this page when `./le verify current mode full` fails, when a test needs to b
 <table>
 <thead><tr><th>Stage</th><th>Purpose</th><th>Typical rerun</th></tr></thead>
 <tbody>
-<tr><td>Lint and architecture checks</td><td>Formatting, static analysis, generated docs, wiring, and project rules.</td><td><code>./le verify-lint run</code> or the printed validation target.</td></tr>
+<tr><td>Lint and architecture checks</td><td>Formatting, static analysis, generated docs, wiring, and project rules.</td><td><code>./le verify lint run</code> or the printed validation target.</td></tr>
 <tr><td>Unit and race checks</td><td>Package contracts, changed groups, and race-sensitive paths.</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
 <tr><td>Functional suites</td><td><code>.ci</code>, <code>.wb</code>, and <code>.et</code> behavior that an operator or browser can observe.</td><td><code>bin/ze-test &lt;suite&gt; NAME -v</code></td></tr>
 <tr><td>Compatibility checks</td><td>ExaBGP and related protocol compatibility gates that belong in the local pass.</td><td>The command printed by the failure group.</td></tr>

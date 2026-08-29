@@ -17,7 +17,7 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "extraction-create", Why: "derive one RFC or draft's unsigned extraction skeleton, preserving authored classifications only where the same locator still carries the same sentence",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "stem", Value: "stem"},
+			{Keyword: keyStem, Value: keyStem},
 		},
 		AnswerArgs: extractionCreateAnswer},
 	leaction.Action{Verb: "extraction-status", Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
@@ -65,7 +65,7 @@ func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 // extractionCreateAnswer writes one unsigned skeleton in this checkout.
 func extractionCreateAnswer(args leaction.Arguments) (any, int) {
-	stem, held := args["stem"]
+	stem, held := args[keyStem]
 	if !held {
 		leaction.ReportError(errors.New("rfc extraction-create requires stem <stem>"))
 		return nil, 2

@@ -606,7 +606,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/sourcerewrite` | keeps the repository's four source-maintenance workflows together while exposing each workflow as its own native action |  |
 | `internal/le/speccitation` | checks references from active specs to sibling specs |  |
 | `internal/le/specsession` | owns spec claims, state paths, review artifacts, and the transcript facts those contracts use |  |
-| `internal/le/specstatus` | reads the metadata table at the top of every plan/spec-*.md and answers the inventory `./le spec-status` prints: one record per spec, |  |
+| `internal/le/specstatus` | reads the metadata table at the top of every plan/spec-*.md and answers the inventory `./le spec status` prints: one record per spec, |  |
 | `internal/le/staticcheckfeaturematrix` | type-checks the working tree once per feature-tag combination Ze can be built in |  |
 | `internal/le/ste` | reviews repository prose against ASD-STE100 Simplified Technical English, Issue 9 |  |
 | `internal/le/stressrepro` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |  |

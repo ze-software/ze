@@ -52,7 +52,7 @@ Never trade their model down for cost; cut their NUMBER instead
    - **Only then** implement the `[source]` fix at the owning layer.
    - Run `go test ./...` to verify the specific fix.
 5. **Confirm the fix is at the source, not the symptom:** before accepting any fix, re-read its Diagnosis. If the change makes the test pass by editing the test, renaming a symbol, or special-casing the failing input rather than correcting the traced root cause, reject it and return to step 4. Changing a test to match broken code is never the fix (`ai/rules/testing.md`).
-6. **Run full verification:** `./le verify-lint run && ./le test-unit && ./le functional` -- the fix must not break anything else
+6. **Run full verification:** `./le verify lint run && ./le test-unit && ./le functional` -- the fix must not break anything else
 7. **Report back** with, for each fixed failure: the Diagnosis (symptom, root-cause function, owning layer), which hypothesis was correct, the `[source]` fix chosen over the `[workaround]`, and full test suite passing
 
 ## Fallback

@@ -67,8 +67,6 @@ const (
 
 var (
 	exportedFuncRe      = regexp.MustCompile(ExportedFuncPattern)
-	exportedTypeRe      = regexp.MustCompile(ExportedTypePattern)
-	funcRecvRe          = regexp.MustCompile(FuncRecvPattern)
 	exportedIfaceRe     = regexp.MustCompile(ExportedIfacePattern)
 	exportedIfaceNameRe = regexp.MustCompile(ExportedIfaceNamedPattern)
 	ifaceMethodRe       = regexp.MustCompile(IfaceMethodPattern)

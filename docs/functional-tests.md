@@ -17,7 +17,7 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 ## Release Gate Coverage
 
 The stage list is **not reproduced here**. It lives in `stagesForMode`
-(`internal/le/verify/stages.go`) and nowhere else. Each shard of
+(`internal/le/verifyengine/stages.go`) and nowhere else. Each shard of
 `.github/workflows/verify.yml` reads that same list through
 `./le verify current mode full-list`, so a gate absent from the Go table runs
 nowhere and a gate added to it needs no duplicate list in this page. Run
@@ -27,13 +27,13 @@ An earlier version of this paragraph enumerated the stages and went eight
 stages out of date. Keep the producer in Go and the prose at this level.
 
 Broadly, `./le verify current mode full` runs the static gates first, then
-`./le verify-deps vulnerability` before unit, functional, and ExaBGP stages.
+`./le verify deps vulnerability` before unit, functional, and ExaBGP stages.
 `./le verify current mode changed` substitutes changed-only lint and unit
 stages. Both modes run the same vulnerability scan. It needs network access to
 the live Go vulnerability database. `TestStagesForModeBranchesAgree` and
-`TestStagesForModeMatchesGolden` in `internal/le/verify` pin the two lists.
+`TestStagesForModeMatchesGolden` in `internal/le/verifyengine` pin the two lists.
 
-Both modes use the shared admission code in `internal/le/lejob` and
+Both modes use the shared admission code in `internal/le/job` and
 `internal/le/verifylock`. A verify run continues across top-level stage
 failures and writes:
 
@@ -69,7 +69,7 @@ A scoped run also judges fewer Staticcheck matrix rows.
 `./le staticcheck-feature-matrix check` derives one row per feature tag in
 `feature-gates.txt` plus `all_features` and `core_only`, 38 rows today, and each
 row is a full-module analysis. `scopeFeatureMatrix`
-(`internal/le/staticcheckmatrix.Answer`) keeps a row when it omits no tag
+(`internal/le/staticcheckfeaturematrix.Answer`) keeps a row when it omits no tag
 or omits a tag the change reached, so a change local to `ze_ssh` judges 3 rows
 rather than 38. `all_features` and `core_only` judge the combinations Ze ships
 and are never subtracted. Running the target on its own, with
@@ -91,13 +91,13 @@ web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
 implementation mistakes: stale source anchors, line-number anchors, unwired
 exported symbols, and incomplete spec AC tables. Run it after `./le verify current mode full` passes,
 before presenting work as complete.
-<!-- source: internal/le/verify/stages.go -- stagesForMode -->
+<!-- source: internal/le/verifyengine/stages.go -- stagesForMode -->
 <!-- source: internal/le/verifydeps/actions.go -- Actions -->
 <!-- source: internal/le/repository/actions.go -- Answer -->
-<!-- source: internal/le/verify/run.go -- Run, RunMode -->
-<!-- source: internal/le/lejob/answer.go -- Answer -->
+<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
+<!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verifystatus/answer.go -- Answer -->
-<!-- source: internal/le/staticcheckmatrix/actions.go -- Answer -->
+<!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
 <!-- source: internal/le/functional/actions.go -- Answer -->
 
 The following shipped test suites are **not in the default release gate** and
@@ -116,7 +116,7 @@ must be run manually:
 | IPsec interop | `IPSEC_INTEROP_SCENARIO=<name> ./le integration interop-ipsec` | Requires strongSwan in privileged Docker containers |
 | Chaos web | `./le functional web` | Browser and dashboard scenarios |
 
-Every suite action routes through `internal/le/lejob`, which runs it now,
+Every suite action routes through `internal/le/job`, which runs it now,
 queues it behind a heavy job already in flight, or attaches it to an equivalent
 run. Queue a runner selection with
 `./le job run label <label> command bin/ze-test <suite> <selection>`.
@@ -260,7 +260,7 @@ validation. Full contract and workflow: `test/draft/README.md`, or the
 
 An edit to a `.ci` or `.et` under `test/` that removes an `expect=`, empties a
 needle, or inverts a `reject=` is a weakening.
-`internal/le/weakened` detects it, and a whole `.ci` file is one test, named by
+`internal/le/testweakened` detects it, and a whole `.ci` file is one test, named by
 its file stem.
 
 Write the row in `test/weakened.md` BEFORE the edit, then make the edit, then
@@ -489,9 +489,9 @@ emitted.
 <!-- source: internal/le/netlab/actions.go -- Actions -->
 <!-- source: test/plugin/netlab-lab-profile.ci -- golden read, daemon start, json compact -->
 
-### Allocation-ceiling gate (`./le verify-deps alloc`)
+### Allocation-ceiling gate (`./le verify deps alloc`)
 
-`./le verify-deps alloc` runs the registered hot-path `ReportAllocs`
+`./le verify deps alloc` runs the registered hot-path `ReportAllocs`
 benchmarks with `-benchmem` at a bounded benchtime and enforces each
 `allocs/op` ceiling. Allocation counts are machine-independent. A hot-path
 benchmark opts in through `perf.AllocCeilings`; the gate fails when a registered
@@ -515,7 +515,7 @@ fails when a capability-gated test has no registered QEMU path.
 <!-- source: internal/test/runner/record_parse.go -- caps=net-admin gate and skip reason -->
 
 The `traffic` suite is enrolled
-in `internal/le/qemu.AllTestsRun.Run`; `test/traffic/traffic-boot-qdisc-tc.ci` and
+in `allTestsRun.Run` in `internal/le/qemu/alltests.go`; `test/traffic/traffic-boot-qdisc-tc.ci` and
 `traffic-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and
 after a reload (the check `001`/`002` document as deferred). The chaos iface
 fault family (`iface-link-flap`, `iface-addr-remove`) has a netns-scoped
@@ -670,7 +670,7 @@ listener, and six of one 32-way run's failures were that one message. The runner
 publishes `ze.test.parallel-factor` into every `cmd=` child's environment so such
 a deadline scales from the same source of truth.
 
-The runner does NOT read the job-admission budget. `internal/le/lejob.Answer` admits
+The runner does NOT read the job-admission budget. `internal/le/job.Answer` admits
 several jobs on a shared box, and a suite still sizes itself for the whole
 machine, so concurrent sessions can oversubscribe it.
 
@@ -702,7 +702,7 @@ a prerequisite, not a hint: the links it names (`eth0`, `eth1`, `nbma0`, `ptmp0`
 are provisioned inside the throwaway namespace and must never be created on a real
 host, so off netns mode the test is SKIPped with a reason naming these targets.
 That covers the 8 `test/ospf`, 3 `test/ospfv3` and 1 `test/policy` tests listed in
-`internal/le/qemu.AllTestsRun.Run`; they carry `needs-linux` as well and use
+`allTestsRun.Run` in `internal/le/qemu/alltests.go`; they carry `needs-linux` as well and use
 the same registered QEMU action path.
 
 <!-- source: internal/test/runner/caps.go -- applyNetnsLinkGate, skipReasonNetnsLink -->
@@ -782,7 +782,7 @@ failure index. Use
 `tmp/ze-verify.log` only when the whole combined run is needed.
 Automation should read `tmp/ze-verify-failures.json`.
 <!-- source: internal/le/testunit/actions.go -- Actions -->
-<!-- source: internal/le/verify/run.go -- Run, RunMode -->
+<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
 
 ---
 
@@ -834,7 +834,7 @@ Rules the gate enforces:
   change. Fix the code instead. The native weakening check reads the file and
   blocks the edit until a row names the test.
 
-<!-- source: internal/le/weakened/proposed.go -- RFC-tagged carrier approval -->
+<!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
 
 ### What the tags do not cover
 
@@ -2782,7 +2782,7 @@ from the user entry point: a daemon started with an unparsable
 
 ### L2TP scale tests
 
-Scale tests (`test/l2tp-scale/`) validate Ze's L2TP control plane at
+Scale tests (`internal/le/deployment/l2tpscale.go`) validate Ze's L2TP control plane at
 2000 concurrent sessions across 10 tunnels. They run on loopback (no
 root, no Docker, no kernel modules) and measure session establishment
 rate, RADIUS round-trip handling, pool allocation correctness, and

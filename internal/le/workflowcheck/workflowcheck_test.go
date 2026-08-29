@@ -14,7 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/leroot"
+
 	_ "github.com/ze-software/ze/internal/le/buildartifacts"
 	_ "github.com/ze-software/ze/internal/le/deployment"
 	_ "github.com/ze-software/ze/internal/le/fuzz"
@@ -22,8 +23,8 @@ import (
 	"github.com/ze-software/ze/internal/le/leaction"
 	_ "github.com/ze-software/ze/internal/le/qemu"
 	_ "github.com/ze-software/ze/internal/le/verify"
-	_ "github.com/ze-software/ze/internal/le/verifydeps"
-	"github.com/ze-software/ze/internal/le/verifyengine"
+	_ "github.com/ze-software/ze/internal/le/verify/deps"
+	"github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 const workflowsDir = ".github/workflows"
@@ -176,15 +177,30 @@ func jobBlocks(t *testing.T, name string) []jobBlock {
 	return jobs
 }
 
+// nativeActionPattern reads up to three words after le, because a command may
+// be a namespace and its member before its verb: `le verify deps vulnerability`
+// is one command of two words and one verb.
 var nativeActionPattern = regexp.MustCompile(
-	`(?m)(^|[[:space:];&|])(\./)?le[[:space:]]+([a-z0-9-]+)[[:space:]]+([a-z0-9-]+)`,
+	`(?m)(^|[[:space:];&|])(\./)?le[[:space:]]+([a-z0-9-]+)[[:space:]]+([a-z0-9-]+)([[:space:]]+([a-z0-9-]+))?`,
 )
 
+// nativeActionsIn answers each `le` invocation in a workflow as command/verb.
+//
+// Which words are the command is a question only the registry can answer, so
+// the two-word reading is tried first and the one-word reading is the
+// fallback. Guessing from the text would make `le verify deps vulnerability`
+// read as the verb `deps` of the command `verify`, which exists and does
+// something else.
 func nativeActionsIn(source string) []string {
 	matches := nativeActionPattern.FindAllStringSubmatch(source, -1)
 	actions := make([]string, 0, len(matches))
 	for _, match := range matches {
-		actions = append(actions, match[3]+"/"+match[4])
+		first, second, third := match[3], match[4], match[6]
+		if third != "" && leroot.LookupCommand(first+" "+second) != nil {
+			actions = append(actions, first+" "+second+"/"+third)
+			continue
+		}
+		actions = append(actions, first+"/"+second)
 	}
 	return actions
 }
@@ -200,8 +216,8 @@ func actionExists(t *testing.T, identity string) {
 	if !ok || area == "" || verb == "" {
 		t.Fatalf("invalid native action identity %q", identity)
 	}
-	handler, extra := registry.LookupLocalData([]string{"le", area})
-	if handler == nil || len(extra) != 0 {
+	handler := leroot.LookupCommand(area)
+	if handler == nil {
 		t.Fatalf("native root %q is not registered", area)
 	}
 	payload, code := handler(nil)
@@ -234,9 +250,11 @@ func TestEveryWorkflowNativeActionExists(t *testing.T) {
 }
 
 func TestNativeActionExtractorHandlesWorkflowCommands(t *testing.T) {
-	source := "run: sudo -E env PATH=$PATH ./le integration iface && ./le verify-deps vulnerability\n" +
+	source := "run: sudo -E env PATH=$PATH ./le integration iface && ./le verify deps vulnerability\n" +
 		"# ./le integration absent-action\n"
-	want := []string{"integration/iface", "verify-deps/vulnerability"}
+	// integration is one word and verify deps is two, so the same line proves
+	// both readings: the extractor asks the registry rather than counting words.
+	want := []string{"integration/iface", "verify deps/vulnerability"}
 	if got := nativeActionsIn(stripComments(source)); !slices.Equal(got, want) {
 		t.Fatalf("actions = %v, want %v", got, want)
 	}
@@ -496,7 +514,7 @@ func TestVulnerabilityWorkflowRemainsScheduledAndUsesSharedAction(t *testing.T) 
 	if !strings.Contains(onBlock(t, name), "workflow_dispatch:") {
 		t.Error("govulncheck.yml must retain manual dispatch")
 	}
-	if actions := nativeActions(t, name); !slices.Equal(actions, []string{"verify-deps/vulnerability"}) {
+	if actions := nativeActions(t, name); !slices.Equal(actions, []string{"verify deps/vulnerability"}) {
 		t.Fatalf("govulncheck.yml actions = %v", actions)
 	}
 	if !strings.Contains(workflowSource(t, name), "golang.org/x/vuln/cmd/govulncheck@v1.4.0") {

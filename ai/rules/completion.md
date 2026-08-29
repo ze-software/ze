@@ -334,8 +334,8 @@ one.
 | "pre-existing" anywhere as a reason | it is yours: the word says when it started, not whose it is. Blocks your goal, fix it now; does not, spec it, close, ask |
 | the same failure in a shard, a commit body, a report and a summary | pick one place |
 
-Enforced: `check_known_failure_load_excuses` in `internal/le/docwiring/docwiring.go`
-(`./le doc-wiring`, inside `./le verify worktree`) fails a CHANGED
+Enforced: `checkLoadExcuses` in `internal/le/docwiring/docwiring.go`
+(`./le doc wiring`, inside `./le verify worktree`) fails a CHANGED
 `plan/known-failures/` shard containing "under load", "loaded host", "load
 average", "load-sensitive", "passes in isolation", "resource contention" or
 "contended host". `README.md` and `RESOLVED.md` are exempt: the first states this
@@ -527,7 +527,7 @@ If you find yourself checking wiring for the first time at completion, three ear
 
 ### Mechanical Check (MANDATORY before claiming done)
 
-`./le verify worktree` runs `./le doc-wiring`. That changed-file
+`./le verify worktree` runs `./le doc wiring`. That changed-file
 gate is blocking and checks:
 
 **The wiring gate MUST verify that:**

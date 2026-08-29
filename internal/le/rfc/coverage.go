@@ -171,10 +171,10 @@ func requirementsByRFC(requirements []Requirement) ([]string, map[string][]Requi
 func bothPolarities(found []Tag) bool {
 	var positive, negative bool
 	for _, tag := range found {
-		if tag.Polarity == "positive" {
+		if tag.Polarity == polarityPositive {
 			positive = true
 		}
-		if tag.Polarity == "negative" {
+		if tag.Polarity == polarityNegative {
 			negative = true
 		}
 	}

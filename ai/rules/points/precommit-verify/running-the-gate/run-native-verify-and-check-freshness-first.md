@@ -5,7 +5,7 @@ stage:
 ---
 `./le verify worktree`, in the foreground ("Running ./le verify current mode full" below). Not `go test`,
 not any subset.
-Before any verify target, check freshness. `./le verify-status check`
+Before any verify target, check freshness. `./le verify status check`
 with no arguments asks about the whole tree, and `check <PATH>...` asks about the
 named paths alone. A FRESH answer covers the paths it was asked about and forbids
 rerunning `./le verify worktree` or

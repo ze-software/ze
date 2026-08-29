@@ -9,14 +9,14 @@ import (
 	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/featuretags"
-	"github.com/ze-software/ze/internal/le/pluginimports"
+	"github.com/ze-software/ze/internal/le/plugin/imports"
 	"github.com/ze-software/ze/internal/le/rfc"
 	"github.com/ze-software/ze/internal/le/rules"
-	"github.com/ze-software/ze/internal/le/sitefacts"
+	"github.com/ze-software/ze/internal/le/site/facts"
 	"github.com/ze-software/ze/internal/le/testhealth"
 	"github.com/ze-software/ze/internal/le/vendorweb"
 	"github.com/ze-software/ze/internal/le/webassets"
-	"github.com/ze-software/ze/internal/le/yangglue"
+	"github.com/ze-software/ze/internal/le/yang/glue"
 )
 
 // GenerationStep is one native action in the repository generation sequence.
@@ -54,8 +54,8 @@ type generationAction struct {
 }
 
 var generationActions = []generationAction{
-	{area: "plugin-imports", verb: verbWrite, answer: pluginimports.Answer},
-	{area: "yang-glue", verb: verbWrite, answer: yangglue.Answer},
+	{area: "plugin imports", verb: verbWrite, answer: pluginimports.Answer},
+	{area: "yang glue", verb: verbWrite, answer: yangglue.Answer},
 	{area: "feature-tags", verb: verbWrite, answer: featuretags.Answer},
 	{area: "web-assets", verb: verbWrite, answer: webassets.Answer},
 	{area: "vendor-web", verb: "sync", answer: vendorweb.Answer},
@@ -68,13 +68,13 @@ var generationActions = []generationAction{
 	{area: areaDocsToCode, verb: verbUpdate, answer: docstocode.Answer},
 	{area: areaDocsToCode, verb: verbIndexUpdate, answer: docstocode.Answer},
 	{area: "test-health", verb: verbUpdate, answer: testhealth.Answer},
-	{area: "site-facts", verb: verbUpdate, answer: sitefacts.Answer},
+	{area: "site facts", verb: verbUpdate, answer: sitefacts.Answer},
 	{area: "ai", verb: "skills-sync", answer: ai.Answer},
 }
 
 var generationChecks = []generationAction{
-	{area: "plugin-imports", verb: verbCheck, answer: pluginimports.Answer},
-	{area: "yang-glue", verb: verbCheck, answer: yangglue.Answer},
+	{area: "plugin imports", verb: verbCheck, answer: pluginimports.Answer},
+	{area: "yang glue", verb: verbCheck, answer: yangglue.Answer},
 	{area: "feature-tags", verb: verbCheck, answer: featuretags.Answer},
 	{area: "web-assets", verb: verbCheck, answer: webassets.Answer},
 	{area: "vendor-web", verb: verbCheck, answer: vendorweb.Answer},
@@ -89,7 +89,7 @@ var generationChecks = []generationAction{
 	{area: areaDocsToCode, verb: verbCheck, answer: docstocode.Answer},
 	{area: areaDocsToCode, verb: "index-check", answer: docstocode.Answer},
 	{area: "test-health", verb: verbCheck, answer: testhealth.Answer},
-	{area: "site-facts", verb: verbCheck, answer: sitefacts.Answer},
+	{area: "site facts", verb: verbCheck, answer: sitefacts.Answer},
 	{area: "ai", verb: "sync-check", answer: ai.Answer},
 }
 

@@ -93,16 +93,16 @@ func TestStructuralRedsAttributeOnlyPathBearingGroups(t *testing.T) {
 	writeCommitFixture(t, root, "mine/a.go", "package mine\n")
 	writeCommitFixture(t, root, "theirs/b.go", "package theirs\n")
 	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stages":[
-		{"stage":"verify-lint/run","exit-code":1,"groups":[
+		{"stage":"verify lint/run","exit-code":1,"groups":[
 			{"group-id":"lint:theirs","kind":"lint","related":["theirs/b.go"]}]},
 		{"stage":"tier/check","exit-code":1,"groups":[
 			{"group-id":"tier:unknown","kind":"subcheck","related":["theirs/b.go"]}]},
-		{"stage":"doc-wiring","exit-code":1,"groups":[
+		{"stage":"doc wiring","exit-code":1,"groups":[
 			{"group-id":"files:mine","kind":"files","related":["mine/a.go"]}]}
 	]}`)
 	reds := structuralGateReds(root, []string{"mine/a.go"})
-	if !slices.Equal(reds.Charged, []string{"tier/check", "doc-wiring"}) ||
-		!slices.Equal(reds.Foreign, []string{"verify-lint/run"}) ||
+	if !slices.Equal(reds.Charged, []string{"tier/check", "doc wiring"}) ||
+		!slices.Equal(reds.Foreign, []string{"verify lint/run"}) ||
 		!slices.Equal(reds.Unattributed, []string{"tier/check (tier:unknown)"}) {
 		t.Fatalf("structuralGateReds = %#v", reds)
 	}
@@ -113,18 +113,18 @@ func TestCreateRefusesChargedStructuralRedWithoutRecordedOverride(t *testing.T) 
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "structural-create-fixture")
 	writeCommitFixture(t, root, "mine.txt", "mine\n")
 	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stages":[{
-		"stage":"doc-wiring","exit-code":1,
+		"stage":"doc wiring","exit-code":1,
 		"groups":[{"group-id":"files:mine","kind":"files","related":["mine.txt"]}]
 	}]}`)
 	options := Options{
 		Subject: "charged red", Files: []string{"mine.txt"},
 		StaleIndexOK: "fixture repository has no generated index", DryRun: true,
 	}
-	if _, err := Create(root, options); err == nil || !strings.Contains(err.Error(), "deterministic structural gate") {
+	if _, err := Create(root, &options); err == nil || !strings.Contains(err.Error(), "deterministic structural gate") {
 		t.Fatalf("Create structural refusal = %v", err)
 	}
 	options.StructuralRedOK = "other session owns the red and this text cannot affect it"
-	prepared, err := Create(root, options)
+	prepared, err := Create(root, &options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestStagingGuardRefusesForeignIndexAndAcceptsItsOwn(t *testing.T) {
 	runCommitGit(t, root, "add", "--", "tracked.txt")
 
 	guard := renderStagingGuard([]string{"mine.txt"}, "tmp/commit-owner.sh")
-	command := exec.Command("bash", "-c", guard)
+	command := exec.CommandContext(t.Context(), "bash", "-c", guard)
 	command.Dir = root
 	output, err := command.CombinedOutput()
 	if err == nil || !strings.Contains(string(output), "ABORT: index has staged files") ||
@@ -178,7 +178,7 @@ func TestStagingGuardRefusesForeignIndexAndAcceptsItsOwn(t *testing.T) {
 
 	runCommitGit(t, root, "restore", "--staged", "--", "tracked.txt")
 	runCommitGit(t, root, "add", "--", "mine.txt")
-	command = exec.Command("bash", "-c", guard)
+	command = exec.CommandContext(t.Context(), "bash", "-c", guard)
 	command.Dir = root
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("own staging was refused: %v: %s", err, output)
@@ -192,7 +192,7 @@ func TestCreateDryRunBuildsExactScriptWithoutTouchingSharedIndex(t *testing.T) {
 	writeCommitFixture(t, root, "tracked.txt", "foreign edit\n")
 	runCommitGit(t, root, "add", "--", "tracked.txt")
 
-	prepared, err := Create(root, Options{
+	prepared, err := Create(root, &Options{
 		Subject: "prepare exact commit", Files: []string{"mine name.txt"},
 		StaleIndexOK: "fixture repository has no generated index", DryRun: true,
 	})
@@ -286,7 +286,7 @@ func TestReviewArtifactIsHashPinnedToEveryCodeFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := "<!-- ze-review verdict=clean -->\n  " +
-		reviewHash(filepath.Join(root, "internal/a.go")) + "  internal/a.go\n"
+		reviewHash(filepath.Join(root, "internal", "a.go")) + "  internal/a.go\n"
 	if err := os.WriteFile(artifact, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -370,11 +370,47 @@ func runCommitGit(t *testing.T, root string, args ...string) {
 
 func runCommitGitOutput(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", args...)
+	command := exec.CommandContext(t.Context(), "git", args...)
 	command.Dir = root
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, output)
 	}
 	return string(output)
+}
+
+// TestCreateRefusesBadTagBeforeRecordingDebt asserts a tag that cannot name a
+// message file is refused with NO verification-debt shard left behind.
+//
+// VALIDATES: Create calls validateTag beside Message, before recordDebt.
+// PREVENTS: the second occurrence of
+// plan/journal/record-written-before-the-operation-succeeds.md. nextTag is the
+// only other place the tag is checked and it runs after recordDebt has already
+// appended its rows, so `tag "fix(bgp)"` left three rows naming a commit that
+// git log finds zero of. Orphan rows are indistinguishable from real debt by
+// reading the ledger, they make debt-clear re-run gates for a commit that does
+// not exist, and they refuse a push until somebody deletes them by hand.
+func TestCreateRefusesBadTagBeforeRecordingDebt(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "bad-tag-fixture")
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+
+	options := Options{
+		Tag: "fix(bgp)", Subject: "parenthesised tag", Files: []string{"mine.txt"},
+		StaleIndexOK: "fixture repository has no generated index",
+		StructuralRedOK: "fixture repository carries no gate record",
+	}
+	_, err := Create(root, &options)
+	if err == nil || !strings.Contains(err.Error(), "tag must start with an alphanumeric") {
+		t.Fatalf("Create with tag %q = %v, want a tag-format refusal", options.Tag, err)
+	}
+
+	shards, globErr := filepath.Glob(filepath.Join(root, "plan", "verification-debt", "*.md"))
+	if globErr != nil {
+		t.Fatal(globErr)
+	}
+	if len(shards) != 0 {
+		body, _ := os.ReadFile(shards[0])
+		t.Fatalf("refused create left %d debt shard(s) behind, first is %s:\n%s", len(shards), shards[0], body)
+	}
 }

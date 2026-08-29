@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/verifyengine"
+	"github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 func TestRunCurrentFullAndChangedModes(t *testing.T) {
@@ -19,8 +19,8 @@ func TestRunCurrentFullAndChangedModes(t *testing.T) {
 		firstAction string
 		omits       string
 	}{
-		{mode: "full", wantMode: verifyengine.Mode, firstAction: "verify-lint/run"},
-		{mode: "changed", wantMode: verifyengine.ChangedMode, firstAction: "verify-lint/run", omits: "verify-deps/alloc"},
+		{mode: "full", wantMode: verifyengine.Mode, firstAction: "verify lint/run"},
+		{mode: "changed", wantMode: verifyengine.ChangedMode, firstAction: "verify lint/run", omits: "verify deps/alloc"},
 	} {
 		t.Run(test.mode, func(t *testing.T) {
 			repo := newFixtureRepo(t)
@@ -62,11 +62,11 @@ func TestRunCurrentFullAndChangedModes(t *testing.T) {
 
 func TestListCurrentAndModeGrammarFailClosed(t *testing.T) {
 	full, err := listCurrent("")
-	if err != nil || full.Mode != verifyengine.Mode || full.Stages[0].Name != "verify-lint/run" {
+	if err != nil || full.Mode != verifyengine.Mode || full.Stages[0].Name != "verify lint/run" {
 		t.Fatalf("full list = %#v, err %v", full, err)
 	}
 	changed, err := listCurrent("changed")
-	if err != nil || changed.Mode != verifyengine.ChangedMode || changed.Stages[0].Name != "verify-lint/run" {
+	if err != nil || changed.Mode != verifyengine.ChangedMode || changed.Stages[0].Name != "verify lint/run" {
 		t.Fatalf("changed list = %#v, err %v", changed, err)
 	}
 	if _, err := listCurrent("chnaged"); err == nil {

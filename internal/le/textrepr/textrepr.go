@@ -27,16 +27,6 @@ func Quote(value string) string {
 	return text.Byte(quote).String()
 }
 
-// needsEscaping reports whether value contains a non-printable ASCII byte.
-func needsEscaping(value string) bool {
-	for index := range len(value) {
-		if value[index] < 0x20 || value[index] > 0x7e {
-			return true
-		}
-	}
-	return false
-}
-
 // List renders a string slice as a bracketed, comma-separated quoted list.
 func List(items []string) string {
 	var text textbuf.Buffer

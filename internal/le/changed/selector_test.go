@@ -36,7 +36,7 @@ func scopeSelectorAction(t *testing.T) string {
 // runScopeSelector drives Scope.Resolve directly and captures its compatibility
 // text and diagnostics. No deleted-script subprocess sits between the action and
 // the selector.
-func runScopeSelector(t *testing.T, _ string, dir string, args ...string) (string, string, int) {
+func runScopeSelector(t *testing.T, _, dir string, args ...string) (string, string, int) {
 	t.Helper()
 	t.Setenv("GOFLAGS", "")
 	t.Setenv("GOWORK", "off")

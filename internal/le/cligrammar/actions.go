@@ -27,7 +27,7 @@ func Answer(args []string) (any, int) {
 		return nil, 2
 	}
 
-	result, err := Check(tree, DefaultFloor)
+	result, err := Check(tree, DefaultFloor, leroot.Owned())
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

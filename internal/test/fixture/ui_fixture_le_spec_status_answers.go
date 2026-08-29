@@ -38,7 +38,7 @@ func leSpecStatusAnswers(ctx context.Context) error {
 	if err != nil {
 		return uiLeSpecStatusAnswersFailf("create fixture working directory: %v", err)
 	}
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	if err != nil {
@@ -48,19 +48,19 @@ func leSpecStatusAnswers(ctx context.Context) error {
 	// Read each rendering twice. Besides requiring deterministic bytes, this
 	// distinguishes an unstable checkout from a disagreement between answer
 	// renderings without consulting any retired implementation.
-	page1, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec-status")
+	page1, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status")
 	if err != nil {
 		return err
 	}
-	json1, err := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec-status", "|", "json")
+	json1, err := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec status", "|", "json")
 	if err != nil {
 		return err
 	}
-	page2, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec-status")
+	page2, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status")
 	if err != nil {
 		return err
 	}
-	json2, err := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec-status", "|", "json")
+	json2, err := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec status", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func leSpecStatusAnswers(ctx context.Context) error {
 		return err
 	}
 
-	counted, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec-status", "|", "count")
+	counted, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func leSpecStatusAnswers(ctx context.Context) error {
 		return uiLeSpecStatusAnswersFailf("le spec-status | count answered %q, want %s", counted.stdout, wantCount)
 	}
 
-	refused, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec-status", "--json")
+	refused, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status", "--json")
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func leSpecStatusAnswers(ctx context.Context) error {
 }
 
 func checkRecordContract(records []map[string]json.RawMessage, page []byte) error {
-	required := []string{"name", "status", "bucket", "updated", "git-modified", "stale"}
+	required := []string{fieldName, fieldStatus, "bucket", fieldUpdated, "git-modified", statusStale}
 	lines := strings.Split(string(page), "\n")
 	lineAt := 0
 	section := ""
@@ -212,9 +212,9 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 			return uiLeSpecStatusAnswersFailf("the page files %q under %q, want bucket %q", name, section, bucket)
 		}
 		for key, value := range map[string]string{
-			"name":    name,
-			"status":  status,
-			"updated": updated,
+			fieldName:    name,
+			fieldStatus:  status,
+			fieldUpdated: updated,
 		} {
 			if value != "" && !strings.Contains(lines[row], value) {
 				return uiLeSpecStatusAnswersFailf("the page row for %q does not render %s %q: %q", name, key, value, lines[row])
@@ -285,7 +285,7 @@ func decodeRecords(answer []byte) ([]map[string]json.RawMessage, error) {
 }
 
 func uiLeSpecStatusAnswersRunCommand(ctx context.Context, dir string, env []string, name string, args ...string) (uiLeSpecStatusAnswersCommandAnswer, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 	var stdout, stderr bytes.Buffer
@@ -296,23 +296,11 @@ func uiLeSpecStatusAnswersRunCommand(ctx context.Context, dir string, env []stri
 	if err == nil {
 		return answer, nil
 	}
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		answer.code = exit.ExitCode()
 		return answer, nil
 	}
 	return uiLeSpecStatusAnswersCommandAnswer{}, uiLeSpecStatusAnswersFailf("execute %s: %v", name, err)
-}
-
-func uiLeSpecStatusAnswersWithEnv(env []string, key, value string) []string {
-	prefix := key + "="
-	out := make([]string, 0, len(env)+1)
-	for _, item := range env {
-		if !strings.HasPrefix(item, prefix) {
-			out = append(out, item)
-		}
-	}
-	return append(out, prefix+value)
 }
 
 func lineDifference(a, b []byte, limit int) string {
@@ -320,9 +308,7 @@ func lineDifference(a, b []byte, limit int) string {
 	bs := strings.Split(string(b), "\n")
 	var out strings.Builder
 	length := len(as)
-	if len(bs) > length {
-		length = len(bs)
-	}
+	length = max(length, len(bs))
 	for i := 0; i < length && out.Len() < limit; i++ {
 		var av, bv string
 		if i < len(as) {

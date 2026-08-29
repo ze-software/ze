@@ -834,7 +834,10 @@ func TestGenerationRunsEveryAction(t *testing.T) {
 	if !slices.Equal(calls, []string{"one", "two", "three"}) {
 		t.Fatalf("calls = %v", calls)
 	}
-	report := payload.(generationReport)
+	report, ok := payload.(generationReport)
+	if !ok {
+		t.Fatalf("runGeneration payload = %T, want generationReport", payload)
+	}
 	if len(report.Steps) != 3 || report.Steps[1].Code != 2 {
 		t.Fatalf("report = %#v", report)
 	}

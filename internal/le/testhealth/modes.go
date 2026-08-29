@@ -88,22 +88,6 @@ func build(root string) (record, error) {
 	}, nil
 }
 
-// renderPage answers the page's Markdown for the tree at root, writing nothing
-// and tightening no floor.
-//
-// It is the read-only twin of the write path, for a caller that wants current
-// numbers without mutating this repository or its ratchet floors. The bytes
-// match the written page EXCEPT where a floor would have moved: the write path
-// tightens first, this does not, so a "(floor N)" here shows the floor that is
-// still committed.
-func renderPage(root string) (string, error) {
-	built, err := build(root)
-	if err != nil {
-		return "", err
-	}
-	return renderMarkdown(built.metrics, built.history), nil
-}
-
 // loadHistory reads the committed KPI samples, and refuses a line that is not
 // JSON: a history nobody can parse is not a history of nothing.
 func loadHistory(t *tree) ([]object, error) {

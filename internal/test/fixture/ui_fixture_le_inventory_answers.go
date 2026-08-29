@@ -36,7 +36,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	if err != nil {
@@ -65,7 +65,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	if rootPage != fixturePage {
 		left := strings.Split(rootPage, "\n")
 		right := strings.Split(fixturePage, "\n")
-		for i := 0; i < maxInt(len(left), len(right)); i++ {
+		for i := range maxInt(len(left), len(right)) {
 			a := "<end>"
 			b := "<end>"
 			if i < len(left) {
@@ -86,11 +86,11 @@ func runLEInventoryAnswers(ctx context.Context) error {
 
 	// The command registry has the same checkout-wide, working-directory
 	// independent contract, including row ordering.
-	commandsAtRoot, err := executeClean(ctx, root, binary, "command-list")
+	commandsAtRoot, err := executeClean(ctx, root, binary, "command list")
 	if err != nil {
 		return err
 	}
-	commandsAtFixture, err := executeClean(ctx, here, binary, "command-list")
+	commandsAtFixture, err := executeClean(ctx, here, binary, "command list")
 	if err != nil {
 		return err
 	}
@@ -114,10 +114,10 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	}
 	var inventory map[string]any
 	if err := json.Unmarshal([]byte(answer.stdout), &inventory); err != nil {
-		return fmt.Errorf("FAIL: `le inventory | json` did not answer JSON: %v\n%s", err, uiLeInventoryAnswersPrefix(answer.stdout, 400))
+		return fmt.Errorf("FAIL: `le inventory | json` did not answer JSON: %w\n%s", err, uiLeInventoryAnswersPrefix(answer.stdout, 400))
 	}
 	for _, key := range []string{
-		"plugins",
+		sectionPlugins,
 		"families",
 		"yang-modules",
 		"rpc-list",
@@ -138,7 +138,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: inventory answered %d plugins, which is too few to be the product", len(plugins))
 	}
 
-	listing, err := executeClean(ctx, here, binary, "command-list", "|", "json")
+	listing, err := executeClean(ctx, here, binary, "command list", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -147,12 +147,12 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	}
 	var commands []map[string]any
 	if err := json.Unmarshal([]byte(listing.stdout), &commands); err != nil {
-		return fmt.Errorf("FAIL: `le command-list | json` did not answer a JSON array: %v\n%s", err, uiLeInventoryAnswersPrefix(listing.stdout, 400))
+		return fmt.Errorf("FAIL: `le command-list | json` did not answer a JSON array: %w\n%s", err, uiLeInventoryAnswersPrefix(listing.stdout, 400))
 	}
 	if len(commands) == 0 {
 		return errors.New("FAIL: the command list answered an empty array")
 	}
-	for _, key := range []string{"verb", "path", "source"} {
+	for _, key := range []string{"verb", fieldPath, "source"} {
 		if _, ok := commands[0][key]; !ok {
 			return fmt.Errorf("FAIL: a command carries no %q: %v", key, commands[0])
 		}
@@ -160,7 +160,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 
 	// A row operator acts on command rows and answers a number rather than the
 	// rendered page.
-	counted, err := executeClean(ctx, here, binary, "command-list", "|", "count")
+	counted, err := executeClean(ctx, here, binary, "command list", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -189,28 +189,6 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	return nil
 }
 
-func inventoryFeatureTags(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-
-	found := make(map[string]struct{})
-	for _, line := range strings.Split(string(data), "\n") {
-		words := strings.Fields(line)
-		if len(words) != 0 && strings.HasPrefix(words[0], "ze_") {
-			found[words[0]] = struct{}{}
-		}
-	}
-
-	declared := make([]string, 0, len(found))
-	for tag := range found {
-		declared = append(declared, tag)
-	}
-	sort.Strings(declared)
-	return strings.Join(append([]string{"ze_le"}, declared...), ","), nil
-}
-
 func executeClean(ctx context.Context, dir, name string, args ...string) (uiLeInventoryAnswersCommandResult, error) {
 	result, err := uiLeInventoryAnswersExecute(ctx, dir, name, args...)
 	if err != nil {
@@ -223,7 +201,7 @@ func executeClean(ctx context.Context, dir, name string, args ...string) (uiLeIn
 }
 
 func uiLeInventoryAnswersExecute(ctx context.Context, dir, name string, args ...string) (uiLeInventoryAnswersCommandResult, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -235,8 +213,7 @@ func uiLeInventoryAnswersExecute(ctx context.Context, dir, name string, args ...
 	if err == nil {
 		return result, nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}

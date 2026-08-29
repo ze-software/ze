@@ -206,8 +206,8 @@ func (s Selector) run(dir string, argv []string) (string, error) {
 // The caller treats an empty list as "no test to run" and reports success.
 func (s Selector) ChangedFiles() ([]string, error) {
 	queries := [][]string{
-		{gitCommand, "diff", "--name-only", "--", goFiles},
-		{gitCommand, "diff", "--cached", "--name-only", "--", goFiles},
+		{gitCommand, gitDiff, gitNameOnly, "--", goFiles},
+		{gitCommand, gitDiff, "--cached", gitNameOnly, "--", goFiles},
 		{gitCommand, "ls-files", "--others", "--exclude-standard", "--", goFiles},
 	}
 

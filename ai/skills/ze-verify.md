@@ -34,7 +34,7 @@ phase itself.
 
 ## Steps
 
-1. **Check freshness:** Run `./le verify-status check`. A FRESH answer forbids
+1. **Check freshness:** Run `./le verify status check`. A FRESH answer forbids
    rerunning the gate. A STALE answer names why verification is owed.
 2. **Run verification:** Execute `./le verify worktree` in the foreground,
    giving the call the largest timeout the harness allows. Never poll or kill a
@@ -78,7 +78,7 @@ phase itself.
 A slow run and admission contention are not failures. Fall back to individual
 native stages only when the worktree action cannot run for an environmental
 reason:
-1. `./le verify-lint run`
+1. `./le verify lint run`
 2. `./le test-unit`
 3. `./le functional`
 

@@ -44,9 +44,13 @@ type Result struct {
 	DemoScripts  int               `json:"demo-scripts-checked"`
 	RootsChecked int               `json:"roots-checked"`
 	RootExempt   int               `json:"root-namespace-exempt"`
-	TreeExempt   int               `json:"tree-namespace-exempt"`
-	PendingSplit int               `json:"pending-namespace-split"`
-	Valid        bool              `json:"valid"`
+	// LeRootsChecked is how many le commands feeder 6 read.
+	LeRootsChecked int `json:"le-roots-checked"`
+	// LeExempt counts le commands an exemption spared.
+	LeExempt     int  `json:"le-namespace-exempt"`
+	TreeExempt   int  `json:"tree-namespace-exempt"`
+	PendingSplit int  `json:"pending-namespace-split"`
+	Valid        bool `json:"valid"`
 }
 
 // Text renders the gate for a person: the counts, then a section per row set
@@ -56,6 +60,10 @@ func (r Result) Text() string {
 	tb.Str("# CLI Grammar Gate\n\n")
 	tb.Str("Commands checked: ").Int(int64(r.Checked)).Byte('\n')
 	tb.Str("Roots checked: ").Int(int64(r.RootsChecked)).Byte('\n')
+	tb.Str("le commands checked: ").Int(int64(r.LeRootsChecked)).Byte('\n')
+	if r.LeExempt > 0 {
+		tb.Str("le namespace exemptions: ").Int(int64(r.LeExempt)).Byte('\n')
+	}
 	if r.RootExempt > 0 {
 		tb.Str("Root namespace-exempt (indivisible compounds): ").Int(int64(r.RootExempt)).Byte('\n')
 	}

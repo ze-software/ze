@@ -278,7 +278,7 @@ ze-test bgp encode --start 42 # Resume at id 42
 
 ### Linting
 ```bash
-./le verify-lint run            # golangci-lint over every build flavor
+./le verify lint run            # golangci-lint over every build flavor
 ```
 
 ---

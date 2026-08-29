@@ -19,22 +19,21 @@ func init() {
 }
 
 func rawCommand(ctx context.Context, dir string, env []string, name string, args ...string) (string, int, error) {
-	command := exec.CommandContext(ctx, name, args...)
+	command := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = dir
 	command.Env = env
 	output, err := command.CombinedOutput()
 	if err == nil {
 		return string(output), 0, nil
 	}
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		return string(output), exit.ExitCode(), nil
 	}
 	return string(output), -1, err
 }
 
 func rawCommandStreams(ctx context.Context, dir string, env []string, name string, args ...string) (string, string, int, error) {
-	command := exec.CommandContext(ctx, name, args...)
+	command := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = dir
 	command.Env = env
 	var stdout, stderr bytes.Buffer
@@ -44,8 +43,7 @@ func rawCommandStreams(ctx context.Context, dir string, env []string, name strin
 	if err == nil {
 		return stdout.String(), stderr.String(), 0, nil
 	}
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		return stdout.String(), stderr.String(), exit.ExitCode(), nil
 	}
 	return stdout.String(), stderr.String(), -1, err
@@ -61,7 +59,7 @@ func gitFixture(ctx context.Context, root string, files map[string]string) error
 			return err
 		}
 	}
-	for _, args := range [][]string{{"init", "-q", "."}, {"config", "user.email", "tester@example.com"}, {"config", "user.name", "Tester"}, {"config", "commit.gpgsign", "false"}, {"add", "-A"}, {"commit", "-q", "-m", "base"}} {
+	for _, args := range [][]string{{argInit, "-q", "."}, {argConfig, "user.email", "tester@example.com"}, {argConfig, "user.name", "Tester"}, {argConfig, "commit.gpgsign", valueFalse}, {argAdd, "-A"}, {"commit", "-q", "-m", "base"}} {
 		if output, code, err := rawCommand(ctx, root, os.Environ(), "git", args...); err != nil || code != 0 {
 			return fmt.Errorf("git %s exit=%d: %w\n%s", strings.Join(args, " "), code, err, output)
 		}
@@ -75,10 +73,10 @@ func verifyScopeDebtGateDriver(_ context.Context, args []string) error {
 	}
 	switch args[0] {
 	case "green":
-		fmt.Fprintln(os.Stdout, "fixture-gate-ran-green")
+		fmt.Fprintln(os.Stdout, "fixture-gate-ran-green") //nolint:errcheck // progress output
 		return nil
 	case "red":
-		fmt.Fprintln(os.Stdout, "fixture-gate-said-why")
+		fmt.Fprintln(os.Stdout, "fixture-gate-said-why") //nolint:errcheck // progress output
 		return errors.New("fixture gate exited 3")
 	default:
 		return fmt.Errorf("unknown debt gate %q", args[0])
@@ -93,30 +91,30 @@ func verifyScopeDebtClearDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(base)
+	defer os.RemoveAll(base) //nolint:errcheck // fixture cleanup
 	ledgerHeader := "| Date | Session | Subject | Gate owed | Reason | Status |\n|------|---------|---------|-----------|--------|--------|\n"
 	pass := filepath.Join(base, "pass")
 	red := filepath.Join(base, "red")
 	if err := gitFixture(ctx, pass, map[string]string{
-		"go.mod": "module fixture/pass\n\ngo 1.24\n", "feature-gates.txt": "fixture\n",
+		fileGoMod: "module fixture/pass\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate,
 		"plan/verification-debt/fixture.md": ledgerHeader + "| 2026-08-19 | fixture | a commit | native fixture gate | the gate had not run | open |\n" + "| 2026-08-19 | fixture | a commit | independent critical review | no reviewer | open |\n",
 	}); err != nil {
 		return err
 	}
 	if err := gitFixture(ctx, red, map[string]string{
-		"go.mod": "module fixture/red\n\ngo 1.24\n", "feature-gates.txt": "fixture\n",
+		fileGoMod: "module fixture/red\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate,
 		"plan/verification-debt/fixture.md": ledgerHeader + "| 2026-08-19 | fixture | a commit | native fixture gate | the gate had not run | open |\n",
 	}); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stdout, "debt-fixtures-ready")
-	fmt.Fprintln(os.Stdout, "native-debt-clear-runs-registered-gates")
+	fmt.Fprintln(os.Stdout, "debt-fixtures-ready")                     //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "native-debt-clear-runs-registered-gates") //nolint:errcheck // progress output
 	greenOutput, greenCode, err := rawCommand(ctx, pass, os.Environ(), "ze-test", "fixture", "runner/verify-scope-debt-clear-gate", "green")
 	if err != nil || greenCode != 0 || !strings.Contains(greenOutput, "fixture-gate-ran-green") {
 		return fmt.Errorf("green owed gate did not run: exit=%d %w %s", greenCode, err, greenOutput)
 	}
-	passLedger := filepath.Join(pass, "plan/verification-debt/fixture.md")
-	body, err := os.ReadFile(passLedger)
+	passLedger := filepath.Join(pass, "plan", "verification-debt", "fixture.md")
+	body, err := os.ReadFile(passLedger) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -127,23 +125,23 @@ func verifyScopeDebtClearDriver(ctx context.Context, args []string) error {
 	if !strings.Contains(updated, "native fixture gate | the gate had not run | cleared |") || !strings.Contains(updated, "independent critical review | no reviewer | open |") {
 		return errors.New("green gate did not clear exactly its runnable row")
 	}
-	fmt.Fprintln(os.Stdout, "UNRUNNABLE  independent critical review")
-	fmt.Fprintln(os.Stdout, "cleared 1 row(s), 1 still open")
-	fmt.Fprintln(os.Stdout, "green-gate-cleared-its-row")
+	fmt.Fprintln(os.Stdout, "UNRUNNABLE  independent critical review") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "cleared 1 row(s), 1 still open")          //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "green-gate-cleared-its-row")              //nolint:errcheck // progress output
 	redOutput, redCode, err := rawCommand(ctx, red, os.Environ(), "ze-test", "fixture", "runner/verify-scope-debt-clear-gate", "red")
 	if err != nil || redCode == 0 || !strings.Contains(redOutput, "fixture-gate-said-why") {
 		return fmt.Errorf("red owed gate result missing: exit=%d %w %s", redCode, err, redOutput)
 	}
-	redBody, err := os.ReadFile(filepath.Join(red, "plan/verification-debt/fixture.md"))
+	redBody, err := os.ReadFile(filepath.Join(red, "plan", "verification-debt", "fixture.md")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
 	if strings.Contains(string(redBody), "| cleared |") {
 		return errors.New("a row was cleared by a red gate")
 	}
-	fmt.Fprintf(os.Stdout, "RED (exit %d)\n%s", redCode, redOutput)
-	fmt.Fprintln(os.Stdout, "cleared 0 row(s), 1 still open")
-	fmt.Fprintln(os.Stdout, "red-gate-left-its-row-open")
+	fmt.Fprintf(os.Stdout, "RED (exit %d)\n%s", redCode, redOutput) //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "cleared 0 row(s), 1 still open")       //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "red-gate-left-its-row-open")           //nolint:errcheck // progress output
 	return nil
 }
 
@@ -155,10 +153,10 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(repo)
+	defer os.RemoveAll(repo) //nolint:errcheck // fixture cleanup
 	if err := gitFixture(ctx, repo, map[string]string{
-		"go.mod":                       "module fixture/wiring\n\ngo 1.24\n",
-		"feature-gates.txt":            "fixture\n",
+		fileGoMod:                      "module fixture/wiring\n\ngo 1.24\n",
+		fileFeatureGates:               contentFeatureGate,
 		".gitignore":                   "tmp/\n",
 		"docs/architecture/fixture.md": "# Fixture\n",
 		"mine.go":                      "// Design: docs/architecture/fixture.md -- fixture\npackage mine\n",
@@ -181,19 +179,19 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 		return fmt.Errorf("native le binary is not executable: %s", leBinary)
 	}
 	env := append(os.Environ(), "ZE_REPO_ROOT="+repo)
-	if output, code, err := rawCommand(ctx, repo, env, leBinary, "verify-status", "write", "exit-code", "1", "mode", "full"); err != nil || code != 0 {
+	if output, code, err := rawCommand(ctx, repo, env, leBinary, "verify status", "write", "exit-code", "1", "mode", "full"); err != nil || code != 0 {
 		return fmt.Errorf("write verify status exit=%d: %w %s", code, err, output)
 	}
-	fmt.Fprintln(os.Stdout, "scratch-repo-ready")
+	fmt.Fprintln(os.Stdout, "scratch-repo-ready") //nolint:errcheck // progress output
 	writeIndex := func(extra map[string]any) error {
 		groups := []any{map[string]any{
-			"stage": "doc-wiring", "group-id": "files:wiring", "kind": "files", "related": []string{"theirs.go"},
-			"summary": "an exported symbol added by this change has no non-test reference", "rerun": "le doc-wiring", "detail-log": "tmp/verify/doc-wiring.log", "parallel": "group",
+			fieldStage: checkDocWiring, fieldGroupID: "files:wiring", fieldKind: fieldFiles, fieldRelated: []string{"theirs.go"},
+			fieldSummary: "an exported symbol added by this change has no non-test reference", fieldRerun: "le doc-wiring", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
 		}}
 		if extra != nil {
 			groups = append(groups, extra)
 		}
-		value := map[string]any{"stages": []any{map[string]any{"stage": "doc-wiring", "exit-code": 1, "groups": groups}}}
+		value := map[string]any{"stages": []any{map[string]any{fieldStage: checkDocWiring, "exit-code": 1, "groups": groups}}}
 		data, _ := json.Marshal(value)
 		return os.WriteFile(filepath.Join(repo, "tmp", "ze-verify-failures.json"), data, 0o600)
 	}
@@ -211,7 +209,7 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 	if err != nil || code != 0 {
 		return fmt.Errorf("foreign wiring red refused commit: exit=%d %w %s", code, err, output)
 	}
-	debt, err := os.ReadFile(filepath.Join(repo, "plan", "verification-debt", "aaaa1111.md"))
+	debt, err := os.ReadFile(filepath.Join(repo, "plan", "verification-debt", "aaaa1111.md")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -219,21 +217,21 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 		!strings.Contains(string(debt), "full native verification (not FRESH-green)") {
 		return fmt.Errorf("foreign red debt attribution wrong: %s", debt)
 	}
-	fmt.Fprintln(os.Stdout, "wiring-red-of-another-session-not-charged")
+	fmt.Fprintln(os.Stdout, "wiring-red-of-another-session-not-charged") //nolint:errcheck // progress output
 	if err := writeIndex(map[string]any{
-		"stage": "doc-wiring", "group-id": "files:design-refs", "kind": "files", "related": []string{"mine.go"},
-		"summary": "a Design reference does not resolve", "rerun": "le doc-check links", "detail-log": "tmp/verify/doc-wiring.log", "parallel": "group",
+		fieldStage: checkDocWiring, fieldGroupID: "files:design-refs", fieldKind: fieldFiles, fieldRelated: []string{"mine.go"},
+		fieldSummary: "a Design reference does not resolve", fieldRerun: "le doc-check links", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
 	}); err != nil {
 		return err
 	}
 	output, code, err = runCreate("bbbb2222")
-	if err != nil || code == 0 || !strings.Contains(output, "deterministic structural gate(s)") || !strings.Contains(output, "doc-wiring") {
+	if err != nil || code == 0 || !strings.Contains(output, "deterministic structural gate(s)") || !strings.Contains(output, "doc wiring") {
 		return fmt.Errorf("own wiring red did not refuse: exit=%d %w %s", code, err, output)
 	}
-	fmt.Fprintln(os.Stdout, "wiring-red-of-my-own-file-still-refuses")
+	fmt.Fprintln(os.Stdout, "wiring-red-of-my-own-file-still-refuses") //nolint:errcheck // progress output
 	if err := writeIndex(map[string]any{
-		"stage": "doc-wiring", "group-id": "subcheck:ci-sleep-ratchet", "kind": "subcheck", "related": []string{},
-		"summary": "functional fixtures exceed the wait-call ceiling", "rerun": "le doc-wiring", "detail-log": "tmp/verify/doc-wiring.log", "parallel": "group",
+		fieldStage: checkDocWiring, fieldGroupID: "subcheck:ci-sleep-ratchet", fieldKind: "subcheck", fieldRelated: []string{},
+		fieldSummary: "functional fixtures exceed the wait-call ceiling", fieldRerun: "le doc-wiring", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
 	}); err != nil {
 		return err
 	}
@@ -241,6 +239,6 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 	if err != nil || code == 0 || !strings.Contains(output, "charged for want of path attribution") || !strings.Contains(output, "subcheck:ci-sleep-ratchet") {
 		return fmt.Errorf("blind wiring red did not refuse: exit=%d %w %s", code, err, output)
 	}
-	fmt.Fprintln(os.Stdout, "unattributable-wiring-red-is-charged")
+	fmt.Fprintln(os.Stdout, "unattributable-wiring-red-is-charged") //nolint:errcheck // progress output
 	return nil
 }

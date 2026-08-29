@@ -43,7 +43,7 @@ func TestTaggedScopeActionPublishesClosedKeywordGrammar(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatal("RFC action catalogue does not publish tagged-scope")
+		t.Fatal("RFC action catalog does not publish tagged-scope")
 	}
 	if _, code := Answer([]string{"tagged-scope", "some/path"}); code != 2 {
 		t.Errorf("a path before its keyword answered %d, want grammar refusal 2", code)
@@ -133,7 +133,7 @@ func TestTaggedScopeAllowsUnchangedAndNonRFCCases(t *testing.T) {
 			proposed: "package x\nfunc TestOne() { panic(1) }\n", reason: "no-tags", carrier: true},
 		{name: "comment only", path: "internal/x/x_test.go", oldText: taggedScopeOld,
 			proposed: strings.Replace(taggedScopeOld, "got := 1", "got := 1 // same assertion", 1),
-			reason:   "unchanged-behaviour", carrier: true},
+			reason:   "unchanged-behavior", carrier: true},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {

@@ -28,8 +28,7 @@ func (r uiLeCodegenAnswersCommandResult) exitCode() int {
 	if r.err == nil {
 		return 0
 	}
-	var exitErr *exec.ExitError
-	if errors.As(r.err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](r.err); ok {
 		return exitErr.ExitCode()
 	}
 	return -1
@@ -40,7 +39,7 @@ func (r uiLeCodegenAnswersCommandResult) output() string {
 }
 
 func uiLeCodegenAnswersRunCommand(ctx context.Context, dir string, env []string, name string, args ...string) uiLeCodegenAnswersCommandResult {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 
@@ -107,7 +106,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 	if err != nil {
 		return uiLeCodegenAnswersFailf("create temporary directory: %v", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	if err != nil {
@@ -126,7 +125,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 	}
 	generatedBefore := make(map[string][]byte, len(generatedPaths))
 	for _, name := range generatedPaths {
-		data, err := os.ReadFile(filepath.Join(root, name))
+		data, err := os.ReadFile(filepath.Join(root, name)) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return uiLeCodegenAnswersFailf("snapshot %s before read-only actions: %v", name, err)
 		}
@@ -137,8 +136,8 @@ func runLECodegenAnswers(ctx context.Context) error {
 	// equal to the committed output. Consequently, each corresponding write
 	// action would emit exactly the bytes already in the checkout.
 	generators := []string{
-		"yang-glue",
-		"plugin-imports",
+		"yang glue",
+		"plugin imports",
 		"feature-tags",
 		"web-assets",
 	}
@@ -150,7 +149,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 	}
 
 	// One payload, rendered as JSON and as a count.
-	answer := runLE("plugin-imports", "check", "|", "json")
+	answer := runLE("plugin imports", "check", "|", "json")
 	var report map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(answer.stdout), &report); err != nil {
 		preview := answer.stdout
@@ -160,7 +159,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 		return uiLeCodegenAnswersFailf("`le plugin-imports check | json` did not answer JSON: %v\n%s", err, preview)
 	}
 
-	for _, key := range []string{"plugins", "schemas", "rpcs", "namespaces", "gated-groups", "files"} {
+	for _, key := range []string{sectionPlugins, "schemas", "rpcs", "namespaces", "gated-groups", fieldFiles} {
 		if _, ok := report[key]; !ok {
 			return uiLeCodegenAnswersFailf("the report answered no %q key: %v", key, objectKeys(report))
 		}
@@ -201,7 +200,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 		return uiLeCodegenAnswersFailf("the report compared %d files against %d gated groups", len(files), gatedGroups)
 	}
 
-	counted := runLE("plugin-imports", "check", "|", "count")
+	counted := runLE("plugin imports", "check", "|", "count")
 	if counted.exitCode() != 0 {
 		return uiLeCodegenAnswersFailf("`le plugin-imports check | count` exited %d: %s", counted.exitCode(), counted.output())
 	}
@@ -242,7 +241,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 	// pages is read-only. Compare bytes before and after so unrelated checkout
 	// changes that predate this fixture do not masquerade as writes by pages.
 	for _, name := range generatedPaths {
-		after, err := os.ReadFile(filepath.Join(root, name))
+		after, err := os.ReadFile(filepath.Join(root, name)) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return uiLeCodegenAnswersFailf("read %s after read-only actions: %v", name, err)
 		}
@@ -258,12 +257,12 @@ func runLECodegenAnswers(ctx context.Context) error {
 		if listing.exitCode() != 0 {
 			return uiLeCodegenAnswersFailf("`le %s` exited %d: %s", name, listing.exitCode(), listing.stderr)
 		}
-		for _, wanted := range []string{"check", "write", "writes", "checks"} {
+		for _, wanted := range []string{actionCheck, "write", wordWrites, fieldChecks} {
 			if !strings.Contains(listing.stdout, wanted) {
 				return uiLeCodegenAnswersFailf("%s: the listing does not name %q:\n%s", name, wanted, listing.stdout)
 			}
 		}
-		for _, line := range strings.Split(listing.stdout, "\n") {
+		for line := range strings.SplitSeq(listing.stdout, "\n") {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "write ") && !strings.Contains(line, "writes") {
 				return uiLeCodegenAnswersFailf("%s: the write action is not marked as writing: %q", name, line)
@@ -275,7 +274,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 	}
 
 	// A usage error is distinct from a gate that ran and found stale output.
-	typo := runLE("yang-glue", "chekc")
+	typo := runLE("yang glue", "chekc")
 	if typo.exitCode() != 2 {
 		return uiLeCodegenAnswersFailf("a mistyped action exited %d, want 2 so a caller can tell it from a failed gate", typo.exitCode())
 	}

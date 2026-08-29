@@ -60,7 +60,7 @@ func (s Status) Text() string {
 // holds.
 func (s Status) document() map[string]any {
 	return map[string]any{
-		"schema-version":     s.SchemaVersion,
+		keySchemaVersion:     s.SchemaVersion,
 		"enrolled":           s.Enrolled,
 		"signed":             s.Signed,
 		"signed-by-register": s.SignedByRegister,

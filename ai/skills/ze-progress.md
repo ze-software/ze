@@ -27,7 +27,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
 
 ## Steps
 
-1. **Run `./le spec-session current`.** If empty: report "No spec selected. Run `/ze-spec` to pick or create one." and stop.
+1. **Run `./le spec session current`.** If empty: report "No spec selected. Run `/ze-spec` to pick or create one." and stop.
 2. **Read `plan/<spec-name>`.** Extract the metadata table (`Status`, `Updated`), the Acceptance Criteria table, the TDD Test Plan, the Files to Modify / Files to Create lists, and the Wiring Test table.
 3. **Check git state:** `git status`, `git log --oneline -20`, and `git log --oneline -- plan/<spec-name>`. Record the timestamp of the most recent commit touching any spec-scoped file.
 4. **Stage 1 -- Implementation:** Build the AC / TDD / Files table below by checking each row against the code:

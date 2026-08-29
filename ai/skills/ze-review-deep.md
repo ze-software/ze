@@ -441,7 +441,7 @@ SCOPE: Review these changed files: {file_list}
 The other agents review the code that exists. You review what DOESN'T exist. This is a fundamentally different lens. A feature can have all its new code properly wired, tested, and correct -- and still be non-functional because essential connecting pieces were never written.
 
 **Step 1: Identify the feature.**
-From the diff, determine what feature is being added (new NLRI family, new plugin, new protocol support, new command, etc.). Read the spec if one exists (run `./le spec-session current`).
+From the diff, determine what feature is being added (new NLRI family, new plugin, new protocol support, new command, etc.). Read the spec if one exists (run `./le spec session current`).
 
 **Step 2: Enumerate every user story.**
 List every operation a user would expect this feature to support:

@@ -32,6 +32,26 @@ const extractionSchemaVersion = 1
 // under an id reserved there.
 const relocatedToSpec = "relocated-to-spec"
 
+// The keys an extraction artifact declares. Each one is read by the parser,
+// listed in a closed key set, and written by the selftest fixture, so a typo in
+// any one of the three reads as a field nobody wrote.
+const (
+	keySchemaVersion = "schema-version"
+	keyStem          = "stem"
+	keyReviewer      = "reviewer"
+	keySignedOff     = "signed-off"
+	keySites         = "sites"
+	keyDisposition   = "disposition"
+	keyReason        = "reason"
+	keyQuote         = "quote"
+)
+
+// The two dispositions a walked section can carry.
+const (
+	dispositionWalked  = "walked"
+	dispositionSkipped = "skipped"
+)
+
 // The two site dispositions and the one exclusion kind that other files read
 // by name. Spelled once, because a second spelling is a second place for a
 // reader and the closed set below to drift apart.
@@ -66,7 +86,7 @@ var siteDispositions = map[string]bool{dispositionMapped: true, dispositionExclu
 // SiteDispositions answers them sorted.
 func SiteDispositions() []string { return sortedKeys(siteDispositions) }
 
-var sectionDispositions = map[string]bool{"walked": true, "skipped": true}
+var sectionDispositions = map[string]bool{dispositionWalked: true, dispositionSkipped: true}
 
 // SectionDispositions answers them sorted.
 func SectionDispositions() []string { return sortedKeys(sectionDispositions) }
@@ -83,19 +103,19 @@ func reSpecPath() string {
 }
 
 var artifactKeys = map[string]bool{
-	"schema-version": true, "stem": true, "register": true, "register-reason": true,
-	"source-path": true, "source-sha": true, "signed-off": true, "reviewer": true,
-	"resign-reason": true, "sections": true, "sites": true,
+	keySchemaVersion: true, keyStem: true, "register": true, "register-reason": true,
+	"source-path": true, "source-sha": true, keySignedOff: true, keyReviewer: true,
+	"resign-reason": true, "sections": true, keySites: true,
 }
 
 var siteKeys = map[string]bool{
-	"id": true, "quote": true, "disposition": true, "mapped-to": true,
-	"excluded-kind": true, "reason": true, "relocated-to": true, "reserved-id": true,
+	"id": true, keyQuote: true, keyDisposition: true, "mapped-to": true,
+	"excluded-kind": true, keyReason: true, "relocated-to": true, "reserved-id": true,
 }
 
 var sectionKeys = map[string]bool{
-	"id": true, "sites": true, "disposition": true, "skip-kind": true,
-	"reason": true, "unsourced-ids": true,
+	"id": true, keySites: true, keyDisposition: true, "skip-kind": true,
+	keyReason: true, "unsourced-ids": true,
 }
 
 // ExtractionSite is one classified sentence of the source.
@@ -268,12 +288,12 @@ func ParseExtractionArtifact(tree, path string) (Extraction, error) {
 		return Extraction{}, err
 	}
 
-	if !equalsSchemaVersion(data["schema-version"]) {
+	if !equalsSchemaVersion(data[keySchemaVersion]) {
 		return Extraction{}, parseErr(tb.Str(rel).Str(": schema-version must be ").
-			Int(extractionSchemaVersion).Str(", got ").Str(pyRepr(data["schema-version"])))
+			Int(extractionSchemaVersion).Str(", got ").Str(pyRepr(data[keySchemaVersion])))
 	}
 
-	stem, err := strField(data, "stem", rel, true)
+	stem, err := strField(data, keyStem, rel, true)
 	if err != nil {
 		return Extraction{}, err
 	}
@@ -302,8 +322,8 @@ func ParseExtractionArtifact(tree, path string) (Extraction, error) {
 		into *string
 	}{
 		{"register-reason", &art.RegisterReason},
-		{"signed-off", &art.SignedOff},
-		{"reviewer", &art.Reviewer},
+		{keySignedOff, &art.SignedOff},
+		{keyReviewer, &art.Reviewer},
 		{"resign-reason", &art.ResignReason},
 	} {
 		value, err := strField(data, field.key, rel, false)
@@ -375,7 +395,7 @@ func parseSections(data map[string]any, rel string) ([]ExtractionSection, error)
 		var where textbuf.Buffer
 		place := where.Str(rel).Str(": section ").Str(id).String()
 
-		count, ok := nonNegativeInt(entry["sites"])
+		count, ok := nonNegativeInt(entry[keySites])
 		if !ok {
 			tb.Reset()
 			return nil, parseErr(tb.Str(place).Str(": 'sites' must be a non-negative integer"))
@@ -384,12 +404,12 @@ func parseSections(data map[string]any, rel string) ([]ExtractionSection, error)
 		if err != nil {
 			return nil, err
 		}
-		reason, err := strField(entry, "reason", place, false)
+		reason, err := strField(entry, keyReason, place, false)
 		if err != nil {
 			return nil, err
 		}
 		skipKind := ""
-		if disposition == "skipped" {
+		if disposition == dispositionSkipped {
 			skipKind, _ = entry["skip-kind"].(string)
 			if !sectionSkipKinds[skipKind] {
 				tb.Reset()
@@ -416,7 +436,7 @@ func parseSections(data map[string]any, rel string) ([]ExtractionSection, error)
 
 func parseSites(data map[string]any, rel, stem string) ([]ExtractionSite, error) {
 	var tb textbuf.Buffer
-	rawSites, isList := data["sites"].([]any)
+	rawSites, isList := data[keySites].([]any)
 	if !isList {
 		return nil, parseErr(tb.Str(rel).Str(": 'sites' must be a list"))
 	}
@@ -445,13 +465,13 @@ func parseSites(data map[string]any, rel, stem string) ([]ExtractionSite, error)
 		place := where.Str(rel).Str(": site ").Str(id).String()
 
 		site := ExtractionSite{ID: id}
-		if site.Quote, err = strField(entry, "quote", place, true); err != nil {
+		if site.Quote, err = strField(entry, keyQuote, place, true); err != nil {
 			return nil, err
 		}
 		if site.Disposition, err = dispositionOf(entry, siteDispositions, SiteDispositions(), place); err != nil {
 			return nil, err
 		}
-		if site.Reason, err = strField(entry, "reason", place, false); err != nil {
+		if site.Reason, err = strField(entry, keyReason, place, false); err != nil {
 			return nil, err
 		}
 		switch site.Disposition {
@@ -510,7 +530,7 @@ func parseSites(data map[string]any, rel, stem string) ([]ExtractionSite, error)
 
 // dispositionOf reads a disposition field, where absent means unclassified.
 func dispositionOf(entry map[string]any, known map[string]bool, sorted []string, place string) (string, error) {
-	value := entry["disposition"]
+	value := entry[keyDisposition]
 	if value == nil {
 		return "", nil
 	}

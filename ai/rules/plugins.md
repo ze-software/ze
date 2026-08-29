@@ -628,7 +628,7 @@ engine state; it MUST go through DirectBridge/DispatchCommand instead. This
 compiles and works when the plugin happens to run internal, then silently
 no-ops when it runs external (the call mutates the subprocess's own
 disconnected copy of that package's state). See "Process Boundary" below,
-gated by `./le plugin-boundary check`.
+gated by `./le plugin boundary check`.
 
 ## Structured Event Delivery (DirectBridge)
 
@@ -914,7 +914,7 @@ Do not copy-paste the severity choice between plugins: judge each one on what ac
 
 ### The mechanical check
 
-`./le plugin-boundary check` (wired into `./le verify current mode full`/`./le verify current mode changed`) runs `internal/le/pluginboundary/pluginboundary.go`: it scans every package under the generator's plugin search roots, derived at runtime from `internal/le/pluginimports/pluginimports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list, for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
+`./le plugin boundary check` (wired into `./le verify current mode full`/`./le verify current mode changed`) runs `internal/le/pluginboundary/pluginboundary.go`: it scans every package under the generator's plugin search roots, derived at runtime from `internal/le/pluginimports/pluginimports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list, for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
 <!-- source: internal/le/pluginboundary/pluginboundary.go -- loadScanRootsFrom -->
 
 Add a new entry to `internal/le/pluginboundary/pluginboundary.go`'s `dangerousCalls` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.

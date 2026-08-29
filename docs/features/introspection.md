@@ -33,7 +33,7 @@ unregistered access (`env.MustRegister()`).
 | `ze help ai api` | Daemon API endpoints (`ze-show:*`, `ze-set:*`, ...) with parameters |
 
 One registration is out of reach of both catalogs. `ze help command --json` and
-`./le command-list` read the compiled command tree in their own process, and
+`./le command list` read the compiled command tree in their own process, and
 they start no plugin. Neither reports a pipe alias a plugin declared in its
 Stage 1 message. The running daemon answers that question, through
 `command help "<name>"` and through Tab completion in the interactive session.
@@ -47,7 +47,7 @@ its aliases.
 | Native action | What it does |
 |---------------|--------------|
 | `./le inventory` | Reports plugins, YANG modules, RPCs, families, tests, and packages |
-| `./le command-list` | Reads every CLI command from the compiled registries |
+| `./le command list` | Reads every CLI command from the compiled registries |
 | `./le docvalid command-contract` | Cross-checks YANG commands and handlers |
 | `./le docvalid doc-drift` | Detects documentation drift |
 

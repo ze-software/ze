@@ -143,7 +143,7 @@ func scanLegacyPythonTags(src, path string) ([]Tag, error) {
 	return out, nil
 }
 
-// ChangedTags answers the RFC tags whose test behaviour changed between old
+// ChangedTags answers the RFC tags whose test behavior changed between old
 // and new.
 //
 // Removing a tag is itself a change even though tags are comments. Otherwise
@@ -230,7 +230,7 @@ func importOnlyGoEdit(path, oldText, newText string) bool {
 // is RAW FILE CONTENT rather than .ci syntax. behaviorBytes owes the same rule:
 // a block holds a fixture the carrier writes to disk, not an assertion the
 // carrier makes, so moving a fixture out of the file changes no tested
-// behaviour. Without this, replacing an embedded fixture with a compiled one
+// behavior. Without this, replacing an embedded fixture with a compiled one
 // read as a change to every RFC requirement the carrier tags, and 27 tests
 // demanded owner approval for an edit that touched no assertion.
 //
@@ -265,7 +265,7 @@ func dropCarrierBlocks(text string) string {
 }
 
 func behaviorBytes(path, text string) string {
-	if strings.HasSuffix(path, ".ci") || strings.HasSuffix(path, ".et") ||
+	if strings.HasSuffix(path, ciSuffix) || strings.HasSuffix(path, etSuffix) ||
 		strings.HasSuffix(path, ".py") {
 		text = dropCarrierBlocks(text)
 		text = hashLineCommentRE.ReplaceAllString(text, "")

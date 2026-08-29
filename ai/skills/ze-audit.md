@@ -34,7 +34,7 @@ phase itself.
 
 ## Steps
 
-1. **Read the spec:** Run `./le spec-session current`, then read `plan/<spec-name>`
+1. **Read the spec:** Run `./le spec session current`, then read `plan/<spec-name>`
 2. **Extract all requirements:** List every item from:
    - Task section (features/requirements)
    - TDD Test Plan (unit + functional tests)

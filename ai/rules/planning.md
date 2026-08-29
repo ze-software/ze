@@ -55,7 +55,7 @@ Rationale: `ai/rationale/planning.md`
 
 **MUST supervise THINLY: launch, verify the report against source, decide, gate the next phase. The main thread MUST NOT run the exploration itself.** Exploration belongs in an agent because only its report needs to survive into the supervising context (`ai/rules/context-economy.md`).
 
-**A main thread whose context passes 600k MUST write its per-spec state file and hand off rather than continuing.** Resolve the newest file with `./le spec-session state latest spec <spec-stem>`.
+**A main thread whose context passes 600k MUST write its per-spec state file and hand off rather than continuing.** Resolve the newest file with `./le spec session state latest spec <spec-stem>`.
 
 **Implementation MUST be delegated ONE agent per implementation phase, not one agent per spec.** Give each agent the spec path, the phase it owns, and the per-spec state file; it writes its handoff there when the phase is green, and the next agent reads that file instead of re-deriving the phase before it. Measured: implementation agents ran 144 API calls each at 294k mean context, more of both than any other phase, because context grows with turns inside one agent.
 
@@ -80,7 +80,7 @@ Rationale: `ai/rationale/planning.md`
 - **Each `ze-*` skill states its own delegation disposition**, so routing is visible when the skill runs.
 - **The native `subagent-context` action adds the parent's claimed spec, status, and contract.** The main thread still gives each subagent the complete briefing.
 - **The native `block-premature-stop` action is registered on Stop.** `./le hook-check unit` pins its behavior and claim survival.
-- **The nudge survives past turn one.** The claim marker MUST outlive the turn it was made. No hook releases it. `./le spec-session release` does, from `/ze-close`, so the claim lives until the spec closes. `./le hook-check unit` pins registration, order, claim survival, and the absence of a SessionEnd cleanup hook.
+- **The nudge survives past turn one.** The claim marker MUST outlive the turn it was made. No hook releases it. `./le spec session release` does, from `/ze-close`, so the claim lives until the spec closes. `./le hook-check unit` pins registration, order, claim survival, and the absence of a SessionEnd cleanup hook.
 ## Work Phases
 
 Ze work has three phases: planning and design, implementation, and review and
@@ -96,7 +96,7 @@ audit. They are distinguished by what the work IS, never by convenience.
 The review-independence rule below provides the relevant quality gate. It does
 not constrain the implementation model.
 
-**Review MUST run on Opus 5.** `./le spec-session review record` refuses an
+**Review MUST run on Opus 5.** `./le spec session review record` refuses an
 off-tier artifact, and the native agent-skill hook in
 `internal/le/hookruntime/agent.go` refuses the spawn.
 
@@ -129,7 +129,7 @@ This never overrides "Critical Review Is the Central Deliverable" below.
 
 | Session | Skill | Commits it produces |
 |---------|-------|---------------------|
-| Implementation, any model | `/ze-implement` | ONE commit: code, tests, docs, and the spec at `Status: verification`. Then `./le spec-session release`, report the SHA, stop |
+| Implementation, any model | `/ze-implement` | ONE commit: code, tests, docs, and the spec at `Status: verification`. Then `./le spec session release`, report the SHA, stop |
 | Review and closure, Opus 5 | `/ze-close` | commit A (journal row, spec, closure edits) and commit B (`git rm` the spec), after a Review Gate over that committed diff |
 
 ### Subagents
@@ -149,11 +149,11 @@ This never overrides "Critical Review Is the Central Deliverable" below.
 
 ### Enforcement (model phases)
 
-- **No gate blocks an implementation edit by model.**
-- **Review is gated at both ends.** The native agent-skill hook refuses a review spawn on the wrong model, and `./le spec-session review record` refuses the artifact.
+- **No gate blocks an implementation edit by model.** An implementation phase MUST NOT be refused on the model that runs it.
+- **Review is gated at both ends.** The native agent-skill hook refuses a review spawn on the wrong model, and `./le spec session review record` refuses the artifact.
 - **A subagent inherits the phase, not the task shape.**
-- **The record gate takes `model-override <reason>` only on operator instruction.**
-- **Both gates share `internal/le/speclifecycle/model.go`.**
+- **The record gate takes `model-override <reason>` only on operator instruction.** It MUST NOT be passed on your own judgement.
+- **Both gates share `internal/le/specsession/model.go`.**
 
 ## Spec Selection
 
@@ -276,7 +276,7 @@ When multiple specs form a related set (umbrella + child specs), use a shared pr
 
 ## Spec Metadata (BLOCKING)
 
-Every spec MUST have a metadata table immediately after the `# Spec:` title. This is the source of truth for spec status, parsed by `./le spec-status` and validated by `hookValidateSpec` in `internal/le/hookruntime/lifecycle.go`.
+Every spec MUST have a metadata table immediately after the `# Spec:` title. This is the source of truth for spec status, parsed by `./le spec status` and validated by `hookValidateSpec` in `internal/le/hookruntime/lifecycle.go`.
 
 | Field | Purpose | Values |
 |-------|---------|--------|
@@ -315,7 +315,7 @@ A spec that stays in `design` during implementation is lying about its state.
 
 ### Viewing Status
 
-`./le spec-status` shows the full inventory table. Use `./le spec-status | json` for machine-readable output.
+`./le spec status` shows the full inventory table. Use `./le spec status | json` for machine-readable output.
 
 ## Pre-Spec Verification
 
@@ -443,7 +443,7 @@ reviewers caught on the same diff minutes later.
    assertion that "SHOULD fire" either fires or does not; run it).
 4. **Looped to zero over a SHRINKING scope.** Every fix is new code and earns a fresh pass. Each pass reviews less than the one before it. Five passes are the session's to spend. The sixth is Thomas's to grant. Each pass carries a hard bound on what it covers. See "Bounding the loop" below.
 5. **Evidenced by an artifact, not narrated.** Record the pass with
-   `./le spec-session review record` → `tmp/review/<spec-stem>-<session-id>.md`
+   `./le spec session review record` → `tmp/review/<spec-stem>-<session-id>.md`
    (session-scoped, so concurrent same-spec sessions never clobber each other). It pins the
    SHA-256 of every code/test file the reviewers examined. The spec's Review Gate
    section pastes the reviewers' actual findings and each fix.
@@ -476,7 +476,7 @@ reviewers caught on the same diff minutes later.
 - **A round whose findings are ALL record defects is the last round.** The loop
   has stopped converging on the product: each prose fix creates fresh text to
   audit, so another round cannot establish product quality.
-- **`./le spec-session review record` takes `--rounds N` and refuses more than
+- **`./le spec session review record` takes `--rounds N` and refuses more than
   five without `--rounds-reason`, which MUST name the PRODUCT defect a later
   round found.** The cap is not a ban: a genuinely defective implementation can
   need a sixth round and gets one for the cost of a sentence. That sentence is
@@ -506,7 +506,7 @@ reviewers caught on the same diff minutes later.
 ### Enforcement (critical review, structural: a hook, not discipline)
 
 `internal/le/commit` refuses a spec-closure commit (one that adds a
-`plan/journal/*.md` row naming the spec, or removes a `plan/spec-*.md`) unless `./le spec-session review
+`plan/journal/*.md` row naming the spec, or removes a `plan/spec-*.md`) unless `./le spec session review
 check` passes: a CLEAN artifact exists, covers every reviewable file in the commit
 (the ze-close closure commits all of a spec's code in commit A, so that is
 full coverage), and its hashes still match (any edit after the review invalidates
@@ -590,8 +590,8 @@ other two red:
 
 | Gate | Reads | Missed by a `// Design:`-only grep |
 |------|-------|-------------------------------------|
-| `./le doc-check links` (`internal/le/doccheck`) | `// Design:` lines and tracked path citations | no |
-| `./le spec-citation` (`internal/le/speccitation`) | every `plan/spec-*.md` citation inside a spec | yes |
+| `./le doc check links` (`internal/le/doccheck`) | `// Design:` lines and tracked path citations | no |
+| `./le spec citation` (`internal/le/speccitation`) | every `plan/spec-*.md` citation inside a spec | yes |
 | `internal/le/doccheck.CheckLinks` tracked-citation pass | every tracked path citation, including a `plan/spec-*.md` target | yes |
 
 A grep limited to `// Design:` misses other spec citations and dead learned-summary paths. Closure must search every citation form.
@@ -609,9 +609,9 @@ about a file that is gone: the citation gate matches the path, not the name.
 Repoint the citation at the durable document that replaced the spec. Restate the
 fact inline. Add the stem to `plan/.citation-baseline` when the citation is a
 historical record of the closed spec. All three ride on commit A, because commit
-B removes a spec and adds nothing. Editing `plan/.citation-baseline` to absorb
-the dangling reference is banned at closure: `./le spec-citation` must pass
-after the citation is repointed to a live source.
+B removes a spec and adds nothing. A citation that still has a live source MUST be
+repointed or restated; the baseline MUST NOT absorb it. `./le spec citation`
+MUST pass after the repair.
 
 **Closure resolves the spec's deferral rows.** Before commit B, grep
 `plan/deferrals/` for this spec's filename (a row naming it as Destination MAY live in
@@ -664,11 +664,11 @@ gates exist for it, and all three run. The `Stop` array in
 
 | Gate | Where | Fires when |
 |------|-------|-----------|
-| Detector | `./le spec-status closure` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** journal row in `plan/journal/*.md` whose Spec cell exactly equals the spec stem, or a `plan/learned/NNN-<slug>.md` whose slug exactly equals the stem, while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates are listed under NEEDS VERIFICATION. Only the high-confidence set triggers the `--spec` block. |
+| Detector | `./le spec status closure` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** journal row in `plan/journal/*.md` whose Spec cell exactly equals the spec stem, or a `plan/learned/NNN-<slug>.md` whose slug exactly equals the stem, while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates are listed under NEEDS VERIFICATION. Only the high-confidence set triggers the `--spec` block. |
 | Stop-hook block | native `block-premature-stop` action in `internal/le/hookruntime/lifecycle.go` | This session claimed a spec, the detector exits 3 for it, and no acknowledgement exists. The hook refuses the stop. |
 | Commit reminder | `internal/le/commit` | A commit adds a journal row or learned summary but removes no spec: it prints the closure-commit reminder to stderr. |
 
-Run `./le spec-status closure list` any time to see the backlog.
+Run `./le spec status closure list` any time to see the backlog.
 
 ## Spec Preservation
 
@@ -868,7 +868,7 @@ the moment the deferral is made:
 
 | Order | Action | Detail |
 |-------|--------|--------|
-| 1 | Find an existing spec that already covers the topic | Search `plan/spec-*.md` for the topic, and scan `./le spec-status`. Prefer a `spec-finish-<subsystem>` / `spec-followup-<subsystem>` umbrella when one owns the area |
+| 1 | Find an existing spec that already covers the topic | Search `plan/spec-*.md` for the topic, and scan `./le spec status`. Prefer a `spec-finish-<subsystem>` / `spec-followup-<subsystem>` umbrella when one owns the area |
 | 2 | If one exists, add the work to its `## Task` section | That spec is the home. Record the deferral with it as Destination, Status `deferred` |
 | 3 | Only if no spec covers the topic, create a deferral spec | Named `plan/spec-<source>-deferred-<subtask>.md` (see below). Record the row with it as Destination, Status `deferred`, exactly as in step 2 |
 

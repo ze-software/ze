@@ -40,13 +40,23 @@ that function directly, and repository workflows invoke
 `./le <area> <action>`. A package must return structured answers through the
 shared renderer rather than add a private JSON mode.
 
-**The package sits at the path its command name predicts.** `le spec-session`
-lives at `internal/le/specsession`: the command name, hyphens removed. The rule
+**The package sits at the path its command name predicts.** A space in the name
+is a directory level, and a hyphen inside a level joins words naming one thing:
+`le spec session` lives at `internal/le/spec/session`, and
+`le repository tracked-build` at `internal/le/repository/trackedbuild`. The rule
 holds in both directions, and
 `TestEveryCommandIsFoundAtThePathItsNamePredicts` refuses an exception. A
-reader who knows the command knows the directory. A long command name makes a
-long directory name, and the answer to that is to rename the command. A package
-that registers nothing is a library, and it names nothing.
+reader who knows the command knows the directory. A package that registers
+nothing is a library, and it names nothing.
+
+**A hyphen joins one name; a space separates a namespace.** This is the rule
+`docs/architecture/cli/command-namespacing.md` states for the product CLI, and
+le follows it: `le verify lint`, not `le verify-lint`, because `verify` is an
+object with members. A shared prefix is not a namespace, so `dash-stdio` and
+the six `test-*` commands keep their hyphen; there is no `dash` object, and the
+`test-*` commands are five kinds of thing sharing a word. Feeder 6 of the
+grammar gate (`./le cli-grammar`) derives le's namespaces from the live
+registry and refuses a root that hyphenates an object to its member.
 
 Registration also states which of five groups the area belongs to, and help
 prints one section for each group in that order. The group is a parameter of

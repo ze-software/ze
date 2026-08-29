@@ -1,6 +1,6 @@
 # The Tracked-Build Gate
 
-`./le repository-tracked-build check` compiles what git holds. Every other build and
+`./le repository tracked-build check` compiles what git holds. Every other build and
 test target in this repository compiles the WORKING TREE, so a commit that
 lands a consumer while its producer stays uncommitted passes every gate and
 breaks HEAD for everyone else.
@@ -8,7 +8,7 @@ breaks HEAD for everyone else.
 <!-- source: internal/le/repositorytrackedbuild/actions.go -- Answer -->
 
 On 2026-08-04 four commits broke the retired tracked-build path in one day.
-The current replacement, `./le repository-tracked-build check`, compiles the
+The current replacement, `./le repository tracked-build check`, compiles the
 committed population and catches that class.
 
 ## Structural type checking and final linking
@@ -26,7 +26,7 @@ verify run it judges only the rows the change set can move, keeping the distro
 all-on and bare-core rows always: `docs/architecture/testing/verify-freshness-scope.md`.
 
 Staticcheck stops after package and test-variant type checking.
-`./le repository-tracked-build check` supplies committed-tree final-link proof for
+`./le repository tracked-build check` supplies committed-tree final-link proof for
 its six tracked configurations, not for every shipped build flavor. Keep both
 stages live because they judge different populations and compiler boundaries.
 
@@ -105,7 +105,7 @@ four earlier rounds did not.
 - Adding a binary flavor outside `internal/le/repositorytrackedbuild/matrix.go` does not
   extend the gate. `TestEveryFlavorNamesATagGatedAnchorFile` requires each
   shipped row to name the tag-gated file it exists to compile.
-- `REV=<commit-ish> ./le repository-tracked-build check` judges a past commit,
+- `REV=<commit-ish> ./le repository tracked-build check` judges a past commit,
   so a break found later remains bisectable.
 
 ## Two shell and tooling traps

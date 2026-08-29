@@ -78,13 +78,13 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 	rel := prefix.Str(auditRel).Byte('/').Str(rfc).Str(".json: ").Str(rid).String()
 	var errs []string
 	if value == verdictEnforced {
-		if len(recordedMap(verdict, "tests")) == 0 {
+		if len(recordedMap(verdict, fingerprintTests)) == 0 {
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'enforced' with an empty 'tests' map. 'enforced' means the tests would fail if the code stopped complying, so it must cite at least one. If no reachable code path could satisfy or violate the requirement, the honest verdict is 'not-applicable' with a 'no_code_path' reason and an agreeing {not-applicable} annotation").String())
 		}
 		if req.Annotation == nil || req.Annotation.Kind != annotationSinglePolarity {
 			var missing []string
-			for _, polarity := range []string{"negative", "positive"} {
+			for _, polarity := range []string{polarityNegative, polarityPositive} {
 				if !polarities[polarity] {
 					missing = append(missing, polarity)
 				}
@@ -105,7 +105,7 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 		}
 	}
 	if value == verdictUnimplemented {
-		if len(recordedMap(verdict, "code")) == 0 {
+		if len(recordedMap(verdict, fingerprintCode)) == 0 {
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'unimplemented' with an empty 'code' map. A claim that the CODE does not comply must name the producing code, or it is unfalsifiable: with neither tests nor code fingerprinted, the verdict can never go stale and no one is ever asked to look again").String())
 		}
@@ -116,7 +116,7 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 		}
 	}
 	if value == verdictNotApplicable {
-		if tests := recordedMap(verdict, "tests"); len(tests) > 0 {
+		if tests := recordedMap(verdict, fingerprintTests); len(tests) > 0 {
 			keys := make([]string, 0, len(tests))
 			for key := range tests {
 				keys = append(keys, key)
@@ -247,7 +247,7 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 			continue
 		}
 		upgrade, _ := now["upgrade_reason"].(string)
-		if strings.TrimSpace(upgrade) != "" || !mapsEqualString(recordedMap(now, "units"), recordedMap(was, "units")) {
+		if strings.TrimSpace(upgrade) != "" || !mapsEqualString(recordedMap(now, fingerprintUnits), recordedMap(was, fingerprintUnits)) {
 			continue
 		}
 		var tb textbuf.Buffer

@@ -196,7 +196,7 @@ func newExtractionDocument(inventory *Inventory, previous *Extraction) extractio
 		entry := extractionDocumentSection{ID: section.ID, Sites: section.Sites}
 		if old, held := previousSections[section.ID]; held {
 			entry.Disposition = stringPointer(old.Disposition)
-			if old.Disposition == "skipped" {
+			if old.Disposition == dispositionSkipped {
 				entry.SkipKind = old.SkipKind
 				entry.Reason = old.Reason
 			}

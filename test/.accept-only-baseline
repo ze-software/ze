@@ -3,7 +3,7 @@
 # One repo-relative path per line: each test whose ONLY assertion is
 # expect=exit:code=0 (proves ACCEPTED, not that the config parsed to the
 # CORRECT tree). The lint (internal/test/runner/accept_only_lint_test.go,
-# run under `./le verify-deps unit-cached`) FAILS on a NEW unannotated accept-only .ci
+# run under `./le verify deps unit-cached`) FAILS on a NEW unannotated accept-only .ci
 # not listed here, and on a STALE entry (one that was strengthened,
 # annotated, or removed). Strengthen a test with a readback assertion, or
 # annotate it `# accept-only: <reason>` when a unit test covers the value;

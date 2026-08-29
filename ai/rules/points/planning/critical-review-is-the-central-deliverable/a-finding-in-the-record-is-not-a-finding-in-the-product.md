@@ -17,7 +17,7 @@ stage:
 - **A round whose findings are ALL record defects is the last round.** The loop
   has stopped converging on the product: each prose fix creates fresh text to
   audit, so another round cannot establish product quality.
-- **`./le spec-session review record` takes `--rounds N` and refuses more than
+- **`./le spec session review record` takes `--rounds N` and refuses more than
   five without `--rounds-reason`, which MUST name the PRODUCT defect a later
   round found.** The cap is not a ban: a genuinely defective implementation can
   need a sixth round and gets one for the cost of a sentence. That sentence is

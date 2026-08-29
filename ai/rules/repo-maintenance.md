@@ -80,25 +80,25 @@ Use these before inventing a new mechanism:
 
 | Need | Existing surface |
 |------|------------------|
-| Changed-file-aware wiring, doc, command, and inventory gate | `./le doc-wiring` |
-| Documentation drift and YANG command contracts | `./le doc-check verify` |
+| Changed-file-aware wiring, doc, command, and inventory gate | `./le doc wiring` |
+| Documentation drift and YANG command contracts | `./le doc check verify` |
 | Source-to-document reverse index | `./le docs-to-code index-update`; read `ai/CODE-TO-DOCS.md` |
-| RFC MUST requirement to enforcing-test coverage (which tests prove each requirement, plus the backlog) | `./le rfc index-update`. Read `rfc/requirements/<stem>.md` for one RFC's requirement to test rows. Read `ai/RFC-REQUIREMENTS.md` for the counts, the coverage rollup and the backlog over all of them. Both are generated. Coverage is gated by `./le rfc check`, staleness by `./le doc-check verify` |
+| RFC MUST requirement to enforcing-test coverage (which tests prove each requirement, plus the backlog) | `./le rfc index-update`. Read `rfc/requirements/<stem>.md` for one RFC's requirement to test rows. Read `ai/RFC-REQUIREMENTS.md` for the counts, the coverage rollup and the backlog over all of them. Both are generated. Coverage is gated by `./le rfc check`, staleness by `./le doc check verify` |
 | What each package does ("what does what") | `./le discovery-index update`; read `ai/PACKAGE-MAP.md` |
 | Which `.go` files implement a design doc | read `ai/DOCS-TO-CODE.md` (inverse of `// Design:`) |
-| Which tests enforce an RFC MUST | read `rfc/requirements/<stem>.md` after `./le rfc index-update`. `./le rfc check` and `./le doc-check verify` gate its freshness |
+| Which tests enforce an RFC MUST | read `rfc/requirements/<stem>.md` after `./le rfc index-update`. `./le rfc check` and `./le doc check verify` gate its freshness |
 | The un-enrolled backlog, and how much each RFC still owes | read `ai/RFC-REQUIREMENTS.md`, the index over the per-RFC files (same generator, same gates) |
 | Which problems recur | `./le journal report`; read `plan/journal/` (one file per class, row count is recurrence) |
-| Whether every path the instruction corpus names still resolves | `./le doc-check links`. It is its own `./le verify current mode full` stage. The check also rejects a dead retired tool path or hook check name in hook documentation |
-| Whether a `doc-links: ignore` marker states a reason, anywhere in the tree | `./le doc-check links` (`check_ignore_reasons` in `internal/le/doccheck/links.go`). The sweep is over every TRACKED file, not the walked corpus, so a marker nobody's gate reads is still audited |
-| Whether every path a TRACKED file names resolves, outside the instruction corpus | `./le doc-check links` (`check_tracked_citations` in `internal/le/doccheck/links.go`). A dead path in any tracked file fails the gate. Repair the reference, or mark its line with a `doc-links: ignore` marker that states why the path cannot resolve. `vendor/` and `third_party/` are excluded because their references point into another repository, and `plan/handover/` because it records the tree as it was. `internal/le/doc_citation_baseline.txt` grandfathers the pairs that predate the check. `check_baseline_growth` compares the pairs against HEAD and refuses each pair HEAD does not hold, so that file only shrinks |
-| Whether every symbol a `docs/` source anchor names is declared in the file that anchor points at | `./le doc-check verify` (`check_anchor_symbols` in `internal/le/docstocode/codetodocs.go`). It resolves the tokens after the anchor's `--` against that file's own top-level declarations, and the `report=` argument `main()` passes decides whether a finding is emitted |
+| Whether every path the instruction corpus names still resolves | `./le doc check links`. It is its own `./le verify current mode full` stage. The check also rejects a dead retired tool path or hook check name in hook documentation |
+| Whether a `doc-links: ignore` marker states a reason, anywhere in the tree | `./le doc check links` (`sweepTracked` in `internal/le/doccheck/links.go` reports a marker with no reason). The sweep is over every TRACKED file, not the walked corpus, so a marker nobody's gate reads is still audited |
+| Whether every path a TRACKED file names resolves, outside the instruction corpus | `./le doc check links` (`sweepTracked` in `internal/le/doccheck/links.go`). A dead path in any tracked file fails the gate. Repair the reference, or mark its line with a `doc-links: ignore` marker that states why the path cannot resolve. `vendor/` and `third_party/` are excluded because their references point into another repository, and `plan/handover/` because it records the tree as it was. `internal/le/doccheck/testdata/doc_citation_baseline.txt` grandfathers the pairs that predate the check. `checkBaselineGrowth` compares the pairs against HEAD and refuses each pair HEAD does not hold, so that file only shrinks |
+| Whether every symbol a `docs/` source anchor names is declared in the file that anchor points at | `./le doc check verify` (`checkAnchors` in `internal/le/docstocode/codetodocs.go`). It resolves the tokens after the anchor's `--` against that file's own top-level declarations, and the `report=` argument `main()` passes decides whether a finding is emitted |
 | How data flows through a subsystem | read `ai/digests/<subsystem>.md` (living, hand-maintained flow digests; `ai/digests/README.md` lists them); anchors validated by `./le digest` |
 | Plugin, command, YANG, and test inventory | `./le inventory`; use `./le inventory | json` for machine-readable output |
-| Command inventory | `./le command-list`; use `./le command-list | json` for machine-readable output |
-| Spec progress | `./le spec-status`; use `./le spec-status | json` for machine-readable output |
-| Generated plugin imports | `./le plugin-imports check` |
-| Whether the tree GIT HOLDS compiles | `./le repository-tracked-build check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
+| Command inventory | `./le command list`; use `./le command list | json` for machine-readable output |
+| Spec progress | `./le spec status`; use `./le spec status | json` for machine-readable output |
+| Generated plugin imports | `./le plugin imports check` |
+| Whether the tree GIT HOLDS compiles | `./le repository tracked-build check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
 | Runtime readiness | `ze doctor --json` and `ze explain <diagnostic-code>` |
 
 **If a new feature cannot be found from one of those surfaces or from `ai/INDEX.md`, the missing discovery link MUST be added before claiming completion.**
@@ -200,11 +200,12 @@ The output is correct for the tree it read. It is wrong for the commit you are a
 
 **The safe regeneration is HEAD plus your own files.** When an artifact is fully generated and yours was the only edit, `git show HEAD:<path>` written back over it restores the committed state, and the gate then agrees.
 
-**The mirror image is worse and no gate catches it: committing a document that DESCRIBES uncommitted code.** A committed document that names a symbol still sitting in the working tree reddens `./le doc-check links` for every session until that code lands. A check that you have not swept somebody's work IN does not check the other direction: prose you committed about work still sitting OUT.
+**The mirror image is worse and no gate catches it: committing a document that DESCRIBES uncommitted code.** A committed document that names a symbol still sitting in the working tree reddens `./le doc check links` for every session until that code lands. A check that you have not swept somebody's work IN does not check the other direction: prose you committed about work still sitting OUT.
 
 ### Drift Detection
 
-**The `CLAUDE.md`, `AGENTS.md`, and skill mirrors are gitignored, so `git diff` can NEVER show drift for them.** `./le ai sync-check` compares them against a fresh generation; the session-start hook warns `generated agent files are stale` when a resync is needed. Fix them with `./le ai skills-sync`. `ai/rules/<rule>.md` is the one generated rule surface that IS tracked, so `git diff` shows its drift, and `./le rules render-check` reaches the same verdict without writing.
+**The `CLAUDE.md`, `AGENTS.md`, and skill mirrors are gitignored, so `git diff` can NEVER show drift for them.** `./le ai sync-check` compares them against a fresh generation; the session-start hook warns `generated agent files are stale` when a resync is needed. So drift in a mirror MUST be read from `./le ai sync-check` rather than from a
+diff, and it MUST be fixed with `./le ai skills-sync`. `ai/rules/<rule>.md` is the one generated rule surface that IS tracked, so `git diff` shows its drift, and `./le rules render-check` reaches the same verdict without writing.
 
 ### Banned Actions
 
@@ -263,7 +264,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
-| `bashWorktreeCopy` | `ai/INSTRUCTIONS.md` prohibition, no rule point | Bash | Blocks copies, moves, installs, rsync, and redirects from `.claude/worktrees`. BLOCKING. |
+| `bashWorktreeCopy` | `ai/INSTRUCTIONS.md` prohibition, no rule point | Bash | Blocks copies, moves, installs, rsync, and redirects from `.claude/worktrees`. BLOCKING. | <!-- doc-links: ignore (.claude/worktrees is created at runtime by a worktree agent and is never tracked) -->
 | `bashDestructiveGit` | `git-safety.md` | Bash | Blocks destructive and repository-changing git verbs. `git restore --staged` remains permitted. BLOCKING. |
 | `bashRootBuild` | build hygiene, no rule point | Bash | Blocks `go build` that would place a binary at the repository root, while explicit session or `bin/` outputs pass. BLOCKING. |
 | `bashLossyPipe` | `commands.md` | Bash | Blocks a lossy filter after an expensive command and directs the output to a log. BLOCKING. |
@@ -325,28 +326,28 @@ Test table and returns the hook protocol verdict. `runLifecycleHook` dispatches
 the `validate-spec` action, and `./le hook-check unit` covers its accepted and
 refused forms.
 
-`./le verify worktree` separately runs the native `./le doc-wiring` action. `internal/le/docwiring` owns the wiring and documentation drift checks.
+`./le verify worktree` separately runs the native `./le doc wiring` action. `internal/le/docwiring` owns the wiring and documentation drift checks.
 
-### Changed-file gates inside `./le doc-wiring`
+### Changed-file gates inside `./le doc wiring`
 
 These are native `./le` actions rather than Claude hooks. All are changed-file scoped: a session owns the files it touches, not the whole tree.
 
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
-| `check_ci_sleep_ratchet` | `testing.md` | changed `test/**/*.ci` | Caps how MANY `time.sleep(` calls exist tree-wide against a committed delta baseline. BLOCKING. |
-| `check_ci_sleep_justification` | `testing.md` | changed `test/**/*.ci` | Caps how many sleeps are UNEXPLAINED: each needs a comment above or trailing it. BLOCKING. |
-| `check_known_failure_load_excuses` | `completion.md` | changed `plan/known-failures/*.md` | Rejects a shard blaming host load ("under load", "loaded host", "load average", "load-sensitive", "passes in isolation", "resource contention", "contended host"). `README.md` / `RESOLVED.md` exempt. BLOCKING. |
-| `check_ci_log_subsystem_keys` | `testing.md`, `config.md` | changed `test/**/*.ci` | Rejects a `ze.log.<subsystem>` key whose subsystem contains a hyphen that is not declared literally in Go. An internal plugin's logger name is `CanonicalSubsystemName` of its registry name (every hyphen becomes a dot) and `getLogEnv` splits on `.` only, so `ze.log.bgp.adj-rib-in` sets nothing and the level silently stays at the WARN default. Scan is tree-wide; `#` comment lines exempt. BLOCKING. |
+| `checkSleepRatchet` | `testing.md` | changed `test/**/*.ci` | Caps how MANY `time.sleep(` calls exist tree-wide against a committed delta baseline. BLOCKING. |
+| `checkSleepJustification` | `testing.md` | changed `test/**/*.ci` | Caps how many sleeps are UNEXPLAINED: each needs a comment above or trailing it. BLOCKING. |
+| `checkLoadExcuses` | `completion.md` | changed `plan/known-failures/*.md` | Rejects a shard blaming host load ("under load", "loaded host", "load average", "load-sensitive", "passes in isolation", "resource contention", "contended host"). `README.md` / `RESOLVED.md` exempt. BLOCKING. |
+| `checkLogSubsystemKeys` | `testing.md`, `config.md` | changed `test/**/*.ci` | Rejects a `ze.log.<subsystem>` key whose subsystem contains a hyphen that is not declared literally in Go. An internal plugin's logger name is `CanonicalSubsystemName` of its registry name (every hyphen becomes a dot) and `getLogEnv` splits on `.` only, so `ze.log.bgp.adj-rib-in` sets nothing and the level silently stays at the WARN default. Scan is tree-wide; `#` comment lines exempt. BLOCKING. |
 
 `./le verify worktree` separately runs `./le repository tree-check`, which executes the three tree-wide checks in `internal/le/repository`. The other two checks are changed-file scoped; `./le repository check` runs all five over the current tree.
 
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
-| `check_source_anchor_line_numbers` | `writing.md` | every `docs/**/*.md` | Rejects a `<!-- source: -->` anchor that carries a line number, because line numbers rot. Gated: `./le repository tree-check`. BLOCKING. |
-| `check_source_anchor_stale_paths` | `evidence.md` | every `docs/**/*.md` | Rejects a repo-relative anchor path that no file or directory answers. It resolves ANY root, including anchors outside the `PATH_PREFIX` roots that `internal/le/docstocode/codetodocs.go` walks. Gated: `./le repository tree-check`. BLOCKING. |
-| `check_spec_ac_completeness` | `completion.md`, `planning.md` | every `plan/spec-*.md` whose Status is `in-progress` | Rejects an acceptance-criterion row whose `Demonstrated By` cell is empty, so an in-flight spec cannot claim an AC with no named evidence. Gated: `./le repository tree-check`. BLOCKING. |
-| `check_cross_package_wiring` | `completion.md` | `git diff HEAD` plus untracked `.go` files under `internal/` or `cmd/` | Reports an exported symbol with no cross-package non-test caller. UNENFORCED: no gate runs it (owner decision, 2026-08-09). Run `./le repository check` by hand. |
-| `check_cli_handler_coverage` | `testing.md` | the same changed-file list, `.go` files under the CLI paths only | Reports a newly registered command that no `.ci` test names. UNENFORCED: no gate runs it (owner decision, 2026-08-09). Run `./le repository check` by hand. |
+| `checkSourceAnchorLineNumbers` | `writing.md` | every `docs/**/*.md` | Rejects a `<!-- source: -->` anchor that carries a line number, because line numbers rot. Gated: `./le repository tree-check`. BLOCKING. |
+| `checkSourceAnchorStalePaths` | `evidence.md` | every `docs/**/*.md` | Rejects a repo-relative anchor path that no file or directory answers. It resolves ANY root, including anchors outside the `PATH_PREFIX` roots that `internal/le/docstocode/codetodocs.go` walks. Gated: `./le repository tree-check`. BLOCKING. |
+| `checkSpecACCompleteness` | `completion.md`, `planning.md` | every `plan/spec-*.md` whose Status is `in-progress` | Rejects an acceptance-criterion row whose `Demonstrated By` cell is empty, so an in-flight spec cannot claim an AC with no named evidence. Gated: `./le repository tree-check`. BLOCKING. |
+| `checkCrossPackageWiring` | `completion.md` | `git diff HEAD` plus untracked `.go` files under `internal/` or `cmd/` | Reports an exported symbol with no cross-package non-test caller. UNENFORCED: no gate runs it (owner decision, 2026-08-09). Run `./le repository check` by hand. |
+| `checkCLIHandlerCoverage` | `testing.md` | the same changed-file list, `.go` files under the CLI paths only | Reports a newly registered command that no `.ci` test names. UNENFORCED: no gate runs it (owner decision, 2026-08-09). Run `./le repository check` by hand. |
 
 The two changed-file checks take `changed_files` as their subject, which is `git diff HEAD` plus untracked files. Several sessions share this checkout, so that list includes other sessions' half-written work. Both checks demand completeness that a file in the middle of an edit cannot show. They therefore stay out of the gate.
 
@@ -357,7 +358,7 @@ Native `./le ste` actions and the commit-time gate own this check. HEAD is the b
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
 | `steProblems` (`internal/le/commit`) | `writing.md` | `./le commit create` with any `.md`, `.go`, or `.yang` in the commit | Calls the native `internal/le/ste` ratchet over the commit's files and prints the six ASD-STE100 habits that grew against HEAD. Advisory: STE is a guideline, so this never refuses a commit. |
-| `./le ste check` | `writing.md` | on demand, before you prepare a commit | The same comparison over every changed file in the working tree. It prints the file, the habit, and only the new findings. Surfaces are Markdown in `docs/`, `ai/`, `plan/`, and the root, prose comments in `.go`, and `description` strings in `.yang`. Renames follow `-M`, so a moved legacy document does not report its inherited content as new. Deliberately NOT in `./le doc-check verify`. Whole-tree report: `./le ste review`. |
+| `./le ste check` | `writing.md` | on demand, before you prepare a commit | The same comparison over every changed file in the working tree. It prints the file, the habit, and only the new findings. Surfaces are Markdown in `docs/`, `ai/`, `plan/`, and the root, prose comments in `.go`, and `description` strings in `.yang`. Renames follow `-M`, so a moved legacy document does not report its inherited content as new. Deliberately NOT in `./le doc check verify`. Whole-tree report: `./le ste review`. |
 
 ### Commit-time gates (`internal/le/commit`)
 
@@ -370,12 +371,12 @@ These are NOT Claude hooks. They run when `./le commit create` generates the com
 | verify-status / structural-gate | `precommit-verify.md` | BLOCK | Refuses a script over a non-green `./le verify current mode full` (structural reds are unbypassable). |
 | ste (`steProblems`) | `writing.md` | WARN | Calls `internal/le/ste.Ratchet` over the commit's own `.md`, `.go`, and `.yang` files and prints only habits that grew against HEAD. Legacy prose in untouched files is outside the population. |
 | discovery-index | "Discovery Updates" above | BLOCK | Refuses when a generated index (PACKAGE-MAP) would be left incoherent. Judged on the tree the COMMIT PRODUCES (HEAD + adds - removes), materialized under `tmp/commit-view-*` and checked with the commit's OWN generators via `--root`, never on the working tree: a concurrent session's uncommitted sources must neither block your commit nor be swept into your index. **Every** index whose generator exists is verified, not just the ones the commit visibly feeds: `package_map` keys its rows on directory existence, so a new `.go` can drift PACKAGE-MAP without carrying a `// Package` header at all. Cost: the view is built on EVERY commit the gate examines, not only ones touching an index source, because the candidate set comes from generator existence, about 5.5s total (~2s working-tree freshness, ~3.6s to materialize and check). If the view cannot be built it does NOT fail closed: it warns on stderr and falls back to the working-tree verdict, which is the only evidence left. BLOCKING. |
-| rfc-changed (`rfcChangedProblems`) | `testing.md` | BLOCK | Refuses a commit that changes an RFC-tagged test and carries no matching row in `test/rfc-changed.md`, or carries a stale row. `internal/le/weakened` supplies the shared changed-unit population used by edit-time and commit-time checks. |
+| rfc-changed (`rfcChangedProblems`) | `testing.md` | BLOCK | Refuses a commit that changes an RFC-tagged test and carries no matching row in `test/rfc-changed.md`, or carries a stale row. `internal/le/testweakened` supplies the shared changed-unit population used by edit-time and commit-time checks. |
 | deferral-unassigned | `planning.md` | BLOCK | Folds over every shard in `plan/deferrals/` and flags an open row with no Destination. |
 | deferral-in-diff | `planning.md` | BLOCK | Blocks when the commit's added lines contain deferral language and no `plan/deferrals/` shard is part of the commit (diff computed in a throwaway git index). |
-| review-rounds (`ROUND_CAP`, `cmd_record` in `internal/le/speclifecycle/review.go`) | `planning.md` | BLOCK | Runs at `./le spec-session review record`, not at commit time, and is listed here beside the `./le spec-session review check` half that commit_helper runs. Refuses an artifact claiming more than three review rounds unless `--rounds-reason` names the PRODUCT defect a later round found, and refuses fewer than one. The count is written into the artifact header as `rounds=N`, so a closure's review cost is auditable after the fact. It does NOT cap rounds that find real defects: it prices the fourth at one sentence, which is the sentence a loop auditing its own bookkeeping cannot write. |
+| review-rounds (`ROUND_CAP`, `cmd_record` in `internal/le/specsession/review.go`) | `planning.md` | BLOCK | Runs at `./le spec session review record`, not at commit time, and is listed here beside the `./le spec session review check` half that commit_helper runs. Refuses an artifact claiming more than three review rounds unless `--rounds-reason` names the PRODUCT defect a later round found, and refuses fewer than one. The count is written into the artifact header as `rounds=N`, so a closure's review cost is auditable after the fact. It does NOT cap rounds that find real defects: it prices the fourth at one sentence, which is the sentence a loop auditing its own bookkeeping cannot write. |
 | journal-row (`journal_row_problems`) | `planning.md` | BLOCK | Refuses a commit that ADDS a `plan/journal/<class>.md` row not holding the five cells `\| Date \| Spec \| Surface \| Symptom \| Fix \|`. Not cosmetic: `_journal_added_spec_stems` reads the same rows for the closure stem, so a row the parser cannot read yields no stem, `spec_closure_stem` returns None, and the review gate stops firing on the commit carrying the code. `./le journal report` cannot cover it, because that reads HEAD and the bad row is only visible before the commit lands. |
-| spec-audit | `planning.md` | BLOCK | Blocks the closure commit (the one ADDING a `plan/journal/*.md` row whose `Spec` cell names the spec, or `plan/learned/NNN-<stem>.md`) when that spec's `## Pre-Commit Verification` section is unfilled. ADDING is load-bearing: the row must be new to this commit, which is what `_journal_added_spec_stems` answers, so a class file's months-old first row is not read as today's closure. Keyed to `./le spec-session current`; no claim → skips. |
+| spec-audit | `planning.md` | BLOCK | Blocks the closure commit (the one ADDING a `plan/journal/*.md` row whose `Spec` cell names the spec, or `plan/learned/NNN-<stem>.md`) when that spec's `## Pre-Commit Verification` section is unfilled. ADDING is load-bearing: the row must be new to this commit, which is what `_journal_added_spec_stems` answers, so a class file's months-old first row is not read as today's closure. Keyed to `./le spec session current`; no claim → skips. |
 | wiring-at-commit | `completion.md` | WARN | Warns when `internal/plugins/**/*.go` is committed with no `.ci`. |
 | doc-drift | `writing.md` | WARN | Runs `internal/le/docvalid/drift.go`; warns on drift. |
 
@@ -481,7 +482,7 @@ import context from outside the artifact under test.** Widening a value until
 the check accepts it can make the check depend on the environment the tool runs
 in, which turns one gate's verdict into a property of the machine.
 
-**`./le repository-tracked-build check` is the only gate that compiles what git holds,
+**`./le repository tracked-build check` is the only gate that compiles what git holds,
 and it compiles no `_test.go`. Its green therefore says nothing about the test
 build. Before you treat work as committable, you MUST also compile the test
 binaries of every package you touched, without running them.**
@@ -502,7 +503,7 @@ distinction:
 
 | Reader | Derives from | Effect |
 |--------|--------------|--------|
-| `check_weakened_tests` | recomputes the weakenings of the paths the commit NAMES | refuses only a commit that actually weakens a test |
+| `CheckCommit` in `internal/le/testweakened` | recomputes the weakenings of the paths the commit NAMES | refuses only a commit that actually weakens a test |
 | `rfc_changed_problems` | reads `test/rfc-changed.md` from DISK | one open row refuses every commit in the repository until its author lands it |
 
 Both files are per-commit by their own contract. Only the second turns that
@@ -539,6 +540,35 @@ Three consequences follow, and each MUST hold:
   verification section for a spec that is not verified), the gate is asking the
   wrong question, and the author's correct move is to leave the work
   uncommitted and say so (`ai/rules/completion.md`).
+
+**A change that moves files INTO a tree a gate reads, or that widens what a gate
+requires, MUST leave that gate green over the whole affected population, in the
+same change.** A gate's population is derived from the tree, so it grows the
+moment a file lands inside it. Code that was correct where it lived can be red
+the instant it moves, without a line of it changing, and a requirement that
+ratchets makes every file already in the population red at once.
+
+**The red that results belongs to nobody, which is what makes it expensive.** It
+is charged to the next author who prepares a commit, and it names a rule that
+author did not break, in files that author did not write. Every session after
+the change pays to rediscover the same cause, and the gate that was built to
+report a real defect now reports only its own migration.
+
+**A gate that runs on WRITE turns an unmigrated file into a file nobody can
+edit.** Where the ratchet is enforced after each edit rather than at commit time,
+a file that does not yet satisfy the new requirement refuses every edit made to
+it, whatever that edit was about. The block is invisible from the side that
+authored the change, because anything created after it already conforms.
+
+**So the change MUST carry the migration, and the migration MUST cover the
+population rather than the examples the author happened to open.** Deriving the
+population from the same source the gate derives it from is the only way to know
+the two agree. A sample that passes is not evidence about the rest.
+
+**Where a record states what a gate REPORTED under an older name or an older
+requirement, that record MUST NOT be rewritten to satisfy the new one.** It
+describes a run that happened. Migrating it forward replaces a fact with a claim
+that was never true, which costs more than the red it clears.
 
 ## Ze Project Knowledge
 

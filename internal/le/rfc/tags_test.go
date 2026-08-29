@@ -225,14 +225,14 @@ func TestNativeActionsInWorkflowCommands(t *testing.T) {
 	}{
 		{"one action", "run: ./le integration interop\n", []string{"integration/interop"}},
 		{"a wrapper", "run: sudo ./le rfc check\n", []string{"rfc/check"}},
-		{"a chain", "run: ./le rfc check && ./le doc-check verify\n", []string{"rfc/check", "doc-check/verify"}},
+		{"a chain", "run: ./le rfc check && ./le doc check verify\n", []string{"rfc/check", "doc check/verify"}},
 		{"a quoted scalar", "- \"./le tier check\"\n", []string{"tier/check"}},
 		{"arguments do not change identity", "run: ./le verify current mode full\n", []string{"verify/current"}},
 		{"no native action", "run: echo a\n", nil},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			got := nativeActionsIn(one.src)
+			got := nativeActionsIn(one.src, func(name string) bool { return name == "doc check" })
 			if !slices.Equal(got, one.want) {
 				t.Fatalf("NativeActionsIn(%q) = %v, want %v", one.src, got, one.want)
 			}
@@ -252,10 +252,10 @@ func TestAWorkflowDirectoryTheGateCannotReadIsRefused(t *testing.T) {
 
 // VALIDATES: a carrier's `terminator=` block holds a fixture rather than an
 // assertion, so moving that fixture out of the file changes no RFC-tagged
-// behaviour, while any edit to the carrier's own directives still does.
+// behavior, while any edit to the carrier's own directives still does.
 // PREVENTS: the owner-approval gate demanding a ruling on a fixture move, and
 // the opposite failure of a weakened assertion slipping through beside one.
-func TestACarrierFixtureBlockIsNotTestedBehaviour(t *testing.T) {
+func TestACarrierFixtureBlockIsNotTestedBehavior(t *testing.T) {
 	const head = "# " + rfcTagMarker + " RFC4271-5.1.4-1 positive\n" +
 		"cmd=start\n" +
 		"expect=bgp:conn=1:seq=1:hex=FFFF\n"

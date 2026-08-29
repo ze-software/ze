@@ -13,12 +13,15 @@ import (
 // The digest pins every production byte that supplied its tables and edge-case
 // decisions, while the behavioral tests in this package pin their outcomes.
 func TestNativeImplementationFixture(t *testing.T) {
-	// Re-sealed 2026-08-28. What it now records: `dropCarrierBlocks` in tags.go,
-	// which removes a `tmpfs=` block body from behaviorBytes so a fixture moved
-	// out of a carrier is not read as a change to the RFC-tagged behaviour, and
-	// which deliberately leaves a `stdin=` block whole because those carry the
-	// expect= and reject= assertions themselves.
-	const want = "c9bc5698e311d7983b6a9180644f26bef3ad9ba0b4e83dfddbaee65957310d35"
+	// Re-sealed 2026-08-28, for a lint pass over this package that changed no
+	// verdict. It deleted five superseded helpers no caller reached
+	// (workflowIsScheduled, featureTags, functionNameAt, functionText, and the
+	// three *Names accessors in audit.go), named the repeated string literals
+	// the closed key sets and the selftest fixture share, restated one refusal
+	// in reseal.go without inverting it, and corrected two UK spellings to US
+	// English. Every deletion has a live equivalent named in its own commit
+	// message.
+	const want = "b024a46c97744bc2c814e7aafdd034794e73c8f8a8828147dd4562958289fbd7"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

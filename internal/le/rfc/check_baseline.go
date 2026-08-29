@@ -371,7 +371,7 @@ func nonunitEvidence(tags []Tag, carriers []Carrier) map[string]map[string]bool 
 	out := map[string]map[string]bool{}
 	for _, tag := range tags {
 		carrier, held := carrierFor(tag.File, carriers)
-		if !held || carrier.Kind == "unit" {
+		if !held || carrier.Kind == kindUnit {
 			continue
 		}
 		if out[tag.RID] == nil {
@@ -433,15 +433,15 @@ func baselineExtractions(tree string) (map[string]baselineExtraction, bool) {
 			continue
 		}
 		excluded := 0
-		if sites, held := document["sites"].([]any); held {
+		if sites, held := document[keySites].([]any); held {
 			for _, value := range sites {
 				site, held := value.(map[string]any)
-				if held && site["disposition"] == dispositionExcluded {
+				if held && site[keyDisposition] == dispositionExcluded {
 					excluded++
 				}
 			}
 		}
-		signedOff, _ := document["signed-off"].(string)
+		signedOff, _ := document[keySignedOff].(string)
 		resignReason, _ := document["resign-reason"].(string)
 		stem := strings.TrimSuffix(filepath.Base(rel), ".json")
 		out[stem] = baselineExtraction{excluded: excluded, signedOff: signedOff, resignReason: resignReason}

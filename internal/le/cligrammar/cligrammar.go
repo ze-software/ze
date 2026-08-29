@@ -12,7 +12,10 @@
 // (TestRuntimeBuiltinSurfaceGrammar / TestRegistrationRejectsBadGrammar in
 // internal/component/plugin/server) is Feeder 3. Feeder 4 is the root
 // namespace and Feeder 5 is the repository's own call sites in terminal-demo
-// definitions.
+// definitions. Feeder 6 is le's own command surface, which the first five
+// never saw: le registers into neither the YANG tree nor the wire methods, so
+// its roots drifted into hyphenating an object to its member exactly as ze's
+// roots once did.
 //
 // Every population this gate reads is FLOORED and every read error is
 // answered. The retired implementation discarded both: it walked `internal`,
@@ -80,6 +83,56 @@ var pendingNamespaceSplit = map[string]bool{}
 // legitimate future root (route-refresh, prefix-list, next-hop, as-path, ...)
 // is not a hard false positive that forces editing gate source.
 var rootNamespaceExempt = map[string]bool{}
+
+// leNamespaceExempt is feeder 6's relief valve, the counterpart of
+// rootNamespaceExempt for le's own surface. An entry says a hyphenated le
+// command is one indivisible name even though its left segment looks like an
+// object.
+//
+// The six test-* commands are the standing entry, and the reason is the rule's
+// own trap: a shared prefix is not a namespace. test-unit and test-chaos run
+// suites, test-health generates a page, test-weakened gates a ledger,
+// test-sensitivity gates a count and test-helper produces fixtures. They are
+// five kinds of thing sharing a word, as flow-export and flow-recent are, and
+// there is no `le test` object holding them. Splitting them would also promise
+// a namespace that does not hold the real suites, which are `functional`,
+// `integration`, `deployment`, `qemu`, `fuzz`, `mutation` and `stress-repro`.
+var leNamespaceExempt = map[string]bool{
+	"test-chaos":       true,
+	"test-health":      true,
+	"test-helper":      true,
+	"test-sensitivity": true,
+	"test-unit":        true,
+	"test-weakened":    true,
+}
+
+// leNamespaces answers the words that name an object on le's surface, so the
+// root check can tell `verify-lint` (an object and its member) from
+// `dash-stdio` (one name that happens to hold a hyphen).
+//
+// A word is an object when it is a registered command in its own right, as
+// `verify`, `site` and `repository` are, or when two or more commands share it
+// as their first hyphen segment, as `config` and `plugin` are. Deriving both
+// from the live registry is what keeps the gate honest: a hand-kept list of
+// namespaces would be the thing that goes stale.
+func leNamespaces(roots []string) map[string]bool {
+	registered := make(map[string]bool, len(roots))
+	shared := make(map[string]int, len(roots))
+	for _, name := range roots {
+		registered[name] = true
+		if left, _, found := strings.Cut(name, "-"); found {
+			shared[left]++
+		}
+	}
+
+	namespaces := make(map[string]bool, len(shared))
+	for left, count := range shared {
+		if count > 1 || registered[left] {
+			namespaces[left] = true
+		}
+	}
+	return namespaces
+}
 
 // treeNamespaceExempt is the YANG-tree feeder's relief valve, the exact
 // counterpart of rootNamespaceExempt: a tree token whose hyphen is a genuine
@@ -154,11 +207,13 @@ type Floor struct {
 	// DemoScripts is the least checked-in demo definitions the call-site scan
 	// must read.
 	DemoScripts int
+	// LeRoots is the least registered le commands the registry scan must hold.
+	LeRoots int
 }
 
 // DefaultFloor is what le passes. The counts on 2026-08-26 were 217 .yang
 // files, 40 roots, and 19 terminal-demo definitions.
-var DefaultFloor = Floor{YANGFiles: 100, Roots: 20, DemoScripts: 10}
+var DefaultFloor = Floor{YANGFiles: 100, Roots: 20, DemoScripts: 10, LeRoots: 60}
 
 // Check walks every feeder of the grammar gate over tree and answers what it
 // found.
@@ -166,7 +221,15 @@ var DefaultFloor = Floor{YANGFiles: 100, Roots: 20, DemoScripts: 10}
 // The error is a population it could not read or one that fell under its floor,
 // which is a different fact from a grammar violation and never renders as a
 // clean page.
-func Check(tree string, floor Floor) (Result, error) {
+// Check runs every feeder over one checkout.
+//
+// leRoots is the le command surface, passed in rather than read from the
+// registry here. This package cannot import le's composition root, which
+// blank-imports it, so a registry read from inside this package sees only
+// whatever the calling binary happens to have linked: one command in its own
+// test binary, and eighty-six in le. Taking the population as an argument is
+// what makes the floor mean the same thing in both.
+func Check(tree string, floor Floor, leRoots []string) (Result, error) {
 	loader, err := yang.DefaultLoader()
 	if err != nil {
 		return Result{}, fmt.Errorf("load YANG: %w", err)
@@ -237,6 +300,22 @@ func Check(tree string, floor Floor) (Result, error) {
 		return Result{}, fmt.Errorf("the call-site scan read %d demo scripts under %s, below the floor of %d: this tree was not read", scripts, tree, floor.DemoScripts)
 	}
 	result.DemoLaunch, result.DemoScripts = launches, scripts
+
+	// Feeder 6: le's own root surface. The four feeders above read ze's YANG
+	// command tree, and le registers into neither the tree nor the wire
+	// methods, so nothing had ever checked it. That is the same hole
+	// root-namespace-grammar.md records for ze's roots, one surface along.
+	if len(leRoots) < floor.LeRoots {
+		return Result{}, fmt.Errorf("the le scan resolved %d registered commands, below the floor of %d: this registry was not read", len(leRoots), floor.LeRoots)
+	}
+	result.LeRootsChecked = len(leRoots)
+	for _, finding := range grammar.CheckRootNamespace(leRoots, leNamespaces(leRoots)) {
+		if leNamespaceExempt[finding.Command] {
+			result.LeExempt++
+			continue
+		}
+		result.Findings = append(result.Findings, finding)
+	}
 
 	sort.Slice(result.Findings, func(i, j int) bool {
 		if result.Findings[i].Command != result.Findings[j].Command {
@@ -449,8 +528,8 @@ func scanDemoScript(path, rel string, accepted map[string]bool) ([]DemoLaunchHit
 			continue
 		}
 		command := text
-		if strings.HasPrefix(trimmed, "Type ") {
-			quoted := strings.TrimSpace(strings.TrimPrefix(trimmed, "Type "))
+		if rest, ok := strings.CutPrefix(trimmed, "Type "); ok {
+			quoted := strings.TrimSpace(rest)
 			unquoted, unquoteErr := strconv.Unquote(quoted)
 			if unquoteErr != nil {
 				return nil, fmt.Errorf("read %s:%d: invalid Type command: %w", rel, line, unquoteErr)

@@ -53,7 +53,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if err != nil {
 		return uiLeDiscoveryAnswersFailf("creating fixture directory: %v", err)
 	}
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	if err != nil {
@@ -77,7 +77,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		output  string
 		unit    string
 	}{
-		{command: "discovery-index", output: "ai/PACKAGE-MAP.md", unit: "packages"},
+		{command: "discovery-index", output: "ai/PACKAGE-MAP.md", unit: fieldPackages},
 		{command: "docs-to-code", output: "ai/DOCS-TO-CODE.md", unit: "design docs"},
 	} {
 		tree := filepath.Join(here, tc.command+"-command")
@@ -94,7 +94,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 			return uiLeDiscoveryAnswersFailf("le %s update exited %d: %s%s", tc.command, wrote.code, wrote.stdout, wrote.stderr)
 		}
 		outputPath := filepath.Join(tree, filepath.FromSlash(tc.output))
-		generated, err := os.ReadFile(outputPath)
+		generated, err := os.ReadFile(outputPath) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return uiLeDiscoveryAnswersFailf("reading generated %s: %v", tc.output, err)
 		}
@@ -120,7 +120,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		if wroteAgain.code != 0 || wroteAgain.err != nil {
 			return uiLeDiscoveryAnswersFailf("second le %s update exited %d: %s%s", tc.command, wroteAgain.code, wroteAgain.stdout, wroteAgain.stderr)
 		}
-		repeated, err := os.ReadFile(outputPath)
+		repeated, err := os.ReadFile(outputPath) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return uiLeDiscoveryAnswersFailf("reading repeated %s generation: %v", tc.output, err)
 		}
@@ -136,7 +136,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if err != nil {
 		return uiLeDiscoveryAnswersFailf("discovering changed files: %v", err)
 	}
-	plainWiring := runLE("", "doc-wiring", "dry-run")
+	plainWiring := runLE("", "doc wiring", "dry-run")
 	if plainWiring.code != 0 || plainWiring.err != nil {
 		return uiLeDiscoveryAnswersFailf("doc-wiring dry-run exited %d: %s%s", plainWiring.code, plainWiring.stdout, plainWiring.stderr)
 	}
@@ -144,7 +144,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		return uiLeDiscoveryAnswersFailf("the dry run wrote to stderr: %s", plainWiring.stderr)
 	}
 
-	wiringJSON := runLE("", "doc-wiring", "dry-run", "|", "json")
+	wiringJSON := runLE("", "doc wiring", "dry-run", "|", "json")
 	if wiringJSON.code != 0 || wiringJSON.err != nil {
 		return uiLeDiscoveryAnswersFailf("doc-wiring JSON dry-run exited %d: %s%s", wiringJSON.code, wiringJSON.stdout, wiringJSON.stderr)
 	}
@@ -152,7 +152,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if err := json.Unmarshal(wiringJSON.stdout, &wiringFields); err != nil {
 		return uiLeDiscoveryAnswersFailf("doc-wiring JSON is invalid: %v\n%s", err, wiringJSON.stdout)
 	}
-	for _, key := range []string{"actions", "advisory", "changed", "checks", "declared-groups", "dry-run", "error", "failed", "failure-groups"} {
+	for _, key := range []string{"actions", "advisory", "changed", fieldChecks, "declared-groups", "dry-run", fieldError, outcomeFailed, "failure-groups"} {
 		if _, ok := wiringFields[key]; !ok {
 			return uiLeDiscoveryAnswersFailf("the router answered no %q key: %v", key, uiLeDiscoveryAnswersSortedKeys(wiringFields))
 		}
@@ -174,7 +174,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	// Supplying Git's paths explicitly must produce the same ordered, rendered
 	// route as automatic checkout discovery.
 	if len(changed) != 0 {
-		args := []string{"doc-wiring", "dry-run"}
+		args := []string{checkDocWiring, "dry-run"}
 		for _, name := range changed {
 			args = append(args, "changed-file", name)
 		}
@@ -184,7 +184,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		}
 	}
 
-	wiringYAML := runLE("", "doc-wiring", "dry-run", "|", "yaml")
+	wiringYAML := runLE("", "doc wiring", "dry-run", "|", "yaml")
 	if wiringYAML.code != 0 || wiringYAML.err != nil {
 		return uiLeDiscoveryAnswersFailf("le doc-wiring dry-run | yaml was refused: %s%s", wiringYAML.stdout, wiringYAML.stderr)
 	}
@@ -217,7 +217,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if err := json.Unmarshal(report.stdout, &pageFields); err != nil {
 		return uiLeDiscoveryAnswersFailf("discovery-index JSON is invalid: %v\n%s", err, report.stdout)
 	}
-	for _, key := range []string{"file", "packages", "todo", "stale", "written"} {
+	for _, key := range []string{fieldFile, fieldPackages, "todo", statusStale, fieldWritten} {
 		if _, ok := pageFields[key]; !ok {
 			return uiLeDiscoveryAnswersFailf("the gate answered no %q key: %v", key, uiLeDiscoveryAnswersSortedKeys(pageFields))
 		}
@@ -259,7 +259,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if strings.TrimSpace(string(counted.stdout)) != fmt.Sprint(len(packages)) {
 		return uiLeDiscoveryAnswersFailf("le discovery-index check | count answered %q for %d packages", counted.stdout, len(packages))
 	}
-	for _, operator := range []string{"yaml", "table"} {
+	for _, operator := range []string{renderYAML, renderTable} {
 		rendered := runLE("", "discovery-index", "check", "|", operator)
 		if len(rendered.stderr) != 0 {
 			return uiLeDiscoveryAnswersFailf("le discovery-index check | %s was refused: %s", operator, rendered.stderr)
@@ -274,7 +274,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if listing.code != 0 || listing.err != nil {
 		return uiLeDiscoveryAnswersFailf("le discovery-index exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
 	}
-	for _, word := range []string{"check", "update", "writes", "checks"} {
+	for _, word := range []string{actionCheck, actionUpdate, wordWrites, fieldChecks} {
 		if !bytes.Contains(listing.stdout, []byte(word)) {
 			return uiLeDiscoveryAnswersFailf("the listing does not carry %q:\n%s", word, listing.stdout)
 		}
@@ -285,10 +285,10 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if got := runLE("", "docs-to-code", "nonesuch").code; got != 2 {
 		return uiLeDiscoveryAnswersFailf("an unknown docs-to-code action answered %d, want 2", got)
 	}
-	if got := runLE("", "doc-wiring", "somefile.go").code; got != 1 {
+	if got := runLE("", "doc wiring", "somefile.go").code; got != 1 {
 		return uiLeDiscoveryAnswersFailf("a bare value was accepted with exit %d", got)
 	}
-	if got := runLE("", "doc-wiring", "changed-file").code; got != 1 {
+	if got := runLE("", "doc wiring", "changed-file").code; got != 1 {
 		return uiLeDiscoveryAnswersFailf("a keyword with nothing after it was accepted with exit %d", got)
 	}
 
@@ -298,17 +298,17 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		return uiLeDiscoveryAnswersFailf("clearing stale tree: %v", err)
 	}
 	files := map[string]string{
-		"go.mod":                       "module example.com/stale\n",
-		"feature-gates.txt":            "ze_core\n",
+		fileGoMod:                      "module example.com/stale\n",
+		fileFeatureGates:               "ze_core\n",
 		"internal/core/thing/thing.go": "// Package thing does a thing.\npackage thing\n",
 		"ai/PACKAGE-MAP.md":            "stale\n",
 	}
 	for name, body := range files {
 		full := filepath.Join(staleTree, filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
 			return uiLeDiscoveryAnswersFailf("creating %s: %v", name, err)
 		}
-		if err := os.WriteFile(full, []byte(body), 0644); err != nil {
+		if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
 			return uiLeDiscoveryAnswersFailf("writing %s: %v", name, err)
 		}
 	}
@@ -325,7 +325,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if current.code != 0 || current.err != nil {
 		return uiLeDiscoveryAnswersFailf("the index update just wrote still reads as stale: %s%s", current.stdout, current.stderr)
 	}
-	for _, operator := range []string{"json", "yaml", "table", "count"} {
+	for _, operator := range []string{renderJSON, renderYAML, renderTable, pipeCount} {
 		rendered := runLE(staleTree, "discovery-index", "check", "|", operator)
 		if rendered.code != 0 || rendered.err != nil {
 			return uiLeDiscoveryAnswersFailf("le discovery-index check | %s over a current tree exited %d: %s%s", operator, rendered.code, rendered.stdout, rendered.stderr)
@@ -337,7 +337,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 }
 
 func uiLeDiscoveryAnswersRunCommand(ctx context.Context, cwd string, overrides map[string]string, name string, args ...string) uiLeDiscoveryAnswersCommandResult {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = cwd
 	cmd.Env = uiLeDiscoveryAnswersMergedEnvironment(overrides)
 	var stdout, stderr bytes.Buffer
@@ -346,8 +346,7 @@ func uiLeDiscoveryAnswersRunCommand(ctx context.Context, cwd string, overrides m
 	err := cmd.Run()
 	code := 0
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			code = exitErr.ExitCode()
 		} else {
 			code = -1
@@ -363,8 +362,8 @@ func uiLeDiscoveryAnswersMergedEnvironment(overrides map[string]string) []string
 	env := make([]string, 0, len(os.Environ())+len(overrides))
 	for _, item := range os.Environ() {
 		key := item
-		if at := strings.IndexByte(item, '='); at >= 0 {
-			key = item[:at]
+		if before, _, found := strings.Cut(item, "="); found {
+			key = before
 		}
 		if _, replaced := overrides[key]; !replaced {
 			env = append(env, item)
@@ -385,7 +384,7 @@ func exportHEAD(ctx context.Context, repo, dest string) error {
 	if err := os.RemoveAll(dest); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(dest, 0755); err != nil {
+	if err := os.MkdirAll(dest, 0o750); err != nil {
 		return err
 	}
 
@@ -409,7 +408,7 @@ func exportHEAD(ctx context.Context, repo, dest string) error {
 		return unpackErr
 	}
 	if waitErr != nil {
-		return fmt.Errorf("git archive failed: %v: %s", waitErr, stderr.Bytes())
+		return fmt.Errorf("git archive failed: %w: %s", waitErr, stderr.Bytes())
 	}
 	return nil
 }
@@ -439,15 +438,15 @@ func extractTar(r io.Reader, dest string) error {
 			if err := os.MkdirAll(full, mode); err != nil {
 				return err
 			}
-		case tar.TypeReg, tar.TypeRegA:
-			if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
 				return err
 			}
-			f, err := os.OpenFile(full, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
+			f, err := os.OpenFile(full, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode) //nolint:gosec // the path is the fixture's own scratch file
 			if err != nil {
 				return err
 			}
-			_, copyErr := io.Copy(f, tr)
+			_, copyErr := io.Copy(f, tr) //nolint:gosec // the archive is the fixture's own git export
 			closeErr := f.Close()
 			if copyErr != nil {
 				return copyErr
@@ -462,7 +461,7 @@ func extractTar(r io.Reader, dest string) error {
 			if _, err := containedPath(dest, filepath.Join(filepath.Dir(name), filepath.FromSlash(hdr.Linkname))); err != nil {
 				return fmt.Errorf("unsafe symlink %q: %w", hdr.Name, err)
 			}
-			if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
 				return err
 			}
 			if err := os.Symlink(filepath.FromSlash(hdr.Linkname), full); err != nil {
@@ -473,7 +472,7 @@ func extractTar(r io.Reader, dest string) error {
 			if err != nil {
 				return err
 			}
-			if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
 				return err
 			}
 			if err := os.Link(target, full); err != nil {
@@ -532,7 +531,7 @@ func treeManifest(root, excluded string) ([32]byte, error) {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
-		f, err := os.Open(name)
+		f, err := os.Open(name) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}

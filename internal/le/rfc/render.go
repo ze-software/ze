@@ -315,8 +315,8 @@ func shardRow(req Requirement, found []Tag, audited string, in RenderInput,
 		marks = append(marks, tb.Str("} ").Str(req.Superseded.Reason).String())
 	}
 
-	pos := orDashes(tagSites(found, "positive", in, reader, index))
-	neg := orDashes(tagSites(found, "negative", in, reader, index))
+	pos := orDashes(tagSites(found, polarityPositive, in, reader, index))
+	neg := orDashes(tagSites(found, polarityNegative, in, reader, index))
 	var row textbuf.Buffer
 	return row.Str("| `").Str(req.RID).Str("` | ").Str(req.Level).Str(" | ").
 		Str(req.Section).Str(" | ").Str(pos).Str(" | ").Str(neg).Str(" | ").

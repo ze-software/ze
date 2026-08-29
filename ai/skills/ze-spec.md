@@ -25,7 +25,7 @@ before putting it in front of the user (`ai/rules/evidence.md`).
 
 ### Step 0: Detect Mode
 
-1. Run `./le spec-session current`
+1. Run `./le spec session current`
 2. If set AND spec file exists in `plan/`: **RESUME mode** -- go to Step R
 3. If empty or spec doesn't exist: **NEW mode** -- go to Step 1
 
@@ -67,7 +67,7 @@ before putting it in front of the user (`ai/rules/evidence.md`).
    - Is there a simpler framing of the same goal?
 7. **GATE:** ASK user to confirm scope and direction. Present your concern alongside the recommendation. Do not proceed until confirmed.
 8. Create spec file with `Status: skeleton`
-9. Claim it for this session: `./le spec-session claim spec <spec-file>`
+9. Claim it for this session: `./le spec session claim spec <spec-file>`
 
 ---
 
@@ -312,4 +312,4 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 - Style: tables and prose, never code snippets in specs (`ai/rules/spec-no-code.md`)
 - All research findings go into spec exhaustively (`ai/rules/planning.md`)
 - Append-only editing for existing specs (`ai/rules/planning.md`)
-- One spec at a time -- this session's marker (`./le spec-session`) tracks which
+- One spec at a time -- this session's marker (`./le spec session`) tracks which

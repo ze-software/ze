@@ -13,6 +13,24 @@ import (
 	"github.com/ze-software/ze/internal/le/leroot"
 )
 
+// The selftest's own fixture identity: one enrolled RFC, its two requirements,
+// and the paths a fixture tree writes them to. Every selftest tree spells the
+// same names, so a fixture that drifted in one file and not another would make
+// the gate judge a tree it never built.
+const (
+	selftestStem           = "rfc9999"
+	selftestSummaryRel     = "rfc/short/rfc9999.md"
+	selftestWorkflowRel    = ".github/workflows/nightly.yml"
+	selftestTestPath       = "internal/sample/widget_test.go"
+	selftestRIDSend        = "RFC9999-2-1"
+	selftestRIDDrop        = "RFC9999-2-2"
+	selftestCorrectionDate = "2026-08-26"
+
+	// selftestEnrolled is the body of the fixture tree's rfc/enrolled.txt: the
+	// one stem, on its own line.
+	selftestEnrolled = selftestStem + "\n"
+)
+
 const selftestWorkflow = `on:
   schedule:
     - cron: '0 3 * * *'
@@ -30,11 +48,11 @@ type summaryFixture struct {
 }
 
 func summarySelftestFixture() summaryFixture {
-	return summaryFixture{text: selftestSummary, expectedRID: "RFC9999-2-1"}
+	return summaryFixture{text: selftestSummary, expectedRID: selftestRIDSend}
 }
 
 func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error) {
-	requirements, err := parseSummaryText(fixture.text, "rfc9999", "rfc/short/rfc9999.md")
+	requirements, err := parseSummaryText(fixture.text, selftestStem, selftestSummaryRel)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +68,7 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 	annotationOK := first.Annotation != nil
 	if annotationOK {
 		annotationOK = first.Annotation.Kind == annotationSinglePolarity
-		annotationOK = annotationOK && first.Annotation.Polarity == "positive"
+		annotationOK = annotationOK && first.Annotation.Polarity == polarityPositive
 	}
 	successorOK := first.Superseded != nil
 	if successorOK {
@@ -59,20 +77,20 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 	}
 	_, mismatch := parseChecklistLine(
 		"- [ ] [RFC9999-3-1] [MUST] A speaker MUST send the widget (§2)",
-		"rfc9999", "rfc/short/rfc9999.md", 1,
+		selftestStem, selftestSummaryRel, 1,
 	)
 	corrections := parseCorrections(fixture.text)
 	correctionOK := len(corrections) == 1
 	if correctionOK {
 		correctionOK = len(corrections[0].RIDs) == 1
-		correctionOK = correctionOK && corrections[0].RIDs[0] == "RFC9999-2-1"
+		correctionOK = correctionOK && corrections[0].RIDs[0] == selftestRIDSend
 		correctionOK = correctionOK && len(corrections[0].Quotes) == 1
 	}
 
 	return []leroot.SelftestResult{
 		selftestResult("summary/checklist-id", len(requirements) == 2 && first.RID == fixture.expectedRID,
 			"the checklist id or requirement count changed"),
-		selftestResult("summary/level-and-section", first.Level == "MUST" && first.Section == "2" && second.Level == "MUST NOT",
+		selftestResult("summary/level-and-section", first.Level == levelMust && first.Section == "2" && second.Level == "MUST NOT",
 			"the level or trailing section anchor changed"),
 		selftestResult("summary/annotation", annotationOK,
 			"the single-polarity annotation did not retain its polarity and reason"),
@@ -87,8 +105,8 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 
 func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 	files := map[string]string{
-		".github/workflows/nightly.yml":             selftestWorkflow,
-		"internal/sample/widget_test.go":            "package sample\n// RFC requirement: RFC9999-2-1 positive\nfunc TestWidget() {}\n",
+		selftestWorkflowRel:                         selftestWorkflow,
+		selftestTestPath:                            "package sample\n// RFC requirement: RFC9999-2-1 positive\nfunc TestWidget() {}\n",
 		"test/plugin/widget.ci":                     "# RFC requirement: RFC9999-2-2 negative\n",
 		"test/editor/widget.et":                     "# RFC requirement: RFC9999-2-3 positive\n",
 		"internal/le/interoplab/bgp/widget_test.go": "package bgp\n// RFC requirement: RFC9999-2-4 positive\nfunc TestInteropWidget() {}\n",
@@ -109,10 +127,10 @@ func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 	}
 
 	wanted := map[string]string{
-		"internal/sample/widget_test.go":            "unit",
-		"test/plugin/widget.ci":                     "functional",
+		selftestTestPath:                            kindUnit,
+		"test/plugin/widget.ci":                     kindFunctional,
 		"test/editor/widget.et":                     "editor",
-		"internal/le/interoplab/bgp/widget_test.go": "interop",
+		"internal/le/interoplab/bgp/widget_test.go": kindInterop,
 	}
 	found := map[string]string{}
 	for _, tag := range tags {
@@ -142,20 +160,20 @@ func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 }
 
 func runCoverageSelftest() ([]leroot.SelftestResult, error) {
-	requirements, err := parseSummaryText(selftestSummary, "rfc9999", "rfc/short/rfc9999.md")
+	requirements, err := parseSummaryText(selftestSummary, selftestStem, selftestSummaryRel)
 	if err != nil {
 		return nil, err
 	}
 	tags := make([]Tag, 0, 4)
 	tags = append(tags,
-		Tag{RID: "RFC9999-2-1", Polarity: "positive", File: "internal/sample/widget_test.go"},
-		Tag{RID: "RFC9999-2-2", Polarity: "positive", File: "internal/sample/widget_test.go"},
-		Tag{RID: "RFC9999-2-2", Polarity: "negative", File: "internal/sample/widget_test.go"},
+		Tag{RID: selftestRIDSend, Polarity: polarityPositive, File: selftestTestPath},
+		Tag{RID: selftestRIDDrop, Polarity: polarityPositive, File: selftestTestPath},
+		Tag{RID: selftestRIDDrop, Polarity: polarityNegative, File: selftestTestPath},
 	)
-	enrolled := map[string]bool{"rfc9999": true}
+	enrolled := map[string]bool{selftestStem: true}
 	clean := evaluate(requirements, tags, enrolled)
 	missing := evaluate(requirements, tags[:2], enrolled)
-	unknown := evaluate(requirements, append(tags, Tag{RID: "RFC9999-9-9", Polarity: "positive"}), enrolled)
+	unknown := evaluate(requirements, append(tags, Tag{RID: "RFC9999-9-9", Polarity: polarityPositive}), enrolled)
 	rows := rfcCoverageRows(requirements, tags, carriersFor([]string{"plugin"}, map[string]string{}))
 	rollupOK := len(rows) == 1
 	if rollupOK {
@@ -166,7 +184,7 @@ func runCoverageSelftest() ([]leroot.SelftestResult, error) {
 	return []leroot.SelftestResult{
 		selftestResult("coverage/evaluation-clean", len(clean) == 0,
 			"complete polarity evidence produced a coverage violation"),
-		selftestResult("coverage/missing-polarity", len(missing) == 1 && strings.Contains(missing[0], "negative"),
+		selftestResult("coverage/missing-polarity", len(missing) == 1 && strings.Contains(missing[0], polarityNegative),
 			"removing the negative test did not produce the named violation"),
 		selftestResult("coverage/unknown-id", len(unknown) == 1 && strings.Contains(unknown[0], "RFC9999-9-9"),
 			"a tag for an unknown requirement id was accepted"),
@@ -183,27 +201,27 @@ func runStatusSelftest() ([]leroot.SelftestResult, error) {
 	}
 	_, malformed := parseDispositions("rfc7777 unknown not a disposition\n")
 	gap := Requirement{
-		RFC: "rfc9999", RID: "RFC9999-2-1", Level: "MUST", Text: "MUST send", Section: "2",
+		RFC: selftestStem, RID: selftestRIDSend, Level: levelMust, Text: "MUST send", Section: "2",
 		Annotation: &Annotation{Kind: annotationGap, Reason: "not implemented"},
 	}
 	hidden := checkStatusAgreement(
 		[]Requirement{gap},
-		map[string]LedgerRow{"rfc9999": {Status: "Supported", Coverage: "complete"}},
-		map[string]bool{"rfc9999": true},
+		map[string]LedgerRow{selftestStem: {Status: "Supported", Coverage: "complete"}},
+		map[string]bool{selftestStem: true},
 	)
 	declared := checkSummaryDisposition(
-		map[string]bool{"rfc8888": true, "rfc9999": true},
-		map[string]bool{"rfc9999": true}, dispositions, map[string]bool{},
+		map[string]bool{"rfc8888": true, selftestStem: true},
+		map[string]bool{selftestStem: true}, dispositions, map[string]bool{},
 	)
 
 	return []leroot.SelftestResult{
-		selftestResult("status/public-row", rows["rfc9999"].Status == "Partial" && rows["rfc9999"].Remaining == "one MUST gap",
+		selftestResult("status/public-row", rows[selftestStem].Status == "Partial" && rows[selftestStem].Remaining == "one MUST gap",
 			"the public status row did not retain its status and remaining work"),
 		selftestResult("status/disposition", len(declared) == 0 && dispositions["rfc8888"].Kind == dispositionBacklog,
 			"an enrolled-or-declared summary was reported as unowned"),
 		selftestResult("status/disposition-refusal", malformed != nil,
 			"an unknown disposition was accepted"),
-		selftestResult("status/gap-disclosure", len(hidden) == 1 && strings.Contains(hidden[0], "RFC9999-2-1"),
+		selftestResult("status/gap-disclosure", len(hidden) == 1 && strings.Contains(hidden[0], selftestRIDSend),
 			"a Supported row hid a requirement gap"),
 	}, nil
 }
@@ -226,13 +244,13 @@ var Gating = []string{suiteParse, suiteUI}
 	if parseErr != nil {
 		return nil, parseErr
 	}
-	req := Requirement{RFC: "rfc9999", RID: "RFC9999-2-1", Level: "MUST", Source: "rfc/short/rfc9999.md", Line: 5}
-	enrolled := map[string]bool{"rfc9999": true}
-	baselineEnrolled := map[string]bool{"rfc9999": true}
-	idLoss := checkIDAllocation([]Requirement{req}, map[string]bool{"RFC9999-2-2": true})
+	req := Requirement{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust, Source: selftestSummaryRel, Line: 5}
+	enrolled := map[string]bool{selftestStem: true}
+	baselineEnrolled := map[string]bool{selftestStem: true}
+	idLoss := checkIDAllocation([]Requirement{req}, map[string]bool{selftestRIDDrop: true})
 	coverageLoss := checkCoverageRatchet(
 		[]Requirement{req}, nil, enrolled,
-		map[string]map[string]bool{req.RID: {"negative": true}}, baselineEnrolled,
+		map[string]map[string]bool{req.RID: {polarityNegative: true}}, baselineEnrolled,
 	)
 	evidenceLoss := checkEvidenceRatchet(
 		[]Requirement{req}, nil, enrolled, carriersFor([]string{"plugin"}, map[string]string{}),
@@ -240,15 +258,15 @@ var Gating = []string{suiteParse, suiteUI}
 	)
 	retired := checkRetiredRequirements(
 		[]Requirement{req}, enrolled,
-		map[string]bool{req.RID: true, "RFC9999-2-2": true}, baselineEnrolled,
-		map[string]bool{"rfc9999": true}, map[string]bool{"rfc9999": true}, map[string]string{},
+		map[string]bool{req.RID: true, selftestRIDDrop: true}, baselineEnrolled,
+		map[string]bool{selftestStem: true}, map[string]bool{selftestStem: true}, map[string]string{},
 	)
 	demoted := req
 	demoted.Level = "SHOULD"
 	levelLoss := checkLevelRatchet(root, []Requirement{demoted}, enrolled,
-		map[string]string{req.RID: "MUST"}, baselineEnrolled)
+		map[string]string{req.RID: levelMust}, baselineEnrolled)
 	newSummary := checkNewSummaries(
-		NewDeriver(root), map[string]bool{"rfc9999": true}, map[string]bool{"rfc8888": true},
+		NewDeriver(root), map[string]bool{selftestStem: true}, map[string]bool{"rfc8888": true},
 		map[string]bool{}, []Requirement{req}, map[string]string{}, true,
 	)
 	emptyEnrolment := checkEnrolment(root, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{})
@@ -258,13 +276,13 @@ var Gating = []string{suiteParse, suiteUI}
 			"the HEAD Go suite parser did not resolve the Gating constants"),
 		selftestResult("baseline/id-allocation", len(idLoss) == 1 && strings.Contains(idLoss[0], "reuses a retired id"),
 			"the high-water id ratchet accepted a retired ordinal"),
-		selftestResult("baseline/coverage-ratchet", len(coverageLoss) == 1 && strings.Contains(coverageLoss[0], "negative"),
+		selftestResult("baseline/coverage-ratchet", len(coverageLoss) == 1 && strings.Contains(coverageLoss[0], polarityNegative),
 			"the polarity ratchet accepted lost evidence"),
 		selftestResult("baseline/evidence-ratchet", len(evidenceLoss) == 1 && strings.Contains(evidenceLoss[0], "functional/verify"),
 			"the non-unit evidence ratchet accepted a lost carrier tier"),
-		selftestResult("baseline/retirement-ratchet", len(retired) == 1 && strings.Contains(retired[0], "RFC9999-2-2"),
+		selftestResult("baseline/retirement-ratchet", len(retired) == 1 && strings.Contains(retired[0], selftestRIDDrop),
 			"the retired-requirement ratchet accepted a deleted id"),
-		selftestResult("baseline/level-ratchet", len(levelLoss) == 1 && strings.Contains(levelLoss[0], "MUST"),
+		selftestResult("baseline/level-ratchet", len(levelLoss) == 1 && strings.Contains(levelLoss[0], levelMust),
 			"the level ratchet accepted an unauthorized demotion"),
 		selftestResult("baseline/new-summary-ratchet", len(newSummary) == 1 && strings.Contains(newSummary[0], "not in rfc/enrolled.txt"),
 			"a new gated summary remained unenrolled"),
@@ -275,8 +293,8 @@ var Gating = []string{suiteParse, suiteUI}
 
 func runCheckSelftest() ([]leroot.SelftestResult, error) {
 	root, err := newSelftestTree("rfc-selftest-check-", map[string]string{
-		".github/workflows/nightly.yml": selftestWorkflow,
-		"test/plugin/broken.ci":         "# RFC requirement: RFC9999-2-1\n",
+		selftestWorkflowRel:     selftestWorkflow,
+		"test/plugin/broken.ci": "# RFC requirement: RFC9999-2-1\n",
 	})
 	if err != nil {
 		return nil, err

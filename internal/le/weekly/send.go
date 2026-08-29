@@ -48,10 +48,6 @@ var discordShEntry = env.MustRegister(env.EnvEntry{
 // `message` field and drops `retry_after`.
 var rateLimitBackoff = [...]time.Duration{5 * time.Second, 15 * time.Second, 30 * time.Second, 60 * time.Second}
 
-func rateLimitBackoffSchedule() []time.Duration {
-	return rateLimitBackoff[:]
-}
-
 // sendTimeout bounds one call to the transport.
 const sendTimeout = 60 * time.Second
 

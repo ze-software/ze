@@ -235,7 +235,7 @@ a render that has not run yet feeds them the previous text.
     ./le rules index-update
     ./le rules lint
 
-`./le doc-check verify` runs all of them, plus `./le rules render-check`,
+`./le doc check verify` runs all of them, plus `./le rules render-check`,
 `./le rules points-roundtrip-check` and `./le rules gate-map-report`. Run it before you commit.
 
 After a trigger edit, READ your rule's row in the regenerated `TRIGGERS.md`. A

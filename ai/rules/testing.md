@@ -577,10 +577,10 @@ All groups run with `-race`. Use the group matching your change during iteration
 |--------|---------|
 | `./le verify worktree` | Pre-commit gate: lint, changed-file wiring/doc/inventory, vet evidence, Linux/amd64 SCA (`govulncheck`), two-pass unit, functional, and ExaBGP |
 | `./le verify worktree` | Changed-package lint/test plus wiring/doc/inventory, Linux/amd64 SCA (`govulncheck`), functional, and ExaBGP |
-| `./le doc-wiring` | Changed-file-aware wiring, documentation, command, and inventory gate |
+| `./le doc wiring` | Changed-file-aware wiring, documentation, command, and inventory gate |
 | `./le test-unit` | All unit tests with `-race` under default-on feature tags, plus bare `ze_core` compile-out checks (~5 min) |
 | `./le functional` | All 13 functional test suites |
-| `./le verify-lint run` | 26 linters |
+| `./le verify lint run` | 26 linters |
 | `./le verify current mode full` | Native lint, unit, functional, build, documentation, and structural stages |
 | `./le fuzz run` | Every registered fuzz target |
 | `./le functional exabgp-test` | ExaBGP compatibility |
@@ -592,7 +592,7 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `./le mutation combine` | Combine native mutation reports |
 | `./le mutation record-history` | Append package mutation scores to history |
 | `./le test-sensitivity check` | Assert-nothing and tag-orphan ratchets (in `./le verify current mode full`, both modes) |
-| `./le test-weakened check` | Selftests `internal/le/weakened/weakened.go`, then checks that `test/weakened.md` parses (in `./le verify current mode full`, both modes) |
+| `./le test-weakened check` | Selftests `internal/le/testweakened/testweakened.go`, then checks that `test/weakened.md` parses (in `./le verify current mode full`, both modes) |
 | `./le test-health update` | Regenerate `docs/features/test-health.md` + `test/health/latest.json` |
 | `./le test-health record` | Append one KPI sample to `test/health/history.ndjson` |
 
@@ -766,7 +766,7 @@ and `getLogEnv` (`internal/core/slogutil/slogutil.go`) splits the subsystem on
 the WARN default -- with no error, which is why it has recurred three times. A
 hyphen in the key is legitimate ONLY when that exact subsystem is declared
 literally in Go (`slogutil.LazyLogger("bgp.filter.aspath-length")`). Enforced by
-`check_ci_log_subsystem_keys` in `./le doc-wiring`.
+`checkLogSubsystemKeys` in `./le doc wiring`.
 
 **Escalation ladder:** direct test -> file/feature test -> single package -> component group -> whole suite or `./le verify current mode full`. If any rung fails, MUST fix from that evidence and rerun the failed rung or a narrower failing test, not a wider suite.
 
@@ -1091,7 +1091,7 @@ that an unknown driver is refused and a returned error reaches
 
 **Sleep ratchet (BLOCKING):** the total `time.sleep(` count across
 `test/**/*.ci` MUST NOT increase. The committed baseline lives in
-`test/.ci-sleep-baseline`; `./le doc-wiring` fails when the count
+`test/.ci-sleep-baseline`; `./le doc wiring` fails when the count
 exceeds it. Use `ze_api` `wait_for_event` / `wait_for_shutdown` / `wait_until` /
 `dispatch_until` (the payload-predicate waits, below) instead of sleeps (sleeps
 hide real races). When your change removes sleeps, lower the baseline in the same
@@ -1162,8 +1162,11 @@ sensitive. No em dashes in the comment text.
 
 ### Enforcement
 
-- **Blocking gate:** `check_ci_sleep_justification` in
-  `internal/le/docwiring.CheckCISleepJustifications`, run by `./le doc-wiring`.
+Every sleep in a `.ci` test MUST carry its justification marker. Two producers
+enforce it, at different moments.
+
+- **Blocking gate:** `checkSleepJustification` in
+  `internal/le/docwiring`, run by `./le doc wiring`.
   Scoped to changed `.ci` files, it lists every unjustified `file:line` and
   returns exit 1.
 - **Edit-time nudge:** `writeCISleep` in `internal/le/hookruntime/writeedit.go`
@@ -1172,7 +1175,7 @@ sensitive. No em dashes in the comment text.
 
 ### Related (CI sleep)
 
-- `plan/spec-fixit-redistribute-establishment-stall.md` -- the redistribute establishment sleeps MUST NOT be converted until this P0 spec lands.
+- `spec-fixit-redistribute-establishment-stall` -- the redistribute establishment sleeps MUST NOT be converted until this P0 spec lands. It landed on 2026-08-23 in commit `8f3a80bf9`, which closed the spec and deleted it from `plan/`.
 - The external-plugin refuse/warn sleeps wait on a reject-fence signal the daemon does not emit, so no deterministic wait exists for them yet.
 
 ## Compiled Observer API (`internal/test/fixture`)
@@ -1201,7 +1204,7 @@ Prefer it over `time.Sleep` plus a one-shot assertion so the test blocks until
 the observed payload matches, within a bounded attempt count.
 
 Use `fixture.ObserveConfigured` when callbacks or subscriptions must be
-installed before startup. `pkg/plugin/sdk.Plugin.Run` owns the five-stage protocol.
+installed before startup. `Plugin.Run` in `pkg/plugin/sdk` owns the five-stage protocol.
 
 Source and examples: `internal/test/fixture/fixture.go` and the registered drivers beside it.
 <!-- source: internal/test/fixture/fixture.go -- Register, Run, ObserveConfigured, Dispatch, Poll, ReportFailure -->

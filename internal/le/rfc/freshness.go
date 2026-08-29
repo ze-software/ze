@@ -312,9 +312,9 @@ func verdictFreshness(verdict map[string]any, reqSHA string,
 		return Freshness{State: StaleRequirementState}
 	}
 
-	tests := recordedMap(verdict, "tests")
-	code := recordedMap(verdict, "code")
-	units := recordedMap(verdict, "units")
+	tests := recordedMap(verdict, fingerprintTests)
+	code := recordedMap(verdict, fingerprintCode)
+	units := recordedMap(verdict, fingerprintUnits)
 
 	if len(code) > 0 {
 		if !maps.Equal(unitIdentity(code), unitIdentity(codeFingerprints)) {
@@ -378,10 +378,10 @@ func AuditFreshness(in AuditFreshnessInput) map[string]Freshness {
 		keys := tagKeys(byRID[req.RID], reader, index)
 		codeKeys := verdictCodeKeys(audit, req.RID, verdict)
 
-		units, err := unitSHAs(keys, reader, index, auditWhere(req, "tests"))
+		units, err := unitSHAs(keys, reader, index, auditWhere(req, fingerprintTests))
 		var code map[string]string
 		if err == nil {
-			code, err = unitSHAs(codeKeys, reader, index, auditWhere(req, "code"))
+			code, err = unitSHAs(codeKeys, reader, index, auditWhere(req, fingerprintCode))
 		}
 		if err != nil {
 			unresolved := append(append([]string{}, keys...), codeKeys...)
@@ -405,11 +405,11 @@ func auditWhere(req Requirement, field string) string {
 // verdictCodeKeys answers the cited producer keys of one verdict, in the order
 // the record wrote them, which is what decides the first refusal.
 func verdictCodeKeys(audit Audit, rid string, verdict map[string]any) []string {
-	nested, isObject := verdict["code"].(map[string]any)
+	nested, isObject := verdict[fingerprintCode].(map[string]any)
 	if !isObject {
 		return nil
 	}
-	return audit.order.child(rid).child("code").orderOf(nested)
+	return audit.order.child(rid).child(fingerprintCode).orderOf(nested)
 }
 
 // dedupe answers a sorted slice with its repeats removed, which is what a

@@ -8,4 +8,4 @@ stage:
 - **Each `ze-*` skill states its own delegation disposition**, so routing is visible when the skill runs.
 - **The native `subagent-context` action adds the parent's claimed spec, status, and contract.** The main thread still gives each subagent the complete briefing.
 - **The native `block-premature-stop` action is registered on Stop.** `./le hook-check unit` pins its behavior and claim survival.
-- **The nudge survives past turn one.** The claim marker MUST outlive the turn it was made. No hook releases it. `./le spec-session release` does, from `/ze-close`, so the claim lives until the spec closes. `./le hook-check unit` pins registration, order, claim survival, and the absence of a SessionEnd cleanup hook.
+- **The nudge survives past turn one.** The claim marker MUST outlive the turn it was made. No hook releases it. `./le spec session release` does, from `/ze-close`, so the claim lives until the spec closes. `./le hook-check unit` pins registration, order, claim survival, and the absence of a SessionEnd cleanup hook.

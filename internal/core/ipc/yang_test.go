@@ -125,7 +125,7 @@ func TestYANGBGPAPIRPCs(t *testing.T) {
 	require.NotNil(t, mod)
 
 	expectedRPCs := []string{
-		"help", "command-list", "command-help", "command-complete",
+		"help", "command list", "command-help", "command-complete",
 		"plugin-encoding", "plugin-format", "plugin-ack",
 		"overview", "peer-show-capabilities", "peer-show-statistics", "peer-clear-soft",
 		"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown",
@@ -193,7 +193,7 @@ func TestYANGSystemAPIRPCs(t *testing.T) {
 		"help", "version-software", "version-api",
 		"daemon-shutdown", "daemon-quit", "daemon-status", "daemon-reload",
 		"subsystem-list",
-		"command-list", "command-help", "command-complete",
+		"command list", "command-help", "command-complete",
 	}
 
 	rpcNames := make(map[string]bool)
@@ -219,7 +219,7 @@ func TestYANGRibAPIRPCs(t *testing.T) {
 	require.NotNil(t, mod)
 
 	expectedRPCs := []string{
-		"help", "command-list", "command-help", "command-complete", "event-list",
+		"help", "command list", "command-help", "command-complete", "event-list",
 		"show", "best", "best-status", "clear-in", "clear-out", "status",
 	}
 
@@ -272,7 +272,7 @@ func TestYANGPluginAPIRPCs(t *testing.T) {
 	require.NotNil(t, mod)
 
 	expectedRPCs := []string{
-		"help", "command-list", "command-help", "command-complete",
+		"help", "command list", "command-help", "command-complete",
 		"session-ready", "session-peer-ready", "session-ping", "session-bye",
 	}
 
@@ -304,7 +304,7 @@ func TestExtractRPCs(t *testing.T) {
 			name:   "bgp-api",
 			module: "ze-bgp-api",
 			wantRPCs: []string{
-				"help", "command-list", "command-help", "command-complete",
+				"help", "command list", "command-help", "command-complete",
 				"plugin-encoding", "plugin-format", "plugin-ack",
 				"overview", "peer-show-capabilities", "peer-show-statistics", "peer-clear-soft",
 				"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown", "peer-flush",
@@ -321,7 +321,7 @@ func TestExtractRPCs(t *testing.T) {
 				"help", "version-software", "version-api",
 				"daemon-shutdown", "daemon-reboot", "daemon-quit", "daemon-status", "daemon-reload",
 				"subsystem-list",
-				"command-list", "command-help", "command-complete",
+				"command list", "command-help", "command-complete",
 				"dispatch", "quiesce",
 			},
 		},
@@ -329,7 +329,7 @@ func TestExtractRPCs(t *testing.T) {
 			name:   "rib-api",
 			module: "ze-rib-api",
 			wantRPCs: []string{
-				"help", "command-list", "command-help", "command-complete", "event-list",
+				"help", "command list", "command-help", "command-complete", "event-list",
 				"show", "best", "best-status", "clear-in", "clear-out", "status",
 				"inject", "withdraw",
 			},
@@ -338,7 +338,7 @@ func TestExtractRPCs(t *testing.T) {
 			name:   "plugin-api",
 			module: "ze-plugin-api",
 			wantRPCs: []string{
-				"help", "command-list", "command-help", "command-complete",
+				"help", "command list", "command-help", "command-complete",
 				"session-ready", "session-peer-ready", "session-ping", "session-bye",
 			},
 		},

@@ -87,14 +87,14 @@ const (
 	featureManifestPath = "feature-gates.txt"
 
 	docValidationPackage = "internal/le/docvalid"
-	verifyRunnerPackage  = "internal/le/verifyengine"
+	verifyRunnerPackage  = "internal/le/verify/engine"
 	checksPackage        = "internal/le"
 	hookRuntimePackage   = "internal/le/hookruntime"
 	rfcPackage           = "internal/le/rfc"
 	rulesPackage         = "internal/le/rules"
-	specPackage          = "internal/le/specstatus"
+	specPackage          = "internal/le/spec/status"
 	workflowPackage      = "internal/le/workflowcheck"
-	docCheckPackage      = "internal/le/doccheck"
+	docCheckPackage      = "internal/le/doc/check"
 
 	// ciRunnerPackage holds the functional-test runner. ci_fixture_test.go walks
 	// every committed .ci and fails on a BGP frame whose Length field disagrees

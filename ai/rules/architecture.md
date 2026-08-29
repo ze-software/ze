@@ -231,7 +231,7 @@ Decide the tier by the two axes and the non-engine categories BEFORE you pick a 
 
 **You MUST pick the directory from these rules:**
 - 1. Pure library, no `sdk.NewWithConn`, no plugin lifecycle, no component domain owner -> `internal/core/<x>`.
-- 2. Framework or host-service infrastructure -> classify it in `internal/le/tier_non_engine_categories.txt` and keep it under `internal/component/<x>` unless this rule says setup-package placement belongs under `internal/plugins/<x>`.
+- 2. Framework or host-service infrastructure -> classify it in `internal/le/tier/testdata/tier_non_engine_categories.txt` and keep it under `internal/component/<x>` unless this rule says setup-package placement belongs under `internal/plugins/<x>`.
 - 3. Domain library -> keep it with the owning domain only when the manifest names the domain category. Today that means BNG and VPN; AAA, traffic, firewall, and CoS stay flat.
 - 4. Engine that other plugins will depend on -> `internal/component/<x>`.
 - 5. Engine that is a self-contained leaf feature -> `internal/plugins/<x>`.
@@ -247,7 +247,7 @@ The gate enforces engine placement mechanically and enforces ambiguous non-engin
 >
 > A non-engine package outside `internal/core/` MUST either be classified by the
 > existing registration mechanics or have a manifest row in
-> `internal/le/tier_non_engine_categories.txt`.
+> `internal/le/tier/testdata/tier_non_engine_categories.txt`.
 
 The "wired as a plugin" signal is mechanical: the advisory reads composition roots (generated `all.go`, gated `all_<tag>.go`, `cmd/ze` dispatch companions, and `cmd/ze/setup_features_*.go`) to tell registered packages from genuine core candidates. It catches every shape: `registry.Register`, `RegisterRPCs`, `RegisterBackend`, doctor checks, `*-cmd` verb providers, and setup-feature commands. BGP codec/type packages are being split separately; `ike/dataplane` stays under component until its VPP backend is split from the interface package. There is **no permanent allowlist**.
 
@@ -258,7 +258,7 @@ The "wired as a plugin" signal is mechanical: the advisory reads composition roo
 - treats generated `all.go` files, gated `all_<tag>.go` files, `cmd/ze` dispatch/import companions, and `cmd/ze/setup_features_*.go` as registration importers, not functional dependencies;
 - fails (exit 2) on any **new** misplaced engine, naming the dir and its required tier, pointing here;
 - fails on a **stale** engine baseline entry (one no longer misplaced), forcing cleanup;
-- fails (exit 2) on any illegal, stale, or missing row in `internal/le/tier_non_engine_categories.txt`;
+- fails (exit 2) on any illegal, stale, or missing row in `internal/le/tier/testdata/tier_non_engine_categories.txt`;
 - fails (exit 2) if a `DISABLEABLE` feature is imported by always-on (untagged, non-test) code, naming the file and the build tag it needs.
 
 ### Disable-ability (compile-out)
@@ -320,10 +320,10 @@ The four subsection names below are required in a spec's Data Flow section (`pla
 | New leaf/container | Config parser that reads the tree (grep `GetContainer`, `GetChild` for the path) |
 | New leaf/container | Validator if validation rules apply |
 | New leaf/container | CLI completion if the command references the schema |
-| Renamed path | `./le yang-migration path-refactor` handles slash paths, set commands, brace blocks, GetContainer chains |
+| Renamed path | `./le yang migration path-refactor` handles slash paths, set commands, brace blocks, GetContainer chains |
 | New `environment/` leaf | `env.MustRegister()` in the component's config loader |
 | New `ze:listener` | Conflict detection via `FindListenerConflict` |
-| New `ze:command` | RPC handler + `./le doc-check verify` |
+| New `ze:command` | RPC handler + `./le doc check verify` |
 
 #### Registration (`register.go`, `init()`)
 
@@ -345,7 +345,7 @@ The four subsection names below are required in a spec's Data Flow section (`pla
 | New `make([]byte, N)` on wire path | Pool-backed alternative (`ai/rules/performance.md`) |
 | New `fmt.Sprintf` | Append-based alternative (`ai/rules/performance.md`) |
 | Guard/fallback added | Sibling call-site audit ("Sibling Call-Site Audit" above) |
-| Error return ignored | `./le verify-lint run` reports the errcheck finding |
+| Error return ignored | `./le verify lint run` reports the errcheck finding |
 
 #### Functional Test (`*.ci`)
 
@@ -364,14 +364,14 @@ The four subsection names below are required in a spec's Data Flow section (`pla
 | What changed | Also check |
 |---|---|
 | New factual claim | Source anchor: `<!-- source: path -- symbol -->` |
-| Feature count/list | `./le doc-check verify` validates against live registry |
+| Feature count/list | `./le doc check verify` validates against live registry |
 | Changed config syntax | `docs/guide/configuration.md` and `docs/architecture/config/syntax.md` |
 
 #### Spec (`plan/spec-*.md`)
 
 | What changed | Also check |
 |---|---|
-| Status change | per-session marker via `./le spec-session` |
+| Status change | per-session marker via `./le spec session` |
 | AC added/removed | Wiring test table, audit table |
 | Design decision | Annotate with `-> Decision:` for post-compaction recovery |
 
@@ -518,7 +518,7 @@ Not every `os.WriteFile` is state. These stay raw and are allowlisted in the gua
 | `TestTemplatesAvoidInlineScriptAndStyle` | `internal/test/markupcheck`, `AssertNoInlineScriptOrStyle` | an inline `<script>` block, an inline `style=`, an `on*` handler, an `hx-on` attribute |
 | `TestTemplAssetsResolve` | `internal/test/markupcheck`, `AssertAssetsResolve` | a `src` or `href` the served filesystem does not hold, and one naming an asset tree the package does not serve |
 | `TestWebViewDataIsTyped`, `TestLGViewDataIsTyped` | `internal/test/templcheck`, `AssertTyped` | a component parameter that is a map, a named map, a bare `any`, or a struct wrapping any of them |
-| `./le doc-check templ-output` | `internal/le/doccheck` and `internal/le/docwiring` | a `*_templ.go` its `.templ` source no longer produces |
+| `./le doc check templ-output` | `internal/le/doccheck` and `internal/le/docwiring` | a `*_templ.go` its `.templ` source no longer produces |
 | `go test ./internal/component/web ./internal/component/lg` | `internal/test/golden` and the package capture tests | a rendered byte that moved with no fixture behind it |
 
 ## Architecture Summary

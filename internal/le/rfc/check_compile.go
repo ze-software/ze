@@ -22,26 +22,12 @@ import (
 const quotedCompilerMessages = 5
 const vetTimeout = 15 * time.Minute
 
-func featureTags(tree string) ([]string, error) {
-	const rel = "feature-gates.txt"
-	var tb textbuf.Buffer
-	raw, err := os.ReadFile(treePath(tree, rel)) // #nosec G304 -- the manifest under the checkout
-	if err != nil {
-		return nil, baselineParseError(tb.Str(rel).Str(": cannot read the feature-gate manifest, so the tag set the unit stage compiles with is unknown: ").Err(err).String())
-	}
-	found := map[string]bool{}
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) > 0 && strings.HasPrefix(fields[0], "ze_") {
-			found[fields[0]] = true
-		}
-	}
-	if len(found) == 0 {
-		return nil, baselineParseError(tb.Reset().Str(rel).Str(": no `ze_*` gate is declared. Every gated file would drop out of the type-check, which then reports clean over code it never read").String())
-	}
-	return sortedSet(found), nil
-}
-
+// buildTags answers the `-tags` value the type-check compiles with.
+//
+// gotoolchain reads feature-gates.txt and refuses an empty gate set, so a
+// manifest this check cannot classify stops the run. A reduced tag set would
+// drop every gated file out of the type-check, which then reports clean over
+// code it never read.
 func buildTags(tree string) (string, error) {
 	toolchain, err := gotoolchain.New(tree)
 	if err != nil {

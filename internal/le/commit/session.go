@@ -47,7 +47,7 @@ func sessionIDFor(root, requested, fingerprint string) (string, error) {
 		return requested, nil
 	}
 	for {
-		content, err := os.ReadFile(path)
+		content, err := os.ReadFile(path) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if err == nil {
 			existing := strings.ToLower(strings.TrimSpace(string(content)))
 			if !commitSessionPattern.MatchString(existing) {
@@ -63,7 +63,7 @@ func sessionIDFor(root, requested, fingerprint string) (string, error) {
 			return "", fmt.Errorf("generate commit session: %w", err)
 		}
 		session := hex.EncodeToString(token[:])
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if errors.Is(err, os.ErrExist) {
 			continue
 		}

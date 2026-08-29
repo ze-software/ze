@@ -9,7 +9,7 @@ the smaller corpus. This file is what makes the removal say so.
 `corpus_shrink` in `internal/le/rules/points.go` compares the point IDS on disk
 against the ids git HEAD carried and requires every id that left to be covered
 by a line added to this file since HEAD. `./le rules gate-map-report` and
-`./le doc-check verify` fail otherwise.
+`./le doc check verify` fail otherwise.
 
 Identity, never a count. An addition can mask a removed point, so a count cannot
 prove that every instruction remains.

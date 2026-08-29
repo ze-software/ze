@@ -118,9 +118,14 @@ func ChangedFiles(ctx context.Context, tree string) ([]string, error) {
 // markdownUnder answers every .md file under one subtree of the tree,
 // tree-relative and ordered by path COMPONENT.
 //
-// Python sorted() compares pathlib.Path component tuples. Thus, `docs/a/x.md`
-// precedes `docs/a-b/x.md`, unlike plain string order. Finding order controls
-// which item a reader sees first, so this port preserves component order.
+// Ordering is by path COMPONENT rather than by raw string, because a hyphen
+// sorts before a slash: comparing whole strings puts a sibling directory whose
+// name merely starts with another's name ahead of that other's contents. The
+// order decides which finding a reader sees first, so it is part of the output
+// rather than an implementation detail. <!-- doc-links: ignore (the two paths here are ordering examples, not files) -->
+//
+// Example: with component ordering, a file directly under a directory precedes
+// a file under a sibling whose name extends it with a hyphen.
 func markdownUnder(tree, sub string) ([]string, error) {
 	dir := filepath.Join(tree, sub)
 	info, err := os.Stat(dir)

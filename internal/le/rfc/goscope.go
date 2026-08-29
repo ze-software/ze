@@ -25,9 +25,6 @@ const (
 	ScopeGo   ScopeKind = "go"
 	ScopeFunc ScopeKind = "func"
 	ScopeFile ScopeKind = "file"
-
-	scopeFunc = string(ScopeFunc)
-	scopeFile = string(ScopeFile)
 )
 
 // The three shapes the span finder reads. Go is the only carrier with a
@@ -43,7 +40,7 @@ var (
 // goScoped reports whether this path's unit is a Go function span.
 func goScoped(path string) bool { return strings.HasSuffix(path, ".go") }
 
-var tagCarrierSuffixes = [...]string{"_test.go", ".ci", ".et"}
+var tagCarrierSuffixes = [...]string{"_test.go", ciSuffix, etSuffix}
 
 // ScopeReader answers how a path's tagged unit can be resolved.
 //
@@ -241,24 +238,6 @@ func FunctionUnits(content string) []FunctionUnit {
 		units = append(units, FunctionUnit{Name: funcNameIn(text), Text: text})
 	}
 	return units
-}
-
-// functionNameAt answers the top-level Go function enclosing a 1-based line.
-// An empty answer means the whole file is the unit.
-func functionNameAt(path, content string, line int) string {
-	return newScopeIndex().funcNameAt(path, content, line)
-}
-
-// functionText answers the text of the one top-level function declared name.
-//
-// It refuses absent and duplicate names alike. Two receiver methods can share
-// a name in one file, and picking either would fingerprint text nobody chose.
-func functionText(content, name string) (string, bool) {
-	found := newScopeIndex().funcTexts(content, name)
-	if len(found) != 1 {
-		return "", false
-	}
-	return found[0], true
 }
 
 // TaggedUnit is the text one RFC tag governs and how it was resolved.

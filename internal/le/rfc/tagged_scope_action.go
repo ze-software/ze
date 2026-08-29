@@ -24,6 +24,12 @@ import (
 // one pre-write check into an unbounded allocation.
 const TaggedScopeMaxBytes = cliio.MaxStdinBytes
 
+// The two operations a pre-write request declares.
+const (
+	operationWrite = "write"
+	operationEdit  = "edit"
+)
+
 // taggedScopeActionRequest is the proposed full-file content and the edit hunks that
 // selected it. Operation is "write" or "edit". Edit requires at least one hunk;
 // Write carries none.
@@ -33,7 +39,7 @@ type taggedScopeActionRequest struct {
 	Hunks     []EditHunk `json:"hunks,omitempty"`
 }
 
-// TaggedScopeChange is one RFC-tagged unit whose behaviour the proposed content
+// TaggedScopeChange is one RFC-tagged unit whose behavior the proposed content
 // changes.
 type TaggedScopeChange struct {
 	Name string   `json:"name"`
@@ -81,7 +87,7 @@ func evaluateTaggedScope(tree, path string, request taggedScopeActionRequest) (t
 		err = fmt.Errorf("read existing file: %w", err)
 		return taggedScopeError(relative, err), err
 	}
-	if !exists && request.Operation == "edit" {
+	if !exists && request.Operation == operationEdit {
 		err = errors.New("edit target does not exist")
 		return taggedScopeError(relative, err), err
 	}
@@ -91,7 +97,7 @@ func evaluateTaggedScope(tree, path string, request taggedScopeActionRequest) (t
 	}
 
 	oldText, newText := string(old), *request.Content
-	if request.Operation == "edit" {
+	if request.Operation == operationEdit {
 		if scope, held := tagScope(relative, oldText, request.Hunks, changedTagRE); held {
 			report.Scope = &scope
 		}
@@ -105,7 +111,7 @@ func evaluateTaggedScope(tree, path string, request taggedScopeActionRequest) (t
 
 	report.Resolution, report.Changes = changedTaggedUnits(relative, oldText, newText)
 	if len(report.Changes) == 0 {
-		return taggedScopeAllowed(report, "unchanged-behaviour", "no RFC-tagged test behaviour changed"), nil
+		return taggedScopeAllowed(report, "unchanged-behavior", "no RFC-tagged test behavior changed"), nil
 	}
 	report.Allowed = false
 	report.Decision = "block"
@@ -122,11 +128,11 @@ func validateTaggedScopeRequest(request taggedScopeActionRequest) error {
 		return errors.New("proposed content is not valid UTF-8 text")
 	}
 	switch request.Operation {
-	case "write":
+	case operationWrite:
 		if len(request.Hunks) != 0 {
 			return errors.New("write request carries edit hunks")
 		}
-	case "edit":
+	case operationEdit:
 		if len(request.Hunks) == 0 {
 			return errors.New("edit request carries no hunks")
 		}
@@ -291,7 +297,7 @@ func taggedScopeAllowed(report taggedScopeActionReport, reason, message string) 
 
 func taggedScopeBlockedMessage(path string, changes []TaggedScopeChange) string {
 	var out textbuf.Buffer
-	out.Str("blocked ").Str(path).Str(": RFC-tagged test behaviour changed")
+	out.Str("blocked ").Str(path).Str(": RFC-tagged test behavior changed")
 	for _, change := range changes {
 		out.Str("\n  ").Str(change.Name).Str(": ").Join(change.Tags, ", ")
 	}

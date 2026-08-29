@@ -208,7 +208,7 @@ Common case (one group changed): ~2 min total instead of 6+.
 <!-- source: internal/le/verifylint/actions.go -- Answer -->
 
 golangci-lint analyzes ONE build for each run: one GOOS, one GOARCH, one tag
-set. `./le verify-lint run` therefore runs more than one.
+set. `./le verify lint run` therefore runs more than one.
 
 | Pass | Build | What only it reads |
 |------|-------|--------------------|
@@ -223,8 +223,8 @@ file in a new package, and the drift is silent.
 
 The driver then asserts coverage. Every tracked Go file must be loaded by some
 pass. The exceptions are `vendor/`, `gokrazy/modcache/`, and the `//go:build
-ignore` files that belong to no build. `./le verify-lint run` executes the
-native plan and returns its flavor rows as structured output; `./le verify-lint run`
+ignore` files that belong to no build. `./le verify lint run` executes the
+native plan and returns its flavor rows as structured output; `./le verify lint run`
 retains the established target interface.
 
 Two files are still outside it, and the driver names both on every run.
@@ -267,13 +267,13 @@ directly:
 ```
 
 The matrix checks package and test variants in the working tree.
-`./le repository-tracked-build check` remains the committed-tree final-link check for shipped
+`./le repository tracked-build check` remains the committed-tree final-link check for shipped
 build flavors.
 
 ### The one stage that does not read your working tree
 
 Every stage above compiles and runs the files on your disk, uncommitted ones
-included. `./le repository-tracked-build check` (`internal/le/repositorytrackedbuild.Answer`) is the
+included. `./le repository tracked-build check` (`internal/le/repositorytrackedbuild.Answer`) is the
 exception: it extracts the commit with `git archive` and compiles the extracted
 tree, so it sees only what git holds.
 
@@ -282,8 +282,8 @@ producer uncommitted. The build is green on your disk and red for everybody who
 clones. Run it after the commit script when the commit carried Go:
 
 ```sh
-./le repository-tracked-build check
-REV=7abe8a07e ./le repository-tracked-build check
+./le repository tracked-build check
+REV=7abe8a07e ./le repository tracked-build check
 ```
 
 The action builds every flavor in `internal/le/repositorytrackedbuild/matrix.go` over
@@ -343,6 +343,6 @@ fuzz corpus entry becomes a regression test automatically.
 | List functional tests | `./le job run label encode-list command bin/ze-test bgp encode --list` |
 | Run one fuzz target | `FUZZ=FuzzName PKG=./path/... TIME=30s ./le fuzz run` |
 | Run all fuzz targets | `./le fuzz run` |
-| Check the commit compiles | `./le repository-tracked-build check` |
+| Check the commit compiles | `./le repository tracked-build check` |
 | Check web behavior | `./le functional web` |
-| Check that every `*_templ.go` matches its `.templ` source | `./le doc-check templ-output`, and `./le repository generate` to bring it back in step. Both walk `internal/` only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare `templ generate` walks from the repo root. It writes that root into every generated file, and it reds the gate |
+| Check that every `*_templ.go` matches its `.templ` source | `./le doc check templ-output`, and `./le repository generate` to bring it back in step. Both walk `internal/` only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare `templ generate` walks from the repo root. It writes that root into every generated file, and it reds the gate |

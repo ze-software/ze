@@ -73,7 +73,7 @@ script and run it immediately. You MUST NOT re-audit the implementation, run lat
 completeness/remaining-work tables, inspect speculative companion artifacts,
 or rerun lint/tests just because commit was requested. You MUST inspect only enough
 state to avoid staging unrelated, ignored, generated, or out-of-scope paths.
-**One check is exempt, because it cannot run earlier: `./le repository-tracked-build check`
+**One check is exempt, because it cannot run earlier: `./le repository tracked-build check`
 after the script has run** (step 7). It judges the commit you just made, which no
 run before that commit could see.
 
@@ -102,7 +102,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
    hand-written fallback.
 5. You MUST run the finished script yourself with `bash` and the printed path.
    For a commit carrying Go/module/vendor paths, run
-   `./le repository-tracked-build check` immediately afterwards. Report the commit SHA,
+   `./le repository tracked-build check` immediately afterwards. Report the commit SHA,
    included files, message file, script path, push status, and verification
    evidence or skip reason.
 6. Before creating the script, read `.gitignore`; add only canonical sources.

@@ -17,6 +17,7 @@
 package rfc
 
 import (
+	"github.com/ze-software/ze/internal/le/leroot"
 	"os"
 	"path/filepath"
 	"sort"
@@ -31,6 +32,22 @@ const (
 	tierVerify  = "verify"  // runs in the native full verifier on every push
 	tierNightly = "nightly" // runs in a scheduled advisory workflow
 	tierUnrun   = "unrun"   // nothing runs it automatically: a tag here is refused
+)
+
+// The evidence KINDS a carrier declares: which layer a tagged test exercises.
+// A unit table test proves the algorithm, a `.ci` proves the daemon exposes it,
+// an interop scenario proves a foreign peer accepts it.
+const (
+	kindUnit       = "unit"
+	kindFunctional = "functional"
+	kindInterop    = "interop"
+)
+
+// The two functional carrier suffixes, and the pipeline an unrun carrier names.
+const (
+	ciSuffix          = ".ci"
+	etSuffix          = ".et"
+	noAutomatedCaller = "no automated caller"
 )
 
 // draftPrefix is the gitignored incubator. Every repo-wide scanner SKIPS it
@@ -85,7 +102,7 @@ var legacyInteropTrees = [...]interopTree{
 
 // FunctionalSuites answers the suites `./le functional` runs.
 //
-// The answer comes from the functional area's read-only catalogue. RFC evidence
+// The answer comes from the functional area's read-only catalog. RFC evidence
 // classification therefore consumes the same run list as the native runner
 // without importing or parsing internal/le/functional/actions.go.
 func FunctionalSuites() []string { return functional.GatingNames() }
@@ -123,14 +140,14 @@ func interopCarriers(scheduled map[string]string) []Carrier {
 	out := make([]Carrier, 0, len(interopTrees))
 	for _, tree := range interopTrees {
 		workflow := scheduled[tree.action]
-		tier, pipeline := tierUnrun, "no automated caller"
+		tier, pipeline := tierUnrun, noAutomatedCaller
 		if workflow != "" {
 			var tb textbuf.Buffer
 			tier = tierNightly
 			pipeline = tb.Str(".github/workflows/").Str(workflow).Str(" (advisory)").String()
 		}
 		out = append(out, Carrier{
-			Name: tree.name, Kind: "interop", Tier: tier, Prefix: tree.prefix,
+			Name: tree.name, Kind: kindInterop, Tier: tier, Prefix: tree.prefix,
 			Suffix: ".go", Reader: "go",
 			Runner:   "./le " + strings.Replace(tree.action, "/", " ", 1),
 			Pipeline: pipeline,
@@ -143,13 +160,13 @@ func legacyInteropCarriers(scheduled map[string]string) []Carrier {
 	out := make([]Carrier, 0, len(legacyInteropTrees))
 	for _, tree := range legacyInteropTrees {
 		workflow := scheduled[tree.action]
-		tier, pipeline := tierUnrun, "no automated caller"
+		tier, pipeline := tierUnrun, noAutomatedCaller
 		if workflow != "" {
 			tier = tierNightly
 			pipeline = ".github/workflows/" + workflow + " (advisory)"
 		}
 		out = append(out, Carrier{
-			Name: tree.name, Kind: "interop", Tier: tier, Prefix: tree.prefix,
+			Name: tree.name, Kind: kindInterop, Tier: tier, Prefix: tree.prefix,
 			Suffix: "/check.py", Reader: "legacy-python",
 			Runner:   "./le " + strings.Replace(tree.action, "/", " ", 1),
 			Pipeline: pipeline,
@@ -191,10 +208,9 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	out = append(out, Carrier{
 		Name: "interop-unrun", Kind: "unknown", Tier: tierUnrun, Prefix: "internal/le/interoplab/",
 		Suffix: ".go", Reader: "go", Runner: "no declared native interop action",
-		Pipeline: "no automated caller",
-	})
-	out = append(out, Carrier{
-		Name: "unit", Kind: "unit", Tier: tierVerify, Prefix: "", Suffix: "_test.go",
+		Pipeline: noAutomatedCaller,
+	}, Carrier{
+		Name: kindUnit, Kind: kindUnit, Tier: tierVerify, Prefix: "", Suffix: "_test.go",
 		Reader: "go", Runner: "./le verify-deps unit-cached",
 		Pipeline: "./le verify current mode full (unit stage)",
 	})
@@ -202,31 +218,31 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	// empty-prefix row credited ANY .ci anywhere under internal/, pkg/ or test/
 	// as verify evidence, which made two silent evasions possible: move a
 	// tagged .ci out of a run suite or into the gitignored incubator.
-	out = append(out, suiteCarriers("functional", ".ci", "ci",
+	out = append(out, suiteCarriers(kindFunctional, ciSuffix, "ci",
 		"./le functional", "./le verify current mode full (functional stage", suites)...)
 	// `.et` is the cheapest verify-tier non-unit carrier available, and it
 	// costs one row: it is .ci semantics exactly, and only test/editor/ is
 	// walked for it.
-	out = append(out, suiteCarriers("editor", ".et", "ci",
+	out = append(out, suiteCarriers("editor", etSuffix, "ci",
 		"./le functional editor", "./le verify current mode full (functional stage",
 		editorSuites)...)
 	// test/exabgp-compat is not one of the run list's suites. It has its own
 	// native action and stage, so it is a declared row rather than a second
 	// suite list.
 	out = append(out, Carrier{
-		Name: "functional-exabgp", Kind: "functional", Tier: tierVerify,
-		Prefix: "test/exabgp-compat/", Suffix: ".ci", Reader: "ci",
+		Name: "functional-exabgp", Kind: kindFunctional, Tier: tierVerify,
+		Prefix: "test/exabgp-compat/", Suffix: ciSuffix, Reader: "ci",
 		Runner:   "./le functional exabgp-test",
 		Pipeline: "./le verify current mode full (exabgp stage)",
 	}, Carrier{
-		Name: "functional-unrun", Kind: "functional", Tier: tierUnrun, Prefix: "",
-		Suffix: ".ci", Reader: "ci",
+		Name: "functional-unrun", Kind: kindFunctional, Tier: tierUnrun, Prefix: "",
+		Suffix: ciSuffix, Reader: "ci",
 		Runner: "no native full-verifier stage walks this directory",
 		Pipeline: unrunCI.Str("no automated caller; ./le functional runs ").
 			Join(suites, ", ").String(),
 	}, Carrier{
 		Name: "editor-unrun", Kind: "editor", Tier: tierUnrun, Prefix: "",
-		Suffix: ".et", Reader: "ci",
+		Suffix: etSuffix, Reader: "ci",
 		Runner: "no native full-verifier stage walks this directory",
 		Pipeline: unrunET.Str("no automated caller; only test/").Str(editorSuite).
 			Str("/ is walked for .et").String(),
@@ -392,11 +408,19 @@ func stripYAMLComments(src string) string {
 	return strings.Join(lines, "\n")
 }
 
+// registeredCommand reports whether a whole name is a registered le command.
+//
+// It is a seam rather than a direct call so a test can state its own command
+// population: this package's test binary links only this package, so a live
+// registry read there answers one command and would make every namespaced
+// invocation parse as its one-word fallback.
+func registeredCommand(name string) bool { return leroot.LookupCommand(name) != nil }
+
 // nativeActionsIn answers every `./le <area> <verb>` action a workflow invokes.
 //
 // It models command lines, not a shell. Chains are split, but substitutions,
 // backticks, and subshells are not parsed.
-func nativeActionsIn(src string) []string {
+func nativeActionsIn(src string, registered func(string) bool) []string {
 	var out []string
 	for line := range strings.SplitSeq(src, "\n") {
 		cmd := strings.TrimSpace(line)
@@ -407,13 +431,13 @@ func nativeActionsIn(src string) []string {
 			cmd = strings.ReplaceAll(cmd, sep, "\x00")
 		}
 		for frag := range strings.SplitSeq(cmd, "\x00") {
-			out = append(out, actionsInCommand(strings.Fields(frag))...)
+			out = append(out, actionsInCommand(strings.Fields(frag), registered)...)
 		}
 	}
 	return out
 }
 
-func actionsInCommand(fields []string) []string {
+func actionsInCommand(fields []string, registered func(string) bool) []string {
 	if len(fields) > 0 && fields[0] == "-" {
 		fields = fields[1:]
 	}
@@ -428,7 +452,21 @@ func actionsInCommand(fields []string) []string {
 	if len(fields) < 3 || (fields[0] != "./le" && fields[0] != "le") {
 		return nil
 	}
-	return []string{fields[1] + "/" + fields[2]}
+	// Which words are the command is a question only the registry answers. A
+	// namespaced command takes two of them, so `./le doc check links` is the
+	// links verb of `doc check`, while `./le verify current mode full` is the
+	// current verb of `verify` and `mode` is its argument. Counting words would
+	// read the first as the `check` verb of a `doc` command that does not
+	// exist, and the second correctly, which is the worst kind of wrong.
+	var tb textbuf.Buffer
+	twoWord := tb.Str(fields[1]).Byte(' ').Str(fields[2]).String()
+	if len(fields) > 3 && registered(twoWord) {
+		tb.Reset()
+		return []string{tb.Str(twoWord).Byte('/').Str(fields[3]).String()}
+	}
+
+	tb.Reset()
+	return []string{tb.Str(fields[1]).Byte('/').Str(fields[2]).String()}
 }
 
 // topLevelBlock answers the indented body of a top-level `key:` line, and false
@@ -475,15 +513,6 @@ func isScheduled(src string) bool {
 	return false
 }
 
-// workflowIsScheduled reports whether source declares a schedule trigger.
-//
-// Comments are stripped first so a disabled example cannot grant a workflow a
-// scheduled tier. The workflow catalogue and external migration checks consume
-// this same parser.
-func workflowIsScheduled(source string) bool {
-	return isScheduled(stripYAMLComments(source))
-}
-
 // scheduledActionsFrom answers `area/verb -> the scheduled workflow that runs
 // it`. The pure core, so the tree and the HEAD table share one notion of "CI
 // runs this".
@@ -499,7 +528,7 @@ func scheduledActionsFrom(sources map[string]string) map[string]string {
 		if !isScheduled(src) {
 			continue
 		}
-		for _, action := range nativeActionsIn(src) {
+		for _, action := range nativeActionsIn(src, registeredCommand) {
 			if _, seen := out[action]; !seen {
 				out[action] = name
 			}

@@ -870,12 +870,12 @@ expect=exit:code=0
 | `./le verify current mode full` | Static gates, Linux/amd64 SCA, unit, functional, and ExaBGP checks |
 | `./le test-unit bgp` | Race-instrumented BGP unit group |
 | `./le functional` | All release-gate `.ci` suites |
-| `./le verify-lint run` | golangci-lint over every Go build flavor |
+| `./le verify lint run` | golangci-lint over every Go build flavor |
 | `./le fuzz run` | Every discovered Go fuzz target |
 | `./le functional exabgp-test` | ExaBGP compatibility suite |
 | `./le test-chaos unit` | Chaos simulator unit tests |
 
-Full verification runs `./le verify-deps vulnerability` before its unit stage.
+Full verification runs `./le verify deps vulnerability` before its unit stage.
 The outer Go process stays host-native. Its exec wrapper starts host-native
 `govulncheck` with `GOOS=linux GOARCH=amd64`, so the scanner loads the
 Linux/amd64 package graph. The action needs network access to the live Go

@@ -170,7 +170,7 @@ text clearer for a reader. Owner directive, 2026-07-31.
 
 - **HEAD is the baseline, and the comparison is per file.** A document nobody touched can never fail the gate, so legacy prose stays until someone rewrites it. The sentence you just wrote is what goes red.
 - **There is no baseline file, and nothing to re-bless.** Rewriting a number cannot silence this gate, so the one way to green is to fix the prose (`ai/rules/completion.md`).
-- **The gate is at commit time, not in `./le doc-check verify`.** Several sessions share this checkout. A tree-wide prose gate reports a sibling session's in-flight sentences, and a gate that reddens for a colleague's typing gets switched off.
+- **The gate is at commit time, not in `./le doc check verify`.** Several sessions share this checkout. A tree-wide prose gate reports a sibling session's in-flight sentences, and a gate that reddens for a colleague's typing gets switched off.
 - **`./le ste check` still reads the whole working tree**, so it can name a file another session is editing. Read the path before you read the habit.
 - **The checker holds our own word lists, not the ASD dictionary.** It cannot see every violation, so the six habits stay a review checklist as well as a gate. Report a violation as an ISSUE against its habit number.
 - **When the tool is wrong, fix the tool and add the case to `internal/le/ste/ste_test.go`.** A checker that flags `setup`, an RFC 2119 MUST, or a code span gets switched off, and then it protects nothing.
@@ -319,7 +319,7 @@ These are invisible in rendered markdown but let future sessions verify accuracy
 
 ### Validation
 
-Run `./le doc-check verify` after editing any file under `docs/`, after adding or removing a plugin, or after touching a YANG `ze:command` declaration. `internal/le/docwiring.Verify` runs the native documentation drift, command-surface, and source-anchor checks and reports every finding.
+Run `./le doc check verify` after editing any file under `docs/`, after adding or removing a plugin, or after touching a YANG `ze:command` declaration. `internal/le/docwiring.Verify` runs the native documentation drift, command-surface, and source-anchor checks and reports every finding.
 
 Not part of `./le verify current mode full` today because of a pre-existing drift backlog. Run on demand. See `docs/contributing/documentation-testing.md` for the full workflow and how to interpret output.
 

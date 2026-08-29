@@ -15,7 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/verifyengine"
+	"github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 // writesMarker is what an area's Subs line prints beside an action that changes

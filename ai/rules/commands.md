@@ -17,7 +17,7 @@
 - **One watcher at a time, and never faster than one wake every 30 seconds.** Each wake competes with QEMU, Docker and `./le verify current mode full` for the same cores. That contention is what makes the functional suites flaky, so a watcher can corrupt the run it is watching.
 - **Foreground `sleep` is blocked by the harness because waiting is not work.** Reaching for a loop to win the sleep back inverts that intent. Do other work, or end the turn.
 - **The harness's own examples are unbounded, and this repo overrides them.** The Bash tool text prescribes an `until` loop when a foreground `sleep` is refused, and the `Monitor` schema shows `until grep -q ...; do sleep 0.5; done`. Both are refused here, and one word fixes both: `timeout`. The 30-second floor governs a watcher that spawns a process per wake (`pgrep`, `docker`, `curl`); a local file test inside a bound can be faster.
-- **Run `./le verify-lint run` before claiming any Go implementation work is done.**
+- **Run `./le verify lint run` before claiming any Go implementation work is done.**
 - **Fix every issue it reports. Do not claim done with lint failures outstanding.**
 
 - **`go test`, lint analysis, and a `ze-test` runner MUST NOT start raw from Bash.** The hook names the registered native action.
@@ -274,7 +274,7 @@ native Go packages and MUST NOT add a shell script.
 | A command this session launched in the background | Nothing. The completion notification is the wake-up |
 | A file or a log line one of your own commands will produce | ONE bounded loop in `run_in_background`: `timeout 300 bash -c 'until [ -f <path> ]; do sleep 30; done'`. It notifies once, then it is gone |
 | A repeated event (every ERROR line, every CI step) | The `Monitor` tool, with `persistent` left false so its `timeout_ms` deadline applies. `persistent: true` disables that deadline and rebuilds the problem this rule exists to stop |
-| Another session's heavy job to free a slot | Do other work. `tmp/.ze-jobs/` holds one entry per running job, with its label, pid and log, and `./le verify-status check` reports the last verify's verdict. `tmp/.ze-verify.lock.owner` is a copy of ONE entry, so read the directory when more than one job can run. Never a watcher |
+| Another session's heavy job to free a slot | Do other work. `tmp/.ze-jobs/` holds one entry per running job, with its label, pid and log, and `./le verify status check` reports the last verify's verdict. `tmp/.ze-verify.lock.owner` is a copy of ONE entry, so read the directory when more than one job can run. Never a watcher |
 | Nothing in particular | Do not wait at all |
 
 ## Lint Gate
@@ -292,10 +292,10 @@ for current timings).
 Before claiming any Go implementation work is done, run:
 
 ```
-./le verify-lint run
+./le verify lint run
 ```
 
-**You MUST lint through `./le verify-lint run`, never by calling
+**You MUST lint through `./le verify lint run`, never by calling
 `golangci-lint` directly.** The native action derives the pinned toolchain and
 every build flavor through `internal/le/verifylint`; a bare invocation inherits
 host defaults and can report an environment failure as a code finding.
@@ -337,7 +337,7 @@ Fix every issue it reports. Do not claim done with lint failures outstanding.
 
 | Moment | Action |
 |--------|--------|
-| After finishing all edits for a task | Run `./le verify-lint run` |
+| After finishing all edits for a task | Run `./le verify lint run` |
 | After fixing lint issues | Re-run to confirm clean |
 | Before `/ze-commit` or `/ze-commit-check` | Already covered if you ran it above |
 

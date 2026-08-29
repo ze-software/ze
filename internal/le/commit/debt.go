@@ -24,7 +24,7 @@ var debtGates = []struct {
 	{gateMissingFullVerifyOK, "full native verification over this commit's Go"},
 	{gateStaleIndexOK, "discovery-index freshness"},
 	{gateReviewOverride, "independent critical review"},
-	{gateBrokenHeadFix, "repository-tracked-build/check (HEAD does not compile)"},
+	{gateBrokenHeadFix, "repository tracked-build/check (HEAD does not compile)"},
 	{gateRFCChangeOK, "owner approval for an RFC-tagged test change"},
 }
 

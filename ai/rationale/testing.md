@@ -6,7 +6,7 @@ Why: `ai/rules/testing.md`
 
 Throw-away tests are lost knowledge. Future devs re-investigate same questions. CI doesn't catch regressions.
 
-## Linters in ./le verify-lint run (26 total)
+## Linters in ./le verify lint run (26 total)
 
 Key: `govet`, `staticcheck`, `errcheck`, `gosec`, `gocritic` (hugeParam, rangeValCopy), `prealloc`, `exhaustive`, `dupl`.
 

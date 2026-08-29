@@ -12,7 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/verifyengine"
+	"github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 const area = "verify"

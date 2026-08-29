@@ -1308,7 +1308,7 @@ of them declares.
 That bare command answers the seven validation counters and one row for each
 cache server, as siblings. That shape is what leaves `| summary` a half to
 select. The RPKI plugin declares the alias over the plugin Stage 1 channel
-rather than in Go. So `ze help command --json` and `./le command-list` do not
+rather than in Go. So `ze help command --json` and `./le command list` do not
 list it: both read the compiled tree in their own process and start no plugin.
 The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->

@@ -90,8 +90,8 @@ page for verification and usage.
 <!-- source: ai/rules/repo-maintenance.md -- Required Discovery Artifacts -->
 
 Agents should use the existing inventory and verification surfaces:
-`./le inventory`, `./le command-list`, `./le doc-check verify`,
-`./le docs-to-code update`, and `./le doc-wiring`.
+`./le inventory`, `./le command list`, `./le doc check verify`,
+`./le docs-to-code update`, and `./le doc wiring`.
 
 Commit preparation uses `internal/le/commit.Answer`: agents pass the vetted
 subject, body, and explicit file list, and the helper creates the session ID,

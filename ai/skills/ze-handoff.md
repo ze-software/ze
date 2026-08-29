@@ -13,7 +13,7 @@ See also: `/ze-debrief` (current session state), `/ze-status` (cross-project att
 
 ## Steps
 
-1. **Read the spec:** Run `./le spec-session current`. If a spec is selected, read the spec file.
+1. **Read the spec:** Run `./le spec session current`. If a spec is selected, read the spec file.
 2. **Identify remaining work:** From the spec, conversation, and task list, enumerate:
    - What is done (committed or implemented)
    - What is in progress (uncommitted changes)

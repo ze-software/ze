@@ -134,8 +134,12 @@ func reseal(tree string, prove func(string) bool, note string) (ResealReport, er
 			if state.State == FreshState {
 				continue
 			}
-			transitional := state.State == StaleUnitState && len(verdictFingerprintKeys(verdict["units"])) == 0
-			if state.State != ShiftedState && !(transitional && prove != nil) {
+			transitional := state.State == StaleUnitState && len(verdictFingerprintKeys(verdict[fingerprintUnits])) == 0
+			// A shifted unit re-seals from its own text. A stale-unit verdict
+			// that fingerprinted no unit is transitional, and it re-seals only
+			// when the caller supplies the proof callback.
+			resealable := state.State == ShiftedState || (transitional && prove != nil)
+			if !resealable {
 				var message textbuf.Buffer
 				report.Refused = append(report.Refused, message.Str(rfcStem).Byte(' ').
 					Str(req.RID).Str(": ").Str(state.State).
@@ -145,7 +149,7 @@ func reseal(tree string, prove func(string) bool, note string) (ResealReport, er
 			fresh := taggedUnitSHAs(byRID[req.RID], reader, index)
 			if prove != nil {
 				files := map[string]bool{}
-				for _, key := range verdictFingerprintKeys(verdict["tests"]) {
+				for _, key := range verdictFingerprintKeys(verdict[fingerprintTests]) {
 					files[keyFile(key)] = true
 				}
 				for key := range fresh {
@@ -170,7 +174,7 @@ func reseal(tree string, prove func(string) bool, note string) (ResealReport, er
 					continue
 				}
 			}
-			verdict["tests"] = anyMap(fresh)
+			verdict[fingerprintTests] = anyMap(fresh)
 			var message textbuf.Buffer
 			report.Resealed = append(report.Resealed,
 				message.Str(rfcStem).Byte(' ').Str(req.RID).String())

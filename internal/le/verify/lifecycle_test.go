@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/verifyengine"
+	"github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 type fixtureRepo struct {

@@ -120,8 +120,23 @@ func blankImports(t *testing.T, path string) []string {
 	return imports
 }
 
+// registeringPackages answers every package under dir that registers a command.
+//
+// It walks two levels, because a namespace member sits one below its object:
+// `le verify lint` registers from internal/le/verify/lint. An object that is
+// also a command of its own, as verify, site and repository are, registers from
+// both levels and is counted at each.
 func registeringPackages(t *testing.T, dir string) []string {
 	t.Helper()
+
+	registers := func(path string) bool {
+		_, statErr := os.Stat(filepath.Join(path, "register.go"))
+		if statErr != nil && !os.IsNotExist(statErr) {
+			t.Fatalf("stat %s/register.go: %v", path, statErr)
+		}
+		return statErr == nil
+	}
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatalf("read %s: %v", dir, err)
@@ -131,10 +146,20 @@ func registeringPackages(t *testing.T, dir string) []string {
 		if !entry.IsDir() {
 			continue
 		}
-		if _, statErr := os.Stat(filepath.Join(dir, entry.Name(), "register.go")); statErr == nil {
+		if registers(filepath.Join(dir, entry.Name())) {
 			packages = append(packages, leImportPrefix+entry.Name())
-		} else if !os.IsNotExist(statErr) {
-			t.Fatalf("stat %s/register.go: %v", entry.Name(), statErr)
+		}
+		members, readErr := os.ReadDir(filepath.Join(dir, entry.Name()))
+		if readErr != nil {
+			continue
+		}
+		for _, member := range members {
+			if !member.IsDir() {
+				continue
+			}
+			if registers(filepath.Join(dir, entry.Name(), member.Name())) {
+				packages = append(packages, leImportPrefix+entry.Name()+"/"+member.Name())
+			}
 		}
 	}
 	slices.Sort(packages)

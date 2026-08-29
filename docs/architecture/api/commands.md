@@ -1797,7 +1797,7 @@ it never sees a plugin's Stage 1 message.
 |---------|-------|--------------------------|
 | `command help "<name>"` | the running daemon's registries | Yes, as a `pipe-aliases` list beside `pipe-filters` |
 | Tab completion in the daemon-hosted TUI | the running daemon's registries | Yes |
-| `./le command-list` | the compiled tree in its own process | No, and it cannot |
+| `./le command list` | the compiled tree in its own process | No, and it cannot |
 | `ze help command --json`, and the wiki catalog built from it | the compiled tree in its own process | No, and it cannot |
 
 `command help` lists an in-tree alias and a declared one the same way, and it

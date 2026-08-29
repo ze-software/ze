@@ -27,7 +27,7 @@
   live in `ai/rules/git-safety.md` under "Commit Rules". Read them first.
 - When the user asks for a commit, prepare the commit script and run it
   immediately. Do not perform a late review or rerun gates just because
-  commit was requested. If `./le verify-status check` is FRESH, never rerun
+  commit was requested. If `./le verify status check` is FRESH, never rerun
   `./le verify worktree`.
 - Never `--no-verify`, never `--no-gpg-sign`.
 
@@ -337,8 +337,8 @@ means "no rule applies".
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
 | Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/writing.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
 | Claim work is done | `ai/rules/completion.md`, `ai/rules/completion.md` -- every AC implemented, tested, wired; every exported symbol has a non-test caller |
-| Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Independence is a property of the CONTEXT, so ONE closure agent running every lens itself satisfies it and MUST NOT spawn readers of its own. Loop to zero, record the `./le spec-session review record` artifact (`./le commit create` enforces it) |
-| Finish Go edits | `ai/rules/commands.md` -- run `./le verify-lint run` before claiming done |
+| Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Independence is a property of the CONTEXT, so ONE closure agent running every lens itself satisfies it and MUST NOT spawn readers of its own. Loop to zero, record the `./le spec session review record` artifact (`./le commit create` enforces it) |
+| Finish Go edits | `ai/rules/commands.md` -- run `./le verify lint run` before claiming done |
 | Commit | `ai/rules/git-safety.md` -- the native `./le commit create` route. What the commit owes in verification, and how to judge a red, is `ai/rules/precommit-verify.md` |
 | Run any test/build/lint command | `ai/rules/commands.md` -- use the registered `./le` action so feature tags and job admission are preserved; no lossy pipes, read the log after; write it under `$(./le session scratch ensure)`, never at the `tmp/` root |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first for user-visible or uncommitted work; this is the standing exception to "don't ask" |

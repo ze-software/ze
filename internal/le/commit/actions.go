@@ -12,7 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/testweakened"
 	"github.com/ze-software/ze/internal/le/verify"
-	"github.com/ze-software/ze/internal/le/verifydispatch"
+	"github.com/ze-software/ze/internal/le/verify/dispatch"
 )
 
 const area = "commit"

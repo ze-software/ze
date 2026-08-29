@@ -62,9 +62,9 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			continue
 		}
 		if annotation != nil && annotation.Kind == annotationSinglePolarity {
-			other := "negative"
-			if annotation.Polarity == "negative" {
-				other = "positive"
+			other := polarityNegative
+			if annotation.Polarity == polarityNegative {
+				other = polarityPositive
 			}
 			if polarity[other] {
 				var locations []string
@@ -93,7 +93,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			continue
 		}
 		var missing []string
-		for _, value := range []string{"negative", "positive"} {
+		for _, value := range []string{polarityNegative, polarityPositive} {
 			if !polarity[value] {
 				missing = append(missing, value)
 			}

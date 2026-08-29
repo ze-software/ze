@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -55,7 +56,7 @@ func TestTheRealCheckoutPassesAndWasRead(t *testing.T) {
 		t.Fatalf("resolve the repository root: %v", err)
 	}
 
-	result, err := Check(tree, DefaultFloor)
+	result, err := Check(tree, DefaultFloor, leProbeRoots())
 	if err != nil {
 		t.Fatalf("the gate could not read this checkout: %v", err)
 	}
@@ -74,7 +75,7 @@ func TestTheRealCheckoutPassesAndWasRead(t *testing.T) {
 func TestATreeTooSmallToBeTheOneAskedAboutIsAnError(t *testing.T) {
 	tree := writeTree(t, cleanFixture(t))
 
-	if _, err := Check(tree, DefaultFloor); err == nil {
+	if _, err := Check(tree, DefaultFloor, leProbeRoots()); err == nil {
 		t.Fatal("a tree holding one file per population passed the default floor")
 	}
 
@@ -83,7 +84,7 @@ func TestATreeTooSmallToBeTheOneAskedAboutIsAnError(t *testing.T) {
 		{YANGFiles: 0, Roots: 2, DemoScripts: 0},
 		{YANGFiles: 0, Roots: 0, DemoScripts: 2},
 	} {
-		if _, err := Check(tree, floor); err == nil {
+		if _, err := Check(tree, floor, leProbeRoots()); err == nil {
 			t.Errorf("a tree under the floor %+v passed", floor)
 		}
 	}
@@ -98,7 +99,7 @@ func TestAFileThatWillNotParseStopsTheRun(t *testing.T) {
 	files["cmd/ze/bad.go"] = "package main\n\nfunc broken( {\n"
 	tree := writeTree(t, files)
 
-	_, err := Check(tree, Floor{})
+	_, err := Check(tree, Floor{}, leProbeRoots())
 	if err == nil {
 		t.Fatal("a file that will not parse was walked past")
 	}
@@ -115,7 +116,7 @@ func TestEachFeederDrawsItsRowOverAFixture(t *testing.T) {
 	files["demos/terminal/one/demo.tape"] = "Type \"ze show interface\"\nType \"ze mystery-verb\"\n"
 	tree := writeTree(t, files)
 
-	result, err := Check(tree, Floor{})
+	result, err := Check(tree, Floor{}, leProbeRoots())
 	if err != nil {
 		t.Fatalf("the gate failed over the fixture: %v", err)
 	}
@@ -141,7 +142,7 @@ func TestProseInADemoDefinitionIsNotACallSite(t *testing.T) {
 	files["demos/terminal/one/demo.tape"] = "# ze narrated-verb\nType \"ze show interface\"\n"
 	tree := writeTree(t, files)
 
-	result, err := Check(tree, Floor{})
+	result, err := Check(tree, Floor{}, leProbeRoots())
 	if err != nil {
 		t.Fatalf("the gate failed over the fixture: %v", err)
 	}
@@ -225,4 +226,16 @@ func TestTheCommandRefusesAnArgument(t *testing.T) {
 	if _, code := Answer([]string{"internal"}); code != 1 {
 		t.Errorf("a value after the command answers %d, want 1", code)
 	}
+}
+
+// leProbeRoots is a le command population for the feeders this file does not
+// exercise. The real surface reaches Check from the action, where every le
+// package is linked; a test binary linking one package would fail the floor
+// for a reason that says nothing about the grammar.
+func leProbeRoots() []string {
+	roots := make([]string, 0, 64)
+	for index := range 64 {
+		roots = append(roots, "probe"+strconv.Itoa(index))
+	}
+	return roots
 }

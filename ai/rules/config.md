@@ -370,7 +370,7 @@ Confirmed real instance: `ddos-detect` never ran in any daemon. `enabled` parsed
 
 ### The mechanical check
 
-`internal/le/configcoercion/configcoercion.go` (`./le config-coercion check`, wired into `./le verify current mode full`) parses every `internal/**/config.go` and fails on a type switch whose cases include a numeric/bool type but not `string`, or a direct type assertion to a numeric/bool type.
+`internal/le/configcoercion/configcoercion.go` (`./le config coercion check`, wired into `./le verify current mode full`) parses every `internal/**/config.go` and fails on a type switch whose cases include a numeric/bool type but not `string`, or a direct type assertion to a numeric/bool type.
 
 **An allowlist entry MUST be added, with a stated reason, only for a genuine non-config coercion.** The companion `--selftest` proves the AST detection fires on isolated fixtures.
 

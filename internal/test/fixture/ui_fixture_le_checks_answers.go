@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,7 +44,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 	if err != nil {
 		return leChecksFailf("creating fixture directory: %v", err)
 	}
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
 	tags, err := uiLEFeatureTags(root)
 	if err != nil {
@@ -54,9 +55,9 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("finding go: %v", err)
 	}
 	binary := filepath.Join(here, "le")
-	build := exec.CommandContext(ctx, goTool, "build", "-tags", strings.Join(tags, ","), "-o", binary, "./cmd/ze")
+	build := exec.CommandContext(ctx, goTool, "build", "-tags", strings.Join(tags, ","), "-o", binary, "./cmd/ze") //nolint:gosec // the fixture chooses the program and its arguments
 	build.Dir = root
-	build.Env = leChecksEnvironment(map[string]string{"CGO_ENABLED": "0"})
+	build.Env = leChecksEnvironment(map[string]string{envCGOEnabled: "0"})
 	var buildOutput bytes.Buffer
 	build.Stdout = &buildOutput
 	build.Stderr = &buildOutput
@@ -72,29 +73,29 @@ func runLEChecksAnswers(ctx context.Context) error {
 	// checkout must pass each one, and these report/check forms must not leak
 	// diagnostics to stderr.
 	baseline := []leChecksCase{
-		{"config-claims", []string{"config-claims"}},
-		{"iface-resolution", []string{"iface-resolution"}},
-		{"command-ownership", []string{"command-ownership"}},
-		{"config-coercion", []string{"config-coercion", "check"}},
-		{"config-coercion selftest", []string{"config-coercion", "selftest"}},
-		{"port-defaults", []string{"port-defaults", "check"}},
-		{"port-defaults selftest", []string{"port-defaults", "selftest"}},
-		{"cli-grammar", []string{"cli-grammar"}},
-		{"fs-persistence", []string{"fs-persistence", "check"}},
-		{"fs-persistence selftest", []string{"fs-persistence", "selftest"}},
-		{"plugin-boundary", []string{"plugin-boundary", "check"}},
-		{"plugin-boundary selftest", []string{"plugin-boundary", "selftest"}},
-		{"plugin-boundary roots", []string{"plugin-boundary", "roots"}},
-		{"yang-leaf-mentions report", []string{"yang-leaf-mentions", "report"}},
-		{"yang-leaf-mentions selftest", []string{"yang-leaf-mentions", "selftest"}},
-		{"staticcheck-feature-matrix rows", []string{"staticcheck-feature-matrix", "rows"}},
-		{"dash-stdio", []string{"dash-stdio", "check"}},
-		{"dash-stdio selftest", []string{"dash-stdio", "selftest"}},
-		{"ci-dispatch", []string{"ci-dispatch", "check"}},
-		{"ci-dispatch selftest", []string{"ci-dispatch", "selftest"}},
-		{"repository-tracked-build selftest", []string{"repository-tracked-build", "selftest"}},
-		{"test-sensitivity report", []string{"test-sensitivity", "report"}},
-		{"test-sensitivity selftest", []string{"test-sensitivity", "selftest"}},
+		{checkConfigClaims, []string{checkConfigClaims}},
+		{checkIfaceResolution, []string{checkIfaceResolution}},
+		{checkCommandOwnership, []string{checkCommandOwnership}},
+		{checkConfigCoercion, []string{checkConfigCoercion, actionCheck}},
+		{"config-coercion selftest", []string{checkConfigCoercion, actionSelftest}},
+		{checkPortDefaults, []string{checkPortDefaults, actionCheck}},
+		{"port-defaults selftest", []string{checkPortDefaults, actionSelftest}},
+		{checkCLIGrammar, []string{checkCLIGrammar}},
+		{checkFSPersistence, []string{checkFSPersistence, actionCheck}},
+		{"fs-persistence selftest", []string{checkFSPersistence, actionSelftest}},
+		{checkPluginBoundary, []string{checkPluginBoundary, actionCheck}},
+		{"plugin-boundary selftest", []string{checkPluginBoundary, actionSelftest}},
+		{"plugin-boundary roots", []string{checkPluginBoundary, "roots"}},
+		{"yang-leaf-mentions report", []string{checkYANGLeafMentions, actionReport}},
+		{"yang-leaf-mentions selftest", []string{checkYANGLeafMentions, actionSelftest}},
+		{"staticcheck-feature-matrix rows", []string{checkStaticcheckFeatureMatrix, fieldRows}},
+		{checkDashStdio, []string{checkDashStdio, actionCheck}},
+		{"dash-stdio selftest", []string{checkDashStdio, actionSelftest}},
+		{checkCIDispatch, []string{checkCIDispatch, actionCheck}},
+		{"ci-dispatch selftest", []string{checkCIDispatch, actionSelftest}},
+		{"repository-tracked-build selftest", []string{checkRepositoryTrackedBuild, actionSelftest}},
+		{"test-sensitivity report", []string{checkTestSensitivity, actionReport}},
+		{"test-sensitivity selftest", []string{checkTestSensitivity, actionSelftest}},
 	}
 	for _, tc := range baseline {
 		got, err := runLE(nil, tc.args...)
@@ -110,7 +111,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 	}
 
 	// A config-claims report is one document containing two row sets.
-	claimsResult, err := runLE(nil, "config-claims", "|", "json")
+	claimsResult, err := runLE(nil, "config claims", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -146,7 +147,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the gate reported findings: %#v", claims["findings"])
 	}
 
-	counted, err := runLE(nil, "config-claims", "|", "count")
+	counted, err := runLE(nil, "config claims", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -156,7 +157,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 	if !strings.Contains(counted.stderr, "count") {
 		return leChecksFailf("the refusal does not name the operator: %q", counted.stderr)
 	}
-	yaml, err := runLE(nil, "config-claims", "|", "yaml")
+	yaml, err := runLE(nil, "config claims", "|", "yaml")
 	if err != nil {
 		return err
 	}
@@ -165,7 +166,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 	}
 
 	// Gates whose complete answer is a row set accept row operators.
-	for _, command := range []string{"iface-resolution", "command-ownership"} {
+	for _, command := range []string{checkIfaceResolution, checkCommandOwnership} {
 		rowsResult, err := runLE(nil, command, "|", "json")
 		if err != nil {
 			return err
@@ -207,14 +208,14 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("`le port-defaults selftest | count` answered %q, want 8", portCount.stdout)
 	}
 
-	listing, err := runLE(nil, "config-coercion")
+	listing, err := runLE(nil, "config coercion")
 	if err != nil {
 		return err
 	}
 	if listing.code != 0 {
 		return leChecksFailf("`le config-coercion` exited %d", listing.code)
 	}
-	for _, word := range []string{"check", "selftest", "checks"} {
+	for _, word := range []string{actionCheck, actionSelftest, fieldChecks} {
 		if !strings.Contains(listing.stdout, word) {
 			return leChecksFailf("the listing does not carry %q:\n%s", word, listing.stdout)
 		}
@@ -227,10 +228,10 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the scope file %q is inside the checkout", scopePath)
 	}
 	const scopeContents = "ze_web\nze_ssh\n"
-	if err := os.WriteFile(scopePath, []byte(scopeContents), 0600); err != nil {
+	if err := os.WriteFile(scopePath, []byte(scopeContents), 0o600); err != nil {
 		return leChecksFailf("writing the feature scope: %v", err)
 	}
-	writtenScope, err := os.ReadFile(scopePath)
+	writtenScope, err := os.ReadFile(scopePath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return leChecksFailf("reading back the feature scope: %v", err)
 	}
@@ -312,9 +313,9 @@ func runLEChecksAnswers(ctx context.Context) error {
 	}
 
 	for _, tc := range []leChecksCase{
-		{"fs-persistence check", []string{"fs-persistence", "check"}},
-		{"plugin-boundary check", []string{"plugin-boundary", "check"}},
-		{"dash-stdio check", []string{"dash-stdio", "check"}},
+		{"fs-persistence check", []string{checkFSPersistence, actionCheck}},
+		{"plugin-boundary check", []string{checkPluginBoundary, actionCheck}},
+		{"dash-stdio check", []string{checkDashStdio, actionCheck}},
 	} {
 		rowsResult, err := runLE(nil, append(append([]string{}, tc.args...), "|", "json")...)
 		if err != nil {
@@ -370,7 +371,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the gate saw %d commands and %d emitters", commandsKnown, emittersChecked)
 	}
 
-	leafResult, err := runLE(nil, "yang-leaf-mentions", "report", "|", "json")
+	leafResult, err := runLE(nil, "yang leaf-mentions", "report", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -440,7 +441,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the tracked scan read %d files and %d tests", filesScanned, testsScanned)
 	}
 
-	trackedBuild, err := runLE(nil, "repository-tracked-build", "check")
+	trackedBuild, err := runLE(nil, "repository tracked-build", "check")
 	if err != nil {
 		return err
 	}
@@ -454,7 +455,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the tracked-build report has no elapsed-time column:\n%s", trackedBuild.stdout)
 	}
 
-	matrixResult, err := runLE(nil, "repository-tracked-build", "matrix", "|", "json")
+	matrixResult, err := runLE(nil, "repository tracked-build", "matrix", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -528,14 +529,14 @@ func runLEChecksAnswers(ctx context.Context) error {
 		command string
 		cases   int
 	}{
-		{"fs-persistence", 8},
-		{"plugin-boundary", 7},
-		{"yang-leaf-mentions", 7},
-		{"port-defaults", 8},
-		{"dash-stdio", 14},
-		{"ci-dispatch", 10},
-		{"repository-tracked-build", 7},
-		{"test-sensitivity", 45},
+		{checkFSPersistence, 8},
+		{checkPluginBoundary, 7},
+		{checkYANGLeafMentions, 7},
+		{checkPortDefaults, 8},
+		{checkDashStdio, 14},
+		{checkCIDispatch, 10},
+		{checkRepositoryTrackedBuild, 7},
+		{checkTestSensitivity, 45},
 	} {
 		answered, err := runLE(nil, tc.command, "selftest", "|", "json")
 		if err != nil {
@@ -561,15 +562,15 @@ func runLEChecksAnswers(ctx context.Context) error {
 	}
 
 	for _, command := range []string{
-		"config-coercion",
-		"fs-persistence",
-		"plugin-boundary",
-		"yang-leaf-mentions",
-		"staticcheck-feature-matrix",
-		"dash-stdio",
-		"ci-dispatch",
-		"repository-tracked-build",
-		"test-sensitivity",
+		checkConfigCoercion,
+		checkFSPersistence,
+		checkPluginBoundary,
+		checkYANGLeafMentions,
+		checkStaticcheckFeatureMatrix,
+		checkDashStdio,
+		checkCIDispatch,
+		checkRepositoryTrackedBuild,
+		checkTestSensitivity,
 	} {
 		unknown, err := runLE(nil, command, "nonesuch")
 		if err != nil {
@@ -586,20 +587,20 @@ func runLEChecksAnswers(ctx context.Context) error {
 	}
 	helpText := help.stdout + help.stderr
 	for _, command := range []string{
-		"config-claims",
-		"iface-resolution",
-		"command-ownership",
-		"config-coercion",
-		"port-defaults",
-		"cli-grammar",
-		"fs-persistence",
-		"plugin-boundary",
-		"yang-leaf-mentions",
-		"staticcheck-feature-matrix",
-		"dash-stdio",
-		"ci-dispatch",
-		"repository-tracked-build",
-		"test-sensitivity",
+		checkConfigClaims,
+		checkIfaceResolution,
+		checkCommandOwnership,
+		checkConfigCoercion,
+		checkPortDefaults,
+		checkCLIGrammar,
+		checkFSPersistence,
+		checkPluginBoundary,
+		checkYANGLeafMentions,
+		checkStaticcheckFeatureMatrix,
+		checkDashStdio,
+		checkCIDispatch,
+		checkRepositoryTrackedBuild,
+		checkTestSensitivity,
 	} {
 		if !strings.Contains(helpText, command) {
 			return leChecksFailf("`le` does not list %q in its help", command)
@@ -614,7 +615,7 @@ func leChecksRun(ctx context.Context, dir string, overrides map[string]string, p
 	if err := ctx.Err(); err != nil {
 		return leChecksResult{}, leChecksFailf("fixture context ended before %q ran: %v", program, err)
 	}
-	cmd := exec.CommandContext(ctx, program, args...)
+	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = leChecksEnvironment(overrides)
 	var stdout bytes.Buffer
@@ -626,8 +627,7 @@ func leChecksRun(ctx context.Context, dir string, overrides map[string]string, p
 	if err == nil {
 		return result, nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}
@@ -640,13 +640,11 @@ func leChecksRun(ctx context.Context, dir string, overrides map[string]string, p
 func leChecksEnvironment(overrides map[string]string) []string {
 	values := make(map[string]string)
 	for _, item := range os.Environ() {
-		if at := strings.IndexByte(item, '='); at >= 0 {
-			values[item[:at]] = item[at+1:]
+		if key, value, found := strings.Cut(item, "="); found {
+			values[key] = value
 		}
 	}
-	for key, value := range overrides {
-		values[key] = value
-	}
+	maps.Copy(values, overrides)
 	keys := make([]string, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)

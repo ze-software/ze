@@ -40,7 +40,7 @@ func TestMethodNameParsing(t *testing.T) {
 			name:       "system_api_module",
 			method:     "ze-system-api:command-list",
 			wantModule: "ze-system-api",
-			wantRPC:    "command-list",
+			wantRPC:    "command list",
 		},
 		{
 			name:       "plugin_api_module",

@@ -62,7 +62,7 @@ judges work, so it must not be the context that produced it.
 
 ## Precondition
 
-The implementation is complete and `./le verify-lint run && ./le test-unit &&
+The implementation is complete and `./le verify lint run && ./le test-unit &&
 ./le functional` is green (`/ze-implement` steps 1-10). If feature code is
 still missing, go back: this skill does not implement.
 
@@ -72,7 +72,7 @@ in one thing: where the diff is.
 | Entry status | Where the diff is | What changes below |
 |--------------|-------------------|--------------------|
 | `in-progress` | the working tree, uncommitted | nothing |
-| `verification` | already committed by the implementation session (`ai/rules/planning.md`, "Two-Session Handoff") | the reviewers read `git diff <handoff-sha>~1..<handoff-sha>` instead of the working tree, and `./le spec-session review record` records over those same files |
+| `verification` | already committed by the implementation session (`ai/rules/planning.md`, "Two-Session Handoff") | the reviewers read `git diff <handoff-sha>~1..<handoff-sha>` instead of the working tree, and `./le spec session review record` records over those same files |
 
 At `verification` the code is committed, so closure adds commit A (journal row,
 spec, any doc or fix edits this skill produced) and commit B (the native commit
@@ -86,7 +86,7 @@ command removes the spec). The handoff commit is neither of them. Get the handof
 | 1. Deliverables review | **Deliverables Checklist**, then APPEND `plan/TEMPLATE-CLOSURE.md` and fill **Goal Validation** + **Implementation Summary** |
 | 2. Security review | **Security Review Checklist** (feature-specific concerns) |
 | 4. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
-| 5. Review Gate | **Review Gate**: record via `./le spec-session review record`, loop to 0 BLOCKER/0 ISSUE |
+| 5. Review Gate | **Review Gate**: record via `./le spec session review record`, loop to 0 BLOCKER/0 ISSUE |
 | 6. Close + commit | **Implementation Audit**, **Pre-Commit Verification**, **Deferrals Resolved** |
 
 ## Steps
@@ -132,12 +132,12 @@ command removes the spec). The handoff commit is neither of them. Get the handof
    - Every factual doc update MUST include or update a `<!-- source: path -- symbol -->` anchor immediately after the claim.
    - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, external socket, kernel module, listen port, external binary, TLS cert), verify a corresponding `ze doctor` check exists per `ai/rules/repo-maintenance.md`. Add missing checks and register diagnostic codes in `internal/core/diagnostic/codes.go`.
    - **RFC status (BLOCKING):** If the change implements, changes, or newly proves any RFC-level protocol behavior, update the matching `docs/features/rfc-status.md` row (Status, Implemented coverage, Remaining) with a source anchor to the producing `file:line`, and reconcile `docs/comparison.md` / `docs/features.md` when the support level changes. Per `ai/rules/repo-maintenance.md`.
-   - Write the doc updates, run `./le doc-check verify`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
+   - Write the doc updates, run `./le doc check verify`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
 5. **/ze-review gate (BLOCKING -- the final review before closure):** `/ze-implement`'s inline reviews check the diff against the spec's own checklists. This gate runs the generic adversarial `/ze-review` over the COMPLETE diff -- including every fix those reviews produced -- and loops until it is clean. It satisfies the Review Gate defined in `ai/rules/planning.md`; the inline reviews do not substitute for it (they check the spec's own checklists; `/ze-review` checks what nobody planned for).
    - Run `/ze-review`'s steps YOURSELF over the uncommitted changes. Its own Delegation section tells a main thread to spawn a reviewer; you are not a main thread, so that paragraph does not apply to you and you MUST NOT spawn one (see Delegation above). Read the skill, then work its steps in this context. It runs its own automated pre-checks (`./le repository check`, `./le commit audit`) as its step 0.
    - **The style pass is part of that gate, and it is the part a reviewer under time pressure drops.** `/ze-review` step 18 checks every changed Go file against `docs/contributing/ze-go-style.md`. It asks six questions there. The first one is a BLOCKER whenever its trace reaches a socket: can a peer reach this `panic()`? A run that reports no style finding on a diff carrying new Go states that it ran the pass.
    - **Independence still holds, and it is satisfied by the PHASE boundary, not by a fresh agent.** `ai/rules/planning.md` requires the review not be run by the context that WROTE the code. This skill is that separate context: `/ze-implement` produced the diff and ended, and you are judging work you did not author. Reading the diff from source is what makes the review independent; spawning another reader adds a hop, not a lens.
-   - **Record the machine artifact, not just prose:** `./le spec-session review record spec <spec> verdict CLEAN rounds <N> file <path> ...`, then `./le spec-session review check spec <spec> file <path> ...`. `./le commit create` runs that same check on the closure commit and refuses without a fresh, hash-pinned, CLEAN artifact, so a hand-written table alone does not satisfy the gate. Put the artifact path, the check result and the round count in the Review Gate table.
+   - **Record the machine artifact, not just prose:** `./le spec session review record spec <spec> verdict CLEAN rounds <N> file <path> ...`, then `./le spec session review check spec <spec> file <path> ...`. `./le commit create` runs that same check on the closure commit and refuses without a fresh, hash-pinned, CLEAN artifact, so a hand-written table alone does not satisfy the gate. Put the artifact path, the check result and the round count in the Review Gate table.
    - `rounds` is required and more than five is refused without `rounds-reason <reason>`. The reason must name the PRODUCT defect a later round found. A false statement in the spec's own closure prose is not one: those are NOTEs, they are fixed in ONE edit, and they never earn another round (`ai/rules/planning.md`, "A finding in the record is not a finding in the product"). A round whose findings are all record defects is the last round.
    - **More than five passes is THOMAS'S decision.** A sixth round is also refused without `owner-authorised <reason>` (owner ruling 2026-08-17). Both tolls are owed past the cap, and neither substitutes for the other. You MUST NOT set that keyword on your own initiative. At the cap you stop, report what the loop keeps finding, and ask him whether it runs another pass.
    - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by). NOTEs do not block: record and proceed.
@@ -186,7 +186,7 @@ command removes the spec). The handoff commit is neither of them. Get the handof
       - **No, there is none:** create nothing and say so in the commit body.
       A row is written because the work taught something, never because a commit
       needs an artifact.
-   b. Release this session's spec claim: `./le spec-session release`. This also frees a slot against the WIP cap (`./le spec-session wip`).
+   b. Release this session's spec claim: `./le spec session release`. This also frees a slot against the WIP cap (`./le spec session wip`).
    c. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
    d. Prepare ONE commit script with `./le commit create` that produces TWO commits:
       - **Clear the citers first (BLOCKING).** Commit B removes the spec, and
@@ -216,7 +216,7 @@ command removes the spec). The handoff commit is neither of them. Get the handof
         `plan/.citation-baseline` as part of closure: a bulk baseline refresh
         hides a citation that a repoint must fix.
 
-        After the script has run, `./le spec-citation` is green. A closure that
+        After the script has run, `./le spec citation` is green. A closure that
         leaves it red is not closed.
       - **Commit A (implementation + spec):** run `./le commit create replace` with `file <path>` for every implementation file (code, tests, docs, schema), `file plan/journal/<class>.md` when step 6a wrote a journal row, and `file plan/<spec-name>` to preserve all implementation edits in git history.
       - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and add `file <path>` for each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out. An uncommitted row lives in one working tree and dies at the next clean or checkout, so a closure that leaves them behind loses the knowledge the closure exists to preserve (`ai/rules/completion.md`, "Recording").

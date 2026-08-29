@@ -114,7 +114,7 @@ rendered a blank panel and answered 200.
 | Command | What it does |
 |---------|--------------|
 | `./le repository generate` | Regenerates every `*_templ.go` from its `.templ` source. Run it after any `.templ` edit |
-| `./le doc-check templ-output` | Refuses stale generated output, orphaned `*_templ.go` files, and `.templ` sources outside the generator walk |
+| `./le doc check templ-output` | Refuses stale generated output, orphaned `*_templ.go` files, and `.templ` sources outside the generator walk |
 
 The generator runs from `vendor/`, so `./le repository generate` needs no network and
 nothing on `PATH`. Run `./le repository generate`, not a bare `templ generate`: the walk

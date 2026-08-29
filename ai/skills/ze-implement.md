@@ -74,7 +74,7 @@ phase itself.
 ### Phase handoff: the per-spec state file
 
 Every phase agent ends by APPENDING its handoff to the per-spec state file that
-`./le spec-session state current` reports. `./le spec-session state latest spec
+`./le spec session state current` reports. `./le spec session state latest spec
 <spec-stem>` recovers the newest state across sessions. That file already
 exists and carries digests after compaction. Write into it. A new handoff file
 family is layering
@@ -152,7 +152,7 @@ actions. `./le verify worktree` is the pre-commit GATE
 
 ## Steps
 
-1. **Read the spec:** Run `./le spec-session current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec-session claim spec <spec-name>`. Then read `plan/<spec-name>`.
+1. **Read the spec:** Run `./le spec session current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec session claim spec <spec-name>`. Then read `plan/<spec-name>`.
    - If `claim` exits 3, the WIP cap refused it: too many specs are already in-progress. That is a decision for the user, not something to route around. Show them the list it printed and ask whether to close one first or raise `ZE_SPEC_WIP_CAP`. Do NOT edit the spec's Status by hand to skip the check.
 2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.
@@ -191,7 +191,7 @@ actions. `./le verify worktree` is the pre-commit GATE
      A style defect caught in the phase that produced it costs one edit. The same defect
      caught in step 7 costs a re-read of every phase before it.
    - Move to next phase
-6. **Run full verification:** `./le verify-lint run && ./le test-unit && ./le functional`
+6. **Run full verification:** `./le verify lint run && ./le test-unit && ./le functional`
 7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
@@ -204,7 +204,7 @@ actions. `./le verify worktree` is the pre-commit GATE
    - **YANG validation:** If YANG leaves were added, verify each has maximum native constraints (`range`, `length`, `pattern`, `enumeration`). If native is insufficient, verify a custom validator with `CompleteFn` exists per `ai/patterns/config-option.md`. A leaf with `type string` and no constraint is a red flag.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 8. **Fix every issue found** in the review. For each fix apply `ai/rules/completion.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
-9. **Re-run verification:** `./le verify-lint run && ./le test-unit && ./le functional`
+9. **Re-run verification:** `./le verify lint run && ./le test-unit && ./le functional`
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Bounding the loop").
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
     steps 7-9 find nothing, every target is green, AND you have read the whole
@@ -237,7 +237,7 @@ actions. `./le verify worktree` is the pre-commit GATE
          a closure commit needs the Review Gate artifact this session MUST NOT
          produce. Run the script path the command prints
          (`ai/rules/git-safety.md`).
-      3. Run `./le spec-session release`.
+      3. Run `./le spec session release`.
       4. Report the commit SHA, and state that `/ze-close` on Opus 5 is the next
          phase. It reviews that commit.
       When the row is absent or `-`, none of this applies: hand the uncommitted

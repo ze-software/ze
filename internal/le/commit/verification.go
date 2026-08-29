@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/verifyengine"
+	"github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 // VerificationState records what the latest native verify status proves for
@@ -20,12 +20,12 @@ type VerificationState struct {
 	Commit    string `json:"commit,omitempty"`
 }
 
-const trackedBuildStage = "repository-tracked-build/check"
+const trackedBuildStage = "repository tracked-build/check"
 
 var structuralStages = map[string]bool{
-	"verify-lint/run": true, "tier/check": true,
-	"iface-resolution": true, "plugin-boundary/check": true,
-	"doc-wiring": true, "verify-deps/evidence-vet": true,
+	"verify lint/run": true, "tier/check": true,
+	"iface-resolution": true, "plugin boundary/check": true,
+	"doc wiring": true, "verify deps/evidence-vet": true,
 	"staticcheck-feature-matrix/check": true,
 	trackedBuildStage:                  true,
 }

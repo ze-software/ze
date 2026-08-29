@@ -29,12 +29,12 @@ const selftestRFCSource = `Test RFC 9999
 `
 
 func runAuditSelftest() ([]leroot.SelftestResult, error) {
-	const testPath = "internal/sample/widget_test.go"
-	const rid = "RFC9999-2-2"
+	const testPath = selftestTestPath
+	const rid = selftestRIDDrop
 	root, err := newSelftestTree("rfc-selftest-audit-", map[string]string{
-		".github/workflows/nightly.yml": selftestWorkflow,
-		"rfc/enrolled.txt":              "rfc9999\n",
-		"rfc/short/rfc9999.md":          selftestSummary,
+		selftestWorkflowRel: selftestWorkflow,
+		enrolledRel:         selftestEnrolled,
+		selftestSummaryRel:  selftestSummary,
 		testPath: "package sample\nfunc TestWidget() {\n" +
 			"\t// RFC requirement: RFC9999-2-2 positive\n" +
 			"\t// RFC requirement: RFC9999-2-2 negative\n}\n",
@@ -65,16 +65,16 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 		return nil, err
 	}
 	auditDocument := map[string]any{
-		"rfc":     "rfc9999",
-		"audited": "2026-08-26",
+		"rfc":     selftestStem,
+		"audited": selftestCorrectionDate,
 		"requirements": map[string]any{
 			rid: map[string]any{
 				"verdict":         verdictEnforced,
 				"note":            "TestWidget exercises accepted and rejected widget input.",
 				"requirement_sha": RequirementSHA(requirement.Text),
-				"tests":           tests,
-				"units":           units,
-				"code":            map[string]string{},
+				fingerprintTests:  tests,
+				fingerprintUnits:  units,
+				fingerprintCode:   map[string]string{},
 			},
 		},
 	}
@@ -128,7 +128,7 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 	})
 
 	return []leroot.SelftestResult{
-		selftestResult("audit/schema", len(schemaErrors) == 0 && len(audits["rfc9999"].Verdicts) == 1,
+		selftestResult("audit/schema", len(schemaErrors) == 0 && len(audits[selftestStem].Verdicts) == 1,
 			"the complete enforced verdict did not satisfy the audit schema"),
 		selftestResult("audit/freshness", fresh[rid].State == FreshState,
 			"a verdict over unchanged requirement and test units was not fresh"),
@@ -141,8 +141,8 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 
 func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 	root, err := newSelftestTree("rfc-selftest-extraction-", map[string]string{
-		"rfc/enrolled.txt":     "rfc9999\n",
-		"rfc/short/rfc9999.md": selftestSummary,
+		enrolledRel:            selftestEnrolled,
+		selftestSummaryRel:     selftestSummary,
 		"rfc/full/rfc9999.txt": selftestRFCSource,
 	})
 	if err != nil {
@@ -150,11 +150,11 @@ func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // temporary fixture checkout
 
-	requirements, err := parseSummaryText(selftestSummary, "rfc9999", "rfc/short/rfc9999.md")
+	requirements, err := parseSummaryText(selftestSummary, selftestStem, selftestSummaryRel)
 	if err != nil {
 		return nil, err
 	}
-	inventory, err := NewDeriver(root).Inventory("rfc9999", gatedCounts(requirements)["rfc9999"])
+	inventory, err := NewDeriver(root).Inventory(selftestStem, gatedCounts(requirements)[selftestStem])
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 	}
 	ratchet := checkExtractionRatchetAgainst(
 		map[string]Extraction{},
-		map[string]baselineExtraction{"rfc9999": {excluded: 0, signedOff: "2026-08-26"}},
+		map[string]baselineExtraction{selftestStem: {excluded: 0, signedOff: selftestCorrectionDate}},
 		true,
 	)
 
@@ -199,49 +199,49 @@ func extractionSelftestArtifact(inventory *Inventory) map[string]any {
 	sections := make([]map[string]any, 0, len(inventory.Sections))
 	for _, section := range inventory.Sections {
 		sections = append(sections, map[string]any{
-			"id": section.ID, "sites": section.Sites, "disposition": "walked",
+			"id": section.ID, keySites: section.Sites, keyDisposition: dispositionWalked,
 		})
 	}
 	mappedIDs := map[string]string{
-		"2:1": "RFC9999-2-1",
-		"2:2": "RFC9999-2-2",
+		"2:1": selftestRIDSend,
+		"2:2": selftestRIDDrop,
 	}
 	sites := make([]map[string]any, 0, len(inventory.Sites))
 	for _, site := range inventory.Sites {
 		entry := map[string]any{
-			"id": site.ID, "quote": site.Quote,
-			"disposition":   dispositionExcluded,
+			"id": site.ID, keyQuote: site.Quote,
+			keyDisposition:  dispositionExcluded,
 			"excluded-kind": "not-a-requirement",
-			"reason":        "the fixture did not declare this site",
+			keyReason:       "the fixture did not declare this site",
 		}
 		if mappedTo := mappedIDs[site.ID]; mappedTo != "" {
 			entry = map[string]any{
-				"id": site.ID, "quote": site.Quote,
-				"disposition": dispositionMapped, "mapped-to": mappedTo,
+				"id": site.ID, keyQuote: site.Quote,
+				keyDisposition: dispositionMapped, "mapped-to": mappedTo,
 			}
 		}
 		sites = append(sites, entry)
 	}
 	return map[string]any{
-		"schema-version": extractionSchemaVersion,
-		"stem":           inventory.Stem,
+		keySchemaVersion: extractionSchemaVersion,
+		keyStem:          inventory.Stem,
 		"register":       inventory.Register,
 		"source-path":    inventory.SourcePath,
 		"source-sha":     inventory.SourceSHA,
-		"signed-off":     "2026-08-26",
-		"reviewer":       "RFC selftest",
+		keySignedOff:     selftestCorrectionDate,
+		keyReviewer:      "RFC selftest",
 		"sections":       sections,
-		"sites":          sites,
+		keySites:         sites,
 	}
 }
 
 func runRenderSelftest() ([]leroot.SelftestResult, error) {
 	root, err := newSelftestTree("rfc-selftest-render-", map[string]string{
-		".github/workflows/nightly.yml": selftestWorkflow,
-		"rfc/enrolled.txt":              "rfc9999\n",
-		"rfc/short/rfc9999.md":          selftestSummary,
-		"rfc/full/rfc9999.txt":          selftestRFCSource,
-		"docs/features/rfc-status.md":   "| RFC 9999 | Widgets | Partial | selftest | one MUST gap |\n",
+		selftestWorkflowRel:           selftestWorkflow,
+		enrolledRel:                   selftestEnrolled,
+		selftestSummaryRel:            selftestSummary,
+		"rfc/full/rfc9999.txt":        selftestRFCSource,
+		"docs/features/rfc-status.md": "| RFC 9999 | Widgets | Partial | selftest | one MUST gap |\n",
 	})
 	if err != nil {
 		return nil, err
@@ -253,7 +253,7 @@ func runRenderSelftest() ([]leroot.SelftestResult, error) {
 		return nil, err
 	}
 	indexPath := filepath.Join(root, filepath.FromSlash(ledgerRel))
-	shardPath := filepath.Join(root, filepath.FromSlash(shardRel("rfc9999")))
+	shardPath := filepath.Join(root, filepath.FromSlash(shardRel(selftestStem)))
 	indexBody, err := os.ReadFile(indexPath) // #nosec G304 -- path is constructed inside the temporary selftest fixture
 	if err != nil {
 		return nil, err
@@ -291,7 +291,7 @@ func runRenderSelftest() ([]leroot.SelftestResult, error) {
 
 	written := first.Ledger == ledgerRel && first.Shards == 1
 	written = written && strings.Contains(string(indexBody), "# RFC Requirement Ledger")
-	written = written && strings.Contains(string(shardBody), "RFC9999-2-1")
+	written = written && strings.Contains(string(shardBody), selftestRIDSend)
 	pruned := len(second.Deleted) == 1 && second.Deleted[0] == "orphan" && os.IsNotExist(prunedErr)
 	refused := refusal != nil && bytes.Equal(before, after) && keptErr == nil
 

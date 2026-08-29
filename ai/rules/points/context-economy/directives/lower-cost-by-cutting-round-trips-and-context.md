@@ -10,7 +10,7 @@ stage:
 - **MUST use LSP FIRST for any symbol question: before Grep, before Read.**
 - **Reading a whole file to FIND a symbol is the anti-pattern.** The file is the container; the symbol is the question. LSP answers the question, and every other token in that file is paid for on every later call in the session.
 - **MUST read a RANGE, not a whole file, above 500 lines. MUST resolve the symbol with LSP first, or with `grep -n` / `sed -n` where LSP is absent, then read the range it names.**
-- **MUST NOT re-read what a digest already records.** Run `./le spec-session state latest spec <spec-stem>` and read the reported per-spec state file first. Re-read source only when the digest lacks the detail your claim depends on.
+- **MUST NOT re-read what a digest already records.** Run `./le spec session state latest spec <spec-stem>` and read the reported per-spec state file first. Re-read source only when the digest lacks the detail your claim depends on.
 - **A digest is not evidence.** When you are about to state what code does, MUST read the producing function (`ai/rules/evidence.md`). This rule lowers the cost of reading; it never lowers the standard of proof.
 - **MUST size a work package so ONE agent finishes it.** Cost inside one agent grows with its turns because its context grows with its turns.
 - **A package boundary MUST be chosen at DECOMPOSITION; it MUST NOT be chosen at the moment an agent feels full.** An agent that finds its package too big MUST REPORT the size to the main thread, which re-cuts the packages. It MUST NOT trim an acceptance criterion, park a defect, or weaken a test to fit (`ai/rules/completion.md`).

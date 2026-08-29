@@ -57,10 +57,14 @@ const (
 // testRoots are the three trees a tag may live under.
 var testRoots = [...]string{"internal", "pkg", "test"}
 
+// levelMust is the gated keyword a checklist row carries most often, and the
+// one the fixtures and the ratchet messages spell.
+const levelMust = "MUST"
+
 // The RFC 2119 keywords that create an obligation the gate enforces.
 // SHOULD/MAY are listed in the ledger and may be tagged, but never gate.
 var gatedLevels = map[string]bool{
-	"MUST":      true,
+	levelMust:   true,
 	"MUST NOT":  true,
 	"SHALL":     true,
 	"SHALL NOT": true,
@@ -76,16 +80,23 @@ var advisoryLevels = map[string]bool{
 	"OPTIONAL":        true,
 }
 
-// gatedLevelNames answers the MUST-level keyword set, sorted. The comparison
-// against the Python module reads it by value, which is the only thing that
+// gatedLevelNames answers the MUST-level keyword set, sorted. The fixture pins
+// it by VALUE rather than by count, which is the only thing that
 // kills a one-word mutation in a set an output comparison never prints.
 func gatedLevelNames() []string { return sortedKeys(gatedLevels) }
 
 // advisoryLevelNames answers the SHOULD-level keyword set, sorted.
 func advisoryLevelNames() []string { return sortedKeys(advisoryLevels) }
 
+// The two directions a tag can prove: that the code does what the requirement
+// demands, and that it refuses what the requirement forbids.
+const (
+	polarityPositive = "positive"
+	polarityNegative = "negative"
+)
+
 // polarities are the two directions a tag can prove.
-var polarities = map[string]bool{"positive": true, "negative": true}
+var polarities = map[string]bool{polarityPositive: true, polarityNegative: true}
 
 // polarityNames answers them sorted, for the value comparison.
 func polarityNames() []string { return sortedKeys(polarities) }

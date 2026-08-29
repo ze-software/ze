@@ -4,5 +4,5 @@ level:
 stage:
 ---
 ```
-./le verify-lint run
+./le verify lint run
 ```

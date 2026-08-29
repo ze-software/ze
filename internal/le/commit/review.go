@@ -94,7 +94,7 @@ func CheckReview(root, session, stem string, paths []string) ReviewResult {
 		}
 	}
 	sort.Strings(result.CodeFiles)
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(artifact)))
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(artifact))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 	if err != nil {
 		result.Problems = []string{"no independent-review artifact at " + artifact}
 		return result
@@ -136,7 +136,7 @@ func CheckReview(root, session, stem string, paths []string) ReviewResult {
 }
 
 func reviewHash(path string) string {
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 	if errors.Is(err, os.ErrNotExist) {
 		return "DELETED"
 	}
@@ -160,7 +160,7 @@ func isReviewCode(path string) bool {
 }
 
 func reviewCheckCommand(stem string, paths []string) string {
-	words := []string{"le", "commit", "review-check", "spec", stem}
+	words := []string{"le", "commit", actionReviewCheck, "spec", stem}
 	for _, path := range paths {
 		if isReviewCode(path) {
 			words = append(words, "file", path)

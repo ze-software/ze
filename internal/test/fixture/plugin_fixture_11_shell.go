@@ -87,12 +87,12 @@ func commandPartialFaultDriver(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer driver.close()
+	defer driver.close() //nolint:errcheck // fixture teardown
 	driver.waitForCommand("show test records fault")
 
 	code, answer, stderr, err := runCaptured(ctx, driver.cliEnv, "", "ze", "cli", "-c", "show test records fault | raw")
 	if err != nil || code != 0 {
-		return fmt.Errorf("the walk with a refused row lost the whole answer: %v %s%s\n%s", err, answer, stderr, driver.log())
+		return fmt.Errorf("the walk with a refused row lost the whole answer: %w %s%s\n%s", err, answer, stderr, driver.log())
 	}
 	path := filepath.Join(driver.directory, "fault.json")
 	if err := os.WriteFile(path, []byte(answer), 0o600); err != nil {
@@ -106,7 +106,7 @@ func ownedCommandStreamsDriver(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer driver.close()
+	defer driver.close() //nolint:errcheck // fixture teardown
 	if !driver.waitForCommand("show test records walk") {
 		return fmt.Errorf("the plugin never registered its command\n%s", driver.log())
 	}
@@ -114,7 +114,7 @@ func ownedCommandStreamsDriver(ctx context.Context, _ []string) error {
 	path := filepath.Join(driver.directory, "walk.ndjson")
 	stderr, err := driver.runCLIToFile("show test records walk | ndjson", path)
 	if err != nil {
-		return fmt.Errorf("the plugin command did not answer: %v %s", err, stderr)
+		return fmt.Errorf("the plugin command did not answer: %w %s", err, stderr)
 	}
 	info, err := os.Stat(path)
 	if err != nil {
@@ -143,12 +143,12 @@ func readsEngineAnswerDriver(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer driver.close()
+	defer driver.close() //nolint:errcheck // fixture teardown
 	driver.waitForCommand("show test engine answer")
 
 	code, commands, stderr, err := runCaptured(ctx, driver.cliEnv, "", "ze", "cli", "-c", "system command list | ndjson")
 	if err != nil || code != 0 {
-		return fmt.Errorf("system command list did not answer: %v %s%s", err, commands, stderr)
+		return fmt.Errorf("system command list did not answer: %w %s%s", err, commands, stderr)
 	}
 	commandCount := strings.Count(commands, "\n")
 	if commandCount <= 256 {
@@ -156,7 +156,7 @@ func readsEngineAnswerDriver(ctx context.Context, _ []string) error {
 	}
 	code, reading, stderr, err := runCaptured(ctx, driver.cliEnv, "", "ze", "cli", "-c", "show test engine answer | raw")
 	if err != nil || code != 0 {
-		return fmt.Errorf("the plugin could not report what it read: %v %s%s\n%s", err, reading, stderr, driver.log())
+		return fmt.Errorf("the plugin could not report what it read: %w %s%s\n%s", err, reading, stderr, driver.log())
 	}
 	path := filepath.Join(driver.directory, "reading.json")
 	if err := os.WriteFile(path, []byte(reading), 0o600); err != nil {
@@ -197,7 +197,7 @@ func startRecordDriver(ctx context.Context) (*recordDriver, error) {
 	if err != nil {
 		return nil, err
 	}
-	driver.command = exec.CommandContext(ctx, "ze", "start", configPath)
+	driver.command = exec.CommandContext(ctx, "ze", "start", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	driver.command.Env = append(os.Environ(), "ze_test_bgp_port="+strconv.Itoa(10000+os.Getpid()%50000))
 	driver.command.Stdout = os.Stdout
 	driver.command.Stderr = logFile
@@ -226,14 +226,14 @@ func startRecordDriver(ctx context.Context) (*recordDriver, error) {
 	initInput := fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%s\n", port)
 	code, _, initErr, runErr := runCaptured(ctx, initEnv, initInput, "ze", "init")
 	if runErr != nil || code != 0 {
-		return nil, fmt.Errorf("ze init exit=%d: %v %s", code, runErr, initErr)
+		return nil, fmt.Errorf("ze init exit=%d: %w %s", code, runErr, initErr)
 	}
 	driver.cliEnv = append(os.Environ(), "ZE_CONFIG_DIR="+driver.configDir, "ZE_SSH_PASSWORD=testpass")
 	cleanup = false
 	return driver, nil
 }
 
-var sshAddress11 = regexp.MustCompile(`127\.0\.0\.1:([0-9]+)`)
+var sshAddress11 = regexp.MustCompile(`127\.0\.0\.1:(\d+)`)
 
 func (driver *recordDriver) waitForSSHPort() (string, error) {
 	for range 50 {
@@ -271,11 +271,11 @@ func (driver *recordDriver) waitForCommand(name string) bool {
 }
 
 func (driver *recordDriver) runCLIToFile(command, path string) (string, error) {
-	file, err := os.Create(path)
+	file, err := os.Create(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return "", err
 	}
-	process := exec.CommandContext(driver.ctx, "ze", "cli", "-c", command)
+	process := exec.CommandContext(driver.ctx, "ze", "cli", "-c", command) //nolint:gosec // the fixture chooses the program and its arguments
 	process.Env = driver.cliEnv
 	process.Stdout = file
 	var stderr strings.Builder
@@ -286,11 +286,11 @@ func (driver *recordDriver) runCLIToFile(command, path string) (string, error) {
 }
 
 func countFileLines11(path string) (int, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return 0, err
 	}
-	defer file.Close() //nolint:errcheck
+	defer file.Close() //nolint:errcheck // the fixture is exiting, so a close failure changes no assertion
 	buffer := make([]byte, 64*1024)
 	lines := 0
 	for {
@@ -318,7 +318,7 @@ func (driver *recordDriver) close() error {
 	if driver == nil {
 		return nil
 	}
-	defer os.RemoveAll(driver.directory) //nolint:errcheck
+	defer os.RemoveAll(driver.directory) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
 	if driver.command == nil || driver.command.Process == nil {
 		return nil
 	}

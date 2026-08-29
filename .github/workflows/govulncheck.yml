@@ -28,4 +28,4 @@ jobs:
           CGO_ENABLED=0 go install golang.org/x/vuln/cmd/govulncheck@v1.4.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Scan reachable dependencies
-        run: ./le verify-deps vulnerability
+        run: ./le verify deps vulnerability

@@ -20,7 +20,7 @@ const area = "repository"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "all five repository checks over your own tree: source anchors, cross-package wiring, CLI handler coverage and spec AC completeness",
+	leaction.Action{Verb: verbCheck, Why: "all five repository checks over your own tree: source anchors, cross-package wiring, CLI handler coverage and spec AC completeness",
 		Answer: runCheck},
 	leaction.Action{Verb: "tree-check", Why: "the three tree-wide checks without the two changed-file checks",
 		Answer: runTreeCheck},

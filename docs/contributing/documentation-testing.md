@@ -11,13 +11,13 @@ change.
 ## Quick start
 
 ```sh
-./le doc-check verify              # Run all documentation tests
-./le doc-wiring    # Run changed-file-aware wiring/doc/inventory gate
+./le doc check verify              # Run all documentation tests
+./le doc wiring    # Run changed-file-aware wiring/doc/inventory gate
 ```
 
-`./le doc-check verify` runs every documentation checker and returns non-zero if any of
+`./le doc check verify` runs every documentation checker and returns non-zero if any of
 them report drift. Run it after editing documentation files, after adding or
-removing plugins, or as part of review. `./le doc-wiring` selects the
+removing plugins, or as part of review. `./le doc wiring` selects the
 checks needed for the current diff and is included in `./le verify current mode full`.
 
 ## What gets checked
@@ -27,14 +27,14 @@ checks needed for the current diff and is included in `./le verify current mode 
 | `./le docvalid doc-drift` | Published counts and lists agree with live registries and the tree |
 | `./le docvalid command-contract` | Every YANG `ze:command` has a registered handler |
 | `./le docs-to-code check` | Documentation source paths and claimed symbols resolve |
-| `./le doc-check links` | Tracked path citations resolve |
+| `./le doc check links` | Tracked path citations resolve |
 | `./le digest` | Every `file:line` anchor in `ai/digests/*.md` resolves |
 | `./le consistency` | Design references, cross-references, JSON tags, and package citations agree |
-| `./le doc-wiring` | Changed files trigger their documentation and inventory checks |
+| `./le doc wiring` | Changed files trigger their documentation and inventory checks |
 | `./le ste check` | No ASD-STE100 habit grew against `HEAD` |
 
-`./le doc-check verify` combines documentation drift, command validation, and
-source-anchor validation. `./le doc-wiring` is the changed-file-aware
+`./le doc check verify` combines documentation drift, command validation, and
+source-anchor validation. `./le doc wiring` is the changed-file-aware
 pre-commit gate.
 
 <!-- source: internal/le/docvalid/actions.go -- Answer -->
@@ -50,15 +50,15 @@ pre-commit gate.
 | Situation | Recommended target |
 |-----------|--------------------|
 | After you write any prose, in any file | `./le ste review-changed` |
-| After editing any file under `docs/` | `./le doc-check verify` |
-| After adding or removing a plugin | `./le doc-check verify` |
-| After writing a path reference in ANY tracked file | `./le doc-check links` (`./le doc-check verify` does not cover it) |
+| After editing any file under `docs/` | `./le doc check verify` |
+| After adding or removing a plugin | `./le doc check verify` |
+| After writing a path reference in ANY tracked file | `./le doc check links` (`./le doc check verify` does not cover it) |
 | After adding or renaming a YANG `ze:command` | `./le docvalid command-contract` |
-| After adding a doc validator, inventory source, command source, or exported Go API | `./le doc-wiring` |
-| Before opening a documentation PR | `./le doc-check verify` |
+| After adding a doc validator, inventory source, command source, or exported Go API | `./le doc wiring` |
+| Before opening a documentation PR | `./le doc check verify` |
 
-The full `./le doc-check verify` remains the explicit documentation review target.
-`./le verify current mode full` runs `./le doc-wiring`, which invokes the relevant doc,
+The full `./le doc check verify` remains the explicit documentation review target.
+`./le verify current mode full` runs `./le doc wiring`, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.
 
 <!-- source: internal/le/docwiring/docwiring.go -- Answer -->
@@ -110,7 +110,7 @@ Two-direction check. Both directions are contract bugs:
 | Feature inventory row has no status | Add one of: Supported, Partial, Experimental, Stub-backed, Rejected, Future |
 | Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `internal/le/functional/catalog.go` |
 | Stale text parser allocation claim | Update `docs/architecture/api/text-parser.md` to describe `textparse.NewScanner` and source-linked result allocations |
-| Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `./le doc-check verify` |
+| Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `./le doc check verify` |
 | `CLAIM: ... names 'Sym', which is not declared there` | Read the anchored file. When the symbol moved, point the anchor at the file that DECLARES it; when the name changed, write the new one; when the symbol is gone, the sentence above the anchor is wrong too, so fix the sentence. Never reword a real symbol into prose to silence the finding: the check already ignores a token the anchored file names anywhere, so a finding means the token is absent from that file, which no call, field, parameter or env key of that file can be |
 | `cannot read the anchored file, so its symbols are unverifiable` | The anchor points at a file the checker could not read or decode. Fix the path. The check fails closed here on purpose: an unreadable file proves nothing about the claims above it |
 | `doc-links: ignore marker states no reason` | Write the reason inline, `<!-- doc-links: ignore (why this path cannot resolve) -->`, or delete the marker and repair the reference it was hiding. A marker with no reason is a silent allowlist |
@@ -159,7 +159,7 @@ compares the file with its version at `HEAD` and refuses every pair that `HEAD`
 does not hold, so the baseline only shrinks.
 
 Repair a citation and delete its pair from the baseline in the same change.
-`./le doc-check links` validates the result against the working tree and warns
+`./le doc check links` validates the result against the working tree and warns
 when a baseline pair is no longer needed. The command does not rewrite the
 shared baseline, so one session cannot absorb another session's unfinished
 edits.

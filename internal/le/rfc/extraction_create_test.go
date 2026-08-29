@@ -1,6 +1,7 @@
 package rfc
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -257,7 +258,7 @@ func TestExtractionCreateRefusalsLeaveAnExistingArtifactUntouched(t *testing.T) 
 	if err != nil {
 		t.Fatalf("read refused artifact: %v", err)
 	}
-	if string(after) != string(before) {
+	if !bytes.Equal(after, before) {
 		t.Errorf("the refusal changed the artifact: %q", after)
 	}
 }
@@ -287,7 +288,7 @@ func TestExtractionCreateRoundTripRefusalIsAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read existing artifact: %v", err)
 	}
-	if string(after) != string(before) {
+	if !bytes.Equal(after, before) {
 		t.Errorf("the round-trip refusal changed the artifact: %q", after)
 	}
 	if err := os.Remove(path); err != nil {
@@ -364,7 +365,7 @@ func TestExtractionCreateActionIsArgumentAwareAndClaimedByTheCensus(t *testing.T
 		}
 	}
 	if !found {
-		t.Fatal("the RFC action catalogue does not publish extraction-create as a writer")
+		t.Fatal("the RFC action catalog does not publish extraction-create as a writer")
 	}
 	if answer, code := Answer([]string{"extraction-create"}); code != 2 || answer != nil {
 		t.Errorf("a missing stem answered (%v, %d), want (nil, 2)", answer, code)

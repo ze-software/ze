@@ -36,7 +36,7 @@ See also: `/ze-commit` (commit without verification), `/ze-precommit-verify` (st
 3. **Verification decision:** Apply `ai/rules/git-safety.md`.
    - If the scope is only `docs/`, `ai/`, `.claude/`, `plan/`, or `README.md`
      files per the NO row, skip `./le verify worktree` entirely and record the skip reason.
-   - Before verification, run `./le verify-status check` with one `path <file>` pair per scoped file.
+   - Before verification, run `./le verify status check` with one `path <file>` pair per scoped file.
    - If it prints FRESH, MUST NOT run `./le verify worktree` again. Use the
      reported timestamp as evidence.
    - If it prints STALE and verification applies, run `./le verify worktree`
@@ -71,7 +71,7 @@ See also: `/ze-commit` (commit without verification), `/ze-precommit-verify` (st
 
 - **NEVER run `git add` or `git commit` as bare tool calls.** Route them through the script from `./le commit create`, then run the exact `script=` path it printed.
 - `./le commit create` is the sole staging and commit route. There is no hand-written fallback.
-- Always run `./le verify-status check` with the scoped paths before verification. A FRESH PASS is authoritative and forbids rerunning `./le verify worktree`.
+- Always run `./le verify status check` with the scoped paths before verification. A FRESH PASS is authoritative and forbids rerunning `./le verify worktree`.
 - If verification is STALE and required, run one required gate, then proceed from its result. Do not stack extra health checks or speculative gates.
 - Do not run late completeness audits, health checks, recent-commit style reviews, remaining-work tables, or companion-artifact reviews unless the user explicitly asks for them.
 - Step 2's style gate is the ONE exception, and it stays inside its bounds: one grep, one read of the added lines, four questions. It never grows into `/ze-review`.

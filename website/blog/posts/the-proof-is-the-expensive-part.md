@@ -132,7 +132,7 @@ Before the helper prepares a commit script, it asks whether the current tree is 
 
 When the helper does prepare a commit, it writes a message file and an executable script. The script stages only the explicit files listed for that commit. Then it checks the shared index. If any staged file exists which is not part of this commit, the script aborts. Only then does it run `git commit -F`.
 
-There is one extra check after commits containing Go code. `./le repository-tracked-build check` runs after the commit because it tests the source tree git now holds. A pre-commit test can check the working tree. This check catches the case where the committed set itself does not build.
+There is one extra check after commits containing Go code. `./le repository tracked-build check` runs after the commit because it tests the source tree git now holds. A pre-commit test can check the working tree. This check catches the case where the committed set itself does not build.
 
 That sounds fussy because it is fussy. It is change control for generated code.
 

@@ -19,9 +19,9 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/rules"
 	"github.com/ze-software/ze/internal/le/session"
-	"github.com/ze-software/ze/internal/le/speccitation"
-	"github.com/ze-software/ze/internal/le/specsession"
-	"github.com/ze-software/ze/internal/le/specstatus"
+	"github.com/ze-software/ze/internal/le/spec/citation"
+	"github.com/ze-software/ze/internal/le/spec/session"
+	"github.com/ze-software/ze/internal/le/spec/status"
 )
 
 // gitTimeout bounds one git call a lifecycle hook makes. Each reads the index

@@ -24,7 +24,7 @@ stage:
    assertion that "SHOULD fire" either fires or does not; run it).
 4. **Looped to zero over a SHRINKING scope.** Every fix is new code and earns a fresh pass. Each pass reviews less than the one before it. Five passes are the session's to spend. The sixth is Thomas's to grant. Each pass carries a hard bound on what it covers. See "Bounding the loop" below.
 5. **Evidenced by an artifact, not narrated.** Record the pass with
-   `./le spec-session review record` → `tmp/review/<spec-stem>-<session-id>.md`
+   `./le spec session review record` → `tmp/review/<spec-stem>-<session-id>.md`
    (session-scoped, so concurrent same-spec sessions never clobber each other). It pins the
    SHA-256 of every code/test file the reviewers examined. The spec's Review Gate
    section pastes the reviewers' actual findings and each fix.

@@ -6,7 +6,7 @@ Verification is a statement about one commit and the files the run read. The nat
 
 `internal/le/verifyengine.WriteCertificate` writes `tmp/ze-verify.status` and its manifest atomically after a native verification run. The certificate records the mode, commit, time, result, and the tree hash captured for the run. The manifest records each path at the content the stages read.
 
-`./le verify-status check` calls `internal/le/verifyengine.CheckCertificate`. With no paths it compares the whole checkout. Repeated `path <path>` selectors restrict the answer to a prospective commit's files. A changed file, a moved `HEAD`, a missing manifest, or a path that moved while the run was in progress returns STALE.
+`./le verify status check` calls `internal/le/verifyengine.CheckCertificate`. With no paths it compares the whole checkout. Repeated `path <path>` selectors restrict the answer to a prospective commit's files. A changed file, a moved `HEAD`, a missing manifest, or a path that moved while the run was in progress returns STALE.
 
 <!-- source: internal/le/verifyengine/status.go -- WriteCertificate, CheckCertificate -->
 <!-- source: internal/le/verifystatus/answer.go -- Answer -->

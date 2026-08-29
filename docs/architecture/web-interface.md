@@ -61,7 +61,7 @@ A name ending in `_*` above is a family: every file carrying that prefix
 belongs to the line it sits on. Each other name is one file.
 
 `./le repository generate` compiles each `.templ` into a `*_templ.go` beside it, and
-`./le doc-check templ-output` refuses a source whose generated file is stale.
+`./le doc check templ-output` refuses a source whose generated file is stale.
 
 Each input type is one file. `fieldInputFor` (`field_input.go`) reads the `fieldInputs` registry, which maps a YANG field type onto the component that edits it. A type nobody registered reaches the text editor by a named rule. No if/else chain in the markup.
 

@@ -8,7 +8,7 @@ stage:
 | New leaf/container | Config parser that reads the tree (grep `GetContainer`, `GetChild` for the path) |
 | New leaf/container | Validator if validation rules apply |
 | New leaf/container | CLI completion if the command references the schema |
-| Renamed path | `./le yang-migration path-refactor` handles slash paths, set commands, brace blocks, GetContainer chains |
+| Renamed path | `./le yang migration path-refactor` handles slash paths, set commands, brace blocks, GetContainer chains |
 | New `environment/` leaf | `env.MustRegister()` in the component's config loader |
 | New `ze:listener` | Conflict detection via `FindListenerConflict` |
-| New `ze:command` | RPC handler + `./le doc-check verify` |
+| New `ze:command` | RPC handler + `./le doc check verify` |

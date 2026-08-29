@@ -53,9 +53,9 @@ var auditVerdicts = map[string]bool{
 	verdictNotApplicable: true,
 }
 
-// auditVerdictNames answers the closed vocabulary, sorted. The comparison against
-// the Python module reads it by value, which is what kills a one-word mutation
-// in a set no output ever prints.
+// auditVerdictNames answers the closed vocabulary, sorted. The fixture pins it
+// by VALUE rather than by count, which is what kills a one-word mutation in a
+// set no output ever prints.
 func auditVerdictNames() []string { return sortedKeys(auditVerdicts) }
 
 var auditFileKeys = map[string]bool{
@@ -63,24 +63,22 @@ var auditFileKeys = map[string]bool{
 	"reaudit_note": true, "reaudit_history": true,
 }
 
+// The three verdict fields whose keys become filesystem reads: the tests that
+// prove the requirement, the units they judged, and the production code.
+const (
+	fingerprintTests = "tests"
+	fingerprintUnits = "units"
+	fingerprintCode  = "code"
+)
+
 var verdictKeys = map[string]bool{
 	"verdict": true, "note": true, "requirement_sha": true,
-	"tests": true, "units": true, "code": true,
+	fingerprintTests: true, fingerprintUnits: true, fingerprintCode: true,
 	"upgrade_reason": true, "no_code_path": true,
 }
 
 // fingerprintMaps are the three fields whose keys become filesystem reads.
-var fingerprintMaps = [...]string{"tests", "units", "code"}
-
-// auditFileKeyNames and verdictKeyNames answer the two closed key sets, sorted, for the
-// value comparison against the module.
-func auditFileKeyNames() []string { return sortedKeys(auditFileKeys) }
-
-// verdictKeyNames answers the verdict's own closed key set, sorted.
-func verdictKeyNames() []string { return sortedKeys(verdictKeys) }
-
-// fingerprintMapNames answers the three fingerprint fields, in declaration order.
-func fingerprintMapNames() []string { return fingerprintMaps[:] }
+var fingerprintMaps = [...]string{fingerprintTests, fingerprintUnits, fingerprintCode}
 
 // A fingerprint key names a SYMBOL, never a location: `<repo-relative
 // path>::<FuncName>` for a Go function, or `<repo-relative path>` alone when

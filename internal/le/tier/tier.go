@@ -37,7 +37,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/pluginimports"
+	"github.com/ze-software/ze/internal/le/plugin/imports"
 )
 
 // These two registry areas can contain an engine. The placement rule,

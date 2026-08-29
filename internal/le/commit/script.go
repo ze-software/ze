@@ -53,7 +53,8 @@ func renderBlock(block commitBlock, scriptPath string) string {
 }
 
 func renderAdd(paths []string) string {
-	lines := []string{"git add -- \\"}
+	lines := make([]string, 0, 1+len(paths))
+	lines = append(lines, "git add -- \\")
 	for index, path := range paths {
 		suffix := " \\"
 		if index+1 == len(paths) {
@@ -116,7 +117,7 @@ func commentLine(value string) string {
 
 func renderPush(authorisation string) string {
 	return markerLine(pushMarker, authorisation) + "\n" +
-		"# Push authorised by the owner. Reached only after every commit succeeded.\n" +
+		"# Push authorized by the owner. Reached only after every commit succeeded.\n" +
 		"git push\n"
 }
 
@@ -157,17 +158,31 @@ func pushAuthorisation(reason string) (string, error) {
 	return reason, nil
 }
 
+// validateTag reports whether a caller-supplied tag can name a message file.
+// Create MUST call it before it records verification debt: nextTag runs after
+// that record is written, so a tag refused there leaves rows naming a commit
+// that was never made (plan/journal/record-written-before-the-operation-succeeds.md).
+func validateTag(requested string) error {
+	if requested == "" {
+		return nil
+	}
+	if !tagPattern.MatchString(requested) {
+		return errors.New("tag must start with an alphanumeric character and contain only alnum, dot, underscore, or dash")
+	}
+	return nil
+}
+
 func nextTag(root, session, requested string) (string, string, error) {
 	if requested != "" {
-		if !tagPattern.MatchString(requested) {
-			return "", "", errors.New("tag must start with an alphanumeric character and contain only alnum, dot, underscore, or dash")
+		if err := validateTag(requested); err != nil {
+			return "", "", err
 		}
 		return requested, filepath.ToSlash(filepath.Join("tmp", "commit-msg-"+session+"-"+requested+".txt")), nil
 	}
 	for code := byte('a'); code <= byte('z'); code++ {
 		tag := string(code)
 		relative := filepath.ToSlash(filepath.Join("tmp", "commit-msg-"+session+"-"+tag+".txt"))
-		file, err := os.OpenFile(filepath.Join(root, filepath.FromSlash(relative)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		file, err := os.OpenFile(filepath.Join(root, filepath.FromSlash(relative)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 		if errors.Is(err, os.ErrExist) {
 			continue
 		}

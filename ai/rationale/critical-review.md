@@ -29,7 +29,7 @@ does not, because the author shares the mental model that produced them.
 The author is the single party guaranteed to share the blind spot. So the review
 must come from a different context (subagents / a fresh session), and — because a
 skill that merely *says* "review independently" is what just failed — it must be
-*enforced*, not trusted. Hence the `./le spec-session review` artifact and the
+*enforced*, not trusted. Hence the `./le spec session review` artifact and the
 `./le commit` gate, produced by `internal/le/specsession/` and
 `internal/le/commit/`: a spec cannot close without a fresh, hash-pinned, clean
 review artifact. Narrating "0 issues" into the spec no longer satisfies anything;

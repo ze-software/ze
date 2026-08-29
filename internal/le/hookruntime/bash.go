@@ -169,7 +169,7 @@ func commandExpensive(segment string) bool {
 		return true
 	}
 	heavyArea := func(area string) bool {
-		return oneOf(area, "verify", "functional", "integration", "qemu", "test-unit", "verify-deps", "verify-lint")
+		return oneOf(area, "verify", "functional", "integration", "qemu", "test-unit", "verify deps", "verify lint")
 	}
 	if base == "le" {
 		return len(tokens) > 1 && heavyArea(tokens[1])

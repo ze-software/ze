@@ -45,7 +45,7 @@ or `raw`. Two together are rejected. Filter and display operators chain freely.
 
 The complete, current set is generated from the operator catalog:
 [`pipe-operators.generated.md`](pipe-operators.generated.md). It is the list to
-build a tool against, and `./le doc-check verify` fails when it and the product
+build a tool against, and `./le doc check verify` fails when it and the product
 disagree. The table below describes what each operator does for a reader.
 
 | Operator | Kind | Description |

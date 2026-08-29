@@ -12,7 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/testweakened"
-	"github.com/ze-software/ze/internal/le/verifyengine"
+	"github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 // Options is the callable commit-preparation contract. Paths and removals are
@@ -78,6 +78,12 @@ func Create(root string, options *Options) (Prepared, error) {
 	}
 	message, err := Message(options.Subject, options.Body)
 	if err != nil {
+		return result, err
+	}
+	// The tag is validated here, beside the message, and not where nextTag
+	// derives the message path. nextTag runs after recordDebt, so a tag refused
+	// there leaves verification-debt rows naming a commit that was never made.
+	if err := validateTag(options.Tag); err != nil {
 		return result, err
 	}
 	authorisation, err := pushAuthorisation(options.Push)
