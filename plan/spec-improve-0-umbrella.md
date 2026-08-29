@@ -37,8 +37,9 @@ any external behavior that shapes a design decision against primary sources dire
 | 4 | `spec-improve-4-conformance-fixtures.md` | File-driven protocol conformance fixture format, one BGP fixture first | spec-improve-3-event-replay |
 | 5 | `plan/future/spec-improve-5-panic-boundaries.md` (moved 2026-08-29) | Explicit recover boundaries at network-input task boundaries | - |
 | 6 | `spec-improve-6-yang-coverage.md` | YANG coverage report: per-module implemented/owned/constrained node status | - |
-| 7 | `spec-improve-7-yang-handler-gate.md` | Handler-completeness gate: every config-schema root claimed by a delivery surface, blocking test + doctor check (added 2026-07-10 after primary-source re-review) | - |
+| 7 | `spec-improve-7-yang-handler-gate` (CLOSED 2026-08-29) | Handler-completeness gate: every config-schema root claimed by a delivery surface, blocking test + doctor check (added 2026-07-10 after primary-source re-review). Shipped: `claims.Audit` (`internal/component/config/claims/claims.go`), `./le config claims` in both verify-stage populations, `checkConfigClaims` (`internal/component/doctor/checks_config_claims.go`), `test/ui/doctor-config-claims.ci` | - |
 | 8 | `spec-improve-8-fuzz-decode-context.md` | Fuzz the negotiated-capability decode space: context args on existing targets + targets for uncovered surfaces (added 2026-07-10) | - |
+| 9 | not written | Strict unknown-key rejection at config verify: `validateContainerEntry` (`internal/component/config/yang/validator.go`) validates only data keys present in the schema dir and passes an unknown key in silence. The opposite direction from child 7, which asks whether a SCHEMA node reaches a handler; this asks whether a WRITTEN key reaches the schema. Homed here on 2026-08-29 at child 7's closure, because its recorded destination spec was never written | spec-improve-7-yang-handler-gate (closed) |
 
 ### Declined Findings
 

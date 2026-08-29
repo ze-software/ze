@@ -1,6 +1,6 @@
 # Test: ze doctor reports config that reaches no plugin and no handler.
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
-# Spec: plan/spec-improve-7-yang-handler-gate.md AC-7
+# Spec: spec-improve-7-yang-handler-gate AC-7 (closed 2026-08-29)
 # VALIDATES: an operator whose config names a subtree this build delivers to
 #            nobody learns it from `ze doctor`, with a code `ze explain`
 #            describes. Server.reloadConfig accepts such a subtree, logs Info
