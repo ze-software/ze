@@ -43,8 +43,9 @@ func assertCanaryAfter(t *testing.T, p *announceAttrs, off int) {
 //
 // announceAttrs.add reserves attribute.ValueLenWithContext octets of the pooled
 // scratch region and then calls WriteToWithContext at that offset. AGGREGATOR
-// answers the size query with a constant 8 (RFC 6793 Section 4: four-octet AS plus
-// a four-octet IP address), so a write that copies netip.Addr.AsSlice unbounded put
+// answers the size query with a constant 8 (RFC 6793 Section 3 and Section 4.1: a
+// four-octet AS; RFC 4271 Section 5.1.7: a four-octet IP address, which RFC 6793
+// does not restate), so a write that copies netip.Addr.AsSlice unbounded put
 // twelve octets of an IPv6 Address into the octets the NEXT attribute reserves, and
 // returned 8 regardless. The plan's own count check is structurally blind to it.
 //
@@ -80,7 +81,7 @@ func TestAnnouncePlanAggregatorStaysInsideReservedRegion(t *testing.T) {
 
 			require.Equal(t, 8, plan.used, "AGGREGATOR reserves eight octets")
 			assert.Equal(t, []byte{0x00, 0x00, 0xFD, 0xE9}, plan.scratch[0:4],
-				"the four-octet AS number (RFC 6793 Section 4)")
+				"the four-octet AS number (RFC 6793 Section 3, restated as a MUST in Section 4.1)")
 			assert.Equal(t, tt.field[:], plan.scratch[4:8],
 				"the four-octet IP address field (RFC 4271 Section 5.1.7)")
 			assertCanaryAfter(t, &plan, 8)

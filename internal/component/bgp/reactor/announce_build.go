@@ -245,9 +245,10 @@ func (p *announceAttrs) planned(code uint8) bool {
 }
 
 // announceNextHopValidator is what the plan asks an attribute that can be
-// well-formed as a Go value and still have no wire form. attribute.MPReachNLRI is
-// the case: RFC 4760 Section 3 counts its Next Hop field with a length octet, and
-// an unresolved address fills none of it.
+// well-formed as a Go value and still have no wire form. Two attributes answer it:
+// attribute.MPReachNLRI, whose Next Hop field RFC 4760 Section 3 counts with a length
+// octet that an unresolved address fills none of, and attribute.NextHop, the IPv4
+// unicast NEXT_HOP of RFC 4271 Section 5.1.3.
 //
 // Declared here rather than in the attribute package because this is the consumer
 // that needs the answer, and asking through an interface keeps add from spelling a
@@ -293,11 +294,11 @@ func (p *announceAttrs) add(attr attribute.Attribute, dstCtx *bgpctx.EncodingCon
 	// and 304 B/op with the guard and with it disabled.
 	//
 	// batch-mp is the sub-benchmark that names the family whose next hop travels
-	// INSIDE the attribute, and it is the only one of the three that measures this
-	// branch: the batch and queued sub-benchmarks are IPv4 unicast, so their next hop
-	// is a NEXT_HOP attribute, this assertion fails, and ValidateNextHops never runs.
-	// An earlier version of this comment cited the whole benchmark for the number,
-	// which measured the failed assertion alone (ai/rules/evidence.md).
+	// INSIDE the attribute. It is no longer the only one that measures this branch:
+	// attribute.NextHop gained a ValidateNextHops of its own, so the IPv4 unicast
+	// batch and queued sub-benchmarks now satisfy the assertion and run the validator
+	// too. The 3 allocs/op above was measured over the population that excluded them,
+	// so re-measure before citing it for the IPv4 rails (ai/rules/evidence.md).
 	if v, ok := attr.(announceNextHopValidator); ok {
 		if err := v.ValidateNextHops(); err != nil {
 			// The cause travels with the refusal. It is the one reason this function

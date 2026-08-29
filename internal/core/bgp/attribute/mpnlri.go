@@ -202,14 +202,21 @@ func (m *MPReachNLRI) nextHopOctets(nh netip.Addr) int {
 // message in reactor/reactor_api_batch.go, which is worded to this check and not
 // past it).
 //
-// Who asks, as of 2026-08-23. Every rail that ASSEMBLES this attribute asks before
-// it contributes one, because each is a caller that can name the route and the peer:
-// buildBatchAnnounceUpdate (reactor/reactor_api_batch.go), buildRIBRouteUpdate
-// (reactor/peer_rib_routes.go) and (*CommitService).buildMPReachNLRI
-// (component/bgp/rib/commit.go). announceAttrs.add (reactor/announce_build.go) asks
-// again for anything that reaches the plan without a pre-check, and it is the single
-// point the first two rails reach the wire through. CheckedWriteTo below asks for its
-// own callers.
+// Who asks, as of 2026-08-29. THREE rails ask before they contribute one, because
+// each is a caller that can name the route and the peer: buildBatchAnnounceUpdate
+// (reactor/reactor_api_batch.go), buildRIBRouteUpdate (reactor/peer_rib_routes.go)
+// and (*CommitService).buildMPReachNLRI (component/bgp/rib/commit.go).
+// announceAttrs.add (reactor/announce_build.go) asks again for anything that reaches
+// the plan without a pre-check, and it is the single point the first two rails reach
+// the wire through. CheckedWriteTo below asks for its own callers.
+//
+// Do NOT read that as saying every assembling caller asks. It does not quantify over
+// the assembly sites, and three of them ask nothing here: (*UpdateBuilder).buildMPReach
+// (component/bgp/message/update_build.go), reachable in production through BuildUnicast
+// from reactor/peer_initial_sync.go and reactor/peer_static_routes.go; and the two that
+// are safe only from an IsValid() test above them, plugins/rib/rib_commands.go and
+// plugins/bmp/bmp_locrib.go. A fourth site added tomorrow inherits nothing from this
+// list, which is why the list names rails rather than counting them.
 //
 // The third rail reaches no such backstop: it writes through attribute.WriteAttrTo
 // rather than through the plan, so its own call is the only thing between an

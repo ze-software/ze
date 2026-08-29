@@ -392,6 +392,13 @@ func TestSplitMPReachNLRI_Overflow(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
+	// AC-4: the COUNT, not merely "more than one". A non-VPN boundary must not move when the
+	// VPN overhead changes, and only an exact count can fail when it does. The number is
+	// measured, not derived: 21 octets of overhead against maxAttrSize 100 leaves 79 for a
+	// nine-octet /64 each.
+	require.Equal(t, 7, len(chunks),
+		"the chunk boundary moved: nothing but this count would fail if it did")
+
 	// Verify all chunks preserve AFI/SAFI/NextHops
 	for i, chunk := range chunks {
 		assert.Equal(t, mp.AFI, chunk.AFI, "chunk %d AFI mismatch", i)
@@ -582,6 +589,13 @@ func TestSplitUpdateWithAddPath_IPv6(t *testing.T) {
 	chunks, err := SplitMPReachNLRIWithAddPath(mp, 80, true)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split Add-Path MP_REACH_NLRI")
+
+	// AC-4: the COUNT, not merely "more than one". A non-VPN boundary must not move when the
+	// VPN overhead changes, and only an exact count can fail when it does. The number is
+	// measured, not derived: 21 octets of overhead against maxAttrSize 80 leaves 59 for a
+	// thirteen-octet Add-Path /64 each.
+	require.Equal(t, 5, len(chunks),
+		"the chunk boundary moved: nothing but this count would fail if it did")
 
 	// Verify all NLRIs preserved
 	totalNLRI := make([]byte, 0, len(nlri))
@@ -1083,6 +1097,12 @@ func TestSplitUpdate_FlowSpec_Split(t *testing.T) {
 	chunks, err := ChunkMPNLRI(fsNLRI, 1, 133, false, 50, nil)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "FlowSpec should split")
+
+	// AC-4: the COUNT, not merely "more than one". A non-VPN boundary must not move when the
+	// VPN overhead changes, and only an exact count can fail when it does. The number is
+	// measured, not derived: maxSize 50 against an eleven-octet FlowSpec rule each.
+	require.Equal(t, 5, len(chunks),
+		"the chunk boundary moved: nothing but this count would fail if it did")
 
 	// Verify all bytes preserved
 	reassembled := make([]byte, 0, len(fsNLRI))

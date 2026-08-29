@@ -554,7 +554,7 @@ func (c *CommitService) buildMPReachNLRI(fam family.Family, nextHop netip.Addr, 
 		// reaches an operator.
 		slog.Warn("commit: announce refused, the next hop has no wire form",
 			"family", fam,
-			"nextHop", nextHop,
+			"next-hop", nextHop,
 			"error", err)
 		return nil, err
 	}

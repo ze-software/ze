@@ -124,7 +124,16 @@ func TestCommitRefusalOfAnUnencodableNextHopIsLogged(t *testing.T) {
 		return true
 	})
 	assert.Equal(t, family.IPv6Unicast.String(), logged["family"], "the record names the family")
-	assert.Contains(t, logged, "nextHop", "the record names the next hop")
+
+	// The VALUE, not merely the key. An operator reading this line has to be able to
+	// tell WHICH next hop was refused, and a record carrying the key with an empty or
+	// wrong address answers a different question than the one it looks like it
+	// answers. netip.Addr{} renders as "invalid IP", which is the unresolved address
+	// this route carries and the reason the announce was refused.
+	assert.Equal(t, netip.Addr{}.String(), logged["next-hop"],
+		"the record names the next hop that has no wire form, in the kebab-case key "+
+			"the sibling rail already uses (logRIBRouteNextHopUnencodable, "+
+			"reactor/peer_rib_routes.go)")
 }
 
 // TestCommitVPNAnnounceCarriesTheRFC4364NextHop pins the whole MP_REACH_NLRI
