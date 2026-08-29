@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/verify/failuregroup"
 )
 
 // Render answers the matrix in the form Staticcheck reads on stdin: one
@@ -76,6 +77,15 @@ type Verdict struct {
 
 // Text renders the verdict for a person: Staticcheck's own diagnostics, then
 // the row count when every row type-checked. It ends in a newline.
+//
+// A FAILING run also renders Tool and declares a failure group. Both are here
+// rather than on stderr because the verify engine reads a stage's detail log,
+// and that log holds what the action RETURNED (internal/le/verify/dispatch,
+// dispatch, which hands leroot.Run a capturing writer). A run that failed
+// before producing a diagnostic used to render nothing at all, so its stage log
+// was empty: the red said neither what broke nor which files it was about, and
+// internal/le/commit/verification.go charges a red with no paths to every commit
+// in the checkout.
 func (v Verdict) Text() string {
 	var tb textbuf.Buffer
 	for _, line := range v.Diagnostics {
@@ -83,6 +93,29 @@ func (v Verdict) Text() string {
 	}
 	if v.Passed {
 		tb.Str("staticcheck feature matrix: checked ").Int(int64(v.Rows)).Str(" rows\n")
+
+		return tb.String()
 	}
+	if trimmed := strings.TrimSpace(v.Tool); trimmed != "" {
+		tb.Str(trimmed).Byte('\n')
+	}
+
+	var group strings.Builder
+	if err := failuregroup.Declare(&group, "files:staticcheck-feature-matrix/check", "files",
+		"staticcheck could not type-check the feature matrix; these files hold the diagnostics",
+		"./le staticcheck-feature-matrix check", v.failingPaths()); err == nil {
+		tb.Str(group.String())
+	}
+
 	return tb.String()
+}
+
+// failingPaths answers the source files the run's own output named, so a red
+// here is charged to the commits that touch them. A failure that names no file,
+// such as a broken vendor tree, answers nothing and stays charged to everyone,
+// which is the honest answer rather than a wrong attribution.
+func (v Verdict) failingPaths() []string {
+	paths := failuregroup.Paths(strings.Join(v.Diagnostics, "\n"))
+
+	return failuregroup.Merge(paths, failuregroup.Paths(v.Tool))
 }
