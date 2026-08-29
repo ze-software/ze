@@ -45,6 +45,24 @@ var assets = []asset{
 	{"third_party/web/uplot", "uPlot.min.css"},
 }
 
+// consumers are the asset directories that embed the common vendored set
+// above. It is a POLICY and is written out on purpose.
+//
+// consumerDirs walks the tree for directories named assets/ and the check half
+// uses it, correctly: a check judges the copies that are THERE. A sync decides
+// where copies GO, and that is a different question no walk answers. Deriving
+// this from the tree would push htmx, ze.svg and uPlot into every assets/
+// directory, internal/component/api/rest/assets included, which embeds none of
+// them and takes swagger-ui through targetedAssets instead.
+//
+// subscribes() cannot stand in for it either. It reports that a consumer
+// ALREADY holds a file from a package, which is the state this function
+// creates, so a consumer that has never been synced subscribes to nothing and
+// would never be seeded.
+//
+// TestEveryAssetDirectoryIsDecided is what keeps the policy honest: a new
+// assets/ directory that neither table names fails that test rather than being
+// silently unsynced here and, being empty, silently unchecked by driftCheck.
 var consumers = []string{
 	"internal/chaos/web/assets",
 	"internal/component/lg/assets",
