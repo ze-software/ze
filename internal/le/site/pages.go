@@ -10,6 +10,14 @@ import (
 	"strings"
 )
 
+// pageIndexFile is the file that makes a directory a public route, and
+// pageMirrorFile is the Markdown sibling beside it. A directory without the
+// first is not a page, whatever else it holds.
+const (
+	pageIndexFile  = "index.html"
+	pageMirrorFile = "index.md"
+)
+
 // Page is one public route and its human and machine-readable representations.
 type Page struct {
 	Route    string `json:"route"`
@@ -36,7 +44,7 @@ func pageRegistry(root string) ([]Page, error) {
 				return filepath.SkipDir
 			}
 		}
-		if entry.IsDir() || entry.Name() != "index.html" {
+		if entry.IsDir() || entry.Name() != pageIndexFile {
 			return nil
 		}
 		content, err := os.ReadFile(path) //nolint:gosec // a site build reads the checkout it was pointed at
@@ -57,7 +65,7 @@ func pageRegistry(root string) ([]Page, error) {
 		}
 		pages = append(pages, Page{
 			Route: route, HTML: filepath.ToSlash(relative),
-			Markdown: filepath.ToSlash(filepath.Join(filepath.Dir(relative), "index.md")),
+			Markdown: filepath.ToSlash(filepath.Join(filepath.Dir(relative), pageMirrorFile)),
 		})
 		return nil
 	})

@@ -50,6 +50,7 @@ func siteFixture(t *testing.T) (root, output string) {
 	if err := os.WriteFile(filepath.Join(source, "CNAME"), []byte("example.test\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	writeSourceAssets(t, source)
 	assets := filepath.Join(parent, "gh-pages", "assets")
 	if err := os.MkdirAll(assets, 0o755); err != nil {
 		t.Fatal(err)

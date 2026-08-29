@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1 of 10 |
+| Phase | 2 of 10 |
 | Deferral shard | `plan/deferrals/site-renderers-in-go.md` |
 | Handoff | - |
 | Updated | 2026-08-29 |
@@ -295,8 +295,28 @@ Every deleted renderer is recoverable from `eae282592^`.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The `gh-pages` worktree at its last commit is a faithful record of what the Python renderers produced | the working tree is dirty from a post-cutover build; only the committed state is Python-era output | the parity target is a moving one and every AC needs restating | compared `git show gh-pages HEAD` for `reference/cli/index.html` against the working tree: the committed page carries the full shell and a footer stamp reading 27 August 2026, the working-tree page is a bare fragment | confirmed |
 | A-2 | Every page the maps name still has a source in this repository | the inputs the renderers read are mostly present, but `page_registry.DOCS_MANIFEST` and the redirect maps were themselves deleted | a published route has no producer and must be either re-sourced or retired, which is a scope decision for the owner | the route reconciliation: all 331 map destinations have a published page and every map is recovered from `eae282592^` | confirmed |
-| A-3 | goldmark reproduces the reading of a python-markdown page for the roughly 194 Markdown-derived pages | `sane_lists`, the `toc` slugifier and the serializer each differ from CommonMark; the owner ruled character-level differences invisible | the first full build changes what a page SAYS rather than how it is spelled | render the ten most list-heavy and table-heavy published pages through both and compare visible text and link targets, before any bulk build | unvalidated |
+| A-3 | goldmark reproduces the reading of a python-markdown page for the roughly 194 Markdown-derived pages | `sane_lists`, the `toc` slugifier and the serializer each differ from CommonMark; the owner ruled character-level differences invisible | the first full build changes what a page SAYS rather than how it is spelled | render the ten most list-heavy and table-heavy published pages through both and compare visible text and link targets, before any bulk build | confirmed, with one source correction owed (see the A-3 measurement below) |
 | A-4 | Changed anchor slugs are acceptable | owner decision, 2026-08-29 | an inbound `#anchor` link lands at the top of the page rather than at its section, silently | not applicable, this is a decision rather than an assumption | accepted |
+
+**The A-3 measurement, 2026-08-29 (phase 2).** The ten pages were chosen by
+counting `<li>` and `<tr>` in the published body of each of the 115 manifest
+routes at `gh-pages` HEAD: the five heaviest by table row and the five heaviest
+by list item. Each source was rendered through goldmark and through
+python-markdown 3.10.3 with the four extensions the retired renderer used, and
+the visible text, the link targets and the element counts were compared. Five
+pages are identical. The five that differ fall into three classes, and no page
+loses text under goldmark.
+
+| Class | What python-markdown did | What goldmark does | Verdict |
+|-------|--------------------------|--------------------|---------|
+| `\|` inside a table cell | left the backslash visible, so a reader saw `accept\|reject\|modify` | unescapes it to a literal pipe, as GFM requires | goldmark fixes a visible defect; 30 occurrences on `docs/guide/command-reference.md` alone |
+| a list with no blank line before it | left it as paragraph text, so four numbered lines ran together on one line | parses the list | goldmark fixes a visible defect; 3 of the 10 pages |
+| an unescaped `\|` inside a code span inside a table row | did not split the cell | splits the cell as GFM requires, which breaks the code span and shows literal backticks | goldmark reads WORSE, and the fix is in the SOURCE |
+
+The third class is the only regression, and the correction is one-time: write the
+pipe as `\|`. Twenty lines carry it across `docs/` and `website/`, listed in
+`tmp/session/2026-08-29-36ab4fc7-fd4f-4e52-892c-be2eaf79ddcd/scratch/a3/unescaped-pipes.txt`. They are NOT corrected here: the owner decides whether to correct the
+source or accept the reading, and phase 3 is the first phase that publishes them.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -412,11 +432,20 @@ and its carry-over are untouched.
 | `TestProducerRecordsAreKeyedByArtifact` | `internal/le/site/producer_test.go` | AC-1, two artifacts keep separate records | pass |
 | `TestAnArtifactWithNoRecordIsFullyUnclaimed` | `internal/le/site/producer_test.go` | AC-1, an absent record fails closed | pass |
 | `TestBuildRunsEveryRegisteredProducer` | `internal/le/site/producer_test.go` | AC-2 | pass |
-| `TestShellCarriesEveryChromeElement` | `internal/le/site/shell_test.go` | AC-3 | |
-| `TestShellPutsCanonicalBeforeTheStylesheet` | `internal/le/site/shell_test.go` | AC-3 | |
-| `TestSidebarClassFollowsAnEmptySidebar` | `internal/le/site/shell_test.go` | AC-3 | |
-| `TestMarkdownReadsTheSameAsThePublishedPage` | `internal/le/site/markdown_test.go` | AC-4, validates A-3 | |
-| `TestMirrorConvertsBackWhenTheSourceHoldsBlockHTML` | `internal/le/site/mirror_test.go` | AC-5 | |
+| `TestShellCarriesEveryChromeElement` | `internal/le/site/shell_test.go` | AC-3 | pass |
+| `TestShellPutsCanonicalBeforeTheStylesheet` | `internal/le/site/shell_test.go` | AC-3 | pass |
+| `TestSidebarClassFollowsAnEmptySidebar` | `internal/le/site/shell_test.go` | AC-3 | pass |
+| `TestPageSidebarDropsAGroupThatResolvesToThisPage` | `internal/le/site/shell_test.go` | AC-3, the rule that empties a sidebar | pass |
+| `TestPageLinksLoadFromTheRepositorysOwnData` | `internal/le/site/shell_test.go` | AC-3, the sidebar data parses | pass |
+| `TestMarkdownReadsTheSameAsThePublishedPage` | `internal/le/site/markdown_test.go` | AC-4, validates A-3 | pass |
+| `TestEveryDocsSourceRendersAndItsContentsResolve` | `internal/le/site/markdown_corpus_test.go` | AC-4 over the whole corpus, 447 pages | pass |
+| `TestFrontMatterSplitsMetadataFromTheBody` | `internal/le/site/markdown_test.go` | AC-4, malformed metadata is refused | pass |
+| `TestDocTOCGoesAfterTheFirstClosingDiv` | `internal/le/site/markdown_test.go` | AC-4, the literal splice rule | pass |
+| `TestMirrorConvertsBackWhenTheSourceHoldsBlockHTML` | `internal/le/site/mirror_test.go` | AC-5 | pass |
+| `TestMirrorMatchesThePublishedConversion` | `internal/le/site/mirror_test.go` | AC-5, byte parity with one published mirror | pass |
+| `TestMirrorIsWrittenBesideThePage` | `internal/le/site/markdown_test.go` | AC-5, the mirror sits at the page's own URL | pass |
+| `TestAnAssetEditReachesTheArtifact` | `internal/le/site/assets_build_test.go` | AC-18 | pass |
+| `TestTheCommandPageRendererKeepsItsAbsentOnlyGuard` | `internal/le/site/assets_build_test.go` | AC-18, the other half of the asymmetry | pass |
 | `TestBlogPostsSharingADateOrderByFilename` | `internal/le/site/blog_test.go` | AC-7 | |
 | `TestPluginCatalogCarriesTheFieldsThePageShows` | `internal/le/site/plugins_test.go` | AC-9 | |
 | `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts/sitefacts_test.go` | AC-11 | |
@@ -533,6 +562,16 @@ and its carry-over are untouched.
    - Verify: roughly 160 routes leave the unclaimed list
 4. **Phase: Command surfaces** -- the existing docvalid producer renders through
    the shared shell, and `llms.txt` gains back its other seventeen sections
+   - State at HEAD, verified by reading `refreshCommandSurfaces`
+     (`internal/le/site/build.go`) after commit `219dd162a`: the CATALOG has a
+     producer and the PAGES do not. `data/cli-commands.json` is written from
+     `liveCommandCatalog` on every build, unconditionally; the page render sits
+     behind a guard that fires only when `reference/cli/index.html` is absent.
+     That split is deliberate and is the `yang` session's repair of `9f45348a7`:
+     the catalog keeps a live producer while the pages wait for this phase,
+     rather than the drift check being laundered green by a fixture. So phase 4
+     replaces the guard with a real page producer; it does not remove it and
+     leave `docvalid.RenderCommandSurfaces` publishing
    - Files: `internal/le/docvalid/command_render.go`, `derived.go`
    - Verify: both live regressions are closed
 5. **Phase: Blog and changes** -- index, detail pages, both feeds, `changes.json`

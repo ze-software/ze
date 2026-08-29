@@ -328,19 +328,32 @@ func copyPath(source, target string) error {
 	return os.WriteFile(target, content, info.Mode().Perm())
 }
 
+// refreshNativeSurfaces republishes the generated surfaces a build owns.
+//
+// The asset bundles are rendered on EVERY build, and the command PAGES are
+// bootstrapped only when they are absent. The two guards look alike and the
+// answers are opposite, so the reason is stated here rather than left for a
+// reader to infer from the shape.
+//
+// renderCSS expands the @import chain and minifies a real stylesheet, and
+// renderJS writes the authored script: each produces the artifact a reader
+// downloads. Guarding them on absence meant a seeded bundle survived every
+// build, so no edit under website/assets/css or website/assets/js ever reached
+// a reader.
+//
+// refreshCommandSurfaces keeps its guard because its renderer emits a contract
+// fixture rather than a page. Removing that one is what commit 9f45348a7 did,
+// and it overwrote 396 published pages with fragments. The guard goes when a
+// producer writes those pages, not before.
 func refreshNativeSurfaces(paths Paths) error {
 	if err := refreshCommandSurfaces(paths); err != nil {
 		return err
 	}
-	if _, err := os.Stat(filepath.Join(paths.Output, "assets", "site.css")); os.IsNotExist(err) {
-		if err := renderCSS(paths.Source, paths.Output); err != nil {
-			return err
-		}
+	if err := renderCSS(paths.Source, paths.Output); err != nil {
+		return err
 	}
-	if _, err := os.Stat(filepath.Join(paths.Output, "assets", "site.js")); os.IsNotExist(err) {
-		if err := renderJS(paths.Source, paths.Output); err != nil {
-			return err
-		}
+	if err := renderJS(paths.Source, paths.Output); err != nil {
+		return err
 	}
 	if _, err := refreshTalks(paths.Repository, filepath.Join(paths.Output, "talks")); err != nil {
 		return err
@@ -434,5 +447,6 @@ func removeSourceOnly(root string) error {
 // it preserves inside an artifact tree.
 const (
 	keywordOutput  = "output"
+	keywordInput   = "input"
 	gitMetadataDir = ".git"
 )

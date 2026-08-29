@@ -209,6 +209,7 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "talks", "netmcr", "index.html"), []byte("<html><script></script></html>"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	writeSourceAssets(t, source)
 	seedAssets := filepath.Join(parent, "gh-pages", "assets")
 	if err := os.MkdirAll(seedAssets, 0o755); err != nil {
 		t.Fatal(err)
@@ -231,7 +232,9 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Files != 4 || report.SourceDigest == "" {
+	// Six staged sources: CNAME, the command catalog, the talk page, the
+	// source-only tools file, and the two asset bundles every build renders.
+	if report.Files != 6 || report.SourceDigest == "" {
 		t.Fatalf("unexpected build report: %#v", report)
 	}
 	if _, err := os.Stat(filepath.Join(output, "CNAME")); err != nil {
@@ -268,6 +271,7 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 	if err := os.MkdirAll(source, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	writeSourceAssets(t, source)
 	if err := os.MkdirAll(filepath.Join(output, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -329,6 +333,7 @@ func TestBuildLeavesAPublishedPageAlone(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "website"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	writeSourceAssets(t, filepath.Join(root, "website"))
 	// A real published page: a head, a title and a body the fixture renderer
 	// does not produce. Its survival is what this test is about.
 	const publishedPage = "<!doctype html><html><head><title>CLI</title></head><body>show retired</body></html>\n"

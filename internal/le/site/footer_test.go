@@ -163,6 +163,7 @@ func TestBuildStampsEveryPublishedPage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "labs", "appliance-install", "index.html"), []byte(authoredPage), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	writeSourceAssets(t, source)
 	seedAssets := filepath.Join(parent, "gh-pages", "assets")
 	if err := os.MkdirAll(seedAssets, 0o755); err != nil {
 		t.Fatal(err)
