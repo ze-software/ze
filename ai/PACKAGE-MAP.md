@@ -626,6 +626,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/verify/deps` | runs the five Go-tool stages whose Make recipes used shell composition |  |
 | `internal/le/verify/dispatch` | connects verifyworktree to le's local-data registry |  |
 | `internal/le/verify/engine` | orchestrates the native actions that make up full verification |  |
+| `internal/le/verify/failuregroup` | lets a verify stage say WHICH files its red is about |  |
 | `internal/le/verify/lint` | owns the native full-tree lint stage |  |
 | `internal/le/verify/lock` | run a verify-class command through the shared heavy-job admission |  |
 | `internal/le/verify/status` | read and write the verification certificate for the current checkout |  |

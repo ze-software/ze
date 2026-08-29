@@ -14,7 +14,12 @@
 
 package repositorytrackedbuild
 
-import "github.com/ze-software/ze/internal/core/textbuf"
+import (
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/verify/failuregroup"
+)
 
 // Result is one flavor's outcome, and it is one ROW of the report.
 type Result struct {
@@ -69,6 +74,7 @@ const (
 // use for it.
 func (r Report) Text() string {
 	var tb textbuf.Buffer
+	var groupOut strings.Builder
 	short := r.Commit
 	if len(short) > shortCommit {
 		short = short[:shortCommit]
@@ -98,8 +104,40 @@ func (r Report) Text() string {
 
 	if r.OK {
 		tb.Str("tracked-build: OK (every flavor of the committed tree compiles)\n")
+
+		return tb.String()
 	}
+
+	// The failure group goes in the ANSWER, not in Diagnosis. Diagnosis is
+	// written to stderr, and the verify engine reads a stage's groups out of the
+	// stage log, which holds what the action returned.
+	if err := failuregroup.Declare(&groupOut, trackedBuildGroupID, "files",
+		"the committed tree does not compile; these files hold the named symbols",
+		"./le repository tracked-build check", r.failingPaths()); err == nil {
+		tb.Str(groupOut.String())
+	}
+
 	return tb.String()
+}
+
+// trackedBuildGroupID names this stage's one failure group.
+const trackedBuildGroupID = "files:repository tracked-build/check"
+
+// failingPaths answers the source files the compiler named across every flavor
+// that failed. Without them a red here is unattributable, and the commit gate
+// charges an unattributable structural red to every commit in the checkout
+// (internal/le/commit/verification.go, structuralGateReds) rather than to the
+// one that left a consumer without its producer.
+func (r Report) failingPaths() []string {
+	var paths []string
+	for _, result := range r.Results {
+		if result.OK {
+			continue
+		}
+		paths = failuregroup.Merge(paths, failuregroup.Paths(result.Output))
+	}
+
+	return paths
 }
 
 // Diagnosis renders what a reader does next about a failing run. It is empty

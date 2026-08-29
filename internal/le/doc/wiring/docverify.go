@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/digest"
@@ -28,6 +30,39 @@ type docVerifyPage struct {
 }
 
 func (p docVerifyPage) Text() string { return p.text }
+
+// docVerifyPathRE matches a "<path>:<line>" citation in a stage's prose. Every
+// documentation stage reports a finding that way, so the page can name the files
+// its failure is about without each stage threading a second structured list.
+var docVerifyPathRE = regexp.MustCompile(`[A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:md|go|html|templ|ya?ml|json):[0-9]+`)
+
+// FailingPaths answers the files this page's findings cite, deduplicated and in
+// first-seen order.
+//
+// Deriving them from the rendered text is deliberate. The page is what an
+// operator reads, so a path that reaches the group is one the report already
+// showed, and a stage cannot fail while quietly attributing the failure
+// somewhere the reader never saw.
+//
+// A path is kept only when it resolves in the tree. A citation can name a file
+// that has since moved, and charging a commit for a path that does not exist
+// would be worse than not attributing it at all.
+func (p docVerifyPage) FailingPaths() []string {
+	seen := make(map[string]struct{})
+	var out []string
+	for _, match := range docVerifyPathRE.FindAllString(p.text, -1) {
+		path := match[:strings.LastIndexByte(match, ':')]
+		if _, dup := seen[path]; dup {
+			continue
+		}
+		seen[path] = struct{}{}
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		out = append(out, path)
+	}
+	return out
+}
 
 type docVerifyStage struct {
 	heading string

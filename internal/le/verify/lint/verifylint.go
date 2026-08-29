@@ -97,11 +97,32 @@ type Report struct {
 	Coverage Coverage     `json:"coverage"`
 	Code     int          `json:"code"`
 	Error    string       `json:"error,omitempty"`
+	// FailingPaths names the files this run's findings were about, so a red can
+	// be charged to the commits that touch them (see failuregroup.go).
+	FailingPaths []string `json:"failing-paths,omitempty"`
 }
 
-// Text returns no second rendering because every child and the coverage proof
-// have already streamed in producer order. Pipe renderers still receive Report.
-func (Report) Text() string { return "" }
+// Text returns the failure-group declaration for a red run, and nothing for a
+// green one, because every child and the coverage proof have already streamed
+// in producer order. Pipe renderers still receive Report.
+//
+// The declaration belongs HERE rather than on os.Stderr. The verify engine reads
+// a stage's groups back out of the stage log, and that log holds what the action
+// RETURNED (internal/le/verify/dispatch/dispatch.go, dispatch, which hands
+// leroot.Run a capturing writer). A line written straight to the process's own
+// stderr goes to the operator's terminal and never reaches the log, so the stage
+// reads as declaring nothing.
+func (r Report) Text() string {
+	if r.Code == 0 {
+		return ""
+	}
+	var out strings.Builder
+	if err := declareLintFailureGroup(&out, r.FailingPaths); err != nil {
+		return ""
+	}
+
+	return out.String()
+}
 
 type commandResult struct {
 	stdout []byte
@@ -113,7 +134,7 @@ type commandResult struct {
 type runnerOps struct {
 	lookPath func(string) (string, error)
 	capture  func(context.Context, []string, string, []string) commandResult
-	stream   func(context.Context, []string, string, []string) (int, error)
+	stream   func(context.Context, []string, string, []string, io.Writer) (int, error)
 }
 
 // Runner owns the checkout, current lint configuration, toolchain, and process
@@ -196,7 +217,10 @@ func captureCommand(ctx context.Context, argv []string, dir string, environment 
 	}
 }
 
-func streamCommand(ctx context.Context, argv []string, dir string, environment []string) (int, error) {
+// streamCommand runs one lint child, streaming its output to the operator
+// unchanged. watch, when non-nil, additionally receives that output so the stage
+// can learn which files its findings name; it never alters what is printed.
+func streamCommand(ctx context.Context, argv []string, dir string, environment []string, watch io.Writer) (int, error) {
 	if len(argv) == 0 {
 		return gaterun.CannotStart, errors.New("no lint command to run")
 	}
@@ -204,8 +228,8 @@ func streamCommand(ctx context.Context, argv []string, dir string, environment [
 	cmd.Dir = dir
 	cmd.Env = environment
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = io.MultiWriter(os.Stdout, discardNil(watch))
+	cmd.Stderr = io.MultiWriter(os.Stderr, discardNil(watch))
 	err := cmd.Run()
 	return processCode(err), commandStartError(err)
 }
@@ -650,6 +674,10 @@ func (r *Runner) runPlan(plan LintPlan, err error) (Report, int) {
 }
 
 func (r *Runner) execute(plan LintPlan) (Report, int) {
+
+	// Collects the files the children's findings name, so a red can be charged
+	// to the commits that touch them rather than to every commit in the checkout.
+	collector := newPathCollector()
 	report := Report{Passes: make([]PassResult, 0, len(plan.Passes)), Coverage: plan.Coverage}
 	reportCoverage := plan.reportCoverage ||
 		plan.Coverage.Population != 0 ||
@@ -701,7 +729,7 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 			outputReady = false
 			break
 		}
-		code, runErr := r.ops.stream(r.ctx, pass.Command, r.root, pass.Environment)
+		code, runErr := r.ops.stream(r.ctx, pass.Command, r.root, pass.Environment, collector)
 		result.Code = code
 		if code != 0 {
 			if report.Code == 0 {
@@ -739,6 +767,7 @@ func (r *Runner) execute(plan LintPlan) (Report, int) {
 			outputReady = false
 		}
 	}
+	report.FailingPaths = collector.paths()
 	if plan.NeedsTagless {
 		if err := os.Remove(plan.TaglessConfig); err != nil {
 			report.Error = errorText.Reset().Str("remove tagless lint config: ").Err(err).String()

@@ -10,16 +10,16 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/command/list"
-	"github.com/ze-software/ze/internal/le/command/ownership"
+	commandlist "github.com/ze-software/ze/internal/le/command/list"
+	commandownership "github.com/ze-software/ze/internal/le/command/ownership"
 	"github.com/ze-software/ze/internal/le/digest"
 	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/docvalid"
 	"github.com/ze-software/ze/internal/le/inventory"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/le/plugin/imports"
-	"github.com/ze-software/ze/internal/le/spec/citation"
+	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
+	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
 )
 
 // call is one linked action invocation. The root is explicit for callbacks
@@ -75,13 +75,39 @@ func (g *checker) runGoAction(action string, one call) CheckResult {
 		return CheckResult{Message: tb.Str(action).Str(" PASSED").String(), Output: prose(payload)}
 	}
 	rerun := tb.Reset().Str("./le ").Str(strings.ReplaceAll(action, "/", " ")).String()
-	g.declareFailureGroup(action, nil,
+	g.declareFailureGroup(action, delegatedFailurePaths(payload),
 		tb.Reset().Str("delegated check ").Str(action).Str(" failed").String(), rerun)
 	return CheckResult{
 		Failed:  true,
 		Message: tb.Reset().Str(action).Str(" failed").String(),
 		Output:  prose(payload),
 	}
+}
+
+// failurePathLister is implemented by a delegated action's report that can name
+// the files its failure is about.
+//
+// It exists because a group with no paths is UNATTRIBUTABLE, and an
+// unattributable structural red is charged to every commit in the checkout
+// rather than to the one that caused it (internal/le/commit/verification.go,
+// structuralGateReds). Every delegated action used to report nil here, so one
+// session's red blocked every other session's commit, however unrelated.
+//
+// Opting in is per-report: an action whose report cannot name files keeps the
+// old behavior, which is the honest answer for a check that judges the tree as
+// a whole.
+type failurePathLister interface {
+	FailingPaths() []string
+}
+
+// delegatedFailurePaths asks a delegated action's report which files its failure
+// is about, and answers nil when the report cannot say.
+func delegatedFailurePaths(payload any) []string {
+	lister, ok := payload.(failurePathLister)
+	if !ok {
+		return nil
+	}
+	return lister.FailingPaths()
 }
 
 // answerDocIndex runs the source-anchor check against the tree named by this

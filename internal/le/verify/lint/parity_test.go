@@ -95,7 +95,7 @@ func fixtureOps(root string, tracked []string) (runnerOps, *[]captureCall) {
 	return runnerOps{
 		lookPath: func(name string) (string, error) { return "/bin/" + name, nil },
 		capture:  capture,
-		stream:   func(context.Context, []string, string, []string) (int, error) { return 0, nil },
+		stream:   func(context.Context, []string, string, []string, io.Writer) (int, error) { return 0, nil },
 	}, &calls
 }
 
@@ -298,7 +298,7 @@ func TestScopedRunParsesPackagesAndNeverBroadensToTheTree(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, captureCalls := fixtureOps(root, tracked)
 	var streamed [][]string
-	ops.stream = func(_ context.Context, argv []string, _ string, _ []string) (int, error) {
+	ops.stream = func(_ context.Context, argv []string, _ string, _ []string, _ io.Writer) (int, error) {
 		streamed = append(streamed, slices.Clone(argv))
 		return 0, nil
 	}
@@ -421,7 +421,7 @@ func TestEmptyScopeRunsNoCommandsAndPrintsNothing(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, captureCalls := fixtureOps(root, tracked)
 	streamed := 0
-	ops.stream = func(context.Context, []string, string, []string) (int, error) {
+	ops.stream = func(context.Context, []string, string, []string, io.Writer) (int, error) {
 		streamed++
 		return 0, nil
 	}
@@ -461,7 +461,7 @@ func TestMalformedScopeStopsBeforeAnyLintCommand(t *testing.T) {
 		return commandResult{stderr: []byte("malformed package pattern\n"), code: 1}
 	}
 	streamed := 0
-	ops.stream = func(context.Context, []string, string, []string) (int, error) {
+	ops.stream = func(context.Context, []string, string, []string, io.Writer) (int, error) {
 		streamed++
 		return 0, nil
 	}
@@ -497,7 +497,7 @@ func TestExecuteRunsAllChildrenAndReturnsTheFirstFailureCode(t *testing.T) {
 	ops := runnerOps{
 		lookPath: func(name string) (string, error) { return name, nil },
 		capture:  func(context.Context, []string, string, []string) commandResult { return commandResult{} },
-		stream: func(_ context.Context, argv []string, _ string, _ []string) (int, error) {
+		stream: func(_ context.Context, argv []string, _ string, _ []string, _ io.Writer) (int, error) {
 			ran = append(ran, argv[len(argv)-1])
 			switch argv[len(argv)-1] {
 			case "second":
@@ -623,7 +623,7 @@ func TestExecuteRemovesDerivedTaglessConfiguration(t *testing.T) {
 	ops := runnerOps{
 		lookPath: func(name string) (string, error) { return name, nil },
 		capture:  func(context.Context, []string, string, []string) commandResult { return commandResult{} },
-		stream: func(_ context.Context, _ []string, _ string, _ []string) (int, error) {
+		stream: func(_ context.Context, _ []string, _ string, _ []string, _ io.Writer) (int, error) {
 			content, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatalf("read derived config during lint: %v", err)
