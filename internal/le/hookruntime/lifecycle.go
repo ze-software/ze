@@ -19,9 +19,9 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/rules"
 	"github.com/ze-software/ze/internal/le/session"
-	"github.com/ze-software/ze/internal/le/spec/citation"
-	"github.com/ze-software/ze/internal/le/spec/session"
-	"github.com/ze-software/ze/internal/le/spec/status"
+	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
+	specsession "github.com/ze-software/ze/internal/le/spec/session"
+	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 
 // gitTimeout bounds one git call a lifecycle hook makes. Each reads the index
@@ -155,23 +155,14 @@ func hookSessionStart(ctx context, out io.Writer) int {
 		fmt.Fprintf(out, "%d specs, none claimed by this session\n", len(specs)) //nolint:errcheck // hook protocol
 	}
 	if len(specs) != 0 {
-		order := []string{"in-progress", "verification", "ready", "design", "skeleton", "blocked", "deferred"}
-		counts := make([]string, 0, len(order))
-		for _, specStatus := range order {
-			count := 0
-			needle := "| Status | " + specStatus
-			for _, spec := range specs {
-				body, _ := os.ReadFile(spec) //nolint:gosec // a plan/spec-*.md path this hook globbed in the checkout
-				if strings.Contains(string(body), needle) {
-					count++
-				}
-			}
-			if count != 0 {
-				counts = append(counts, fmt.Sprintf("%d %s", count, specStatus))
-			}
-		}
-		if len(counts) != 0 {
-			fmt.Fprintf(out, "   (%s)\n", strings.Join(counts, ", ")) //nolint:errcheck // hook protocol
+		// The breakdown comes from specstatus so this line and `./le spec
+		// status` name one vocabulary in one order. This hook used to keep its
+		// own list of seven statuses, which named no default and so counted
+		// only what it listed: `done` was absent, and the line under-reported
+		// the population it sits beside. StatusPhrases consults no git, which
+		// is the reason it exists rather than Collect.
+		if phrases, err := specstatus.StatusPhrases(ctx.root); err == nil && len(phrases) != 0 {
+			fmt.Fprintf(out, "   (%s)\n", strings.Join(phrases, ", ")) //nolint:errcheck // hook protocol
 		}
 	}
 	if claim != "" {

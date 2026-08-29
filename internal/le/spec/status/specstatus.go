@@ -51,9 +51,14 @@ const SkeletonTTLDays = SkeletonTTLWeeks * 7
 // rather than a spec that is silently bucketed somewhere else.
 //
 // This is NOT the status vocabulary. That lives in ai/rules/planning.md and in
-// the case statement of .claude/hooks/validate-spec.sh, and a third copy here
-// would drift from both. A status named nowhere here is still counted, still
-// bucketed and still printed: every reader below has a default.
+// the oneOf call that validates a spec's Status row
+// (internal/le/hookruntime.validateSpecText), and a third copy here would drift
+// from both. A status named nowhere here is still counted, still bucketed and
+// still printed: every reader below has a default.
+//
+// That default is the whole safety property, and it is what the session-start
+// summary lacked until 2026-08-29: it kept a seven-name list of its own and
+// counted only what the list named, so two `done` specs went unreported.
 const (
 	// statusUnparsed is reported for a spec that carries no metadata table. It
 	// is distinct from statusUnknown, which means the table was read and the
@@ -273,6 +278,50 @@ func loadSpec(ctx context.Context, root, rel string, warn func(string)) (Spec, e
 		s.Updated = s.GitModified
 	}
 	return s, nil
+}
+
+// StatusPhrases answers the population's per-status breakdown as
+// "<count> <status>" phrases, in the print order the `./le spec status` summary
+// line uses, WITHOUT consulting git.
+//
+// It exists beside Collect because the session-start hook prints this same
+// breakdown and must stay fast. Collect calls gitDate for every spec, which is
+// one git process per spec, and the hook needs no date at all.
+//
+// The hook previously kept its own seven-name status list and its own scan, so
+// it dropped `done` silently: on 2026-08-29 it summarised 231 specs over counts
+// summing to 229, the two missing ones being done-but-never-closed. That is the
+// same under-report summaryOrder's comment records for 2026-08-22, in a second
+// copy that the first fix did not reach.
+func StatusPhrases(root string) ([]string, error) {
+	matches, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(specGlob)))
+	if err != nil {
+		return nil, fmt.Errorf("glob %s: %w", specGlob, err)
+	}
+
+	counts := map[string]int{}
+	for _, match := range matches {
+		if filepath.Base(match) == specTemplateFile {
+			continue
+		}
+		data, err := os.ReadFile(match) //nolint:gosec // a path this package globbed under the repository root
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", filepath.Base(match), err)
+		}
+		rows, found := metaRows(string(data))
+		status := metaField(rows, "Status")
+		switch {
+		case !found:
+			// Same fail-closed split loadSpec makes: no table at all is an
+			// authoring error, an absent Status row inside one is not.
+			status = statusUnparsed
+		case status == "":
+			status = statusUnknown
+		}
+		counts[status]++
+	}
+
+	return statusPhrases(counts), nil
 }
 
 // Collect reads every spec under root's plan/ directory and answers the

@@ -41,8 +41,9 @@ type Inventory []Spec
 // buys a position and nothing else, which is why "verification" is here
 // (committed work in flight, so it belongs beside in-progress) and "done" is not
 // (terminal, so the sorted tail below prints it last). The vocabulary itself
-// lives in ai/rules/planning.md and in the case statement of
-// .claude/hooks/validate-spec.sh; a third copy here would drift from both.
+// lives in ai/rules/planning.md and in the oneOf call that validates a spec's
+// Status row (internal/le/hookruntime.validateSpecText); a third copy here would
+// drift from both.
 var reportingOrder = []string{
 	statusUnparsed, statusInProgress, statusVerification, statusReady,
 	statusDesign, statusSkeleton, statusBlocked, statusDeferred, statusUnknown,
@@ -70,6 +71,24 @@ func summaryOrder(counts map[string]int) []string {
 	order := make([]string, 0, len(reportingOrder)+len(rest))
 	order = append(order, reportingOrder...)
 	return append(order, rest...)
+}
+
+// statusPhrases answers one "<count> <status>" phrase per status the counts
+// hold, in summaryOrder's print order. A status counted zero times is omitted,
+// and every status present is named, so the phrases always sum to the total.
+//
+// It is separate from Text because a second surface prints the same breakdown:
+// the session-start hook, through StatusPhrases.
+func statusPhrases(counts map[string]int) []string {
+	phrases := make([]string, 0, len(counts))
+	for _, st := range summaryOrder(counts) {
+		if counts[st] == 0 {
+			continue
+		}
+		var tb textbuf.Buffer
+		phrases = append(phrases, tb.Int(int64(counts[st])).Byte(' ').Str(st).String())
+	}
+	return phrases
 }
 
 // buckets splits the inventory three ways and counts the flagged skeletons.
@@ -116,16 +135,11 @@ func (in Inventory) Text() string {
 
 	var tb textbuf.Buffer
 	tb.Str("Specs: ").Int(int64(len(in))).Str(" total (")
-	first := true
-	for _, st := range summaryOrder(counts) {
-		if counts[st] == 0 {
-			continue
-		}
-		if !first {
+	for i, phrase := range statusPhrases(counts) {
+		if i != 0 {
 			tb.Str(", ")
 		}
-		first = false
-		tb.Int(int64(counts[st])).Byte(' ').Str(st)
+		tb.Str(phrase)
 	}
 	tb.Str(")\n")
 
