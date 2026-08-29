@@ -24,6 +24,14 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
+// Keys in the plugin.Map payload these handlers return. The CLI renderers and
+// the JSON output both read them, so they are an operator-facing surface.
+const (
+	fieldInterfaces = "interfaces"
+	fieldMessage    = "message"
+	fieldName       = "name"
+)
+
 var (
 	errFromRequiresAValue          = errors.New("--from requires a value")
 	errToRequiresAValue            = errors.New("--to requires a value")
@@ -76,7 +84,7 @@ func handleInterfaceMigrate(_ *pluginserver.CommandContext, args []string) (*plu
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "migration complete: " + cfg.OldIface + " -> " + cfg.NewIface + " (" + cfg.Address + ")"},
+		Data:   plugin.Map{fieldMessage: "migration complete: " + cfg.OldIface + " -> " + cfg.NewIface + " (" + cfg.Address + ")"},
 	}, nil
 }
 
