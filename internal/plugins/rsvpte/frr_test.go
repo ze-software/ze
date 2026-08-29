@@ -862,3 +862,87 @@ func TestRROProtectionFlagsReflectState(t *testing.T) {
 	// RFC requirement: RFC4090-4.4-3 positive -- "node protection" (0x08) is set when the head-end requested node protection.
 	assert.NotZero(t, rroProtectionFlags(nodeProt)&RROFlagNodeProtection, "node bit set when node protection requested")
 }
+
+// TestEnginePathWithDetourRejected drives a PATH carrying a DETOUR object into an
+// LSR that does not implement one-to-one backup.
+//
+// VALIDATES: RFC 4090 Section 4.2 -- the message is rejected and a PathErr goes
+// back to the PLR, carrying the RFC 2205 Appendix B "Unknown object class" code
+// 13 and the (Class-Num, C-Type) of the DETOUR object as the Error Value.
+// PREVENTS: a PLR believing its detour LSP is established while this node has
+// dropped the DETOUR object and built no detour state at all.
+func TestEnginePathWithDetourRejected(t *testing.T) {
+	plr := netip.MustParseAddr("10.0.0.1")
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: plr, LSPID: 1},
+		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
+		RefreshPeriod:  DefaultRefreshPeriod,
+	}
+	detour := detourBodyIPv4(plr, netip.MustParseAddr("10.0.0.5"))
+
+	// RFC requirement: RFC4090-4.2-1 positive -- a PATH carrying a DETOUR object
+	// (Class-Num 63, C-Type 7) is rejected by an LSR without DETOUR support, and
+	// the PathErr that notifies the PLR carries Error Code 13 with the object's
+	// (Class-Num, C-Type) as the Error Value.
+	e, ft, fib := testEngine(t, "10.0.0.9", nil)
+	e.handlePacket(Packet{Src: plr, Payload: pathWithObject(psb, plr, ClassDetour, CTypeDetourIPv4, detour)})
+
+	perr, dst, ok := ft.lastByType(MsgTypePathErr)
+	require.True(t, ok, "a PATH carrying a DETOUR object must be answered with a PathErr")
+	assert.Equal(t, plr, dst, "the PathErr notifies the PLR the PATH came from")
+	assert.Equal(t, ErrCodeUnknownObjectClass, perr.ErrorSpec.ErrorCode, "RFC 2205 Appendix B code 13")
+	assert.Equal(t, uint16(0x3f07), perr.ErrorSpec.ErrorValue, "Error Value is (Class-Num 63, C-Type 7)")
+
+	if _, _, sent := ft.lastByType(MsgTypeResv); sent {
+		t.Fatal("a rejected PATH must not be acted on: no RESV")
+	}
+	assert.Empty(t, e.table.All(), "a rejected PATH installs no LSP state")
+	assert.Empty(t, fib.popped, "a rejected PATH programs no label operation")
+
+	// RFC requirement: RFC4090-4.2-1 negative -- the same PATH without the DETOUR
+	// object is accepted and answered with a RESV, so the rejection is charged to
+	// the DETOUR object and not to anything else in the message.
+	plain, plainFT, _ := testEngine(t, "10.0.0.9", nil)
+	plain.handlePacket(Packet{Src: plr, Payload: buildPath(psb, plr, 64)})
+
+	if _, _, sent := plainFT.lastByType(MsgTypePathErr); sent {
+		t.Fatal("a PATH with no DETOUR object must not be rejected")
+	}
+	_, _, ok = plainFT.lastByType(MsgTypeResv)
+	require.True(t, ok, "a PATH with no DETOUR object is signaled normally")
+	assert.Len(t, plain.table.All(), 1, "a PATH with no DETOUR object installs LSP state")
+}
+
+// TestEnginePathWithIgnorableObjectAccepted drives a PATH carrying an object of a
+// class ze does not implement whose Class-Num high-order bit is SET.
+//
+// VALIDATES: RFC 2205 Section 3.10 -- a 10bbbbbb class is ignored, so the PATH is
+// signaled normally and no error goes back.
+// PREVENTS: a default arm that rejects every class it has no case for, which would
+// refuse messages RFC 2205 requires this node to accept.
+func TestEnginePathWithIgnorableObjectAccepted(t *testing.T) {
+	sender := netip.MustParseAddr("10.0.0.1")
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 2, ExtTunnelID: 0x0a000001},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: sender, LSPID: 1},
+		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
+		RefreshPeriod:  DefaultRefreshPeriod,
+	}
+
+	// RFC requirement: RFC2205-3.10-1 negative -- Class-Num 0xa0 has the form
+	// 10bbbbbb, so the node ignores the object, sends no error, and signals the
+	// PATH as if the object were not there.
+	e, ft, _ := testEngine(t, "10.0.0.9", nil)
+	e.handlePacket(Packet{Src: sender, Payload: pathWithObject(psb, sender, 0xa0, 1, []byte{0, 0, 0, 0})})
+
+	if _, _, sent := ft.lastByType(MsgTypePathErr); sent {
+		t.Fatal("an object of a 10bbbbbb class must be ignored, not answered with an error")
+	}
+	resv, _, ok := ft.lastByType(MsgTypeResv)
+	require.True(t, ok, "the PATH is signaled normally around the ignored object")
+	require.True(t, resv.HasLabel, "the RESV carries the allocated label")
+	assert.Len(t, e.table.All(), 1, "the PATH installs LSP state")
+}

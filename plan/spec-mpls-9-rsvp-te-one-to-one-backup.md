@@ -43,6 +43,10 @@ per-protected-LSP detour LSP signaling, and detour **merging** (RFC 4090 Section
 
 ## Required Reading
 
+### Architecture Docs
+- [ ] `docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md` - RFC 4090 facility backup: one bypass LSP protects many LSPs
+- [ ] `docs/architecture/rsvpte/mpls-rsvp-te.md` - RSVP-TE (RFC 2205, RFC 3209): explicitly routed MPLS LSPs
+
 ### RFC Summaries
 - [ ] `rfc/short/rfc4090.md` - DETOUR object (class 63, C-Type 7 IPv4); Section 3.1 one-to-one backup; Section 6.2 detour merging
   → Constraint: DETOUR carries (PLR_ID, Avoid_Node_ID) pairs; merging combines detours protecting the same LSP that arrive at a common node
@@ -73,6 +77,20 @@ per-protected-LSP detour LSP signaling, and detour **merging** (RFC 4090 Section
   bypasses today, so a one-to-one request finds no backup and the LSP falls back
   to tear-down on failure. One-to-one adds per-LSP detour signaling and the DETOUR
   object codec (`ClassDetour` currently has no codec/caller).
+
+CORRECTION (2026-08-29): `ClassDetour` still has no codec, and it is no longer
+without a caller. `DecodeMessage` (`internal/plugins/rsvpte/wire.go`) now has a
+default arm that applies RFC 2205 Section 3.10 by the Class-Num high-order bit,
+and `rejectUnknownObject` (`engine.go`) answers a PATH carrying a DETOUR object
+with a PathErr, Error Code 13. That is what RFC 4090 Section 4.2 requires of an
+LSR without one-to-one backup, and it is gated as `RFC4090-4.2-1`.
+
+Two consequences for this spec. Adding a DETOUR case to `DecodeMessage` removes
+the object from the default arm, which is the correct way to turn the rejection
+off. And `RFC4090-4.2-1` is conditional on ze NOT supporting DETOUR, so this
+spec has to decide what its row and its two tagged tests become once ze does
+support it. That is a compliance decision for Thomas, not a deletion: removing
+the row fires `check_retired_requirements`.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -216,7 +234,7 @@ End-to-End User Stories before `/ze-implement`.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (no unused DETOUR codec)
 
 ### TDD

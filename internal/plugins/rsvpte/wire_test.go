@@ -633,3 +633,96 @@ func TestRSVPObjectLengthMultipleOfFour(t *testing.T) {
 		}
 	}
 }
+
+// pathWithObject encodes a PATH for psb with one extra object appended, so a
+// decoder meets an object class the DecodeMessage switch has no case for. The
+// common header Length and checksum are patched, so the only unusual thing about
+// the message is the extra object.
+func pathWithObject(psb *pathStateBlock, hop netip.Addr, classNum, cType uint8, body []byte) []byte {
+	base := buildPath(psb, hop, 64)
+	objLen := objHdrLen + len(body)
+	out := make([]byte, len(base)+objLen)
+	copy(out, base)
+	encodeObjectHeader(out[len(base):], objectHeader{Length: uint16(objLen), ClassNum: classNum, CType: cType})
+	copy(out[len(base)+objHdrLen:], body)
+	binary.BigEndian.PutUint16(out[6:8], uint16(len(out)))
+	binary.BigEndian.PutUint16(out[2:4], 0)
+	binary.BigEndian.PutUint16(out[2:4], internetChecksum(out))
+	return out
+}
+
+// detourBodyIPv4 builds the body of an RFC 4090 Section 4.2.1 DETOUR object: one
+// (PLR_ID, Avoid_Node_ID) pair of IPv4 addresses.
+func detourBodyIPv4(plrID, avoidNodeID netip.Addr) []byte {
+	body := make([]byte, 8)
+	copy(body[0:4], plrID.AsSlice())
+	copy(body[4:8], avoidNodeID.AsSlice())
+	return body
+}
+
+// TestDecodeUnknownObjectClass drives DecodeMessage with an object class that has
+// no case in the switch, and checks the RFC 2205 Section 3.10 classification.
+//
+// VALIDATES: the whole message is marked unacceptable when the Class-Num
+// high-order bit is zero, and is left alone when that bit is set.
+// PREVENTS: silently ignoring an object the sender needs this node to understand
+// (RFC 4090 Section 4.2: a PLR that gets no PathErr for its DETOUR believes the
+// detour LSP is established), and the opposite defect of rejecting an object
+// RFC 2205 says to ignore or an optional object a conformant peer may send.
+func TestDecodeUnknownObjectClass(t *testing.T) {
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		SenderTSpec:    FlowSpec{TokenRate: 1e8},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
+	}
+	hop := netip.MustParseAddr("10.0.0.1")
+	detour := detourBodyIPv4(netip.MustParseAddr("10.0.0.5"), netip.MustParseAddr("10.0.0.6"))
+
+	cases := []struct {
+		name     string
+		classNum uint8
+		cType    uint8
+		body     []byte
+		reject   bool
+	}{
+		// RFC requirement: RFC2205-3.10-1 positive -- an object of a class ze does
+		// not implement whose Class-Num has the form 0bbbbbbb makes the whole
+		// message unacceptable. DETOUR (63) is the RFC 4090 Section 4.2 case.
+		{name: "detour-63", classNum: ClassDetour, cType: CTypeDetourIPv4, body: detour, reject: true},
+		// RFC requirement: RFC2205-3.10-1 positive -- the rule is over the Class-Num
+		// form, not over one object, so an unassigned 0bbbbbbb class rejects too.
+		{name: "unassigned-0bbbbbbb", classNum: 0x40, cType: 1, body: []byte{0, 0, 0, 0}, reject: true},
+		// RFC requirement: RFC2205-3.10-1 negative -- 10bbbbbb is ignored, so the
+		// message survives and no error is owed.
+		{name: "unassigned-10bbbbbb", classNum: 0xa0, cType: 1, body: []byte{0, 0, 0, 0}, reject: false},
+		// RFC requirement: RFC2205-3.10-1 negative -- 11bbbbbb is ignored as well.
+		{name: "unassigned-11bbbbbb", classNum: 0xc8, cType: 1, body: []byte{0, 0, 0, 0}, reject: false},
+		// RFC requirement: RFC2205-3.10-1 negative -- ADSPEC is a class ze knows and
+		// reads no body for, not an unknown one, and RFC 2205 Section 3.1.3 makes it
+		// optional in a PATH. Rejecting it would refuse a legal message.
+		{name: "adspec-known-unprocessed", classNum: ClassAdspec, cType: 2, body: []byte{0, 0, 0, 0}, reject: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			msg, err := DecodeMessage(pathWithObject(psb, hop, tc.classNum, tc.cType, tc.body))
+			if err != nil {
+				t.Fatalf("DecodeMessage: %v", err)
+			}
+			if msg.HasUnknownObject != tc.reject {
+				t.Fatalf("class %#x: HasUnknownObject = %v, want %v", tc.classNum, msg.HasUnknownObject, tc.reject)
+			}
+			if !tc.reject {
+				return
+			}
+			if msg.UnknownObject.ClassNum != tc.classNum || msg.UnknownObject.CType != tc.cType {
+				t.Fatalf("rejected object = (class %d, c-type %d), want (%d, %d)",
+					msg.UnknownObject.ClassNum, msg.UnknownObject.CType, tc.classNum, tc.cType)
+			}
+			if !msg.HasSession || !msg.HasSenderTemplate {
+				t.Fatal("decode must keep SESSION and SENDER_TEMPLATE: the PathErr is addressed with them")
+			}
+		})
+	}
+}

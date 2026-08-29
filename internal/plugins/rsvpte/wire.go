@@ -61,6 +61,24 @@ const (
 	ClassDetour      uint8 = 63
 )
 
+// Object classes ze knows and deliberately reads no body for. RFC 2205 Sections
+// 3.1.3 and 3.1.4 make each one optional in the Path or Resv message that
+// carries it, so a conformant peer can send it at any time. Their Class-Num
+// high-order bit is zero, which is why they are named here: without this list
+// classifyUnknownClass would reject them as unknown and refuse a legal message.
+const (
+	ClassIntegrity   uint8 = 4  // RFC 2205 Section A.3: ze implements no RSVP authentication.
+	ClassScope       uint8 = 7  // RFC 2205 Section A.6: WF style only; ze signals FF and SE LSPs.
+	ClassAdspec      uint8 = 13 // RFC 2205 Section A.12: Int-Serv advertisement; label signaling does not read it.
+	ClassPolicyData  uint8 = 14 // RFC 2205 Section A.13: ze runs no policy module.
+	ClassResvConfirm uint8 = 15 // RFC 2205 Section A.14: ze requests no reservation confirmation.
+)
+
+// classNumIgnoreBit is the high-order bit of the Class-Num. RFC 2205 Section
+// 3.10: an object of a class the node does not know is rejected when this bit is
+// zero, and ignored when it is set.
+const classNumIgnoreBit uint8 = 0x80
+
 // C-Types for objects.
 const (
 	CTypeLSPTunnelIPv4 uint8 = 7
@@ -73,7 +91,7 @@ const (
 	// RFC 4090 Section 4.1: FAST_REROUTE C-Type 1.
 	CTypeFastReroute uint8 = 1
 	// RFC 3209 Section 4.7.2: SESSION_ATTRIBUTE C-Type 7 (LSP_TUNNEL, no resource
-	// affinities). RFC 4090 Section 4.4: DETOUR C-Type 7 (IPv4).
+	// affinities). RFC 4090 Section 4.2.1: DETOUR C-Type 7 (IPv4).
 	CTypeSessionAttr uint8 = 7
 	CTypeDetourIPv4  uint8 = 7
 	// RFC 3209 Section 4.7.1: SESSION_ATTRIBUTE C-Type 1 (LSP_TUNNEL_RA), with a
@@ -716,6 +734,48 @@ type ParsedMessage struct {
 	HasStyle          bool
 	HasFastReroute    bool
 	HasSessionAttr    bool
+
+	// UnknownObject is the header of the first object whose class ze does not
+	// implement and whose Class-Num high-order bit is zero. RFC 2205 Section 3.10
+	// makes the whole message unacceptable then, so the caller MUST check
+	// HasUnknownObject before it acts on any other field. The decoder records the
+	// object rather than failing, because the caller needs the SESSION and the
+	// SENDER_TEMPLATE that follow it to address the error message.
+	UnknownObject    objectHeader
+	HasUnknownObject bool
+}
+
+// classifyUnknownClass reports whether an object of this class, for which
+// DecodeMessage has no case, makes the whole message unacceptable.
+//
+// RFC 2205 Section 3.10 chooses by the two high-order bits of the Class-Num.
+// 0bbbbbbb rejects the message with an "Unknown Object Class" error, 10bbbbbb is
+// ignored and no error is sent, and 11bbbbbb is ignored but forwarded unexamined
+// in every message that results from this one. ze forwards no object it did not
+// decode, so the last two forms are both a plain ignore here.
+//
+// RFC 4090 Section 4.2 rests on the first form: an LSR that does not support the
+// DETOUR object (Class-Num 63) MUST reject a Path carrying one and send a PathErr
+// to notify the PLR. ze gains DETOUR support by adding a case to DecodeMessage,
+// which takes the object out of this default arm at the same time.
+func classifyUnknownClass(classNum uint8) bool {
+	if classNum&classNumIgnoreBit != 0 {
+		return false
+	}
+	return !classKnownUnprocessed(classNum)
+}
+
+// classKnownUnprocessed reports whether an object class is one ze knows and has
+// decided not to process. The RFC 2205 Section 3.10 rule covers a class the node
+// does not KNOW, so an object listed here is tolerated rather than rejected:
+// refusing it would deny a Path or a Resv that RFC 2205 Sections 3.1.3 and 3.1.4
+// permit a conformant peer to send.
+func classKnownUnprocessed(classNum uint8) bool {
+	switch classNum {
+	case ClassIntegrity, ClassScope, ClassAdspec, ClassPolicyData, ClassResvConfirm:
+		return true
+	}
+	return false
 }
 
 // DecodeMessage parses a complete RSVP message from wire bytes.
@@ -839,6 +899,15 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 			}
 			msg.SessionAttr = sa
 			msg.HasSessionAttr = true
+		default:
+			// RFC 2205 Section 3.10: the Class-Num of an object ze has no case for
+			// says whether the message survives it. classifyUnknownClass carries the
+			// rule. Only the first such object is kept: it is the one the error
+			// message reports, and the message is already rejected by then.
+			if !msg.HasUnknownObject && classifyUnknownClass(objHdr.ClassNum) {
+				msg.UnknownObject = objHdr
+				msg.HasUnknownObject = true
+			}
 		}
 
 		off += int(objHdr.Length)

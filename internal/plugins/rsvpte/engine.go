@@ -114,6 +114,10 @@ func (e *engine) handlePacket(pkt Packet) {
 		e.log.Warn("rsvp-te: decode failed", "src", pkt.Src, "error", err)
 		return
 	}
+	if msg.HasUnknownObject {
+		e.rejectUnknownObject(pkt.Src, msg)
+		return
+	}
 	switch msg.Header.MsgType {
 	case MsgTypePath:
 		e.handlePath(pkt.Src, msg)
@@ -719,6 +723,34 @@ func (e *engine) handlePathTear(msg *ParsedMessage) {
 	}
 	emitLSPDown(e.log, lsp, e.table.Len())
 	e.log.Info("rsvp-te: PathTear processed", "lsp", key.String())
+}
+
+// rejectUnknownObject answers a message that carried an object class ze does not
+// implement and whose Class-Num high-order bit is zero. RFC 2205 Section 3.10
+// rejects the whole message, and Appendix B returns Error Code 13 with the
+// object's (Class-Num, C-Type) as the Error Value. Nothing in the message is
+// acted on: handlePacket calls this instead of dispatching on the message type.
+//
+// RFC 4090 Section 4.2 is the case that matters today. A Path carrying a DETOUR
+// object (Class-Num 63) reaches an LSR with no one-to-one backup support, and the
+// PathErr is what tells the PLR its detour LSP is not established. Without it the
+// PLR believes it has a working detour that nothing on this node will ever use.
+//
+// Only a Path is answered. ze builds no ResvErr, so a Resv, a Tear, or a PathErr
+// carrying such an object is dropped with a log line and no error message.
+func (e *engine) rejectUnknownObject(src netip.Addr, msg *ParsedMessage) {
+	obj := msg.UnknownObject
+	e.log.Warn("rsvp-te: message rejected, unknown object class",
+		"src", src, "msg-type", msg.Header.MsgType, "class-num", obj.ClassNum, "c-type", obj.CType)
+	if msg.Header.MsgType != MsgTypePath {
+		return
+	}
+	if !msg.HasSession || !msg.HasSenderTemplate {
+		e.log.Warn("rsvp-te: cannot report unknown object class, PATH missing SESSION/SENDER_TEMPLATE", "src", src)
+		return
+	}
+	value := uint16(obj.ClassNum)<<8 | uint16(obj.CType)
+	e.sendPathErr(src, msg, ErrCodeUnknownObjectClass, value)
 }
 
 func (e *engine) sendPathErr(dst netip.Addr, msg *ParsedMessage, code uint8, value uint16) {

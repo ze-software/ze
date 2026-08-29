@@ -179,4 +179,10 @@ const (
 	// ("Tunnel locally repaired"). The protected LSP is NOT torn down.
 	ErrCodeNotify                 uint8  = 25
 	ErrValueTunnelLocallyRepaired uint16 = 3
+	// RFC 2205 Appendix B, Error Code 13: "Unknown object class". Its Error Value
+	// is the 16-bit (Class-Num, C-Type) of the object that was not understood, and
+	// RFC 2205 sends it only when the message is rejected, as the high-order bits
+	// of the Class-Num decide. RFC 4090 Section 4.2 requires this PathErr from an
+	// LSR that does not support the DETOUR object.
+	ErrCodeUnknownObjectClass uint8 = 13
 )

@@ -30,6 +30,35 @@ refreshing.
 
 <!-- source: internal/plugins/rsvpte/engine.go -- sendResv, the refresh path -->
 
+## Decision: an unknown object class is classified, not skipped
+
+The decode switch has a case per object class ze processes. Its default arm
+applies RFC 2205 Section 3.10, which chooses by the two high-order bits of the
+Class-Num: `0bbbbbbb` rejects the whole message and returns Error Code 13
+("Unknown object class") with the object's (Class-Num, C-Type) as the Error
+Value, `10bbbbbb` is ignored, and `11bbbbbb` is ignored but forwarded unexamined.
+ze forwards no object it did not decode, so the last two forms both ignore.
+
+The rule covers a class the node does not KNOW. A short list of classes ze knows
+and reads no body for is exempt from it: INTEGRITY, SCOPE, ADSPEC, POLICY_DATA
+and RESV_CONFIRM. RFC 2205 Sections 3.1.3 and 3.1.4 make each one optional in a
+Path or a Resv, so rejecting them would refuse a message a conformant peer is
+entitled to send. Every one of them has a Class-Num whose high-order bit is zero,
+which is why the exemption has to be written down.
+
+RFC 4090 Section 4.2 is what the reject arm is for today. An LSR that does not
+support the DETOUR object (Class-Num 63) MUST reject a Path carrying one and
+PathErr the PLR; without that message the PLR believes its detour LSP is
+established while this node holds no detour state. Adding a DETOUR case to the
+decode switch removes the object from the default arm at the same time, so
+one-to-one backup support turns the rejection off where it should.
+
+Only a Path is answered. ze builds no ResvErr, so a Resv, a Tear or a PathErr
+carrying such an object is dropped with a log line and no error message.
+
+<!-- source: internal/plugins/rsvpte/wire.go -- classifyUnknownClass, classKnownUnprocessed -->
+<!-- source: internal/plugins/rsvpte/engine.go -- rejectUnknownObject -->
+
 ## Decision: link failure comes from the interface component
 
 Ze has no IGP, so the interface component's netlink down event is the available
