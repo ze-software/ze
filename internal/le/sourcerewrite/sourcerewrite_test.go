@@ -48,8 +48,13 @@ func TestRulesReformatFixture(t *testing.T) {
 	}
 }
 
-// VALIDATES: the directory producer ignores its three non-rule markdown files,
-// replaces invalid UTF-8 like pathlib errors=replace, and preserves dry-run bytes.
+// VALIDATES: the directory producer ignores the non-rule markdown files it is
+// given, replaces invalid UTF-8 like pathlib errors=replace, and preserves
+// dry-run bytes.
+//
+// The generated aggregates are covered separately, by
+// TestReformatSkipsGeneratedAggregates: this fixture holds none, which is how
+// the rewriter came to propose editing TRIGGERS.md and CORE.md unnoticed.
 // PREVENTS: touching indexes or a preview that changes the checkout.
 func TestRulesReformatDirectoryFixture(t *testing.T) {
 	root := t.TempDir()

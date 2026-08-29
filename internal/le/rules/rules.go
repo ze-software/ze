@@ -49,10 +49,18 @@ const (
 // TRIGGERS.md and CORE.md, which are recognized by shape.
 var skip = map[string]bool{"INDEX.md": true, "CONDENSED.md": true}
 
-// isArtifact reports whether a file beside the rules is a generated aggregate
+// IsArtifact reports whether a file beside the rules is a generated aggregate
 // rather than a rule. The Python tools rules_lint, rules_points, and
 // rule_coverage each spelled this predicate separately.
-func isArtifact(name string) bool {
+//
+// The all-caps stem test is what recognizes TRIGGERS.md and CORE.md, which are
+// named in no list: they are generated, and a generator that adds a third
+// aggregate should not have to be remembered here. That shape test is the half
+// a second copy of this predicate loses. internal/le/sourcerewrite kept one --
+// three names and no shape -- so its rewriter walked into both generated files
+// and, on 2026-08-29, they were the only two files it would have rewritten.
+// Exported so that copy could be deleted rather than corrected.
+func IsArtifact(name string) bool {
 	return skip[name] || isUpperStem(strings.TrimSuffix(name, ".md"))
 }
 
@@ -69,7 +77,7 @@ func ruleFiles(rulesDir string) ([]string, error) {
 	var out []string
 	for _, entry := range entries {
 		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".md") || isArtifact(name) {
+		if entry.IsDir() || !strings.HasSuffix(name, ".md") || IsArtifact(name) {
 			continue
 		}
 		out = append(out, filepath.Join(rulesDir, name))

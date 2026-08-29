@@ -12,7 +12,17 @@ import (
 // TestNativeImplementationFixture pins the native tables and render decisions
 // that the retired cross-runtime oracle compared.
 func TestNativeImplementationFixture(t *testing.T) {
-	const want = "e475724aaa523d26f47a93cb66da9b4d09c729d46d2a37604d85c81a46c70b9e"
+	// Updated 2026-08-29: isArtifact became exported IsArtifact so
+	// internal/le/sourcerewrite could delete its own copy of the predicate. The
+	// judgement it makes is unchanged; only the name and its comment moved.
+	//
+	// The value is computed over the COMMITTED file set, not the working tree.
+	// This digest covers every non-test file in the package, so a second
+	// session's uncommitted edits to coverage.go and session_coverage.go were
+	// in the working tree's answer and are not in the tree this commit makes.
+	// Recording the working-tree value would have left HEAD red for a change
+	// HEAD does not contain.
+	const want = "3086e325c552cadad537584746a9473b4036e75a31e1a67c13d22b4073a41455"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

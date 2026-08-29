@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/le/rules"
 )
 
 var (
@@ -22,8 +24,25 @@ var (
 	spaceRun         = regexp.MustCompile(`\s+`)
 )
 
-var skippedRuleNames = map[string]bool{
-	"INDEX.md": true, "CONDENSED.md": true, "rule-format.md": true,
+// skipReformat reports whether a file under ai/rules/ is outside this
+// rewriter's population.
+//
+// Generated aggregates are recognized by rules.IsArtifact, which is the one
+// producer of that judgement: it tests the all-caps stem shape as well as the
+// two named aggregates, so TRIGGERS.md and CORE.md are excluded without being
+// listed and a third generated aggregate needs no edit here.
+//
+// This kept its own three-name list until 2026-08-29. It had no shape test, so
+// `./le source-rewrite rules-reformat` proposed rewriting ai/rules/CORE.md and
+// ai/rules/TRIGGERS.md -- the two files the repository says never to edit by
+// hand, and the only two it would have touched, every real rule already
+// conforming.
+//
+// rule-format.md is this rewriter's own exclusion and stays here: it is a real
+// rule that rules.IsArtifact correctly does not skip, and it DEFINES the
+// canonical format this migration rewrites toward, so migrating it is circular.
+func skipReformat(name string) bool {
+	return rules.IsArtifact(name) || name == "rule-format.md"
 }
 
 // rulesReformatReport counts migrated and skipped rule files.
@@ -58,11 +77,11 @@ func reformatRules(root string, dryRun bool) (rulesReformatReport, error) {
 	report := rulesReformatReport{DryRun: dryRun, Files: []string{}}
 	for _, entry := range entries {
 		name := entry.Name()
-		if entry.IsDir() || filepath.Ext(name) != ".md" || skippedRuleNames[name] {
+		if entry.IsDir() || filepath.Ext(name) != ".md" || skipReformat(name) {
 			continue
 		}
 		path := filepath.Join(dir, name)
-		raw, err := os.ReadFile(path)
+		raw, err := os.ReadFile(path) //nolint:gosec // a rewrite tool reads the path the operator named
 		if err != nil {
 			return report, err
 		}
@@ -200,7 +219,8 @@ func migrateRule(raw, stem string) (string, bool, string) {
 			nonblank = nonblank || strings.TrimSpace(line) != ""
 		}
 		if nonblank {
-			wrapped := []string{"## Directives", ""}
+			wrapped := make([]string, 0, 2+len(kept))
+			wrapped = append(wrapped, "## Directives", "")
 			wrapped = append(wrapped, kept[:leadEnd]...)
 			wrapped = append(wrapped, kept[leadEnd:]...)
 			kept = wrapped
@@ -267,7 +287,7 @@ func deriveWhen(lines []string) string {
 func firstSentence(text string, limit int) string {
 	text = strings.TrimSpace(spaceRun.ReplaceAllString(text, " "))
 	end := -1
-	if loc := regexp.MustCompile(`\.(\s|$)`).FindStringIndex(text); loc != nil && utf8.RuneCountInString(text[:loc[0]]) <= limit {
+	if loc := regexp.MustCompile(`\.(\s|$)`).FindStringIndex(text); len(loc) != 0 && utf8.RuneCountInString(text[:loc[0]]) <= limit {
 		end = loc[0]
 	} else if loc := regexp.MustCompile(`:(\s|$)`).FindStringIndex(text); loc != nil {
 		position := utf8.RuneCountInString(text[:loc[0]])

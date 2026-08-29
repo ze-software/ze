@@ -342,7 +342,7 @@ func RenderAll(tree, rulesDir, pointsDir string, check bool) (RenderReport, erro
 		// the two disagree, and a `points/CORE/` directory would render over
 		// ai/rules/CORE.md, which another generator owns.
 		tb.Reset()
-		if isArtifact(tb.Str(stem).Str(".md").String()) {
+		if IsArtifact(tb.Str(stem).Str(".md").String()) {
 			tb.Reset()
 			report.Failures = append(report.Failures, tb.Str(stem).
 				Str(": a point directory may not be named for a generated artifact; rendering it would overwrite ai/rules/").
