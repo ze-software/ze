@@ -4,6 +4,8 @@
 package ospf
 
 import (
+	"sort"
+
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
@@ -41,16 +43,38 @@ func (e *engine) externalScopeV6() (nssas []nssaAttachmentV6, canType5 bool) {
 		running = append(running, ic)
 	}
 	e.mu.Unlock()
+	return e.externalScopeV6For(cfg, running, nil)
+}
+
+// externalScopeV6For is the OSPFv3 counterpart of externalScopeFor: it enumerates the NSSA
+// areas this router originates NSSA-LSAs into, each with the intra-NSSA forwarding address
+// RFC 3101 Section 2.4 requires on a P-set LSA, and reports whether the router may originate
+// an AS-wide AS-External-LSA. A nil activeIfaces admits every running interface; a non-nil
+// one admits only the named interfaces, so a link with no advertised adjacency contributes
+// neither an attachment nor a forwarding address.
+//
+// The result is deterministic: running is ordered by interface name before the walk, so an
+// NSSA reached over several interfaces always takes the first name's address. A later
+// interface in the same area upgrades an area whose first interface had no usable address.
+func (e *engine) externalScopeV6For(cfg ospfConfig, running []interfaceConfig, activeIfaces map[string]bool) (nssas []nssaAttachmentV6, canType5 bool) {
+	sort.Slice(running, func(i, j int) bool { return running[i].Name < running[j].Name })
 	attachedNormal := false
-	seen := make(map[types.AreaID]bool, len(running))
+	seen := make(map[types.AreaID]int, len(running))
 	for _, ic := range running {
+		if activeIfaces != nil && !activeIfaces[ic.Name] {
+			continue
+		}
 		switch areaTypeFor(cfg, ic.AreaID) {
 		case areaTypeNSSA:
-			if !seen[ic.AreaID] {
-				seen[ic.AreaID] = true
-				fa, ok := e.forwardingAddressForAF(ic.Name)
-				nssas = append(nssas, nssaAttachmentV6{area: ic.AreaID, fa: fa, hasFA: ok})
+			fa, ok := e.forwardingAddressForAF(ic.Name)
+			if idx, dup := seen[ic.AreaID]; dup {
+				if !nssas[idx].hasFA && ok {
+					nssas[idx].fa, nssas[idx].hasFA = fa, true
+				}
+				continue
 			}
+			seen[ic.AreaID] = len(nssas)
+			nssas = append(nssas, nssaAttachmentV6{area: ic.AreaID, fa: fa, hasFA: ok})
 		case areaTypeStub:
 			// stub areas carry no externals
 		default:
@@ -62,6 +86,23 @@ func (e *engine) externalScopeV6() (nssas []nssaAttachmentV6, canType5 bool) {
 
 func v6NSSAKey(router types.RouterID, lsid types.LinkStateID) types.LSAKey {
 	return types.LSAKey{Type: types.LSType(ospfv3types.LSTypeNSSA), LinkStateID: lsid, AdvertisingRouter: router}
+}
+
+// v6NSSADefaultLSID is the Link State ID of this router's OSPFv3 NSSA default LSA. RFC 5340
+// Section 4.4.3.7 strips the Link State ID of every addressing semantic ("The Link State ID
+// of an NSSA-LSA has lost all of its addressing semantics and simply serves to distinguish
+// multiple NSSA-LSAs that are originated by the same router in the same area"), so the value
+// only has to be unique among this router's NSSA-LSAs. Redistribution allocates from
+// redistV6Next, which pre-increments before its first use (v6InjectExternal), so 0 is never
+// handed out there and the default destination can own it.
+var v6NSSADefaultLSID = types.LinkStateID{}
+
+// v6OriginateNSSADefault originates this router's OSPFv3 NSSA default LSA into area.
+// RFC 5340 Appendix A.4.1 gives a zero PrefixLength no Address Prefix words, so the default
+// destination is the prefix length alone and the encoding is the same for an IPv6 and an
+// IPv4 (RFC 5838) address family. It reports whether the area store changed.
+func (e *engine) v6OriginateNSSADefault(area types.AreaID, router types.RouterID, metric uint32, fa [16]byte, hasFA, propagate bool) bool {
+	return e.v6OriginateNSSALSA(area, router, v6NSSADefaultLSID, ospfv3packet.Prefix{}, false, metric, fa, hasFA, 0, propagate)
 }
 
 func (e *engine) v6OriginateNSSALSA(area types.AreaID, router types.RouterID, lsid types.LinkStateID, prefix ospfv3packet.Prefix, type2 bool, metric uint32, fa [16]byte, hasFA bool, tag uint32, propagate bool) bool {

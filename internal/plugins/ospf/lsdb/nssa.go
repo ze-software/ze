@@ -113,11 +113,21 @@ func (d *LSDB) HigherRIDType5LSIDExists(typ types.LSType, lsid types.LinkStateID
 	return false
 }
 
-// PurgeNSSA MaxAge-purges this router's self-originated Type 7 for network in the NSSA
-// area (RFC 2328 Section 14 premature aging), reporting whether a non-purged self LSA
-// existed.
+// PurgeNSSA MaxAge-purges this router's self-originated OSPFv2 Type 7 for network in the
+// NSSA area, reporting whether a non-purged self LSA existed.
 func (d *LSDB) PurgeNSSA(area types.AreaID, router types.RouterID, network [4]byte) bool {
 	key := types.LSAKey{Type: types.LSTypeNSSA, LinkStateID: types.LinkStateID(network), AdvertisingRouter: router}
+	return d.PurgeNSSAKey(area, key)
+}
+
+// PurgeNSSAKey MaxAge-purges this router's self-originated NSSA-LSA identified by key
+// (RFC 2328 Section 14 premature aging), reporting whether a non-purged self LSA existed.
+// It is the address-family-neutral door: key.Type must be an NSSA LS type, the OSPFv2 0x0007
+// or the OSPFv3 0x2007, so no caller can flush an unrelated self LSA through it.
+func (d *LSDB) PurgeNSSAKey(area types.AreaID, key types.LSAKey) bool {
+	if !key.Type.NSSA() {
+		return false
+	}
 	return d.flushSelfLSA(area, key)
 }
 

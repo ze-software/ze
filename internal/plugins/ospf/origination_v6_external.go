@@ -116,6 +116,13 @@ func (e *engine) v6WithdrawExternal(prefix netip.Prefix) (bool, error) {
 	for _, lsid := range translations {
 		keep[ospflsdb.SelfLSARef{Area: types.BackboneArea, Key: v6ExternalKey(router, lsid)}] = struct{}{}
 	}
+	// The per-area NSSA default belongs to applyNSSADefaults, not to redistribution, and its
+	// LSID is not in redistV6. Without this it would be swept by the withdrawal of an
+	// unrelated redistributed prefix, taking the RFC 3101 Section 2.4 border-router default
+	// with it, and only the next reconciliation tick would put it back.
+	for _, attachment := range nssas {
+		keep[ospflsdb.SelfLSARef{Area: attachment.area, Key: v6NSSAKey(router, v6NSSADefaultLSID)}] = struct{}{}
+	}
 	n := db.FlushStaleSelfLSAs(router, v6ExternalSelfTypes, keep)
 	if n > 0 {
 		e.originateSelfLSAs()

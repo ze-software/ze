@@ -59,6 +59,11 @@ func (e *engine) translatorEffective(area types.AreaID, elected bool, now time.T
 // summary originator gives a no-summary NSSA its required Type-3 default.
 // An internal NSSA router originates a P-set Type-7 default only when
 // `default-originate` is enabled and a non-zero forwarding address is usable.
+//
+// The decision is the same in both address families, and only the LSA it produces
+// differs (RFC 5340 Section 4.4.3.7: "The procedure for originating NSSA-LSAs in IPv6
+// is the same as the IPv4 procedure documented in [NSSA]"). So the family is bound once,
+// into originate and purge, and the decision below is written once for both.
 func (e *engine) applyNSSADefaults() {
 	e.nssaMu.Lock()
 	defer e.nssaMu.Unlock()
@@ -91,40 +96,72 @@ func (e *engine) applyNSSADefaults() {
 			active[area] = true
 		}
 	}
-	nssas, _ := e.externalScopeFor(cfg, running, activeIfaces)
 	isABR := ospfspf.IsABR(activeAreas)
-	attached := make(map[types.AreaID]bool, len(nssas))
-	faByArea := make(map[types.AreaID][4]byte, len(nssas))
-	for _, n := range nssas {
-		attached[n.area] = active[n.area]
-		faByArea[n.area] = n.fa
+	self := cfg.RouterID
+	attached := make(map[types.AreaID]bool, len(cfg.Areas))
+	hasFA := make(map[types.AreaID]bool, len(cfg.Areas))
+	// originate installs this router's NSSA default LSA in one area and reports whether the
+	// area store changed; purge MaxAge-flushes it. Binding the pair here is the address-family
+	// dispatch: an OSPFv3 engine that reached the OSPFv2 producer would key its default 0x0007,
+	// which RFC 5340 Appendix A.4.2.1 reads as function code 7 at link-local flooding scope
+	// rather than the NSSA-LSA (0x2007), so the NSSA's internal routers would see no default.
+	var originate func(area types.AreaID, metric uint32, propagate bool) bool
+	var purge func(area types.AreaID) bool
+	if e.dispatch != nil && e.dispatch.codec.IsV6() {
+		nssas, _ := e.externalScopeV6For(cfg, running, activeIfaces)
+		scope := make(map[types.AreaID]nssaAttachmentV6, len(nssas))
+		for _, n := range nssas {
+			attached[n.area] = active[n.area]
+			hasFA[n.area] = n.hasFA
+			scope[n.area] = n
+		}
+		originate = func(area types.AreaID, metric uint32, propagate bool) bool {
+			return e.v6OriginateNSSADefault(area, self, metric, scope[area].fa, scope[area].hasFA, propagate)
+		}
+		purge = func(area types.AreaID) bool {
+			return db.PurgeNSSAKey(area, v6NSSAKey(self, v6NSSADefaultLSID))
+		}
+	} else {
+		nssas, _ := e.externalScopeFor(cfg, running, activeIfaces)
+		faByArea := make(map[types.AreaID][4]byte, len(nssas))
+		for _, n := range nssas {
+			attached[n.area] = active[n.area]
+			hasFA[n.area] = n.fa != ([4]byte{})
+			faByArea[n.area] = n.fa
+		}
+		originate = func(area types.AreaID, metric uint32, propagate bool) bool {
+			_, c := db.OriginateNSSA(area, self, [4]byte{}, [4]byte{}, false, metric, faByArea[area], 0, propagate)
+			return c
+		}
+		purge = func(area types.AreaID) bool {
+			return db.PurgeNSSA(area, self, [4]byte{})
+		}
 	}
-	desired := make(map[types.AreaID]struct{}, len(nssas))
+	desired := make(map[types.AreaID]struct{}, len(cfg.Areas))
 	changed := false
 	for _, a := range cfg.Areas {
 		if a.AreaType != areaTypeNSSA || !attached[a.AreaID] {
 			continue
 		}
-		fa := faByArea[a.AreaID]
+		// RFC requirement: RFC3101-2.4-5 -- an NSSA border router
+		// MUST originate a default into every attached regular NSSA.
+		// RFC requirement: RFC3101-2.4-2 -- a P-set Type-7 LSA
+		// MUST carry a non-zero forwarding address.
 		wantType7 := isABR && !a.NoSummary
-		if !isABR && a.NSSADefaultOriginate && fa != ([4]byte{}) {
+		if !isABR && a.NSSADefaultOriginate && hasFA[a.AreaID] {
 			wantType7 = true
 		}
 		if wantType7 {
 			desired[a.AreaID] = struct{}{}
-			// RFC requirement: RFC3101-2.4-5 -- an NSSA border router
-			// MUST originate a default into every attached regular NSSA.
-			// RFC requirement: RFC3101-2.4-2 -- a P-set Type-7 LSA
-			// MUST carry a non-zero forwarding address.
-			if _, c := db.OriginateNSSA(a.AreaID, cfg.RouterID, [4]byte{}, [4]byte{}, false, a.DefaultCost, fa, 0, !isABR); c {
+			if originate(a.AreaID, a.DefaultCost, !isABR) {
 				changed = true
 			}
-		} else if db.PurgeNSSA(a.AreaID, cfg.RouterID, [4]byte{}) {
+		} else if purge(a.AreaID) {
 			changed = true
 		}
 	}
 	for area := range e.nssaDefaultAreas {
-		if _, keep := desired[area]; !keep && db.PurgeNSSA(area, cfg.RouterID, [4]byte{}) {
+		if _, keep := desired[area]; !keep && purge(area) {
 			changed = true
 		}
 	}
