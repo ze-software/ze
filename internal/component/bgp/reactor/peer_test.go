@@ -286,8 +286,8 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 		LocalPreference: 100,
 	}
 
-	ub := message.NewUpdateBuilder(65000, true, true, false)                    // iBGP, ASN4, no ADD-PATH
-	update := buildStaticRouteUpdateNew(ub, &route, nextHop, netip.Addr{}, nil) // no link-local, no ExtNH
+	ub := message.NewUpdateBuilder(65000, true, true, false)                          // iBGP, ASN4, no ADD-PATH
+	update := buildStaticRouteUpdateNew(ub, &route, nextHop, netip.Addr{}, nil, true) // no link-local, no ExtNH, iBGP keeps the Prefix-SID
 
 	// IPv6 routes must NOT have inline NLRI
 	require.Empty(t, update.NLRI, "IPv6 route must not have inline NLRI")
@@ -344,8 +344,8 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 		Communities: []uint32{0x78140000, 0x78147814}, // 30740:0, 30740:30740
 	}
 
-	ub := message.NewUpdateBuilder(65000, false, true, false)                   // eBGP, ASN4, no ADD-PATH
-	update := buildStaticRouteUpdateNew(ub, &route, nextHop, netip.Addr{}, nil) // no link-local, no ExtNH
+	ub := message.NewUpdateBuilder(65000, false, true, false)                         // eBGP, ASN4, no ADD-PATH
+	update := buildStaticRouteUpdateNew(ub, &route, nextHop, netip.Addr{}, nil, true) // no link-local, no ExtNH; this route carries no Prefix-SID
 	require.NotEmpty(t, update.PathAttributes, "must have path attributes")
 
 	// Look for COMMUNITIES (code 8) in attributes
@@ -971,7 +971,7 @@ func TestToStaticRouteUnicastParams_CopiesReflectorAttrs(t *testing.T) {
 		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
 	}
 
-	params := toStaticRouteUnicastParams(&route, nextHop, netip.Addr{}, nil) // no link-local, nil sendCtx - no ExtNH needed
+	params := toStaticRouteUnicastParams(&route, nextHop, netip.Addr{}, nil, true) // no link-local, nil sendCtx - no ExtNH needed; this route carries no Prefix-SID
 
 	require.Equal(t, route.OriginatorID, params.OriginatorID,
 		"OriginatorID not copied: got %x, want %x", params.OriginatorID, route.OriginatorID)

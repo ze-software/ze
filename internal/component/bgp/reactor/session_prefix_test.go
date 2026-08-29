@@ -302,7 +302,7 @@ func TestCountPrefixEntries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := countPrefixEntries(tt.data, tt.addPath)
+			got := countPrefixEntries(familyKey(family.IPv4Unicast), tt.data, tt.addPath)
 			assert.Equal(t, tt.want, got)
 		})
 	}
