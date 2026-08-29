@@ -1,0 +1,24 @@
+# Test: a command under a root-handled verb states its generated usage line
+# VALIDATES: AC-1 -- every command with a wire method states a usage line, the
+#            21 the tree declares under `plugin` and `resolve` included
+# PREVENTS: the root handler swallowing the help word, which ran a live DNS
+#           query for the hostname "help" and answered "unknown plugin
+#           subcommand: session"
+#
+# A root command wins its own name, so `ze resolve help` stays with the handler
+# that lists the services and the flags the model never carried. The generated
+# page answers only a path the tree declares a ze:command at.
+
+cmd=foreground:seq=1:exec=ze resolve dns a help
+expect=exit:code=0
+expect=stderr:contains=ze resolve dns a <hostname>
+
+cmd=foreground:seq=2:exec=ze plugin session ping help
+expect=exit:code=0
+expect=stderr:contains=ze plugin session ping
+reject=stderr:pattern=unknown plugin subcommand
+
+cmd=foreground:seq=3:exec=ze resolve help
+expect=exit:code=0
+expect=stderr:contains=query resolution services
+expect=stderr:contains=ze resolve <service> <operation> [args]

@@ -347,6 +347,12 @@ func zeDispatch(args []string) int {
 		return 1
 	}
 
+	if helpPath, node := declaredCommandHelp(args); node != nil {
+		page := commandHelpPage(helpPath, node)
+		page.WriteErr()
+		return 0
+	}
+
 	rctx := newZeRuntimeContext()
 	if code, handled := dispatchRegisteredRoot(arg, rctx, args[1:]); handled {
 		return code
@@ -584,6 +590,43 @@ func extractHelpPath(args []string) []string {
 		return args[:len(args)-1]
 	}
 	return nil
+}
+
+// declaredCommandHelp answers the command path a help request names, and the
+// tree node that declares it, when that node sits BELOW a top-level word the
+// YANG dispatch above never reaches. It answers a nil node otherwise.
+//
+// yangVerbs subtracts every name a root command claims, so a root-handled verb
+// keeps its own handler and its subcommands never reach the help branch above:
+// `ze resolve dns aaaa help` ran a DNS query for the hostname "help" and
+// `ze plugin session ping help` answered "unknown plugin subcommand". The
+// subtraction is what makes a root command win its own name and it stays. This
+// gives the help word a second route, narrowed by three conditions so the
+// route reaches only what the handler has no answer for:
+//
+//   - a path of two words or more, so the verb itself, and `ze resolve help`
+//     with it, stays with the root handler that owns the name;
+//   - a node the command tree holds at that exact path;
+//   - a node carrying a ze:command, because a grouping node declares no
+//     command, has no generated invocation form, and is where a handler's own
+//     page states the flags and operations the model never carried.
+//
+// The population is DERIVED from the command tree and the root registry, never
+// listed: a plugin that registers a root handler over a YANG subtree is
+// covered the day it lands (ai/rules/plugins.md).
+func declaredCommandHelp(args []string) (path []string, node *command.Node) {
+	helpPath := extractHelpPath(args)
+	if len(helpPath) < 2 {
+		return nil, nil
+	}
+	found := command.FindNode(cli.YANGCommandTree(), helpPath)
+	if found == nil {
+		return nil, nil
+	}
+	if found.WireMethod == "" {
+		return nil, nil
+	}
+	return helpPath, found
 }
 
 func dispatchHelp(args []string) int {
