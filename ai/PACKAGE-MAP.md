@@ -543,20 +543,20 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/changed` | answers "what did I edit" for two callers |  |
 | `internal/le/cidispatch` | enforces the invariant the verb-first CLI migration broke without anything noticing: EVERY command string a test, script, or Go call site sends to the daemon must still resolve to a registered command |  |
 | `internal/le/cligrammar` | walks the compile-time YANG command tree (every built-in command, including plugin -cmd modules) and checks each command against the reverse-engineered grammar rules R1-R8... |  |
-| `internal/le/commandlist` | is the `ze-command-list` gate: every command ze registers, classified by verb, read from the live handlers and the YANG command tree rather than parsed out of source |  |
-| `internal/le/commandownership` | enforces the command-surface-ownership invariants: 1 |  |
+| `internal/le/command/list` | is the `ze-command-list` gate: every command ze registers, classified by verb, read from the live handlers and the YANG command tree rather than parsed out of source |  |
+| `internal/le/command/ownership` | enforces the command-surface-ownership invariants: 1 |  |
 | `internal/le/commit` | prepare explicit commits without touching the shared staging index |  |
-| `internal/le/configclaims` | fails when a config subtree an operator can write is delivered to nobody, and when a declared config root names no schema node |  |
-| `internal/le/configcoercion` | enforces an invariant discovered while debugging why ddos-detect never fired (session 6503): the plugin config framework delivers every YANG leaf value to a plugin's ParseConfig as a JSON STRING... |  |
+| `internal/le/config/claims` | fails when a config subtree an operator can write is delivered to nobody, and when a declared config root names no schema node |  |
+| `internal/le/config/coercion` | enforces an invariant discovered while debugging why ddos-detect never fired (session 6503): the plugin config framework delivers every YANG leaf value to a plugin's ParseConfig as a JSON STRING... |  |
 | `internal/le/consistency` | is the `ze-consistency-check` gate: it reads the tree and reports where the code and the documentation disagree with each other |  |
 | `internal/le/dashstdio` | enforces the invariant that a command must NOT read or write a USER-SUPPLIED path with a raw os call: it must route through internal/core/cliio so the "-" token resolves to stdin/stdout |  |
 | `internal/le/deployment` | proves ze against software somebody else wrote |  |
 | `internal/le/digest` | validates the `file:line` anchors in ai/digests/*.md against the tree those digests describe |  |
 | `internal/le/discoveryindex` | generates one ai/PACKAGE-MAP.md line for each Go package |  |
-| `internal/le/doccheck` | owns the three documentation actions that the verifier runs directly |  |
+| `internal/le/doc/check` | owns the three documentation actions that the verifier runs directly |  |
+| `internal/le/doc/wiring` | calls these owners directly |  |
 | `internal/le/docstocode` | generates ai/DOCS-TO-CODE.md, the reverse index from the `// Design:` headers that live in Go files |  |
 | `internal/le/docvalid` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |  |
-| `internal/le/docwiring` | calls these owners directly |  |
 | `internal/le/evidence` | owns the release-candidate container proof |  |
 | `internal/le/featuretags` | regenerates the build-tag lists that DERIVE from feature-gates.txt but live inside files a program cannot read at run time: |  |
 | `internal/le/fspersistence` | enforces the invariant that daemon runtime STATE is persisted through ze's managed zefs store (internal/core/statestore -> database.zefs), NOT as loose files written with raw os calls |  |
@@ -589,24 +589,24 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/netlab` | checks the repository's netlab daemon integration |  |
 | `internal/le/perfbench` | reports BGP dataplane changes since the last performance run |  |
 | `internal/le/platformvet` | checks the host and interface package trees against the non-Linux implementations that the normal host build does not compile |  |
-| `internal/le/pluginboundary` | enforces an invariant discovered during the AS112/cos advisory-doctor-check review: a plugin calling another in-process package's plain exported function directly -- bypassing... |  |
-| `internal/le/pluginimports` | generates internal/component/plugin/all, the product's composition root, from what the tree REGISTERS |  |
+| `internal/le/plugin/boundary` | enforces an invariant discovered during the AS112/cos advisory-doctor-check review: a plugin calling another in-process package's plain exported function directly -- bypassing... |  |
+| `internal/le/plugin/imports` | generates internal/component/plugin/all, the product's composition root, from what the tree REGISTERS |  |
 | `internal/le/portdefaults` | pins the hand-maintained Go listener-default table (internal/component/config/listener_defaults.go, RegisterBuiltinListenerDefaults) |  |
 | `internal/le/protocolskeleton` | classifies each protocol's subpackages against the standard skeleton: a canonical module, per-peer state named by the protocol's own RFC term, a wire-version directory, a domain module, or a... |  |
 | `internal/le/qemu` | proofs that boot a real appliance image in a virtual machine and ask it what it did |  |
 | `internal/le/repository` | is the post-verify validation gate: five checks, each derived from a documented defect pattern in plan/learned/RECURRING-PATTERNS.md |  |
-| `internal/le/repositorytrackedbuild` | COMPILES the repository as git holds it, which is the one population no other check in this repository compiles |  |
+| `internal/le/repository/trackedbuild` | COMPILES the repository as git holds it, which is the one population no other check in this repository compiles |  |
 | `internal/le/rfc` | binds every MUST-level requirement of an enrolled RFC to the tests that enforce it, and carries the ratchets in ai/rules/rfc-compliance.md |  |
 | `internal/le/rules` | owns the checks and reports for `ai/rules/` |  |
 | `internal/le/scratch` | keeps tmp and cache outside a checkout without overwriting paths that already hold user work |  |
 | `internal/le/session` | manage this development session's isolated state |  |
 | `internal/le/setup` | install and verify every tool a Ze dev or test workflow needs |  |
 | `internal/le/site` | build, check, and render the public website and presentation artifacts without an interpreter |  |
-| `internal/le/sitefacts` | derives the numbers the website publishes ABOUT this repository, and writes them into one committed file that the site build reads |  |
+| `internal/le/site/facts` | derives the numbers the website publishes ABOUT this repository, and writes them into one committed file that the site build reads |  |
 | `internal/le/sourcerewrite` | keeps the repository's four source-maintenance workflows together while exposing each workflow as its own native action |  |
-| `internal/le/speccitation` | checks references from active specs to sibling specs |  |
-| `internal/le/specsession` | owns spec claims, state paths, review artifacts, and the transcript facts those contracts use |  |
-| `internal/le/specstatus` | reads the metadata table at the top of every plan/spec-*.md and answers the inventory `./le spec status` prints: one record per spec, |  |
+| `internal/le/spec/citation` | checks references from active specs to sibling specs |  |
+| `internal/le/spec/session` | owns spec claims, state paths, review artifacts, and the transcript facts those contracts use |  |
+| `internal/le/spec/status` | reads the metadata table at the top of every plan/spec-*.md and answers the inventory `./le spec status` prints: one record per spec, |  |
 | `internal/le/staticcheckfeaturematrix` | type-checks the working tree once per feature-tag combination Ze can be built in |  |
 | `internal/le/ste` | reviews repository prose against ASD-STE100 Simplified Technical English, Issue 9 |  |
 | `internal/le/stressrepro` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |  |
@@ -623,21 +623,21 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/tracked` | checks whether `le` still works when built from the commit instead of the working tree |  |
 | `internal/le/vendorweb` | is the two halves of one contract |  |
 | `internal/le/verify` | materializes a commit in a fresh detached worktree and runs the native pre-commit stages there |  |
-| `internal/le/verifydeps` | runs the five Go-tool stages whose Make recipes used shell composition |  |
-| `internal/le/verifydispatch` | connects verifyworktree to le's local-data registry |  |
-| `internal/le/verifyengine` | orchestrates the native actions that make up full verification |  |
-| `internal/le/verifylint` | owns the native full-tree lint stage |  |
-| `internal/le/verifylock` | run a verify-class command through the shared heavy-job admission |  |
-| `internal/le/verifystatus` | read and write the verification certificate for the current checkout |  |
-| `internal/le/verifysummary` | append one stage failure block to the verification failure index |  |
+| `internal/le/verify/deps` | runs the five Go-tool stages whose Make recipes used shell composition |  |
+| `internal/le/verify/dispatch` | connects verifyworktree to le's local-data registry |  |
+| `internal/le/verify/engine` | orchestrates the native actions that make up full verification |  |
+| `internal/le/verify/lint` | owns the native full-tree lint stage |  |
+| `internal/le/verify/lock` | run a verify-class command through the shared heavy-job admission |  |
+| `internal/le/verify/status` | read and write the verification certificate for the current checkout |  |
+| `internal/le/verify/summary` | append one stage failure block to the verification failure index |  |
 | `internal/le/webassets` | derives, for each page ze serves, the set of vendored web assets that page must load, so a head block renders the imports that page needs instead of the union every page needs |  |
 | `internal/le/weekly` | turns an approved weekly post into the messages Discord takes |  |
 | `internal/le/wikicatalog` | generates the wiki's command catalog directly from the product registries |  |
 | `internal/le/workingtree` | reports the uncommitted paths of a checkout, grouped by the area a reader thinks in |  |
 | `internal/le/worktree` | updates a git worktree from main |  |
-| `internal/le/yangglue` | generates the embed.go and register.go beside every .yang file in the tree |  |
-| `internal/le/yangleafmentions` | reports YANG config leaves that the owning plugin package never names |  |
-| `internal/le/yangmigration` | repository-wide YANG ownership and path migrations |  |
+| `internal/le/yang/glue` | generates the embed.go and register.go beside every .yang file in the tree |  |
+| `internal/le/yang/leafmentions` | reports YANG config leaves that the owning plugin package never names |  |
+| `internal/le/yang/migration` | repository-wide YANG ownership and path migrations |  |
 
 ## `internal/mrt/`
 
