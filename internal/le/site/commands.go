@@ -93,16 +93,12 @@ type guideOperator struct {
 	availability             []string
 }
 
-// renderOperatorGuide renders the shared table of pipe operators.
+// collectGuideOperators gathers each operator once, with the union of the
+// availabilities the commands state for it.
 //
-// The operators are collected across every command, because an operator's class
-// and description are properties of the operator rather than of the command that
-// accepts it. The availability column is the union, so `save` reads "Always,
-// Local process only" once instead of contradicting itself between rows.
-//
-// The catalog arrives sorted by command path, so the first command that names an
-// operator decides its position, and the order is the same on every build.
-func renderOperatorGuide(commands []catalogCommand) string {
+// The catalog arrives sorted by command path, so the first command that names
+// an operator decides its position, and the order is the same on every build.
+func collectGuideOperators(commands []catalogCommand) []*guideOperator {
 	rows := make(map[string]*guideOperator, 24)
 	var order []*guideOperator
 	for index := range commands {
@@ -119,6 +115,17 @@ func renderOperatorGuide(commands []catalogCommand) string {
 			}
 		}
 	}
+	return order
+}
+
+// renderOperatorGuide renders the shared table of pipe operators.
+//
+// The operators are collected across every command, because an operator's class
+// and description are properties of the operator rather than of the command that
+// accepts it. The availability column is the union, so `save` reads "Always,
+// Local process only" once instead of contradicting itself between rows.
+func renderOperatorGuide(commands []catalogCommand) string {
+	order := collectGuideOperators(commands)
 	if len(order) == 0 {
 		return ""
 	}
@@ -202,9 +209,66 @@ func writeCommandRow(out *strings.Builder, command *catalogCommand) {
 	if command.Usage != "" {
 		out.WriteString("<br><code>" + html.EscapeString(command.Usage) + "</code>")
 	}
+	writeCommandFacts(out, command)
 	out.WriteString("</td><td>")
 	writeCommandPipeCell(out, command)
 	out.WriteString("</td></tr>\n")
+}
+
+// writeCommandFacts writes what the command model states beside the invocation
+// form: the arguments an operator supplies, the backends that implement the
+// command, its MCP task level, and the subcommands it leads to.
+//
+// A fact the catalog does not state is left out rather than written as absent.
+// This cell is repeated for each of the catalog's commands, and "not declared"
+// four times over says nothing a reader scanning the table needs; the detail
+// page states the absences, one command at a time.
+func writeCommandFacts(out *strings.Builder, command *catalogCommand) {
+	if len(command.Args) == 0 && len(command.Backend) == 0 &&
+		command.TaskSupport == "" && len(command.Subcommands) == 0 {
+		return
+	}
+	out.WriteString(`<div class="cli-command-facts">`)
+	if len(command.Args) != 0 {
+		out.WriteString("<p><span>Arguments</span>" +
+			strings.Join(argumentLines(command), "<br>") + "</p>")
+	}
+	if len(command.Backend) != 0 {
+		out.WriteString("<p><span>Backends</span>" + codeSpanList(command.Backend) + "</p>")
+	}
+	if command.TaskSupport != "" {
+		out.WriteString("<p><span>Task support</span>" +
+			html.EscapeString(commandTaskSupportLabel(command.TaskSupport)) + "</p>")
+	}
+	if len(command.Subcommands) != 0 {
+		out.WriteString("<p><span>Subcommands</span>" + codeSpanList(command.Subcommands) + "</p>")
+	}
+	out.WriteString("</div>")
+}
+
+// argumentLines writes one line for each argument: its name, its type, whether
+// the command needs it, and the closed set its type states.
+func argumentLines(command *catalogCommand) []string {
+	lines := make([]string, 0, len(command.Args))
+	for _, argument := range command.Args {
+		values := argumentValuesAny
+		if len(argument.Values) != 0 {
+			values = "one of " + codeSpanList(argument.Values)
+		}
+		lines = append(lines, "<code>"+html.EscapeString(argument.Name)+"</code> "+
+			html.EscapeString(argument.Type)+", required: "+argumentRequiredLabel(argument)+
+			", "+values)
+	}
+	return lines
+}
+
+// codeSpanList writes several values as the code spans a reader scans.
+func codeSpanList(values []string) string {
+	spans := make([]string, 0, len(values))
+	for _, value := range values {
+		spans = append(spans, "<code>"+html.EscapeString(value)+"</code>")
+	}
+	return strings.Join(spans, " ")
 }
 
 // writeCommandPipeCell writes the Pipes cell: a summary a reader can scan
@@ -302,6 +366,7 @@ func cliReferenceMirror(commands []catalogCommand, groups []commandGroup) string
 		"the binary itself uses, so this list cannot drift from what the binary actually supports. " +
 		"Full machine-readable list (path, mode, description, pipe operators, command pipes, and " +
 		"aliases for every command): [" + catalogFile + "](" + siteBase + catalogFile + ").\n\n")
+	out.WriteString(operatorGuideMirror(commands))
 	for index := range groups {
 		group := &groups[index]
 		out.WriteString("## " + group.Label + " (" + strconv.Itoa(len(group.Commands)) + ")\n\n")
@@ -317,18 +382,70 @@ func cliReferenceMirror(commands []catalogCommand, groups []commandGroup) string
 	return strings.TrimRight(out.String(), "\n") + "\n"
 }
 
-// commandMirrorDescription writes one command's description, and its usage line
-// after it, as one table cell.
+// operatorGuideMirror writes the operator table as the mirror's own section.
+//
+// The mirror carries it because the page does: an operator's class and its
+// description are stated once, for the whole catalog, and a mirror that dropped
+// them would leave a reader of the Markdown with operator names and no way to
+// learn what any of them does.
+func operatorGuideMirror(commands []catalogCommand) string {
+	order := collectGuideOperators(commands)
+	if len(order) == 0 {
+		return ""
+	}
+	var out strings.Builder
+	out.WriteString("## Pipe operators (" + strconv.Itoa(len(order)) + ")\n\n")
+	out.WriteString("Each command row names the operators it accepts after `|`.\n\n")
+	out.WriteString("| Operator | Class | Available | Description |\n| --- | --- | --- | --- |\n")
+	for _, row := range order {
+		out.WriteString("| `" + markdownCell(row.name) + "` | " +
+			markdownCell(operatorClassLabel(row.class)) + " | " +
+			markdownCell(availabilityList(row.availability)) + " | " +
+			markdownCell(row.description) + " |\n")
+	}
+	out.WriteString("\n")
+	return out.String()
+}
+
+// commandMirrorDescription writes one command's description, its usage line and
+// what the command model states beside it, as one table cell.
 func commandMirrorDescription(command *catalogCommand) string {
-	description := markdownCell(command.Description)
-	if command.Usage == "" {
-		return description
+	parts := make([]string, 0, 6)
+	if description := markdownCell(command.Description); description != "" {
+		parts = append(parts, description)
 	}
-	usage := "`" + markdownCell(command.Usage) + "`"
-	if description == "" {
-		return usage
+	if command.Usage != "" {
+		parts = append(parts, "`"+markdownCell(command.Usage)+"`")
 	}
-	return description + "<br>" + usage
+	if len(command.Args) != 0 {
+		parts = append(parts, "Arguments: "+strings.Join(argumentMirrorLines(command), "<br>"))
+	}
+	if len(command.Backend) != 0 {
+		parts = append(parts, "Backends: "+markdownCodeList(command.Backend))
+	}
+	if command.TaskSupport != "" {
+		parts = append(parts, "Task support: "+markdownCell(commandTaskSupportLabel(command.TaskSupport)))
+	}
+	if len(command.Subcommands) != 0 {
+		parts = append(parts, "Subcommands: "+markdownCodeList(command.Subcommands))
+	}
+	return strings.Join(parts, "<br>")
+}
+
+// argumentMirrorLines writes each argument as the line the mirrors carry, which
+// states the same four facts as the page: name, type, whether the command needs
+// the argument, and the closed set its type states.
+func argumentMirrorLines(command *catalogCommand) []string {
+	lines := make([]string, 0, len(command.Args))
+	for _, argument := range command.Args {
+		values := argumentValuesAny
+		if len(argument.Values) != 0 {
+			values = "one of " + markdownCodeList(argument.Values)
+		}
+		lines = append(lines, "`"+markdownCell(argument.Name)+"` "+markdownCell(argument.Type)+
+			", required: "+argumentRequiredLabel(argument)+", "+values)
+	}
+	return lines
 }
 
 // commandMirrorPipes writes one command's pipe contract as one table cell.
@@ -340,19 +457,13 @@ func commandMirrorPipes(command *catalogCommand) string {
 	if len(command.AddressFields) != 0 {
 		parts = append(parts, "Address fields: "+markdownCodeList(command.AddressFields))
 	}
+	// The two lists are the detail page's mirror renderers, so a command pipe
+	// and an alias read the same on either surface, description included.
 	if len(command.Pipes) != 0 {
-		names := make([]string, 0, len(command.Pipes))
-		for _, pipe := range command.Pipes {
-			names = append(names, pipeDisplayName(pipe))
-		}
-		parts = append(parts, "Command: "+markdownCodeList(names))
+		parts = append(parts, "Command: "+commandPipeMirrorList(command))
 	}
 	if len(command.Aliases) != 0 {
-		expansions := make([]string, 0, len(command.Aliases))
-		for _, alias := range command.Aliases {
-			expansions = append(expansions, alias.Name+" -> "+alias.Expansion)
-		}
-		parts = append(parts, "Aliases: "+markdownCodeList(expansions))
+		parts = append(parts, "Aliases: "+aliasMirrorList(command))
 	}
 	grouped := operatorsByAvailability(command)
 	for _, availability := range availabilityOrder {

@@ -5600,6 +5600,31 @@ footer {
     font-size: var(--type-small);
 }
 
+/* What the command model states beside the invocation form: the arguments, the
+   backends, the MCP task level and the subcommands. */
+.cli-command-facts {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+}
+
+.cli-command-facts p {
+    margin: 0;
+    color: var(--muted);
+    font-size: var(--type-small);
+    line-height: 1.45;
+}
+
+.cli-command-facts p span {
+    display: block;
+    color: var(--text);
+    font-weight: 800;
+}
+
+.cli-command-facts code {
+    white-space: normal;
+}
+
 @media (max-width: 640px) {
     .cli-pipe-guide-head {
         grid-template-columns: 1fr;

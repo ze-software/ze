@@ -691,6 +691,32 @@ and its carry-over are untouched.
      `derived.go` and `llmsdata.go` publish llms.txt, and it is the only writer
      of that path. The command surfaces claim 397 of the 712 published routes,
      which leaves 167 for phases 5 to 10.
+     -> Correction 2026-08-30 (owner): the pages were too thin, because the
+     site's model of the catalog was narrower than the catalog. `catalogCommand`
+     named neither `backend`, `task-support`, `subcommands` nor an argument's
+     enumerated `values`, so `json.Unmarshal` dropped all four in silence, and
+     no check compared the model against the producer. The model now carries
+     every field `commandEntry` publishes (`cmd/ze/help_command.go`), and both
+     page families state the four, in the page and in the mirror. The mirrors
+     also gained what their pages already showed and they did not: the operator
+     table, each command pipe's description and each alias's description.
+     -> Decision 2026-08-30: `grammar` is modelled and NOT rendered. It is the
+     usage line as a token list, for a machine reader that must not parse
+     brackets out of a string; `command.UsageLine` writes the line from those
+     same tokens, so a person meets every token's text, values and kind in the
+     `usage` the surfaces already publish. A second rendering would state one
+     fact twice. `catalogfields_test.go` records that disposition beside the
+     evidence for it.
+     -> Decision 2026-08-30: the rendered-parity target no longer binds these
+     two families, per the owner. `TestACommandRowReadsAsThePublishedRow` now
+     compares the description cell as a PREFIX and
+     `TestACommandEquivalentPageReadsAsThePublishedPage` as a word subsequence,
+     so a published fact dropped from either still fails while an addition
+     passes.
+     -> Constraint: the check that keeps this shut is structural. It reads the
+     published field list out of the PRODUCER'S SOURCE with go/ast, because
+     `cmd/ze` is package main behind a build tag and cannot be imported, and it
+     fails the day a field is added rather than when somebody notices the page.
 5. **Phase: Blog and changes** -- index, detail pages, both feeds, `changes.json`
    - Files: `blog.go`, `changes.go`
      -> Landed 2026-08-29. 46 routes claimed, 8 under `/blog/` and 38 under

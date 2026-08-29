@@ -41,18 +41,16 @@ func TestACommandEquivalentPageReadsAsThePublishedPage(t *testing.T) {
 	}
 
 	// One row is removed from the published page before comparing, and it is
-	// the phase's one deliberate deviation on this surface. The published
-	// Syntax row carried the retired `syntax` value, scraped out of the
-	// description prose and cut at the first ". ". Its replacement is a Usage
-	// row taken from the command model, which `show bgp` does not have in the
-	// published catalog, so the row is absent rather than wrong.
+	// the one deliberate deviation on this surface. The published Syntax row
+	// carried the retired `syntax` value, scraped out of the description prose
+	// and cut at the first ". ". Its replacement is a Usage row taken from the
+	// command model, which `show bgp` does not have in the published catalog,
+	// so the row is absent rather than wrong.
 	got := visibleText(mainContent(t, page))
 	published := publishedSyntaxRow.ReplaceAllString(
 		readFixture(t, "published-equivalent-show-bgp.html"), "")
 	want := visibleText(mainContent(t, published))
-	if got != want {
-		t.Errorf("the detail page reads as\n  %q\nthe published page reads as\n  %q", got, want)
-	}
+	assertPublishedReadingSurvives(t, "the detail page", got, want)
 
 	// The mirror carries the same deviation, plus one label correction: the
 	// published page and its own mirror spelled one field "Pipes, on its rows"
@@ -62,8 +60,53 @@ func TestACommandEquivalentPageReadsAsThePublishedPage(t *testing.T) {
 	wantMirror := strings.ReplaceAll(readFixture(t, "published-equivalent-show-bgp.md"),
 		"- Pipes, on rows:", "- Pipes, on its rows:")
 	wantMirror = strings.ReplaceAll(wantMirror, "- Syntax: `show bgp`\n", "")
-	if mirror != wantMirror {
-		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q", mirror, wantMirror)
+	assertPublishedMirrorSurvives(t, mirror, wantMirror)
+}
+
+// assertPublishedReadingSurvives reports the first word of the published page a
+// rendered page drops.
+//
+// The comparison is a subsequence rather than an equality, because the owner
+// released the command surfaces from rendered parity on 2026-08-29: they now
+// state four fields the published page discarded. Every word the published page
+// read must still be read, in the published order, so dropping one still fails;
+// a word between two of them is the enrichment and passes.
+func assertPublishedReadingSurvives(t *testing.T, subject, got, want string) {
+	t.Helper()
+	rendered := strings.Fields(got)
+	published := strings.Fields(want)
+	position := 0
+	for index, word := range published {
+		for position < len(rendered) && rendered[position] != word {
+			position++
+		}
+		if position == len(rendered) {
+			t.Errorf("%s drops %q, which the published page reads after %q",
+				subject, word, strings.Join(published[max(0, index-6):index], " "))
+			return
+		}
+		position++
+	}
+}
+
+// assertPublishedMirrorSurvives reports the first line of the published mirror
+// a rendered mirror drops. A mirror is line-structured, so the unit of the
+// comparison is the line rather than the word.
+func assertPublishedMirrorSurvives(t *testing.T, got, want string) {
+	t.Helper()
+	rendered := strings.Split(got, "\n")
+	published := strings.Split(want, "\n")
+	position := 0
+	for index, line := range published {
+		for position < len(rendered) && rendered[position] != line {
+			position++
+		}
+		if position == len(rendered) {
+			t.Errorf("the mirror drops %q, which the published mirror writes after %q",
+				line, strings.Join(published[max(0, index-3):index], " / "))
+			return
+		}
+		position++
 	}
 }
 
@@ -120,6 +163,46 @@ func TestTheEquivalentIndexRowNamesTheCommandAndItsDetailPage(t *testing.T) {
 	}
 	if !strings.Contains(mirror, "[details](show-bgp/)") {
 		t.Error("the index mirror does not link the detail page")
+	}
+}
+
+// VALIDATES: a detail page says what a command that declares no backend, no
+// task level and no subcommand takes instead.
+//
+// Each of those three absences is an answer rather than a hole: no backend list
+// means every backend implements the command, and no task level means the MCP
+// default. A page that left the row out would send a reader to the YANG to
+// learn what the blank meant. A level nobody named is published as it stands,
+// because inventing a meaning for it would be worse than showing the word.
+func TestADetailPageStatesWhatAnUndeclaredCommandTakes(t *testing.T) {
+	paths := commandSurfacePaths(t)
+	writeCatalog(t, paths.Output, `[{"path":"show test","mode":"read-only",
+		"description":"Show the rows of the test table.","task-support":"sometimes"},
+		{"path":"show plain","mode":"read-only","description":"Show the plain rows."}]`)
+	writeEquivalentMapping(t, paths.Output, enrichedCommandMapping)
+
+	if _, err := renderCommandEquivalents(paths); err != nil {
+		t.Fatal(err)
+	}
+	plain := equivalentsDirectory + "/show-plain/"
+	page := visibleText(mainContent(t, readArtifact(t, paths.Output, plain+pageIndexFile)))
+	mirror := readArtifact(t, paths.Output, plain+pageMirrorFile)
+	for _, absence := range []string{
+		"any backend",
+		"optional: the MCP call is synchronous, which is the default",
+		"none: this command takes no subcommand",
+		"No command-specific arguments listed.",
+	} {
+		if !strings.Contains(page, absence) {
+			t.Errorf("the detail page does not say %q", absence)
+		}
+		if !strings.Contains(mirror, absence) {
+			t.Errorf("the detail mirror does not say %q", absence)
+		}
+	}
+	unknown := readArtifact(t, paths.Output, equivalentsDirectory+"/show-test/"+pageMirrorFile)
+	if !strings.Contains(unknown, "- Task support: sometimes\n") {
+		t.Errorf("a task level this site has no wording for is not published as it stands:\n%s", unknown)
 	}
 }
 

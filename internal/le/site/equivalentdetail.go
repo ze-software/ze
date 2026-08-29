@@ -62,6 +62,12 @@ func equivalentZeCard(command *catalogCommand) string {
 	}
 	writeDetailRow(&card, "Mode", html.EscapeString(orNotListed(commandModeLabel(command.Mode))))
 	writeDetailRow(&card, "Wire method", "<code>"+html.EscapeString(orNotListed(command.WireMethod))+"</code>")
+	// The three rows below are written even when the catalog states nothing,
+	// because for each of them the absence is itself the answer: no backend
+	// list means every backend, and no task level means the MCP default.
+	writeDetailRow(&card, "Backends", backendsHTML(command))
+	writeDetailRow(&card, "Task support", html.EscapeString(commandTaskSupportLabel(command.TaskSupport)))
+	writeDetailRow(&card, "Subcommands", subcommandsHTML(command))
 	grouped := operatorsByAvailability(command)
 	for _, availability := range availabilityOrder {
 		names := grouped[availability]
@@ -91,6 +97,23 @@ func equivalentZeCard(command *catalogCommand) string {
 		strings.ReplaceAll(html.EscapeString(orDescriptionMissing(command.Description)), "\n", "<br>") + "</p>\n")
 	card.WriteString("<h3>Arguments</h3>\n" + equivalentArgumentTable(command) + "\n</article>\n")
 	return card.String()
+}
+
+// backendsHTML renders the data planes that implement one command. An empty
+// list means the command model restricts it to none, so every backend does.
+func backendsHTML(command *catalogCommand) string {
+	if len(command.Backend) == 0 {
+		return backendsUnrestricted
+	}
+	return codeSpanList(command.Backend)
+}
+
+// subcommandsHTML renders what an operator can type after one command.
+func subcommandsHTML(command *catalogCommand) string {
+	if len(command.Subcommands) == 0 {
+		return subcommandsNone
+	}
+	return codeSpanList(command.Subcommands)
 }
 
 // commandPipeLines renders each of a command's own pipes as one line.
@@ -184,17 +207,23 @@ func equivalentArgumentTable(command *catalogCommand) string {
 	}
 	var out strings.Builder
 	out.WriteString(`<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th>` +
-		"<th>Required</th></tr></thead><tbody>\n")
+		"<th>Required</th><th>Values</th></tr></thead><tbody>\n")
 	for _, argument := range command.Args {
-		required := "no"
-		if argument.Mandatory {
-			required = "yes"
-		}
 		out.WriteString("<tr><td><code>" + html.EscapeString(argument.Name) + "</code></td><td>" +
-			html.EscapeString(argument.Type) + "</td><td>" + required + "</td></tr>\n")
+			html.EscapeString(argument.Type) + "</td><td>" + argumentRequiredLabel(argument) +
+			"</td><td>" + argumentValuesHTML(argument) + "</td></tr>\n")
 	}
 	out.WriteString("</tbody></table>")
 	return out.String()
+}
+
+// argumentValuesHTML renders the closed set one argument accepts, and what an
+// argument whose type states no closed set takes instead.
+func argumentValuesHTML(argument catalogArg) string {
+	if len(argument.Values) == 0 {
+		return argumentValuesAny
+	}
+	return codeSpanList(argument.Values)
 }
 
 // equivalentIntentCard renders the curated migration intents for this command.
@@ -291,6 +320,9 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	}
 	out.WriteString("- Mode: " + markdownCell(commandModeLabel(command.Mode)) + "\n")
 	out.WriteString("- Wire method: `" + markdownCell(orNotListed(command.WireMethod)) + "`\n")
+	out.WriteString("- Backends: " + backendsMirror(command) + "\n")
+	out.WriteString("- Task support: " + markdownCell(commandTaskSupportLabel(command.TaskSupport)) + "\n")
+	out.WriteString("- Subcommands: " + subcommandsMirror(command) + "\n")
 	out.WriteString("- Answer shape: " + markdownCell(orNotDeclared(command.AnswerShape)) + "\n")
 	out.WriteString("- Address fields: " + orNone(strings.Join(command.AddressFields, ", ")) + "\n")
 	for _, availability := range availabilityOrder {
@@ -300,6 +332,7 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	out.WriteString("- Command pipes: " + orNone(commandPipeMirrorList(command)) + "\n")
 	out.WriteString("- Pipe aliases: " + orNone(aliasMirrorList(command)) + "\n\n")
 	out.WriteString(markdownCell(orDescriptionMissing(command.Description)) + "\n\n")
+	out.WriteString(argumentMirrorTable(command))
 	out.WriteString("## Mapping intents\n\n")
 	if len(row.Entries) == 0 {
 		out.WriteString("No vendor equivalent has been curated yet for this Ze command.\n\n")
@@ -332,6 +365,49 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 		out.WriteString("\n")
 	}
 	return strings.TrimRight(out.String(), "\n") + "\n"
+}
+
+// backendsMirror writes the data planes that implement one command, and what
+// an empty list means: the command model restricts it to none.
+func backendsMirror(command *catalogCommand) string {
+	if len(command.Backend) == 0 {
+		return backendsUnrestricted
+	}
+	return markdownCodeList(command.Backend)
+}
+
+// subcommandsMirror writes what an operator can type after one command.
+func subcommandsMirror(command *catalogCommand) string {
+	if len(command.Subcommands) == 0 {
+		return subcommandsNone
+	}
+	return markdownCodeList(command.Subcommands)
+}
+
+// argumentMirrorTable writes the arguments section of one detail mirror.
+//
+// It is a table rather than the one-line-per-argument form the CLI reference
+// mirror takes, because it states the same four columns the page's own table
+// states and a mirror reads best beside the page it mirrors.
+func argumentMirrorTable(command *catalogCommand) string {
+	var out strings.Builder
+	out.WriteString("## Arguments\n\n")
+	if len(command.Args) == 0 {
+		out.WriteString("No command-specific arguments listed.\n\n")
+		return out.String()
+	}
+	out.WriteString("| Name | Type | Required | Values |\n| --- | --- | --- | --- |\n")
+	for _, argument := range command.Args {
+		values := argumentValuesAny
+		if len(argument.Values) != 0 {
+			values = markdownCodeList(argument.Values)
+		}
+		out.WriteString("| `" + markdownCell(argument.Name) + "` | " +
+			markdownCell(argument.Type) + " | " + argumentRequiredLabel(argument) + " | " +
+			values + " |\n")
+	}
+	out.WriteString("\n")
+	return out.String()
 }
 
 // orNoSourceRef says that a curated command cites no vendor document, rather

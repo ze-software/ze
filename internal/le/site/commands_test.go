@@ -151,7 +151,14 @@ func rowCells(row string) []string {
 // one, so 80 rows disagreed with the `id="cmd-<slug-of-path>"` they were
 // anchored on. The row now opens with the path it is anchored on, and the
 // invocation form is published beside the description from the command model's
-// own `usage`. The other three cells must match exactly.
+// own `usage`.
+//
+// The THIRD cell is compared as a PREFIX, because the owner released this page
+// family from rendered parity on 2026-08-29: the published page discarded four
+// fields the live catalog carries, and the cell now states them under the
+// description. Everything the published cell read, the cell still reads, in the
+// same order and before anything new, so a fact dropped from it still fails
+// here. The mode cell and the pipes cell must still match exactly.
 func TestACommandRowReadsAsThePublishedRow(t *testing.T) {
 	paths := commandSurfacePaths(t)
 	if _, err := renderCLIReference(paths); err != nil {
@@ -184,7 +191,11 @@ func TestACommandRowReadsAsThePublishedRow(t *testing.T) {
 		if commandSlug(got[0]) != slug {
 			t.Errorf("cmd-%s opens with %q, want the registry path it is anchored on", slug, got[0])
 		}
-		for cell := 1; cell < 4; cell++ {
+		if !strings.HasPrefix(got[2], want[2]) {
+			t.Errorf("cmd-%s cell 3 reads as\n  %q\nwhich does not open with the published cell\n  %q",
+				slug, got[2], want[2])
+		}
+		for _, cell := range []int{1, 3} {
 			if got[cell] != want[cell] {
 				t.Errorf("cmd-%s cell %d reads as\n  %q\nthe published cell reads as\n  %q",
 					slug, cell+1, got[cell], want[cell])

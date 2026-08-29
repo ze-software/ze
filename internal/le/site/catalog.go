@@ -31,23 +31,55 @@ type catalogCommand struct {
 	Description string `json:"description,omitempty"`
 	Mode        string `json:"mode"`
 	WireMethod  string `json:"wire-method,omitempty"`
+	// Backend names the data planes that implement the command. It is empty
+	// when the command model restricts it to none, which means every backend
+	// implements it (internal/component/command/node.go, Node.Backend).
+	Backend []string `json:"backend,omitempty"`
+	// TaskSupport says whether the MCP server answers this command with a task
+	// handle. It is empty when the command declares no level, which is the
+	// `optional` default (ze-extensions.yang, extension task-support).
+	TaskSupport string `json:"task-support,omitempty"`
 	// Usage is the invocation form an operator types, generated from the
 	// command model. It replaces the retired `syntax` field, which a Python
 	// helper scraped out of the description prose and truncated at the first
 	// ". ", leaving several values cut mid-bracket.
-	Usage         string            `json:"usage,omitempty"`
+	Usage string `json:"usage,omitempty"`
+	// Grammar is that same form as an ordered token list, for a machine reader
+	// that must not parse brackets out of a string. No surface renders it: a
+	// person reads the line itself, which command.UsageLine writes from these
+	// same tokens, so a second rendering would state one fact twice. It is
+	// modeled because the model is what says which published fields this
+	// package has considered (catalogfields_test.go).
+	Grammar       []catalogToken    `json:"grammar,omitempty"`
 	Args          []catalogArg      `json:"args,omitempty"`
 	Pipes         []catalogPipe     `json:"pipes,omitempty"`
 	Operators     []catalogOperator `json:"operators,omitempty"`
 	AnswerShape   string            `json:"answer-shape,omitempty"`
 	AddressFields []string          `json:"address-fields,omitempty"`
 	Aliases       []catalogAlias    `json:"pipe-aliases,omitempty"`
+	// Subcommands names the children an operator can type after this command.
+	Subcommands []string `json:"subcommands,omitempty"`
 }
 
 type catalogArg struct {
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	Mandatory bool   `json:"mandatory,omitempty"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+	// Values is the closed set the argument's type states, and it is empty
+	// when the type states none. It is what stops a reader guessing what an
+	// argument of type enum accepts.
+	Values    []string `json:"values,omitempty"`
+	Mandatory bool     `json:"mandatory,omitempty"`
+}
+
+// catalogToken is one element of a command's invocation form
+// (internal/component/command/usage.go, UsageToken).
+type catalogToken struct {
+	Text   string   `json:"text"`
+	Values []string `json:"values,omitempty"`
+	// Group holds the values a modifier group carries, in declaration order.
+	// Only a group token has one.
+	Group []catalogToken `json:"group,omitempty"`
+	Kind  string         `json:"kind"`
 }
 
 type catalogPipe struct {
@@ -99,6 +131,33 @@ var availabilityLabels = map[string]string{
 var modeLabels = map[string]string{
 	"daemon": "Daemon", "read-only": "Read-only", "offline": "Offline",
 }
+
+// taskSupportLabels say what each MCP task-support level means for a reader.
+// The wording is the extension's own (ze-extensions.yang, extension
+// task-support): a level a reader cannot interpret is a level nobody acts on.
+var taskSupportLabels = map[string]string{
+	"required":  "required: the MCP server always answers with a task handle",
+	"optional":  "optional: the MCP call is synchronous",
+	"forbidden": "forbidden: the MCP server never answers with a task handle",
+}
+
+// taskSupportDefault is what a command that declares no level takes. The
+// default is stated rather than left blank, because "nothing is declared" is
+// the answer to a question a reader still has.
+const taskSupportDefault = "optional: the MCP call is synchronous, which is the default"
+
+// backendsUnrestricted is what an empty backend list means: the command model
+// restricts the command to no backend, so every backend implements it.
+const backendsUnrestricted = "any backend"
+
+// subcommandsNone is what an empty subcommand list means. The page and the
+// mirror read one constant so the two cannot state the absence differently.
+const subcommandsNone = "none: this command takes no subcommand"
+
+// argumentValuesAny is what an argument with no closed set accepts. The absence
+// is a fact about the argument's type, so the surfaces state it rather than
+// leaving the reader with an empty cell.
+const argumentValuesAny = "any value of this type"
 
 // operatorClassLabels name each operator class for a reader.
 var operatorClassLabels = map[string]string{
@@ -172,6 +231,29 @@ func commandModeLabel(mode string) string {
 		return label
 	}
 	return mode
+}
+
+// commandTaskSupportLabel answers what a command's task-support level means for
+// a reader: the default when the command declares none, and the raw value when
+// the catalog states a level this site has no wording for.
+func commandTaskSupportLabel(level string) string {
+	if level == "" {
+		return taskSupportDefault
+	}
+	if label, known := taskSupportLabels[level]; known {
+		return label
+	}
+	return level
+}
+
+// argumentRequiredLabel answers whether an argument is owed. Both command
+// surfaces ask that question with the word "required" and answer it with this
+// one, so a reader meets one vocabulary on either page.
+func argumentRequiredLabel(argument catalogArg) string {
+	if argument.Mandatory {
+		return "yes"
+	}
+	return "no"
 }
 
 // pipeDisplayName answers how a command pipe is written for a reader: its name,
