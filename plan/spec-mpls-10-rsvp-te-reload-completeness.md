@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | mpls-4-rsvp-te-fast-reroute (closed), mpls-3-rsvp-te (closed) |
-| Phase | - |
-| Updated | 2026-06-19 |
+| Phase | 1/1 |
+| Updated | 2026-08-29 |
 
 PATH RELOCATION (2026-07-22 plan review; citations corrected in-body
 2026-07-22): the package moved from `internal/component/rsvpte/` to
@@ -54,6 +54,9 @@ gives the running engine the current config, so the fix is to have the loops and
 the reconcile read it.
 
 ## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/rsvpte/mpls-rsvp-te.md` - RSVP-TE (RFC 2205, RFC 3209): explicitly routed MPLS LSPs
 
 ### Source files (read BEFORE implementing)
 - [ ] `internal/plugins/rsvpte/register.go` - `OnConfigApply` (the reload commit step, already pushes `eng.setConfig(cfg)` and reconciles tunnels), `runRefreshLoop`/`runCleanupLoop` (the two stale-ticker loops), `reconcileTunnels`, `addrToUint32`
@@ -108,9 +111,27 @@ the reconcile read it.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | `eng` passed to the refresh/cleanup loops is always non-nil (the engine is built only with a valid router-id) | `register.go` OnStarted guards `!RouterID.IsValid()` before creating the engine and starting the loops | guard `eng != nil` in the loop or panic | read `register.go` OnStarted | unvalidated |
-| A-2 | `time.Ticker.Reset(d)` safely re-periods a running ticker without losing the loop | Go stdlib `time` (Go 1.15+) | use a fresh ticker (Stop+NewTicker) | read Go docs / unit test | unvalidated |
-| A-3 | Removing an interface's admission state while LSPs still reserve it is acceptable (the operator removed the interface; the LSP reconcile tears those LSPs separately) | mpls-3 admission is advisory accounting; `Release` clamps at 0 | only remove interfaces with zero live sessions, else log | design review + unit test | unvalidated |
+| A-1 | `eng` passed to the refresh/cleanup loops is always non-nil (the engine is built only with a valid router-id) | `register.go` OnStarted guards `!RouterID.IsValid()` before creating the engine and starting the loops | guard `eng != nil` in the loop or panic | read `register.go` OnStarted | **broken** |
+| A-2 | `time.Ticker.Reset(d)` safely re-periods a running ticker without losing the loop | Go stdlib `time` (Go 1.15+) | use a fresh ticker (Stop+NewTicker) | read Go docs / unit test | confirmed |
+| A-3 | Removing an interface's admission state while LSPs still reserve it is acceptable (the operator removed the interface; the LSP reconcile tears those LSPs separately) | mpls-3 admission is advisory accounting; `Release` clamps at 0 | only remove interfaces with zero live sessions, else log | design review + unit test | **broken in its basis, upheld in its conclusion** |
+
+A-1 is broken. A valid router-id is necessary but not sufficient: `OnStarted`
+creates the engine only when `newTransport` also succeeds, and it starts both
+loops unconditionally after that branch. Without CAP_NET_RAW `eng` is nil for the
+life of the process. `liveConfig` (`register.go`) takes the launch config in that
+case, which is correct rather than a workaround: with no transport nothing is
+signaled and no neighbor's cleanup timeout depends on the cadence.
+
+A-3's basis is wrong and its conclusion stands. The tunnel reconcile tears down
+head-end LSPs of *removed tunnels*; nothing tears down an LSP that merely traverses
+a removed interface. The reservations therefore survive the removal, and they
+SHOULD: RFC 2205 Section 2.4 initiates a teardown "by an application in an end
+system (sender or receiver), or by a router as the result of state timeout or
+service preemption", and an operator withdrawing a link's bandwidth declaration is
+none of those. Tearing the LSPs down would make a config commit drop live traffic,
+which is the failure this spec exists to remove. The cost, stated in
+`removeInterface`, is that an interface removed and added back accounts from zero
+until the pre-removal LSPs drain.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -147,9 +168,21 @@ the reconcile read it.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAdmissionRemoveInterface` | `admission_test.go` | `removeInterface` drops `interfaces`+`sessions`; unknown name is a no-op | |
-| `TestReconcileInterfacesRemovesDropped` | `register_test.go` | reconcile removes admission state for an interface dropped on reload, keeps the rest | |
-| `TestRefreshLoopAdoptsReloadedPeriod` | `register_test.go` | the loop-body helper recomputes period/multiplier from `eng.cfg()` and resets only on change | |
+| `TestAdmissionRemoveInterface` | `admission_test.go` | `removeInterface` drops `interfaces`+`sessions`; unknown name is a no-op | passes |
+| `TestReconcileInterfacesRemovesDropped` | `reload_test.go` | reconcile removes admission state for an interface dropped on reload, keeps the rest with its live reservation | passes |
+| `TestRefreshTickAdoptsReloadedPeriod` | `reload_test.go` | after a reload the ADVERTISED period (the refreshed PATH's TIME_VALUES) and the cadence the tick returns are the same value | passes |
+| `TestRefreshTickIdempotentOnUnchangedPeriod` | `reload_test.go` | an unchanged period reports no change, so the ticker is never reset | passes |
+| `TestCleanupTickUsesReloadedMultiplier` | `reload_test.go` | the cleanup tick judges the deadline by the reloaded multiplier | passes |
+| `TestAdoptedRefreshPeriodBounds` | `reload_test.go` | a configured period of 0, a negative one, or one past the YANG ceiling keeps the running period rather than reaching `time.Ticker.Reset` | passes |
+| `TestLiveConfigWithoutEngine` | `reload_test.go` | with no engine the loops keep their launch config (A-1) | passes |
+| `TestEgressStateLifetimeFollowsSenderPeriod` | `reload_test.go` | received state derives its lifetime from the sender's TIME_VALUES, so a local refresh-period commit cannot expire it | passes |
+| `TestReceivedRefreshPeriodBounds` | `reload_test.go` | an absent or zero TIME_VALUES falls back to the RFC default, and an advertised period past the ceiling is clamped | passes |
+
+The three tests the plan named sit in a new `reload_test.go` rather than in
+`register_test.go`, so this change touches no file another session is editing.
+The loop-body helpers are `refreshTick` and `cleanupTick` (`register.go`); each
+test drives the same seam `OnConfigApply` pushes a committed config through
+(`engine.setConfig`), with `now` passed in rather than slept for.
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -238,7 +271,37 @@ Before `/ze-implement`: validate A-1..A-3, confirm the `test/reload/` harness sh
 against an existing `test/reload/*.ci`, and fill the Review Gate + Pre-Commit
 Verification sections.
 
+## What the Advertised Period Turned Out to Cover
+
+The spec framed gap 1 as a stale ticker. Reading the producers showed the
+divergence has three sites, not one, and a fix at the ticker alone would have left
+the wire lying:
+
+| Site | Producer | Before | Now |
+|------|----------|--------|-----|
+| refresh cadence | `runRefreshLoop` (`register.go`) | the period the loop was launched with | `refreshTick` reads the live period and re-periods on a change |
+| the period a PATH advertises | `buildPath` reading `psb.RefreshPeriod` (`build.go`) | the period stamped when the LSP was signaled, never updated | `refreshPaths` stamps the live period on each ingress refresh |
+| the period a relayed PATH advertises | `handlePathTransit` (`engine.go`) | this node's configured period, though a transit node relays a PATH only when one arrives and so refreshes downstream at the SENDER's rate | the received period, which is the rate the downstream state is actually refreshed at |
+
+RFC 2205 Section 3.7 item 3 is what makes all three one defect: "Each Path or Resv
+message carries a TIME_VALUES object containing the refresh time R used to
+generate refreshes. The recipient node uses this R to determine the lifetime L of
+the stored state created or refreshed by the message." A period ze advertises but
+does not keep is a lifetime it has asked a neighbor to compute wrongly.
+
+The same sentence governs the receive direction, which was reading this node's own
+configured period for state a neighbor refreshes (`handlePathEgress`,
+`handlePathTransit`). A commit shortening `refresh-period` therefore shortened the
+lifetime of state ze does not refresh itself, and the next cleanup tick deleted a
+live reservation. `receivedRefreshPeriod` (`engine.go`) now derives it from the
+sender's TIME_VALUES.
+
 ## Known Limitations
+- The cleanup timeout is K*R, below the `L >= (K + 0.5)*1.5*R` floor of RFC 2205
+  Section 3.7 item 2. Recorded in `plan/journal/bound-too-small-for-its-own-burst.md`;
+  the repair changes what `refresh-multiplier` means and is an owner decision.
+- A PATH with no TIME_VALUES is accepted, though RFC 2205 Section 3.1.3 makes the
+  object mandatory. Recorded in `plan/journal/zero-value-as-valid-answer.md`.
 - This does not add per-interface hot-reconfigure of bandwidth beyond what
   `setInterface` already updates (limits update in place; that is existing behavior).
 - Auto-detecting which LSPs must be re-admitted when an interface's reservable
@@ -250,7 +313,7 @@ Verification sections.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (no unused `removeInterface`)
 
 ### TDD

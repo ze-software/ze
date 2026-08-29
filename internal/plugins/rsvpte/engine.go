@@ -218,6 +218,30 @@ func (e *engine) reserve(src netip.Addr, msg *ParsedMessage) (string, bool) {
 	return iface, true
 }
 
+// receivedRefreshPeriod returns the refresh period that sets the lifetime of the
+// state this PATH creates. RFC 2205 Section 3.7: "Each Path or Resv message carries
+// a TIME_VALUES object containing the refresh time R used to generate refreshes. The
+// recipient node uses this R to determine the lifetime L of the stored state created
+// or refreshed by the message." So the lifetime follows the SENDER's period, never
+// this node's configured one: the sender refreshes on its own schedule, and a local
+// refresh-period commit that shortened the lifetime of state a neighbor keeps alive
+// would delete a live reservation on the next cleanup tick.
+//
+// TIME_VALUES is mandatory in a PATH (RFC 2205 Section 3.1.3), so a message without
+// one falls back to the suggested default of 30 seconds rather than to the local
+// period. The value is clamped to maxRefreshPeriod so a neighbor cannot advertise a
+// period that keeps ze's state alive for years.
+func receivedRefreshPeriod(msg *ParsedMessage) time.Duration {
+	if !msg.HasTimeValues || msg.TimeValues.RefreshPeriod == 0 {
+		return DefaultRefreshPeriod
+	}
+	period := time.Duration(msg.TimeValues.RefreshPeriod) * time.Millisecond
+	if period > maxRefreshPeriod {
+		return maxRefreshPeriod
+	}
+	return period
+}
+
 // handlePathEgress terminates the LSP: admission control, label allocation and
 // a RESV back upstream toward the sender. It is idempotent across PATH
 // refreshes (RFC 2205 soft-state): bandwidth is reserved and a label allocated
@@ -265,7 +289,7 @@ func (e *engine) handlePathEgress(src netip.Addr, msg *ParsedMessage) {
 		SenderTemplate: msg.SenderTemplate,
 		SenderTSpec:    msg.SenderTSpec,
 		LabelRequest:   msg.LabelRequest,
-		RefreshPeriod:  e.cfg().RefreshPeriod,
+		RefreshPeriod:  receivedRefreshPeriod(msg),
 		LastRefresh:    time.Now(),
 		Protection:     egressProtection,
 	}
@@ -350,7 +374,6 @@ func (e *engine) handlePathTransit(src netip.Addr, msg *ParsedMessage) {
 			bypass = &bk
 		}
 	}
-	cfg := e.cfg() // single consistent snapshot for this relay
 
 	lsp.mu.Lock()
 	lsp.Role = RoleTransit
@@ -367,7 +390,7 @@ func (e *engine) handlePathTransit(src netip.Addr, msg *ParsedMessage) {
 		ERO:            rem,
 		SenderTSpec:    msg.SenderTSpec,
 		LabelRequest:   msg.LabelRequest,
-		RefreshPeriod:  cfg.RefreshPeriod,
+		RefreshPeriod:  receivedRefreshPeriod(msg),
 		LastRefresh:    time.Now(),
 		Protection:     pr,
 	}
@@ -382,16 +405,24 @@ func (e *engine) handlePathTransit(src netip.Addr, msg *ParsedMessage) {
 	// unchanged (rem still begins with the next hop) so the next node strips
 	// itself in turn. The protection request is relayed so downstream transits
 	// also become candidate PLRs.
+	// TIME_VALUES states the period at which the state this PATH creates downstream
+	// will actually be refreshed (RFC 2205 Section 3.7), and a transit node relays a
+	// PATH only when one arrives: the downstream cadence is the sender's period, not
+	// this node's. Writing the local period here would let a refresh-period commit on
+	// a transit node shrink the downstream node's cleanup timeout below the rate the
+	// relays actually arrive at, and the downstream would delete a live reservation.
+	// This node's own period governs the RESVs it generates upstream, which it does
+	// refresh on that cadence (buildResv reads e.cfg().RefreshPeriod).
 	fwd := &pathStateBlock{
 		Session:        msg.Session,
 		SenderTemplate: msg.SenderTemplate,
 		ERO:            rem,
 		SenderTSpec:    msg.SenderTSpec,
 		LabelRequest:   msg.LabelRequest,
-		RefreshPeriod:  cfg.RefreshPeriod,
+		RefreshPeriod:  receivedRefreshPeriod(msg),
 		Protection:     pr,
 	}
-	raw := buildPath(fwd, cfg.RouterID, msg.Header.TTL-1)
+	raw := buildPath(fwd, e.cfg().RouterID, msg.Header.TTL-1)
 	if err := e.transport.Send(nextHop, raw); err != nil {
 		e.log.Warn("rsvp-te: transit PATH relay failed", "next-hop", nextHop, "error", err)
 		return

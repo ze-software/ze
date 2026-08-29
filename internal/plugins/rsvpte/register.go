@@ -104,6 +104,12 @@ const cmdDone = "done"
 // DefaultRefreshPeriod is the RFC 2205 default refresh interval.
 const DefaultRefreshPeriod = 30 * time.Second
 
+// maxRefreshPeriod is the largest refresh period ze accepts, from configuration or
+// from a neighbor's TIME_VALUES. It is the ceiling of the `refresh-period` YANG range
+// (ze-rsvp-te-conf.yang, "1..65535" seconds), applied to the wire value too so a peer
+// cannot advertise a period that keeps state alive for years.
+const maxRefreshPeriod = 65535 * time.Second
+
 // DefaultRefreshMultiplier is how many missed refreshes expire state.
 const DefaultRefreshMultiplier = 3
 
@@ -261,7 +267,7 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 		RefreshMultiplier: DefaultRefreshMultiplier,
 	}
 	for _, sec := range sections {
-		if sec.Root != "rsvp-te" || sec.Data == "" {
+		if sec.Root != Namespace || sec.Data == "" {
 			continue
 		}
 		// BuildPluginConfigSections wraps the subtree under its root key, so the
@@ -270,7 +276,7 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 		if err := json.Unmarshal([]byte(sec.Data), &wrapper); err != nil {
 			return cfg, fmt.Errorf("rsvp-te: invalid config JSON: %w", err)
 		}
-		tree, _ := wrapper["rsvp-te"].(map[string]any)
+		tree, _ := wrapper[Namespace].(map[string]any)
 		if tree == nil {
 			continue
 		}
@@ -437,11 +443,11 @@ func registerRSVPTE() {
 	_ = events.RegisterNamespace(Namespace, EventLSPUp, EventLSPDown, EventPathErr)
 
 	reg := registry.Registration{
-		Name:         "rsvp-te",
+		Name:         Namespace,
 		Description:  "RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)",
 		Features:     "yang",
 		YANG:         rsvpteyang.ZeRSVPTEConfYANG,
-		ConfigRoots:  []string{"rsvp-te"},
+		ConfigRoots:  []string{Namespace},
 		Dependencies: []string{"fib-kernel", "sysctl"},
 		RunEngine:    runRSVPTEEngine,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -482,7 +488,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("rsvp-te engine starting")
 
-	p := sdk.NewWithConn("rsvp-te", conn)
+	p := sdk.NewWithConn(Namespace, conn)
 	defer func() { _ = p.Close() }()
 
 	lspTable := newLSPTable()
@@ -492,7 +498,8 @@ func runRSVPTEEngine(conn net.Conn) int {
 	var havePending bool
 	var eng *engine
 	var configuredTunnels map[lspKey]bool
-	var tunnelsMu sync.Mutex // guards activeCfg/pendingCfg/havePending, eng, configuredTunnels
+	var configuredInterfaces map[string]bool
+	var tunnelsMu sync.Mutex // guards activeCfg/pendingCfg/havePending, eng, configuredTunnels, configuredInterfaces
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseConfig(sections)
@@ -511,17 +518,18 @@ func runRSVPTEEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
+		tunnelsMu.Lock()
+		defer tunnelsMu.Unlock()
 		activeCfg = cfg
-		for _, iface := range cfg.Interfaces {
-			admission.setInterface(iface.Name, float64(iface.MaxBW), float64(iface.MaxReservableBW))
-		}
+		configuredInterfaces = reconcileInterfaces(log, admission, cfg, configuredInterfaces)
 		return nil
 	})
 
 	// OnConfigApply is the reload-pipeline commit step (OnConfigure does not fire
-	// on reload). Adopt the verified pending config and reconcile the tunnel set so
-	// an added tunnel signals, a changed ERO reroutes (make-before-break), and a
-	// removed tunnel is torn down -- all without restarting the engine.
+	// on reload). Adopt the verified pending config, reconcile the interface set so a
+	// removed interface stops being accounted, and reconcile the tunnel set so an
+	// added tunnel signals, a changed ERO reroutes (make-before-break), and a removed
+	// tunnel is torn down -- all without restarting the engine.
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		tunnelsMu.Lock()
 		defer tunnelsMu.Unlock()
@@ -530,9 +538,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 			havePending = false
 		}
 		cfg := activeCfg
-		for _, iface := range cfg.Interfaces {
-			admission.setInterface(iface.Name, float64(iface.MaxBW), float64(iface.MaxReservableBW))
-		}
+		configuredInterfaces = reconcileInterfaces(log, admission, cfg, configuredInterfaces)
 		// Push the reloaded config into the running engine so its runtime reads
 		// (selectBypass, admissionInterface, message builders) see the new
 		// interfaces/bypasses/refresh period; otherwise FRR keeps arming against the
@@ -667,7 +673,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"rsvp-te"},
+		WantsConfig:  []string{Namespace},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
@@ -737,6 +743,31 @@ func reconcileTunnels(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, en
 		}
 	}
 	updateFRRGauges(lspTable)
+	return next
+}
+
+// reconcileInterfaces brings admission accounting in line with cfg's interfaces: it
+// updates the limits of every configured interface and drops the admission state of
+// any interface removed since prev. It returns the new configured-name set.
+//
+// Without the removal half an interface taken out of the config keeps being serviced:
+// `show rsvp-te interface` still lists it, and its reserved bandwidth still counts
+// against a link ze no longer accounts for. setInterface stays read-modify-write, so
+// an interface that survives the reload keeps its live reservations.
+func reconcileInterfaces(log *slog.Logger, admission *admissionController, cfg rsvpteConfig, prev map[string]bool) map[string]bool {
+	next := make(map[string]bool, len(cfg.Interfaces))
+	for _, ic := range cfg.Interfaces {
+		admission.setInterface(ic.Name, float64(ic.MaxBW), float64(ic.MaxReservableBW))
+		next[ic.Name] = true
+	}
+	for name := range prev {
+		if next[name] {
+			continue
+		}
+		dropped := admission.removeInterface(name)
+		log.Info("rsvp-te: interface removed from config, admission state dropped",
+			"iface", name, "sessions", dropped)
+	}
 	return next
 }
 
@@ -869,15 +900,64 @@ func eroEqual(a, b []eroHop) bool {
 	return true
 }
 
+// liveConfig returns the configuration this tick must run against: the engine's,
+// which OnConfigApply swaps on every reload, so a committed refresh-period reaches
+// the loops without a restart. Without an engine there is no transport, nothing is
+// signaled and no neighbor depends on the cadence, so the launch-time config stands.
+func liveConfig(cfg rsvpteConfig, eng *engine) rsvpteConfig {
+	if eng == nil {
+		return cfg
+	}
+	return eng.cfg()
+}
+
+// adoptedRefreshPeriod reports the refresh period in force after a reload and
+// whether it changed. An unchanged period MUST report false: time.Ticker.Reset
+// restarts the interval, so resetting on every tick would push the next refresh
+// one full period further out each time a commit landed, and a neighbor whose
+// cleanup timeout is K times the period would delete the reservation
+// (RFC 2205 Section 2.3). A configured period outside the YANG range keeps the
+// running one, because Reset panics on a non-positive duration.
+func adoptedRefreshPeriod(current, configured time.Duration) (time.Duration, bool) {
+	if configured <= 0 || configured > maxRefreshPeriod {
+		return current, false
+	}
+	if configured == current {
+		return current, false
+	}
+	return configured, true
+}
+
+// refreshTick is one iteration of the refresh loop: re-send the soft-state
+// refreshes, then report the refresh period in force for the next tick and whether
+// it changed. It refreshes BEFORE it re-periods, so a commit that lengthens the
+// period still puts one message on the wire at the old, shorter cadence. That
+// message carries the new period in its TIME_VALUES, and the neighbor recomputes its
+// cleanup timeout from it before the old one expires (RFC 2205 Section 3.7: "The
+// recipient node uses this R to determine the lifetime L of the stored state created
+// or refreshed by the message").
+func refreshTick(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine, period time.Duration) (time.Duration, bool) {
+	refreshPaths(log, lspTable, eng)
+	return adoptedRefreshPeriod(period, liveConfig(cfg, eng).RefreshPeriod)
+}
+
+// runRefreshLoop re-sends PATH and RESV on the configured cadence and adopts a
+// reloaded refresh-period at the next tick.
 func runRefreshLoop(ctx context.Context, log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine) {
-	ticker := time.NewTicker(cfg.RefreshPeriod)
+	period := cfg.RefreshPeriod
+	ticker := time.NewTicker(period)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			refreshPaths(log, lspTable, eng)
+			next, changed := refreshTick(log, lspTable, cfg, eng, period)
+			if changed {
+				period = next
+				ticker.Reset(period)
+				log.Info("rsvp-te: refresh period reloaded", "period", period)
+			}
 		}
 	}
 }
@@ -905,6 +985,17 @@ func refreshPaths(log *slog.Logger, lspTable *lspTable, eng *engine) {
 		// leaking the reservation and FIB state.
 		if isIngress {
 			lsp.PSB.LastRefresh = time.Now()
+			// The PSB carries the period this node advertises for its own state
+			// (build.go buildPath writes it into TIME_VALUES), so a reloaded
+			// refresh-period has to reach it here. Left at the value stamped when the
+			// LSP was signaled, an up tunnel would keep telling its neighbors one
+			// period while runRefreshLoop refreshed at another, and the neighbor's
+			// cleanup timeout would be derived from a period ze no longer keeps.
+			if eng != nil {
+				if period := eng.cfg().RefreshPeriod; period > 0 {
+					lsp.PSB.RefreshPeriod = period
+				}
+			}
 		}
 		lsp.mu.Unlock()
 
@@ -925,31 +1016,49 @@ func refreshPaths(log *slog.Logger, lspTable *lspTable, eng *engine) {
 	updateFRRGauges(lspTable)
 }
 
+// cleanupTick is one iteration of the cleanup loop: expire every LSP whose PATH
+// state has outlived the live refresh multiplier, then report the refresh period in
+// force for the next tick and whether it changed. The multiplier is read live, so a
+// reloaded refresh-multiplier takes effect here rather than staying at the value the
+// loop started with.
+func cleanupTick(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine, now time.Time, period time.Duration) (time.Duration, bool) {
+	live := liveConfig(cfg, eng)
+	expired := lspTable.expiredPSBs(now, live.RefreshMultiplier)
+	for _, key := range expired {
+		// Soft-state expiry must release the same state a teardown does:
+		// admission bandwidth, FIB entries, label, and the lsp-down event.
+		// tearLSPLocal does all of that (and the table Remove); without it
+		// an expired LSP leaks its reservation and kernel MPLS entry.
+		if eng != nil {
+			eng.tearLSPLocal(key)
+		} else if lsp := lspTable.Remove(key); lsp != nil {
+			lsp.mu.Lock()
+			inLabel := lsp.InLabel
+			lsp.mu.Unlock()
+			lspTable.releaseLabel(inLabel)
+			emitLSPDown(log, lsp, lspTable.Len())
+		}
+		log.Info("rsvp-te: LSP expired", "lsp", key.String())
+	}
+	return adoptedRefreshPeriod(period, live.RefreshPeriod)
+}
+
+// runCleanupLoop expires soft state whose refreshes stopped arriving, and adopts a
+// reloaded refresh-period and refresh-multiplier at the next tick.
 func runCleanupLoop(ctx context.Context, log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine) {
-	ticker := time.NewTicker(cfg.RefreshPeriod)
+	period := cfg.RefreshPeriod
+	ticker := time.NewTicker(period)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			now := time.Now()
-			expired := lspTable.expiredPSBs(now, cfg.RefreshMultiplier)
-			for _, key := range expired {
-				// Soft-state expiry must release the same state a teardown does:
-				// admission bandwidth, FIB entries, label, and the lsp-down event.
-				// tearLSPLocal does all of that (and the table Remove); without it
-				// an expired LSP leaks its reservation and kernel MPLS entry.
-				if eng != nil {
-					eng.tearLSPLocal(key)
-				} else if lsp := lspTable.Remove(key); lsp != nil {
-					lsp.mu.Lock()
-					inLabel := lsp.InLabel
-					lsp.mu.Unlock()
-					lspTable.releaseLabel(inLabel)
-					emitLSPDown(log, lsp, lspTable.Len())
-				}
-				log.Info("rsvp-te: LSP expired", "lsp", key.String())
+			next, changed := cleanupTick(log, lspTable, cfg, eng, time.Now(), period)
+			if changed {
+				period = next
+				ticker.Reset(period)
+				log.Info("rsvp-te: refresh period reloaded", "period", period)
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package rsvpte
 
 import (
+	"net/netip"
 	"testing"
 )
 
@@ -111,5 +112,37 @@ func TestSetInterfaceReloadPreservesReservation(t *testing.T) {
 	// A further 5Gbps would exceed MaxReservable (8Gbps) and must be denied.
 	if err := ac.Reserve("eth0", 5e9); err == nil {
 		t.Fatal("reload allowed oversubscription: second 5Gbps reservation should be denied")
+	}
+}
+
+// TestAdmissionRemoveInterface: an interface the operator takes out of the config
+// loses both its bandwidth limits and its per-session reservation records, so it
+// stops being reported and stops being accounted. The two maps must go together: a
+// session record left behind an absent interface would release bandwidth against a
+// limit its reservation was never counted in. An unknown name is a no-op.
+func TestAdmissionRemoveInterface(t *testing.T) {
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
+	ac.setInterface("eth1", 1e9, 1e9)
+	sess := sessionID{endpoint: netip.MustParseAddr("10.0.0.9"), tunnelID: 7}
+	if err := ac.reserveSession("eth1", sess, 5e8); err != nil {
+		t.Fatalf("reserveSession on eth1: %v", err)
+	}
+
+	if dropped := ac.removeInterface("eth1"); dropped != 1 {
+		t.Fatalf("removeInterface reported %d session records, want 1", dropped)
+	}
+	if _, ok := ac.GetInterface("eth1"); ok {
+		t.Fatal("removeInterface left the interface behind")
+	}
+	if _, ok := ac.sessions["eth1"]; ok {
+		t.Fatal("removeInterface left the session records behind")
+	}
+	if _, ok := ac.GetInterface("eth0"); !ok {
+		t.Fatal("removeInterface took an interface it was not given")
+	}
+
+	if dropped := ac.removeInterface("eth2"); dropped != 0 {
+		t.Fatalf("removing an unknown interface reported %d session records, want 0", dropped)
 	}
 }

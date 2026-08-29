@@ -211,6 +211,33 @@ func (ac *admissionController) setInterface(name string, maxBW, maxReservable fl
 	}
 }
 
+// removeInterface drops every trace of an interface the operator took out of the
+// config: its bandwidth limits and its per-session reservation records. It returns
+// the number of session records dropped so the caller can report what the reload
+// discarded; an unknown name drops nothing and returns 0.
+//
+// It removes both maps together, and that pairing is the invariant. ReleaseSession
+// looks the session up under the interface, so an LSP torn down after its interface
+// left the config finds no record and releases nothing. Dropping only one of the two
+// would leave the other to decrement a limit its reservation was never counted in.
+//
+// The LSPs that reserved against the interface are NOT torn down. RFC 2205 Section
+// 2.4 initiates a teardown "by an application in an end system (sender or receiver),
+// or by a router as the result of state timeout or service preemption", and an
+// operator withdrawing a link's bandwidth declaration is none of those: the traffic
+// still flows, only ze's accounting for it stops. Tearing the LSPs down would make a
+// config commit drop live traffic. The cost is that an interface removed and added
+// back starts its accounting at zero while pre-removal LSPs still hold their
+// bandwidth, so the link under-counts until they drain.
+func (ac *admissionController) removeInterface(name string) int {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+	dropped := len(ac.sessions[name])
+	delete(ac.interfaces, name)
+	delete(ac.sessions, name)
+	return dropped
+}
+
 // Reserve attempts to reserve bandwidth on an interface.
 func (ac *admissionController) Reserve(iface string, bandwidth float64) error {
 	ac.mu.Lock()

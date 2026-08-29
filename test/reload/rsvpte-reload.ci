@@ -1,0 +1,137 @@
+# Test: an rsvp-te config commit stops servicing an interface it removes.
+#
+# VALIDATES: spec-mpls-10-rsvp-te-reload-completeness AC-4 -- OnConfigApply
+#            reconciles the interface set on reload, so an interface the operator
+#            takes out of the config loses its admission state and stops appearing
+#            in `show rsvp-te interface`, while the interface that stays keeps its.
+# PREVENTS:  regression to the add-only reload, where OnConfigApply called
+#            setInterface for every configured interface and removeInterface for
+#            none, so admissionController.interfaces and .sessions grew an entry
+#            for every interface ever configured and dropped none. The daemon then
+#            reported a link it no longer accounted for, and its reservations went
+#            on counting against a limit no config declared.
+#
+# The reloaded config also changes refresh-period (30 -> 10). That half is NOT
+# asserted here: the refresh and cleanup loops read the live period through the
+# engine, and the engine exists only when the raw IP transport opens, which needs
+# CAP_NET_RAW. AC-1, AC-2 and AC-3 are proven instead against the loop bodies
+# themselves in internal/plugins/rsvpte/reload_test.go
+# (TestRefreshTickAdoptsReloadedPeriod, TestCleanupTickUsesReloadedMultiplier,
+# TestRefreshTickIdempotentOnUnchangedPeriod), driven through engine.setConfig --
+# the same seam OnConfigApply pushes a committed config through.
+
+# Initial ze config: rsvp-te services two interfaces.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rsvpte-reload {
+		run "ze-test fixture reload/rsvpte-reload"
+		encoder json
+	}
+}
+
+rsvp-te {
+	router-id 10.0.0.1
+	refresh-period 30
+	interface lo {
+		max-bandwidth 10e9
+		max-reservable-bandwidth 8e9
+		address 127.0.0.1/8
+	}
+	interface dummy0 {
+		max-bandwidth 1e9
+		max-reservable-bandwidth 1e9
+		address 10.99.0.1/24
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Reloaded config: dummy0 is gone and refresh-period is 10.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external rsvpte-reload {
+		run "ze-test fixture reload/rsvpte-reload"
+		encoder json
+	}
+}
+
+rsvp-te {
+	router-id 10.0.0.1
+	refresh-period 10
+	interface lo {
+		max-bandwidth 10e9
+		max-reservable-bandwidth 8e9
+		address 127.0.0.1/8
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF2
+
+option=env:var=ze.log.rsvp.te:value=info
+
+cmd=background:seq=1:exec=ze-test fixture reload/rsvpte-reload-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=interface removed from config, admission state dropped
+expect=stderr:contains=OK: rsvp-te reload stopped servicing the removed interface
+reject=stderr:pattern=no router-id configured
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
