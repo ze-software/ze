@@ -20,6 +20,8 @@ var ipsecScenarios = []string{
 	"eap-mschapv2",
 	"eap-tls",
 	"eap-tls13",
+	"esn-both-offered",
+	"esn-extended-only-refused",
 	"esp-form-change",
 	"initiator-rekey-answer-narrows",
 	"invalid-ke-retry",

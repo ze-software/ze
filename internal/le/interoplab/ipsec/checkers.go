@@ -1,4 +1,4 @@
-// Design: complete typed assertions for every checked-in strongSwan scenario.
+// Design: docs/architecture/testing/interop.md -- complete typed assertions for every checked-in strongSwan scenario.
 // Detail: helpers.go -- bounded observations and fail-closed protocol queries.
 package ipsec
 
@@ -27,6 +27,8 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"eap-mschapv2":                   checkEAPMSCHAPv2,
 	"eap-tls":                        checkEAPTLS,
 	"eap-tls13":                      checkEAPTLS13,
+	"esn-both-offered":               checkESNBothOffered,
+	"esn-extended-only-refused":      checkESNExtendedOnlyRefused,
 	"esp-form-change":                checkESPFormChange,
 	"initiator-rekey-answer-narrows": checkInitiatorRekeyAnswerNarrows,
 	"invalid-ke-retry":               checkInvalidKERetry,
@@ -712,6 +714,68 @@ func checkDeleteWhileWindowHeld(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	return lab.waitLog(ctx, swanPeer, "received DELETE for ESP CHILD_SA", 15*time.Second)
+}
+
+// checkESNExtendedOnlyRefused holds ze to its answer when a real peer asks for a Child SA
+// it cannot key. What the refusal prevents is the quiet failure: an accepted proposal
+// answered with value 0 leaves strongSwan counting 64 bits of sequence number against a
+// peer counting 32, so the tunnel establishes and its anti-replay window drops every
+// packet ze sends.
+//
+// RFC requirement: RFC7296-2.7-1 negative -- strongSwan 5.9.14 offers
+// esp_proposals = aes256gcm16-esn, the "single ESN transform with value 1" of RFC 7296
+// Section 3.3.2, and ze answers no suite: "The responder MUST accept a single proposal or
+// reject them all and return an error. The error is given in a notification of type
+// NO_PROPOSAL_CHOSEN" (Section 2.7). MEASURED 2026-08-29 with the ESN comparison in
+// espProposalMatches reverted: ze accepts that proposal, logs no refusal, and this
+// scenario times out, so the assertion names the acceptance rather than a bare absence.
+func checkESNExtendedOnlyRefused(ctx context.Context, lab *scenarioLab) error {
+	// The refusal ze REACHED is the positive fact, and the pre-fix responder reaches it
+	// on no run at all.
+	if err := lab.waitLog(ctx, zePeer, "NO_PROPOSAL_CHOSEN", lab.timeout); err != nil {
+		return err
+	}
+	// Nothing was keyed on either side, so no traffic can be silently dropped later.
+	sas, err := lab.listSAs(ctx)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(sas, "INSTALLED") {
+		return fmt.Errorf("strongSwan reports an installed CHILD_SA after ze refused the proposal: %s", sas)
+	}
+	if err := lab.checkXFRMCount(ctx, swanPeer, 0); err != nil {
+		return err
+	}
+	return lab.checkXFRMCount(ctx, zePeer, 0)
+}
+
+// checkESNBothOffered is what makes the refusal above a selection rather than a blanket
+// rejection of Transform Type 5. RFC 7296 Section 3.3.2 calls an offer of both values the
+// usual one from an initiator that supports Extended Sequence Numbers.
+//
+// RFC requirement: RFC7296-2.7-1 positive -- the same peer offering both values gets one
+// of them back: "The accepted cryptographic suite MUST contain exactly one transform of
+// each type included in the proposal" (Section 2.7). Traffic is what proves the two ends
+// selected the SAME one, because a peer that keyed 64-bit sequence numbers against ze's
+// 32-bit state would establish this tunnel and carry nothing through it.
+func checkESNBothOffered(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+	state, err := lab.xfrmState(ctx, swanPeer)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(state, "esn") {
+		return fmt.Errorf("strongSwan installed an ESN state after ze answered value 0: %s", state)
+	}
+	return lab.verifyTunnelTraffic(ctx, "no traffic after ze selected non-extended sequence numbers")
 }
 
 func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
