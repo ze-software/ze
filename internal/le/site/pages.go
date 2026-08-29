@@ -16,6 +16,9 @@ import (
 const (
 	pageIndexFile  = "index.html"
 	pageMirrorFile = "index.md"
+	// markdownExtension names a Markdown source. A page producer that reads a
+	// directory of sources selects on it.
+	markdownExtension = ".md"
 )
 
 // Page is one public route and its human and machine-readable representations.

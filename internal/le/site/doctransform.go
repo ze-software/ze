@@ -490,22 +490,30 @@ var (
 // a page that opens with something else has no title to present.
 func wrapJourneyHero(body, label string) string {
 	if match := heroTitleAndLead.FindStringSubmatch(body); match != nil {
-		hero := pageHero(match[3], match[5], label, match[2])
+		hero := pageHero(match[3], match[5], label, match[2], heroClasses)
 		return match[1] + match[4] + hero + body[len(match[0]):]
 	}
 	if match := heroTitleOnly.FindStringSubmatch(body); match != nil {
-		hero := pageHero(match[3], "", label, match[2])
+		hero := pageHero(match[3], "", label, match[2], heroClasses)
 		return match[1] + hero + body[len(match[0]):]
 	}
 	return body
 }
 
+// heroClasses is the class list a documentation hero opens with. A section
+// that styles its own hero passes its own list instead, and every list starts
+// with this one because the shared layout hangs off it.
+const heroClasses = "journey-hero reveal"
+
 // pageHero renders the clay title block a page opens with. The title and the
 // lead are the renderer's own markup, already rendered from Markdown, so they
 // are spliced rather than escaped; the label is plain text.
-func pageHero(title, lead, label, headingAttributes string) string {
+//
+// classes is written out at every call site rather than defaulted, so a call
+// states the hero it renders.
+func pageHero(title, lead, label, headingAttributes, classes string) string {
 	var hero strings.Builder
-	hero.WriteString(`<div class="journey-hero reveal">`)
+	hero.WriteString(`<div class="` + html.EscapeString(classes) + `">`)
 	if label != "" {
 		hero.WriteString("\n    " + `<span class="journey-eyebrow">` + html.EscapeString(label) + `</span>`)
 	}

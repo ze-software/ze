@@ -40,7 +40,7 @@ func equivalentDetailBody(mapping *equivalentMapping, row *equivalentRow, vendor
 	body.WriteString(pageHero(
 		html.EscapeString(row.Command.Path),
 		"Command details and vendor equivalents for "+html.EscapeString(row.Command.Path)+".",
-		"Command map", ` id="command-equivalent-detail-title"`))
+		"Command map", ` id="command-equivalent-detail-title"`, heroClasses))
 	body.WriteString("\n" + `<div class="cmd-detail-grid">` + "\n")
 	body.WriteString(equivalentZeCard(row.Command))
 	body.WriteString(equivalentIntentCard(row))

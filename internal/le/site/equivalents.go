@@ -431,7 +431,7 @@ func equivalentIndexBody(
 		"One line per live Ze command, with vendor CLI surfaced first when a curated equivalent "+
 			"exists. The full catalog still includes reviewed gaps; a dash means no equivalent has "+
 			"been listed yet.",
-		"Reference", ` id="command-equivalents-title"`))
+		"Reference", ` id="command-equivalents-title"`, heroClasses))
 	body.WriteString("\n" + `<div class="cmd-eq-stats">` + "\n")
 	writeStat(&body, len(rows), "live Ze commands")
 	writeStat(&body, equivalent, "commands with vendor CLI")

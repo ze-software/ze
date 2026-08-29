@@ -1,0 +1,141 @@
+[
+  {
+    "slug": "2026-08-17",
+    "intro": "The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "API",
+        "category": "automate",
+        "key": "API"
+      },
+      {
+        "label": "Flow Export",
+        "category": "observe",
+        "key": "Flow Export"
+      },
+      {
+        "label": "DDoS",
+        "category": "secure",
+        "key": "DDoS"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "Firewall",
+        "category": "secure",
+        "key": "Firewall"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
+    "slug": "2026-08-10",
+    "intro": "Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Route Server",
+        "category": "routing",
+        "key": "Route Server"
+      },
+      {
+        "label": "RPKI",
+        "category": "routing",
+        "key": "RPKI"
+      },
+      {
+        "label": "PPPoE",
+        "category": "services",
+        "key": "PPPoE"
+      },
+      {
+        "label": "BNG",
+        "category": "services",
+        "key": "BNG"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "DNS",
+        "category": "services",
+        "key": "DNS"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "Web UI",
+        "category": "operate",
+        "key": "Web UI"
+      },
+      {
+        "label": "Looking Glass",
+        "category": "observe",
+        "key": "Looking Glass"
+      },
+      {
+        "label": "Appliance",
+        "category": "platform",
+        "key": "Appliance"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Interop",
+        "category": "meta",
+        "key": "Interop"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  }
+]

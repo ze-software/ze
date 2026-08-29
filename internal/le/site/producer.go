@@ -55,6 +55,23 @@ func registerProducer(producer Producer) {
 	registeredProducers = append(registeredProducers, producer)
 }
 
+// writeNamedArtifact writes one published file that is not a route: a feed, a
+// data file, a machine-reader answer.
+//
+// A producer answers routes, and none of these is one, so the coverage
+// arithmetic cannot see them. They are named in the check instead, which is
+// what AC-16 of plan/spec-site-renderers-in-go.md arms.
+func writeNamedArtifact(output, name, content string) error {
+	path := filepath.Join(output, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
+		return err
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
 // Claim names one route and every producer that wrote it.
 type Claim struct {
 	Route     string   `json:"route"`

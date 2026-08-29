@@ -61,7 +61,7 @@ func cliReferenceDescription(commands, groups int) string {
 func cliReferenceBody(commands []catalogCommand, groups []commandGroup) string {
 	var body strings.Builder
 	body.WriteString("\n            <section aria-labelledby=\"cli-title\" class=\"md-content reveal cat-operate\">\n")
-	body.WriteString(pageHero("CLI Reference", cliReferenceLead(len(commands), len(groups)), "Reference", ` id="cli-title"`))
+	body.WriteString(pageHero("CLI Reference", cliReferenceLead(len(commands), len(groups)), "Reference", ` id="cli-title"`, heroClasses))
 	body.WriteString("\n")
 	body.WriteString(renderOperatorGuide(commands))
 	body.WriteString(`                <div class="cli-search-wrap">` + "\n")

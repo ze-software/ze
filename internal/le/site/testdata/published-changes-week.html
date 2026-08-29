@@ -1,0 +1,90 @@
+
+            <section class="blog-post" aria-labelledby="post-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">Weekly update</span>
+                    <h1 id="post-title">Week of 2026-08-17</h1>
+                    <p>The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.</p>
+                </div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🖥️ CLI and APIs">
+                        <div class="md-content">
+                            <h2>🖥️ CLI and APIs</h2>
+                            <p>New:</p>
+<ul>
+<li><code>show bgp</code> now gives the BGP overview. Add <code>| summary</code> for totals or <code>| peers</code> for one row per peer.</li>
+<li><code>show bgp rib</code> emits each route as it is read and labels it with <code>peer</code> and <code>direction</code>. Use <code>| display &lt;field&gt;...</code>, <code>| fill [alpha] [reverse]</code> or <code>| save &lt;path&gt;</code> to select fields, restore fields or save the result.</li>
+<li><code>ze help command "&lt;path&gt;" --json</code> now reports <code>operators</code>, <code>answer-shape</code> and <code>pipe-aliases</code> for each command.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>REST and gRPC authentication no longer depends on SSH configuration. They accept configured users or the shared token from <code>api-server { token "secret"; }</code>.</li>
+<li><code>environment cli format default</code> now applies to SSH and <code>ze cli -c</code>, so both use the configured interactive output format.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛡️ Traffic, firewall and tunnels">
+                        <div class="md-content">
+                            <h2>🛡️ Traffic, firewall and tunnels</h2>
+                            <p>New:</p>
+<ul>
+<li><code>show anomaly observe</code> keeps active and completed incidents and shows how long each lasted. <code>incident-ring-size</code> controls history size, <code>stale-incident-timeout</code> closes incidents that stop receiving updates, and flows include the source AS in <code>SrcAS</code>.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>If an IRR refresh returns no IPv4 or IPv6 prefixes, Ze keeps the last successful list for that family instead of installing empty firewall data.</li>
+<li>Changing a <code>vpn ipsec site-to-site peer</code> now updates the live tunnel. A <code>traffic-selector</code> edit restarts the affected peer and replaces its installed policies.</li>
+<li><code>ze appliance replace-cert</code> checks that the certificate and key match and are unexpired. It rejects invalid material before it changes either file. EAP-TLS errors no longer suggest the removed <code>tlsunsafeekm</code> setting.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📚 Standards program">
+                        <div class="md-content">
+                            <h2>📚 Standards program</h2>
+                            <p>Ze is being checked against every RFC it implements, one MUST at a time. The work has started rather than finished.</p>
+<p>Of 4,703 requirements, 3,044 are MUST-level and 2,966 are checked. 51 MUSTs still owe work. Six of the 171 documents have been read end to end.</p>
+<p>The 51 did not change because it counts known MUSTs that still need a complete check. Ze is closing the standards defects already found, while deeper reviews continue to find more work in areas previously counted as checked. One newly recorded IKEv2 MUST already had complete test coverage. Therefore, the requirement total, MUST-level total and checked total each rose by one, while the 51 stayed unchanged.</p>
+<p>A green run proves the written list, not its completeness. The remaining 165 documents still need end-to-end reading.</p>
+<p>What that turned up this week:</p>
+<ul>
+<li>A FlowSpec route reaches the firewall only if Ze can enforce every condition. Otherwise, Ze rejects the whole route instead of installing a broader filter.</li>
+<li>An IKEv2 Child SA rekey now returns the exact Traffic Selectors installed in the replacement SA. Ze rejects a rekey that would narrow them incompatibly.</li>
+<li>Route targets, route origins and FlowSpec redirects now encode four-octet ASNs as RFC 5668 specifies. Peers now decode the administrator field correctly.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h2>🔭 Coming up</h2>
+                            <p>First, fix the remaining standards defects. Then add tests for the 51 MUSTs that still owe work and read the remaining 165 documents end to end. SHOULD-level work follows those steps.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        

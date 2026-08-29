@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 4 of 10 |
+| Phase | 5 of 10 |
 | Deferral shard | `plan/deferrals/site-renderers-in-go.md` |
 | Handoff | - |
 | Updated | 2026-08-29 |
@@ -340,6 +340,7 @@ editing them would have cross-committed that session's work.
 | R-3 | The first full build rewrites all 895 pages at once and the diff is unreviewable | phase 10 lands and `git status` in the artifact shows everything modified | each phase lands its own commit, so the artifact diff is reviewed one population at a time. The build is never run to completion until phase 10 |
 | R-4 | The facts snapshot reaches the network during a build, so a build is not reproducible and can fail closed in CI | a build in a sandbox hangs for five seconds and publishes a stale star count | AC-11 requires the offline path to keep the previous value and say so; the timeout stays and the failure stays non-fatal |
 | R-5 | Restoring `llms.txt` collides with the docvalid producer that owns it today | two writers, last one wins, and the file's content depends on producer order | phase 4 makes the command section one section of the restored file, and the coverage check refuses two claimants |
+| R-11 | The coverage check cannot answer about the one tree state where its answer matters most | `./le site check` reports nothing at all, rather than reporting a gap | Found from outside on 2026-08-29 by the session blocked by it. `./le` is an EXISTENCE CACHE that rebuilds on first use, so a working tree that does not compile leaves every session without the tool, not merely without the check. AC-1 assumes the check can always answer; a tree mid-refactor is exactly when a producer might have been dropped, and exactly when the check is unavailable. This also means a broken `internal/le/site` takes out shared tooling for every session in the checkout, which is a cost the phase boundaries did not price. Mitigation while the spec runs: each phase agent closes every unit of work with the tree compiling, checked with `go vet ./internal/le/site/` rather than at the end. The design hole itself is NOT closed here and should not be closed by weakening the check |
 | R-8 | Phase 10 cannot run a full build until the terminal-demo media is rendered | 17 of the 148 docs pages refuse with `errDemoMediaAbsent` | Found in phase 3. Those pages carry a `<!-- terminal-demo: -->` marker and read `website/assets/demos/`, which is generated, gitignored and absent from this checkout. The retired build could not render them here either. `./le terminal-demo render-all` is the producer, and it MUST run before phase 10 attempts a whole-site build |
 | R-9 | The published demo media disagrees with the published demo manifest | 11 of 17 recordings mismatch | Found in phase 3 at `gh-pages` HEAD: `assets/demos/launcher.cast` is 23445 bytes where `assets/demos/manifest.json` states 23416. The published artifact is internally inconsistent, so it CANNOT be used as fixture data for the demo path. Fixtures for that path come from a fresh render, never from the artifact |
 | R-10 | `docs/features.md` publishes about 70 feature rows as paragraph text | the `reference/feature-status` page shows a run of prose where a table belongs | Found in phase 3, and it is a SOURCE defect on both renderers, not a rendering one: four `<!-- source: ... -->` comments sit on lines of their own inside the table, and an HTML block ends a GFM table. The fix is to move each comment into the cell it documents, which is not derivable from the file. Not fixed here: it needs whoever knows which cell each anchor belongs to |
@@ -503,7 +504,28 @@ and its carry-over are untouched.
 | `TestThePageMapTakesItsCountsFromTheFactsSnapshot` | `internal/le/site/derived_test.go` | AC-6, the four counted navigation descriptions | pass |
 | `TestAMissingLLMSInputStopsTheBuild` | `internal/le/site/derived_test.go` | AC-6, a partial file is refused rather than published | pass |
 | `TestExactlyOneProducerClaimsEachCommandRoute` | `internal/le/site/producer_test.go` | AC-1, R-2, and llms.txt claiming no route | pass |
-| `TestBlogPostsSharingADateOrderByFilename` | `internal/le/site/blog_test.go` | AC-7 | |
+| `TestBlogPostsSharingADateOrderByFilename` | `internal/le/site/blog_test.go` | AC-7, the tie order a Go port loses | pass |
+| `TestAnUndatedArticleSortsLastAndStaysOutOfTheFeed` | `internal/le/site/blog_test.go` | AC-7, an article with no date | pass |
+| `TestAnArticleAPageCannotBeMadeFromIsRefused` | `internal/le/site/blog_test.go` | AC-7, no title, no author, a date that is not a date | pass |
+| `TestABlogArticleReadsAsThePublishedArticle` | `internal/le/site/blog_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror | pass |
+| `TestAnArticlePageCarriesItsHeroIllustrationAndContents` | `internal/le/site/blog_test.go` | AC-3, the blocks around the body | pass |
+| `TestTheBlogIndexReadsAsThePublishedIndex` | `internal/le/site/blog_test.go` | AC-3, AC-5, AC-7 | pass |
+| `TestAnIndexCardTakesTheToneAtItsPosition` | `internal/le/site/blog_test.go` | AC-7, the presentation cycle | pass |
+| `TestTheBlogFeedCarriesEveryDatedArticle` | `internal/le/site/blog_test.go` | AC-7, AC-16's blog feed | pass |
+| `TestARetiredArticleLosesItsPage` | `internal/le/site/blog_test.go` | AC-2, a producer removes what it stops owning | pass |
+| `TestTheBlogClaimsOnlyPublishedRoutes` | `internal/le/site/blog_test.go` | AC-1, 8 of the 712 | pass |
+| `TestAWeekWithNoSectionHeaderIsRefused` | `internal/le/site/changes_test.go` | AC-7, an empty week is refused | pass |
+| `TestAnUnknownTagFamilyIsRefused` | `internal/le/site/changes_test.go` | AC-7, a chip cannot launder a typo | pass |
+| `TestANamespacedTagIsClassifiedByItsFamilyAndShownInFull` | `internal/le/site/changes_test.go` | AC-7, the neutral chip | pass |
+| `TestADraftWeekIsPublishedAndKeptOutOfTheFeed` | `internal/le/site/changes_test.go` | AC-7, the draft split | pass |
+| `TestAWeekReadsAsThePublishedWeek` | `internal/le/site/changes_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror | pass |
+| `TestAListWrittenUnderItsParagraphGetsItsBlankLine` | `internal/le/site/changes_test.go` | AC-5, the mirror a chat-written list reaches | pass |
+| `TestTheChangesIndexReadsAsThePublishedIndex` | `internal/le/site/changes_test.go` | AC-3, AC-5, AC-7 over all 37 weeks | pass |
+| `TestTheCategoryLegendKeepsItsDeclaredOrder` | `internal/le/site/changes_test.go` | AC-7, no output order comes from a Go map | pass |
+| `TestTheChangesIndexFileIsNewestFirst` | `internal/le/site/changes_test.go` | AC-7, `data/changes.json` | pass |
+| `TestTheChangesFeedIsPublishedAtBothAddresses` | `internal/le/site/changes_test.go` | AC-7, AC-16's two changes feeds | pass |
+| `TestARetiredWeekLosesItsPage` | `internal/le/site/changes_test.go` | AC-2, and a directory that is not a week is left alone | pass |
+| `TestTheChangesClaimOnlyPublishedRoutes` | `internal/le/site/changes_test.go` | AC-1, 38 of the 712 | pass |
 | `TestPluginCatalogCarriesTheFieldsThePageShows` | `internal/le/site/plugins_test.go` | AC-9 | |
 | `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts/sitefacts_test.go` | AC-11 | |
 | `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12 | |
@@ -643,6 +665,28 @@ and its carry-over are untouched.
      which leaves 167 for phases 5 to 10.
 5. **Phase: Blog and changes** -- index, detail pages, both feeds, `changes.json`
    - Files: `blog.go`, `changes.go`
+     -> Landed 2026-08-29. 46 routes claimed, 8 under `/blog/` and 38 under
+     `/project/changes/`, which leaves 121 for phases 6 to 10. Four named
+     non-route artifacts are written and AC-16 must name each: `blog/feed.xml`,
+     `project/changes/feed.xml`, `changes/feed.xml` (the address the changelog
+     had before it moved out of `blog/`, still served because a feed client
+     follows no redirect) and `data/changes.json`.
+     -> Decision 2026-08-29: the retired renderers WARNED on four inputs and
+     `website/tools/build.py` then exited non-zero on any warning, so a warned
+     input never reached a reader. Each is now REFUSED by name at the file that
+     carries it: an article with no title, an article with no author, a week
+     with no themed section header, and a tag whose family
+     `website/data/topics.json` does not list. The last one matters most: the
+     retired renderer coloured an unknown family `meta`, which is also what a
+     family the vocabulary DELIBERATELY maps there takes, so a typo published as
+     a deliberate classification.
+     -> Decision 2026-08-29: `render-changes.classify`, `EMOJI_CAT` and
+     `KEYWORD_CAT` are NOT restored. That heuristic ran only when a post carried
+     no `tags:` line, which warned, which failed the build, so no successful
+     build ever used it. All 37 posts carry tags.
+     -> Decision 2026-08-29: the empty-blog branch of `render-blog.main` is not
+     restored either. A checkout with no article refuses instead, which is one
+     branch rather than three and fails closed.
 6. **Phase: Data pages** -- features, milestones, dependencies, the talks listing
    - Files: `datapages.go`
 7. **Phase: Plugin catalog and config reference** -- extend `inventory.Collect`,
@@ -728,6 +772,9 @@ and its carry-over are untouched.
 | The docs pipeline is the first population after the shell | retrofit the two live regressions first | Owner decision, 2026-08-29. It is the largest population and the one that exercises goldmark hardest, so the Markdown unknowns surface earliest. The two regressions ship for longer as a result |
 
 ## Known Limitations
+- The blog carries no page sidebar, because `website/data/page-links.json` names
+  no blog key and the retired renderer passed none. Adding a key would give it
+  one with no further change.
 - Anchor links from outside this repository into a docs page will land at the top
   of the page rather than at their section. Accepted by the owner, 2026-08-29.
 - `PLUGIN.md` front matter is not restored. No such file exists and all 96

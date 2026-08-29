@@ -1,0 +1,9 @@
+{
+  "cli_commands": 402,
+  "config_sections": 36,
+  "dependencies": 42,
+  "rfc": {
+    "requirements_display": "4,744",
+    "summaries_display": "178"
+  }
+}
