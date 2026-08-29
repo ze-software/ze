@@ -1,6 +1,6 @@
 ---
 kind: directive
-level: MUST
+level: MUST NOT
 stage:
 ---
 A path inside a `plan/` record MUST NOT be repointed when the file it names

@@ -54,7 +54,7 @@ func pathWithin(parent, child string) bool {
 // merely because it currently matches nothing.
 //
 // Three entries match nothing in website/ today: `.claude`, `.github` and
-// `presentations/tools`. The first two are ordinary defence. The third names a
+// `presentations/tools`. The first two are ordinary defense. The third names a
 // directory that was RETIRED -- website/presentations went with eae282592
 // ("make le a ze personality and retire make and scripts") -- and it is kept
 // anyway, because TestSourceOnlyBoundary pins presentations/tools/bundle.go

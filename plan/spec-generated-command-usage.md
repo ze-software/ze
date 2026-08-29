@@ -32,9 +32,9 @@ for `<vid>` at all.
 
 The goal is that every command's usage line is GENERATED from the command
 model, that the prose is deleted, and that a gate keeps the two honest while
-the deletion happens command by command. A `ze:usage` extension is admitted
-only where generation genuinely cannot reach, with a stated reason, and its
-population is capped so it cannot become the default route.
+the deletion happens command by command. A command the model cannot express
+keeps its authored sentence and stays a reported difference, and the way to
+close it is to make the model able to express it.
 
 Five failure classes stand between the model and a generated line. Four were
 found by survey, the fifth by reading the announce module. They are enumerated
@@ -81,7 +81,9 @@ under Current Behavior and each one owns an implementation phase.
   different concepts. Binding must stop depending on slice order before display
   order is allowed to change, or `show system sockets 8080` silently binds to
   the wrong leaf.
-- `ze:usage` is free; `ze:syntax` is taken and means the config parsing mode.
+- `ze:syntax` is TAKEN and means the config parsing mode
+  (`internal/component/config/yang/modules/ze-extensions.yang`), so it is not a
+  free name for anything about command usage.
 
 ## Current Behavior (MANDATORY)
 
@@ -157,7 +159,6 @@ under Current Behavior and each one owns an implementation phase.
 | Modules carrying at least one | 24 |
 | `ze:command` declarations | 384 |
 | Distinct `ze:command` identifiers | 377 |
-| `ze:usage` occurrences anywhere | 0 |
 | Command NODES the product tree carries | 377 |
 
 **Corrected 2026-08-29: 384 is the DECLARATION count, and 377 is the node count.
@@ -269,7 +270,6 @@ than an implementer's choice.
 | A child container carrying `ze:modifier "required"` | `keyword <its leaves>`, with no brackets, before every group the command runs without |
 | A child container carrying `ze:modifier "choice"` | `[word\|word\|word]`, the closed set its one leaf declares. The container's own name is never typed |
 | A leaf of type enumeration, anywhere above | its values in the order the MODULE declares them, which is the order of the integers YANG assigns |
-| A container carrying `ze:usage "<tail>"` | the path keywords, then the literal tail, and nothing else |
 | A container with no `ze:command` | no usage line. It is a grouping node |
 
 The last five rows were added on 2026-08-29, after the Known Limitations entry
@@ -293,7 +293,6 @@ then its children are listed, which is new output where today there is none.
 | A-1 | goyang preserves declaration order in each entry's parsed statement and nothing sorts it | the vendored goyang `Entry` keeps its statement in the `Node` field, and `nextStatement` in the vendored parser appends substatements in lexer order | declaration order is unrecoverable without a new extension, and phase 4 needs a redesign | `TestArgDefsFollowDeclarationOrder` over a fixture module declaring leaves in non-alphabetical order | confirmed 2026-08-29. `declaredLeafNames` (`internal/component/config/yang/command.go`) reads `entry.Node.Statement().SubStatements()` and a fixture declaring `remote, called, zone, attempts` extracts in that order; the same fixture extracted `attempts, called, remote, zone` before the change. `TestArgDefsAreDeterministic` repeats the build 12 times for one answer. A leaf arriving from a grouping or an augment is named by no substatement of the container, so those follow in name order |
 | A-2 | Every other reader of the argument definitions treats them as a set, so changing their order changes nothing for them | `implicitSelectorDef` and `matchCommandTokens` in `internal/component/plugin/server/command.go`, the completer in `internal/component/command/completer.go`, the grammar checker in `internal/component/command/grammar/checker.go`, `hasImplicitSelectorArg` in `cmd/ze/internal/cmdutil/cmdutil.go` | phase 4 silently changes completion or grammar verdicts | the completer and grammar unit suites green after phase 4, plus a search for index-based access into the definition slice | confirmed 2026-08-29, with one residue. No reader indexes the slice by POSITION: every `ArgDefs[i]` in the tree is a `for i := range` cursor. `implicitSelectorDef` returns nil when a second candidate exists, `hasImplicitSelectorArg` is an any-match, and `matchCommandTokens` looks up by name, so all three are order-independent by construction. The completer, grammar, cli, cli/client, cmdutil, wikicatalog, cidispatch and docvalid suites are green after the change. THE RESIDUE: `positionalError` (`internal/component/plugin/server/command.go`) builds its message from the FIRST enum or union definition, so the wording of a rejection can change for a command whose declared order differs from the alphabetical one. It is message text, not a verdict |
 | A-3 | `helpfmt.Summary` already drops the `Usage:` sentence, so listings do not change when the prose goes | `Summary` in `internal/core/helpfmt/helpfmt.go` returns the first sentence | listing output changes for up to 80 commands and every `.ci` asserting a listing goes red | `TestHelpListingUnchangedWithoutUsageProse` comparing listings before and after prose removal on a fixture | confirmed 2026-08-29. The test compares two listings byte for byte and they are equal. It holds at the OPERATOR surface too: `Page.WriteTo` (`internal/core/helpfmt/helpfmt.go`) applies `Summary(e.Desc)` to every section entry. The per-command HEADER is a different matter and the spec does not claim otherwise: `WriteTo` prints `p.Summary` whole, so a command's own page shows the authored sentence today and will lose it in phase 8 |
-| A-4 | `ze:usage` is unused anywhere in the repository, so the name is free | a repository-wide count returned 0 occurrences in `.yang` and `.go` | the extension name collides and must be renamed | the count, re-run by the gate on its first execution | confirmed 2026-08-29. `grep -rn "ze:usage" --include="*.yang" --include="*.go" .` returns 0 |
 | A-5 | The announce plugin's withdraw handler can serve three wire methods without changing how it parses its tail | `handleWithdraw` (`internal/component/bgp/plugins/cmd/announce/announce.go`) | phase 7 grows to include the handler's argument parsing | read the handler that answers `ze-bgp:withdraw` before phase 7 starts, and record what it accepts | confirmed 2026-08-29, and the split is cheaper than the spec assumed. `handleWithdraw` is ALREADY a keyword switch over `args[0]` that dispatches to `handlewithdrawTag`, `handleWithdrawID` and `handlewithdrawAll`, each taking `args[1:]`. So the three siblings register three functions that exist, and the hand-rolled switch is DELETED rather than kept beside them (`ai/rules/no-layering.md`). No argument parsing changes. TWO FACTS THE PROSE GETS WRONG, so do not model from it: `handlewithdrawTag` defaults `value` to `"*"` when it is absent, so `withdraw tag <key>` alone is valid and the prose's `<value\|*>` is not mandatory; and `handlewithdrawAll` accepts a `selector <pattern>` filter (`kwSelector`) that is documented NOWHERE, which the model must declare rather than drop |
 | A-6 | 18 of the missing values are exclusive to class (c), and 31 commands declare zero leaves | research survey handed to this spec | phase 6 is larger than planned and the phase is re-cut | the gate's own first-run report, which counts them from source | BROKEN 2026-08-29, twice, and the phase is re-cut. Class (c) is 26 commands over 10 modules, not 18 and not the 23 an earlier re-derivation gave. The 23 was itself wrong: it counted seven `create`/`delete interface` rows where the gate shows eight, and it put `resolve ping` and `resolve traceroute` in class (d) when AC-15 already rules that a single optional value is a plain optional leaf. The 26 are the eleven interface commands in `ze-iface-cmd.yang` (`create interface address`, `create interface unit`, `create interface dummy name address`, `create interface dummy name unit`, `create interface bridge name address`, `create interface bridge name unit`, `create interface veth name`, `delete interface name address`, `delete interface name unit`, `request interface mtu`, `request interface mac`), the seven lookups in `ze-resolve-cmd.yang`, `resolve ping`, `resolve traceroute`, and `show config cat`, `show data cat`, `show env get`, `show firewall ruleset`, `show interface type` and `show route lookup`. `delete interface name unit` is the one that carries no prose for its value: its authored line reads `delete interface name <name> unit` while `handleUnitDel` (`internal/component/iface/cmd/manage.go`) requires the VLAN id in `args[0]`, so declaring the leaf is a correction the prose never asked for and it ADDS one difference rather than closing one. The "31 commands with zero leaves" half is not re-derivable: the gate walks the 81 prose-carrying nodes, not the 379, so it never counts a leafless command that never had prose. |
 | A-7 | No `.ci` or `.et` fixture asserts the authored `Usage:` text of a command | not yet counted | removing the prose reddens functional tests that were pinning documentation | a repository-wide count of `Usage:` inside `test/`, run in phase 1 | confirmed 2026-08-29. Five hits under `test/`, none over a YANG description. `test/ui/tui-noargs-nontty-fallback.ci` and `test/parse/help-no-color.ci` assert the binary's own top-level banner; `test/parse/cli-generate-wireguard-keypair.ci` asserts a handler-side message written in Go; the last two are Python fixtures under `test/exabgp-compat/`. Every `.et` file lives under `test/`, so the same count covers them. Deleting the 80 sentences reddens no functional test |
@@ -303,7 +302,6 @@ then its children are listed, which is new output where today there is none.
 |----|------|--------------|----------------------|
 | R-1 | The order trap. Changing the definition order to declaration order changes which leaf a bare positional token BINDS to, and the result is a validation verdict rather than an error the operator can read. `show system sockets 8080` would bind to `state`, a pattern-less string that accepts anything, instead of `port`. Corrected 2026-08-29: the binding is a validation binding, not a rewrite, so on this command it changes no answer. It changes an answer where a MANDATORY typed leaf is filled positionally, which is the `show tcp-check <host> <port>` case `positionalDef`'s own comment records | `TestPositionalBindingIsOrderIndependent` fails when it shuffles the definition slice | Phase 3 lands BEFORE phase 4. Binding ranks by constraint strength (enumeration, then bounded uint, then unbounded uint, then patterned string, then union ranked by its most permissive member, then pattern-less string) and breaks a tie by name, so no slice order can change the answer |
 | R-2 | The gate's cheapest route from red to green is deleting the authored sentence, which hides the gap instead of closing it | the authored-line count falls while no model change lands in the same commit | The gate compares against HEAD, never against a checked-in baseline. Deleting an authored line whose generated usage differed at HEAD is refused unless the generated usage now equals that line |
-| R-3 | `ze:usage` becomes the default route and generation stalls part way | the `ze:usage` count rises | The count is capped by a monotonic non-increasing ratchet against HEAD, and every use states its reason in the same statement's description |
 | R-4 | Splitting `withdraw` into sibling commands changes the wire methods the announce plugin must serve, and a missed registration makes a documented command unreachable | `./le docvalid command-contract` reports a YANG node with no handler | Phase 7 registers the handler side first and the YANG second, so the contract check is green at every commit |
 | R-5 | Declaring the 18 missing leaves gives typed arguments to commands that previously accepted a free-form tail, so a previously accepted invocation is now rejected | the `.ci` suite for the affected command goes red | Each missing leaf is declared with the widest type that still names the value, and the phase adds a `.ci` asserting the previously accepted invocation still works |
 | R-6 | A large enumeration renders an unreadable line, since an enum leaf renders its whole value set | a generated line exceeds terminal width in `ze help` | Accepted for this spec and recorded under Known Limitations. Truncation is a rendering change with no model consequence |
@@ -326,7 +324,6 @@ then its children are listed, which is new output where today there is none.
 | `ze help command --json` | → | `renderHelpCommand` in `cmd/ze/help_command.go` populates `usage` and `grammar` | `TestHelpCommandJSONPublishesUsage` |
 | `show system sockets port 8080` over the command socket | → | `handleShowSystemSockets` in `internal/component/cmd/show/sockets_linux.go` | `test-show-system-sockets-keyword-filters.ci` |
 | A YANG container carrying `ze:modifier` | → | the renderer's modifier branch | `TestUsageRendersModifierGroup` |
-| A YANG container carrying `ze:usage` | → | the renderer's literal-tail branch | `TestUsageRendersDeclaredTail` |
 
 ## Acceptance Criteria
 
@@ -340,7 +337,6 @@ then its children are listed, which is new output where today there is none.
 | AC-6 | Any YANG `description` reached by the command tree | No description prescribes a CLI spelling under any of `Usage:`, `Syntax:` or `Filters:`. `./le docvalid usage-contract` exits non-zero when one does. `Example:` is NOT a marker: `ze-fib-p4-conf.yang` writes `Example: 127.0.0.1:9559` to say what a listener address looks like, which prescribes no CLI spelling |
 | AC-7 | A commit that removes an authored `Usage:` sentence whose generated usage differed from it at HEAD, without changing the model | `./le docvalid usage-contract` exits non-zero and names the command, the authored line and the generated line. One difference is exempt, by owner ruling of 2026-08-29: placeholder wording alone. `usageShape` (`internal/le/docvalid/usage.go`) folds every `<...>` group to `<>` and the two lines are compared folded, so `[count <n>]` against `[count <count>]` is a deletion the gate allows and `request interface <name> down` against `request interface down <name>` is one it still refuses |
 | AC-8 | A commit that adds a `ze:command` container whose description contains `Usage:` | The gate exits non-zero and names the container |
-| AC-9 | A commit that adds a `ze:usage` statement while the count at HEAD is unchanged or lower | The gate exits non-zero. The count of `ze:usage` statements never rises |
 | AC-10 | `ze announce help` | The line ends with `[tag <key> <value>] [for <duration>]`, rendered from a child container carrying `ze:modifier` for the two-value `tag` group and from an optional leaf for `for`, and `ze help command --json` marks those tokens optional |
 | AC-11 | `ze withdraw help`, and `ze help command withdraw` | `withdraw tag`, `withdraw id` and `withdraw all` each appear as their own command with their own usage line, and `withdraw` alone lists them as subcommands |
 | AC-12 | `ze help command --json` for any entry | The entry carries an ordered `grammar` token list, and rendering that list produces the entry's `usage` string byte for byte |
@@ -371,12 +367,10 @@ then its children are listed, which is new output where today there is none.
 | `TestUsageRendersOptionalLeafWithKeyword` | `internal/component/command/usage_test.go` | an optional leaf renders `[keyword <value>]`, never a bare optional positional | |
 | `TestUsageRendersEnumValueSet` | `internal/component/command/usage_test.go` | an enumeration renders its whole value set | |
 | `TestUsageRendersModifierGroup` | `internal/component/command/usage_test.go` | `ze:modifier "once"` and `"repeat"` render a bracketed group, with a trailing ellipsis for the repeat form | |
-| `TestUsageRendersDeclaredTail` | `internal/component/command/usage_test.go` | `ze:usage` supplies only the tail, and the path keywords are still generated | |
 | `TestUsageGrammarRendersToUsageString` | `internal/component/command/usage_test.go` | the token list and the string cannot disagree | |
 | `TestUsageContractVerbRegistered` | `internal/le/docvalid/actions_test.go` | the verb is in the action table and reachable | |
 | `TestUsageContractRefusesAuthoredProse` | `internal/le/docvalid/usage_test.go` | a description containing `Usage:` fails the gate | |
 | `TestUsageContractRefusesHiddenGap` | `internal/le/docvalid/usage_test.go` | deleting an authored line whose generated usage differed at HEAD fails the gate | |
-| `TestUsageContractRefusesNewDeclaredTail` | `internal/le/docvalid/usage_test.go` | adding a `ze:usage` above the HEAD count fails the gate | |
 | `TestHelpCommandJSONPublishesUsage` | `cmd/ze/help_command_test.go` | `usage` and `grammar` appear, and `args` is unchanged | |
 | `TestHelpPrintsUsageForNodeWithChildren` | `internal/component/command/help_test.go` | AC-5 | |
 | `TestHelpListingUnchangedWithoutUsageProse` | `internal/component/command/help_test.go` | A-3, listings are byte-identical | |
@@ -387,7 +381,6 @@ then its children are listed, which is new output where today there is none.
 |-------|-------|------------|---------------|---------------|
 | `show system sockets` port leaf | 0-4294967295 (uint32, no declared range) | 4294967295 | N/A | 4294967296, which binds to no definition and falls through to the pattern-less string |
 | `create interface dummy name unit` vid leaf, once declared | 1-4094 | 4094 | 0 | 4095 |
-| `ze:usage` statement count | 0 to the count recorded at HEAD | the HEAD count | N/A | HEAD count plus one is refused |
 | Authored CLI-grammar sentence count, over all three markers | 0 to the count recorded at HEAD, currently 82 | the HEAD count | N/A | HEAD count plus one is refused |
 
 ### Functional Tests
@@ -571,9 +564,9 @@ then its children are listed, which is new output where today there is none.
      `TestUsageContractRefusesNewDeclaredTail`
    - Files: the 24 modules lose their last `Usage:` sentences; `ai/rules/cli.md`
      and `ai/patterns/cli-command.md` name the feeder
-   - Verify: the authored-line count is 0 against all three markers, the `ze:usage` count is at its floor,
-     and the gate is now a plain assertion that every command node renders a
-     usage line
+   - Verify: every authored sentence the model can express is gone, the ones it
+     cannot are the only ones left, and the gate is a plain assertion that every
+     command node renders a usage line
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -592,7 +585,6 @@ then its children are listed, which is new output where today there is none.
 |-------------|---------------------|
 | No authored usage prose remains | a repository-wide count of `Usage:`, `Syntax:` and `Filters:` in `.yang` returns 0 |
 | Every command node renders a usage line | `./le docvalid usage-contract` exits 0 |
-| The exception is capped | a repository-wide count of `ze:usage` matches the floor the gate records |
 | The catalog publishes both projections | `ze help command --json` shows `usage` and `grammar` on every entry with a wire method |
 | Operator help shows the form | `ze help create interface dummy name unit` prints the AC-2 line |
 | Binding is order independent | `TestPositionalBindingIsOrderIndependent` passes over every permutation |
@@ -700,18 +692,22 @@ then its children are listed, which is new output where today there is none.
   through `hasSubcommand`, so `show bgp peer <selector> rib [sent|...]` and
   `show policy chain peer <selector> [import|export]` pass while a real
   subcommand beside a group still fails.
-- **AC-9 is unreachable as written, and it needs a floor of 1 rather than a
-  reword.** The criterion refuses any commit that raises the `ze:usage` count
-  above the count at HEAD. That count is 0 and every deletion phase keeps it at
-  0, so the ratchet is monotonic non-increasing from zero and the first use of
-  the extension is refused for ever. The Key Design Decision that admits
-  `ze:usage` for the announce route specification therefore names a route no
-  commit can take. The criterion is left exactly as the owner approved it: this
-  is a spec defect to rule on, not an implementer's edit.
-- **`ze:usage` is not implemented and phase 8 did not implement it.**
-  `TestUsageContractRefusesNewDeclaredTail` in the TDD plan has no subject while
-  the extension is unreachable, so the ratchet AC-9 describes has no code. The
-  gate's HEAD comparison covers the deletion half of R-2 and nothing covers R-3.
+- **The declared-tail extension is removed, and the criterion that guarded it
+  with it (owner decision, 2026-08-30).** It was reserved for one situation, the
+  announce route specification's trailing token stream, and two things killed it.
+  AC-9 ratcheted its count monotonically non-increasing from a count of 0, so the
+  criterion refused the first use of the mechanism it existed to permit. And the
+  four rendering rules the owner authorised reach every argument shape met here
+  except two `create interface` commands, whose values want a leaf moved rather
+  than an annotation. A mechanism with no user, and a ratchet defending it, is
+  machinery rather than a rule. Nothing is deleted from the tree, because the
+  extension was never declared: zero occurrences in every `.yang` and `.go` file.
+- **A command the model cannot express keeps its sentence, and that is the
+  answer rather than a gap.** It stays a reported difference, and the way to
+  close it is to make the model able to express it, not to annotate around it.
+  The live instances are `create interface address` and `create interface unit`,
+  whose `name` would move onto a container whose `dummy`, `bridge` and `veth`
+  subtrees each declare a `name` of their own.
 
 - **Enum values render in declaration order, and that was a precondition rather
   than a nicety.** `enumNames` (`internal/component/config/yang/command.go`)
@@ -814,8 +810,6 @@ Each row says what the spec claimed, what the code says, and why the change.
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Whole-form alternation is MODELLED as sibling containers, one per form, each with its own `ze:command` | Admit `ze:usage` for `withdraw`; invent an alternation extension carrying several forms on one node | The tree already means alternation: sibling children of a node ARE mutually exclusive forms. `withdraw` collapsed four commands into one line because its handler parses its own tail, not because the model cannot say it. Modelling gives completion for free, which no annotation ever does, and an alternation extension would be machinery for a case the model already covers |
-| `ze:usage` is admitted for exactly one situation, and it supplies only the TAIL | Allow `ze:usage` to override a whole line; refuse the extension entirely | The residue is a command that hands a whole trailing token stream to a sub-parser with its own grammar. The announce route specification is that case: its trailing argument is an ExaBGP-style route line, not an argument list, and no leaf set states it. Supplying only the tail keeps generation authoritative for every path keyword, so the exception is as small as the problem. Refusing the extension entirely would force a fake model for a grammar that lives elsewhere |
 | The catalog publishes BOTH `usage` and `grammar`, from one producer | Publish only the rendered `usage` string; publish only `grammar` and let readers render | A rendered string forces every machine reader to parse angle brackets and square brackets, and `args` cannot help because it carries no position: the flat unordered list is exactly the shape that produced the position bug. Publishing only `grammar` breaks the wiki and the operator-facing surfaces that need a string. Both, derived from one token list, cannot disagree, and AC-12 pins that |
 | Positional binding ranks by CONSTRAINT STRENGTH, not by any order | Keep slice order and freeze the alphabetical sort; sort definitions for binding and separately for display | Freezing the sort makes display order a hostage to a binding accident. Two sorts on one slice is two truths about one list. Ranking by how much a definition constrains its value removes order from the question entirely, which is the only version where changing display order is provably safe |
 | The gate compares against git HEAD, not a checked-in baseline file | A baseline file listing the known differences | A checked-in baseline can be edited to lie, and the cheapest route from red to green becomes editing it. Comparing against HEAD is the idiom the RFC ratchets already use in this repository, and it cannot be edited without also editing history |
@@ -973,12 +967,12 @@ Each row says what the spec claimed, what the code says, and why the change.
   `delete interface name unit`, `resolve traceroute`, `show capture`, `show pki
   certificate name`, `show policy test peer` and `show system sockets`. `show
   metrics name` was the tenth and its entry above records how it closed.
-- **`ze:usage` cannot be added while AC-9 stands.** The extension's count at HEAD
-  is 0 and AC-9 makes the ratchet monotonic non-increasing, so the first use is
-  refused. The one command the Key Design Decisions reserve it for, the
-  `announce` route specification, therefore keeps a generated line that states
-  its peer selector and nothing else. Either AC-9 states a floor of one, or the
-  extension is unreachable and the decision that admits it is dead.
+- **A command whose grammar the model cannot state keeps its authored
+  sentence.** There is no annotation route: the declared-tail extension and its
+  ratchet were removed on 2026-08-30 rather than given a floor, because nothing
+  used them. `announce` therefore publishes a generated line naming its peer
+  selector and its modifier groups, and its route specification stays in prose
+  until the model can state it.
 
 ## RFC Documentation (Scope: protocol)
 

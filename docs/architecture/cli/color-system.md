@@ -124,7 +124,7 @@ that.
 |---------|------|---------|
 | Header bar (AS, router-id, uptime) | structure+bold | `AS 65000  rid 1.2.3.4` |
 | Column headers | structure+bold | `Peer  ASN  State  Rx` |
-| Selected row | identity+bold+bg | cyan background |
+| Selected row | bold, and a `> ` marker | no background, and no color of its own, so the state cell keeps its own role color |
 | Established state | value | `Established` |
 | Degraded state (OpenSent, Active) | caution | `Active` |
 | Down/error state (Idle, error) | danger | `Idle` |
@@ -169,7 +169,7 @@ Where existing code already matches, and where it diverges.
 | Help (`helpfmt`) | Mostly aligned | `styleSubcommand` uses green (value) for entry names. `styleCommand` uses bold cyan (identity). `styleFlag` uses yellow (caution). All match. |
 | Interactive launcher | Aligned | structure(205) for title/headers, identity(73) for names, identity+bold(73) for selected, muted(241) for descriptions/hints. |
 | Editor styles | Mostly aligned | `promptStyle` 205 = structure. `hintStyle` 73 = identity (should be muted). `contextStyle` 33 = context. `successStyle` 82 = value. Match. |
-| Dashboard | Aligned | Green/yellow/red for state = value/caution/danger. Header white+bold = structure. |
+| Dashboard | Aligned | Green/yellow/red for state = value/caution/danger. Header white+bold = structure. The selected row carries bold and a `> ` marker and no background, so a state cell keeps its own role color when the row is selected. |
 | Ping/traceroute | Aligned | Same traffic-light pattern as dashboard. |
 | Autocomplete | **Needs work** | No color on dropdown items. No selected-row highlight. Only prefix `> ` distinguishes selection. |
 | Logging | Aligned | Severity colors match the role mapping. |

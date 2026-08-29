@@ -453,7 +453,7 @@ Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM polici
 | Traffic selectors | IPv4 and IPv6 CIDR prefixes, an optional IP protocol, and an optional single port. See Traffic selectors and narrowing below |
 | Encapsulation | Tunnel mode by default; `mode transport` negotiates transport mode per RFC 7296 Section 1.3.1 |
 | Connection | `connection-type initiate` starts the exchange; `connection-type respond` waits for the peer |
-| Replay protection | Anti-replay window, default 32 |
+| Replay protection | Anti-replay window, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default |
 | Lifetime | Time-based and byte-based rekeying thresholds |
 
 ## Both ESP wire forms
