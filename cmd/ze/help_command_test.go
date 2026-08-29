@@ -3,6 +3,9 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -60,4 +63,33 @@ func TestExtractCommandFilter(t *testing.T) {
 	assert.Equal(t, "", extractCommandFilter([]string{"--json"}))
 	assert.Equal(t, "show", extractCommandFilter([]string{"show"}))
 	assert.Equal(t, "", extractCommandFilter(nil))
+}
+
+// VALIDATES: the published command catalog spells an argument placeholder as
+// <id>, not as a unicode escape.
+// PREVENTS: the state the gh-pages catalog reached on 2026-08-29, where every
+// angle bracket in a usage line was published as a six-character escape,
+// because encoding/json escapes HTML by default and this encoder had never
+// said otherwise. The bytes decode to the same string, so no parser complains
+// and nothing goes red. A person reading the reference is the one who pays.
+func TestCommandJSONDoesNotEscapeAngleBrackets(t *testing.T) {
+	entries := []commandEntry{{
+		Path:        "request cache expire",
+		Description: "Remove a cached message immediately.\nUsage: request cache expire <id>.",
+		Mode:        "daemon",
+	}}
+
+	var out bytes.Buffer
+	require.Equal(t, 0, printCommandJSON(&out, entries))
+
+	assert.Contains(t, out.String(), "<id>",
+		"the catalog must publish the placeholder as written")
+	assert.NotContains(t, strings.ToLower(out.String()), "u003c",
+		"an angle bracket must not reach the catalog as a unicode escape")
+
+	var round []commandEntry
+	require.NoError(t, json.Unmarshal(out.Bytes(), &round))
+	require.Len(t, round, 1)
+	assert.Equal(t, entries[0].Description, round[0].Description,
+		"the answer must still parse back to the description it was given")
 }

@@ -446,6 +446,13 @@ func filterCommands(entries []commandEntry, filter string) []commandEntry {
 func printCommandJSON(w io.Writer, entries []commandEntry) int {
 	rw := helpfmt.NewRenderWriter(w)
 	enc := json.NewEncoder(rw)
+	// A usage line spells an argument as <id>, and encoding/json escapes the
+	// angle brackets to their six-character unicode escape form unless it is
+	// told not to. This answer is read by an operator, by a tool, and by the
+	// published command catalog, and none of them embeds it in HTML, so the escape buys
+	// nothing and costs legibility. Every other encoder in the tree passes
+	// false already.
+	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(entries); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err) //nolint:errcheck // one-shot error to stderr
