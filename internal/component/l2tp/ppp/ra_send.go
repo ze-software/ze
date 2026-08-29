@@ -1,6 +1,7 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- Router Advertisement transmission for PPP IPv6.
-// RFC: rfc/full/rfc4861.txt -- Sections 6.2.1, 6.2.5. RFC 4861 has no rfc/short/ summary and is not enrolled.
+// RFC: rfc/full/rfc4861.txt -- Sections 6.2.4, 6.2.5, 6.2.6. RFC 4861 has no rfc/short/ summary and is not enrolled.
 // Related: ra.go -- RA message building.
+// Related: ra_schedule.go -- when each advertisement is due.
 // Related: ra_linux.go -- opens the ICMPv6 socket and starts these loops.
 
 package ppp
@@ -10,31 +11,8 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"time"
 
 	"golang.org/x/net/ipv6"
-)
-
-const (
-	// raInitialCount and raInitialInterval shape the burst sent when IPv6CP
-	// opens, so a subscriber finds the router without waiting for the first
-	// periodic advertisement.
-	raInitialCount    = 5
-	raInitialInterval = 3 * time.Second
-
-	// raRouterLifetime is the Router Lifetime advertised to the subscriber,
-	// in seconds, and raPeriodicInterval is one third of it. RFC 4861
-	// Section 6.2.1 gives AdvDefaultLifetime a default of
-	// 3 * MaxRtrAdvInterval, so the subscriber keeps its default route
-	// across two lost advertisements. Deriving one from the other keeps
-	// that margin if the lifetime ever changes.
-	raRouterLifetime   = 1800
-	raPeriodicInterval = raRouterLifetime * time.Second / 3
-
-	// raCeaseLifetime is the Router Lifetime of the final advertisement.
-	// Zero tells the subscriber this router is no longer a default router.
-	// RFC 4861 Section 4.2.
-	raCeaseLifetime = 0
 )
 
 // raWriter writes one Router Advertisement to the link. *ipv6.PacketConn
@@ -60,9 +38,9 @@ type raSender struct {
 }
 
 // send writes one Router Advertisement carrying lifetime seconds in the Router
-// Lifetime field. A failure is logged and not returned: a periodic
-// advertisement is repeated by the next tick, and the final one is best effort
-// because an abrupt teardown can remove the interface first.
+// Lifetime field. A failure is logged and not returned: an unsolicited
+// advertisement is repeated at the next scheduled one, and the final one is
+// best effort because an abrupt teardown can remove the interface first.
 func (s *raSender) send(lifetime uint16) {
 	var buf [256]byte
 	n := BuildRA(buf[:], RAConfig{
@@ -77,45 +55,58 @@ func (s *raSender) send(lifetime uint16) {
 	}
 }
 
-// raSenderLoop sends the initial burst of Router Advertisements, then one for
-// every tick of the periodic timer and one for every Router Solicitation
-// coalesced onto rsCh. It closes senderDone when it returns, so stopRASender
-// can wait for it. It returns only when ctx is canceled, because a session
-// advertises for as long as it is up.
-func raSenderLoop(ctx context.Context, sender *raSender, rsCh <-chan struct{}, senderDone chan<- struct{}) {
+// raSenderLoop advertises for as long as the session is up. It sends one
+// advertisement as soon as the interface becomes an advertising interface, then
+// one whenever sched says the next is due. A Router Solicitation coalesced onto
+// rsCh moves that time earlier, never later, and sched decides by how much.
+//
+// The loop closes senderDone when it returns, so stopRASender can wait for it
+// and then own sched. It returns only when ctx is canceled.
+//
+// A fresh timer is armed on each pass rather than one timer reset in place: the
+// schedule moves whenever a solicitation arrives, and a timer that is created,
+// waited on, and stopped inside one iteration can deliver nothing to the next
+// one. The cost is one timer per advertisement, on a path that carries a few
+// events per subscriber per raMinRtrAdvInterval.
+func raSenderLoop(ctx context.Context, sender *raSender, sched *raSchedule, rsCh <-chan struct{}, senderDone chan<- struct{}) {
 	defer close(senderDone)
 
-	for range raInitialCount {
-		sender.send(raRouterLifetime)
-		select {
-		case <-ctx.Done():
-			return
-		case <-rsCh:
-			sender.send(raRouterLifetime)
-		case <-time.After(raInitialInterval):
-		}
-	}
-
-	ticker := time.NewTicker(raPeriodicInterval)
-	defer ticker.Stop()
+	// RFC 4861 Section 6.2.4: an interface that becomes an advertising
+	// interface advertises at once, so the subscriber finds the router
+	// without waiting out an interval or sending a solicitation. It is the
+	// first multicast advertisement on this interface, so no rate limit
+	// applies to it.
+	sender.send(raRouterLifetime)
+	sched.advertised()
 
 	for {
+		due := make(chan struct{})
+		timer := sched.clk.AfterFunc(sched.wait(), func() { close(due) })
+
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return
-		case <-ticker.C:
-			sender.send(raRouterLifetime)
 		case <-rsCh:
+			timer.Stop()
+			sched.solicit()
+		case <-due:
+			// A failed write is recorded as a send, which delays the
+			// next advertisement and never brings it forward. Treating
+			// it as unsent would turn a dead interface into a tight
+			// retry loop, and sender.send already logs the failure.
 			sender.send(raRouterLifetime)
+			sched.advertised()
 		}
 	}
 }
 
 // stopRASender ceases advertisement on the subscriber's interface. It cancels
 // the sender goroutine, waits for it to leave so no advertisement can follow
-// the final one, sends one Router Advertisement with a Router Lifetime of zero,
-// and only then closes the socket. The caller MUST NOT use conn afterwards, and
-// MUST pass the senderDone channel that raSenderLoop closes.
+// the final one, waits out the rate limit, sends one Router Advertisement with
+// a Router Lifetime of zero, and only then closes the socket. The caller MUST
+// NOT use conn afterwards, and MUST pass the senderDone channel that
+// raSenderLoop closes together with the sched that loop used.
 //
 // RFC 4861 Section 6.2.5: a router whose interface ceases to be an advertising
 // interface "SHOULD transmit one or more (but not more than
@@ -128,11 +119,15 @@ func raSenderLoop(ctx context.Context, sender *raSender, rsCh <-chan struct{}, s
 // Ze sends one of the three the RFC permits. The subscriber drops the default
 // route on the first, and RFC 4861 Section 6.2.6 rate limits consecutive
 // multicast advertisements to one every MIN_DELAY_BETWEEN_RAS seconds, so the
-// other two would hold the session's teardown for six seconds.
-func stopRASender(cancel context.CancelFunc, senderDone <-chan struct{}, sender *raSender, conn io.Closer) {
+// other two would hold the session's teardown for six seconds. That rate limit
+// covers the final advertisement as well, which is what sched.ceaseWait
+// measures: it is zero in steady state and at most MIN_DELAY_BETWEEN_RAS when a
+// session is torn down just after it advertised.
+func stopRASender(cancel context.CancelFunc, senderDone <-chan struct{}, sender *raSender, sched *raSchedule, conn io.Closer) {
 	cancel()
 	<-senderDone
 
+	sched.clk.Sleep(sched.ceaseWait())
 	sender.send(raCeaseLifetime)
 
 	if err := conn.Close(); err != nil {

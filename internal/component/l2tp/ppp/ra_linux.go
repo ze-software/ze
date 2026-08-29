@@ -1,6 +1,7 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RA sender for PPP IPv6 (Linux)
 // Related: ra.go -- RA message building (cross-platform)
-// Related: ra_send.go -- the send loop, the advertised lifetimes, and the stop path
+// Related: ra_send.go -- the send loop and the stop path
+// Related: ra_schedule.go -- the advertised lifetimes and the RFC 4861 send schedule
 
 //go:build linux
 
@@ -9,18 +10,23 @@ package ppp
 import (
 	"context"
 	"log/slog"
+	"math/rand/v2"
 	"net"
+	"time"
 
 	"golang.org/x/net/ipv6"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
-// startRASender opens a raw ICMPv6 socket on ifname, joins the
-// all-routers multicast group (ff02::2), sets ICMP6_FILTER to accept
-// only Router Solicitations, and starts a goroutine that sends an
-// initial burst of RAs followed by periodic RAs. Returns a cancel
-// function that stops the goroutines, sends the final Router
-// Advertisement, and closes the socket. See stopRASender in ra_send.go.
+// startRASender opens a raw ICMPv6 socket on ifname, joins the all-routers
+// multicast group (ff02::2), sets ICMP6_FILTER to accept only Router
+// Solicitations, and starts a goroutine that advertises on the schedule of RFC
+// 4861 Sections 6.2.4 and 6.2.6. Returns a cancel function that stops the
+// goroutines, sends the final Router Advertisement, and closes the socket. See
+// raSenderLoop and stopRASender in ra_send.go, and raSchedule in
+// ra_schedule.go.
 func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 	conn, err := (&net.ListenConfig{}).ListenPacket(context.Background(), "ip6:ipv6-icmp", "::")
 	if err != nil {
@@ -75,13 +81,20 @@ func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 		logger:  logger,
 	}
 
+	// RFC 4861 Section 6.2.4 randomizes the interval so routers on one link
+	// do not synchronize. The interface index seeds the second word, so two
+	// subscribers that come up in the same nanosecond still diverge.
+	//nolint:gosec // the seed drives timer jitter, never a security decision
+	random := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), uint64(iface.Index)))
+	sched := newRASchedule(clock.RealClock{}, random)
+
 	rsCh := make(chan struct{}, 1)
 	senderDone := make(chan struct{})
 	go rsReaderLoop(ctx, pc, rsCh)
-	go raSenderLoop(ctx, sender, rsCh, senderDone)
+	go raSenderLoop(ctx, sender, sched, rsCh, senderDone)
 
 	return func() {
-		stopRASender(cancel, senderDone, sender, conn)
+		stopRASender(cancel, senderDone, sender, sched, conn)
 	}, nil
 }
 

@@ -1,5 +1,8 @@
 // Design: docs/features/interfaces.md -- Router Advertisement send loop (Linux)
-// Related: ifacera.go -- the RFC 4861 timing helpers and the counters this loop uses
+// Related: ifacera.go -- the counters this loop feeds
+//
+// The RFC 4861 timing helpers this loop calls are internal/core/ndp, shared
+// with the PPP subscriber sender.
 
 //go:build linux
 
@@ -270,7 +273,15 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			if state.linkDown {
 				continue
 			}
-			at := solicitedSendTime(state.lastSent, time.Now(), solicitedDelay(random))
+			// RFC 4861 Section 6.2.6: "If a single advertisement is sent
+			// in response to multiple solicitations, the delay is
+			// relative to the first solicitation." An answer is already
+			// scheduled, so this solicitation gets that one and draws no
+			// second delay of its own.
+			if state.solicitedPending {
+				continue
+			}
+			at := ndp.SolicitedSendTime(state.lastSent, time.Now(), ndp.SolicitedDelay(random))
 			// RFC 4861 Section 6.2.6: when the answer would land after the
 			// advertisement already scheduled, that one answers the
 			// solicitation and no extra message is sent.
@@ -288,7 +299,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			solicited := state.solicitedPending
 			state.solicitedPending = false
 			send(advertisement, solicited)
-			rearm(time.Now().Add(unsolicitedInterval(s.spec.MinimumInterval, s.spec.MaximumInterval, state.sent, random)))
+			rearm(time.Now().Add(ndp.UnsolicitedInterval(s.spec.MinimumInterval, s.spec.MaximumInterval, state.sent, random)))
 		}
 	}
 }

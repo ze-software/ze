@@ -105,8 +105,8 @@ func withRAVeth(t *testing.T, router, host string, fn func()) {
 	}
 
 	if err := netlink.LinkAdd(&netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: router},
-		PeerName:  host,
+		Name:     router,
+		PeerName: host,
 	}); err != nil {
 		t.Fatalf("add veth %s/%s: %v", router, host, err)
 	}
@@ -675,7 +675,7 @@ func TestRASolicitedResponse(t *testing.T) {
 
 		sendRouterSolicitation(t, host)
 
-		answer, err := capture.next(minDelayBetweenRAs + maxRADelayTime + 5*time.Second)
+		answer, err := capture.next(ndp.MinDelayBetweenRAs + ndp.MaxRADelayTime + 5*time.Second)
 		if err != nil {
 			t.Fatalf("no advertisement answered the Router Solicitation: %v", err)
 		}
@@ -692,9 +692,9 @@ func TestRASolicitedResponse(t *testing.T) {
 		// above the floor. A tolerance covers the scheduling cost of the two
 		// reads, and no upper instant is asserted.
 		const readTolerance = 200 * time.Millisecond
-		if gap := answer.at.Sub(first.at); gap+readTolerance < minDelayBetweenRAs {
+		if gap := answer.at.Sub(first.at); gap+readTolerance < ndp.MinDelayBetweenRAs {
 			t.Errorf("answer arrived %s after the previous advertisement, want at least %s (RFC 4861 Section 6.2.6)",
-				gap, minDelayBetweenRAs)
+				gap, ndp.MinDelayBetweenRAs)
 		}
 	})
 }
