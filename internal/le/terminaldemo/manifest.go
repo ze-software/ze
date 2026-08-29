@@ -52,7 +52,7 @@ var demoIDPattern = func(value string) bool {
 
 func (e *Engine) loadManifest() (Manifest, map[string]Demo, error) {
 	var manifest Manifest
-	if err := readJSON(e.demoRoot, "manifest.json", &manifest); err != nil {
+	if err := readJSON(e.demoRoot, &manifest); err != nil {
 		return Manifest{}, nil, err
 	}
 	indexed, err := e.validateContract(manifest)
@@ -62,7 +62,9 @@ func (e *Engine) loadManifest() (Manifest, map[string]Demo, error) {
 	return manifest, indexed, nil
 }
 
-func readJSON(rootPath, name string, value any) error {
+// readJSON decodes one demo manifest. Both roots publish it under the same name.
+func readJSON(rootPath string, value any) error {
+	const name = "manifest.json"
 	root, err := os.OpenRoot(rootPath)
 	if err != nil {
 		return err
@@ -104,8 +106,8 @@ func (e *Engine) validateContract(manifest Manifest) (map[string]Demo, error) {
 		name  string
 		value string
 	}{
-		{"name", manifest.Renderer.Name},
-		{"version", manifest.Renderer.Version},
+		{ipName, manifest.Renderer.Name},
+		{commandVersion, manifest.Renderer.Version},
 		{"image", manifest.Renderer.Image},
 		{platformLabel, manifest.Renderer.Platform},
 	}
@@ -239,16 +241,21 @@ func assetNames(kind string) ([]string, error) {
 }
 
 func (e *Engine) sourceDigest(demo Demo) (string, error) {
-	shared := []string{
+	sources, err := nativeRecorderSources(e.root)
+	if err != nil {
+		return "", err
+	}
+	shared := make([]string, 0, 2+len(sources))
+	shared = append(shared,
 		filepath.Join(e.demoRoot, "common.tape"),
 		filepath.Join(e.demoRoot, "Dockerfile"),
-	}
-	for _, relative := range nativeRecorderSources {
+	)
+	for _, relative := range sources {
 		shared = append(shared, filepath.Join(e.root, filepath.FromSlash(relative)))
 	}
 	files := append([]string(nil), shared...)
 	sourceDir := filepath.Join(e.demoRoot, filepath.Dir(demo.Source))
-	err := filepath.WalkDir(sourceDir, func(path string, entry os.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(sourceDir, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -274,22 +281,47 @@ func (e *Engine) sourceDigest(demo Demo) (string, error) {
 	return e.digestPaths(contract, files)
 }
 
-var nativeRecorderSources = []string{
+// recorderBinaries are the two programs that drive a recording and live
+// outside this package. They are named because nothing here can discover them:
+// one is a shipped binary, the other belongs to the demo tree.
+var recorderBinaries = []string{
 	"cmd/ze-terminal-pty/main.go",
 	"demos/terminal/cmd/ze-demo/main.go",
-	"internal/le/terminaldemo/cards.json",
-	"internal/le/terminaldemo/entrypoint.go",
-	"internal/le/terminaldemo/lock.go",
-	"internal/le/terminaldemo/manifest.go",
-	"internal/le/terminaldemo/pty.go",
-	"internal/le/terminaldemo/render.go",
-	"internal/le/terminaldemo/runtime.go",
-	"internal/le/terminaldemo/scenarios.go",
-	"internal/le/terminaldemo/scenarios_network.go",
-	"internal/le/terminaldemo/scenarios_routing.go",
-	"internal/le/terminaldemo/screen.go",
-	"internal/le/terminaldemo/types.go",
-	"internal/le/terminaldemo/validate_runtime.go",
+}
+
+// recorderPackageDir is this package, every non-test file of which decides what
+// a recording contains.
+const recorderPackageDir = "internal/le/terminaldemo"
+
+// nativeRecorderSources answers the files a recorded demo is a function of.
+//
+// The package half is WALKED rather than listed. The list it replaces had gone
+// stale in the direction that costs the most: actions.go and register.go were
+// absent, so a change to the command surface a demo records moved no digest and
+// invalidated no recording. A recorded demo then kept claiming to show the
+// behaviour of code that had moved under it.
+//
+// The order is sorted, because the digest is over the sequence.
+func nativeRecorderSources(root string) ([]string, error) {
+	found := append([]string(nil), recorderBinaries...)
+
+	packageDir := filepath.Join(root, filepath.FromSlash(recorderPackageDir))
+	entries, err := os.ReadDir(packageDir)
+	if err != nil {
+		return nil, fmt.Errorf("read recorder sources: %w", err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		if !strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, ".json") {
+			continue
+		}
+		found = append(found, recorderPackageDir+"/"+name)
+	}
+	sort.Strings(found)
+	return found, nil
 }
 
 func (e *Engine) definitionDigest(demo Demo) (string, error) {
@@ -367,7 +399,7 @@ func hashFile(path string) (string, error) {
 
 func (e *Engine) loadArtifactManifest(manifest Manifest) (artifactManifest, error) {
 	var generated artifactManifest
-	err := readJSON(e.artifactRoot, "manifest.json", &generated)
+	err := readJSON(e.artifactRoot, &generated)
 	if err == nil {
 		if generated.Schema == manifestSchema && generated.Demos != nil {
 			return generated, nil
@@ -413,10 +445,10 @@ func artifactJSONValue(generated artifactManifest) map[string]any {
 	return map[string]any{
 		"demos": demos,
 		"renderer": map[string]any{
-			"image":       generated.Renderer.Image,
-			"name":        generated.Renderer.Name,
-			platformLabel: generated.Renderer.Platform,
-			"version":     generated.Renderer.Version,
+			"image":        generated.Renderer.Image,
+			ipName:         generated.Renderer.Name,
+			platformLabel:  generated.Renderer.Platform,
+			commandVersion: generated.Renderer.Version,
 		},
 		"schema": generated.Schema,
 	}
@@ -424,7 +456,7 @@ func artifactJSONValue(generated artifactManifest) map[string]any {
 
 func (e *Engine) verifyAssets(manifest Manifest, indexed map[string]Demo, selected []string, release string, definitionOnly bool) error {
 	var generated artifactManifest
-	if err := readJSON(e.artifactRoot, "manifest.json", &generated); err != nil {
+	if err := readJSON(e.artifactRoot, &generated); err != nil {
 		return err
 	}
 	if generated.Schema != manifestSchema {

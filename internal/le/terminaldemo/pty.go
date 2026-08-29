@@ -2,6 +2,7 @@ package terminaldemo
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,8 +32,8 @@ const (
 var (
 	defaultReadyPattern = regexp.MustCompile(`ze[>#]`)
 	closePattern        = regexp.MustCompile(`Connection .* closed|logout`)
-	ansiPattern         = regexp.MustCompile("\\x1b(?:\\[[0-?]*[ -/]*[@-~]|\\][^\\x07]*(?:\\x07|\\x1b\\\\))")
-	erasePattern        = regexp.MustCompile("\\x1b\\[[23]J")
+	ansiPattern         = regexp.MustCompile(`\x1b(?:\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\][^\x07]*(?:\x07|\x1b\\))`)
+	erasePattern        = regexp.MustCompile(`\x1b\[[23]J`)
 	durationPattern     = regexp.MustCompile(`^(\d+(?:\.\d+)?)(ms|s|m)$`)
 )
 
@@ -186,7 +187,7 @@ func parsePTYOptions(args []string) (ptyOptions, error) {
 		}
 	}
 	last, _ := splitPTYDirective(options.commands[len(options.commands)-1])
-	if last == "@sleep" || last == "@wait" {
+	if last == tapeSleepDirective || last == tapeWaitDirective {
 		return ptyOptions{}, errors.New("the last --command must not be '@sleep' or '@wait'")
 	}
 	return options, nil
@@ -213,12 +214,12 @@ func validatePTYCommand(command string) error {
 		if argument != "" {
 			return errors.New("directive '@escape' takes no argument")
 		}
-	case "@sleep":
+	case tapeSleepDirective:
 		seconds, err := strconv.ParseFloat(strings.TrimSpace(argument), 64)
 		if err != nil || math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds < 0 {
 			return fmt.Errorf("directive '@sleep' needs finite seconds >= 0, got %q", argument)
 		}
-	case "@wait":
+	case tapeWaitDirective:
 		if strings.TrimSpace(argument) == "" {
 			return errors.New("directive '@wait' needs an argument")
 		}
@@ -240,7 +241,7 @@ func validatePTYCommand(command string) error {
 	return nil
 }
 
-func parseTape(path string, root string) (terminalTape, error) {
+func parseTape(path, root string) (terminalTape, error) {
 	tape := terminalTape{settings: defaultTapeSettings()}
 	if root == "" {
 		var err error
@@ -257,7 +258,7 @@ func parseTape(path string, root string) (terminalTape, error) {
 	for _, line := range lines {
 		word, argument, _ := strings.Cut(line.text, " ")
 		name, modifier, _ := strings.Cut(word, "+")
-		requiresArgument := name == "Output" || name == "Screenshot" || name == "Set" || name == "Sleep" || name == "Source" || name == "Type" || name == "Wait"
+		requiresArgument := name == "Output" || name == "Screenshot" || name == "Set" || name == tapeSleepCommand || name == "Source" || name == tapeTypeCommand || name == tapeWaitCommand
 		known := name == "Down" || name == "Enter" || name == "Escape" || name == "Hide" || name == "Left" || requiresArgument || name == "Show"
 		if !known {
 			return terminalTape{}, fmt.Errorf("%s: unknown directive %q", line.where, word)
@@ -268,7 +269,7 @@ func parseTape(path string, root string) (terminalTape, error) {
 		if !requiresArgument && strings.TrimSpace(argument) != "" {
 			return terminalTape{}, fmt.Errorf("%s: directive %q takes no argument", line.where, name)
 		}
-		if modifier != "" && name != "Wait" {
+		if modifier != "" && name != tapeWaitCommand {
 			return terminalTape{}, fmt.Errorf("%s: directive %q takes no +%q", line.where, name, modifier)
 		}
 		switch name {
@@ -304,7 +305,7 @@ func tapeLines(path, root string, seen map[string]bool) ([]tapeLine, error) {
 		return nil, fmt.Errorf("%s: sources itself", filepath.Base(path))
 	}
 	seen[resolved] = true
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path) //nolint:gosec // the tape names the file it includes, from the checked-in demo tree
 	if err != nil {
 		return nil, err
 	}
@@ -353,13 +354,13 @@ func applyTapeSetting(settings *tapeSettings, argument string) error {
 	case "Shell":
 		quoted, err := tapeQuoted(value)
 		if err != nil {
-			return fmt.Errorf("Set Shell %w", err)
+			return fmt.Errorf("tape Set Shell: %w", err)
 		}
 		settings.shell = quoted
 	case "TypingSpeed", "WaitTimeout":
 		duration, err := tapeDuration(value)
 		if err != nil {
-			return fmt.Errorf("Set %s %w", key, err)
+			return fmt.Errorf("tape Set %s: %w", key, err)
 		}
 		if key == "TypingSpeed" {
 			settings.typing = duration
@@ -369,7 +370,7 @@ func applyTapeSetting(settings *tapeSettings, argument string) error {
 	case "FontSize", "Height", "Padding", "Width":
 		pixels, err := strconv.Atoi(value)
 		if err != nil || pixels <= 0 {
-			return fmt.Errorf("Set %s needs a whole number of pixels greater than 0, got %q", key, value)
+			return fmt.Errorf("tape Set %s needs a whole number of pixels greater than 0, got %q", key, value)
 		}
 		switch key {
 		case "FontSize":
@@ -425,19 +426,19 @@ func tapeQuoted(value string) (string, error) {
 func parseTapeAction(name, modifier, argument, where string) (tapeAction, error) {
 	action := tapeAction{name: name, where: where}
 	switch name {
-	case "Type":
+	case tapeTypeCommand:
 		text, err := tapeQuoted(argument)
 		if err != nil {
 			return tapeAction{}, fmt.Errorf("%s: Type %w", where, err)
 		}
 		action.text = text
-	case "Sleep":
+	case tapeSleepCommand:
 		duration, err := tapeDuration(argument)
 		if err != nil {
 			return tapeAction{}, fmt.Errorf("%s: Sleep %w", where, err)
 		}
 		action.duration = duration
-	case "Wait":
+	case tapeWaitCommand:
 		if modifier != "Screen" {
 			return tapeAction{}, fmt.Errorf("%s: use Wait+Screen /regex/", where)
 		}
@@ -490,7 +491,7 @@ func recordTape(path string, stdout io.Writer) error {
 }
 
 func startPTY(program []string, columns, rows int) (*exec.Cmd, *os.File, error) {
-	command := exec.Command(program[0], program[1:]...) // #nosec G204 -- the checked-in tape or caller explicitly names the program.
+	command := exec.CommandContext(context.Background(), program[0], program[1:]...) //nolint:gosec // the checked-in tape or the caller explicitly names the program
 	master, err := pty.StartWithSize(command, &pty.Winsize{Rows: uint16(rows), Cols: uint16(columns)})
 	return command, master, err
 }
@@ -524,10 +525,7 @@ func pollPTY(master *os.File, deadline time.Time) (bool, error) {
 		if remaining <= 0 {
 			return false, nil
 		}
-		milliseconds := int(remaining / time.Millisecond)
-		if milliseconds < 1 {
-			milliseconds = 1
-		}
+		milliseconds := max(int(remaining/time.Millisecond), 1)
 		fds := []unix.PollFd{{Fd: int32(master.Fd()), Events: unix.POLLIN}}
 		count, err := unix.Poll(fds, milliseconds)
 		if err != nil {
@@ -589,7 +587,7 @@ func newCastWriter(path string, columns, rows int) (*castWriter, error) {
 		return nil, err
 	}
 	writer := &castWriter{file: file, origin: time.Now()}
-	header, _ := json.Marshal(map[string]int{"version": 2, "width": columns, "height": rows})
+	header, _ := json.Marshal(map[string]int{commandVersion: 2, "width": columns, "height": rows})
 	if _, err := fmt.Fprintf(file, "%s\n", header); err != nil {
 		_ = file.Close()
 		return nil, err
@@ -792,11 +790,11 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 			writer.hide()
 		case "Show":
 			err = writer.show()
-		case "Sleep":
+		case tapeSleepCommand:
 			err = session.pump(action.duration)
-		case "Wait":
+		case tapeWaitCommand:
 			err = session.waitFor(action.pattern)
-		case "Type":
+		case tapeTypeCommand:
 			err = session.typeText(action.text)
 		case "Enter":
 			err = session.send(ptyKeys["enter"])
@@ -834,7 +832,7 @@ func driveCommands(options ptyOptions, stdout io.Writer) error {
 		if !last {
 			following, _ = splitPTYDirective(options.commands[index+1])
 		}
-		if directive == "@wait" {
+		if directive == tapeWaitDirective {
 			pattern := regexp.MustCompile(argument)
 			chunk, err := readUntilPTY(master, pattern, options.timeout, captured[window:], false)
 			if err != nil {
@@ -849,10 +847,10 @@ func driveCommands(options ptyOptions, stdout io.Writer) error {
 		case "@escape":
 			_, err = master.Write([]byte{0x1b})
 		case "@type":
-			_, err = master.Write([]byte(argument))
+			_, err = master.WriteString(argument)
 		case "@key":
 			_, err = master.Write(ptyKeys[strings.TrimSpace(argument)])
-		case "@sleep":
+		case tapeSleepDirective:
 			seconds, _ := strconv.ParseFloat(strings.TrimSpace(argument), 64)
 			var chunk []byte
 			chunk, err = readForPTY(master, time.Duration(seconds*float64(time.Second)))
@@ -863,7 +861,7 @@ func driveCommands(options ptyOptions, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if directive == "@sleep" || following == "@wait" {
+		if directive == tapeSleepDirective || following == tapeWaitDirective {
 			continue
 		}
 		if !last {

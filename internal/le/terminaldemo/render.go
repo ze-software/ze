@@ -183,7 +183,7 @@ func manifestIDs(manifest Manifest) []string {
 }
 
 func (e *Engine) runValidation(manifest Manifest, demo Demo) error {
-	command := e.containerCommand(manifest.Renderer, demo.isPrivileged(), demoBinary("ze-demo"), "validate", demo.Validate)
+	command := e.containerCommand(manifest.Renderer, demo.isPrivileged(), demoBinary("ze-demo"), commandValidate, demo.Validate)
 	var buffer textbuf.Buffer
 	e.output.Write(buffer.Str("validating ").Str(demo.ID).Str("...\n").Bytes()) //nolint:errcheck // CLI progress output cannot change the validation verdict.
 	return e.withLock(func() error {

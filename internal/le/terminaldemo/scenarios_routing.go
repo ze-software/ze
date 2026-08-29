@@ -12,26 +12,26 @@ import (
 const expectedDemoVRPIPv4 = 171
 
 func runRPKI(action string) error {
-	const id = "rpki"
+	const id = demoRPKI
 	state := demoState(id)
 	switch action {
-	case "prepare":
+	case actionPrepare:
 		if err := prepareScenario(id, "pids", false); err != nil {
 			return err
 		}
 		fmt.Println("RPKI demo prepared")
-	case "start":
+	case commandStart:
 		if err := importScenarioConfig(id, filepath.Join(demoDir(id), "ze.conf")); err != nil {
 			return err
 		}
 		environ := scenarioEnv(id, demoPassword)
 		pids := make([]int, 0, 3)
-		rpkiPID, err := startCommand("ze-test", []string{"rpki", "--bind", "127.0.0.3", "--port", "3323", "--valid-asn", "65001", "--invalid-asn", "65099"}, environ, filepath.Join(state, "rpki.log"))
+		rpkiPID, err := startCommand("ze-test", []string{"rpki", flagBind, "127.0.0.3", flagPort, "3323", "--valid-asn", "65001", "--invalid-asn", "65099"}, environ, filepath.Join(state, "rpki.log"))
 		if err != nil {
 			return err
 		}
 		pids = append(pids, rpkiPID)
-		peerPID, err := startCommand("ze-test", []string{"peer", "--mode", "sink", "--bind", "127.0.0.2", "--port", "1179", "--asn", "65001", filepath.Join(demoDir(id), "routes.msg")}, environ, filepath.Join(state, "peer.log"))
+		peerPID, err := startCommand("ze-test", []string{ipPeer, flagMode, peerModeSink, flagBind, loopbackPeerAddress, flagPort, "1179", flagASN, "65001", filepath.Join(demoDir(id), "routes.msg")}, environ, filepath.Join(state, "peer.log"))
 		if err != nil {
 			return err
 		}
@@ -42,7 +42,7 @@ func runRPKI(action string) error {
 		if err := waitPort("127.0.0.2:1179", "bgp peer", 30); err != nil {
 			return err
 		}
-		daemonPID, err := startCommand("ze", []string{"start", "ze.conf"}, environ, filepath.Join(state, "daemon.log"))
+		daemonPID, err := startCommand("ze", []string{commandStart, zeConfigFile}, environ, filepath.Join(state, "daemon.log"))
 		if err != nil {
 			return err
 		}
@@ -64,7 +64,7 @@ func runRPKI(action string) error {
 			time.Sleep(100 * time.Millisecond)
 		}
 		return fmt.Errorf("timeout waiting for the RTR cache to sync (vrp-count-ipv4: %d)\n%s", expectedDemoVRPIPv4, status)
-	case "stop":
+	case commandStop:
 		stopScenario(id, "pids")
 		fmt.Println("RPKI demo stopped")
 	default:
@@ -77,7 +77,7 @@ func runIRR(action string) error {
 	const id = "irr-filter"
 	state := demoState(id)
 	switch action {
-	case "prepare":
+	case actionPrepare:
 		if err := prepareScenario(id, "pids", false); err != nil {
 			return err
 		}
@@ -87,9 +87,9 @@ func runIRR(action string) error {
 			return err
 		}
 		fmt.Println("Base BGP configuration loaded without IRR filtering")
-	case "start":
+	case commandStart:
 		environ := scenarioEnv(id, demoPassword)
-		pid, err := startCommand("ze-test", []string{"irr", "--port", "4343"}, environ, filepath.Join(state, "irr.log"))
+		pid, err := startCommand("ze-test", []string{"irr", flagPort, "4343"}, environ, filepath.Join(state, "irr.log"))
 		if err != nil {
 			return err
 		}
@@ -99,7 +99,7 @@ func runIRR(action string) error {
 		if err := waitPort("127.0.0.1:4343", "irr server", 30); err != nil {
 			return err
 		}
-		daemonPID, err := startCommand("ze", []string{"start", "ze.conf"}, environ, filepath.Join(state, "daemon.log"))
+		daemonPID, err := startCommand("ze", []string{commandStart, zeConfigFile}, environ, filepath.Join(state, "daemon.log"))
 		if err != nil {
 			return err
 		}
@@ -111,8 +111,8 @@ func runIRR(action string) error {
 		}
 		fmt.Println("IRR filter demo ready")
 	case "announce":
-		data, _ := os.ReadFile(filepath.Join(state, "pids"))
-		pid, err := startCommand("ze-test", []string{"peer", "--mode", "sink", "--bind", "127.0.0.2", "--port", "1179", "--asn", "65001", filepath.Join(demoDir(id), "routes.msg")}, scenarioEnv(id, demoPassword), filepath.Join(state, "peer.log"))
+		data, _ := os.ReadFile(filepath.Join(state, "pids")) //nolint:gosec // the path comes from the closed demo scenario table
+		pid, err := startCommand("ze-test", []string{ipPeer, flagMode, peerModeSink, flagBind, loopbackPeerAddress, flagPort, "1179", flagASN, "65001", filepath.Join(demoDir(id), "routes.msg")}, scenarioEnv(id, demoPassword), filepath.Join(state, "peer.log"))
 		if err != nil {
 			return err
 		}
@@ -120,7 +120,7 @@ func runIRR(action string) error {
 			return err
 		}
 		fmt.Println("Customer routes announced")
-	case "stop":
+	case commandStop:
 		stopScenario(id, "pids")
 		fmt.Println("IRR filter demo stopped")
 	default:
@@ -128,3 +128,15 @@ func runIRR(action string) error {
 	}
 	return nil
 }
+
+// The remaining repeated tokens: the port flag, the config migrate verb, the
+// traceroute edge namespace, the veth link type, the peer loopback address and
+// the tape Wait command.
+const (
+	flagPort            = "--port"
+	commandMigrate      = "migrate"
+	nsEdge              = "edge"
+	ipVeth              = "veth"
+	loopbackPeerAddress = "127.0.0.2"
+	tapeWaitCommand     = "Wait"
+)

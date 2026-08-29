@@ -13,7 +13,7 @@ import (
 )
 
 func labCleanup(prefix string) {
-	commands := [][]string{{"link", "del", prefix + "-br"}, {"netns", "del", prefix + "-ze"}, {"netns", "del", prefix + "-peer"}}
+	commands := [][]string{{ipLink, ipDel, prefix + "-br"}, {ipNetns, ipDel, prefix + "-ze"}, {ipNetns, ipDel, prefix + "-peer"}}
 	for _, args := range commands {
 		_, _ = runCommand("ip", args, commandOptions{})
 	}
@@ -22,15 +22,15 @@ func labCleanup(prefix string) {
 func labCreatePair(prefix, zeAddress, peerAddress string) error {
 	labCleanup(prefix)
 	commands := [][]string{
-		{"netns", "add", prefix + "-ze"}, {"netns", "add", prefix + "-peer"},
-		{"link", "add", prefix + "-br", "type", "bridge"}, {"link", "set", prefix + "-br", "up"},
-		{"link", "add", prefix + "-z", "type", "veth", "peer", "name", "eth0", "netns", prefix + "-ze"},
-		{"link", "add", prefix + "-p", "type", "veth", "peer", "name", "eth0", "netns", prefix + "-peer"},
-		{"link", "set", prefix + "-z", "master", prefix + "-br"}, {"link", "set", prefix + "-p", "master", prefix + "-br"},
-		{"link", "set", prefix + "-z", "up"}, {"link", "set", prefix + "-p", "up"},
-		{"-n", prefix + "-ze", "link", "set", "lo", "up"}, {"-n", prefix + "-peer", "link", "set", "lo", "up"},
-		{"-n", prefix + "-ze", "link", "set", "eth0", "up"}, {"-n", prefix + "-peer", "link", "set", "eth0", "up"},
-		{"-n", prefix + "-ze", "addr", "add", zeAddress, "dev", "eth0"}, {"-n", prefix + "-peer", "addr", "add", peerAddress, "dev", "eth0"},
+		{ipNetns, ipAdd, prefix + "-ze"}, {ipNetns, ipAdd, prefix + "-peer"},
+		{ipLink, ipAdd, prefix + "-br", ipType, "bridge"}, {ipLink, ipSet, prefix + "-br", "up"},
+		{ipLink, ipAdd, prefix + "-z", ipType, ipVeth, ipPeer, ipName, interfaceEth0, ipNetns, prefix + "-ze"},
+		{ipLink, ipAdd, prefix + "-p", ipType, ipVeth, ipPeer, ipName, interfaceEth0, ipNetns, prefix + "-peer"},
+		{ipLink, ipSet, prefix + "-z", "master", prefix + "-br"}, {ipLink, ipSet, prefix + "-p", "master", prefix + "-br"},
+		{ipLink, ipSet, prefix + "-z", "up"}, {ipLink, ipSet, prefix + "-p", "up"},
+		{"-n", prefix + "-ze", ipLink, ipSet, "lo", "up"}, {"-n", prefix + "-peer", ipLink, ipSet, "lo", "up"},
+		{"-n", prefix + "-ze", ipLink, ipSet, interfaceEth0, "up"}, {"-n", prefix + "-peer", ipLink, ipSet, interfaceEth0, "up"},
+		{"-n", prefix + "-ze", ipAddr, ipAdd, zeAddress, ipDev, interfaceEth0}, {"-n", prefix + "-peer", ipAddr, ipAdd, peerAddress, ipDev, interfaceEth0},
 	}
 	for _, args := range commands {
 		if _, err := runCommand("ip", args, commandOptions{}); err != nil {
@@ -43,18 +43,21 @@ func labCreatePair(prefix, zeAddress, peerAddress string) error {
 
 func netnsCLI(prefix, id, commandText string) (string, error) {
 	environ := scenarioEnv(id, demoPassword)
-	args := []string{"netns", "exec", prefix + "-ze", "env", "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", "cli", "-c", commandText}
+	args := []string{ipNetns, commandExec, prefix + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", commandCLI, "-c", commandText}
 	return runBounded("ip", args, environ)
 }
 
+// frrRunDir is the runtime directory the FRR daemons share.
+const frrRunDir = "/run/frr"
+
 func startFRRPair(namespace, protocol, state string, environ []string) ([]int, error) {
-	if _, err := runCommand("install", []string{"-d", "-o", "frr", "-g", "frr", "-m", "775", "/run/frr"}, commandOptions{}); err != nil {
+	if _, err := runCommand("install", []string{"-d", "-o", frrUser, "-g", frrUser, "-m", "775", frrRunDir}, commandOptions{}); err != nil {
 		return nil, err
 	}
 	for _, name := range []string{"zserv.api", "zebra.pid", protocol + ".pid"} {
-		_ = os.Remove(filepath.Join("/run/frr", name))
+		_ = os.Remove(filepath.Join(frrRunDir, name))
 	}
-	zebraPID, err := startCommand("ip", []string{"netns", "exec", namespace, "/usr/lib/frr/zebra", "-f", "/etc/frr/frr.conf", "-i", "/run/frr/zebra.pid"}, environ, filepath.Join(state, "zebra.log"))
+	zebraPID, err := startCommand("ip", []string{ipNetns, commandExec, namespace, "/usr/lib/frr/zebra", "-f", frrConfigFile, "-i", "/run/frr/zebra.pid"}, environ, filepath.Join(state, "zebra.log"))
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +70,7 @@ func startFRRPair(namespace, protocol, state string, environ []string) ([]int, e
 	if _, err := os.Stat("/run/frr/zserv.api"); err != nil {
 		return nil, fmt.Errorf("FRR zebra did not create zserv.api: %w", err)
 	}
-	protocolPID, err := startCommand("ip", []string{"netns", "exec", namespace, "/usr/lib/frr/" + protocol, "-f", "/etc/frr/frr.conf", "-i", "/run/frr/" + protocol + ".pid"}, environ, filepath.Join(state, protocol+".log"))
+	protocolPID, err := startCommand("ip", []string{ipNetns, commandExec, namespace, "/usr/lib/frr/" + protocol, "-f", frrConfigFile, "-i", "/run/frr/" + protocol + ".pid"}, environ, filepath.Join(state, protocol+".log"))
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +88,7 @@ func runBFD(action string, args []string, output io.Writer) error {
 		labCleanup(lab)
 	}
 	switch action {
-	case "prepare":
+	case actionPrepare:
 		stop()
 		if err := prepareScenario(id, "pids", true); err != nil {
 			return err
@@ -99,8 +102,8 @@ func runBFD(action string, args []string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "BFD failover demo prepared"); err != nil {
 			return err
 		}
-	case "start":
-		if _, err := runCommand("install", []string{"-o", "frr", "-g", "frr", "-m", "640", filepath.Join(demoDir(id), "frr.conf"), "/etc/frr/frr.conf"}, commandOptions{}); err != nil {
+	case commandStart:
+		if _, err := runCommand("install", []string{"-o", frrUser, "-g", frrUser, "-m", "640", filepath.Join(demoDir(id), "frr.conf"), frrConfigFile}, commandOptions{}); err != nil {
 			return err
 		}
 		environ := scenarioEnv(id, demoPassword)
@@ -108,15 +111,17 @@ func runBFD(action string, args []string, output io.Writer) error {
 		if err != nil {
 			return err
 		}
-		peerPID, err := startCommand("ip", []string{"netns", "exec", lab + "-peer", "ze-test", "peer", "--mode", "sink", "--bind", "172.30.0.3", "--port", "1179", "--asn", "65002"}, environ, filepath.Join(state, "peer.log"))
+		peerPID, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-peer", "ze-test", ipPeer, flagMode, peerModeSink, flagBind, "172.30.0.3", flagPort, "1179", flagASN, "65002"}, environ, filepath.Join(state, "peer.log"))
 		if err != nil {
 			return err
 		}
-		zePID, err := startCommand("ip", []string{"netns", "exec", lab + "-ze", "env", "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", "start", "ze.conf"}, environ, filepath.Join(state, "ze.log"))
+		zePID, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", commandStart, zeConfigFile}, environ, filepath.Join(state, "ze.log"))
 		if err != nil {
 			return err
 		}
-		pids := append(frrPIDs, peerPID, zePID)
+		pids := make([]int, 0, len(frrPIDs)+2)
+		pids = append(pids, frrPIDs...)
+		pids = append(pids, peerPID, zePID)
 		if err := writePIDs(pidPath, pids); err != nil {
 			return err
 		}
@@ -135,7 +140,7 @@ func runBFD(action string, args []string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "BFD and BGP sessions are up"); err != nil {
 			return err
 		}
-	case "cli":
+	case commandCLI:
 		if len(args) == 0 {
 			return errors.New("bfd cli needs a command")
 		}
@@ -146,15 +151,15 @@ func runBFD(action string, args []string, output io.Writer) error {
 		if _, err := fmt.Fprint(output, text); err != nil {
 			return err
 		}
-	case "bgp":
-		data, err := os.ReadFile(filepath.Join(state, "bgp-state"))
+	case commandBGP:
+		data, err := os.ReadFile(filepath.Join(state, "bgp-state")) //nolint:gosec // the scenario state directory this driver composed
 		if err != nil {
 			return err
 		}
 		_, err = output.Write(data)
 		return err
 	case "cut", "record-cut":
-		if _, err := runCommand("ip", []string{"link", "set", lab + "-p", "down"}, commandOptions{}); err != nil {
+		if _, err := runCommand("ip", []string{ipLink, ipSet, lab + "-p", "down"}, commandOptions{}); err != nil {
 			return err
 		}
 		attempts := 100
@@ -176,7 +181,7 @@ func runBFD(action string, args []string, output io.Writer) error {
 			return err
 		}
 	case "restore":
-		if _, err := runCommand("ip", []string{"link", "set", lab + "-p", "up"}, commandOptions{}); err != nil {
+		if _, err := runCommand("ip", []string{ipLink, ipSet, lab + "-p", "up"}, commandOptions{}); err != nil {
 			return err
 		}
 		if _, err := waitForCommandText(300, "established", func() (string, error) { return netnsCLI(lab, id, "show bgp peer list") }); err != nil {
@@ -188,7 +193,7 @@ func runBFD(action string, args []string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "Peer link restored; BGP re-established"); err != nil {
 			return err
 		}
-	case "walkthrough":
+	case demoWalkthrough:
 		beforeBFD, err := netnsCLI(lab, id, "show bfd sessions")
 		if err != nil {
 			return err
@@ -227,7 +232,7 @@ func runBFD(action string, args []string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "BFD walkthrough complete"); err != nil {
 			return err
 		}
-	case "stop":
+	case commandStop:
 		stop()
 		if _, err := fmt.Fprintln(output, "BFD failover demo stopped"); err != nil {
 			return err
@@ -249,7 +254,7 @@ func runOSPF(action string, args []string, output io.Writer) error {
 		labCleanup(lab)
 	}
 	switch action {
-	case "prepare":
+	case actionPrepare:
 		stop()
 		if err := prepareScenario(id, "ze.pid", true); err != nil {
 			return err
@@ -260,7 +265,7 @@ func runOSPF(action string, args []string, output io.Writer) error {
 		if err := labCreatePair(lab, "172.31.0.2/24", "172.31.0.3/24"); err != nil {
 			return err
 		}
-		for _, values := range [][]string{{"-n", lab + "-ze", "addr", "add", "10.255.0.2/32", "dev", "lo"}, {"-n", lab + "-peer", "addr", "add", "10.255.0.3/32", "dev", "lo"}} {
+		for _, values := range [][]string{{"-n", lab + "-ze", ipAddr, ipAdd, "10.255.0.2/32", ipDev, "lo"}, {"-n", lab + "-peer", ipAddr, ipAdd, "10.255.0.3/32", ipDev, "lo"}} {
 			if _, err := runCommand("ip", values, commandOptions{}); err != nil {
 				return err
 			}
@@ -268,8 +273,8 @@ func runOSPF(action string, args []string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "OSPF lab prepared"); err != nil {
 			return err
 		}
-	case "start":
-		if _, err := runCommand("install", []string{"-o", "frr", "-g", "frr", "-m", "640", filepath.Join(demoDir(id), "frr.conf"), "/etc/frr/frr.conf"}, commandOptions{}); err != nil {
+	case commandStart:
+		if _, err := runCommand("install", []string{"-o", frrUser, "-g", frrUser, "-m", "640", filepath.Join(demoDir(id), "frr.conf"), frrConfigFile}, commandOptions{}); err != nil {
 			return err
 		}
 		environ := scenarioEnv(id, demoPassword)
@@ -277,7 +282,7 @@ func runOSPF(action string, args []string, output io.Writer) error {
 		if err != nil {
 			return err
 		}
-		pid, err := startCommand("ip", []string{"netns", "exec", lab + "-ze", "env", "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", "start", "ze.conf"}, environ, filepath.Join(state, "ze.log"))
+		pid, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(environ, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", commandStart, zeConfigFile}, environ, filepath.Join(state, "ze.log"))
 		if err != nil {
 			return err
 		}
@@ -291,7 +296,7 @@ func runOSPF(action string, args []string, output io.Writer) error {
 			return err
 		}
 		time.Sleep(2 * time.Second)
-		if _, err := runCommand("ip", []string{"netns", "exec", lab + "-peer", "vtysh", "-c", "configure terminal", "-c", "router ospf", "-c", "no redistribute connected", "-c", "redistribute connected"}, commandOptions{}); err != nil {
+		if _, err := runCommand("ip", []string{ipNetns, commandExec, lab + "-peer", "vtysh", "-c", "configure terminal", "-c", "router ospf", "-c", "no redistribute connected", "-c", "redistribute connected"}, commandOptions{}); err != nil {
 			return err
 		}
 		if _, err := waitForCommandText(300, "10.255.0.3", func() (string, error) { return netnsCLI(lab, id, "show ospf route") }); err != nil {
@@ -300,7 +305,7 @@ func runOSPF(action string, args []string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "OSPF adjacency converged"); err != nil {
 			return err
 		}
-	case "cli":
+	case commandCLI:
 		if len(args) == 0 {
 			return errors.New("ospf cli needs a command")
 		}
@@ -311,7 +316,7 @@ func runOSPF(action string, args []string, output io.Writer) error {
 		if _, err := fmt.Fprint(output, text); err != nil {
 			return err
 		}
-	case "walkthrough":
+	case demoWalkthrough:
 		neighbor, _ := netnsCLI(lab, id, "show ospf neighbor detail")
 		database, _ := netnsCLI(lab, id, "show ospf database router")
 		routes, _ := netnsCLI(lab, id, "show ospf route")
@@ -334,7 +339,7 @@ func runOSPF(action string, args []string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "OSPF walkthrough complete"); err != nil {
 			return err
 		}
-	case "stop":
+	case commandStop:
 		stop()
 		if _, err := fmt.Fprintln(output, "OSPF lab stopped"); err != nil {
 			return err
@@ -351,18 +356,18 @@ func runTraffic(action string, output io.Writer) error {
 	pidPath := filepath.Join(state, "pids")
 	stop := func() {
 		stopPIDs(pidPath)
-		_, _ = runCommand("ip", []string{"link", "del", "traffic0"}, commandOptions{})
-		_, _ = runCommand("ip", []string{"netns", "del", "traffic-peer"}, commandOptions{})
+		_, _ = runCommand("ip", []string{ipLink, ipDel, interfaceTraffic0}, commandOptions{})
+		_, _ = runCommand("ip", []string{ipNetns, ipDel, trafficPeerNS}, commandOptions{})
 	}
 	show := func() (string, error) {
-		return runBounded("ze", []string{"cli", "-c", "show traffic usage name traffic0 | no-more | raw"}, scenarioEnv(id, demoPassword))
+		return runBounded("ze", []string{commandCLI, "-c", "show traffic usage name traffic0 | no-more | raw"}, scenarioEnv(id, demoPassword))
 	}
 	generate := func() error {
-		if _, err := runCommand("ip", []string{"netns", "exec", "traffic-peer", "ping", "-q", "-c", "8", "10.77.0.1"}, commandOptions{}); err != nil {
+		if _, err := runCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, "ping", "-q", "-c", "8", "10.77.0.1"}, commandOptions{}); err != nil {
 			return err
 		}
 		for range 12 {
-			if _, err := runCommand("ip", []string{"netns", "exec", "traffic-peer", "curl", "-fsS", "http://10.77.0.1:8080/payload.txt"}, commandOptions{}); err != nil {
+			if _, err := runCommand("ip", []string{ipNetns, commandExec, trafficPeerNS, "curl", "-fsS", "http://10.77.0.1:8080/payload.txt"}, commandOptions{}); err != nil {
 				return err
 			}
 		}
@@ -370,7 +375,7 @@ func runTraffic(action string, output io.Writer) error {
 		return nil
 	}
 	switch action {
-	case "prepare":
+	case actionPrepare:
 		stop()
 		if err := prepareScenario(id, "pids", true); err != nil {
 			return err
@@ -378,7 +383,7 @@ func runTraffic(action string, output io.Writer) error {
 		if err := importScenarioConfig(id, filepath.Join(demoDir(id), "ze.conf")); err != nil {
 			return err
 		}
-		commands := [][]string{{"netns", "add", "traffic-peer"}, {"link", "add", "traffic0", "type", "veth", "peer", "name", "eth0", "netns", "traffic-peer"}, {"addr", "add", "10.77.0.1/24", "dev", "traffic0"}, {"link", "set", "traffic0", "up"}, {"-n", "traffic-peer", "link", "set", "lo", "up"}, {"-n", "traffic-peer", "link", "set", "eth0", "up"}, {"-n", "traffic-peer", "addr", "add", "10.77.0.2/24", "dev", "eth0"}}
+		commands := [][]string{{ipNetns, ipAdd, trafficPeerNS}, {ipLink, ipAdd, interfaceTraffic0, ipType, ipVeth, ipPeer, ipName, interfaceEth0, ipNetns, trafficPeerNS}, {ipAddr, ipAdd, "10.77.0.1/24", ipDev, interfaceTraffic0}, {ipLink, ipSet, interfaceTraffic0, "up"}, {"-n", trafficPeerNS, ipLink, ipSet, "lo", "up"}, {"-n", trafficPeerNS, ipLink, ipSet, interfaceEth0, "up"}, {"-n", trafficPeerNS, ipAddr, ipAdd, "10.77.0.2/24", ipDev, interfaceEth0}}
 		for _, args := range commands {
 			if _, err := runCommand("ip", args, commandOptions{}); err != nil {
 				return err
@@ -387,13 +392,13 @@ func runTraffic(action string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "Traffic lab prepared"); err != nil {
 			return err
 		}
-	case "start":
+	case commandStart:
 		env := scenarioEnv(id, demoPassword)
-		httpPID, err := startCommand("ze-test", []string{"static-http", "--bind", "10.77.0.1:8080", "--directory", demoDir(id)}, env, filepath.Join(state, "http.log"))
+		httpPID, err := startCommand("ze-test", []string{"static-http", flagBind, "10.77.0.1:8080", "--directory", demoDir(id)}, env, filepath.Join(state, "http.log"))
 		if err != nil {
 			return err
 		}
-		zePID, err := startCommand("ze", []string{"start", "ze.conf"}, env, filepath.Join(state, "ze.log"))
+		zePID, err := startCommand("ze", []string{commandStart, zeConfigFile}, env, filepath.Join(state, "ze.log"))
 		if err != nil {
 			return err
 		}
@@ -401,10 +406,10 @@ func runTraffic(action string, output io.Writer) error {
 			return err
 		}
 		for range 300 {
-			log, _ := os.ReadFile(filepath.Join(state, "ze.log"))
+			log, _ := os.ReadFile(filepath.Join(state, "ze.log")) //nolint:gosec // the scenario state directory this driver composed
 			if bytes.Contains(log, []byte("SSH server listening")) && !bytes.Contains(log, []byte("traffic usage")) {
 				text, _ := show()
-				if strings.Contains(text, "traffic0") {
+				if strings.Contains(text, interfaceTraffic0) {
 					_, err := fmt.Fprintln(output, "Traffic monitor attached to traffic0")
 					return err
 				}
@@ -419,7 +424,7 @@ func runTraffic(action string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "Generated ICMP and HTTP burst from 10.77.0.2"); err != nil {
 			return err
 		}
-	case "show":
+	case commandShow:
 		text, err := show()
 		if err != nil {
 			return err
@@ -427,9 +432,9 @@ func runTraffic(action string, output io.Writer) error {
 		if _, err := fmt.Fprint(output, text); err != nil {
 			return err
 		}
-	case "walkthrough":
+	case demoWalkthrough:
 		before, err := show()
-		if err != nil || !strings.Contains(before, "traffic0") {
+		if err != nil || !strings.Contains(before, interfaceTraffic0) {
 			return errors.New("traffic baseline unavailable")
 		}
 		if _, err := fmt.Fprintln(output, "$ ze show traffic usage name traffic0\nInterface traffic0 baseline: no counters"); err != nil {
@@ -454,7 +459,7 @@ func runTraffic(action string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "Traffic walkthrough complete"); err != nil {
 			return err
 		}
-	case "stop":
+	case commandStop:
 		stop()
 		if _, err := fmt.Fprintln(output, "Traffic lab stopped"); err != nil {
 			return err
@@ -474,14 +479,14 @@ func runVRRP(action string, output io.Writer) error {
 	stop := func() { stopPIDs(zePID); stopPIDs(kaPID); labCleanup(lab) }
 	owner := func() (string, error) {
 		for _, candidate := range []struct{ ns, label string }{{lab + "-ze", "Ze"}, {lab + "-peer", "keepalived"}} {
-			addresses, _ := runCommand("ip", []string{"-n", candidate.ns, "-o", "addr", "show"}, commandOptions{})
-			for _, line := range strings.Split(string(addresses), "\n") {
+			addresses, _ := runCommand("ip", []string{"-n", candidate.ns, "-o", ipAddr, commandShow}, commandOptions{})
+			for line := range strings.SplitSeq(string(addresses), "\n") {
 				fields := strings.Fields(line)
 				if len(fields) < 4 || fields[3] != "192.0.2.1/24" {
 					continue
 				}
 				dev := strings.TrimSuffix(fields[1], ":")
-				links, _ := runCommand("ip", []string{"-n", candidate.ns, "-o", "link", "show", dev}, commandOptions{})
+				links, _ := runCommand("ip", []string{"-n", candidate.ns, "-o", ipLink, commandShow, dev}, commandOptions{})
 				parts := strings.Fields(string(links))
 				mac := ""
 				for i := range parts {
@@ -499,7 +504,7 @@ func runVRRP(action string, output io.Writer) error {
 		if err := terminatePID(zePID, syscall.SIGTERM); err != nil {
 			return "", err
 		}
-		_, _ = runCommand("ip", []string{"netns", "del", lab + "-ze"}, commandOptions{})
+		_, _ = runCommand("ip", []string{ipNetns, ipDel, lab + "-ze"}, commandOptions{})
 		for range 150 {
 			current, err := owner()
 			if err == nil && strings.Contains(current, "keepalived") {
@@ -512,7 +517,7 @@ func runVRRP(action string, output io.Writer) error {
 		return "", errors.New("VIP did not fail over")
 	}
 	switch action {
-	case "prepare":
+	case actionPrepare:
 		stop()
 		if err := prepareScenario(id, "ze.pid", true); err != nil {
 			return err
@@ -523,15 +528,15 @@ func runVRRP(action string, output io.Writer) error {
 		if err := labCreatePair(lab, "192.0.2.251/24", "192.0.2.252/24"); err != nil {
 			return err
 		}
-		if _, err := runCommand("ip", []string{"addr", "add", "192.0.2.253/24", "dev", lab + "-br"}, commandOptions{}); err != nil {
+		if _, err := runCommand("ip", []string{ipAddr, ipAdd, "192.0.2.253/24", ipDev, lab + "-br"}, commandOptions{}); err != nil {
 			return err
 		}
 		if _, err := fmt.Fprintln(output, "VRRP lab prepared"); err != nil {
 			return err
 		}
-	case "start":
+	case commandStart:
 		env := scenarioEnv(id, demoPassword)
-		pid, err := startCommand("ip", []string{"netns", "exec", lab + "-ze", "env", "ZE_CONFIG_DIR=" + envValue(env, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", "start", "ze.conf"}, env, filepath.Join(state, "ze.log"))
+		pid, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-ze", envBin, "ZE_CONFIG_DIR=" + envValue(env, "ZE_CONFIG_DIR"), "ZE_SSH_PASSWORD=" + demoPassword, "ze", commandStart, zeConfigFile}, env, filepath.Join(state, "ze.log"))
 		if err != nil {
 			return err
 		}
@@ -544,7 +549,7 @@ func runVRRP(action string, output io.Writer) error {
 		if _, err := waitForCommandText(450, "master", func() (string, error) { return netnsCLI(lab, id, "show vrrp") }); err != nil {
 			return err
 		}
-		ka, err := startCommand("ip", []string{"netns", "exec", lab + "-peer", "keepalived", "--dont-fork", "--log-console", "--use-file", filepath.Join(demoDir(id), "keepalived.conf")}, env, filepath.Join(state, "keepalived.log"))
+		ka, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-peer", "keepalived", "--dont-fork", "--log-console", "--use-file", filepath.Join(demoDir(id), "keepalived.conf")}, env, filepath.Join(state, "keepalived.log"))
 		if err != nil {
 			return err
 		}
@@ -555,7 +560,7 @@ func runVRRP(action string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "Ze is master; keepalived is backup"); err != nil {
 			return err
 		}
-	case "show":
+	case commandShow:
 		text, err := netnsCLI(lab, id, "show vrrp | no-more")
 		if err != nil {
 			return err
@@ -574,7 +579,7 @@ func runVRRP(action string, output io.Writer) error {
 		if err := terminatePID(zePID, syscall.SIGKILL); err != nil {
 			return err
 		}
-		if _, err := runCommand("ip", []string{"netns", "del", lab + "-ze"}, commandOptions{}); err != nil {
+		if _, err := runCommand("ip", []string{ipNetns, ipDel, lab + "-ze"}, commandOptions{}); err != nil {
 			return err
 		}
 		if _, err := fmt.Fprintln(output, "VRRP node namespace removed"); err != nil {
@@ -597,7 +602,7 @@ func runVRRP(action string, output io.Writer) error {
 				return err
 			}
 		}
-	case "walkthrough":
+	case demoWalkthrough:
 		show, _ := netnsCLI(lab, id, "show vrrp | no-more")
 		before, _ := owner()
 		if !strings.Contains(show, "master") || !strings.Contains(before, "VIP owner: Ze") {
@@ -619,7 +624,7 @@ func runVRRP(action string, output io.Writer) error {
 		if _, err := fmt.Fprintln(output, "VRRP walkthrough complete"); err != nil {
 			return err
 		}
-	case "stop":
+	case commandStop:
 		stop()
 		if _, err := fmt.Fprintln(output, "VRRP lab stopped"); err != nil {
 			return err
@@ -629,3 +634,22 @@ func runVRRP(action string, output io.Writer) error {
 	}
 	return nil
 }
+
+// The iproute2 keywords, namespace and link names, and tape directives the
+// network scenarios repeat. Each constant names the exact token the tool
+// receives.
+const (
+	ipLink            = "link"
+	ipPeer            = "peer"
+	ipDev             = "dev"
+	ipType            = "type"
+	ipRoute           = "route"
+	ipNetns           = "netns"
+	envBin            = "env"
+	nsCore            = "core"
+	linkEdgeCore      = "edge-core"
+	flagMode          = "--mode"
+	tapeWaitDirective = "@wait"
+	tapeTypeCommand   = "Type"
+	matchKeyword      = "match"
+)

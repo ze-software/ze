@@ -14,9 +14,12 @@ import (
 
 func runContainerEntrypoint(args []string, stdout, stderr io.Writer) (err error) {
 	environ := demoEnvironment()
-	lock, err := acquireContainerLock(environ)
-	if err != nil {
-		return err
+	var lock *os.File
+	if envValue(environ, "ZE_DEMO_LOCK_HELD") == "" {
+		lock, err = acquireContainerLock()
+		if err != nil {
+			return err
+		}
 	}
 	if lock != nil {
 		defer func() {
@@ -52,8 +55,7 @@ func runContainerEntrypoint(args []string, stdout, stderr io.Writer) (err error)
 	}
 	process := newProcess(name, arguments, commandOptions{stdin: os.Stdin, stdout: stdout, stderr: stderr, env: environ, dir: demoRoot()})
 	if err := process.Run(); err != nil {
-		var exitError *os.PathError
-		if errors.As(err, &exitError) {
+		if exitError, ok := errors.AsType[*os.PathError](err); ok {
 			return exitError
 		}
 		return fmt.Errorf("%s: %w", name, err)
@@ -61,10 +63,9 @@ func runContainerEntrypoint(args []string, stdout, stderr io.Writer) (err error)
 	return nil
 }
 
-func acquireContainerLock(environ []string) (*os.File, error) {
-	if envValue(environ, "ZE_DEMO_LOCK_HELD") != "" {
-		return nil, nil
-	}
+// acquireContainerLock takes the exclusive demo lock. The caller MUST NOT call
+// it when an outer process already holds that lock.
+func acquireContainerLock() (*os.File, error) {
 	lockDir := os.Getenv("ZE_DEMO_LOCK_DIR")
 	if lockDir == "" {
 		lockDir = filepath.Join(demoRoot(), "tmp", "terminal-demos")
@@ -73,7 +74,8 @@ func acquireContainerLock(environ []string) (*os.File, error) {
 		return nil, fmt.Errorf("cannot create the demo lock directory %s: %w", lockDir, err)
 	}
 	lockPath := filepath.Join(lockDir, "demo-run.lock")
-	lock, err := os.OpenFile(lockPath, os.O_CREATE|os.O_WRONLY, 0o644)
+	// 0o644 is deliberate: the container and the host user both open this lock.
+	lock, err := os.OpenFile(lockPath, os.O_CREATE|os.O_WRONLY, 0o644) //nolint:gosec // shared between the container and the host account, see above
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +117,7 @@ func giveDemoOwnershipBack(environ []string) {
 	for _, root := range roots {
 		_ = filepath.Walk(root, func(path string, _ os.FileInfo, err error) error {
 			if err == nil {
-				_ = os.Chown(path, uid, gid)
+				_ = os.Chown(path, uid, gid) //nolint:gosec // G122: giving the host account back what the container created, best effort
 			}
 			return nil
 		})

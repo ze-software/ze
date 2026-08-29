@@ -169,8 +169,14 @@ func (f *demoFixture) writeTree(t *testing.T) {
 	for _, name := range []string{"common.tape", "Dockerfile"} {
 		mustWrite(t, filepath.Join(demoRoot, name), name+"\n")
 	}
-	for _, relative := range nativeRecorderSources {
+	for _, relative := range recorderBinaries {
 		mustWrite(t, filepath.Join(f.root, filepath.FromSlash(relative)), relative+"\n")
+	}
+	// The package half of the recorder sources is walked, so the fixture needs
+	// the directory rather than a copy of a list.
+	mustMkdir(t, filepath.Join(f.root, filepath.FromSlash(recorderPackageDir)))
+	for _, name := range []string{"manifest.go", "actions.go", "cards.json"} {
+		mustWrite(t, filepath.Join(f.root, filepath.FromSlash(recorderPackageDir), name), name+"\n")
 	}
 	mustWrite(t, filepath.Join(demoRoot, "term", "demo.tape"), "Source common.tape\nSleep 5s\nType show term\n")
 	mustWrite(t, filepath.Join(demoRoot, "term", "transcript.txt"), "Terminal session\n\n$ show term\n")
@@ -333,7 +339,7 @@ func TestRenderOneRecordsTheNamedDemoAndKeepsTheRest(t *testing.T) {
 	}
 
 	var published artifactManifest
-	if err := readJSON(fixture.artifacts, "manifest.json", &published); err != nil {
+	if err := readJSON(fixture.artifacts, &published); err != nil {
 		t.Fatalf("read published manifest: %v", err)
 	}
 	if published.Demos["term"].Release != "26.08.28" {
@@ -700,5 +706,44 @@ func readJSONForTest(t *testing.T, path string, value any) {
 	}
 	if err := json.Unmarshal(data, value); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// VALIDATES: a new file in the recorder package changes what a recording is a
+// function of.
+// PREVENTS: the defect this replaced. The sources were hand-listed and the list
+// had gone stale in the direction that costs most -- actions.go and register.go
+// were absent, so a change to the command surface a demo records moved no
+// digest and invalidated no recording. A recorded demo went on claiming to show
+// the behaviour of code that had moved under it.
+func TestRecorderSourcesFollowThePackage(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.writeTree(t)
+
+	before, err := nativeRecorderSources(fixture.root)
+	if err != nil {
+		t.Fatalf("read recorder sources: %v", err)
+	}
+
+	added := filepath.Join(fixture.root, filepath.FromSlash(recorderPackageDir), "register.go")
+	mustWrite(t, added, "package terminaldemo\n")
+	ignored := filepath.Join(fixture.root, filepath.FromSlash(recorderPackageDir), "manifest_test.go")
+	mustWrite(t, ignored, "package terminaldemo\n")
+
+	after, err := nativeRecorderSources(fixture.root)
+	if err != nil {
+		t.Fatalf("read recorder sources: %v", err)
+	}
+	if len(after) != len(before)+1 {
+		t.Fatalf("sources went from %d to %d; want exactly the one new non-test file", len(before), len(after))
+	}
+	if !slices.Contains(after, recorderPackageDir+"/register.go") {
+		t.Errorf("a new package file is not a recorder source: %v", after)
+	}
+	if slices.Contains(after, recorderPackageDir+"/manifest_test.go") {
+		t.Error("a test file became a recorder source, so every test edit would invalidate every recording")
+	}
+	if !slices.IsSorted(after) {
+		t.Error("recorder sources are unsorted, so the digest depends on directory order")
 	}
 }

@@ -31,11 +31,11 @@ func validateDemoRuntime(id string, stdout, _ io.Writer) (err error) {
 }
 
 var demoValidators = map[string]func() error{
-	"cli-dashboard": validateCLIDashboard, "zefs-config": validateZeFSConfig,
+	"cli-dashboard": validateCLIDashboard, demoZefsConfig: validateZeFSConfig,
 	"rbac": validateRBAC, "traceroute": validateTraceroute, "launcher": validateLauncher,
 	"web-config": validateWebConfig, "commit-confirmed": validateCommitConfirmed,
-	"rpki": validateRPKI, "irr-filter": validateIRR, "rib-fib": validateRIBFIB,
-	"health-reports": validateHealthReports, "config-views": validateConfigViews,
+	demoRPKI: validateRPKI, "irr-filter": validateIRR, "rib-fib": validateRIBFIB,
+	"health-reports": validateHealthReports, demoConfigViews: validateConfigViews,
 	"bfd-failover": validateBFD, "ospf-adjacency": validateOSPF,
 	"traffic-anomaly": validateTraffic, "vrrp-failover": validateVRRP,
 	"host-inventory": validateHostInventory, "config-graph": validateConfigGraph,
@@ -77,14 +77,14 @@ func runPTYFixture(args ...string) (string, error) {
 
 func validateCLIDashboard() error {
 	const id = "cli-dashboard"
-	defer func() { _ = runCLIDashboard("stop") }()
-	if err := runCLIDashboard("start"); err != nil {
+	defer func() { _ = runCLIDashboard(commandStop) }()
+	if err := runCLIDashboard(commandStart); err != nil {
 		return err
 	}
 	env := scenarioEnv(id, demoPassword)
 	var peers string
 	for range 100 {
-		peers, _ = cli(env, "show bgp peer list | raw")
+		peers, _ = cli(env, showPeerListRaw)
 		if strings.Count(peers, `"state": "established"`) == 3 {
 			break
 		}
@@ -101,9 +101,9 @@ func validateCLIDashboard() error {
 }
 
 func validateZeFSConfig() error {
-	const id = "zefs-config"
-	defer func() { _ = runZeFSConfig("stop") }()
-	if err := runZeFSConfig("prepare"); err != nil {
+	const id = demoZefsConfig
+	defer func() { _ = runZeFSConfig(commandStop) }()
+	if err := runZeFSConfig(actionPrepare); err != nil {
 		return err
 	}
 	env := scenarioEnv(id, demoPassword)
@@ -111,14 +111,14 @@ func validateZeFSConfig() error {
 	if err := initializeStore(id, input); err != nil {
 		return err
 	}
-	listed, err := runZe([]string{"config", "ls"}, env, nil)
+	listed, err := runZe([]string{commandConfig, "ls"}, env, nil)
 	if err != nil {
 		return err
 	}
-	if err := contains(listed, "ze.conf"); err != nil {
+	if err := contains(listed, zeConfigFile); err != nil {
 		return err
 	}
-	if err := runZeFSConfig("start"); err != nil {
+	if err := runZeFSConfig(commandStart); err != nil {
 		return err
 	}
 	before, err := cli(env, "show bgp")
@@ -145,7 +145,7 @@ func validateZeFSConfig() error {
 	if err := contains(after, "┌"); err != nil {
 		return err
 	}
-	active, err := runZe([]string{"config", "cat", "ze.conf"}, env, nil)
+	active, err := runZe([]string{commandConfig, commandCat, zeConfigFile}, env, nil)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func validateZeFSConfig() error {
 		return err
 	}
 	peers, _ := cli(env, "show bgp | peers")
-	if err := contains(peers, "address"); err != nil {
+	if err := contains(peers, ipAddress); err != nil {
 		return err
 	}
 	return notContains(peers, "peers-established")
@@ -180,23 +180,23 @@ func validateZeFSConfig() error {
 
 func validateRBAC() error {
 	const id = "rbac"
-	defer func() { _ = runRBAC("stop") }()
-	if err := runRBAC("start"); err != nil {
+	defer func() { _ = runRBAC(commandStop) }()
+	if err := runRBAC(commandStart); err != nil {
 		return err
 	}
 	env := scenarioEnv(id, "noc-secret")
-	allowed, err := runZe([]string{"cli", "--user", "noc", "-c", "show version"}, env, nil)
+	allowed, err := runZe([]string{commandCLI, "--user", "noc", "-c", "show version"}, env, nil)
 	if err != nil {
 		return err
 	}
-	version, err := runZe([]string{"version"}, env, nil)
+	version, err := runZe([]string{commandVersion}, env, nil)
 	if err != nil {
 		return err
 	}
 	if err := contains(allowed, strings.TrimSpace(version)); err != nil {
 		return err
 	}
-	denied, err := runZe([]string{"cli", "--user", "noc", "-c", "clear interface counters"}, env, nil)
+	denied, err := runZe([]string{commandCLI, "--user", "noc", "-c", "clear interface counters"}, env, nil)
 	if err == nil {
 		return errors.New("validation failed: denied RBAC command succeeded")
 	}
@@ -205,8 +205,8 @@ func validateRBAC() error {
 
 func validateTraceroute() error {
 	const id = "traceroute"
-	defer func() { _ = runTraceroute("stop") }()
-	if err := runTraceroute("start"); err != nil {
+	defer func() { _ = runTraceroute(commandStop) }()
+	if err := runTraceroute(commandStart); err != nil {
 		return err
 	}
 	output, err := cli(scenarioEnv(id, demoPassword), "show traceroute 192.0.2.53 | json")
@@ -225,8 +225,8 @@ func validateLauncher() error {
 }
 
 func validateWebConfig() error {
-	defer func() { _ = runWebConfig("stop") }()
-	if err := runWebConfig("start"); err != nil {
+	defer func() { _ = runWebConfig(commandStop) }()
+	if err := runWebConfig(commandStart); err != nil {
 		return err
 	}
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}} // #nosec G402 -- fixed loopback demo server uses a self-signed certificate.
@@ -319,7 +319,7 @@ func validateCommitConfirmed() error {
 	if err := contains(afterTimeout[1], "edge-original"); err != nil {
 		return err
 	}
-	current, _ := os.ReadFile(config)
+	current, _ := os.ReadFile(config) //nolint:gosec // the path comes from the closed demo scenario table
 	if err := notContains(string(current), "edge-trial"); err != nil {
 		return err
 	}
@@ -334,15 +334,15 @@ func validateCommitConfirmed() error {
 }
 
 func validateRPKI() error {
-	const id = "rpki"
-	defer func() { _ = runRPKI("stop") }()
-	if err := runRPKI("prepare"); err != nil {
+	const id = demoRPKI
+	defer func() { _ = runRPKI(commandStop) }()
+	if err := runRPKI(actionPrepare); err != nil {
 		return err
 	}
 	if err := initializeStore(id, filepath.Join(demoState(id), "init.input")); err != nil {
 		return err
 	}
-	if err := runRPKI("start"); err != nil {
+	if err := runRPKI(commandStart); err != nil {
 		return err
 	}
 	env := scenarioEnv(id, demoPassword)
@@ -369,8 +369,8 @@ func validateRPKI() error {
 
 func validateIRR() error {
 	const id = "irr-filter"
-	defer func() { _ = runIRR("stop") }()
-	if err := runIRR("prepare"); err != nil {
+	defer func() { _ = runIRR(commandStop) }()
+	if err := runIRR(actionPrepare); err != nil {
 		return err
 	}
 	if err := initializeStore(id, filepath.Join(demoState(id), "init.input")); err != nil {
@@ -380,22 +380,22 @@ func validateIRR() error {
 		return err
 	}
 	env := scenarioEnv(id, demoPassword)
-	before, _ := runZe([]string{"config", "cat", "ze.conf"}, env, nil)
+	before, _ := runZe([]string{commandConfig, commandCat, zeConfigFile}, env, nil)
 	if err := requireNone(before, "bgp-filter-irr", "AS-TEST"); err != nil {
 		return err
 	}
-	sets := [][]string{{"plugin", "internal", "bgp-filter-irr", "use", "bgp-filter-irr"}, {"bgp", "policy", "irr", "server", "127.0.0.1:4343"}, {"bgp", "policy", "irr", "refresh-interval", "3600"}, {"bgp", "peer", "customer-a", "session", "irr", "as-set", "AS-TEST"}, {"bgp", "peer", "customer-a", "filter", "import", "bgp-filter-irr:65001"}}
+	sets := [][]string{{"plugin", "internal", "bgp-filter-irr", "use", "bgp-filter-irr"}, {commandBGP, "policy", demoIRR, "server", "127.0.0.1:4343"}, {commandBGP, "policy", demoIRR, "refresh-interval", "3600"}, {commandBGP, ipPeer, "customer-a", "session", demoIRR, "as-set", "AS-TEST"}, {commandBGP, ipPeer, "customer-a", "filter", "import", "bgp-filter-irr:65001"}}
 	for _, tail := range sets {
-		args := append([]string{"config", "set", "ze.conf"}, tail...)
+		args := append([]string{commandConfig, ipSet, zeConfigFile}, tail...)
 		if _, err := runZe(args, env, nil); err != nil {
 			return err
 		}
 	}
-	configured, _ := runZe([]string{"config", "cat", "ze.conf"}, env, nil)
+	configured, _ := runZe([]string{commandConfig, commandCat, zeConfigFile}, env, nil)
 	if err := requireAll(configured, "bgp-filter-irr", "AS-TEST", "127.0.0.1:4343"); err != nil {
 		return err
 	}
-	if err := runIRR("start"); err != nil {
+	if err := runIRR(commandStart); err != nil {
 		return err
 	}
 	status, err := waitForCommandText(100, "status: ok", func() (string, error) { return cli(env, "show bgp irr | no-more | yaml") })
@@ -433,14 +433,14 @@ func validateIRR() error {
 func validateRIBFIB() error {
 	const id = "rib-fib"
 	const prefix = "198.51.100.0/24"
-	defer func() { _ = runRIBFIB("stop", nil, io.Discard) }()
-	if err := runRIBFIB("prepare", nil, io.Discard); err != nil {
+	defer func() { _ = runRIBFIB(commandStop, nil, io.Discard) }()
+	if err := runRIBFIB(actionPrepare, nil, io.Discard); err != nil {
 		return err
 	}
 	if err := initializeStore(id, filepath.Join(demoState(id), "init.input")); err != nil {
 		return err
 	}
-	if err := runRIBFIB("start", nil, io.Discard); err != nil {
+	if err := runRIBFIB(commandStart, nil, io.Discard); err != nil {
 		return err
 	}
 	env := scenarioEnv(id, demoPassword)
@@ -455,7 +455,7 @@ func validateRIBFIB() error {
 	for range 100 {
 		best, _ = cli(env, "show bgp rib best | no-more")
 		rib, _ = cli(env, "show rib | no-more")
-		out, _ := runCommand("ip", []string{"-details", "route", "show", "exact", prefix}, commandOptions{})
+		out, _ := runCommand("ip", []string{"-details", ipRoute, commandShow, ipExact, prefix}, commandOptions{})
 		kernel = string(out)
 		if strings.Contains(best, prefix) && strings.Contains(rib, prefix) && strings.Contains(kernel, prefix) {
 			break
@@ -479,7 +479,7 @@ func validateRIBFIB() error {
 		return err
 	}
 	for range 100 {
-		out, _ := runCommand("ip", []string{"route", "show", "exact", prefix}, commandOptions{})
+		out, _ := runCommand("ip", []string{ipRoute, commandShow, ipExact, prefix}, commandOptions{})
 		kernel = strings.TrimSpace(string(out))
 		if kernel == "" {
 			return nil
@@ -491,14 +491,14 @@ func validateRIBFIB() error {
 
 func validateHealthReports() error {
 	const id = "health-reports"
-	defer func() { _ = runHealthReports("stop") }()
-	if err := runHealthReports("prepare"); err != nil {
+	defer func() { _ = runHealthReports(commandStop) }()
+	if err := runHealthReports(actionPrepare); err != nil {
 		return err
 	}
 	if err := initializeStore(id, filepath.Join(demoState(id), "init.input")); err != nil {
 		return err
 	}
-	if err := runHealthReports("start"); err != nil {
+	if err := runHealthReports(commandStart); err != nil {
 		return err
 	}
 	env := scenarioEnv(id, demoPassword)
@@ -511,7 +511,7 @@ func validateHealthReports() error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	if err := requireAll(warnings, "prefix-stale", "2024-01-01", "127.0.0.2"); err != nil {
+	if err := requireAll(warnings, "prefix-stale", "2024-01-01", loopbackPeerAddress); err != nil {
 		return err
 	}
 	health, _ := cli(env, "show health | no-more | yaml")
@@ -533,19 +533,19 @@ func validateHealthReports() error {
 }
 
 func validateConfigViews() error {
-	const id = "config-views"
-	if err := runConfigViews("prepare"); err != nil {
+	const id = demoConfigViews
+	if err := runConfigViews(actionPrepare); err != nil {
 		return err
 	}
 	config := filepath.Join(demoDir(id), "router.conf")
-	tree, err := runZe([]string{"config", "show", config, "bgp", "peer", "transit-a"}, demoEnvironment(), nil)
+	tree, err := runZe([]string{commandConfig, commandShow, config, commandBGP, ipPeer, "transit-a"}, demoEnvironment(), nil)
 	if err != nil {
 		return err
 	}
 	if err := requireAll(tree, "local ip 192.0.2.1", "remote ip 192.0.2.2"); err != nil {
 		return err
 	}
-	setView, err := pipeline([][]string{{"ze", "config", "migrate", "--format", "set", config}, {"ze", "pipe", "match", "bgp peer transit-a"}}, demoEnvironment())
+	setView, err := pipeline([][]string{{"ze", commandConfig, commandMigrate, flagFormat, ipSet, config}, {"ze", pipeKeyword, matchKeyword, "bgp peer transit-a"}}, demoEnvironment())
 	if err != nil {
 		return err
 	}
@@ -557,14 +557,14 @@ func validateConfigViews() error {
 	if !bytes.Equal(left, right) {
 		return errors.New("validation failed: hierarchical/set round trip changed canonical output")
 	}
-	matches, err := pipeline([][]string{{"ze", "--plugins"}, {"ze", "pipe", "match", "flowspec"}}, demoEnvironment())
+	matches, err := pipeline([][]string{{"ze", "--plugins"}, {"ze", pipeKeyword, matchKeyword, "flowspec"}}, demoEnvironment())
 	if err != nil {
 		return err
 	}
 	if err := contains(matches, "bgp-nlri-flowspec"); err != nil {
 		return err
 	}
-	count, err := pipelineInput(matches, [][]string{{"ze", "pipe", "count"}}, demoEnvironment())
+	count, err := pipelineInput(matches, [][]string{{"ze", pipeKeyword, "count"}}, demoEnvironment())
 	if err != nil {
 		return err
 	}
@@ -578,18 +578,18 @@ func validateConfigViews() error {
 }
 
 func validateBFD() error {
-	defer func() { _ = runBFD("stop", nil, io.Discard) }()
-	if err := runBFD("prepare", nil, io.Discard); err != nil {
+	defer func() { _ = runBFD(commandStop, nil, io.Discard) }()
+	if err := runBFD(actionPrepare, nil, io.Discard); err != nil {
 		return err
 	}
-	if err := runBFD("start", nil, io.Discard); err != nil {
+	if err := runBFD(commandStart, nil, io.Discard); err != nil {
 		return err
 	}
 	var bfd, bgp bytes.Buffer
-	if err := runBFD("cli", []string{"show bfd sessions | raw"}, &bfd); err != nil {
+	if err := runBFD(commandCLI, []string{"show bfd sessions | raw"}, &bfd); err != nil {
 		return err
 	}
-	if err := runBFD("cli", []string{"show bgp peer list | raw"}, &bgp); err != nil {
+	if err := runBFD(commandCLI, []string{showPeerListRaw}, &bgp); err != nil {
 		return err
 	}
 	if err := requireAll(bfd.String(), `"peer": "172.30.0.3"`, `"state": "up"`); err != nil {
@@ -603,10 +603,10 @@ func validateBFD() error {
 	}
 	bfd.Reset()
 	bgp.Reset()
-	if err := runBFD("cli", []string{"show bfd sessions | raw"}, &bfd); err != nil {
+	if err := runBFD(commandCLI, []string{"show bfd sessions | raw"}, &bfd); err != nil {
 		return err
 	}
-	if err := runBFD("cli", []string{"show bgp peer list | raw"}, &bgp); err != nil {
+	if err := runBFD(commandCLI, []string{showPeerListRaw}, &bgp); err != nil {
 		return err
 	}
 	if strings.TrimSpace(bfd.String()) != "[]" {
@@ -622,51 +622,51 @@ func validateBFD() error {
 		return err
 	}
 	bgp.Reset()
-	if err := runBFD("cli", []string{"show bgp peer list | raw"}, &bgp); err != nil {
+	if err := runBFD(commandCLI, []string{showPeerListRaw}, &bgp); err != nil {
 		return err
 	}
 	return requireAll(bgp.String(), `"name": "edge-peer"`, `"state": "established"`)
 }
 
 func validateOSPF() error {
-	defer func() { _ = runOSPF("stop", nil, io.Discard) }()
-	if err := runOSPF("prepare", nil, io.Discard); err != nil {
+	defer func() { _ = runOSPF(commandStop, nil, io.Discard) }()
+	if err := runOSPF(actionPrepare, nil, io.Discard); err != nil {
 		return err
 	}
-	if err := runOSPF("start", nil, io.Discard); err != nil {
+	if err := runOSPF(commandStart, nil, io.Discard); err != nil {
 		return err
 	}
 	var output bytes.Buffer
-	if err := runOSPF("cli", []string{"show ospf neighbor detail"}, &output); err != nil {
+	if err := runOSPF(commandCLI, []string{"show ospf neighbor detail"}, &output); err != nil {
 		return err
 	}
 	if err := requireAll(output.String(), "full", "172.31.0.3"); err != nil {
 		return err
 	}
 	output.Reset()
-	if err := runOSPF("cli", []string{"show ospf database router"}, &output); err != nil {
+	if err := runOSPF(commandCLI, []string{"show ospf database router"}, &output); err != nil {
 		return err
 	}
 	if err := contains(output.String(), "172.31.0.3"); err != nil {
 		return err
 	}
 	output.Reset()
-	if err := runOSPF("cli", []string{"show ospf route"}, &output); err != nil {
+	if err := runOSPF(commandCLI, []string{"show ospf route"}, &output); err != nil {
 		return err
 	}
 	return contains(output.String(), "10.255.0.3")
 }
 
 func validateTraffic() error {
-	defer func() { _ = runTraffic("stop", io.Discard) }()
-	if err := runTraffic("prepare", io.Discard); err != nil {
+	defer func() { _ = runTraffic(commandStop, io.Discard) }()
+	if err := runTraffic(actionPrepare, io.Discard); err != nil {
 		return err
 	}
-	if err := runTraffic("start", io.Discard); err != nil {
+	if err := runTraffic(commandStart, io.Discard); err != nil {
 		return err
 	}
 	var before, after bytes.Buffer
-	if err := runTraffic("show", &before); err != nil {
+	if err := runTraffic(commandShow, &before); err != nil {
 		return err
 	}
 	if err := contains(before.String(), `"interface":"traffic0"`); err != nil {
@@ -678,7 +678,7 @@ func validateTraffic() error {
 	if err := runTraffic("generate", io.Discard); err != nil {
 		return err
 	}
-	if err := runTraffic("show", &after); err != nil {
+	if err := runTraffic(commandShow, &after); err != nil {
 		return err
 	}
 	if err := requireAll(after.String(), `"interface":"traffic0"`, `"ip":"10.77.0.2"`, `"port":8080`, `"protocol":"icmp"`); err != nil {
@@ -723,15 +723,15 @@ func jsonIPBytes(data []byte, ip string) int64 {
 }
 
 func validateVRRP() error {
-	defer func() { _ = runVRRP("stop", io.Discard) }()
-	if err := runVRRP("prepare", io.Discard); err != nil {
+	defer func() { _ = runVRRP(commandStop, io.Discard) }()
+	if err := runVRRP(actionPrepare, io.Discard); err != nil {
 		return err
 	}
-	if err := runVRRP("start", io.Discard); err != nil {
+	if err := runVRRP(commandStart, io.Discard); err != nil {
 		return err
 	}
 	var show, before, after bytes.Buffer
-	if err := runVRRP("show", &show); err != nil {
+	if err := runVRRP(commandShow, &show); err != nil {
 		return err
 	}
 	if err := runVRRP("owner", &before); err != nil {
@@ -751,19 +751,19 @@ func validateVRRP() error {
 
 func validateHostInventory() error {
 	env := demoEnvironment()
-	kernel, err := runZe([]string{"show", "host", "kernel"}, env, nil)
+	kernel, err := runZe([]string{commandShow, commandHost, "kernel"}, env, nil)
 	if err != nil {
 		return err
 	}
-	cpu, err := runZe([]string{"show", "host", "cpu"}, env, nil)
+	cpu, err := runZe([]string{commandShow, commandHost, "cpu"}, env, nil)
 	if err != nil {
 		return err
 	}
-	memory, err := runZe([]string{"show", "host", "memory"}, env, nil)
+	memory, err := runZe([]string{commandShow, commandHost, "memory"}, env, nil)
 	if err != nil {
 		return err
 	}
-	nic, err := runZe([]string{"show", "host", "nic"}, env, nil)
+	nic, err := runZe([]string{commandShow, commandHost, "nic"}, env, nil)
 	if err != nil {
 		return err
 	}
@@ -775,7 +775,7 @@ func validateHostInventory() error {
 	cpuInfo, _ := os.ReadFile("/proc/cpuinfo")
 	logical := strings.Count(string(cpuInfo), "processor\t:")
 	model := ""
-	for _, line := range strings.Split(string(cpuInfo), "\n") {
+	for line := range strings.SplitSeq(string(cpuInfo), "\n") {
 		if strings.HasPrefix(line, "model name") {
 			_, model, _ = strings.Cut(line, ":")
 			model = strings.TrimSpace(model)
@@ -805,7 +805,7 @@ func validateHostInventory() error {
 	return nil
 }
 func meminfoBytes(content, key string) int64 {
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) >= 2 && fields[0] == key+":" {
 			value, _ := strconv.ParseInt(fields[1], 10, 64)
@@ -817,14 +817,14 @@ func meminfoBytes(content, key string) int64 {
 
 func validateConfigGraph() error {
 	config := filepath.Join(demoDir("config-graph"), "router.conf")
-	validation, err := runZe([]string{"config", "validate", config}, demoEnvironment(), nil)
+	validation, err := runZe([]string{commandConfig, commandValidate, config}, demoEnvironment(), nil)
 	if err != nil {
 		return err
 	}
 	if err := contains(validation, "configuration valid"); err != nil {
 		return err
 	}
-	graph, err := runZe([]string{"config", "graph", config}, demoEnvironment(), nil)
+	graph, err := runZe([]string{commandConfig, "graph", config}, demoEnvironment(), nil)
 	if err != nil {
 		return err
 	}
@@ -832,7 +832,7 @@ func validateConfigGraph() error {
 		return err
 	}
 	for _, needle := range []string{"peer/upstream", "group/transit", "inherits"} {
-		view, err := pipelineInput(graph, [][]string{{"ze", "pipe", "text"}, {"ze", "pipe", "match", needle}}, demoEnvironment())
+		view, err := pipelineInput(graph, [][]string{{"ze", pipeKeyword, "text"}, {"ze", pipeKeyword, matchKeyword, needle}}, demoEnvironment())
 		if err != nil {
 			return err
 		}
@@ -865,3 +865,11 @@ func pipelineInput(input string, commands [][]string, environ []string) (string,
 	}
 	return string(current), nil
 }
+
+// The ze-test peer mode the demos run, the iproute2 next-hop keyword, and the
+// CLI pipe keyword the runtime validator asserts on.
+const (
+	peerModeSink = "sink"
+	ipVia        = "via"
+	pipeKeyword  = "pipe"
+)

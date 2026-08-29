@@ -2,6 +2,7 @@ package terminaldemo
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -50,7 +51,7 @@ func RuntimeMain(args []string, stdout, stderr io.Writer) int {
 			break
 		}
 		err = runScenario(args[1], args[2], args[3:], stdout, stderr)
-	case "validate":
+	case commandValidate:
 		if len(args) != 2 {
 			err = errors.New("usage: ze-demo validate DEMO")
 			break
@@ -145,14 +146,14 @@ func execDemoShell() error {
 	if err := os.Chdir(demoRoot()); err != nil {
 		return err
 	}
-	return syscall.Exec("/bin/bash", []string{"bash", "--noprofile", "--norc", "-i"}, environ)
+	return syscall.Exec("/bin/bash", []string{"bash", "--noprofile", "--norc", "-i"}, environ) //nolint:gosec // a fixed interactive shell inside the demo container
 }
 
 func envValue(environ []string, key string) string {
 	prefix := key + "="
-	for _, value := range environ {
-		if strings.HasPrefix(value, prefix) {
-			return strings.TrimPrefix(value, prefix)
+	for _, entry := range environ {
+		if value, ok := strings.CutPrefix(entry, prefix); ok {
+			return value
 		}
 	}
 	return ""
@@ -167,7 +168,7 @@ type commandOptions struct {
 }
 
 func newProcess(name string, args []string, options commandOptions) *exec.Cmd {
-	process := exec.Command(name, args...) // #nosec G204 -- names and arguments come from the closed demo action table.
+	process := exec.CommandContext(context.Background(), name, args...) //nolint:gosec // names and arguments come from the closed demo action table
 	process.Stdin = options.stdin
 	process.Stdout = options.stdout
 	process.Stderr = options.stderr
@@ -191,8 +192,8 @@ func runCommand(name string, args []string, options commandOptions) ([]byte, err
 	return output.Bytes(), nil
 }
 
-func startCommand(name string, args []string, environ []string, logPath string) (int, error) {
-	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+func startCommand(name string, args, environ []string, logPath string) (int, error) {
+	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) //nolint:gosec // the path comes from the closed demo scenario table
 	if err != nil {
 		return 0, err
 	}
@@ -216,9 +217,9 @@ func writePIDs(path string, pids []int) error {
 }
 
 func stopPIDs(path string) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path comes from the closed demo scenario table
 	if err == nil {
-		for _, field := range strings.Fields(string(data)) {
+		for field := range strings.FieldsSeq(string(data)) {
 			pid, parseErr := strconv.Atoi(field)
 			if parseErr == nil {
 				_ = syscall.Kill(pid, syscall.SIGTERM)
@@ -231,7 +232,7 @@ func stopPIDs(path string) {
 func waitForFileText(path, expected string, attempts int) error {
 	var data []byte
 	for range attempts {
-		data, _ = os.ReadFile(path)
+		data, _ = os.ReadFile(path) //nolint:gosec // the path comes from the closed demo scenario table
 		if bytes.Contains(data, []byte(expected)) {
 			return nil
 		}
@@ -255,7 +256,8 @@ func waitForCommandText(attempts int, expected string, fn func() (string, error)
 
 func waitPort(address, name string, attempts int) error {
 	for range attempts {
-		connection, err := net.DialTimeout("tcp", address, 100*time.Millisecond)
+		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
+		connection, err := dialer.DialContext(context.Background(), "tcp", address)
 		if err == nil {
 			if err := connection.Close(); err != nil {
 				return err
@@ -267,30 +269,11 @@ func waitPort(address, name string, attempts int) error {
 	return fmt.Errorf("timeout waiting for %s to listen on %s", name, address)
 }
 
-func appendFiles(output string, sources ...string) error {
-	target, err := os.OpenFile(output, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-	if err != nil {
-		return err
-	}
-	for _, source := range sources {
-		data, err := os.ReadFile(source)
-		if err != nil {
-			_ = target.Close()
-			return err
-		}
-		if _, err := target.Write(data); err != nil {
-			_ = target.Close()
-			return err
-		}
-	}
-	return target.Close()
-}
-
-func runZe(args []string, environ []string, input io.Reader) (string, error) {
+func runZe(args, environ []string, input io.Reader) (string, error) {
 	output, err := runCommand("ze", args, commandOptions{stdin: input, env: environ})
 	return string(output), err
 }
 
 func cli(environ []string, text string) (string, error) {
-	return runZe([]string{"cli", "-c", text}, environ, nil)
+	return runZe([]string{commandCLI, "-c", text}, environ, nil)
 }
