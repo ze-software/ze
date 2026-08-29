@@ -124,8 +124,13 @@ module ze-vrrp-conf {
                     description "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner
                                  Active accepts packets addressed to the virtual addresses.
                                  v3 semantics only; combining true with version 2 is
-                                 rejected by the plugin verifier. Drives FSM/owner
-                                 semantics only (not dataplane-enforced this pass).";
+                                 rejected by the plugin verifier. Enforced on the
+                                 dataplane: with false on a non-owner, the router still
+                                 answers ARP and Neighbor Discovery for the virtual
+                                 addresses and still forwards for the virtual MAC, but
+                                 does not accept packets addressed to them, so a ping to
+                                 a virtual address gets no reply. The address owner
+                                 accepts whatever this leaf says.";
                 }
             }
         }

@@ -91,6 +91,17 @@ type engineDeps struct {
 	recordRxError  func(key transport.InstanceKey, reason string)
 	emitState      func(spec GroupSpec, from, to fsm.State, reason string)
 
+	// setAcceptFilter publishes one instance's RFC 9568 Section 6.4.3
+	// acceptance decision to the dataplane: accept false suppresses local
+	// delivery for the virtual addresses, accept true withdraws the
+	// suppression. The caller MUST call clearAcceptFilter when the instance
+	// stops holding those addresses (acceptfilter.go).
+	setAcceptFilter func(instanceOwner string, vips []netip.Addr, accept bool) error
+	// clearAcceptFilter withdraws the instance's suppression entry. It MUST be
+	// called after setAcceptFilter once the instance gives its addresses up, or
+	// a drop rule outlives the state that asked for it.
+	clearAcceptFilter func(instanceOwner string) error
+
 	// parentReady reports whether the unit's device can host a virtual router:
 	// operationally up, with an address of this family to source advertisements
 	// from. Keyed on the PARENT, never on the macvlan: the kernel leaves a
@@ -365,8 +376,28 @@ func (in *instance) doSendAdvert(priority uint8, intervalMs int) {
 }
 
 // doInstallVIPs registers the virtual addresses on the macvlan through the
-// iface address-owner registry, which reconciles them onto the kernel device.
+// iface address-owner registry, which reconciles them onto the kernel device,
+// and publishes the acceptance decision RFC 9568 Section 6.4.3 attaches to them:
+// this router accepts packets addressed to a virtual address only if it is the
+// address owner or Accept_Mode is True, and MUST NOT accept them otherwise.
+// EffectiveAcceptMode (groups.go) is exactly that condition, with the Section
+// 6.1 ownership exemption already folded in.
+//
+// The filter goes in FIRST, so the kernel never holds the address ahead of the
+// rule that governs what it accepts.
+//
+// A filter that fails to apply is an operator-visible error and does NOT stop
+// the addresses being installed. The same section requires this router to answer
+// ARP and Neighbor Solicitations for those addresses, and on Linux both follow
+// from the address being present, so withholding it would answer one MUST NOT by
+// breaking two MUSTs and take the gateway down with it.
 func (in *instance) doInstallVIPs(vips []netip.Addr) {
+	accept := in.spec.EffectiveAcceptMode()
+	if err := in.deps.setAcceptFilter(in.own, vips, accept); err != nil {
+		logger().Error("vrrp: set accept-mode dataplane filter failed",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+			"device", in.dev, "accept", accept, "error", err)
+	}
 	if err := in.deps.installVIPs(in.dev, in.own, in.spec.vipCIDRs(vips)); err != nil {
 		logger().Error("vrrp: install virtual addresses failed",
 			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID, "device", in.dev, "error", err)
@@ -379,8 +410,18 @@ func (in *instance) doInstallVIPs(vips []netip.Addr) {
 // marks the interface stale and so guarantees the kernel address is pruned
 // (address_owner.go:126-129); an empty registration would leave the VIP live on
 // a Backup, which is the split-brain the whole protocol exists to prevent.
+//
+// The acceptance filter is withdrawn after the addresses, the reverse of
+// doInstallVIPs, so the rule is never given up ahead of the address it governs.
+// It is withdrawn at all because a drop rule that outlives this instance would
+// silence an address the next Active router is allowed to answer on.
 func (in *instance) doRemoveVIPs() {
 	in.deps.removeVIPs(in.own)
+	if err := in.deps.clearAcceptFilter(in.own); err != nil {
+		logger().Error("vrrp: withdraw accept-mode dataplane filter failed",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+			"device", in.dev, "error", err)
+	}
 }
 
 // armTimer replaces any existing timer with a fresh one. The old timer is

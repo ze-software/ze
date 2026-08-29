@@ -433,11 +433,13 @@ func liveDeps() engineDeps {
 		removeVIPs: func(owner string) {
 			iface.UnregisterOwnedAddresses(owner)
 		},
-		recordRxError:    sharedTransport.RecordRxError,
-		emitState:        emitStateChange,
-		parentReady:      parentReady,
-		watchParent:      watchParent,
-		refreshAddresses: sharedTransport.RefreshParentAddresses,
+		setAcceptFilter:   setAcceptFilter,
+		clearAcceptFilter: clearAcceptFilter,
+		recordRxError:     sharedTransport.RecordRxError,
+		emitState:         emitStateChange,
+		parentReady:       parentReady,
+		watchParent:       watchParent,
+		refreshAddresses:  sharedTransport.RefreshParentAddresses,
 	}
 }
 

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-08-05 |
+| Phase | 5/7 |
+| Updated | 2026-08-29 |
 
 ## Post-Compaction Recovery
 
@@ -180,9 +180,9 @@ the "Active router behavior beyond the election" theme.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Filtering can be installed without breaking the virtual-MAC ARP/ND recipe | `dataplane_linux.go` operates on sysctls only, orthogonal to a packet filter | The recipe and the filter must be co-designed; QEMU proof needed early | QEMU lab: VIP unreachable with accept-mode false, ARP still answered from the virtual MAC | unvalidated |
-| A-2 | The existing firewall component can express a per-device destination-address drop | `internal/component/firewall/` installs rules today (surface not yet read for this spec) | A vrrp-owned filter path is needed instead | Design phase: read the firewall install path | unvalidated |
-| A-3 | Interop scenarios that ping the VIP set accept-mode true and so keep passing | `internal/le/qemu/vrrp_keepalived_linux.go` sets accept-mode true for QS-1 | Enforcing the flag reds the interop lab | Run the keepalived lab after enforcement | unvalidated |
+| A-1 | Filtering can be installed without breaking the virtual-MAC ARP/ND recipe | `dataplane_linux.go` operates on sysctls only, orthogonal to a packet filter | The recipe and the filter must be co-designed; QEMU proof needed early | QEMU lab: VIP unreachable with accept-mode false, ARP still answered from the virtual MAC | confirmed 2026-08-29 -- in a QEMU Linux guest the virtual address stays installed on the virtual-MAC macvlan while ping to it gets 100% loss, and reverting to accept-mode true restores the reply. The filter is at the input hook and the recipe is sysctls, so neither reads the other |
+| A-2 | The existing firewall component can express a per-device destination-address drop | `internal/component/firewall/` installs rules today (surface not yet read for this spec) | A vrrp-owned filter path is needed instead | Design phase: read the firewall install path | confirmed 2026-08-29, and RESHAPED: the seam is `firewall.RegisterTables` plus `firewall.ApplyAll` (`internal/component/firewall/registry.go`), the same table registry copp, ddos-local and flowspec-firewall use. The rule is scoped to the ADDRESS rather than the device, which is what RFC 9568 Section 6.4.3 says: no ingress interface qualifies the prohibition |
+| A-3 | Interop scenarios that ping the VIP set accept-mode true and so keep passing | `internal/le/qemu/vrrp_keepalived_linux.go` sets accept-mode true for QS-1 | Enforcing the flag reds the interop lab | Run the keepalived lab after enforcement | confirmed 2026-08-29 -- `vrrpZeConfig` (`internal/le/qemu/vrrp_keepalived_linux.go`) writes `accept-mode true`, so every lab scenario takes the accepting branch and installs no filter at all |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -217,8 +217,9 @@ Skeleton level; the design phase expands these.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAcceptModeFilterSpec` | `internal/plugins/vrrp/` (design phase fixes the file) | effective accept-mode plus VIP set maps to the intended filter rules; owner and IPv6 NS/NA carve-outs | |
-| `TestAcceptModeFilterLifecycle` | `internal/plugins/vrrp/` | install on Active, remove on Backup, idempotent under reconfigure | |
+| `TestAcceptFilterTableDropsEveryAddressItIsGiven`, `TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`, `TestAcceptFilterTermNamesAreValidFirewallNames`, `TestAcceptFilterDeduplicatesAndSortsAddresses` | `internal/plugins/vrrp/acceptfilter_test.go` | the suppressed address set maps to the intended firewall table: one host-scoped drop per address, at the input hook, with the ICMPv6 135/136 carve-out ahead of every drop | done |
+| `TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`, `TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`, `TestActiveAddressOwnerAcceptsWhateverAcceptModeSays`, `TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress` | `internal/plugins/vrrp/acceptfilter_test.go` | all three directions of RFC 9568 Section 6.4.3, driven through a real promotion and read off the dataplane calls rather than the config | done |
+| `TestAcceptFilterInstalledBeforeTheAddressAndWithdrawnAfterIt`, `TestAcceptModeChangeOnARunningActiveReachesTheDataplane`, `TestAcceptFilterShareTheTableAndWithdrawIndependently`, `TestAcceptFilterDoesNotReachTheFirewallWhenNothingChanges` | `internal/plugins/vrrp/acceptfilter_test.go` | install before the address, withdraw after it, accept-mode flipped on a running Active, two groups sharing one table, and no reconcile when nothing changed | done |
 | `TestEffectivePriorityWithTracking` | `internal/plugins/vrrp/groups_test.go` | decrement applied, floor respected, owner still forced to 255 | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -230,7 +231,7 @@ Skeleton level; the design phase expands these.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `vrrp-accept-mode.ci` | `test/vrrp/` | accept-mode true and false change what the Active answers | |
+| `vrrp-accept-mode.ci` | `test/vrrp/` | accept-mode true and false change what the Active answers; kernel rules read back, live UDP probe to the virtual address, teardown leaves no rule | written; `needs-linux:caps=net-admin`, so it runs in the QEMU nightly and skips on darwin |
 | `vrrp-track.ci` | `test/vrrp/` | tracked object down decrements the advertised priority | |
 
 ### Interop Tests (MANDATORY for protocol features)

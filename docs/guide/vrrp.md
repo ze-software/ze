@@ -86,7 +86,7 @@ to win the higher number.
 | `priority` | 100 | 1..254. Highest wins. 255 is reserved for the address owner and is assigned by ze, never by you. |
 | `preempt` | true | Whether a higher-priority router takes mastership back when it returns. |
 | `preempt-delay-seconds` | 0 | 0..3600. How long a returning higher-priority router waits before preempting. Useful when a router's uplinks converge more slowly than it boots, so it does not take the gateway back before it can forward. |
-| `accept-mode` | false | VRRPv3 only. Records whether a non-owner Active should accept packets addressed to the virtual IP. **Not enforced on the dataplane yet: see the limitation below.** |
+| `accept-mode` | false | VRRPv3 only. Whether a non-owner Active accepts packets addressed to the virtual IP. False is the RFC default and means a ping to the virtual IP gets no reply from a non-owner. Forwarding, ARP and Neighbor Discovery are unaffected. |
 | `advertise-interval-milliseconds` | 1000 | How often the Active router advertises. |
 | `version` | 3 | `2` opts this group into VRRPv2. |
 
@@ -265,17 +265,16 @@ For Prometheus:
 
 ## Requirements and limits
 
-**`accept-mode` is not enforced on the dataplane.** RFC 9568 Section 6.4.3 says a
-non-owner Active with `Accept_Mode` false must not accept packets addressed to
-the virtual IP, other than the adverts themselves. Ze records the leaf, validates
-it (rejecting it under `version 2`), and reports it in `show vrrp`, but does not
-yet install the filtering: the virtual address is configured on the group's
-macvlan while the router is Active, so the kernel answers ping and other traffic
-for it whichever way you set the leaf. In practice this means an Active ze router
-answers on the virtual IP, which is what `accept-mode true` asks for and what
-most deployments want. If you are relying on `accept-mode false` to make the
-virtual IP unreachable except as a forwarding next hop, it will not do that
-today.
+**A ping to the virtual IP gets no reply unless you ask for one.** RFC 9568
+Section 6.4.3 says a non-owner Active router must not accept packets addressed to
+the virtual IP, and `accept-mode` defaults to false, so ze installs a drop rule
+for the virtual addresses while the group is Active. Forwarding is unaffected:
+hosts using the virtual IP as their default gateway keep working, the router
+still answers ARP and Neighbor Discovery for it, and IPv6 Neighbor Solicitations
+and Advertisements are never dropped. Set `accept-mode true` if you monitor the
+gateway by pinging its virtual IP. The router that owns the address as a real
+interface address accepts on it whatever the leaf says. The rules appear in
+`show firewall ruleset` under the `vrrp` table.
 
 **No priority tracking.** A group's `priority` is fixed at the value you
 configure. Ze does not decrement it in response to an uplink going down, a route

@@ -42,8 +42,15 @@ type Config struct {
 	// VIPs is the full desired virtual-address set, used for the
 	// InstallVIPs/RemoveVIPs payloads.
 	VIPs []netip.Addr `json:"vips"`
-	// AcceptMode is v3-only, default false; stored for the state snapshot only
-	// (dataplane enforcement is out of scope, see umbrella Known Limitations).
+	// AcceptMode is the EFFECTIVE Accept_Mode: the configured v3-only leaf with
+	// the RFC 9568 Section 6.1 ownership exemption already folded in, so it is
+	// true for an address owner whatever the operator configured
+	// (EffectiveAcceptMode, internal/plugins/vrrp/groups.go).
+	//
+	// It reaches the dataplane. A change to it while Active re-emits InstallVIPs
+	// (masterConfigUpdated, fsm.go), and the executor turns it into the packet
+	// filter RFC 9568 Section 6.4.3 requires
+	// (doInstallVIPs, internal/plugins/vrrp/instance.go).
 	AcceptMode bool `json:"accept-mode"`
 }
 

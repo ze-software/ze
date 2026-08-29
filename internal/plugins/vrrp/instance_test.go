@@ -32,6 +32,22 @@ type fakeDeps struct {
 	removes     []string
 	rxErrors    []string
 	transitions []string
+
+	// filters records every acceptance-filter call, and dataplane records the
+	// interleaving of those calls with the address install and remove calls.
+	// The RFC 9568 Section 6.4.3 filter has to reach the kernel before the
+	// address it governs, so the order is part of what is under test.
+	filters   []filterCall
+	dataplane []string
+}
+
+// filterCall is one call to setAcceptFilter or clearAcceptFilter. cleared marks
+// the withdrawal, which carries no addresses and no decision.
+type filterCall struct {
+	owner   string
+	vips    []netip.Addr
+	accept  bool
+	cleared bool
 }
 
 type sentAdvert struct {
@@ -63,12 +79,32 @@ func (f *fakeDeps) deps() engineDeps {
 			f.mu.Lock()
 			defer f.mu.Unlock()
 			f.installs = append(f.installs, installCall{dev: dev, owner: owner, cidrs: cidrs})
+			f.dataplane = append(f.dataplane, "install-addresses")
 			return nil
 		},
 		removeVIPs: func(owner string) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
 			f.removes = append(f.removes, owner)
+			f.dataplane = append(f.dataplane, "remove-addresses")
+		},
+		setAcceptFilter: func(owner string, vips []netip.Addr, accept bool) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.filters = append(f.filters, filterCall{owner: owner, vips: vips, accept: accept})
+			if accept {
+				f.dataplane = append(f.dataplane, "accept-filter-off")
+				return nil
+			}
+			f.dataplane = append(f.dataplane, "accept-filter-on")
+			return nil
+		},
+		clearAcceptFilter: func(owner string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.filters = append(f.filters, filterCall{owner: owner, cleared: true})
+			f.dataplane = append(f.dataplane, "accept-filter-withdrawn")
+			return nil
 		},
 		recordRxError: func(_ transport.InstanceKey, reason string) {
 			f.mu.Lock()
@@ -99,6 +135,8 @@ func (f *fakeDeps) snapshot() fakeDeps {
 		removes:     append([]string(nil), f.removes...),
 		rxErrors:    append([]string(nil), f.rxErrors...),
 		transitions: append([]string(nil), f.transitions...),
+		filters:     append([]filterCall(nil), f.filters...),
+		dataplane:   append([]string(nil), f.dataplane...),
 	}
 }
 

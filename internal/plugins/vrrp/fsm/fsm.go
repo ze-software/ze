@@ -347,6 +347,7 @@ func (i *Instance) demoteToBackup(e AdvertReceived, reason string) []Action {
 
 func (i *Instance) masterConfigUpdated(e ConfigUpdated) []Action {
 	oldVIPs := i.cfg.VIPs
+	oldAcceptMode := i.cfg.AcceptMode
 	i.cfg = e.Config
 	// Master advertises at its own configured rate.
 	i.activeAdverIntervalMs = i.cfg.AdvertIntervalMs
@@ -357,6 +358,15 @@ func (i *Instance) masterConfigUpdated(e ConfigUpdated) []Action {
 	out = i.armAdvert(out)
 	if !sameAddrs(oldVIPs, i.cfg.VIPs) {
 		out = append(out, InstallVIPs{VIPs: i.cfg.VIPs}, AnnounceFailover{})
+		return out
+	}
+	// RFC 9568 Section 6.4.3 makes acceptance a property of the running Active
+	// router, so an operator who flips accept-mode on one must reach the
+	// dataplane with it. The address set has not moved here, which is why this
+	// re-install carries no AnnounceFailover: nothing owes a gratuitous ARP or
+	// an unsolicited Neighbor Advertisement when no address changed hands.
+	if oldAcceptMode != i.cfg.AcceptMode {
+		out = append(out, InstallVIPs{VIPs: i.cfg.VIPs})
 	}
 	return out
 }
