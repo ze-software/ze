@@ -196,7 +196,10 @@ func isReviewCode(path string) bool {
 }
 
 func reviewCheckCommand(stem string, paths []string) string {
-	words := []string{"le", "commit", actionReviewCheck, "spec", stem}
+	// `./le`, not `le`. The generated script RUNS this line under `set -e`, and
+	// the launcher is a file at the checkout root rather than a command on PATH,
+	// so a bare name aborts the commit with "le: command not found".
+	words := []string{"./le", "commit", actionReviewCheck, "spec", stem}
 	for _, path := range paths {
 		if isReviewCode(path) {
 			words = append(words, "file", path)

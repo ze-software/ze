@@ -333,6 +333,28 @@ func TestTheReviewGateReadsTheArtifactTheRecorderWrites(t *testing.T) {
 	}
 }
 
+// TestTheGeneratedReviewRecheckNamesTheLauncherOnDisk pins the spelling of the
+// one command a commit script executes.
+//
+// VALIDATES: the re-check line a closure script carries names ./le, the launcher
+// file that sits at the checkout root.
+// PREVENTS: the bare `le`. The script runs that line under `set -e`, and `le` is
+// not a command on PATH here, so a closure aborted with "le: command not found"
+// before its first `git add`. No other line in a commit script executes, so
+// nothing else could have caught it.
+func TestTheGeneratedReviewRecheckNamesTheLauncherOnDisk(t *testing.T) {
+	t.Parallel()
+	line := reviewCheckCommand("demo-spec", []string{"internal/a.go", "docs/note.md"})
+	launcher, _, found := strings.Cut(line, " ")
+	if !found || launcher != shellQuote("./le") {
+		t.Fatalf("review re-check runs %q, want the ./le launcher first: %q", launcher, line)
+	}
+	if !strings.Contains(line, shellQuote("internal/a.go")) ||
+		strings.Contains(line, shellQuote("docs/note.md")) {
+		t.Fatalf("review re-check names the wrong files: %q", line)
+	}
+}
+
 // writeReviewArtifact plants a clean artifact at the path the recording package
 // owns, so a fixture cannot invent a name of its own.
 func writeReviewArtifact(t *testing.T, root, stem string, files ...string) {
