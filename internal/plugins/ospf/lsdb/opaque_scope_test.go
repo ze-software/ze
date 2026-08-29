@@ -170,3 +170,76 @@ func TestOpaqueType11StubDiscarded(t *testing.T) {
 		}
 	}
 }
+
+// opaqueTwoAreaTopology puts eth0 in area 0.0.0.0 and eth1 in area 0.0.0.2, so an
+// area-scoped LSA has exactly one eligible outgoing interface and a cross-area leak is
+// visible as a send on the wrong interface.
+func opaqueTwoAreaTopology() []InterfaceInfo {
+	return []InterfaceInfo{
+		{
+			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
+			NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+			Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull, OpaqueCapable: true}},
+		},
+		{
+			Name: "eth1", AreaID: area("0.0.0.2"), AreaType: AreaTypeNormal,
+			NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+			Neighbors: []NeighborInfo{{RouterID: rid("3.3.3.3"), Address: naddr4("10.0.1.3"), State: NeighborStateFull, OpaqueCapable: true}},
+		},
+	}
+}
+
+// TestOpaqueType10ConfinedToItsArea drives the AREA half of the Type-10 flooding scope.
+// RFC 5250 sec 3.1: "If the Opaque LSA is type-10 (the flooding scope is area-local) and
+// the area associated with the Opaque LSA (as identified during origination or from a
+// received LSA's associated OSPF packet header) is not the same as the area associated
+// with the target interface, the Opaque LSA MUST be discarded and not acknowledged."
+//
+// TestOpaqueScopeRouting installs a Type-10 into area 0.0.0.0 and looks it up in the same
+// area, which holds whether or not the area is load-bearing: making dbForReadLocked serve
+// a Type-10 from ANY area left that test green. Both interfaces there also sit in one
+// area, so nothing exercised the send-side area match either.
+//
+// RFC requirement: RFC5250-3.1-2 positive -- a Type-10 opaque LSA is readable only through
+// the area it was installed in (dbForReadLocked per-area branch, lsdb.go:323-332), and is
+// flooded only out an interface whose AreaID equals that area (eligibleInterface default
+// branch, flooding.go:411-413).
+// RFC requirement: RFC5250-3.1-2 negative -- the same LSA is invisible from a different
+// area and is never sent out that area's interface, so a Type-10 whose area differs from
+// the target interface's area is not flooded on.
+func TestOpaqueType10ConfinedToItsArea(t *testing.T) {
+	clock := &fakeClock{now: time.Unix(0, 0)}
+	db := newTestDB(clock)
+	tx := &txRecorder{}
+	db.SetTx(tx.Send)
+	db.SetTopology(opaqueTwoAreaTopology)
+	home := area("0.0.0.0")
+	other := area("0.0.0.2")
+
+	lsa10 := opaqueLSA(t, types.LSTypeOpaqueArea, 1, 0x40, rid("2.2.2.2"), types.InitialSequenceNumber, []byte{0xca, 0xfe, 0xba, 0xbe})
+	if !db.Install(home, lsa10) {
+		t.Fatalf("Type 10 opaque install rejected")
+	}
+	key := lsa10.Header.Key()
+
+	if _, ok := db.LookupLSA(home, key); !ok {
+		t.Fatalf("Type 10 opaque not readable from the area it was installed in")
+	}
+	if _, ok := db.LookupLSA(other, key); ok {
+		t.Fatalf("Type 10 opaque readable from area %v: an area-local LSA leaked across areas", other)
+	}
+	if _, ok := db.Lookup(other, key); ok {
+		t.Fatalf("Type 10 opaque header visible from area %v", other)
+	}
+
+	db.floodExcept("", types.RouterID{}, home, key)
+	if len(tx.sends) != 1 {
+		t.Fatalf("an area-local Type-10 must be flooded out the one interface in its area, got %d sends: %+v", len(tx.sends), tx.sends)
+	}
+	if tx.sends[0].iface != "eth0" {
+		t.Fatalf("Type 10 opaque flooded out %q, which is not in area %v", tx.sends[0].iface, home)
+	}
+	if db.retransmit[NeighborKey{Interface: "eth1", RouterID: rid("3.3.3.3")}][key] != nil {
+		t.Fatalf("a neighbor in a different area was queued to retransmit an area-local Type-10")
+	}
+}

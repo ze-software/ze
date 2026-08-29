@@ -99,7 +99,9 @@ func TestISISIIHNoTLV232WhenIPv4Only(t *testing.T) {
 // TestISISIIHTLV232OmittedNoLinkLocal: IPv6 enabled but no link-local address ->
 // TLV 232 omitted (the codec never emits an empty/invalid address).
 //
-// RFC requirement: RFC5308-3-1 negative -- with IPv6 enabled but no link-local address the Hello omits TLV 232 (never emits a non-link-local or empty address).
+// RFC requirement: RFC5308-3-1 negative -- with IPv6 enabled but no address at all the
+// Hello omits TLV 232 rather than emitting an empty or zero address. The non-link-local
+// case is a separate branch and lives in TestISISIIHTLV232RejectsNonLinkLocal.
 func TestISISIIHTLV232OmittedNoLinkLocal(t *testing.T) {
 	s := &fakeSender{mtu: 1500}
 	c := lanCircuit(t, s)
@@ -110,5 +112,37 @@ func TestISISIIHTLV232OmittedNoLinkLocal(t *testing.T) {
 	p := decodeSent(t, s)
 	if hasTLV(p.LANHello.TLVs, packet.TLVIPv6InterfaceAddress) {
 		t.Error("TLV 232 must be omitted when no link-local address is configured")
+	}
+}
+
+// TestISISIIHTLV232RejectsNonLinkLocal: a circuit whose IPv6 interface address is a
+// GLOBAL unicast address emits no TLV 232 at all. RFC 5308 sec 3: "For Hello PDUs, the
+// 'Interface Address' TLV MUST contain only the link-local IPv6 addresses assigned to
+// the interface that is sending the Hello."
+//
+// This is the only case that reaches the link-local branch of the producer.
+// TestISISIIHTLV232OmittedNoLinkLocal leaves the address unset, so it stops at the
+// preceding IsValid guard and the address CLASS is never examined; removing
+// !a.IsLinkLocalUnicast() from ipv6InterfaceAddrTLV left every other IS-IS circuit and
+// packet test green.
+//
+// RFC requirement: RFC5308-3-1 negative -- a non-link-local IPv6 address is refused
+// TLV 232 by the IsLinkLocalUnicast guard (ipv6InterfaceAddrTLV, hello.go:127), so a
+// Hello never advertises a global address as an interface address.
+func TestISISIIHTLV232RejectsNonLinkLocal(t *testing.T) {
+	for _, addr := range []string{"2001:db8::1", "fc00::1", "ff02::5"} {
+		t.Run(addr, func(t *testing.T) {
+			s := &fakeSender{mtu: 1500}
+			c := lanCircuit(t, s)
+			c.advertiseIPv6 = true
+			c.ipv6LinkLocal = netip.MustParseAddr(addr)
+			if err := c.SendHello(); err != nil {
+				t.Fatal(err)
+			}
+			p := decodeSent(t, s)
+			if hasTLV(p.LANHello.TLVs, packet.TLVIPv6InterfaceAddress) {
+				t.Errorf("RFC 5308 sec 3 violation: Hello TLV 232 carries the non-link-local address %s", addr)
+			}
+		})
 	}
 }
