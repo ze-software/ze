@@ -24,7 +24,7 @@ header: X-Ze-Version: <VERSION>
         "imported": 0,
         "preferred": 0
       },
-      "routes_counts_available": true,
+      "routes_counts_available": false,
       "routes_exported": 0,
       "routes_filtered": 0,
       "routes_imported": 0,

@@ -196,6 +196,9 @@ Because that zero is not a measurement, the server MUST also emit
 
 - It MUST be `true` only when the counts were produced from a real source.
 - It MUST be `false` when the counts are placeholders.
+- The server MUST derive it from the count VALUE, not from the presence of the
+  count key. A key whose value the server cannot read as a number publishes the
+  same fabricated zero as an absent key, so it is a placeholder.
 - A client that distinguishes "no routes" from "unknown" MUST consult it, and
   MUST NOT infer either from a count of `0` alone.
 

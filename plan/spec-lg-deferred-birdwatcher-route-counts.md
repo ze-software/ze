@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-08-29 |
 
 ## Post-Compaction Recovery
 
@@ -57,6 +57,32 @@ thing that would need adding is retention at the reject gate, which is that spec
 Fix G-1 first. It is the `ai/rules/evidence.md` failure mode exactly: a zero
 that reads as a valid answer.
 
+**STATE OF THE TREE, 2026-08-29. G-1, G-2 and G-3 are closed, and the three
+paragraphs above are the pre-fix picture.** The owner ruled on 2026-08-05 that
+this compatibility surface keeps all four counts unconditionally, so the answer
+was never omission: the truth travels beside the counts in a fifth member,
+`routes_counts_available`. The contract is
+`docs/architecture/api/birdwatcher-compat.md` Sections 7.2 and 7.3, which state
+the divergence from upstream birdwatcher and why it was taken.
+
+| Gap | Verdict | Producer checked |
+|-----|---------|------------------|
+| G-1 | CLOSED | `routeCountsAvailable` (`lg/handler_api.go`) is false when the producer omitted the count keys, and `transformProtocols` emits it beside the four counts |
+| G-2 | CLOSED as documented | `mergeRibRouteCounts` (`cmd/peer/summary.go`) assigns the Adj-RIB-In size to both keys. Section 7.3 of the contract states the equality and divergence row 2 publishes it |
+| G-3 | CLOSED | `transformBMPProtocols` (`lg/handler_api.go`) reports `routes_counts_available` false, which is what Section 7.2 requires of a peer whose counts no source produced |
+
+**Remaining defect found and fixed in the same pass: the availability guard read
+key PRESENCE, not the count's value.** A key holding a value `getNum` cannot
+read as a number publishes the same fabricated zero as an absent key, so the
+guard answered "available" over four zeros. That was live in the captured
+response of the public endpoint: `testdata/handler/api-protocols-bgp.txt`
+recorded `routes_counts_available: true` above four zeros, because
+`mockDispatch` sends its counts as strings. `routeCountsAvailable` now derives
+the answer from `numValue`, which reports whether the value read as a number
+(`ai/rules/evidence.md`: `ok` proves the key exists, never that its value is
+usable). The same mismatch already cost this transform once, which is why
+`uptimeSeconds` exists.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -84,7 +110,7 @@ that reads as a valid answer.
 **Behavior to preserve:**
 - `state_changed` and `last_error` keep their current values and empty-string semantics for a peer that never transitioned or never errored (`summary.go, 63-65`).
 - The producer keeps omitting count keys when the RIB plugin is absent. The fix belongs at the consumer; do not make the producer fake a 0.
-- `cmd/peer` gains no compile-time edge to `bgp/plugins/rib` (`./le plugin-boundary check` stays green).
+- `cmd/peer` gains no compile-time edge to `bgp/plugins/rib` (`./le plugin boundary check` stays green).
 - Family-scoped counts under a family-filtered summary (`rib_commands.go`).
 - `/routes/filtered/{name}` and `/routes/noexport/{name}` keep returning empty lists until the filtered-storage spec lands.
 
@@ -130,8 +156,8 @@ that reads as a valid answer.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Alice-LG tolerates an omitted or null count field | birdwatcher clients treat protocols entries as loosely typed | Must emit a sentinel instead of omitting | Read Alice-LG's own source, not a binding stub (`ai/rules/evidence.md`) | unvalidated |
-| A-2 | `received == accepted` is acceptable to operators if documented | learned 1158 accepted it deliberately | G-2 needs the racy pre-policy plumbing after all | Ask the user; re-read the race in `session_prefix.go` | unvalidated |
+| A-1 | Alice-LG tolerates an omitted or null count field | birdwatcher clients treat protocols entries as loosely typed | Must emit a sentinel instead of omitting | Read Alice-LG's own source, not a binding stub (`ai/rules/evidence.md`) | MOOT. The owner decided on 2026-08-05 that the counts stay, so the assumption is never relied on. Section 7.1 of the contract records what upstream does, read at `alice-lg/birdwatcher`, `bird/parser.go`, `setChangeCount` |
+| A-2 | `received == accepted` is acceptable to operators if documented | learned 1158 accepted it deliberately | G-2 needs the racy pre-policy plumbing after all | Ask the user; re-read the race in `session_prefix.go` | HELD. Documented at the API surface instead of plumbed, Section 7.3 and divergence row 2 |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -142,8 +168,10 @@ that reads as a valid answer.
 ## Wiring Test (MANDATORY)
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| GET `/api/looking-glass/protocols/bgp`, RIB plugin absent | -> | count fields omitted or explicitly unknown, never 0 | (fill during design) |
-| GET `/api/looking-glass/protocols/bgp`, RIB loaded with `receive [ update state ]` | -> | real per-peer counts | (fill during design) |
+| GET `/api/looking-glass/protocols/bgp`, RIB plugin absent | -> | counts stay 0 for compatibility, `routes_counts_available` false | `TestAPIProtocolsCountAvailabilityOverHTTP/no-counts` |
+| GET `/api/looking-glass/protocols/bgp`, RIB loaded with `receive [ update state ]` | -> | real per-peer counts, `routes_counts_available` true | `TestAPIProtocolsCountAvailabilityOverHTTP/with-counts` |
+| GET `/api/looking-glass/protocols/bgp`, a count key present but unreadable | -> | `routes_counts_available` false | `TestAPIProtocolsCountAvailabilityOverHTTP/text-counts` |
+| GET `/api/looking-glass/protocols/bmp` | -> | `routes_counts_available` false on every entry | `TestAPIBMPProtocolsCountsUnavailableOverHTTP` |
 
 ## Acceptance Criteria
 
@@ -156,6 +184,18 @@ that reads as a valid answer.
 | AC-5 | BMP-monitored peer queried | Counts are sourced or omitted, never hardcoded 0 (G-3) |
 | AC-6 | Any condition | `routes_filtered` behavior is unchanged; that field belongs to `spec-bgp-filtered-route-storage` |
 
+Evidence, 2026-08-29. Every row is driven from the HTTP endpoint, not from the
+transform, because the endpoint is what an operator and Alice-LG read.
+
+| AC | Met by | Evidence |
+|----|--------|----------|
+| AC-1 | `routes_counts_available` false, the four counts still emitted | `TestAPIProtocolsCountAvailabilityOverHTTP/no-counts` |
+| AC-2 | `transformProtocols` reads the producer's keys | `TestAPIProtocolsCountAvailabilityOverHTTP/with-counts` asserts 60 in and 50 out |
+| AC-3 | a real 0 keeps `routes_counts_available` true | `TestAPIProtocolsCountAvailabilityOverHTTP/zero-counts` |
+| AC-4 | documented as an alias, not made distinct | `docs/architecture/api/birdwatcher-compat.md` Section 7.3 and divergence row 2. The pre-policy count would need the plumbing R-2 refuses |
+| AC-5 | BMP rows declare their counts unavailable | `TestAPIBMPProtocolsCountsUnavailableOverHTTP`. The literal wording ("sourced or omitted") is superseded by the 2026-08-05 ruling: the counts stay, the truth travels beside them |
+| AC-6 | untouched | `mergeRibRouteCounts` still never emits `routes-filtered`; Section 7.3 unchanged |
+
 ## End-to-End User Stories (MANDATORY for new features)
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
@@ -167,14 +207,15 @@ that reads as a valid answer.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestProtocolsOmitsCountsWhenRibAbsent` | `internal/component/lg/handler_api_test.go` | AC-1: absent counts never surface as 0 | |
-| `TestProtocolsRealZeroDistinctFromUnknown` | `internal/component/lg/handler_api_test.go` | AC-3: a real 0 still renders | |
-| `TestBmpProtocolsCountsNotFaked` | `internal/component/lg/handler_api_test.go` | AC-5 | |
+| `TestRouteCountsAvailableFlagsFabricatedZeros` | `internal/component/lg/handler_api_test.go` | AC-1, AC-3 at the transform | done |
+| `TestAPIProtocolsCountAvailabilityOverHTTP` | `internal/component/lg/handler_api_test.go` | AC-1, AC-2, AC-3 driven from the endpoint, plus the unreadable-value case | done |
+| `TestBMPProtocolsDeclareCountsUnavailable` | `internal/component/lg/handler_api_test.go` | AC-5 at the transform | done |
+| `TestAPIBMPProtocolsCountsUnavailableOverHTTP` | `internal/component/lg/handler_api_test.go` | AC-5 driven from the endpoint | done |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `lg-birdwatcher-route-counts` | `test/plugin/lg-birdwatcher-route-counts.ci` | Alice-LG reads per-peer counts with the RIB wired `receive [ update state ]` | |
+| `lg-birdwatcher-counts-unavailable` | `test/ui/lg-birdwatcher-counts-unavailable.ci` | A build with no source for the counts answers `routes_counts_available` false over the compatibility zeros, with the real daemon behind the endpoint | done |
 
 ### Interop Tests (MANDATORY for protocol features)
 Not a wire protocol change: this spec only affects the birdwatcher HTTP surface. Alice-LG
@@ -185,16 +226,21 @@ compatibility is covered by the functional test above.
 
 ## Files to Modify
 
-- [ ] `internal/component/lg/handler_api.go` - `transformProtocols`, `transformBMPProtocols`, `getNum`
-- [ ] `internal/component/lg/handler_api_test.go` - unit tests above
-- [ ] `internal/component/bgp/plugins/cmd/peer/summary.go` - only if G-2 needs a new key
+- [ ] `internal/component/lg/handler_api.go` - `routeCountsAvailable`, `getNum`, `numValue`, and the two transforms that emit the field
+- [ ] `internal/component/lg/handler_api_test.go` - the transform tests and the two endpoint tests
+- [ ] `internal/component/lg/port_check_test.go` - the divergence reason for the one captured response that changed
+- [ ] `internal/component/lg/testdata/handler/api-protocols-bgp.txt` - regenerated capture
+- [ ] `test/ui/lg-birdwatcher-counts-unavailable.ci` - the functional test
+- [ ] `docs/architecture/api/birdwatcher-compat.md` - Section 7.2 states that availability is derived from the count's value
+- [ ] `internal/component/bgp/plugins/cmd/peer/summary.go` - unchanged: G-2 needed no new key
 
 ## Implementation Steps
 
-1. (fill during design) Decide the wire representation for an unknown count (omit the key, or null) after reading Alice-LG's own source (A-1).
-2. (fill during design) Fix G-1 at the LG consumer, keeping the producer's omit semantics.
-3. (fill during design) Resolve G-2: document the alias, or justify the pre-policy plumbing against learned 1158's race.
-4. (fill during design) Resolve G-3 for BMP rows.
+1. Done. The wire representation is a fifth member beside the counts, not an omission: the owner ruled on 2026-08-05 that this compatibility surface keeps all four counts.
+2. Done. `routeCountsAvailable` at the LG consumer carries the producer's omit semantics through as `routes_counts_available`.
+3. Done. The alias is documented at the API surface, Section 7.3. The pre-policy plumbing is refused by R-2.
+4. Done. BMP rows report the counts unavailable.
+5. Done. The guard answers on the count's VALUE rather than on its key, so a count the transform cannot read is a placeholder too.
 
 ## Known Limitations
 - `routes_filtered` stays 0 until `plan/spec-bgp-filtered-route-storage.md` lands. Not this spec's work.
@@ -206,7 +252,7 @@ compatibility is covered by the functional test above.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
 

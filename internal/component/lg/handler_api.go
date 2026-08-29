@@ -827,14 +827,13 @@ func uptimeSeconds(peer map[string]any) float64 {
 	return getNum(peer, "uptime")
 }
 
-// getNum extracts a numeric value from a map, returning 0 if missing.
 // routeCountsAvailable reports whether the peer summary carried route counts at
 // all, as opposed to Ze being unable to produce them.
 //
 // The producer is deliberate here and this preserves its decision.
-// fetchRibRouteCounts (internal/component/cmd/peer/summary.go) OMITS
-// routes-received and its siblings when the bgp-rib plugin is not loaded, and
-// records that they are "never faked to 0". getNum then returns 0 for the
+// fetchRibRouteCounts (internal/component/bgp/plugins/cmd/peer/summary.go)
+// OMITS routes-received and its siblings when the bgp-rib plugin is not loaded,
+// and records that they are "never faked to 0". getNum then returns 0 for the
 // missing key, so the transform below publishes a zero the producer refused to
 // invent, and an operator cannot tell "this peer sent no routes" from "Ze cannot
 // tell you" (ai/rules/evidence.md: a zero value must never be a valid-looking
@@ -848,17 +847,36 @@ func uptimeSeconds(peer map[string]any) float64 {
 // routes_counts_available. Both conventions are recorded in
 // docs/architecture/api/birdwatcher-compat.md so the trade can be revisited.
 //
+// The test is whether the count READS as a number, not whether the key is
+// there. A key holding a value this transform cannot read publishes the same
+// fabricated zero as an absent key, so key presence alone would answer
+// "available" over four zeros: ok proves the key exists, never that the value
+// is usable (ai/rules/evidence.md). uptimeSeconds above exists because the
+// engine sends uptime as a duration string and getNum answered 0 for every real
+// response, so this summary payload has produced that mismatch once already.
+//
 // routes-received is the probe key: mergeRibRouteCounts emits all three counts
 // together or none, so one key answers for the set.
 func routeCountsAvailable(m map[string]any) bool {
-	_, ok := m["routes-received"]
+	_, ok := numValue(m, "routes-received")
 	return ok
 }
 
+// getNum extracts a numeric value from a map, returning 0 when the key is
+// absent or its value is not a number. A caller that must tell those two apart
+// from a real 0 calls numValue.
 func getNum(m map[string]any, key string) float64 {
+	n, _ := numValue(m, key)
+	return n
+}
+
+// numValue reads a numeric field and reports whether it was present and
+// readable. A value wrapped as {"value": N} unwraps first, the same shape
+// getStr and getBool accept.
+func numValue(m map[string]any, key string) (float64, bool) {
 	v, ok := m[key]
 	if !ok {
-		return 0
+		return 0, false
 	}
 
 	if wrapped, ok := v.(map[string]any); ok {
@@ -869,16 +887,16 @@ func getNum(m map[string]any, key string) float64 {
 
 	switch n := v.(type) {
 	case float64:
-		return n
+		return n, true
 	case int:
-		return float64(n)
+		return float64(n), true
 	case int64:
-		return float64(n)
+		return float64(n), true
 	case uint32:
-		return float64(n)
+		return float64(n), true
 	}
 
-	return 0
+	return 0, false
 }
 
 // getBool extracts a boolean value from a map, returning false if missing.

@@ -60,6 +60,15 @@ const (
 	lgPortSSEAsset = "the head loads hx-sse.min.js, which is htmx 4's SSE extension"
 )
 
+// The one below is a fix the port left standing. routeCountsAvailable
+// (handler_api.go) answered on key PRESENCE, so a count key holding a value
+// getNum cannot read as a number reported the counts as available while
+// publishing four zeros. mockDispatch (server_test.go) sends its counts as
+// strings, so the captured response claimed a real source over a fabricated
+// zero -- the one thing routes_counts_available exists to prevent
+// (docs/architecture/api/birdwatcher-compat.md Section 7.2).
+const lgPortCountsReadable = "routes_counts_available answers on a readable count, not a present key"
+
 var lgPortTemplates = map[string]string{
 	"layout--peers.html":  lgPortGraphScript + ", " + lgPortSSEAsset,
 	"layout--search.html": lgPortGraphScript + ", " + lgPortPageAssets,
@@ -74,6 +83,8 @@ var lgPortTemplates = map[string]string{
 }
 
 var lgPortHandlers = map[string]string{
+	"api-protocols-bgp.txt": lgPortCountsReadable,
+
 	"ui-search-empty.txt":   lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
 	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
 	"ui-search-result.txt":  lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,

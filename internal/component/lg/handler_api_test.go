@@ -1,9 +1,14 @@
 package lg
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // realSummaryJSON is the exact payload handleBgpSummary emits, as
@@ -824,5 +829,165 @@ func TestSummaryPeersReadsFlatPayload(t *testing.T) {
 	// A payload with no rows answers none, rather than panicking.
 	if got := summaryPeers(map[string]any{"router-id": "10.0.0.1"}); got != nil {
 		t.Errorf("payload without peers returned %v, want nil", got)
+	}
+}
+
+// lgCountsDispatch answers the two protocol commands with peers that cover
+// every way a route count can arrive: real numbers, a real zero, the keys the
+// producer omits when bgp-rib is absent, and a key whose value the transform
+// cannot read.
+//
+// The count keys are numbers because that is what the producer writes:
+// mergeRibRouteCounts (internal/component/bgp/plugins/cmd/peer/summary.go)
+// assigns int values, or assigns nothing at all.
+func lgCountsDispatch() CommandDispatcher {
+	return func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+		var out string
+		switch cmd {
+		case "show bgp":
+			out = `{"router-id":"10.0.0.1","local-as":65000,"peers":[` +
+				`{"address":"192.0.2.1","name":"with-counts","remote-as":65001,"state":"established",` +
+				`"routes-received":60,"routes-accepted":60,"routes-sent":50},` +
+				`{"address":"192.0.2.2","name":"zero-counts","remote-as":65002,"state":"established",` +
+				`"routes-received":0,"routes-accepted":0,"routes-sent":0},` +
+				`{"address":"192.0.2.3","name":"no-counts","remote-as":65003,"state":"established"},` +
+				`{"address":"192.0.2.4","name":"text-counts","remote-as":65004,"state":"established",` +
+				`"routes-received":"60","routes-accepted":"60","routes-sent":"50"}]}`
+		case "show bmp peers":
+			out = `{"peers":[{"router":"r1","peer-bgp-id":"10.0.0.1","peer-as":65001,"up":true}]}`
+		default:
+			out = `{"error":"unknown command"}`
+		}
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(out)), nil
+	}
+}
+
+// lgServeAPI issues one GET against the looking glass handler chain and decodes
+// the birdwatcher protocols object it answers.
+func lgServeAPI(t *testing.T, target string) map[string]any {
+	t.Helper()
+
+	srv, err := NewLGServer(LGConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		Dispatch:    lgCountsDispatch(),
+	})
+	if err != nil {
+		t.Fatalf("new lg server: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.server.Handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, http.NoBody))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET %s: status %d, body %s", target, rec.Code, rec.Body.String())
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("GET %s: decode: %v", target, err)
+	}
+
+	protocols, ok := body["protocols"].(map[string]any)
+	if !ok {
+		t.Fatalf("GET %s: no protocols object in %s", target, rec.Body.String())
+	}
+
+	return protocols
+}
+
+// lgProtocol pulls one named protocol object out of a decoded response.
+func lgProtocol(t *testing.T, protocols map[string]any, name string) map[string]any {
+	t.Helper()
+
+	m, ok := protocols[name].(map[string]any)
+	if !ok {
+		t.Fatalf("protocol %q missing from %v", name, protocols)
+	}
+
+	return m
+}
+
+// TestAPIProtocolsCountAvailabilityOverHTTP drives the public endpoint, not the
+// transform, because the endpoint is what an operator and Alice-LG read.
+//
+// VALIDATES: GET /api/looking-glass/protocols/bgp emits all four counts
+// unconditionally, and routes_counts_available is true only for a peer whose
+// counts came from a real source (docs/architecture/api/birdwatcher-compat.md
+// Section 7.2, owner decision of 2026-08-05).
+// PREVENTS: the four zeros reading as a measurement. A count key the producer
+// omitted, and a count key holding a value the transform cannot read as a
+// number, both publish the same zero as a peer holding no routes, so the
+// availability field is the only thing that separates "no routes" from "Ze
+// cannot tell you" (ai/rules/evidence.md: a zero value must never be a
+// valid-looking answer, and ok proves the key exists rather than that its value
+// is usable).
+func TestAPIProtocolsCountAvailabilityOverHTTP(t *testing.T) {
+	protocols := lgServeAPI(t, "/api/looking-glass/protocols/bgp")
+
+	cases := []struct {
+		name      string
+		available bool
+		received  float64
+		exported  float64
+		why       string
+	}{
+		{"with-counts", true, 60, 50, "the RIB reported this peer's counts"},
+		{"zero-counts", true, 0, 0, "an established peer holding no routes: a real 0"},
+		{"no-counts", false, 0, 0, "bgp-rib absent, so the producer omitted the keys"},
+		{"text-counts", false, 0, 0, "the key is present but its value is not a number"},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			m := lgProtocol(t, protocols, tt.name)
+
+			// Section 7.2 requires all four members on every peer, whatever
+			// their availability, so a client never meets a missing key.
+			for _, key := range []string{"routes_received", "routes_imported", "routes_exported", "routes_filtered"} {
+				if _, ok := m[key]; !ok {
+					t.Errorf("%s: %q is absent; the contract requires it unconditionally", tt.name, key)
+				}
+			}
+
+			if m["routes_counts_available"] != tt.available {
+				t.Errorf("%s: routes_counts_available = %v, want %v (%s)",
+					tt.name, m["routes_counts_available"], tt.available, tt.why)
+			}
+			if m["routes_received"] != tt.received {
+				t.Errorf("%s: routes_received = %v, want %v", tt.name, m["routes_received"], tt.received)
+			}
+			if m["routes_exported"] != tt.exported {
+				t.Errorf("%s: routes_exported = %v, want %v", tt.name, m["routes_exported"], tt.exported)
+			}
+		})
+	}
+}
+
+// TestAPIBMPProtocolsCountsUnavailableOverHTTP covers the same field on the BMP
+// endpoint, where no source is consulted for the counts at all.
+//
+// VALIDATES: GET /api/looking-glass/protocols/bmp reports
+// routes_counts_available false on every entry while still emitting the four
+// counts (docs/architecture/api/birdwatcher-compat.md Section 7.2).
+// PREVENTS: a BMP-monitored peer answering a confident zero.
+func TestAPIBMPProtocolsCountsUnavailableOverHTTP(t *testing.T) {
+	protocols := lgServeAPI(t, "/api/looking-glass/protocols/bmp")
+
+	if len(protocols) == 0 {
+		t.Fatal("expected at least one BMP protocol")
+	}
+
+	for name, p := range protocols {
+		m, ok := p.(map[string]any)
+		if !ok {
+			t.Fatalf("protocol %q is not an object: %T", name, p)
+		}
+		if m["routes_counts_available"] != false {
+			t.Errorf("%s: routes_counts_available = %v, want false (no source is consulted)",
+				name, m["routes_counts_available"])
+		}
+		if m["routes_received"] != float64(0) {
+			t.Errorf("%s: routes_received = %v, want the compatibility zero", name, m["routes_received"])
+		}
 	}
 }

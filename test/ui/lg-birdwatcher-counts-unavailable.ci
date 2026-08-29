@@ -1,0 +1,77 @@
+# Test: the looking glass says when its route counts are not a measurement.
+#
+# VALIDATES: spec-lg-deferred-birdwatcher-route-counts AC-1 and user story 1.
+#            A build with no bgp-rib plugin has no source for the four route
+#            counts, so fetchRibRouteCounts (cmd/peer/summary.go) omits the
+#            keys and routeCountsAvailable (lg/handler_api.go) answers false.
+#            The counts themselves stay 0, which
+#            docs/architecture/api/birdwatcher-compat.md Section 7.2 requires of
+#            this compatibility surface by owner decision of 2026-08-05.
+# PREVENTS: an operator, or Alice-LG, reading "0 routes" where the truth is
+#           "Ze cannot tell you". A monitoring system alerts on zero and cannot
+#           alert on absent, so the fabricated zero is the worse answer
+#           (ai/rules/evidence.md).
+#
+# The peer never establishes, and nothing here needs it to: a row is built for
+# every configured peer whatever its state, which is what makes this an
+# assertion about the count's provenance rather than about a session.
+
+# ze bgp configuration with the looking glass enabled and no rib plugin
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	looking-glass {
+		enabled true
+		# TLS defaults ON since spec-fixit-mgmt-listener-auth-guard AC-5.
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented opt-out rather than terminating a self-signed TLS
+		# handshake.
+		tls false
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	router-id 192.0.2.254
+	session {
+		asn {
+			local 65000
+		}
+	}
+	group transit {
+		peer peer1 {
+			connection {
+				remote {
+					ip 192.0.2.1
+				}
+				local {
+					ip 127.0.0.1
+					accept false
+				}
+			}
+			session {
+				asn {
+					remote 65001
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration -- the HTTP checks are the assertions.
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+
+# Wait on the endpoint this test is about, not on /status: /status is served
+# from a different command whose payload carries no counts.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains=peer1:timeout=20s
+
+# The count is a placeholder and the response says so.
+http=get:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains="routes_counts_available": false
+
+# Section 7.2 still requires all four counts on every peer, so a client that
+# reads them meets a number rather than a missing key.
+http=get:seq=2:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains="routes_received": 0
+http=get:seq=3:url=http://127.0.0.1:$PORT2/api/looking-glass/protocols/bgp:status=200:contains="routes_exported": 0
