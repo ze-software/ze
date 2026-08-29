@@ -3,6 +3,7 @@ module ze-peer-cmd {
     prefix peercmd;
     import ze-extensions { prefix ze; }
     description "BGP peer operations: show, delete, and control peer sessions. Owns the show bgp health overview and the delete bgp peer command surface; container-merges onto the show and delete verb roots.";
+    revision 2026-08-29 { description "request peer teardown takes a cease subcode or it fails: handleTeardown refuses an empty tail. The description wrote it as optional and the model stated nothing."; }
     revision 2026-03-16 { description "Initial revision"; }
     revision 2026-06-03 { description "Relocated show bgp-health and delete bgp peer out of the central show/delete schemas into this owner (plugin self-containment)."; }
     revision 2026-06-04 { description "Removed bare 'summary' and 'peer list' duplicates; moved summary under show bgp; canonical paths are 'show bgp summary' and 'show bgp peer list'."; }
@@ -70,6 +71,23 @@ Usage: show bgp peer <selector> history.";
                     description "Show RIB data scoped to one peer.
 Usage: show bgp peer <selector> rib [scope|filters|terminal].";
                     leaf selector { type string; mandatory true; description "Peer selector"; }
+
+                    container scope {
+                        config false;
+                        ze:modifier "choice";
+                        description "Which direction of the peer's RIB to read. Without one,
+routes sent and received are both shown.";
+                        leaf scope {
+                            type enumeration {
+                                enum sent;
+                                enum advertised;
+                                enum received;
+                                enum sent-received;
+                            }
+                            description "Direction of the routes to read. 'advertised' is
+another spelling of 'sent'.";
+                        }
+                    }
                 }
             }
 
@@ -143,6 +161,7 @@ result to the config draft. Run 'config commit' to apply.";
                 description "Tear down a peer session.
 Usage: request peer <selector> teardown [cease-subcode].";
                 leaf selector { type string; mandatory true; description "Peer selector"; }
+                leaf cease-subcode { type uint8; mandatory true; description "BGP cease NOTIFICATION subcode"; }
             }
 
             container pause {

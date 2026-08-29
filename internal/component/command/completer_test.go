@@ -763,3 +763,44 @@ func TestCommandModePipeCompletion_WithAliases(t *testing.T) {
 		t.Errorf("an alias offered an argument: %v", args)
 	}
 }
+
+// VALIDATES: a `ze:modifier "choice"` child offers the WORDS the operator
+// types, never the container's own name.
+// PREVENTS: `show policy chain peer <selector> direction`, which
+// handleShowPolicyChain (internal/component/bgp/plugins/cmd/policy/handler.go)
+// rejects with "invalid direction". A choice container names the choice for a
+// machine reader; the words its leaf declares are the tokens.
+func TestChoiceGroupCompletesItsWordsNotItsName(t *testing.T) {
+	root := &Node{
+		Name: "root",
+		Children: map[string]*Node{
+			"chain": {
+				Name:       "chain",
+				WireMethod: "ze-show:policy-chain",
+				Children: map[string]*Node{
+					"direction": {
+						Name:     "direction",
+						Modifier: ModifierChoice,
+						ArgDefs:  []ArgDef{{Name: "direction", Kind: ArgEnum, EnumValues: []string{"import", "export"}}},
+					},
+					"detail": {Name: "detail", WireMethod: "ze-show:policy-chain-detail"},
+				},
+			},
+		},
+	}
+	got := make(map[string]string, 4)
+	for _, s := range NewTreeCompleter(root).Complete("chain ") {
+		got[s.Text] = s.Type
+	}
+	if _, ok := got["direction"]; ok {
+		t.Errorf("completion offered the container name: %v", got)
+	}
+	for _, word := range []string{"import", "export"} {
+		if got[word] != SuggestionValue {
+			t.Errorf("completion does not offer %q as a value: %v", word, got)
+		}
+	}
+	if got["detail"] != SuggestionCommand {
+		t.Errorf("completion dropped the real subcommand: %v", got)
+	}
+}

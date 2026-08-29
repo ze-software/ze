@@ -332,10 +332,10 @@ type verbForm struct {
 // rooted under its own verb is reached as `ze <verb> <rest>`, and a read-only
 // command rooted under ANOTHER verb is ALSO reached as `ze show <path>` whole.
 //
-// A single-word path yields no form. `announce <unicast|blackhole|flowspec>`
-// and `withdraw tag <key> <value>` are declared with a value placeholder and
-// have no verb-relative remainder at all, so `ze announce ...` is a root
-// dispatch and never enters ResolveCommand.
+// A single-word path yields no form. `announce` is one word and takes its
+// family as a value, so it has no verb-relative remainder at all and
+// `ze announce ...` never enters ResolveCommand. `withdraw` was the same until
+// it became three commands, one per form, and `withdraw tag` now has one.
 //
 // The reachability test is FindNode over the base path, which walks tree
 // children only. It does not ask whether anything declares the path, so a

@@ -3,6 +3,7 @@ module ze-iface-interface-cmd {
     prefix ifaceifcmd;
     import ze-extensions { prefix ze; }
     description "show interface family (interface, brief, scan, type, errors, rate, name detail/counters), monitor interface rate, and clear interface counters. Owned by the iface component because every handler reads or resets interface state through the iface backend (iface.ListInterfaces / GetInterface / DiscoverInterfaces / GetRate / ClearCounters). Container-merges onto the show, monitor, and clear verb roots. See ai/rules/plugin-self-containment.md.";
+    revision 2026-08-29 { description "Declare the value the description spelled in prose, so the model states the grammar and the generated usage line reads it."; }
     revision 2026-06-03 { description "Relocated the show interface family, monitor interface rate, and clear interface counters out of the central show, monitor, and clear schemas into the iface component (plugin self-containment)."; }
     revision 2026-08-03 { description "Gave brief, type, errors, and rate their own wire methods. They shared ze-show:interface with the parent container, so each became an ALIAS path of one wire method; the dispatcher registers the longest path and consumes the keyword, and the handler that switched on it never saw it. show interface errors returned every interface, show interface brief returned full detail, and show interface type <t> answered with usage text. Wire methods now match the sibling scan/detail/counters pattern, one path each."; }
 
@@ -41,6 +42,7 @@ views. Useful during initial setup to see what the box has.";
 Usage: show interface type <type>. Types include ethernet, bridge,
 vxlan, wireguard, tunnel, bond, and more. If you pick an invalid
 type, the error lists all valid ones.";
+                leaf type { type string { length "1..32"; } mandatory true; description "Ze interface type to filter by"; }
             }
 
             container errors {

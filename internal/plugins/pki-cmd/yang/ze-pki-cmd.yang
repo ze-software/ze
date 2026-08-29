@@ -34,6 +34,13 @@ Usage: show pki certificate name <name> [pem | bundle pem | fingerprint
                         mandatory true;
                         description "Certificate name";
                     }
+
+                    container pem {
+                        config false;
+                        ze:modifier "once";
+                        description "Export the certificate as PEM instead of showing its
+detail. The handler reads the word and reads no value after it.";
+                    }
                 }
             }
         }

@@ -124,17 +124,37 @@ func CheckNode(path string, node *command.Node) []Finding {
 
 	// R6: a node that captures a MANDATORY free-form value AND still has keyword
 	// children puts a required value before those keywords (`<resource> <value>
-	// <action>`); the action keyword must precede the identifier. Two things are
+	// <action>`); the action keyword must precede the identifier. Three things are
 	// NOT violations: an OPTIONAL value coexisting with subcommands (e.g. `show route
-	// [<cidr>]` alongside `show route lookup`, an object-rooted fork), and a value
+	// [<cidr>]` alongside `show route lookup`, an object-rooted fork), a value
 	// captured on a typed SELECTOR node (`... name <n> unit ...`), where the value is
 	// already keyword-typed by the selector -- exactly the correct `show interface
-	// name <name> detail` shape.
-	if mandatoryFreeform && len(node.Children) > 0 && !selectorKinds[node.Name] {
+	// name <name> detail` shape -- and a child that is a MODIFIER GROUP rather than a
+	// subcommand. A group is a trailing argument of THIS command, so it names no
+	// action that could move in front of the identifier: `show policy chain peer
+	// <selector> [import|export]` states a filter on the answer, not a second command.
+	if mandatoryFreeform && hasSubcommand(node) && !selectorKinds[node.Name] {
 		out = append(out, Finding{path, "R6", "mandatory free-form value on a non-selector node precedes keyword children -- type the value with a selector keyword (name/id/...) or move the action keyword before the identifier"})
 	}
 
 	return out
+}
+
+// hasSubcommand reports whether the node has a child that is a command of its
+// own rather than a modifier group. A group's keyword belongs to this command's
+// own line (internal/component/command/usage.go), so it is not a child token an
+// operator reaches past the identifier.
+func hasSubcommand(node *command.Node) bool {
+	for _, child := range node.Children {
+		if child == nil {
+			continue
+		}
+		if child.Modifier != command.ModifierNone {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // CheckSiblings applies R9 (sibling namespace collision): among the child tokens at a
@@ -252,12 +272,18 @@ func CheckRootNamespace(roots []string, namespaces map[string]bool) []Finding {
 // commands that deliberately mirror a legacy line protocol and are the one operator
 // surface intentionally not verb-first (E1). A documented set, not an ad-hoc
 // allowlist -- each is a line-protocol verb whose grammar is fixed by that protocol.
+// `withdraw` names three of them because the one command that parsed four tail
+// grammars behind a keyword switch became three commands, one per form
+// (plan/spec-generated-command-usage.md, class (e)). The line protocol they
+// mirror is unchanged, so the exemption follows the split rather than the name.
 var bridgeSurface = map[string]bool{
-	"ze-bgp:announce":    true,
-	"ze-bgp:withdraw":    true,
-	"ze-bgp:peer-raw":    true,
-	"ze-bgp:peer-update": true,
-	"ze-bgp:help":        true,
+	"ze-bgp:announce":     true,
+	"ze-bgp:withdraw-tag": true,
+	"ze-bgp:withdraw-id":  true,
+	"ze-bgp:withdraw-all": true,
+	"ze-bgp:peer-raw":     true,
+	"ze-bgp:peer-update":  true,
+	"ze-bgp:help":         true,
 }
 
 // ExemptCategory reports whether a command (identified by its handler wire method)

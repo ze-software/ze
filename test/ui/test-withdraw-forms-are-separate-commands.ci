@@ -1,0 +1,31 @@
+# Test: `withdraw` is three commands, one per form, each stating its own grammar
+# VALIDATES: AC-11 -- withdraw tag, withdraw id and withdraw all each carry their
+#            own usage line, and withdraw alone lists them as subcommands
+# PREVENTS: four tail grammars behind one handler, which no model can state and
+#           no operator can discover from help
+#
+# The line each form states is the one the MODEL renders, so the two facts the
+# authored prose got wrong are pinned here: the tag value is optional, because
+# the handler defaults it to "*", and `withdraw all` takes a selector filter that
+# the prose never mentioned.
+
+cmd=foreground:seq=1:exec=ze withdraw help
+expect=exit:code=0
+expect=stderr:contains=ze withdraw <command> [options]
+expect=stderr:contains=Commands
+expect=stderr:contains=tag
+expect=stderr:contains=id
+expect=stderr:contains=all
+reject=stderr:pattern=withdraw tag <key> <value\|\*>
+
+cmd=foreground:seq=2:exec=ze withdraw tag help
+expect=exit:code=0
+expect=stderr:contains=ze withdraw tag <key> [value <value>]
+
+cmd=foreground:seq=3:exec=ze withdraw id help
+expect=exit:code=0
+expect=stderr:contains=ze withdraw id <id>
+
+cmd=foreground:seq=4:exec=ze withdraw all help
+expect=exit:code=0
+expect=stderr:contains=ze withdraw all [selector <selector>]

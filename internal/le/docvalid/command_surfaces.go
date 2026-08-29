@@ -109,6 +109,15 @@ type publishedCommandAlias struct {
 	Expansion   string `json:"expansion"`
 }
 
+// publishedCommandToken mirrors one grammar token of the live catalog. It is
+// spelled here rather than imported so a change to the published shape shows up
+// as drift instead of following the producer silently.
+type publishedCommandToken struct {
+	Text   string   `json:"text"`
+	Values []string `json:"values,omitempty"`
+	Kind   string   `json:"kind"`
+}
+
 type publishedCommand struct {
 	Path          string                     `json:"path"`
 	Description   string                     `json:"description,omitempty"`
@@ -122,6 +131,8 @@ type publishedCommand struct {
 	AnswerShape   string                     `json:"answer-shape,omitempty"`
 	AddressFields []string                   `json:"address-fields,omitempty"`
 	Aliases       []publishedCommandAlias    `json:"pipe-aliases,omitempty"`
+	Usage         string                     `json:"usage,omitempty"`
+	Grammar       []publishedCommandToken    `json:"grammar,omitempty"`
 	Syntax        string                     `json:"syntax,omitempty"`
 	Subcommands   []string                   `json:"subcommands,omitempty"`
 }
@@ -412,7 +423,7 @@ func parseCommandCatalog(source string, data []byte) ([]publishedCommand, error)
 	seen := make(map[string]bool, len(commands))
 	for index := range commands {
 		entry := &commands[index]
-		if err := validatePublishedCommand(source, *entry, seen); err != nil {
+		if err := validatePublishedCommand(source, entry, seen); err != nil {
 			return nil, err
 		}
 		seen[entry.Path] = true
@@ -420,7 +431,7 @@ func parseCommandCatalog(source string, data []byte) ([]publishedCommand, error)
 	return commands, nil
 }
 
-func validatePublishedCommand(source string, entry publishedCommand, seen map[string]bool) error {
+func validatePublishedCommand(source string, entry *publishedCommand, seen map[string]bool) error {
 	if entry.Path == "" {
 		return fmt.Errorf("parse %s: command has an empty path", source)
 	}
@@ -802,7 +813,7 @@ func validateGeneratedWikiCommandSurface(
 		for _, availability := range commandOperatorAvailabilities {
 			issues = append(issues, compareCommandOperatorGroups(
 				surface, command.Path, availability,
-				commandOperatorNames(*command, availability),
+				commandOperatorNames(command, availability),
 				pipeScan.groups[availability],
 			)...)
 		}
@@ -2201,7 +2212,7 @@ func validateGeneratedCommandSurfaces(
 				commandSurfacePath(root, primaryHTMLPath),
 				primaryRow,
 				primaryHTMLDocument,
-				*command,
+				command,
 			)...)
 		}
 
@@ -2222,7 +2233,7 @@ func validateGeneratedCommandSurfaces(
 			issues = append(issues, validatePrimaryMarkdownContract(
 				commandSurfacePath(root, primaryMarkdownPath),
 				primaryMarkdownRow,
-				*command,
+				command,
 			)...)
 		}
 
@@ -2241,7 +2252,7 @@ func validateGeneratedCommandSurfaces(
 			issues = append(issues, validateEquivalentCommandContract(
 				commandSurfacePath(root, detailHTMLPath),
 				parseRenderedHTML(string(detailHTML)),
-				*command,
+				command,
 			)...)
 		}
 		detailMarkdown, detailMarkdownErr := os.ReadFile(detailMarkdownPath) //nolint:gosec // isolated renderer output
@@ -2253,7 +2264,7 @@ func validateGeneratedCommandSurfaces(
 			issues = append(issues, validateEquivalentMarkdownContract(
 				commandSurfacePath(root, detailMarkdownPath),
 				string(detailMarkdown),
-				*command,
+				command,
 			)...)
 		}
 
@@ -2274,7 +2285,7 @@ func validateGeneratedCommandSurfaces(
 			issues = append(issues,
 				validateLLMSCommandContract(
 					commandSurfacePath(root, llmsPath),
-					identity, meta, description, *command,
+					identity, meta, description, command,
 				)...)
 		}
 	}
@@ -2779,7 +2790,7 @@ func namedCommandDimension(kind, name string) string {
 	return dimension.Str(kind).Byte(' ').Quoted(name).String()
 }
 
-func commandOperatorNames(command publishedCommand, availability string) []string {
+func commandOperatorNames(command *publishedCommand, availability string) []string {
 	names := make([]string, 0, len(command.Operators))
 	for _, operator := range command.Operators {
 		if availability == availabilityLocalOnly {
@@ -3440,7 +3451,7 @@ func validatePrimaryCommandContract(
 	path string,
 	row *xhtml.Node,
 	document renderedHTMLDocument,
-	command publishedCommand,
+	command *publishedCommand,
 ) []Issue {
 	var issues []Issue
 	visible, visibleValid := primaryHTMLCommandValues(document, row)
@@ -3750,7 +3761,7 @@ func commandMarkdownValue(value string) string {
 
 func validatePrimaryMarkdownContract(
 	path, row string,
-	command publishedCommand,
+	command *publishedCommand,
 ) []Issue {
 	var issues []Issue
 	visible, visibleValid := primaryMarkdownCommandValues(row)
@@ -4715,7 +4726,7 @@ func equivalentHTMLDirectDefinitionTerms(article *xhtml.Node) []string {
 func validateEquivalentHTMLPipeTerms(
 	path string,
 	article *xhtml.Node,
-	command publishedCommand,
+	command *publishedCommand,
 ) []Issue {
 	var issues []Issue
 	for _, term := range equivalentHTMLDirectDefinitionTerms(article) {
@@ -4854,7 +4865,7 @@ func compareEquivalentDetailValues(
 func validateEquivalentCommandContract(
 	path string,
 	document renderedHTMLDocument,
-	command publishedCommand,
+	command *publishedCommand,
 ) []Issue {
 	var issues []Issue
 	for _, article := range document.zeArticles {
@@ -5242,7 +5253,7 @@ func markdownEquivalentAliasDetails(
 
 func validateEquivalentMarkdownContract(
 	path, content string,
-	command publishedCommand,
+	command *publishedCommand,
 ) []Issue {
 	title, titleCount, titleValid := equivalentMarkdownTitleIdentity(content)
 	var issues []Issue
@@ -5346,7 +5357,7 @@ func validateEquivalentMarkdownContract(
 
 func validateEquivalentMarkdownOperatorGroupLabels(
 	path, content string,
-	command publishedCommand,
+	command *publishedCommand,
 ) []Issue {
 	counts := make(map[string]int, len(commandOperatorAvailabilities))
 	var issues []Issue
@@ -5610,7 +5621,7 @@ func parseLLMSCommaValues(value string) []string {
 
 func validateLLMSCommandContract(
 	path, identity, meta, description string,
-	command publishedCommand,
+	command *publishedCommand,
 ) []Issue {
 	var issues []Issue
 	var rendered textbuf.Buffer
@@ -5710,7 +5721,7 @@ func validateLLMSCommandContract(
 
 func validateCommandMetaSegments(
 	path string,
-	command publishedCommand,
+	command *publishedCommand,
 	segments []string,
 ) []Issue {
 	known := []string{

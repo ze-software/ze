@@ -1,0 +1,12 @@
+# Test: a command that also has subcommands states BOTH readings of its path
+# VALIDATES: AC-5 -- the generated usage line is printed, then the child listing
+# PREVENTS: an operator of a node that runs a command AND carries subcommands
+#           reading only the navigation line, which never says the node itself
+#           is executable
+
+cmd=foreground:seq=1:exec=ze show bgp help
+expect=exit:code=0
+expect=stderr:contains=ze show bgp
+expect=stderr:contains=ze show bgp <command> [options]
+expect=stderr:contains=Commands
+expect=stderr:contains=decode

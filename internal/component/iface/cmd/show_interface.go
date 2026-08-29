@@ -60,13 +60,24 @@ func handleShowInterfaceBrief(_ *pluginserver.CommandContext, _ []string) (*plug
 	return showInterfaceBrief()
 }
 
-// handleShowInterfaceType serves `show interface type <type>`. The type is the
-// one remaining token; without it there is nothing to filter on.
-func handleShowInterfaceType(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) == 0 {
+// handleShowInterfaceType serves `show interface type <type>`. Without a type
+// there is nothing to filter on.
+//
+// The type arrives as a SELECTOR rather than in args: the container and its leaf
+// are both called `type`, so matchCommandTokens
+// (internal/component/plugin/server/command.go) matches the keyword against the
+// leaf of the same name and lifts the value out of the argument list. The args
+// fallback keeps every caller that hands the value as a bare token working,
+// which is the shape handleShowInterfaceDetail already takes.
+func handleShowInterfaceType(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	wanted := ctx.Selector("type")
+	if wanted == "" && len(args) > 0 {
+		wanted = args[0]
+	}
+	if wanted == "" {
 		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show interface type <type>"}, nil
 	}
-	return showInterfaceByType(args[0])
+	return showInterfaceByType(wanted)
 }
 
 // handleShowInterfaceErrors serves `show interface errors`.
@@ -123,13 +134,13 @@ func showInterfaceCounters(name string) (*plugin.Response, error) {
 	}
 	if info.Stats == nil {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
-			"name":  info.Name,
-			"stats": "no counters available",
+			fieldName: info.Name,
+			"stats":   "no counters available",
 		}}, nil
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
-		"name":  info.Name,
-		"stats": info.Stats,
+		fieldName: info.Name,
+		"stats":   info.Stats,
 	}}, nil
 }
 
@@ -194,7 +205,7 @@ func showInterfaceByType(wanted string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"interfaces": filtered,
+			fieldInterfaces: filtered,
 		},
 	}, nil
 }
@@ -217,7 +228,7 @@ func showInterfaceErrors() (*plugin.Response, error) {
 			continue
 		}
 		rows = append(rows, map[string]any{
-			"name":       ifaces[i].Name,
+			fieldName:    ifaces[i].Name,
 			"rx-errors":  s.RxErrors,
 			"rx-dropped": s.RxDropped,
 			"tx-errors":  s.TxErrors,
@@ -229,7 +240,7 @@ func showInterfaceErrors() (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"interfaces": rows,
+			fieldInterfaces: rows,
 		},
 	}, nil
 }
@@ -243,9 +254,9 @@ func showInterfaceBrief() (*plugin.Response, error) {
 	rows := make([]map[string]any, 0, len(ifaces))
 	for i := range ifaces {
 		row := map[string]any{
-			"name":  ifaces[i].Name,
-			"state": ifaces[i].State,
-			"mtu":   ifaces[i].MTU,
+			fieldName: ifaces[i].Name,
+			"state":   ifaces[i].State,
+			"mtu":     ifaces[i].MTU,
 		}
 		if len(ifaces[i].Addresses) > 0 {
 			row["address"] = ifaces[i].Addresses[0].Address + textbuf.StrInt("/", int64(ifaces[i].Addresses[0].PrefixLength))
@@ -255,8 +266,8 @@ func showInterfaceBrief() (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"interfaces": rows,
-			"count":      len(rows),
+			fieldInterfaces: rows,
+			"count":         len(rows),
 		},
 	}, nil
 }

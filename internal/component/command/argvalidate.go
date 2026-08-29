@@ -104,3 +104,63 @@ func joinEnum(values []string) string {
 	}
 	return string(buf)
 }
+
+// ArgConstraint ranks how much an argument definition constrains its value. A
+// LOWER rank admits fewer values.
+//
+// Ranking exists so a positional token goes to the definition that names it
+// most exactly, and never to whichever definition a slice happens to hold
+// first. `show system sockets 8080` must reach the port leaf even though the
+// state leaf is a pattern-less string that accepts the same token.
+type ArgConstraint uint8
+
+const (
+	// ConstraintUnspecified is the zero value and ranks nothing, so a
+	// definition built by mistake never reads as a strong constraint.
+	ConstraintUnspecified ArgConstraint = iota
+	// ConstraintEnum admits a closed set of words.
+	ConstraintEnum
+	// ConstraintRangedUint admits the integers of a declared range.
+	ConstraintRangedUint
+	// ConstraintUint admits every integer of its width.
+	ConstraintUint
+	// ConstraintPattern admits the strings one regular expression matches.
+	ConstraintPattern
+	// ConstraintAny admits every string, so it is the last resort.
+	ConstraintAny
+)
+
+// Constraint ranks def by how much its type constrains the value it accepts.
+//
+// A union takes the rank of its MOST PERMISSIVE member, because a union accepts
+// every value any of its members accepts. A union of no members constrains
+// nothing and ranks last.
+func Constraint(def *ArgDef) ArgConstraint {
+	switch def.Kind {
+	case ArgEnum:
+		return ConstraintEnum
+	case ArgUint:
+		if len(def.Ranges) > 0 {
+			return ConstraintRangedUint
+		}
+		return ConstraintUint
+	case ArgString:
+		if def.Pattern != nil {
+			return ConstraintPattern
+		}
+		return ConstraintAny
+	case ArgUnion:
+		weakest := ConstraintUnspecified
+		for i := range def.UnionDefs {
+			if member := Constraint(&def.UnionDefs[i]); member > weakest {
+				weakest = member
+			}
+		}
+		if weakest == ConstraintUnspecified {
+			return ConstraintAny
+		}
+		return weakest
+	default:
+		return ConstraintAny
+	}
+}

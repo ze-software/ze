@@ -219,14 +219,23 @@ func streamingOperators(ops []commandOperator) []string {
 
 // commandEntry is a single command in the catalog.
 type commandEntry struct {
-	Path        string        `json:"path"`
-	Description string        `json:"description,omitempty"`
-	Mode        string        `json:"mode"`
-	WireMethod  string        `json:"wire-method,omitempty"`
-	Backend     []string      `json:"backend,omitempty"`
-	TaskSupport string        `json:"task-support,omitempty"`
-	Args        []commandArg  `json:"args,omitempty"`
-	Pipes       []commandPipe `json:"pipes,omitempty"`
+	Path        string       `json:"path"`
+	Description string       `json:"description,omitempty"`
+	Mode        string       `json:"mode"`
+	WireMethod  string       `json:"wire-method,omitempty"`
+	Backend     []string     `json:"backend,omitempty"`
+	TaskSupport string       `json:"task-support,omitempty"`
+	Args        []commandArg `json:"args,omitempty"`
+	// Usage is the invocation form, generated from the command model. It is
+	// what an operator types.
+	Usage string `json:"usage,omitempty"`
+	// Grammar is that same form as an ordered token list, so a machine reader
+	// never parses angle and square brackets out of a string. Both come from
+	// one producer (internal/component/command, Usage), so the two projections
+	// cannot disagree. Args stays beside them: it is the type dictionary, and
+	// it carries no position.
+	Grammar []command.UsageToken `json:"grammar,omitempty"`
+	Pipes   []commandPipe        `json:"pipes,omitempty"`
 	// Operators is what this command supports, per operator, replacing the
 	// `global-pipes` boolean. A boolean said only "this command reaches the
 	// pipe layer"; it named no operator, and a tool author reading it had to
@@ -322,6 +331,8 @@ func collectCommands() []commandEntry {
 			e.Aliases = aliasesFor(cliPath)
 			if node != nil {
 				e.Args = extractArgs(node)
+				e.Grammar = command.Usage(strings.Fields(cliPath), node)
+				e.Usage = command.UsageLine(e.Grammar)
 				e.Subcommands = extractSubcommands(node)
 				e.Backend = node.Backend
 				if node.TaskSupport != "" {

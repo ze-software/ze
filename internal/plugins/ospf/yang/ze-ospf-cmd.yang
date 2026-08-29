@@ -412,6 +412,80 @@ Usage: debug ip ospf inject opaque scope <link|area|as> id <opaque-id>
 [type <128-255>] [hex <body> | tlv <type> <value-hex> ...] [withdraw].
 The default Opaque Type is Private-Use so a test LSA never collides with a
 standards-track consumer. Requires `debug ospf inject enable`.";
+
+                        container scope {
+                            config false;
+                            ze:modifier "required";
+                            description "Flooding scope of the injected LSA.";
+                            leaf scope {
+                                type enumeration {
+                                    enum link;
+                                    enum area;
+                                    enum as;
+                                }
+                                mandatory true;
+                                description "Link-local, area, or AS flooding scope.";
+                            }
+                        }
+                        container id {
+                            config false;
+                            ze:modifier "required";
+                            description "Opaque ID of the injected LSA.";
+                            leaf opaque-id {
+                                type uint32 {
+                                    range "0..16777215";
+                                }
+                                mandatory true;
+                                description "24-bit Opaque ID (RFC 5250 Appendix A.2).";
+                            }
+                        }
+                        container type {
+                            config false;
+                            ze:modifier "once";
+                            description "Opaque Type of the injected LSA. Defaults to a
+Private-Use type so a test LSA never collides with a standards-track consumer.";
+                            leaf type {
+                                type uint8 {
+                                    range "128..255";
+                                }
+                                mandatory true;
+                                description "Private-Use Opaque Type (RFC 5250 Section 9).";
+                            }
+                        }
+                        container hex {
+                            config false;
+                            ze:modifier "repeat";
+                            description "Raw body octets, appended in the order supplied.";
+                            leaf body {
+                                type string {
+                                    pattern "[0-9a-fA-F]*";
+                                }
+                                mandatory true;
+                                description "Body octets as hex.";
+                            }
+                        }
+                        container tlv {
+                            config false;
+                            ze:modifier "repeat";
+                            description "One 4-octet-aligned opaque TLV, appended to the body.";
+                            leaf type {
+                                type uint16;
+                                mandatory true;
+                                description "TLV type.";
+                            }
+                            leaf value-hex {
+                                type string {
+                                    pattern "[0-9a-fA-F]*";
+                                }
+                                mandatory true;
+                                description "TLV value as hex.";
+                            }
+                        }
+                        container withdraw {
+                            config false;
+                            ze:modifier "once";
+                            description "MaxAge-flush the LSA instead of originating it.";
+                        }
                     }
                 }
             }
@@ -434,6 +508,62 @@ Usage: debug ipv6 ospf inject lsa scope <link|area|as> type <ls-type>
 id <link-state-id> [hex <body>] [withdraw]. The flooding scope is derived from
 the LS Type S2/S1 bits (a reserved scope is rejected). Requires
 `debug ospf inject enable`.";
+
+                        container type {
+                            config false;
+                            ze:modifier "required";
+                            description "LS Type of the injected LSA. Its S2/S1 bits carry the
+flooding scope, which is why the scope keyword is a cross-check and not the source.";
+                            leaf ls-type {
+                                type string {
+                                    pattern "(0[xX])?[0-9a-fA-F]{1,4}";
+                                }
+                                mandatory true;
+                                description "16-bit LS Type in hex, such as 0x2009.";
+                            }
+                        }
+                        container id {
+                            config false;
+                            ze:modifier "required";
+                            description "Link State ID of the injected LSA.";
+                            leaf link-state-id {
+                                type uint32;
+                                mandatory true;
+                                description "32-bit Link State ID.";
+                            }
+                        }
+                        container scope {
+                            config false;
+                            ze:modifier "once";
+                            description "Cross-check on the scope the LS Type states. Supplying a
+scope that disagrees with the LS Type is refused; supplying none accepts the LS Type.";
+                            leaf scope {
+                                type enumeration {
+                                    enum link;
+                                    enum area;
+                                    enum as;
+                                }
+                                mandatory true;
+                                description "Link-local, area, or AS flooding scope.";
+                            }
+                        }
+                        container hex {
+                            config false;
+                            ze:modifier "repeat";
+                            description "Raw body octets, appended in the order supplied.";
+                            leaf body {
+                                type string {
+                                    pattern "[0-9a-fA-F]*";
+                                }
+                                mandatory true;
+                                description "Body octets as hex.";
+                            }
+                        }
+                        container withdraw {
+                            config false;
+                            ze:modifier "once";
+                            description "MaxAge-flush the LSA instead of originating it.";
+                        }
                     }
                 }
             }

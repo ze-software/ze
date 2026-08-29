@@ -144,7 +144,7 @@ func TestRenderEquivalentHTMLWrapsTermGroupsInDefinitionList(t *testing.T) {
 			Name: "json", Available: "always", Description: "JSON output",
 		}},
 	}
-	document := parseRenderedHTML(string(renderEquivalentHTML(command)))
+	document := parseRenderedHTML(string(renderEquivalentHTML(&command)))
 	node, count, closed := equivalentHTMLCommandContent(document)
 	if count != 1 || !closed {
 		t.Fatalf("rendered equivalent article is not a closed owned container")
@@ -179,7 +179,7 @@ func TestRenderEquivalentMarkdownEscapesAndRoundTripsDetails(t *testing.T) {
 		},
 	}
 
-	rendered := string(renderEquivalentMarkdown(command))
+	rendered := string(renderEquivalentMarkdown(&command))
 	for _, want := range []string{
 		"`family <value>`: Filter\\; preserve \\\\ path and \\\\\\; literal \\\\\\! punctuation; `active`: Keep active rows",
 		"`summary`: Summarize\\; keep \\\\ markers and \\\\\\; literal \\\\\\? punctuation " +
@@ -190,12 +190,12 @@ func TestRenderEquivalentMarkdownEscapesAndRoundTripsDetails(t *testing.T) {
 			t.Fatalf("renderEquivalentMarkdown() omitted escaped detail %q:\n%s", want, rendered)
 		}
 	}
-	if issues := validateEquivalentMarkdownContract("index.md", rendered, command); len(issues) != 0 {
+	if issues := validateEquivalentMarkdownContract("index.md", rendered, &command); len(issues) != 0 {
 		t.Fatalf("native equivalent Markdown did not round-trip: %#v\n%s", issues, rendered)
 	}
 
 	drifted := strings.Replace(rendered, `Filter\; preserve \\ path`, `Stale\; preserve \\ path`, 1)
-	if issues := validateEquivalentMarkdownContract("index.md", drifted, command); len(issues) == 0 {
+	if issues := validateEquivalentMarkdownContract("index.md", drifted, &command); len(issues) == 0 {
 		t.Fatalf("escaped description drift passed validation:\n%s", drifted)
 	}
 }
@@ -221,7 +221,7 @@ func TestRenderOneLineDescriptionsRoundTrip(t *testing.T) {
 		t.Fatalf("primary Markdown row count = %d, malformed = %t:\n%s",
 			count, malformed, primary)
 	}
-	if issues := validatePrimaryMarkdownContract("index.md", row, command); len(issues) != 0 {
+	if issues := validatePrimaryMarkdownContract("index.md", row, &command); len(issues) != 0 {
 		t.Fatalf("primary Markdown multiline description did not round-trip: %#v", issues)
 	}
 
@@ -235,7 +235,7 @@ func TestRenderOneLineDescriptionsRoundTrip(t *testing.T) {
 		t.Fatalf("llms metadata count = %d, valid = %t:\n%s", count, valid, llms)
 	}
 	if issues := validateLLMSCommandContract(
-		"llms.txt", identity, meta, description, command,
+		"llms.txt", identity, meta, description, &command,
 	); len(issues) != 0 {
 		t.Fatalf("llms multiline description did not round-trip: %#v", issues)
 	}
@@ -269,7 +269,7 @@ func TestRenderMarkdownLiteralValuesRoundTripAcrossSurfaces(t *testing.T) {
 		t.Fatalf("primary Markdown row count = %d, malformed = %t:\n%s",
 			count, malformed, primaryMarkdown)
 	}
-	if issues := validatePrimaryMarkdownContract("index.md", row, command); len(issues) != 0 {
+	if issues := validatePrimaryMarkdownContract("index.md", row, &command); len(issues) != 0 {
 		t.Fatalf("primary Markdown literal values did not round-trip: %#v\n%s",
 			issues, primaryMarkdown)
 	}
@@ -285,14 +285,14 @@ func TestRenderMarkdownLiteralValuesRoundTripAcrossSurfaces(t *testing.T) {
 			postprocessedCount, postprocessedMalformed, postprocessed)
 	}
 	if issues := validatePrimaryMarkdownContract(
-		"index.md", postprocessedRow, command,
+		"index.md", postprocessedRow, &command,
 	); len(issues) != 0 {
 		t.Fatalf("description contract labels leaked into metadata: %#v\n%s",
 			issues, postprocessed)
 	}
-	equivalentMarkdown := string(renderEquivalentMarkdown(command))
+	equivalentMarkdown := string(renderEquivalentMarkdown(&command))
 	if issues := validateEquivalentMarkdownContract(
-		"equivalent.md", equivalentMarkdown, command,
+		"equivalent.md", equivalentMarkdown, &command,
 	); len(issues) != 0 {
 		t.Fatalf("equivalent Markdown literal values did not round-trip: %#v\n%s",
 			issues, equivalentMarkdown)
@@ -305,7 +305,7 @@ func TestRenderMarkdownLiteralValuesRoundTripAcrossSurfaces(t *testing.T) {
 		t.Fatalf("llms metadata count = %d, valid = %t:\n%s", count, valid, llms)
 	}
 	if issues := validateLLMSCommandContract(
-		"llms.txt", identity, meta, description, command,
+		"llms.txt", identity, meta, description, &command,
 	); len(issues) != 0 {
 		t.Fatalf("llms literal values did not round-trip: %#v\n%s", issues, llms)
 	}
@@ -318,12 +318,12 @@ func TestRenderMarkdownLiteralValuesRoundTripAcrossSurfaces(t *testing.T) {
 		t.Fatalf("primary HTML row count = %d, closed = %t", primaryCount, primaryClosed)
 	}
 	if issues := validatePrimaryCommandContract(
-		"index.html", primaryRow, primaryHTML, command,
+		"index.html", primaryRow, primaryHTML, &command,
 	); len(issues) != 0 {
 		t.Fatalf("primary HTML literal values did not round-trip: %#v", issues)
 	}
 	if issues := validateEquivalentCommandContract(
-		"equivalent.html", parseRenderedHTML(string(renderEquivalentHTML(command))), command,
+		"equivalent.html", parseRenderedHTML(string(renderEquivalentHTML(&command))), &command,
 	); len(issues) != 0 {
 		t.Fatalf("equivalent HTML literal values did not round-trip: %#v", issues)
 	}
@@ -334,7 +334,7 @@ func TestRenderMarkdownLiteralValuesRoundTripAcrossSurfaces(t *testing.T) {
 	}
 	driftedRow, _, _ := commandSurfaceMarkdownRow(drifted, command.Path)
 	if issues := validatePrimaryMarkdownContract(
-		"index.md", driftedRow, command,
+		"index.md", driftedRow, &command,
 	); len(issues) == 0 {
 		t.Fatalf("primary Markdown visible mutation passed validation:\n%s", drifted)
 	}
@@ -436,7 +436,7 @@ func TestRenderPrimaryMarkdownEscapesAliasExpansionTablePipe(t *testing.T) {
 			len(cells), valid, row)
 	}
 	if issues := validatePrimaryMarkdownContract(
-		"index.md", row, command,
+		"index.md", row, &command,
 	); len(issues) != 0 {
 		t.Fatalf("encoded alias metadata did not round-trip: %#v", issues)
 	}
@@ -453,7 +453,7 @@ func TestRenderPrimaryMarkdownEscapesAliasExpansionTablePipe(t *testing.T) {
 			count, malformed)
 	}
 	if issues := validatePrimaryMarkdownContract(
-		"index.md", row, command,
+		"index.md", row, &command,
 	); len(issues) == 0 {
 		t.Fatalf("unescaped alias table pipe passed validation:\n%s", unescaped)
 	}

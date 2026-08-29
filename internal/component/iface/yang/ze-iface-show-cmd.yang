@@ -3,6 +3,7 @@ module ze-iface-show-cmd {
     prefix ifaceshowcmd;
     import ze-extensions { prefix ze; }
     description "show route / show neighbor / show arp command tree. Owned by the iface component because these handlers read the kernel neighbor and routing tables through the iface backend. Commands are object-rooted (no shared 'ip' container); see ai/rules/plugin-self-containment.md and docs/architecture/cli/command-namespacing.md.";
+    revision 2026-08-29 { description "Declare the value the description spelled in prose, so the model states the grammar and the generated usage line reads it."; }
     revision 2026-06-26 { description "Object-rooted the kernel-table reads: show ip route -> show route, show ip arp -> show neighbor (with show arp as an IPv4 alias); dropped the show ip container and the show neighbors / show kernel-routes aliases."; }
     revision 2026-06-03 { description "Relocated show ip / neighbors / kernel-routes out of the central show schema (plugin self-containment)."; }
 
@@ -33,6 +34,7 @@ output.";
 Performs a longest-prefix-match and returns the matching route with
 gateway, interface, protocol, and metric. Usage: show route lookup
 <ip>.";
+                leaf ip { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } mandatory true; description "Destination IP address to look up"; }
             }
         }
 

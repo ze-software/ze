@@ -52,6 +52,19 @@ type Node struct {
 	Children     map[string]*Node
 	ArgDefs      []ArgDef // Typed argument definitions from YANG leaves inside ze:command.
 
+	// Modifier says this node is an optional trailing GROUP of its parent's
+	// command rather than a command of its own: `announce ... [tag <key>
+	// <value>]`. It is set from ze:modifier and is ModifierNone everywhere else.
+	//
+	// A group earns the extension only when it carries more than one value or
+	// repeats. One optional value is one optional leaf, which already renders
+	// `[name <name>]`.
+	Modifier Modifier
+	// ModifierOrder is the position the module declares this group in, counting
+	// from 1 among its siblings. Children is a map, so the declaration order is
+	// carried here or it is lost.
+	ModifierOrder int
+
 	// DynamicChildren returns additional completion suggestions at this node.
 	// Called alongside static Children when completing. Used for runtime data
 	// like peer names/IPs that aren't known at tree build time.

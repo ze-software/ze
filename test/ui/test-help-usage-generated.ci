@@ -1,0 +1,15 @@
+# Test: `ze <command> help` states the invocation form generated from the model
+# VALIDATES: AC-1 -- a command with a wire method states a usage line, and the
+#            line names every argument the model declares
+# PREVENTS: the fixed "<command> [options]" line coming back, which offers
+#           subcommands a leaf command does not have and names no argument
+#
+# The optional filters render as keyword-and-value groups because
+# ai/rules/cli.md requires a closed keyword before any operator-supplied value.
+
+cmd=foreground:seq=1:exec=ze show system sockets help
+expect=exit:code=0
+expect=stderr:contains=ze show system sockets [protocol <tcp
+expect=stderr:contains=[state <state>]
+expect=stderr:contains=[port <port>]
+reject=stderr:pattern=ze show system sockets <command> \[options\]

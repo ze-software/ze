@@ -15,7 +15,7 @@ import (
 
 // readOnlyVerbs are verbs that do not modify state.
 var readOnlyVerbs = map[string]bool{
-	"show":     true,
+	verbShow:   true,
 	"validate": true,
 	"monitor":  true,
 }
@@ -62,18 +62,13 @@ func writeHelp(w io.Writer, root *Node, path []string) bool {
 		}
 	}
 
-	if len(node.Children) == 0 {
+	names := listedChildNames(node)
+	if len(names) == 0 {
 		if node.Description != "" {
 			writeHelpLine(w, node.Description)
 		}
 		return true
 	}
-
-	names := make([]string, 0, len(node.Children))
-	for name := range node.Children {
-		names = append(names, name)
-	}
-	sort.Strings(names)
 
 	for _, name := range names {
 		child := node.Children[name]
@@ -85,6 +80,25 @@ func writeHelp(w io.Writer, root *Node, path []string) bool {
 	}
 
 	return true
+}
+
+// listedChildNames names the children a help page lists, sorted.
+//
+// A `ze:modifier "choice"` child is left out: its name is never typed, so it is
+// not a subcommand and not a token. The words its leaf declares reach the
+// operator through the generated usage line and through completion
+// (usage.go, completer.go). Every other child is listed, including a modifier
+// group whose keyword the operator does type.
+func listedChildNames(node *Node) []string {
+	names := make([]string, 0, len(node.Children))
+	for name, child := range node.Children {
+		if child != nil && child.Modifier == ModifierChoice {
+			continue
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // HelpEntry is a name + description pair for use with helpfmt.
@@ -106,14 +120,10 @@ func HelpEntries(root *Node, path []string) []HelpEntry {
 			return nil
 		}
 	}
-	if len(node.Children) == 0 {
+	names := listedChildNames(node)
+	if len(names) == 0 {
 		return nil
 	}
-	names := make([]string, 0, len(node.Children))
-	for name := range node.Children {
-		names = append(names, name)
-	}
-	sort.Strings(names)
 
 	entries := make([]HelpEntry, 0, len(names))
 	for _, name := range names {

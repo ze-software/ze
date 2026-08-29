@@ -4,6 +4,7 @@ module ze-firewall-cmd {
     import ze-extensions { prefix ze; }
     description "Firewall show commands: ruleset inspection and address/port group listing.
          Relocated from the central show schema for plugin self-containment.";
+    revision 2026-08-29 { description "Declare the value the description spelled in prose, so the model states the grammar and the generated usage line reads it."; }
     revision 2026-06-03 { description "Initial revision: relocated from ze-cli-show-cmd."; }
     revision 2026-06-06 { description "Standalone containers instead of augment (avoids duplicate system container)."; }
 
@@ -21,6 +22,7 @@ module ze-firewall-cmd {
                 description "Show the live firewall ruleset with per-term counters.
 Usage: show firewall ruleset <name>. Joins applied desired state with
 kernel counters from the nft backend.";
+                leaf name { type string { length "1..64"; } mandatory true; description "Firewall table name"; }
             }
             container group {
                 config false;

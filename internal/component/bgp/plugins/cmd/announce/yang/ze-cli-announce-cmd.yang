@@ -3,6 +3,8 @@ module ze-cli-announce-cmd {
     prefix cliannouncecmd;
     import ze-extensions { prefix ze; }
     description "On-demand route origination and lifecycle management";
+    revision 2026-08-29 { description "Declare the announce trailing groups: tag carries a key AND a value, so it is one group rather than two leaves, and for carries a duration whose keyword differs from its value name."; }
+    revision 2026-08-29 { description "withdraw is three commands, one per form: tag, id and all. Each states its own arguments, so the grammar is in the model rather than in a handler's switch and in a description."; }
     revision 2026-06-27 { description "Initial revision"; }
 
     container announce {
@@ -11,13 +13,48 @@ module ze-cli-announce-cmd {
         description "Announce a route on demand to selected peers.
 Usage: announce <unicast|blackhole|flowspec> <args> [tag <key> <value>] [for <duration>]";
         leaf selector { type string; mandatory true; description "Peer selector"; }
+
+        container tag {
+            config false;
+            ze:modifier "once";
+            description "A key and a value carried with the announcement, so a later withdraw can name it.";
+            leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
+            leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
+        }
+
+        container for {
+            config false;
+            ze:modifier "once";
+            description "How long the announcement lives before ze withdraws it.";
+            leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
+        }
     }
 
     container withdraw {
         config false;
-        ze:command "ze-bgp:withdraw";
-        description "Withdraw on-demand announcements.
-Usage: withdraw tag <key> <value|*> | withdraw tag * | withdraw id <N> | withdraw all";
+        description "Withdraw on-demand announcements.";
+
+        container tag {
+            config false;
+            ze:command "ze-bgp:withdraw-tag";
+            description "Withdraw the announcements carrying a tag. A key of * withdraws every tagged announcement, and an absent value withdraws every value of the key.";
+            leaf key { type string; mandatory true; description "Tag key, or * for every tagged announcement"; }
+            leaf value { type string; description "Tag value; every value of the key when absent"; }
+        }
+
+        container id {
+            config false;
+            ze:command "ze-bgp:withdraw-id";
+            description "Withdraw one announcement by the id that show announcements reports.";
+            leaf id { type string { length "1..20"; } mandatory true; description "Announcement id, as show announcements reports it"; }
+        }
+
+        container all {
+            config false;
+            ze:command "ze-bgp:withdraw-all";
+            description "Withdraw every on-demand announcement, or every one whose peer selector matches a pattern.";
+            leaf selector { type string; description "Peer selector pattern; every announcement when absent"; }
+        }
     }
 
     container show {
@@ -28,6 +65,9 @@ Usage: withdraw tag <key> <value|*> | withdraw tag * | withdraw id <N> | withdra
             ze:command "ze-bgp:show-announcements";
             description "List active on-demand announcements.
 Usage: show announcements [tag <key>] [selector <pattern>] [family <fam>]";
+            leaf tag { type string { length "1..64"; } description "Show only announcements carrying this tag key"; }
+            leaf selector { type string; description "Show only announcements whose peer selector matches this pattern"; }
+            leaf family { type string { length "1..32"; } description "Show only announcements of this address family"; }
         }
     }
 }

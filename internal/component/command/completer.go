@@ -13,8 +13,18 @@ import (
 type Suggestion struct {
 	Text        string
 	Description string
-	Type        string // "command", "pipe", "value", or "selector"
+	Type        string // one of the suggestion kinds below
 }
+
+// The kinds a Suggestion carries in its Type field. They are exported because
+// a caller in another package builds Suggestions too, and the editor renders
+// each kind differently: a suggestion that names the wrong kind is shown wrong.
+const (
+	SuggestionCommand  = "command"
+	SuggestionPipe     = "pipe"
+	SuggestionValue    = "value"
+	SuggestionSelector = "selector"
+)
 
 // TreeCompleter provides completions for operational commands from a Node tree.
 // Used by both the CLI and the editor's command mode.
@@ -45,20 +55,20 @@ func (c *TreeCompleter) SetActiveBackends(backends map[string]string) {
 var PipeOperators = func() []Suggestion {
 	out := make([]Suggestion, 0, len(pipeCatalog))
 	for _, op := range pipeCatalog {
-		out = append(out, Suggestion{Text: op.Name, Description: op.Description, Type: "pipe"})
+		out = append(out, Suggestion{Text: op.Name, Description: op.Description, Type: SuggestionPipe})
 	}
 	return out
 }()
 
 // pipeSubArgs maps pipe operators to their sub-argument completions.
 var pipeSubArgs = map[string][]Suggestion{
-	"json": {
-		{Text: "compact", Description: "Single-line JSON", Type: "pipe"},
-		{Text: "pretty", Description: "Indented JSON (default)", Type: "pipe"},
+	pipeNameJSON: {
+		{Text: "compact", Description: "Single-line JSON", Type: SuggestionPipe},
+		{Text: "pretty", Description: "Indented JSON (default)", Type: SuggestionPipe},
 	},
 	"fill": {
-		{Text: fillWayAlpha, Description: "Remaining columns by field name", Type: "pipe"},
-		{Text: fillWordReverse, Description: "Flip the order in force", Type: "pipe"},
+		{Text: fillWayAlpha, Description: "Remaining columns by field name", Type: SuggestionPipe},
+		{Text: fillWordReverse, Description: "Flip the order in force", Type: SuggestionPipe},
 	},
 }
 
@@ -175,7 +185,7 @@ func completeDisplayFields(command string, typed []string, last string) []Sugges
 				continue
 			}
 			offered[name] = true
-			completions = append(completions, Suggestion{Text: name, Description: "Column", Type: "value"})
+			completions = append(completions, Suggestion{Text: name, Description: "Column", Type: SuggestionValue})
 		}
 	}
 	return completions
@@ -300,6 +310,22 @@ func (c *TreeCompleter) GhostText(input string) string {
 	return ""
 }
 
+// choiceSuggestions offers the words a choice group's leaf declares. The group
+// carries one leaf whose type states a closed set, so the loop is bounded by
+// that set.
+func choiceSuggestions(node *Node, prefix string) []Suggestion {
+	var out []Suggestion
+	for i := range node.ArgDefs {
+		for _, value := range node.ArgDefs[i].EnumValues {
+			if prefix != "" && !strings.HasPrefix(value, prefix) {
+				continue
+			}
+			out = append(out, Suggestion{Text: value, Description: node.Description, Type: SuggestionValue})
+		}
+	}
+	return out
+}
+
 // matchChildren returns sorted completions for children matching prefix.
 // Includes both static children and dynamic suggestions from DynamicChildren callback.
 func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
@@ -318,15 +344,22 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 		sort.Strings(keys)
 
 		for _, name := range keys {
+			child := node.Children[name]
+			if !c.backendAllowed(child) {
+				continue
+			}
+			// A choice group's own name is never typed: the WORDS its leaf
+			// declares are the tokens (usage.go, ModifierChoice). Offering the
+			// container would complete a token the handler rejects.
+			if child.Modifier == ModifierChoice {
+				completions = append(completions, choiceSuggestions(child, prefix)...)
+				continue
+			}
 			if prefix == "" || strings.HasPrefix(name, prefix) {
-				child := node.Children[name]
-				if !c.backendAllowed(child) {
-					continue
-				}
 				completions = append(completions, Suggestion{
 					Text:        name,
 					Description: child.Description,
-					Type:        "command",
+					Type:        SuggestionCommand,
 				})
 			}
 		}
@@ -368,7 +401,7 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 			if prefix == "" || strings.HasPrefix(v, prefix) {
 				completions = append(completions, Suggestion{
 					Text: v,
-					Type: "value",
+					Type: SuggestionValue,
 				})
 			}
 		}
@@ -379,7 +412,7 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 			if prefix == "" || strings.HasPrefix(def.Name, prefix) {
 				completions = append(completions, Suggestion{
 					Text: def.Name,
-					Type: "value",
+					Type: SuggestionValue,
 				})
 			}
 		}

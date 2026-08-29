@@ -313,35 +313,8 @@ func zeDispatch(args []string) int {
 
 	if isYANGVerb(arg) {
 		if helpPath := extractHelpPath(args); helpPath != nil {
-			yangTree := cli.YANGCommandTree()
-			yangNode := command.FindNode(yangTree, helpPath)
-
-			var tb textbuf.Buffer
-			tb.Str("ze ").Str(textbuf.Join(helpPath, " "))
-			cmdPath := tb.String()
-
-			summary := ""
-			var entries []helpfmt.HelpEntry
-			if yangNode != nil {
-				summary = yangNode.Description
-				entries = make([]helpfmt.HelpEntry, 0, len(yangNode.Children))
-				for _, e := range command.HelpEntries(yangNode, nil) {
-					entries = append(entries, helpfmt.HelpEntry{Name: e.Name, Desc: e.Desc})
-				}
-			}
-
-			tb.Reset()
-			tb.Str(cmdPath).Str(" <command> [options]")
-
-			p := helpfmt.Page{
-				Command: cmdPath,
-				Summary: summary,
-				Usage:   []string{tb.String()},
-				Sections: []helpfmt.HelpSection{
-					{Title: "Commands", Entries: entries},
-				},
-			}
-			p.WriteErr()
+			page := commandHelpPage(helpPath, command.FindNode(cli.YANGCommandTree(), helpPath))
+			page.WriteErr()
 			return 0
 		}
 		// RunCommand answers -1 only for `ze <verb> <format-keyword>`, where
@@ -548,9 +521,10 @@ func dispatchRegisteredRoot(arg string, rctx *registry.RuntimeContext, rest []st
 }
 
 func knownCommands() []string {
+	verbs := yangVerbs()
 	roots := registry.ListRoot()
-	names := make([]string, 0, len(yangVerbs)+len(roots))
-	for verb := range yangVerbs {
+	names := make([]string, 0, len(verbs)+len(roots))
+	for verb := range verbs {
 		names = append(names, verb)
 	}
 	for _, rc := range roots {
@@ -559,13 +533,43 @@ func knownCommands() []string {
 	return names
 }
 
-var yangVerbs = map[string]bool{
-	"show": true, "set": true, "clear": true, "request": true,
-	"delete": true, "update": true, "validate": true, "monitor": true,
+// yangVerbs answers the top-level words cmdutil.RunCommand can resolve a
+// command under: every verb the YANG command tree declares, plus every verb a
+// local handler is registered below, less every name a root command claims.
+//
+// It is DERIVED from the registries, never listed. A hardcoded set of eight
+// left announce, create, debug, peer, system and withdraw declared in YANG and
+// published in the catalog while `ze create ...` answered "unknown command":
+// registration declares a command, so the core discovers it rather than
+// carrying a per-feature copy (ai/rules/plugins.md).
+//
+// A root command wins the name, which is what keeps `ze plugin` and
+// `ze resolve` on their root handlers although the tree declares both. The
+// registries are read at dispatch time, after zeSetup has registered every root
+// and local command, so the answer is never a stale snapshot.
+//
+// The loops are bounded by the model this binary was built with. No operator
+// input reaches them.
+func yangVerbs() map[string]bool {
+	tree := cli.YANGCommandTree()
+	verbs := make(map[string]bool, len(tree.Children)+len(registry.ListLocal()))
+	for name := range tree.Children {
+		verbs[name] = true
+	}
+	for _, entry := range registry.ListLocal() {
+		verb, _, _ := strings.Cut(entry.Path, " ")
+		verbs[verb] = true
+	}
+
+	delete(verbs, "")
+	for _, rc := range registry.ListRoot() {
+		delete(verbs, rc.Name)
+	}
+	return verbs
 }
 
 func isYANGVerb(arg string) bool {
-	return yangVerbs[arg]
+	return yangVerbs()[arg]
 }
 
 func extractHelpPath(args []string) []string {

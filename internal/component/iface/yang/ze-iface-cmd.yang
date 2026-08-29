@@ -3,8 +3,17 @@ module ze-iface-cmd {
     prefix ifacecmd;
     import ze-extensions { prefix ze; }
     description "Create, configure, and manage network interfaces";
+    revision 2026-08-29 { description "Declare the values the descriptions spelled in prose: the VLAN id of every unit command, the CIDR prefix of every address command, the veth peer, the MTU byte count and the MAC address. The grammar is in the model, so the renderer states it and the dispatcher types it."; }
     revision 2026-07-03 { description "Typed name selector on create/delete interface (create interface dummy name <n>, delete interface name <n>) per cli-grammar.md Typed Selectors."; }
     revision 2026-06-04 { description "Verb-first grammar: create/delete/request interface"; }
+
+    typedef ip-prefix {
+        type union {
+            type string { pattern '([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?'; }
+            type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?(/[0-9]{1,3})?'; }
+        }
+        description "An IPv4 or IPv6 address, with an optional prefix length.";
+    }
 
     container create {
         config false;
@@ -34,6 +43,7 @@ Usage: create interface dummy name <name>.";
                         description "Add a VLAN sub-interface to the dummy.
 Usage: create interface dummy name <name> unit <vid>.";
                         leaf name { type string; mandatory true; description "Parent interface name"; }
+                        leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
                     }
 
                     container address {
@@ -43,6 +53,7 @@ Usage: create interface dummy name <name> unit <vid>.";
                         description "Add an IP address to the dummy.
 Usage: create interface dummy name <name> address <prefix>.";
                         leaf name { type string; mandatory true; description "Interface name"; }
+                        leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
                     }
                 }
             }
@@ -58,6 +69,7 @@ Usage: create interface dummy name <name> address <prefix>.";
                     description "Create a veth pair (two linked virtual Ethernet interfaces).
 Usage: create interface veth name <name> <peer>.";
                     leaf name { type string; mandatory true; description "Interface name"; }
+                    leaf peer { type string; mandatory true; description "Peer interface name"; }
                 }
             }
 
@@ -81,6 +93,7 @@ Usage: create interface bridge name <name>.";
                         description "Add a VLAN sub-interface to the bridge.
 Usage: create interface bridge name <name> unit <vid>.";
                         leaf name { type string; mandatory true; description "Parent interface name"; }
+                        leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
                     }
 
                     container address {
@@ -90,6 +103,7 @@ Usage: create interface bridge name <name> unit <vid>.";
                         description "Add an IP address to the bridge.
 Usage: create interface bridge name <name> address <prefix>.";
                         leaf name { type string; mandatory true; description "Interface name"; }
+                        leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
                     }
                 }
             }
@@ -100,6 +114,7 @@ Usage: create interface bridge name <name> address <prefix>.";
                 description "Add a VLAN sub-interface (802.1Q tagged).
 Usage: create interface unit <parent> <vid>. Parent must already exist.";
                 leaf name { type string; mandatory true; description "Parent interface name"; }
+                leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
             }
 
             container address {
@@ -108,6 +123,7 @@ Usage: create interface unit <parent> <vid>. Parent must already exist.";
                 description "Add an IP address to an interface.
 Usage: create interface address <name> <prefix>. Interface must already exist.";
                 leaf name { type string; mandatory true; description "Interface name"; }
+                leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
             }
         }
     }
@@ -132,6 +148,7 @@ Usage: delete interface name <name>.";
                     description "Remove a VLAN sub-interface.
 Usage: delete interface name <name> unit.";
                     leaf name { type string; mandatory true; description "Sub-interface name (e.g. eth0.100)"; }
+                    leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
                 }
 
                 container address {
@@ -140,6 +157,7 @@ Usage: delete interface name <name> unit.";
                     description "Remove an IP address from an interface.
 Usage: delete interface name <name> address <prefix>.";
                     leaf name { type string; mandatory true; description "Interface name"; }
+                    leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
                 }
             }
         }
@@ -174,6 +192,7 @@ Usage: request interface <name> down.";
                 description "Set the MTU on an interface.
 Usage: request interface <name> mtu <bytes>. Range: 68 to 65535.";
                 leaf name { type string; mandatory true; description "Interface name"; }
+                leaf bytes { type uint16 { range "68..65535"; } mandatory true; description "MTU in bytes"; }
             }
 
             container mac {
@@ -182,6 +201,7 @@ Usage: request interface <name> mtu <bytes>. Range: 68 to 65535.";
                 description "Set the MAC address on an interface.
 Usage: request interface <name> mac <aa:bb:cc:dd:ee:ff>.";
                 leaf name { type string; mandatory true; description "Interface name"; }
+                leaf address { type string { pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}'; } mandatory true; description "MAC address, as xx:xx:xx:xx:xx:xx"; }
             }
 
             container migrate {

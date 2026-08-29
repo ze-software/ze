@@ -3,6 +3,7 @@ module ze-traceroute-cmd {
     prefix traceroutecmd;
     import ze-extensions { prefix ze; }
     description "traceroute command tree (show traceroute, show probe-round, monitor traceroute, resolve traceroute). Owned by the dedicated traceroute feature module so that the whole traceroute surface lives in one place and container-merges onto the show, monitor, and resolve verb roots. See ai/rules/plugin-self-containment.md.";
+    revision 2026-08-29 { description "Declare the target and the four optional values of resolve traceroute. The handler already reads them as keyword pairs; the description spelled them in prose and the model stated nothing."; }
     revision 2026-06-03 { description "Relocate the traceroute command surface out of the central show, monitor, and resolve schemas into the dedicated traceroute module."; }
 
     container show {
@@ -87,6 +88,11 @@ can watch path changes and latency shifts over time.";
             ze:command "ze-resolve:traceroute";
             description "Traceroute from the router with optional source binding.
 Usage: resolve traceroute <target> [source <ip>] [max-hops N] [timeout D] [probes N].";
+            leaf target { type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; } mandatory true; description "Host or IP address to trace to"; }
+            leaf source { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } description "Source IP address to bind"; }
+            leaf max-hops { type uint32 { range "1..64"; } description "Largest time-to-live to probe"; }
+            leaf timeout { type string { pattern '([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+'; } description "Per-probe timeout, 1s to 30s, in Go duration syntax"; }
+            leaf probes { type uint32 { range "1..10"; } description "Number of probes per hop"; }
         }
     }
 }

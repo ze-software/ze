@@ -3,6 +3,7 @@ module ze-policy-cmd {
     prefix policycmd;
     import ze-extensions { prefix ze; }
     description "Policy chain inspection and dry-run testing commands. Owned by the BGP plugin because these handlers read per-peer policy chains and test UPDATE processing through the reactor. See ai/rules/plugin-self-containment.md.";
+    revision 2026-08-29 { description "Declare the peer selector both policy commands read, and the filter, update and source-asn4 values show policy test peer takes as keyword pairs."; }
     revision 2026-06-06 { description "Relocated show policy chain/test out of the central show schema (plugin self-containment)."; }
 
     container show {
@@ -25,6 +26,21 @@ Usage: show policy chain peer <selector> [import|export]. The selector
 (IP, name, as<N>) and the optional direction are parsed by the handler.
 Shows the effective chain after group inheritance is resolved. Without
 a direction keyword, shows both import and export.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
+
+                    container direction {
+                        config false;
+                        ze:modifier "choice";
+                        description "Which half of the chain to show. Without one, both halves
+are shown.";
+                        leaf direction {
+                            type enumeration {
+                                enum import;
+                                enum export;
+                            }
+                            description "The half of the chain to show.";
+                        }
+                    }
                 }
             }
 
@@ -44,6 +60,10 @@ Usage: show policy test peer <selector> import|export [filter <name>]
 update <hex> [source-asn4 true|false]. The selector and the
 import/export/filter/update/source-asn4 tokens are parsed by the
 handler so the peer selector can be a free-form name or address.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                    leaf filter { type string { length "1..64"; } description "Test one named filter instead of the whole chain"; }
+                    leaf update { type string { pattern '(0[xX])?[0-9a-fA-F]+'; } description "The BGP UPDATE to feed through the chain, hex-encoded"; }
+                    leaf source-asn4 { type enumeration { enum true; enum false; } description "Read the UPDATE as though the sender had four-byte AS support"; }
                 }
             }
         }

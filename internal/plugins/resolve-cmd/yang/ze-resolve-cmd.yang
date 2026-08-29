@@ -4,6 +4,7 @@ module ze-resolve-cmd {
     import ze-extensions { prefix ze; }
     description "Look up DNS, ASN, PeeringDB, and IRR data from the router, inspect the DNS cache, and clear the DNS resolver cache. Owned by the resolve component because every handler reads or resets the resolver (resolvers.DNS). Container-merges onto the resolve, show, and clear verb roots. See ai/rules/plugin-self-containment.md.";
     revision 2026-04-04 { description "Initial revision"; }
+    revision 2026-08-29 { description "Declare the value each lookup takes: the hostname of the A, AAAA and TXT lookups, the address of the reverse lookup, and the AS number of the Cymru and PeeringDB lookups. The descriptions spelled them in prose and the model stated nothing."; }
     revision 2026-06-03 { description "Relocated clear dns cache out of the central clear schema, and show dns lookup/cache out of the central show schema, into the resolve component (plugin self-containment)."; }
 
     container resolve {
@@ -19,24 +20,28 @@ module ze-resolve-cmd {
                 ze:command "ze-resolve:dns-a";
                 description "Look up IPv4 addresses (A records) for a hostname.
 Usage: resolve dns a <hostname>.";
+                leaf hostname { type string { length "1..253"; } mandatory true; description "Hostname to look up"; }
             }
             container aaaa {
                 config false;
                 ze:command "ze-resolve:dns-aaaa";
                 description "Look up IPv6 addresses (AAAA records) for a hostname.
 Usage: resolve dns aaaa <hostname>.";
+                leaf hostname { type string { length "1..253"; } mandatory true; description "Hostname to look up"; }
             }
             container txt {
                 config false;
                 ze:command "ze-resolve:dns-txt";
                 description "Look up TXT records for a hostname.
 Usage: resolve dns txt <hostname>. Returns all TXT strings.";
+                leaf hostname { type string { length "1..253"; } mandatory true; description "Hostname to look up"; }
             }
             container ptr {
                 config false;
                 ze:command "ze-resolve:dns-ptr";
                 description "Reverse-lookup an IP address to its hostname (PTR).
 Usage: resolve dns ptr <ip-address>.";
+                leaf ip-address { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } mandatory true; description "IP address to reverse-look-up"; }
             }
         }
 
@@ -50,6 +55,7 @@ Usage: resolve dns ptr <ip-address>.";
                 description "Find out who owns an AS number.
 Queries Team Cymru DNS to return the organization name for the ASN.
 Usage: resolve cymru asn-name <asn>.";
+                leaf asn { type uint32; mandatory true; description "AS number"; }
             }
         }
 
@@ -62,6 +68,7 @@ Usage: resolve cymru asn-name <asn>.";
                 ze:command "ze-resolve:peeringdb-max-prefix";
                 description "Get max-prefix limits for an ASN from PeeringDB.
 Returns IPv4 and IPv6 prefix limits. Apply via the config editor. Usage: resolve peeringdb max-prefix <asn>.";
+                leaf asn { type uint32; mandatory true; description "AS number"; }
             }
             container as-set {
                 config false;
@@ -69,6 +76,7 @@ Returns IPv4 and IPv6 prefix limits. Apply via the config editor. Usage: resolve
                 description "Find the IRR AS-SET registered for an ASN in PeeringDB.
 Usage: resolve peeringdb as-set <asn>. Feed the result into
 'resolve irr expand' to get the full member list.";
+                leaf asn { type uint32; mandatory true; description "AS number"; }
             }
         }
 

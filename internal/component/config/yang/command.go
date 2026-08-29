@@ -6,6 +6,7 @@ package yang
 import (
 	"log/slog"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -273,6 +274,18 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 			target.ArgDefs = extractArgDefs(child)
 		}
 
+		// A modifier group is not a command, so its leaves are extracted here
+		// rather than by the branch above. A container carrying ze:command is a
+		// subcommand whatever else it says, which is why the extension is read
+		// only when there is no wire method.
+		if wm == "" && target.Modifier == command.ModifierNone {
+			if modifier, ok := getModifierExtension(child); ok {
+				target.Modifier = modifier
+				target.ModifierOrder = declaredContainerOrder(entry, name)
+				target.ArgDefs = extractArgDefs(child)
+			}
+		}
+
 		// Recurse into children (merge overlapping branches from multiple modules).
 		mergeYANGEntry(target, child)
 	}
@@ -281,26 +294,154 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 // extractArgDefs reads leaf children of a ze:command YANG entry and converts
 // their type metadata into ArgDef entries. Leaves have Config == TSUnset
 // (inherited, not explicit), so the main mergeYANGEntry filter skips them.
+//
+// The order is the one the MODULE declares, because it is the order an operator
+// reads in a usage line and a machine reads in the published grammar. goyang
+// keeps each entry's parsed statement, and the parser appends substatements in
+// lexer order, so the declaration order survives the parse.
+//
+// A leaf that reaches this entry from a grouping or an augment is named by no
+// substatement of this container. Those follow, in name order, so the result is
+// deterministic whatever order the entry directory's map yields.
+//
+// Nothing binds a value BY POSITION in this slice: a positional token goes to
+// the definition whose type constrains it most (internal/component/plugin/server,
+// positionalDef). That is what makes the order safe to change.
 func extractArgDefs(entry *gyang.Entry) []command.ArgDef {
 	if entry == nil || entry.Dir == nil {
 		return nil
 	}
-	var defs []command.ArgDef
-	for name, leaf := range entry.Dir {
-		if leaf.Type == nil {
+
+	defs := make([]command.ArgDef, 0, len(entry.Dir))
+	taken := make(map[string]bool, len(entry.Dir))
+
+	for _, name := range declaredLeafNames(entry) {
+		if taken[name] {
 			continue
 		}
-		def, ok := yangTypeToArgDef(name, leaf.Type)
+		def, ok := argDefFor(entry.Dir[name], name)
 		if !ok {
 			continue
 		}
-		if leaf.Mandatory == gyang.TSTrue {
-			def.Mandatory = true
-		}
+		taken[name] = true
 		defs = append(defs, def)
 	}
-	sort.Slice(defs, func(i, j int) bool { return defs[i].Name < defs[j].Name })
+
+	undeclared := make([]string, 0, len(entry.Dir))
+	for name := range entry.Dir {
+		if !taken[name] {
+			undeclared = append(undeclared, name)
+		}
+	}
+	sort.Strings(undeclared)
+
+	for _, name := range undeclared {
+		if def, ok := argDefFor(entry.Dir[name], name); ok {
+			defs = append(defs, def)
+		}
+	}
+
+	if len(defs) == 0 {
+		return nil
+	}
 	return defs
+}
+
+// getModifierExtension reads the ze:modifier extension from a YANG entry and
+// answers the occurrence it names.
+//
+// It answers false for an absent extension and for an argument the vocabulary
+// does not hold, so a typo leaves a plain grouping node rather than a group
+// nobody declared (ai/rules/evidence.md). The warning names the container,
+// because a silent no is what makes a typo cost a reader an afternoon.
+func getModifierExtension(entry *gyang.Entry) (command.Modifier, bool) {
+	if entry == nil {
+		return command.ModifierNone, false
+	}
+	for _, ext := range entry.Exts {
+		if ext.Keyword != "ze:modifier" && !strings.HasSuffix(ext.Keyword, ":modifier") {
+			continue
+		}
+		modifier, ok := command.ParseModifier(ext.Argument)
+		if !ok {
+			slog.Warn("YANG ze:modifier argument is not a declared occurrence", "node", entry.Name, "argument", ext.Argument)
+		}
+		return modifier, ok
+	}
+	return command.ModifierNone, false
+}
+
+// declaredContainerOrder answers the position the module declares the named
+// container in, counting from 1 among its parent's substatements, and 0 for a
+// container the parent's statement does not name.
+//
+// Node.Children is a map, so a modifier group's declared order is carried on
+// the node or it is lost, and two groups would then render in whichever order
+// the map yielded.
+//
+// The loop is bounded by the substatement count of one container in a module
+// this binary carries.
+func declaredContainerOrder(parent *gyang.Entry, name string) int {
+	if parent == nil || parent.Node == nil {
+		return 0
+	}
+	statement := parent.Node.Statement()
+	if statement == nil {
+		return 0
+	}
+	position := 0
+	for _, sub := range statement.SubStatements() {
+		if sub.Keyword != "container" {
+			continue
+		}
+		position++
+		if sub.Argument == name {
+			return position
+		}
+	}
+	return 0
+}
+
+// declaredLeafNames lists the leaf names this container's own statement holds,
+// in the order the module declares them. It answers nil for an entry that
+// carries no parsed statement, and the caller then falls back to name order.
+//
+// The loop is bounded by the substatement count of one container in a module
+// this binary carries.
+func declaredLeafNames(entry *gyang.Entry) []string {
+	if entry.Node == nil {
+		return nil
+	}
+	statement := entry.Node.Statement()
+	if statement == nil {
+		return nil
+	}
+	subs := statement.SubStatements()
+	names := make([]string, 0, len(subs))
+	for _, sub := range subs {
+		if sub.Keyword != "leaf" && sub.Keyword != "leaf-list" {
+			continue
+		}
+		names = append(names, sub.Argument)
+	}
+	return names
+}
+
+// argDefFor converts one leaf entry into an argument definition. It answers
+// false for a leaf that declares no type, for a type no command argument can
+// carry, and for a name the statement holds while the directory does not.
+func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
+	if leaf == nil || leaf.Type == nil {
+		return command.ArgDef{}, false
+	}
+	def, ok := yangTypeToArgDef(name, leaf.Type)
+	if !ok {
+		return command.ArgDef{}, false
+	}
+	if leaf.Mandatory == gyang.TSTrue {
+		def.Mandatory = true
+	}
+	return def, true
 }
 
 // yangTypeToArgDef converts a goyang YangType into an ArgDef.
@@ -360,16 +501,32 @@ func yangTypeToArgDef(name string, yt *gyang.YangType) (command.ArgDef, bool) {
 	return def, true
 }
 
-// enumNames extracts sorted enum value names from a goyang EnumType.
+// enumNames lists a goyang EnumType's value names in the order the module
+// declares them.
+//
+// The order is the enum's own assigned integers, which YANG hands out as
+// last+1 when a module states no `value`. So the sort below is declaration
+// order for every enum in this repository, and the module's stated order for
+// any that numbers its values by hand.
+//
+// It is the order an operator reads in a generated usage line, and it is what
+// makes `[import|export]` come out the way handleShowPolicyChain
+// (internal/component/bgp/plugins/cmd/policy/handler.go) documents it. Sorting
+// on the NAME renders a set no module chose, which is the same defect
+// extractArgDefs above already stopped making for leaves.
 func enumNames(enum *gyang.EnumType) []string {
-	if enum == nil || len(enum.ToInt) == 0 {
+	if enum == nil || len(enum.ToString) == 0 {
 		return nil
 	}
-	names := make([]string, 0, len(enum.ToInt))
-	for name := range enum.ToInt {
-		names = append(names, name)
+	values := make([]int64, 0, len(enum.ToString))
+	for value := range enum.ToString {
+		values = append(values, value)
 	}
-	sort.Strings(names)
+	slices.Sort(values)
+	names := make([]string, 0, len(values))
+	for _, value := range values {
+		names = append(names, enum.ToString[value])
+	}
 	return names
 }
 

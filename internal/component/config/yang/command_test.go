@@ -893,7 +893,12 @@ module test-backend-tree-cmd {
 // TestArgDefFromEnumYANG verifies that enum leaves inside ze:command containers
 // produce ArgDef entries with EnumValues populated.
 //
-// VALIDATES: AC-1 -- enum leaf produces ArgDef with EnumValues.
+// VALIDATES: AC-1 -- enum leaf produces ArgDef with EnumValues, in the order
+// the module declares them.
+// PREVENTS: a generated usage line stating a value set in an order no module
+// chose. `[import|export]` is the order handleShowPolicyChain
+// (internal/component/bgp/plugins/cmd/policy/handler.go) documents and the
+// alphabet inverts it.
 func TestArgDefFromEnumYANG(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
@@ -933,7 +938,7 @@ module test-enum-cmd {
 	def := goroutines.ArgDefs[0]
 	assert.Equal(t, "mode", def.Name)
 	assert.Equal(t, command.ArgEnum, def.Kind)
-	assert.Equal(t, []string{"blocked", "full", "summary"}, def.EnumValues)
+	assert.Equal(t, []string{"summary", "blocked", "full"}, def.EnumValues)
 }
 
 // TestArgDefFromUnionYANG verifies that union(uint64, enum) leaves produce
@@ -1307,4 +1312,162 @@ func TestMergeYANGEntrySilentOnMatchingDescription(t *testing.T) {
 	mergeYANGEntry(root, entry)
 
 	assert.Empty(t, buf.String(), "no warning when descriptions match")
+}
+
+// declarationOrderModule declares four leaves in an order the alphabet inverts,
+// so a sort on name cannot be mistaken for the declared order.
+const declarationOrderModule = `
+module test-order-cmd {
+    namespace "urn:test:order:cmd";
+    prefix toc;
+    import ze-extensions { prefix ze; }
+
+    container request {
+        config false;
+        container outgoing-call {
+            config false;
+            ze:command "ze-test:outgoing-call";
+            description "Place a call.";
+            leaf remote { type string; mandatory true; description "Remote name"; }
+            leaf called { type string; mandatory true; description "Called number"; }
+            leaf zone { type string; description "Zone"; }
+            leaf attempts { type uint8; description "Attempts"; }
+        }
+    }
+}
+`
+
+// VALIDATES: an argument definition list follows the order the module declares,
+// not the order the alphabet imposes.
+// PREVENTS: `request outgoing-call called <called> remote <remote>`, which is
+// what an alphabetical sort renders and what no operator reads in a document.
+func TestArgDefsFollowDeclarationOrder(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("test-order-cmd.yang", declarationOrderModule))
+	require.NoError(t, loader.Resolve())
+
+	node := BuildCommandTree(loader).Children["request"].Children["outgoing-call"]
+	require.NotNil(t, node)
+
+	names := make([]string, 0, len(node.ArgDefs))
+	for _, def := range node.ArgDefs {
+		names = append(names, def.Name)
+	}
+	assert.Equal(t, []string{"remote", "called", "zone", "attempts"}, names)
+}
+
+// VALIDATES: repeated builds of one module produce one order.
+// PREVENTS: the entry directory being a Go map making the published grammar,
+// the help line and the catalog differ between two runs of the same binary.
+func TestArgDefsAreDeterministic(t *testing.T) {
+	var first []string
+	for run := range 12 {
+		loader := NewLoader()
+		require.NoError(t, loader.LoadEmbedded())
+		require.NoError(t, loader.AddModuleFromText("test-order-cmd.yang", declarationOrderModule))
+		require.NoError(t, loader.Resolve())
+
+		node := BuildCommandTree(loader).Children["request"].Children["outgoing-call"]
+		require.NotNil(t, node)
+		names := make([]string, 0, len(node.ArgDefs))
+		for _, def := range node.ArgDefs {
+			names = append(names, def.Name)
+		}
+		if run == 0 {
+			first = names
+			continue
+		}
+		assert.Equal(t, first, names, "run %d produced a different order", run)
+	}
+}
+
+// TestModifierExtensionBuildsAGroup reads a module that declares two modifier
+// groups and one subcommand under the same command.
+//
+// VALIDATES: ze:modifier reaches the tree with its occurrence, its declared
+// position and its own leaves, and a container carrying ze:command stays a
+// subcommand whatever else it says.
+// PREVENTS: a group whose leaves are never extracted, which renders as a bare
+// keyword; and a group whose order comes from the Children map, which renders
+// differently between two runs of the same binary.
+func TestModifierExtensionBuildsAGroup(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	yangText := `
+module test-modifier-cmd {
+    namespace "urn:test:modifier:cmd";
+    prefix tmc;
+    import ze-extensions { prefix ze; }
+
+    container announce {
+        config false;
+        ze:command "ze-bgp:announce";
+        description "Announce a route.";
+        leaf selector { type string; mandatory true; description "Peer selector"; }
+
+        container tag {
+            config false;
+            ze:modifier "once";
+            description "A key and a value carried with the announcement.";
+            leaf key { type string; mandatory true; description "Tag key"; }
+            leaf value { type string; mandatory true; description "Tag value"; }
+        }
+
+        container label {
+            config false;
+            ze:modifier "repeat";
+            description "A repeatable label.";
+            leaf name { type string; mandatory true; description "Label name"; }
+        }
+
+        container detail {
+            config false;
+            ze:command "ze-bgp:announce-detail";
+            ze:modifier "once";
+            description "A subcommand, not a group.";
+        }
+
+        container typo {
+            config false;
+            ze:modifier "sometimes";
+            description "An occurrence nobody declared.";
+        }
+    }
+}
+`
+	require.NoError(t, loader.AddModuleFromText("test-modifier-cmd.yang", yangText))
+	require.NoError(t, loader.Resolve())
+
+	root := BuildCommandTree(loader)
+	announce := root.Children["announce"]
+	require.NotNil(t, announce)
+
+	tag := announce.Children["tag"]
+	require.NotNil(t, tag)
+	assert.Equal(t, command.ModifierOnce, tag.Modifier)
+	assert.Equal(t, 1, tag.ModifierOrder)
+	require.Len(t, tag.ArgDefs, 2)
+	assert.Equal(t, "key", tag.ArgDefs[0].Name)
+	assert.Equal(t, "value", tag.ArgDefs[1].Name)
+
+	label := announce.Children["label"]
+	require.NotNil(t, label)
+	assert.Equal(t, command.ModifierRepeat, label.Modifier)
+	assert.Equal(t, 2, label.ModifierOrder)
+
+	detail := announce.Children["detail"]
+	require.NotNil(t, detail)
+	assert.Equal(t, command.ModifierNone, detail.Modifier,
+		"a container that runs a command of its own is a subcommand, never a group")
+	assert.Equal(t, "ze-bgp:announce-detail", detail.WireMethod)
+
+	typo := announce.Children["typo"]
+	require.NotNil(t, typo)
+	assert.Equal(t, command.ModifierNone, typo.Modifier,
+		"an occurrence the vocabulary does not hold leaves a plain grouping node")
+
+	assert.Equal(t, "announce <selector> [tag <key> <value>] [label <name> ...]",
+		command.UsageLine(command.Usage([]string{"announce"}, announce)))
 }

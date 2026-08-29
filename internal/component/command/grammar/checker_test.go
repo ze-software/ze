@@ -98,6 +98,39 @@ func TestCheckNodeKeywordBeforeValue(t *testing.T) { // R5
 	}
 }
 
+// VALIDATES: a modifier group is not an action, so it does not put a value
+// before a keyword.
+// PREVENTS: R6 firing on `show policy chain peer <selector> [import|export]`,
+// where the bracketed words are a trailing argument of THIS command and not a
+// subcommand. R6 asks whether an action keyword must move in front of the
+// identifier, and a group states no action to move.
+func TestCheckNodeIgnoresModifierGroupsForR6(t *testing.T) { // R6
+	group := &command.Node{
+		Name:       "peer",
+		WireMethod: "ze-show:policy-chain",
+		ArgDefs:    []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+		Children: map[string]*command.Node{
+			"direction": {Name: "direction", Modifier: command.ModifierChoice},
+		},
+	}
+	if f := CheckNode("show policy chain peer", group); hasRule(f, "R6") {
+		t.Errorf("a modifier group wrongly flagged R6: %v", f)
+	}
+
+	action := &command.Node{
+		Name:       "peer",
+		WireMethod: "ze-show:policy-chain",
+		ArgDefs:    []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+		Children: map[string]*command.Node{
+			"direction": {Name: "direction", Modifier: command.ModifierChoice},
+			"detail":    {Name: "detail", WireMethod: "ze-show:policy-chain-detail"},
+		},
+	}
+	if f := CheckNode("show policy chain peer", action); !hasRule(f, "R6") {
+		t.Errorf("a real subcommand beside a group was not flagged R6: %v", f)
+	}
+}
+
 func TestCheckNodeValueBeforeKeyword(t *testing.T) { // R6
 	bad := &command.Node{
 		Name:       "cache",
@@ -235,7 +268,9 @@ func TestRootNamespaceGrammar(t *testing.T) { // R9 across surfaces, root namesp
 func TestExemptCategory(t *testing.T) {
 	cases := map[string]string{
 		"ze-bgp:announce":        "bridge",
-		"ze-bgp:withdraw":        "bridge",
+		"ze-bgp:withdraw-tag":    "bridge",
+		"ze-bgp:withdraw-id":     "bridge",
+		"ze-bgp:withdraw-all":    "bridge",
 		"ze-bgp:peer-raw":        "bridge",
 		"ze-plugin:command-list": "wire-protocol",
 		"ze-system:command-list": "wire-protocol",
@@ -251,5 +286,11 @@ func TestExemptCategory(t *testing.T) {
 	// A normal operator command is not exempt.
 	if _, ok := ExemptCategory("ze-show:interface"); ok {
 		t.Errorf("ze-show:interface should not be exempt")
+	}
+	// The exemption follows the SPLIT, not the name. `withdraw` became three
+	// commands, so the retired single wire method must not carry an exemption
+	// no command claims (ai/rules/no-layering.md).
+	if _, ok := ExemptCategory("ze-bgp:withdraw"); ok {
+		t.Error("ze-bgp:withdraw is retired and must carry no exemption")
 	}
 }

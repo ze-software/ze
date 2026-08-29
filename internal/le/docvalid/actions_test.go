@@ -15,10 +15,11 @@ import (
 )
 
 // VALIDATES: each native action has one explicit unique verb and implementation.
-func TestActionTableDeclaresThreeNativeVerbs(t *testing.T) {
+func TestActionTableDeclaresFourNativeVerbs(t *testing.T) {
 	want := map[string]bool{
 		"command-contract":      true,
 		"doc-drift":             true,
+		"usage-contract":        true,
 		"pipe-operators-update": true,
 	}
 	if len(actions) != len(want) {

@@ -3,6 +3,7 @@ module ze-env-cmd {
     prefix envcmd;
     import ze-extensions { prefix ze; }
     description "show env command tree. Owned by core/env because these handlers read the environment variable registry. See ai/rules/plugin-self-containment.md.";
+    revision 2026-08-29 { description "Declare the value the description spelled in prose, so the model states the grammar and the generated usage line reads it."; }
     revision 2026-06-06 { description "Relocated show env out of the central show schema (plugin self-containment)."; }
 
     container show {
@@ -26,6 +27,7 @@ Shows which env vars are set and their defaults.";
                 description "Show one environment variable in detail.
 Returns the variable name, current value, default, and what it
 controls. Usage: show env get <name>.";
+                leaf name { type string { length "1..128"; } mandatory true; description "Environment variable name"; }
             }
 
             container registered {

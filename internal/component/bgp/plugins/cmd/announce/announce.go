@@ -29,9 +29,8 @@ import (
 const (
 	kwTag       = "tag"
 	kwFor       = "for"
-	kwAll       = "all"
-	kwID        = "id"
 	kwSelector  = "selector"
+	kwValue     = "value"
 	kwFamily    = "family"
 	kwNextHop   = "next-hop"
 	kwCommunity = "community"
@@ -47,11 +46,10 @@ const fieldWithdrawn = "withdrawn"
 const maxTagLen = 128
 
 var (
-	errMissingFamily          = errors.New("missing family")
-	errMissingPrefix          = errors.New("missing prefix")
-	errUnknownFamily          = errors.New("unknown family")
-	errMissingWithdrawKeyword = errors.New("withdraw requires: tag, id, or all")
-	errTagTooLong             = errors.New("tag key or value exceeds 128 characters")
+	errMissingFamily = errors.New("missing family")
+	errMissingPrefix = errors.New("missing prefix")
+	errUnknownFamily = errors.New("unknown family")
+	errTagTooLong    = errors.New("tag key or value exceeds 128 characters")
 
 	errFlowspecRequiresAction    = errors.New("flowspec announce requires an action: rate-limit <bytes-per-sec> or discard")
 	errRateLimitRequiresBytes    = errors.New("rate-limit requires a bytes-per-second value")
@@ -83,7 +81,9 @@ func getOrInitRegistry(ctx *pluginserver.CommandContext) *Registry {
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce", Handler: handleAnnounce, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw", Handler: handleWithdraw},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-tag", Handler: handleWithdrawTag},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-id", Handler: handleWithdrawID},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-all", Handler: handleWithdrawAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:show-announcements", Handler: handleShowAnnouncements},
 	)
 }
@@ -459,35 +459,59 @@ func encodeFlowspecNLRI(fam family.Family, components []string) (nlri.NLRI, erro
 	return nlri.NewWireNLRI(fam, wireBytes, false)
 }
 
-func handleWithdraw(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+// withdrawRegistry answers the announcement registry the three withdraw
+// commands share, or the response their caller owes when the reactor is down.
+//
+// It exists because each form is now its own command with its own wire method,
+// so the reactor check that used to sit once in front of a keyword switch is
+// owed three times.
+func withdrawRegistry(ctx *pluginserver.CommandContext) (*Registry, *plugin.Response, error) {
 	_, errResp, err := requireBGPReactor(ctx)
+	if err != nil {
+		return nil, errResp, err
+	}
+	reg := getOrInitRegistry(ctx)
+	if reg == nil {
+		return nil, nil, errReactorNotAvailable
+	}
+	return reg, nil, nil
+}
+
+// handleWithdrawTag answers `withdraw tag <key> [value <value>]`.
+func handleWithdrawTag(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	reg, errResp, err := withdrawRegistry(ctx)
 	if err != nil {
 		return errResp, err
 	}
-
-	reg := getOrInitRegistry(ctx)
-	if reg == nil {
-		return nil, errReactorNotAvailable
-	}
-
-	if len(args) < 1 {
-		return nil, errMissingWithdrawKeyword
-	}
-
-	keyword := strings.ToLower(args[0])
-	switch keyword {
-	case kwTag:
-		return handlewithdrawTag(reg, args[1:])
-	case kwID:
-		return handleWithdrawID(reg, args[1:])
-	case kwAll:
-		return handlewithdrawAll(reg, args[1:])
-	default:
-		return nil, fmt.Errorf("%w (got: %s)", errMissingWithdrawKeyword, keyword)
-	}
+	return withdrawByTag(reg, args)
 }
 
-func handlewithdrawTag(reg *Registry, args []string) (*plugin.Response, error) {
+// handleWithdrawID answers `withdraw id <id>`.
+//
+// The id arrives as a SELECTOR rather than in args: the container and its leaf
+// are both called `id`, so matchCommandTokens
+// (internal/component/plugin/server/command.go) matched the keyword against the
+// leaf of the same name and lifted the value out of the argument list. That is
+// the same route `request l2tp outgoing-call remote <remote> called <called>`
+// takes, and the model states the type in one place because of it.
+func handleWithdrawID(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	reg, errResp, err := withdrawRegistry(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	return withdrawByID(reg, ctx.Selector("id"))
+}
+
+// handleWithdrawAll answers `withdraw all [selector <selector>]`.
+func handleWithdrawAll(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	reg, errResp, err := withdrawRegistry(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	return withdrawEvery(reg, args)
+}
+
+func withdrawByTag(reg *Registry, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return nil, errors.New("withdraw tag requires <key> [<value|*>]")
 	}
@@ -504,9 +528,18 @@ func handlewithdrawTag(reg *Registry, args []string) (*plugin.Response, error) {
 		}, nil
 	}
 
+	// The value is optional, so the model declares it as an optional leaf and
+	// the generated line reads `withdraw tag <key> [value <value>]`. The
+	// framework binds an optional leaf from its keyword or from a bare
+	// positional and passes both through unchanged (validateCommandArgs), so
+	// the keyword is dropped here rather than read as the value itself.
+	rest := args[1:]
+	if len(rest) >= 2 && strings.EqualFold(rest[0], kwValue) {
+		rest = rest[1:]
+	}
 	value := "*"
-	if len(args) >= 2 {
-		value = args[1]
+	if len(rest) >= 1 {
+		value = rest[0]
 	}
 
 	var n int
@@ -526,12 +559,12 @@ func handlewithdrawTag(reg *Registry, args []string) (*plugin.Response, error) {
 	}, nil
 }
 
-func handleWithdrawID(reg *Registry, args []string) (*plugin.Response, error) {
-	if len(args) < 1 {
-		return nil, errors.New("withdraw id requires <N>")
+func withdrawByID(reg *Registry, idArg string) (*plugin.Response, error) {
+	if idArg == "" {
+		return nil, errors.New("withdraw id requires <id>")
 	}
 
-	id, err := strconv.ParseUint(args[0], 10, 64)
+	id, err := strconv.ParseUint(idArg, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid id: %w", err)
 	}
@@ -563,7 +596,7 @@ func handleWithdrawID(reg *Registry, args []string) (*plugin.Response, error) {
 	}, nil
 }
 
-func handlewithdrawAll(reg *Registry, args []string) (*plugin.Response, error) {
+func withdrawEvery(reg *Registry, args []string) (*plugin.Response, error) {
 	selFilter := ""
 	if len(args) >= 2 {
 		for i := range len(args) - 1 {

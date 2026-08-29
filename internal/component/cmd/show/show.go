@@ -25,10 +25,28 @@ import (
 	"github.com/ze-software/ze/internal/core/report"
 )
 
-// argCount is the CLI argument keyword that takes a positive integer
-// limit on the number of returned entries. Centralized so goconst stops
-// flagging the literal repetition across the show package.
-const argCount = "count"
+// The CLI argument keywords this package reads. argCount takes a positive
+// integer limit on the number of returned entries.
+const (
+	argCount     = "count"
+	argNamespace = "namespace"
+)
+
+// The response payload keys. They hold the same text as the argument keywords
+// above and name something else: one is what an operator types, the other is
+// what the JSON carries.
+const (
+	keyCount      = "count"
+	keySubsystems = "subsystems"
+	keyNamespace  = "namespace"
+	keyType       = "type"
+)
+
+// The error messages this package returns more than once.
+const (
+	msgDaemonNotRunning     = "daemon not running"
+	msgEventRingUnavailable = "event ring not available"
+)
 
 // Per-component health checks are registered by their OWNERS (l2tp, iface,
 // bgp/plugin, fib/kernel, plugin/process, core/report), not here: deleting a
@@ -115,7 +133,7 @@ func handleShowEventDelivery(ctx *pluginserver.CommandContext, _ []string) (*plu
 	peers := ctx.Server.DeliveryGraph().Inspect()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"peers": peers, "count": len(peers)},
+		Data:   plugin.Map{"peers": peers, keyCount: len(peers)},
 	}, nil
 }
 
@@ -130,7 +148,7 @@ func handleShowWarnings(_ *pluginserver.CommandContext, args []string) (*plugin.
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"warnings": issues,
-			"count":    len(issues),
+			keyCount:   len(issues),
 		},
 	}, nil
 }
@@ -150,7 +168,7 @@ func handleShowErrors(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"errors": issues,
-			"count":  len(issues),
+			keyCount: len(issues),
 		},
 	}, nil
 }
@@ -166,7 +184,7 @@ func extractSourceFilter(args []string) string {
 
 func extractNamespaceFilter(args []string) string {
 	for i, a := range args {
-		if a == "namespace" && i+1 < len(args) {
+		if a == argNamespace && i+1 < len(args) {
 			return args[i+1]
 		}
 	}
@@ -195,7 +213,15 @@ func filterIssuesBySource(issues []report.Issue, source string) []report.Issue {
 	return filtered
 }
 
-func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+// handleShowMetricsQuery answers `show metrics name <name> [label=value ...]`.
+//
+// The metric name arrives as a SELECTOR rather than in args: the container and
+// its leaf are both called `name`, so matchCommandTokens
+// (internal/component/plugin/server/command.go) matches the keyword against the
+// leaf of the same name and lifts the value out of the argument list. Seeding
+// metricName from the selector is what leaves the loop below reading every
+// remaining token as a label filter, which is what they are.
+func handleShowMetricsQuery(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	reg := registry.GetMetricsRegistry()
 	if reg == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "metrics not available"}, nil
@@ -204,7 +230,7 @@ func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plu
 	if !ok {
 		return &plugin.Response{Status: plugin.StatusError, Error: "metrics not available"}, nil
 	}
-	metricName := ""
+	metricName := ctx.Selector("name")
 	labelFilters := make(map[string]string)
 	for _, a := range args {
 		if a == "" || strings.HasPrefix(a, "-") {
@@ -232,7 +258,7 @@ func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plu
 	matched := filterMetricLines(text, metricName, labelFilters)
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"metric": metricName, "series": matched, "count": len(matched)},
+		Data:   plugin.Map{"metric": metricName, "series": matched, keyCount: len(matched)},
 	}, nil
 }
 
@@ -277,11 +303,11 @@ func filterMetricLines(text, name string, labelFilters map[string]string) []map[
 
 func handleShowEventRecent(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "event ring not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: msgEventRingUnavailable}, nil
 	}
 	ring := ctx.Server.EventRing()
 	if ring == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "event ring not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: msgEventRingUnavailable}, nil
 	}
 	namespace := extractNamespaceFilter(args)
 	limit := extractCountFilter(args)
@@ -290,40 +316,40 @@ func handleShowEventRecent(ctx *pluginserver.CommandContext, args []string) (*pl
 	for i := range records {
 		out = append(out, map[string]any{
 			"timestamp":  records[i].Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			"namespace":  records[i].Namespace,
+			keyNamespace: records[i].Namespace,
 			"event-type": records[i].EventType,
 		})
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"events": out, "count": len(out)},
+		Data:   plugin.Map{"events": out, keyCount: len(out)},
 	}, nil
 }
 
 func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "event ring not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: msgEventRingUnavailable}, nil
 	}
 	ring := ctx.Server.EventRing()
 	if ring == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "event ring not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: msgEventRingUnavailable}, nil
 	}
 	counts := ring.NamespaceCounts()
 	rows := make([]map[string]any, 0, len(counts))
 	for ns, count := range counts {
 		rows = append(rows, map[string]any{
-			"namespace": ns,
-			"count":     count,
+			keyNamespace: ns,
+			keyCount:     count,
 		})
 	}
 	sort.Slice(rows, func(i, j int) bool {
-		ni, _ := rows[i]["namespace"].(string)
-		nj, _ := rows[j]["namespace"].(string)
+		ni, _ := rows[i][keyNamespace].(string)
+		nj, _ := rows[j][keyNamespace].(string)
 		return ni < nj
 	})
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"namespaces": rows, "count": len(rows)},
+		Data:   plugin.Map{"namespaces": rows, keyCount: len(rows)},
 	}, nil
 }
 
@@ -346,7 +372,7 @@ func handleShowHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Respo
 		Data: plugin.Map{
 			"status":     string(report.Status),
 			"components": components,
-			"count":      len(components),
+			keyCount:     len(components),
 			"checked-at": report.CheckedAt,
 		},
 	}, nil
@@ -366,14 +392,14 @@ func handleShowUptime(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 	if ctx == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "daemon not running",
+			Error:  msgDaemonNotRunning,
 		}, nil
 	}
 	r := ctx.Reactor()
 	if r == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "daemon not running",
+			Error:  msgDaemonNotRunning,
 		}, nil
 	}
 	stats := r.Stats()

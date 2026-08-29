@@ -999,7 +999,7 @@ func TestPrimaryOperatorLabelsIgnoreDescriptionMarkup(t *testing.T) {
 		t.Fatalf("primary HTML command row count = %d, closed = %t", count, closed)
 	}
 	if issues := validatePrimaryCommandContract(
-		"reference/cli/index.html", row, document, command,
+		"reference/cli/index.html", row, document, &command,
 	); len(issues) != 0 {
 		t.Fatalf("description span was treated as operator metadata: %#v", issues)
 	}
@@ -1014,7 +1014,7 @@ func TestPrimaryOperatorLabelsIgnoreDescriptionMarkup(t *testing.T) {
 		t.Fatalf("primary Markdown command row count = %d, malformed = %t", count, malformed)
 	}
 	if issues := validatePrimaryMarkdownContract(
-		"reference/cli/index.md", markdownRow, command,
+		"reference/cli/index.md", markdownRow, &command,
 	); len(issues) != 0 {
 		t.Fatalf("description text was treated as operator metadata: %#v", issues)
 	}
@@ -2359,13 +2359,13 @@ func TestCommandSurfacesEnforceMetadataCardinality(t *testing.T) {
 			Path: "show test", Mode: "read-only", Description: "Show test rows",
 		}
 		issues := validateLLMSCommandContract(
-			"llms.txt", "show test", "read-only; shape tab", "Show test rows", command,
+			"llms.txt", "show test", "read-only; shape tab", "Show test rows", &command,
 		)
 		if len(issues) == 0 {
 			t.Fatal("catalog-absent llms answer shape was accepted")
 		}
 		row := "| `show test` | read-only | Show test rows | Answer shape: `tab` |"
-		if issues := validatePrimaryMarkdownContract("index.md", row, command); len(issues) == 0 {
+		if issues := validatePrimaryMarkdownContract("index.md", row, &command); len(issues) == 0 {
 			t.Fatal("catalog-absent Markdown answer shape was accepted")
 		}
 	})
@@ -2631,11 +2631,11 @@ func TestCommandSurfacesAcceptExplicitEmptyMarkdownDetails(t *testing.T) {
 		"",
 		"## Mapping intents",
 	}, "\n")
-	if issues := validateEquivalentMarkdownContract("index.md", content, command); len(issues) != 0 {
+	if issues := validateEquivalentMarkdownContract("index.md", content, &command); len(issues) != 0 {
 		t.Fatalf("explicit empty details were rejected: %#v", issues)
 	}
 	malformed := strings.Replace(content, "**none**", "`none`", 1)
-	if issues := validateEquivalentMarkdownContract("index.md", malformed, command); len(issues) == 0 {
+	if issues := validateEquivalentMarkdownContract("index.md", malformed, &command); len(issues) == 0 {
 		t.Fatal("code identity disguised as an empty filter projection was accepted")
 	}
 }
@@ -2955,7 +2955,7 @@ func TestNestedCommonMarkEmphasisCannotImpersonateLiteralMarkers(t *testing.T) {
 			count, malformed, drifted)
 	}
 	if issues := validatePrimaryMarkdownContract(
-		"index.md", row, command,
+		"index.md", row, &command,
 	); len(issues) == 0 {
 		t.Fatalf("nested emphasis impersonated literal marker text:\n%s", drifted)
 	}
@@ -2979,7 +2979,7 @@ func TestCrossingCommonMarkEmphasisCannotImpersonatePlainText(t *testing.T) {
 	}
 	row := "| `show emphasis` | read-only | " + mutation + " |  |"
 	if issues := validatePrimaryMarkdownContract(
-		"index.md", row, command,
+		"index.md", row, &command,
 	); len(issues) == 0 {
 		t.Fatalf("crossing emphasis rendered as %q and passed as plain text", visible)
 	}

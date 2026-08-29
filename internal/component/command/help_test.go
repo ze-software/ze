@@ -394,3 +394,73 @@ func TestFindNode(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: A-3 -- a listing line is byte-identical with and without the
+// authored usage sentence, because the listing stops at the first sentence.
+// PREVENTS: deleting the 80 authored sentences reddening every .ci that asserts
+// a `ze help` listing line.
+func TestHelpListingUnchangedWithoutUsageProse(t *testing.T) {
+	const meaning = "Add a VLAN sub-interface to the dummy."
+	const withProse = meaning + "\nUsage: create interface dummy name <name> unit <vid>."
+
+	root := func(description string) *Node {
+		return &Node{Children: map[string]*Node{
+			"unit": {Name: "unit", Description: description},
+		}}
+	}
+
+	var before, after strings.Builder
+	if !writeHelp(&before, root(withProse), nil) {
+		t.Fatal("the listing with prose was not written")
+	}
+	if !writeHelp(&after, root(meaning), nil) {
+		t.Fatal("the listing without prose was not written")
+	}
+
+	if before.String() != after.String() {
+		t.Errorf("the listing changed when the prose went:\n before: %q\n after:  %q",
+			before.String(), after.String())
+	}
+	if !strings.Contains(before.String(), meaning) {
+		t.Errorf("the listing does not state the meaning: %q", before.String())
+	}
+	if strings.Contains(before.String(), "Usage:") {
+		t.Errorf("the listing carries the authored sentence: %q", before.String())
+	}
+}
+
+// VALIDATES: a `ze:modifier "choice"` child is not listed as a subcommand, so
+// a command whose only child is a choice still shows its own description.
+// PREVENTS: the regression declaring `[import|export]` would otherwise cause.
+// `show policy chain peer` has no children today and shows its description;
+// adding the choice container would turn that page into a listing of one word
+// no operator ever types.
+func TestHelpDoesNotListAChoiceGroupAsASubcommand(t *testing.T) {
+	node := &Node{
+		Name:        "peer",
+		WireMethod:  "ze-show:policy-chain",
+		Description: "Show the import/export filter chain applied to a peer.",
+		Children: map[string]*Node{
+			"direction": {
+				Name:     "direction",
+				Modifier: ModifierChoice,
+				ArgDefs:  []ArgDef{{Name: "direction", Kind: ArgEnum, EnumValues: []string{"import", "export"}}},
+			},
+		},
+	}
+	root := &Node{Name: "root", Children: map[string]*Node{"chain": {Name: "chain", Children: map[string]*Node{"peer": node}}}}
+
+	var out strings.Builder
+	if !writeHelp(&out, root, []string{"chain", "peer"}) {
+		t.Fatal("the path was not found")
+	}
+	if strings.Contains(out.String(), "direction") {
+		t.Errorf("the page lists the choice container: %q", out.String())
+	}
+	if !strings.Contains(out.String(), "filter chain applied to a peer") {
+		t.Errorf("the page dropped the command's own description: %q", out.String())
+	}
+	if entries := HelpEntries(root, []string{"chain", "peer"}); len(entries) != 0 {
+		t.Errorf("the entries list the choice container: %+v", entries)
+	}
+}

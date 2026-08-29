@@ -38,6 +38,11 @@ var actions = []action{
 		answer: runDrift,
 	},
 	{
+		verb:   "usage-contract",
+		why:    "every command states its argument grammar in the model, and no description spells one in prose",
+		answer: runUsage,
+	},
+	{
 		verb:   "pipe-operators-update",
 		why:    "regenerate the published pipe operator table from the operator catalog",
 		writes: true,

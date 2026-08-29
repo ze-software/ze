@@ -707,8 +707,24 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 	return tokens[inIdx:], selectors, true
 }
 
+// implicitSelectorDef returns the one leaf a bare token sitting between two key
+// tokens fills, or nil when the model does not say which.
+//
+// A leaf that states a PATTERN is not a candidate while a pattern-less one is
+// available. The inline slot holds a free-form identifier -- an interface name,
+// a peer selector -- and a leaf carrying a pattern states a typed value the
+// operator reaches by position or by that leaf's own keyword. Without the
+// preference, `request interface <name> mac <address>` offers two mandatory
+// string leaves, answers nil, and matchCommandTokens then fails the whole match:
+// declaring the MAC value its description used to spell in prose would have
+// turned a working command into an unknown one.
+//
+// Ambiguity is still refused. Two pattern-less candidates, or two patterned ones
+// with no pattern-less leaf, answer nil as before, so this preference can only
+// resolve a case that used to resolve to nothing.
 func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[string]string) *command.ArgDef {
-	var candidate *command.ArgDef
+	var loose, patterned *command.ArgDef
+	looseCount, patternedCount := 0, 0
 	for i := range defs {
 		def := &defs[i]
 		if _, ok := matched[def.Name]; ok {
@@ -720,12 +736,19 @@ func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[
 		if keyTokenPresent(keyTokens, def.Name) {
 			continue
 		}
-		if candidate != nil {
-			return nil
+		if def.Pattern != nil {
+			patterned, patternedCount = def, patternedCount+1
+			continue
 		}
-		candidate = def
+		loose, looseCount = def, looseCount+1
 	}
-	return candidate
+	if looseCount == 1 {
+		return loose
+	}
+	if looseCount == 0 && patternedCount == 1 {
+		return patterned
+	}
+	return nil
 }
 
 func keyTokenPresent(keyTokens []string, name string) bool {
@@ -1093,22 +1116,45 @@ func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[st
 // bound the numeric token to the next STRING leaf, and Phase 3 then rejected a
 // fully-formed command with "required argument missing: port".
 //
-// Mandatory defs are offered the token FIRST. Declaration order alone lets an
-// optional leaf that merely accepts the same lexical shape (a pattern-less
-// string accepts anything) swallow the value a required leaf needed, turning a
-// complete command into "required argument missing". Preferring the required
-// leaf can only ever fill more of them, never fewer, so this direction cannot
-// invent a new failure.
+// Mandatory defs are offered the token FIRST. An optional leaf that merely
+// accepts the same lexical shape (a pattern-less string accepts anything) would
+// otherwise swallow the value a required leaf needed, turning a complete
+// command into "required argument missing". Preferring the required leaf can
+// only ever fill more of them, never fewer, so this direction cannot invent a
+// new failure.
+//
+// WITHIN a tier the token goes to the definition that constrains it most, and
+// a tie goes to the lower name. Slice order decides nothing, which is what lets
+// the definitions be reordered for display: `show system sockets 8080` reached
+// the port leaf only because the alphabet put "port" before "state", and
+// "state" is a pattern-less string that would have accepted it silently.
 func positionalDef(arg string, defs []command.ArgDef, matched map[string]bool) *command.ArgDef {
 	for _, wantMandatory := range [...]bool{true, false} {
+		var best *command.ArgDef
+		bestRank := command.ConstraintUnspecified
 		for i := range defs {
 			def := &defs[i]
 			if matched[def.Name] || def.Mandatory != wantMandatory {
 				continue
 			}
-			if command.ValidateArgString(arg, def) == nil {
-				return def
+			if command.ValidateArgString(arg, def) != nil {
+				continue
 			}
+			rank := command.Constraint(def)
+			if best == nil {
+				best, bestRank = def, rank
+				continue
+			}
+			if rank < bestRank {
+				best, bestRank = def, rank
+				continue
+			}
+			if rank == bestRank && def.Name < best.Name {
+				best = def
+			}
+		}
+		if best != nil {
+			return best
 		}
 	}
 	return nil

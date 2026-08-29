@@ -3,6 +3,7 @@ module ze-cli-show-cmd {
     prefix clishowcmd;
     import ze-extensions { prefix ze; }
     description "Show command tree for read-only inspection of system and protocol state";
+    revision 2026-08-29 { description "Declare the metric name show metrics name reads. The description spelled it in prose and the model stated nothing."; }
     revision 2026-03-26 { description "Initial revision"; }
     revision 2026-06-03 { description "Relocated show dns lookup/cache (-> resolve) and show bgp-health (-> bgp peer command owner) out of this central schema (plugin self-containment)."; }
     revision 2026-06-06 { description "Relocated host, ntp, conntrack, update, kernel-log, capture, tcp-check, doctor, crashes, config, data, env, schema, yang, policy-chain, policy-test commands to their owning components/plugins (plugin self-containment)."; }
@@ -292,6 +293,7 @@ unhealthy with a reason. Start here when troubleshooting.";
 Usage: show metrics name <name> [label=value ...]. Returns matching
 time series from the internal registry. Multiple label filters are
 ANDed. More targeted than the full metrics dump.";
+                leaf name { type string { length "1..128"; } mandatory true; description "Prometheus metric name"; }
             }
         }
 

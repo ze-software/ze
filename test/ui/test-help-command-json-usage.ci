@@ -1,0 +1,12 @@
+# Test: the published catalog carries both projections of the invocation form
+# VALIDATES: AC-1 and AC-12 -- an entry with a wire method publishes `usage` and
+#            an ordered `grammar`, and a grammar token names its kind as a word
+# PREVENTS: an agent parsing angle and square brackets out of a rendered string,
+#           and a kind published as a bare number nobody can map onto a meaning
+
+cmd=foreground:seq=1:exec=ze help command sockets --json
+expect=exit:code=0
+expect=stdout:contains="usage": "show system sockets [protocol <tcp
+expect=stdout:contains="grammar"
+expect=stdout:contains="kind": "keyword"
+expect=stdout:contains="kind": "option"

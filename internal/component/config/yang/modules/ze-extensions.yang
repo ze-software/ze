@@ -124,6 +124,46 @@ module ze-extensions {
                      the handler argument connects it to the registered handler.";
     }
 
+    // Extension: modifier
+    // Marks a config false container as a trailing argument GROUP of its parent
+    // command rather than a subcommand of its own: the operator supplies the
+    // container's name and every leaf it declares together.
+    //
+    // Four occurrences, and each states one rendering:
+    //
+    //   once     [keyword <value>...]        supplied at most once
+    //   repeat   [keyword <value>... ...]    supplied any number of times
+    //   required keyword <value>...          supplied exactly once, no brackets
+    //   choice   [word|word|word]            one of a closed set, or none
+    //
+    // 'once' with NO leaf is a presence-only flag and renders `[keyword]`. That
+    // is the form for a word the handler reads and reads no value after, such
+    // as the `withdraw` of `debug ip ospf inject opaque`.
+    //
+    // 'required' is the mandatory sibling of 'once'. It is what states a
+    // keyword that introduces a value the leaf name alone cannot spell:
+    // `id <opaque-id>` is a container `id` holding a leaf `opaque-id`.
+    //
+    // 'choice' declares ONE leaf whose type states a closed set, and the
+    // operator types one of those WORDS. The container's name is never typed;
+    // it names the choice for a machine reader. `[import|export]` is that form.
+    //
+    // A group with one value whose keyword IS the value's name earns no
+    // extension at all: the renderer writes an optional leaf as `[name <name>]`
+    // already.
+    //
+    // A container carrying ze:command is a subcommand whatever else it says, so
+    // the two extensions never apply to the same container.
+    extension modifier {
+        argument occurrence;
+        description "Marks a config false container as a trailing argument group
+                     of its parent command. 'once' = at most once. 'repeat' =
+                     any number of times. 'required' = exactly once, rendered
+                     without brackets. 'choice' = one word from the closed set
+                     its single leaf declares, or none. Any other argument is
+                     refused and the container stays a plain grouping node.";
+    }
+
     // Extension: task-support
     // Declares whether an MCP tool is executed as a task.
     // Used by tools.go to populate execution.taskSupport in tools/list.

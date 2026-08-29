@@ -90,7 +90,12 @@ type Entry struct {
 	AnswerShape   string     `json:"answer-shape,omitempty"`
 	AddressFields []string   `json:"address-fields,omitempty"`
 	Aliases       []Alias    `json:"pipe-aliases,omitempty"`
-	Subcommands   []string   `json:"subcommands,omitempty"`
+	// Usage is the invocation form generated from the command model, and
+	// Grammar is the same form as an ordered token list. Both come from one
+	// producer (internal/component/command, Usage), so the two cannot disagree.
+	Usage       string               `json:"usage,omitempty"`
+	Grammar     []command.UsageToken `json:"grammar,omitempty"`
+	Subcommands []string             `json:"subcommands,omitempty"`
 }
 
 // Collect answers the same sorted product inventory as ze help command. It
@@ -117,6 +122,8 @@ func Collect() []Entry {
 			if node != nil {
 				entry.Description = node.Description
 				entry.Args = extractArgs(node)
+				entry.Grammar = command.Usage(strings.Fields(cliPath), node)
+				entry.Usage = command.UsageLine(entry.Grammar)
 				entry.Subcommands = extractSubcommands(node)
 				entry.Backend = node.Backend
 				entry.TaskSupport = node.TaskSupport
