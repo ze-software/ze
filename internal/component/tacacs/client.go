@@ -39,6 +39,15 @@ const (
 	poolBufs    = 16
 )
 
+// defaultService is the TACACS+ authentication service an authentication
+// request carries when the caller names none, and portSSH is the TACACS+ port
+// field an authorization or accounting record carries for a CLI session. The
+// two hold the same text and name two different RFC 8907 fields.
+const (
+	defaultService = "ssh"
+	portSSH        = "ssh"
+)
+
 // Packet type constants used by the client.
 const (
 	typeAuthentication = 0x01
@@ -351,6 +360,22 @@ func (c *TacacsClient) trySend(buf []byte, marshalBody func([]byte) (int, error)
 		return nil, err
 	}
 
+	// RFC 8907 Section 10.5.2: "the TACACS+ client MUST close the TCP session, and
+	// process the response in the same way that a TAC_PLUS_AUTHEN_STATUS_FAIL
+	// (authentication sessions) or TAC_PLUS_AUTHOR_STATUS_FAIL (authorization
+	// sessions) was received" when the obfuscation state of a reply disagrees with
+	// the configuration of the server it came from. Without this an off-path packet
+	// carrying TAC_PLUS_UNENCRYPTED_FLAG authenticates a user with no proof of the
+	// shared secret at all, because the client would simply skip de-obfuscation and
+	// read the attacker's cleartext PASS.
+	if unencrypted := respHdr.Flags&FlagUnencrypted != 0; unencrypted != (len(srv.Key) == 0) {
+		c.closeAndEvict(srv.Address, conn)
+		if unencrypted {
+			return nil, fmt.Errorf("obfuscation mismatch from %s: reply sets TAC_PLUS_UNENCRYPTED_FLAG but a shared secret is configured", srv.Address)
+		}
+		return nil, fmt.Errorf("obfuscation mismatch from %s: reply clears TAC_PLUS_UNENCRYPTED_FLAG but no shared secret is configured", srv.Address)
+	}
+
 	if respHdr.SessionID != pkt.Header.SessionID {
 		c.closeAndEvict(srv.Address, conn)
 		return nil, fmt.Errorf("session ID mismatch: sent %x, got %x",
@@ -372,7 +397,9 @@ func (c *TacacsClient) trySend(buf []byte, marshalBody func([]byte) (int, error)
 		return nil, fmt.Errorf("read body: %w", bodyErr)
 	}
 
-	if len(srv.Key) > 0 && respHdr.Flags&FlagUnencrypted == 0 {
+	// The obfuscation guard above already refused every reply whose flag disagrees
+	// with the configuration, so a configured key means an obfuscated body.
+	if len(srv.Key) > 0 {
 		Encrypt(buf[hdrLen:bodyEnd], respHdr.SessionID, srv.Key, respHdr.Version, respHdr.SeqNo)
 	}
 
