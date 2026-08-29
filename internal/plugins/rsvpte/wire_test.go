@@ -15,6 +15,7 @@
 package rsvpte
 
 import (
+	"bytes"
 	"encoding/binary"
 	"net/netip"
 	"testing"
@@ -358,9 +359,18 @@ func TestRSVPSessionObjectEncoding(t *testing.T) {
 
 // TestRSVPSenderTemplateReservedZeroOnSend pins the SENDER_TEMPLATE reserved field to
 // zero on send.
+//
+// The buffer is pre-filled with 0xAA, because that is the only way this test can
+// fail. A freshly zeroed buffer already holds zero at bytes 8 and 9, so the
+// assertion below would pass with the two writes in encodeSenderTemplate deleted,
+// and a pooled buffer would then ship whatever its last user left there.
 func TestRSVPSenderTemplateReservedZeroOnSend(t *testing.T) {
-	// RFC requirement: RFC3209-4.6.2-1 positive -- encodeSenderTemplate zeroes the SENDER_TEMPLATE reserved field (body bytes 4-5) on send (wire.go:275-276).
+	// RFC requirement: RFC3209-4.6.2-1 positive -- encodeSenderTemplate zeroes the SENDER_TEMPLATE reserved field (body bytes 4-5) on send, over a buffer that held non-zero bytes (wire.go:275-276).
 	buf := make([]byte, 32)
+	for i := range buf {
+		buf[i] = 0xaa
+	}
+
 	n := encodeSenderTemplate(buf, senderTemplateIPv4{
 		SenderAddr: netip.MustParseAddr("10.0.0.1"),
 		LSPID:      0xffff,
@@ -370,6 +380,25 @@ func TestRSVPSenderTemplateReservedZeroOnSend(t *testing.T) {
 	}
 	if buf[8] != 0 || buf[9] != 0 {
 		t.Errorf("SENDER_TEMPLATE reserved field = 0x%02x%02x, want 0x0000", buf[8], buf[9])
+	}
+
+	// The whole object, so a reserved field that stayed dirty cannot hide behind a
+	// neighboring field that did get written: header (Length 12, ClassNum
+	// SENDER_TEMPLATE, C-Type LSP_TUNNEL_IPv4), sender address 10.0.0.1, reserved
+	// 0x0000, LSP ID 0xffff.
+	want := []byte{
+		0x00, 0x0c, ClassSenderTemplate, CTypeLSPTunnelIPv4,
+		10, 0, 0, 1,
+		0x00, 0x00,
+		0xff, 0xff,
+	}
+	if !bytes.Equal(buf[:n], want) {
+		t.Errorf("SENDER_TEMPLATE object = % x, want % x", buf[:n], want)
+	}
+	for i := n; i < len(buf); i++ {
+		if buf[i] != 0xaa {
+			t.Errorf("encodeSenderTemplate wrote past its %d bytes: buf[%d] = 0x%02x", n, i, buf[i])
+		}
 	}
 }
 

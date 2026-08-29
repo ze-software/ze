@@ -81,6 +81,16 @@ func TestOSPFLSAChecksum(t *testing.T) {
 	if !VerifyLSAChecksum(wire) {
 		t.Fatalf("VerifyLSAChecksum rejected encoded LSA % x", wire)
 	}
+
+	// RFC requirement: RFC2328-12.1.7-1 positive -- the backfilled octets satisfy the RFC 905
+	// Annex B property (both Fletcher sums mod 255 zero over the covered region), judged by
+	// fletcherSums in the test rather than by VerifyLSAChecksum, which shares fletcherModulus
+	// with the generator (types/checksum.go).
+	length := int(readUint16(wire, lsaLengthOff))
+	c0, c1 := fletcherSums(wire[2:length])
+	if c0 != 0 || c1 != 0 {
+		t.Fatalf("independent Fletcher sums over the covered region = (%d, %d), want (0, 0)", c0, c1)
+	}
 }
 
 // VALIDATES: AC-5 - LS Age bytes are excluded from LSA Fletcher coverage.

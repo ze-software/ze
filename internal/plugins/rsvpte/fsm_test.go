@@ -61,7 +61,11 @@ func TestLSPTableAllocateLabel(t *testing.T) {
 
 // TestLSPTableAllocateSkipsReservedLabels checks the dynamic label allocator never
 // hands out a reserved label (0-15): it starts at firstDynamicLabel (1000) and every
-// label it returns stays at or above that floor.
+// label it returns stays at or above that floor, across the wrap at MaxLabel.
+//
+// The second half drives the wrap on purpose. A fresh table walks 1000, 1001, ...
+// and 100 allocations never reach MaxLabel, so the floor check alone passes with the
+// wrap target set to any value at all, including a reserved one.
 func TestLSPTableAllocateSkipsReservedLabels(t *testing.T) {
 	// RFC requirement: RFC3209-4.1-3 positive -- allocated labels start at firstDynamicLabel (1000, fsm.go:184/205) and stay >= it (wrap resets to firstDynamicLabel, fsm.go:215-217), so the reserved 0-15 label range is never allocated.
 	table := newLSPTable()
@@ -69,6 +73,25 @@ func TestLSPTableAllocateSkipsReservedLabels(t *testing.T) {
 		l := table.AllocateLabel()
 		if l < firstDynamicLabel {
 			t.Fatalf("AllocateLabel returned %d, want >= %d (reserved labels 0-15 must never be allocated)", l, firstDynamicLabel)
+		}
+	}
+
+	wrapping := newLSPTable()
+	wrapping.nextLabel = MaxLabel
+
+	last := wrapping.AllocateLabel()
+	if last != MaxLabel {
+		t.Fatalf("the allocation before the wrap returned %d, want %d (MaxLabel)", last, MaxLabel)
+	}
+
+	afterWrap := wrapping.AllocateLabel()
+	if afterWrap != firstDynamicLabel {
+		t.Fatalf("the allocation after the wrap returned %d, want %d (firstDynamicLabel)", afterWrap, firstDynamicLabel)
+	}
+	for range 100 {
+		l := wrapping.AllocateLabel()
+		if l < firstDynamicLabel {
+			t.Fatalf("AllocateLabel returned %d after the wrap, want >= %d (reserved labels 0-15 must never be allocated)", l, firstDynamicLabel)
 		}
 	}
 }

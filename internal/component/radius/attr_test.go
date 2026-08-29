@@ -57,6 +57,12 @@ func TestEncodeUserPasswordEmpty(t *testing.T) {
 	}
 }
 
+// TestEncodeUserPasswordMultiBlock pins the RFC 2865 Section 5.2 chain across a block
+// boundary: b1 = MD5(S+RA), c(1) = p1 XOR b1, b2 = MD5(S+c(1)), c(2) = p2 XOR b2.
+//
+// The expected ciphertext is built here from the RFC's own recipe, not by calling
+// EncodeUserPassword. A length check alone cannot see the chain: keying the second
+// block on MD5(S+RA) instead of MD5(S+c(1)) still produces 32 octets.
 func TestEncodeUserPasswordMultiBlock(t *testing.T) {
 	secret := []byte("secret")
 	var auth [AuthenticatorLen]byte
@@ -66,12 +72,40 @@ func TestEncodeUserPasswordMultiBlock(t *testing.T) {
 	password := []byte("12345678901234567890")
 	encoded := EncodeUserPassword(password, secret, auth)
 
-	// RFC requirement: RFC2865-5.2-1 positive -- a password spanning two blocks is XOR-chained
-	// into a full 2-block ciphertext (c[i] = p[i] XOR MD5(S+c[i-1])).
 	// RFC requirement: RFC2865-5.2-2 positive -- a 20-octet password pads up to the next
 	// multiple of 16 (32 octets).
 	if len(encoded) != 32 {
-		t.Errorf("20-byte password should produce 32 bytes, got %d", len(encoded))
+		t.Fatalf("20-byte password should produce 32 bytes, got %d", len(encoded))
+	}
+
+	padded := make([]byte, 32)
+	copy(padded, password)
+
+	b1 := md5.Sum(append(append([]byte(nil), secret...), auth[:]...)) //nolint:gosec // Testing RFC 2865
+	want := make([]byte, 32)
+	for i := range 16 {
+		want[i] = padded[i] ^ b1[i]
+	}
+
+	// b2 keys on c(1), the ciphertext of the first block, never on the Request
+	// Authenticator again. This is the whole difference the test exists to see.
+	b2 := md5.Sum(append(append([]byte(nil), secret...), want[:16]...)) //nolint:gosec // Testing RFC 2865
+	for i := range 16 {
+		want[16+i] = padded[16+i] ^ b2[i]
+	}
+
+	// RFC requirement: RFC2865-5.2-1 positive -- a password spanning two blocks is XOR-chained
+	// into a full 2-block ciphertext (c[i] = p[i] XOR MD5(S+c[i-1])), byte for byte against a
+	// chain the test computes itself.
+	if !bytes.Equal(encoded, want) {
+		t.Errorf("2-block ciphertext = % x, want % x", encoded, want)
+	}
+
+	// A second block keyed on MD5(S+RA) would repeat b1, so state plainly that the two
+	// block keys differ for this fixture: without that, the assertion above could be
+	// satisfied by an encoder that never chains.
+	if bytes.Equal(b1[:], b2[:]) {
+		t.Fatal("fixture is vacuous: MD5(S+RA) and MD5(S+c(1)) collided")
 	}
 }
 

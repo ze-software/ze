@@ -157,3 +157,21 @@ func sampleExternalLSA(t *testing.T, typ types.LSType) LSA {
 		},
 	}
 }
+
+// fletcherSums runs the ISO Fletcher accumulation of RFC 905 Annex B over the covered
+// region of an LSA, which is the LSA from the Options field on (the two LS Age octets
+// excluded). RFC 2328 Section 12.1.7 chooses the two LS Checksum octets so that both
+// sums are zero over that region, so this is the property a correct LS checksum has.
+//
+// It exists so a test can judge an LS checksum without calling the code that produced
+// it. FletcherChecksum and FletcherVerify share fletcherModulus, so a modulus wrong in
+// both agrees with itself while the wire bytes disagree with every other OSPF speaker.
+// The 255 below is written out here for that reason.
+func fletcherSums(covered []byte) (int, int) {
+	c0, c1 := 0, 0
+	for _, b := range covered {
+		c0 = (c0 + int(b)) % 255
+		c1 = (c1 + c0) % 255
+	}
+	return c0, c1
+}

@@ -16,6 +16,7 @@ package radius
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"net"
 	"testing"
@@ -26,6 +27,15 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 )
 
+// TestRFC2865RequestAuthenticatorRandom pins the width and the source of the Request
+// Authenticator.
+//
+// No unit test can prove that 16 octets are random; a counter passes every statistical
+// check a single sample allows. What a test CAN prove is structural, and it is the
+// property RFC 2865 Section 3 actually depends on: the octets come from the operating
+// system's cryptographic generator rather than from any other source. So the second
+// half substitutes crypto/rand.Reader and requires the authenticator to be exactly what
+// that reader produced. Any other source, a counter included, fails it.
 func TestRFC2865RequestAuthenticatorRandom(t *testing.T) {
 	// RFC requirement: RFC2865-3-2 positive -- the Request Authenticator is 16 octets drawn
 	// from crypto/rand, and two successive values differ (not a fixed constant).
@@ -38,6 +48,25 @@ func TestRFC2865RequestAuthenticatorRandom(t *testing.T) {
 	require.NoError(t, err)
 	if a1 == a2 {
 		t.Fatal("two Request Authenticators must differ (crypto/rand, not a constant)")
+	}
+
+	// RFC requirement: RFC2865-3-2 positive -- the 16 octets are read from the crypto/rand
+	// reader itself: with that reader substituted, the authenticator is byte for byte what
+	// it produced, so no other generator can be supplying the value (RandomAuthenticator,
+	// packet.go, rand.Read over crypto/rand.Reader).
+	saved := rand.Reader
+	t.Cleanup(func() { rand.Reader = saved })
+
+	var marker [AuthenticatorLen]byte
+	for i := range marker {
+		marker[i] = byte(0xa0 + i)
+	}
+	rand.Reader = bytes.NewReader(marker[:])
+
+	a3, err := RandomAuthenticator()
+	require.NoError(t, err)
+	if a3 != marker {
+		t.Fatalf("Request Authenticator = % x, want % x (the octets crypto/rand.Reader supplied)", a3, marker)
 	}
 }
 
