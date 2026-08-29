@@ -239,6 +239,7 @@ var integrationPackages = []string{
 	"./internal/plugins/fib/kernel/...",
 	"./internal/plugins/firewall/nft/...",
 	"./internal/plugins/firewall/vpp/...",
+	"./internal/plugins/traffic/vpp/...",
 	"./internal/plugins/traffic/netlink/...",
 	"./internal/plugins/tftpserver/...",
 	"./internal/plugins/dhcpserver/...",

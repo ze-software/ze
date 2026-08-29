@@ -5,6 +5,7 @@ package qemu
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -59,7 +60,7 @@ func integrationTestPackages(t *testing.T, root string) []string {
 				return readErr
 			}
 			head, _, _ := strings.Cut(string(data), "\npackage ")
-			for _, line := range strings.Split(head, "\n") {
+			for line := range strings.SplitSeq(head, "\n") {
 				if !strings.HasPrefix(line, "//go:build ") {
 					continue
 				}
@@ -90,14 +91,9 @@ func integrationTestPackages(t *testing.T, root string) []string {
 // integration tag as a term. The tag is matched as a whole word so that a
 // hypothetical `integration_slow` never counts as this one.
 func constraintNamesIntegration(line string) bool {
-	for _, field := range strings.FieldsFunc(line, func(r rune) bool {
+	return slices.Contains(strings.FieldsFunc(line, func(r rune) bool {
 		return r == ' ' || r == '(' || r == ')' || r == '&' || r == '|' || r == '!' || r == ','
-	}) {
-		if field == "integration" {
-			return true
-		}
-	}
-	return false
+	}), "integration")
 }
 
 // covered reports whether a package directory is reached by one of the go test
@@ -105,8 +101,7 @@ func constraintNamesIntegration(line string) bool {
 func covered(dir string, patterns []string) bool {
 	for _, pattern := range patterns {
 		p := strings.TrimPrefix(pattern, "./")
-		if strings.HasSuffix(p, "/...") {
-			prefix := strings.TrimSuffix(p, "/...")
+		if prefix, ok := strings.CutSuffix(p, "/..."); ok {
 			if dir == prefix || strings.HasPrefix(dir, prefix+"/") {
 				return true
 			}
@@ -160,8 +155,14 @@ func TestEveryIntegrationPackageIsNamed(t *testing.T) {
 //
 // It asserts existence, NOT that the package holds an integration-tagged test.
 // Naming a package here means "run this package inside the VM under -tags
-// integration", and ./internal/plugins/firewall/vpp/... is the standing example
-// of a legitimate entry whose tests carry only //go:build linux.
+// integration", and the two VPP backends, ./internal/plugins/firewall/vpp/...
+// and ./internal/plugins/traffic/vpp/..., are the standing examples of
+// legitimate entries whose tests carry only //go:build linux.
+//
+// That pair is also why TestEveryIntegrationPackageIsNamed cannot find them:
+// it derives its population from //go:build integration, which neither carries,
+// so a linux-only backend enters this list by hand or not at all. The traffic
+// one did not, and its reply-timeout tests ran in no VM until 2026-08-29.
 //
 // optionalPackages is exempt: it is defined as added when the directory is
 // there, so an absent one is its stated behavior rather than a stale entry.
