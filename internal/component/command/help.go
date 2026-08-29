@@ -15,7 +15,7 @@ import (
 
 // readOnlyVerbs are verbs that do not modify state.
 var readOnlyVerbs = map[string]bool{
-	verbShow:   true,
+	"show":     true,
 	"validate": true,
 	"monitor":  true,
 }

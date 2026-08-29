@@ -62,7 +62,7 @@ var PipeOperators = func() []Suggestion {
 
 // pipeSubArgs maps pipe operators to their sub-argument completions.
 var pipeSubArgs = map[string][]Suggestion{
-	pipeNameJSON: {
+	"json": {
 		{Text: "compact", Description: "Single-line JSON", Type: SuggestionPipe},
 		{Text: "pretty", Description: "Indented JSON (default)", Type: SuggestionPipe},
 	},
