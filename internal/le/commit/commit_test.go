@@ -397,7 +397,7 @@ func TestCreateRefusesBadTagBeforeRecordingDebt(t *testing.T) {
 
 	options := Options{
 		Tag: "fix(bgp)", Subject: "parenthesised tag", Files: []string{"mine.txt"},
-		StaleIndexOK: "fixture repository has no generated index",
+		StaleIndexOK:    "fixture repository has no generated index",
 		StructuralRedOK: "fixture repository carries no gate record",
 	}
 	_, err := Create(root, &options)

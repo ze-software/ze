@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/verify/engine"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 // VerificationState records what the latest native verify status proves for
@@ -22,13 +22,14 @@ type VerificationState struct {
 
 const trackedBuildStage = "repository tracked-build/check"
 
-var structuralStages = map[string]bool{
-	"verify lint/run": true, "tier/check": true,
-	"iface-resolution": true, "plugin boundary/check": true,
-	"doc wiring": true, "verify deps/evidence-vet": true,
-	"staticcheck-feature-matrix/check": true,
-	trackedBuildStage:                  true,
-}
+// structuralStages answers which recorded reds mean the tree is broken.
+//
+// The set is READ from the stage population rather than restated here. It used
+// to be a second hand-written list of the same eight names, and
+// ai/rules/precommit-verify.md claimed a test held the two in agreement. No
+// such test existed. A stage renamed in the population silently left this set,
+// its red filed as unattributable, and the commit went through.
+func structuralStages() map[string]bool { return verifyengine.Structural(verifyengine.Mode) }
 
 type structuralReds struct {
 	Charged      []string
@@ -67,13 +68,14 @@ func structuralGateReds(root string, paths []string) structuralReds {
 			scope = append(scope, path)
 		}
 	}
+	structural := structuralStages()
 	var result structuralReds
 	for _, rawStage := range index.Stages {
 		var stage failureStage
 		if json.Unmarshal(rawStage, &stage) != nil {
 			continue
 		}
-		if stage.ExitCode == 0 || !structuralStages[stage.Stage] {
+		if stage.ExitCode == 0 || !structural[stage.Stage] {
 			continue
 		}
 		var groups []failureGroup

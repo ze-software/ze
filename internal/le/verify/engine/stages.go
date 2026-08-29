@@ -16,16 +16,36 @@ type Identity struct {
 // Stage is one ordered pre-commit action.
 type Stage struct {
 	Identity Identity `json:"identity"`
+	// Structural says a red here means the tree is BROKEN rather than merely
+	// unverified, so a commit is refused instead of taking a debt row.
+	//
+	// It lives on the stage because the population lives here. The commit gate
+	// used to keep its own list of the same eight names, and a stage renamed
+	// or re-argumented in this file silently left that set: its red then filed
+	// as unattributed and the commit went through. Two lists of one population
+	// drift, and this one drifted toward letting commits past a broken tree.
+	Structural bool `json:"structural,omitempty"`
+}
+
+// Structural answers the stages whose red refuses a commit outright.
+func Structural(mode string) map[string]bool {
+	named := map[string]bool{}
+	for _, one := range StagesForMode(mode) {
+		if one.Structural {
+			named[one.Identity.Name] = true
+		}
+	}
+	return named
 }
 
 // fullStages returns the native verification actions in execution order.
 func fullStages() []Stage {
 	stages := []Stage{
-		stage("verify lint", "run"),
-		stage("tier", "check"),
+		structural("verify lint", "run"),
+		structural("tier", "check"),
 		stage("rfc", "check"),
-		stage("iface-resolution"),
-		stage("plugin boundary", "check"),
+		structural("iface-resolution"),
+		structural("plugin boundary", "check"),
 		stage("config coercion", "check"),
 		stage("fs-persistence", "check"),
 		stage("dash-stdio", "check"),
@@ -33,10 +53,10 @@ func fullStages() []Stage {
 		stage("config claims"),
 		stage("test-sensitivity", "check"),
 		stage("test-weakened", "check"),
-		stage("staticcheck-feature-matrix", "check"),
-		stage("repository tracked-build", "check"),
+		structural("staticcheck-feature-matrix", "check"),
+		structural("repository tracked-build", "check"),
 		stage("platform-vet", "darwin", "freebsd"),
-		stage("doc wiring"),
+		structural("doc wiring"),
 		stage("doc check", "verify"),
 		stage("doc check", "links"),
 		stage("repository", "tree-check"),
@@ -56,7 +76,7 @@ func fullStages() []Stage {
 		stage("test-health", "check"),
 		stage("site facts", "check"),
 		stage("htmx-upgrade", "check"),
-		stage("verify deps", "evidence-vet"),
+		structural("verify deps", "evidence-vet"),
 		stage("hook-check", "unit"),
 		stage("verify deps", "vulnerability"),
 		stage("verify deps", "unit-cached"),
@@ -100,9 +120,18 @@ func StagesForMode(mode string) []Stage {
 }
 
 func stage(command string, args ...string) Stage {
+	return Stage{Identity: identity(command, args)}
+}
+
+// structural is stage for an action whose red says the tree is broken.
+func structural(command string, args ...string) Stage {
+	return Stage{Identity: identity(command, args), Structural: true}
+}
+
+func identity(command string, args []string) Identity {
 	name := command
 	if len(args) > 0 {
 		name += "/" + strings.Join(args, "/")
 	}
-	return Stage{Identity: Identity{Name: name, Command: command, Args: args}}
+	return Identity{Name: name, Command: command, Args: args}
 }

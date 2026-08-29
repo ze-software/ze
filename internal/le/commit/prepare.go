@@ -12,7 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/testweakened"
-	"github.com/ze-software/ze/internal/le/verify/engine"
+	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
 // Options is the callable commit-preparation contract. Paths and removals are
