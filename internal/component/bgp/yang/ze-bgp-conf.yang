@@ -477,16 +477,27 @@ module ze-bgp-conf {
                 leaf-list local-options {
                     type enumeration {
                         enum no-prepend {
-                            description "Do not prepend real ASN before local-as in AS_PATH";
+                            description "RFC 7705 Section 3.3 'No Prepend Inbound': the local-as is
+                                         not added to a route received from this peer, so it is
+                                         absent when the route is installed and when it goes to an
+                                         iBGP neighbor. Ze never adds an AS to a received AS_PATH,
+                                         so this option states the behavior ze already has. It does
+                                         not change what this peer receives.";
                         }
                         enum replace-as {
-                            description "Replace real ASN entirely with local-as in AS_PATH";
+                            description "RFC 7705 Section 3.3 'Replace Old AS': toward this peer the
+                                         globally configured ASN is not prepended, and the local-as
+                                         is the only AS number added to AS_PATH.";
                         }
                     }
-                    description "Modifiers for local-as behavior.
-                                 no-prepend: real ASN not prepended before local-as.
-                                 replace-as: local-as replaces real ASN entirely.
-                                 Both together: full replacement with no prepend.";
+                    description "Modifiers for local-as behavior. The two options act in different
+                                 directions, so each one is set on its own.
+                                 no-prepend: inbound, the local-as is not added to a route received
+                                 from this peer.
+                                 replace-as: outbound, this peer sees the local-as alone instead of
+                                 the local-as followed by the globally configured ASN.
+                                 With neither option, this peer sees the local-as followed by the
+                                 globally configured ASN.";
                 }
             }
 

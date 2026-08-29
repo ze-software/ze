@@ -89,6 +89,20 @@ func TestForwardFactsClusterIDExplicit(t *testing.T) {
 	assert.Equal(t, [4]byte{0x11, 0x22, 0x33, 0x44}, facts.clusterIDBytes)
 }
 
+// TestForwardFactsSecondaryAS drives the one field that decides how many ASNs
+// the egress prepend carries toward a peer with a local-as override.
+//
+// RFC 7705 Section 3.3 gives its two options different rails, so they select
+// different values here. "Replace Old AS" is outbound and MUST leave the
+// globally configured ASN off this peer's AS_PATH, which is the zero. "No
+// Prepend Inbound" is inbound and says nothing about what this peer receives,
+// so the base two-ASN form survives it.
+//
+// VALIDATES: no-prepend and replace-as are read separately, with replace-as the
+// only one that suppresses the globally configured ASN.
+// PREVENTS: the collapse this table pinned until 2026-08-29, where either flag
+// cleared secondaryAS and the two documented options put byte-identical
+// AS_PATHs on the wire.
 func TestForwardFactsSecondaryAS(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -101,8 +115,9 @@ func TestForwardFactsSecondaryAS(t *testing.T) {
 		{"no override", 0, 65000, false, false, 0},
 		{"same AS", 65000, 65000, false, false, 0},
 		{"dual-AS active", 65100, 65000, false, false, 65100},
-		{"no-prepend suppresses", 65100, 65000, true, false, 0},
+		{"no-prepend keeps the global ASN", 65100, 65000, true, false, 65100},
 		{"replace-as suppresses", 65100, 65000, false, true, 0},
+		{"both: replace-as still suppresses", 65100, 65000, true, true, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

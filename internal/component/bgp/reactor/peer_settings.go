@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — peer configuration settings
+// RFC: rfc/short/rfc4271.md
 // Related: config.go — config tree parsing produces PeerSettings
 //
 // Package reactor implements the BGP reactor - the main orchestrator
@@ -472,11 +473,19 @@ type PeerSettings struct {
 	// Used in VPN/multi-site scenarios.
 	ASOverride bool
 
-	// LocalASNoPrepend prevents prepending the real ASN before the local-as override.
+	// LocalASNoPrepend is RFC 7705 Section 3.3 "No Prepend Inbound", the INBOUND
+	// option: the local-as override is not appended to a route received from
+	// this peer, neither when the route is installed nor when it is advertised
+	// to an iBGP neighbor. Ze appends nothing to a received AS_PATH on any rail,
+	// so the option states the behavior Ze already has. It does NOT change what
+	// this peer receives: the outbound rail is LocalASReplaceAS's alone.
 	// Only relevant when session/asn/local is set (local-as override).
 	LocalASNoPrepend bool
 
-	// LocalASReplaceAS replaces the real ASN entirely with the local-as override.
+	// LocalASReplaceAS is RFC 7705 Section 3.3 "Replace Old AS", the OUTBOUND
+	// option: toward this peer the globally configured ASN is not appended, and
+	// the local-as override is the only ASN prepended (secondaryPrependAS,
+	// peer_forward_facts.go).
 	// Only relevant when session/asn/local is set.
 	LocalASReplaceAS bool
 

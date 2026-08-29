@@ -52,14 +52,12 @@ type peerForwardFacts struct {
 	peerAS        uint32
 	isEBGP        bool
 
-	rsClient         bool
-	rrClient         bool
-	asOverride       bool
-	localASNoPrepend bool
-	localASReplaceAS bool
-	name             string
-	groupName        string
-	exportFilters    []filterapi.FilterRef
+	rsClient      bool
+	rrClient      bool
+	asOverride    bool
+	name          string
+	groupName     string
+	exportFilters []filterapi.FilterRef
 
 	clusterID      uint32
 	clusterIDBytes [4]byte
@@ -170,14 +168,12 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		peerAS:        peerAS,
 		isEBGP:        isEBGP,
 
-		rsClient:         s.RSClient,
-		rrClient:         s.RouteReflectorClient,
-		asOverride:       s.ASOverride,
-		localASNoPrepend: s.LocalASNoPrepend,
-		localASReplaceAS: s.LocalASReplaceAS,
-		name:             s.Name,
-		groupName:        s.GroupName,
-		exportFilters:    exportFilters,
+		rsClient:      s.RSClient,
+		rrClient:      s.RouteReflectorClient,
+		asOverride:    s.ASOverride,
+		name:          s.Name,
+		groupName:     s.GroupName,
+		exportFilters: exportFilters,
 
 		sendCtxID:   sendCtxID,
 		sendASN4:    sendASN4,
@@ -203,16 +199,49 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	facts.clusterID = s.effectiveClusterID()
 	binary.BigEndian.PutUint32(facts.clusterIDBytes[:], facts.clusterID)
 
-	if s.GlobalLocalAS != 0 && s.GlobalLocalAS != s.LocalAS &&
-		!s.LocalASNoPrepend && !s.LocalASReplaceAS {
-		facts.secondaryAS = s.GlobalLocalAS
-	}
+	facts.secondaryAS = secondaryPrependAS(s)
 
 	precomputeNextHop(s, facts)
 	applyLinkLocalNextHop(s, facts, p.llScope.Load())
 	precomputeSendCommunity(s, facts)
 
 	return facts
+}
+
+// secondaryPrependAS answers the ASN that sits BEHIND the per-peer local-as on
+// the egress prepend toward this peer, or zero when one ASN is prepended.
+//
+// RFC 7705 Section 3.3 states the base behavior toward a peer that carries a
+// local-as override: "The BGP router SHOULD first append the globally
+// configured ASN to the AS_PATH immediately followed by the 'Local AS' value
+// before advertising the UPDATE to an eBGP neighbor." That is the two-ASN form,
+// and it is what this returns unless "Replace Old AS" turns it off.
+//
+// The two local-as options of that section are DIFFERENT rules on DIFFERENT
+// rails, and only one of them reaches this rail:
+//
+//   - "Replace Old AS" is the outbound option, and toward the peer that carries
+//     it "the BGP speaker MUST NOT append the globally configured ASN from the
+//     AS_PATH attribute. The BGP router MUST append only the configured 'Local
+//     AS' ASN value". Zero here is what removes the globally configured ASN.
+//   - "No Prepend Inbound" is the inbound option: it governs what is installed
+//     and what is advertised to iBGP neighbors, and it "MUST still append the
+//     globally configured ASN as normal when advertising the UPDATE to other
+//     local eBGP neighbors". It therefore MUST NOT be read here. Reading it
+//     here gave the two options one behavior, so an operator asking for either
+//     one got the outbound replacement.
+func secondaryPrependAS(s *PeerSettings) uint32 {
+	if s.GlobalLocalAS == 0 {
+		return 0
+	}
+	// No per-peer override: one AS, prepended once, and RFC 7705 does not apply.
+	if s.GlobalLocalAS == s.LocalAS {
+		return 0
+	}
+	if s.LocalASReplaceAS {
+		return 0
+	}
+	return s.GlobalLocalAS
 }
 
 // precomputeNextHop fixes the next-hop wire form this peer will send, from
