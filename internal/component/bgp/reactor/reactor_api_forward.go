@@ -559,6 +559,12 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	// below, because the override is the base its rebuild runs over.
 	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
 
+	// RFC 8669 Section 8 needs the same one bit per UPDATE: whether the source
+	// carries a Prefix-SID attribute at all. Same re-ask below for a destination
+	// whose base is not the source payload (applyFactsPrefixSID,
+	// forward_prefix_sid.go).
+	srcHasPrefixSID := payloadHasAttr(update.WireUpdate.Payload(), attribute.AttrPrefixSID)
+
 	// RFC 4271 Section 5.1.4 needs one read per UPDATE for the same reason:
 	// which MULTI_EXIT_DISC the source sent, which is the only received value
 	// there is. A destination whose policy chain returned a full wire override
@@ -792,6 +798,15 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			baseHasLocalPref = payloadHasLocalPref(peerBaseWire.Payload())
 		}
 		applyFactsLocalPref(facts, baseHasLocalPref, &mods)
+
+		// RFC 8669 Section 8: the Prefix-SID leaves this AS only toward an EBGP
+		// neighbor the operator has placed inside the SR domain. Asked over the
+		// same two payloads, and for the same reason, as the sibling above.
+		baseHasPrefixSID := srcHasPrefixSID
+		if peerBaseWire != update.WireUpdate {
+			baseHasPrefixSID = payloadHasAttr(peerBaseWire.Payload(), attribute.AttrPrefixSID)
+		}
+		applyFactsPrefixSID(facts, baseHasPrefixSID, &mods)
 
 		// RFC 4271 Section 5.1.4: a MED received from one neighboring AS never
 		// reaches another. Asked over the same two payloads, and for the same

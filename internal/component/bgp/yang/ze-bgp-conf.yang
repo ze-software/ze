@@ -516,6 +516,18 @@ module ze-bgp-conf {
                              discarded unless configured to accept. Has no effect on IBGP (always accepted).";
             }
 
+            leaf propagate-srv6-prefix-sid {
+                type boolean;
+                default false;
+                description "Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer.
+                             RFC 8669 Section 8: the propagation to other ASes MUST be explicitly
+                             configured, so the attribute is removed from every UPDATE sent to an
+                             EBGP peer that does not set this leaf. Set it on an EBGP neighbor that
+                             is inside the same SR domain: an SR domain can span more than one AS,
+                             and ze cannot derive that membership from the ASN. Has no effect on
+                             IBGP (always advertised).";
+            }
+
             container community {
                 description "Community attribute control for this session";
                 leaf-list send {

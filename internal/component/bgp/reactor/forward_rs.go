@@ -2,6 +2,7 @@
 // RFC: rfc/short/rfc4271.md -- LOCAL_PREF is internal-only (Section 5.1.5)
 // RFC: rfc/short/rfc4456.md -- route reflection attribute injection (Section 8)
 // RFC: rfc/short/rfc7947.md -- route server transparency (Section 2.2.2)
+// RFC: rfc/short/rfc8669.md -- the Prefix-SID leaves the SR domain only when configured (Section 8)
 // Related: reactor_api_forward.go -- ForwardUpdate egress pipeline (shared helpers)
 // Related: forward_pool.go -- per-peer forward worker pool
 // Related: forward_build.go -- buildModifiedPayload, buildWithdrawalPayload
@@ -14,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
@@ -244,6 +246,13 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// (forward_local_pref.go) for why the answer gates the operation.
 	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
 
+	// RFC 8669 Section 8 needs the same one bit per UPDATE: whether the source
+	// carries a Prefix-SID attribute at all. It matters most here. An RS client
+	// keeps the source next-hop (RFC 7947 Section 2.2.2), so applyFactsNextHop
+	// records nothing for one and the attribute reached every RS client until
+	// applyFactsPrefixSID existed (forward_prefix_sid.go).
+	srcHasPrefixSID := payloadHasAttr(update.WireUpdate.Payload(), attribute.AttrPrefixSID)
+
 	// RFC 4271 Section 5.1.4 needs one read per UPDATE, not one per client:
 	// which MULTI_EXIT_DISC the source sent. See applyFactsMED (forward_med.go)
 	// for why RFC 7947 Section 2.2.3 leaves an RS client's metric alone, and why
@@ -438,6 +447,16 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			baseHasLocalPref = payloadHasLocalPref(destBaseWire.Payload())
 		}
 		applyFactsLocalPref(facts, baseHasLocalPref, &mods)
+
+		// RFC 8669 Section 8: the Prefix-SID leaves this AS only toward an EBGP
+		// neighbor the operator has placed inside the SR domain. Same two
+		// payloads, and the same base for a destination RFC 1997 refuses, as the
+		// sibling above.
+		baseHasPrefixSID := srcHasPrefixSID
+		if destBaseWire != update.WireUpdate {
+			baseHasPrefixSID = payloadHasAttr(destBaseWire.Payload(), attribute.AttrPrefixSID)
+		}
+		applyFactsPrefixSID(facts, baseHasPrefixSID, &mods)
 
 		// RFC 4271 Section 5.1.4: a MED received from one neighboring AS never
 		// reaches another, and RFC 7947 Section 2.2.3 exempts a route server

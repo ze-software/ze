@@ -16,10 +16,20 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-func toPluginParams(r PluginRoute, fam family.Family) message.PluginParams {
+// toPluginParams converts a PluginRoute to PluginParams.
+// prefixSIDAllowed is RFC 8669 Section 8 for the destination
+// (prefixSIDAllowedTo, forward_prefix_sid.go). A plugin route carries its extra
+// attributes as pre-built wire bytes under any type code, code 40 included, so
+// the section reaches this rail through them.
+func toPluginParams(r PluginRoute, fam family.Family, prefixSIDAllowed bool) message.PluginParams {
+	rawAttrs := r.RawAttrs
+	if !prefixSIDAllowed {
+		rawAttrs = rawAttrsWithoutPrefixSID(rawAttrs)
+	}
+
 	return message.PluginParams{
 		AFI: uint16(fam.AFI), SAFI: byte(fam.SAFI), IsIPv6: r.IsIPv6, NLRI: r.NLRI,
-		NextHop: r.NextHop, RawAttrs: r.RawAttrs,
+		NextHop: r.NextHop, RawAttrs: rawAttrs,
 		ASPath: r.ASPath, LocalPreference: r.LocalPreference,
 		MapV4NextHop: r.MapV4NextHop,
 	}
@@ -32,7 +42,7 @@ func toPluginParams(r PluginRoute, fam family.Family) message.PluginParams {
 // Next Hop field, already decided against RFC 2545 Section 3's condition by
 // Peer.linkLocalNextHopFor (link_scope.go). The zero Addr means the field carries
 // the global address alone.
-func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext) message.UnicastParams {
+func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext, prefixSIDAllowed bool) message.UnicastParams {
 	// RFC 8950: Extended next-hop for cross-AFI next-hop
 	var useExtNH bool
 	if sendCtx != nil {
@@ -47,6 +57,12 @@ func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, s
 	rawAttrs := packRawAttributes(r.RawAttributes)
 	if r.AIGPMetric != nil {
 		rawAttrs = appendAIGPRaw(rawAttrs, *r.AIGPMetric)
+	}
+
+	// RFC 8669 Section 8: UnicastParams has no Prefix-SID field, so a raw
+	// attribute under type code 40 is the only way one reaches this family.
+	if !prefixSIDAllowed {
+		rawAttrs = rawAttrsWithoutPrefixSID(rawAttrs)
 	}
 
 	return message.UnicastParams{
@@ -75,11 +91,20 @@ func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, s
 // toStaticRouteLabeledUnicastParams converts a StaticRoute to LabeledUnicastParams.
 // Used for labeled unicast routes (SAFI 4).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-func toStaticRouteLabeledUnicastParams(r *StaticRoute, nextHop netip.Addr) message.LabeledUnicastParams {
+func toStaticRouteLabeledUnicastParams(r *StaticRoute, nextHop netip.Addr, prefixSIDAllowed bool) message.LabeledUnicastParams {
 	// Write raw attributes into a single contiguous buffer
 	rawAttrs := packRawAttributes(r.RawAttributes)
 	if r.AIGPMetric != nil {
 		rawAttrs = appendAIGPRaw(rawAttrs, *r.AIGPMetric)
+	}
+
+	// RFC 8669 Section 8: the configured Prefix-SID, and a hand-written raw one
+	// under the same type code, leave this AS only toward a neighbor the
+	// operator has placed inside the SR domain.
+	prefixSID := r.PrefixSIDBytes
+	if !prefixSIDAllowed {
+		prefixSID = nil
+		rawAttrs = rawAttrsWithoutPrefixSID(rawAttrs)
 	}
 
 	return message.LabeledUnicastParams{
@@ -100,7 +125,7 @@ func toStaticRouteLabeledUnicastParams(r *StaticRoute, nextHop netip.Addr) messa
 		AggregatorIP:      r.AggregatorIP,
 		OriginatorID:      r.OriginatorID,
 		ClusterList:       r.ClusterList,
-		PrefixSID:         r.PrefixSIDBytes,
+		PrefixSID:         prefixSID,
 		RawAttributeBytes: rawAttrs,
 	}
 }
@@ -108,7 +133,14 @@ func toStaticRouteLabeledUnicastParams(r *StaticRoute, nextHop netip.Addr) messa
 // toStaticRouteVPNParams converts a StaticRoute to VPNParams.
 // Used for VPN routes (SAFI 128).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr) message.VPNParams {
+func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr, prefixSIDAllowed bool) message.VPNParams {
+	// RFC 8669 Section 8, as for labeled unicast above. VPNParams carries no raw
+	// attribute block, so the configured bytes are the only way in.
+	prefixSID := r.PrefixSIDBytes
+	if !prefixSIDAllowed {
+		prefixSID = nil
+	}
+
 	return message.VPNParams{
 		Prefix:            r.Prefix,
 		PathID:            r.PathID,
@@ -128,7 +160,7 @@ func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr) message.VPNParam
 		AggregatorIP:      r.AggregatorIP,
 		OriginatorID:      r.OriginatorID,
 		ClusterList:       r.ClusterList,
-		PrefixSID:         r.PrefixSIDBytes,
+		PrefixSID:         prefixSID,
 	}
 }
 
@@ -138,20 +170,23 @@ func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr) message.VPNParam
 // 2545 Section 3's condition by Peer.linkLocalNextHopFor (link_scope.go). It is
 // not "the peer's link-local": the configured leaf reaches this parameter only
 // when the section's condition holds, and the zero Addr means the 16-octet form.
+// prefixSIDAllowed is RFC 8669 Section 8 for this peer, decided by
+// prefixSIDAllowedTo (forward_prefix_sid.go): false removes the Prefix-SID
+// attribute from the UPDATE, whichever route field carried it.
 //
 // The returned *Update's PathAttributes/NLRI alias ub.scratch. Caller MUST
 // fully consume the Update (send, copy, hand to sendUpdateWithSplit) before
 // calling message.PutUpdateBuilder(ub) or reusing ub for another Build*.
-func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext) *message.Update {
+func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext, prefixSIDAllowed bool) *message.Update {
 	if route.IsVPN() {
-		p := toStaticRouteVPNParams(route, nextHop)
+		p := toStaticRouteVPNParams(route, nextHop, prefixSIDAllowed)
 		return ub.BuildVPN(&p)
 	}
 	if route.isLabeledUnicast() {
-		p := toStaticRouteLabeledUnicastParams(route, nextHop)
+		p := toStaticRouteLabeledUnicastParams(route, nextHop, prefixSIDAllowed)
 		return ub.BuildLabeledUnicast(&p)
 	}
-	p := toStaticRouteUnicastParams(route, nextHop, linkLocal, sendCtx)
+	p := toStaticRouteUnicastParams(route, nextHop, linkLocal, sendCtx, prefixSIDAllowed)
 	return ub.BuildUnicast(&p)
 }
 

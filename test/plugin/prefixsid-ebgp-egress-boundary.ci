@@ -1,0 +1,227 @@
+# prefixsid-ebgp-egress-boundary -- RFC 8669 Section 8 Prefix-SID propagation
+# across an AS boundary, with its confining positive in the same run.
+#
+# RFC requirement: RFC8669-8-1 negative -- "The propagation to other ASes MUST be explicitly
+# configured." Receiver A is an eBGP neighbor that sets no propagate-srv6-prefix-sid, and the
+# UPDATE it is sent carries no attribute 40 at all.
+# RFC requirement: RFC8669-8-1 positive -- that removal is CONFINED to neighbors the operator has
+# not configured. Receiver B is identical except that it sets propagate-srv6-prefix-sid true, and
+# it is sent the attribute byte for byte. One source UPDATE, two destinations, opposite outcomes,
+# so neither assertion can pass by accident.
+#
+# WHY THE BOUNDARY IS CONFIGURED AND NOT DERIVED. Section 8 states the scope as "a single SR/
+# administrative domain that may include one or more ASes", and the deployment model it cites
+# (RFC 8670) is several ASes under one administration where the attribute is meant to cross every
+# one of those eBGP sessions. So the AS numbers cannot answer whether a neighbor is inside the
+# domain, and stripping on every eBGP session would break the case the section exists to allow.
+# The per-neighbor leaf is the operator saying which side of the boundary the neighbor sits on.
+#
+# WHY BOTH RECEIVERS SET rs-client. RFC 7947 Section 2.2.2.1 leaves an RS client's AS_PATH
+# untouched, so the two forwarded frames differ in ONE attribute and nothing else. Without it the
+# local AS would be prepended to both and the byte-equality below would pin the prepend as much as
+# the Prefix-SID.
+#
+# WHY THIS FILE DOES NOT SET rs-fast-path. There are two egress rails, and both call
+# applyFactsPrefixSID (internal/component/bgp/reactor/forward_prefix_sid.go): reactorForwardRS
+# (forward_rs.go), taken when the SOURCE peer enables behavior/rs-fast-path, and forwardUpdateCore
+# (reactor_api_forward.go), the plugin rail reached by bgp-rs dispatch and by peer-up replay. The
+# unit tests in forward_prefix_sid_test.go drive the FIRST rail directly, so rs-fast-path is
+# deliberately absent here: it is what would move this test onto the rail that is already covered.
+# The same reasoning, and the same choice, as bgp-rs-relay-aspath-transparency.ci.
+#
+# WHY THE SOURCE SETS accept-srv6-prefix-sid. The source is an eBGP peer, and RFC 8669 Section 4
+# makes ze DISCARD a Prefix-SID from one unless configured to accept it. Without the leaf the
+# attribute would be tombstoned on INGRESS and both receivers would see no code 40, which is the
+# right answer to a different requirement and would make the negative assertion below vacuous.
+#
+# NO LOCAL_PREF in the source frame: the source is an eBGP peer and RFC 4271 Section 5.1.5 forbids
+# LOCAL_PREF toward external peers, so ze would tombstone it (message/rfc7606.go) and the
+# byte-equality below would pin the marker rather than attribute 40.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=3
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+# Bind conn=N by remote IP rather than accept order: which client connects first is a race, and
+# the two receivers must be told apart by identity, not arrival (peer_connmap.go).
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, AS 65001): announce 10.0.0.0/24 carrying a Prefix-SID.
+#   ORIGIN:     40010100                     IGP
+#   AS_PATH:    40020602010000FDE9           AS_SEQUENCE[65001], 4-byte ASNs
+#   NEXT_HOP:   40030401010101               1.1.1.1
+#   PREFIX_SID: C0280A01000700000000000064   flags 0xC0 optional transitive, code 40 (0x28),
+#                                            length 10, value = Label-Index TLV (RFC 8669
+#                                            Section 3.1: type 1, length 7, RESERVED 0, Flags 0,
+#                                            Label Index 100)
+#   NLRI:       180A0000                     10.0.0.0/24
+# attr len = 4+9+7+13 = 33 = 0x21; total = 19+2+2+33+4 = 60 = 0x3C.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C02000000214001010040020602010000FDE940030401010101C0280A01000700000000000064180A0000
+
+# The source's own EOR. Only conn=1's is asserted on the wire: RFC 4724 Section 4.1 constrains no
+# ordering between a peer's EOR and routes it learns afterwards, so pinning a receiver's EOR turns
+# a permitted ordering into a flake under load. That both receivers DO send one is still enforced,
+# fail-closed, by run_rs_observer(expected_peers=3).
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Receiver A (conn=2, AS 65002, rs-client true, propagate-srv6-prefix-sid ABSENT): the source frame
+# with attribute 40 removed and nothing else touched.
+# attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+4 = 47 = 0x2F.
+# ORIGIN, AS_PATH, NEXT_HOP and the NLRI are byte-identical to what the source sent, so a whole
+# dropped UPDATE and an escalation both fail this line rather than passing it.
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+
+# Receiver B (conn=3, AS 65003, rs-client true, propagate-srv6-prefix-sid TRUE): byte-identical to
+# what the source sent, Prefix-SID included. Same length, same 0x0021 attribute block.
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C02000000214001010040020602010000FDE940030401010101C0280A01000700000000000064180A0000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+	external shutdown-after-up {
+		run "ze-test fixture plugin/prefixsid-ebgp-egress-boundary"
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			# RFC 8669 Section 4, the INGRESS half. See the header: without it the
+			# attribute never reaches the egress rails this file is about.
+			accept-srv6-prefix-sid true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer outside-sr-domain-receiver {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			rs-client true
+			# propagate-srv6-prefix-sid deliberately NOT set. This peer is an eBGP
+			# neighbor the operator has not placed inside the SR domain, and its default
+			# of false is what RFC 8669 Section 8 calls for.
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+	peer inside-sr-domain-receiver {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65003
+			}
+			router-id 1.2.3.4
+			rs-client true
+			# The one leaf that separates this peer from receiver A. It is the explicit
+			# configuration RFC 8669 Section 8 requires before the attribute may cross
+			# into another AS.
+			propagate-srv6-prefix-sid true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process shutdown-after-up {
+			receive [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=forward-cached failed
+reject=stderr:pattern=release-cached failed
+# RFC 8669 Section 8 is an egress removal, never an escalation: this may not fire.
+reject=stderr:pattern=RFC 7606 session-reset

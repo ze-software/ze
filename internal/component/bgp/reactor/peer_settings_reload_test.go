@@ -103,6 +103,11 @@ func TestPeerSettingsEqualDetectsEachSignificantField(t *testing.T) {
 			why:    "admits PrefixSID (code 40) from EBGP peers",
 		},
 		{
+			name:   "PropagateSRv6PrefixSID",
+			mutate: func(s *PeerSettings) { s.PropagateSRv6PrefixSID = !s.PropagateSRv6PrefixSID },
+			why:    "RFC 8669 Section 8 admits PrefixSID (code 40) onto an EBGP peer's egress; an ignored edit leaves the operator's new boundary unenforced until restart",
+		},
+		{
 			name:   "NextHopMode",
 			mutate: func(s *PeerSettings) { s.NextHopMode++ },
 			why:    "controls next-hop rewriting for forwarded UPDATEs",

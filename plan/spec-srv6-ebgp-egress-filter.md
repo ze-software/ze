@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-06-16 |
+| Phase | 1/6 |
+| Updated | 2026-08-29 |
 
 Anchor refresh (2026-07-22 plan review, design unchanged and implementable;
 all citations below updated in-body to the verified current lines --
@@ -72,6 +72,7 @@ AS boundaries.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/bgp/structural-forwarding.md` - what left the critical path to close the route-server forwarding gap against BIRD
 - [ ] `docs/architecture/core-design.md` - component isolation
   -> Decision: peerForwardFacts precomputes per-peer forwarding decisions at session boundaries
   -> Constraint: egress attribute mods use ModAccumulator, not direct wire mutation
@@ -154,8 +155,8 @@ AS boundaries.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `mods.Op(40, AttrModSuppress, nil)` is idempotent -- calling it twice (once from NH change, once from EBGP suppress) produces correct behavior | `applyFactsNextHop` already emits this op; ModAccumulator design | Double suppress could corrupt payload or panic | Unit test: apply both NH-change and EBGP suppress, verify single clean strip | confirmed |
-| A-2 | `isEBGP` field in `peerForwardFacts` correctly reflects the peer's AS relationship at egress time | `refreshForwardFacts` sets `isEBGP` from `s.IsEBGP()` (line 107) | Suppress fires on wrong peers | grep/read `IsEBGP()` definition | unvalidated |
-| A-3 | The RS path (`forward_rs.go`) uses the same `peerForwardFacts` struct and pattern | Research shows same `applyFactsNextHop`/`applyFactsSendCommunity` calls | RS peers would not get EBGP egress suppression | grep `applyFacts` in `forward_rs.go` | unvalidated |
+| A-2 | `isEBGP` field in `peerForwardFacts` correctly reflects the peer's AS relationship at egress time | `refreshForwardFacts` sets `isEBGP` from `s.IsEBGP()` (line 107) | Suppress fires on wrong peers | grep/read `IsEBGP()` definition | confirmed -- `PeerSettings.IsEBGP` is `LocalAS != PeerAS` (`peer_settings.go`), read under `p.mu` in `buildForwardFacts` |
+| A-3 | The RS path (`forward_rs.go`) uses the same `peerForwardFacts` struct and pattern | Research shows same `applyFactsNextHop`/`applyFactsSendCommunity` calls | RS peers would not get EBGP egress suppression | grep `applyFacts` in `forward_rs.go` | confirmed -- `reactorForwardRS` calls the same `applyFacts*` sequence and takes the new `applyFactsPrefixSID` beside `applyFactsLocalPref` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -273,7 +274,7 @@ AS boundaries.
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Fix issues | Fix every issue from critical review |
 | 9. Re-verify | Re-run stage 6 |
@@ -402,50 +403,125 @@ MUST document: the EBGP egress suppression condition, the explicit-configuration
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill after implementation)
+
+`prefixSIDAllowedTo(isIBGP, propagate)` in `internal/component/bgp/reactor/forward_prefix_sid.go`
+is the single site that answers RFC 8669 Section 8 for one destination. Every egress rail asks
+there, so no two rails can disagree, which is the shape `localPrefAllowedTo` already set for
+RFC 4271 Section 5.1.5.
+
+| Rail | Producer | What it does now |
+|------|----------|------------------|
+| General forward | `forwardUpdateCore` (`reactor_api_forward.go`) | `applyFactsPrefixSID` records an attribute suppression for a destination Section 8 refuses |
+| Route server | `reactorForwardRS` (`forward_rs.go`) | the same call. This is the rail the defect left open: an RS client keeps the source next-hop, so `applyFactsNextHop` returned at `nhModeNone` and nothing removed code 40 |
+| Static-route origination | `buildStaticRouteUpdateNew` (`peer_static_routes.go`) | drops the configured `PrefixSIDBytes` and any raw attribute under code 40, for unicast, labeled unicast and VPN |
+| Plugin-route origination | `toPluginParams` (`peer_static_routes.go`) | drops a plugin-supplied raw attribute under code 40 |
+
+Config: YANG leaf `propagate-srv6-prefix-sid` (default `false`) under `bgp/peer/session`,
+resolved into `PeerSettings.PropagateSRv6PrefixSID` and carried into
+`peerForwardFacts.propagatePrefixSID`.
 
 ### Bugs Found/Fixed
-- (fill after implementation)
+
+- The defect the spec names: `applyFactsNextHop` returned at `nhModeNone`, so every eBGP peer
+  that keeps the next hop kept the Prefix-SID. A route-server client always keeps it.
+- Three egress rails the spec did not name carry attribute 40 and had no gate at all: the two
+  origination rails above, and the readvertise rail (see Deviations).
+- The raw `attribute` leaf-list is an escape hatch for any type code, and
+  `config.parseRawAttributeInto` leaves code 40 raw, so a hand-written Prefix-SID reached the
+  wire by a path the modeled field never touched.
 
 ### Documentation Updates
-- (fill after implementation)
+
+- `docs/features/srv6.md`: the new leaf, why the boundary is configured rather than derived, and
+  the egress decision in the data-flow section.
+- `docs/features/rfc-status.md`: RFC 8669 gap count Eleven -> Ten, RFC8669-8-1 removed from the
+  Remaining cell, the Section 8 egress gate stated in the Support cell.
+- `rfc/short/rfc8669.md`: the `{gap}` annotation on RFC8669-8-1 removed.
 
 ### Deviations from Plan
-- (fill after implementation)
+
+| # | Plan | Actual | Why |
+|---|------|--------|-----|
+| 1 | Code in `peer_forward_facts.go` | New file `forward_prefix_sid.go` | `forward_local_pref.go` and `forward_med.go` are the established one-file-per-egress-concern pattern, and this concern now spans four rails |
+| 2 | Two rails gated | Four gated | The spec named only the forward rails. Attribute 40 also reaches the wire from both origination rails |
+| 3 | `test/encode/ebgp-prefix-sid-{suppress,propagate}.ci` | One `test/plugin/prefixsid-ebgp-egress-boundary.ci` | The encode suite has one peer, so it cannot exercise a forward rail. One run with two destinations and opposite outcomes is what makes each assertion discriminate |
+| 4 | Suppression precomputed as a `suppressPrefixSID` fact | `propagatePrefixSID` fact, decision taken in `applyFactsPrefixSID` | The decision also needs the operations recorded so far, so that the RFC 9252 next-hop suppression and this one never record two operations for one code |
+| 5 | -- | The readvertise rail is NOT gated | BLOCKED, see below |
+
+### Blocked: the readvertise announce rail
+
+`buildBatchAnnounceUpdate` (`reactor_api_batch.go`) copies a stored or relayed attribute block
+verbatim and has no code-40 handling, so an iBGP-learned Prefix-SID still reaches an external
+peer on that rail. The fix is the same one-line `plan.drop` the LOCAL_PREF branch beside it
+already uses, plus one per-destination bool on the function and on `announceBuildKey`.
+
+Adding that parameter mechanically edits `TestAnnounceStripsLocalPrefTowardExternalPeer`
+(`reactor_api_origin_test.go`), which carries `RFC requirement: RFC4271-5.1.5-1/-2`. The write
+hook refuses the edit without an owner approval row in `test/rfc-changed.md`. The session was
+instructed not to owe a third such row, so the rail is left for the owner to answer.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Default is "do not propagate" on every eBGP egress rail | Done | `prefixSIDAllowedTo` (`internal/component/bgp/reactor/forward_prefix_sid.go`) | `false` unless the peer is internal or the leaf is set |
+| Explicit per-peer configuration permits propagation | Done | YANG `propagate-srv6-prefix-sid`, `PeerSettings.PropagateSRv6PrefixSID`, `reactor/config.go` | |
+| iBGP is untouched | Done | `prefixSIDAllowedTo` returns true for `isIBGP` | Proven by `TestPrefixSIDEgressBoundary/ibgp_keeps_it` |
+| Every rail that can emit attribute 40 is gated | Partial | four of five | The readvertise rail is blocked on an owner approval; see Deviations |
+| RFC 8669 Section 8 cited above the enforcing code | Done | `forward_prefix_sid.go`, `peer_static_routes.go`, `peer_initial_sync.go` | |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPrefixSIDEgressBoundary/ebgp_without_configuration_is_stripped`, `test/plugin/prefixsid-ebgp-egress-boundary.ci` conn=2 | Asserted on the destination's own bytes |
+| AC-2 | Done | `TestPrefixSIDEgressBoundary/ebgp_configured_for_propagation_keeps_it`, the same `.ci` conn=3 | Byte-identical to the source frame |
+| AC-3 | Done | `TestPrefixSIDEgressBoundary/ibgp_keeps_it` | |
+| AC-4 | Done | `TestPrefixSIDSuppressIsRecordedOnce` | Exactly one operation on code 40 whether or not the next hop changes |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestPrecomputePrefixSIDSuppression` | Changed | `TestPrefixSIDEgressBoundary` (`forward_prefix_sid_test.go`) | Drives `reactorForwardRS` end to end instead of the precomputation alone, so the evidence is the wire rather than a struct field |
+| `TestApplyFactsPrefixSID` | Changed | `TestPrefixSIDAllowedTo` and `TestPrefixSIDSuppressIsRecordedOnce` | Split into the rule and the operation |
+| `TestPrefixSIDSuppressWithNHChange` | Done | `TestPrefixSIDSuppressIsRecordedOnce/next-hop_self_still_records_exactly_one` | |
+| `ebgp-prefix-sid-suppress` / `ebgp-prefix-sid-propagate` | Changed | `test/plugin/prefixsid-ebgp-egress-boundary.ci` | One run, two destinations; see Deviations 3 |
+| (added) `TestPrefixSIDOriginationBoundary` | Done | `forward_prefix_sid_test.go` | The two origination rails the spec did not name |
+| (added) `TestRawAttrsWithoutPrefixSID` | Done | `forward_prefix_sid_test.go` | The raw-attribute filter's edges |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/bgp/yang/ze-bgp-conf.yang` | Done | |
+| `internal/component/bgp/reactor/peer_settings.go` | Done | |
+| `internal/component/bgp/reactor/config.go` | Done | |
+| `internal/component/bgp/reactor/peer_forward_facts.go` | Done | Field only; the logic went to `forward_prefix_sid.go` |
+| `internal/component/bgp/reactor/reactor_api_forward.go` | Done | |
+| `internal/component/bgp/reactor/forward_rs.go` | Done | |
+| `internal/component/bgp/reactor/peer_forward_facts_test.go` | Changed | New tests went to `forward_prefix_sid_test.go`, beside the code they cover |
+| (added) `internal/component/bgp/reactor/forward_prefix_sid.go` | Done | |
+| (added) `internal/component/bgp/reactor/forward_local_pref.go` | Done | `payloadHasAttr` extracted from `payloadHasLocalPref` |
+| (added) `internal/component/bgp/reactor/peer_static_routes.go`, `peer_initial_sync.go` | Done | The origination rails |
+| (added) `internal/test/fixture/plugin_fixture_04.go` | Done | Observer for the new `.ci` |
+| `test/encode/ebgp-prefix-sid-*.ci` | Changed | Replaced by `test/plugin/prefixsid-ebgp-egress-boundary.ci` |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 27
+- **Done:** 21
+- **Partial:** 1 (rail coverage: four of five)
+- **Skipped:** 0
+- **Changed:** 5
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| EBGP egress suppresses Prefix-SID by default | Functional test | `test/encode/ebgp-prefix-sid-suppress.ci` |
-| Explicit config enables EBGP propagation | Functional test | `test/encode/ebgp-prefix-sid-propagate.ci` |
-| iBGP unaffected | Unit test | `TestPrecomputePrefixSIDSuppression/ibgp_no_suppress` |
-| RFC 8669 Section 8 compliance | RFC comment + test | `// RFC 8669 Section 8` in `peer_forward_facts.go` |
+| EBGP egress suppresses Prefix-SID by default | Functional test | `test/plugin/prefixsid-ebgp-egress-boundary.ci` conn=2 expects a 47-octet frame with no attribute 40; the run passed at 517/705 in `./le functional plugin` |
+| Explicit config enables EBGP propagation | Functional test | The same `.ci` conn=3 expects the 60-octet source frame byte for byte |
+| iBGP unaffected | Unit test | `TestPrefixSIDEgressBoundary/ibgp_keeps_it`, over the real `reactorForwardRS` rail |
+| The route-server rail, which the old code missed | Unit test | `TestPrefixSIDEgressBoundary/route-server_client_without_configuration_is_stripped` and its configured twin |
+| Each assertion discriminates | Mutation | `prefixSIDAllowedTo -> true` reddens both strip cases; `-> isIBGP` reddens both keep cases; removing the origination strip reddens all four of `TestPrefixSIDOriginationBoundary` |
+| RFC 8669 Section 8 compliance | RFC gate | `./le rfc check` binds RFC8669-8-1 to a positive and a negative tag with functional/verify evidence (`rfc/requirements/rfc8669.md`); the `{gap}` annotation is gone |
 
 ## Review Gate
 
@@ -492,7 +568,7 @@ MUST document: the EBGP egress suppression condition, the explicit-configuration
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

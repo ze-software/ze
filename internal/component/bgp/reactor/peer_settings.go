@@ -448,6 +448,19 @@ type PeerSettings struct {
 	// Has no effect on IBGP sessions (always accepted).
 	AcceptSRv6PrefixSID bool
 
+	// PropagateSRv6PrefixSID allows the PrefixSID attribute (code 40) to be
+	// advertised to this EBGP peer.
+	// RFC 8669 Section 8: "The propagation to other ASes MUST be explicitly
+	// configured." Default false = remove the attribute on egress to EBGP.
+	// Has no effect on IBGP sessions (always advertised).
+	//
+	// The boundary this leaf declares is the SR/administrative domain, which
+	// Section 8 says "may include one or more ASes", so it is not derivable from
+	// the ASN pair: only the operator knows which external neighbors are inside
+	// the domain. prefixSIDAllowedTo (forward_prefix_sid.go) is the single site
+	// that reads it, and every egress rail asks there.
+	PropagateSRv6PrefixSID bool
+
 	// RouteReflectorClient marks this peer as a route reflector client (RFC 4456).
 	// When true, routes from this peer are forwarded to all other clients and non-clients.
 	// When false (non-client), routes from this peer are forwarded to clients only.
