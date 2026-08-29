@@ -62,8 +62,7 @@ needed. Shows running min/avg/max RTT and packet loss.";
         container ping {
             config false;
             ze:command "ze-resolve:ping";
-            description "Ping from the router with optional source binding.
-Usage: resolve ping <target> [source <ip>] [count <n>] [size <bytes>].";
+            description "Ping from the router with optional source binding.";
             leaf target { type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; } mandatory true; description "Host or IP address to ping"; }
             leaf source { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } description "Source IP address to bind"; }
             leaf count { type uint32 { range "1..100"; } description "Number of echo requests"; }

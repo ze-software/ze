@@ -260,10 +260,10 @@ stay up. Use with care.";
                         config false;
                         ze:command "ze-l2tp-api:outgoing-call";
                         description "Place an LNS-side outgoing call (RFC 2661 S10.4).
-Usage: request l2tp outgoing-call remote <name> called <number>. Dials the
-named remote (which must have outgoing-calls enabled), sends OCRQ, and blocks
-until the call establishes or fails. On failure the cause and RFC 2661 Result
-Code are reported (auth reject, tie-breaker loss, peer CDN, or timeout).";
+Dials the named remote (which must have outgoing-calls enabled), sends OCRQ,
+and blocks until the call establishes or fails. On failure the cause and RFC
+2661 Result Code are reported (auth reject, tie-breaker loss, peer CDN, or
+timeout).";
                         leaf remote {
                             type string;
                             mandatory true;

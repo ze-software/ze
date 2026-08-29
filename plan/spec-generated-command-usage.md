@@ -335,7 +335,7 @@ then its children are listed, which is new output where today there is none.
 | AC-4 | `show system sockets port 8080` and `show system sockets state ESTABLISHED`, run against a Linux daemon | The first filters by port, the second by socket state. A bare `8080` is NOT a filter and never was: `handleShowSystemSockets` (`internal/component/cmd/show/sockets_linux.go`) matches the literal keywords `tcp`, `udp`, `state` and `port` and ignores every other token, so the keyword form is the only filtering form and it is the one `ai/rules/cli.md` requires. The separate order-independence property is about which leaf `validateCommandArgs` BINDS a positional token to, which is `TestPositionalBindingIsOrderIndependent` |
 | AC-5 | `ze create interface dummy name help`, a command node that also has children | The generated usage line is printed, followed by the child listing. Today this node prints no description at all |
 | AC-6 | Any YANG `description` reached by the command tree | No description prescribes a CLI spelling under any of `Usage:`, `Syntax:` or `Filters:`. `./le docvalid usage-contract` exits non-zero when one does. `Example:` is NOT a marker: `ze-fib-p4-conf.yang` writes `Example: 127.0.0.1:9559` to say what a listener address looks like, which prescribes no CLI spelling |
-| AC-7 | A commit that removes an authored `Usage:` sentence whose generated usage differed from it at HEAD, without changing the model | `./le docvalid usage-contract` exits non-zero and names the command, the authored line and the generated line |
+| AC-7 | A commit that removes an authored `Usage:` sentence whose generated usage differed from it at HEAD, without changing the model | `./le docvalid usage-contract` exits non-zero and names the command, the authored line and the generated line. One difference is exempt, by owner ruling of 2026-08-29: placeholder wording alone. `usageShape` (`internal/le/docvalid/usage.go`) folds every `<...>` group to `<>` and the two lines are compared folded, so `[count <n>]` against `[count <count>]` is a deletion the gate allows and `request interface <name> down` against `request interface down <name>` is one it still refuses |
 | AC-8 | A commit that adds a `ze:command` container whose description contains `Usage:` | The gate exits non-zero and names the container |
 | AC-9 | A commit that adds a `ze:usage` statement while the count at HEAD is unchanged or lower | The gate exits non-zero. The count of `ze:usage` statements never rises |
 | AC-10 | `ze announce help` | The line ends with `[tag <key> <value>] [for <duration>]`, rendered from a child container carrying `ze:modifier` for the two-value `tag` group and from an optional leaf for `for`, and `ze help command --json` marks those tokens optional |
@@ -719,6 +719,75 @@ then its children are listed, which is new output where today there is none.
   `request log level <logger> <disabled|debug|info|warn|err>` and
   `[source-asn4 <true|false>]`.
 
+- **Declaring PART of a command's tail is worse than declaring none of it, and
+  the leaf to miss is the one whose values are typed as bare words.**
+  `5f5b73261` gave `show policy test peer` a `selector`, `filter`, `update` and
+  `source-asn4` and no direction, while the same diff gave the sibling `show
+  policy chain peer` a `ze:modifier "choice"` container for its. Before that
+  commit the node declared no leaf, so `validateCommandArgs`
+  (`internal/component/plugin/server/command.go`) was skipped and every token
+  passed through. After it, the bare `export` had to be PLACED. With `filter
+  <name>` present its keyword consumes the filter leaf, so only the source-asn4
+  enum was left unmatched and the documented form was refused with `invalid
+  value "export", expected one of: true, false` before `parsePolicyTestArgs`
+  (`internal/component/bgp/plugins/cmd/policy/handler.go`) ran. Without `filter
+  <name>` the same token was bound to `filter` as a filter NAME, which is
+  harmless only because the handler re-parses the raw tokens: three functional
+  tests kept passing on that wrong binding.
+- **The handler decides whether a leaf is mandatory, and here it says yes.**
+  `parsePolicyTestArgs` answers `errMissingDirection` when no direction token
+  arrives, so `leaf direction` is `mandatory true` rather than optional: an
+  optional leaf would model a command the handler cannot run. Nothing is lost
+  to the "a mandatory leaf renders no keyword" hazard above, because an ENUM
+  renders its closed set rather than the leaf name, and the generated line is
+  typeable as it stands: `show policy test peer <selector> <import|export>
+  [filter <filter>] [update <update>] [source-asn4 <true|false>]`. What moves
+  is which layer refuses a direction-less call, from the handler to the
+  dispatcher, and the message with it.
+- **`positionalDef` needed no change, and its ranking is what makes a declared
+  leaf win the token.** It answered correctly for the definitions it was given
+  in both states: nil for `export` when nothing accepted it, and the
+  pattern-less `filter` when that was the only definition left. With the enum
+  declared, `direction` sits in the mandatory tier, which is offered the token
+  first, and `ConstraintEnum` outranks the `ConstraintAny` of a pattern-less
+  string, so the binding is stable by tier and by rank
+  (`internal/component/command/argvalidate.go`).
+- **A dispatcher verdict is read off the DAEMON's log, never off a plugin
+  fixture's own assertion.** `test/plugin/policy-test-errors.ci` now carries
+  `reject=stderr:pattern=invalid value` and `expect=stderr:contains=required
+  argument missing`, and each was proven to discriminate: deleting the leaf
+  reddens the first, dropping `mandatory true` reddens the second. The fixture's
+  Go assertions were strengthened in the same pass and are NOT the pin, because
+  a fixture the daemon runs as a plugin cannot fail its own test
+  (`plan/journal/green-that-could-not-have-been-red.md`, 2026-08-29).
+
+- **Deleting a placeholder-only sentence loses information for two of the seven,
+  and the remedy is renaming the LEAF, not keeping the prose.** Owner ruling,
+  2026-08-29: the generated form of the seven placeholder-only commands is
+  acceptable and their prose is deletable. For five of them the model's leaf name
+  says as much as the type word it replaces. Two are worse off:
+  `create interface unit` wrote `<parent>` where the leaf is called `name`, and
+  `show firewall irr prefix` wrote `<asn-or-as-set>` where the leaf is also called
+  `name`. `UsageLine` (`internal/component/command/usage.go`) writes the leaf's
+  name, so the generated lines now read `create interface unit <name> <vid>` and
+  `show firewall irr prefix <name>`, and `<name>` says nothing about what the
+  operator types. The model already carries the fix: rename the leaf to `parent`
+  and to `as-set`, and the generated line states what the prose stated. That is a
+  dispatch-visible change to two handlers, so it is a later pass and NOT part of
+  this one. Nothing was renamed here.
+- **The AC-7 exemption is mechanical, and its narrowness is what makes it safe.**
+  `usageShape` (`internal/le/docvalid/usage.go`) folds every `<...>` group to
+  `<>`, and `usageContract` compares the folded lines rather than the raw ones.
+  The fold is over the WHOLE bracket group, because `request log level` renders
+  the enumeration `<disabled|debug|info|warn|err>` where the prose wrote
+  `<level>`; a fold over the text inside the brackets would keep that one refused.
+  The fifteen value-position commands are untouched by it: `request interface
+  <name> down` and `request interface down <name>` fold to different shapes, so
+  the gate still refuses that deletion. Both halves were proven rather than
+  asserted -- widening the fold to ignore token order reddens
+  `TestUsageContractRefusesDeletingAValuePositionLine`, and deleting the real
+  `request interface down` sentence made the gate report 1 hidden difference.
+
 ### Corrections to this spec, 2026-08-29
 
 Each row says what the spec claimed, what the code says, and why the change.
@@ -844,23 +913,24 @@ Each row says what the spec claimed, what the code says, and why the change.
   `id` and treats `scope` as a cross-check, so the model states it optional.
   Correcting those three sentences is what closes the two differences, and this
   phase left every authored sentence untouched.
-- **The prose deletion stopped at 49 of the 81 sentences, and 32 stand.**
+- **The prose deletion stopped at 56 of the 81 sentences, and 25 stand.**
   `./le docvalid usage-contract` reported 379 command nodes, 81 authored
-  sentences and 32 differences before this phase, and 379, 32 and 32 after it.
-  The 49 removed are every sentence the model already reproduced byte for byte.
-  The 32 that stand are the 25 whose generated line differs in token structure
-  and the 7 whose generated line differs only in the word inside the angle
-  brackets.
-- **The 7 placeholder-only sentences are refused by AC-7's own gate.** Their
-  generated line states the same tokens in the same order and names the LEAF
-  where the prose named a type: `resolve ping <target> [source <source>] [count
-  <count>] [size <size>]` against `[source <ip>] [count <n>] [size <bytes>]`,
-  and the same for `create interface unit`, `request as112 healthcheck`,
-  `request l2tp outgoing-call remote called`, `request log level`, `show
-  announcements` and `show firewall irr prefix`. The Failure Routing table says
-  to delete a sentence the generated line is right about, and AC-7 compares
-  whole lines, so the gate refuses the deletion the table asks for. One of the
-  two has to give, and which one is the owner's to say.
+  sentences and 32 differences before the deletion phase, then 379, 32 and 32,
+  and 379, 25 and 25 after the 7 placeholder-only sentences went. The 56 removed
+  are every sentence the model reproduces byte for byte and the 7 it reproduces
+  up to the word inside the angle brackets. The 25 that stand each differ in
+  token structure.
+- **The 7 placeholder-only sentences are gone, and AC-7 gave way.** RESOLVED
+  2026-08-29 by owner ruling: the generated form is acceptable and the prose is
+  deletable. Their generated line states the same tokens in the same order and
+  names the LEAF where the prose named a type: `resolve ping <target> [source
+  <source>] [count <count>] [size <size>]` against `[source <ip>] [count <n>]
+  [size <bytes>]`, and the same for `create interface unit`, `request as112
+  healthcheck`, `request l2tp outgoing-call remote called`, `request log level`,
+  `show announcements` and `show firewall irr prefix`. AC-7 compared whole lines
+  and so refused the deletion the Failure Routing table asks for; it now
+  compares the lines with every `<...>` folded to `<>`, which exempts this
+  difference and no other.
 - **Fifteen commands render the value in the wrong position, and the RENDERER is
   what is wrong.** Owner ruling, 2026-08-29: the authored spelling is correct
   and the generated spelling is not. `request interface <name> down` is right

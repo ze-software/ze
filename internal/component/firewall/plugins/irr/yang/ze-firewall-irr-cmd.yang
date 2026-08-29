@@ -32,8 +32,8 @@ and current before committing firewall config.";
                     config false;
                     ze:command "ze-show:firewall-irr-prefix";
                     description "Show IRR-resolved prefixes for a cached entry.
-Usage: show firewall irr prefix <asn-or-as-set>. Lists all IPv4 and
-IPv6 prefixes in the cached prefix-list for the given ASN or AS-SET.";
+Lists all IPv4 and IPv6 prefixes in the cached prefix-list for the given ASN
+or AS-SET.";
                     leaf name { type string; mandatory true; description "ASN or AS-SET name"; }
                 }
             }

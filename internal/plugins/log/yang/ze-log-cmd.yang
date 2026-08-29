@@ -62,7 +62,7 @@ directly.";
                 config false;
                 ze:command "ze-bgp:log-set";
                 description "Change a subsystem's log level without restarting.
-Usage: request log level <logger> <level>. Takes effect immediately.
+Takes effect immediately.
 Set to debug when troubleshooting, then back to info when you are done.";
                 leaf logger {
                     type string;

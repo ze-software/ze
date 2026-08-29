@@ -63,8 +63,7 @@ Usage: announce <unicast|blackhole|flowspec> <args> [tag <key> <value>] [for <du
         container announcements {
             config false;
             ze:command "ze-bgp:show-announcements";
-            description "List active on-demand announcements.
-Usage: show announcements [tag <key>] [selector <pattern>] [family <fam>]";
+            description "List active on-demand announcements.";
             leaf tag { type string { length "1..64"; } description "Show only announcements carrying this tag key"; }
             leaf selector { type string; description "Show only announcements whose peer selector matches this pattern"; }
             leaf family { type string { length "1..32"; } description "Show only announcements of this address family"; }

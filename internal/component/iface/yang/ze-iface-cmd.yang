@@ -105,7 +105,7 @@ module ze-iface-cmd {
                 config false;
                 ze:command "ze-iface:interface-unit-add";
                 description "Add a VLAN sub-interface (802.1Q tagged).
-Usage: create interface unit <parent> <vid>. Parent must already exist.";
+Parent must already exist.";
                 leaf name { type string; mandatory true; description "Parent interface name"; }
                 leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
             }

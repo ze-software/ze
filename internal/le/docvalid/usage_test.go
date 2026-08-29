@@ -215,7 +215,7 @@ var cleanModule = strings.Replace(proseModule,
 // difference is then unrecorded anywhere.
 func TestUsageContractRefusesHiddenGap(t *testing.T) {
 	head := map[string]usageRow{
-		"show sockets": {Path: "show sockets", Authored: "show sockets [port <N>]", Marker: "Usage:"},
+		"show sockets": {Path: "show sockets", Authored: "show sockets [state <STATE>] [port <N>]", Marker: "Usage:"},
 	}
 	report := usageContract(fixtureLoader(t, cleanModule), head)
 
@@ -229,14 +229,14 @@ func TestUsageContractRefusesHiddenGap(t *testing.T) {
 	if row.Path != "show sockets" {
 		t.Errorf("the finding names the path %q, want \"show sockets\"", row.Path)
 	}
-	if row.Authored != "show sockets [port <N>]" {
+	if row.Authored != "show sockets [state <STATE>] [port <N>]" {
 		t.Errorf("the finding quotes %q as the line HEAD carried", row.Authored)
 	}
 	if row.Generated != "show sockets [port <port>]" {
 		t.Errorf("the finding quotes %q as the line the model renders", row.Generated)
 	}
 	text := report.Text()
-	for _, want := range []string{"show sockets [port <N>]", "show sockets [port <port>]"} {
+	for _, want := range []string{"show sockets [state <STATE>] [port <N>]", "show sockets [port <port>]"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the rendered report does not quote %q:\n%s", want, text)
 		}
@@ -290,5 +290,112 @@ func TestUsageContractIgnoresARetiredCommand(t *testing.T) {
 
 	if len(report.Hidden) != 0 {
 		t.Fatalf("a retired command was reported as a hidden difference: %+v", report.Hidden)
+	}
+}
+
+// valuePositionModule declares the shape the fifteen value-position commands
+// have: the leaf is declared on the LAST container of the path, so the renderer
+// appends it after that keyword while the authored sentence placed it one
+// container earlier. `request interface down` is the real case
+// (internal/component/iface/yang/ze-iface-cmd.yang).
+const valuePositionModule = `
+module ze-fixture-cmd {
+  namespace "urn:ze:fixture:cmd";
+  prefix zefix;
+  import ze-extensions { prefix ze; }
+  container request {
+    config false;
+    description "Request an action.";
+    container interface {
+      config false;
+      description "Act on one interface.";
+      container down {
+        config false;
+        ze:command "ze-iface:interface-down";
+        description "Take the interface down.";
+        leaf name { type string; mandatory true; description "Interface name"; }
+      }
+    }
+  }
+}
+`
+
+// VALIDATES: two usage lines that state the same tokens in the same order fold
+// to one shape, whatever word each one writes inside the angle brackets, and
+// two lines that order their tokens differently do not.
+// PREVENTS: a placeholder test written on the whole bracket group's TEXT, which
+// would call `<level>` and `<disabled|debug|info|warn|err>` different lines and
+// leave `request log level` refused for a difference the owner ruled acceptable.
+func TestUsageShapeFoldsPlaceholders(t *testing.T) {
+	cases := []struct {
+		name      string
+		generated string
+		authored  string
+		same      bool
+	}{
+		{"leaf name against a type word", "resolve ping <target> [source <source>]", "resolve ping <target> [source <ip>]", true},
+		{"enumeration against a type word", "request log level <logger> <disabled|debug|info|warn|err>", "request log level <logger> <level>", true},
+		{"identical lines", "show sockets [port <port>]", "show sockets [port <port>]", true},
+		{"value before the keyword", "request interface down <name>", "request interface <name> down", false},
+		{"a token the model does not state", "show sockets [port <port>]", "show sockets [state <STATE>] [port <N>]", false},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if same := usageShape(tt.generated) == usageShape(tt.authored); same != tt.same {
+				t.Errorf("%q and %q fold to %q and %q, want same=%v",
+					tt.generated, tt.authored, usageShape(tt.generated), usageShape(tt.authored), tt.same)
+			}
+		})
+	}
+}
+
+// VALIDATES: deleting an authored sentence whose generated line differs from it
+// only in the word inside the angle brackets is allowed, and the gate reports
+// nothing for it.
+// PREVENTS: seven sentences standing forever. The model names the LEAF where the
+// prose named a type, so `[count <count>]` against `[count <n>]` states the same
+// grammar; the owner ruled the generated form acceptable on 2026-08-29 and the
+// prose deletable, and a whole-line comparison refuses that deletion.
+func TestUsageContractAllowsDeletingAPlaceholderOnlyLine(t *testing.T) {
+	head := map[string]usageRow{
+		"show sockets": {Path: "show sockets", Authored: "show sockets [port <N>]", Marker: "Usage:"},
+	}
+	report := usageContract(fixtureLoader(t, cleanModule), head)
+
+	if len(report.Hidden) != 0 {
+		t.Fatalf("the gate refused a deletion that differs in placeholder wording alone: %+v", report.Hidden)
+	}
+	if !report.Valid {
+		t.Errorf("the gate failed a tree with no prose and no hidden difference:\n%s", report.Text())
+	}
+}
+
+// VALIDATES: deleting an authored sentence that places the value before the
+// keyword is still refused, because the two lines order their tokens differently.
+// PREVENTS: the placeholder exemption becoming a hole. Fifteen commands differ
+// from their prose in token ORDER, and the owner ruled the AUTHORED spelling
+// correct there: `request interface <name> down` is right and the generated
+// `request interface down <name>` is wrong. An exemption that reached them would
+// delete the only record of the renderer's defect.
+func TestUsageContractRefusesDeletingAValuePositionLine(t *testing.T) {
+	head := map[string]usageRow{
+		"request interface down": {
+			Path: "request interface down", Authored: "request interface <name> down", Marker: "Usage:",
+		},
+	}
+	report := usageContract(fixtureLoader(t, valuePositionModule), head)
+
+	if len(report.Hidden) != 1 {
+		t.Fatalf("the gate found %d hidden differences, want 1: %+v", len(report.Hidden), report.Hidden)
+	}
+	row := report.Hidden[0]
+	if row.Generated != "request interface down <name>" {
+		t.Errorf("the model renders %q, want \"request interface down <name>\"", row.Generated)
+	}
+	if row.Authored != "request interface <name> down" {
+		t.Errorf("the finding quotes %q as the line HEAD carried", row.Authored)
+	}
+	if report.Valid {
+		t.Error("the gate accepted a deletion that hid a value-position difference")
 	}
 }

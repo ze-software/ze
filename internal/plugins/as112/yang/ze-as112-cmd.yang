@@ -43,7 +43,7 @@ module ze-as112-cmd {
                      AS112 answer comes back. Finding M4: the tool a
                      healthcheck probe calls, since dig is not on the gokrazy
                      appliance and 'ze resolve dns' cannot target a specific
-                     server. Usage: request as112 healthcheck [target <ip>].";
+                     server.";
 
                 leaf target {
                     type string;

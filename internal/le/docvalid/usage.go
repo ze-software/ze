@@ -109,7 +109,11 @@ func usageContract(loader *yang.Loader, head map[string]usageRow) usageReport {
 		if !reached {
 			continue
 		}
-		if now == was.Authored {
+		// usageShape rather than the raw line: a difference in placeholder
+		// wording alone is not a difference in grammar, and the owner ruled on
+		// 2026-08-29 that the model's leaf name supersedes the prose's type
+		// word. Every other difference still holds the deletion.
+		if usageShape(now) == usageShape(was.Authored) {
 			continue
 		}
 		report.Hidden = append(report.Hidden, usageRow{
@@ -122,6 +126,44 @@ func usageContract(loader *yang.Loader, head map[string]usageRow) usageReport {
 	sort.Slice(report.Hidden, func(i, j int) bool { return report.Hidden[i].Path < report.Hidden[j].Path })
 	report.Valid = len(report.Prose) == 0 && len(report.Hidden) == 0
 	return report
+}
+
+// usageShape folds every angle-bracket placeholder in a usage line to `<>`, so
+// two lines that state the same tokens in the same order compare equal whatever
+// word each one writes between the brackets.
+//
+// The prose names a TYPE where the model names the LEAF: `[count <n>]` against
+// the generated `[count <count>]`, and `<level>` against the enumeration
+// `<disabled|debug|info|warn|err>`. The owner ruled on 2026-08-29 that the
+// generated form of those seven commands is acceptable and the prose deletable.
+// The fold is over the whole bracket group for that second case: comparing the
+// text inside the brackets would keep `request log level` refused.
+//
+// The fold is blind to the placeholder wording and to nothing else. `request
+// interface <name> down` and `request interface down <name>` order their tokens
+// differently, so they fold to different shapes and the gate still refuses that
+// deletion (plan/spec-generated-command-usage.md, Known Limitations).
+//
+// The loop is bounded by the line: every pass either writes the tail and stops
+// or advances openAt past one whole bracket group, so at strictly increases.
+func usageShape(line string) string {
+	var tb textbuf.Buffer
+	for at := 0; at < len(line); {
+		openAt := strings.IndexByte(line[at:], '<')
+		if openAt < 0 {
+			tb.Str(line[at:])
+			break
+		}
+		tb.Str(line[at : at+openAt])
+		closeAt := strings.IndexByte(line[at+openAt:], '>')
+		if closeAt < 0 {
+			tb.Str(line[at+openAt:])
+			break
+		}
+		tb.Str("<>")
+		at += openAt + closeAt + 1
+	}
+	return tb.String()
 }
 
 // collectUsage walks one node's children in name order, counting the command
