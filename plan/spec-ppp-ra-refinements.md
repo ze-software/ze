@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 2/2 |
-| Updated | 2026-08-29 |
+| Phase | 3/3 |
+| Updated | 2026-08-30 |
 
 ## Post-Compaction Recovery
 
@@ -203,12 +203,12 @@ the LAN feature.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ppp-ra-cease` | `test/plugin/ppp-ra-cease.ci` | teardown withdraws the subscriber default route | NOT written. See Known Limitations |
+| `ppp-ra-cease` | `test/plugin/ppp-ra-cease.ci` | teardown withdraws the subscriber default route | BLOCKED, not written. The shipped daemon cannot reach IPv6CP Opened, so it sends no Router Advertisement for a test to observe. See Known Limitations |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| l2tp-ppp-ipv6-ra-cease | `test/interop-l2tp/scenarios/` | xl2tpd/pppd peer | real client kernel drops the route on cease RA | NOT written. See Known Limitations |
+| l2tp-ppp-ipv6-ra-cease | `test/interop-l2tp/scenarios/` | xl2tpd/pppd peer | real client kernel drops the route on cease RA | BLOCKED, not written. The same daemon blocker applies, and the L2TP lab needs PPPoL2TP in the Docker host kernel. See Known Limitations |
 
 ### Future (if deferring any tests)
 - The functional and interop rows above are open, and the spec stays open with them.
@@ -239,16 +239,23 @@ the LAN feature.
 ### Implementation Phases
 1. **Cease and derivation (done, 2026-08-29)** - teardown ordering confirmed (A-1, A-2), `internal/core/ndp` extraction already landed so `BuildRA` needed no change, cease send and interval derivation implemented with unit tests.
 2. **Send schedule (done, 2026-08-29)** - RFC 4861 Section 6.2.6's random solicited delay, first-solicitation rule and MIN_DELAY_BETWEEN_RAS rate limit, and Section 6.2.4's randomized interval with the initial-advertisement cap. The arithmetic moved to `internal/core/ndp` rather than being written a second time, and the LAN sender in `internal/plugins/iface/ra` now calls it and gained the first-solicitation guard it was also missing.
-3. **Functional and interop proof (not started)** - `test/plugin/ppp-ra-cease.ci` and an IPv6 L2TP interop scenario. See Known Limitations.
+3. **Functional and interop proof (blocked, 2026-08-30)** - `test/plugin/ppp-ra-cease.ci` and an IPv6 L2TP interop scenario. Neither can be written: the shipped daemon never starts the RA sender, because no pool handler accepts an IPv6 address request. See Known Limitations.
 
 ## Mistake Log
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| A PPP session can reach IPv6CP Opened in the shipped daemon, so a functional or an interop test can observe the cease Router Advertisement | `poolPlugin.handle` (`internal/component/l2tp/plugins/pool/register.go`, the `req.Family != ppp.AddressFamilyIPv4` guard) answers every IPv6 address request with `Accept: false`. It is the only `l2tp.RegisterPoolHandler` caller in the tree, so no build answers IPv6 differently. `runNCPPhase` (`internal/component/l2tp/ppp/ncp.go`) reads that decline as `declined`, sets `s.disableIPv6CP`, and leaves `s.ipv6cpState` at Initial, so the `s.ipv6cpState == LCPStateOpened` guard in `afterLCPOpen` (`internal/component/l2tp/ppp/session_run.go`) is never true | phase 3 traced the caller chain backward from `startRASender` while writing the functional test | `startRASender` and `stopRASender` have no reachable production caller. AC-1, AC-2 and AC-9 stay proven by unit tests alone, and the two open test rows cannot be written until the daemon reaches IPv6CP Opened |
 
 ## Known Limitations
 - LAN RA (prefixes, SLAAC) is `plan/spec-router-advertisement.md`; this spec touches only the PPP/BNG sender.
-- **The functional and interop rows of the test plan are NOT discharged, so this spec stays open.** `test/plugin/ppp-ra-cease.ci` needs a live L2TP session with IPv6CP open, which no existing `.ci` test establishes: the `test/plugin/l2tp-*.ci` suite exercises show commands only. `test/interop-l2tp/scenarios/` has four scenarios and every one of them is IPv4 PPP, so proving a real client kernel drops its default route needs a new IPv6 scenario with an IPv6CP-capable pppd. Both are their own work package, and `ai/rules/interop-and-goal-validation.md` requires the interop one for a wire-visible change.
+- **The functional and interop rows of the test plan are BLOCKED, so this spec stays open.** The 2026-08-29 text said only that no existing `.ci` test establishes a session with IPv6CP open. That understated the obstacle. No test can, because the shipped daemon never opens IPv6CP:
+  - `poolPlugin.handle` (`internal/component/l2tp/plugins/pool/register.go`) answers every address request whose family is not IPv4 with `Accept: false` and the reason "IPv6 not supported by static pool". `l2tp.RegisterPoolHandler` has exactly one caller, that same file, so no configuration and no plugin changes the answer.
+  - `runNCPPhase` (`internal/component/l2tp/ppp/ncp.go`) reads the decline, sets `s.disableIPv6CP`, and leaves `s.ipv6cpState` at Initial. `afterLCPOpen` (`internal/component/l2tp/ppp/session_run.go`) calls `startIPv6Service` only under `s.ipv6cpState == LCPStateOpened`, so `startRASender` never runs and no Router Advertisement, initial or final, reaches the wire.
+  - `plan/journal/silent-fall-through.md` (row 2026-08-13) records the same path observed from outside: pppd 2.5.1 retransmitted its IPv6CP Configure-Request nine times and gave up, because Ze had already refused IPv6.
+  - The second half of the same feature is disconnected too, and `plan/spec-radius-subscriber-attributes.md` (limitation L-1) records it: `session_run.go` passes a nil prefix allocator to `startIPv6Service`, and `l2tp.GetPrefixHandler` has no caller, so the DHCPv6-PD server the Managed and Other flags direct the subscriber to cannot delegate a prefix.
+  - The repair is therefore a feature slice rather than a test: accept an IPv6 address request when the operator configured an IPv6 pool, and wire the prefix handler and releaser into `startIPv6Service`. It needs its own acceptance criteria, its own tests and its own interop scenario, so it belongs in its own spec. This spec's two open rows follow it.
+- **A second obstacle sits under the interop row alone, and it is about the machine rather than the code.** `./le deployment docker-l2tp-ppp-test` runs a preflight probe that requires `/dev/ppp`, the `l2tp_ppp` or `pppol2tp` module, and `ip l2tp`. On the 2026-08-30 development machine the Docker host is a colima Linux VM whose module tree carries no L2TP module at all, so the probe reports "host kernel missing PPPoL2TP requirements" and all four existing scenarios refuse to start. A new scenario cannot be proven red under mutation there. The `.ci` row has no such obstacle: `option=needs-linux:caps=net-admin` runs in the QEMU guest, which loads `ppp_generic`, `l2tp_ppp` and `l2tp_netlink` at boot (`internal/le/qemu/run.go`), and `test/l2tp/radius-acct-wire.ci` already reaches a real kernel PPP session with IPCP negotiated there.
 - RFC 4861 is not enrolled and has no `rfc/short/` summary, so no gate holds this behaviour to the RFC. Enrolment is separate work.
 - The initial burst changed shape. It was five advertisements three seconds apart, chosen before MinRtrAdvInterval existed in this code. Section 6.2.6 states that "unsolicited multicast advertisements MUST NOT be sent more frequently than indicated by MinRtrAdvInterval", and Section 6.2.4 carves out only the first MAX_INITIAL_RTR_ADVERTISEMENTS, at MAX_INITIAL_RTR_ADVERT_INTERVAL. Defining MinRtrAdvInterval at 200 s made advertisements four and five of the old burst a violation, so the burst is now the RFC's own: three advertisements, each wait capped at 16 s. A subscriber that misses the first one waits 16 s rather than 3 s, or solicits and is answered inside 3.5 s.
 
