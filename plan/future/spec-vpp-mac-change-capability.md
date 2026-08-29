@@ -161,7 +161,7 @@ interface and which address it concerns.
 |----------|--------|
 | What breaks if this is wrong? | A refusal that is too wide rejects a valid configuration at commit. A refusal that is too narrow leaves today's late failure in place. |
 | How is it reverted? | Single commit revert. No config migration. |
-| Who else touches this path? | `plan/spec-vpp-loopback-mac.md` sends a MAC on the create call; `plan/spec-vpp-numa-smt.md` reads the same DPDK settings. |
+| Who else touches this path? | `plan/spec-vpp-loopback-mac.md` sends a MAC on the create call; `plan/future/spec-vpp-numa-smt.md` reads the same DPDK settings. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -339,7 +339,7 @@ interface and which address it concerns.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/specsession/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

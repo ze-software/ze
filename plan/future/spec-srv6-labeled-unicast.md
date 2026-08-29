@@ -187,7 +187,7 @@ of the RFC scope.
 - [ ] AC-1..AC-3 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated (or N/A confirmed)
@@ -220,4 +220,4 @@ of the RFC scope.
 - [ ] Implementation Audit filled
 - [ ] Write learned summary to `plan/learned/NNN-srv6-labeled-unicast.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
-- [ ] **Commit B:** `git rm plan/spec-srv6-labeled-unicast.md`
+- [ ] **Commit B:** `git rm plan/future/spec-srv6-labeled-unicast.md`

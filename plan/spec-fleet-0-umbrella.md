@@ -93,15 +93,19 @@ spec building on the previous.
 
 ### Child Specs
 
+All seven children moved to `plan/future/` on 2026-08-29: the fleet set is new
+capability, not a defect in the shipped product, so it does not hold the first
+release. This umbrella stays in `plan/`.
+
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|
-| 1 | `spec-fleet-1-device-registry.md` | Hub-side persistent device registry. `show fleet` CLI. Web fleet dashboard. Device metadata (name, config version, health, last-seen, labels). YANG schema for fleet config | - |
-| 2 | `spec-fleet-2-config-templates.md` | Named config templates with variable substitution. Group-based assignment. Template rendering at config-fetch time. YANG schema for templates and groups | fleet-1 |
-| 3 | `spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. CLI and web views. Structured log entries in ZeFS | fleet-1 |
-| 4 | `spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. CLI and web aggregated views | fleet-1 |
-| 5 | `spec-fleet-5-staged-rollout.md` | Percentage-based config push targeting device groups. Rollout state machine (pending, rolling, paused, complete, failed). Automatic pause on ACK failure threshold. CLI rollout commands | fleet-2, fleet-4 |
-| 6 | `spec-fleet-6-config-freeze.md` | Freeze operator config edits (single-writer); hub-side connected-only guard; persisted baseline + reconnect hold (no silent stomp); `ze fleet disable/enable/status` with immediate sever | - |
-| 7 | `spec-fleet-7-config-reconnect-resolution.md` | Resolve a `diverged` device: `config-push` up-verb (existing TLS), commit-style diff (Local=hub, Remote=router), adopt/revert | fleet-6 |
+| 1 | `plan/future/spec-fleet-1-device-registry.md` | Hub-side persistent device registry. `show fleet` CLI. Web fleet dashboard. Device metadata (name, config version, health, last-seen, labels). YANG schema for fleet config | - |
+| 2 | `plan/future/spec-fleet-2-config-templates.md` | Named config templates with variable substitution. Group-based assignment. Template rendering at config-fetch time. YANG schema for templates and groups | fleet-1 |
+| 3 | `plan/future/spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. CLI and web views. Structured log entries in ZeFS | fleet-1 |
+| 4 | `plan/future/spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. CLI and web aggregated views | fleet-1 |
+| 5 | `plan/future/spec-fleet-5-staged-rollout.md` | Percentage-based config push targeting device groups. Rollout state machine (pending, rolling, paused, complete, failed). Automatic pause on ACK failure threshold. CLI rollout commands | fleet-2, fleet-4 |
+| 6 | `plan/future/spec-fleet-6-config-freeze.md` | Freeze operator config edits (single-writer); hub-side connected-only guard; persisted baseline + reconnect hold (no silent stomp); `ze fleet disable/enable/status` with immediate sever | - |
+| 7 | `plan/future/spec-fleet-7-config-reconnect-resolution.md` | Resolve a `diverged` device: `config-push` up-verb (existing TLS), commit-style diff (Local=hub, Remote=router), adopt/revert | fleet-6 |
 
 Phases 2, 3, and 4 are independent of each other (all depend only on fleet-1) and can proceed in parallel. Phase 5 depends on templates (for group targeting) and health reporting (for rollout health gates). Phases 6 and 7 are the direction update below: 6 (freeze, persisted baseline, safe reconnect hold) depends on nothing new and is safe to land first; 7 (diverged-config resolution) depends on 6 and surfaces through the fleet-1 dashboard.
 
@@ -185,6 +189,8 @@ frame bound (`pkg/plugin/rpc/framing.go`, enforced at write time in conn.go).
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/hub-architecture.md` - the standalone orchestrator in `internal/component/hub/`
+- [ ] `docs/architecture/web-workbench-pages.md` - the workbench shell and its reusable domain-page components
 - [ ] `docs/architecture/fleet-config.md` -- existing fleet config architecture (all 17 ACs implemented)
   -> Decision: extend hub, not new server. Config-as-identity. Two-phase config change
   -> Constraint: preserve existing protocol and architecture
@@ -436,7 +442,7 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-8 all demonstrated across child specs
 - [ ] Wiring Test table complete
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Architecture docs updated
 

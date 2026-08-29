@@ -19,7 +19,7 @@
 Deferral holder. Provenance: `spec-vrrp-6-interop` (Known Limitations), recorded
 2026-07-15 in `plan/deferrals.md` row 70. The named destination
 (`plan/spec-vrrp-0-umbrella.md`) was closed and removed, so this file is the
-work's home. The surviving `plan/spec-vrrp-7-vpp.md` covers the VPP dataplane
+work's home. The surviving `plan/future/spec-vrrp-7-vpp.md` covers the VPP dataplane
 only and does not own this topic.
 
 Two pieces of deferred work, verified against the producing code on 2026-07-16:
@@ -272,7 +272,7 @@ Stage mapping follows `plan/TEMPLATE.md` unchanged.
 
 ## Known Limitations
 - Skeleton: no design done. Filter mechanism, tracking config shape, and whether the two halves split into separate specs are all open.
-- Linux only in scope. The VPP dataplane path belongs to `plan/spec-vrrp-7-vpp.md`, whose R-1 already names accept-mode as a divergence risk.
+- Linux only in scope. The VPP dataplane path belongs to `plan/future/spec-vrrp-7-vpp.md`, whose R-1 already names accept-mode as a divergence risk.
 
 ## RFC Documentation
 
@@ -286,7 +286,7 @@ R014/R030/R031 rows in the `rfc/short/rfc9568.md` checklist.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete, every row a concrete test
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/plugins/vrrp/`)
 - [ ] Documentation Update Checklist answered with source evidence
 

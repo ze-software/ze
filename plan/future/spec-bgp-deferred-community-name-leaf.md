@@ -244,7 +244,7 @@ added, so no new RFC constraint comments are expected beyond what
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row has a concrete test name
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Registration over hardcoding verified
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

@@ -30,7 +30,7 @@ Ze's native IKEv2 has no Post-quantum Preshared Key (PPK) support (RFC 8784,
 out-of-band shared secret, selected by a PPK_ID, into the SK_d / SK_pi / SK_pr
 key material so a future quantum adversary who breaks the (classical) DH exchange
 still cannot derive session keys. It is complementary to, and independent of,
-post-quantum key exchange (that separate track is `spec-ike-post-quantum.md`).
+post-quantum key exchange (that separate track is `plan/future/spec-ike-post-quantum.md`).
 
 Add RFC 8784 PPK:
 - Negotiate PPK use via the USE_PPK notification in IKE_SA_INIT.
@@ -42,6 +42,10 @@ Add RFC 8784 PPK:
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ike/ipsec-3-data-model.md` - the typed model between the YANG schema and the IKE engine
+- [ ] `docs/architecture/ike/ipsec-6-ikev2-crypto.md` - the pure-Go IKEv2 primitives layer, with no network input or output and no state
+- [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - the native IKEv2 state machine above the wire codec and the crypto layer
+- [ ] `docs/architecture/wire/buffer-writer.md` - the fixed session buffer and writer interface that replaces `append()`
 - [ ] `internal/component/ike/` - IKE component structure and engine flow.
   → Constraint: Ze's IKEv2 is a native implementation; PPK must be built on the wire/crypto/engine layers, not delegated.
 - [ ] `ai/rules/config.md`, `ai/rules/config.md` - the new PPK config.
@@ -289,7 +293,7 @@ Add RFC 8784 PPK:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

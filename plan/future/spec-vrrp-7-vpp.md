@@ -119,7 +119,7 @@ Open research questions for the design phase (all currently unverified):
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | VPP VRRP semantics diverge from ze's kernel-path behavior (timers, accept-mode), splitting operator experience per dataplane | Conformance audit table shows divergent rows | Exact-or-reject per leaf; document divergences in docs/guide/vrrp.md |
-| R-2 | Skeleton rots: nobody picks this up and the verify-rejection quietly becomes permanent | spec-status shows this skeleton unclaimed while vrrp ships | Umbrella Known Limitations names this spec; `./le spec-status` keeps it visible |
+| R-2 | Skeleton rots: nobody picks this up and the verify-rejection quietly becomes permanent | spec-status shows this skeleton unclaimed while vrrp ships | Umbrella Known Limitations names this spec; `./le spec status` keeps it visible |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -394,7 +394,7 @@ enforcement (e.g. parity validators).
 - [ ] AC-1..AC-3 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered with source evidence
 

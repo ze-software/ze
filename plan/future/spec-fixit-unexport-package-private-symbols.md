@@ -23,7 +23,7 @@ effect. Every change is a rename, so no behaviour moves.
 `./le repository check` reports 467 findings of the form `exported symbol X has no
 cross-package non-test caller`. They are true: each names a symbol that is
 exported but reached only from inside its own package. `check_cross_package_wiring`
-in `internal/le/docwiring/checks.go` already suppresses the known false-positive shapes
+in `internal/le/doc/wiring/checks.go` already suppresses the known false-positive shapes
 (`*ForTest`, a type reached through its constants or as a struct field, a method
 on an unexported receiver reached by interface dispatch), so what remains is a
 real backlog of over-exported API surface.
@@ -63,7 +63,7 @@ That symbol is skipped. No edit, no decision.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/le/docwiring/checks.go` - `check_cross_package_wiring()` produces the findings, `_has_cross_pkg_ref()` decides "wired"
+- [ ] `internal/le/doc/wiring/checks.go` - `check_cross_package_wiring()` produces the findings, `_has_cross_pkg_ref()` decides "wired"
 - [ ] `internal/le/` native action tables - `ZE_FEATURES` at line 87 and the tag sets at 239, 243, 262
 
 **Behavior to preserve:**
@@ -89,7 +89,7 @@ That symbol is skipped. No edit, no decision.
 | darwin build view ↔ linux build view | `GOOS=linux go vet` after the rename | No |
 
 ### Integration Points
-- `internal/le/docwiring/checks.go` `check_cross_package_wiring()` - the same check verifies the fix
+- `internal/le/doc/wiring/checks.go` `check_cross_package_wiring()` - the same check verifies the fix
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -208,7 +208,7 @@ touch, and paste its result in the per-package commit.
 
 ### Step 0: build the worklist, once
 
-`check_cross_package_wiring()` in `internal/le/docwiring/checks.go` reads only the files
+`check_cross_package_wiring()` in `internal/le/doc/wiring/checks.go` reads only the files
 named by `--changed-file`, which defaults to `changed_files(root)` (the git
 diff). A bare `./le repository check` on a clean tree therefore reports nothing, and
 it is not the way to get the worklist. Name every non-test Go file under
@@ -222,7 +222,7 @@ find internal cmd -name '*.go' ! -name '*_test.go' | sort > tmp/unexport-chunks/
 split -n l/12 tmp/unexport-chunks/gofiles.txt tmp/unexport-chunks/c
 for c in tmp/unexport-chunks/c*; do
   sed 's/^/--changed-file /' "$c" > "$c.args"
-  ( xargs ./le verify-lint rundocwiring/checks.go --root . < "$c.args" > "$c.log" 2>&1 ) &
+  ( xargs ./le verify lint rundocwiring/checks.go --root . < "$c.args" > "$c.log" 2>&1 ) &
 done
 wait
 
@@ -293,7 +293,7 @@ Never run a bare `go build`: a hook refuses it unless it writes to `bin/`.
 ### Step 5: confirm the findings are gone
 
 ```
-./le verify-lint rundocwiring/checks.go --root . --changed-file <each file you renamed in>
+./le verify lint rundocwiring/checks.go --root . --changed-file <each file you renamed in>
 ```
 
 ### Step 6: commit that package
@@ -397,7 +397,7 @@ it.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/specsession/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Journal row for anything this teaches
 - [ ] **Commit A:** code + spec + journal row
 - [ ] **Commit B:** `git rm plan/future/spec-fixit-unexport-package-private-symbols.md` only

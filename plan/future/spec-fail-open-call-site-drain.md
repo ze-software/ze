@@ -16,14 +16,14 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Drive the 171 test-harness call sites that read a fail-open return value without
 testing it down to zero.
 
-`docker_exec_quiet` (`test/interop/interop.py`) answers `""` on ANY non-zero
+`docker_exec_quiet` (`test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) answers `""` on ANY non-zero
 exit. A caller that reads that answer and never tests it for emptiness turns a
 FAILED command into a passing assertion over nothing. `"DIS" in ""` is False, so
 the scenario reports a green it never measured.
 
 **The risk is already capped, which is why this is separable.**
-`internal/le/docwiring/delegate.go` derives the fail-open set to a fixpoint and
-refuses the next new call site. The floor in `test/health/docker-exec-baseline.json`
+`internal/le/doc/wiring/delegate.go` derives the fail-open set to a fixpoint and
+refuses the next new call site. The floor in `test/health/docker-exec-baseline.json` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->
 goes DOWN only, so the count cannot grow. `./le functional docker-exec-check` is the
 gate, and `TestRepoRatchet` re-runs it under `./le test-unit`.
 

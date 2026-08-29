@@ -63,7 +63,7 @@ is what removes the class.
 | Input | every spec under `plan/` and `plan/future/` |
 | Status test | a spec whose Status is `ready` or `skeleton` while a file it names carries a commit newer than `Updated`. No phrase list, and no judgement about the claim's meaning |
 | Claim detection | one reviewable phrase list, held in one place |
-| Citation extraction | reuse what `internal/le/speccitation/speccitation.go` parses |
+| Citation extraction | reuse what `internal/le/spec/citation/speccitation.go` parses |
 | Staleness test | `git log -1 --format=%cI -- <cited path>` against `Updated` |
 | Output | one row per spec: the claim, the phrase, the paths that moved |
 | Severity | report only, exit 0 |

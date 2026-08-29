@@ -42,7 +42,7 @@ SetResponse extension mechanism where it fits. No new custom proto.
   → Constraint: rollback-to-transaction must reuse the commit path, not write files directly
 - [ ] `ai/rules/cli.md` - keywords before values for new CLI verbs
   → Constraint: (fill during design)
-- [ ] `plan/spec-fleet-3-audit-trail.md` - hub-side audit trail spec; overlap check
+- [ ] `plan/future/spec-fleet-3-audit-trail.md` - hub-side audit trail spec; overlap check
   → Decision: (fill during design -- transaction records are the device-local half of an audit story)
 
 ### RFC Summaries (MUST for protocol work)
@@ -264,7 +264,7 @@ SetResponse extension mechanism where it fits. No new custom proto.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 
 ### TDD
 - [ ] Tests written

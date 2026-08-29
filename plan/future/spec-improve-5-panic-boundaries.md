@@ -262,7 +262,7 @@ sent from the recover path (see Required Reading constraint).
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 
 ### TDD
 - [ ] Tests written

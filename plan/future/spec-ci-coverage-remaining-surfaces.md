@@ -123,7 +123,7 @@ reader inherits the question instead of re-deriving it.
 twelve live rows in nine other shards named it as their Destination. Commit B of
 its closure removes the file, which would leave every one of them pointing at
 nothing. No gate would have caught it: the FAIL pass of
-`internal/le/speccitation/speccitation.go` globs `plan/spec-*.md` and never reads
+`internal/le/spec/citation/speccitation.go` globs `plan/spec-*.md` and never reads
 `plan/deferrals/`.
 
 Each row's Destination cell now names this spec. Each row stays `deferred` and
@@ -135,7 +135,7 @@ undesigned, which is the state it was already in. Only its home changed.
 | `plan/deferrals/test-coverage-gaps.md` | 2026-07-10 AC-3 (`ipsec-dpd-timeout.ci`, deleted) | needs a runner primitive to stop a background daemon mid-test |
 | `plan/deferrals/test-coverage-gaps.md` | 2026-07-10 AC-3 (`ipsec-monitor.ci`, deleted) | `monitor vpn ipsec` streaming, blocked on the bgp-locked startup subscription |
 | `plan/deferrals/fixit-plugin-event-subscription.md` | 2026-07-19 | functional `.ci` for the SDK-fork end-to-end path |
-| `plan/deferrals/fixit-perf-alloc-ci-gate.md` | 2026-07-19 | full the retired `ze-alloc-check` (current: `./le verify-deps alloc`) run, needs a bench log |
+| `plan/deferrals/fixit-perf-alloc-ci-gate.md` | 2026-07-19 | full the retired `ze-alloc-check` (current: `./le verify deps alloc`) run, needs a bench log |
 | `plan/deferrals/fixit-fuzz-target-discovery.md` | 2026-07-19 | bounded `ze-fuzz-test` mutation run over the newly-enabled IS-IS / OSPF targets |
 | `plan/deferrals/fixit-agent-tooling-misleads.md` | 2026-07-19 | functional proof beyond the corrected gates (the row's own What cell says "none") |
 | `plan/deferrals/fixit-runner-kill-background.md` | 2026-07-19 | `stop-background.ci` live run |

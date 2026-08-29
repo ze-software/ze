@@ -315,7 +315,7 @@ Note: this is collector-interop (the peer is a flow collector, not a routing dae
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Fix issues | Fix every issue |
 | 9. Re-verify | Re-run stage 6 |
@@ -556,7 +556,7 @@ Specific constraints to document in code:
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated
@@ -590,4 +590,4 @@ Specific constraints to document in code:
 - [ ] Implementation Audit filled
 - [ ] Write learned summary to `plan/learned/NNN-flow-export-3-sampled-scale.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
-- [ ] **Commit B:** `git rm plan/spec-flow-export-3-sampled-scale.md`
+- [ ] **Commit B:** `git rm plan/future/spec-flow-export-3-sampled-scale.md`

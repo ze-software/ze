@@ -64,7 +64,7 @@ as the rest of the lab. Only the anchor changed.
 The reasoning is already recorded at the two sites that carry the workaround, in detail, and
 this spec does not restate it:
 
-- `test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh` -- the header comment states the
+- `test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> -- the header comment states the
   single load-bearing difference and why it is a property of the peer, not of Ze.
 - `test/interop-ipsec/scenarios/eap-tls13/strongswan.conf` -- the header comment carries
   the measurement of 2026-08-01: with the shared EC CA charon logged `sending TLS cert
@@ -153,7 +153,7 @@ failure into a working handshake with no CA hint, which is a correct TLS 1.3 exc
 
 **Source files read on 2026-08-02:**
 
-- [ ] `test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh` - generates a scenario-local
+- [ ] `test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - generates a scenario-local
   PKI whose CA key is RSA; the header comment states why, and the leaf keys stay `prime256v1`
 - [ ] `test/interop-ipsec/Dockerfile.strongswan` - the peer is the Alpine 3.21 distribution
   `strongswan` package, run as `charon` in the foreground
@@ -164,7 +164,7 @@ keeps exercising the lab's signature algorithms. The two header comments must no
 while the workaround stands.
 
 **Behavior to change:** none in Ze, until upstream ships a fix. Then the scenario-local PKI
-is deleted and the scenario returns to the shared `test/interop-ipsec/pki/gen-pki.sh`.
+is deleted and the scenario returns to the shared `test/interop-ipsec/pki/gen-pki.sh` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -225,7 +225,7 @@ A TLS 1.3 `CertificateRequest` arriving at Ze's EAP-TLS client from charon, insi
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| charon sends a TLS 1.3 `CertificateRequest` | → | Ze's EAP-TLS client completes the handshake | `test/interop-ipsec/scenarios/eap-tls13/check.py`, which asserts charon's `sending TLS cert request` line and an ESTABLISHED SA |
+| charon sends a TLS 1.3 `CertificateRequest` | → | Ze's EAP-TLS client completes the handshake | `test/interop-ipsec/scenarios/eap-tls13/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, which asserts charon's `sending TLS cert request` line and an ESTABLISHED SA |
 
 ## Acceptance Criteria
 
@@ -252,7 +252,7 @@ the workaround has a stated end, not so this spec waits on it.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `eap-tls13` | `test/interop-ipsec/scenarios/eap-tls13/check.py` | An EAP-TLS session over TLS 1.3 against a stock strongSwan reaches ESTABLISHED | passing today, via the workaround |
+| `eap-tls13` | `test/interop-ipsec/scenarios/eap-tls13/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | An EAP-TLS session over TLS 1.3 against a stock strongSwan reaches ESTABLISHED | passing today, via the workaround |
 
 No `.ci` is owed. This spec changes no daemon code: the whole surface is one scenario's PKI,
 two header comments, and two upstream reports. `check.py` is the driving surface.
@@ -270,7 +270,7 @@ does not touch.
 
 | File | Change |
 |------|--------|
-| `test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh` | Add this spec's path to the header comment, so the workaround points at the upstream report |
+| `test/interop-ipsec/scenarios/eap-tls13/pki/gen-pki.sh` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | Add this spec's path to the header comment, so the workaround points at the upstream report |
 | `test/interop-ipsec/scenarios/eap-tls13/strongswan.conf` | Same |
 
 The Ze EAP-TLS transport is read at design time to confirm A-3 (that no Ze code parses the

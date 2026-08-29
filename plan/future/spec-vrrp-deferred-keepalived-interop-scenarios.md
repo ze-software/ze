@@ -19,7 +19,7 @@
 Deferral holder. Provenance: `spec-vrrp-0-umbrella` (Goal Validation AC-3),
 recorded 2026-07-16 in `plan/deferrals.md` row 72. The umbrella was closed and
 removed, so this file is the work's home. The surviving
-`plan/spec-vrrp-7-vpp.md` covers the VPP dataplane only; its interop row is
+`plan/future/spec-vrrp-7-vpp.md` covers the VPP dataplane only; its interop row is
 about the VPP path, not these kernel-path scenarios.
 
 The keepalived interop lab `internal/le/qemu/vrrp_keepalived_linux.go`
@@ -243,7 +243,7 @@ rows in `docs/features/rfc-status.md` with the new interop evidence.
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete, every row a concrete scenario name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] `./le qemu vrrp-keepalived-test` passes with QS-1..QS-3, QS-5 and QS-6
 - [ ] Feature code integrated (`internal/le/qemu/vrrp_keepalived_linux.go`, `internal/le/integration/gates.go`)
 - [ ] Documentation Update Checklist answered with source evidence

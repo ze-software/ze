@@ -272,7 +272,7 @@ short summary with the `ze-rfc` skill before quoting it.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`), not just tests
 - [ ] Registration over hardcoding respected
 - [ ] Interop tests pass (or justified N/A)

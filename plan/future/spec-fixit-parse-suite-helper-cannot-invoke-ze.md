@@ -195,7 +195,7 @@ no wire behavior.
    entire
    - Verify: AC-3, AC-4
 5. **Phase: Close the deferral row and the doc**
-   - Verify: AC-5, `./le doc-check verify`
+   - Verify: AC-5, `./le doc check verify`
 
 ## Checklist
 
@@ -212,7 +212,7 @@ no wire behavior.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/specsession/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] **Commit A:** code + tests + spec
 - [ ] **Commit B:** `git rm plan/<spec>` only
 

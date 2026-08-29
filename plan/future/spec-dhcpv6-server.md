@@ -39,7 +39,7 @@ This skeleton exists so the gap is tracked; it is NOT ready to implement.
 
 Cross-reference (2026-07-10): the v6 options sub-feature should adopt the same
 per-pool option config shape (code, encoding ascii|hex, value, plus a denylist of
-auto-emitted codes) being designed for DHCPv4 in `plan/spec-dhcp-pool-options.md`,
+auto-emitted codes) being designed for DHCPv4 in `plan/future/spec-dhcp-pool-options.md`,
 so the two servers present one consistent operator surface.
 
 ## Required Reading
@@ -223,7 +223,7 @@ so the two servers present one consistent operator surface.
 
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed and approved before implementation
-- [ ] `./le verify current mode full` passes (after implementation)
+- [ ] `./le verify worktree` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 
 ### Quality Gates (SHOULD pass)

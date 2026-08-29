@@ -113,6 +113,14 @@ those two rows true rather than changing them.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - ESP Child SA creation after IKE_AUTH, and the dataplane abstraction
+- [ ] `docs/architecture/l2tp/bng-1-radius-attributes.md` - the RADIUS subscriber-profile attributes a broadband network gateway provisions from
+- [ ] `docs/architecture/l2tp/bng-5-pppoe.md` - the PPPoE access concentrator, an alternative to L2TP for direct-attach subscribers
+- [ ] `docs/architecture/testing/interop.md` - live session interop against production daemons, and byte-level ExaBGP comparison
+- [ ] `docs/features/ai-first.md` - register once, expose everywhere: one command and discovery surface
+- [ ] `docs/guide/l2tp.md` - the native L2TPv2 (RFC 2661) LNS/LAC subsystem
+- [ ] `docs/research/l2tpv2-ze-integration.md` - the L2TPv2 integration design, companion to the protocol spec guide
+- [ ] `docs/research/vpp-deployment-reference.md` - the VPP deployment reference drawn from 83 ipng.ch articles
 - [ ] `docs/architecture/l2tp/subscriber-session-model.md` - the design record of the work that created the subscriber namespace and the bridge
   → Decision: the bridge re-emits one-directionally, `l2tpevents` to `subevents`, for L2TP only. A consumer migrated to `subevents` therefore keeps working for L2TP and gains PPPoE, so consumers migrate one at a time with no flag day.
   → Constraint: handler registries delegate (`l2tp.Register*` forwards to `subscriber.Register*`); event subscriptions do not. Never assume a working handler implies a working subscription.
@@ -176,7 +184,7 @@ those two rows true rather than changing them.
 - [ ] `internal/component/vpp/config.go` - `parsePollSleepMs` accepts whole milliseconds only
 - [ ] `internal/component/doctor/checks_linux.go` - `checkVPPVersion` checks for a literal substring, not a version range
 - [ ] `pkg/ze/eventbus.go` - the `Emit` contract: the returned count excludes in-process subscribers
-- [ ] `internal/le/docwiring/wiring.go` - `check_wiring` is the existing symbol-versus-reference checker I-1 extends
+- [ ] `internal/le/doc/wiring/wiring.go` - `check_wiring` is the existing symbol-versus-reference checker I-1 extends
 - [ ] `internal/component/l2tp/ppp/echo_test.go` - the negative control that documents the re-entry side effects
 - [ ] `internal/component/l2tp/plugins/authradius/acct_test.go` - `startAcctServer` and `acctCapture` provide a real fake accounting server
 
@@ -241,7 +249,7 @@ Three independent entry points converge on the same downstream consumers.
 ### Integration Points
 - `subscriber.DefaultRegistry` - the single registry both transports write; the migration must not change its API.
 - `subscriber/handler_registry.go` - where a transport-generic disconnect handler joins the existing pool, auth and shaper handlers for I-4.
-- `internal/le/docwiring/wiring.go` `check_wiring` - the existing checker I-1 extends with an emit-versus-subscribe predicate, reached through the `wiring` target of `./le repository check`.
+- `internal/le/doc/wiring/wiring.go` `check_wiring` - the existing checker I-1 extends with an emit-versus-subscribe predicate, reached through the `wiring` target of `./le repository check`.
 - `internal/core/events` `AllEventTypes` - the declared-topic inventory the I-1 guard reads.
 
 ### Architectural Verification
@@ -282,7 +290,7 @@ Three independent entry points converge on the same downstream consumers.
 |----------|--------|
 | What breaks if this is wrong? | Subscriber sessions on both transports: addresses leak from the pool, accounting records double or vanish, shaping and CoS stop applying, and RADIUS-imposed session limits stop being enforced. IKE and NetFlow changes are observability-only |
 | How is it reverted? | Phase by phase. The consumer migration is revertible per consumer because the bridge keeps feeding both namespaces. The topic split is one commit. The metadata re-key is not independently revertible once consumers depend on the new key |
-| Who else touches this path? | `plan/spec-finish-l2tp.md` (its L42 renegotiation-test gap is closed by this spec; its L41 row is already stale and should be corrected), `plan/spec-radius-acct-timewheel.md` (same `interimLoop`, so land this first), `docs/architecture/traffic/cos-dynamic.md` |
+| Who else touches this path? | `plan/spec-finish-l2tp.md` (its L42 renegotiation-test gap is closed by this spec; its L41 row is already stale and should be corrected), `plan/future/spec-radius-acct-timewheel.md` (same `interimLoop`, so land this first), `docs/architecture/traffic/cos-dynamic.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -409,7 +417,7 @@ tests instead.
 - `internal/component/vpp/config.go`, `internal/component/vpp/yang/ze-vpp-conf.yang` - accept sub-millisecond poll-sleep
 - `internal/component/doctor/checks_linux.go` - implement the version-range check
 - `internal/le/deployment/vppevidence.go`, `internal/le/deployment/vppiface.go` - pin the VPP image
-- `internal/le/docwiring/wiring.go` - add the emit-versus-subscribe predicate
+- `internal/le/doc/wiring/wiring.go` - add the emit-versus-subscribe predicate
 - `ai/rules/interop-and-goal-validation.md` - add the contention vacuity-trap row
 - `ai/rules/architecture.md` - add the fresh-versus-restore trigger row
 - `rfc/short/rfc2865.md`, `rfc/short/rfc2866.md`, `rfc/short/rfc3954.md`, `rfc/short/rfc5176.md` - extract the missing obligations
@@ -501,7 +509,7 @@ tests instead.
    - Verify: existing whole-millisecond configs produce byte-identical startup.conf (A-5)
 10. **Phase: Guards and rules** - the emit-versus-subscribe predicate and the two rule rows
    - Tests: `test_emit_without_subscribe_is_reported`
-   - Files: `internal/le/docwiring/wiring.go`, `ai/rules/interop-and-goal-validation.md`, `ai/rules/architecture.md`
+   - Files: `internal/le/doc/wiring/wiring.go`, `ai/rules/interop-and-goal-validation.md`, `ai/rules/architecture.md`
    - Verify: the predicate reports the pre-fix state of this very spec's topics when run against the parent commit
 11. **Phase: RFC extraction and ledger** - add the missing obligations with their proofs, in the same phase as the tests that prove them
    - Tests: tagged positive and negative pairs for each new requirement id
@@ -570,7 +578,7 @@ tests instead.
 
 ## Review Gate
 
-Filled at implementation time by `/ze-review`, recorded via `internal/le/speclifecycle/review.go`. Do not delete.
+Filled at implementation time by `/ze-review`, recorded via `internal/le/spec/session/review.go`. Do not delete.
 
 | Run | Date | BLOCKER | ISSUE | Notes |
 |-----|------|---------|-------|-------|
@@ -587,7 +595,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-19 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] `./le rfc check` passes with the four summaries extended
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered with evidence
@@ -607,7 +615,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-lifecycle-invariants.md` only

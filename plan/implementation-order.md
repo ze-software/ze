@@ -3,10 +3,10 @@
 Authored 2026-07-10 (followup-wave impact review session; user-requested queue).
 This is the execution queue for `plan/`. To work from it, ask: "implement the next
 item in plan/implementation-order.md" (optionally naming a track). Sessions still
-claim specs individually via `internal/le/specsession/session.go claim`.
+claim specs individually via `internal/le/spec/session/session.go claim`.
 
 Maintenance: when a spec closes, strike its row (append-only style, `~~row~~ closed
-NNN`) and re-check the Blocked ledger. Re-derive from `./le spec-status` if this
+NNN`) and re-check the Blocked ledger. Re-derive from `./le spec status` if this
 file and reality diverge -- reality wins.
 
 Followup specs (`spec-followup-*`) are excluded: they are in flight in their own
@@ -69,7 +69,7 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 |-------|------|--------|
 | B1 | spec-bgp-bfd-strict | design |
 | B2 | spec-bgp-update-delay | design |
-| B3 | spec-gr-advanced | skeleton -> design next (hard-reset RFC 8538 + selection-deferral) |
+| B3 | spec-gr-advanced | moved to `plan/future/` 2026-08-29 (hard-reset RFC 8538 + selection-deferral; ze advertises no N-bit today, so this is a feature) |
 | B4 | spec-pol-0-umbrella | ready (big: structured policy language) |
 | B5 | spec-rib-arch-0..8 set | skeleton set -> design pipeline (architectural; gate for reactor-split, rename-2/3) |
 
@@ -80,7 +80,7 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 | C2 | spec-ipsec-12-esn | ready (use vendored binapi/ipsec per 2026-07-10 note) |
 | C3 | spec-ike-ppk | design |
 | C4 | spec-ipsec-11-mobike | design |
-| C5 | spec-ike-post-quantum | skeleton -> design |
+| C5 | spec-ike-post-quantum | moved to `plan/future/` 2026-08-29 |
 
 ### Track D -- Routing protocols (non-BGP)
 | Order | Spec | Status |
@@ -101,8 +101,8 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 | E5 | spec-router-advertisement | ready (2026-07-10): send-side RA |
 | E6 | spec-install-9-cloud-init | design (RESEARCH phase noted) |
 | E7 | spec-kernel-lockdown-hardening | design (explicitly not scheduled; park until asked) |
-| E8 | spec-ntp-server, spec-dhcpv6-server | skeletons -> design |
-| E9 | spec-managed-server-hardening + fleet set (1 -> 2,3,4 -> 5; 6 -> 7) | skeletons -> design |
+| E8 | spec-ntp-server, spec-dhcpv6-server | both moved to `plan/future/` 2026-08-29 |
+| E9 | spec-managed-server-hardening + fleet set (1 -> 2,3,4 -> 5; 6 -> 7) | fleet-1..7 moved to `plan/future/` 2026-08-29; spec-managed-server-hardening stays in `plan/` |
 
 ### Track F -- CLI/web surface
 | Order | Spec | Status |
@@ -117,7 +117,7 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 | G1 | spec-anomaly-3-observe | ready |
 | G2 | spec-anomaly-5-entity-matrix + spec-anomaly-6-as-enrichment | ready (parallel to each other) |
 | G3 | spec-anomaly-7-as-entities-cohorts | ready once 5+6 land |
-| G4 | spec-flow-export-3-sampled-scale | skeleton -> design |
+| G4 | spec-flow-export-3-sampled-scale | moved to `plan/future/` 2026-08-29 |
 | G5 | spec-anomaly-0-umbrella / spec-cp-survival-0-umbrella | umbrella coordination + closure hygiene |
 
 ### Track H -- In-flight completions (resume before anything new in their areas)
@@ -141,7 +141,7 @@ Within a track: top to bottom. Across tracks: fully parallel (disjoint file sets
 | spec-fib-depth-4-srv6 | spec-fib-depth completion + bgp-nlri-srv6 | fib-depth closes |
 | spec-rename-2-bgp-packet | rib-arch set | rib-arch-0 designed |
 | spec-rename-3-wireu-fold | rename-2 | rename-2 closes |
-| spec-reactor-split | rib-arch set | rib-arch-0 designed |
+| spec-reactor-split | rib-arch set | moved to `plan/future/` 2026-08-29; still gated on rib-arch-0 when it returns |
 | spec-review-bus-async-fanout | spec-unify-buffer-lifetime ordering note | before scheduling |
 | spec-anomaly-7 | anomaly-5 + anomaly-6 | both close |
 
@@ -163,7 +163,7 @@ with spec-followup-l2tp-call and spec-finish-l2tp (H8): coordinate before starti
 - New verify gates apply to every spec: ze-platform-vet (host/iface trees compile
   under darwin+freebsd), ./le port-defaults check (YANG port defaults vs Go table),
   ze-iface-resolution-check (no direct kernel name resolution).
-- A NEW gate must be added to `stagesForMode` in `internal/le/verifyengine/run.go`
+- A NEW gate must be added to `stagesForMode` in `internal/le/verify/engine/run.go`
   (both branches); the the native action tables under `internal/le/` `_ze-verify-impl` list is documented dead code
   (`internal/le/` native action tables comment).
 - Anything writing over pkg/plugin/rpc inherits the 30s write-deadline/watchdog.

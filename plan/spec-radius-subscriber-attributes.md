@@ -328,7 +328,7 @@ implemented, with the value location for each:
 | Acct-Delay-Time (41) | out of scope | would have to be recomputed per retransmission, and `radius.Client` re-sends a pre-encoded buffer, so the value cannot be updated without changing the client |
 | Acct-Terminate-Cause (49) | out of scope | `ppp.EventSessionDown.Reason` is human-readable and its consumers are told not to parse it; `SessionDownPayload` has no cause field, so there is no enum to map |
 
-**L-5. Interim-update scheduling** stays out of scope: `plan/spec-radius-acct-timewheel.md`.
+**L-5. Interim-update scheduling** stays out of scope: `plan/future/spec-radius-acct-timewheel.md`.
 
 **L-6. `test/interop-pppoe/Dockerfile.ze` has the same untagged-build defect** the
 L2TP lab had (see Mistake Log). It was not changed here because no run in this
@@ -364,7 +364,7 @@ session could verify a pppoe lab fix.
 | One session yields one port identity | interop run: `Accounting-Start carries the same NAS-Port-Id` |
 | The gated path proves the wire, not only the Docker lab | `test/l2tp/radius-acct-wire.ci` PASSes in QEMU (`ze-qemu-debug`, suite id 10) and SKIPs on the unprivileged host; the ledger binds it to `RFC2866-4.1-1` as functional/verify evidence |
 | The tests would fail if the code were removed | nine unit mutations each turned the owning tests red: drop attr 8; report the NAS address instead; accept a non-IPv4 value; drop attr 87 from accounting; drop attr 87 from auth; drop the format validation; resolve the session's NAS-Port-Id from empty facts; take the session address from the wrong payload field; make the nas-identifier guard never fire. Two interop mutations each turned the scenario red, and two `.ci` mutations (remove the YANG leaf, stop validating) each turned the owning `.ci` red |
-| Nothing regressed | `go test -race ./...` green for `./internal/component/radius`, `./internal/component/l2tp/plugins/authradius` and `./internal/component/l2tp`; `./le changed scope` 0 issues; `./le cli-grammar` and `./le yang-glue check` OK |
+| Nothing regressed | `go test -race ./...` green for `./internal/component/radius`, `./internal/component/l2tp/plugins/authradius` and `./internal/component/l2tp`; `./le changed scope` 0 issues; `./le cli-grammar` and `./le yang glue check` OK |
 
 ## Review Gate
 
@@ -404,7 +404,7 @@ session could verify a pppoe lab fix.
 
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed and approved before implementation
-- [ ] `./le verify current mode full` passes (after implementation)
+- [ ] `./le verify worktree` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 
 ### Quality Gates (SHOULD pass)

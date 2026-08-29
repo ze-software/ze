@@ -17,14 +17,14 @@
 1. This spec file.
 2. `.claude/rules/planning.md` -- workflow rules; `ai/rules/interop-and-goal-validation.md`.
 3. `plan/learned/NNN-radius-admin-backend.md` -- the admin backend under test.
-4. `test/interop/interop.py`, `test/interop/Dockerfile.*`, `test/interop/daemons` -- the existing Docker interop harness (BGP-peer-only today).
+4. `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, `test/interop/Dockerfile.*`, `test/interop/daemons` -- the existing Docker interop harness (BGP-peer-only today).
 
 ## Task
 
 Add a FreeRADIUS interop scenario proving the RADIUS admin backend authenticates
 against a real RADIUS server: Access-Request/Accept/Reject plus Filter-Id →
 profile mapping. Deferred from `radius-admin-backend` because the interop harness
-(`test/interop/interop.py`) is a Docker-based BGP-peer harness with no RADIUS
+(`test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) is a Docker-based BGP-peer harness with no RADIUS
 category; this is a distinct infrastructure build.
 
 **Why deferred, not dropped:** the functional `.ci` tests
@@ -37,7 +37,7 @@ confidence (FreeRADIUS quirks), not new wire coverage.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `test/interop/interop.py` -- daemon container lifecycle, config injection, check runner.
+- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> -- daemon container lifecycle, config injection, check runner.
   → Constraint: today it only models BGP peers (FRR/BIRD/GoBGP); a RADIUS daemon type is new.
 - [ ] `docs/guide/radius.md` -- the admin backend config surface to drive.
 
@@ -47,7 +47,7 @@ confidence (FreeRADIUS quirks), not new wire coverage.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (to be completed during /ze-spec)
-- [ ] `test/interop/interop.py` -- how a scenario's daemon container is built, started, and probed.
+- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> -- how a scenario's daemon container is built, started, and probed.
 - [ ] `test/interop/scenarios/bgp-ebgp-ipv4-frr/` -- reference scenario layout (ze.conf + peer.conf + check.py).
 - [ ] `internal/component/radius/authenticator.go` -- the backend the scenario validates.
 
@@ -58,7 +58,7 @@ confidence (FreeRADIUS quirks), not new wire coverage.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `test/interop/interop.py` runs the new `NN-radius-admin-freeradius` scenario.
+- `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> runs the new `NN-radius-admin-freeradius` scenario.
 
 ### Transformation Path
 1. Start a FreeRADIUS container with a users file (admin/testpass, Filter-Id=admin).
@@ -73,7 +73,7 @@ confidence (FreeRADIUS quirks), not new wire coverage.
 
 ### Integration Points
 - `test/interop/Dockerfile.freeradius` (new).
-- `test/interop/interop.py` -- RADIUS daemon type.
+- `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> -- RADIUS daemon type.
 - `test/interop/scenarios/NN-radius-admin-freeradius/` (new).
 
 ## Risks & Assumptions
@@ -125,7 +125,7 @@ confidence (FreeRADIUS quirks), not new wire coverage.
 
 ## Files to Modify
 - `internal/component/radius/authenticator.go` -- any real-server compatibility fix the interop reveals (e.g. an attribute FreeRADIUS requires that the mock did not). Interop testing exists to surface exactly these; expect small backend adjustments, not a rewrite.
-- `test/interop/interop.py` -- add a RADIUS daemon type / scenario support.
+- `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> -- add a RADIUS daemon type / scenario support.
 - `test/interop/daemons` (or a new config) -- FreeRADIUS runtime config if needed.
 
 ## Files to Create
@@ -181,7 +181,7 @@ confidence (FreeRADIUS quirks), not new wire coverage.
 - [ ] AC-1..AC-3 demonstrated
 - [ ] Docker availability confirmed
 - [ ] interop suite passes
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 
 ### TDD
 - [ ] Tests written

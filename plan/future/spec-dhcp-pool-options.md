@@ -38,7 +38,7 @@ Add per-subnet arbitrary option configuration to the DHCPv4 server:
 - Design question: subnet-level only, or also range-level and static-mapping-level
   overrides (decide at design time; subnet-level is the minimum).
 
-DHCPv6 options are NOT in scope here: `plan/spec-dhcpv6-server.md` already lists
+DHCPv6 options are NOT in scope here: `plan/future/spec-dhcpv6-server.md` already lists
 v6 options (DNS, time-zone, vendor options) in its task; that design should adopt
 the same `{code, encoding, value}` config shape decided here for consistency.
 
@@ -217,7 +217,7 @@ YANG rather than inferred:
 
 ## Known Limitations
 - Skeleton only: acceptance criteria and tests above are provisional placeholders to be refined during DESIGN.
-- DHCPv6 options deliberately excluded (owned by `plan/spec-dhcpv6-server.md`).
+- DHCPv6 options deliberately excluded (owned by `plan/future/spec-dhcpv6-server.md`).
 
 ## Implementation Summary
 ### What Was Implemented
@@ -247,7 +247,7 @@ YANG rather than inferred:
 
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed and approved before implementation
-- [ ] `./le verify current mode full` passes (after implementation)
+- [ ] `./le verify worktree` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 
 ### Quality Gates (SHOULD pass)

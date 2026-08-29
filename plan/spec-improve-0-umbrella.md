@@ -31,11 +31,11 @@ any external behavior that shapes a design decision against primary sources dire
 
 | Phase | Spec | Adopts | Depends |
 |-------|------|--------|---------|
-| 1 | `spec-improve-1-nb-transactions.md` | Operator-facing config transaction contract: IDs, comments, confirmed commit, list/get/rollback-by-id | - |
+| 1 | `plan/future/spec-improve-1-nb-transactions.md` (moved 2026-08-29) | Operator-facing config transaction contract: IDs, comments, confirmed commit, list/get/rollback-by-id | - |
 | 2 | `spec-improve-2-gnmi-state.md` | Operational-state provider fanout; gNMI Get honors CONFIG/STATE/OPERATIONAL/ALL | - |
 | 3 | `spec-improve-3-event-replay.md` | Opt-in JSONL protocol event capture + replay command | - |
 | 4 | `spec-improve-4-conformance-fixtures.md` | File-driven protocol conformance fixture format, one BGP fixture first | spec-improve-3-event-replay |
-| 5 | `spec-improve-5-panic-boundaries.md` | Explicit recover boundaries at network-input task boundaries | - |
+| 5 | `plan/future/spec-improve-5-panic-boundaries.md` (moved 2026-08-29) | Explicit recover boundaries at network-input task boundaries | - |
 | 6 | `spec-improve-6-yang-coverage.md` | YANG coverage report: per-module implemented/owned/constrained node status | - |
 | 7 | `spec-improve-7-yang-handler-gate.md` | Handler-completeness gate: every config-schema root claimed by a delivery surface, blocking test + doctor check (added 2026-07-10 after primary-source re-review) | - |
 | 8 | `spec-improve-8-fuzz-decode-context.md` | Fuzz the negotiated-capability decode space: context args on existing targets + targets for uncovered surfaces (added 2026-07-10) | - |
@@ -226,7 +226,7 @@ Umbrella only: user stories live in child specs.
 
 ### Goal Gates (MUST pass)
 - [ ] All six child specs individually pass their own gates
-- [ ] `./le verify current mode full` passes after each child lands
+- [ ] `./le verify worktree` passes after each child lands
 
 ### TDD
 - [ ] Tests written (per child)

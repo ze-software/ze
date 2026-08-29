@@ -214,7 +214,7 @@ implementation.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Interop test with strongSwan passes
 - [ ] Risks & Assumptions: every A-N confirmed or broken

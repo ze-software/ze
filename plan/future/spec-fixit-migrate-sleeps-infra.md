@@ -70,7 +70,7 @@ the infra-gated cases. Revised Approach signed off 2026-07-16.
 1. This spec file.
 2. `plan/deferrals.md` (the two 2026-07-14 `spec-migrate-plugin-sleeps` rows: bgp-redistribute group + DEFER/KEEP buckets). <!-- doc-links: ignore (the single deferrals file was retired for per-source shards) -->
 3. `spec-migrate-plugin-sleeps` (closed 2026-08-12; the completed primitive-migration, whose Design Insights hold the conversion recipes -- read it from git history).
-4. `test/scripts/ze_api.py` (existing primitives) and `internal/test/runner/` (the runner / engine-step executor).
+4. `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (existing primitives) and `internal/test/runner/` (the runner / engine-step executor).
 
 ## Task
 
@@ -90,7 +90,7 @@ the infra-gated cases. Revised Approach signed off 2026-07-16.
 >
 > -> Constraint (2026-07-16, UNVERIFIED hypothesis, must be checked not assumed): P0 may share a
 > root cause with the head-of-line blocking chain characterised in
-> `plan/spec-fixit-firewall-concurrency-deadlock.md` (a synchronous dispatch path contending with
+> `spec-fixit-firewall-concurrency-deadlock` <!-- doc-links: ignore (spec already closed and deleted from plan/) --> (a synchronous dispatch path contending with
 > a long-running operation that holds a lock). Nobody has read a producer linking them. Check it
 > during P0 before spending the investigation twice; do not record it as a finding until cited.
 
@@ -174,7 +174,7 @@ already converted `rbac-web`, so the web suite was not new ground here.
   -> Decision (2026-07-28): A-1 is RESOLVED, and the answer is "yes for the plugin's own apply, no for what the plugin programs afterwards". `daemon.ready` is written only after every plugin startup phase settled (`startup.go` -> `signalStartupComplete`), and the policy plugin's `OnConfigure` (`internal/plugins/policyroute/register.go`) calls `applyPolicies` SYNCHRONOUSLY. But `applyPolicies` programs nftables FIRST (`firewall.ApplyAll`, `:200`) and the ip rules/auto routes SECOND (`rm.applyAll`, `:204`), so a wait must gate on whichever object the test actually reads -- gating on the nft table proves nothing about an `ip rule show` assertion. P3 therefore did NOT delete the lead-ins; it replaced each with a bounded poll on that test's own readback (`ze_api.wait_for_output`).
 - [ ] `internal/plugins/fib/kernel/fibkernel.go` — `installed` map (the authoritative programmed set), fire-and-forget sysrib->fib-kernel delivery: ~~no end-to-end "FIB in sync" signal exists (P4)~~ **corrected 2026-08-03, see the Correction block: `show fib kernel` serves that map through `showInstalled` (`fib/kernel/backend.go`, `fib/kernel/register.go`), and the map is written only after the netlink program succeeds, so it IS the P4 signal.**
 - [ ] `internal/plugins/traffic/netlink/ops_linux.go` / `backend_linux.go` — tc `Apply` is synchronous, run in-band in `OnConfigure`/`OnConfigApply`; `ListQdiscs` is a live readback (P3).
-- [ ] `test/scripts/ze_api.py` — existing primitives; the home for `wait_for_daemon_ready` (P1) and a reject-fence helper (P5).
+- [ ] `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> — existing primitives; the home for `wait_for_daemon_ready` (P1) and a reject-fence helper (P5).
 - [ ] `internal/test/runner/engine_steps.go` / `runner_exec.go` — the runner + engine-step executor; the home for a daemon-stderr-wait primitive (P2).
 
 **Behavior to preserve:**
@@ -202,7 +202,7 @@ already converted `rbac-web`, so the web suite was not new ground here.
 | engine <-> fib-kernel (cross-process) | new reflecting-`show` or FIB quiescer fence (P4) | [ ] |
 
 ### Integration Points
-- `test/scripts/ze_api.py` (P1, P5), `internal/test/runner/*` (P2), `internal/plugins/fib/kernel/*` (P4), `internal/component/bgp/reactor/*` (P6/P7). Additive; no existing behavior removed.
+- `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (P1, P5), `internal/test/runner/*` (P2), `internal/plugins/fib/kernel/*` (P4), `internal/component/bgp/reactor/*` (P6/P7). Additive; no existing behavior removed.
 
 ### Architectural Verification
 - [ ] No bypassed layers (each wait polls the real effect it asserts).
@@ -290,7 +290,7 @@ already converted `rbac-web`, so the web suite was not new ground here.
 ## Files to Modify
 
 Infra (production/test-support) files, each additive:
-- `test/scripts/ze_api.py` — P1 `wait_for_daemon_ready`, P5 reject-fence helper.
+- `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> — P1 `wait_for_daemon_ready`, P5 reject-fence helper.
 - `internal/test/runner/engine_steps.go`, `internal/test/runner/runner_exec.go` — P2 daemon-stderr-wait primitive.
 - `internal/plugins/fib/kernel/` (backend + register) — P4 reflecting-`show` (or the FIB quiescer).
 - `internal/component/bgp/reactor/` — P6 outbound-sent signal, P7 RS inbound-anchor support.
@@ -439,7 +439,7 @@ firewall, policy, ospf, ospfv3) runs NATIVELY, each test in its own netns, with 
 host-safety check on the nft table set. That is a real verification vehicle for
 exactly the buckets P1 and P3 name. Nothing in the analysis below rests on a skip.
 
-**P1 (AC-1) -- `wait_for_daemon_ready`, shipped.** `test/scripts/ze_api.py`.
+**P1 (AC-1) -- `wait_for_daemon_ready`, shipped.** `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->.
 Returns the pid rather than just a bool, because every caller reads `daemon.pid`
 immediately afterwards to SIGTERM the daemon, and doing that as a separate step
 re-opens the race the helper exists to close: ze creates `daemon.pid` before
@@ -480,7 +480,7 @@ built and run:
 | skip `rm.applyAll` (register.go) -- ip rules only | ONLY the two reading `ip rule show` fail | exactly 002, 005 |
 | drop set elements (nft/lower_linux.go) | only the set-element test fails | exactly firewall 009 |
 Plus three mutations of the helpers themselves against their new unit tests in
-`test/scripts/ze_api_test.py` (wired into `go test` via
+`test/scripts/ze_api_test.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (wired into `go test` via
 `internal/le/`), each red.
 
 **Found while verifying, deferred:** `./le qemu netns-test` reports

@@ -436,7 +436,7 @@ MUST document: validation rules, error conditions, state transitions, any MUST/M
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
@@ -469,4 +469,4 @@ MUST document: validation rules, error conditions, state transitions, any MUST/M
 - [ ] Implementation Audit filled
 - [ ] Write learned summary to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
-- [ ] **Commit B:** `git rm plan/spec-radius-chap-eap-admin.md` only
+- [ ] **Commit B:** `git rm plan/future/spec-radius-chap-eap-admin.md` only

@@ -70,7 +70,7 @@ sleeps remain. Skeleton written 2026-07-15 alongside `spec-fixit-sleeps-cli-harn
 - [ ] `internal/test/runner/record.go` (was `:179-183`) - `NeedsLinux` field doc.
 - [ ] `internal/le/integration/gates.go` - the `ze-qemu-needs-linux-test` target: cross-compiles linux binaries, runs `qemu-all-tests.sh` with `ZE_QEMU_LINUX_ONLY=1` and `ZE_QEMU_SKIP_SUITES="web"`.
   → Constraint: one VM boot for all linux-only tests, not one VM per test. Per-test iteration uses `./le qemu run command "..."`.
-- [ ] `internal/le/docwiring/wiring.go` (`check_ci_sleep_ratchet`), `:258-285` (`check_ci_sleep_justification`) - the two gates.
+- [ ] `internal/le/doc/wiring/wiring.go` (`check_ci_sleep_ratchet`), `:258-285` (`check_ci_sleep_justification`) - the two gates.
   → Constraint: the ratchet caps HOW MANY sleeps exist (against the baseline); the justification gate is scoped to CHANGED `.ci` files only, so touching a file makes this session responsible for every sleep in it.
 - [ ] `test/.ci-sleep-baseline` - cited `132`; now `125` (composable-delta sum, 2026-07-22).
   → Constraint: the 2026-07-15 measurement was exactly 126 `time.sleep(` in `test/**/*.ci` (baseline tight, zero slack); `test/.ci-sleep-baseline` read 132 (verified 2026-07-16 by reading the file) after sibling specs landed, and now sums to 125 (2026-07-22, composable-delta format), so re-measure the tree at Phase 2. Any conversion must lower the baseline in the same change or the ratchet fails.
@@ -87,7 +87,7 @@ sleeps remain. Skeleton written 2026-07-15 alongside `spec-fixit-sleeps-cli-harn
 **Source files (cite file:line):**
 - [ ] `internal/test/runner/record_parse.go` - `r.NeedsLinux = true` (:412, was :400), reached only under `case "needs-linux":` (:394, was :391). Sets `SkipReason` for any non-needs-linux test when `ZE_QEMU_LINUX_ONLY == "1"` (:236-237, was :235-236).
 - [ ] `internal/test/runner/record.go` - the `NeedsLinux` field doc (:203-207, was :179-183): set by `option=needs-linux` so the `ZE_QEMU_LINUX_ONLY` filter can run ONLY those tests.
-- [ ] `internal/le/docwiring/wiring.go` - `check_ci_sleep_ratchet` (:196) reads `test/.ci-sleep-baseline`; `check_ci_sleep_justification` (:258) is scoped to CHANGED `.ci` files (:268).
+- [ ] `internal/le/doc/wiring/wiring.go` - `check_ci_sleep_ratchet` (:196) reads `test/.ci-sleep-baseline`; `check_ci_sleep_justification` (:258) is scoped to CHANGED `.ci` files (:268).
 - [ ] `test/.ci-sleep-baseline` - was `132` (:1, then a single integer); now sums to `125` (2026-07-22, composable-delta format: the ceiling is the sum of the signed-integer lines); up from the 126 measured 2026-07-15 as sibling specs landed (re-measure the tree count at Phase 2).
 - [ ] `test/traffic/traffic-boot-apply.ci`, `test/traffic/traffic-vpp-reject-hfsc.ci`, `test/traffic/traffic-vpp-reject-dscp-filter.ci`, `test/traffic/traffic-boot-qdisc-tc.ci`, `test/traffic/traffic-vpp-reject-prio.ci` - the ZE_READY_FILE blind-hold shape, annotated "blind hold: a backgrounded ze gets no ZE_READY_FILE marker to poll; hold until OnConfigure emits the asserted log line, left un-converted (no readiness signal for a background daemon)".
 - [ ] `test/traffic/traffic-vpp-not-connected.ci,14,22,26` and `test/traffic/traffic-vpp-accept-multiclass.ci,24` - the deliberate-timer shape: "blind hold: the internal 5s vpp WaitConnected timeout IS the behavior under test". 012's header states it VALIDATES that `WaitConnected` returns an error after the 5s timeout.
@@ -197,7 +197,7 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 | tc qdisc programmed by OnConfigure | -> | tc readback poll replacing the blind hold | `test/traffic/traffic-boot-qdisc-tc.ci` (QEMU) |
 | dhcp/tftp zero-listener path | -> | deterministic wait on the asserted listener state | `test/install/dhcp-zero-listener.ci`, `test/install/tftp-zero-listener.ci` (QEMU) |
 | ddos characterize pipeline | -> | deterministic wait on the characterization result | `test/plugin/ddos-detect-characterize.ci` (QEMU) |
-| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`internal/le/docwiring/wiring.go`) | `test/.ci-sleep-baseline` lowered; `./le verify current mode changed` green |
+| a sleep is removed from any `.ci` | -> | `check_ci_sleep_ratchet` (`internal/le/doc/wiring/wiring.go`) | `test/.ci-sleep-baseline` lowered; `./le verify current mode changed` green |
 
 ## Acceptance Criteria
 
@@ -331,7 +331,7 @@ assertions. Unit tests apply only if research adds runner/production infrastruct
 | Deliverable | Verification |
 |-------------|--------------|
 | Each converted test | sleep gone (`grep`); QEMU green before AND after |
-| Ratchet lowered | `cat test/.ci-sleep-baseline`; `internal/le/docwiring/wiring.go` green |
+| Ratchet lowered | `cat test/.ci-sleep-baseline`; `internal/le/doc/wiring/wiring.go` green |
 | No regressions | `./le qemu run command "./le qemu all-tests"` + affected suites |
 
 ### Security Review Checklist (/implement stage 11)

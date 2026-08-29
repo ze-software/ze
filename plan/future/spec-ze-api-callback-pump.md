@@ -13,7 +13,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`test/scripts/ze_api.py` is the helper every plugin fixture drives ze through,
+`test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> is the helper every plugin fixture drives ze through,
 and it has no callback pump. A fixture whose plugin must answer ze's filter
 verdict has to write the pump itself, so the same loop is open-coded in every
 such fixture.
@@ -53,7 +53,7 @@ a deliberate pass over the journal rather than a fix by whoever tripped over it.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `test/scripts/ze_api.py` -- `API.read_line`, `wait_for_config`,
+- [ ] `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> -- `API.read_line`, `wait_for_config`,
       `wait_for_registry`, `ready`, `_call_engine`, and every polling helper
   → Constraint: `read_line` is the only thing that answers the callback. A pump
     is a loop around it, so the helper already owns the primitive.
@@ -103,7 +103,7 @@ a deliberate pass over the journal rather than a fix by whoever tripped over it.
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | No | each fixture reaches around the helper for a primitive the helper owns |
-| No unintended coupling (components stay isolated) | Yes | stays inside `test/scripts/` |
+| No unintended coupling (components stay isolated) | Yes | stays inside `test/scripts/` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> |
 | No duplicated functionality (extends existing, does not recreate) | No, today | thirteen copies is the defect; the fix restores this property |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | Python test helper |
 | Registration over hardcoding | N-A | no registration surface |
@@ -125,7 +125,7 @@ a deliberate pass over the journal rather than a fix by whoever tripped over it.
 
 ## Blast Radius
 
-`test/scripts/ze_api.py` and whichever fixtures migrate. No daemon code, no wire
+`test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> and whichever fixtures migrate. No daemon code, no wire
 behavior.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -154,8 +154,8 @@ behavior.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| the pump answers a callback while waiting | `test/scripts/ze_api_test.py` | AC-1 | |
-| the pump returns when its condition is met | `test/scripts/ze_api_test.py` | AC-1 | |
+| the pump answers a callback while waiting | `test/scripts/ze_api_test.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> | AC-1 | |
+| the pump returns when its condition is met | `test/scripts/ze_api_test.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> | AC-1 | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -164,13 +164,13 @@ behavior.
 
 ## Files to Modify
 
-- `test/scripts/ze_api.py` -- the pump, beside `read_line`
+- `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> -- the pump, beside `read_line`
 - one `test/plugin/` fixture, migrated as the helper's first user
 - `docs/plugin-development/README.md` -- if the helper is documented there
 
 ## Files to Create
 
-- `test/scripts/ze_api_test.py`, if no sibling suite exists
+- `test/scripts/ze_api_test.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->, if no sibling suite exists
 
 ## Implementation Steps
 
@@ -202,7 +202,7 @@ behavior.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] **Commit A:** code + tests + spec
 - [ ] **Commit B:** `git rm plan/<spec>` only
 

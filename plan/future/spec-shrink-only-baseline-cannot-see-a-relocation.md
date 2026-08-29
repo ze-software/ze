@@ -20,7 +20,7 @@ A grandfathering baseline keyed on a file's PATH cannot distinguish a
 relocation from new debt, so moving a file reads as growth and a shrink-only
 gate refuses it.
 
-`internal/le/doccheck/links.go` grandfathers dead citations as
+`internal/le/doc/check/links.go` grandfathers dead citations as
 `citer<TAB>target` pairs in `internal/le/`, and refuses
 any pair that is new against HEAD. The rule is right: it stops a session
 silencing fresh dead references by appending to the list. What it cannot see is

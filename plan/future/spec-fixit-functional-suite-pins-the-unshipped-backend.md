@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | future |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Deferral shard | - |
 | Handoff | - |
-| Updated | 2026-08-24 |
+| Updated | 2026-08-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -54,6 +54,32 @@ became the default would have had no reason to choose. Establish the reason
 before removing the pin: a test that reads a config file directly from disk
 breaks under blob storage, and that is a real cost to weigh rather than a
 surprise to hit.
+
+## Disposition 2026-08-28: an IMPROVEMENT, moved to `plan/future/`
+
+Judged against `plan/future/README.md`'s own list of what makes a defect. This
+spec matches none of the five: Ze puts no forbidden bytes on the wire, accepts no
+configuration it then ignores, exposes no unauthenticated surface, loses no
+route, and leaks nothing. Its own Blast Radius says it: **"Nothing ships
+differently."** What it describes is a gap in what the test suite EXERCISES, and
+the re-cut below already narrowed that gap twice: the daemon pin is guarded and
+excludes web daemons, and `.wb` already runs blob storage.
+
+What survives is real and it is coverage: the CLIENT pin (`clientEnv`,
+`internal/test/runner/runner_exec.go`) is unconditional, so `ze cli`,
+`ze config` and `ze show` run filesystem storage in every functional test. A
+CLI-surface defect that exists only under blob storage would pass the suite.
+
+Two things go with the move, so the next reader does not re-derive them:
+
+| Item | Where it goes |
+|------|---------------|
+| The ACs as written | VOID. The re-cut below falsifies three of the Task's statements, and AC-3 is unreachable as stated: the tests need isolation, not a filesystem |
+| The real root cause | `resolve.Storage()` and `DefaultConfigDir()` give every daemon in a suite the same blob. Measured cost of the naive fix: 31 of 43 green reload tests regress. That is a design problem, and it is why this is not a small change |
+
+It is NOT moved to shrink the `plan/` count, which that README bans. It is moved
+because it is not a defect in the shipped product, and the release does not wait
+on it.
 
 ## What the 2026-08-24 re-cut established
 
@@ -380,7 +406,7 @@ N-A. Storage backend selection reaches no wire and no RFC obligation.
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -398,7 +424,7 @@ N-A. Storage backend selection reaches no wire and no RFC obligation.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

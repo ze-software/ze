@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Depends | - |
 | Phase | WP-1, WP-2, WP-3, WP-5, WP-6, WP-7 landed; WP-4 and one escalation open |
@@ -16,6 +16,25 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **RFC 1035 is out of scope for now. Do not start WP-4 or the remaining
 escalation.** The owner ruled this while the first-release fixit backlog was
 being drained.
+
+**Status is `blocked`, not `in-progress` (2026-08-28).** Nothing here waits on an
+implementer, so `in-progress` was counting this spec as work under way and hiding
+what it actually waits for. It waits on ONE answer from the owner, and the answer
+is a classification `ai/rules/rfc-compliance.md` reserves to him:
+
+> RFC 1035 Section 4.2 states "Zone refresh activities must use virtual circuits
+> because of the need for reliable transfer". Does that bind Ze, which performs
+> no zone refresh, to implement zone transfer?
+
+**The owner was asked again on 2026-08-28 and answered "skip DNS specs".** So the
+question above stays open and unanswered, and this spec stays parked. It is not
+work for anybody until he rules on the reading.
+
+It does NOT move to `plan/future/`. An unmet RFC obligation is a defect by
+`plan/future/README.md`'s own definition, and moving one there to shrink the
+`plan/` count is banned. If the owner rules that Section 4.2 constrains the
+transport of a refresh Ze never performs, `RFC1035-4.2-1` is not owed and this
+spec closes with no code. If he rules the other way, WP-4 runs.
 
 What that leaves in the tree, so the next reader does not re-derive it:
 
@@ -266,6 +285,10 @@ WP-4a. Raise that with him rather than deciding it here.
   → Decision: `shapeAuthoritative` is a single invariant defined in exactly one place. Truncation and the NOTIMP reply belong at the same altitude, not in each plugin.
 - [ ] `docs/architecture/dns/geodns.md` - geodns listener, EDNS0, answer synthesis
   → Constraint: geodns owns answer policy only. The harness owns the wire write.
+- [ ] `docs/architecture/dns/as112.md` - the design doc the AS112 plugin's own code declares
+  → Constraint: AS112 answers from fixed zone data, so the harness-level truncation and NOTIMP work reaches it without the plugin gaining a case.
+- [ ] `docs/features/ai-first.md` - declared by the same code the work packages touch
+  → Constraint: named here because the spec's population declares it. It states no obligation this spec's remaining work depends on.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc1035.md` - the 27 gated obligations and the prose-register reading
@@ -793,7 +816,7 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
     - Files: `internal/core/dnsserver/transfer.go`
     - Verify: `RFC1035-4.2-1` carries both polarities
 13. **Phase: Enrolment and documentation** -- AC-24, AC-25, AC-26
-    - Tests: `./le rfc check`, `./le rfc index-update`, `./le doc-check verify`, `./le verify current mode full`
+    - Tests: `./le rfc check`, `./le rfc index-update`, `./le doc check verify`, `./le verify current mode full`
     - Files: `rfc/short/rfc1035.md`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`
     - Verify: the stem is enrolled and every gate exits 0
 
@@ -827,7 +850,7 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 | Truncation is reachable from a user entry point | `./le functional plugin` runs `dns-udp-truncation` green, and mutation-verify flips it red |
 | Zone transfer interoperates | the BIND interop scenario loads the transferred zone |
 | No obligation is left unproven | `./le rfc check` exits 0 with `rfc1035` in scope |
-| Documentation matches the code | `./le doc-check verify` exits 0 |
+| Documentation matches the code | `./le doc check verify` exits 0 |
 | The pre-commit gate is green | `./le verify current mode full` exits 0 |
 | Prose passes the style gate | `./le ste review-changed` reports nothing on the files this spec adds |
 
@@ -927,7 +950,7 @@ the enforcing test, not on the production code.
 - [ ] `rfc1035` moved from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`
 - [ ] `./le rfc check` exits 0 with `rfc1035` in scope
 - [ ] `./le rfc index-update` produces no diff
-- [ ] `./le verify current mode full` passes, which is the pre-commit gate in `ai/rules/git-safety.md`
+- [ ] `./le verify worktree` passes, which is the pre-commit gate in `ai/rules/git-safety.md`
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -940,7 +963,7 @@ the enforcing test, not on the production code.
 - [ ] Every `.ci` mutation-verified: disabling the producing function flips it red
 - [ ] Every absence-asserting AC paired with a presence assertion
 - [ ] `./le changed scope` clean
-- [ ] `./le doc-check verify` exits 0
+- [ ] `./le doc check verify` exits 0
 - [ ] `./le ste review-changed` reports nothing on new prose
 - [ ] No `.ci` sleep added without a justifying comment
 
@@ -954,7 +977,7 @@ the enforcing test, not on the production code.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
