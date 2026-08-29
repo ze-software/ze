@@ -292,7 +292,12 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := seedOrCleanArtifact(paths); err != nil {
+	previous, release, err := snapshotArtifact(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	if err := seedArtifact(paths, previous); err != nil {
 		t.Fatal(err)
 	}
 	if err := refreshNativeSurfaces(paths); err != nil {

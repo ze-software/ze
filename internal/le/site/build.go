@@ -28,15 +28,23 @@ type BuildOptions struct {
 }
 
 // BuildReport identifies the inputs and artifact produced by Build.
+//
+// Unstamped names every public page that carries no footer for the publication
+// stamp to live in. A build reports them rather than failing, because a page
+// without a footer is a page defect and not a broken build.
 type BuildReport struct {
-	SourceDigest string `json:"source-digest"`
-	Output       string `json:"output"`
-	Files        int    `json:"files"`
+	SourceDigest string   `json:"source-digest"`
+	Output       string   `json:"output"`
+	Files        int      `json:"files"`
+	Published    string   `json:"published"`
+	Carried      int      `json:"carried-stamps"`
+	Unstamped    []string `json:"unstamped,omitempty"`
 }
 
 // Build stages the website source tree, preserves the last complete artifact as
-// an incremental seed, refreshes native generated surfaces, and removes every
-// source-only input from deployment.
+// an incremental seed, refreshes native generated surfaces, removes every
+// source-only input from deployment, and stamps the publication time into the
+// footer of every published page.
 func Build(options BuildOptions) (BuildReport, error) {
 	paths, err := resolvePaths(options.Repository, options.Output)
 	if err != nil {
@@ -50,11 +58,21 @@ func Build(options BuildOptions) (BuildReport, error) {
 	if err != nil {
 		return BuildReport{}, err
 	}
+
+	// The artifact as it was last published both seeds this build and answers
+	// which pages the build left alone. Take it before anything writes into the
+	// output, because seeding cleans the output first.
+	previous, releasePrevious, err := snapshotArtifact(paths)
+	if err != nil {
+		return BuildReport{}, err
+	}
+	defer releasePrevious()
+
 	if options.Partial {
 		if info, statErr := os.Stat(paths.Output); statErr != nil || !info.IsDir() {
 			return BuildReport{}, fmt.Errorf("partial build requires an existing full artifact: %s", paths.Output)
 		}
-	} else if err := seedOrCleanArtifact(paths); err != nil {
+	} else if err := seedArtifact(paths, previous); err != nil {
 		return BuildReport{}, err
 	}
 	if err := stageSources(paths.Source, paths.Output, files); err != nil {
@@ -66,7 +84,23 @@ func Build(options BuildOptions) (BuildReport, error) {
 	if err := removeSourceOnly(paths.Output); err != nil {
 		return BuildReport{}, err
 	}
-	return BuildReport{SourceDigest: digest, Output: paths.Output, Files: len(files)}, nil
+	published := buildClock()
+	unstamped, err := stampArtifact(paths.Output, published)
+	if err != nil {
+		return BuildReport{}, err
+	}
+	carried, err := carryPublicationStamps(previous, paths.Output)
+	if err != nil {
+		return BuildReport{}, err
+	}
+	return BuildReport{
+		SourceDigest: digest,
+		Output:       paths.Output,
+		Files:        len(files),
+		Published:    publishedDisplay(published),
+		Carried:      carried,
+		Unstamped:    unstamped,
+	}, nil
 }
 
 func trackedAndUntrackedSourceFiles(paths Paths) ([]string, error) {
@@ -124,44 +158,69 @@ func sourceDigest(source string, files []string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func seedOrCleanArtifact(paths Paths) error {
-	seed := filepath.Join(filepath.Dir(paths.Repository), "gh-pages")
-	keep := func(name string) bool {
-		return name != gitMetadataDir && !strings.HasPrefix(name, ".git/") && !isSourceOnly(name)
+// publishable reports whether one artifact-relative path belongs in a
+// deployment. Git metadata and every source-only input stay out.
+func publishable(name string) bool {
+	return name != gitMetadataDir && !strings.HasPrefix(name, ".git/") && !isSourceOnly(name)
+}
+
+// lastPublished names the directory holding the artifact as it was last
+// published: the Pages checkout beside the repository, which a default build
+// also writes into. An empty name means there is no previous artifact.
+func lastPublished(paths Paths) (string, error) {
+	published := filepath.Join(filepath.Dir(paths.Repository), "gh-pages")
+	info, err := os.Stat(published)
+	if os.IsNotExist(err) {
+		return "", nil
 	}
-	if filepath.Clean(seed) == filepath.Clean(paths.Output) {
-		info, err := os.Stat(seed)
-		if os.IsNotExist(err) {
-			return cleanArtifact(paths.Output)
-		}
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("site artifact is not a directory: %s", seed)
-		}
-		snapshot, err := os.MkdirTemp(filepath.Dir(seed), ".site-artifact-")
-		if err != nil {
-			return fmt.Errorf("create site artifact snapshot: %w", err)
-		}
-		// The snapshot is a scratch directory beside the artifact. A failed removal
-		// leaves it behind and must not fail a build that otherwise succeeded.
-		defer func() { _ = os.RemoveAll(snapshot) }()
-		if err := copyTree(seed, snapshot, keep); err != nil {
-			return fmt.Errorf("snapshot site artifact: %w", err)
-		}
-		if err := cleanArtifact(paths.Output); err != nil {
-			return err
-		}
-		return copyTree(snapshot, paths.Output, keep)
+	if err != nil {
+		return "", err
 	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("site artifact is not a directory: %s", published)
+	}
+	return published, nil
+}
+
+// snapshotArtifact answers a readable copy of the last published artifact and
+// the function that releases it.
+//
+// The copy is needed only when the build writes over that artifact, because
+// seeding cleans the output first. A build that writes elsewhere reads the
+// published tree where it stands.
+func snapshotArtifact(paths Paths) (string, func(), error) {
+	release := func() {}
+	published, err := lastPublished(paths)
+	if err != nil || published == "" {
+		return "", release, err
+	}
+	if filepath.Clean(published) != filepath.Clean(paths.Output) {
+		return published, release, nil
+	}
+	snapshot, err := os.MkdirTemp(filepath.Dir(paths.Output), ".site-artifact-")
+	if err != nil {
+		return "", release, fmt.Errorf("create site artifact snapshot: %w", err)
+	}
+	// The snapshot is a scratch directory beside the artifact. A failed removal
+	// leaves it behind and must not fail a build that otherwise succeeded.
+	release = func() { _ = os.RemoveAll(snapshot) }
+	if err := copyTree(published, snapshot, publishable); err != nil {
+		release()
+		return "", func() {}, fmt.Errorf("snapshot site artifact: %w", err)
+	}
+	return snapshot, release, nil
+}
+
+// seedArtifact empties the output and lays the last published artifact back
+// down, so a build that changes three pages leaves the rest as they were.
+func seedArtifact(paths Paths, previous string) error {
 	if err := cleanArtifact(paths.Output); err != nil {
 		return err
 	}
-	if info, err := os.Stat(seed); err == nil && info.IsDir() {
-		return copyTree(seed, paths.Output, keep)
+	if previous == "" {
+		return nil
 	}
-	return nil
+	return copyTree(previous, paths.Output, publishable)
 }
 
 func cleanArtifact(root string) error {
