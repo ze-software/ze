@@ -82,20 +82,19 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc5216.md` - EAP-TLS, Section 2.3, the MSK derivation
   → Constraint: the MSK IS an ExportKeyingMaterial result. A Ze that cannot export cannot authenticate, so this is a conformance gap and not a convenience.
-- [ ] RFC 7627, Extended Master Secret, and the attack it prevents.
-  **MUST CREATE before any design work in this spec** (`ai/rules/protocol.md`):
-  the repository holds neither the full text nor a summary for that stem under
-  `rfc/`, and no disposition for it in either `rfc/enrolled.txt` or
-  `rfc/not-enrolled.txt`. Verified 2026-08-23. The two paths are deliberately not
-  spelled here: they do not resolve, and naming them would read as rot to
-  `./le doc-check links` rather than as the gap this row records.
-  → Constraint: the export refusal is not arbitrary. Without 7627 the exported material can collide across sessions.
-  → Finding, and it is why this row is written this way: Ze's fail-closed EAP-TLS
-    decision, the 2026-08-01 refusal of the package-level directive, and this
-    spec's whole security argument all rest on an RFC the repository has never
-    summarised. `rfc/short/rfc5216.md` and `rfc/short/rfc9190.md` both exist. The
-    one that justifies REFUSING does not, so the reasoning for the refusal lives
-    only in a Go comment.
+- [ ] `rfc/short/rfc7627.md` - Extended Master Secret, and the attack it prevents.
+  **CREATED 2026-08-24**, against `rfc/full/rfc7627.txt` fetched the same day. The
+  row read MUST CREATE when this spec was written on 2026-08-23, and that gap is
+  now closed. `rfc/not-enrolled.txt` carries its disposition, `backlog`, with the
+  reason: not one of its 17 MUST-level requirements has a producer inside Ze,
+  because Go's `crypto/tls` owns the extension end to end.
+  → Constraint: the export refusal is not arbitrary. RFC 7627 Section 6.1 states that once the master secret is synchronized on two sessions, every property relying on its uniqueness is compromised, and it names the TLS exporter: it "no longer provides a unique key bound to the current session". That exporter is the EAP-TLS MSK. `cmd/ze/main.go` now cites that section rather than asserting the property.
+  → Open, and it is the owner's: whether `rfc7627` should ever leave `backlog`. RFC
+    9846 obsoletes RFC 7627, and `ai/rules/rfc-compliance.md` says the lineage that
+    matters runs forward, so enrolling `rfc7627` would gate a superseded text.
+    `rfc/full/rfc9846.txt` <!-- doc-links: ignore (the line states this RFC text is not in the repository) --> is not in this repository. The escalation is recorded in
+    full on the `rfc7627` row of `rfc/not-enrolled.txt`. It blocks nothing in this
+    spec: `./le rfc check` is green, and Ze produces none of the 17 obligations.
 - [ ] `rfc/short/rfc9190.md` - EAP-TLS 1.3
   → Constraint: it supersedes RFC 5216 for TLS 1.3 and needs no escape hatch. The gap is TLS 1.2 only.
 
@@ -164,7 +163,7 @@ block. The journal row is in `plan/journal/test-against-broken-path.md`.
 | A-3 | No deployment currently relies on the variable | it kills the daemon on Go 1.27, so any deployment that set it is already down | an operator on an older toolchain is relying on it and a removal surprises them | the release notes for the Go version Ze pins, and `go.mod` | confirmed |
 
 **A-1 evidence, read 2026-08-23 in `$(go env GOROOT)` at Go 1.27.0.** The
-`internal/godebugs` table carries the row <!-- doc-links: ignore (a GOROOT path, not a path in this repository) -->
+`internal/godebugs` <!-- doc-links: ignore (a package in the Go standard library, not in this repository) --> table carries the row <!-- doc-links: ignore (a GOROOT path, not a path in this repository) -->
 
 ```
 {Name: "tlsunsafeekm", Removed: 27, Old: one},
@@ -268,14 +267,15 @@ Ze has never been released, so no deployment exists to be surprised.
 ## Files to Create
 - `internal/component/ike/eap/eap_tls_export_refusal_test.go` - the AC-2 proof at the producer, driving a real TLS 1.2 handshake whose export `crypto/tls` refuses
 - `cmd/ze/godebug_guidance_test.go` - the AC-4 proof over every tracked file
-- `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` - NOT created. The TDD table records why: a `.ci` has two Go endpoints and a Go client always offers RFC 7627, so the state cannot be produced <!-- doc-links: ignore (the row exists to say this file was NOT created and why) -->
+- `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` <!-- doc-links: ignore (deliberately never created; see this spec's Deviations) --> - NOT created. The TDD table records why: a `.ci` has two Go endpoints and a Go client always offers RFC 7627, so the state cannot be produced <!-- doc-links: ignore (the row exists to say this file was NOT created and why) -->
 
 ## Outstanding (written 2026-08-23; item 1 closed 2026-08-24 in the closure phase)
 
 | # | What | Status |
 |---|------|--------|
 | 1 | AC-5: scenario `eap-tls` is not run and not resolved | **CLOSED 2026-08-24.** The scenario is repurposed rather than retired, so nothing tracked was deleted and no owner decision was needed. Retiring was the only option that needed his word, and it was also the one that reduces coverage: `eap-tls` is the test named for User Story 2 and for the interop row of the Wiring Test, and `plan/journal/shared-leniency-hides-the-defect.md` records it as the only test whose peer is not a second copy of ze. `check.py` now asserts the completed TLS handshake, the attributed refusal, and that neither end installs an XFRM SA. PASS, and RED under the bare-wrap mutation |
-| 2 | The Required Reading row for RFC 7627 is still MUST CREATE | **OPEN, and it is Thomas's decision.** `ai/rules/protocol.md` makes the summary a precondition of design work. Every route to writing it needs him: `check_new_summaries` refuses a NEW summary that declares gated MUSTs and is not in `rfc/enrolled.txt`, enrolment needs every MUST classified, and `ai/rules/rfc-compliance.md` reserves that classification to the owner. `backlog` is closed for the same reason (it is legal for `rfc1035` and `rfc9190` only because both predate that gate), and `non-normative` would be false of a Standards Track document. `./le rfc check` is GREEN: nothing is red, because no summary exists to be judged. One shipped claim rests on the unread text, and it is why the row cannot simply be dropped: `cmd/ze/main.go` states that RFC 7627 "exists to stop the triple handshake attack, and without it exported keying material can collide across sessions". That is protocol semantics cited from memory, which `ai/rules/protocol.md` forbids |
+| 2 | The Required Reading row for RFC 7627 is still MUST CREATE | **CLOSED 2026-08-28.** `rfc/short/rfc7627.md` was written on 2026-08-24 and `rfc/not-enrolled.txt` carries its `backlog` disposition, so the summary this row demanded exists and `ai/rules/protocol.md` is satisfied. `cmd/ze/main.go` no longer asserts the attack from memory: it cites RFC 7627 Section 6.1, which states that a synchronized master secret compromises every property relying on its uniqueness and names the TLS exporter as one. What remains is a SCOPING question, not a precondition of this spec, and it is escalated on the `rfc7627` row of `rfc/not-enrolled.txt`: RFC 9846 obsoletes RFC 7627, so enrolling the stem would gate a superseded text, and `rfc/full/rfc9846.txt` <!-- doc-links: ignore (the line states this RFC text is not in the repository) --> is absent. Ze produces none of the 17 MUST-level obligations, `./le rfc check` is green, and nothing in this spec waits on the answer. The paragraph below is the state as it read on 2026-08-23 and is kept for the reasoning it carries |
+| 2a | The 2026-08-23 reasoning, superseded by row 2 | **SUPERSEDED 2026-08-29 by row 2, which closed on 2026-08-28.** The row is kept for the reasoning it carries, not as live work: the summary it demanded exists, and the shipped claim it named is now a citation of RFC 7627 Section 6.1 rather than a statement from memory. The paragraph below is the state as it read on 2026-08-23. It said: `ai/rules/protocol.md` makes the summary a precondition of design work. Every route to writing it needs him: `check_new_summaries` refuses a NEW summary that declares gated MUSTs and is not in `rfc/enrolled.txt`, enrolment needs every MUST classified, and `ai/rules/rfc-compliance.md` reserves that classification to the owner. `backlog` is closed for the same reason (it is legal for `rfc1035` and `rfc9190` only because both predate that gate), and `non-normative` would be false of a Standards Track document. `./le rfc check` is GREEN: nothing is red, because no summary exists to be judged. One shipped claim rests on the unread text, and it is why the row cannot simply be dropped: `cmd/ze/main.go` states that RFC 7627 "exists to stop the triple handshake attack, and without it exported keying material can collide across sessions". That is protocol semantics cited from memory, which `ai/rules/protocol.md` forbids |
 
 One defect was found on the way, and it is FIXED rather than recorded, because
 AC-2 does not hold without it. `handleMethod`
@@ -406,7 +406,7 @@ why, with the producing function named, per `ai/rules/rfc-compliance.md`.
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate, and it runs against a commit rather than the working tree (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -424,9 +424,9 @@ why, with the producing function named, per `ai/rules/rfc-compliance.md`.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
+- [ ] Learned summary written to `plan/learned/NNN-<name>.md`. **Superseded 2026-08-29.** `2cff2050a` replaced the numbered learned corpus with the problem journal, so no `NNN-` file has existed since. `plan/learned/` holds three aggregates and nothing else, and `./le spec status closure` reads a committed `plan/journal/` row whose Spec cell equals the stem as the same evidence. This closure writes that row instead, and the lesson itself already landed on 2026-08-24 as three rows of `plan/learned/DESIGN-HISTORY.md`, committed in `84a9f2efd`
+- [ ] **Commit A:** code + tests + docs + spec + journal rows
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
 
 ---
@@ -450,7 +450,7 @@ added the interop resolution AC-5 asks for.
   line in `handleResponderEAP` (`internal/component/ike/engine/responder_eap.go`)
   carry that diagnosis on the AUTHENTICATOR half, which had been discarding it.
 - `test/interop-ipsec/scenarios/eap-tls/ze-env` sets nothing and says why.
-- **Closure phase:** `test/interop-ipsec/scenarios/eap-tls/check.py` is
+- **Closure phase:** `test/interop-ipsec/scenarios/eap-tls/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> is
   repurposed. It asserts the TLS handshake completes, that ze's refusal states all
   eight operator facts, and that neither end installs an XFRM SA.
 
@@ -481,7 +481,7 @@ added the interop resolution AC-5 asks for.
 not in `d53e73ea9`. It is recorded here because it discharges checklist row 6, and it
 is NOT in this spec's commit list for the same reason.
 
-`./le doc-check verify` reports two failures and neither is this spec's: a source anchor
+`./le doc check verify` reports two failures and neither is this spec's: a source anchor
 in `docs/guide/web-interface.md` naming `liveAAABundleAuthenticator.Authenticate`, and
 `ai/rules/config.md` stale against `ai/rules/points/config/`. Both sit in another
 session's uncommitted work in this shared checkout.
@@ -490,9 +490,9 @@ session's uncommitted work in this shared checkout.
 
 | Planned | What happened |
 |---------|---------------|
-| `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` | NOT created, and the reason is verified rather than assumed. A `.ci` drives ze against ze, and `makeClientHello` (`crypto/tls`) sets `extendedMasterSecret: true` unconditionally on every TLS 1.2 ClientHello, so a Go client always offers RFC 7627 and the export always succeeds. The state cannot be produced without a non-Go peer |
+| `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` <!-- doc-links: ignore (deliberately never created; see this spec's Deviations) --> | NOT created, and the reason is verified rather than assumed. A `.ci` drives ze against ze, and `makeClientHello` (`crypto/tls`) sets `extendedMasterSecret: true` unconditionally on every TLS 1.2 ClientHello, so a Go client always offers RFC 7627 and the export always succeeds. The state cannot be produced without a non-Go peer |
 | Scenario eap-tls "either passes or is retired" | It PASSES, by asserting the refusal instead of a tunnel. Retiring was rejected: it deletes tracked work AND it is the option that reduces coverage |
-| An RFC 7627 summary created before design work | NOT created. See Outstanding item 2: every route needs the owner. The path is deliberately not spelled, here or in Required Reading: it does not resolve, so `./le doc-check links` and `internal/le/hookruntime/lifecycle.go` would both read it as rot rather than as the gap this records |
+| An RFC 7627 summary created before design work | NOT created. See Outstanding item 2: every route needs the owner. The path is deliberately not spelled, here or in Required Reading: it does not resolve, so `./le doc check links` and `internal/le/hookruntime/lifecycle.go` would both read it as rot rather than as the gap this records |
 
 ## Mistake Log
 
@@ -518,7 +518,7 @@ session's uncommitted work in this shared checkout.
 | AC-2 | Done | `TestEAPTLSExportRefusalNamesTheCause`, and `eap-tls` against strongSwan 5.9.14 | the interop run is the one that drives the REAL `crypto/tls` branch |
 | AC-3 | Done | `eap-tls13` PASS, `responder-eap-tls13` PASS | ESP accepted on both ends in eap-tls13 |
 | AC-4 | Done | `TestNoShippedGuidanceNamesARemovedGODEBUG` plus the two fixture tests | see the Review Gate note below: the repository-wide scan is toolchain-derived, so it becomes live for this setting when `go.mod` moves to Go 1.27 |
-| AC-5 | Done | `eap-tls` PASS, mutation-verified RED | closed in the closure phase, 2026-08-24 |
+| AC-5 | Done | `eap-tls` PASS, mutation-verified RED | closed in the closure phase, 2026-08-24. The 2026-08-29 re-measurement did not run: see the AC-5 row of Pre-Commit Verification |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -540,7 +540,7 @@ session's uncommitted work in this shared checkout.
 | `docs/guide/ipsec.md` | Done | landed in `5e14f7f51` |
 | `internal/component/ike/eap/eap_tls_export_refusal_test.go` | Done | created in `d53e73ea9` |
 | `cmd/ze/godebug_guidance_test.go` | Done | created in `d53e73ea9` |
-| `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` | Changed | NOT created; see Deviations |
+| `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` <!-- doc-links: ignore (deliberately never created; see this spec's Deviations) --> | Changed | NOT created; see Deviations |
 
 ### Audit Summary
 - **Total items:** 23
@@ -555,7 +555,7 @@ session's uncommitted work in this shared checkout.
 |------------------|---------------|-------------------|
 | Ze's shipped instruction no longer stops the daemon | functional (structural guard over the whole tree) | `TestNoShippedGuidanceNamesARemovedGODEBUG` passes as part of `go test -race ./cmd/ze` -> `ok github.com/ze-software/ze/cmd/ze 76.968s`. Its predicate is proven against the defect's own bytes by `TestGODEBUGGuardRedsOnTheDefectItWasWrittenFor` |
 | The capability's loss is stated everywhere a reader might assume otherwise, rather than being silent | documentation, source-anchored | `docs/guide/ipsec.md` "EAP-TLS with TLS 1.2 needs RFC 7627"; the RFC 5216 row of `docs/features/rfc-status.md`; `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md`; the Proof section of `docs/architecture/ike/ipsec-11-interop-eap.md`. Each carries or is covered by a `<!-- source: ... -->` anchor on `exportEAPTLSMSK, eapTLS12ExportRefused` |
-| An operator who meets such a peer learns the peer, the version, RFC 7627 and what to change | interop, against a real non-Go peer | `./le integration interop-ipsec IPSEC_INTEROP_SCENARIO=eap-tls` PASS. The daemon logged the line quoted in the fenced block below |
+| An operator who meets such a peer learns the peer, the version, RFC 7627 and what to change | interop, against a real non-Go peer | `IPSEC_INTEROP_SCENARIO=eap-tls ./le integration interop-ipsec` PASSED on 2026-08-24 under the Python runner `eae282592` later retired, and the daemon logged the line quoted in the fenced block below. NOT re-measured 2026-08-29: see the AC-5 row of Pre-Commit Verification. The unit half of this goal, `TestEAPTLSExportRefusalNamesTheCause`, is green here |
 | The refusal is fail-closed: no SA is built from key material ze never derived | interop | scenario eap-tls asserts `check_xfrm_sa_count(ZE_CONTAINER, 0)` and `check_xfrm_sa_count(SWAN_CONTAINER, 0)`, and both pass. strongSwan's OWN EAP method succeeded in the same run (`EAP method EAP_TLS succeeded, MSK established`), so the peer was willing and only ze's refusal kept the SA off the wire |
 | The TLS 1.3 path is unaffected | interop | `eap-tls13` PASS with `ESP counters advanced on 0xc1686e0d` on BOTH containers; `responder-eap-tls13` PASS |
 | The tests discriminate | mutation | With `eapTLS12ExportRefused` reverted to the bare `fmt.Errorf` wrap: scenario eap-tls goes RED at `Ze log missing: 'cannot export the RFC 5216 Section 2.3 MSK'`, and `TestEAPTLSExportRefusalNamesTheCause` reds on seven assertions. Both re-measured 2026-08-24, and the file was restored to `d53e73ea9` afterwards |
@@ -572,7 +572,8 @@ setting, and `noEKMBecauseNoEMS` at tag `go1.27.0` returns the same sentence
 without an override. The capture is from a Go 1.26 run, so it named a mechanism
 this tree no longer has. `TestNoShippedGuidanceNamesARemovedGODEBUG` refuses the
 pasteable form in any tracked file, and it reddened on this line the moment
-`go.mod` moved to `toolchain go1.27.0`.
+`go.mod` moved to `go 1.27.0`. That directive is the one in the tree today, and
+there is no `toolchain` line beside it.
 
 ## Deferrals Resolved
 
@@ -584,19 +585,32 @@ pasteable form in any tracked file, and it reddened on this line the moment
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/fixit-eap-tls-escape-hatch-kills-the-daemon-9ad8358c-695f-41be-8019-5d92ba08f8e6.md` |
-| `review_gate.py check` | clean -- `review_gate: OK (5 code files, clean, hashes match ...)` |
-| Rounds | 2 |
+| Artifact | `tmp/review/fixit-eap-tls-escape-hatch-kills-the-daemon-bae6e1b4-738f-4436-9754-92603923b680.md`, the 2026-08-29 closure round, `review_gate: OK (6 code files, clean, hashes match)`. The 2026-08-23 round's artifact is `...-ebf5d9b3-b158-40df-bba0-32a51591883e.md` and is still on disk. The `9ad8358c-...` path this row carried until 2026-08-29 named a file that is not |
+| `./le spec session review check` | clean -- `review_gate: OK (6 code files, clean, hashes match ...)` |
+| Rounds | 2 in the 2026-08-24 gate, and 2 more on 2026-08-29: an independent review of the closed spec, then this pass verifying and correcting what it found |
 | Reviewer lenses used | one closure agent running every lens: wiring, functional-test coverage, documentation drift, removed-behaviour, code comments, logic and guard audit, simplicity, security, interop and goal validation, RFC compliance, ze-style |
 
 The review was independent by PHASE: the diff was written by a previous session
 and committed as `d53e73ea9`, and this context judged it from source without
-having authored it. It spawned no reader of its own.
+having authored it. It spawned no reader of its own. The 2026-08-29 round is
+independent the same way, and doubly so: a separate context reviewed the closed
+spec and reported 0 BLOCKER, and this context verified each of its findings
+against `go.mod`, `tmp/review/`, `eae282592` and the Go 1.27.0 godebug table
+before acting on it.
+
+### Findings fixed, 2026-08-29 round
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 4 | NOTE | Outstanding row 2a still read OPEN after row 2 superseded it on 2026-08-28 | this spec, "Outstanding" | the cell states the supersession and its date, and keeps the 2026-08-23 reasoning as reasoning |
+| 5 | NOTE | The Review Gate note and the A-3 evidence row both said `go.mod` pins `toolchain go1.26.6`, so the AC-4 repository-wide scan was not yet live | this spec, Review Gate and Assumptions Resolved | both corrected against `go.mod`, which reads `go 1.27.0` with no `toolchain` line, and against the Go 1.27.0 godebug table. `go test -race -tags ze_core -run GODEBUG ./cmd/ze` is `ok ... 3.804s` with the scan live |
+| 6 | NOTE | The Artifact cell named a `tmp/review/` file that is not on disk | this spec, Review Gate | it names the two that are |
+| 7 | NOTE | The AC-3 and AC-5 evidence rows cited `python3 test/interop-ipsec/run.py`, retired by `eae282592` | this spec, Pre-Commit Verification | each row names `./le integration interop-ipsec` and carries the 2026-08-29 measurement, which is a RED that belongs to the host. Recorded as owed, not re-transcribed |
+| 8 | NOTE | No `plan/learned/NNN-<name>.md` exists, which the Closure checklist asks for | this spec, Closure checklist | `2cff2050a` replaced that corpus with the problem journal. The lesson is already three rows of `plan/learned/DESIGN-HISTORY.md`, committed in `84a9f2efd`, and this closure adds the journal rows |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | BLOCKER | AC-5 unmet: scenario eap-tls was RED. `check.py` asserted an established IKE SA and ESP flow, which ze cannot reach against a stock strongSwan. Measured: `strongSwan SA 'ze' did not reach ESTABLISHED within 60s` | `test/interop-ipsec/scenarios/eap-tls/check.py` | repurposed to assert the handshake, the attributed refusal and the absence of any XFRM SA. PASS, mutation-verified RED |
+| 1 | BLOCKER | AC-5 unmet: scenario eap-tls was RED. `check.py` asserted an established IKE SA and ESP flow, which ze cannot reach against a stock strongSwan. Measured: `strongSwan SA 'ze' did not reach ESTABLISHED within 60s` | `test/interop-ipsec/scenarios/eap-tls/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | repurposed to assert the handshake, the attributed refusal and the absence of any XFRM SA. PASS, mutation-verified RED |
 | 2 | ISSUE | Stale citation: the comment on `indicateSuccess` named scenario eap-tls as proof of authenticator-side TLS 1.2 behaviour, and ze is the PEER there | `internal/component/ike/eap/eap_tls.go`, `indicateSuccess` | the citation names `TestEAPTLS12SendsNoProtectedSuccessIndication` (`internal/component/ike/eap/rfc9190_test.go`) and states why the lab cannot supply that proof |
 | 3 | ISSUE | The design doc's Proof section implied scenario eap-tls proves a working EAP-TLS tunnel | `docs/architecture/ike/ipsec-11-interop-eap.md`, Proof | a paragraph stating what eap-tls asserts now, with a source anchor |
 
@@ -604,17 +618,30 @@ Five NOTEs did not block and are recorded in full in the artifact. The two a lat
 reader most needs:
 
 - `removedGODEBUGSettings` (`cmd/ze/godebug_guidance_test.go`) derives the scan's
-  population from the toolchain in use. `go.mod` pins `toolchain go1.26.6`, whose
-  `internal/godebugs` table carries one removed setting and it is `x509sha1`. So the
-  repository-wide half of `TestNoShippedGuidanceNamesARemovedGODEBUG` does not look
-  for `tlsunsafeekm` today, and the AC-4 regression protection becomes live at the Go
-  1.27 bump. That is the guard's stated design and it is right: on 1.26.6 the setting
-  is not removed, so there is no harm to refuse. The PREDICATE is proven
-  toolchain-independently by the two fixture tests.
-- `is_test_path` (`internal/le/weakened/audit.go`) admits `_test.go`, `.ci` and
+  population from the toolchain in use, rather than from a list kept beside it.
+  **Corrected 2026-08-29, and the correction reverses the note.** The 2026-08-24
+  text said `go.mod` pinned `toolchain go1.26.6`, whose table carried `x509sha1`
+  alone, so the repository-wide half of `TestNoShippedGuidanceNamesARemovedGODEBUG`
+  did not look for the setting and the AC-4 regression protection was still pending.
+  Neither half of that is true now: `go.mod` reads `go 1.27.0` and carries no
+  `toolchain` line, and the Go 1.27.0 `internal/godebugs` <!-- doc-links: ignore (a package in the Go standard library, not in this repository) --> table carries
+  `Removed: 27` for this setting beside seven other removed rows. The scan is LIVE
+  for it across every tracked file, and it is green.
+- `is_test_path` (`internal/le/testweakened/audit.go`) admits `_test.go`, `.ci` and
   `.et` under `test/`, and the two Python test-file shapes. No interop scenario
   `check.py` is in that population, so a scenario weakened to reach green is invisible
   to the relaxation audit. Recorded as a journal row.
+
+### Recorded, not fixed (2026-08-29 closure round)
+
+Two findings of the 2026-08-29 review sit below ISSUE and are written down here
+rather than acted on. Each row names the condition that turns it into a defect,
+because that condition is what a later reader has to recognise.
+
+| # | Finding | Why it is harmless today | What makes it a defect |
+|---|---------|--------------------------|------------------------|
+| 1 | `TestEAPTLSExportRefusalNamesTheCause` reaches the refusal through `Renegotiation = tls.RenegotiateOnceAsClient` (`tls12ClientState`, `internal/component/ike/eap/eap_tls_export_refusal_test.go`), so `Conn.connectionStateLocked` selects `noEKMBecauseRenegotiation`. The production case is `noEKMBecauseNoEMS`. The test proves the SHAPE of the message `eapTLS12ExportRefused` builds, not that its diagnosis matches the cause it wrapped | Ze sets `tls.Config.Renegotiation` nowhere, so no ze session reaches the renegotiation branch. The comment on `tls12ClientState` already states that Go's own client always offers RFC 7627, which is why the strongSwan case has no Go-side reproduction | Ze enabling renegotiation on any TLS config. `eapTLS12ExportRefused` names RFC 7627 for every refused TLS 1.2 export, so a renegotiation refusal would reach the operator as a missing extended master secret: a wrong remedy, confidently stated. The comment on `tls12ClientState` now carries this, so the next reader of that config meets it |
+| 2 | The second half of `TestNoShippedGuidanceNamesARemovedGODEBUG` accepts any file whose bytes contain the word "removed", anywhere and in any sentence. A long file with an unrelated use of the word satisfies it while never explaining the setting it named | It is a hint, not the guard. `findGODEBUGAssignments` is the guard, and it refuses the pasteable assignment form wherever it appears, with no carve-out | Nothing, for as long as nobody promotes it to the guard. `TestGODEBUGRemovedBackstopIsNotTheGuard` (`cmd/ze/godebug_guidance_test.go`) exists to say so, and it records the measured failure: the defect fixture already said "removed" about the deleted directive, forty lines from the instruction the backstop was meant to cover |
 
 ## Pre-Commit Verification
 
@@ -626,41 +653,41 @@ reader most needs:
 | `cmd/ze/testdata/godebug-assignable-forms.tsv` | Yes | 13 rows read by `TestGODEBUGPredicateCoversEveryAssignableForm` |
 | `cmd/ze/testdata/godebug-inert-forms.tsv` | Yes | 6 rows, same test |
 | `cmd/ze/testdata/godebug-guidance-defect.txt` | Yes | 54 lines, the fixture for `TestGODEBUGGuardRedsOnTheDefectItWasWrittenFor` |
-| `test/interop-ipsec/scenarios/eap-tls/check.py` | Yes | rewritten 2026-08-24; `ast.parse` over it returns SYNTAX OK |
-| `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` | No, deliberately | see Deviations: two Go endpoints cannot produce the state |
+| `test/interop-ipsec/scenarios/eap-tls/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | Yes | rewritten 2026-08-24; `ast.parse` over it returns SYNTAX OK |
+| `test/ipsec/ipsec-eap-tls12-refusal-is-attributed.ci` <!-- doc-links: ignore (deliberately never created; see this spec's Deviations) --> | No, deliberately | see Deviations: two Go endpoints cannot produce the state |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-1 | the daemon runs and no shipped guidance names a removed key | `go test -race ./cmd/ze` -> `ok github.com/ze-software/ze/cmd/ze 76.968s` |
 | AC-2 | the refusal names the peer, the version, RFC 7627 and the remedies | `go test -race ./internal/component/ike/eap` -> `ok ... 3.556s`; and the interop log line quoted in Goal Validation |
-| AC-3 | TLS 1.3 still authenticates | `python3 test/interop-ipsec/run.py eap-tls13` -> `PASS 1 scenario(s)`; `responder-eap-tls13` -> `PASS 1 scenario(s)` |
+| AC-3 | TLS 1.3 still authenticates | `IPSEC_INTEROP_SCENARIO=eap-tls13 ./le integration interop-ipsec` -> OWED. Attempted 2026-08-29 from a detached worktree at `97a216888` and RED at `wait for strongSwan SA ze timed out before the peer became ready`. The lab does not run on this macOS host: `psk-site-to-site`, which this spec does not touch, fails identically. The 2026-08-24 PASS stands as the last measurement and is NOT re-transcribed as fresh. `responder-eap-tls13` was measured on 2026-08-24 with `run.py`, the runner `eae282592` retired, and it is NOT re-measured here |
 | AC-4 | no file instructs an operator to set the setting | a `git ls-files --cached --others --exclude-standard` walk grepped for the assignable form returns no hit outside `vendor/`, `testdata/` and the guard's own test |
-| AC-5 | scenario eap-tls is not red | `python3 test/interop-ipsec/run.py eap-tls` -> `PASS 1 scenario(s)` |
+| AC-5 | scenario eap-tls is not red | `IPSEC_INTEROP_SCENARIO=eap-tls ./le integration interop-ipsec` -> OWED. Attempted 2026-08-29 from a detached worktree at `97a216888` and RED at `wait for strongswan log "negotiated TLS 1.2" timed out before the peer became ready`, the first assertion `checkEAPTLS` makes (`internal/le/interoplab/ipsec/checkers.go`). The same host reds `psk-site-to-site` and `eap-tls13` the same way, so the red is the lab on this host and not this scenario. The 2026-08-24 PASS stands as the last measurement and is NOT re-transcribed as fresh |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
 | An EAP-TLS peer negotiating TLS 1.2 without RFC 7627 | `internal/component/ike/eap/eap_tls_export_refusal_test.go`, `TestEAPTLSExportRefusalNamesTheCause` | Yes. `eapTLS12ExportRefused` has exactly one production caller, `exportEAPTLSMSK` |
-| The interop lab's EAP-TLS scenario against strongSwan 5.9.14 | `test/interop-ipsec/scenarios/eap-tls/check.py` | Yes, read and run. It exercises the IKE EAP exchange end to end and asserts on ze's own log |
+| The interop lab's EAP-TLS scenario against strongSwan 5.9.14 | `test/interop-ipsec/scenarios/eap-tls/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | Yes, read and run. It exercises the IKE EAP exchange end to end and asserts on ze's own log |
 | The AUTHENTICATOR half keeps its diagnosis | `TestEAPTLSAuthenticatorKeepsItsRefusalReason` | Yes. `Session.Err()` has exactly one production caller, `handleResponderEAP` (`internal/component/ike/engine/responder_eap.go`) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-| A-1 | confirmed | Re-verified 2026-08-24 against the released Go 1.27.0 source: the `internal/godebugs` table carries `{Name: "tlsunsafeekm", Removed: 27, Old: one}`, and `noEKMBecauseNoEMS` in `crypto/tls` returns the refusal with no override clause. The module proxy lists `v0.0.1-go1.27.0.linux-amd64`, so 1.27.0 is released |
+| A-1 | confirmed | Re-verified 2026-08-24 against the released Go 1.27.0 source: the `internal/godebugs` <!-- doc-links: ignore (a package in the Go standard library, not in this repository) --> table carries `{Name: "tlsunsafeekm", Removed: 27, Old: one}`, and `noEKMBecauseNoEMS` in `crypto/tls` returns the refusal with no override clause. The module proxy lists `v0.0.1-go1.27.0.linux-amd64`, so 1.27.0 is released |
 | A-2 | confirmed | `eapTLS12ExportRefused` builds the message from `cs.Version` and `cs.PeerCertificates`, and the lab run proves it reaches the operator's log through `handleEAPResponse` |
-| A-3 | confirmed | Ze has never been released. Recorded for the next reader: `go.mod` pins `toolchain go1.26.6`, and on that toolchain the setting is NOT removed (its table row reads `Changed: 22`) and a binary run with it set exits 0. So the fatal reaches a build made with a locally installed Go 1.27, which `GOTOOLCHAIN=auto` selects over the pinned line, and not a build made from this tree today |
+| A-3 | confirmed | Ze has never been released, so no deployment can be surprised. Corrected 2026-08-29: `go.mod` now reads `go 1.27.0` and carries no `toolchain` line, so every build from this tree is a Go 1.27 build and the fatal is what an operator setting the key WOULD meet. The 2026-08-24 wording, which said the file pinned `toolchain go1.26.6` and put the fatal out of reach of a build made from this tree, described a tree that no longer exists |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
 | 6. user guide | the "EAP-TLS with TLS 1.2 needs RFC 7627" section of `docs/guide/ipsec.md` names `charon.tls.version_max = 1.3` and the three answers; checked against `eapTLS12ExportRefused`, which lists the same three | Yes |
 | 9. RFC behaviour | the RFC 5216 row of `docs/features/rfc-status.md`; `rfc/short/rfc5216.md` deliberately unchanged, because `RFC5216-2.3-1` says ze exports the 64-octet MSK with the RFC label and that is still exactly true. `./le rfc check` -> `rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RFC(s)` | Yes |
-| 10. test infrastructure | `test/interop-ipsec/scenarios/eap-tls/ze-env` and the repurposed `check.py`; the `ze-env` comment in `test/interop-ipsec/lab.py` | Yes |
+| 10. test infrastructure | `test/interop-ipsec/scenarios/eap-tls/ze-env` and the repurposed `check.py`; the `ze-env` comment in `test/interop-ipsec/lab.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | Yes |
 | 11. daemon comparison | grepping `docs/comparison.md` for `EAP-TLS` returns no hit, so there is no parity claim to reconcile | Yes, No applies |
 | 12. internal architecture | `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md`; the Proof section of `docs/architecture/ike/ipsec-11-interop-eap.md`. `docs/architecture/system-architecture.md` needed no edit: the guidance it summarises names no GODEBUG | Yes |
-| 16. anchors on changed files | the `./le doc-check verify` source-anchor stage reports `checked 2186 code paths, 517 packages` with one failure, and it names `docs/guide/web-interface.md`, another session's file | Yes |
+| 16. anchors on changed files | the `./le doc check verify` source-anchor stage reports `checked 2186 code paths, 517 packages` with one failure, and it names `docs/guide/web-interface.md`, another session's file | Yes |
 | 16b. `docs/architecture/ike/ipsec-11-interop-eap.md` | answered No at design time and it is Yes now: scenario eap-tls's meaning changed, so its Proof section did go stale | Yes, updated |
 | 17. examples setting the variable | the AC-4 walk above finds no assignable form outside `vendor/`, `testdata/` and the guard test | Yes |
 

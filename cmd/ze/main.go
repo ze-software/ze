@@ -1,6 +1,7 @@
 // Design: docs/architecture/system-architecture.md -- ze unified entry point
 // RFC: rfc/short/rfc5216.md -- EAP-TLS MSK export, which the note below is about
 // RFC: rfc/short/rfc9190.md -- EAP-TLS 1.3, the path that needs no opt-in
+// RFC: rfc/short/rfc7627.md -- extended master secret, why the export is refused
 //
 // Single main() for all ze binaries. Build tags control which commands
 // register: ze_core (ze, ze-appliance), ze_setup, ze_test, ze_chaos,
@@ -21,9 +22,11 @@
 // A `go:debug tlsunsafeekm=1` line HERE would once have lifted the refusal, and
 // it was written and then removed (Thomas, 2026-08-01). It sets the default for
 // every ze binary, so it would weaken the export rule for every user to suit one
-// peer version. The GODEBUG name says "unsafe" for a reason: RFC 7627 exists to
-// stop the triple handshake attack, and without it exported keying material can
-// collide across sessions.
+// peer version. The GODEBUG name says "unsafe" for a reason: RFC 7627
+// Section 6.1 states that an attacker who forces the same master secret on two
+// sessions compromises every property that relies on its uniqueness, and names
+// the TLS exporter as one of them: it "no longer provides a unique key bound to
+// the current session". That exporter is the EAP-TLS MSK.
 //
 // Go 1.27 then REMOVED the setting (internal/godebugs, table.go, `Removed: 27`),
 // which took the environment variable with it. The runtime raises a fatal error

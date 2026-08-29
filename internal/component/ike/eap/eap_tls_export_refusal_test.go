@@ -39,6 +39,17 @@ const (
 // the strongSwan 5.9.14 case (TLS 1.2, no RFC 7627) has no Go-side reproduction.
 // Both refusals arrive at exportEAPTLSMSK as an error from the same call on the
 // same TLS 1.2 branch, which is the code under test.
+//
+// So the two refusals differ in one way this test cannot see, and a reader who
+// enables renegotiation has to know it. Conn.connectionStateLocked picks
+// noEKMBecauseRenegotiation here and noEKMBecauseNoEMS in production, while
+// eapTLS12ExportRefused names RFC 7627 for EVERY refused TLS 1.2 export. That is
+// right today, because ze sets tls.Config.Renegotiation nowhere and no ze session
+// can reach the renegotiation branch. The day one does, this test still passes
+// and the operator is told to add an extended master secret to a session that
+// already has one: the wrong remedy, stated with the same confidence as the right
+// one. Whoever enables renegotiation owes eapTLS12ExportRefused a branch on
+// cs.ExtendedMasterSecret before it is reachable.
 func tls12ClientState(t *testing.T, refuseExport bool) tls.ConnectionState {
 	t.Helper()
 	pki := newEAPTLSPKI(t)
