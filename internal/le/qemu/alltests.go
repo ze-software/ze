@@ -242,6 +242,48 @@ var integrationPackages = []string{
 	"./internal/plugins/traffic/netlink/...",
 	"./internal/plugins/tftpserver/...",
 	"./internal/plugins/dhcpserver/...",
+
+	// Added 2026-08-29. Each of these carries `//go:build integration` test
+	// files and was named by no runner, so its tests compiled under the lint
+	// matrix and executed nowhere. TestEveryIntegrationPackageIsNamed found
+	// them by deriving the population from the tree; 19 of the 36 packages
+	// holding integration tests were absent.
+	//
+	// Written without the /... suffix, like ./internal/plugins/isis above: the
+	// package named IS the one holding the tests, and a suffix here would
+	// subsume siblings that optionalPackages already names separately.
+	"./cmd/ze/hub",
+	"./internal/chaos/peer",
+	"./internal/component/ike/dataplane",
+	"./internal/component/ike/engine",
+	"./internal/component/l2tp",
+	"./internal/component/l2tp/pppoeclient",
+	"./internal/component/telemetry/collector",
+	"./internal/core/dnsserver",
+	"./internal/core/smart",
+	"./internal/exabgp/bridge",
+	"./internal/plugins/flowexport/conntrack",
+	"./internal/plugins/flowexport/sampling",
+	"./internal/plugins/iface/dhcp",
+	"./internal/plugins/iface/netlink",
+	"./internal/plugins/iface/ra",
+	"./internal/plugins/ldp",
+	"./internal/plugins/ntp",
+	"./internal/plugins/ospf",
+	"./internal/plugins/static",
+	"./internal/plugins/trafficusage",
+}
+
+// excludedIntegrationPackages names a package that holds integration tests and
+// is deliberately not run, against the reason it is not.
+//
+// It is EMPTY by design, for the reason excludedSuites is: a package left out
+// of the run needs a reason a reader can check, not an omission. The map is
+// what TestEveryIntegrationPackageIsNamed accepts in place of membership, so
+// excluding one is a decision somebody writes down rather than a silence.
+var excludedIntegrationPackages = map[string]string{
+	"internal/plugins/as112": "runs as its own verb, `./le integration as112`" +
+		" (internal/le/integration/gates.go), so naming it here would run it twice",
 }
 
 // optionalPackages are added when the directory is there. Each is a transport
