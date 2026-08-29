@@ -50,8 +50,9 @@ ns/op across machines.
 
 **The cache no longer exists.** The AS-path fold (`e2037e598`) moved eBGP
 prepending onto the edit-set path on 2026-08-01 and left the cache with no
-non-test caller. `plan/spec-wire-edit-3-deferred-ac9-dead-code.md` deleted the
-cache, its two benchmarks and its allocation ceiling. The optimization above was
+non-test caller. `spec-wire-edit-3-deferred-ac9-dead-code` deleted the
+cache, its two benchmarks and its allocation ceiling in `df44d8d27` and
+`467d99165`. The optimization above was
 correct and measured. The traffic it was written for takes another route, so the
 numbers are a record and are not re-runnable.
 

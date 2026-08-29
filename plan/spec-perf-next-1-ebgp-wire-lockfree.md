@@ -20,12 +20,13 @@ eBGP prepending onto the edit-set path. It left `EBGPWire` with zero non-test
 callers, so both slots stay nil in a running daemon.
 
 The lock-free change is still correct and still measured. The traffic it was
-written for now takes another route. Deleting the cache is homed at
-`plan/spec-wire-edit-3-deferred-ac9-dead-code.md`, its single owner since
+written for now takes another route. Deleting the cache was homed at
+`spec-wire-edit-3-deferred-ac9-dead-code`, its single owner since
 2026-08-05, when the duplicate spec that described the same deletion was
-removed. It states that the deletion touches read-pool buffer lifetime and
-wants its own implementation phase. This closure does not do that deletion. It corrects every
-comment and doc line that still called the path live.
+removed. That deletion landed on 2026-08-17 in `df44d8d27`, its doc half in
+`467d99165`, and the owning spec closed on 2026-08-29. This closure did not do
+that deletion. It corrects every comment and doc line that still called the
+path live.
 
 ## Post-Compaction Recovery
 
@@ -94,6 +95,7 @@ Local idiom to match: `Peer.negotiated` and `Peer.sendCtx` already use
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `ai/rules/performance.md` - pool ownership rules
   → Constraint: only pool-issued BufHandles; hook block-fake-bufhandle.sh enforces
 - [ ] `docs/architecture/encoding-context.md` - ContextID semantics the cached wire preserves
@@ -262,7 +264,7 @@ run needed beyond the existing suite. Justification: synchronization-only change
 | 3. Wiring phase | Wiring Test table (existing tests already wire the path; add the two new tests failing) |
 | 4. Implement (TDD) | Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` + `go test -race ./internal/component/bgp/reactor/...` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` + `go test -race ./internal/component/bgp/reactor/...` |
 | 7-14 | Per template |
 
 ### Implementation Phases
@@ -358,7 +360,7 @@ protocol-enforcing code is added. Keep existing references intact.
 
 ### Bugs Found/Fixed
 - Closure fixed four prose defects the independent review found: the `EBGPWire` doc comment's false SourceCtxID claim, and three sites plus a doc section that still called the path a live RS fan-out hot path (see Review Gate).
-- Closure cleared a `./le doc-check verify` red it did not cause but depended on: two learned summaries cited `spec-rfc7606-5-1-2-relay-shape`, which its own closure commit (`632dcade1`) removed, putting `internal/le/journal/validate.go` two references over its shrink-only ceiling. The two dead lines were deleted: a record must not cite a spec that closure removed.
+- Closure cleared a `./le doc check verify` red it did not cause but depended on: two learned summaries cited `spec-rfc7606-5-1-2-relay-shape`, which its own closure commit (`632dcade1`) removed, putting `internal/le/journal/validate.go` two references over its shrink-only ceiling. The two dead lines were deleted: a record must not cite a spec that closure removed.
 
 ### Documentation Updates
 - `docs/architecture/buffer-architecture.md`: "EBGP Variant Cache" section describing the lock-free publication and eviction contract, plus the reachability note added at closure
@@ -465,12 +467,12 @@ M4 Max with 16 goroutines and are not comparable to the run above.
 ## Review Gate
 
 Independent `/ze-review` subagents, 2026-08-05. Artifact recorded with
-`internal/le/speclifecycle/review.go`.
+`internal/le/spec/session/review.go`.
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| 1 | BLOCKER | `EBGPWire` has zero non-test callers since `e2037e598`; the optimized path is dead in production | `internal/component/bgp/reactor/received_update.go` `EBGPWire` | Verified independently (grep returns only `_test.go` hits). Already homed at `plan/spec-wire-edit-3-deferred-ac9-dead-code.md` and a duplicate spec since removed, both skeleton, both stating the deletion needs its own implementation phase against read-pool buffer lifetime. Downgraded to a recorded fact for THIS spec: the deletion is separable work with a home, and folding it into a closing commit is what `ai/rules/rule-precedence.md` bans. Spec header, Goal Validation, A-1 and Mistake Log now state it |
+| 1 | BLOCKER | `EBGPWire` has zero non-test callers since `e2037e598`; the optimized path is dead in production | `internal/component/bgp/reactor/received_update.go` `EBGPWire` | Verified independently (grep returns only `_test.go` hits). Already homed at `spec-wire-edit-3-deferred-ac9-dead-code` and a duplicate spec since removed, both skeleton, both stating the deletion needs its own implementation phase against read-pool buffer lifetime. Downgraded to a recorded fact for THIS spec: the deletion is separable work with a home, and folding it into a closing commit is what `ai/rules/rule-precedence.md` bans. Spec header, Goal Validation, A-1 and Mistake Log now state it |
 | 2 | ISSUE | Doc comment claims the returned wire "shares the original SourceCtxID"; false since `9668abc9b` introduced `fwdContextIDWithASN4` | `received_update.go` `EBGPWire` doc comment | Fixed: comment now describes `fwdContextIDWithASN4` and says when the ids coincide |
 | 3 | ISSUE | Four sites still describe the cache as a live RS fan-out hot path | `received_update_bench_test.go` header; `internal/perf/allocgate.go` `AllocCeilings`; `internal/component/bgp/wireu/aspath_rewrite.go` `RewriteASPath`; `docs/architecture/buffer-architecture.md` | Fixed: all four now state the method has no production caller and name the owning deletion spec |
 | 4 | NOTE | Both cache-hit benchmarks prime with `EBGPWire` and never return the handle | `received_update_bench_test.go`, `received_update_bench_baseline_test.go` | Fixed: each benchmark returns its primed handle in a deferred cleanup |
@@ -519,10 +521,10 @@ survives.
 |-------|-------|----------------|
 | AC-1 | Same pointer, no mutex on the hit | `EBGPWire` returns `s.wire` from `slot.Load()` before any `ebgpMu.Lock()` (received_update.go); TestReceivedUpdate_EBGPWireCachedASN4 PASS |
 | AC-2 | Concurrent mixed variants safe | TestReceivedUpdate_EBGPWireConcurrent PASS; `go test -race ./internal/component/bgp/reactor/...` exit 0, `ok ... reactor 221.454s` |
-| AC-3 | 0 allocs on hits, ns/op improves | 0 allocs/op measured; 73.6 -> 0.26 ns/op (Goal Validation). Ceiling 0 registered for the benchmark in `internal/perf/allocgate.go` (`AllocCeilings`), enforced by `internal/le/verifydeps/actions.go` |
+| AC-3 | 0 allocs on hits, ns/op improves | 0 allocs/op measured; 73.6 -> 0.26 ns/op (Goal Validation). Ceiling 0 registered for the benchmark in `internal/perf/allocgate.go` (`AllocCeilings`), enforced by `internal/le/verify/deps/actions.go` |
 | AC-4 | Error leaves the slot nil, buffer returned | TestReceivedUpdate_EBGPWireErrorDoesNotPublish PASS; mutant M2 (drop `ReturnReadBuffer` on the error path) FAILS it |
 | AC-5 | Eviction returns exactly the published handles | TestReceivedUpdate_EBGPWireEvictionReturnsBuffers PASS with subtests no_variants / one_variant_(ASN4) / both_variants; mutant M1 (drop the ASN2 return in `evictLocked`) FAILS both_variants |
-| AC-6 | Suite green | `go test -race ./internal/component/bgp/reactor/...` exit 0 over `./internal/component/bgp/reactor/...`; `./le changed scope` 0 issues; `./le repository-tracked-build check` OK across 6 build flavors |
+| AC-6 | Suite green | `go test -race ./internal/component/bgp/reactor/...` exit 0 over `./internal/component/bgp/reactor/...`; `./le changed scope` 0 issues; `./le repository tracked-build check` OK across 6 build flavors |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -549,14 +551,14 @@ discriminating evidence is the mutation kills above plus the race gate.
 | buffer-architecture.md EBGP section | source anchor names `ebgpWireSlot`, `ebgpSlotASN4`, `ebgpSlotASN2`, `EBGPWire`; all four exist in received_update.go. Section now also states the path has no production caller | yes |
 | No source anchor stale | the only `docs/` anchor onto received_update.go / recent_cache.go is the one above; re-read and corrected | yes |
 | Categories 1-11 (user-facing / config / CLI / API / wire) | no user-visible surface changed; wire bytes are `RewriteASPath` output, unchanged | no update needed |
-| `./le doc-check verify` | PASSED after the fixes (log `tmp/doc-test-ebgp3.log`) | yes |
+| `./le doc check verify` | PASSED after the fixes (log `tmp/doc-test-ebgp3.log`) | yes |
 
 ## Deferrals Resolved
 
 This spec has no deferral shard: no `plan/deferrals/spec-perf-next-1-*` or
 `*ebgp-wire*` file exists, and nothing was deferred out of it. The one live
 follow-on, deleting the now-unreachable cache, was homed before this closure at
-`plan/spec-wire-edit-3-deferred-ac9-dead-code.md` by the
+`spec-wire-edit-3-deferred-ac9-dead-code` by the
 closure of the wire-edit-3 AS_PATH fold spec. That closure also homed it at a
 duplicate spec, since removed. This spec adds no row to either, and removes no
 shard.
@@ -567,7 +569,7 @@ shard.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] `go test -race ./internal/component/bgp/reactor/...` passes (BLOCKING for this spec)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
