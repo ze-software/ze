@@ -274,7 +274,8 @@ func (ld *LinkDescriptor) Bytes() []byte {
 	// because 263 is the highest type here and Section 5.1 requires TLVs "be
 	// ordered in ascending order by TLV Type".
 	if ld.HasMultiTopologyID || ld.MultiTopologyID != 0 {
-		data = append(data, tlv(TLVMultiTopologyID, uint16ToBytes(ld.MultiTopologyID))...)
+		data = append(data, tlv(TLVMultiTopologyID,
+			binary.BigEndian.AppendUint16(nil, ld.MultiTopologyID))...)
 	}
 
 	return data
@@ -367,7 +368,8 @@ func (pd *PrefixDescriptor) Bytes() []byte {
 
 	// Multi-Topology Identifier (TLV 263) - RFC 9552 Section 5.2.2.1
 	if pd.HasMultiTopologyID || pd.MultiTopologyID != 0 {
-		data = append(data, tlv(TLVMultiTopologyID, uint16ToBytes(pd.MultiTopologyID))...)
+		data = append(data, tlv(TLVMultiTopologyID,
+			binary.BigEndian.AppendUint16(nil, pd.MultiTopologyID))...)
 	}
 
 	// OSPF Route Type (TLV 264) - RFC 9552 Section 5.2.3
