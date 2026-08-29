@@ -29,4 +29,7 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("set-ref", SetRefValidator())
 	reg.Register("port-spec", PortSpecValidator())
 	reg.Register("internal-plugin-name", InternalPluginNameValidator())
+	// The interface unit `vrf` leaf has no reader, so the refusal below is what
+	// stops the config from promising isolation ze never applies.
+	reg.Register("unimplemented-vrf", unimplementedVRFValidator())
 }

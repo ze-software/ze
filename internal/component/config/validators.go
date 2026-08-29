@@ -716,3 +716,29 @@ func CommunityRangeValidator() yang.CustomValidator {
 		CompleteFn: attribute.WellKnownCommunityNames,
 	}
 }
+
+// unimplementedVRFValidator refuses every value of the per-unit `vrf` leaf in
+// ze-iface-conf.yang.
+//
+// The leaf has no reader. parseUnits (internal/component/iface/config.go) never
+// looks up "vrf" in the unit map, unitEntry carries no VRF field, and no netlink
+// backend code creates a VRF device or enslaves a member. So the leaf used to
+// validate, commit, and do nothing: an operator who put a unit in a VRF for
+// isolation got traffic on the main table with no error at all.
+//
+// Refusing is what removes the false promise. Deleting the leaf from the schema
+// would not: nothing in the config walk emits ErrTypeUnknown
+// (internal/component/config/validate_sections.go documents this), so an unknown
+// `vrf` leaf would be skipped and the same config would still load silently.
+//
+// Delete this validator, its registration, and the ze:validate binding on the
+// leaf when VRF support ships.
+func unimplementedVRFValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(_ string, _ any) error {
+			return errors.New("vrf is not implemented: ze creates no VRF device and enslaves no interface, " +
+				"so traffic on this unit uses the main routing table and the isolation this leaf names is not in force; " +
+				"remove the leaf")
+		},
+	}
+}

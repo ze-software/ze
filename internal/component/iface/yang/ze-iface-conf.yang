@@ -256,9 +256,12 @@ module ze-iface-conf {
 
             leaf vrf {
                 type string;
-                description "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.
-                             The VRF must be defined separately. Traffic on this unit uses the VRF's
-                             routing table instead of the main table.";
+                ze:validate "unimplemented-vrf";
+                description "Not implemented. A config that sets this leaf is refused.
+                             Ze creates no VRF device and enslaves no interface, so a unit
+                             cannot use a routing table other than the main table. The leaf
+                             stays in the schema so the refusal can say why; it becomes
+                             functional when VRF support ships.";
             }
 
             leaf-list sysctl-profile {
