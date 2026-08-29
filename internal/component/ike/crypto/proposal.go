@@ -423,7 +423,10 @@ func negotiateIKE(remote, local []IKEProposal, rule keyLengthRule) (IKEProposal,
 // espProposalComplete checks that an offered ESP proposal carries the mandatory
 // transform types this type can express. RFC 7296 Section 3.3.3 makes ENCR and ESN
 // mandatory for ESP. The Extended Sequence Numbers transform is carried outside
-// this type. Only the encryption transform is therefore checked here.
+// this type. Only the encryption transform is therefore checked here, and the ESN
+// selection is checked on the wire proposal instead: acceptedESPESNConsistent
+// (ike/engine/initiator.go) on the initiator's answer, espProposalMatches
+// (ike/engine/responder.go) on the responder's offer.
 func espProposalComplete(p *ESPProposal) error {
 	if p.UnknownTransformType != 0 {
 		return ErrTransformTypeNotUnderstood

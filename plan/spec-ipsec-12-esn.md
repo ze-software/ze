@@ -47,6 +47,8 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ike/ipsec-3-data-model.md` - the typed model between the YANG schema and the IKE engine
+- [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - the native IKEv2 state machine above the wire codec and the crypto layer
 <!-- NEVER tick [ ] to [x]. Capture insights as -> Decision: / -> Constraint: annotations. -->
 - [ ] `plan/spec-ipsec-0-umbrella.md` -- IPsec scope, engine/dataplane split
   -> Constraint: IKEv2 engine is backend-agnostic; the SA/SP installer abstraction
@@ -529,7 +531,7 @@ Add above enforcing code:
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken; surviving risks copied to Executive Summary

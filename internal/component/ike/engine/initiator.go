@@ -352,8 +352,10 @@ func wireProposalsToESP(wireProps []wire.Proposal) []crypto.ESPProposal {
 				p.Integrity.ID = crypto.IntegrityID(t.ID)
 			case wire.TransformTypeESN, wire.TransformTypeDH:
 				// RFC 7296 Section 3.3.2: neither is part of the suite this check
-				// compares. Ze offers one value for the Extended Sequence Numbers
-				// transform, and it offers no Diffie-Hellman group for a Child SA.
+				// compares. The Extended Sequence Numbers selection is read from the wire
+				// proposal instead, by acceptedESPESNConsistent, because crypto.ESPProposal
+				// has no field to carry it. Ze offers no Diffie-Hellman group for a Child
+				// SA.
 			}
 		}
 		out = append(out, p)
@@ -412,7 +414,41 @@ var (
 	// buildESPProposals derives its input from the same group. It is refused rather than
 	// answered with a zero proposal, which would key an SA with no cipher.
 	errAcceptedOfferUnmapped = errors.New("ike: the accepted ESP offer maps to no configured proposal")
+	// errAcceptedOfferESN reports an accepted ESP offer whose Extended Sequence Numbers
+	// selection is not the one this side offered.
+	errAcceptedOfferESN = errors.New("ike: the accepted ESP offer selects an Extended Sequence Numbers value we did not offer")
 )
+
+// acceptedESPESNConsistent reports whether the Transform Type 5 selection in one accepted
+// ESP proposal is the selection this side offered.
+//
+// RFC 7296 Section 3.3.6: "The initiator of an exchange MUST check that the accepted
+// offer is consistent with one of its proposals, and if not MUST terminate the exchange"
+// (rfc/full/rfc7296.txt:4906-4909). espProposalToWire offers exactly one value for the
+// type, espESNNotExtended, so a responder that answers Extended Sequence Numbers has
+// answered a suite this side never proposed. Section 2.7 allows the answer one transform
+// of the type, so a second one is not a selection either.
+//
+// crypto.NegotiateESP does not reach this: crypto.ESPProposal carries no ESN field, and
+// wireProposalsToESP drops the transform on the way in. The check therefore reads the
+// wire proposal, where the value still exists.
+//
+// The failure it prevents is silent. Ze would install a 32-bit sequence space against a
+// peer keyed for 64, the tunnel would come up, and no packet would survive the peer's
+// anti-replay window.
+func acceptedESPESNConsistent(p wire.Proposal) bool {
+	esns := 0
+	for _, t := range p.Transforms {
+		if t.Type != wire.TransformTypeESN {
+			continue
+		}
+		if t.ID != espESNNotExtended {
+			return false
+		}
+		esns++
+	}
+	return esns <= 1
+}
 
 // espConfigForAccepted returns the configured ESP proposal that the accepted offer agrees
 // with. It reads the transforms rather than the Proposal Num. RFC 7296 Section 3.3.1 makes
@@ -455,6 +491,11 @@ func verifyAcceptedOffer(accepted *wire.PayloadSA, ikeGroup ipsec.IKEGroup, espG
 		}
 		return acceptedOffer{Protocol: wire.ProtocolIKE, IKE: chosen}, nil
 	case wire.ProtocolESP:
+		for i := range accepted.Proposals {
+			if !acceptedESPESNConsistent(accepted.Proposals[i]) {
+				return acceptedOffer{}, errAcceptedOfferESN
+			}
+		}
 		chosen, err := crypto.NegotiateESP(wireProposalsToESP(accepted.Proposals), buildESPProposals(espGroup))
 		if err != nil {
 			return acceptedOffer{}, fmt.Errorf("%w: %w", errAcceptedOfferMismatch, err)
@@ -653,6 +694,25 @@ func buildWireESPProposals(espGroup ipsec.ESPGroup, spi uint32) []wire.Proposal 
 	return proposals
 }
 
+// espESNNotExtended is the one Transform Type 5 value ze can key. RFC 7296
+// Section 3.3.2 defines 0 as "No Extended Sequence Numbers" and 1 as "Extended Sequence
+// Numbers", and RFC 4303 Section 3.3.3 gives the second a 64-bit sequence space whose
+// high-order half each peer maintains without transmitting it.
+//
+// Ze maintains no such half. dataplane.SAParams carries no ESN field, so neither backend
+// can ask for one: xfrmStateFromParams (dataplane/xfrm_linux.go) builds the whole kernel
+// state and never sets netlink.XfrmState.ESN, and vppSAFlags (dataplane/vpp.go) builds
+// the whole flag word and never sets IPSEC_API_SAD_FLAG_USE_ESN. Every SA ze installs
+// therefore counts 32 bits, and a peer that counted 64 would see every packet fail
+// anti-replay.
+//
+// So this value is what ze OFFERS, what it ANSWERS with, and the only value it can
+// accept from a peer. espProposalMatches (responder.go) refuses an offer that includes
+// Transform Type 5 without it, and acceptedESPESNConsistent (below) refuses a response
+// that selects anything else. Adding ESN to the datapath is plan/spec-ipsec-12-esn.md;
+// until it lands, honesty about the absence is the conformant answer.
+const espESNNotExtended uint16 = 0
+
 // espProposalToWire encodes one configured ESP proposal under the given Proposal
 // Num. An offer derives that number from the position (offerProposalNum). A response
 // carries the number the peer put on the proposal that was accepted, which RFC 7296
@@ -670,8 +730,12 @@ func espProposalToWire(p ipsec.ESPProposal, spi uint32, number uint8) wire.Propo
 			Type: wire.TransformTypeINTG, ID: uint16(integ.ID),
 		})
 	}
+	// RFC 7296 Section 3.3.3 makes Transform Type 5 mandatory in an ESP proposal, and
+	// espESNNotExtended is the only value ze can key. One transform therefore says both
+	// what ze offers as an initiator and what it answers with as a responder, and
+	// RFC 7296 Section 2.7 has the answer carry exactly one transform of the type.
 	transforms = append(transforms, wire.Transform{
-		Type: wire.TransformTypeESN, ID: 0,
+		Type: wire.TransformTypeESN, ID: espESNNotExtended,
 	})
 	return wire.Proposal{
 		Number:     number,
