@@ -47,6 +47,18 @@ func pathWithin(parent, child string) bool {
 	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
+// sourceOnlyDirectories are directories under website/ that must not be
+// published. The list is DEFENSIVE: an entry naming nothing costs nothing and
+// catches the directory the day it appears, which is why `.claude` and
+// `.github` are here while website/ holds neither today. Do not prune an entry
+// merely because it currently matches nothing.
+//
+// Three entries match nothing in website/ today: `.claude`, `.github` and
+// `presentations/tools`. The first two are ordinary defence. The third names a
+// directory that was RETIRED -- website/presentations went with eae282592
+// ("make le a ze personality and retire make and scripts") -- and it is kept
+// anyway, because TestSourceOnlyBoundary pins presentations/tools/bundle.go
+// and dropping the entry would mean deleting that case to make the list tidy.
 var sourceOnlyDirectories = []string{
 	".claude", ".github", "assets/css", "assets/js", "blog/posts",
 	"changes/posts", "presentations/tools", "tools",
