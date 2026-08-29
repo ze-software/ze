@@ -62,6 +62,23 @@ type Open struct {
 	// Contains a list of optional parameters encoded as TLV triplets.
 	// RFC 3392 defines the Capabilities Optional Parameter.
 	OptionalParams []byte
+
+	// ExtendedParams says the octets in OptionalParams carry the RFC 9072
+	// Section 2 parameter framing, whose Parameter Length field is TWO octets:
+	// "The rules for encoding Optional Parameters are unchanged with respect to
+	// those given in [RFC4271], except that the Parameter Length field is
+	// extended to be a two-octet unsigned integer."
+	//
+	// It exists because the envelope and the parameters inside it are written by
+	// different code, and the two must agree. WriteTo chooses the envelope from
+	// the total length; whoever packed OptionalParams chose the parameter
+	// framing. Without a field carrying that second choice the encoder wrapped
+	// one-octet parameters in an extended envelope, which every conforming
+	// receiver misframes from the first parameter onward.
+	//
+	// Reading an OPEN sets it, so a decoded message can be parsed and re-encoded
+	// without the form being lost.
+	ExtendedParams bool
 }
 
 // Type returns the message type (OPEN).
@@ -75,7 +92,10 @@ func (o *Open) Type() msgtype.MessageType {
 // Context is ignored (context-independent).
 func (o *Open) Len(_ *EncodingContext) int {
 	optLen := len(o.OptionalParams)
-	if optLen > 255 {
+	// The same two reasons WriteTo uses, because a buffer sized on one condition
+	// and written under another overruns: an OPEN whose parameters carry the RFC
+	// 9072 two-octet framing needs the extended envelope even below 256 octets.
+	if o.ExtendedParams || optLen > 255 {
 		// RFC 9072: Extended format adds 4 bytes (NonExtLen + NonExtType + ExtLen)
 		return HeaderLen + 10 + 4 + optLen
 	}
@@ -103,7 +123,11 @@ func (o *Open) writeFixedFields(buf []byte, bodyOff int) {
 func (o *Open) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	optLen := len(o.OptionalParams)
 
-	if optLen > 255 {
+	// Either reason forces the extended envelope. RFC 9072 Section 2 makes it a
+	// MUST above 255 octets, and ExtendedParams says the parameters inside are
+	// already framed with two-octet lengths, which only the extended envelope
+	// tells a receiver to expect.
+	if o.ExtendedParams || optLen > 255 {
 		return o.writeToExtended(buf, off)
 	}
 
@@ -189,6 +213,22 @@ func UnpackOpen(data []byte) (*Open, error) {
 	// "If the Non-Ext OP Len is not 255, the Non-Ext OP Type field and the
 	// Extended Opt. Parm. Length field SHOULD be treated as part of the original
 	// Optional Parameters."
+	//
+	// KNOWN GAP, RFC9072-2-5, 2-6 and 3-1. The test below is on the Non-Ext OP
+	// LEN, and RFC 9072 puts it on the Non-Ext OP TYPE. Section 2: "if the
+	// one-octet Optional Parameters Length field ... is non-zero, a BGP speaker
+	// MUST use the value of the octet following [it] ... If the value of the
+	// 'Non-Ext OP Type' field is 255, then the encoding described above is used."
+	// Section 3 is explicit about the case this refuses: "It is not considered a
+	// fatal error to receive an OPEN message whose (non-extended) Optional
+	// Parameters Length value is not 255 and whose first Optional Parameter type
+	// code is 255 -- in this case, the encoding of this specification MUST be
+	// used for decoding the message."
+	//
+	// Changing it means correcting a subtest of TestOpenUnpackExtendedParams
+	// (open_test.go) that asserts the opposite and cites a sentence absent from
+	// RFC 9072. That subtest carries an RFC9072-2-2 tag, so the correction needs
+	// the owner's row in test/rfc-changed.md before it can be made.
 	if optLen == 255 && len(data) > 10 && data[10] == ExtendedParamMarker {
 		// Extended format: need at least 4 bytes after fixed fields
 		// (Non-Ext OP Len + Non-Ext OP Type + Extended Length)
@@ -201,6 +241,10 @@ func UnpackOpen(data []byte) (*Open, error) {
 		if len(data) < 13+extOptLen {
 			return nil, ErrShortRead
 		}
+
+		// The parameters inside carry two-octet lengths, and only this branch
+		// knows that. Recording it is what lets ParseFromOptionalParams read them.
+		o.ExtendedParams = true
 
 		if extOptLen > 0 {
 			o.OptionalParams = make([]byte, extOptLen)

@@ -1173,3 +1173,119 @@ func TestRFC4271PartialFromPreviousASNeverCleared(t *testing.T) {
 	assert.Equal(t, byte(0xE0), rfc4271PublishedFlags(t, wu.Payload(), unknownCode),
 		"an unrecognized attribute that already carried the bit keeps it, unchanged")
 }
+
+// rfc4271PublishedCodes returns the attribute codes of the UPDATE ze publishes, in wire
+// order. Unlike rfc4271PublishedFlags it does not fail on an absent code, because the
+// requirement below is about what is NOT there.
+func rfc4271PublishedCodes(t *testing.T, body []byte) []byte {
+	t.Helper()
+	sections, err := wire.ParseUpdateSections(body)
+	require.NoError(t, err, "the published UPDATE body must still parse into sections")
+	section := sections.Attrs(body)
+
+	var codes []byte
+	for pos := 0; pos+3 <= len(section); {
+		flags := section[pos]
+		hdr, valLen := 3, int(section[pos+2])
+		if flags&0x10 != 0 {
+			require.LessOrEqual(t, pos+4, len(section))
+			hdr, valLen = 4, int(section[pos+2])<<8|int(section[pos+3])
+		}
+		codes = append(codes, section[pos+1])
+		pos += hdr + valLen
+	}
+	return codes
+}
+
+// TestRFC4271UnrecognizedNonTransitiveIsNotPassedAlong drives the real receive path with an
+// attribute ze has no meaning for, sent as optional NON-transitive.
+//
+// VALIDATES: the UPDATE ze retains and propagates does not carry that attribute at all, and
+// still parses with its remaining attributes intact.
+//
+// PREVENTS: relaying a peer's private non-transitive attribute to third parties, which is
+// the one thing the Transitive bit exists to stop. The attribute reaches an AS its sender
+// never addressed, and ze cannot say what it means because it never read it.
+//
+// RFC requirement: RFC4271-5-5 positive -- publishBase drops it before the UPDATE is
+// published (internal/component/bgp/reactor/session_validation.go, publishBase ->
+// message.UnrecognizedNonTransitiveRanges).
+func TestRFC4271UnrecognizedNonTransitiveIsNotPassedAlong(t *testing.T) {
+	unknownCode := byte(0)
+	for code := 255; code > 0; code-- {
+		if !attribute.AttributeCode(code).Recognized() {
+			unknownCode = byte(code)
+			break
+		}
+	}
+	require.NotZero(t, unknownCode, "ze recognizes every attribute code, so this "+
+		"requirement has no input that can exercise it")
+
+	s := newValidateSession()
+	// 0x80 is Optional, Transitive clear.
+	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(rfc4271UnknownAttrUpdate(0x80, unknownCode), 0))
+	require.NoError(t, err)
+	require.Equal(t, message.RFC7606ActionNone, action,
+		"an unrecognized non-transitive optional attribute is quietly ignored, not an error")
+
+	codes := rfc4271PublishedCodes(t, wu.Payload())
+	assert.NotContains(t, codes, unknownCode,
+		"RFC 4271 Section 5: \"Unrecognized non-transitive optional attributes MUST be "+
+			"quietly ignored and not passed along to other BGP peers\"")
+	assert.Equal(t, []byte{
+		byte(attribute.AttrOrigin), byte(attribute.AttrASPath), byte(attribute.AttrNextHop),
+	}, codes, "the remaining attributes must survive the rewrite, in order")
+}
+
+// TestRFC4271TheNonTransitiveDropSparesEveryOtherClass is the discrimination half. A drop
+// keyed on the Optional bit alone, or on the Transitive bit alone, passes the test above
+// and fails this one.
+//
+// VALIDATES: a well-known attribute, a RECOGNIZED optional non-transitive attribute, and an
+// unrecognized optional TRANSITIVE attribute all survive to the published UPDATE.
+//
+// PREVENTS: dropping MULTI_EXIT_DISC, which Section 5 names as the example of a
+// non-transitive attribute a speaker DOES recognize, and dropping the unrecognized
+// transitive attribute the very same sentence requires ze to pass along.
+//
+// RFC requirement: RFC4271-5-5 negative -- the drop is conditioned on the attribute being
+// unrecognized AND optional AND non-transitive, so none of the three excluded classes is
+// removed (internal/component/bgp/message/rfc4271_nontransitive.go,
+// UnrecognizedNonTransitiveRanges).
+func TestRFC4271TheNonTransitiveDropSparesEveryOtherClass(t *testing.T) {
+	// Searched rather than hardcoded: which codes ze implements changes as plugins
+	// register, and a fixture that names a code ze has since learned tests nothing.
+	unknownTransitive := byte(0)
+	for code := 255; code > 0; code-- {
+		if !attribute.AttributeCode(code).Recognized() {
+			unknownTransitive = byte(code)
+			break
+		}
+	}
+	require.NotZero(t, unknownTransitive, "ze recognizes every attribute code, so this "+
+		"requirement has no input that can exercise it")
+
+	s := newValidateSession()
+	attrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN, well-known
+		0x40, 0x02, 0x00, // AS_PATH, well-known
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP, well-known
+		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x0a, // MED, RECOGNIZED optional non-transitive
+	}
+	attrs = append(attrs, 0xC0, unknownTransitive, 0x02, 0xaa, 0xbb) // unrecognized optional transitive
+	body := makeUpdateBody(nil, attrs, []byte{24, 10, 0, 0})
+
+	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+	require.NoError(t, err)
+	require.Equal(t, message.RFC7606ActionNone, action)
+
+	codes := rfc4271PublishedCodes(t, wu.Payload())
+	assert.Contains(t, codes, byte(attribute.AttrMED),
+		"Section 5's rule is about attributes ze could not read; MULTI_EXIT_DISC is the "+
+			"example it gives of a non-transitive attribute a speaker DOES recognize")
+	assert.Contains(t, codes, unknownTransitive,
+		"the same sentence requires an unrecognized TRANSITIVE optional attribute to be "+
+			"passed along, so the drop must not reach it")
+	assert.Contains(t, codes, byte(attribute.AttrOrigin),
+		"a well-known attribute is never optional and is never dropped here")
+}

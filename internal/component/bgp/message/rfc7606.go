@@ -835,7 +835,18 @@ func validateMPNLRIField(code uint8, attrData []byte, addPathFor func(afi uint16
 // (reactor.typedNLRIEdit), which reaches the same Section 3(j) session reset on the same
 // "last NLRI overruns the attribute" condition. Nothing here may assume it ran first: the
 // Section 5.4 pass runs after this one.
+//
+// BGP-LS is the one family with its own syntactic walk, because RFC 9552 Section 8.2.2
+// states one for it: "A BGP-LS Speaker MUST perform the following syntactic validation of
+// the Link-State NLRI to determine if it is malformed." Its NLRI is neither a plain prefix
+// list nor a typed family with a Section 5.4 recognizer, so neither route above reaches it.
+// validateBGPLSNLRISyntax answers only the part of Section 8.2.2 that a session reset is
+// the prescribed action for; the skipable part is RetainWellFormedNLRI, at the same pass
+// reactor.typedNLRIEdit runs.
 func validateMPNLRISyntax(code uint8, afi attribute.AFI, safi attribute.SAFI, nlri []byte, addPath bool) *RFC7606ValidationResult {
+	if NLRISyntaxRuled(afi, safi) {
+		return validateBGPLSNLRISyntax(code, nlri, addPath)
+	}
 	if (afi != attribute.AFIIPv4 && afi != attribute.AFIIPv6) ||
 		(safi != attribute.SAFIUnicast && safi != attribute.SAFIMulticast) {
 		return nil

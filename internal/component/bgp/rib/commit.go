@@ -327,6 +327,19 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 		origin = attribute.Origin(0) // IGP
 	}
 
+	// RFC 6793 Section 4.2.2 states one obligation as a PAIR: "if the NEW BGP
+	// speaker has to send the AGGREGATOR attribute, and if the aggregating
+	// Autonomous System's AS number is a non-mappable four-octet AS number, then
+	// the speaker MUST use the AS4_AGGREGATOR attribute and set the AS number
+	// field in the existing AGGREGATOR attribute to the reserved AS number,
+	// AS_TRANS." Aggregator.WriteToWithContext writes the AS_TRANS half; nothing
+	// wrote the companion, so the real ASN was lost on the way to an OLD speaker.
+	//
+	// The companion is synthesized here rather than forwarded, because an upstream
+	// that saw ze negotiate ASN4 had no reason to send one: it put the four-octet
+	// ASN in AGGREGATOR itself.
+	otherAttrs = appendAS4AggregatorFor(otherAttrs, dstCtx)
+
 	// Build AS_PATH attribute
 	asPathAttr := c.buildASPathFromExplicit(asPath)
 
@@ -358,8 +371,12 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 		totalLen += attrSize(localPref)
 	}
 
+	// Sized with the destination's context, and written with it below. AS_PATH is
+	// not the only context-dependent attribute that reaches this rail: a FORWARDED
+	// AGGREGATOR sits in otherAttrs, and a context-free write sends the 8-octet
+	// form to a peer for which RFC 4271 defines a 6-octet attribute.
 	for _, attr := range otherAttrs {
-		totalLen += attrSize(attr)
+		totalLen += attrSizeWithContext(attr, dstCtx)
 	}
 
 	// Phase 3: Pre-allocate and write using copy
@@ -380,14 +397,14 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 		off += attribute.WriteAttrTo(localPref, buf, off)
 	}
 
-	// 5. Other attributes
+	// 5. Other attributes, in the destination's encoding
 	for _, attr := range otherAttrs {
-		off += attribute.WriteAttrTo(attr, buf, off)
+		off += attribute.WriteAttrToWithContext(attr, buf, off, nil, dstCtx)
 	}
 
-	// Invariant: attrSize must match WriteAttrTo
+	// Invariant: the sizers must match the writers, context for context
 	if off != totalLen {
-		slog.Error("attribute size mismatch: attrSize disagrees with WriteAttrTo",
+		slog.Error("attribute size mismatch: the sizers disagree with the writers",
 			"predicted", totalLen,
 			"actual", off,
 			"attrCount", len(otherAttrs)+4) // origin, aspath, nh, localpref + others
@@ -395,6 +412,42 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 	}
 
 	return buf, nil
+}
+
+// appendAS4AggregatorFor adds the RFC 6793 Section 4.2.2 companion to attrs when
+// an AGGREGATOR is about to be downgraded to AS_TRANS for this destination.
+//
+// It is a no-op unless all three hold: the destination did not negotiate
+// four-octet AS support, an AGGREGATOR is present, and its ASN is non-mappable.
+// Section 4.2.2 is explicit about the last one: "if the AS number is mappable,
+// then the AS4_AGGREGATOR attribute MUST NOT be sent."
+//
+// An AS4_AGGREGATOR already in attrs is left as the only one. Emitting a second
+// would make the attribute appear twice, which RFC 7606 Section 3(g) treats as
+// malformed.
+func appendAS4AggregatorFor(attrs []attribute.Attribute, dstCtx *bgpctx.EncodingContext) []attribute.Attribute {
+	if dstCtx == nil || dstCtx.ASN4() {
+		return attrs
+	}
+
+	var aggregator *attribute.Aggregator
+	for _, attr := range attrs {
+		switch a := attr.(type) {
+		case *attribute.Aggregator:
+			aggregator = a
+		case *attribute.AS4Aggregator:
+			return attrs // the upstream already supplied one
+		}
+	}
+
+	if aggregator == nil || aggregator.ASN <= 65535 {
+		return attrs
+	}
+
+	return append(attrs, &attribute.AS4Aggregator{
+		ASN:     aggregator.ASN,
+		Address: aggregator.Address,
+	})
 }
 
 // attrSize returns the total wire size of an attribute (header + value).

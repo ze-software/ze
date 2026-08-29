@@ -16,16 +16,18 @@ Every test link in the per-RFC requirement files carries a `kind/tier` cell. **k
 |---|---|---|---|
 | `interop/nightly` | `*.go` | `./le integration interop` | .github/workflows/evidence-nightly.yml (advisory) |
 | `interop/nightly` | `*.go` | `./le integration interop-ipsec` | .github/workflows/evidence-nightly.yml (advisory) |
-| `unit/verify` | `*_test.go` | `./le verify-deps unit-cached` | ./le verify current mode full (unit stage) |
+| `interop/nightly` | `*.go` | `./le deployment docker-l2tp-ppp-test` | .github/workflows/evidence-nightly.yml (advisory) |
+| `interop/nightly` | `*.go` | `./le deployment docker-pppoe-accel-test` | .github/workflows/evidence-nightly.yml (advisory) |
+| `unit/verify` | `*_test.go` | `./le verify deps unit-cached` | ./le verify current mode full (unit stage) |
 | `functional/verify` | `*.ci` | `./le functional` | ./le verify current mode full (functional stage) -- suites: `encode`, `plugin`, `parse`, `decode`, `reload`, `ui`, `editor`, `managed`, `l2tp`, `firewall`, `policy`, `ipsec`, `ldp`, `rsvpte`, `isis`, `ospf`, `ospfv3`, `web`, `install`, `appliance`, `l2tp-wire`, `isis-wire`, `ospf-wire`, `runner` |
 | `editor/verify` | `*.et` | `./le functional editor` | ./le verify current mode full (functional stage) -- suites: `editor` |
 | `functional/verify` | `*.ci` | `./le functional exabgp-test` | ./le verify current mode full (exabgp stage) |
 
-A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed here with a caveat. These have no automated caller: `any *.ci the table above does not cover`, `any *.et the table above does not cover`, `internal/le/interoplab/`, `internal/le/interoplab/l2tp/`, `internal/le/interoplab/pppoe/`. A tag in one of them would be an absence of evidence wearing evidence's clothes, so the scanner denies it and names the fix (`ai/rules/evidence.md`).
+A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed here with a caveat. These have no automated caller: `any *.ci the table above does not cover`, `any *.et the table above does not cover`, `internal/le/interoplab/`. A tag in one of them would be an absence of evidence wearing evidence's clothes, so the scanner denies it and names the fix (`ai/rules/evidence.md`).
 
 ## Coverage by RFC
 
-73 MUST-level requirement(s) still owe work across 173 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
+68 MUST-level requirement(s) still owe work across 173 summaries. **Outstanding** = has only one polarity, or has no test and no annotation; those are the tests that do not exist yet.
 
 **Nightly-only** (0 requirement(s)) counts what is proven ONLY by evidence no `./le verify current mode full` stage runs -- today, interop scenarios, which are scheduled and advisory. **Both** and **One polarity** are the polarity view: they answer which polarities exist, not which pipeline runs them, so a nightly-only requirement is counted there too. **Nightly-only** is the tier view over the same rows -- an overlapping subset marker naming which of them no merge-gate stage proves, never a total to sum with the others.
 
@@ -82,7 +84,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 | `rfc4035` | 108 | 5 | 0 | 103 | 0 | 0 | 0 | **enrolled** |
 | `rfc4090` | 11 | 11 | 0 | 0 | 0 | 0 | 0 | **enrolled** |
 | `rfc4213` | 23 | 0 | 0 | 23 | 0 | 0 | 0 | **enrolled** |
-| `rfc4271` | 100 | 74 | 0 | 26 | 0 | 0 | 0 | **enrolled** |
+| `rfc4271` | 100 | 75 | 0 | 25 | 0 | 0 | 0 | **enrolled** |
 | `rfc4301` | 15 | 1 | 0 | 14 | 0 | 0 | 0 | **enrolled** |
 | `rfc4303` | 17 | 1 | 0 | 16 | 0 | 0 | 0 | **enrolled** |
 | `rfc4360` | 6 | 2 | 0 | 4 | 0 | 0 | 0 | **enrolled** |
@@ -154,7 +156,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 | `rfc7606` | 52 | 45 | 0 | 7 | 0 | 0 | 0 | **enrolled** |
 | `rfc7611` | 5 | 0 | 0 | 5 | 0 | 0 | 0 | **enrolled** |
 | `rfc7684` | 8 | 5 | 0 | 3 | 0 | 0 | 0 | **enrolled** |
-| `rfc7752` | 26 | 6 | 0 | 20 | 0 | 0 | 0 | **enrolled**, superseded by RFC9552 |
+| `rfc7752` | 26 | 8 | 0 | 18 | 0 | 0 | 0 | **enrolled**, superseded by RFC9552 |
 | `rfc7770` | 11 | 1 | 0 | 10 | 0 | 0 | 0 | **enrolled** |
 | `rfc7854` | 12 | 5 | 0 | 7 | 0 | 0 | 0 | **enrolled** |
 | `rfc7858` | 19 | 4 | 0 | 15 | 0 | 0 | 0 | **enrolled** |
@@ -187,7 +189,7 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 | `rfc9012` | 75 | 15 | 0 | 60 | 0 | 0 | 0 | **enrolled** |
 | `rfc905` | 9 | 6 | 0 | 3 | 0 | 0 | 0 | **enrolled** |
 | `rfc9069` | 7 | 0 | 0 | 7 | 0 | 0 | 0 | **enrolled** |
-| `rfc9072` | 9 | 1 | 0 | 8 | 0 | 0 | 0 | **enrolled** |
+| `rfc9072` | 9 | 2 | 0 | 7 | 0 | 0 | 0 | **enrolled** |
 | `rfc9085` | 12 | 0 | 0 | 12 | 0 | 0 | 0 | **enrolled** |
 | `rfc9086` | 12 | 0 | 0 | 12 | 0 | 0 | 0 | **enrolled** |
 | `rfc9136` | 14 | 2 | 0 | 12 | 0 | 0 | 0 | **enrolled** |
@@ -197,25 +199,25 @@ A tag in a carrier nothing executes is REFUSED by `./le rfc check`, not listed h
 | `rfc9319` | 4 | 0 | 0 | 4 | 0 | 0 | 0 | **enrolled** |
 | `rfc9494` | 25 | 18 | 0 | 7 | 0 | 0 | 0 | **enrolled** |
 | `rfc9514` | 13 | 0 | 0 | 13 | 0 | 0 | 0 | **enrolled** |
+| `rfc9552` | 48 | 22 | 0 | 26 | 0 | 0 | 0 | **enrolled** |
 | `rfc9568` | 59 | 36 | 0 | 23 | 0 | 0 | 0 | **enrolled** |
 | `rfc9582` | 10 | 6 | 0 | 4 | 0 | 0 | 0 | **enrolled** |
 | `rfc9728` | 7 | 2 | 0 | 5 | 0 | 0 | 0 | **enrolled** |
 | `rfc9830` | 96 | 60 | 0 | 36 | 0 | 0 | 0 | **enrolled** |
 | `sflow-v5` | 16 | 1 | 0 | 15 | 0 | 0 | 0 | **enrolled** |
-| `rfc9552` | 48 | 12 | 0 | 31 | 5 | 5 | 0 | **enrolled** |
 | `rfc1035` | 27 | 25 | 0 | 0 | 2 | 2 | 0 | backlog |
 | `rfc7627` | 17 | 0 | 0 | 0 | 17 | 17 | 0 | backlog, superseded by RFC9846 |
 | `rfc9190` | 51 | 2 | 0 | 0 | 49 | 49 | 0 | backlog |
 
 ## Audit coverage
 
-50 of 1611 auditable requirement(s) carry a `ze-rfc-audit` verdict (3.10%), across 1 of 171 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
+50 of 1624 auditable requirement(s) carry a `ze-rfc-audit` verdict (3.08%), across 1 of 171 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
 
 **Proven** (50) is the count that means what the badge implies: a verdict of `enforced` -- the tests would fail if the code stopped complying -- that is still fresh. It is NOT the **Both** column of the rollup above: that one answers which polarities exist, and a requirement can have both and still be judged `weak`. Every one of the 2 verdict(s) that is audited but not proven is named below with its verdict, so no requirement can read as proven and weak at once.
 
-The remaining 1561 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `./le rfc check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
+The remaining 1574 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `./le rfc check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
 
-Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1611) = `Audited` (50) + `Unaudited` (1561). **Records:** all 52 recorded verdict(s) = `Proven` (50) + `Not proven` (2), and the worklist below names every one of those 2. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
+Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1624) = `Audited` (50) + `Unaudited` (1574). **Records:** all 52 recorded verdict(s) = `Proven` (50) + `Not proven` (2), and the worklist below names every one of those 2. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
 
 | RFC | Auditable | Audited | Proven | Not proven | Unaudited |
 |---|---|---|---|---|---|
@@ -260,7 +262,7 @@ Two partitions over two populations, because one denominator cannot carry both q
 | `rfc3954` | 4 | 0 | 0 | 0 | 4 |
 | `rfc4035` | 14 | 0 | 0 | 0 | 14 |
 | `rfc4090` | 11 | 0 | 0 | 0 | 11 |
-| `rfc4271` | 77 | 0 | 0 | 0 | 77 |
+| `rfc4271` | 78 | 0 | 0 | 0 | 78 |
 | `rfc4301` | 8 | 0 | 0 | 0 | 8 |
 | `rfc4303` | 3 | 0 | 0 | 0 | 3 |
 | `rfc4360` | 2 | 0 | 0 | 0 | 2 |
@@ -317,7 +319,7 @@ Two partitions over two populations, because one denominator cannot carry both q
 | `rfc7474` | 10 | 0 | 0 | 0 | 10 |
 | `rfc7534` | 3 | 0 | 0 | 0 | 3 |
 | `rfc7684` | 5 | 0 | 0 | 0 | 5 |
-| `rfc7752` | 9 | 0 | 0 | 0 | 9 |
+| `rfc7752` | 11 | 0 | 0 | 0 | 11 |
 | `rfc7770` | 4 | 0 | 0 | 0 | 4 |
 | `rfc7854` | 12 | 0 | 0 | 0 | 12 |
 | `rfc7858` | 7 | 0 | 0 | 0 | 7 |
@@ -357,7 +359,7 @@ Two partitions over two populations, because one denominator cannot carry both q
 | `rfc9252` | 11 | 0 | 0 | 0 | 11 |
 | `rfc9256` | 3 | 0 | 0 | 0 | 3 |
 | `rfc9494` | 18 | 0 | 0 | 0 | 18 |
-| `rfc9552` | 16 | 0 | 0 | 0 | 16 |
+| `rfc9552` | 26 | 0 | 0 | 0 | 26 |
 | `rfc9568` | 44 | 0 | 0 | 0 | 44 |
 | `rfc9582` | 7 | 0 | 0 | 0 | 7 |
 | `rfc9728` | 5 | 0 | 0 | 0 | 5 |

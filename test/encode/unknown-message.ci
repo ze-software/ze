@@ -1,7 +1,15 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=open:value=send-unknown-message
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004003010063616E206E6F74206465636F646520757064617465206D657373616765206F662074797065202232353522
+# RFC 4271 Section 6.1: "the Error Subcode MUST be set to Bad Message Type. The
+# Data field MUST contain the erroneous Type field." So the NOTIFICATION is
+# Message Header Error (1), Bad Message Type (3), and one octet carrying 255.
+#
+# It used to be subcode 0 with the ASCII sentence "can not decode update message
+# of type 255", which told a peer nothing a machine can act on and named a
+# subcode RFC 4271 does not define for this case. This expectation was the
+# violation with a green bar on top.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0016030103FF
 EOF_PEER
 
 # ze bgp configuration

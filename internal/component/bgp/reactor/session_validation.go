@@ -173,8 +173,9 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	}
 
 	// RFC 7606 Section 5.4: discard routes whose NLRI type ze does not implement, in
-	// families whose own specification has not overridden that rule. Runs on the bytes
-	// the Section 3.g strip left, so the two rewrites compose in one direction only.
+	// families whose own specification has not overridden that rule. RFC 9552 Section 8.2.2:
+	// discard a Link-State NLRI whose syntax is malformed in a way ze can skip past. Runs on
+	// the bytes the Section 3.g strip left, so the rewrites compose in one direction only.
 	//
 	// Skipped only for session-reset, where the UPDATE is not processed at all.
 	//
@@ -345,7 +346,29 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 	// that does not parse into sections stamps nothing and is reported by the wu.Attrs()
 	// call below, which fails on the same input.
 	if sections, secErr := wire.ParseUpdateSections(wu.Payload()); secErr == nil {
-		attribute.SetPartialOnUnrecognizedTransitive(sections.Attrs(wu.Payload()))
+		attrs := sections.Attrs(wu.Payload())
+		attribute.SetPartialOnUnrecognizedTransitive(attrs)
+
+		// RFC 4271 Section 5, the other half of the same sentence: "Unrecognized
+		// non-transitive optional attributes MUST be quietly ignored and not passed
+		// along to other BGP peers." Section 9 repeats it. Without this ze relays a
+		// peer's private non-transitive attributes to third parties, which is the one
+		// thing the Transitive bit exists to prevent.
+		//
+		// Stamping runs first and the two never touch the same attribute: one acts on
+		// optional TRANSITIVE codes, this one on optional non-transitive codes.
+		//
+		// Removing an attribute shortens the section, so unlike the stamp this cannot
+		// be done in place. It takes the same route the Section 3.g duplicate strip
+		// above takes, and allocates only when a peer actually sent one.
+		if ranges := message.UnrecognizedNonTransitiveRanges(attrs); len(ranges) > 0 {
+			stripped := message.StripAttrRanges(attrs, ranges)
+			rebuilt := wireu.NewWireUpdate(message.RebuildUpdateBody(wu.Payload(), stripped), wu.SourceCtxID())
+			rebuilt.SetSourceID(wu.SourceID())
+			wu = rebuilt
+			sessionLogger().Debug("RFC 4271 Section 5: dropped unrecognized non-transitive attributes",
+				"peer", s.settings.Address, "count", len(ranges))
+		}
 	}
 
 	attrs, err := wu.Attrs()

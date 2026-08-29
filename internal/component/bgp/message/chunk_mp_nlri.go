@@ -180,6 +180,16 @@ func GetNLRISizeFunc(afi family.AFI, safi family.SAFI, addPath bool) NLRISizeFun
 		}
 		return bgpLSNLRISize
 
+	// RFC 4761 Section 3.2.2: a VPLS NLRI is framed by a TWO-octet length, so
+	// basicNLRISize read the high half of that length as a prefix length and put
+	// every following NLRI boundary in the wrong place. Same shape as the SAFI 72
+	// omission described above.
+	case afi == family.AFIL2VPN && safi == family.SAFIVPLS:
+		if addPath {
+			return addPathVPLSNLRISize
+		}
+		return vplsNLRISize
+
 	case safi == family.SAFIVPN: // VPN (MPLS VPN)
 		if addPath {
 			return addPathVPNNLRISize
@@ -347,6 +357,26 @@ func addPathFlowSpecNLRISize(data []byte) (int, error) {
 	}
 	length := (int(data[4]&0x0F) << 8) | int(data[5])
 	return 4 + 2 + length, nil
+}
+
+// vplsNLRISize calculates the size of a VPLS NLRI.
+// Format: [length:2][body:length].
+// RFC 4761 Section 3.2.2 - VPLS NLRI encoding.
+func vplsNLRISize(data []byte) (int, error) {
+	if len(data) < 2 {
+		return 0, ErrNLRIMalformed
+	}
+	return 2 + int(binary.BigEndian.Uint16(data[:2])), nil
+}
+
+// addPathVPLSNLRISize calculates the size of an Add-Path VPLS NLRI.
+// Format: [path-id:4][length:2][body:length].
+// RFC 7911 Section 3 - ADD-PATH encoding; RFC 4761 Section 3.2.2 - VPLS NLRI.
+func addPathVPLSNLRISize(data []byte) (int, error) {
+	if len(data) < 6 {
+		return 0, ErrNLRIMalformed
+	}
+	return 4 + 2 + int(binary.BigEndian.Uint16(data[4:6])), nil
 }
 
 // bgpLSNLRISize calculates size of BGP-LS NLRI.

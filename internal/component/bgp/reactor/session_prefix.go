@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -192,6 +193,13 @@ func raiseRouteCountAnomaly(peerAddr string, before, after int64) {
 // on the hot path. Layout: AFI in upper 16 bits, SAFI in bits 8-15, lower 8 bits zero.
 func familyKey(f family.Family) uint32 {
 	return uint32(f.AFI)<<16 | uint32(f.SAFI)<<8
+}
+
+// familyFromKey is the inverse of familyKey. The walk that counts NLRI entries
+// needs the family to pick the right framing, and the sections it walks carry
+// only the key.
+func familyFromKey(fk uint32) family.Family {
+	return family.Family{AFI: family.AFI(fk >> 16), SAFI: family.SAFI(fk >> 8)}
 }
 
 // familyKeyString converts a "afi/safi" config string to the uint32 key used by prefixCounts.
@@ -456,7 +464,7 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 		if s.prefixCounts.installed[sec.fk] {
 			continue // already applied above
 		}
-		delta := int64(countPrefixEntries(sec.bytes, sec.addPath))
+		delta := int64(countPrefixEntries(sec.fk, sec.bytes, sec.addPath))
 		if delta == 0 {
 			continue
 		}
@@ -576,7 +584,7 @@ func (s *Session) applyInstalledPrefixSection(sec prefixSection, hasLimits bool)
 		maximum, _, hasMax = s.prefixConfigLookup(sec.fk)
 	}
 
-	forEachPrefixEntry(sec.bytes, sec.addPath, func(entry []byte) {
+	forEachPrefixEntry(sec.fk, sec.bytes, sec.addPath, func(entry []byte) {
 		if over {
 			return
 		}
@@ -873,7 +881,34 @@ func buildPrefixNotification(fk, upperBound uint32) *message.Notification {
 // strictly finer than the count this function replaces: a family whose entries
 // this walk mis-measures (VPN, flowspec) had a wrong count before and now has a
 // wrong set, never a set that merges two distinct routes.
-func forEachPrefixEntry(data []byte, addPath bool, fn func(entry []byte)) int {
+func forEachPrefixEntry(fk uint32, data []byte, addPath bool, fn func(entry []byte)) int {
+	// RFC 9552 Section 8.2.6: "An implementation MUST have the means to limit
+	// inbound updates." The means is the per-family prefix maximum, and it is only
+	// a means if the number it compares is the number of NLRIs the peer sent.
+	//
+	// The CIDR walk below reads octet 0 as a prefix length, which is true for
+	// unicast and multicast and false for every typed family. For bgp-ls it reads
+	// the high byte of the NLRI Type, so the maximum was compared against a
+	// meaningless number and the limit could not bind. VPN and flowspec were
+	// mis-measured the same way, which the comment above already conceded.
+	//
+	// nlrisplit is the per-family framing registry the RIB already dispatches
+	// through, so asking it here makes the count agree with what the RIB stores,
+	// family by family, rather than approximating it.
+	if splitter := nlrisplit.Get(familyFromKey(fk)); splitter != nil {
+		entries, err := splitter(data, addPath)
+		// A malformed section returns what parsed before the corruption. Counting
+		// those is right: they are the NLRIs the peer did send, and RFC 7606 has
+		// already ruled on the message by the time this runs.
+		_ = err
+		for _, entry := range entries {
+			if fn != nil {
+				fn(entry)
+			}
+		}
+		return len(entries)
+	}
+
 	count := 0
 	offset := 0
 	for offset < len(data) {
@@ -904,8 +939,8 @@ func forEachPrefixEntry(data []byte, addPath bool, fn func(entry []byte)) int {
 // Works for families using standard prefix-length encoding (unicast, multicast).
 // For complex families (VPN, flowspec), the count may be inaccurate but is
 // bounded (cannot overcount due to prefix-length advancing).
-func countPrefixEntries(data []byte, addPath bool) int {
-	return forEachPrefixEntry(data, addPath, nil)
+func countPrefixEntries(fk uint32, data []byte, addPath bool) int {
+	return forEachPrefixEntry(fk, data, addPath, nil)
 }
 
 // --- Prometheus metric helpers ---
