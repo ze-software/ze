@@ -21,7 +21,16 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// in reseal.go without inverting it, and corrected two UK spellings to US
 	// English. Every deletion has a live equivalent named in its own commit
 	// message.
-	const want = "b024a46c97744bc2c814e7aafdd034794e73c8f8a8828147dd4562958289fbd7"
+	// Re-sealed 2026-08-29: gatedLevels gained an exported predicate,
+	// IsGatedLevel, so internal/le/testhealth could delete its own copy of the
+	// same five keywords. No verdict changed; the map and its membership are
+	// untouched.
+	//
+	// Computed over the COMMITTED file set, not the working tree. This digest
+	// covers every non-test file in the package, and a second session has
+	// carriers.go, check_compile.go and render.go modified here, so the
+	// working-tree value describes a tree this commit does not make.
+	const want = "09dde99511c4e800f6348f12a5b284b56a83674cfdde61782d66cc4e593dd687"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

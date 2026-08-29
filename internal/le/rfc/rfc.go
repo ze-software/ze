@@ -71,6 +71,17 @@ var gatedLevels = map[string]bool{
 	"REQUIRED":  true,
 }
 
+// IsGatedLevel reports whether an RFC 2119 keyword creates an obligation this
+// repository's gates enforce.
+//
+// It is exported because internal/le/testhealth partitions the published ledger
+// on the same set and must cover exactly the rows the ledger's totals cover. It
+// kept its own copy of these five keywords until 2026-08-29, under a comment
+// saying it "mirrors the RFC gate's own gated set" -- a stated obligation to
+// agree with nothing enforcing it, which is the shape that let the commit
+// gate's structural-stage list drift out of the verifier's.
+func IsGatedLevel(level string) bool { return gatedLevels[level] }
+
 var advisoryLevels = map[string]bool{
 	"SHOULD":          true,
 	"SHOULD NOT":      true,

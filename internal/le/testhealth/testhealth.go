@@ -110,12 +110,6 @@ const rfcTableHeader = "| RFC | Gated | Both | One polarity | Annotated | No tes
 // both narrowed by the same filter and still balanced.
 const rfcStateEnrolled = "**enrolled**"
 
-// gatedLevels mirrors the RFC gate's own gated set. The ledger's totals cover
-// only these, so the page's split must too.
-var gatedLevels = map[string]bool{
-	"MUST": true, "MUST NOT": true, "SHALL": true, "SHALL NOT": true, "REQUIRED": true,
-}
-
 // annotationKinds are the three coverage annotations the split partitions the
 // ledger's remainder into, in the order the first match wins in.
 var annotationKinds = [...]string{"not-applicable", "gap", "single-polarity"}

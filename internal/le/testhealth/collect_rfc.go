@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/rfc"
 )
 
 // ledgerRow is one coverage row of the RFC ledger's rollup table.
@@ -188,7 +189,7 @@ func annotationSplit(t *tree, rows []ledgerRow) (annotationCounts, error) {
 		}
 		for line := range strings.SplitSeq(body, "\n") {
 			level := rfcLevel.FindStringSubmatch(line)
-			if len(level) == 0 || !gatedLevels[level[1]] {
+			if len(level) == 0 || !rfc.IsGatedLevel(level[1]) {
 				continue
 			}
 			if kind, annotated := annotationOf(line); annotated {
