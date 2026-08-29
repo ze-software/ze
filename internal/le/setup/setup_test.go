@@ -202,7 +202,7 @@ func TestOnlyThePinnedStaticcheckCounts(t *testing.T) {
 		want bool
 	}{
 		"the pin, bare":       {pinned + "\n", 0, true},
-		"the pin, with build": {pinned + " (v0.7.0)\n", 0, true},
+		"the pin, with build": {pinned + " (0.8.1)\n", 0, true},
 		"a stale version":     {"staticcheck 2025.1.1 (v0.6.1)\n", 0, false},
 		"a failing tool":      {pinned + "\n", 1, false},
 		"a timed-out probe":   {"", exitTimedOut, false},

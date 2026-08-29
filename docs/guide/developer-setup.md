@@ -63,7 +63,7 @@ of the two is absent.
 | `protobuf` (`protoc`) | Protocol buffer compiler |
 | `jq` | JSON processing |
 | `golangci-lint` | Go linter (via `go install`) |
-| `staticcheck` | Feature-tag structural type checker, pinned to 2026.1 (via `go install`) |
+| `staticcheck` | Feature-tag structural type checker, pinned to 2026.2.1 (via `go install`) |
 | `goimports` | Go import formatter (via `go install`) |
 | `gopls` | Go language server behind the agent LSP tool (via `go install`) |
 

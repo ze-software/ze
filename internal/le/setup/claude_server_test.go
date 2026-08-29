@@ -268,7 +268,7 @@ func TestClaudeServerSetupSucceedsNativelyAndIsSafeToRepeat(t *testing.T) {
 				states["lint"] = true
 			case line == "staticcheck -version":
 				if states["staticcheck"] {
-					return Result{Argv: cmd.Argv, Out: "staticcheck " + StaticcheckVersion + " (v0.7.0)\n"}
+					return Result{Argv: cmd.Argv, Out: "staticcheck " + StaticcheckVersion + " (0.8.1)\n"}
 				}
 				return Result{Argv: cmd.Argv, Code: 1, Err: "missing"}
 			case strings.Contains(line, "honnef.co/go/tools/cmd/staticcheck@"):

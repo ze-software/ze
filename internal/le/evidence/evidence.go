@@ -92,7 +92,7 @@ apt-get update
 apt-get install -y --no-install-recommends build-essential git iputils-ping iproute2 iptables nftables util-linux
 export PATH="/go/bin:/usr/local/go/bin:$PATH"
 CGO_ENABLED=0 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
-CGO_ENABLED=0 go install honnef.co/go/tools/cmd/staticcheck@2026.1
+CGO_ENABLED=0 go install honnef.co/go/tools/cmd/staticcheck@2026.2.1
 
 git config --global --add safe.directory /host
 git clone --no-local /host /work/src

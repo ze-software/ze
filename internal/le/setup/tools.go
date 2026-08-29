@@ -11,7 +11,13 @@ import "runtime"
 // StaticcheckVersion is the one release of staticcheck this repository runs.
 // A different one on PATH runs and disagrees, which is worse than one that is
 // absent, so probes.go checks the version rather than the presence.
-const StaticcheckVersion = "2026.1"
+//
+// Staticcheck type-checks with its own copy of the unified IR reader, so a
+// release built against an x/tools older than the ambient Go toolchain cannot
+// decode that toolchain's export data and reports every package as an import
+// failure. 2026.1 reads to export data version 2 and Go 1.27 writes version 4,
+// so raising the Go directive in go.mod raises this constant with it.
+const StaticcheckVersion = "2026.2.1"
 
 // GolangCIVersion is the one release of golangci-lint this repository runs.
 // The linter type-checks with its own copy of go/types, so a release older
