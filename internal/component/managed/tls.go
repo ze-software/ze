@@ -77,10 +77,12 @@ func clientTLSConfig(cfg *ClientConfig) *tls.Config {
 // first exchange, the one that carries the token to a hub the client has never
 // spoken to, was the least authenticated of them all. One rule for every
 // connection is the point; a second spelling of it is how they diverge.
-func ClientTLSConfig(server string, insecure bool, fingerprint string) *tls.Config {
-	return clientTLSConfig(&ClientConfig{
-		Server:                 server,
-		TLSInsecure:            insecure,
-		CertificateFingerprint: fingerprint,
-	})
-}
+//
+// It takes the whole ClientConfig rather than the three values it reads, so a
+// fourth trust input reaches both callers the moment clientTLSConfig reads it.
+// An argument list is a second spelling of the struct, and the narrower one is
+// the one a later field is forgotten in.
+//
+// Reads Server, TLSInsecure and CertificateFingerprint. A caller that has only
+// those may leave the rest zero.
+func ClientTLSConfig(cfg *ClientConfig) *tls.Config { return clientTLSConfig(cfg) }

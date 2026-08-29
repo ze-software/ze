@@ -415,9 +415,11 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 	// never spoken to, and it was the least authenticated exchange of them all.
 	// Only the environment variable is available, which is where a first-boot
 	// client's server, name and token come from too.
-	tlsConf := managed.ClientTLSConfig(server,
-		env.GetBool("ze.managed.tls.insecure", false),
-		env.Get("ze.managed.tls.certificate-fingerprint"))
+	tlsConf := managed.ClientTLSConfig(&managed.ClientConfig{
+		Server:                 server,
+		TLSInsecure:            env.GetBool("ze.managed.tls.insecure", false),
+		CertificateFingerprint: env.Get("ze.managed.tls.certificate-fingerprint"),
+	})
 
 	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", server)
 	if err != nil {
