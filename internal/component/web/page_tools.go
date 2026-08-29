@@ -188,6 +188,12 @@ func handleToolMetricsPage(renderer *Renderer, r *http.Request, dispatch Command
 	return renderer.renderComponent("tool_metrics", toolMetrics(data))
 }
 
+// metricsLabelKeyword introduces one label filter of `show metrics name`. The
+// form takes the pair as `key=value` in one field and the command takes it as
+// two tokens, so the split happens here rather than in the command grammar
+// (internal/component/cmd/show/yang/ze-cli-show-cmd.yang).
+const metricsLabelKeyword = "label"
+
 // handleMetricsSubmit validates metric name and dispatches the query command.
 func handleMetricsSubmit(r *http.Request, dispatch CommandDispatcher) toolPageData {
 	if err := r.ParseForm(); err != nil {
@@ -212,7 +218,11 @@ func handleMetricsSubmit(r *http.Request, dispatch CommandDispatcher) toolPageDa
 	var tb textbuf.Buffer
 	tb.Str("show metrics name ").Str(name)
 	if label != "" {
-		tb.Byte(' ').Str(label)
+		key, value, paired := strings.Cut(label, "=")
+		if !paired || key == "" || value == "" || strings.ContainsAny(label, " \t") {
+			return toolPageData{Error: "Label filter must be one key=value pair with no spaces."}
+		}
+		tb.Byte(' ').Str(metricsLabelKeyword).Byte(' ').Str(key).Byte(' ').Str(value)
 	}
 	cmd := tb.String()
 

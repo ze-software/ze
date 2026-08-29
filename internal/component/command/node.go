@@ -38,6 +38,74 @@ type ArgDef struct {
 	Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString (nil = accept any)
 	UnionDefs  []ArgDef       // Member types for ArgUnion (tried in order)
 	Mandatory  bool           // True if YANG leaf has mandatory true
+
+	// Anchor names the path keyword this value follows, and it is set when the
+	// leaf is declared by a container ABOVE the command rather than by the
+	// command itself: `request interface <name> down` declares `name` on
+	// `interface`, so the anchor is `interface`.
+	//
+	// It is empty for a leaf the command declares. Such a leaf follows the
+	// container whose name it repeats, and trails the last keyword when it
+	// repeats none, which is the rule the renderer already applied.
+	//
+	// Nothing binds a value by anchor: a positional token still goes to the
+	// definition whose type constrains it most (internal/component/plugin/server,
+	// positionalDef). The anchor decides where a value is PRINTED and nothing
+	// else.
+	Anchor string
+}
+
+// ArgInherit says whether a command takes the values the containers ABOVE it
+// declare. The zero value takes them, because that is what every command under
+// a container that names an object does: `request interface <name> up` and
+// `request interface <name> down` both act on the interface `interface` names.
+type ArgInherit uint8
+
+const (
+	// ArgInheritAncestors is the zero value: every leaf a non-command container
+	// on this command's path declares is part of this command's grammar.
+	ArgInheritAncestors ArgInherit = iota
+	// ArgInheritNone says this command acts on none of the objects its
+	// containers name, so their leaves are not its arguments. `show bgp peer
+	// list` reads the whole peer set and `request interface migrate` names two
+	// interfaces of its own.
+	ArgInheritNone
+)
+
+// argInheritNoneWord is the word a module writes to take none of the values
+// its containers declare. It is named because it is the only one of the two a
+// module ever writes, so it is the vocabulary this package publishes.
+const argInheritNoneWord = "none"
+
+// argInheritNames names each mode for a reader and for the YANG argument that
+// selects it. ParseArgInherit reads this one table, so a module and this
+// package cannot disagree about what a mode is called.
+var argInheritNames = [...]string{
+	ArgInheritAncestors: "ancestors",
+	ArgInheritNone:      argInheritNoneWord,
+}
+
+// ParseArgInherit answers the mode a ze:inherit argument names, and false for a
+// word the table does not hold. A word nobody declared must not fall back to a
+// mode that silently drops a command's arguments (ai/rules/evidence.md).
+func ParseArgInherit(argument string) (ArgInherit, bool) {
+	for i, name := range argInheritNames {
+		if name == argument {
+			// i is a range index over argInheritNames, so the conversion cannot
+			// reach a mode the table does not hold.
+			return ArgInherit(i), true //nolint:gosec // i indexes argInheritNames itself
+		}
+	}
+	return ArgInheritAncestors, false
+}
+
+// String names the mode. A value outside the declared set names itself as the
+// inheriting one rather than as a number.
+func (a ArgInherit) String() string {
+	if int(a) < len(argInheritNames) {
+		return argInheritNames[a]
+	}
+	return argInheritNames[ArgInheritAncestors]
 }
 
 // Node represents a node in the operational command tree.
@@ -64,6 +132,11 @@ type Node struct {
 	// from 1 among its siblings. Children is a map, so the declaration order is
 	// carried here or it is lost.
 	ModifierOrder int
+
+	// Inherit says whether the leaves the containers above this command declare
+	// are part of its grammar. It is set from ze:inherit and is
+	// ArgInheritAncestors everywhere else.
+	Inherit ArgInherit
 
 	// DynamicChildren returns additional completion suggestions at this node.
 	// Called alongside static Children when completing. Used for runtime data

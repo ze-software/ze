@@ -67,8 +67,8 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		{"create interface unit", "create interface unit <name> <vid>"},
 		{"create interface veth name", "create interface veth name <name> <peer>"},
 		{"delete interface name address", "delete interface name <name> address <prefix>"},
-		{"request interface mac", "request interface mac <name> <address>"},
-		{"request interface mtu", "request interface mtu <name> <bytes>"},
+		{"request interface mac", "request interface <name> mac <address>"},
+		{"request interface mtu", "request interface <name> mtu <bytes>"},
 		{"resolve cymru asn-name", "resolve cymru asn-name <asn>"},
 		{"resolve dns a", "resolve dns a <hostname>"},
 		{"resolve dns aaaa", "resolve dns aaaa <hostname>"},
@@ -91,9 +91,9 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		// (internal/component/config/yang/command.go) sorted it by name until
 		// the bare-alternation rule needed the module's own order.
 		{"request log level", "request log level <logger> <disabled|debug|info|warn|err>"},
-		{"request peer teardown", "request peer teardown <selector> <cease-subcode>"},
-		{"show policy test peer", "show policy test peer <selector> [filter <filter>] [update <update>] [source-asn4 <true|false>]"},
-		{"show metrics name", "show metrics name <name>"},
+		{"request peer teardown", "request peer <selector> teardown <cease-subcode>"},
+		{"show policy test peer", "show policy test peer <selector> <import|export> [filter <filter>] [update <update>] [source-asn4 <true|false>]"},
+		{"show metrics name", "show metrics name <name> [label <key> <value> ...]"},
 
 		// The four rendering rules this phase added, on the commands that
 		// needed them. A required group renders its keyword and its values with
@@ -110,7 +110,7 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 				"[scope <link|area|as>] [hex <body> ...] [withdraw]",
 		},
 		{"show policy chain peer", "show policy chain peer <selector> [import|export]"},
-		{"show bgp peer rib", "show bgp peer rib <selector> [sent|advertised|received|sent-received]"},
+		{"show bgp peer rib", "show bgp peer <selector> rib [sent|advertised|received|sent-received]"},
 		{"show pki certificate name", "show pki certificate name <name> [pem]"},
 	}
 
@@ -326,6 +326,112 @@ func TestDeclaredValuesKeepAcceptedInvocations(t *testing.T) {
 			input: "show policy test peer edge1 import filter my-filter update ffffffffffffffffffffffffffffffff00132 source-asn4 false",
 			args:  []string{"edge1", "import", "filter", "my-filter", "update", "ffffffffffffffffffffffffffffffff00132", "source-asn4", "false"},
 		},
+		// The nineteen commands whose value the operator types between the
+		// container that names the object and the action. The leaf moved onto
+		// that container, so the model now states the position; each case
+		// re-runs the invocation the dispatcher accepted before the move.
+		{
+			path:      "request interface up",
+			input:     "request interface zetest0 up",
+			args:      []string{},
+			selectors: map[string]string{"name": "zetest0"},
+		},
+		{
+			path:      "request interface down",
+			input:     "request interface zetest0 down",
+			args:      []string{},
+			selectors: map[string]string{"name": "zetest0"},
+		},
+		{
+			path:             "request peer flush",
+			input:            "request peer edge1 flush",
+			requiresSelector: true,
+			args:             []string{},
+			selectors:        map[string]string{"selector": "edge1"},
+		},
+		{
+			path:             "request peer pause",
+			input:            "request peer edge1 pause",
+			requiresSelector: true,
+			args:             []string{},
+			selectors:        map[string]string{"selector": "edge1"},
+		},
+		{
+			path:             "request peer resume",
+			input:            "request peer edge1 resume",
+			requiresSelector: true,
+			args:             []string{},
+			selectors:        map[string]string{"selector": "edge1"},
+		},
+		{
+			// Depth is no limit: three keywords follow the value.
+			path:      "request peer plugin session ready",
+			input:     "request peer edge1 plugin session ready",
+			args:      []string{},
+			selectors: map[string]string{"selector": "edge1"},
+		},
+		{
+			// The four commands ze-refresh-cmd.yang merges onto the same
+			// container. They declared the selector themselves and now inherit
+			// it, so the definition they bind against must be identical.
+			path:  "request peer refresh",
+			input: "request peer edge1 refresh",
+			args:  []string{},
+			// applyExtractedSelectors bridges the `selector` leaf onto
+			// CommandContext.Peer, which is what every peer-scoped handler
+			// reads. The map is the assertion; the bridge is asserted below.
+			selectors: map[string]string{"selector": "edge1"},
+		},
+		{
+			path:      "request peer borr",
+			input:     "request peer edge1 borr",
+			args:      []string{},
+			selectors: map[string]string{"selector": "edge1"},
+		},
+		{
+			path:      "request peer eorr",
+			input:     "request peer edge1 eorr",
+			args:      []string{},
+			selectors: map[string]string{"selector": "edge1"},
+		},
+		{
+			path:      "request peer clear soft",
+			input:     "request peer edge1 clear soft",
+			args:      []string{},
+			selectors: map[string]string{"selector": "edge1"},
+		},
+		{
+			path:      "show bgp peer detail",
+			input:     "show bgp peer edge1 detail",
+			args:      []string{},
+			selectors: map[string]string{"selector": "edge1"},
+		},
+		{
+			path:      "show bgp peer capabilities",
+			input:     "show bgp peer edge1 capabilities",
+			args:      []string{},
+			selectors: map[string]string{"selector": "edge1"},
+		},
+		{
+			path:             "show bgp peer history",
+			input:            "show bgp peer edge1 history",
+			requiresSelector: true,
+			args:             []string{},
+			selectors:        map[string]string{"selector": "edge1"},
+		},
+		{
+			path:      "show bgp peer statistics",
+			input:     "show bgp peer edge1 statistics",
+			args:      []string{},
+			selectors: map[string]string{"selector": "edge1"},
+		},
+		{
+			path:             "update bgp peer prefix",
+			input:            "update bgp peer edge1 prefix",
+			requiresSelector: true,
+			args:             []string{},
+			selectors:        map[string]string{"selector": "edge1"},
+		},
 		{
 			path:  "show metrics name",
 			input: "show metrics name ze_bgp_updates_total peer=edge1",
@@ -529,4 +635,78 @@ func TestDeclaredASNLeafTakesTheFullWidth(t *testing.T) {
 	assert.NoError(t, command.ValidateArgString("4294967295", &defs[0]))
 	assert.Error(t, command.ValidateArgString("4294967296", &defs[0]))
 	assert.Error(t, command.ValidateArgString("64512.1", &defs[0]))
+}
+
+// TestCommandsThatTakeNoInheritedValueKeepTheirBareForm dispatches the two
+// commands under a container that names an object, which act on no single
+// member of that set.
+//
+// VALIDATES: ze:inherit "none" keeps the container's leaf out of the command's
+// argument definitions, so the bare invocation still reaches its handler.
+// PREVENTS: the failure the inheritance causes without it. `selector` is
+// mandatory, so Phase 3 of validateCommandArgs (command.go) answers "required
+// argument missing: selector" for `show bgp peer list`, which every .ci under
+// test/ui runs and which cmd/ze prints as its own usage example.
+func TestCommandsThatTakeNoInheritedValueKeepTheirBareForm(t *testing.T) {
+	loader, err := yang.DefaultLoader()
+	require.NoError(t, err)
+	argDefs := yang.PathToArgDefs(loader)
+
+	for _, path := range []string{"show bgp peer list", "request interface migrate"} {
+		t.Run(path, func(t *testing.T) {
+			assert.Empty(t, argDefs[path], "the container's leaf reached a command that takes none")
+
+			var gotArgs []string
+			var gotSelectors map[string]string
+			handler := func(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+				gotArgs = args
+				gotSelectors = ctx.Selectors
+				return &plugin.Response{Status: plugin.StatusDone}, nil
+			}
+
+			d := pluginserver.NewDispatcher()
+			d.RegisterWithOptions(path, handler, "under test", pluginserver.RegisterOptions{ArgDefs: argDefs[path]})
+
+			resp, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, path)
+			require.NoError(t, dispatchErr)
+			require.NotNil(t, resp)
+			assert.Equal(t, "done", resp.Status)
+			assert.Equal(t, []string{}, gotArgs)
+			assert.Nil(t, gotSelectors)
+		})
+	}
+}
+
+// TestInheritedSelectorReachesThePeerBridge dispatches one command whose
+// selector now comes from its container and reads the field every peer-scoped
+// handler uses.
+//
+// VALIDATES: applyExtractedSelectors (command.go) still bridges the `selector`
+// leaf onto CommandContext.Peer when the leaf is declared by the container
+// rather than by the command.
+// PREVENTS: an inherited leaf that arrives under a different name or with a
+// different case, which would leave ctx.Peer empty and send every peer command
+// to every peer.
+func TestInheritedSelectorReachesThePeerBridge(t *testing.T) {
+	loader, err := yang.DefaultLoader()
+	require.NoError(t, err)
+	defs := yang.PathToArgDefs(loader)["request peer flush"]
+	require.Len(t, defs, 1)
+	assert.Equal(t, "peer", defs[0].Anchor, "the selector is anchored to the container that declares it")
+
+	var gotPeer string
+	handler := func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+		gotPeer = ctx.Peer
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d := pluginserver.NewDispatcher()
+	d.RegisterWithOptions("request peer flush", handler, "under test", pluginserver.RegisterOptions{
+		RequiresSelector: true,
+		ArgDefs:          defs,
+	})
+
+	_, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, "request peer edge1 flush")
+	require.NoError(t, dispatchErr)
+	assert.Equal(t, "edge1", gotPeer)
 }

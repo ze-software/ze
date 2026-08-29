@@ -164,6 +164,30 @@ module ze-extensions {
                      refused and the container stays a plain grouping node.";
     }
 
+    // Extension: inherit
+    // Says whether a command takes the values the containers ABOVE it declare.
+    //
+    // A container that names an object declares the leaf the operator types
+    // after its keyword, once, and every command under it acts on that object:
+    // `request interface <name> up`, `<name> down`, `<name> mtu <bytes>`. The
+    // leaf lives on `interface` because that is the keyword it follows, and the
+    // renderer places it there rather than after the last keyword.
+    //
+    // 'none' is for the command under such a container that acts on no single
+    // member of the set: `show bgp peer list` reads them all, and `request
+    // interface migrate` names two interfaces of its own. Without the
+    // statement, the container's leaf would become a mandatory argument of
+    // theirs and the bare command would be refused.
+    extension inherit {
+        argument mode;
+        description "Says whether this command takes the leaves the containers
+                     above it declare. 'none' = it takes none of them, because
+                     it acts on no single member of the set the container names.
+                     'ancestors' is the default and needs no statement. Any
+                     other argument is refused and the command keeps the
+                     default.";
+    }
+
     // Extension: task-support
     // Declares whether an MCP tool is executed as a task.
     // Used by tools.go to populate execution.taskSupport in tools/list.

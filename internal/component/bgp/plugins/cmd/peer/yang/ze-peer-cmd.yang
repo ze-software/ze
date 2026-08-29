@@ -3,7 +3,7 @@ module ze-peer-cmd {
     prefix peercmd;
     import ze-extensions { prefix ze; }
     description "BGP peer operations: show, delete, and control peer sessions. Owns the show bgp health overview and the delete bgp peer command surface; container-merges onto the show and delete verb roots.";
-    revision 2026-08-29 { description "request peer teardown takes a cease subcode or it fails: handleTeardown refuses an empty tail. The description wrote it as optional and the model stated nothing."; }
+    revision 2026-08-29 { description "request peer teardown takes a cease subcode or it fails: handleTeardown refuses an empty tail. The description wrote it as optional and the model stated nothing. The peer selector of every command under show bgp peer, update bgp peer and request peer moves to the peer container, which is the keyword the operator types it after; show bgp peer list reads every peer, so it states ze:inherit none."; }
     revision 2026-03-16 { description "Initial revision"; }
     revision 2026-06-03 { description "Relocated show bgp-health and delete bgp peer out of the central show/delete schemas into this owner (plugin self-containment)."; }
     revision 2026-06-04 { description "Removed bare 'summary' and 'peer list' duplicates; moved summary under show bgp; canonical paths are 'show bgp summary' and 'show bgp peer list'."; }
@@ -24,53 +24,50 @@ ipv6, or l2vpn.";
                 config false;
                 description "Peer state, capabilities, statistics, history, and RIB views";
 
+                // The peer every command below reads. It is declared here, on
+                // the keyword the operator types it after, and each of those
+                // commands inherits it. The selector can be an IP, a peer name,
+                // an AS pattern (as65001), a glob, or *.
+                leaf selector { type string; mandatory true; description "Peer selector"; }
+
                 container list {
                     config false;
                     ze:command "ze-bgp:peer-list";
+                    ze:inherit "none";
                     description "List your peers, one line each.
 Shows name, address, ASN, state, and uptime. Quick overview without
-the detail of 'show bgp peer <selector> detail'.";
+the per-peer detail.";
                 }
 
                 container detail {
                     config false;
                     ze:command "ze-bgp:peer-detail";
-                    description "Show full detail for one or more peers.
-Usage: show bgp peer <selector> detail. The selector can be an IP,
-peer name, AS pattern (as65001), glob, or *.";
-                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                    description "Show full detail for one or more peers.";
                 }
 
                 container capabilities {
                     config false;
                     ze:command "ze-bgp:peer-capabilities";
-                    description "Show what capabilities were negotiated with a peer.
-Usage: show bgp peer <selector> capabilities.";
-                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                    description "Show what capabilities were negotiated with a peer.";
                 }
 
                 container statistics {
                     config false;
                     ze:command "ze-bgp:peer-statistics";
-                    description "Show UPDATE throughput for your peers.
-Usage: show bgp peer <selector> statistics.";
-                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                    description "Show UPDATE throughput for your peers.";
                 }
 
                 container history {
                     config false;
                     ze:command "ze-bgp:peer-history";
-                    description "Show FSM state transitions for a peer over time.
-Usage: show bgp peer <selector> history.";
-                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                    description "Show FSM state transitions for a peer over time.";
                 }
 
                 container rib {
                     config false;
                     ze:command "ze-bgp:peer-rib";
                     description "Show RIB data scoped to one peer.
-Usage: show bgp peer <selector> rib [scope|filters|terminal].";
-                    leaf selector { type string; mandatory true; description "Peer selector"; }
+Usage: show bgp peer <selector> rib [sent|advertised|received|sent-received].";
 
                     container scope {
                         config false;
@@ -132,14 +129,17 @@ configuration. Does not modify the config file on disk.";
                 config false;
                 description "Per-peer data refresh";
 
+                // The peer every command below updates, declared on the keyword
+                // the operator types it after.
+                leaf selector { type string; mandatory true; description "Peer selector"; }
+
                 container prefix {
                     config false;
                     ze:command "ze-update:bgp-peer-prefix";
                     description "Refresh max-prefix limits from PeeringDB.
-Usage: update bgp peer <selector> prefix. Queries PeeringDB for each
-matched peer's ASN, applies the configured margin, and writes the
-result to the config draft. Run 'config commit' to apply.";
-                    leaf selector { type string; mandatory true; description "Peer selector"; }
+Queries PeeringDB for each matched peer's ASN, applies the configured
+margin, and writes the result to the config draft. Run 'config commit'
+to apply.";
                 }
             }
         }
@@ -155,37 +155,36 @@ result to the config draft. Run 'config commit' to apply.";
             ze:ui-permissions "network";
             ze:ui-csp "default-src 'self'";
 
+            // The peer every command below acts on. It is declared here, on the
+            // keyword the operator types it after, and each of those commands
+            // inherits it -- including the ones ze-refresh-cmd.yang merges onto
+            // this container.
+            leaf selector { type string; mandatory true; description "Peer selector"; }
+
             container teardown {
                 config false;
                 ze:command "ze-bgp:peer-teardown";
                 description "Tear down a peer session.
-Usage: request peer <selector> teardown [cease-subcode].";
-                leaf selector { type string; mandatory true; description "Peer selector"; }
+Usage: request peer <selector> teardown <cease-subcode>.";
                 leaf cease-subcode { type uint8; mandatory true; description "BGP cease NOTIFICATION subcode"; }
             }
 
             container pause {
                 config false;
                 ze:command "ze-bgp:peer-pause";
-                description "Pause reading from a peer's TCP socket.
-Usage: request peer <selector> pause.";
-                leaf selector { type string; mandatory true; description "Peer selector"; }
+                description "Pause reading from a peer's TCP socket.";
             }
 
             container resume {
                 config false;
                 ze:command "ze-bgp:peer-resume";
-                description "Resume reading from a previously paused peer.
-Usage: request peer <selector> resume.";
-                leaf selector { type string; mandatory true; description "Peer selector"; }
+                description "Resume reading from a previously paused peer.";
             }
 
             container flush {
                 config false;
                 ze:command "ze-bgp:peer-flush";
-                description "Wait until all queued updates for a peer are sent.
-Usage: request peer <selector> flush.";
-                leaf selector { type string; mandatory true; description "Peer selector"; }
+                description "Wait until all queued updates for a peer are sent.";
             }
 
             container plugin {
@@ -199,9 +198,7 @@ Usage: request peer <selector> flush.";
                     container ready {
                         config false;
                         ze:command "ze-plugin:session-peer-ready";
-                        description "Signal that per-peer plugin setup is complete.
-Usage: request peer <selector> plugin session ready.";
-                        leaf selector { type string; mandatory true; description "Peer selector"; }
+                        description "Signal that per-peer plugin setup is complete.";
                     }
                 }
             }

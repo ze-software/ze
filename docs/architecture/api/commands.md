@@ -208,7 +208,7 @@ the bus from buggy or malicious producers.
 | `ze-clear:dns-cache-record` | `handleClearDNSCacheRecord` in `internal/component/resolve/cmd/dns.go` | `{"action": "delete-entry", "name": "...", "removed": N}` or `{"action": "delete-entry", "name": "...", "type": "...", "found": bool}` |
 | `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
 | `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
-| `ze-show:system-update` | `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go` | `{"backend": "ze-self-update"|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
+| `ze-show:system-update` | `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go` | `{"backend": "ze-self-update"\|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
 | `ze-show:system-update-history` | `handleShowSystemUpdateHistory` in `internal/plugins/update-cmd/cmd/show.go` | `{"history": [{"timestamp": "...", "from": "...", "to": "...", "result": "..."}], "count": N}` |
 | `ze-update:system-firmware-check` | `handleFirmwareCheck` in `firmware.go` | `{"running-version": "...", "update-available": bool, ...}` or on gokrazy `{"backend":"gokrazy-ab", "status":"unsupported", "message":"updates managed by gokrazy"}` |
 | `ze-update:system-firmware-download` | `handleFirmwareDownload` in `firmware.go` | `{"downloaded-version": "...", "status": "complete"}` |
@@ -1260,12 +1260,25 @@ type ArgDef struct {
     Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString
     UnionDefs  []ArgDef       // Member types for ArgUnion
     Mandatory  bool           // True if YANG leaf has mandatory true
+    Anchor     string         // Path keyword this value follows; "" for a trailing value
 }
 ```
 
 ArgDefs are extracted from YANG by `BuildCommandTree` (`config/yang/command.go`)
 and stored on `command.Node.ArgDefs`. The dispatcher receives them via
 `RegisterOptions.ArgDefs` populated by `PathToArgDefs`.
+
+A container that names an object declares the value the operator types after
+its keyword, once, and every command under it takes that value:
+`request interface <name> up`, `<name> down`, `<name> mtu <bytes>` share one
+`name` leaf on the `interface` container. `inheritArgDefs`
+(`config/yang/command.go`) carries such a leaf down to each command after every
+module is merged, with `Anchor` set to the container's name, and the renderer
+places the value right after that keyword. The command under such a container
+that acts on no single member of the set states `ze:inherit "none"`:
+`show bgp peer list` reads every peer, and `request interface migrate` names two
+interfaces of its own. Nothing binds a value by `Anchor`: a positional token
+still goes to the definition whose type constrains it most (`positionalDef`).
 
 Runtime-dynamic hints (e.g., address families from plugin registry) remain as
 `ValueHints` callbacks. Static hints (log levels, FD limit "max") are
@@ -1812,7 +1825,7 @@ declared. The running daemon refuses and publishes correctly. The published
 catalog cannot yet say so.
 
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
-<!-- source: internal/le/commandlist/commandlist.go -- Answer -->
+<!-- source: internal/le/command/list/commandlist.go -- Answer -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
 #### A plugin declares its own answer shape

@@ -500,3 +500,53 @@ func TestUsageChoiceWithoutAValueSetRendersItsKeyword(t *testing.T) {
 		t.Errorf("the line reads %q, want %q", got, want)
 	}
 }
+
+// VALIDATES: a leaf a container on the path DECLARES renders right after that
+// container's keyword, whatever the leaf is called.
+// PREVENTS: `request interface down <name>` and `request peer flush
+// <selector>`, where the value trails the last keyword while the operator types
+// it inline. The leaf sits on the `interface` and `peer` containers, so its
+// name says nothing about where it goes and only the anchor can.
+func TestUsagePlacesInheritedValueAfterItsContainer(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		path []string
+		defs []ArgDef
+		want string
+	}{
+		{
+			name: "an inherited value follows the container that declares it",
+			path: []string{"request", "interface", "down"},
+			defs: []ArgDef{{Name: "name", Anchor: "interface", Kind: ArgString, Mandatory: true}},
+			want: "request interface <name> down",
+		},
+		{
+			name: "the command's own leaf still trails the last keyword",
+			path: []string{"request", "interface", "mtu"},
+			defs: []ArgDef{
+				{Name: "name", Anchor: "interface", Kind: ArgString, Mandatory: true},
+				{Name: "bytes", Kind: ArgUint, UintBits: 16, Mandatory: true},
+			},
+			want: "request interface <name> mtu <bytes>",
+		},
+		{
+			name: "an anchor deeper than the first keyword is honored",
+			path: []string{"request", "peer", "plugin", "session", "ready"},
+			defs: []ArgDef{{Name: "selector", Anchor: "peer", Kind: ArgString, Mandatory: true}},
+			want: "request peer <selector> plugin session ready",
+		},
+		{
+			name: "an anchor naming no keyword on the path leaves the value trailing",
+			path: []string{"show", "tcp-check"},
+			defs: []ArgDef{{Name: "host", Anchor: "absent", Kind: ArgString, Mandatory: true}},
+			want: "show tcp-check <host>",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			node := &Node{Name: tc.path[len(tc.path)-1], WireMethod: "ze-test:command", ArgDefs: tc.defs}
+			if got := UsageLine(Usage(tc.path, node)); got != tc.want {
+				t.Errorf("the line reads %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

@@ -3,7 +3,7 @@ module ze-iface-cmd {
     prefix ifacecmd;
     import ze-extensions { prefix ze; }
     description "Create, configure, and manage network interfaces";
-    revision 2026-08-29 { description "Declare the values the descriptions spelled in prose: the VLAN id of every unit command, the CIDR prefix of every address command, the veth peer, the MTU byte count and the MAC address. The grammar is in the model, so the renderer states it and the dispatcher types it."; }
+    revision 2026-08-29 { description "Declare the values the descriptions spelled in prose: the VLAN id of every unit command, the CIDR prefix of every address command, the veth peer, the MTU byte count and the MAC address. The grammar is in the model, so the renderer states it and the dispatcher types it. The interface name of request interface up, down, mtu and mac moves to the interface container, which is the keyword the operator types it after; request interface migrate names two interfaces of its own, so it states ze:inherit none."; }
     revision 2026-07-03 { description "Typed name selector on create/delete interface (create interface dummy name <n>, delete interface name <n>) per cli-grammar.md Typed Selectors."; }
     revision 2026-06-04 { description "Verb-first grammar: create/delete/request interface"; }
 
@@ -161,43 +161,41 @@ Usage: delete interface name <name> unit.";
             config false;
             description "Interface operational state";
 
+            // The interface every command below acts on. It is declared here,
+            // on the keyword the operator types it after, and each of those
+            // commands inherits it.
+            leaf name { type string; mandatory true; description "Interface name"; }
+
             container up {
                 config false;
                 ze:command "ze-iface:interface-up";
-                description "Bring an interface up.
-Usage: request interface <name> up.";
-                leaf name { type string; mandatory true; description "Interface name"; }
+                description "Bring an interface up.";
             }
 
             container down {
                 config false;
                 ze:command "ze-iface:interface-down";
-                description "Shut down an interface.
-Usage: request interface <name> down.";
-                leaf name { type string; mandatory true; description "Interface name"; }
+                description "Shut down an interface.";
             }
 
             container mtu {
                 config false;
                 ze:command "ze-iface:interface-mtu";
-                description "Set the MTU on an interface.
-Usage: request interface <name> mtu <bytes>. Range: 68 to 65535.";
-                leaf name { type string; mandatory true; description "Interface name"; }
+                description "Set the MTU on an interface. Range: 68 to 65535.";
                 leaf bytes { type uint16 { range "68..65535"; } mandatory true; description "MTU in bytes"; }
             }
 
             container mac {
                 config false;
                 ze:command "ze-iface:interface-mac";
-                description "Set the MAC address on an interface.
-Usage: request interface <name> mac <aa:bb:cc:dd:ee:ff>.";
-                leaf name { type string; mandatory true; description "Interface name"; }
+                description "Set the MAC address on an interface.";
                 leaf address { type string { pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}'; } mandatory true; description "MAC address, as xx:xx:xx:xx:xx:xx"; }
             }
 
             container migrate {
                 config false;
                 ze:command "ze-iface:interface-migrate";
+                ze:inherit "none";
                 description "Move IP addresses between interfaces with minimal downtime.
 Takes a source interface, a target interface, and the address to move.
 Adds addresses to the target before removing them from the source

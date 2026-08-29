@@ -8,7 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -263,4 +266,90 @@ func TestErrorsFilterBySource(t *testing.T) {
 	require.True(t, ok2, "errors should be []report.Issue")
 	assert.Equal(t, 1, len(issues))
 	assert.Equal(t, "l2tp", issues[0].Source)
+}
+
+// metricsQueryContext seeds the metrics registry with one counter vector and
+// returns the command context `show metrics name ze_test_filter_total` builds:
+// the metric name arrives as a selector, so args carry label filters only.
+//
+// The registry is package state, so the caller's cleanup clears it.
+func metricsQueryContext(t *testing.T) *pluginserver.CommandContext {
+	t.Helper()
+	reg := metrics.NewPrometheusRegistry()
+	series := reg.CounterVec("ze_test_filter_total", "Series a label filter selects between.", []string{"peer"})
+	series.With("p1").Inc()
+	series.With("p2").Inc()
+	registry.SetMetricsRegistry(reg)
+	t.Cleanup(func() { registry.SetMetricsRegistry(nil) })
+	return &pluginserver.CommandContext{Selectors: map[string]string{"name": "ze_test_filter_total"}}
+}
+
+// TestShowMetricsQueryRefusesAMalformedLabelFilter verifies a label group that
+// stops short of its value, and a token that opens no group at all, are both
+// refused with an error that states the form.
+//
+// VALIDATES: `show metrics name <name> label <key>` reports an error rather
+// than answering every series of the metric.
+// PREVENTS: the silent drop the `label=value` packing carried, where a token
+// with no `=` was skipped and the query answered as if no filter was asked
+// for (internal/component/cmd/show/show.go, handleShowMetricsQuery).
+func TestShowMetricsQueryRefusesAMalformedLabelFilter(t *testing.T) {
+	ctx := metricsQueryContext(t)
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "keyword alone", args: []string{"label"}, want: "label needs a key and a value"},
+		{name: "key without a value", args: []string{"label", "peer"}, want: "label needs a key and a value"},
+		{name: "second group short", args: []string{"label", "peer", "p1", "label", "family"}, want: "label needs a key and a value"},
+		{name: "token that opens no group", args: []string{"peer"}, want: `"peer" is not the label keyword`},
+		{name: "value where a keyword belongs", args: []string{"label", "peer", "p1", "p2"}, want: `"p2" is not the label keyword`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleShowMetricsQuery(ctx, tt.args)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.Equal(t, plugin.StatusError, resp.Status)
+			assert.Contains(t, resp.Error, tt.want)
+			assert.Contains(t, resp.Error, "show metrics name <name> [label <key> <value> ...]")
+		})
+	}
+}
+
+// TestShowMetricsQueryFiltersSeriesByLabel verifies a two-token label group
+// selects the series whose label holds that value.
+//
+// VALIDATES: `show metrics name ze_test_filter_total label peer p1` answers the
+// one series carrying peer="p1".
+// PREVENTS: a parse that accepts the tokens and then filters on nothing, which
+// would answer both series and read as success.
+func TestShowMetricsQueryFiltersSeriesByLabel(t *testing.T) {
+	ctx := metricsQueryContext(t)
+
+	tests := []struct {
+		name  string
+		args  []string
+		count int
+	}{
+		{name: "no filter answers every series", args: nil, count: 2},
+		{name: "one filter selects one series", args: []string{"label", "peer", "p1"}, count: 1},
+		{name: "a value nothing carries selects none", args: []string{"label", "peer", "p9"}, count: 0},
+		{name: "one label named twice states two conditions", args: []string{"label", "peer", "p1", "label", "peer", "p2"}, count: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleShowMetricsQuery(ctx, tt.args)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.Equal(t, plugin.StatusDone, resp.Status)
+			data, ok := resp.Data.(plugin.Map)
+			require.True(t, ok, "response data is %T, want plugin.Map", resp.Data)
+			assert.Equal(t, tt.count, data[keyCount])
+		})
+	}
 }

@@ -261,8 +261,45 @@ func TestToolMetricsDispatchesCommand(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "show metrics name bgp_peer_up instance=peer1", *captured)
+	assert.Equal(t, "show metrics name bgp_peer_up label instance peer1", *captured)
 	assert.Contains(t, rec.Body.String(), "metric_value 42")
+}
+
+// TestToolMetricsRejectsAMalformedLabelFilter verifies the form refuses a label
+// filter it cannot turn into the two tokens the command takes.
+//
+// VALIDATES: a filter with no `=`, and one carrying a space, are both reported
+// to the operator and dispatch nothing.
+// PREVENTS: the form building `show metrics name <name> <junk>`, which the
+// handler now refuses, and an operator reading that refusal in the CLI grammar
+// rather than beside the field they filled in.
+func TestToolMetricsRejectsAMalformedLabelFilter(t *testing.T) {
+	tests := []struct {
+		name  string
+		label string
+	}{
+		{name: "no separator", label: "instance"},
+		{name: "no key", label: "=peer1"},
+		{name: "no value", label: "instance="},
+		{name: "a space splits it into three tokens", label: "instance=peer 1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dispatch, captured := mockDispatcher("")
+			handler := workbenchForTools(t, dispatch)
+
+			body := "name=bgp_peer_up&label=" + url.QueryEscape(tt.label)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/show/tools/metrics/", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("HX-Request", "true")
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			assert.Contains(t, rec.Body.String(), "Label filter must be one key=value pair")
+			assert.Empty(t, *captured)
+		})
+	}
 }
 
 func TestToolMetricsValidatesName(t *testing.T) {

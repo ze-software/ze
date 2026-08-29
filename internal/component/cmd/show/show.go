@@ -6,6 +6,7 @@ package show
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/core/health"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The CLI argument keywords this package reads. argCount takes a positive
@@ -213,14 +215,30 @@ func filterIssuesBySource(issues []report.Issue, source string) []report.Issue {
 	return filtered
 }
 
-// handleShowMetricsQuery answers `show metrics name <name> [label=value ...]`.
+// The label filter grammar of `show metrics name`. One filter is three tokens,
+// so the keyword that introduces the value comes from a closed set and the
+// label name it selects on comes from the operator (ai/rules/cli.md).
+const (
+	argLabel = "label"
+	// metricsQueryForm is the line an operator types, and the model generates
+	// the same one from internal/component/cmd/show/yang/ze-cli-show-cmd.yang.
+	// Every error below states it, so the reader sees what to type next.
+	metricsQueryForm = "show metrics name <name> [label <key> <value> ...]"
+	// labelGroupTokens is the keyword, the key, and the value.
+	labelGroupTokens = 3
+)
+
+// errLabelIncomplete answers every label group that is not three tokens. The
+// three ways to write one are the same mistake, so they read the same message.
+var errLabelIncomplete = errors.New(argLabel + " needs a key and a value: " + metricsQueryForm)
+
+// handleShowMetricsQuery answers `show metrics name <name> [label <key> <value> ...]`.
 //
 // The metric name arrives as a SELECTOR rather than in args: the container and
 // its leaf are both called `name`, so matchCommandTokens
 // (internal/component/plugin/server/command.go) matches the keyword against the
-// leaf of the same name and lifts the value out of the argument list. Seeding
-// metricName from the selector is what leaves the loop below reading every
-// remaining token as a label filter, which is what they are.
+// leaf of the same name and lifts the value out of the argument list. What
+// remains in args is label filters and nothing else.
 func handleShowMetricsQuery(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	reg := registry.GetMetricsRegistry()
 	if reg == nil {
@@ -231,21 +249,12 @@ func handleShowMetricsQuery(ctx *pluginserver.CommandContext, args []string) (*p
 		return &plugin.Response{Status: plugin.StatusError, Error: "metrics not available"}, nil
 	}
 	metricName := ctx.Selector("name")
-	labelFilters := make(map[string]string)
-	for _, a := range args {
-		if a == "" || strings.HasPrefix(a, "-") {
-			continue
-		}
-		if metricName == "" {
-			metricName = a
-			continue
-		}
-		if parts := strings.SplitN(a, "=", 2); len(parts) == 2 {
-			labelFilters[parts[0]] = parts[1]
-		}
-	}
 	if metricName == "" {
-		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show metrics name <name> [label=value ...]"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: " + metricsQueryForm}, nil
+	}
+	labelFilters, err := metricLabelFilters(args)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operator error in Response
 	}
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", http.NoBody)
 	if err != nil {
@@ -262,7 +271,48 @@ func handleShowMetricsQuery(ctx *pluginserver.CommandContext, args []string) (*p
 	}, nil
 }
 
-func filterMetricLines(text, name string, labelFilters map[string]string) []map[string]any {
+// metricLabelFilters reads the label filters that follow the metric name. Each
+// one is `label <key> <value>`, they repeat, and they are ANDed.
+//
+// Each answer is the `key="value"` text a matching sample line carries, built
+// once here rather than once for each line. The answer is a LIST rather than a
+// map keyed by label name, so a label named twice states two conditions and
+// matches nothing. A map would keep the last one and drop the operator's
+// earlier filter in silence, which is the failure this grammar removes.
+//
+// A group that stops short of its value, and a token that opens no group, are
+// both refused. The retired `label=value` packing dropped every token it could
+// not split on `=`, so `show metrics name ze_bgp_up peer` answered each series
+// of the metric and told the operator nothing about the token it ignored.
+//
+// The loop is bounded by args: each pass consumes one whole group, so at
+// strictly increases.
+func metricLabelFilters(args []string) ([]string, error) {
+	filters := make([]string, 0, len(args)/labelGroupTokens)
+	var tb textbuf.Buffer
+	for at := 0; at < len(args); at += labelGroupTokens {
+		if !strings.EqualFold(args[at], argLabel) {
+			return nil, fmt.Errorf("%q is not the %s keyword: %s", args[at], argLabel, metricsQueryForm)
+		}
+		if at+labelGroupTokens > len(args) {
+			return nil, errLabelIncomplete
+		}
+		key := args[at+1]
+		if key == "" {
+			return nil, errLabelIncomplete
+		}
+		value := args[at+2]
+		if value == "" {
+			return nil, errLabelIncomplete
+		}
+		filters = append(filters, tb.Reset().Str(key).Str(`="`).Str(value).Byte('"').String())
+	}
+	return filters, nil
+}
+
+// filterMetricLines returns each sample line of the named metric that carries
+// every label filter. labelFilters holds the `key="value"` text of each one.
+func filterMetricLines(text, name string, labelFilters []string) []map[string]any {
 	// The reader is a strings.Reader over this process's own Prometheus text,
 	// so Read returns only io.EOF and every sample line is short. There is no
 	// scan error to read back.
@@ -280,18 +330,8 @@ func filterMetricLines(text, name string, labelFilters map[string]string) []map[
 		if rest != "" && rest[0] != '{' && rest[0] != ' ' {
 			continue
 		}
-		if len(labelFilters) > 0 {
-			match := true
-			for k, v := range labelFilters {
-				want := k + `="` + v + `"`
-				if !strings.Contains(line, want) {
-					match = false
-					break
-				}
-			}
-			if !match {
-				continue
-			}
+		if !hasEveryLabel(line, labelFilters) {
+			continue
 		}
 		results = append(results, map[string]any{"line": line})
 	}
@@ -299,6 +339,20 @@ func filterMetricLines(text, name string, labelFilters map[string]string) []map[
 		results = []map[string]any{}
 	}
 	return results
+}
+
+// hasEveryLabel reports whether one sample line carries every label filter.
+// An empty filter list selects every line, because the operator asked for none.
+//
+// The loop is bounded by the filter list, which the operator's own command line
+// states.
+func hasEveryLabel(line string, labelFilters []string) bool {
+	for _, filter := range labelFilters {
+		if !strings.Contains(line, filter) {
+			return false
+		}
+	}
+	return true
 }
 
 func handleShowEventRecent(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

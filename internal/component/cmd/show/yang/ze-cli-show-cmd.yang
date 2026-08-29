@@ -3,6 +3,7 @@ module ze-cli-show-cmd {
     prefix clishowcmd;
     import ze-extensions { prefix ze; }
     description "Show command tree for read-only inspection of system and protocol state";
+    revision 2026-08-29 { description "show metrics name takes its label filters as two tokens, label <key> <value>, repeatable. The packed label=value form put a keyword from an open set inside a value token."; }
     revision 2026-08-29 { description "Declare the metric name show metrics name reads. The description spelled it in prose and the model stated nothing."; }
     revision 2026-03-26 { description "Initial revision"; }
     revision 2026-06-03 { description "Relocated show dns lookup/cache (-> resolve) and show bgp-health (-> bgp peer command owner) out of this central schema (plugin self-containment)."; }
@@ -290,10 +291,17 @@ unhealthy with a reason. Start here when troubleshooting.";
                 config false;
                 ze:command "ze-show:metrics-query";
                 description "Show one Prometheus metric by name.
-Usage: show metrics name <name> [label=value ...]. Returns matching
-time series from the internal registry. Multiple label filters are
-ANDed. More targeted than the full metrics dump.";
+Returns matching time series from the internal registry. Multiple label
+filters are ANDed. More targeted than the full metrics dump.";
                 leaf name { type string { length "1..128"; } mandatory true; description "Prometheus metric name"; }
+
+                container label {
+                    config false;
+                    ze:modifier "repeat";
+                    description "A label and the value it must hold for a series to be reported. Every filter given must match.";
+                    leaf key { type string { length "1..128"; } mandatory true; description "Prometheus label name"; }
+                    leaf value { type string { length "1..256"; } mandatory true; description "The value the label must hold"; }
+                }
             }
         }
 

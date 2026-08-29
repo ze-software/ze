@@ -188,9 +188,108 @@ func BuildCommandTree(loader *Loader) *command.Node {
 		mergeYANGEntry(root, entry)
 	}
 
+	inheritArgDefs(root, nil)
+
 	validateOnce.Do(func() { validateNode(root, "") })
 
 	return root
+}
+
+// inheritArgDefs carries the leaves a non-command container declares down to
+// every command beneath it, anchored to that container's keyword.
+//
+// A container that names an object declares the value the operator types after
+// its keyword ONCE, and each command under it acts on that object: `request
+// interface <name> up`, `<name> down`, `<name> mtu <bytes>`. Declaring the leaf
+// on each command instead put the value after the LAST keyword, which is a line
+// no operator types (plan/spec-generated-command-usage.md, Known Limitations).
+//
+// It runs after every module is merged, never during the merge, because the
+// container and the commands under it can come from different modules:
+// `request peer` declares the selector in ze-peer-cmd.yang while `request peer
+// refresh` is declared in ze-refresh-cmd.yang. A walk that carried the leaf
+// down during the merge would give it to whichever module happened to be
+// merged after the one that declared it.
+//
+// Three nodes contribute nothing. A command's OWN leaves stay its own, because
+// a command that is also a path node states its arguments for itself. A
+// modifier group's leaves belong to the group. And a command declaring
+// ze:inherit "none" acts on no single member of the set, so nothing reaches it.
+//
+// The recursion is over a tree this process built from its own embedded
+// modules. No peer chooses its depth (docs/contributing/ze-go-style.md).
+func inheritArgDefs(node *command.Node, inherited []command.ArgDef) (taken bool) {
+	for _, child := range node.Children {
+		if child == nil {
+			continue
+		}
+		below := inherited
+		declares := false
+		switch {
+		case child.WireMethod != "":
+			if child.Inherit == command.ArgInheritAncestors {
+				child.ArgDefs = withInheritedArgDefs(inherited, child.ArgDefs)
+				taken = true
+			}
+		case child.Modifier == command.ModifierNone && len(child.ArgDefs) > 0:
+			below = appendAnchored(inherited, child.Name, child.ArgDefs)
+			child.ArgDefs = nil
+			declares = true
+		}
+		reached := inheritArgDefs(child, below)
+		taken = taken || reached
+		if declares && !reached {
+			// The container states a value no command can be given, so the
+			// model carries a leaf nothing renders and nothing binds. Saying so
+			// is the whole repair (ai/rules/evidence.md).
+			slog.Warn("YANG grouping container declares a value no command below it takes", "node", child.Name)
+		}
+	}
+	return taken
+}
+
+// appendAnchored copies inherited and adds each of a container's own leaves to
+// it, anchored to that container's keyword. The copy is what keeps one
+// container's leaf out of a sibling's subtree: the slice the caller holds is
+// shared by every branch below it.
+func appendAnchored(inherited []command.ArgDef, container string, defs []command.ArgDef) []command.ArgDef {
+	next := make([]command.ArgDef, 0, len(inherited)+len(defs))
+	next = append(next, inherited...)
+	for _, def := range defs {
+		def.Anchor = container
+		next = append(next, def)
+	}
+	return next
+}
+
+// withInheritedArgDefs puts the inherited values in front of the command's own,
+// so the published list reads in the order an operator types it.
+//
+// A command that declares a leaf of its own by the same name keeps its own: the
+// nearer declaration is the more specific one, and two definitions of one name
+// would make which type applies depend on a slice position.
+func withInheritedArgDefs(inherited, own []command.ArgDef) []command.ArgDef {
+	if len(inherited) == 0 {
+		return own
+	}
+	defs := make([]command.ArgDef, 0, len(inherited)+len(own))
+	for _, def := range inherited {
+		if argDefNamed(own, def.Name) {
+			continue
+		}
+		defs = append(defs, def)
+	}
+	return append(defs, own...)
+}
+
+// argDefNamed reports whether defs holds a definition called name.
+func argDefNamed(defs []command.ArgDef, name string) bool {
+	for i := range defs {
+		if defs[i].Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 var validateOnce sync.Once
@@ -274,6 +373,10 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 			target.ArgDefs = extractArgDefs(child)
 		}
 
+		if mode, ok := getInheritExtension(child); ok && target.Inherit == command.ArgInheritAncestors {
+			target.Inherit = mode
+		}
+
 		// A modifier group is not a command, so its leaves are extracted here
 		// rather than by the branch above. A container carrying ze:command is a
 		// subcommand whatever else it says, which is why the extension is read
@@ -284,6 +387,15 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 				target.ModifierOrder = declaredContainerOrder(entry, name)
 				target.ArgDefs = extractArgDefs(child)
 			}
+		}
+
+		// A plain grouping container still declares the value an operator types
+		// after its keyword, once, for every command beneath it: `request
+		// interface <name> up` and `<name> down` share one `name`. The leaves
+		// are read here and inheritArgDefs carries them down after every module
+		// is merged, which is why the branch above cannot do it.
+		if wm == "" && target.Modifier == command.ModifierNone && len(target.ArgDefs) == 0 {
+			target.ArgDefs = extractArgDefs(child)
 		}
 
 		// Recurse into children (merge overlapping branches from multiple modules).
@@ -369,6 +481,31 @@ func getModifierExtension(entry *gyang.Entry) (command.Modifier, bool) {
 		return modifier, ok
 	}
 	return command.ModifierNone, false
+}
+
+// getInheritExtension reads the ze:inherit extension from a YANG entry and
+// answers the mode it names.
+//
+// It answers false for an absent extension and for an argument the vocabulary
+// does not hold, so a typo leaves a command taking the values its containers
+// declare rather than silently taking none (ai/rules/evidence.md). The warning
+// names the container, because a silent no is what makes a typo cost a reader
+// an afternoon.
+func getInheritExtension(entry *gyang.Entry) (command.ArgInherit, bool) {
+	if entry == nil {
+		return command.ArgInheritAncestors, false
+	}
+	for _, ext := range entry.Exts {
+		if ext.Keyword != "ze:inherit" && !strings.HasSuffix(ext.Keyword, ":inherit") {
+			continue
+		}
+		mode, ok := command.ParseArgInherit(ext.Argument)
+		if !ok {
+			slog.Warn("YANG ze:inherit argument is not a declared mode", "node", entry.Name, "argument", ext.Argument)
+		}
+		return mode, ok
+	}
+	return command.ArgInheritAncestors, false
 }
 
 // declaredContainerOrder answers the position the module declares the named

@@ -3,6 +3,7 @@ module ze-refresh-cmd {
     prefix refreshcmd;
     import ze-extensions { prefix ze; }
     description "Request peers to re-send routes (RFC 2918, RFC 7313)";
+    revision 2026-08-29 { description "The peer selector of every command here comes from the request peer container ze-peer-cmd.yang declares, which is the keyword the operator types it after."; }
     revision 2026-03-16 { description "Initial revision"; }
 
     container request {
@@ -17,7 +18,6 @@ module ze-refresh-cmd {
                 description "Ask a peer to re-send all routes (RFC 2918).
 Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The
 peer will re-advertise its entire Adj-RIB-Out.";
-                leaf selector { type string; mandatory true; description "Peer selector"; }
             }
 
             container borr {
@@ -26,7 +26,6 @@ peer will re-advertise its entire Adj-RIB-Out.";
                 description "Start an Enhanced Route Refresh cycle (RFC 7313).
 Tells the peer to mark existing routes as stale. After re-sending,
 send EORR to purge anything not refreshed.";
-                leaf selector { type string; mandatory true; description "Peer selector"; }
             }
 
             container eorr {
@@ -35,7 +34,6 @@ send EORR to purge anything not refreshed.";
                 description "Finish an Enhanced Route Refresh cycle (RFC 7313).
 The peer purges any routes not re-advertised since the matching
 BORR. Only send this after the peer has finished re-advertising.";
-                leaf selector { type string; mandatory true; description "Peer selector"; }
             }
 
             container clear {
@@ -48,7 +46,6 @@ BORR. Only send this after the peer has finished re-advertising.";
                     description "Soft-clear a peer without dropping the session.
 Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
 to re-send all routes. No session bounce, no traffic impact.";
-                    leaf selector { type string; mandatory true; description "Peer selector"; }
                 }
             }
         }

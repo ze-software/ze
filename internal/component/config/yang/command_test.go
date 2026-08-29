@@ -1471,3 +1471,188 @@ module test-modifier-cmd {
 	assert.Equal(t, "announce <selector> [tag <key> <value>] [label <name> ...]",
 		command.UsageLine(command.Usage([]string{"announce"}, announce)))
 }
+
+// inheritedArgModule declares the shape this spec's fifteen commands share: one
+// container names the object, its leaf names the value the operator types after
+// that keyword, and each command under it acts on that object. `list` acts on
+// the whole set and says so, which is the only reason a command under the
+// container does not take the value.
+const inheritedArgModule = `
+module test-inherit-cmd {
+    namespace "urn:test:inherit:cmd";
+    prefix tic;
+    import ze-extensions { prefix ze; }
+
+    container request {
+        config false;
+
+        container peer {
+            config false;
+            description "Peer operations";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
+
+            container flush {
+                config false;
+                ze:command "test:peer-flush";
+                description "Flush a peer";
+            }
+
+            container teardown {
+                config false;
+                ze:command "test:peer-teardown";
+                description "Tear down a peer";
+                leaf cease-subcode { type uint8; mandatory true; description "Cease subcode"; }
+            }
+
+            container plugin {
+                config false;
+                description "Plugin operations";
+
+                container ready {
+                    config false;
+                    ze:command "test:peer-ready";
+                    description "Signal readiness";
+                }
+            }
+
+            container list {
+                config false;
+                ze:command "test:peer-list";
+                ze:inherit "none";
+                description "List every peer";
+            }
+        }
+    }
+}
+`
+
+// VALIDATES: a leaf a non-command container declares reaches every command
+// under it, anchored to that container, and stays out of a command that
+// declares ze:inherit "none".
+// PREVENTS: the value being declared nowhere the command can see it, which is
+// what made `request peer flush <selector>` the generated line while the
+// operator types `request peer <selector> flush`; and the same leaf being
+// forced onto `show bgp peer list`, whose Phase 3 mandatory check would then
+// refuse the bare command every .ci in test/ui already runs.
+func TestArgDefsInheritFromTheContainerThatDeclaresThem(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("test-inherit-cmd.yang", inheritedArgModule))
+	require.NoError(t, loader.Resolve())
+
+	peer := BuildCommandTree(loader).Children["request"].Children["peer"]
+	require.NotNil(t, peer)
+
+	flush := peer.Children["flush"]
+	require.NotNil(t, flush)
+	require.Len(t, flush.ArgDefs, 1)
+	assert.Equal(t, "selector", flush.ArgDefs[0].Name)
+	assert.Equal(t, "peer", flush.ArgDefs[0].Anchor)
+	assert.True(t, flush.ArgDefs[0].Mandatory)
+
+	// The inherited value comes first, then the command's own, so an operator
+	// reads the line in the order they type it.
+	teardown := peer.Children["teardown"]
+	require.NotNil(t, teardown)
+	require.Len(t, teardown.ArgDefs, 2)
+	assert.Equal(t, "selector", teardown.ArgDefs[0].Name)
+	assert.Equal(t, "peer", teardown.ArgDefs[0].Anchor)
+	assert.Equal(t, "cease-subcode", teardown.ArgDefs[1].Name)
+	assert.Empty(t, teardown.ArgDefs[1].Anchor)
+
+	// Depth is no limit: the container names the object however many keywords
+	// follow it.
+	ready := peer.Children["plugin"].Children["ready"]
+	require.NotNil(t, ready)
+	require.Len(t, ready.ArgDefs, 1)
+	assert.Equal(t, "peer", ready.ArgDefs[0].Anchor)
+
+	assert.Empty(t, peer.Children["list"].ArgDefs, "a command that states ze:inherit none takes none")
+
+	// The container itself is a grouping node, so it runs no command and its
+	// leaf is not an argument list of its own.
+	assert.Empty(t, peer.ArgDefs, "the declaring container carries no argument list")
+}
+
+// VALIDATES: the rendered line of each shape the inheritance produces.
+// PREVENTS: an anchor that reaches the tree but never reaches the line, which
+// the argument assertions above alone would not catch.
+func TestUsageRendersInheritedArguments(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("test-inherit-cmd.yang", inheritedArgModule))
+	require.NoError(t, loader.Resolve())
+
+	peer := BuildCommandTree(loader).Children["request"].Children["peer"]
+	require.NotNil(t, peer)
+
+	for _, tc := range []struct {
+		path []string
+		node *command.Node
+		want string
+	}{
+		{[]string{"request", "peer", "flush"}, peer.Children["flush"], "request peer <selector> flush"},
+		{[]string{"request", "peer", "teardown"}, peer.Children["teardown"], "request peer <selector> teardown <cease-subcode>"},
+		{
+			[]string{"request", "peer", "plugin", "ready"},
+			peer.Children["plugin"].Children["ready"],
+			"request peer <selector> plugin ready",
+		},
+		{[]string{"request", "peer", "list"}, peer.Children["list"], "request peer list"},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			require.NotNil(t, tc.node)
+			assert.Equal(t, tc.want, command.UsageLine(command.Usage(tc.path, tc.node)))
+		})
+	}
+}
+
+// VALIDATES: a container that declares a value no command below it can take is
+// named in a warning rather than dropped in silence.
+// PREVENTS: a leaf that reads as part of the grammar, renders nowhere and binds
+// nothing, which is the shape ai/rules/evidence.md refuses: a declaration whose
+// zero effect looks like a valid answer.
+func TestGroupingContainerWarnsWhenNoCommandTakesItsValue(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(old)
+
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("test-orphan-cmd.yang", `
+module test-orphan-cmd {
+    namespace "urn:test:orphan:cmd";
+    prefix toc;
+    import ze-extensions { prefix ze; }
+
+    container request {
+        config false;
+
+        container orphan {
+            config false;
+            description "Names an object no command below it acts on";
+            leaf selector { type string; mandatory true; description "Selector"; }
+
+            container list {
+                config false;
+                ze:command "test:orphan-list";
+                ze:inherit "none";
+                description "List every one of them";
+            }
+        }
+    }
+}
+`))
+	// The inheriting fixture rides along, so the silent half of the assertion
+	// is over a container that is really there.
+	require.NoError(t, loader.AddModuleFromText("test-inherit-cmd.yang", inheritedArgModule))
+	require.NoError(t, loader.Resolve())
+
+	tree := BuildCommandTree(loader)
+	require.NotNil(t, tree.Children["request"].Children["peer"], "the inheriting container is in this tree")
+
+	assert.Contains(t, buf.String(), "YANG grouping container declares a value no command below it takes")
+	assert.Contains(t, buf.String(), "node=orphan")
+	assert.NotContains(t, buf.String(), "node=peer", "a container whose commands take its value is silent")
+}

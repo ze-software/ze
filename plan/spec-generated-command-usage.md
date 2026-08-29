@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
 | Phase | - |
@@ -257,6 +257,8 @@ than an implementer's choice.
 |-------------|-------------|
 | A container on the path from the root to the command node | its own name, as a literal keyword, in path order |
 | A leaf whose name equals a container name on the path | `<leaf-name>` placed immediately after that container's keyword |
+| A leaf a container on the path DECLARES, where that container runs no command | `<leaf-name>` placed immediately after that container's keyword, for every command beneath it. `request interface <name> up` and `request peer <selector> flush` are that shape, and the leaf sits on `interface` and on `peer` |
+| A command under such a container that carries `ze:inherit "none"` | no inherited value. It acts on no single member of the set the container names: `show bgp peer list` reads every peer, `request interface migrate` names two interfaces of its own |
 | A mandatory leaf whose name matches no container on the path | `<leaf-name>`, appended after the last path keyword, in declaration order |
 | An optional leaf whose name matches no container on the path | `[leaf-name <leaf-name>]`, appended after every mandatory token, in declaration order |
 | A leaf of type enumeration | its value set joined by a vertical bar replaces `<leaf-name>`, giving `<tcp\|udp>` |
@@ -271,9 +273,10 @@ than an implementer's choice.
 | A container with no `ze:command` | no usage line. It is a grouping node |
 
 The last five rows were added on 2026-08-29, after the Known Limitations entry
-below recorded that four argument shapes had no rule. Three of the four are now
-stated. The fourth, a repeating token carrying its own internal syntax
-(`[label=value ...]`), is NOT stated, and the reason is in Known Limitations.
+below recorded that four argument shapes had no rule. All four are now stated.
+The fourth was a repeating token carrying its own internal syntax
+(`[label=value ...]`), and it needed no new rendering rule: the owner replaced
+the packed spelling with two tokens, so `ze:modifier "repeat"` renders it.
 
 Two consequences are deliberate. An optional leaf always gains its keyword, so
 `show system sockets` renders `[protocol <tcp|udp>] [state <state>] [port
@@ -803,6 +806,8 @@ Each row says what the spec claimed, what the code says, and why the change.
 | The announce prose was going to be the model for `withdraw` | It is wrong twice. `handlewithdrawTag` defaults the value to `"*"`, so `withdraw tag <key>` alone is valid, and `handlewithdrawAll` accepts an undocumented `selector <pattern>` filter. See A-5 |
 | `resolve ping`'s optional values were to be modelled as `ze:modifier` containers | An optional LEAF already renders `[leaf-name <leaf-name>]`, which is the whole of what those three need. `ze:modifier` earns its place only where a group carries more than one value (`[tag <key> <value>]`) or repeats (`[label=value ...]`), which is `ai/rules/simplicity.md` cutting machinery the model does not need |
 | The `withdraw id` leaf was going to be `uint64` | R8 refuses a numeric identifier (`internal/component/command/grammar/checker.go`), and the type also decides the error an operator reads. A leaf whose name equals its container is lifted out of args by `matchCommandTokens`, which REFUSES THE WHOLE MATCH when the value fails its type. So `withdraw id abc` would have answered "unknown command" instead of "invalid id". It is `type string { length "1..20"; }`, and `withdrawByID`'s `ParseUint` is the second half of the pair (`docs/contributing/ze-go-style.md`) |
+| Closing the inline-value residue was going to mean renaming the leaf to match its container | The owner ruled otherwise on 2026-08-29: the leaf MOVES to the container instead, because the model should state the structure rather than annotate it. Renaming `selector` would also break `applyExtractedSelectors` (`internal/component/plugin/server/command.go`), which bridges that one leaf name onto `CommandContext.Peer`. Moving needs two things the spec did not plan: extraction carries a non-command container's leaves down to every command beneath it, and `ArgDef.Anchor` says which keyword the value follows. It also needs ONE new statement the spec did not plan, `ze:inherit "none"`, because two commands under such a container act on no single member of the set: `show bgp peer list` reads every peer and `request interface migrate` names two interfaces of its own. Without it the container's mandatory leaf becomes theirs, and Phase 3 of `validateCommandArgs` refuses the bare `show bgp peer list` that every `.ci` under `test/ui` runs |
+| `request peer teardown` and `show bgp peer rib` could be closed by deleting their prose | They cannot, in one change. Their authored line was wrong about a second thing: `[cease-subcode]` when `handleTeardown` requires it, and `[scope\|filters\|terminal]` when the model declares `[sent\|advertised\|received\|sent-received]`. `usageShape` folds placeholder WORDING and nothing else, so the deletion is refused against the HEAD line either way. Both descriptions now state the true grammar, which takes the difference count down; the deletion lands in the commit after this one, when HEAD carries the corrected line. That two-step is what R-2 designed |
 | The `withdraw` split was going to need a new verb | It needs the exemption that already existed. `bridgeSurface` (`internal/component/command/grammar/checker.go`) is the documented E1 set of line-protocol verbs that are deliberately not verb-first, and `ze-bgp:withdraw` was in it. The three successors replace that one entry; the retired method carries no exemption, which `TestExemptCategory` now asserts. Adding `withdraw` to `command.Verbs` would have been a vocabulary decision the file says is deliberate, taken to route around an exemption that already fits |
 
 ## Key Design Decisions
@@ -844,20 +849,22 @@ Each row says what the spec claimed, what the code says, and why the change.
   them and the authored count of 81 excludes them. Widening the population from
   the command tree to every YANG module is a different change and is not this
   spec's.
-- **A generated line states the position the MODEL declares, and for six
-  interface commands that is not the position the dispatcher accepts.** The real
-  grammar of `create interface <name> address <prefix>`, `create interface <name>
-  unit <vid>`, `request interface <name> mtu <bytes>`, `request interface <name>
-  mac <address>`, `request interface <name> up` and `... down` puts the
-  interface name in the INLINE slot, which `implicitSelectorDef`
-  (`internal/component/plugin/server/command.go`) fills. The renderer places a
-  value after a path keyword only when the leaf is NAMED for that keyword
-  (`internal/component/command/usage.go`, `Usage`), and these leaves are called
-  `name`. So the generated line reads `create interface address <name>
-  <prefix>`, which the handler refuses because no selector reaches it. Closing
-  this means renaming the leaf to `interface` and teaching each handler to read
-  that selector, which changes dispatch for eleven commands. It is class (a)
-  residue, not class (c), and it is separable.
+- **RESOLVED 2026-08-29 for nineteen commands by the owner's ruling, and two
+  `create interface` commands are left.** The residue was a generated line that
+  put the value after the LAST keyword where the operator types it INLINE, which
+  `implicitSelectorDef` (`internal/component/plugin/server/command.go`) fills.
+  The owner ruled the authored spelling correct and chose to MOVE THE LEAF: the
+  value is declared once, on the container whose keyword it follows, and
+  `inheritArgDefs` (`internal/component/config/yang/command.go`) carries it down
+  to every command beneath. `request interface up/down/mtu/mac`, the nine
+  commands under `request peer`, the five under `show bgp peer` and
+  `update bgp peer prefix` all render their inline value now. No ArgDef changed
+  anywhere in the tree, so no token binds to a different leaf.
+  `create interface address` and `create interface unit` carry the same defect
+  and were left out of that pass: their `name` leaf would have to move onto
+  `create/interface`, whose `dummy`, `bridge` and `veth` subtrees declare a
+  `name` of their own, and that is a wider change than the container this one
+  touched.
 - **Three of the four missing shapes now have a rule; the fourth is refused by
   `ai/rules/cli.md` and the six commands close one difference between them.**
   RESOLVED 2026-08-29 for shapes 1 to 3, by owner decision. The mandatory
@@ -867,22 +874,21 @@ Each row says what the spec claimed, what the code says, and why the change.
   their tail from the model, and `show policy chain peer` matches its authored
   line byte for byte, taking the difference count from 33 to 32. What each of the
   other four still owes is below, and none of it is a rendering rule.
-- **`show metrics name [label=value ...]` is NOT modeled, because
-  `ai/rules/cli.md` forbids the only line the model could produce.** The rule
-  reads "Free-form values MUST NOT appear in an untyped positional slot", and a
-  label filter is a free-form value in exactly that slot:
-  `handleShowMetricsQuery` (`internal/component/cmd/show/show.go`) reads every
-  remaining token and splits it on the first `=`. There are two readings and
-  they disagree. Read as one opaque repeating value, the rendering is
-  `[<label> ...]`, a bare optional positional the rule bans. Read as
-  self-keyworded, the label name before the `=` IS the keyword, so the shape
-  conforms, but the keyword comes from an open set rather than one known at
-  compile time, and stating `label=value` needs a token that joins two names
-  with a literal `=` that no other command wants. Neither is publishable without
-  an owner ruling, so nothing is declared and the authored line stands. The
-  conforming alternative is a handler change, not a renderer change: require
-  `label <name>=<value>`, which `handleShowMetricsQuery` already tolerates by
-  accident since a token with no `=` is skipped.
+- **`show metrics name` takes two tokens for a label filter, and its prose is
+  gone.** RESOLVED 2026-08-29 by owner ruling. The packed `label=value` form was
+  unpublishable: `ai/rules/cli.md` reads "Free-form values MUST NOT appear in an
+  untyped positional slot", and the keyword half of `label=value` came from an
+  open set rather than one known at compile time. The command now states
+  `show metrics name <name> [label <key> <value> ...]`, modelled as a
+  `ze:modifier "repeat"` container in `ze-cli-show-cmd.yang`, which is the shape
+  `announce` already renders for `[tag <key> <value>]`. `metricLabelFilters`
+  (`internal/component/cmd/show/show.go`) parses the three tokens and refuses a
+  group that stops short of its value. That refusal closed a defect the packing
+  hid: the old loop skipped any token it could not split on `=`, so
+  `show metrics name ze_bgp_up peer` answered every series and reported nothing.
+  The web Metrics Query tool was the one caller of the retired spelling;
+  `handleMetricsSubmit` (`internal/component/web/page_tools.go`) now splits its
+  one form field into the two tokens the command takes.
 - **`show pki certificate name` renders `[pem]` and owes the other two arms of
   an alternation the rules do not cover.** `handleShowPKICertificate`
   (`internal/component/pki/show.go`) switches over three mutually exclusive
@@ -913,13 +919,22 @@ Each row says what the spec claimed, what the code says, and why the change.
   `id` and treats `scope` as a cross-check, so the model states it optional.
   Correcting those three sentences is what closes the two differences, and this
   phase left every authored sentence untouched.
-- **The prose deletion stopped at 56 of the 81 sentences, and 25 stand.**
+- **The prose deletion stopped at 57 of the 81 sentences, and 24 stand.**
   `./le docvalid usage-contract` reported 379 command nodes, 81 authored
   sentences and 32 differences before the deletion phase, then 379, 32 and 32,
-  and 379, 25 and 25 after the 7 placeholder-only sentences went. The 56 removed
-  are every sentence the model reproduces byte for byte and the 7 it reproduces
-  up to the word inside the angle brackets. The 25 that stand each differ in
-  token structure.
+  and 379, 25 and 25 after the 7 placeholder-only sentences went. The 57th is
+  `show metrics name`, whose grammar changed rather than whose prose was
+  reproduced, taking the counts to 379, 24 and 24. The 56 before it are every
+  sentence the model reproduces byte for byte and the 7 it reproduces up to the
+  word inside the angle brackets. The 24 that stand each differ in token
+  structure.
+  A grammar change makes the gate's own deletion guard fire in the WORKING TREE
+  and only there. `headUsage` (`internal/le/docvalid/usage.go`) reads the
+  authored sentence out of git HEAD, so while the change is uncommitted the gate
+  compares the new generated line against the retired `[label=value ...]` and
+  reports one hidden deletion. The commit carrying both the model and the
+  deletion moves HEAD, the path leaves the head map, and the count returns to
+  zero. `./le verify worktree` runs against a commit, so it never sees the row.
 - **The 7 placeholder-only sentences are gone, and AC-7 gave way.** RESOLVED
   2026-08-29 by owner ruling: the generated form is acceptable and the prose is
   deletable. Their generated line states the same tokens in the same order and
@@ -955,9 +970,9 @@ Each row says what the spec claimed, what the code says, and why the change.
   separate decision and no part of this phase.
 - **The other ten standing differences each have their own reason above.**
   `announce`, `debug ip ospf inject opaque`, `debug ipv6 ospf inject lsa`,
-  `delete interface name unit`, `resolve traceroute`, `show capture`, `show
-  metrics name`, `show pki certificate name`, `show policy test peer` and `show
-  system sockets`.
+  `delete interface name unit`, `resolve traceroute`, `show capture`, `show pki
+  certificate name`, `show policy test peer` and `show system sockets`. `show
+  metrics name` was the tenth and its entry above records how it closed.
 - **`ze:usage` cannot be added while AC-9 stands.** The extension's count at HEAD
   is 0 and AC-9 makes the ratchet monotonic non-increasing, so the first use is
   refused. The one command the Key Design Decisions reserve it for, the

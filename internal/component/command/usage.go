@@ -6,9 +6,12 @@
 // It reads the MODEL and nothing else. No description reaches it, so a sentence
 // written in prose can never influence a generated line.
 //
-// One rule explains where every value sits: a leaf whose name equals a
-// container on the path belongs immediately after that container's keyword.
-// Every other leaf follows the last keyword, the ones the command needs first.
+// One rule explains where every value sits: a leaf ANCHORED to a container on
+// the path belongs immediately after that container's keyword. A leaf is
+// anchored by the container that declares it when that container is not the
+// command itself, and by its own name when the command declares it and the name
+// repeats a keyword. Every other leaf follows the last keyword, the ones the
+// command needs first.
 
 package command
 
@@ -185,12 +188,14 @@ func Usage(path []string, node *Node) []UsageToken {
 
 	for _, segment := range path {
 		tokens = append(tokens, UsageToken{Text: segment, Kind: UsageKeyword})
-		def := argDefNamed(node.ArgDefs, segment)
-		if def == nil {
-			continue
+		for i := range node.ArgDefs {
+			def := &node.ArgDefs[i]
+			if anchored[def.Name] || usageAnchor(def) != segment {
+				continue
+			}
+			anchored[def.Name] = true
+			tokens = append(tokens, usageToken(def, UsageValue))
 		}
-		anchored[def.Name] = true
-		tokens = append(tokens, usageToken(def, UsageValue))
 	}
 
 	// Two passes over the definitions, so every value the command needs comes
@@ -419,13 +424,19 @@ func unionForms(def *ArgDef) []string {
 	return forms
 }
 
-// argDefNamed returns the argument definition called name, or nil when the node
-// declares none.
-func argDefNamed(defs []ArgDef, name string) *ArgDef {
-	for i := range defs {
-		if defs[i].Name == name {
-			return &defs[i]
-		}
+// usageAnchor names the path keyword a value follows.
+//
+// A leaf a container ABOVE the command declares carries that container's name,
+// because its own name says nothing about where the operator types it:
+// `request interface <name> down` and `request peer <selector> flush` both put
+// the value after the container that declares it.
+//
+// A leaf the command itself declares carries no anchor, and its own name is the
+// answer: it follows the keyword it repeats, and trails every keyword when it
+// repeats none.
+func usageAnchor(def *ArgDef) string {
+	if def.Anchor != "" {
+		return def.Anchor
 	}
-	return nil
+	return def.Name
 }
