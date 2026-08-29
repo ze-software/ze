@@ -1,5 +1,6 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RA sender for PPP IPv6 (Linux)
 // Related: ra.go -- RA message building (cross-platform)
+// Related: ra_send.go -- the send loop, the advertised lifetimes, and the stop path
 
 //go:build linux
 
@@ -9,23 +10,17 @@ import (
 	"context"
 	"log/slog"
 	"net"
-	"time"
 
 	"golang.org/x/net/ipv6"
 	"golang.org/x/sys/unix"
-)
-
-const (
-	raInitialCount     = 5
-	raInitialInterval  = 3 * time.Second
-	raPeriodicInterval = 600 * time.Second
 )
 
 // startRASender opens a raw ICMPv6 socket on ifname, joins the
 // all-routers multicast group (ff02::2), sets ICMP6_FILTER to accept
 // only Router Solicitations, and starts a goroutine that sends an
 // initial burst of RAs followed by periodic RAs. Returns a cancel
-// function to stop the goroutine and close the socket.
+// function that stops the goroutines, sends the final Router
+// Advertisement, and closes the socket. See stopRASender in ra_send.go.
 func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 	conn, err := (&net.ListenConfig{}).ListenPacket(context.Background(), "ip6:ipv6-icmp", "::")
 	if err != nil {
@@ -72,15 +67,21 @@ func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	sender := &raSender{
+		conn:    pc,
+		dst:     allNodes,
+		ifIndex: iface.Index,
+		ifname:  ifname,
+		logger:  logger,
+	}
+
 	rsCh := make(chan struct{}, 1)
+	senderDone := make(chan struct{})
 	go rsReaderLoop(ctx, pc, rsCh)
-	go raSenderLoop(ctx, pc, allNodes, iface, ifname, rsCh, logger)
+	go raSenderLoop(ctx, sender, rsCh, senderDone)
 
 	return func() {
-		cancel()
-		if cerr := conn.Close(); cerr != nil {
-			logger.Warn("ppp: RA close failed", "error", cerr)
-		}
+		stopRASender(cancel, senderDone, sender, conn)
 	}, nil
 }
 
@@ -101,46 +102,6 @@ func rsReaderLoop(ctx context.Context, pc *ipv6.PacketConn, rsCh chan<- struct{}
 		case rsCh <- struct{}{}:
 		case <-ctx.Done():
 			return
-		}
-	}
-}
-
-func raSenderLoop(ctx context.Context, pc *ipv6.PacketConn, dst net.Addr, iface *net.Interface, ifname string, rsCh <-chan struct{}, logger *slog.Logger) {
-	sendRA := func() {
-		var buf [256]byte
-		n := BuildRA(buf[:], RAConfig{
-			CurHopLimit:    64,
-			Managed:        true,
-			OtherConfig:    true,
-			RouterLifetime: 1800,
-		})
-		cm := &ipv6.ControlMessage{IfIndex: iface.Index}
-		if _, err := pc.WriteTo(buf[:n], cm, dst); err != nil {
-			logger.Debug("ppp: RA send failed", "error", err, "iface", ifname)
-		}
-	}
-
-	for range raInitialCount {
-		sendRA()
-		select {
-		case <-ctx.Done():
-			return
-		case <-rsCh:
-			sendRA()
-		case <-time.After(raInitialInterval):
-		}
-	}
-
-	ticker := time.NewTicker(raPeriodicInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			sendRA()
-		case <-rsCh:
-			sendRA()
 		}
 	}
 }
