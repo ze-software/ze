@@ -246,6 +246,7 @@ mutation-testing ## Mutation Testing
   what-is-excluded-because-gomu-has-no-tag-support
   mutate-a-file-you-own-never-a-shared-one
   state-whether-a-discrimination-re-run-was-real
+  a-test-failing-to-test-is-worse-than-none
 pre-commit ## Pre-Commit
   where-the-full-pre-commit-workflow-lives
   native-verify-is-the-only-acceptable-pre-commit-check
