@@ -36,10 +36,24 @@
 #
 #   LINGER, BECAUSE A SATISFIED PEER STOPS ASSERTING. filtered-peer's expect rule
 #   is the End-of-RIB, which arrives BEFORE the route. Without option=linger the
-#   peer would finish at that frame and read no further (Peer.completed,
-#   internal/test/peer/peer.go), so the route could arrive one frame late and the
-#   rejection would never see it. The linger loop re-checks every frame it reads
-#   against the rejections (internal/test/peer/reject.go).
+#   peer would finish at that frame and read no further ((*Peer).completed,
+#   internal/test/peer/reject.go), so the route could arrive one frame late and
+#   the rejection would never see it. The linger loop re-checks every frame it
+#   reads against the rejections, and a rejection it finds RETRACTS the success
+#   token the peer already printed, by writing RejectionMarker on the peer's own
+#   output ((*Peer).rejected, internal/test/peer/reject.go). The verdict reads
+#   that retraction after the token and lets it win (failedCheckPeers,
+#   internal/test/runner/peer_contract.go). Until 715a54fad it did not, so this
+#   file's CLAIM 1 was vacuous: the rejection fired, was returned, and was then
+#   discarded.
+#
+#   PROVEN BY MUTATION, 2026-08-29. handleFilterUpdate
+#   (internal/component/bgp/plugins/filter_family/handler.go) was changed to
+#   accept the matched ipv4/flow UPDATE instead of stripping its MP attribute.
+#   filtered-peer then printed "successful", "lingering", the forbidden frame,
+#   and "ZE-PEER-REJECTED", and the runner reported this test FAILED on
+#   stdin=filtered. Reverting the mutation returned it to green. CLAIM 1 now
+#   discriminates.
 #
 #   THE DAEMON'S OWN COUNTERS, AS THE SECOND HALF. The observer asserts
 #   updates-sent minus eor-sent on each peer. Those counters are bumped from

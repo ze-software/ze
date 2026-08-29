@@ -344,7 +344,7 @@ option=<type>:key=value[:key=value...]
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
-| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers. |
+| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers. A `reject=bgp` that fires during the linger loop RETRACTS the success token already printed, so the peer still fails the test. |
 | `silent` | `value=true` | Peer-block only, check mode only: the peer stops sending the automatic KEEPALIVE reply it otherwise writes for every message it receives. It holds the TCP connection open and keeps reading and matching expectations. Needed to reach ze's receive hold timer: ze sends its own KEEPALIVE every hold/3 seconds, each automatic reply resets ze's hold timer, and "the peer went quiet" is otherwise unexpressible. A closed connection is a different event on a different code path, so `action=close` does not substitute. **Explicit writes still happen**: `action=send`, `action=notification`, the OPEN handshake itself, and `option=linger`'s post-completion KEEPALIVE loop are unaffected, so `silent` with `linger` is not silent. Sink and echo modes ignore it. See `test/plugin/deadpeer-holddown.ci`. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
@@ -846,11 +846,21 @@ The hex needle is matched on wire bytes at a byte BOUNDARY, which
 `expect=bgp:contains=` is not: that one is a plain substring match over the hex
 text, so it can also match at an odd nibble offset.
 
-Four properties make it an assertion rather than a hope:
+Five properties make it an assertion rather than a hope:
 
 - It is never consumed. Every frame the peer's message loop reads is checked
   against it. The `option=linger` loop keeps checking after completion. Pair the
   rejection with `option=linger:value=true` to hold it open for the whole test.
+- **A rejection found during linger RETRACTS the success token.** Under
+  `option=linger` the peer prints its success token BEFORE the loop, because
+  teardown is a kill and a post-run print can be lost. The verdict reads that
+  token, so a rejection arriving afterwards has to withdraw it: the peer prints
+  `ZE-PEER-REJECTED` on its own output, and the verdict reads the retraction
+  after the token and lets it win. Without that channel a linger rejection was
+  detected, returned, and then discarded, which made every negative assertion
+  held open by linger vacuous.
+  <!-- source: internal/test/peer/reject.go -- RejectionMarker, (*Peer).rejected -->
+  <!-- source: internal/test/runner/peer_contract.go -- failedCheckPeers, peerRejectionMarker -->
 - **Check mode only.** Sink and echo peers read every accepted connection
   concurrently against one checker, so a `conn=` could not select the session the
   frame arrived on. The runner refuses the file, and ze-peer refuses to start.

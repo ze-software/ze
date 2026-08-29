@@ -164,6 +164,11 @@ func (p *Peer) rejected(msg *Message) (Result, bool) {
 // The linger loop reads to keep the session alive, and it re-checks every frame
 // it reads against the rejections. That is what makes `option=linger` the way to
 // hold a negative assertion open for the rest of the test.
+//
+// The Result this returns is not what decides the run: the runner reads the
+// peer's OUTPUT (failedCheckPeers, internal/test/runner/peer_contract.go). So a
+// rejection found here retracts the announcement above by printing
+// RejectionMarker, which rejected does before it returns.
 func (p *Peer) completed(ctx context.Context, conn net.Conn) Result {
 	if !p.config.Linger {
 		return Result{Success: true}
