@@ -18,31 +18,78 @@
 
 ## Task
 
-`labelWidthForSAFI` returns 24 for EVPN (RFC 9252 Section 6.2: "Transposition
-Length MUST be less than or equal to 24"). But `pool.ResolveLabels` stores MPLS
-labels as 20-bit values (see `route_labeled.go`: "MaxMPLSLabel is the maximum
-valid MPLS label value (20 bits)").
+Implement RFC 9252 Section 6 SRv6 transposition for EVPN, so an EVPN route
+whose Prefix-SID declares a Transposition Length gets the SID its peer
+signaled rather than no SID at all.
 
-If an EVPN peer advertises `transposLen > 20`, `ApplyTransposition` reads bits
-23..20 from the stored label, which are always 0. The high 4 bits of the
-transposed value are lost.
+**Corrected 2026-08-29.** This spec was written around a narrower premise:
+that `labelWidthForSAFI` answers 24 for EVPN while the label pool stores
+20-bit values, losing the top 4 bits. That premise is real but was
+unreachable, because one layer below it no label reached the transposition
+at all. The label side-data store (`FamilyRIB.labels`,
+`internal/component/bgp/plugins/rib/storage/familyrib.go`) is created only
+when `labeled && cidr`, and `labeled` is `fam.SAFI == family.SAFIMPLSLabel`.
+EVPN is neither, so `LookupLabels` returned `InvalidHandle` for every EVPN
+route and `ApplyTransposition` had no production caller.
+
+That layer was fixed for the VPN families on 2026-08-29 by reading the label
+out of the NLRI wire bytes the route is already keyed by, rather than storing
+a second copy of them: `nlrisplit.TranspositionLabel`
+(`internal/core/bgp/nlri/nlrisplit/transposition.go`) and `srv6SIDFromResult`
+(`internal/component/bgp/plugins/rib/rib_bestchange.go`). RFC 9252 Section 7's
+bound went in with it, so a Transposition Length wider than the label field
+now makes the path ineligible for best-path selection.
+
+`TranspositionLabel` answers only the VPN families. EVPN was left out
+deliberately, and this spec is what closes it.
+
+### Why EVPN is the harder half
+
+EVPN does not have one label field. It has three carriers, and one of them is
+not in the NLRI:
+
+| Carrier | Route types | RFC 9252 | Width |
+|---------|-------------|----------|-------|
+| NLRI label field | 1 per-EVI, 2 (Label1 and Label2), 5 | S6.1.2, S6.2, S6.5 | 24 |
+| PMSI Tunnel Attribute MPLS label | 3 | S6.3 | 24 |
+| ESI Label extended community | 1 per-ES, carrying Argument bits | S6.1.1 | 24 |
+
+Two further problems have no answer in the current code:
+
+1. Route Type 2 carries Label1, bound to the SRv6 L2 Service TLV, and Label2,
+   bound to the L3 Service TLV (S6.2). Choosing between them needs to know
+   which TLV the SID came from. `pool.SRv6SIDResult`
+   (`internal/component/bgp/plugins/rib/pool/srv6sid.go`) does not record it:
+   `ExtractSRv6SIDFull` returns the first SID from either TLV type.
+2. `nlri.ParseLabelStack` (`internal/core/bgp/nlri/rd.go`) returns the
+   RFC 3107 20-bit value (`data[2]>>4`). RFC 9252 says of every EVPN label
+   field that "the value is set in the 24 bits", so EVPN needs the raw
+   three-octet value, not that one. This is the original 24-vs-20 finding,
+   still true, and it belongs to whichever reader is written for EVPN.
+
+Route Type 3's SID also merges the Route Type 1 ESI Filtering Argument by
+bitwise OR (S6.3), which is a separate feature from transposition.
+
+Doing part of EVPN is worse than doing none: a reader that handles Route Type
+5 and guesses at Route Type 2 installs a confidently wrong SID for half the
+population, which is the defect this whole line of work exists to remove.
 
 ### Investigation needed
 
-1. How does the EVPN NLRI parser extract labels? Does it store the full 3-byte
-   (24-bit) field or only the 20-bit MPLS label portion?
-2. For SRv6 transposition in EVPN, RFC 9252 Section 6 says the full 24-bit
-   label field is used. Confirm whether this means the 3-byte NLRI field
-   including TC/S bits, or a 24-bit label value.
-3. Do real-world EVPN SRv6 deployments use `transposLen > 20`?
+1. Whether `pool.SRv6SIDResult` should record the Service TLV type its SID
+   came from, and what that does to `ExtractSRv6SIDFull`'s callers.
+2. Where the PMSI Tunnel Attribute reaches the RIB, if it does, since Route
+   Type 3's label is not in the NLRI.
+3. Whether real EVPN SRv6 deployments use `transposLen > 20`, which decides
+   how much the 24-bit read matters against the 20-bit one.
 
 ### Key source files
 
 - `internal/component/bgp/plugins/rib/pool/srv6sid.go` - ApplyTransposition with labelWidth
 - `internal/component/bgp/plugins/rib/rib_bestchange.go` - labelWidthForSAFI
-- `internal/component/bgp/plugins/rib/pool/labels.go` - InternLabels, ResolveLabels
-- `internal/component/bgp/route/route_labeled.go` - MaxMPLSLabel (20 bits)
-- `internal/component/bgp/plugins/nlri/` - EVPN NLRI label parsing
+- `internal/core/bgp/nlri/nlrisplit/transposition.go` - TranspositionLabel, the VPN reader EVPN must join
+- `internal/core/bgp/nlri/rd.go` - ParseLabelStack, which returns 20 bits where EVPN needs 24
+- `internal/component/bgp/plugins/nlri/evpn/types.go` - EVPN route type layouts (EVPNType1/2/5, Labels())
 
 ## Required Reading
 
@@ -61,16 +108,20 @@ transposed value are lost.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/route/route_labeled.go` - MaxMPLSLabel = 20 bits
-- [ ] `internal/component/bgp/plugins/rib/pool/labels.go` - labels stored as uint32
-- [ ] `internal/component/bgp/plugins/rib/pool/srv6sid.go` - ApplyTransposition uses labelWidth param
+- [x] `internal/component/bgp/plugins/rib/storage/familyrib.go` - the label store is created only for `labeled && cidr`, so EVPN never had one
+- [x] `internal/component/bgp/plugins/rib/rib_bestchange.go` - `srv6SIDFromResult`, `labelWidthForSAFI`, `isSRv6Ineligible`
+- [x] `internal/core/bgp/nlri/nlrisplit/transposition.go` - `TranspositionLabel`, which returns ok=false for EVPN
+- [x] `internal/core/bgp/nlri/rd.go` - `ParseLabelStack` returns the 20-bit RFC 3107 value
 
 **Behavior to preserve:**
-- VPN transposition with 20-bit labels (working correctly after review-fixes)
-- EVPN label storage and forwarding for non-SRv6 use cases
+- VPN transposition, working since 2026-08-29 and covered by
+  `TestSRv6TranspositionRestoresFunctionBitsFromNLRILabel`
+- EVPN routes that declare no transposition, which are untouched by any of this
+- RFC 9252 Section 7 ineligibility for a Transposition Length wider than its label field
 
 **Behavior to change:**
-- EVPN labels may need to store the full 24-bit field when SRv6 transposition is active
+- An EVPN route declaring a transposition currently yields NO SRv6 SID. It must
+  yield the reconstructed one.
 
 ## Data Flow (MANDATORY)
 
@@ -113,9 +164,13 @@ transposed value are lost.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | EVPN route with SRv6 transposLen=16, label has value in high 16 of 24 bits | Correct SID reconstruction |
-| AC-2 | EVPN route with SRv6 transposLen=24 (full 24-bit field) | All 24 bits transposed into SID |
-| AC-3 | VPN route with SRv6 transposition | No regression (20-bit label still works) |
+| AC-1 | EVPN Route Type 5 with SRv6 transposLen=16 | SID reconstructed from the 24-bit NLRI label field |
+| AC-2 | EVPN Route Type 5 with transposLen=24 | All 24 bits of the field transposed into the SID |
+| AC-3 | EVPN Route Type 2 carrying Label1 and Label2 | The label bound to the Service TLV the SID came from is the one used |
+| AC-4 | EVPN Route Type 1 per-EVI with transposition | SID reconstructed from the label at that route type's offset |
+| AC-5 | EVPN Route Type 3 with ingress replication | SID reconstructed from the PMSI Tunnel Attribute label |
+| AC-6 | VPN route with SRv6 transposition | No regression: the 2026-08-29 tests stay green |
+| AC-7 | EVPN route with transposLen=25 | Path ineligible for best-path (RFC 9252 Section 7) |
 
 ## 🧪 TDD Test Plan
 
@@ -196,7 +251,7 @@ transposed value are lost.
 - [ ] AC-1..AC-3 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated (or N/A confirmed)

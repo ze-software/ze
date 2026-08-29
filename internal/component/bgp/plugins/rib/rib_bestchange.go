@@ -17,6 +17,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
@@ -742,7 +743,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			bestLabels = r.lookupLabelsForBest(fam, nlriBytes, newBest.PeerIP)
 		}
 		if fam.SAFI != family.SAFIMPLSLabel {
-			srv6SID = r.lookupSRv6SIDForBest(fam, nlriBytes, newBest.PeerIP)
+			srv6SID = r.lookupSRv6SIDForBest(fam, nlriBytes, addPath, newBest.PeerIP)
 		}
 		// Resolve the equal-cost multipath sibling next-hops so the Loc-RIB
 		// carries the full ECMP set to the FIB (rib-arch-4). Each sibling
@@ -947,12 +948,13 @@ func (r *RIBManager) lookupLabelsForBest(fam family.Family, nlriBytes []byte, pe
 }
 
 // lookupSRv6SIDForBest extracts the SRv6 SID from the PrefixSID attribute
-// (code 40) stored in OtherAttrs of the winning peer's route entry.
-// For VPN/EVPN SAFIs, applies RFC 9252 Section 3.2.1 transposition to
-// reconstruct the full SID from the partial SID + NLRI label bits.
-// Returns an invalid Addr if the attribute is absent or not SRv6.
+// (code 40) stored in OtherAttrs of the winning peer's route entry, and
+// reconstructs it when the sender transposed part of it into a label field.
+// Returns an invalid Addr when the attribute is absent, is not SRv6, or
+// names a transposition ze cannot undo -- reporting no SID rather than a
+// partial one, because the partial one is not what the peer signaled.
 // Caller must not hold r.peerMu.
-func (r *RIBManager) lookupSRv6SIDForBest(fam family.Family, nlriBytes []byte, peerAddr netip.Addr) netip.Addr {
+func (r *RIBManager) lookupSRv6SIDForBest(fam family.Family, nlriBytes []byte, addPath bool, peerAddr netip.Addr) netip.Addr {
 	r.peerMu.RLock()
 	peerRIB := r.bgpPeers[peerAddr]
 	r.peerMu.RUnlock()
@@ -967,26 +969,55 @@ func (r *RIBManager) lookupSRv6SIDForBest(fam family.Family, nlriBytes []byte, p
 	if !b.HasOtherAttrs() {
 		return netip.Addr{}
 	}
-	result := extractSRv6SIDResultFromOtherAttrs(b)
+	return srv6SIDFromResult(fam, nlriBytes, addPath, extractSRv6SIDResultFromOtherAttrs(b))
+}
+
+// srv6SIDFromResult reconstructs the SRv6 Service SID an UPDATE signaled.
+//
+// RFC 9252 Section 3.2.1 lets a sender take Transposition Length bits out of
+// the SID starting at Transposition Offset and carry them in a label field:
+// "The bits that have been shifted out MUST be set to 0 in the SID value."
+// The SID in the attribute is therefore incomplete on its own, and the label
+// field holds the rest. Reading only the attribute installs a SID with zeros
+// where the Function part belongs, which is a different SID from the one the
+// peer advertised.
+//
+// It answers an invalid address in three cases, and the route keeps its next
+// hop rather than gaining a SID ze cannot vouch for: the attribute carried no
+// SID; the transposition is wider than the label field that must carry it, so
+// Section 7 says the SID value "is invalid"; or the family's label field is one
+// ze cannot read, which nlrisplit.TranspositionLabel names.
+//
+// Marking such a path INELIGIBLE for best-path selection, which Section 7 also
+// requires, is not done here. isSRv6Ineligible owns that question.
+func srv6SIDFromResult(fam family.Family, nlriBytes []byte, addPath bool, result pool.SRv6SIDResult) netip.Addr {
 	if !result.SID.IsValid() {
 		return netip.Addr{}
 	}
-	// RFC 9252 Section 3.2.1: apply transposition for VPN/EVPN SAFIs.
-	if result.HasTranspos && needsTransposition(fam) {
-		h := peerRIB.LookupLabels(fam, nlriBytes)
-		labels := pool.ResolveLabels(h)
-		if len(labels) > 0 {
-			return pool.ApplyTransposition(result.SID, labels[0], result.TransposOffset, result.TransposLen, labelWidthForSAFI(fam.SAFI))
-		}
+	if !result.HasTranspos {
+		return result.SID
 	}
-	return result.SID
+	if result.TransposLen > labelWidthForSAFI(fam.SAFI) {
+		return netip.Addr{}
+	}
+	label, ok := nlrisplit.TranspositionLabel(fam, nlriBytes, addPath)
+	if !ok {
+		return netip.Addr{}
+	}
+	return pool.ApplyTransposition(result.SID, label, result.TransposOffset, result.TransposLen, labelWidthForSAFI(fam.SAFI))
 }
 
-func needsTransposition(fam family.Family) bool {
-	return fam.SAFI == family.SAFIVPN || fam.SAFI == family.SAFIEVPN
-}
-
-// RFC 9252 Section 4.1/6.2: VPN labels are 20 bits, EVPN labels are 24 bits.
+// labelWidthForSAFI returns the width in bits of the label field that carries
+// transposed SRv6 SID bits for safi.
+//
+// RFC 9252 Sections 5.1 and 5.2 give the VPN families an RFC 8277 field with
+// "the 20-bit Label Value set to the whole or a portion of the Function part
+// of the SRv6 SID", and bound the transposition: "the Transposition Length
+// MUST be less than or equal to 20". Sections 6.1.2, 6.2 and 6.5 give EVPN a
+// three-octet field where "the value is set in the 24 bits", bounded at 24.
+// Every other family has no such field, so nothing may be transposed into
+// one; Section 7 requires the offset and length to be 0 there, and the
+// 20 returned makes any non-zero length above it invalid.
 func labelWidthForSAFI(safi family.SAFI) uint8 {
 	if safi == family.SAFIEVPN {
 		return 24
