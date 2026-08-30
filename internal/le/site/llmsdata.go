@@ -52,29 +52,6 @@ type configNode struct {
 	Children []configNode `json:"children"`
 }
 
-// siteNav is the curated navigation the site's own header is built from.
-type siteNav struct {
-	Dropdowns     []navDropdown `json:"dropdowns"`
-	TrailingLinks []navLink     `json:"trailing_links"`
-}
-
-type navDropdown struct {
-	Label   string       `json:"label"`
-	Columns [][]navEntry `json:"columns"`
-}
-
-type navEntry struct {
-	Href      string `json:"href"`
-	Title     string `json:"title"`
-	Desc      string `json:"desc"`
-	LabelOnly string `json:"label_only"`
-}
-
-type navLink struct {
-	Href  string `json:"href"`
-	Label string `json:"label"`
-}
-
 // llmsInputs is everything one llms.txt render reads, loaded once.
 //
 // They are loaded together rather than section by section, so a build that is

@@ -1,0 +1,10 @@
+{
+  "cli_commands": 402,
+  "config_sections": 36,
+  "dependencies": 42,
+  "github_stars": 50,
+  "features": {
+    "core_experimental": 52,
+    "planned": 4
+  }
+}

@@ -637,6 +637,22 @@ and its carry-over are untouched.
 | `TestTheHeroReplaysTheRecordingTheManifestNames` | `internal/le/site/home_test.go` | AC-4, the hero reads the demo manifest | pass |
 | `TestTheHomepageCarriesTheShellAndItsMirror` | `internal/le/site/home_test.go` | AC-3, AC-5, the route that never had a mirror | pass |
 | `TestTheHomeProducerClaimsTheSiteRoot` | `internal/le/site/home_test.go` | AC-1, 1 of 712 | pass |
+| `TestAnAuthoredPageIsPublishedThroughTheSharedShell` | `internal/le/site/authored_test.go` | AC-3, a hand-authored page gains the shell | pass |
+| `TestAnAuthoredPageKeepsTheAccessibleNameOfItsSection` | `internal/le/site/authored_test.go` | AC-3, the aria-labelledby a visible-text comparison cannot see | pass |
+| `TestAnAuthoredPageTakesItsSidebarFromTheSiteData` | `internal/le/site/authored_test.go` | AC-3, page-links.json wins over the authored copy | pass |
+| `TestAnAuthoredPageMirrorIsConvertedFromThePublishedBody` | `internal/le/site/authored_test.go` | AC-5, a page whose only source is markup | pass |
+| `TestAFrozenTalkDeckIsPublishedAsItWasAuthored` | `internal/le/site/authored_test.go` | the frozen-talk rule, both directions | pass |
+| `TestTheMirrorCheckExemptsAFrozenTalkDeck` | `internal/le/site/authored_test.go` | AC-1, the mirror half of the deck routes | pass |
+| `TestTheZeledonPageReadsAsThePublishedPage` | `internal/le/site/authored_test.go` | AC-4, parity with no sidebar | pass |
+| `TestTheLabsIndexPageReadsAsThePublishedPage` | `internal/le/site/authored_test.go` | AC-4, parity with a sidebar | pass |
+| `TestEveryAuthoredPageIsClaimedExactlyOnce` | `internal/le/site/authored_test.go` | AC-1, the 14 authored routes | pass |
+| `TestTheSharedHeaderCarriesEveryNavigationEntry` | `internal/le/site/nav_test.go` | AC-16, assets/header.html carries nav.json | pass |
+| `TestTheSharedHeaderSpellsTheSiteRootAsAPlaceholder` | `internal/le/site/nav_test.go` | AC-16, one fragment serves every depth | pass |
+| `TestTheSharedHeaderStatesTheCountsTheSnapshotPublishes` | `internal/le/site/nav_test.go` | AC-11, the counts on every page's menu | pass |
+| `TestTheSharedHeaderRefusesADropdownWithNoEntry` | `internal/le/site/nav_test.go` | a menu a reader opens and finds empty | pass |
+| `TestTheSharedHeaderRefusesACountItCannotAnswer` | `internal/le/site/nav_test.go` | a placeholder never reaches a reader | pass |
+| `TestTheSharedHeaderReadsAsThePublishedHeader` | `internal/le/site/nav_test.go` | AC-4, parity with the published fragment | pass |
+| `TestTheHeaderProducerWritesTheNamedArtifact` | `internal/le/site/nav_test.go` | AC-16, the fragment gains a producer | pass |
 | `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12 | |
 | `TestLLMSFullCarriesEveryPublishedMirror` | `internal/le/site/derived_test.go` | AC-15 | |
 | `TestLLMSFullPutsEvaluationBeforeUsage` | `internal/le/site/derived_test.go` | AC-15a, AC-15d | |
@@ -1075,6 +1091,9 @@ and its carry-over are untouched.
 | The command catalog publishes `usage` and never the retired `syntax` | restore `syntax`; derive a display form from the path and its args | Decision carried from the session that owns the command catalog, 2026-08-29. `syntax` was scraped from each description's "Usage:" sentence by a retired Python helper that split on ". ", so several published values were cut mid-bracket: `show metrics name <name> [label=value` and `show pki certificate name <name> [pem \| bundle pem \| fingerprint` are both unbalanced. `cmd/ze/help_command.go` states `usage` and `grammar` from the command model instead, and `commandEntry` has never declared a Syntax field in any revision of the Go source. A field no producer writes is worse than an absent one |
 | A command row opens with its registry PATH, on every surface | keep the published layout, which opened 80 rows with the scraped syntax form | The row's own anchor is `id="cmd-<slug-of-path>"` and its detail page's directory is the same slug, so a row whose visible text is a different string disagrees with two identifiers it carries. One value for one identity. The invocation form is published beside it, from `usage`, where the description already carried a "Usage:" sentence |
 | The pipe-availability label has ONE spelling on a page and its mirror | keep the retired renderer's three spellings | The published detail page wrote "Pipes, on its rows" and its own mirror wrote "Pipes, on rows" for one field. `ai/rules/writing.md` bans synonym rotation, and the page's spelling is the one that says whose rows they are |
+| The hand-authored pages are DISCOVERED by walking `website/**/index.html`, never listed | declare the twelve nav-patch targets the retired build listed; declare the fourteen routes | A list is a second statement of one fact, which is the defect this spec exists to fix: the retired `NAV_PATCH_TARGETS` named twelve pages and the two talk decks were published by staging with nobody answering for them. A walk cannot fall behind the tree, so a page added under `website/` is claimed the day it is added |
+| A frozen talk deck is CLAIMED by the authored producer, which writes it verbatim, and the mirror check exempts it | leave the decks unclaimed; render them through the shell; drop them from `pageRegistry` | The deck is a published page a reader visits, so a check that asks who publishes it deserves an answer, and "staging copied it" names no producer. Rendering it through the shell would destroy it: it is its own document with its own stylesheet and a 3.7MB inlined bundle. The mirror exemption is the retired `check_markdown_mirrors` rule restored, not a weakened check |
+| An authored page is RE-RENDERED through the shell rather than patched | port the five `patch_*` passes the retired `step_nav` and `step_links` ran | A patch reaches what it matches and leaves the rest as the page was written, so an authored page kept a stale noscript menu, no canonical link and no publication stamp. One render makes an authored page and a generated page carry one shell by construction. Measured against `gh-pages` 2fa8fa2ad: `zeledon/index.md` and `labs/index.md` come back byte-identical, and the pages differ only in the shell's own additions |
 | The docs pipeline is the first population after the shell | retrofit the two live regressions first | Owner decision, 2026-08-29. It is the largest population and the one that exercises goldmark hardest, so the Markdown unknowns surface earliest. The two regressions ship for longer as a result |
 
 ## Known Limitations

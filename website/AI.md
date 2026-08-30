@@ -44,7 +44,7 @@ and Markdown, not hand-edited HTML. Structure:
 ```
 website/
   data/
-    nav.json                              -- single source for the mega-menu; the nav build step
+    nav.json                              -- single source for the mega-menu; the header producer
                                               renders assets/header.html, which every page loads
     features.json                         -- every card on features/index.html: section, category,
                                               status, chips, bullets
@@ -73,11 +73,20 @@ also regenerates the wiki catalogue through `internal/le/wikicatalog`. The
 documentation drift gate therefore reads the same typed command contract as
 the site build and starts no interpreter.
 
-Pages with no dedicated generator (`zeledon/`, `labs/*/`, `talks/`,
-`style-guide/`, `performance/`) are hand-authored HTML for their body content.
-Like generated pages, they contain only a stable shared-header mount. The `nav`
-step renders `assets/header.html` from `data/nav.json`, so menu changes update
-one fragment instead of rewriting every page.
+Hand-authored pages (`zeledon/`, `labs/*/`, `style-guide/`, `performance/`)
+hold their body content as HTML. The `authored` producer reads each one,
+publishes its body through the shared page shell, and writes the `index.md`
+mirror beside it, so an authored page carries the same head, canonical link,
+header mount, page sidebar and stamped footer as a generated one. The sidebar
+comes from `data/page-links.json`, so an authored copy in the source is
+replaced rather than published. Talk decks under `talks/<slug>/` are frozen:
+the same producer publishes each deck exactly as its author wrote it, and
+writes no mirror, because a deck is its own document.
+
+The `header` producer renders `assets/header.html` from `data/nav.json` and the
+counts in `data/site-facts.json`. Menu changes update one fragment instead of
+every page. The fragment spells the site root as the `__ZE_SITE_ROOT__` placeholder,
+which `assets/site.js` substitutes for the mounting page's own root.
 
 The repository command is `./le site build`. `./le site build partial` keeps an
 existing full artifact and refreshes the staged sources, while `./le site build

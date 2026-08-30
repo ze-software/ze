@@ -79,13 +79,28 @@ func pageRegistry(root string) ([]Page, error) {
 	return pages, nil
 }
 
+// isFrozenTalkPath reports whether one artifact-relative path belongs to a talk
+// deck, which every pass of the build leaves exactly as its author wrote it.
+//
+// The rule is the retired build's own: a path under talks/ whose second segment
+// is not index.html is frozen. So talks/index.html is the listing and is
+// rendered like any other page, while talks/<slug>/ is a self-contained deck --
+// its own document, its own stylesheet, its 3.7MB inlined bundle and its
+// slides -- and neither the shared shell nor a Markdown mirror says anything
+// true about it.
+func isFrozenTalkPath(name string) bool {
+	segments := strings.Split(strings.Trim(filepath.ToSlash(name), "/"), "/")
+	return len(segments) > 1 && segments[0] == talksDirectory && segments[1] != pageIndexFile
+}
+
 func isRedirectPage(content []byte) bool {
 	text := string(content)
 	return strings.Contains(text, `<meta name="robots" content="noindex">`) &&
 		strings.Contains(text, `<meta http-equiv="refresh"`)
 }
 
-// checkPageMirrors reports every public route whose Markdown sibling is absent.
+// checkPageMirrors reports every public route whose Markdown sibling is absent,
+// the frozen talk decks aside: a deck owes no mirror.
 func checkPageMirrors(root string) ([]string, error) {
 	pages, err := pageRegistry(root)
 	if err != nil {
@@ -93,6 +108,11 @@ func checkPageMirrors(root string) ([]string, error) {
 	}
 	var missing []string
 	for _, page := range pages {
+		// A frozen talk deck carries no mirror, because nothing renders it:
+		// the retired build's own mirror check skipped the same paths.
+		if isFrozenTalkPath(page.HTML) {
+			continue
+		}
 		if info, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(page.Markdown))); statErr != nil || !info.Mode().IsRegular() {
 			missing = append(missing, fmt.Sprintf("%s is missing %s", page.Route, page.Markdown))
 		}
