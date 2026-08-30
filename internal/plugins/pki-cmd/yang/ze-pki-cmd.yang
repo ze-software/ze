@@ -5,6 +5,7 @@ module ze-pki-cmd {
     import ze-cli-show-cmd  { prefix clishowcmd; }
     description "PKI show commands: certificate listing and detailed inspection.
          Relocated from the central show schema for plugin self-containment.";
+    revision 2026-08-30 { description "Each output form of show pki certificate name is its own command: pem, bundle pem and fingerprint. The forms are mutually exclusive tails, so the model states them as sibling containers rather than a description stating an alternation a handler switch reads."; }
     revision 2026-06-03 { description "Initial revision: relocated from ze-cli-show-cmd."; }
 
     augment "/clishowcmd:show" {
@@ -26,9 +27,8 @@ expiration.";
                     config false;
                     ze:command "ze-show:pki-certificate";
                     description "Inspect a specific certificate in detail.
-Usage: show pki certificate name <name> [pem | bundle pem | fingerprint
-[sha256|sha384|sha512]]. Use 'pem' to export for another system,
-'fingerprint' to verify identity.";
+Usage: show pki certificate name <name>. Each export form is a
+command of its own.";
                     leaf name {
                         type string;
                         mandatory true;
@@ -37,9 +37,60 @@ Usage: show pki certificate name <name> [pem | bundle pem | fingerprint
 
                     container pem {
                         config false;
-                        ze:modifier "once";
-                        description "Export the certificate as PEM instead of showing its
-detail. The handler reads the word and reads no value after it.";
+                        ze:command "ze-show:pki-certificate-pem";
+                        description "Export the certificate, and any intermediate it
+carries, as PEM. Use this form to give the certificate to another
+system.";
+                        leaf name {
+                            type string;
+                            mandatory true;
+                            description "Certificate name";
+                        }
+                    }
+
+                    container bundle {
+                        config false;
+                        description "Export forms that carry more than the certificate.";
+
+                        container pem {
+                            config false;
+                            ze:command "ze-show:pki-certificate-bundle-pem";
+                            description "Export the certificate, its intermediates and
+its private key as one PEM stream. Device certificates only: a CA
+certificate in the store holds no private key.";
+                            leaf name {
+                                type string;
+                                mandatory true;
+                                description "Certificate name";
+                            }
+                        }
+                    }
+
+                    container fingerprint {
+                        config false;
+                        ze:command "ze-show:pki-certificate-fingerprint";
+                        description "Show the hash of the certificate, to verify its
+identity against the one another system reports. Without an
+algorithm, SHA-256.";
+                        leaf name {
+                            type string;
+                            mandatory true;
+                            description "Certificate name";
+                        }
+
+                        container algorithm {
+                            config false;
+                            ze:modifier "choice";
+                            description "Which hash to take of the certificate.";
+                            leaf algorithm {
+                                type enumeration {
+                                    enum sha256;
+                                    enum sha384;
+                                    enum sha512;
+                                }
+                                description "Hash algorithm. Without one, sha256.";
+                            }
+                        }
                     }
                 }
             }

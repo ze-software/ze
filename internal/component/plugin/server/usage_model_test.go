@@ -68,6 +68,11 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		{"create interface veth name", "create interface veth name <name> <peer>"},
 		{"delete interface name address", "delete interface name <name> address <prefix>"},
 		{"request interface mac", "request interface <name> mac <address>"},
+		// The one command here whose values are ALL keyword groups. It acts on
+		// two interfaces rather than on the one `interface` names, so it takes
+		// no inherited value and every value it does take needs a keyword of
+		// its own to say which interface it belongs to.
+		{"request interface migrate", "request interface migrate from <source> to <destination> address <prefix> [create <dummy|veth|bridge>] [timeout <duration>]"},
 		{"request interface mtu", "request interface <name> mtu <bytes>"},
 		{"resolve cymru asn-name", "resolve cymru asn-name <asn>"},
 		{"resolve dns a", "resolve dns a <hostname>"},
@@ -111,7 +116,18 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		},
 		{"show policy chain peer", "show policy chain peer <selector> [import|export]"},
 		{"show bgp peer rib", "show bgp peer <selector> rib [sent|advertised|received|sent-received]"},
-		{"show pki certificate name", "show pki certificate name <name> [pem]"},
+		// Whole-form alternation: each output form is its own command, so the
+		// line an operator reads names the form rather than an alternation the
+		// parent's description used to spell. The algorithm is a closed set the
+		// operator types one word of, which is a choice group and never a
+		// keyword-introduced value.
+		{"show pki certificate name", "show pki certificate name <name>"},
+		{"show pki certificate name pem", "show pki certificate name <name> pem"},
+		{"show pki certificate name bundle pem", "show pki certificate name <name> bundle pem"},
+		{
+			"show pki certificate name fingerprint",
+			"show pki certificate name <name> fingerprint [sha256|sha384|sha512]",
+		},
 	}
 
 	for _, c := range cases {
@@ -527,9 +543,9 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 			ownArgDefs: 1,
 		},
 		{
-			path:       "show pki certificate name",
-			input:      "show pki certificate name device pem",
-			args:       []string{"pem"},
+			path:       "show pki certificate name fingerprint",
+			input:      "show pki certificate name device fingerprint sha512",
+			args:       []string{"sha512"},
 			selectors:  map[string]string{"name": "device"},
 			ownArgDefs: 1,
 		},

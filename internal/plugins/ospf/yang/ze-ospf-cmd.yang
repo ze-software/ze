@@ -409,7 +409,7 @@ crafted LSA into this router's LSDB, which then floods normally.";
                         ze:command "ze-debug:ospf-inject";
                         description "Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).
 Usage: debug ip ospf inject opaque scope <link|area|as> id <opaque-id>
-[type <128-255>] [hex <body> | tlv <type> <value-hex> ...] [withdraw].
+[type <type>] [hex <body> ...] [tlv <type> <value-hex> ...] [withdraw].
 The default Opaque Type is Private-Use so a test LSA never collides with a
 standards-track consumer. Requires `debug ospf inject enable`.";
 
@@ -504,8 +504,8 @@ Private-Use type so a test LSA never collides with a standards-track consumer.";
                         config false;
                         ze:command "ze-debug:ospfv3-inject";
                         description "Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).
-Usage: debug ipv6 ospf inject lsa scope <link|area|as> type <ls-type>
-id <link-state-id> [hex <body>] [withdraw]. The flooding scope is derived from
+Usage: debug ipv6 ospf inject lsa type <ls-type> id <link-state-id>
+[scope <link|area|as>] [hex <body> ...] [withdraw]. The flooding scope is derived from
 the LS Type S2/S1 bits (a reserved scope is rejected). Requires
 `debug ospf inject enable`.";
 

@@ -1,0 +1,31 @@
+# Test: `show pki certificate name` is four commands, one per output form
+# VALIDATES: class (e), whole-form alternation -- pem, bundle pem and
+#            fingerprint each carry their own usage line, and the detail form
+#            keeps the bare path
+# PREVENTS: four tail grammars behind one handler switch, which no model can
+#           state and no operator can discover from help
+#
+# The line each form states is the one the MODEL renders. The fingerprint
+# algorithm is a closed set the operator types one word of, so it renders as a
+# choice and never as a keyword-introduced value.
+
+cmd=foreground:seq=1:exec=ze show pki certificate name help
+expect=exit:code=0
+expect=stderr:contains=ze show pki certificate name <name>
+expect=stderr:contains=Commands
+expect=stderr:contains=bundle
+expect=stderr:contains=fingerprint
+expect=stderr:contains=pem
+reject=stderr:pattern=bundle pem \| fingerprint
+
+cmd=foreground:seq=2:exec=ze show pki certificate name pem help
+expect=exit:code=0
+expect=stderr:contains=ze show pki certificate name <name> pem
+
+cmd=foreground:seq=3:exec=ze show pki certificate name bundle pem help
+expect=exit:code=0
+expect=stderr:contains=ze show pki certificate name <name> bundle pem
+
+cmd=foreground:seq=4:exec=ze show pki certificate name fingerprint help
+expect=exit:code=0
+expect=stderr:contains=ze show pki certificate name <name> fingerprint [sha256|sha384|sha512]

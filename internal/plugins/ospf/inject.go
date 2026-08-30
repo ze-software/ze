@@ -2,11 +2,12 @@
 // RFC: rfc/short/rfc5250.md (Section 3 LS-ID split; Section 9 Private-Use Opaque Type;
 // Section 8 MinLSInterval pacing), rfc/short/rfc2328.md (Section 14 MaxAge withdraw).
 //
-// `debug ip ospf inject opaque scope <s> id <id> [type <t>] [hex <body> | tlv <t> <hex>...]
-// [withdraw]` originates a crafted opaque LSA into THIS router's LSDB through the ext-1
-// OriginateOpaque seam (which owns sequence/age/install/flood/pacing), then normal flooding
-// carries it. It is DOUBLE-GATED: the read-only authz profile denies `debug`, AND the
-// engine refuses unless `debug ospf inject enable` set the shared enablement (AC-16/AC-17).
+// `debug ip ospf inject opaque scope <link|area|as> id <opaque-id> [type <type>]
+// [hex <body> ...] [tlv <type> <value-hex> ...] [withdraw]` originates a crafted
+// opaque LSA into THIS router's LSDB through the ext-1 OriginateOpaque seam (which
+// owns sequence/age/install/flood/pacing), then normal flooding carries it. It is
+// DOUBLE-GATED: the read-only authz profile denies `debug`, AND the engine refuses
+// unless `debug ospf inject enable` set the shared enablement (AC-16/AC-17).
 // The default Opaque Type is Private-Use (128-255) so a test LSA never collides with a
 // standards-track consumer (A-8). Withdraw MaxAge-flushes via the same seam (AC-15).
 
@@ -127,7 +128,7 @@ func parseOpaqueInject(args []string) (opaqueInjectParams, error) {
 	i := 0
 	for i < len(args) {
 		switch args[i] {
-		case "scope":
+		case labelScope:
 			v, err := injectNextArg(args, i)
 			if err != nil {
 				return p, err

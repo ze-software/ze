@@ -68,7 +68,11 @@ handler so the peer selector can be a free-form name or address.";
                     // silently read the direction as a filter NAME in the form it accepted.
                     leaf direction { type enumeration { enum import; enum export; } mandatory true; description "Which half of the chain to test"; }
                     leaf filter { type string { length "1..64"; } description "Test one named filter instead of the whole chain"; }
-                    leaf update { type string { pattern '(0[xX])?[0-9a-fA-F]+'; } description "The BGP UPDATE to feed through the chain, hex-encoded"; }
+                    // parsePolicyTestArgs answers errMissingUpdateHex when this is
+                    // absent, so the handler has always required it. Undeclared, the
+                    // renderer published it as optional and the model understated
+                    // what the command takes.
+                    leaf update { type string { pattern '(0[xX])?[0-9a-fA-F]+'; } mandatory true; description "The BGP UPDATE to feed through the chain, hex-encoded"; }
                     leaf source-asn4 { type enumeration { enum true; enum false; } description "Read the UPDATE as though the sender had four-byte AS support"; }
                 }
             }

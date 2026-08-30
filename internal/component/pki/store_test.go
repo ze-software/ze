@@ -574,9 +574,9 @@ func TestShowPKICertPEM(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "pem"})
+	resp, err := handleShowPKICertificatePEM(nil, []string{"dev-1"})
 	if err != nil {
-		t.Fatalf("show pki certificate dev-1 pem: %v", err)
+		t.Fatalf("show pki certificate name dev-1 pem: %v", err)
 	}
 	data, ok := resp.Data.(plugin.Map)
 	if !ok {
@@ -600,9 +600,9 @@ func TestShowPKICertPEMCA(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"test-ca", "pem"})
+	resp, err := handleShowPKICertificatePEM(nil, []string{"test-ca"})
 	if err != nil {
-		t.Fatalf("show pki certificate test-ca pem: %v", err)
+		t.Fatalf("show pki certificate name test-ca pem: %v", err)
 	}
 	data, ok := resp.Data.(plugin.Map)
 	if !ok {
@@ -623,9 +623,9 @@ func TestShowPKICertPEMNotFound(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"nonexistent", "pem"})
+	resp, err := handleShowPKICertificatePEM(nil, []string{"nonexistent"})
 	if err != nil {
-		t.Fatalf("show pki certificate nonexistent pem: %v", err)
+		t.Fatalf("show pki certificate name nonexistent pem: %v", err)
 	}
 	if resp.Status != "error" {
 		t.Errorf("expected error status, got %q", resp.Status)
@@ -638,9 +638,9 @@ func TestShowPKICertBundlePEM(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "bundle", "pem"})
+	resp, err := handleShowPKICertificateBundlePEM(nil, []string{"dev-1"})
 	if err != nil {
-		t.Fatalf("show pki certificate dev-1 bundle pem: %v", err)
+		t.Fatalf("show pki certificate name dev-1 bundle pem: %v", err)
 	}
 	data, ok := resp.Data.(plugin.Map)
 	if !ok {
@@ -669,9 +669,9 @@ func TestShowPKICertBundlePEMRejectsCA(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"test-ca", "bundle", "pem"})
+	resp, err := handleShowPKICertificateBundlePEM(nil, []string{"test-ca"})
 	if err != nil {
-		t.Fatalf("show pki certificate test-ca bundle pem: %v", err)
+		t.Fatalf("show pki certificate name test-ca bundle pem: %v", err)
 	}
 	if resp.Status != "error" {
 		t.Errorf("expected error for CA cert, got %q", resp.Status)
@@ -702,9 +702,9 @@ func TestShowPKICertBundlePEMNoKey(t *testing.T) {
 		t.Fatalf("Load: %v", lErr)
 	}
 
-	resp, rErr := handleShowPKICertificate(nil, []string{"no-key", "bundle", "pem"})
+	resp, rErr := handleShowPKICertificateBundlePEM(nil, []string{"no-key"})
 	if rErr != nil {
-		t.Fatalf("show pki certificate no-key bundle pem: %v", rErr)
+		t.Fatalf("show pki certificate name no-key bundle pem: %v", rErr)
 	}
 	if resp.Status != "error" {
 		t.Errorf("expected error for cert without key, got %q", resp.Status)
@@ -717,9 +717,9 @@ func TestShowPKICertFingerprint(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "fingerprint"})
+	resp, err := handleShowPKICertificateFingerprint(nil, []string{"dev-1"})
 	if err != nil {
-		t.Fatalf("show pki certificate dev-1 fingerprint: %v", err)
+		t.Fatalf("show pki certificate name dev-1 fingerprint: %v", err)
 	}
 	data, ok := resp.Data.(plugin.Map)
 	if !ok {
@@ -746,9 +746,9 @@ func TestShowPKICertFingerprintSHA512(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "fingerprint", "sha512"})
+	resp, err := handleShowPKICertificateFingerprint(nil, []string{"dev-1", "sha512"})
 	if err != nil {
-		t.Fatalf("show pki certificate dev-1 fingerprint sha512: %v", err)
+		t.Fatalf("show pki certificate name dev-1 fingerprint sha512: %v", err)
 	}
 	data, ok := resp.Data.(plugin.Map)
 	if !ok {
@@ -773,9 +773,9 @@ func TestShowPKICertFingerprintBadAlgo(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "fingerprint", "md5"})
+	resp, err := handleShowPKICertificateFingerprint(nil, []string{"dev-1", "md5"})
 	if err != nil {
-		t.Fatalf("show pki certificate dev-1 fingerprint md5: %v", err)
+		t.Fatalf("show pki certificate name dev-1 fingerprint md5: %v", err)
 	}
 	if resp.Status != "error" {
 		t.Errorf("expected error for md5, got %q", resp.Status)
@@ -788,16 +788,37 @@ func TestShowPKICertFingerprintNotFound(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificate(nil, []string{"nonexistent", "fingerprint"})
+	resp, err := handleShowPKICertificateFingerprint(nil, []string{"nonexistent"})
 	if err != nil {
-		t.Fatalf("show pki certificate nonexistent fingerprint: %v", err)
+		t.Fatalf("show pki certificate name nonexistent fingerprint: %v", err)
 	}
 	if resp.Status != "error" {
 		t.Errorf("expected error status, got %q", resp.Status)
 	}
 }
 
-func TestShowPKICertBadSubcommand(t *testing.T) {
+// VALIDATES: the fingerprint form takes one algorithm word and refuses a second
+// token. The model states a choice group there, which the dispatcher passes
+// through unchecked, so the handler is the only guard on it.
+func TestShowPKICertFingerprintRejectsExtraArgument(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificateFingerprint(nil, []string{"dev-1", "sha512", "extra"})
+	if err != nil {
+		t.Fatalf("show pki certificate name dev-1 fingerprint sha512 extra: %v", err)
+	}
+	if resp.Status != "error" {
+		t.Errorf("expected error for a second algorithm token, got %q", resp.Status)
+	}
+	if !strings.Contains(resp.Error, `"extra"`) {
+		t.Errorf("expected the refused token in the answer, got %q", resp.Error)
+	}
+}
+
+func TestShowPKICertRejectsUnexpectedArgument(t *testing.T) {
 	cfg := testPKIConfig(t)
 	if err := Load(cfg); err != nil {
 		t.Fatalf("Load: %v", err)
@@ -805,10 +826,13 @@ func TestShowPKICertBadSubcommand(t *testing.T) {
 
 	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "garbage"})
 	if err != nil {
-		t.Fatalf("show pki certificate dev-1 garbage: %v", err)
+		t.Fatalf("show pki certificate name dev-1 garbage: %v", err)
 	}
 	if resp.Status != "error" {
-		t.Errorf("expected error for bad subcommand, got %q", resp.Status)
+		t.Errorf("expected error for an unexpected argument, got %q", resp.Status)
+	}
+	if !strings.Contains(resp.Error, `"garbage"`) {
+		t.Errorf("expected the refused token in the answer, got %q", resp.Error)
 	}
 }
 

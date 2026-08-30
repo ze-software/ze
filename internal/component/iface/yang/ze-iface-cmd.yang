@@ -3,6 +3,7 @@ module ze-iface-cmd {
     prefix ifacecmd;
     import ze-extensions { prefix ze; }
     description "Create, configure, and manage network interfaces";
+    revision 2026-08-30 { description "Declare the five values request interface migrate takes, as the keyword groups an operator types: from, to and address are required, create and timeout are not. The grammar is in the model, so completion offers each keyword and the published usage line states the form."; }
     revision 2026-08-29 { description "Declare the values the descriptions spelled in prose: the VLAN id of every unit command, the CIDR prefix of every address command, the veth peer, the MTU byte count and the MAC address. The grammar is in the model, so the renderer states it and the dispatcher types it. The interface name of request interface up, down, mtu and mac moves to the interface container, which is the keyword the operator types it after; request interface migrate names two interfaces of its own, so it states ze:inherit none."; }
     revision 2026-07-03 { description "Typed name selector on create/delete interface (create interface dummy name <n>, delete interface name <n>) per cli-grammar.md Typed Selectors."; }
     revision 2026-06-04 { description "Verb-first grammar: create/delete/request interface"; }
@@ -13,6 +14,17 @@ module ze-iface-cmd {
             type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?(/[0-9]{1,3})?'; }
         }
         description "An IPv4 or IPv6 address, with an optional prefix length.";
+    }
+
+    typedef iface-unit {
+        type string { pattern '[^ /?]+\.[0-9]+'; }
+        description "An interface and one of its units, written as name.unit. Unit 0 is
+the interface itself.";
+    }
+
+    typedef duration {
+        type string { pattern '([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+'; }
+        description "A time span, written as a number and a unit: 30s, 2m, 1h30m.";
     }
 
     container create {
@@ -138,7 +150,7 @@ Interface must already exist.";
                     config false;
                     ze:command "ze-iface:interface-unit-del";
                     description "Remove a VLAN sub-interface.
-Usage: delete interface name <name> unit.";
+Usage: delete interface name <name> unit <vid>.";
                     leaf name { type string; mandatory true; description "Sub-interface name (e.g. eth0.100)"; }
                     leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
                 }
@@ -200,6 +212,51 @@ Usage: delete interface name <name> unit.";
 Takes a source interface, a target interface, and the address to move.
 Adds addresses to the target before removing them from the source
 (make-before-break).";
+
+                container from {
+                    config false;
+                    ze:modifier "required";
+                    description "Interface and unit the address moves off.";
+                    leaf source { type iface-unit; mandatory true; description "Source interface and unit"; }
+                }
+
+                container to {
+                    config false;
+                    ze:modifier "required";
+                    description "Interface and unit the address moves onto.";
+                    leaf destination { type iface-unit; mandatory true; description "Destination interface and unit"; }
+                }
+
+                container address {
+                    config false;
+                    ze:modifier "required";
+                    description "Address to move.";
+                    leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
+                }
+
+                container create {
+                    config false;
+                    ze:modifier "once";
+                    description "Create the destination interface before the address moves onto it.
+Leave it out when the destination interface exists.";
+                    leaf type {
+                        type enumeration {
+                            enum dummy;
+                            enum veth;
+                            enum bridge;
+                        }
+                        mandatory true;
+                        description "Interface type to create";
+                    }
+                }
+
+                container timeout {
+                    config false;
+                    ze:modifier "once";
+                    description "How long to wait for BGP to become ready on the destination
+address before the move is abandoned. The default is 30 seconds.";
+                    leaf duration { type duration; mandatory true; description "Wait time, as a number and a unit"; }
+                }
             }
         }
     }

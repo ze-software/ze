@@ -17,6 +17,11 @@ import (
 const (
 	expiryWarnDays = 30
 
+	// Label names on both pki gauges. A Prometheus label is a separate contract
+	// from the payload keys of the same spelling in types.go.
+	metricLabelName = "name"
+	metricLabelType = "type"
+
 	reportSource      = "pki"
 	reportCodeExpiry  = "cert-expiry"
 	reportCodeExpired = "cert-expired"
@@ -44,8 +49,8 @@ func ensureMetrics() {
 		return
 	}
 	m := &pkiMetrics{
-		expirySeconds: reg.GaugeVec("ze_pki_certificate_expiry_seconds", "Seconds until certificate expires", []string{"name", "type"}),
-		nearExpiry:    reg.GaugeVec("ze_pki_certificate_near_expiry", "1 if certificate expires within 30 days, 0 otherwise", []string{"name", "type"}),
+		expirySeconds: reg.GaugeVec("ze_pki_certificate_expiry_seconds", "Seconds until certificate expires", []string{metricLabelName, metricLabelType}),
+		nearExpiry:    reg.GaugeVec("ze_pki_certificate_near_expiry", "1 if certificate expires within 30 days, 0 otherwise", []string{metricLabelName, metricLabelType}),
 	}
 	pkiMetricsPtr.Store(m)
 }
@@ -126,14 +131,14 @@ func raiseOrClearExpiry(now, warn time.Time, kind, name string, notAfter time.Ti
 	if now.After(notAfter) {
 		report.RaiseWarning(reportSource, reportCodeExpired, subject,
 			label+" has expired (expired "+notAfter.UTC().Format("2006-01-02")+")",
-			map[string]any{"not-after": notAfter.UTC().Format(time.RFC3339)})
+			map[string]any{fieldNotAfter: notAfter.UTC().Format(time.RFC3339)})
 		return
 	}
 	if notAfter.Before(warn) {
 		days := daysUntil(now, notAfter)
 		report.RaiseWarning(reportSource, reportCodeExpiry, subject,
 			label+" expires in "+strconv.Itoa(days)+" days",
-			map[string]any{"not-after": notAfter.UTC().Format(time.RFC3339), "days-remaining": days})
+			map[string]any{fieldNotAfter: notAfter.UTC().Format(time.RFC3339), "days-remaining": days})
 		return
 	}
 	report.ClearWarning(reportSource, reportCodeExpiry, subject)

@@ -118,8 +118,9 @@ stopped, or failed.";
                 config false;
                 ze:command "ze-show:system-sockets";
                 description "Show open TCP and UDP sockets on this box.
-Filters: [tcp|udp] [state <STATE>] [port <N>], all optional and
-combinable. States use kernel names (ESTABLISHED, LISTEN, TIME_WAIT).
+Usage: show system sockets [protocol <tcp|udp>] [state <state>]
+[port <port>]. Every filter is optional and they combine. States use
+kernel names (ESTABLISHED, LISTEN, TIME_WAIT).
 Linux only. Good for confirming listeners or spotting stuck connections.";
                 leaf protocol {
                     type enumeration {

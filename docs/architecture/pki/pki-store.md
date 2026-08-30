@@ -11,10 +11,17 @@ A TLS listener that serves one of these certificates with its full chain is
 <!-- source: internal/component/pki/store.go -- Load, Validate, GetCA, GetCertificate, CertCN, CAPool, IntermediatePool, ExportPEM, CleanupPEM -->
 <!-- source: internal/component/pki/config.go -- ParseConfig, parseCACert, parseDeviceCert, parsePrivateKey, verifyKeyMatchesCert -->
 <!-- source: internal/component/pki/types.go -- CACertEntry, CertificateEntry, PKIConfig, CertSummary -->
-<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate -->
+<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate, handleShowPKICertificatePEM, handleShowPKICertificateBundlePEM, handleShowPKICertificateFingerprint -->
 <!-- source: internal/component/pki/yang/ze-pki-conf.yang -- the pki config module -->
 
 ## Decisions
+
+**Each output form of `show pki certificate name` is its own command.** The
+detail, `pem`, `bundle pem` and `fingerprint` forms take structurally different
+tails, so one command reading them from its arguments states its grammar in a
+handler switch where no operator and no catalog can read it. Four sibling
+containers, each with its own `ze:command` and its own handler, put the grammar
+in the model instead.
 
 **Certificate values are base64-encoded DER, not PEM.** The PEM header adds
 nothing inside a YANG leaf, and raw DER is what the config convention Ze follows

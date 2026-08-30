@@ -14,6 +14,13 @@ import (
 	"time"
 )
 
+// PEM block types this package writes. RFC 7468 names CERTIFICATE for a DER
+// X.509 certificate and PRIVATE KEY for a PKCS#8 key.
+const (
+	pemBlockCertificate = "CERTIFICATE"
+	pemBlockPrivateKey  = "PRIVATE KEY"
+)
+
 var (
 	errPKICertExpired     = errors.New("pki: certificate has expired")
 	errPKIChainValidation = errors.New("pki: certificate chain validation failed")
@@ -213,9 +220,9 @@ func ExportPEM(certName string) (certPath, keyPath, caPath string, err error) {
 
 	safe := safeName(certName)
 	certPath = filepath.Join(exportDir, "cert-"+safe+".pem")
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw})
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: entry.Raw})
 	for _, inter := range entry.RawIntermediates {
-		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: inter})...)
+		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: inter})...)
 	}
 	if wErr := os.WriteFile(certPath, certPEM, pemFilePerm); wErr != nil {
 		return "", "", "", fmt.Errorf("pki: write cert: %w", wErr)
@@ -228,7 +235,7 @@ func ExportPEM(certName string) (certPath, keyPath, caPath string, err error) {
 			removeWritten(certPath)
 			return "", "", "", fmt.Errorf("pki: marshal key: %w", mErr)
 		}
-		keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+		keyPEM := pem.EncodeToMemory(&pem.Block{Type: pemBlockPrivateKey, Bytes: keyDER})
 		if wErr := os.WriteFile(keyPath, keyPEM, pemFilePerm); wErr != nil {
 			removeWritten(certPath)
 			return "", "", "", fmt.Errorf("pki: write key: %w", wErr)
@@ -237,7 +244,7 @@ func ExportPEM(certName string) (certPath, keyPath, caPath string, err error) {
 
 	if caName, ca := findIssuerCA(entry.Certificate, s.caCerts); ca != nil {
 		caPath = filepath.Join(exportDir, "ca-"+safeName(caName)+".pem")
-		caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
+		caPEM := pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: ca.Raw})
 		if wErr := os.WriteFile(caPath, caPEM, pemFilePerm); wErr != nil {
 			removeWritten(certPath, keyPath)
 			return "", "", "", fmt.Errorf("pki: write ca: %w", wErr)

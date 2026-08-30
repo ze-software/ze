@@ -2,12 +2,13 @@
 // RFC: rfc/short/rfc5340.md (Section A.4.2.1: scope from S2/S1 bits; reserved=11 rejected),
 // rfc/short/rfc2328.md (Section 14 MaxAge withdraw; Section 9.5 MinLSInterval pacing).
 //
-// `debug ipv6 ospf inject lsa scope <s> type <ls-type> id <link-state-id> [hex <body>]
-// [withdraw]` originates a crafted OSPFv3 LSA into THIS router's LSDB through the base
-// OriginateSelf (area/AS) / OriginateLinkSelf (link-local) seam. The flooding scope is
-// DERIVED from the LS Type S2/S1 bits (a reserved scope, S2/S1 = 11, is rejected: AC-18);
-// the optional scope keyword is cross-checked against it. Same double gate as IPv4 (AC-16/
-// AC-17). Withdraw MaxAge-flushes via WithdrawSelf/WithdrawLinkSelf (AC-15).
+// `debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> [scope <link|area|as>]
+// [hex <body> ...] [withdraw]` originates a crafted OSPFv3 LSA into THIS router's
+// LSDB through the base OriginateSelf (area/AS) / OriginateLinkSelf (link-local)
+// seam. The flooding scope is DERIVED from the LS Type S2/S1 bits (a reserved
+// scope, S2/S1 = 11, is rejected: AC-18); the optional scope keyword is
+// cross-checked against it. Same double gate as IPv4 (AC-16/AC-17). Withdraw
+// MaxAge-flushes via WithdrawSelf/WithdrawLinkSelf (AC-15).
 
 package ospf
 
@@ -129,7 +130,7 @@ func parseV3Inject(args []string) (v3InjectParams, error) {
 	i := 0
 	for i < len(args) {
 		switch args[i] {
-		case "scope":
+		case labelScope:
 			v, err := injectNextArg(args, i)
 			if err != nil {
 				return p, err

@@ -11,6 +11,16 @@ import (
 	"time"
 )
 
+// Keys in the plugin.Map payload the show handlers return, and in the report
+// bus detail maps. They spell the CertSummary json tags below, because both
+// render the same certificate fields to one operator.
+const (
+	fieldName     = "name"
+	fieldNotAfter = "not-after"
+	fieldPEM      = "pem"
+	fieldType     = "type"
+)
+
 // CACertEntry holds a parsed CA certificate.
 type CACertEntry struct {
 	Name        string

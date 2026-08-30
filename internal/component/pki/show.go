@@ -29,6 +29,18 @@ func init() {
 			WireMethod: "ze-show:pki-certificate",
 			Handler:    handleShowPKICertificate,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:pki-certificate-pem",
+			Handler:    handleShowPKICertificatePEM,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:pki-certificate-bundle-pem",
+			Handler:    handleShowPKICertificateBundlePEM,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:pki-certificate-fingerprint",
+			Handler:    handleShowPKICertificateFingerprint,
+		},
 	)
 }
 
@@ -61,52 +73,134 @@ func handleShowPKICertificates(_ *pluginserver.CommandContext, _ []string) (*plu
 	}, nil
 }
 
-func handleShowPKICertificate(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	const usage = "usage: show pki certificate name <name> [pem | bundle pem | fingerprint [sha256|sha384|sha512]]"
-	// The certificate name is the typed `name <name>` selector
-	// (`show pki certificate name <name> ...`). The remaining args select the
-	// output form (pem, bundle pem, fingerprint). A bare positional name is
-	// accepted as a fallback for programmatic callers.
-	certName := ""
-	if ctx != nil {
-		certName = ctx.Selector("name")
-	}
-	if certName == "" {
-		if len(args) == 0 {
-			return &plugin.Response{
-				Status: plugin.StatusError,
-				Error:  usage,
-			}, nil
-		}
-		certName = args[0]
-		args = args[1:]
-	}
+// selectorName is the keyword that carries the certificate name in
+// `show pki certificate name <name> ...`. An operator types it, so it is
+// separate from the payload keys in types.go.
+const selectorName = "name"
 
+// certSelected answers the certificate the operator named, and the arguments
+// left after the name.
+//
+// The name arrives as the typed `name <name>` selector, which the dispatcher
+// extracts before the handler runs. A caller holding no command context reaches
+// the same handler with the name as its first argument.
+func certSelected(ctx *pluginserver.CommandContext, args []string) (string, []string) {
+	if ctx != nil {
+		if name := ctx.Selector(selectorName); name != "" {
+			return name, args
+		}
+	}
+	if len(args) == 0 {
+		return "", nil
+	}
+	return args[0], args[1:]
+}
+
+// selectedCert is what one output form acts on: the certificate the operator
+// named, the store entry it resolved to, and the arguments left after the name.
+// Exactly one of ca and entry is set, because a name reaches one store or the
+// other.
+type selectedCert struct {
+	name  string
+	ca    *CACertEntry
+	entry *CertificateEntry
+	rest  []string
+}
+
+// certNamed resolves the certificate the operator named. It answers the error
+// response for a missing name and for a name the store does not hold, so each
+// form handler starts from a certificate or from an answer to give back.
+func certNamed(ctx *pluginserver.CommandContext, args []string) (selectedCert, *plugin.Response) {
+	certName, rest := certSelected(ctx, args)
+	if certName == "" {
+		return selectedCert{}, &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  "pki: no certificate named, supply one as name <name>",
+		}
+	}
 	name, ca, entry, errResp := lookupCert(certName)
+	if errResp != nil {
+		return selectedCert{}, errResp
+	}
+	return selectedCert{name: name, ca: ca, entry: entry, rest: rest}, nil
+}
+
+// unexpectedAfter refuses a token the form declares no value for, naming what
+// the token followed.
+//
+// The dispatcher passes an unmatched token through to the handler once every
+// declared argument is filled, so a tail nobody declared reaches here. Answering
+// it is what keeps `show pki certificate name dev-1 garbage` from reading as the
+// detail of dev-1 (ai/rules/evidence.md: fail closed).
+func unexpectedAfter(rest []string, after string) *plugin.Response {
+	if len(rest) == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return &plugin.Response{
+		Status: plugin.StatusError,
+		Error:  tb.Str("pki: unexpected argument ").Quoted(rest[0]).Str(" after ").Str(after).String(),
+	}
+}
+
+// afterCertName names the certificate name in an unexpected-argument answer.
+const afterCertName = "the certificate name"
+
+// handleShowPKICertificate answers the detail form: everything the store knows
+// about one certificate.
+func handleShowPKICertificate(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	cert, errResp := certNamed(ctx, args)
 	if errResp != nil {
 		return errResp, nil
 	}
-
-	sub := args
-	switch {
-	case len(sub) == 0:
-		return certDetail(name, ca, entry)
-	case len(sub) == 1 && sub[0] == "pem":
-		return certPEM(ca, entry)
-	case len(sub) == 2 && sub[0] == "bundle" && sub[1] == "pem":
-		return certBundlePEM(entry)
-	case len(sub) >= 1 && sub[0] == "fingerprint":
-		algo := algoSHA256
-		if len(sub) > 1 {
-			algo = strings.ToLower(sub[1])
-		}
-		return certFingerprint(name, ca, entry, algo)
-	default:
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  usage,
-		}, nil
+	if extra := unexpectedAfter(cert.rest, afterCertName); extra != nil {
+		return extra, nil
 	}
+	return certDetail(cert.name, cert.ca, cert.entry)
+}
+
+// handleShowPKICertificatePEM answers the `pem` form: the certificate and its
+// intermediates, and never a private key.
+func handleShowPKICertificatePEM(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	cert, errResp := certNamed(ctx, args)
+	if errResp != nil {
+		return errResp, nil
+	}
+	if extra := unexpectedAfter(cert.rest, afterCertName); extra != nil {
+		return extra, nil
+	}
+	return certPEM(cert.ca, cert.entry)
+}
+
+// handleShowPKICertificateBundlePEM answers the `bundle pem` form: the
+// certificate, its intermediates and its private key.
+func handleShowPKICertificateBundlePEM(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	cert, errResp := certNamed(ctx, args)
+	if errResp != nil {
+		return errResp, nil
+	}
+	if extra := unexpectedAfter(cert.rest, afterCertName); extra != nil {
+		return extra, nil
+	}
+	return certBundlePEM(cert.entry)
+}
+
+// handleShowPKICertificateFingerprint answers the `fingerprint` form. The
+// algorithm is the one word the model offers after the keyword, and SHA-256
+// when the operator types none.
+func handleShowPKICertificateFingerprint(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	cert, errResp := certNamed(ctx, args)
+	if errResp != nil {
+		return errResp, nil
+	}
+	if len(cert.rest) > 1 {
+		return unexpectedAfter(cert.rest[1:], "the hash algorithm"), nil
+	}
+	algo := algoSHA256
+	if len(cert.rest) > 0 {
+		algo = strings.ToLower(cert.rest[0])
+	}
+	return certFingerprint(cert.name, cert.ca, cert.entry, algo)
 }
 
 func lookupCert(name string) (string, *CACertEntry, *CertificateEntry, *plugin.Response) {
@@ -166,17 +260,17 @@ func certDetail(name string, ca *CACertEntry, entry *CertificateEntry) (*plugin.
 
 func certPEM(ca *CACertEntry, entry *CertificateEntry) (*plugin.Response, error) {
 	raw := certRawDER(ca, entry)
-	out := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: raw})
+	out := pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: raw})
 
 	if entry != nil {
 		for _, inter := range entry.RawIntermediates {
-			out = append(out, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: inter})...)
+			out = append(out, pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: inter})...)
 		}
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"pem": string(out)},
+		Data:   plugin.Map{fieldPEM: string(out)},
 	}, nil
 }
 
@@ -195,9 +289,9 @@ func certBundlePEM(entry *CertificateEntry) (*plugin.Response, error) {
 		}, nil
 	}
 
-	out := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw})
+	out := pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: entry.Raw})
 	for _, inter := range entry.RawIntermediates {
-		out = append(out, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: inter})...)
+		out = append(out, pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: inter})...)
 	}
 
 	keyPEM, keyErr := marshalPrivateKeyPEM(entry.PrivateKey)
@@ -207,7 +301,7 @@ func certBundlePEM(entry *CertificateEntry) (*plugin.Response, error) {
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"pem": string(out) + string(keyPEM)},
+		Data:   plugin.Map{fieldPEM: string(out) + string(keyPEM)},
 	}, nil
 }
 
@@ -242,7 +336,7 @@ func certFingerprint(name string, ca *CACertEntry, entry *CertificateEntry, algo
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"name":        name,
+			fieldName:     name,
 			"algorithm":   algo,
 			"fingerprint": formatFingerprint(fp),
 		},
@@ -258,7 +352,7 @@ func marshalPrivateKeyPEM(key any) ([]byte, *plugin.Response) {
 			Error:  tb.Str("pki: marshal private key: ").Err(err).String(),
 		}
 	}
-	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}), nil
+	return pem.EncodeToMemory(&pem.Block{Type: pemBlockPrivateKey, Bytes: keyDER}), nil
 }
 
 func formatFingerprint(hexStr string) string {
@@ -306,13 +400,13 @@ func certDetailMap(name, typ string, cert *x509.Certificate, hasKey bool, now ti
 	}
 
 	m := map[string]any{
-		"name":            name,
-		"type":            typ,
+		fieldName:         name,
+		fieldType:         typ,
 		"subject":         cert.Subject.String(),
 		"issuer":          cert.Issuer.String(),
 		"serial":          cert.SerialNumber.String(),
 		"not-before":      cert.NotBefore.UTC().Format(time.RFC3339),
-		"not-after":       cert.NotAfter.UTC().Format(time.RFC3339),
+		fieldNotAfter:     cert.NotAfter.UTC().Format(time.RFC3339),
 		"key-algorithm":   cert.PublicKeyAlgorithm.String(),
 		"key-size":        keySize(cert),
 		"sans":            sans,

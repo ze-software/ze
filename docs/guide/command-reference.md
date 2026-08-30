@@ -72,7 +72,6 @@ from stdin (`ze -`) is unaffected.
 | `-d`, `--debug` | Enable debug logging |
 | `-f <file>` | Use filesystem directly, bypass blob store |
 | `--plugin <name>` | Load plugin before starting a YANG/native config (repeatable). Hub/orchestrator configs reject this; use `plugin { internal ... }` or `plugin { external ... }` in the config instead. |
-| `--plugins` | List available internal plugins |
 | `--pprof <addr:port>` | Start pprof HTTP server |
 | `-V`, `--version` | Show version (also available as `ze show version`) |
 | `--chaos-seed <N>` | Enable chaos self-test mode |
@@ -388,6 +387,34 @@ as context, `show host *` when you want hardware-first.
 
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
 
+### show plugins
+
+The plugins compiled into this binary. Answered in the operator's own process
+from the plugin registry, so it needs no daemon and no configuration. A plugin
+that this build compiles out is absent from the answer.
+
+```
+ze show plugins                       # every plugin, one row each
+ze show plugins | ze pipe match rpki  # narrow the list from a shell
+```
+
+In the interactive CLI and through `ze cli -c`, the whole operator language
+applies to the answer: `show plugins | json`, `| yaml`, `| count`,
+`| match <text>`, `| first <n>`. The rows carry these keys:
+
+| Key | Value |
+|-----|-------|
+| `name` | The plugin name, as `plugin { internal ... }` spells it |
+| `description` | What the plugin does |
+| `families` | The address families it handles, when it declares any |
+| `rfcs` | The RFCs it implements, when it declares any |
+| `capabilities` | The BGP capability codes it owns, when it declares any |
+
+`| resolve` and `| origin` are refused by name: no field of this answer holds an
+IP address.
+
+<!-- source: internal/component/plugin/register.go -- dataPlugins, show plugins registration -->
+
 ### show host
 
 Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
@@ -518,7 +545,7 @@ ze interface unit add <name> <id> [vlan-id <vid>]  # Add a logical unit
 ze interface unit del <name> <id>  # Delete a logical unit
 ze interface addr add <name> unit <id> <cidr>      # Add IP address
 ze interface addr del <name> unit <id> <cidr>      # Remove IP address
-ze interface migrate ...           # Make-before-break migration (requires daemon)
+ze interface migrate from .. to .. address ..  # Make-before-break migration (requires daemon)
 ```
 
 **`show interface name <name> detail`** (and the standalone
@@ -869,33 +896,33 @@ PKI certificate store introspection. Shows certificates loaded from
 the `pki {}` config section.
 
 ```
-ze show pki certificates                           # List all loaded certs (CA + device)
-ze show pki certificate <name>                     # Full details for a named certificate
-ze show pki certificate <name> pem                 # PEM-encoded certificate (+ intermediate)
-ze show pki certificate <name> bundle pem          # Certificate + private key in one PEM
-ze show pki certificate <name> fingerprint         # SHA-256 fingerprint (colon-separated hex)
-ze show pki certificate <name> fingerprint sha512  # SHA-512 fingerprint
+ze show pki certificates                                # List all loaded certs (CA + device)
+ze show pki certificate name <name>                     # Full details for a named certificate
+ze show pki certificate name <name> pem                 # PEM-encoded certificate (+ intermediate)
+ze show pki certificate name <name> bundle pem          # Certificate + private key in one PEM
+ze show pki certificate name <name> fingerprint         # SHA-256 fingerprint (colon-separated hex)
+ze show pki certificate name <name> fingerprint sha512  # SHA-512 fingerprint
 ```
 
 **`show pki certificates`** returns a sorted list of all loaded
 certificates with name, type (ca/device), subject CN, issuer CN,
 expiry date, key algorithm, and validity status.
 
-**`show pki certificate <name>`** returns full details: subject,
+**`show pki certificate name <name>`** returns full details: subject,
 issuer, serial, validity period, key algorithm, key size, SANs,
 key usage, private key presence, and chain validation status.
 
-**`show pki certificate <name> pem`** returns the certificate in PEM
+**`show pki certificate name <name> pem`** returns the certificate in PEM
 format. Includes the intermediate certificate if one is stored.
 
-**`show pki certificate <name> bundle pem`** returns the certificate
+**`show pki certificate name <name> bundle pem`** returns the certificate
 and its private key concatenated in PEM format (device certificates
 only). Useful for clients that need a single PEM file (e.g. OpenConnect).
 
-**`show pki certificate <name> fingerprint [sha256|sha384|sha512]`**
+**`show pki certificate name <name> fingerprint [sha256|sha384|sha512]`**
 returns the DER fingerprint as colon-separated hex. Defaults to SHA-256.
 
-<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate -->
+<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate, handleShowPKICertificatePEM, handleShowPKICertificateBundlePEM, handleShowPKICertificateFingerprint -->
 
 ### show firewall
 
@@ -1412,15 +1439,24 @@ without underflow.
 <!-- source: internal/component/iface/counters.go -- baselineStore, applyBaseline (wrap rebases) -->
 <!-- source: internal/component/iface/dispatch.go -- ResetCounters, GetStats/ListInterfaces/GetInterface apply baseline -->
 
-**migrate flags (dispatched to running daemon via SSH):**
+**migrate grammar (dispatched to the running daemon over SSH as
+`request interface migrate`):**
 
-| Flag | Purpose |
-|------|---------|
-| `--from <iface>.<unit>` | Source interface and unit (required) |
-| `--to <iface>.<unit>` | Destination interface and unit (required) |
-| `--address <cidr>` | IP address to migrate (required) |
-| `--create <type>` | Create new interface: dummy, veth, bridge |
-| `--timeout <duration>` | BGP readiness timeout (default: 30s) |
+```
+ze interface migrate [--user <name>] from <iface>.<unit> to <iface>.<unit> address <cidr> [create <type>] [timeout <duration>]
+```
+
+| Keyword | Purpose |
+|---------|---------|
+| `from <iface>.<unit>` | Source interface and unit (required) |
+| `to <iface>.<unit>` | Destination interface and unit (required) |
+| `address <cidr>` | IP address to migrate (required) |
+| `create <type>` | Create the destination interface: dummy, veth, bridge |
+| `timeout <duration>` | BGP readiness wait (default: 30s) |
+
+These five are grammar the daemon reads, not client flags: the daemon refuses a
+flag-shaped token before any handler runs. `--user` is the one flag this command
+interprets itself, and it comes before the first keyword.
 <!-- source: internal/component/iface/cli/main.go -- Run; internal/component/iface/cli/show.go -- cmdShow; internal/component/iface/cli/migrate.go -- cmdMigrate -->
 
 ### ze exabgp

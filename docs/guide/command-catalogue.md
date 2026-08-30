@@ -346,7 +346,7 @@ Runtime-level config manipulation that is not `set` / `del`.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| Show TLS cert | `show pki certificate <n>` | `show security pki local-certificate` | `show certificate detail` | `show management api` | - | | planned | config | When web/MCP certs become configurable |
+| Show TLS cert | `show pki certificate name <n>` | `show security pki local-certificate` | `show certificate detail` | `show management api` | - | | planned | config | When web/MCP certs become configurable |
 | Show SSH keys | `show system ssh` | `show security pki` | `show system security ssh` | `show ssh` | - | | scope | - | |
 | Show TACACS+ state | `show system tacacs` | `show system accounting tacplus` | `show system security tacplus` | `show tacacs` | - | tacacs plugin | partial | config | spec-tacacs |
 | Show authz roles | - | - | - | `show user-account` | - | authz plugin | shipped | config | |

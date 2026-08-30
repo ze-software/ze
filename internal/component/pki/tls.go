@@ -73,16 +73,16 @@ func ServerTLSMaterial(name string) (certPEM, keyPEM []byte, err error) {
 		return nil, nil, errors.New(tb.Str("pki: certificate ").Str(name).Str(": marshal private key: ").Err(err).String())
 	}
 
-	return chainPEM(entry), pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}), nil
+	return chainPEM(entry), pem.EncodeToMemory(&pem.Block{Type: pemBlockPrivateKey, Bytes: keyDER}), nil
 }
 
 // chainPEM concatenates the leaf certificate and every stored intermediate into
 // one PEM document, leaf first. Same shape as certBundlePEM's certificate half
 // (show.go), which is what `show pki certificate name <n> bundle pem` prints.
 func chainPEM(entry *CertificateEntry) []byte {
-	out := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw})
+	out := pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: entry.Raw})
 	for _, inter := range entry.RawIntermediates {
-		out = append(out, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: inter})...)
+		out = append(out, pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: inter})...)
 	}
 	return out
 }
@@ -97,9 +97,16 @@ func certificateNames(s *storeState) []string {
 	return names
 }
 
+// Severity values a CertProblem carries. They spell what dnsserver.CertProblem
+// uses, so a consumer maps both sources into its diagnostics the same way.
+const (
+	severityError   = "error"
+	severityWarning = "warning"
+)
+
 // CertProblem is a single doctor finding about a configured certificate
 // reference. Code is one of the registered doctor-tls-* codes; Severity is
-// "error" or "warning". Shaped like dnsserver.CertProblem so a consumer maps
+// severityError or severityWarning. Shaped like dnsserver.CertProblem so a consumer maps
 // both sources into its diagnostics the same way.
 type CertProblem struct {
 	Code     string
@@ -130,7 +137,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 				tb.Str(" (defined: ").Join(names, ", ").Byte(')')
 			}
 		}
-		return []CertProblem{{Code: CodeCertReference, Severity: "error", Message: tb.String()}}
+		return []CertProblem{{Code: CodeCertReference, Severity: severityError, Message: tb.String()}}
 	}
 
 	var problems []CertProblem
@@ -139,7 +146,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 		var tb textbuf.Buffer
 		problems = append(problems, CertProblem{
 			Code:     CodeCertReference,
-			Severity: "error",
+			Severity: severityError,
 			Message: tb.Str("certificate ").Str(name).
 				Str(" has no private key, so it cannot serve TLS (add private { key ... } to the pki entry)").String(),
 		})
@@ -151,7 +158,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 		var tb textbuf.Buffer
 		problems = append(problems, CertProblem{
 			Code:     CodeCertExpired,
-			Severity: "error",
+			Severity: severityError,
 			Message: tb.Str("certificate ").Str(name).Str(" is outside its validity window (not-before ").
 				Str(cert.NotBefore.UTC().Format(time.RFC3339)).Str(", not-after ").
 				Str(cert.NotAfter.UTC().Format(time.RFC3339)).Byte(')').String(),
@@ -164,7 +171,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 		var tb textbuf.Buffer
 		problems = append(problems, CertProblem{
 			Code:     CodeCertExpired,
-			Severity: "warning",
+			Severity: severityWarning,
 			Message:  tb.Str("certificate ").Str(name).Str(" expires in ").Int(int64(daysLeft)).Str(" day(s)").String(),
 		})
 	}
@@ -173,7 +180,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 		var tb textbuf.Buffer
 		problems = append(problems, CertProblem{
 			Code:     CodeCertReference,
-			Severity: "error",
+			Severity: severityError,
 			Message: tb.Str("certificate ").Str(name).
 				Str(" does not build a chain to a configured ca certificate: ").Err(err).
 				Str(" (check the intermediate matches the leaf's issuer)").String(),
