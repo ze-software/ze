@@ -1042,25 +1042,42 @@ verdict clean, 9 files pinned, `./le spec session review check` exits 0.
 | HEAD compiles | `go build ./...` and `go build -tags <each of the nine>` `./cmd/ze` both exit 0 in a detached worktree at eff4c1e38 |
 | Neither repair reverted another session's work | e53c244ab restores two string literals the consumer never needed; bd25f033e ADDS a const block. Both files are clean in the working tree, so nothing was overwritten |
 
-## Closure status: BLOCKED, and the spec stays open
+## Closure status: one command left, and it needs its own spec
 
-The review is clean and the code is sound. The spec does not close, for one
-reason: its own Deliverables Checklist asks that no authored usage prose remain
-and that `./le docvalid usage-contract` exit 0, and 9 sentences still prescribe
-a CLI spelling. The Task section allows exactly one residue -- "a command the
-model cannot express keeps its authored sentence" -- and only two of the nine
-are that.
+Measured on 2026-08-30 with `./le docvalid usage-contract`, over an overlay of
+HEAD carrying the working tree: 384 command nodes, 1 authored usage sentence,
+1 disagreement, 0 deletions hiding a difference.
 
-`show bgp peer rib` and `request peer teardown` were deletable at this review
-and are deleted here, which is the second half of the two-step 3b376b4b7 set up.
+Seven sentences were corrected to the generated line and then deleted, and
+`show policy test peer` took the same two steps in `eefc62d2e` and `73bd01635`.
+That command needed a model change rather than a prose change: `update` was a
+mandatory leaf, so the renderer published a bare positional the parser refuses
+(`parsePolicyTestArgs`, `internal/component/bgp/plugins/cmd/policy/handler.go`).
+`filter` and `source-asn4` had the same shape and rendered correctly only by
+accident. All three are now `ze:modifier` containers, and the renderer no longer
+hoists a required group ahead of an optional one: declaration order decides,
+because nothing else knows which group an operator reads first.
 
-| Remaining | Why it is still there | What closes it |
-|-----------|----------------------|----------------|
-| `debug ip ospf inject opaque`, `debug ipv6 ospf inject lsa`, `resolve traceroute`, `delete interface name unit`, `show system sockets`, `show capture`, `show policy test peer` | the model states the grammar and the PROSE is wrong. `usageShape` folds placeholder wording only, so the deletion is refused against the HEAD sentence | one commit correcting each sentence to the generated line, then a second deleting it. Seven commands, two passes, no code |
-| `announce` | the route specification is a grammar the model cannot state, which the Task section allows | nothing. It is the declared end state |
-| `show pki certificate name` | whole-form alternation, class (e). `handleShowPKICertificate` switches over `pem`, `bundle pem` and `fingerprint [sha256\|sha384\|sha512]` | three sibling containers with their own `ze:command`, and three handler registrations: the shape `withdraw` was split into |
+`announce` is the one sentence left, and this spec was wrong about why. It was
+declared the permitted residue on the reading that the model cannot state a
+route specification. Half of that is false. `handleAnnounce`
+(`internal/component/bgp/plugins/cmd/announce/announce.go`) reads `args[0]` as
+the FAMILY word and switches on `unicast`, `blackhole` and `flowspec`; the peer
+selector arrives out of band through `ctx.PeerSelector()`. So the generated
+`announce <selector>` names a first token no operator types, and the family word
+IS statable, as the enum leaf the other eight commands now use. Only the three
+argument grammars behind it are not.
+
+The module's own 2026-08-29 revision records the fix: `withdraw` was split into
+`tag`, `id` and `all`, one `ze:command` per form, each stating its own
+arguments. Doing the same to `announce` adds three wire methods and three
+handler registrations, which is a command-surface change with `.ci` obligations
+of its own (`ai/rules/cli.md`). It needs its own spec, not a branch in this one.
+
+The row is in `plan/journal/command-takes-an-untyped-positional-value.md`.
 
 Two further facts the next session needs. The gate is not wired into
 `./le verify`, so nothing runs it: `usageRow` and its siblings stay
 package-private until the prose is gone. And `./le` is an existence cache, so a
-stale `bin/le` reports stale counts; build a fresh one before reading them.
+stale `bin/le` reports stale counts; build a fresh one before reading them, and
+only when the tree compiles.
