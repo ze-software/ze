@@ -57,7 +57,6 @@ Feed a hex-encoded BGP UPDATE through a peer's filter chain and see
 the accept/reject result plus attribute modifications at each stage.
 Read-only: no routes are actually forwarded. Great for validating
 policy changes before you commit.
-Usage: show policy test peer <selector> <import|export> [filter <name>] update <hex> [source-asn4 <true|false>].
 The selector and the direction, filter, update and source-asn4 tokens are
 parsed by the handler, so the peer selector can be a free-form name or
 address and the tokens can arrive in any order.";

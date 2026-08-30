@@ -149,8 +149,7 @@ Interface must already exist.";
                 container unit {
                     config false;
                     ze:command "ze-iface:interface-unit-del";
-                    description "Remove a VLAN sub-interface.
-Usage: delete interface name <name> unit <vid>.";
+                    description "Remove a VLAN sub-interface.";
                     leaf name { type string; mandatory true; description "Sub-interface name (e.g. eth0.100)"; }
                     leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
                 }

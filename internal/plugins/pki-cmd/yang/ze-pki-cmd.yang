@@ -27,8 +27,7 @@ expiration.";
                     config false;
                     ze:command "ze-show:pki-certificate";
                     description "Inspect a specific certificate in detail.
-Usage: show pki certificate name <name>. Each export form is a
-command of its own.";
+Each export form is a command of its own.";
                     leaf name {
                         type string;
                         mandatory true;

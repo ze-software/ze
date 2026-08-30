@@ -43,9 +43,7 @@ address. Quick way to verify a peer's BGP port is reachable.";
             ze:command "ze-show:capture";
             description "Show captured control-plane messages.
 Returns protocol messages you previously enabled capture for. Without
-a protocol keyword, shows all protocols.
-Usage: show capture [protocol <l2tp|bgp>] [tunnel-id <tunnel-id>]
-[count <count>] [peer <peer>]. Use this to debug
+a protocol keyword, shows all protocols. Use this to debug
 session establishment issues.";
             leaf protocol {
                 type enumeration {

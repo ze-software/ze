@@ -86,9 +86,7 @@ can watch path changes and latency shifts over time.";
         container traceroute {
             config false;
             ze:command "ze-resolve:traceroute";
-            description "Traceroute from the router with optional source binding.
-Usage: resolve traceroute <target> [source <source>] [max-hops <max-hops>]
-[timeout <timeout>] [probes <probes>].";
+            description "Traceroute from the router with optional source binding.";
             leaf target { type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; } mandatory true; description "Host or IP address to trace to"; }
             leaf source { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } description "Source IP address to bind"; }
             leaf max-hops { type uint32 { range "1..64"; } description "Largest time-to-live to probe"; }
