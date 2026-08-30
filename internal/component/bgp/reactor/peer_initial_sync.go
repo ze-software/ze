@@ -32,8 +32,11 @@ func (p *Peer) sendInitialRoutes() {
 				"panic", r,
 				"stack", string(buf[:n]),
 			)
-			// Clear flag so shouldQueue() returns false and peer isn't stuck.
+			// Clear both facts so shouldQueue() returns false, the peer is not
+			// stuck, and pendingSync stops reporting a marker this goroutine
+			// will never send.
 			p.sendingInitialRoutes.Store(0)
+			p.initialSyncEOROwed.Store(false)
 			p.wakeForwardOverflow()
 		}
 	}()
@@ -63,6 +66,7 @@ func (p *Peer) sendInitialRoutes() {
 	if nc == nil {
 		peerLogger().Debug("sendInitialRoutes aborted (no negotiated caps)", "peer", addr)
 		p.sendingInitialRoutes.Store(0) // Clear flag so shouldQueue() returns false
+		p.initialSyncEOROwed.Store(false)
 		p.wakeForwardOverflow()
 		return
 	}
@@ -181,64 +185,11 @@ func (p *Peer) sendInitialRoutes() {
 	// grace. Bounded; on timeout it releases and says so.
 	p.waitPeerUpBarrier()
 
-	// Wait for the processes this peer permits to send, so their initial routes
-	// precede the End-of-RIB. ONE bounded wait: it returns the moment every
-	// expected `plugin session ready` has arrived, and gives up at
-	// apiSyncTimeout for a process that never sends one.
-	//
-	// It used to sleep 500ms FIRST and then wait, and that fixed sleep was pure
-	// latency once a process answered promptly. It was also wire-visible: the
-	// sleep keeps shouldQueue true, so an announce an API client issues inside
-	// it is queued and drains AHEAD of the marker. test/exabgp-compat/encoding/
-	// conf-watchdog.ci caught exactly that -- ExaBGP emits the End-of-RIB before
-	// the first scripted announce, and ze stopped doing so the moment the
-	// migrated config declared bgp-watchdog's send permission truthfully.
-	// Shrinking this window also shrinks the duplicate-relay window the
-	// 2026-08-08 measurement below names.
-	//
-	// KNOWN DEFECT, do not "simplify" this condition first. apiSyncExpected counts
-	// only bindings that declare `send [ update ]` (ProcessBinding.MaySend,
-	// peer_run.go). The spec this note used to send you to,
-	// spec-fixit-forward-rail-initial-sync-ordering, closed on 2026-08-11 and
-	// fixed the forward RAILS; it did not fix this hold, so read the two
-	// paragraphs below rather than looking for a file that is no longer on disk.
-	//
-	// The UNDERCOUNT half is NARROWED, not closed, and the difference is one
-	// rail. Every path that BUILDS an UPDATE now reads the same declaration this
-	// counts: the six selector-resolving commands through getMatchingPeersSel,
-	// plus ForwardUpdate, ForwardUpdatesDirect and RelayStoredRoute, all gated on
-	// `send [ update ]` (send_permission.go). A plugin bound as a bare
-	// `attach process X { }` reaches none of them.
-	//
-	// It can still reach ze-bgp:peer-raw. That rail carries a message of the
-	// caller's choosing, so it is gated on ATTACHMENT alone (rawOrigin), and a
-	// hand-built UPDATE injected through it lands on this peer from a binding
-	// MaySend(SendUpdate) reports false for and this count therefore skips. The
-	// claim that a bare-bound process no longer injects at all was written before
-	// that rail was gated at all and was never true; do not restore it. Whether
-	// the send vocabulary should gain a word for raw is an owner decision.
-	//
-	// What survives is the OVERCOUNT: only bgp-rib ever signals plugin-session-
-	// ready, so any other permitted plugin makes this wait run to apiSyncTimeout,
-	// and the hold keeps shouldQueue true for the whole of it. An event-driven
-	// announce raised inside that window (a watchdog probe going up) is queued
-	// and drains BEFORE the marker, so the marker then claims a route that was
-	// never part of the initial routing update.
-	//
-	// Widening the condition to "any process binding" is NOT the fix on its own:
-	// the hold keeps sendingInitialRoutes non-zero, so it also widens the window
-	// in which shouldQueue() is true, and the FORWARDING rail does not consult
-	// shouldQueue. Measured on 2026-08-08: with a 500ms hold,
-	// test/plugin/role-otc-rs-withdraw-eor.ci delivers the same relayed route to
-	// the destination peer TWICE. Separating "initial sync running" (which gates
-	// queueing) from "End-of-RIB not yet sent" (which gates the marker) is what
-	// this needs, and that is the forward-rail spec's subject.
-	p.mu.RLock()
-	needsAPIWait := p.apiSyncExpected > 0
-	p.mu.RUnlock()
-	if needsAPIWait {
-		p.waitForAPISync()
-	}
+	// The wait for the processes that push routes into this peer's initial
+	// routing update is NOT here. It sits after the last route this goroutine
+	// owns, and after the queueing flag is cleared -- see waitForAPISync's call
+	// site below and Peer.initialSyncEOROwed (peer.go) for why the two facts are
+	// separate.
 
 	// Process operation queue in order (maintains announce/withdraw/teardown ordering).
 	// Stop at first teardown - remaining items stay for next session.
@@ -323,11 +274,10 @@ func (p *Peer) sendInitialRoutes() {
 		// If we get here, it was a teardown - break out of loop
 		break
 	}
-	// Remove processed items but keep sendingInitialRoutes flag set.
-	// The flag is cleared AFTER EOR to prevent a race where a plugin command
-	// arrives between flag-clear and EOR-send, bypasses the queue, and races
-	// with EOR for the session write lock. With the flag set, concurrent
-	// plugin commands are queued (shouldQueue=true) and drained after EOR.
+	// Remove processed items but keep sendingInitialRoutes flag set: this
+	// goroutine still owns the wire until it has written the family-specific
+	// routes below, so a concurrent plugin command must still be queued rather
+	// than overtake them.
 	if processed > 0 {
 		p.opQueue = p.opQueue[processed:]
 	}
@@ -379,17 +329,25 @@ func (p *Peer) sendInitialRoutes() {
 			routesLogger().Debug("clearing unsent queue items after teardown", "peer", addr, "count", len(p.opQueue))
 			p.opQueue = p.opQueue[:0]
 		}
-		// Clear flag under mutex for teardown path too
+		// Clear both facts under mutex for teardown path too: the markers above
+		// are the only ones this session gets.
 		p.sendingInitialRoutes.Store(0)
+		p.initialSyncEOROwed.Store(false)
 		p.mu.Unlock()
 		p.wakeForwardOverflow()
 		return // Don't send family-specific routes after teardown
 	}
 
-	// Hold the session write lock across family-specific routes AND EOR.
-	// The route-server plugin, when present, sends EOR via AnnounceEOR ->
-	// peer.SendUpdate in a separate goroutine. Without holding writeMu, the
-	// RS EOR can interleave between config routes and EOR markers.
+	// Hold the session write lock across the family-specific routes, and again
+	// across the EOR. The route-server plugin, when present, sends EOR via
+	// AnnounceEOR -> peer.SendUpdate in a separate goroutine. Without holding
+	// writeMu, the RS EOR can interleave between config routes and EOR markers.
+	//
+	// TWO holds rather than one, because the plugin barrier sits between them
+	// and a plugin cannot push its routes through a lock this goroutine is
+	// holding while it waits for that plugin. AnnounceEOR is shut out across
+	// both holds AND the gap by initialSyncEOROwed rather than by the lock
+	// (reactor_api_forward.go).
 	//
 	// HoldWrites is s.writeMu.Lock (session_write.go). While it is held both
 	// egress rails are shut out, but by opposite mechanisms, and this comment
@@ -418,6 +376,56 @@ func (p *Peer) sendInitialRoutes() {
 
 	// Send family-specific routes (config-originated)
 	p.sendPluginRoutesVia(sendFn)
+
+	if session != nil {
+		session.releaseWrites()
+	}
+
+	// Everything this goroutine owns is on the wire, so the queueing gate closes
+	// here rather than after the marker. Drain under the lock until the queue is
+	// empty and only then clear the flag: an op appended between the last drain
+	// and the clear would otherwise sit in a queue nothing will drain, because
+	// this goroutine is the only drainer.
+	p.drainAndCloseQueueGate(addr, opMaxMsgSize)
+
+	// The initial sync no longer owns the wire order, so the forwarded UPDATEs
+	// parked behind it may go out.
+	p.wakeForwardOverflow()
+
+	// Now wait for the processes that push routes into this peer's initial
+	// routing update, so their routes precede the End-of-RIB. RFC 4724 Section
+	// 4 owes the marker "once it completes the initial routing update", and the
+	// owner ruled on 2026-08-30 that a plugin-injected route belongs to that
+	// update, so every binding MayPushRoutes reports true for is counted
+	// (peer_run.go). ONE bounded wait: it returns the moment every expected
+	// `plugin session ready` has arrived, and gives up at apiSyncTimeout for a
+	// process that never sends one.
+	//
+	// It runs with sendingInitialRoutes ALREADY CLEAR, and that is the whole
+	// reason the barrier can cover every route-pushing binding. A hold taken
+	// while that flag was set also held shouldQueue and forwardOrderHold, so
+	// widening the barrier widened the queueing window and the forward-rail
+	// parking with it: measured on 2026-08-08, a 500ms hold made
+	// test/plugin/role-otc-rs-withdraw-eor.ci deliver the same relayed route to
+	// the destination peer TWICE. A route a plugin pushes during this wait now
+	// goes straight to the wire, ahead of the marker, which is where a route
+	// belonging to the initial update belongs.
+	//
+	// The marker stays owed across the wait through initialSyncEOROwed, so
+	// AnnounceEOR does not slip another producer's marker in front of it and
+	// `request quiesce` does not report the peer settled (peer.go).
+	p.mu.RLock()
+	needsAPIWait := p.apiSyncExpected > 0
+	p.mu.RUnlock()
+	if needsAPIWait {
+		p.waitForAPISync()
+	}
+
+	sendFn = p.sendUpdateDirect
+	if session != nil {
+		session.HoldWrites()
+		sendFn = session.SendUpdateHeld
+	}
 
 	// Send EOR for ALL negotiated families per RFC 4724 Section 4.
 	// RFC 4724: "including the case when there is no update to send"
@@ -458,11 +466,25 @@ func (p *Peer) sendInitialRoutes() {
 		session.releaseWrites()
 	}
 
-	// Drain any commands that were queued while EOR was being sent.
-	// The sendingInitialRoutes flag was kept set during EOR to ensure
-	// concurrent plugin commands were queued (not sent directly).
-	// Routes drained here arrive at the peer after EOR, which is correct:
-	// they are incremental updates after the initial RIB dump.
+	// The marker is on the wire, or its send failed and said so. Either way this
+	// session owes no other one, so pendingSync settles and AnnounceEOR stops
+	// deferring to this producer (peer.go, reactor_api_forward.go).
+	p.initialSyncEOROwed.Store(false)
+}
+
+// drainAndCloseQueueGate writes every operation the opQueue still holds, then
+// closes the queueing gate, both under one p.mu hold.
+//
+// The two MUST settle together, because sendInitialRoutes is the only drainer.
+// Clearing the flag first would let QueueAnnounce append behind the last pass
+// and park that route for the life of the session; draining first and clearing
+// after an unlock would leave the same hole in a smaller window. The loop
+// re-reads len(p.opQueue) each pass for the reason the main drain does: a send
+// runs unlocked, so a concurrent QueueAnnounce can append while it runs.
+//
+// Called with p.mu NOT held. addr and opMaxMsgSize are the caller's, so the peer
+// address is formatted once per sync rather than once per operation.
+func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 	p.mu.Lock()
 	finalProcessed := 0
 	for finalProcessed < len(p.opQueue) {
@@ -480,11 +502,16 @@ func (p *Peer) sendInitialRoutes() {
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
 			putBuildBuf(attrHandle)
 			if sendErr != nil {
-				routesLogger().Debug("send error for late-queued route", "peer", addr, "error", sendErr)
+				routesLogger().Debug("send error for a queued route", "peer", addr, "error", sendErr)
 				p.mu.Lock()
 				finalProcessed++
+				// The break leaves the SWITCH, not the loop, so a connection
+				// error does not stop this drain. That is what the gate needs:
+				// the remaining operations are attempted, fail the same way, and
+				// leave the queue empty, where an operation left behind is one
+				// nothing will ever drain.
 				if !isRouteScopedSendError(sendErr) {
-					break // Connection error — stop processing
+					break
 				}
 				continue
 			}
@@ -500,7 +527,7 @@ func (p *Peer) sendInitialRoutes() {
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
 			putBuildBuf(wdHandle)
 			if sendErr != nil {
-				routesLogger().Debug("send error for late-queued withdrawal", "peer", addr, "error", sendErr)
+				routesLogger().Debug("send error for a queued withdrawal", "peer", addr, "error", sendErr)
 				p.mu.Lock()
 				finalProcessed++
 				if !isRouteScopedSendError(sendErr) {
@@ -512,22 +539,18 @@ func (p *Peer) sendInitialRoutes() {
 			finalProcessed++
 
 		case PeerOpTeardown:
-			// Teardown should not appear in the post-EOR queue — teardown
-			// is handled in the main drain loop and returns early.
-			routesLogger().Error("unexpected teardown in post-EOR queue", "peer", addr)
+			// Teardown should not appear here — teardown is handled in the main
+			// drain loop, which returns early.
+			routesLogger().Error("unexpected teardown in the closing drain queue", "peer", addr)
 			finalProcessed++
 		}
 	}
 	if finalProcessed > 0 {
 		p.opQueue = p.opQueue[finalProcessed:]
-		routesLogger().Debug("drained late-queued ops after EOR", "peer", addr, "count", finalProcessed)
+		routesLogger().Debug("drained queued ops before the end-of-rib", "peer", addr, "count", finalProcessed)
 	}
 	p.sendingInitialRoutes.Store(0)
 	p.mu.Unlock()
-
-	// The initial sync is over: everything the opQueue held has reached the
-	// wire, so the forwarded UPDATEs parked behind it may go out now.
-	p.wakeForwardOverflow()
 }
 
 // sendUpdateDirect is the default send callback when writeMu is not held.

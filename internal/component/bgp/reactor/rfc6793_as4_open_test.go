@@ -43,7 +43,7 @@ func rfc6793SentOpen(t *testing.T, localAS uint32, disableASN4 bool) *message.Op
 // rfc6793ASN4Cap returns the ASN4 capability from an OPEN, or nil.
 func rfc6793ASN4Cap(t *testing.T, open *message.Open) *capability.ASN4 {
 	t.Helper()
-	caps, err := capability.ParseFromOptionalParams(open.OptionalParams)
+	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	require.NoError(t, err)
 	for _, c := range caps {
 		if a, ok := c.(*capability.ASN4); ok {

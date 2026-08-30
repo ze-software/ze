@@ -73,6 +73,14 @@ func sendUpdateOnly(process string) ProcessBinding {
 	return ProcessBinding{PluginName: process, Send: map[string]bool{bgpevents.SendUpdate: true}}
 }
 
+// sendRawOnly is the binding an operator writes for a program that builds whole
+// BGP messages itself: `attach process <name> { send [ raw ] }`. It is a
+// separate word from `update` because the bytes can be any message, an OPEN or a
+// NOTIFICATION included (owner ruling, 2026-08-30).
+func sendRawOnly(process string) ProcessBinding {
+	return ProcessBinding{PluginName: process, Send: map[string]bool{bgpevents.SendRaw: true}}
+}
+
 // resetSendPermissionMetrics puts the package back to its unwired state so tests
 // do not leak a registry into each other.
 func resetSendPermissionMetrics(t *testing.T) {

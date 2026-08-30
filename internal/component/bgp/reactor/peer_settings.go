@@ -576,6 +576,20 @@ func (b *ProcessBinding) MaySend(sendType string) bool {
 	return b.SendAll || b.Send[sendType]
 }
 
+// MayPushRoutes reports whether this binding permits the process to put a route
+// on the peer's wire, by either rail that reaches it: a message ze builds from
+// the process's own route operation (`send [ update ]`), or a whole message the
+// process built itself (`send [ raw ]`).
+//
+// It is the population of the initial-sync barrier, so it answers the question
+// RFC 4724 Section 4 asks -- whose routes belong to this speaker's initial
+// routing update -- rather than naming one rail. The owner ruled on 2026-08-30
+// that a plugin-injected route belongs to that update, so the End-of-RIB waits
+// for every binding this reports true for (peer_run.go, Peer.waitForAPISync).
+func (b *ProcessBinding) MayPushRoutes() bool {
+	return b.MaySend(bgpevents.SendUpdate) || b.MaySend(bgpevents.SendRaw)
+}
+
 // AutoLoadReceiveTypes returns the granted event types no base token names,
 // sorted. The plugin server maps each to the plugin that produces it, so
 // `receive [ update-rpki ]` starts bgp-rpki-decorator. The direction a type

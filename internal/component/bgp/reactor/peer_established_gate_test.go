@@ -70,9 +70,16 @@ func TestPeersSynced_NotSyncedForJustEstablishedPeer(t *testing.T) {
 	require.False(t, peersSynced([]*Peer{peer}),
 		"a peer that has just been published Established still owes its initial route sync")
 
-	// What sendInitialRoutes does when it has drained the queue and put every
-	// family's End-of-RIB on the wire.
+	// What sendInitialRoutes does when it has drained the queue: it closes the
+	// queueing gate BEFORE it waits for the plugins that push routes into this
+	// peer's initial update, so the gate alone does not settle the peer.
 	peer.sendingInitialRoutes.Store(0)
+	require.False(t, peersSynced([]*Peer{peer}),
+		"a peer whose End-of-RIB is still owed is not settled, or `request quiesce` returns "+
+			"while the marker that closes the initial update is still to come")
+
+	// And what it does once every family's End-of-RIB is on the wire.
+	peer.initialSyncEOROwed.Store(false)
 	require.True(t, peersSynced([]*Peer{peer}),
 		"once the initial sync has finished the peer is settled")
 }

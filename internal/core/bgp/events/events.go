@@ -27,13 +27,19 @@ const (
 // Built-in send types. A send type names a message kind a process may generate
 // toward a peer, which is a permission rather than a subscription. Plugins add
 // more through events.RegisterSendType (e.g. "enhanced-refresh").
+//
+// SendRaw names a whole BGP message the caller chose, an OPEN or a NOTIFICATION
+// included, written to the peer's socket with nothing built around it. It is the
+// widest permission in the list, so it is granted on its own line and never
+// implied by another type.
 const (
 	SendUpdate  = "update"
 	SendRefresh = "refresh"
+	SendRaw     = "raw"
 )
 
 // BaseSendTypes returns the built-in send types. The config parser and the
 // YANG validator both read this list, so a type added here reaches both.
 func BaseSendTypes() []string {
-	return []string{SendUpdate, SendRefresh}
+	return []string{SendUpdate, SendRefresh, SendRaw}
 }

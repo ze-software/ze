@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/seqmap"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -44,6 +45,13 @@ const (
 	stateUp     = "up"
 	stateDown   = "down"
 )
+
+// sessionReadyTimeout bounds the readiness signal's own IPC round trip.
+//
+// Shorter than the barrier it releases (reactor/api_sync.go apiSyncTimeout, 2s),
+// so a signal that cannot get through fails and says so while the peer is still
+// waiting, rather than after the barrier has already given up on it.
+const sessionReadyTimeout = time.Second
 
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -663,13 +671,45 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	}
 	r.mu.Unlock()
 
-	if isUp && !r.replayDrivenElsewhere(se.UnheldRoles) {
+	if !isUp {
+		return
+	}
+	if !r.replayDrivenElsewhere(se.UnheldRoles) {
 		// No other plugin drives peer-up replay for THIS peer, so nothing else
 		// tracks a cut and nothing else forwards these routes: replay all of them.
 		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())
 		if err := r.relayRoutes(se.PeerAddress, routes); err != nil {
 			logger().Error("peer-up replay failed", "peer", se.PeerAddress, "routes", len(routes), "error", err)
 		}
+	}
+	r.signalSessionReady(se.PeerAddress)
+}
+
+// signalSessionReady tells the engine this plugin has finished the routes it
+// owes the peer's INITIAL routing update.
+//
+// RFC 4724 Section 4 owes the End-of-RIB marker once that update completes, and a
+// peer that attaches this plugin with `send [ update ]` is counted into the
+// barrier that holds the marker (reactor/peer_run.go,
+// ProcessBinding.MayPushRoutes). A counted plugin that never signals does not
+// make the marker wrong, it makes it LATE: the barrier runs to its timeout and
+// the peer gets a marker seconds after its initial update was complete.
+//
+// Sent on EVERY peer-up, replay or no replay. A peer whose replay another plugin
+// owns, and a peer this plugin holds no route for, are both finished the instant
+// the event arrives, and a barrier cannot tell "finished with nothing to send"
+// from "still working" unless the plugin says so.
+func (r *AdjRIBInManager) signalSessionReady(peerAddress string) {
+	if r.plugin == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), sessionReadyTimeout)
+	defer cancel()
+	var tb textbuf.Buffer
+	command := tb.Str("request peer ").Str(peerAddress).Str(" plugin session ready").String()
+	if _, _, err := r.plugin.DispatchCommand(ctx, command); err != nil {
+		logger().Warn("plugin session ready failed; this peer's end-of-rib waits out the sync timeout",
+			"peer", peerAddress, "error", err)
 	}
 }
 
@@ -867,7 +907,10 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	}
 	r.mu.Unlock()
 
-	if isUp && !r.replayDrivenElsewhere(event.UnheldRoles) {
+	if !isUp {
+		return
+	}
+	if !r.replayDrivenElsewhere(event.UnheldRoles) {
 		// Replay all known routes to the newly-up peer: no other plugin drives
 		// peer-up replay for THIS peer, so nothing else tracks a cut and nothing
 		// else forwards these routes.
@@ -878,6 +921,7 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 			logger().Error("peer-up replay failed", "peer", event.GetPeerAddress(), "routes", len(routes), "error", err)
 		}
 	}
+	r.signalSessionReady(event.GetPeerAddress())
 }
 
 // noteIngested advances the ingest position to msgID if it is newer.

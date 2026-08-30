@@ -201,12 +201,12 @@ func (s *Session) processOpen(open *message.Open) error {
 	var localCaps []capability.Capability
 	var err error
 	if localOpen != nil {
-		localCaps, err = capability.ParseFromOptionalParams(localOpen.OptionalParams)
+		localCaps, err = capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
 		if err != nil {
 			return fmt.Errorf("parse local OPEN capabilities: %w", err)
 		}
 	}
-	peerCaps, err := capability.ParseFromOptionalParams(open.OptionalParams)
+	peerCaps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	if err != nil {
 		return s.rejectOpenCapabilityError(err)
 	}

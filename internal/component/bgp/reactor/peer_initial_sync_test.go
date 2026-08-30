@@ -15,8 +15,11 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // newInitialSyncPeer returns a peer primed to run sendInitialRoutes with the
@@ -62,8 +65,10 @@ func newInitialSyncPeer(t *testing.T, established bool, families ...family.Famil
 	peer.session = session
 	peer.mu.Unlock()
 
-	// The FSM callback sets the flag to 1 before sendInitialRoutes upgrades 1->2.
+	// What setState does when it publishes Established: close the queueing gate
+	// (1, which sendInitialRoutes upgrades to 2) and mark the End-of-RIB owed.
 	peer.sendingInitialRoutes.Store(1)
+	peer.initialSyncEOROwed.Store(true)
 	return peer, conn
 }
 
@@ -328,6 +333,162 @@ func TestInitialSyncEORWaitsForPeerUpBarrier(t *testing.T) {
 	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
 		"the end-of-rib must reach the wire once every barrier plugin has acknowledged")
 	assert.Equal(t, uint32(1), peer.Stats().EORSent)
+}
+
+// TestInitialSyncClosesTheQueueGateBeforeItWaitsForRoutePushingPlugins pins the
+// SPLIT of the two facts sendingInitialRoutes used to carry at once.
+//
+// RFC requirement: RFC4724-4-1 positive -- "The End-of-RIB marker MUST be sent by
+// a BGP speaker to its peer once it completes the initial routing update ... for
+// an address family" (RFC 4724 Section 4). The owner ruled on 2026-08-30 that a
+// plugin-injected route belongs to that update, so the marker waits for every
+// route-pushing binding. This test is the wait, observed from inside.
+//
+// VALIDATES: while sendInitialRoutes waits for `plugin session ready`, the
+// End-of-RIB is still owed (pendingSync true, nothing on the wire) but the
+// QUEUEING gate is already shut (shouldQueue false, forwardOrderHold false), and
+// the marker goes out when the signal arrives.
+// PREVENTS: the reason the barrier could not be widened before. One flag meant
+// any hold taken before the marker also parked the forwarding rails and queued
+// every route op behind the wait; a 500ms hold measured on 2026-08-08 made
+// test/plugin/role-otc-rs-withdraw-eor.ci deliver the same relayed route twice.
+//
+// The oracle is triggerClock.waiting, which receives when waitForAPISync
+// evaluates its select operands, so the assertions below run with the goroutine
+// provably inside the wait rather than racing it. That clock's After() fires only
+// when the test says so, so the timeout cannot stand in for the signal.
+func TestInitialSyncClosesTheQueueGateBeforeItWaitsForRoutePushingPlugins(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	tc := newTriggerClock()
+	peer.SetClock(tc)
+	peer.resetAPISync(1) // one route-pushing binding; it has not reported ready
+
+	done := make(chan struct{})
+	go func() {
+		peer.sendInitialRoutes()
+		close(done)
+	}()
+
+	select {
+	case <-tc.waiting:
+	case <-time.After(5 * time.Second):
+		t.Fatal("sendInitialRoutes never entered the api-sync wait: the end-of-rib does not wait " +
+			"for the plugins whose routes belong to this speaker's initial routing update")
+	}
+
+	assert.Empty(t, conn.written(),
+		"the end-of-rib must not reach the wire while a route-pushing process still owes its routes")
+	assert.True(t, peer.pendingSync(),
+		"the peer is not settled while its marker is owed, or `request quiesce` returns early")
+	assert.False(t, peer.shouldQueue(),
+		"the queueing gate must already be shut inside the wait, or widening the barrier widens "+
+			"the window in which every route op is queued")
+	assert.False(t, peer.forwardOrderHold(),
+		"the forwarding rails must not be parked by this wait, or a relayed route is held behind a "+
+			"barrier that has nothing to do with it")
+
+	peer.SignalAPIReady()
+
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "sendInitialRoutes must resume once every process reports ready")
+	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
+		"the end-of-rib must reach the wire once every route-pushing process has reported ready")
+	assert.False(t, peer.pendingSync(), "the peer is settled once its marker is on the wire")
+	assert.False(t, peer.initialSyncEOROwed.Load(), "the marker is no longer owed")
+}
+
+// TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed covers the one
+// thing the shut queueing gate must NOT let through.
+//
+// AnnounceEOR defers to the initial sync while the sync still owes the marker,
+// and it used to read shouldQueue for that. Splitting the two facts moved the
+// end of shouldQueue earlier, so the deferral now reads initialSyncEOROwed. A
+// caller's marker inside that window would assert that an initial update still
+// taking routes is complete, and it would take the per-family claim, so the
+// marker this sync owes would never reach the wire at all.
+//
+// VALIDATES: AnnounceEOR writes nothing, and reports the marker handled, while
+// the initial sync waits for the plugins that push its routes.
+// PREVENTS: a route-server replay finishing mid-barrier and closing this peer's
+// initial update on another producer's behalf.
+func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("caller")}
+	tc := newTriggerClock()
+	peer.SetClock(tc)
+	peer.resetAPISync(1)
+
+	done := make(chan struct{})
+	go func() {
+		peer.sendInitialRoutes()
+		close(done)
+	}()
+
+	select {
+	case <-tc.waiting:
+	case <-time.After(5 * time.Second):
+		t.Fatal("sendInitialRoutes never entered the api-sync wait")
+	}
+
+	api := newSendPermissionReactor(peer)
+	require.NoError(t,
+		api.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast),
+			plugin.ProcessSender("caller")),
+		"a suppressed marker is reported handled, so its caller sees no error")
+	assert.Empty(t, conn.written(),
+		"another producer's end-of-rib must not overtake the one this initial sync still owes")
+
+	peer.SignalAPIReady()
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "sendInitialRoutes must resume once every process reports ready")
+	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
+		"the marker the initial sync owed is the one that reaches the wire")
+	assert.Equal(t, uint32(1), peer.Stats().EORSent, "exactly one marker per family per session")
+}
+
+// TestRoutePushingBindingsCountBothRails pins the population the initial-sync
+// barrier waits for: every binding that can put a route on the wire, by either
+// rail that reaches it.
+//
+// RFC requirement: RFC4724-4-1 positive -- the marker is owed once the initial
+// routing update completes, and the owner ruled on 2026-08-30 that a
+// plugin-injected route belongs to that update however the plugin injects it.
+//
+// VALIDATES: MayPushRoutes reads `send [ update ]` and `send [ raw ]`, and the
+// wildcard that grants both.
+// PREVENTS: the undercount that let a hand-built UPDATE sit outside the barrier.
+// `ze-bgp:peer-raw` was gated on attachment alone, so a raw-capable binding was
+// invisible to a count keyed on `send [ update ]` and its routes could arrive
+// after the marker that claimed the update was complete.
+func TestRoutePushingBindingsCountBothRails(t *testing.T) {
+	cases := []struct {
+		name    string
+		binding ProcessBinding
+		want    bool
+	}{
+		{"update", sendUpdateOnly("p"), true},
+		{"raw", sendRawOnly("p"), true},
+		{"wildcard", ProcessBinding{PluginName: "p", SendAll: true}, true},
+		{"refresh only", ProcessBinding{PluginName: "p", Send: map[string]bool{bgpevents.SendRefresh: true}}, false},
+		{"attached only", ProcessBinding{PluginName: "p"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.binding.MayPushRoutes())
+		})
+	}
 }
 
 // TestDefaultOriginateFilterFailsClosedWithoutReactor verifies that the

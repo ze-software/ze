@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — UPDATE forwarding, grouped sending, route refresh
-// Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (shares Incoming Peer Pool buffer across peers)
+// Design: docs/architecture/buffer-architecture.md -- zero-copy, copy-on-modify (shares Incoming Peer Pool buffer across peers)
 // RFC: rfc/short/rfc4271.md — LOCAL_PREF is internal-only (Section 5.1.5)
 // RFC: rfc/short/rfc4456.md — route reflection attribute injection (Section 8)
 // Overview: reactor_api.go — API command handling core
@@ -127,7 +127,13 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 		// contract (peer_stats.go incrEORSent) is "markers that reached the
 		// socket". Operators and compiled functional observers read them as
 		// exactly that. A suppression must not touch them.
-		if peer.shouldQueue() {
+		//
+		// initialSyncEOROwed is read beside shouldQueue because the two facts
+		// were split: the initial sync clears the queueing flag before it waits
+		// for the plugins whose routes belong to this speaker's initial update,
+		// and shouldQueue alone would let a caller's marker through in that
+		// window -- the one window where a plugin route is still arriving.
+		if peer.shouldQueue() || peer.initialSyncEOROwed.Load() {
 			logEORSuppressed(peer, fam)
 			sentCount++
 			continue
@@ -163,9 +169,10 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 }
 
 // logEORSuppressed records an End-of-RIB that AnnounceEOR declined to send, and
-// says which of the three shouldQueue conditions caused it.
+// says which of the four conditions caused it: the three shouldQueue folds
+// together, plus the barrier the initial sync holds the marker behind.
 //
-// One message covering all three would have to hedge, and the obvious wording --
+// One message covering them all would have to hedge, and the obvious wording --
 // "the marker will be emitted when the drain completes" -- is FALSE in two of
 // them: sendInitialRoutes iterates nc.Families() only, so a family that is not
 // negotiated never gets a marker at all; and when shouldQueue is true merely
@@ -187,6 +194,11 @@ func logEORSuppressed(peer *Peer, fam family.Family) {
 			"peer", addr, "family", fam,
 			"reason", "initial-sync-in-progress",
 			"effect", "marker will be emitted by sendInitialRoutes when the drain completes")
+	case peer.initialSyncEOROwed.Load():
+		routesLogger().Warn("end-of-rib suppressed: peer is waiting for the plugins that push its initial routes",
+			"peer", addr, "family", fam,
+			"reason", "initial-sync-barrier-open",
+			"effect", "marker will be emitted by sendInitialRoutes when every route-pushing process reports ready, or at the sync timeout")
 	default:
 		routesLogger().Warn("end-of-rib suppressed: route operations are still queued for this peer",
 			"peer", addr, "family", fam,

@@ -68,20 +68,33 @@ const (
 	PeerStateIdleHold
 )
 
+// PeerState names, as PeerState.String() renders them. They reach an operator
+// as the value of the ze_peer_state_transitions_total from and to labels, so
+// peerStateNames (peer_stats.go) must list exactly this set for the metric
+// cleanup to find every series a removed peer left behind.
+const (
+	peerStateNameStopped     = "stopped"
+	peerStateNameConnecting  = "connecting"
+	peerStateNameActive      = "active"
+	peerStateNameEstablished = "established"
+	peerStateNameIdleHold    = "idle-hold"
+	peerStateNameUnknown     = "unknown"
+)
+
 func (s PeerState) String() string {
 	switch s {
 	case PeerStateStopped:
-		return "stopped"
+		return peerStateNameStopped
 	case PeerStateConnecting:
-		return "connecting"
+		return peerStateNameConnecting
 	case PeerStateActive:
-		return "active"
+		return peerStateNameActive
 	case PeerStateEstablished:
-		return "established"
+		return peerStateNameEstablished
 	case PeerStateIdleHold:
-		return "idle-hold"
+		return peerStateNameIdleHold
 	default:
-		return "unknown"
+		return peerStateNameUnknown
 	}
 }
 
@@ -303,12 +316,36 @@ type Peer struct {
 	opQueue    []peerOp
 	opQueueMax int
 
-	// sendingInitialRoutes gates route sending during session establishment.
+	// sendingInitialRoutes gates route QUEUEING during session establishment.
 	// States: 0=idle, 1=gate closed (queuing enabled), 2=goroutine running.
 	// Set to 1 by setState, in the same call that publishes PeerStateEstablished
 	// and BEFORE it, so no goroutine can ever read an established peer whose
 	// route ops still bypass opQueue. Upgraded to 2 by sendInitialRoutes.
+	//
+	// It answers ONE question: is the initial-sync goroutine still writing the
+	// routes it owns. It used to answer a second one -- is the End-of-RIB still
+	// owed -- and initialSyncEOROwed below now answers that. The two spans are
+	// different, and folding them made the plugin barrier unwidenable: any hold
+	// taken before the marker also held this flag, and holding this flag parks
+	// the forwarding rails and queues every route op behind the wait.
 	sendingInitialRoutes atomic.Int32
+
+	// initialSyncEOROwed records that this session's initial-sync End-of-RIB has
+	// not reached the wire yet. Set by setState alongside sendingInitialRoutes,
+	// cleared by sendInitialRoutes once its marker loop has run, and cleared on
+	// every path that abandons the sync.
+	//
+	// It is the WIDER of the two facts: the marker is still owed while the
+	// initial-sync goroutine waits for the plugins that push routes into this
+	// peer's initial routing update (RFC 4724 Section 4), and by then the
+	// goroutine has already written everything it owns, so sendingInitialRoutes
+	// is clear. That is what lets the barrier cover every route-pushing binding
+	// without widening the queueing window (owner ruling, 2026-08-30).
+	//
+	// Read by pendingSync, so `request quiesce` still means "this peer's initial
+	// update AND its marker are on the wire", and by AnnounceEOR, so another
+	// producer's marker does not overtake the one this sync owes.
+	initialSyncEOROwed atomic.Bool
 
 	// sendingConfigStatic is true while sendInitialRoutes sends config-originated
 	// static routes. notifyMessageReceiver tags sent events with config-static meta
@@ -953,6 +990,21 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 // getPluginFamilies returns families from plugins that declared decode capability.
 // Used as callback for Session.SetPluginFamiliesGetter().
 // Plugins that can decode a family should advertise it in OPEN Multiprotocol capabilities.
+//
+// KNOWN DEFECT, and the fix is NOT the obvious one. This is the whole PROCESS's
+// decode set, so a peer whose config names no family block takes every loaded
+// plugin's families into its OPEN, link-state among them; and because that set is
+// never empty, capability.Negotiate's implicit ipv4/unicast default cannot fire.
+// An ordinary eBGP peer therefore negotiates a family list no operator asked for.
+//
+// Narrowing it to the processes ATTACHED to this peer is the obvious fix and it
+// breaks a deliberate feature. test/plugin/flowspec-open-capability.ci pins that
+// loading a plugin auto-adds its Multiprotocol capabilities "WITHOUT explicit
+// family configuration", and the peer in that test attaches no process. The
+// defect and the feature are the same behaviour seen from two sides, so which
+// one wins is an operator-visible decision about the feature rather than a defect
+// fix. PluginRegistry.DecodeFamiliesForPlugins is the narrowing, written and
+// tested, and is not called from here until that decision is made.
 func (p *Peer) getPluginFamilies() []string {
 	p.mu.RLock()
 	r := p.reactor
@@ -1055,7 +1107,7 @@ func (p *Peer) claimPeerAS(remote *message.Open) uint32 {
 // right subcode (rejectOpenCapabilityError). Falling back to My AS here keeps
 // that the single place a capability problem is reported.
 func openAdvertisedAS(remote *message.Open) uint32 {
-	caps, err := capability.ParseFromOptionalParams(remote.OptionalParams)
+	caps, err := capability.ParseFromOptionalParams(remote.OptionalParams, remote.ExtendedParams)
 	if err == nil {
 		for _, c := range caps {
 			if as4, ok := c.(*capability.ASN4); ok && as4.ASN > 0 {
@@ -1170,10 +1222,10 @@ func (p *Peer) State() PeerState {
 
 // setState updates state and calls callback.
 //
-// Publishing PeerStateEstablished CLOSES the initial-sync gate first, and the
-// order is the whole point: p.state is what every other goroutine reads, so the
-// instant Established becomes visible the peer must already look busy to both
-// gate readers. shouldQueue would otherwise send a plugin's route DIRECT to the
+// Publishing PeerStateEstablished CLOSES the initial-sync gate first and marks
+// the End-of-RIB owed, and the order is the whole point: p.state is what every
+// other goroutine reads, so the instant Established becomes visible the peer
+// must already look busy to both gate readers. shouldQueue would otherwise send a plugin's route DIRECT to the
 // session, ahead of the End-of-RIB sendInitialRoutes has not started emitting
 // (RFC 4724 Section 2), and pendingSync would tell the bgp-peer-sync quiescer
 // (DrainPeerSync, reactor_api.go) that a peer whose initial sync has not begun
@@ -1196,6 +1248,7 @@ func (p *Peer) State() PeerState {
 func (p *Peer) setState(s PeerState) {
 	if s == PeerStateEstablished {
 		p.sendingInitialRoutes.Store(1)
+		p.initialSyncEOROwed.Store(true)
 	}
 	old := PeerState(p.state.Swap(int32(s)))
 	if old != s {
@@ -1565,16 +1618,23 @@ func (p *Peer) wakeForwardOverflow() {
 	r.fwdPool.wakeOverflow(fwdKey{peerAddr: p.settings.PeerKey()})
 }
 
-// pendingSync reports whether the peer still has route work that has not reached
-// the wire: routes queued while not-yet-established, or an in-flight initial-route
-// sync. Unlike shouldQueue it does NOT gate on state -- a not-yet-established peer
-// with queued routes IS pending (those routes drain when it establishes), while a
-// down/idle peer with an empty queue is not. Used by the DrainPeerSync barrier so
-// a test can wait for send()-during-establishment routes to reach the wire.
+// pendingSync reports whether the peer still owes the wire something from this
+// session's initial update: routes queued while not-yet-established, an in-flight
+// initial-route sync, or the End-of-RIB that closes it. Unlike shouldQueue it does
+// NOT gate on state -- a not-yet-established peer with queued routes IS pending
+// (those routes drain when it establishes), while a down/idle peer with an empty
+// queue is not. Used by the DrainPeerSync barrier so a test can wait for
+// send()-during-establishment routes to reach the wire.
+//
+// It reads initialSyncEOROwed as well as the queueing flag, and that is what keeps
+// `request quiesce` meaning what it meant before the two facts were split: the
+// initial-sync goroutine now clears the queueing flag before it waits for the
+// plugins that push routes, so the flag alone would report a peer settled while
+// its marker was still owed.
 func (p *Peer) pendingSync() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.sendingInitialRoutes.Load() != 0 || len(p.opQueue) > 0
+	return p.sendingInitialRoutes.Load() != 0 || p.initialSyncEOROwed.Load() || len(p.opQueue) > 0
 }
 
 // QueueAnnounce queues a route announcement for when session establishes.

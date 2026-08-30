@@ -685,7 +685,7 @@ func TestOpenAdvertisedASReadsAS4Capability(t *testing.T) {
 	const as4 uint32 = 4200000001 // > 65535, so My AS must carry AS_TRANS
 
 	withAS4 := &message.Open{Version: 4, MyAS: message.AS_TRANS, HoldTime: 90, BGPIdentifier: 0x01020304}
-	withAS4.OptionalParams = buildOptionalParams([]capability.Capability{&capability.ASN4{ASN: as4}})
+	withAS4.OptionalParams, withAS4.ExtendedParams = buildOptionalParams([]capability.Capability{&capability.ASN4{ASN: as4}})
 
 	assert.Equal(t, as4, openAdvertisedAS(withAS4),
 		"a 4-byte-AS peer must be identified by its AS4 capability, not AS_TRANS")

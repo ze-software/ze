@@ -27,6 +27,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// configTrue is the text a plugin config value carries for a boolean that is
+// on. Every ConfigValues map spells an enabled capability this way.
+const configTrue = "true"
+
 // Errors.
 var (
 	ErrShortRead     = errors.New("capability: short read")
@@ -369,7 +373,7 @@ func (r *RouteRefresh) WriteTo(buf []byte, off int) int {
 
 // ConfigValues implements ConfigProvider for plugin config delivery.
 func (r *RouteRefresh) ConfigValues() map[string]string {
-	return map[string]string{"rfc2918:enabled": "true"}
+	return map[string]string{"rfc2918:enabled": configTrue}
 }
 
 // ExtendedMessage represents Extended Message capability (RFC 8654).
@@ -389,7 +393,7 @@ func (e *ExtendedMessage) WriteTo(buf []byte, off int) int {
 
 // ConfigValues implements ConfigProvider for plugin config delivery.
 func (e *ExtendedMessage) ConfigValues() map[string]string {
-	return map[string]string{"rfc8654:enabled": "true"}
+	return map[string]string{"rfc8654:enabled": configTrue}
 }
 
 // EnhancedRouteRefresh represents Enhanced Route Refresh capability (RFC 7313).
@@ -409,7 +413,7 @@ func (e *EnhancedRouteRefresh) WriteTo(buf []byte, off int) int {
 
 // ConfigValues implements ConfigProvider for plugin config delivery.
 func (e *EnhancedRouteRefresh) ConfigValues() map[string]string {
-	return map[string]string{"rfc7313:enabled": "true"}
+	return map[string]string{"rfc7313:enabled": configTrue}
 }
 
 // AddPathMode indicates send/receive capability for ADD-PATH.
@@ -484,10 +488,10 @@ func (a *AddPath) ConfigValues() map[string]string {
 	result := make(map[string]string)
 	for _, f := range a.Families {
 		if f.Mode == AddPathSend || f.Mode == AddPathBoth {
-			result["rfc7911:send"] = "true"
+			result["rfc7911:send"] = configTrue
 		}
 		if f.Mode == AddPathReceive || f.Mode == AddPathBoth {
-			result["rfc7911:receive"] = "true"
+			result["rfc7911:receive"] = configTrue
 		}
 	}
 	return result
@@ -658,7 +662,7 @@ func (e *ExtendedNextHop) ConfigValues() map[string]string {
 	if len(e.Families) == 0 {
 		return nil
 	}
-	return map[string]string{"rfc8950:enabled": "true"}
+	return map[string]string{"rfc8950:enabled": configTrue}
 }
 
 // parseExtendedNextHop parses an Extended Next Hop capability.
@@ -801,7 +805,7 @@ func (p *PathsLimit) ConfigValues() map[string]string {
 	if len(p.Entries) == 0 {
 		return nil
 	}
-	return map[string]string{"draft-abraitis-paths-limit:enabled": "true"}
+	return map[string]string{"draft-abraitis-paths-limit:enabled": configTrue}
 }
 
 // parsePathsLimit parses a PATHS-LIMIT capability.
@@ -844,18 +848,33 @@ func parsePathsLimit(data []byte) (*PathsLimit, error) {
 // ParseFromOptionalParams extracts capabilities from OPEN optional parameters.
 // RFC 5492 Section 4: Optional Parameters contain type-length-value triples.
 // Type 2 indicates the Capabilities Optional Parameter.
-func ParseFromOptionalParams(optParams []byte) ([]Capability, error) {
+// extended selects the RFC 9072 Section 2 parameter framing, whose Parameter
+// Length field is two octets rather than one. The caller reads it from the OPEN
+// it decoded (message.Open.ExtendedParams); this function cannot derive it,
+// because a one-octet and a two-octet length are the same bytes read two ways.
+func ParseFromOptionalParams(optParams []byte, extended bool) ([]Capability, error) {
 	var caps []Capability
 	offset := 0
 
+	// RFC 9072 Section 2 extends the Parameter Length field to two octets, so the
+	// header is three octets rather than two under that framing.
+	lenOctets := 1
+	if extended {
+		lenOctets = 2
+	}
+	hdrLen := 1 + lenOctets
+
 	for offset < len(optParams) {
-		if offset+2 > len(optParams) {
+		if offset+hdrLen > len(optParams) {
 			return nil, ErrShortRead
 		}
 
-		paramType := optParams[offset]       //nolint:gosec // G602 false positive: offset+2 bounds-checked above
-		paramLen := int(optParams[offset+1]) //nolint:gosec // G602 false positive: offset+2 bounds-checked above
-		offset += 2
+		paramType := optParams[offset] //nolint:gosec // G602 false positive: bounds-checked above
+		paramLen := int(optParams[offset+1])
+		if extended {
+			paramLen = int(optParams[offset+1])<<8 | int(optParams[offset+2])
+		}
+		offset += hdrLen
 
 		if offset+paramLen > len(optParams) {
 			return nil, ErrShortRead

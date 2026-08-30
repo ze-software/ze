@@ -468,7 +468,12 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut uint64) {
 func (rs *routeServer) sendEOR(peerAddr string, gen uint64) {
 	rs.mu.RLock()
 	p := rs.peers[peerAddr]
-	if p == nil || p.ReplayGen != gen || len(p.Families) == 0 {
+	// A peer with no recorded family gets no marker and still gets the readiness
+	// signal below: the replay has terminated either way, and the count that
+	// holds the peer's End-of-RIB is over PROCESSES, not over families. Leaving
+	// on this branch was what made a family-less peer wait out the whole
+	// barrier timeout.
+	if p == nil || p.ReplayGen != gen {
 		rs.mu.RUnlock()
 		return
 	}
@@ -484,7 +489,30 @@ func (rs *routeServer) sendEOR(peerAddr string, gen uint64) {
 	for _, fam := range families {
 		rs.updateRoute(peerAddr, "update text nlri "+fam+" eor")
 	}
-	logger().Info("sent EOR", "peer", peerAddr, "families", families)
+	if len(families) > 0 {
+		logger().Info("sent EOR", "peer", peerAddr, "families", families)
+	}
+	rs.signalSessionReady(peerAddr)
+}
+
+// signalSessionReady tells the engine this plugin has finished the routes it
+// owes the peer's INITIAL routing update.
+//
+// RFC 4724 Section 4 owes the End-of-RIB marker once that update completes, and a
+// peer that attaches this plugin with `send [ update ]` is counted into the
+// barrier that holds the marker (reactor/peer_run.go,
+// ProcessBinding.MayPushRoutes). A counted plugin that never signals does not
+// make the marker wrong, it makes it LATE: the barrier runs to its timeout and
+// the peer gets a marker seconds after its initial update was complete. bgp-rib
+// and bgp-watchdog have always signaled; this plugin did not, so every peer that
+// attached a route server paid the timeout.
+//
+// Sent after the per-family EoR above, not before. That EoR is suppressed while
+// the initial sync still owes its own marker (reactor/reactor_api_forward.go), so
+// signaling first would open the barrier and let the sync's marker overtake the
+// last thing this plugin had to say.
+func (rs *routeServer) signalSessionReady(peerAddr string) {
+	rs.peerAction(peerAddr, "plugin session ready")
 }
 
 // replayProgress is what one replay call reports back about the replay's state.

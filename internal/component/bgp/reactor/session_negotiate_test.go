@@ -188,8 +188,9 @@ func TestOpenAdvertisesVPNv6Capability(t *testing.T) {
 	require.NoError(t, err)
 
 	// sendOpen encodes settings.Capabilities into the OPEN's optional params.
-	open := &message.Open{Version: 4, OptionalParams: buildOptionalParams(ps.Capabilities)}
-	caps, err := capability.ParseFromOptionalParams(open.OptionalParams)
+	params, extended := buildOptionalParams(ps.Capabilities)
+	open := &message.Open{Version: 4, OptionalParams: params, ExtendedParams: extended}
+	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	require.NoError(t, err)
 
 	found := false
@@ -233,7 +234,7 @@ func TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability(t *testing.T) {
 
 // TestBuildOptionalParams_Empty verifies nil return for no capabilities.
 func TestBuildOptionalParams_Empty(t *testing.T) {
-	result := buildOptionalParams(nil)
+	result, _ := buildOptionalParams(nil)
 	assert.Nil(t, result)
 }
 
@@ -243,7 +244,7 @@ func TestBuildOptionalParams_SingleCap(t *testing.T) {
 		&capability.ASN4{ASN: 65001},
 	}
 
-	result := buildOptionalParams(caps)
+	result, _ := buildOptionalParams(caps)
 	require.NotNil(t, result)
 
 	// Param type=2, param length=6 (ASN4: code=65, len=4, data=4 bytes)
@@ -261,7 +262,7 @@ func TestBuildOptionalParams_MultipleCaps(t *testing.T) {
 		&capability.ASN4{ASN: 65001},
 	}
 
-	result := buildOptionalParams(caps)
+	result, _ := buildOptionalParams(caps)
 	require.NotNil(t, result)
 
 	// Single type-2 param wrapping both capabilities.
@@ -287,7 +288,7 @@ func newNoFamilySession(t *testing.T) (*Session, *PeerSettings) {
 // produces when ze itself declares no Multiprotocol capability.
 func negotiateAgainstMirror(t *testing.T, open *message.Open) *NegotiatedCapabilities {
 	t.Helper()
-	caps, err := capability.ParseFromOptionalParams(open.OptionalParams)
+	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	require.NoError(t, err)
 	return NewNegotiatedCapabilities(capability.Negotiate(caps, caps, 65001, 65002))
 }

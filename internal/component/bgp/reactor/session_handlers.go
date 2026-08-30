@@ -15,21 +15,31 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// handleUnknownType handles unknown message types (exabgp-compatible).
+// handleUnknownType refuses a message header whose Type field ze does not
+// recognize.
+//
+// RFC 4271 Section 6.1: "If the Type field of the message header is not
+// recognized, then the Error Subcode MUST be set to Bad Message Type. The Data
+// field MUST contain the erroneous Type field." Both halves are obligations, so
+// the subcode is NotifyHeaderBadType and the Data is the one offending octet.
+//
+// It previously sent subcode 0 with a prose string, on the authority of a
+// comment reading "ExaBGP format". That was wrong twice over: a peer's behavior
+// is not an authority against the RFC (ai/rules/rfc-compliance.md), and ExaBGP
+// itself now raises the conformant (1,3) from Message.unpack. A reader cannot
+// parse prose out of the Data field, and the octet the RFC asks for was the one
+// thing the old message did not carry.
 func (s *Session) handleUnknownType(msgType msgtype.MessageType) error {
 	s.mu.RLock()
 	conn := s.conn
 	s.mu.RUnlock()
 
-	// ExaBGP format: Message Header Error (1), subcode 0, text message.
-	errMsg := textbuf.StrIntStr("can not decode update message of type \"", int64(msgType), "\"")
 	s.logNotifyErr(conn,
 		message.NotifyMessageHeader,
-		0, // ExaBGP uses subcode 0
-		[]byte(errMsg),
+		message.NotifyHeaderBadType,
+		[]byte{byte(msgType)},
 	)
 	s.logFSMEvent(fsm.EventBGPHeaderErr)
 	s.closeConn()
@@ -153,12 +163,12 @@ func (s *Session) handleOpen(body []byte) error {
 	// Parse capabilities from both OPENs for negotiation.
 	var localCaps, peerCaps []capability.Capability
 	if localOpen != nil {
-		localCaps, err = capability.ParseFromOptionalParams(localOpen.OptionalParams)
+		localCaps, err = capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
 		if err != nil {
 			return fmt.Errorf("parse local OPEN capabilities: %w", err)
 		}
 	}
-	peerCaps, err = capability.ParseFromOptionalParams(open.OptionalParams)
+	peerCaps, err = capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	if err != nil {
 		return s.rejectOpenCapabilityError(err)
 	}

@@ -208,7 +208,7 @@ func TestOptionalParamRejectsTruncatedCapabilityTLV(t *testing.T) {
 	_, err := ParseFromOptionalParams([]byte{
 		0x02, 0x04, // Optional Parameter type=Capabilities, len=4
 		0x01, 0x04, // Capability code=Multiprotocol, len=4, value truncated
-	})
+	}, false)
 	require.ErrorIs(t, err, ErrShortRead)
 }
 
@@ -234,7 +234,7 @@ func TestOptionalParamPreservesUnknownCapability(t *testing.T) {
 	caps, err := ParseFromOptionalParams([]byte{
 		0x02, 0x04, // Optional Parameter type=Capabilities, len=4
 		0xFE, 0x02, 0xAB, 0xCD, // Unknown capability code 254, len=2
-	})
+	}, false)
 	require.NoError(t, err)
 	require.Len(t, caps, 1)
 
@@ -296,7 +296,7 @@ func TestParseFromOptionalParamsMultipleCapabilitiesParameters(t *testing.T) {
 		0x02, 0x06, 0x41, 0x04, 0x00, 0x00, 0xFD, 0xEA,
 	}
 
-	caps, err := ParseFromOptionalParams(optParams)
+	caps, err := ParseFromOptionalParams(optParams, false)
 	require.NoError(t, err)
 	require.Len(t, caps, 2, "capabilities from both Capabilities Optional Parameters must be parsed")
 

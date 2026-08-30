@@ -70,11 +70,11 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 		return false
 	}
 
-	baseCaps, err := capability.ParseFromOptionalParams(localOpen.OptionalParams)
+	baseCaps, err := capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
 	if err != nil {
 		return false
 	}
-	peerCaps, err := capability.ParseFromOptionalParams(peerOpen.OptionalParams)
+	peerCaps, err := capability.ParseFromOptionalParams(peerOpen.OptionalParams, peerOpen.ExtendedParams)
 	if err != nil {
 		return false
 	}
@@ -83,7 +83,7 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 	if !openHeaderEqual(localOpen, nextOpen) {
 		return false
 	}
-	nextCaps, err := capability.ParseFromOptionalParams(nextOpen.OptionalParams)
+	nextCaps, err := capability.ParseFromOptionalParams(nextOpen.OptionalParams, nextOpen.ExtendedParams)
 	if err != nil {
 		return false
 	}

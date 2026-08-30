@@ -41,7 +41,7 @@ func decodeOpenMessage(data []byte, hasHeader bool) (map[string]any, error) {
 	}
 
 	// Parse capabilities
-	caps, err := capability.ParseFromOptionalParams(open.OptionalParams)
+	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	if err != nil {
 		return nil, fmt.Errorf("parse capabilities: %w", err)
 	}
@@ -96,5 +96,5 @@ func capabilityToZeJSON(c capability.Capability) map[string]any {
 		}
 	}
 
-	return map[string]any{"code": code, "name": "unknown", "raw": rawHex}
+	return map[string]any{"code": code, "name": capNameUnknown, jsonKeyRaw: rawHex}
 }

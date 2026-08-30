@@ -45,25 +45,9 @@ type sendOrigin struct {
 	// bgpevents.SendUpdate for anything that builds an UPDATE (an announce, a
 	// withdrawal, an End-of-RIB marker, a cache forward, a stored-route relay),
 	// bgpevents.SendRefresh for a ROUTE-REFRESH (a refresh, a BoRR, an EoRR, a
-	// soft clear), sendTypeRaw for a raw injection.
+	// soft clear), bgpevents.SendRaw for a raw injection.
 	sendType string
-	// attachOnly asks the weaker question: does this peer attach the process at
-	// all, whatever its send list grants. Raw injection asks it, because the
-	// bytes it carries are a whole BGP message of any type and the send list has
-	// no word for that (see sendTypeRaw).
-	attachOnly bool
 }
-
-// sendTypeRaw labels a refused raw injection in the log line and in the
-// ze_bgp_send_refused_total counter.
-//
-// It is NOT a token the `send` list accepts, and the YANG validator does not
-// know it. A raw injection carries a whole BGP message chosen by the caller, an
-// OPEN or a NOTIFICATION included, so no existing send type describes it and
-// minting one is a vocabulary decision for the owner rather than a decision this
-// guard may take. What raw is gated on instead is the weaker permission the
-// vocabulary already implies: the peer must attach the process at all.
-const sendTypeRaw = "raw"
 
 // announceOrigin is the origin of a command that puts an UPDATE on the wire.
 func announceOrigin(sender plugin.Sender) sendOrigin {
@@ -77,8 +61,15 @@ func refreshOrigin(sender plugin.Sender) sendOrigin {
 
 // rawOrigin is the origin of a raw injection: caller-supplied bytes written to
 // one peer's socket with no message built around them.
+//
+// Gated on `send [ raw ]` like every other rail is gated on the message it
+// generates. It used to be gated on ATTACHMENT alone, because the send list had
+// no word for a message of the caller's choosing; the owner added the word on
+// 2026-08-30, so the peer now states the permission instead of implying it, and
+// a raw-capable binding is countable by the initial-sync barrier that holds this
+// peer's End-of-RIB (peer_run.go, ProcessBinding.MayPushRoutes).
 func rawOrigin(sender plugin.Sender) sendOrigin {
-	return sendOrigin{sender: sender, sendType: sendTypeRaw, attachOnly: true}
+	return sendOrigin{sender: sender, sendType: bgpevents.SendRaw}
 }
 
 // errSendNotPermitted is returned when a selector matched peers and every one
@@ -104,9 +95,6 @@ var errSendNoSender = errors.New("send refused: the command names no sender, so 
 // all deny. A missing block is the operator saying nothing about this process,
 // and saying nothing is not a grant (ai/rules/evidence.md).
 //
-// An origin marked attachOnly stops at the block: the process must be attached,
-// and the send list is not read. Only rawOrigin sets it.
-//
 // Reads p.settings directly rather than through settingsSnapshot, which copies
 // the struct under p.mu. The fields read here are written once, when the peer is
 // built, and no later path writes them, so the copy would buy nothing and this
@@ -123,7 +111,7 @@ func (p *Peer) maySend(origin sendOrigin) bool {
 		if b.PluginName != process {
 			continue
 		}
-		if origin.attachOnly || b.MaySend(origin.sendType) {
+		if b.MaySend(origin.sendType) {
 			return true
 		}
 	}
@@ -178,13 +166,7 @@ func filterPermittedPeers(matched []*Peer, origin sendOrigin) (permitted []*Peer
 func sendPermissionDenied(peer *Peer, origin sendOrigin) {
 	var tb textbuf.Buffer
 	process := origin.sender.String()
-	// An attachOnly refusal is fixed by attaching the process, not by adding a
-	// send type: the send list has no word for a raw message, so naming one here
-	// would send the operator to a token the YANG validator refuses.
 	action := tb.Str("add `attach process ").Str(process).Str(" { send [ ").Str(origin.sendType).Str(" ] }` to this peer").String()
-	if origin.attachOnly {
-		action = tb.Reset().Str("add `attach process ").Str(process).Str(" { }` to this peer").String()
-	}
 	routesLogger().Warn("send refused: this peer does not attach that process with the send permission it needs",
 		"peer", peer.settings.Address,
 		"process", process,
@@ -253,7 +235,7 @@ func setSendPermissionMetricsRegistry(reg metrics.Registry) {
 		refused: reg.CounterVec(
 			"ze_bgp_send_refused_total",
 			"Messages a process was refused permission to generate toward a peer, because the peer's config does not attach that process with that send type. Nothing reached the peer.",
-			[]string{"process", "type"},
+			[]string{"process", metricLabelType},
 		),
 	})
 }

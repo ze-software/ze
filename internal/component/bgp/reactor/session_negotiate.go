@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"log/slog"
 	"net"
 	"time"
@@ -139,6 +140,24 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 
 	// If config has NO family block, use ALL plugin decode families.
 	// This allows plugins to define what families are available.
+	//
+	// KNOWN DEFECT, and the fix is a DESIGN decision, not a patch here. In the
+	// shipped tree this fallback advertises 17 families and none of them is
+	// ipv4/unicast, because every in-tree NLRI plugin declares decode families
+	// and none of them declares the core family. Negotiate applies its implicit
+	// ipv4/unicast default only when the local set is EMPTY, so 17 families
+	// means the default never fires and the OPEN positively states that ze does
+	// not speak IPv4 unicast. A peer with no family block negotiates nothing
+	// usable against an ordinary neighbor, and is offered BGP-LS nobody asked
+	// for.
+	//
+	// Three readings, and picking one silently is what this comment prevents:
+	// the fallback should ADD ipv4/unicast (breaks a deliberate single-family
+	// plugin, which TestBuildOpenPluginFamiliesUnchanged legitimately pins);
+	// config silence should mean ipv4/unicast alone, as ExaBGP does (drops the
+	// plugin-fills-the-gap behavior AC-3 was written for); or the getter's
+	// population is wrong, because the whole in-tree NLRI catalog is not an
+	// operator choice the way one purpose-built plugin is.
 	if !configHasFamilies && s.pluginFamiliesGetter != nil {
 		seen := make(map[family.Family]bool)
 		for _, famStr := range s.pluginFamiliesGetter() {
@@ -183,7 +202,7 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 	}
 
 	// Build optional parameters (capabilities).
-	optParams := buildOptionalParams(caps)
+	optParams, extendedParams := buildOptionalParams(caps)
 
 	// Determine AS to put in header (AS_TRANS if > 65535).
 	myAS := uint16(settings.LocalAS) //nolint:gosec // Truncation intended for AS_TRANS
@@ -198,17 +217,32 @@ func (s *Session) buildOpen(settings *PeerSettings, configCaps []capability.Capa
 		BGPIdentifier:  settings.RouterID,
 		ASN4:           settings.LocalAS,
 		OptionalParams: optParams,
+		ExtendedParams: extendedParams,
 	}
 }
 
-// buildOptionalParams builds optional parameters from capabilities.
-// RFC 5492 Section 4: capabilities are packed into type-2 optional parameters.
-// If total capability bytes fit in one parameter (<=255), a single type-2
-// parameter is used. If they exceed 255 bytes, capabilities are split across
-// multiple type-2 parameters, each within the 255-byte length limit.
-func buildOptionalParams(caps []capability.Capability) []byte {
+// buildOptionalParams packs capabilities into a single type-2 optional
+// parameter, and reports whether it used the RFC 9072 Section 2 framing.
+//
+// RFC 5492 Section 4 carries capabilities in a type-2 optional parameter. Its
+// Parameter Length is one octet, so RFC 4271 framing holds at most 255 octets of
+// capabilities. RFC 9072 Section 2 extends that field to two octets, and one
+// parameter then holds every capability ze can send.
+//
+// The returned flag is the second half of a decision the encoder makes: Open.
+// WriteTo chooses the ENVELOPE from the total length, and this chooses the
+// framing of the parameters inside it. They are in different packages, and when
+// they disagreed ze wrapped one-octet parameters in an extended envelope. A peer
+// reading it per RFC 9072 takes the first parameter's type and the high half of
+// its length as a two-octet length, and misframes every parameter after it. It
+// went unnoticed because ze read back what ze wrote.
+//
+// Splitting across several parameters is gone with it. It existed only to keep
+// each length under 256, which the extended framing makes unnecessary, and a
+// split cannot be expressed at all once one parameter can hold everything.
+func buildOptionalParams(caps []capability.Capability) ([]byte, bool) {
 	if len(caps) == 0 {
-		return nil
+		return nil, false
 	}
 
 	capTotal := 0
@@ -224,44 +258,27 @@ func buildOptionalParams(caps []capability.Capability) []byte {
 		for _, c := range caps {
 			off += c.WriteTo(buf, off)
 		}
-		return buf
+		return buf, false
 	}
 
-	// Split into multiple type-2 parameters when total exceeds 255 bytes.
-	var buf []byte
-	paramLen := 0
-	var paramCaps []capability.Capability
-
-	flush := func() {
-		if paramLen == 0 {
-			return
-		}
-		param := make([]byte, 2+paramLen)
-		param[0] = 2
-		param[1] = byte(paramLen) //nolint:gosec // paramLen <= 255 enforced by split logic
-		off := 2
-		for _, c := range paramCaps {
-			off += c.WriteTo(param, off)
-		}
-		buf = append(buf, param...)
-		paramCaps = paramCaps[:0]
-		paramLen = 0
+	// RFC 9072 Section 2: one type-2 parameter with a two-octet Parameter Length.
+	if capTotal > maxExtendedParamLen {
+		slog.Error("capabilities exceed the RFC 9072 two-octet parameter length, truncating",
+			"bytes", capTotal, "limit", maxExtendedParamLen)
+		return nil, false
 	}
 
+	buf := make([]byte, 3+capTotal)
+	buf[0] = 2
+	binary.BigEndian.PutUint16(buf[1:3], uint16(capTotal)) //nolint:gosec // bounded above
+	off := 3
 	for _, c := range caps {
-		cLen := c.Len()
-		if cLen > 255 {
-			slog.Debug("capability exceeds 255-byte parameter limit, skipping",
-				"code", c.Code(), "len", cLen)
-			continue
-		}
-		if paramLen+cLen > 255 {
-			flush()
-		}
-		paramCaps = append(paramCaps, c)
-		paramLen += cLen
+		off += c.WriteTo(buf, off)
 	}
-	flush()
 
-	return buf
+	return buf, true
 }
+
+// maxExtendedParamLen is the largest value the RFC 9072 Section 2 two-octet
+// Parameter Length field can carry.
+const maxExtendedParamLen = 65535

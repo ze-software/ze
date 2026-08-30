@@ -54,16 +54,18 @@ func establishNegotiatedSession(t *testing.T, p *Peer, peerCaps ...capability.Ca
 	s := NewSession(p.settings)
 	s.setConfigCapabilityGetter(p.configuredCapabilities)
 	s.localOpen = s.buildOpen(p.settings, p.settings.Capabilities)
+	peerParams, peerExtended := buildOptionalParams(peerCaps)
 	s.peerOpen = &message.Open{
 		Version:        4,
 		MyAS:           uint16(p.settings.PeerAS), //nolint:gosec // test ASN is 65002
 		HoldTime:       uint16(p.settings.ReceiveHoldTime.Seconds()),
 		BGPIdentifier:  0x05060708,
 		ASN4:           p.settings.PeerAS,
-		OptionalParams: buildOptionalParams(peerCaps),
+		OptionalParams: peerParams,
+		ExtendedParams: peerExtended,
 	}
 
-	localCaps, err := capability.ParseFromOptionalParams(s.localOpen.OptionalParams)
+	localCaps, err := capability.ParseFromOptionalParams(s.localOpen.OptionalParams, s.localOpen.ExtendedParams)
 	require.NoError(t, err)
 	s.negotiateWith(localCaps, peerCaps)
 	require.NotNil(t, s.negotiated, "the fixture must reach a negotiated session")
@@ -317,6 +319,10 @@ func TestOpenHeaderEqualCoversEveryOpenField(t *testing.T) {
 		"HoldTime":      func(o *message.Open) { o.HoldTime = 180 },
 		"BGPIdentifier": func(o *message.Open) { o.BGPIdentifier = 0x0A0B0C0D },
 		"ASN4":          func(o *message.Open) { o.ASN4 = 4200000000 },
+		// A peer that switches between RFC 4271 and RFC 9072 parameter framing has
+		// changed how its optional parameters must be READ, which is a property of
+		// the header rather than of any capability inside it.
+		"ExtendedParams": func(o *message.Open) { o.ExtendedParams = true },
 	}
 
 	for field := range reflect.TypeFor[message.Open]().Fields() {

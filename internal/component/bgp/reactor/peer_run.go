@@ -12,7 +12,6 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 )
 
 // run is the main peer loop.
@@ -302,10 +301,15 @@ func (p *Peer) runOnce() error {
 		if sess := p.session; sess != nil {
 			sess.clearReportedWarnings()
 		}
-		// Reset sendingInitialRoutes flag so next session can run sendInitialRoutes().
-		// This is needed because session.Teardown() may return before the old
-		// sendInitialRoutes() goroutine finishes its 500ms sleep.
+		// Reset both initial-sync facts so the next session can run
+		// sendInitialRoutes(). This is needed because session.Teardown() may
+		// return while the old sendInitialRoutes() goroutine is still inside its
+		// bounded waits. The End-of-RIB fact is cleared here as well as the
+		// queueing one: this session's marker is no longer owed to anybody, and
+		// leaving it set would make pendingSync report a dead peer as pending
+		// for good (peer.go).
 		p.sendingInitialRoutes.Store(0)
+		p.initialSyncEOROwed.Store(false)
 		// The session is gone, so nothing will drain an opQueue for it. Release
 		// the forwarded UPDATEs parked behind the sync: fwdBatchHandler discards
 		// them for a peer that is no longer Established, which is what must
@@ -441,27 +445,24 @@ func (p *Peer) runOnce() error {
 
 			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
 
-			// Reset per-session API sync: count plugins permitted to send
-			// updates. They will signal "plugin session ready" after replaying
-			// routes.
+			// Reset per-session API sync: count the bindings that may push a
+			// route onto this peer's wire. They signal "plugin session ready"
+			// when their initial routes are out, and this peer's End-of-RIB
+			// waits for all of them (RFC 4724 Section 4: the marker is sent once
+			// the initial routing update completes).
 			//
-			// This count is ALSO what gates the initial-sync hold that keeps ze's
-			// End-of-RIB behind plugin-injected routes, and the two agree on
-			// every rail that BUILDS an UPDATE: the send permission gates the six
+			// MayPushRoutes reads BOTH rails that reach the wire, which is what
+			// closes the undercount this count used to carry. Every rail that
+			// BUILDS an UPDATE is gated on `send [ update ]` -- the six
 			// selector-resolving commands, ForwardUpdate, ForwardUpdatesDirect
-			// and RelayStoredRoute on this same declaration
-			// (send_permission.go). They do NOT agree on ze-bgp:peer-raw, which
-			// is gated on attachment alone because its payload is a message of
-			// the caller's choosing: a bare-bound process can put a hand-built
-			// UPDATE on this peer's wire and is not counted here. Two halves of
-			// the KNOWN DEFECT in sendInitialRoutes (peer_initial_sync.go)
-			// therefore survive -- that raw rail, and the overcount where the
-			// hold waits out its whole timeout for a permitted plugin that never
-			// signals plugin-session-ready while keeping shouldQueue true. Read
-			// that note before changing either.
+			// and RelayStoredRoute (send_permission.go). ze-bgp:peer-raw carries
+			// a message the caller built and is gated on `send [ raw ]`, the word
+			// the owner added on 2026-08-30. Before that word existed the rail
+			// was gated on attachment alone, so a hand-built UPDATE from a bare
+			// `attach process X { }` binding sat outside this barrier entirely.
 			apiSendCount := 0
 			for _, binding := range p.settings.ProcessBindings {
-				if binding.MaySend(bgpevents.SendUpdate) {
+				if binding.MayPushRoutes() {
 					apiSendCount++
 				}
 			}
