@@ -103,6 +103,14 @@ type collectorConfig struct {
 	SourceAddress string `json:"source-address"`
 }
 
+// The two configuration roots BMP reads, and the protocol name it injects
+// routes and withdrawals under.
+const (
+	configRootBGP         = "bgp"
+	configRootEnvironment = "environment"
+	protocolBMP           = "bmp"
+)
+
 // environmentSection wraps the full environment config section.
 // ExtractConfigSubtree returns {"environment": {"bmp": {...}}}, so we need
 // two levels of wrapping.
@@ -337,7 +345,7 @@ func runBMPPlugin(conn net.Conn) int {
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
 			switch section.Root {
-			case "environment":
+			case configRootEnvironment:
 				rcv, err := parseReceiverConfig(section.Data)
 				if err != nil {
 					logger().Error("bmp: receiver config parse failed", "error", err)
@@ -346,7 +354,7 @@ func runBMPPlugin(conn net.Conn) int {
 				if rcv.Enabled == yangTrue && len(rcv.Servers) > 0 {
 					bp.startReceiver(rcv)
 				}
-			case "bgp":
+			case configRootBGP:
 				snd, err := parseSenderConfig(section.Data)
 				if err != nil {
 					logger().Error("bmp: sender config parse failed", "error", err)
@@ -375,7 +383,7 @@ func runBMPPlugin(conn net.Conn) int {
 			{Name: "show bmp collectors", Description: "Show BMP sender collector status"},
 			{Name: "show bmp rib", Description: "Show BMP-monitored routes"},
 		},
-		WantsConfig: []string{"bgp", "environment"},
+		WantsConfig: []string{configRootBGP, configRootEnvironment},
 	})
 	if err != nil {
 		logger().Error("bgp-bmp plugin failed", "error", err)
@@ -584,7 +592,7 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_, _, err := bp.plugin.DispatchCommandArgs(ctx, "request bgp rib withdraw-router", []string{"bmp", remote}, "")
+		_, _, err := bp.plugin.DispatchCommandArgs(ctx, "request bgp rib withdraw-router", []string{protocolBMP, remote}, "")
 		if err != nil {
 			logger().Debug("bmp: withdraw-router failed on session end", "remote", remote, "error", err)
 		}
@@ -643,6 +651,16 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 			terminated = true
 		}
 		bp.processMessage(remote, msg)
+
+		// RFC 7854 Section 4.5: "Likewise, the monitoring station MUST close the
+		// TCP session after receiving a termination message." The message is
+		// processed first, so its reason TLVs are recorded, and the deferred
+		// close then runs. Waiting for the router to close instead lets a router
+		// that sends a termination and then holds the connection open keep a
+		// session slot for as long as it likes.
+		if terminated {
+			return
+		}
 	}
 }
 
@@ -664,7 +682,7 @@ func (bp *BMPPlugin) handleCommand(command string) (string, any, error) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		status, data, err := bp.plugin.DispatchCommandArgs(ctx, "show bgp rib protocol", []string{"bmp"}, "")
+		status, data, err := bp.plugin.DispatchCommandArgs(ctx, "show bgp rib protocol", []string{protocolBMP}, "")
 		if err != nil {
 			return statusError, "", err
 		}
@@ -716,7 +734,7 @@ func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
 	if bp.plugin != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_, _, err := bp.plugin.DispatchCommandArgs(ctx, "request bgp rib withdraw-router", []string{"bmp", remote}, "")
+		_, _, err := bp.plugin.DispatchCommandArgs(ctx, "request bgp rib withdraw-router", []string{protocolBMP, remote}, "")
 		if err != nil {
 			logger().Debug("bmp: withdraw-router failed on termination", "remote", remote, "error", err)
 		}
@@ -760,7 +778,7 @@ func (bp *BMPPlugin) processPeerDown(remote string, m *PeerDown) {
 		peerKey := bmpCompositeKey(remote, m.Peer)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_, _, err := bp.plugin.DispatchCommandArgs(ctx, "request bgp rib withdraw-protocol", []string{"bmp", peerKey}, "")
+		_, _, err := bp.plugin.DispatchCommandArgs(ctx, "request bgp rib withdraw-protocol", []string{protocolBMP, peerKey}, "")
 		if err != nil {
 			logger().Debug("bmp: withdraw-protocol failed on peer down", "peer", peerKey, "error", err)
 		}
@@ -779,7 +797,7 @@ func (bp *BMPPlugin) processRouteMonitoring(remote string, m *RouteMonitoring) {
 	updateBody := m.BGPUpdate[bgpHeaderSize:]
 	peerKey := bmpCompositeKey(remote, m.Peer)
 
-	if err := bp.plugin.InjectWireRoute("bmp", peerKey, updateBody); err != nil {
+	if err := bp.plugin.InjectWireRoute(protocolBMP, peerKey, updateBody); err != nil {
 		logger().Debug("bmp: inject-wire-route failed",
 			"remote", remote,
 			"peer", peerKey,

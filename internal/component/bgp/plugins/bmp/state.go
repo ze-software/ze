@@ -89,6 +89,13 @@ func (s *bmpState) setRouterInfo(remote, sysName, sysDescr string) {
 	}
 }
 
+// routerCount reports how many monitored router sessions are registered.
+func (s *bmpState) routerCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.routers)
+}
+
 // removeRouter removes a router and all its peers.
 func (s *bmpState) removeRouter(remote string) {
 	s.mu.Lock()
