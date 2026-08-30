@@ -24,9 +24,9 @@ func tunnelL2TPTestSecret() []byte {
 
 func init() {
 	Register("l2tp/auth-local-config", tunnelL2TPHandshakeDriver(0x0400, "py-auth", "aabbccddeeff00112233445566778899", "OK: tunnel established with auth-local config"))
-	Register("l2tp/auth-radius-basic/radius", tunnelRadiusDriver(11812, 2, nil, false))
+	Register("l2tp/auth-radius-basic/radius", tunnelRadiusDriver(11812, 2, nil))
 	Register("l2tp/auth-radius-basic", tunnelL2TPHandshakeDriver(0x0500, "py-radius", "aabbccddeeff00112233445566778899", "OK: tunnel established with RADIUS auth config"))
-	Register("l2tp/auth-radius-reject/radius", tunnelRadiusDriver(11813, 3, tunnelRadiusAttr(18, []byte("bad credentials")), false))
+	Register("l2tp/auth-radius-reject/radius", tunnelRadiusDriver(11813, 3, tunnelRadiusAttr(18, []byte("bad credentials"))))
 	Register("l2tp/auth-radius-reject", tunnelL2TPHandshakeDriver(0x0600, "py-reject", "aabbccddeeff00112233445566778899", "OK: tunnel established with RADIUS reject config"))
 	Register("l2tp/bad-challenge-response", tunnelL2TPBadChallenge)
 	Register("l2tp/handshake-full", tunnelL2TPHandshakeDriver(0x0123, "py-peer", "00112233445566778899aabbccddeeff", "OK: SCCCN sent"))
@@ -37,11 +37,11 @@ func init() {
 	Register("l2tp/radius-acct-wire/radius", tunnelRadiusAccounting)
 	Register("l2tp/radius-acct-wire", tunnelL2TPRadiusAccountingPeer)
 	Register("l2tp/radius-coa-listener", tunnelRadiusCoA)
-	Register("l2tp/radius-filter-rate/radius", tunnelRadiusDriver(11812, 2, append(tunnelRadiusAttr(11, []byte("rate:20mbit/5mbit")), tunnelRadiusUint32Attr(85, 120)...), false))
+	Register("l2tp/radius-filter-rate/radius", tunnelRadiusDriver(11812, 2, append(tunnelRadiusAttr(11, []byte("rate:20mbit/5mbit")), tunnelRadiusUint32Attr(85, 120)...)))
 	Register("l2tp/radius-filter-rate", tunnelL2TPHandshakeDriver(0x0602, "py-filterrate", "aabbccddeeff00112233445566778899", "OK: tunnel established with RADIUS filter-rate config"))
-	Register("l2tp/radius-framed-ip/radius", tunnelRadiusDriver(11812, 2, append(tunnelRadiusAttr(8, net.IPv4(10, 0, 0, 5).To4()), tunnelRadiusAttr(88, []byte("gold"))...), false))
+	Register("l2tp/radius-framed-ip/radius", tunnelRadiusDriver(11812, 2, append(tunnelRadiusAttr(8, net.IPv4(10, 0, 0, 5).To4()), tunnelRadiusAttr(88, []byte("gold"))...)))
 	Register("l2tp/radius-framed-ip", tunnelL2TPHandshakeDriver(0x0603, "py-framedip", "aabbccddeeff00112233445566778899", "OK: tunnel established with RADIUS framed-ip + named pool config"))
-	Register("l2tp/radius-session-timeout/radius", tunnelRadiusDriver(11812, 2, append(tunnelRadiusUint32Attr(27, 60), tunnelRadiusUint32Attr(28, 120)...), false))
+	Register("l2tp/radius-session-timeout/radius", tunnelRadiusDriver(11812, 2, append(tunnelRadiusUint32Attr(27, 60), tunnelRadiusUint32Attr(28, 120)...)))
 	Register("l2tp/radius-session-timeout", tunnelL2TPHandshakeDriver(0x0601, "py-timeout", "aabbccddeeff00112233445566778899", "OK: tunnel established with RADIUS session-timeout config"))
 	Register("l2tp/rfc2661-emitted-control-shape", tunnelL2TPEmittedShape)
 	Register("l2tp/rfc2661-sccrq-tunnel-id-zero", tunnelL2TPZeroTunnelID)
@@ -186,7 +186,7 @@ func tunnelL2TPHandshakeDriver(peerTID uint16, hostname, challengeHex, success s
 		if err != nil {
 			return err
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck // fixture teardown
 		reply, _, err := tunnelL2TPExchange(ctx, conn, target, tunnelL2TPSCCRQ(peerTID, hostname, challenge), 20, 250*time.Millisecond)
 		if err != nil {
 			return fmt.Errorf("no SCCRP received: %w", err)
@@ -199,7 +199,8 @@ func tunnelL2TPHandshakeDriver(peerTID uint16, hostname, challengeHex, success s
 			return errors.New("SCCRP missing Challenge or Assigned Tunnel ID")
 		}
 		localTID := binary.BigEndian.Uint16(avps[9])
-		digest := md5.Sum(append(append([]byte{3}, tunnelL2TPTestSecret()...), avps[11]...))
+		digest := md5.Sum( //nolint:gosec // RFC 2661 Section 4.4.3 makes the Challenge Response a CHAP value, and RFC 1994 CHAP is MD5
+			append(append([]byte{3}, tunnelL2TPTestSecret()...), avps[11]...))
 		body := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(3)), tunnelL2TPAVP(true, 13, digest[:])...)
 		_ = conn.SetWriteDeadline(time.Now().Add(time.Second))
 		if _, err := conn.WriteToUDP(tunnelL2TPControl(localTID, 0, 1, 1, body), target); err != nil {
@@ -235,7 +236,7 @@ func tunnelL2TPHandshakeSCCRQ(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	reply, address, err := tunnelL2TPExchange(ctx, conn, target, tunnelL2TPSCCRQ(0x0101, "py-peer", nil), 20, 250*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("no SCCRP after 20 attempts: %w", err)
@@ -261,7 +262,7 @@ func tunnelL2TPBadChallenge(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	reply, _, err := tunnelL2TPExchange(ctx, conn, target, tunnelL2TPSCCRQ(0x0234, "py-bad", challenge), 20, 250*time.Millisecond)
 	if err != nil {
 		return errors.New("no SCCRP received")

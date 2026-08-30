@@ -186,7 +186,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 
 	wiringYAML := runLE("", "doc wiring", "dry-run", "|", "yaml")
 	if wiringYAML.code != 0 || wiringYAML.err != nil {
-		return uiLeDiscoveryAnswersFailf("le doc-wiring dry-run | yaml was refused: %s%s", wiringYAML.stdout, wiringYAML.stderr)
+		return uiLeDiscoveryAnswersFailf("le doc wiring dry-run | yaml was refused: %s%s", wiringYAML.stdout, wiringYAML.stderr)
 	}
 
 	// Over the shared working tree either a current or stale verdict is valid,

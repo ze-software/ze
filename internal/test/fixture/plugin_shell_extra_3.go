@@ -40,7 +40,7 @@ func init() {
 
 func delayedDaemonStopExtra3(delay time.Duration) Driver {
 	return func(ctx context.Context, _ []string) error {
-		for _, name := range []string{"daemon.pid", "daemon.ready"} {
+		for _, name := range []string{fileDaemonPID, fileDaemonReady} {
 			if !Poll(ctx, 300, 100*time.Millisecond, func() bool {
 				_, err := os.Stat(name)
 				return err == nil
@@ -75,14 +75,14 @@ func delayedDaemonStopExtra3(delay time.Duration) Driver {
 
 func writeGRMarkerExtra3(timestamp int64) Driver {
 	return func(_ context.Context, _ []string) error {
-		if err := os.MkdirAll(filepath.Join("meta", "bgp"), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join("meta", "bgp"), 0o750); err != nil {
 			return fmt.Errorf("create marker directory: %w", err)
 		}
 		marker := []byte{
 			byte(timestamp >> 56), byte(timestamp >> 48), byte(timestamp >> 40), byte(timestamp >> 32),
 			byte(timestamp >> 24), byte(timestamp >> 16), byte(timestamp >> 8), byte(timestamp),
 		}
-		if err := os.WriteFile(filepath.Join("meta", "bgp", "gr-marker"), marker, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join("meta", "bgp", "gr-marker"), marker, 0o600); err != nil {
 			return fmt.Errorf("write GR marker: %w", err)
 		}
 		return nil
@@ -146,7 +146,7 @@ func webListenerProbeExtra3(ctx context.Context, args []string) error {
 }
 
 func passwordCredentialsExtra3(port, username, password string) sshclient.Credentials {
-	return sshclient.Credentials{Host: "127.0.0.1", Port: port, Username: username, Auth: password}
+	return sshclient.Credentials{Host: addrLoopback, Port: port, Username: username, Auth: password}
 }
 
 func waitSSHCommandExtra3(ctx context.Context, creds sshclient.Credentials, command string) (string, error) {
@@ -237,16 +237,16 @@ func sshCLIStatusExtra3(ctx context.Context, args []string) error {
 	defer os.RemoveAll(configDir) //nolint:errcheck // fixture cleanup
 
 	initCommand := exec.CommandContext(ctx, "ze", "init")
-	initCommand.Env = environmentExtra3(map[string]string{"ZE_CONFIG_DIR": configDir})
+	initCommand.Env = environmentExtra3(map[string]string{envConfigDir: configDir})
 	initCommand.Stdin = strings.NewReader(fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%s\n", port))
 	if output, initErr := initCommand.CombinedOutput(); initErr != nil {
 		return fmt.Errorf("ze init: %w\n%s", initErr, output)
 	}
 	run := func(commandText string) (string, error) {
-		command := exec.CommandContext(ctx, "ze", "cli", "-c", commandText)
+		command := exec.CommandContext(ctx, "ze", "cli", "-c", commandText) //nolint:gosec // the fixture chooses the program and its arguments
 		command.Env = environmentExtra3(map[string]string{
-			"ZE_CONFIG_DIR":   configDir,
-			"ZE_SSH_PASSWORD": "testpass",
+			envConfigDir:   configDir,
+			envSSHPassword: valueTestPassword,
 		})
 		output, commandErr := command.CombinedOutput()
 		return strings.TrimSpace(string(output)), commandErr
@@ -377,7 +377,7 @@ func sshPubkeySetupExtra3(_ context.Context, args []string) error {
 		return errors.New("marshal public key returned no key data")
 	}
 	config := fmt.Sprintf(sshPubkeyConfigExtra3, fields[1], port)
-	if err := os.WriteFile("ssh-pubkey.conf", []byte(config), 0o644); err != nil {
+	if err := os.WriteFile("ssh-pubkey.conf", []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write SSH pubkey config: %w", err)
 	}
 	return nil

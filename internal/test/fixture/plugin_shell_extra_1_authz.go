@@ -45,7 +45,7 @@ func extra1AuthzAllow(ctx context.Context, args []string) error {
 			edit { default-action deny; }
 		}
 	`
-	daemon, port, err := extra1RunDaemon(ctx, "authz-allow.conf", "daemon.log", extra1AuthzBase(users, profiles), nil)
+	daemon, port, err := extra1RunDaemon(ctx, "authz-allow.conf", extra1AuthzBase(users, profiles), nil)
 	if err != nil {
 		return err
 	}
@@ -54,15 +54,15 @@ func extra1AuthzAllow(ctx context.Context, args []string) error {
 	if err := extra1Wait(ctx, 500*time.Millisecond); err != nil {
 		return err
 	}
-	if _, err := extra1RequireCommand(port, "admin", "testpass", "show bgp peer list"); err != nil {
+	if err := extra1RequireCommand(port, "admin", "testpass", "show bgp peer list"); err != nil {
 		return fmt.Errorf("admin should be allowed to run show bgp peer list: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "OK: admin allowed show bgp peer list")
-	if _, err := extra1RequireCommand(port, "operator", "oppass", "show bgp peer list"); err != nil {
+	if err := extra1RequireCommand(port, "operator", "oppass", "show bgp peer list"); err != nil {
 		return fmt.Errorf("operator should be allowed to run show bgp peer list: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "OK: operator allowed show bgp peer list (entry match)")
-	if _, err := extra1RequireCommand(port, "operator", "oppass", "show bgp"); err != nil {
+	if err := extra1RequireCommand(port, "operator", "oppass", "show bgp"); err != nil {
 		return fmt.Errorf("operator should be allowed to run show bgp: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "OK: operator allowed show bgp (entry match)")
@@ -85,7 +85,7 @@ func extra1AuthzDefault(ctx context.Context, args []string) error {
 		run { default-action deny; entry 10 { action allow; match "show bgp peer list"; } }
 		edit { default-action deny; }
 	}`
-	daemon, port, err := extra1RunDaemon(ctx, "authz-default.conf", "daemon.log", extra1AuthzBase(users, profiles), nil)
+	daemon, port, err := extra1RunDaemon(ctx, "authz-default.conf", extra1AuthzBase(users, profiles), nil)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func extra1AuthzDefault(ctx context.Context, args []string) error {
 	if err := extra1Wait(ctx, 500*time.Millisecond); err != nil {
 		return err
 	}
-	for _, command := range []string{"show bgp peer list", "show version"} {
+	for _, command := range []string{cmdShowBGPPeerList, cmdShowVersion} {
 		output, err := extra1Command(port, "unknown", "testpass", command)
 		if err == nil {
 			return fmt.Errorf("unknown user should be denied %s but was allowed: %s", command, output)
@@ -117,7 +117,7 @@ func extra1AuthzDeny(ctx context.Context, args []string) error {
 		run { default-action deny; entry 10 { action allow; match "show bgp peer list"; } }
 		edit { default-action deny; }
 	}`
-	daemon, port, err := extra1RunDaemon(ctx, "authz-deny.conf", "daemon.log", extra1AuthzBase(users, profiles), nil)
+	daemon, port, err := extra1RunDaemon(ctx, "authz-deny.conf", extra1AuthzBase(users, profiles), nil)
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ system {
 	authentication { user nobody { password %q; } }
 }
 `, extra1OperatorHash)
-	daemon, port, err := extra1RunDaemon(ctx, "authz-no-applicable-profile.conf", "daemon.log", config, map[string]string{"ze_log_authz": "info"})
+	daemon, port, err := extra1RunDaemon(ctx, "authz-no-applicable-profile.conf", config, map[string]string{"ze_log_authz": logLevelInfo})
 	if err != nil {
 		return err
 	}

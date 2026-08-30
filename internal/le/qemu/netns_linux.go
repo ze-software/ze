@@ -60,10 +60,10 @@ func qemuGuestArch() string {
 	if named := os.Getenv("QEMU_GOARCH"); named != "" {
 		return named
 	}
-	if runtime.GOARCH == "arm64" {
-		return "arm64"
+	if runtime.GOARCH == ArchARM64 {
+		return ArchARM64
 	}
-	return "amd64"
+	return ArchAMD64
 }
 
 func netnsGuestBinaries() netnsBinaries {
@@ -275,9 +275,9 @@ func runEveryNetnsSuite(ctx context.Context, binaries netnsBinaries, suites []st
 }
 
 func runNetnsGuest(ctx context.Context, suites []string) (guestLabReport, error) {
-	lab := "netns"
+	lab := labNetns
 	if len(suites) == 1 && suites[0] == netnsPPPoE {
-		lab = "pppoe-netns"
+		lab = labPPPoENetns
 	}
 	report := guestLabReport{Lab: lab, Selected: append([]string(nil), suites...), Verdict: VerdictUnspecified}
 	// Selection and file existence are checked before setcap, chmod, nft, or any

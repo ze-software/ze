@@ -60,7 +60,7 @@ func plugin15RRBasic(ctx context.Context, p *sdk.Plugin) error {
 		entries, _ := m["best-path"].([]any)
 		for _, value := range entries {
 			row, _ := value.(map[string]any)
-			if row["prefix"] == "10.1.0.0/24" {
+			if row["prefix"] == prefixTenOne {
 				return true
 			}
 		}
@@ -77,7 +77,7 @@ func plugin15RRBasic(ctx context.Context, p *sdk.Plugin) error {
 	entries, _ := m["best-path"].([]any)
 	for _, value := range entries {
 		row, _ := value.(map[string]any)
-		found = found || row["prefix"] == "10.1.0.0/24"
+		found = found || row["prefix"] == prefixTenOne
 	}
 	if !found {
 		return fmt.Errorf("route 10.1.0.0/24 not in RIB")
@@ -195,14 +195,14 @@ func plugin15ShowBGPBare(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	for _, key := range []string{"router-id", "local-as", "uptime", "peers-configured", "peers-established", "peers"} {
+	for _, key := range []string{fieldRouterID, fieldLocalAS, columnUptime, fieldPeersConfigured, fieldPeersEstablished, fieldPeers} {
 		if _, ok := data[key]; !ok {
 			return fmt.Errorf("show bgp is not the summary, %s is missing", key)
 		}
 	}
 	unknown := plugin15Dispatch(ctx, p, "show bgp nonsense")
 	message := unknown.text()
-	if unknown.status != "error" || !strings.Contains(message, "unknown command") || !strings.Contains(message, "show bgp nonsense") {
+	if unknown.status != statusError || !strings.Contains(message, "unknown command") || !strings.Contains(message, "show bgp nonsense") {
 		return fmt.Errorf("show bgp nonsense must report an unknown command; status=%s data=%q", unknown.status, message)
 	}
 	if strings.Contains(message, "invalid family") || strings.Contains(message, "afi/safi") {
@@ -257,13 +257,13 @@ func plugin15ShowBGPFamily(ctx context.Context, p *sdk.Plugin) error {
 		if _, ok := data["peers-configured"]; !ok {
 			return fmt.Errorf("%s is not a summary", command)
 		}
-		if data["family"] != "ipv4/unicast" {
+		if data["family"] != familyIPv4Unicast {
 			return fmt.Errorf("%s did not scope to ipv4/unicast: %v", command, data["family"])
 		}
 	}
 	unnegotiated := plugin15Dispatch(ctx, p, "show bgp l2vpn")
 	message := unnegotiated.text()
-	if unnegotiated.status != "error" || !strings.Contains(message, "l2vpn") {
+	if unnegotiated.status != statusError || !strings.Contains(message, "l2vpn") {
 		return fmt.Errorf("show bgp l2vpn must reject and name the family: status=%s data=%q", unnegotiated.status, message)
 	}
 	if strings.Contains(message, "unknown command") {
@@ -287,7 +287,7 @@ func plugin15ShowBGPSummaryGone(ctx context.Context, p *sdk.Plugin) error {
 		r := plugin15Dispatch(ctx, p, command)
 		message := r.text()
 		switch {
-		case r.status != "error":
+		case r.status != statusError:
 			failures = append(failures, fmt.Sprintf("%s status=%s want error", command, r.status))
 		case !strings.Contains(message, "unknown command"):
 			failures = append(failures, fmt.Sprintf("%s must report an unknown command; got %q", command, message))
@@ -358,13 +358,13 @@ func plugin15RIBBestWalk(ctx context.Context, p *sdk.Plugin) error {
 				}
 				if len(entries) != 0 {
 					first, _ := entries[0].(map[string]any)
-					for _, field := range []string{"family", "prefix", "best-peer", "attributes"} {
+					for _, field := range []string{fieldFamily, columnPrefix, "best-peer", "attributes"} {
 						if _, ok := first[field]; !ok {
 							failures = append(failures, fmt.Sprintf("best: row is missing %q", field))
 						}
 					}
 					attributes, _ := first["attributes"].(map[string]any)
-					if attributes["next-hop"] != "10.0.0.1" {
+					if attributes["next-hop"] != addrPeerOne {
 						failures = append(failures, fmt.Sprintf("best: row lost its next-hop: %v", attributes))
 					} else {
 						fmt.Fprintln(os.Stderr, "OK best: the row carries the attributes it was selected with")
@@ -441,7 +441,7 @@ func plugin15RIBUnderLoad(ctx context.Context, p *sdk.Plugin) error {
 		r := plugin15Dispatch(walkCtx, p, "show bgp rib count")
 		timedOut := walkCtx.Err() == context.DeadlineExceeded
 		cancel()
-		if r.err != nil && r.status == "error" {
+		if r.err != nil && r.status == statusError {
 			if timedOut {
 				return fmt.Errorf("`show bgp rib count` did not answer within 20s at count-%d: the walk is wedged against the UPDATE path", walks)
 			}
@@ -530,7 +530,7 @@ func plugin15SmartShow(ctx context.Context, p *sdk.Plugin) error {
 
 func plugin15SmartUnconfigured(ctx context.Context, p *sdk.Plugin) error {
 	r := plugin15Dispatch(ctx, p, "show storage smart")
-	if r.status != "error" {
+	if r.status != statusError {
 		return fmt.Errorf("show storage smart (unconfigured): expected error, got status=%s data=%.200s", r.status, r.text())
 	}
 	const want = "storage SMART management not configured"

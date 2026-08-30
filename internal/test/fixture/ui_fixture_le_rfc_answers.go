@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,13 +54,13 @@ func leRFCAnswers(ctx context.Context) (err error) {
 
 	here, _, err := temporaryLEFixtureWorkspace("le-rfc-answers-")
 	leRFCAnswersRequireNoError(err, "create fixture directory")
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	leRFCAnswersRequireNoError(err, "locate native le binary")
 
 	runLE := func(tree string, args ...string) leRFCAnswersResult {
-		return leRFCAnswersRun(ctx, here, map[string]string{"ZE_REPO_ROOT": tree}, binary, args...)
+		return leRFCAnswersRun(ctx, here, map[string]string{envRepoRoot: tree}, binary, args...)
 	}
 
 	// The extraction envelope is a read-only JSON document derived from the
@@ -93,7 +94,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"register total %d does not equal signed total %d: %s",
 		registerTotal, signed, extraction.stdout)
 
-	for _, operator := range []string{"json", "yaml"} {
+	for _, operator := range []string{renderJSON, renderYAML} {
 		rendered := runLE(root, "rfc", "extraction-status", "|", operator)
 		leRFCAnswersRequire(rendered.code == 0,
 			"rfc extraction-status | %s exited %d\nstdout:\n%s\nstderr:\n%s",
@@ -139,7 +140,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		leRFCAnswersRequire(ok,
 			"green rfc check | json did not return a summary object: %s", checkJSON.stdout)
 		for _, field := range []string{
-			"gated", "enrolled", "tags", "evidence", "signed",
+			"gated", "enrolled", "tags", areaEvidence, "signed",
 			"signed-by-register", "audit-verdicts", "audit-done", "audit-total",
 		} {
 			_, present := summary[field]
@@ -234,17 +235,17 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		}
 	}
 	wantListed := map[string]string{
-		"extraction-create": "writes",
-		"extraction-status": "checks",
-		"tagged-scope":      "checks",
-		"check":             "checks",
-		"selftest":          "checks",
-		"reseal":            "writes",
-		"index-update":      "writes",
+		"extraction-create": wordWrites,
+		"extraction-status": fieldChecks,
+		"tagged-scope":      fieldChecks,
+		actionCheck:         fieldChecks,
+		actionSelftest:      fieldChecks,
+		"reseal":            wordWrites,
+		actionIndexUpdate:   wordWrites,
 	}
 	leRFCAnswersRequire(reflect.DeepEqual(listed, wantListed),
 		"rfc listing does not name seven actions with exactly three writers:\n%s", listing.stdout)
-	for _, action := range []string{"extraction-status", "check", "selftest", "reseal", "index-update"} {
+	for _, action := range []string{"extraction-status", actionCheck, actionSelftest, "reseal", actionIndexUpdate} {
 		refused := runLE(root, "rfc", action, "rfc7606")
 		leRFCAnswersRequire(refused.code == 2,
 			"rfc %s accepted a stem argument or exited %d\nstdout:\n%s\nstderr:\n%s",
@@ -437,7 +438,7 @@ func leRFCAnswersRun(
 	name string,
 	args ...string,
 ) leRFCAnswersResult {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = cwd
 	cmd.Env = leRFCAnswersEnvironment(overrides)
 	var stdout bytes.Buffer
@@ -462,13 +463,11 @@ func leRFCAnswersRun(
 func leRFCAnswersEnvironment(overrides map[string]string) []string {
 	values := make(map[string]string, len(os.Environ())+len(overrides))
 	for _, entry := range os.Environ() {
-		if at := strings.IndexByte(entry, '='); at >= 0 {
-			values[entry[:at]] = entry[at+1:]
+		if key, value, found := strings.Cut(entry, "="); found {
+			values[key] = value
 		}
 	}
-	for key, value := range overrides {
-		values[key] = value
-	}
+	maps.Copy(values, overrides)
 	keys := make([]string, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)
@@ -522,7 +521,7 @@ func leRFCAnswersAuditState(tree string) map[string][]byte {
 	state := make(map[string][]byte, len(entries))
 	for _, entry := range entries {
 		leRFCAnswersRequire(!entry.IsDir(), "unexpected directory in rfc/audit: %s", entry.Name())
-		body, err := os.ReadFile(filepath.Join(directory, entry.Name()))
+		body, err := os.ReadFile(filepath.Join(directory, entry.Name())) //nolint:gosec // the path is the fixture's own scratch file
 		leRFCAnswersRequireNoError(err, "read rfc/audit/"+entry.Name())
 		state[entry.Name()] = body
 	}
@@ -540,8 +539,8 @@ func leRFCAnswersCitedFiles(audits map[string][]byte) []string {
 		leRFCAnswersRequireNoError(json.Unmarshal(body, &document), "decode rfc/audit/"+name)
 		for _, verdict := range document.Requirements {
 			for key := range verdict.Tests {
-				path := strings.SplitN(key, "::", 2)[0]
-				path = strings.SplitN(path, "#", 2)[0]
+				path, _, _ := strings.Cut(key, "::")
+				path, _, _ = strings.Cut(path, "#")
 				leRFCAnswersRequire(path != "", "empty cited path in rfc/audit/%s", name)
 				cited[path] = struct{}{}
 			}
@@ -553,7 +552,7 @@ func leRFCAnswersCitedFiles(audits map[string][]byte) []string {
 func leRFCAnswersGenerated(tree string) map[string][]byte {
 	generated := map[string][]byte{}
 	ledgerPath := filepath.Join(tree, "ai", "RFC-REQUIREMENTS.md")
-	if body, err := os.ReadFile(ledgerPath); err == nil {
+	if body, err := os.ReadFile(ledgerPath); err == nil { //nolint:gosec // the path is the fixture's own scratch file
 		generated["ai/RFC-REQUIREMENTS.md"] = body
 	} else if !os.IsNotExist(err) {
 		leRFCAnswersRequireNoError(err, "read "+ledgerPath)
@@ -564,7 +563,7 @@ func leRFCAnswersGenerated(tree string) map[string][]byte {
 	for _, entry := range entries {
 		leRFCAnswersRequire(!entry.IsDir(),
 			"unexpected directory in rfc/requirements: %s", entry.Name())
-		body, err := os.ReadFile(filepath.Join(shardsPath, entry.Name()))
+		body, err := os.ReadFile(filepath.Join(shardsPath, entry.Name())) //nolint:gosec // the path is the fixture's own scratch file
 		leRFCAnswersRequireNoError(err, "read rfc/requirements/"+entry.Name())
 		generated[filepath.ToSlash(filepath.Join("rfc", "requirements", entry.Name()))] = body
 	}
@@ -575,9 +574,9 @@ func leRFCAnswersShift(tree string, paths []string) {
 	const suffix = "\n// a line the parity test appended, below every function\n"
 	for _, relative := range paths {
 		path := filepath.Join(tree, filepath.FromSlash(relative))
-		file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0) //nolint:gosec // the path is the fixture's own scratch file
 		leRFCAnswersRequireNoError(err, "open shifted file "+relative)
-		_, writeErr := io.WriteString(file, suffix)
+		_, writeErr := file.WriteString(suffix)
 		closeErr := file.Close()
 		leRFCAnswersRequireNoError(writeErr, "append shifted line to "+relative)
 		leRFCAnswersRequireNoError(closeErr, "close shifted file "+relative)
@@ -587,7 +586,7 @@ func leRFCAnswersShift(tree string, paths []string) {
 func leRFCAnswersExportHEAD(ctx context.Context, root, parent, name string) string {
 	destination := filepath.Join(parent, name)
 	leRFCAnswersRequireNoError(os.RemoveAll(destination), "remove earlier export "+name)
-	leRFCAnswersRequireNoError(os.MkdirAll(destination, 0o755), "create export "+name)
+	leRFCAnswersRequireNoError(os.MkdirAll(destination, 0o750), "create export "+name)
 	archive := leRFCAnswersRun(ctx, root, nil, "git", "-C", root, "archive", "HEAD")
 	leRFCAnswersRequire(archive.code == 0,
 		"git archive HEAD exited %d\nstdout:\n%s\nstderr:\n%s",
@@ -604,20 +603,20 @@ func leRFCAnswersExportHEAD(ctx context.Context, root, parent, name string) stri
 		switch header.Typeflag {
 		case tar.TypeDir:
 			leRFCAnswersRequireNoError(os.MkdirAll(path, os.FileMode(header.Mode)), "create "+header.Name)
-		case tar.TypeReg, tar.TypeRegA:
-			leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o755), "create parent for "+header.Name)
-			file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(header.Mode))
+		case tar.TypeReg:
+			leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o750), "create parent for "+header.Name)
+			file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(header.Mode)) //nolint:gosec // the path is the fixture's own scratch file
 			leRFCAnswersRequireNoError(err, "create "+header.Name)
-			_, copyErr := io.Copy(file, reader)
+			_, copyErr := io.Copy(file, reader) //nolint:gosec // the archive is the fixture's own git export
 			closeErr := file.Close()
 			leRFCAnswersRequireNoError(copyErr, "extract "+header.Name)
 			leRFCAnswersRequireNoError(closeErr, "close "+header.Name)
 		case tar.TypeSymlink:
-			leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o755), "create parent for "+header.Name)
+			leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o750), "create parent for "+header.Name)
 			leRFCAnswersRequireNoError(os.Symlink(header.Linkname, path), "create symlink "+header.Name)
 		case tar.TypeLink:
 			target := leRFCAnswersArchivePath(destination, header.Linkname)
-			leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o755), "create parent for "+header.Name)
+			leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o750), "create parent for "+header.Name)
 			leRFCAnswersRequireNoError(os.Link(target, path), "create hard link "+header.Name)
 		case tar.TypeXHeader, tar.TypeXGlobalHeader:
 			// archive/tar applies these records to the following header.

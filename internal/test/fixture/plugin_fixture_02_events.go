@@ -22,16 +22,16 @@ func init() {
 	Register("plugin/attach-process-dynamic-group", dynamicGroupDriver02)
 	Register("plugin/attach-process-dynamic-group-wait", dynamicGroupWait02)
 	Register("plugin/wait-file", dynamicGroupWait02)
-	Register("plugin/attach-process-receive-filter-state", eventObserver02("receive-filter-state", []string{"update", "state"}, receiveFilterState02))
-	Register("plugin/attach-process-receive-filter-update", eventObserver02("receive-filter-update", []string{"update", "state"}, receiveFilterUpdate02))
-	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{"state"}, reloadKept02))
-	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{"state"}, reloadAdded02))
+	Register("plugin/attach-process-receive-filter-state", eventObserver02("receive-filter-state", []string{eventUpdate, eventState}, receiveFilterState02))
+	Register("plugin/attach-process-receive-filter-update", eventObserver02("receive-filter-update", []string{eventUpdate, eventState}, receiveFilterUpdate02))
+	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState}, reloadKept02))
+	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{eventState}, reloadAdded02))
 	Register("plugin/attach-process-reload-trigger", reloadTrigger02)
-	Register("plugin/attach-process-runtime-subscribe", eventObserver02("runtime-subscribe", []string{"state"}, runtimeSubscribe02))
+	Register("plugin/attach-process-runtime-subscribe", eventObserver02("runtime-subscribe", []string{eventState}, runtimeSubscribe02))
 	Register("plugin/attach-process-runtime-subscribe-trigger", runtimeSubscribeTrigger02)
-	Register("plugin/attach-process-send-permission", eventObserver02("send-permission-injector", []string{"update", "state"}, sendPermission02))
-	Register("plugin/attach-process-unattached-served", eventObserver02("unattached-served", []string{"update", "state"}, unattachedServed02))
-	Register("plugin/attach-process-unattached-silent", eventObserver02("unattached-silent", []string{"update", "state"}, unattachedSilent02))
+	Register("plugin/attach-process-send-permission", eventObserver02("send-permission-injector", []string{eventUpdate, eventState}, sendPermission02))
+	Register("plugin/attach-process-unattached-served", eventObserver02("unattached-served", []string{eventUpdate, eventState}, unattachedServed02))
+	Register("plugin/attach-process-unattached-silent", eventObserver02("unattached-silent", []string{eventUpdate, eventState}, unattachedSilent02))
 	Register("plugin/audit-config-commit", observer02("audit-commit-test", auditConfigCommit02))
 }
 
@@ -44,7 +44,7 @@ func eventObserver02(name string, events []string, scenario eventScenario02) Dri
 		if err != nil {
 			return fmt.Errorf("connect observer %s: %w", name, err)
 		}
-		defer plugin.Close() //nolint:errcheck
+		defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 		runCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -149,15 +149,15 @@ func waitForShutdown02(ctx context.Context, shutdown <-chan struct{}, timeout ti
 
 func dynamicRefusal02(who, kind, direction string) string {
 	switch who {
-	case "dyn", "inherits":
-		if kind != "state" {
+	case groupDyn, "inherits":
+		if kind != eventState {
 			return fmt.Sprintf("%s is granted state alone by its group and was fed %s (%s)", who, kind, direction)
 		}
 	case "restates":
-		if kind != "update" {
+		if kind != eventUpdate {
 			return fmt.Sprintf("restates states its own list, update-received, and was fed %s", kind)
 		}
-		if direction != "received" {
+		if direction != directionReceived {
 			return "restates is granted update-received and was fed an update ze SENT"
 		}
 	default:
@@ -175,20 +175,20 @@ func dynamicGroupDriver02(ctx context.Context, args []string) error {
 	scenario := func(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
 		return dynamicGroup02(ctx, plugin, events, shutdown, marker)
 	}
-	return eventObserver02("dyn-group-observer", []string{"update", "state"}, scenario)(ctx, nil)
+	return eventObserver02("dyn-group-observer", []string{eventUpdate, eventState}, scenario)(ctx, nil)
 }
 
 func dynamicGroup02(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}, marker string) error {
-	if err := os.WriteFile(marker, []byte("ready"), 0o644); err != nil {
+	if err := os.WriteFile(marker, []byte("ready"), 0o600); err != nil {
 		return err
 	}
-	defer os.Remove(marker) //nolint:errcheck
+	defer os.Remove(marker) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
 	seen := make(map[string]bool)
 	for len(seen) != 3 {
 		event, ok := nextEvent02(ctx, events, shutdown, 25*time.Second)
 		if !ok {
 			missing := make([]string, 0, 3)
-			for _, wanted := range []string{"dyn", "inherits", "restates"} {
+			for _, wanted := range []string{groupDyn, "inherits", "restates"} {
 				if !seen[wanted] {
 					missing = append(missing, wanted)
 				}
@@ -198,7 +198,7 @@ func dynamicGroup02(ctx context.Context, plugin *sdk.Plugin, events <-chan strin
 		name, kind, direction := eventFacts02(event)
 		who := name
 		if strings.HasPrefix(name, "dyn-") {
-			who = "dyn"
+			who = groupDyn
 		}
 		if reason := dynamicRefusal02(who, kind, direction); reason != "" {
 			return fmt.Errorf("DYN-GROUP: %s", reason)
@@ -219,7 +219,7 @@ func dynamicGroup02(ctx context.Context, plugin *sdk.Plugin, events <-chan strin
 		name, kind, direction := eventFacts02(event)
 		who := name
 		if strings.HasPrefix(name, "dyn-") {
-			who = "dyn"
+			who = groupDyn
 		}
 		if reason := dynamicRefusal02(who, kind, direction); reason != "" {
 			return fmt.Errorf("DYN-GROUP: %s", reason)
@@ -238,10 +238,10 @@ func receiveFilterState02(ctx context.Context, _ *sdk.Plugin, events <-chan stri
 			break
 		}
 		_, kind, direction := eventFacts02(event)
-		if kind == "update" {
+		if kind == eventUpdate {
 			return fmt.Errorf("FILTER-STATE: update leaked to a process granted state only (%s)", direction)
 		}
-		if kind == "state" && !seenState {
+		if kind == eventState && !seenState {
 			seenState = true
 			fmt.Fprintln(os.Stderr, "FILTER-STATE: state event delivered")
 		}
@@ -259,13 +259,13 @@ func receiveFilterUpdate02(ctx context.Context, plugin *sdk.Plugin, events <-cha
 			return fmt.Errorf("FILTER-UPDATE: no received update arrived")
 		}
 		_, kind, direction := eventFacts02(event)
-		if kind == "state" {
+		if kind == eventState {
 			return fmt.Errorf("FILTER-UPDATE: state leaked to a process granted update-received")
 		}
-		if kind == "update" && direction == "sent" {
+		if kind == eventUpdate && direction == directionSent {
 			return fmt.Errorf("FILTER-UPDATE: a SENT update reached an update-received grant")
 		}
-		if kind == "update" {
+		if kind == eventUpdate {
 			break
 		}
 	}
@@ -279,7 +279,7 @@ func receiveFilterUpdate02(ctx context.Context, plugin *sdk.Plugin, events <-cha
 
 func stateEvent02(raw string) bool {
 	_, kind, _ := eventFacts02(raw)
-	return kind == "state"
+	return kind == eventState
 }
 
 func reloadKept02(ctx context.Context, _ *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
@@ -304,7 +304,7 @@ func reloadKept02(ctx context.Context, _ *sdk.Plugin, events <-chan string, shut
 		}
 	}
 	fmt.Fprintln(os.Stderr, "RELOAD-KEPT: fed before and after the reload")
-	if err := os.WriteFile("kept.marker", []byte("done"), 0o644); err != nil {
+	if err := os.WriteFile("kept.marker", []byte("done"), 0o600); err != nil {
 		return err
 	}
 	return waitForShutdown02(ctx, shutdown, 30*time.Second)
@@ -344,7 +344,7 @@ func eventIsUp02(raw string) bool {
 	body := eventBody02(raw)
 	_, kind, _ := eventFacts02(raw)
 	state, _ := body["state"].(string)
-	return kind == "state" && state == "up"
+	return kind == eventState && state == "up"
 }
 
 func waitUp02(ctx context.Context, events <-chan string, shutdown <-chan struct{}, what string) error {
@@ -391,7 +391,7 @@ func runtimeGrantedReceive02(ctx context.Context, plugin *sdk.Plugin) ([]string,
 		return nil, err
 	}
 	for _, peer := range data.Peers {
-		if peer.Peer != "127.0.0.1" {
+		if peer.Peer != addrLoopback {
 			continue
 		}
 		for _, process := range peer.Processes {
@@ -423,11 +423,11 @@ func runtimeSubscribe02(ctx context.Context, plugin *sdk.Plugin, events <-chan s
 		return err
 	}
 	sort.Strings(granted)
-	if len(granted) != 2 || granted[0] != "keepalive" || granted[1] != "state" {
+	if len(granted) != 2 || granted[0] != "keepalive" || granted[1] != eventState {
 		return fmt.Errorf("RUNTIME-SUB: configured receive grant changed: %v", granted)
 	}
 	fmt.Fprintln(os.Stderr, "RUNTIME-SUB: the config index is unchanged by the override")
-	if err := os.WriteFile("subscribed.marker", []byte("done"), 0o644); err != nil {
+	if err := os.WriteFile("subscribed.marker", []byte("done"), 0o600); err != nil {
 		return err
 	}
 	cameUp := false
@@ -538,11 +538,7 @@ func unattachedSilent02(ctx context.Context, plugin *sdk.Plugin, events <-chan s
 	}
 	fmt.Fprintln(os.Stderr, "UNATTACHED-SILENT: fed nothing, as no peer attaches it")
 	requestShutdownAsync02(ctx, plugin)
-	for {
-		event, ok := nextEvent02(ctx, events, shutdown, 20*time.Second)
-		if !ok {
-			break
-		}
+	if event, ok := nextEvent02(ctx, events, shutdown, 20*time.Second); ok {
 		return fmt.Errorf("UNATTACHED-SILENT: fed a late event no peer attached it for: %.200s", event)
 	}
 	return nil
@@ -558,7 +554,7 @@ func dynamicGroupWait02(ctx context.Context, args []string) error {
 		return fmt.Errorf("wait-file fixture requires an absolute marker path")
 	}
 	path := args[0]
-	for attempt := 0; attempt <= 200; attempt++ {
+	for range 201 {
 		if regularFileExists02(path) {
 			return nil
 		}
@@ -589,7 +585,7 @@ func waitForFile02(ctx context.Context, path string) error {
 }
 
 func copyFile02(source, destination string) error {
-	body, err := os.ReadFile(source)
+	body, err := os.ReadFile(source) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -632,7 +628,7 @@ func reloadTrigger02(ctx context.Context, args []string) error {
 	if err := signalDaemon02(); err != nil {
 		return err
 	}
-	return os.WriteFile("reloaded.marker", nil, 0o644)
+	return os.WriteFile("reloaded.marker", nil, 0o600)
 }
 
 func runtimeSubscribeTrigger02(ctx context.Context, args []string) error {
@@ -651,5 +647,5 @@ func runtimeSubscribeTrigger02(ctx context.Context, args []string) error {
 	if err := signalDaemon02(); err != nil {
 		return err
 	}
-	return os.WriteFile("reloaded.marker", nil, 0o644)
+	return os.WriteFile("reloaded.marker", nil, 0o600)
 }

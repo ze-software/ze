@@ -24,7 +24,7 @@ func extra1AuditAuthFail(ctx context.Context, args []string) error {
 		return fmt.Errorf("audit-auth-fail takes no arguments: %q", args)
 	}
 	config := extra1AuditConfig(0)
-	daemon, sshPort, err := extra1RunDaemon(ctx, "audit-auth-fail.conf", "daemon.log", config, nil)
+	daemon, sshPort, err := extra1RunDaemon(ctx, "audit-auth-fail.conf", config, nil)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func extra1AuditPersistence(ctx context.Context, args []string) error {
 		return fmt.Errorf("wrong SSH password succeeded")
 	}
 	fmt.Fprintln(os.Stderr, "OK: wrong SSH password denied")
-	auditContents, err := os.ReadFile(filepath.Join(workDir, "audit-persistence.audit.jsonl"))
+	auditContents, err := os.ReadFile(filepath.Join(workDir, "audit-persistence.audit.jsonl")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil || !strings.Contains(string(auditContents), "auth-fail") {
 		daemon.stop()
 		return fmt.Errorf("audit file missing auth-fail before restart: %s: %w", auditContents, err)

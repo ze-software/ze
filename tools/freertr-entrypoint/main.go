@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -49,10 +50,10 @@ func run() (int, error) {
 		return 1, fmt.Errorf("start java: %w", err)
 	}
 
-	if received, err := waitForTCP(java, consoleAddress, 30*time.Second, signals); err != nil {
+	if code, err := waitForTCP(java, consoleAddress, 30*time.Second, signals); err != nil {
 		return 1, err
-	} else if received != nil {
-		return signalExitCode(received), nil
+	} else if code != 0 {
+		return code, nil
 	}
 	if err := configureEthernet(); err != nil {
 		stopAndWait(java, syscall.SIGTERM)
@@ -86,7 +87,7 @@ func run() (int, error) {
 }
 
 func startChild(program string, args ...string) (child, error) {
-	cmd := exec.Command(program, args...)
+	cmd := exec.CommandContext(context.Background(), program, args...) //nolint:gosec // program is one of this file's own path constants
 	cmd.Dir = workingDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -100,30 +101,34 @@ func startChild(program string, args ...string) (child, error) {
 	return child{cmd: cmd, done: done}, nil
 }
 
-func waitForTCP(java child, address string, timeout time.Duration, signals <-chan os.Signal) (os.Signal, error) {
+// waitForTCP blocks until the freeRtr console accepts a TCP connection on
+// address. It returns 0 when the console answered, and the process exit code
+// when a signal stopped the wait first. signalExitCode never returns 0.
+func waitForTCP(java child, address string, timeout time.Duration, signals <-chan os.Signal) (int, error) {
 	deadline := time.NewTimer(timeout)
 	defer deadline.Stop()
 	retry := time.NewTicker(250 * time.Millisecond)
 	defer retry.Stop()
+	dialer := net.Dialer{Timeout: 200 * time.Millisecond}
 
 	for {
-		conn, err := net.DialTimeout("tcp", address, 200*time.Millisecond)
+		conn, err := dialer.DialContext(context.Background(), "tcp", address)
 		if err == nil {
 			_ = conn.Close()
-			return nil, nil
+			return 0, nil
 		}
 		select {
 		case processErr := <-java.done:
 			if processErr == nil {
-				return nil, errors.New("java exited before the freeRtr console listened on " + address)
+				return 0, errors.New("java exited before the freeRtr console listened on " + address)
 			}
-			return nil, fmt.Errorf("java exited before the freeRtr console listened on %s: %w", address, processErr)
+			return 0, fmt.Errorf("java exited before the freeRtr console listened on %s: %w", address, processErr)
 		case <-deadline.C:
 			stopAndWait(java, syscall.SIGTERM)
-			return nil, fmt.Errorf("freeRtr console did not listen on %s within %s", address, timeout)
+			return 0, fmt.Errorf("freeRtr console did not listen on %s within %s", address, timeout)
 		case received := <-signals:
 			stopAndWait(java, received)
-			return received, nil
+			return signalExitCode(received), nil
 		case <-retry.C:
 		}
 	}
@@ -134,7 +139,7 @@ func configureEthernet() error {
 		{"ip", "addr", "flush", "dev", "eth0"},
 		{"ip", "link", "set", "eth0", "up", "promisc", "on"},
 	} {
-		cmd := exec.Command(command[0], command[1:]...)
+		cmd := exec.CommandContext(context.Background(), command[0], command[1:]...) //nolint:gosec // commands come from the fixed table above
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
@@ -144,7 +149,7 @@ func configureEthernet() error {
 
 	// Offload controls differ between container hosts. The old launcher treated
 	// an unsupported control as harmless after the required link setup succeeded.
-	cmd := exec.Command("ethtool", "-K", "eth0", "rx", "off", "tx", "off", "sg", "off", "tso", "off", "gso", "off", "gro", "off")
+	cmd := exec.CommandContext(context.Background(), "ethtool", "-K", "eth0", "rx", "off", "tx", "off", "sg", "off", "tso", "off", "gso", "off", "gro", "off")
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	_ = cmd.Run()
@@ -186,8 +191,7 @@ func exitCode(err error) int {
 	if err == nil {
 		return 0
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
 			if status.Signaled() {
 				return 128 + int(status.Signal())

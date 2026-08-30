@@ -34,6 +34,7 @@ func TestPluginFixture08RegistersEveryDriver(t *testing.T) {
 		"plugin/iface-learned-route-metric",
 		"plugin/iface-link-flap-during-commit",
 		"plugin/iface-mac-match-address-apply",
+		"plugin/iface-migrate",
 		"plugin/iface-osname-alias-apply",
 		"plugin/iface-rate-json",
 		"plugin/iface-route-protocol-name",
@@ -62,8 +63,8 @@ func TestIfaceTunnelRestartWaitReportsRecordedIndex(t *testing.T) {
 	if err := os.Chdir(t.TempDir()); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(previousDir)
-	if err := os.WriteFile("restart-ifindex", []byte("42"), 0644); err != nil {
+	defer os.Chdir(previousDir) //nolint:errcheck // test cleanup
+	if err := os.WriteFile("restart-ifindex", []byte("42"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

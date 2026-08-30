@@ -29,7 +29,7 @@ func flowspecMetrics08(ctx context.Context, args []string) error {
 	var body string
 	client := http.Client{Timeout: 2 * time.Second}
 	fetch := func() bool {
-		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 		if err != nil {
 			body = ""
 			return false
@@ -39,7 +39,7 @@ func flowspecMetrics08(ctx context.Context, args []string) error {
 			body = ""
 			return false
 		}
-		defer response.Body.Close()
+		defer response.Body.Close() //nolint:errcheck // the body is read
 		if response.StatusCode != http.StatusOK {
 			body = ""
 			return false
@@ -67,7 +67,7 @@ func flowspecMetrics08(ctx context.Context, args []string) error {
 	fmt.Printf("CONTROL: serving registry populated, %d bytes\n", len(body))
 	series := `ze_flowspec_rules_refused_total{reason="unknown-protocol"}`
 	ok := Poll(ctx, 200, 100*time.Millisecond, func() bool { return fetch() && strings.Contains(body, series) })
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		if strings.HasPrefix(line, "ze_flowspec") {
 			fmt.Println(line)
 		}
@@ -80,7 +80,7 @@ func flowspecMetrics08(ctx context.Context, args []string) error {
 }
 
 func runCommand08(ctx context.Context, check bool, name string, args ...string) (string, string, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -97,11 +97,11 @@ func kernelHasRoute08(ctx context.Context, prefix string) bool {
 }
 
 func routeEntry08(protocol string) rpc.RouteInstallEntry {
-	return rpc.RouteInstallEntry{Protocol: protocol, AFI: 1, SAFI: 1, Prefix: "10.99.0.0/24", NextHop: "192.0.2.1", AdminDistance: 110, Metric: 10}
+	return rpc.RouteInstallEntry{Protocol: protocol, AFI: 1, SAFI: 1, Prefix: "10.99.0.0/24", NextHop: addrTestNet1First, AdminDistance: 110, Metric: 10}
 }
 
 func routeRemove08() rpc.RouteRemoveEntry {
-	return rpc.RouteRemoveEntry{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: "10.99.0.0/24", Instance: 0}
+	return rpc.RouteRemoveEntry{Protocol: namespaceBGP, AFI: 1, SAFI: 1, Prefix: "10.99.0.0/24", Instance: 0}
 }
 
 func forkedRouteKernel08(ctx context.Context, p *sdk.Plugin) error {
@@ -109,7 +109,7 @@ func forkedRouteKernel08(ctx context.Context, p *sdk.Plugin) error {
 	if _, _, err := runCommand08(ctx, true, "ip", "link", "add", "ze-fri0", "type", "dummy"); err != nil {
 		return err
 	}
-	defer runCommand08(context.Background(), false, "ip", "link", "del", "ze-fri0")
+	defer runCommand08(context.Background(), false, "ip", "link", "del", "ze-fri0") //nolint:errcheck // best-effort cleanup
 	if _, _, err := runCommand08(ctx, true, "ip", "addr", "add", "192.0.2.254/24", "dev", "ze-fri0"); err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func forkedRouteKernel08(ctx context.Context, p *sdk.Plugin) error {
 
 func ribHas08(ctx context.Context, p *sdk.Plugin, prefix string) bool {
 	status, raw, err := command08(ctx, p, "show rib")
-	if err != nil || status != "done" {
+	if err != nil || status != statusDone {
 		return false
 	}
 	rows, err := list08(raw)
@@ -185,7 +185,7 @@ func hubExternalAcceptor08(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer p.Close()
+	defer p.Close() //nolint:errcheck // fixture teardown
 	p.OnStarted(func(context.Context) error {
 		fmt.Fprintln(os.Stderr, "hub-external-plugin reached stage running")
 		return nil

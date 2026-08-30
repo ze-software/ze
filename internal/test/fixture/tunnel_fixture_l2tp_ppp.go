@@ -24,7 +24,7 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	reply, _, err := tunnelL2TPExchange(ctx, conn, target, tunnelL2TPSCCRQ(0x0321, "py-lac", challenge), 40, 250*time.Millisecond)
 	if err != nil {
 		return errors.New("no SCCRP received")
@@ -34,7 +34,8 @@ func tunnelL2TPRadiusAccountingPeer(ctx context.Context, args []string) error {
 		return errors.New("SCCRP missing Assigned Tunnel ID or Challenge")
 	}
 	state := &tunnelAccountingPeer{conn: conn, target: target, localTID: binary.BigEndian.Uint16(avps[9]), ns: 1, nr: 1}
-	digest := md5.Sum(append(append([]byte{3}, tunnelL2TPTestSecret()...), avps[11]...))
+	digest := md5.Sum( //nolint:gosec // RFC 2661 Section 4.4.3 makes the Challenge Response a CHAP value, and RFC 1994 CHAP is MD5
+		append(append([]byte{3}, tunnelL2TPTestSecret()...), avps[11]...))
 	state.sendControl(append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(3)), tunnelL2TPAVP(true, 13, digest[:])...), 0)
 	icrq := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(10)), tunnelL2TPAVP(true, 14, tunnelL2TPU16(700))...)
 	icrq = append(icrq, tunnelL2TPAVP(true, 15, tunnelL2TPU32(42))...)
@@ -199,9 +200,10 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 	}
 	body := payload[6 : 2+length]
 	if protocol == 0xc021 {
-		if code == 9 {
+		switch code {
+		case 9:
 			peer.sendPPP(0xc021, tunnelPPPControl(10, identifier, []byte{0x11, 0x22, 0x33, 0x44}))
-		} else if code == 5 {
+		case 5:
 			peer.sendPPP(0xc021, tunnelPPPControl(6, identifier, nil))
 			return errors.New("ze terminated LCP")
 		}
@@ -302,7 +304,7 @@ func (peer *tunnelAccountingPeer) waitRadius(ctx context.Context, predicate func
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		contents, _ := os.ReadFile("radius-rx.log")
-		for _, line := range strings.Split(string(contents), "\n") {
+		for line := range strings.SplitSeq(string(contents), "\n") {
 			if predicate(line) {
 				return line, nil
 			}

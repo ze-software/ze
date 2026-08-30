@@ -31,7 +31,7 @@ func cmdJSONIPBytes(args []string) int {
 		return 1
 	}
 	var total uint64
-	for _, name := range strings.Split(*arrays, ",") {
+	for name := range strings.SplitSeq(*arrays, ",") {
 		var rows []ipByteRow
 		if raw := document[strings.TrimSpace(name)]; raw != nil {
 			if err := json.Unmarshal(raw, &rows); err != nil {
@@ -45,6 +45,9 @@ func cmdJSONIPBytes(args []string) int {
 			}
 		}
 	}
-	fmt.Fprintln(os.Stdout, total)
+	if _, err := fmt.Fprintln(os.Stdout, total); err != nil {
+		fmt.Fprintf(os.Stderr, "json-ip-bytes: write total: %v\n", err)
+		return 1
+	}
 	return 0
 }

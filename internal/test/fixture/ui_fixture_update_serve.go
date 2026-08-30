@@ -26,12 +26,12 @@ func runUIUpdateServe(args []string) error {
 
 	argv := []string{
 		"ze",
-		"update",
+		actionUpdate,
 		"serve",
 		"--listen",
 		"127.0.0.1:" + port,
 	}
-	if err := syscall.Exec(ze, argv, os.Environ()); err != nil {
+	if err := syscall.Exec(ze, argv, os.Environ()); err != nil { //nolint:gosec // the fixture chooses the program and its arguments
 		return fmt.Errorf("exec ze update serve: %w", err)
 	}
 	return nil

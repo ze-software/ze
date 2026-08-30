@@ -24,7 +24,6 @@ func TestFixture06FrameCheckAcceptsEveryContractCase(t *testing.T) {
 		{name: "failed", frame: fmt.Sprintf("top doc 0: 0:\nend 0 0 %d:%s\n", len(failedMessage), failedMessage)},
 	}
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			dir := t.TempDir()

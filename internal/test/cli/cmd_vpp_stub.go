@@ -34,6 +34,10 @@ const (
 	negotiatedIDBase    = 100
 )
 
+// messageSockclntCreate is the VPP binapi message that opens a socket client
+// session, and the one message whose id is fixed rather than negotiated.
+const messageSockclntCreate = "sockclnt_create"
+
 type vppStubMessage struct {
 	crc  string
 	kind api.MessageType
@@ -88,10 +92,10 @@ func newVPPStubState(logPath string, verbose bool) (*vppStubState, error) {
 	}
 	slices.Sort(names)
 	byID := make(map[uint16]string, len(names)+1)
-	byID[sockCreateMessageID] = "sockclnt_create"
+	byID[sockCreateMessageID] = messageSockclntCreate
 	next := uint16(negotiatedIDBase)
 	for _, name := range names {
-		if name == "sockclnt_create" {
+		if name == messageSockclntCreate {
 			message := messages[name]
 			message.id = sockCreateMessageID
 			messages[name] = message
@@ -111,20 +115,6 @@ func newVPPStubState(logPath string, verbose bool) (*vppStubState, error) {
 }
 
 func runVPPStub(socketPath, logPath string, deadline time.Duration, verbose bool) error {
-	_ = os.Remove(socketPath)
-	listener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		return err
-	}
-	defer func() { listener.Close(); os.Remove(socketPath) }()
-	if err := os.Chmod(socketPath, 0o600); err != nil {
-		return err
-	}
-	state, err := newVPPStubState(logPath, verbose)
-	if err != nil {
-		return err
-	}
-	defer state.log.Close()
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	if deadline > 0 {
@@ -132,7 +122,25 @@ func runVPPStub(socketPath, logPath string, deadline time.Duration, verbose bool
 		ctx, cancel = context.WithTimeout(ctx, deadline)
 		defer cancel()
 	}
-	go func() { <-ctx.Done(); listener.Close() }()
+	_ = os.Remove(socketPath)
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(ctx, "unix", socketPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		listener.Close()      //nolint:errcheck // shutdown cleanup
+		os.Remove(socketPath) //nolint:errcheck // shutdown cleanup
+	}()
+	if err := os.Chmod(socketPath, 0o600); err != nil {
+		return err
+	}
+	state, err := newVPPStubState(logPath, verbose)
+	if err != nil {
+		return err
+	}
+	defer state.log.Close()                        //nolint:errcheck // shutdown cleanup
+	go func() { <-ctx.Done(); listener.Close() }() //nolint:errcheck // unblocks Accept on shutdown
 	if verbose {
 		fmt.Fprintf(os.Stderr, "vpp-stub: listening on %s (log=%s, deadline=%s)\n", socketPath, logPath, deadline)
 	}
@@ -147,7 +155,7 @@ func runVPPStub(socketPath, logPath string, deadline time.Duration, verbose bool
 		if err := serveVPPClient(state, connection); err != nil && verbose {
 			fmt.Fprintf(os.Stderr, "vpp-stub: client error: %v\n", err)
 		}
-		connection.Close()
+		connection.Close() //nolint:errcheck // per-connection cleanup
 	}
 }
 
@@ -194,11 +202,15 @@ func (state *vppStubState) reply(name string, context uint32, body []byte) ([]by
 	if !ok {
 		return nil, fmt.Errorf("reply %s is not registered", name)
 	}
-	offset := 2
-	if message.kind == api.RequestMessage {
+	var offset int
+	switch message.kind {
+	case api.RequestMessage:
 		offset = 10
-	} else if message.kind == api.ReplyMessage || message.kind == api.EventMessage {
+	case api.ReplyMessage, api.EventMessage:
 		offset = 6
+	default:
+		// api.OtherMessage: the 2-octet message id is the whole header.
+		offset = 2
 	}
 	payload := make([]byte, offset+len(body))
 	binary.BigEndian.PutUint16(payload, message.id)
@@ -293,7 +305,7 @@ func (state *vppStubState) handle(name string, contextID uint32, body []byte) ([
 	replyBody := []byte{0, 0, 0, 0}
 	closeConnection := false
 	switch name {
-	case "sockclnt_create":
+	case messageSockclntCreate:
 		replyName = "sockclnt_create_reply"
 		replyBody = state.sockCreateReplyBody()
 	case "sockclnt_delete":
@@ -463,7 +475,7 @@ func vppAddress(family byte, data []byte) string {
 func hexBytePairs(data []byte) []string {
 	encoded := hex.EncodeToString(data)
 	pairs := make([]string, 0, len(data))
-	for index := range len(data) {
+	for index := range data {
 		pairs = append(pairs, encoded[index*2:index*2+2])
 	}
 	return pairs

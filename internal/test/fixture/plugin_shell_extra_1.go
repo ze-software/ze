@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -45,7 +46,7 @@ func init() {
 }
 
 func extra1Write(path, body string) error {
-	return os.WriteFile(path, []byte(body), 0o644)
+	return os.WriteFile(path, []byte(body), 0o600)
 }
 
 func extra1Wait(ctx context.Context, delay time.Duration) error {
@@ -63,7 +64,7 @@ func extra1Environment(overrides map[string]string) []string {
 	environment := append([]string(nil), os.Environ()...)
 	for key, value := range overrides {
 		prefix := key + "="
-		for index := len(environment) - 1; index >= 0; index-- {
+		for index := range slices.Backward(environment) {
 			if strings.HasPrefix(environment[index], prefix) {
 				environment = append(environment[:index], environment[index+1:]...)
 			}
@@ -74,11 +75,11 @@ func extra1Environment(overrides map[string]string) []string {
 }
 
 func extra1StartDaemon(ctx context.Context, configPath, logPath string, environment map[string]string) (*extra1Daemon, error) {
-	logFile, err := os.Create(logPath)
+	logFile, err := os.Create(logPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil, err
 	}
-	command := exec.CommandContext(ctx, "ze", "start", configPath)
+	command := exec.CommandContext(ctx, "ze", "start", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = extra1Environment(environment)
 	command.Stdout = io.Discard
 	command.Stderr = logFile
@@ -132,12 +133,12 @@ func (daemon *extra1Daemon) contents() string {
 	return string(contents)
 }
 
-var extra1SSHAddress = regexp.MustCompile(`127\.0\.0\.1:([0-9]+)`)
+var extra1SSHAddress = regexp.MustCompile(`127\.0\.0\.1:(\d+)`)
 
 func (daemon *extra1Daemon) waitSSH(ctx context.Context) (string, error) {
 	var port string
 	if Poll(ctx, 50, 200*time.Millisecond, func() bool {
-		for _, line := range strings.Split(daemon.contents(), "\n") {
+		for line := range strings.SplitSeq(daemon.contents(), "\n") {
 			if !strings.Contains(line, "SSH server listening") {
 				continue
 			}
@@ -155,7 +156,7 @@ func (daemon *extra1Daemon) waitSSH(ctx context.Context) (string, error) {
 }
 
 func extra1Credentials(port, username, password string) sshclient.Credentials {
-	return sshclient.Credentials{Host: "127.0.0.1", Port: port, Username: username, Auth: password}
+	return sshclient.Credentials{Host: addrLoopback, Port: port, Username: username, Auth: password}
 }
 
 func extra1Command(port, username, password, command string) (string, error) {
@@ -169,7 +170,7 @@ func extra1InitCLI(ctx context.Context, port string) (string, error) {
 		return "", err
 	}
 	command := exec.CommandContext(ctx, "ze", "init")
-	command.Env = extra1Environment(map[string]string{"ZE_CONFIG_DIR": configDir})
+	command.Env = extra1Environment(map[string]string{envConfigDir: configDir})
 	command.Stdin = strings.NewReader(fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%s\n", port))
 	output, err := command.CombinedOutput()
 	if err != nil {
@@ -180,34 +181,37 @@ func extra1InitCLI(ctx context.Context, port string) (string, error) {
 }
 
 func extra1CLI(ctx context.Context, configDir, port, username, password, commandText string) (string, error) {
-	arguments := []string{"cli", "--remote", net.JoinHostPort("127.0.0.1", port)}
+	arguments := []string{areaCLI, "--remote", net.JoinHostPort("127.0.0.1", port)}
 	if username != "" {
 		arguments = append(arguments, "--user", username)
 	}
 	arguments = append(arguments, "-c", commandText)
-	command := exec.CommandContext(ctx, "ze", arguments...)
+	command := exec.CommandContext(ctx, "ze", arguments...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = extra1Environment(map[string]string{
-		"ZE_CONFIG_DIR":   configDir,
-		"ZE_SSH_PASSWORD": password,
+		envConfigDir:   configDir,
+		envSSHPassword: password,
 	})
 	output, err := command.CombinedOutput()
 	return strings.TrimSpace(string(output)), err
 }
 
 func extra1TouchReady() error {
-	return os.WriteFile("daemon.ready", nil, 0o644)
+	return os.WriteFile("daemon.ready", nil, 0o600)
 }
 
 func extra1BGPPort() string {
 	return strconv.Itoa(10000 + os.Getpid()%50000)
 }
 
-func extra1RunDaemon(ctx context.Context, configPath, logPath, config string, environment map[string]string) (*extra1Daemon, string, error) {
+// extra1DaemonLog is the log file every daemon these fixtures start writes to.
+const extra1DaemonLog = "daemon.log"
+
+func extra1RunDaemon(ctx context.Context, configPath, config string, environment map[string]string) (*extra1Daemon, string, error) {
 	workDir, err := os.MkdirTemp("", "plugin-shell-extra-1-daemon-")
 	if err != nil {
 		return nil, "", err
 	}
-	daemon, port, err := extra1RunDaemonIn(ctx, workDir, configPath, logPath, config, environment)
+	daemon, port, err := extra1RunDaemonIn(ctx, workDir, configPath, extra1DaemonLog, config, environment)
 	if err != nil {
 		_ = os.RemoveAll(workDir)
 		return nil, "", err
@@ -238,12 +242,11 @@ func extra1RunDaemonIn(ctx context.Context, workDir, configName, logName, config
 	return daemon, port, nil
 }
 
-func extra1RequireCommand(port, username, password, command string) (string, error) {
-	output, err := extra1Command(port, username, password, command)
-	if err != nil {
-		return output, fmt.Errorf("%s: %w", command, err)
+func extra1RequireCommand(port, username, password, command string) error {
+	if _, err := extra1Command(port, username, password, command); err != nil {
+		return fmt.Errorf("%s: %w", command, err)
 	}
-	return output, nil
+	return nil
 }
 
 func extra1ContainsBoth(output, first, second string) bool {
@@ -267,13 +270,13 @@ func extra1StartRadiusMock(ctx context.Context) (*extra1RadiusMock, string, erro
 	}
 	logPath := filepath.Join(work, "mock.log")
 	addrPath := filepath.Join(work, "mock.addr")
-	mockLog, err := os.Create(logPath)
+	mockLog, err := os.Create(logPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		_ = os.RemoveAll(work)
 		return nil, "", err
 	}
 	mockCtx, cancel := context.WithCancel(ctx)
-	command := exec.CommandContext(mockCtx, executable, "radius-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", addrPath)
+	command := exec.CommandContext(mockCtx, executable, "radius-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", addrPath) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Stdout = io.Discard
 	command.Stderr = mockLog
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -287,14 +290,14 @@ func extra1StartRadiusMock(ctx context.Context) (*extra1RadiusMock, string, erro
 	mock := &extra1RadiusMock{command: command, cancel: cancel, work: work}
 	var address string
 	if !Poll(ctx, 30, 100*time.Millisecond, func() bool {
-		contents, err := os.ReadFile(addrPath)
+		contents, err := os.ReadFile(addrPath) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return false
 		}
 		address = strings.TrimSpace(string(contents))
 		return address != ""
 	}) {
-		logContents, _ := os.ReadFile(logPath)
+		logContents, _ := os.ReadFile(logPath) //nolint:gosec // the path is the fixture's own scratch file
 		extra1StopRadiusMock(mock)
 		return nil, "", fmt.Errorf("RADIUS mock did not report address: %s", logContents)
 	}

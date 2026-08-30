@@ -3,6 +3,7 @@ package fixture
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -11,7 +12,7 @@ import (
 
 func policyRuleLines(dump string) []string {
 	var rules []string
-	for _, line := range strings.Split(dump, "\n") {
+	for line := range strings.SplitSeq(dump, "\n") {
 		s := strings.TrimSpace(line)
 		if s == "" || s == "{" || s == "}" || strings.HasPrefix(s, "table ") || strings.HasPrefix(s, "chain ") || strings.HasPrefix(s, "type ") {
 			continue
@@ -35,7 +36,7 @@ func policyTableOutput(ctx context.Context, predicate func([]string) bool, attem
 }
 
 func policyBootApply(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -51,7 +52,7 @@ func policyBootApply(ctx context.Context, _ []string) error {
 }
 
 func policySingleTable(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -64,14 +65,14 @@ func policySingleTable(ctx context.Context, _ []string) error {
 }
 
 func policySetTable(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
 	var rules string
 	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
 		rules, _ = netfilterCommandOutput(ctx, "ip", "rule", "show")
-		for _, line := range strings.Split(rules, "\n") {
+		for line := range strings.SplitSeq(rules, "\n") {
 			if strings.Contains(line, "lookup 100") && strings.Contains(line, "fwmark") {
 				return true
 			}
@@ -85,7 +86,7 @@ func policySetTable(ctx context.Context, _ []string) error {
 		return err
 	}
 	fmt.Print(nftOut)
-	for _, line := range strings.Split(rules, "\n") {
+	for line := range strings.SplitSeq(rules, "\n") {
 		if strings.Contains(line, "lookup 100") && strings.Contains(line, "fwmark") {
 			fmt.Printf("IP_RULE: %s\n", line)
 		}
@@ -103,19 +104,14 @@ func autoTableRule(line string) bool {
 }
 
 func policyNextHop(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
 	var rules string
 	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
 		rules, _ = netfilterCommandOutput(ctx, "ip", "rule", "show")
-		for _, line := range strings.Split(rules, "\n") {
-			if autoTableRule(line) {
-				return true
-			}
-		}
-		return false
+		return slices.ContainsFunc(strings.Split(rules, "\n"), autoTableRule)
 	}) {
 		return fmt.Errorf("auto table ip rule was not programmed")
 	}
@@ -124,7 +120,7 @@ func policyNextHop(ctx context.Context, _ []string) error {
 		return err
 	}
 	fmt.Print(nftOut)
-	for _, line := range strings.Split(rules, "\n") {
+	for line := range strings.SplitSeq(rules, "\n") {
 		if autoTableRule(line) {
 			fmt.Printf("IP_RULE_AUTO: %s\n", line)
 		}
@@ -133,7 +129,7 @@ func policyNextHop(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	for _, line := range strings.Split(routes, "\n") {
+	for line := range strings.SplitSeq(routes, "\n") {
 		if strings.Contains(line, "10.0.0.1") && strings.Contains(line, "proto") {
 			fmt.Printf("AUTO_ROUTE: %s\n", line)
 		}
@@ -143,7 +139,7 @@ func policyNextHop(ctx context.Context, _ []string) error {
 
 func policyReload(ctx context.Context, _ []string) error {
 	deadline := time.Now().Add(12 * time.Second)
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -162,17 +158,17 @@ func policyReload(ctx context.Context, _ []string) error {
 	})
 	before, err := netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_pr")
 	if err != nil {
-		return fmt.Errorf("Phase 1 FAIL: ze_pr table missing after boot")
+		return fmt.Errorf("phase 1 FAIL: ze_pr table missing after boot")
 	}
 	beforeRules := policyRuleLines(before)
 	if len(beforeRules) == 0 {
-		return fmt.Errorf("Phase 1 FAIL: ze_pr has no rules at all; got:\n%s", before)
+		return fmt.Errorf("phase 1 FAIL: ze_pr has no rules at all; got:\n%s", before)
 	}
 	if !containsRule(beforeRules, "accept") {
-		return fmt.Errorf("Phase 1 FAIL: accept rule missing; got:\n%s", before)
+		return fmt.Errorf("phase 1 FAIL: accept rule missing; got:\n%s", before)
 	}
 	fmt.Println("PHASE1_OK")
-	if err := copyFile("config2.conf", "ze-bgp.conf"); err != nil {
+	if err := stageReloadConfig(); err != nil {
 		return err
 	}
 	if err := signalProcess(pid, syscall.SIGHUP); err != nil {
@@ -181,17 +177,17 @@ func policyReload(ctx context.Context, _ []string) error {
 	waitRules(func(rules []string) bool { return containsRule(rules, "drop") && !containsRule(rules, "accept") })
 	after, err := netfilterCommandOutput(ctx, "nft", "list", "table", "inet", "ze_pr")
 	if err != nil {
-		return fmt.Errorf("Phase 2 FAIL: ze_pr table missing after reload")
+		return fmt.Errorf("phase 2 FAIL: ze_pr table missing after reload")
 	}
 	afterRules := policyRuleLines(after)
 	if len(afterRules) == 0 {
-		return fmt.Errorf("Phase 2 FAIL: ze_pr has no rules after reload; got:\n%s", after)
+		return fmt.Errorf("phase 2 FAIL: ze_pr has no rules after reload; got:\n%s", after)
 	}
 	if containsRule(afterRules, "accept") {
-		return fmt.Errorf("Phase 2 FAIL: old accept rule still present after reload; got:\n%s", after)
+		return fmt.Errorf("phase 2 FAIL: old accept rule still present after reload; got:\n%s", after)
 	}
 	if !containsRule(afterRules, "drop") {
-		return fmt.Errorf("Phase 2 FAIL: new drop rule missing after reload; got:\n%s", after)
+		return fmt.Errorf("phase 2 FAIL: new drop rule missing after reload; got:\n%s", after)
 	}
 	fmt.Println("PHASE2_OK")
 	return signalProcess(pid, syscall.SIGTERM)

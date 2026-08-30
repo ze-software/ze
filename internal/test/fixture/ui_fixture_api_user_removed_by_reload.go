@@ -115,13 +115,13 @@ func runAPIUserRemovedByReload(ctx context.Context) error {
 	}
 }
 `, f.port2)
-	if err := os.WriteFile(f.path("api-on-port1.conf"), []byte(apiOnPort1), 0o666); err != nil {
+	if err := os.WriteFile(f.path("api-on-port1.conf"), []byte(apiOnPort1), 0o600); err != nil {
 		return err
 	}
-	if err := os.WriteFile(f.path("api-on-port2.conf"), []byte(apiOnPort2), 0o666); err != nil {
+	if err := os.WriteFile(f.path("api-on-port2.conf"), []byte(apiOnPort2), 0o600); err != nil {
 		return err
 	}
-	if err := os.WriteFile(f.path("api-absent.conf"), nil, 0o666); err != nil {
+	if err := os.WriteFile(f.path("api-absent.conf"), nil, 0o600); err != nil {
 		return err
 	}
 
@@ -144,11 +144,9 @@ func runAPIUserRemovedByReload(ctx context.Context) error {
 		userEntryProfile("keepuser", keepHash, "api-denied"),
 		userEntry("newuser", newHash),
 	}, "")
-	keepOnlyUsers := strings.Join([]string{
-		userEntry("poweruser", collisionHash),
-		userEntryProfile("keepuser", keepHash, "api-denied"),
-		userEntry("newuser", newHash),
-	}, "")
+	keepOnlyUsers := userEntry("poweruser", collisionHash) +
+		userEntryProfile("keepuser", keepHash, "api-denied") +
+		userEntry("newuser", newHash)
 
 	for name, users := range map[string]string{
 		"users-config-only.conf": configOnlyUsers,
@@ -290,7 +288,7 @@ func (f *apiUserReloadFixture) passwordHash(password string) (string, error) {
 
 func (f *apiUserReloadFixture) initZE(configDir string) error {
 	cmd := exec.CommandContext(f.ctx, "ze", "init")
-	cmd.Env = uiApiUserRemovedByReloadReplaceEnv(f.baseEnv, map[string]string{"ZE_CONFIG_DIR": configDir})
+	cmd.Env = uiApiUserRemovedByReloadReplaceEnv(f.baseEnv, map[string]string{envConfigDir: configDir})
 	cmd.Stdin = strings.NewReader("poweruser\npowerpass\n127.0.0.1\n2222\n")
 	cmd.Stdout = io.Discard
 	cmd.Stderr = os.Stderr
@@ -327,15 +325,15 @@ func writeSystem(path, users string) error {
 	}
 }
 `, users)
-	return os.WriteFile(path, []byte(contents), 0666)
+	return os.WriteFile(path, []byte(contents), 0o600)
 }
 
 func writeCombinedConfig(outputPath, systemPath, environmentPath string) error {
-	systemConfig, err := os.ReadFile(systemPath)
+	systemConfig, err := os.ReadFile(systemPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
-	environmentConfig, err := os.ReadFile(environmentPath)
+	environmentConfig, err := os.ReadFile(environmentPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -345,22 +343,22 @@ func writeCombinedConfig(outputPath, systemPath, environmentPath string) error {
 		combined = append(combined, environmentConfig...)
 		combined = append(combined, []byte("}\n")...)
 	}
-	return os.WriteFile(outputPath, combined, 0o666)
+	return os.WriteFile(outputPath, combined, 0o600)
 }
 
 func (f *apiUserReloadFixture) startDaemon(stage, logName, configDir string) error {
 	readyPath := f.path("daemon.ready")
 	_ = os.Remove(readyPath)
 	logPath := f.path(logName)
-	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o666)
+	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(f.ctx, "ze", "start", f.path("api-user-reload.conf"))
+	cmd := exec.CommandContext(f.ctx, "ze", "start", f.path("api-user-reload.conf")) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = f.work
 	cmd.Env = uiApiUserRemovedByReloadReplaceEnv(f.baseEnv, map[string]string{
-		"ZE_READY_FILE": readyPath,
-		"ZE_CONFIG_DIR": configDir,
+		envReadyFile: readyPath,
+		envConfigDir: configDir,
 	})
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = log
@@ -380,7 +378,7 @@ func (f *apiUserReloadFixture) startDaemon(stage, logName, configDir string) err
 	}
 
 	ready := false
-	for i := 0; i < 300; i++ {
+	for range 300 {
 		if uiApiUserRemovedByReloadFileExists(readyPath) {
 			ready = true
 			break
@@ -444,7 +442,7 @@ func (f *apiUserReloadFixture) checkStage(stage string) error {
 		"rebuilt":     2,
 		"reload-site": 3,
 	}[stage]; ok {
-		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, 60, 500*time.Millisecond, func() bool {
+		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, func() bool {
 			return uiApiUserRemovedByReloadReloadGeneration(f.path("reload.log")) >= generation
 		}), fmt.Sprintf("reload generation %d completed", generation)); err != nil {
 			return err
@@ -453,7 +451,7 @@ func (f *apiUserReloadFixture) checkStage(stage string) error {
 
 	switch stage {
 	case "config-only":
-		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, 60, 500*time.Millisecond, func() bool {
+		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, func() bool {
 			return f.requestStatus(f.port1, "configuser", "configpass", "") == http.StatusOK
 		}), "a config user authenticates with no zefs, BGP, or SSH"); err != nil {
 			return err
@@ -471,7 +469,7 @@ func (f *apiUserReloadFixture) checkStage(stage string) error {
 			fmt.Sprintf("the config user is denied a command outside their profile (status %s)", statusText(deniedStatus)))
 
 	case "distinct":
-		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, 60, 500*time.Millisecond, func() bool {
+		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, func() bool {
 			return f.requestStatus(f.port1, "configuser", "configpass", "") == http.StatusOK
 		}), "the distinct config user authenticates beside the zefs user"); err != nil {
 			return err
@@ -480,7 +478,7 @@ func (f *apiUserReloadFixture) checkStage(stage string) error {
 			"the distinct zefs user executes through the recovery profile")
 
 	case "collision":
-		collisionReady := uiApiUserRemovedByReloadPoll(f.ctx, 60, 500*time.Millisecond, func() bool {
+		collisionReady := uiApiUserRemovedByReloadPoll(f.ctx, func() bool {
 			return f.requestStatus(f.port1, "poweruser", "collisionpass", "") == http.StatusOK
 		})
 		collisionStatus := f.requestStatus(f.port1, "poweruser", "collisionpass", "")
@@ -504,7 +502,7 @@ func (f *apiUserReloadFixture) checkStage(stage string) error {
 			"the boot-built authenticator admits an ordinary config user")
 
 	case "reload-boot":
-		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, 60, 500*time.Millisecond, func() bool {
+		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, func() bool {
 			return f.requestStatus(f.port1, "bootuser", "bootpass", "") == http.StatusOK
 		}), "the reload daemon starts from its config user source"); err != nil {
 			return err
@@ -517,7 +515,7 @@ func (f *apiUserReloadFixture) checkStage(stage string) error {
 			"the unchanged user can run the probe command before profile reload")
 
 	case "boot-site":
-		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, 60, 500*time.Millisecond, func() bool {
+		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, func() bool {
 			return f.requestStatus(f.port1, "bootuser", "bootpass", "") == http.StatusUnauthorized
 		}), "the boot-built authenticator refuses a removed user"); err != nil {
 			return err
@@ -541,7 +539,7 @@ func (f *apiUserReloadFixture) checkStage(stage string) error {
 		return nil
 
 	case "rebuilt":
-		rebuiltReady := uiApiUserRemovedByReloadPoll(f.ctx, 60, 500*time.Millisecond, func() bool {
+		rebuiltReady := uiApiUserRemovedByReloadPoll(f.ctx, func() bool {
 			return f.requestStatus(f.port2, "newuser", "newpass", "") == http.StatusOK
 		})
 		port2Status := f.requestStatus(f.port2, "newuser", "newpass", "")
@@ -559,7 +557,7 @@ func (f *apiUserReloadFixture) checkStage(stage string) error {
 			"the rebuilt authenticator does not revive the removed user")
 
 	case "reload-site":
-		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, 60, 500*time.Millisecond, func() bool {
+		if err := uiApiUserRemovedByReloadRequire(uiApiUserRemovedByReloadPoll(f.ctx, func() bool {
 			return f.requestStatus(f.port2, "reloaduser", "reloadpass", "") == http.StatusUnauthorized
 		}), "the reload-built authenticator refuses a later removed user"); err != nil {
 			return err
@@ -580,7 +578,7 @@ func (f *apiUserReloadFixture) requestStatus(port int, user, password, command s
 	var body io.Reader
 	if command != "" {
 		path = "/api/v1/execute"
-		payload, err := json.Marshal(map[string]string{"command": command})
+		payload, err := json.Marshal(map[string]string{fieldCommand: command})
 		if err != nil {
 			return 0
 		}
@@ -607,12 +605,18 @@ func (f *apiUserReloadFixture) requestStatus(port int, user, password, command s
 	return resp.StatusCode
 }
 
-func uiApiUserRemovedByReloadPoll(ctx context.Context, attempts int, delay time.Duration, condition func() bool) bool {
-	for attempt := 0; attempt < attempts; attempt++ {
+// uiApiUserRemovedByReloadAttempts bounds every poll in this fixture.
+const uiApiUserRemovedByReloadAttempts = 60
+
+// uiApiUserRemovedByReloadDelay is the pause between two poll attempts.
+const uiApiUserRemovedByReloadDelay = 500 * time.Millisecond
+
+func uiApiUserRemovedByReloadPoll(ctx context.Context, condition func() bool) bool {
+	for attempt := range uiApiUserRemovedByReloadAttempts {
 		if condition() {
 			return true
 		}
-		if attempt+1 < attempts && !uiApiUserRemovedByReloadSleepContext(ctx, delay) {
+		if attempt+1 < uiApiUserRemovedByReloadAttempts && !uiApiUserRemovedByReloadSleepContext(ctx, uiApiUserRemovedByReloadDelay) {
 			return false
 		}
 	}
@@ -640,7 +644,7 @@ func uiApiUserRemovedByReloadRequire(condition bool, message string) error {
 }
 
 func uiApiUserRemovedByReloadReloadGeneration(path string) int {
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return 0
 	}
@@ -648,7 +652,7 @@ func uiApiUserRemovedByReloadReloadGeneration(path string) int {
 }
 
 func requireLogText(path, text, failure string) error {
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err == nil && bytes.Contains(contents, []byte(text)) {
 		return nil
 	}
@@ -660,14 +664,14 @@ func requireLogText(path, text, failure string) error {
 }
 
 func writeFileToStderr(path string) {
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err == nil {
 		_, _ = os.Stderr.Write(contents)
 	}
 }
 
 func writeTailToStderr(path string, count int) {
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return
 	}
@@ -699,8 +703,8 @@ func uiApiUserRemovedByReloadReplaceEnv(base []string, values map[string]string)
 	out := make([]string, 0, len(base)+len(values))
 	for _, entry := range base {
 		key := entry
-		if at := strings.IndexByte(entry, '='); at >= 0 {
-			key = entry[:at]
+		if before, _, found := strings.Cut(entry, "="); found {
+			key = before
 		}
 		if _, replaced := values[key]; !replaced {
 			out = append(out, entry)

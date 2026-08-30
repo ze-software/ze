@@ -30,7 +30,7 @@ func p12RegisterFilterFixtures() {
 	Register("plugin/redistribute-import-accept", p12FilterImportDriver(
 		"filter-accept-test",
 		"accept-all",
-		[]string{"as-path", "origin"},
+		[]string{fieldASPath, pipeOrigin},
 		sdk.FilterAccept,
 		"filter called %d time(s)",
 	))
@@ -44,7 +44,7 @@ func p12RegisterFilterFixtures() {
 	Register("plugin/redistribute-import-reject", p12FilterImportDriver(
 		"filter-reject-test",
 		"reject-all",
-		[]string{"as-path", "origin"},
+		[]string{fieldASPath, pipeOrigin},
 		sdk.FilterReject,
 		"filter rejected %d route(s)",
 	))
@@ -77,12 +77,12 @@ func p12FilterDriver(name string, registration sdk.Registration, handler sdk.Fil
 			go func() {
 				var scenarioErr error
 				if marker != "" {
-					if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "eor-sent", 1, 40) {
+					if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "eor-sent", 1) {
 						scenarioErr = fmt.Errorf("peer2 did not finish initial sync before the source peer started")
-					} else if err := os.WriteFile(marker, []byte("ready"), 0o644); err != nil {
+					} else if err := os.WriteFile(marker, []byte("ready"), 0o600); err != nil {
 						scenarioErr = err
 					} else {
-						defer os.Remove(marker) //nolint:errcheck
+						defer os.Remove(marker) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
 					}
 				}
 				if scenarioErr == nil {
@@ -108,8 +108,8 @@ func p12FilterDriver(name string, registration sdk.Registration, handler sdk.Fil
 func p12FilterChainDriver() Driver {
 	state := new(p12FilterState)
 	registration := sdk.Registration{Filters: []sdk.FilterDecl{
-		{Name: "first", Direction: sdk.FilterImport, Attributes: []string{"as-path"}, OnError: sdk.OnErrorReject},
-		{Name: "second", Direction: sdk.FilterImport, Attributes: []string{"community"}, OnError: sdk.OnErrorReject},
+		{Name: filterNameFirst, Direction: sdk.FilterImport, Attributes: []string{fieldASPath}, OnError: sdk.OnErrorReject},
+		{Name: "second", Direction: sdk.FilterImport, Attributes: []string{fieldCommunity}, OnError: sdk.OnErrorReject},
 	}}
 	handler := func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
 		state.mu.Lock()
@@ -125,7 +125,7 @@ func p12FilterChainDriver() Driver {
 			defer state.mu.Unlock()
 			return len(state.order) >= 2
 		})
-		if !p12WaitPeerCounter(ctx, plugin, "*", "eor-sent", 1, 40) {
+		if !p12WaitPeerCounter(ctx, plugin, "*", "eor-sent", 1) {
 			return fmt.Errorf("ze sent no end-of-rib to peer1 before shutdown")
 		}
 		if err := p12Quiesce(ctx, plugin); err != nil {
@@ -137,7 +137,7 @@ func p12FilterChainDriver() Driver {
 		if len(state.order) < 2 {
 			return fmt.Errorf("%d filter call(s), expected 2: %v", len(state.order), state.order)
 		}
-		if state.order[0] != "first" || state.order[1] != "second" {
+		if state.order[0] != filterNameFirst || state.order[1] != "second" {
 			return fmt.Errorf("wrong filter order: %v", state.order)
 		}
 		fmt.Fprintf(os.Stderr, "OK: filters called in correct order: ['%s']\n", strings.Join(state.order, "', '"))
@@ -150,12 +150,12 @@ func p12FilterDeclareDriver() Driver {
 	registration := sdk.Registration{Filters: []sdk.FilterDecl{{
 		Name:       "accept-all",
 		Direction:  sdk.FilterImport,
-		Attributes: []string{"as-path", "community"},
+		Attributes: []string{fieldASPath, fieldCommunity},
 		OnError:    sdk.OnErrorReject,
 	}}}
 	return p12FilterDriver("filter-declare-test", registration, nil, func(ctx context.Context, plugin *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: filter declaration accepted, startup complete")
-		if !p12WaitPeerCounter(ctx, plugin, "*", "eor-sent", 1, 40) {
+		if !p12WaitPeerCounter(ctx, plugin, "*", "eor-sent", 1) {
 			return fmt.Errorf("ze sent no end-of-rib to peer1 before shutdown")
 		}
 		return nil
@@ -171,7 +171,7 @@ func p12FilterExportModifyDriver() Driver {
 		OnError:    sdk.OnErrorReject,
 	}}}
 	handler := func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		if input.Direction == "export" {
+		if input.Direction == directionExport {
 			state.exportModified.Add(1)
 			fmt.Fprintf(os.Stderr, "filter-update EXPORT MODIFY: peer=%s update=%q\n", input.Peer, input.Update)
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: "local-preference 200"}, nil
@@ -180,10 +180,10 @@ func p12FilterExportModifyDriver() Driver {
 	}
 	scenario := func(ctx context.Context, plugin *sdk.Plugin) error {
 		Poll(ctx, 100, 100*time.Millisecond, func() bool { return state.exportModified.Load() > 0 })
-		if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "updates-sent", 2, 40) {
+		if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "updates-sent", 2) {
 			return fmt.Errorf("ze never wrote the modified UPDATE to peer2")
 		}
-		if !p12WaitPeerCounter(ctx, plugin, "127.0.0.1", "eor-sent", 1, 40) {
+		if !p12WaitPeerCounter(ctx, plugin, "127.0.0.1", "eor-sent", 1) {
 			return fmt.Errorf("ze sent no end-of-rib to peer1 before shutdown")
 		}
 		count := state.exportModified.Load()
@@ -201,11 +201,11 @@ func p12FilterExportRejectDriver() Driver {
 	registration := sdk.Registration{Filters: []sdk.FilterDecl{{
 		Name:       "block-export",
 		Direction:  sdk.FilterExport,
-		Attributes: []string{"as-path"},
+		Attributes: []string{fieldASPath},
 		OnError:    sdk.OnErrorReject,
 	}}}
 	handler := func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		if input.Direction != "export" {
+		if input.Direction != directionExport {
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 		}
 		if strings.Contains(input.Update, "10.0.0.0/24") {
@@ -221,7 +221,7 @@ func p12FilterExportRejectDriver() Driver {
 		Poll(ctx, 100, 100*time.Millisecond, func() bool {
 			return state.exportRejected.Load() > 0 && state.exportPassed.Load() > 0
 		})
-		if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "updates-sent", 2, 40) {
+		if !p12WaitPeerCounter(ctx, plugin, "127.0.0.2", "updates-sent", 2) {
 			return fmt.Errorf("ze never wrote the fence UPDATE to peer2")
 		}
 		rejected, passed := state.exportRejected.Load(), state.exportPassed.Load()
@@ -265,7 +265,7 @@ func p12FilterImportDriver(name, filterName string, attributes []string, action 
 	}
 	scenario := func(ctx context.Context, plugin *sdk.Plugin) error {
 		Poll(ctx, 100, 100*time.Millisecond, func() bool { return state.calls.Load() > 0 })
-		if !p12WaitPeerCounter(ctx, plugin, "*", "eor-sent", 1, 40) {
+		if !p12WaitPeerCounter(ctx, plugin, "*", "eor-sent", 1) {
 			return fmt.Errorf("ze sent no end-of-rib to peer1 before shutdown")
 		}
 		if err := p12Quiesce(ctx, plugin); err != nil {

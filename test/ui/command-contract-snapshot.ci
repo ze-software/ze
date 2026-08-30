@@ -8,7 +8,7 @@ EOF_CONF
 option=timeout:value=25s
 
 # Validate diagnostic JSON has required fields
-cmd=foreground:seq=1:exec=ze config validate --json bad.conf
+cmd=foreground:seq=1:exec=ze cli -c "validate config bad.conf | json"
 expect=exit:code=1
 expect=stdout:contains="diagnostics"
 expect=stdout:contains="valid"

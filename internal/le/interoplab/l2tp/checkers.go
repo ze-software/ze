@@ -262,7 +262,7 @@ func waitPPPInterface(ctx context.Context, lab labOperations, peer string, timeo
 }
 
 func pppLinks(ctx context.Context, lab labOperations, peer string) ([]string, error) {
-	result, err := lab.Exec(ctx, peer, []string{"ip", "-o", commandLink, commandShow, "type", pppLinkType}, nil)
+	result, err := lab.Exec(ctx, peer, []string{"ip", "-o", commandLink, commandShow, commandType, pppLinkType}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -307,9 +307,9 @@ func waitL2TPClean(ctx context.Context, lab labOperations, timeout time.Duration
 			args []string
 			out  *string
 		}{
-			{peerZe, []string{"ip", "-o", commandLink, commandShow, "type", "ppp"}, nil},
+			{peerZe, []string{"ip", "-o", commandLink, commandShow, commandType, pppLinkType}, nil},
 			{peerZe, []string{"ip", "l2tp", commandShow, "tunnel"}, nil},
-			{peerLAC, []string{"ip", "-o", commandLink, commandShow, "type", "ppp"}, nil},
+			{peerLAC, []string{"ip", "-o", commandLink, commandShow, commandType, pppLinkType}, nil},
 			{peerLAC, []string{"ip", "l2tp", commandShow, "tunnel"}, nil},
 		}
 		value := state{}

@@ -54,7 +54,7 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	if err != nil {
@@ -113,9 +113,9 @@ func runLEConsistencyAnswers(parent context.Context) error {
 
 	var report map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(answer.stdout), &report); err != nil {
-		return fmt.Errorf("FAIL: `le consistency | json` did not answer JSON: %v\n%s", err, uiLeConsistencyAnswersPrefix(answer.stdout, 400))
+		return fmt.Errorf("FAIL: `le consistency | json` did not answer JSON: %w\n%s", err, uiLeConsistencyAnswersPrefix(answer.stdout, 400))
 	}
-	for _, key := range []string{"findings", "errors", "warnings"} {
+	for _, key := range []string{"findings", fieldErrors, "warnings"} {
 		if _, ok := report[key]; !ok {
 			return fmt.Errorf("FAIL: the report answered no %q key: %v", key, uiLeConsistencyAnswersSortedKeys(report))
 		}
@@ -147,7 +147,7 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	}
 
 	first := findings[0]
-	for _, key := range []string{"severity", "check", "file", "message"} {
+	for _, key := range []string{"severity", actionCheck, fieldFile, fieldMessage} {
 		if _, ok := first[key]; !ok {
 			return fmt.Errorf("FAIL: a finding carries no %q: %s", key, compactJSON(first))
 		}
@@ -176,7 +176,7 @@ func runLEConsistencyAnswers(parent context.Context) error {
 
 func runProcess(ctx context.Context, dir, name string, args ...string) (processResult, error) {
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = os.Environ()
 	cmd.Stdout = &stdout
@@ -190,8 +190,7 @@ func runProcess(ctx context.Context, dir, name string, args ...string) (processR
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return processResult{}, ctxErr
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}
@@ -200,7 +199,7 @@ func runProcess(ctx context.Context, dir, name string, args ...string) (processR
 
 func lineBag(text string) map[string]int {
 	bag := make(map[string]int)
-	for _, line := range strings.Split(ansiColor.ReplaceAllString(text, ""), "\n") {
+	for line := range strings.SplitSeq(ansiColor.ReplaceAllString(text, ""), "\n") {
 		bag[line]++
 	}
 	return bag

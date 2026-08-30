@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -46,12 +47,12 @@ func leSTEAnswers(ctx context.Context) error {
 	if err != nil {
 		return leSTEFailf("creating the fixture directory: %v", err)
 	}
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 	export := filepath.Join(here, "export")
 	if err := os.RemoveAll(export); err != nil {
 		return leSTEFailf("removing an old export: %v", err)
 	}
-	if err := os.MkdirAll(export, 0o755); err != nil {
+	if err := os.MkdirAll(export, 0o750); err != nil {
 		return leSTEFailf("creating the export directory: %v", err)
 	}
 
@@ -65,9 +66,9 @@ func leSTEAnswers(ctx context.Context) error {
 	}
 
 	gitSteps := [][]string{
-		{"init", "--quiet"},
-		{"add", "--all"},
-		{"-c", "user.email=test@example.invalid", "-c", "user.name=test", "commit", "--quiet", "-m", "export"},
+		{argInit, "--quiet"},
+		{argAdd, "--all"},
+		{"-c", "user.email=test@example.invalid", "-c", "user.name=test", "commit", "--quiet", "-m", directionExport},
 	}
 	for _, args := range gitSteps {
 		done := leSTERun(ctx, export, nil, "git", args...)
@@ -101,7 +102,7 @@ func leSTEAnswers(ctx context.Context) error {
 	}
 	pageAgain := le("ste", "review")
 	if pageAgain.code != 0 || pageAgain.err != nil || len(pageAgain.stderr) != 0 || !bytes.Equal(page.stdout, pageAgain.stdout) {
-		return leSTEFailf("the ordered review page is not stable across identical reads\nfirst tail:\n%s\nsecond tail:\n%s", leSTETail(page.stdout, 1200), leSTETail(pageAgain.stdout, 1200))
+		return leSTEFailf("the ordered review page is not stable across identical reads\nfirst tail:\n%s\nsecond tail:\n%s", leSTETail(page.stdout), leSTETail(pageAgain.stdout))
 	}
 
 	payloadResult := le("ste", "review", "|", "json")
@@ -113,7 +114,7 @@ func leSTEAnswers(ctx context.Context) error {
 	}
 	var payload leSTEReview
 	if err := json.Unmarshal(payloadResult.stdout, &payload); err != nil {
-		return leSTEFailf("decoding the review payload: %v\npayload tail: %s", err, leSTETail(payloadResult.stdout, 1200))
+		return leSTEFailf("decoding the review payload: %v\npayload tail: %s", err, leSTETail(payloadResult.stdout))
 	}
 	if payload.DocumentsReviewed < 8000 {
 		return leSTEFailf("the review read only %d documents, so the corpus walk is vacuous", payload.DocumentsReviewed)
@@ -159,18 +160,18 @@ func leSTEAnswers(ctx context.Context) error {
 	}
 
 	guide := filepath.Join(export, "docs", "guide", "quickstart.md")
-	original, err := os.ReadFile(guide)
+	original, err := os.ReadFile(guide) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return leSTEFailf("reading docs/guide/quickstart.md: %v", err)
 	}
 	changedText := append(append([]byte(nil), original...), []byte("\nThe daemon may start. It should typically work.\n")...)
-	if err := os.WriteFile(guide, changedText, 0o644); err != nil {
+	if err := os.WriteFile(guide, changedText, 0o600); err != nil {
 		return leSTEFailf("changing docs/guide/quickstart.md: %v", err)
 	}
 	restore := true
 	defer func() {
 		if restore {
-			_ = os.WriteFile(guide, original, 0o644)
+			_ = os.WriteFile(guide, original, 0o600)
 		}
 	}()
 
@@ -234,7 +235,7 @@ func leSTEAnswers(ctx context.Context) error {
 		return leSTEFailf("the explicit-file scope did not report one selected document: %s", other.stdout)
 	}
 
-	if err := os.WriteFile(guide, original, 0o644); err != nil {
+	if err := os.WriteFile(guide, original, 0o600); err != nil {
 		return leSTEFailf("restoring docs/guide/quickstart.md: %v", err)
 	}
 	restore = false
@@ -244,8 +245,8 @@ func leSTEAnswers(ctx context.Context) error {
 	}
 
 	// Every verdict remains reachable through every generic rendering operator.
-	for _, verb := range []string{"check", "review", "review-changed"} {
-		for _, operator := range []string{"json", "yaml", "table"} {
+	for _, verb := range []string{actionCheck, "review", "review-changed"} {
+		for _, operator := range []string{renderJSON, renderYAML, renderTable} {
 			piped := le("ste", verb, "|", operator)
 			if piped.code != 0 && piped.code != 3 {
 				return leSTEFailf("`le ste %s | %s` was refused with %d: %s", verb, operator, piped.code, piped.stderr)
@@ -259,8 +260,8 @@ func leSTEAnswers(ctx context.Context) error {
 			if len(bytes.TrimSpace(piped.stdout)) == 0 {
 				return leSTEFailf("`le ste %s | %s` rendered nothing", verb, operator)
 			}
-			if operator == "json" && !json.Valid(piped.stdout) {
-				return leSTEFailf("`le ste %s | json` did not render valid JSON: %s", verb, leSTETail(piped.stdout, 1200))
+			if operator == renderJSON && !json.Valid(piped.stdout) {
+				return leSTEFailf("`le ste %s | json` did not render valid JSON: %s", verb, leSTETail(piped.stdout))
 			}
 		}
 	}
@@ -272,7 +273,7 @@ func leSTEAnswers(ctx context.Context) error {
 	if len(listing.stderr) != 0 {
 		return leSTEFailf("the ste listing wrote to stderr: %s", listing.stderr)
 	}
-	for _, word := range []string{"check", "review", "review-changed"} {
+	for _, word := range []string{actionCheck, "review", "review-changed"} {
 		if !bytes.Contains(listing.stdout, []byte(word)) {
 			return leSTEFailf("the listing does not carry %q:\n%s", word, listing.stdout)
 		}
@@ -327,12 +328,12 @@ func leSTEAnswers(ctx context.Context) error {
 		return leSTEFailf("an action the area does not hold answered %d, want 2", missing.code)
 	}
 
-	fmt.Fprintln(os.Stdout, "OK")
+	fmt.Fprintln(os.Stdout, "OK") //nolint:errcheck // progress output
 	return nil
 }
 
 func leSTERun(ctx context.Context, dir string, env []string, name string, args ...string) leSTEResult {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	if env != nil {
 		cmd.Env = env
@@ -346,8 +347,7 @@ func leSTERun(ctx context.Context, dir string, env []string, name string, args .
 		result.code = 0
 		return result
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result
 	}
@@ -413,19 +413,19 @@ func leSTEExtractTar(r io.Reader, destination string) error {
 		mode := os.FileMode(hdr.Mode) & os.ModePerm
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(path, 0o755); err != nil {
+			if err := os.MkdirAll(path, 0o750); err != nil {
 				return err
 			}
 			directories = append(directories, directoryMode{path: path, mode: mode})
-		case tar.TypeReg, tar.TypeRegA:
-			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 				return err
 			}
-			file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
+			file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode) //nolint:gosec // the path is the fixture's own scratch file
 			if err != nil {
 				return err
 			}
-			_, copyErr := io.Copy(file, tr)
+			_, copyErr := io.Copy(file, tr) //nolint:gosec // the archive is the fixture's own git export
 			closeErr := file.Close()
 			if copyErr != nil {
 				return copyErr
@@ -434,7 +434,7 @@ func leSTEExtractTar(r io.Reader, destination string) error {
 				return closeErr
 			}
 		case tar.TypeSymlink:
-			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 				return err
 			}
 			if err := os.Symlink(hdr.Linkname, path); err != nil {
@@ -446,8 +446,8 @@ func leSTEExtractTar(r io.Reader, destination string) error {
 			return fmt.Errorf("unsupported archive entry %q with type %d", hdr.Name, hdr.Typeflag)
 		}
 	}
-	for i := len(directories) - 1; i >= 0; i-- {
-		if err := os.Chmod(directories[i].path, directories[i].mode); err != nil {
+	for _, directory := range slices.Backward(directories) {
+		if err := os.Chmod(directory.path, directory.mode); err != nil {
 			return err
 		}
 	}
@@ -473,11 +473,14 @@ func leSTEWithin(parent, child string) bool {
 	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
-func leSTETail(data []byte, n int) string {
-	if len(data) <= n {
+// steTailBytes is how much of a failed page the report keeps.
+const steTailBytes = 1200
+
+func leSTETail(data []byte) string {
+	if len(data) <= steTailBytes {
 		return string(data)
 	}
-	return string(data[len(data)-n:])
+	return string(data[len(data)-steTailBytes:])
 }
 
 func leSTEFailf(format string, args ...any) error {

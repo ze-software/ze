@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +17,7 @@ import (
 
 const pluginShellExtra2PollDelay = 100 * time.Millisecond
 
-var pluginShellExtra2SSHAddress = regexp.MustCompile(`127\.0\.0\.1:([0-9]+)`)
+var pluginShellExtra2SSHAddress = regexp.MustCompile(`127\.0\.0\.1:(\d+)`)
 
 func init() {
 	Register("plugin/authz-recovery-admin", pluginShellExtra2AuthzRecoveryAdmin)
@@ -59,8 +58,8 @@ func pluginShellExtra2Env(overrides map[string]string) []string {
 	return result
 }
 
-func pluginShellExtra2Run(ctx context.Context, env map[string]string, stdin string, name string, args ...string) pluginShellExtra2Result {
-	command := exec.CommandContext(ctx, name, args...)
+func pluginShellExtra2Run(ctx context.Context, env map[string]string, stdin string, args ...string) pluginShellExtra2Result {
+	command := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the arguments
 	command.Env = pluginShellExtra2Env(env)
 	if stdin != "" {
 		command.Stdin = strings.NewReader(stdin)
@@ -72,12 +71,9 @@ func pluginShellExtra2Run(ctx context.Context, env map[string]string, stdin stri
 	return pluginShellExtra2Result{stdout: stdout.String(), stderr: stderr.String(), err: err}
 }
 
-func pluginShellExtra2RunCombined(ctx context.Context, env map[string]string, stdin string, name string, args ...string) pluginShellExtra2Result {
-	command := exec.CommandContext(ctx, name, args...)
+func pluginShellExtra2RunCombined(ctx context.Context, env map[string]string, args ...string) pluginShellExtra2Result {
+	command := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the arguments
 	command.Env = pluginShellExtra2Env(env)
-	if stdin != "" {
-		command.Stdin = strings.NewReader(stdin)
-	}
 	var output bytes.Buffer
 	command.Stdout = &output
 	command.Stderr = &output
@@ -93,7 +89,7 @@ func pluginShellExtra2RequireNoArgs(args []string, name string) error {
 }
 
 func pluginShellExtra2WriteReady() error {
-	return os.WriteFile("daemon.ready", nil, 0o666)
+	return os.WriteFile("daemon.ready", nil, 0o600)
 }
 
 type pluginShellExtra2Daemon struct {
@@ -103,11 +99,11 @@ type pluginShellExtra2Daemon struct {
 }
 
 func pluginShellExtra2StartDaemon(ctx context.Context, config, logPath string, env map[string]string) (*pluginShellExtra2Daemon, error) {
-	logFile, err := os.Create(logPath)
+	logFile, err := os.Create(logPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil, err
 	}
-	command := exec.CommandContext(ctx, "ze", "start", config)
+	command := exec.CommandContext(ctx, "ze", "start", config) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = pluginShellExtra2Env(env)
 	command.Stdout = os.Stdout
 	command.Stderr = logFile
@@ -142,7 +138,7 @@ func pluginShellExtra2StopDaemon(daemon *pluginShellExtra2Daemon) {
 }
 
 func pluginShellExtra2Log(path string) string {
-	contents, _ := os.ReadFile(path)
+	contents, _ := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	return string(contents)
 }
 
@@ -178,14 +174,14 @@ func pluginShellExtra2AuthzRecoveryAdmin(ctx context.Context, args []string) err
 	}
 	defer os.RemoveAll(shared) //nolint:errcheck // fixture cleanup
 
-	initResult := pluginShellExtra2Run(ctx, map[string]string{"ZE_CONFIG_DIR": shared}, "admin\nrecoverypass\n127.0.0.1\n2222\n\n", "ze", "init")
+	initResult := pluginShellExtra2Run(ctx, map[string]string{envConfigDir: shared}, "admin\nrecoverypass\n127.0.0.1\n2222\n\n", "init")
 	if initResult.err != nil {
 		return pluginShellExtra2CommandFailure("ze init failed", initResult)
 	}
-	_, _ = io.WriteString(os.Stderr, initResult.stderr)
+	_, _ = os.Stderr.WriteString(initResult.stderr)
 	daemon, err := pluginShellExtra2StartDaemon(ctx, "authz-recovery-admin.conf", "daemon.log", map[string]string{
-		"ZE_CONFIG_DIR": shared,
-		"ze_log_authz":  "info",
+		envConfigDir:   shared,
+		"ze_log_authz": logLevelInfo,
 	})
 	if err != nil {
 		return err
@@ -198,11 +194,11 @@ func pluginShellExtra2AuthzRecoveryAdmin(ctx context.Context, args []string) err
 	}
 	fmt.Fprintf(os.Stderr, "ssh on :%s\n", port)
 	cliResult := pluginShellExtra2RunCombined(ctx, map[string]string{
-		"ZE_CONFIG_DIR":   shared,
-		"ZE_SSH_HOST":     "127.0.0.1",
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_PASSWORD": "recoverypass",
-	}, "", "ze", "cli", "--user", "admin", "-c", "show version")
+		envConfigDir:   shared,
+		envSSHHost:     addrLoopback,
+		envSSHPort:     port,
+		envSSHPassword: "recoverypass",
+	}, "cli", "--user", "admin", "-c", "show version")
 	if cliResult.err != nil {
 		return fmt.Errorf("bootstrap admin must reach the box via the recovery profile: %w\nOUTPUT: %s%s\n%s", cliResult.err, cliResult.stdout, cliResult.stderr, pluginShellExtra2Log("daemon.log"))
 	}
@@ -221,7 +217,7 @@ func pluginShellExtra2WaitCapture(token, success, failure string) Driver {
 		}
 		path := filepath.Join("capture", "bgp-127.0.0.1.jsonl")
 		if !Poll(ctx, 151, pluginShellExtra2PollDelay, func() bool {
-			contents, err := os.ReadFile(path)
+			contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 			return err == nil && bytes.Contains(contents, []byte(token))
 		}) {
 			entries, _ := os.ReadDir("capture")
@@ -231,7 +227,7 @@ func pluginShellExtra2WaitCapture(token, success, failure string) Driver {
 			}
 			return fmt.Errorf("%s; capture entries: %s", failure, strings.Join(names, ", "))
 		}
-		fmt.Fprintln(os.Stdout, success)
+		fmt.Fprintln(os.Stdout, success) //nolint:errcheck // progress output
 		return nil
 	}
 }
@@ -248,16 +244,16 @@ func pluginShellExtra2ReplayStdin(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	command := exec.CommandContext(ctx, executable, "replay", "-")
+	command := exec.CommandContext(ctx, executable, "replay", "-") //nolint:gosec // the fixture chooses the program and its arguments
 	command.Stdin = bytes.NewReader(capture)
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 	err = command.Run()
-	if writeErr := os.WriteFile("stdin-replay.out", stdout.Bytes(), 0o666); writeErr != nil {
+	if writeErr := os.WriteFile("stdin-replay.out", stdout.Bytes(), 0o600); writeErr != nil {
 		return writeErr
 	}
-	if writeErr := os.WriteFile("stdin-replay.err", stderr.Bytes(), 0o666); writeErr != nil {
+	if writeErr := os.WriteFile("stdin-replay.err", stderr.Bytes(), 0o600); writeErr != nil {
 		return writeErr
 	}
 	if err != nil {
@@ -266,10 +262,10 @@ func pluginShellExtra2ReplayStdin(ctx context.Context, args []string) error {
 	if !strings.Contains(stdout.String(), "announce=[10.0.0.0/24]") {
 		return fmt.Errorf("replay from stdin lost the announced prefix\n%s", stdout.String())
 	}
-	if !regexp.MustCompile(`(?m)^capture   -$`).MatchString(stdout.String()) {
+	if !regexp.MustCompile(`(?m)^capture {3}-$`).MatchString(stdout.String()) {
 		return fmt.Errorf("replay report does not name stdin as its capture\n%s", stdout.String())
 	}
-	fmt.Fprintln(os.Stdout, "stdin-replay-ok")
+	fmt.Fprintln(os.Stdout, "stdin-replay-ok") //nolint:errcheck // progress output
 	return nil
 }
 
@@ -281,7 +277,7 @@ func pluginShellExtra2CredentialResolution(ctx context.Context, args []string) e
 		return err
 	}
 	daemon, err := pluginShellExtra2StartDaemon(ctx, "cli-credential-resolution.conf", "daemon.log", map[string]string{
-		"ze_test_bgp_port": strconv.Itoa(10000 + os.Getpid()%50000),
+		envTestBGPPort: strconv.Itoa(10000 + os.Getpid()%50000),
 	})
 	if err != nil {
 		return err
@@ -305,17 +301,17 @@ func pluginShellExtra2CredentialResolution(ctx context.Context, args []string) e
 	}
 	before, _ := os.Stat("daemon.log")
 	common := map[string]string{
-		"ZE_CONFIG_DIR": emptyDir,
-		"ZE_SSH_HOST":   "127.0.0.1",
-		"ZE_SSH_PORT":   port,
+		envConfigDir: emptyDir,
+		envSSHHost:   addrLoopback,
+		envSSHPort:   port,
 	}
 	loginEnv := map[string]string{
-		"ZE_CONFIG_DIR":   common["ZE_CONFIG_DIR"],
-		"ZE_SSH_HOST":     common["ZE_SSH_HOST"],
-		"ZE_SSH_PORT":     common["ZE_SSH_PORT"],
-		"ZE_SSH_PASSWORD": "testpass",
+		envConfigDir:   common["ZE_CONFIG_DIR"],
+		envSSHHost:     common["ZE_SSH_HOST"],
+		envSSHPort:     common["ZE_SSH_PORT"],
+		envSSHPassword: valueTestPassword,
 	}
-	login := pluginShellExtra2RunCombined(ctx, loginEnv, "", "ze", "cli", "--user", "alice", "-c", "show bgp peer list")
+	login := pluginShellExtra2RunCombined(ctx, loginEnv, "cli", "--user", "alice", "-c", "show bgp peer list")
 	if login.err != nil {
 		return fmt.Errorf("ze cli --user alice must log in with no credential store: %w\nOUTPUT: %s%s\n%s", login.err, login.stdout, login.stderr, pluginShellExtra2Log("daemon.log"))
 	}
@@ -333,7 +329,7 @@ func pluginShellExtra2CredentialResolution(ctx context.Context, args []string) e
 	}
 	fmt.Fprintln(os.Stderr, "OK: AC-6 -- alice logged in with no credential store")
 
-	missing := pluginShellExtra2RunCombined(ctx, common, "", "ze", "cli", "-c", "show bgp peer list")
+	missing := pluginShellExtra2RunCombined(ctx, common, "cli", "-c", "show bgp peer list")
 	if missing.err == nil {
 		return fmt.Errorf("ze cli with no store and no --user must not succeed\nOUTPUT: %s%s", missing.stdout, missing.stderr)
 	}
@@ -361,9 +357,9 @@ func pluginShellExtra2ConfigEditNoDaemon(ctx context.Context, args []string) err
 		return err
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck // fixture cleanup
-	result := pluginShellExtra2Run(ctx, map[string]string{"ZE_CONFIG_DIR": dir}, "admin\nsecret123\n127.0.0.1\n2222\n", "ze", "init")
-	_, _ = io.WriteString(os.Stdout, result.stdout)
-	_, _ = io.WriteString(os.Stderr, result.stderr)
+	result := pluginShellExtra2Run(ctx, map[string]string{envConfigDir: dir}, "admin\nsecret123\n127.0.0.1\n2222\n", "init")
+	_, _ = os.Stdout.WriteString(result.stdout)
+	_, _ = os.Stderr.WriteString(result.stderr)
 	if result.err != nil {
 		return fmt.Errorf("ze init: %w", result.err)
 	}
@@ -379,7 +375,7 @@ func pluginShellExtra2PlaintextPasswordAtBoot(ctx context.Context, args []string
 		return err
 	}
 	daemon, err := pluginShellExtra2StartDaemon(ctx, "plaintext-at-boot.conf", "daemon.log", map[string]string{
-		"ze_test_bgp_port": strconv.Itoa(10000 + os.Getpid()%50000),
+		envTestBGPPort: strconv.Itoa(10000 + os.Getpid()%50000),
 	})
 	if err != nil {
 		return err
@@ -398,11 +394,11 @@ func pluginShellExtra2PlaintextPasswordAtBoot(ctx context.Context, args []string
 	}
 	defer os.RemoveAll(emptyDir) //nolint:errcheck // fixture cleanup
 	login := pluginShellExtra2RunCombined(ctx, map[string]string{
-		"ZE_CONFIG_DIR":   emptyDir,
-		"ZE_SSH_HOST":     "127.0.0.1",
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_PASSWORD": "labsecret",
-	}, "", "ze", "cli", "--user", "lab", "-c", "show bgp peer list")
+		envConfigDir:   emptyDir,
+		envSSHHost:     addrLoopback,
+		envSSHPort:     port,
+		envSSHPassword: "labsecret",
+	}, "cli", "--user", "lab", "-c", "show bgp peer list")
 	if login.err != nil {
 		return fmt.Errorf("plaintext-password in a config file must authenticate: %w\nOUTPUT: %s%s\n%s", login.err, login.stdout, login.stderr, pluginShellExtra2Log("daemon.log"))
 	}
@@ -433,34 +429,34 @@ func pluginShellExtra2ValidateBootAgreement(ctx context.Context, args []string) 
 	if err := pluginShellExtra2RequireNoArgs(args, "validate and boot agreement fixture"); err != nil {
 		return err
 	}
-	if err := os.MkdirAll("shapes", 0o755); err != nil {
+	if err := os.MkdirAll("shapes", 0o750); err != nil {
 		return err
 	}
 	tests := []struct {
 		name string
 		want string
 	}{
-		{name: "plugin_internal", want: "valid"},
-		{name: "plugin_two", want: "valid"},
-		{name: "legacy_env", want: "invalid"},
-		{name: "unknown_internal", want: "invalid"},
+		{name: "plugin_internal", want: verdictValid},
+		{name: "plugin_two", want: verdictValid},
+		{name: "legacy_env", want: verdictInvalid},
+		{name: "unknown_internal", want: verdictInvalid},
 	}
 	failed := false
 	for _, test := range tests {
 		config := filepath.Join("shapes", test.name+".conf")
 		validateLog := filepath.Join("shapes", test.name+".validate.log")
 		bootLog := filepath.Join("shapes", test.name+".boot.log")
-		validation := pluginShellExtra2RunCombined(ctx, nil, "", "ze", "config", "validate", config)
-		if err := os.WriteFile(validateLog, []byte(validation.stdout+validation.stderr), 0o666); err != nil {
+		validation := pluginShellExtra2RunCombined(ctx, nil, "config", "validate", config)
+		if err := os.WriteFile(validateLog, []byte(validation.stdout+validation.stderr), 0o600); err != nil {
 			return err
 		}
 		valid := validation.err == nil
-		if test.want == "valid" && !valid {
+		if test.want == verdictValid && !valid {
 			fmt.Fprintf(os.Stderr, "FAIL[%s]: expected the validator to accept this shape\n%s%s", test.name, validation.stdout, validation.stderr)
 			failed = true
 			continue
 		}
-		if test.want == "invalid" && valid {
+		if test.want == verdictInvalid && valid {
 			fmt.Fprintf(os.Stderr, "FAIL[%s]: expected the validator to reject this shape\n", test.name)
 			failed = true
 			continue
@@ -469,19 +465,19 @@ func pluginShellExtra2ValidateBootAgreement(ctx context.Context, args []string) 
 		if err != nil {
 			return err
 		}
-		if test.want == "valid" && !booted {
+		if test.want == verdictValid && !booted {
 			fmt.Fprintf(os.Stderr, "FAIL[%s]: validate accepted it, boot refused it\n--- boot log ---\n%s", test.name, pluginShellExtra2Log(bootLog))
 			failed = true
 			continue
 		}
-		if test.want == "invalid" && booted {
+		if test.want == verdictInvalid && booted {
 			fmt.Fprintf(os.Stderr, "FAIL[%s]: validate rejected it, boot accepted it\n", test.name)
 			failed = true
 			continue
 		}
 		bootVerdict := "no"
 		if booted {
-			bootVerdict = "yes"
+			bootVerdict = valueYes
 		}
 		fmt.Fprintf(os.Stderr, "OK[%s]: validate=%s boot=%s\n", test.name, test.want, bootVerdict)
 	}
@@ -496,12 +492,12 @@ func pluginShellExtra2ValidateBootAgreement(ctx context.Context, args []string) 
 }
 
 func pluginShellExtra2BootConfig(ctx context.Context, configPath, logPath string) (bool, error) {
-	config, err := os.Open(configPath)
+	config, err := os.Open(configPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return false, err
 	}
-	defer config.Close() //nolint:errcheck // read-only fixture input
-	logFile, err := os.Create(logPath)
+	defer config.Close()               //nolint:errcheck // read-only fixture input
+	logFile, err := os.Create(logPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return false, err
 	}
@@ -563,7 +559,7 @@ func pluginShellExtra2DebugToggle(ctx context.Context, args []string) error {
 	defer os.RemoveAll(dir) //nolint:errcheck // fixture cleanup
 	env := map[string]string{"ze_debug_store": filepath.Join(dir, "debug.zefs")}
 	require := func(want string, argv ...string) error {
-		result := pluginShellExtra2Run(ctx, env, "", "ze", argv...)
+		result := pluginShellExtra2Run(ctx, env, "", argv...)
 		output := result.stdout + result.stderr
 		if result.err != nil || !strings.Contains(output, want) {
 			return fmt.Errorf("%s: %w: %s", strings.Join(argv, " "), result.err, output)
@@ -591,7 +587,7 @@ func pluginShellExtra2DebugToggle(ctx context.Context, args []string) error {
 	if err := require("cleared", "clear", "debug"); err != nil {
 		return err
 	}
-	cleared := pluginShellExtra2Run(ctx, env, "", "ze", "show", "debug", "profile", "name", "default")
+	cleared := pluginShellExtra2Run(ctx, env, "", "show", "debug", "profile", "name", "default")
 	if cleared.err != nil {
 		return pluginShellExtra2CommandFailure("show after clear", cleared)
 	}
@@ -601,10 +597,10 @@ func pluginShellExtra2DebugToggle(ctx context.Context, args []string) error {
 	if err := require("timeout", "set", "debug", "timeout", "30m"); err != nil {
 		return err
 	}
-	if result := pluginShellExtra2Run(ctx, env, "", "ze", "set", "debug", "timeout", "30"); result.err == nil {
+	if result := pluginShellExtra2Run(ctx, env, "", "set", "debug", "timeout", "30"); result.err == nil {
 		return errors.New("bare number accepted")
 	}
-	if result := pluginShellExtra2Run(ctx, env, "", "ze", "set", "debug", "module", "has/slash"); result.err == nil {
+	if result := pluginShellExtra2Run(ctx, env, "", "set", "debug", "module", "has/slash"); result.err == nil {
 		return errors.New("slash accepted")
 	}
 	fmt.Fprintln(os.Stderr, "OK: all verb-first debug tests passed")
@@ -616,20 +612,20 @@ func pluginShellExtra2StopTrigger(delay time.Duration) Driver {
 		if err := pluginShellExtra2RequireNoArgs(args, "daemon stop trigger"); err != nil {
 			return err
 		}
-		for _, path := range []string{"daemon.pid", "daemon.ready"} {
+		for _, path := range []string{fileDaemonPID, fileDaemonReady} {
 			if !Poll(ctx, 600, pluginShellExtra2PollDelay, func() bool {
 				_, err := os.Stat(path)
 				return err == nil
 			}) {
 				if ctx.Err() != nil {
-					return nil
+					return nil //nolint:nilerr // the context is canceled, so the caller is already stopping
 				}
 				return fmt.Errorf("timed out waiting for %s", path)
 			}
 		}
 		if err := pluginShellExtra2Sleep(ctx, delay); err != nil {
 			if ctx.Err() != nil {
-				return nil
+				return nil //nolint:nilerr // the context is canceled, so the caller is already stopping
 			}
 			return err
 		}
@@ -642,7 +638,7 @@ func pluginShellExtra2StopTrigger(delay time.Duration) Driver {
 }
 
 func pluginShellExtra2ReadPID(path string) (int, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return 0, err
 	}

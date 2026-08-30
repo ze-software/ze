@@ -14,7 +14,7 @@ func appendCall(path string, args []string) error {
 	if path == "" {
 		return fmt.Errorf("recording path is empty")
 	}
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600) //nolint:gosec // path is the recording file the fixture named in ZE_RECORD_*
 	if err != nil {
 		return err
 	}
@@ -82,11 +82,11 @@ func Run(name string, args []string) (int, bool) {
 	case "go":
 		for index, arg := range args {
 			if index > 0 && args[index-1] == "-o" {
-				if err := os.MkdirAll(filepath.Dir(arg), 0o755); err != nil {
+				if err := os.MkdirAll(filepath.Dir(arg), 0o750); err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					return 1, true
 				}
-				if err := os.WriteFile(arg, nil, 0o755); err != nil {
+				if err := os.WriteFile(arg, nil, 0o755); err != nil { //nolint:gosec // stands in for a compiled binary, so it keeps its executable bits
 					fmt.Fprintln(os.Stderr, err)
 					return 1, true
 				}

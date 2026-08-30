@@ -75,7 +75,7 @@ expect=exit:code=0
 const strengthenedCI = `stdin=config:terminator=EOF
 environment { ntp { enabled true } }
 EOF
-cmd=foreground:seq=1:exec=ze config dump --json -:stdin=config
+cmd=foreground:seq=1:exec=ze cli -c "show config dump - | json":stdin=config
 expect=exit:code=0
 expect=stdout:pattern="enabled": "true"
 `

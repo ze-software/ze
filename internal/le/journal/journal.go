@@ -443,31 +443,6 @@ func validSpecStem(stem string) bool {
 	return stem != ""
 }
 
-// specEvidence parses one journal shard with the canonical row parser. The
-// boolean is false when any table row is malformed, and no stem is returned.
-func specEvidence(contents string) ([]string, bool) {
-	rows := journalRows(contents)
-	stems := make([]string, 0)
-	seen := make(map[string]bool)
-	for _, row := range rows {
-		if row.malformed {
-			return nil, false
-		}
-		rowStems, valid := specStems(row.cells[1])
-		if !valid {
-			return nil, false
-		}
-		for _, stem := range rowStems {
-			if seen[stem] {
-				continue
-			}
-			seen[stem] = true
-			stems = append(stems, stem)
-		}
-	}
-	return stems, true
-}
-
 // AddedSpecEvidence returns spec stems named by rows added or rewritten in the
 // selected worktree shards. Byte-level table reformatting does not count: rows
 // are paired by their five canonical cells against HEAD before new stems are read.
@@ -484,7 +459,7 @@ func AddedSpecEvidence(tree string, paths []string) ([]string, []string, error) 
 	seen := make(map[string]bool)
 	malformed := make([]string, 0)
 	for _, path := range paths {
-		current, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(path)))
+		current, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(path))) //nolint:gosec // the path is a journal shard under the checkout root
 		if err != nil {
 			return nil, nil, fmt.Errorf("read journal shard %s: %w", path, err)
 		}

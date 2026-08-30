@@ -13,7 +13,7 @@ import (
 func reloadFirewallIRR07(ctx context.Context, marker string) error {
 	for {
 		ready := true
-		for _, name := range []string{"daemon.pid", "daemon.ready", marker} {
+		for _, name := range []string{fileDaemonPID, fileDaemonReady, marker} {
 			if _, err := os.Stat(name); err != nil {
 				ready = false
 				break
@@ -43,7 +43,7 @@ func reloadFirewallIRR07(ctx context.Context, marker string) error {
 	if err != nil {
 		return fmt.Errorf("read replacement config: %w", err)
 	}
-	if err := os.WriteFile("ze-bgp.conf", config, 0o644); err != nil {
+	if err := os.WriteFile("ze-bgp.conf", config, 0o600); err != nil {
 		return fmt.Errorf("install replacement config: %w", err)
 	}
 	process, err := os.FindProcess(pid)
@@ -53,7 +53,7 @@ func reloadFirewallIRR07(ctx context.Context, marker string) error {
 	if err := process.Signal(syscall.SIGHUP); err != nil {
 		return fmt.Errorf("reload daemon: %w", err)
 	}
-	if err := os.WriteFile("reload.done", nil, 0o644); err != nil {
+	if err := os.WriteFile("reload.done", nil, 0o600); err != nil {
 		return fmt.Errorf("write reload marker: %w", err)
 	}
 	return nil

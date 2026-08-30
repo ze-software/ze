@@ -37,7 +37,7 @@ func leBinaryDispatches(ctx context.Context) error {
 	if err != nil {
 		return uiLeBinaryDispatchesFailf("create fixture directory: %v", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	tags, err := uiLEFeatureTags(root)
 	if err != nil {
@@ -48,7 +48,7 @@ func leBinaryDispatches(ctx context.Context) error {
 		return uiLeBinaryDispatchesFailf("find go: %v", err)
 	}
 	lePath := filepath.Join(work, "le")
-	build := exec.CommandContext(ctx, goTool, "build", "-tags", strings.Join(tags, ","), "-o", lePath, "./cmd/ze")
+	build := exec.CommandContext(ctx, goTool, "build", "-tags", strings.Join(tags, ","), "-o", lePath, "./cmd/ze") //nolint:gosec // the fixture chooses the program and its arguments
 	build.Dir = root
 	build.Env = os.Environ()
 	var buildOutput bytes.Buffer
@@ -59,7 +59,7 @@ func leBinaryDispatches(ctx context.Context) error {
 	}
 
 	le := func(args ...string) (uiLeBinaryDispatchesCommandResult, error) {
-		cmd := exec.CommandContext(ctx, lePath, args...)
+		cmd := exec.CommandContext(ctx, lePath, args...) //nolint:gosec // the fixture chooses the program and its arguments
 		cmd.Dir = work
 		cmd.Env = os.Environ()
 		var stdout, stderr bytes.Buffer
@@ -74,8 +74,7 @@ func leBinaryDispatches(ctx context.Context) error {
 		if err == nil {
 			return result, nil
 		}
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			result.exitCode = exitErr.ExitCode()
 			return result, nil
 		}
@@ -155,7 +154,7 @@ func leBinaryDispatches(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, verb := range []string{"check", "update", "index-check", "index-update"} {
+	for _, verb := range []string{actionCheck, actionUpdate, actionIndexCheck, actionIndexUpdate} {
 		if _, ok := docVerbs[verb]; !ok {
 			return uiLeBinaryDispatchesFailf("the docs-to-code area lost %q: %v", verb, sortedSet(docVerbs))
 		}
@@ -190,14 +189,14 @@ func leBinaryDispatches(ctx context.Context) error {
 	// Build an isolated transcript store so runtime and results do not depend on
 	// a developer's machine-local corpus.
 	store := filepath.Join(work, "store", "-fixture")
-	if err := os.MkdirAll(store, 0o755); err != nil {
+	if err := os.MkdirAll(store, 0o750); err != nil {
 		return uiLeBinaryDispatchesFailf("create transcript store: %v", err)
 	}
 	call := map[string]any{
-		"type":       "assistant",
+		fieldType:    "assistant",
 		"session_id": "fix00001",
 		"sessionId":  "fix00001",
-		"message": map[string]any{
+		fieldMessage: map[string]any{
 			"id": "msg_1",
 			"usage": map[string]any{
 				"input_tokens":                10,
@@ -205,35 +204,35 @@ func leBinaryDispatches(ctx context.Context) error {
 				"cache_read_input_tokens":     120000,
 				"output_tokens":               30,
 			},
-			"content": []any{map[string]any{
-				"type": "tool_use",
-				"id":   "toolu_1",
-				"name": "Read",
-				"input": map[string]any{
+			fieldContent: []any{map[string]any{
+				fieldType: "tool_use",
+				"id":      "toolu_1",
+				fieldName: "Read",
+				fieldInput: map[string]any{
 					"file_path": "internal/a.go",
 				},
 			}},
 		},
 	}
 	result := map[string]any{
-		"type": "user",
-		"message": map[string]any{
-			"content": []any{map[string]any{
-				"type":        "tool_result",
+		fieldType: "user",
+		fieldMessage: map[string]any{
+			fieldContent: []any{map[string]any{
+				fieldType:     "tool_result",
 				"tool_use_id": "toolu_1",
-				"content":     strings.Repeat("x", 3600),
+				fieldContent:  strings.Repeat("x", 3600),
 			}},
 		},
 	}
 	transcriptPath := filepath.Join(store, "fix00001.jsonl")
-	transcript, err := os.OpenFile(transcriptPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	transcript, err := os.OpenFile(transcriptPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return uiLeBinaryDispatchesFailf("create transcript: %v", err)
 	}
 	encoder := json.NewEncoder(transcript)
 	for _, record := range []any{call, call, result} {
 		if err := encoder.Encode(record); err != nil {
-			transcript.Close()
+			transcript.Close() //nolint:errcheck // fixture teardown
 			return uiLeBinaryDispatchesFailf("write transcript: %v", err)
 		}
 	}
@@ -268,7 +267,7 @@ func leBinaryDispatches(ctx context.Context) error {
 	if err != nil {
 		return uiLeBinaryDispatchesFailf("decode `le token-economy | json`: %v", err)
 	}
-	for _, key := range []string{"state", "store", "project", "totals", "histogram", "capped", "cap", "top"} {
+	for _, key := range []string{fieldState, "store", "project", fieldTotals, "histogram", "capped", "cap", fieldTop} {
 		if _, ok := payload[key]; !ok {
 			return uiLeBinaryDispatchesFailf("the report answered no %q key: %v", key, uiLeBinaryDispatchesSortedKeys(payload))
 		}
@@ -427,11 +426,4 @@ func sortedSet(values map[string]struct{}) []string {
 	}
 	sort.Strings(items)
 	return items
-}
-
-func uiLeBinaryDispatchesFirstBytes(value string, limit int) string {
-	if len(value) <= limit {
-		return value
-	}
-	return value[:limit]
 }

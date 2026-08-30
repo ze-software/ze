@@ -180,10 +180,12 @@ type diagnosticRunError struct {
 func (e *diagnosticRunError) Error() string { return e.err.Error() }
 func (e *diagnosticRunError) Unwrap() error { return e.err }
 
+//nolint:unused // the callers are in l2tpdiag_linux.go, which this platform does not build
 func fatalDiagnosticError(prefix string, err error) error {
 	return &diagnosticRunError{err: err, prefix: prefix}
 }
 
+//nolint:unused // the caller is in l2tpdiag_linux.go, which this platform does not build
 func reportedDiagnosticError(err error) error {
 	return &diagnosticRunError{err: err, reported: true}
 }

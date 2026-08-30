@@ -32,7 +32,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	// Standalone stdin is an explicit all-fields surface. This exact
 	// non-address document must pass through resolve unchanged.
 	standaloneInput := "{\"label\":\"edge\",\"metric\":7}\n"
-	standalone := uiPipeReviewEntryContractsRunCommand(ctx, []string{"ze", "pipe", "resolve"}, nil, &standaloneInput)
+	standalone := uiPipeReviewEntryContractsRunCommand(ctx, []string{"ze", "pipe", pipeResolve}, &standaloneInput)
 	if err := uiPipeReviewEntryContractsRequire(standalone.code == 0,
 		"standalone resolve exit=%d: %s%s",
 		standalone.code, standalone.stdout, standalone.stderr); err != nil {
@@ -43,7 +43,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 		return fmt.Errorf("standalone resolve did not answer JSON: %w: %s%s",
 			err, standalone.stdout, standalone.stderr)
 	}
-	wantStandalone := map[string]any{"label": "edge", "metric": float64(7)}
+	wantStandalone := map[string]any{"label": "edge", ipWordMetric: float64(7)}
 	if err := uiPipeReviewEntryContractsRequire(reflect.DeepEqual(standaloneValue, wantStandalone),
 		"standalone resolve changed exact input data: %q", standalone.stdout); err != nil {
 		return err
@@ -51,14 +51,14 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 
 	// A typo must refuse before any answer is emitted.
 	display := uiPipeReviewEntryContractsRunCommand(ctx,
-		[]string{"ze", "cli", "-c", "show env list | display tpyofield"}, nil, nil)
+		[]string{"ze", areaCLI, "-c", "show env list | display tpyofield"}, nil)
 	if err := requireRefusal(display, "display", "no field"); err != nil {
 		return err
 	}
 
 	// An explicit local-data format uses the same pipe grammar as dispatch.
 	localRaw := uiPipeReviewEntryContractsRunCommand(ctx,
-		[]string{"ze", "cli", "-c", "show schema protocol", "--format", "raw"}, nil, nil)
+		[]string{"ze", areaCLI, "-c", "show schema protocol", "--format", renderRaw}, nil)
 	if err := uiPipeReviewEntryContractsRequire(localRaw.code == 0,
 		"local --format raw exit=%d: %s%s",
 		localRaw.code, localRaw.stdout, localRaw.stderr); err != nil {
@@ -75,8 +75,8 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 
 	unknownFormat := "definitely-not-a-format"
 	localUnknown := uiPipeReviewEntryContractsRunCommand(ctx, []string{
-		"ze", "cli", "-c", "show schema protocol", "--format", unknownFormat,
-	}, nil, nil)
+		"ze", areaCLI, "-c", "show schema protocol", "--format", unknownFormat,
+	}, nil)
 	if err := requireRefusal(localUnknown, unknownFormat, "unknown pipe operator"); err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	// The per-command machine contract is reached through the shipped help
 	// command. The local shortcut must not suppress the daemon operator surface.
 	versionResult := uiPipeReviewEntryContractsRunCommand(ctx,
-		[]string{"ze", "help", "command", "show version", "--json"}, nil, nil)
+		[]string{"ze", "help", argCommand, cmdShowVersion, "--json"}, nil)
 	version, err := oneJSONObject(versionResult, "show version published contract")
 	if err != nil {
 		return err
@@ -146,12 +146,12 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	// These are the exact fields the primary website renders from the same
 	// machine contract.
 	monitorResult := uiPipeReviewEntryContractsRunCommand(ctx,
-		[]string{"ze", "help", "command", "monitor ping", "--json"}, nil, nil)
+		[]string{"ze", "help", argCommand, "monitor ping", "--json"}, nil)
 	monitorPing, err := oneJSONObject(monitorResult, "monitor ping published contract")
 	if err != nil {
 		return err
 	}
-	if err := uiPipeReviewEntryContractsRequire(monitorPing["answer-shape"] == "tab",
+	if err := uiPipeReviewEntryContractsRequire(monitorPing["answer-shape"] == shapeTab,
 		"monitor ping answer-shape=%#v, want tab", monitorPing["answer-shape"]); err != nil {
 		return err
 	}
@@ -165,8 +165,8 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	resolveAlways := monitorByName["resolve"] != nil && monitorByName["resolve"]["available"] == "always"
-	originAlways := monitorByName["origin"] != nil && monitorByName["origin"]["available"] == "always"
+	resolveAlways := monitorByName["resolve"] != nil && monitorByName["resolve"]["available"] == valueAlways
+	originAlways := monitorByName["origin"] != nil && monitorByName["origin"]["available"] == valueAlways
 	if err := uiPipeReviewEntryContractsRequire(resolveAlways && originAlways,
 		"declared address field did not publish resolve/origin: %#v", monitorByName); err != nil {
 		return err
@@ -177,7 +177,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create fixture working directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 	checkout, ok := os.LookupEnv("ZE_REPO_ROOT")
 	if !ok {
 		return fmt.Errorf("ZE_REPO_ROOT is not set")
@@ -194,7 +194,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	if err := renderCLICatalog(destination, []map[string]any{monitorPing}); err != nil {
 		return err
 	}
-	renderedBytes, err := os.ReadFile(destination)
+	renderedBytes, err := os.ReadFile(destination) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read rendered primary CLI page: %w", err)
 	}
@@ -211,7 +211,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	}
 
 	// Operator headings and --format values come from the real catalog help.
-	cliHelp := uiPipeReviewEntryContractsRunCommand(ctx, []string{"ze", "cli", "--help"}, nil, nil)
+	cliHelp := uiPipeReviewEntryContractsRunCommand(ctx, []string{"ze", areaCLI, flagHelp}, nil)
 	if err := uiPipeReviewEntryContractsRequire(cliHelp.code == 0,
 		"ze cli --help exit=%d: %s%s", cliHelp.code, cliHelp.stdout, cliHelp.stderr); err != nil {
 		return err
@@ -255,17 +255,14 @@ func uiPipeReviewEntryContractsRequire(condition bool, format string, args ...an
 	return fmt.Errorf(format, args...)
 }
 
-func uiPipeReviewEntryContractsRunCommand(ctx context.Context, argv []string, env map[string]string, input *string) uiPipeReviewEntryContractsCommandResult {
+func uiPipeReviewEntryContractsRunCommand(ctx context.Context, argv []string, input *string) uiPipeReviewEntryContractsCommandResult {
 	if len(argv) == 0 {
 		return uiPipeReviewEntryContractsCommandResult{code: 127, stderr: "empty command"}
 	}
 	commandCtx, cancel := context.WithTimeout(ctx, processTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(commandCtx, argv[0], argv[1:]...)
-	if env != nil {
-		cmd.Env = uiPipeReviewEntryContractsMergedEnvironment(os.Environ(), env)
-	}
+	cmd := exec.CommandContext(commandCtx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	if input != nil {
 		cmd.Stdin = strings.NewReader(*input)
 	}
@@ -294,32 +291,6 @@ func uiPipeReviewEntryContractsRunCommand(ctx context.Context, argv []string, en
 	}
 	result.code = 127
 	result.stderr += err.Error()
-	return result
-}
-
-func uiPipeReviewEntryContractsMergedEnvironment(base []string, updates map[string]string) []string {
-	values := make(map[string]string, len(base)+len(updates))
-	order := make([]string, 0, len(base)+len(updates))
-	for _, entry := range base {
-		name, value, found := strings.Cut(entry, "=")
-		if !found {
-			continue
-		}
-		if _, exists := values[name]; !exists {
-			order = append(order, name)
-		}
-		values[name] = value
-	}
-	for name, value := range updates {
-		if _, exists := values[name]; !exists {
-			order = append(order, name)
-		}
-		values[name] = value
-	}
-	result := make([]string, 0, len(order))
-	for _, name := range order {
-		result = append(result, name+"="+values[name])
-	}
 	return result
 }
 
@@ -441,7 +412,7 @@ func uiPipeReviewEntryContractsEqualStringSets(left, right map[string]struct{}) 
 }
 
 func renderCLICatalog(destination string, commands []map[string]any) error {
-	if err := os.MkdirAll(filepath.Dir(destination), 0o777); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destination), 0o750); err != nil {
 		return fmt.Errorf("create rendered CLI directory: %w", err)
 	}
 	var page strings.Builder
@@ -485,7 +456,7 @@ func renderCLICatalog(destination string, commands []map[string]any) error {
 		page.WriteString("</article>\n")
 	}
 	page.WriteString("</main>\n</body></html>\n")
-	if err := os.WriteFile(destination, []byte(page.String()), 0o666); err != nil {
+	if err := os.WriteFile(destination, []byte(page.String()), 0o600); err != nil {
 		return fmt.Errorf("write rendered primary CLI page: %w", err)
 	}
 	return nil

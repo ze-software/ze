@@ -3,9 +3,11 @@ package fixture
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"time"
 
@@ -58,7 +60,7 @@ func routingValue(ctx context.Context, plugin *sdk.Plugin, command string) (any,
 	if err != nil {
 		return nil, fmt.Errorf("%s: status=%s: %w", command, status, err)
 	}
-	if status != "done" {
+	if status != statusDone {
 		return nil, fmt.Errorf("%s: expected done, got status=%s data=%v", command, status, value)
 	}
 	return value, nil
@@ -226,12 +228,7 @@ func routingRowsContainKey(rows []map[string]any, key string) bool {
 }
 
 func routingAny(rows []map[string]any, predicate func(map[string]any) bool) bool {
-	for _, row := range rows {
-		if predicate(row) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(rows, predicate)
 }
 
 func ldpConvergenceScenario(ctx context.Context, plugin *sdk.Plugin) error {
@@ -253,7 +250,7 @@ func ldpReloadScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	for _, binding := range bindings {
 		direction := routingString(binding, "direction")
-		if direction != "local" && direction != "remote" {
+		if direction != directionLocal && direction != directionRemote {
 			return fmt.Errorf("show ldp binding: bad direction in %#v", binding)
 		}
 		if _, ok := binding["fec"]; !ok {
@@ -281,7 +278,7 @@ func ldpSessionScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	for _, binding := range bindings {
 		direction := routingString(binding, "direction")
-		if direction != "local" && direction != "remote" {
+		if direction != directionLocal && direction != directionRemote {
 			return fmt.Errorf("show ldp binding: bad direction in %#v", binding)
 		}
 	}
@@ -306,7 +303,7 @@ func ospfInstanceDemuxScenario(ctx context.Context, plugin *sdk.Plugin) error {
 		if routingNumber(row, "interface-count") < 1 {
 			return fmt.Errorf("instance %d must carry eth0: %#v", id, byID)
 		}
-		if routingString(row, "router-id") != "10.0.0.1" {
+		if routingString(row, "router-id") != addrPeerOne {
 			return fmt.Errorf("router-id per instance = %#v", byID)
 		}
 	}
@@ -383,21 +380,27 @@ func requireOSPFInterface(rows []map[string]any, name, networkType string, passi
 	return fmt.Errorf("show ospf interface: missing %q in %#v", name, rows)
 }
 
-func ospfLDPRow(ctx context.Context, plugin *sdk.Plugin, iface string) (map[string]any, error) {
+// errLDPRowAbsent says the ldp-sync table carries no row for the interface.
+var errLDPRowAbsent = errors.New("show ospf ldp-sync carries no row for " + ldpSyncIface)
+
+func ospfLDPRow(ctx context.Context, plugin *sdk.Plugin) (map[string]any, error) {
 	rows, err := routingRows(ctx, plugin, "show ospf ldp-sync", true)
 	if err != nil {
 		return nil, err
 	}
 	for _, row := range rows {
-		if routingString(row, "interface") == iface {
+		if routingString(row, "interface") == ldpSyncIface {
 			return row, nil
 		}
 	}
-	return nil, nil
+	return nil, errLDPRowAbsent
 }
 
-func emitLDPSession(ctx context.Context, plugin *sdk.Plugin, eventType, iface string) error {
-	event, err := json.Marshal(map[string]string{"interface": iface, "session-state": "operational"})
+// ldpSyncIface is the interface every LDP-sync fixture drives.
+const ldpSyncIface = "eth0"
+
+func emitLDPSession(ctx context.Context, plugin *sdk.Plugin, eventType string) error {
+	event, err := json.Marshal(map[string]string{argInterface: ldpSyncIface, "session-state": "operational"})
 	if err != nil {
 		return err
 	}
@@ -405,33 +408,33 @@ func emitLDPSession(ctx context.Context, plugin *sdk.Plugin, eventType, iface st
 	return err
 }
 
-func waitOSPFLDPState(ctx context.Context, plugin *sdk.Plugin, iface, state string) (map[string]any, error) {
+func waitOSPFLDPState(ctx context.Context, plugin *sdk.Plugin, state string) (map[string]any, error) {
 	var row map[string]any
 	var dispatchErr error
 	if !Poll(ctx, 30, 200*time.Millisecond, func() bool {
-		row, dispatchErr = ospfLDPRow(ctx, plugin, iface)
-		return dispatchErr == nil && row != nil && routingString(row, "state") == state
+		row, dispatchErr = ospfLDPRow(ctx, plugin)
+		return dispatchErr == nil && routingString(row, "state") == state
 	}) {
-		if dispatchErr != nil {
+		if dispatchErr != nil && !errors.Is(dispatchErr, errLDPRowAbsent) {
 			return nil, dispatchErr
 		}
-		return nil, fmt.Errorf("%s did not reach %s; last = %#v", iface, state, row)
+		return nil, fmt.Errorf("%s did not reach %s; last = %#v", ldpSyncIface, state, row)
 	}
 	return row, nil
 }
 
 func ospfLDPSyncBroadcastScenario(ctx context.Context, plugin *sdk.Plugin) error {
-	row, err := ospfLDPRow(ctx, plugin, "eth0")
-	if err != nil {
+	row, err := ospfLDPRow(ctx, plugin)
+	if err != nil && !errors.Is(err, errLDPRowAbsent) {
 		return err
 	}
-	if row == nil || routingString(row, "state") != "not-synchronized" {
+	if routingString(row, "state") != stateNotSynchronized {
 		return fmt.Errorf("initial broadcast eth0 = %#v, want not-synchronized", row)
 	}
-	if err := emitLDPSession(ctx, plugin, "session-up", "eth0"); err != nil {
+	if err := emitLDPSession(ctx, plugin, "session-up"); err != nil {
 		return err
 	}
-	if _, err := waitOSPFLDPState(ctx, plugin, "eth0", "synchronized"); err != nil {
+	if _, err := waitOSPFLDPState(ctx, plugin, "synchronized"); err != nil {
 		return fmt.Errorf("broadcast %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "OK: broadcast ldp-sync interface driven to synchronized")
@@ -439,23 +442,23 @@ func ospfLDPSyncBroadcastScenario(ctx context.Context, plugin *sdk.Plugin) error
 }
 
 func ospfLDPSyncDownScenario(ctx context.Context, plugin *sdk.Plugin) error {
-	if _, err := waitOSPFLDPState(ctx, plugin, "eth0", "not-synchronized"); err != nil {
+	if _, err := waitOSPFLDPState(ctx, plugin, "not-synchronized"); err != nil {
 		return err
 	}
-	if err := emitLDPSession(ctx, plugin, "session-up", "eth0"); err != nil {
+	if err := emitLDPSession(ctx, plugin, "session-up"); err != nil {
 		return err
 	}
-	row, err := waitOSPFLDPState(ctx, plugin, "eth0", "synchronized")
+	row, err := waitOSPFLDPState(ctx, plugin, "synchronized")
 	if err != nil {
 		return err
 	}
 	if routingNumber(row, "effective-metric") != 100 {
 		return fmt.Errorf("synchronized effective-metric = %#v, want 100", row["effective-metric"])
 	}
-	if err := emitLDPSession(ctx, plugin, "session-down", "eth0"); err != nil {
+	if err := emitLDPSession(ctx, plugin, "session-down"); err != nil {
 		return err
 	}
-	row, err = waitOSPFLDPState(ctx, plugin, "eth0", "not-synchronized")
+	row, err = waitOSPFLDPState(ctx, plugin, "not-synchronized")
 	if err != nil {
 		return err
 	}
@@ -467,14 +470,14 @@ func ospfLDPSyncDownScenario(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func ospfLDPSyncRestoreScenario(ctx context.Context, plugin *sdk.Plugin) error {
-	row, err := ospfLDPRow(ctx, plugin, "eth0")
-	if err != nil {
+	row, err := ospfLDPRow(ctx, plugin)
+	if err != nil && !errors.Is(err, errLDPRowAbsent) {
 		return err
 	}
-	if row == nil || routingString(row, "state") != "not-synchronized" {
+	if routingString(row, "state") != stateNotSynchronized {
 		return fmt.Errorf("initial eth0 = %#v, want not-synchronized", row)
 	}
-	if err := emitLDPSession(ctx, plugin, "session-up", "eth0"); err != nil {
+	if err := emitLDPSession(ctx, plugin, "session-up"); err != nil {
 		return err
 	}
 	timer := time.NewTimer(200 * time.Millisecond)
@@ -484,17 +487,17 @@ func ospfLDPSyncRestoreScenario(ctx context.Context, plugin *sdk.Plugin) error {
 		return ctx.Err()
 	case <-timer.C:
 	}
-	row, err = ospfLDPRow(ctx, plugin, "eth0")
-	if err != nil {
+	row, err = ospfLDPRow(ctx, plugin)
+	if err != nil && !errors.Is(err, errLDPRowAbsent) {
 		return err
 	}
-	if row == nil || routingString(row, "state") != "hold-down" {
+	if routingString(row, "state") != "hold-down" {
 		return fmt.Errorf("after session-up eth0 = %#v, want hold-down", row)
 	}
 	if routingNumber(row, "effective-metric") != 65535 {
 		return fmt.Errorf("hold-down effective-metric = %#v, want 65535", row["effective-metric"])
 	}
-	row, err = waitOSPFLDPState(ctx, plugin, "eth0", "synchronized")
+	row, err = waitOSPFLDPState(ctx, plugin, "synchronized")
 	if err != nil {
 		return err
 	}
@@ -506,14 +509,14 @@ func ospfLDPSyncRestoreScenario(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func ospfLDPSyncShowScenario(ctx context.Context, plugin *sdk.Plugin) error {
-	row, err := ospfLDPRow(ctx, plugin, "eth0")
-	if err != nil {
+	row, err := ospfLDPRow(ctx, plugin)
+	if err != nil && !errors.Is(err, errLDPRowAbsent) {
 		return err
 	}
 	if row == nil {
-		return fmt.Errorf("show ospf ldp-sync: eth0 missing")
+		return fmt.Errorf("show ospf ldp-sync: %s missing", ldpSyncIface)
 	}
-	if routingString(row, "state") != "not-synchronized" {
+	if routingString(row, "state") != stateNotSynchronized {
 		return fmt.Errorf("eth0 state = %#v, want not-synchronized", row["state"])
 	}
 	if routingNumber(row, "effective-metric") != 65535 {
@@ -614,7 +617,7 @@ func ospfNBMAScenario(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("nbma0 poll-interval = %#v, want 90", iface["poll-interval"])
 	}
 	state := routingString(iface, "state")
-	if state != "waiting" && state != "dr" && state != "backup" && state != "dr-other" && state != "down" {
+	if state != "waiting" && state != "dr" && state != "backup" && state != "dr-other" && state != linkStateDown {
 		return fmt.Errorf("nbma0 state = %#v", iface["state"])
 	}
 	neighbors, ok := iface["nbma-neighbors"].([]any)
@@ -659,7 +662,7 @@ func ospfPTMPScenario(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("ptmp0 network_type = %#v, want point-to-multipoint", iface["network_type"])
 	}
 	state := routingString(iface, "state")
-	if state != "point-to-point" && state != "down" {
+	if state != "point-to-point" && state != linkStateDown {
 		return fmt.Errorf("ptmp0 state = %#v, want point-to-point", iface["state"])
 	}
 	dr := routingString(iface, "dr")
@@ -687,7 +690,7 @@ func ospfShowScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if routingString(summary, "router-id") != "10.0.0.1" {
+	if routingString(summary, "router-id") != addrPeerOne {
 		return fmt.Errorf("show ospf: router-id = %#v", summary["router-id"])
 	}
 	if !routingBool(summary, "abr") {
@@ -828,7 +831,7 @@ func rsvpteTeardownScenario(ctx context.Context, plugin *sdk.Plugin) error {
 		return err
 	}
 	for _, session := range sessions {
-		for _, field := range []string{"tunnel-endpoint", "tunnel-id", "state"} {
+		for _, field := range []string{"tunnel-endpoint", fieldTunnelID, fieldState} {
 			if _, ok := session[field]; !ok {
 				return fmt.Errorf("show rsvp-te session: missing %s in %#v", field, session)
 			}

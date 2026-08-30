@@ -16,6 +16,9 @@ import (
 
 const area = "stress-repro"
 
+// runAction is the only verb this command accepts.
+const runAction = "run"
+
 const (
 	defaultIterations = 80
 	defaultMinutes    = 20.0
@@ -52,7 +55,7 @@ type Options struct {
 // same-named keyword, without its leading dashes.
 func Actions() ActionList {
 	return ActionList{Actions: []Action{{
-		Action: "run",
+		Action: runAction,
 		Usage:  "run suite <suite> [test <selector>] [iterations <count>] [parallel <count>] [burners <count>] [minutes <count>] [timeout <seconds>] [race] [any-failure] [tags <tags>]",
 	}}}
 }
@@ -65,12 +68,14 @@ func Answer(args []string) (any, int) {
 	if len(args) == 0 {
 		return Actions(), 0
 	}
-	if args[0] != "run" {
-		return refuse(args[0]), 2
+	if args[0] != runAction {
+		refuse(args[0])
+		return nil, 2
 	}
 	opts, err := parseOptions(args[1:])
 	if err != nil {
-		return refuse(err.Error()), 2
+		refuse(err.Error())
+		return nil, 2
 	}
 	root, err := lepath.Root()
 	if err != nil {
@@ -175,7 +180,6 @@ func parseInt(key, value string) (int, error) {
 	return parsed, nil
 }
 
-func refuse(message string) any {
+func refuse(message string) {
 	leaction.ReportError(errors.New(area + ": " + message))
-	return nil
 }

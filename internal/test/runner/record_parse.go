@@ -25,6 +25,11 @@ import (
 	"github.com/ze-software/ze/internal/test/tmpfs"
 )
 
+// directiveTypeBGP is the type token of the expect:bgp and reject:bgp
+// directives, which name the BGP wire rather than the JSON envelope typeBGP
+// names (json.go).
+const directiveTypeBGP = "bgp"
+
 var (
 	errOptionFileMissingPath            = errors.New("option:file missing path=")
 	errOptionAsnMissingValue            = errors.New("option:asn missing value=")
@@ -548,7 +553,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 // parseExpect handles expect:type:... lines.
 func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]string) error {
 	switch expType {
-	case "bgp":
+	case directiveTypeBGP:
 		conn, seq, err := parseConnSeq(kv)
 		if err != nil {
 			return fmt.Errorf("expect:bgp: %w", err)
@@ -711,7 +716,7 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 			r.ExpectStdoutNotMatch = append(r.ExpectStdoutNotMatch, contains)
 		}
 
-	case "bgp":
+	case directiveTypeBGP:
 		// Only ze-peer sees the wire, so reject=bgp is the one reject type the
 		// runner cannot answer. Named here rather than left to the default arm:
 		// the directive is real, and "unknown reject type" would send its author

@@ -27,6 +27,13 @@ import (
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
+// stepKindExpect is the trace.StepResult kind for an assertion step, and
+// zeTestVerbPeer is the `ze-test peer` verb that drives the BGP peer.
+const (
+	stepKindExpect = "expect"
+	zeTestVerbPeer = "peer"
+)
+
 // runTest executes a single test.
 func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) bool {
 	// A .ci file that failed to parse at discovery (see EncodingTests.Discover)
@@ -157,7 +164,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	defer func() { _ = os.Remove(expectFile) }()
 
 	// Build peer args (ze-test peer ...)
-	peerArgs := []string{"peer", "--port", strconv.Itoa(rec.Port)}
+	peerArgs := []string{zeTestVerbPeer, "--port", strconv.Itoa(rec.Port)}
 	if asn, ok := rec.Extra["asn"]; ok {
 		peerArgs = append(peerArgs, "--asn", asn)
 	}
@@ -277,7 +284,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// sentinel, so it is safe to route through `ze start <config>`.
 	clientArgs := []string{configPath}
 	if configPath != "" {
-		clientArgs = []string{"start", configPath}
+		clientArgs = []string{zeVerbStart, configPath}
 	}
 	clientCmd := exec.CommandContext(testCtx, r.zePath, clientArgs...) //nolint:gosec // test runner, paths from temp dir
 	clientCmd.Env = clientEnv
@@ -349,7 +356,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	recStep := func(assert string, passed bool, detail string) {
 		stepN++
 		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-			Step: stepN, Kind: "expect", Assert: assert,
+			Step: stepN, Kind: stepKindExpect, Assert: assert,
 			Passed: passed, Detail: detail,
 		})
 	}
@@ -637,11 +644,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		case binNameZePeer:
 			// ze-peer is now ze-test peer
 			binPath = r.testPath
-			extraArgs = []string{"peer"}
-		case "ze-test":
+			extraArgs = []string{zeTestVerbPeer}
+		case binNameZeTest:
 			// ze-test subcommands (peeringdb, rpki, syslog, etc.)
 			binPath = r.testPath
-		case "ze":
+		case binNameZe:
 			binPath = r.zePath
 		default:
 			// Check if the binary was built as an extra binary in the temp dir.
@@ -699,7 +706,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// ze reads config from file, not stdin.
 		// If args contain "-", replace with temp file.
 		// Write to TmpfsTempDir if available so plugin paths (like ./plugin.run) resolve correctly.
-		if binName == "ze" && stdinContent != nil {
+		if binName == binNameZe && stdinContent != nil {
 			// A bare `ze -` daemon launch (the `-` IS the daemon config arg) now runs
 			// as `ze start <file>` after spec-fixit-config-file-positional-grammar:
 			// keyword-first grammar places the config path behind the `start` verb.
@@ -775,7 +782,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					// config path so `ze -` runs as `ze start <file>`.
 					newArgs := make([]string, 0, len(args)+1)
 					newArgs = append(newArgs, args[:i]...)
-					newArgs = append(newArgs, "start", tmpFile.Name())
+					newArgs = append(newArgs, zeVerbStart, tmpFile.Name())
 					newArgs = append(newArgs, args[i+1:]...)
 					args = newArgs
 				} else {
@@ -815,7 +822,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// load); the destination is still reported unreachable. See checks_reach.go.
 			"ze.test.doctor.probe-timeout=250ms",
 		)
-		if binName == "ze" && zeDaemonShouldForceFileStorage(args) {
+		if binName == binNameZe && zeDaemonShouldForceFileStorage(args) {
 			// Functional daemon configs are per-test files. Keep them out of the
 			// developer's shared zefs active pointer so tests cannot load stale state.
 			proc.Env = append(proc.Env, "ze.storage.blob=false")
@@ -823,13 +830,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Only set ze_test_bgp_port for ze and ze-peer binaries. Other processes
 		// (e.g., ze-chaos --in-process) manage their own port configuration and
 		// the override breaks their mock network setup.
-		if binName == "ze" || binName == binNameZePeer {
+		if binName == binNameZe || binName == binNameZePeer {
 			proc.Env = append(proc.Env, textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)))
 		}
 		// Point ze at the test syslog server when one was started. Uses the
 		// ze.log.backend / ze.log.destination convention from slogutil.go.
 		// Only applied to ze: ze-peer and helper scripts do not need it.
-		if binName == "ze" && syslogSrv != nil {
+		if binName == binNameZe && syslogSrv != nil {
 			proc.Env = append(proc.Env,
 				"ze.log.backend=syslog",
 				textbuf.StrInt("ze.log.destination=127.0.0.1:", int64(syslogSrv.Port())),
@@ -838,7 +845,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Fix B (R-2 gate): tell ze which netns inode is the HOST so it refuses to
 		// program nft if it somehow ended up there (netns isolation silently
 		// failed). Only ze needs it -- it owns the firewall Apply chokepoint.
-		if netnsMode && binName == "ze" {
+		if netnsMode && binName == binNameZe {
 			proc.Env = append(proc.Env,
 				textbuf.StrInt("ZE_TEST_NETNS_HOST=", int64(netnsHostInode)))
 		}
@@ -874,7 +881,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// in the switch below so sequential steps do not race. It writes to its
 		// own buffers, folded into the shared client buffers only after Wait()
 		// (see awaitQuickZe).
-		quickZe := cmd.Mode == modeForeground && binName == "ze" && isQuickExitZeCommand(args)
+		quickZe := cmd.Mode == modeForeground && binName == binNameZe && isQuickExitZeCommand(args)
 		var quickStdout, quickStderr strings.Builder
 
 		// Capture output: each ze-peer gets its own syncWriter/stderr
@@ -898,7 +905,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			proc.Stderr = &quickStderr
 		default:
 			proc.Stdout = &clientStdout
-			proc.Stderr = teeDaemonStderr(&clientStderr, awaitStderrSW, binName == "ze")
+			proc.Stderr = teeDaemonStderr(&clientStderr, awaitStderrSW, binName == binNameZe)
 		}
 
 		// Fix B: drop the ze daemon to a normal user so its readiness handshake
@@ -906,7 +913,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// root ze never writes it). The setcap'd binary keeps ambient CAP_NET_ADMIN
 		// for nft. Peer and fixture helpers stay privileged (root under sudo) so
 		// they can read nft state and signal the daemon.
-		if netnsMode && netnsHasUID && binName == "ze" {
+		if netnsMode && netnsHasUID && binName == binNameZe {
 			proc.SysProcAttr = &syscall.SysProcAttr{
 				Credential: &syscall.Credential{Uid: uint32(netnsUID), Gid: uint32(netnsGID)}, //nolint:gosec // uid/gid from local dev env
 			}
@@ -998,7 +1005,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// daemon with no tmpfs dir): brief sleep for startup.
 				time.Sleep(100 * time.Millisecond)
 			}
-		case cmd.Mode == modeForeground && binName != "ze" && binName != binNameZePeer && cmdIdx < len(cmds)-1:
+		case cmd.Mode == modeForeground && binName != binNameZe && binName != binNameZePeer && cmdIdx < len(cmds)-1:
 			// Foreground setup script (non-daemon, e.g., create-marker.sh) that
 			// precedes other commands: wait for completion before starting the
 			// next command. Without this, the setup script may not finish before
@@ -1083,14 +1090,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.Duration = time.Since(rec.StartTime)
 			httpStepN++
 			rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-				Step: httpStepN, Kind: "expect", Assert: "http-wait",
+				Step: httpStepN, Kind: stepKindExpect, Assert: "http-wait",
 				Passed: false, Detail: waitErr.Error(),
 			})
 			return false
 		}
 		httpStepN++
 		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-			Step: httpStepN, Kind: "expect", Assert: "http-wait", Passed: true,
+			Step: httpStepN, Kind: stepKindExpect, Assert: "http-wait", Passed: true,
 		})
 	}
 
@@ -1109,14 +1116,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.Duration = time.Since(rec.StartTime)
 			httpStepN++
 			rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-				Step: httpStepN, Kind: "expect", Assert: "http-check",
+				Step: httpStepN, Kind: stepKindExpect, Assert: "http-check",
 				Passed: false, Detail: httpErr.Error(),
 			})
 			return false
 		}
 		httpStepN++
 		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-			Step: httpStepN, Kind: "expect", Assert: "http-check", Passed: true,
+			Step: httpStepN, Kind: stepKindExpect, Assert: "http-check", Passed: true,
 		})
 	}
 
@@ -1262,7 +1269,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	recStep := func(assert string, passed bool, detail string) {
 		stepN++
 		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
-			Step: stepN, Kind: "expect", Assert: assert,
+			Step: stepN, Kind: stepKindExpect, Assert: assert,
 			Passed: passed, Detail: detail,
 		})
 	}

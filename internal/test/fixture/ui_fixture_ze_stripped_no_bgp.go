@@ -47,7 +47,7 @@ func runZEStrippedNoBGP(ctx context.Context) error {
 }
 
 func validateZEStrippedConfig(ctx context.Context, path string) (validationResult, error) {
-	cmd := exec.CommandContext(ctx, "ze-stripped", "config", "validate", path)
+	cmd := exec.CommandContext(ctx, "ze-stripped", "config", "validate", path) //nolint:gosec // the fixture chooses the program and its arguments
 	output, err := cmd.CombinedOutput()
 	result := validationResult{
 		exitCode: 0,
@@ -60,8 +60,7 @@ func validateZEStrippedConfig(ctx context.Context, path string) (validationResul
 		return validationResult{}, ctxErr
 	}
 
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.exitCode = exitErr.ExitCode()
 		return result, nil
 	}

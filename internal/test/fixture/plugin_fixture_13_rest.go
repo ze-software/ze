@@ -49,7 +49,7 @@ func httpRequest13(ctx context.Context, method, url string, headers map[string]s
 	if err != nil {
 		return httpResult13{}, err
 	}
-	defer response.Body.Close() //nolint:errcheck
+	defer response.Body.Close() //nolint:errcheck // the fixture only reads the body, so a close failure changes no assertion
 	raw, err := io.ReadAll(response.Body)
 	return httpResult13{status: response.StatusCode, body: raw}, err
 }
@@ -90,7 +90,7 @@ func restAPICommands13(ctx context.Context, args []string) error {
 		}
 		advertised := false
 		for _, command := range commands {
-			if command["Name"] == "show bgp" {
+			if command["Name"] == cmdShowBGP {
 				advertised = true
 				break
 			}
@@ -99,7 +99,7 @@ func restAPICommands13(ctx context.Context, args []string) error {
 			return fmt.Errorf("command list does not advertise show bgp (%d commands)", len(commands))
 		}
 		fmt.Fprintf(os.Stderr, "OK: REST /api/v1/commands returned %d commands\n", len(commands))
-		result, err := httpRequest13(ctx, http.MethodPost, base+"/execute", map[string]string{"Content-Type": "application/json"}, map[string]any{"command": "show bgp"})
+		result, err := httpRequest13(ctx, http.MethodPost, base+"/execute", map[string]string{headerContentType: mediaTypeJSON}, map[string]any{fieldCommand: cmdShowBGP})
 		if err != nil {
 			return err
 		}
@@ -107,7 +107,7 @@ func restAPICommands13(ctx context.Context, args []string) error {
 		if err != nil {
 			return fmt.Errorf("decode execute response (HTTP %d): %w: %.200s", result.status, err, result.body)
 		}
-		if answer["status"] != "done" {
+		if answer["status"] != statusDone {
 			return fmt.Errorf("execute status=%v error=%v data=%v", answer["status"], answer["error"], answer["data"])
 		}
 		if err := requireBGPPeerSummary13(answer["data"], "127.0.0.1"); err != nil {
@@ -149,23 +149,23 @@ func restExecute13(ctx context.Context, args []string) error {
 		if _, ok := waitHTTP13(ctx, base+"/commands", nil, 20, 500*time.Millisecond); !ok {
 			return errors.New("REST API did not respond within timeout")
 		}
-		headers := map[string]string{"Content-Type": "application/json"}
-		result, err := httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]any{"command": "show version"})
+		headers := map[string]string{headerContentType: mediaTypeJSON}
+		result, err := httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]any{fieldCommand: cmdShowVersion})
 		if err != nil {
 			return err
 		}
 		version, err := decodeObject13(result.body)
-		if err != nil || version["status"] != "done" {
-			return fmt.Errorf("show version status=%v HTTP=%d err=%v", version["status"], result.status, err)
+		if err != nil || version["status"] != statusDone {
+			return fmt.Errorf("show version status=%v HTTP=%d err=%w", version["status"], result.status, err)
 		}
 		fmt.Fprintln(os.Stderr, "OK: REST execute returned status=done")
-		result, err = httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]any{"command": "show bgp", "params": map[string]any{}})
+		result, err = httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]any{fieldCommand: cmdShowBGP, "params": map[string]any{}})
 		if err != nil {
 			return err
 		}
 		answer, err := decodeObject13(result.body)
-		if err != nil || answer["status"] != "done" {
-			return fmt.Errorf("show bgp status=%v HTTP=%d err=%v", answer["status"], result.status, err)
+		if err != nil || answer["status"] != statusDone {
+			return fmt.Errorf("show bgp status=%v HTTP=%d err=%w", answer["status"], result.status, err)
 		}
 		if err := requireBGPPeerSummary13(answer["data"], "127.0.0.1"); err != nil {
 			return err
@@ -181,17 +181,17 @@ func restNoAuthReadonly13(ctx context.Context, args []string) error {
 		if _, ok := waitHTTP13(ctx, base+"/commands", nil, 20, 500*time.Millisecond); !ok {
 			return errors.New("REST API did not respond")
 		}
-		headers := map[string]string{"Content-Type": "application/json"}
-		result, err := httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]any{"command": "show version"})
+		headers := map[string]string{headerContentType: mediaTypeJSON}
+		result, err := httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]any{fieldCommand: cmdShowVersion})
 		if err != nil {
 			return err
 		}
 		body, err := decodeObject13(result.body)
-		if err != nil || body["status"] != "done" {
-			return fmt.Errorf("read command status=%v HTTP=%d err=%v", body["status"], result.status, err)
+		if err != nil || body["status"] != statusDone {
+			return fmt.Errorf("read command status=%v HTTP=%d err=%w", body["status"], result.status, err)
 		}
 		fmt.Fprintln(os.Stderr, "OK: no-auth REST read command allowed")
-		result, err = httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]any{"command": "request reload"})
+		result, err = httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]any{fieldCommand: "request reload"})
 		if err != nil {
 			return err
 		}
@@ -207,7 +207,7 @@ func restNoAuthReadonly13(ctx context.Context, args []string) error {
 			return fmt.Errorf("no-auth REST config session status=%d, want 403", result.status)
 		}
 		fmt.Fprintln(os.Stderr, "OK: no-auth REST config session denied")
-		return waitEORSent13(ctx, plugin, "peer1", 1)
+		return waitEORSent13(ctx, plugin, "peer1")
 	})
 }
 
@@ -244,7 +244,7 @@ func (r restLifecycle13) createSession(ctx context.Context) (string, error) {
 }
 
 func (r restLifecycle13) set(ctx context.Context, sid, path, value string) error {
-	_, err := r.request(ctx, http.MethodPut, "/config/sessions/"+sid, map[string]any{"path": path, "value": value})
+	_, err := r.request(ctx, http.MethodPut, "/config/sessions/"+sid, map[string]any{fieldPath: path, fieldValue: value})
 	return err
 }
 
@@ -263,12 +263,12 @@ func (r restLifecycle13) addPeer(ctx context.Context, sid, name, remoteIP string
 		{prefix + ".connection.remote.ip", remoteIP},
 		{prefix + ".connection.remote.port", r.peerPort},
 		{prefix + ".connection.local.ip", remoteIP},
-		{prefix + ".connection.local.accept", "false"},
+		{prefix + ".connection.local.accept", valueFalse},
 		{prefix + ".session.asn.local", "65000"},
 		{prefix + ".session.asn.remote", strconv.Itoa(remoteAS)},
 		{prefix + ".session.router-id", "1.2.3.4"},
 		{prefix + ".session.family.ipv4/unicast.prefix.maximum", "10000"},
-		{prefix + ".behavior.group-updates", "false"},
+		{prefix + ".behavior.group-updates", valueFalse},
 	}
 	for _, value := range values {
 		if err := r.set(ctx, sid, value[0], value[1]); err != nil {
@@ -283,7 +283,7 @@ func (r restLifecycle13) commit(ctx context.Context, sid, label string) error {
 	if err != nil {
 		return err
 	}
-	if result["status"] != "committed" {
+	if result["status"] != statusCommitted {
 		return fmt.Errorf("%s commit status: %v", label, result)
 	}
 	return nil
@@ -316,7 +316,7 @@ func restPeerLifecycle13(ctx context.Context, args []string) error {
 	driver := restLifecycle13{
 		base:     "http://127.0.0.1:" + args[0] + "/api/v1",
 		peerPort: args[1],
-		headers:  map[string]string{"Authorization": "Bearer secret", "Content-Type": "application/json"},
+		headers:  map[string]string{"Authorization": "Bearer secret", headerContentType: mediaTypeJSON},
 	}
 	return observe13(ctx, "lifecycle-driver", func(ctx context.Context, plugin *sdk.Plugin) error {
 		if _, ok := waitHTTP13(ctx, driver.base+"/commands", driver.headers, 50, 300*time.Millisecond); !ok {
@@ -331,7 +331,7 @@ func restPeerLifecycle13(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		if err = driver.addPeer(ctx, sid, "peer-beta", "127.0.0.2", 65002); err != nil {
+		if err := driver.addPeer(ctx, sid, "peer-beta", "127.0.0.2", 65002); err != nil {
 			return err
 		}
 		diff, err := driver.diff(ctx, sid)
@@ -341,7 +341,7 @@ func restPeerLifecycle13(ctx context.Context, args []string) error {
 		if !strings.Contains(diff, "peer-beta") {
 			return fmt.Errorf("peer-beta absent from REST candidate diff: %q", diff)
 		}
-		if err = driver.commit(ctx, sid, "step 2"); err != nil {
+		if err := driver.commit(ctx, sid, "step 2"); err != nil {
 			return err
 		}
 		beta, betaPresent := waitPeerPresent13(ctx, plugin, "127.0.0.2")
@@ -360,7 +360,7 @@ func restPeerLifecycle13(ctx context.Context, args []string) error {
 		if _, err = driver.request(ctx, http.MethodDelete, "/config/sessions/"+sid+"/"+path, nil); err != nil {
 			return err
 		}
-		if err = driver.commit(ctx, sid, "step 3"); err != nil {
+		if err := driver.commit(ctx, sid, "step 3"); err != nil {
 			return err
 		}
 		gone := Poll(ctx, 24, 500*time.Millisecond, func() bool { _, present := peerState13(ctx, plugin, "127.0.0.1"); return !present })
@@ -373,10 +373,10 @@ func restPeerLifecycle13(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		if err = driver.addPeer(ctx, sid, "peer-alpha", "127.0.0.1", 65001); err != nil {
+		if err := driver.addPeer(ctx, sid, "peer-alpha", "127.0.0.1", 65001); err != nil {
 			return err
 		}
-		if err = driver.commit(ctx, sid, "step 4"); err != nil {
+		if err := driver.commit(ctx, sid, "step 4"); err != nil {
 			return err
 		}
 		alpha, alphaPresent = waitPeerPresent13(ctx, plugin, "127.0.0.1")

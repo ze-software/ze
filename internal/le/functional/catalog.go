@@ -2,7 +2,7 @@
 // Overview: suites.go -- the table this renders
 //
 // catalog.go prevents a port from hiding data from two external guards.
-// The rerun-target guard reads internal/le/verify/verify_test.go.
+// The rerun-target guard reads internal/le/verify/engine/verifyengine_test.go.
 // The .ci evidence tier reads internal/le/rfc/actions.go.
 // Both previously read `all_suites="..."` from a Makefile recipe.
 // A recipe that delegates to a program provides no suite names.
@@ -32,7 +32,7 @@ type SuiteRow struct {
 // GatingNames answers the authoritative gating run list in declaration order.
 //
 // The copy makes the exported answer read-only: RFC evidence classification and
-// other consumers can inspect the catalogue without receiving the mutable slice
+// other consumers can inspect the catalog without receiving the mutable slice
 // the runner owns.
 func GatingNames() []string { return slices.Clone(Gating) }
 

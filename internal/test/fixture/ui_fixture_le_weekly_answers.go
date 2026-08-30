@@ -35,7 +35,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: creating fixture directory: %w", err)
 	}
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(checkout)
 	if err != nil {
@@ -45,10 +45,10 @@ func leWeeklyAnswers(ctx context.Context) error {
 	fixture := filepath.Join(here, "fixture")
 	posts := filepath.Join(fixture, "website", "changes", "posts")
 	archive := filepath.Join(fixture, "scripts", "zeledon", "weekly")
-	if err := os.MkdirAll(posts, 0o755); err != nil {
+	if err := os.MkdirAll(posts, 0o750); err != nil {
 		return fmt.Errorf("FAIL: creating posts fixture: %w", err)
 	}
-	if err := os.MkdirAll(archive, 0o755); err != nil {
+	if err := os.MkdirAll(archive, 0o750); err != nil {
 		return fmt.Errorf("FAIL: creating archive fixture: %w", err)
 	}
 
@@ -59,7 +59,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 	for _, week := range weeks {
 		body := fmt.Sprintf("---\ncovers: %s .. %s\n---\n\n**📅 Ze Weekly Update**\n\nWeek of %s.\n", week[0], week[1], week[0])
 		name := filepath.Join(posts, week[0]+".md")
-		if err := os.WriteFile(name, []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(name, []byte(body), 0o600); err != nil {
 			return fmt.Errorf("FAIL: writing %s: %w", name, err)
 		}
 	}
@@ -90,7 +90,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 		if len(preview) > 400 {
 			preview = preview[:400]
 		}
-		return fmt.Errorf("FAIL: `le weekly | json` did not answer JSON: %v\n%s", err, preview)
+		return fmt.Errorf("FAIL: `le weekly | json` did not answer JSON: %w\n%s", err, preview)
 	}
 
 	action, ok := report["action"].(string)
@@ -113,7 +113,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 	if !ok {
 		return fmt.Errorf("FAIL: first post row = %T, want an object", reportPosts[0])
 	}
-	for _, key := range []string{"source", "date", "covers", "status", "date-stamped", "messages"} {
+	for _, key := range []string{"source", "date", "covers", fieldStatus, "date-stamped", "messages"} {
 		if _, found := first[key]; !found {
 			keys := make([]string, 0, len(first))
 			for present := range first {
@@ -187,7 +187,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 }
 
 func runWeeklyCommand(ctx context.Context, dir string, env []string, name string, args ...string) weeklyCommandResult {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	if env != nil {
 		cmd.Env = env

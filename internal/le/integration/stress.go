@@ -24,7 +24,15 @@ const (
 	stressFlapPause      = 2 * time.Second
 	stressProfileStartup = time.Second
 	stressProfileWait    = 120 * time.Second
+	// stressProfileRoot is the directory the profile log is written to, inside
+	// the network namespace the scenario runs in.
+	stressProfileRoot = "/tmp"
 )
+
+// stressProfilePath answers the CPU profile log of one stress run.
+func stressProfilePath(suffix string) string {
+	return filepath.Join(stressProfileRoot, "ze-stress-profile-"+suffix+".log")
+}
 
 // stressOptions selects one exact scenario. An empty selection runs the complete registry.
 type stressOptions struct {
@@ -117,30 +125,30 @@ type stressRound struct {
 
 var stressScenarioRegistry = [...]stressScenario{
 	{
-		name: "01-bulk-ipv4", config: "ze.conf",
+		name: "01-bulk-ipv4", config: zeConfigFile,
 		rounds: []stressRound{
-			{prefixBase: "10.0.0.0/24", nexthop: stressBirdPeerIP, prefixes: 100_000, dwell: "15s", timeout: 120 * time.Second},
-			{prefixBase: "10.64.0.0/24", nexthop: stressBirdPeerIP, prefixes: 250_000, dwell: "15s", timeout: 180 * time.Second},
-			{prefixBase: "10.128.0.0/24", nexthop: stressBirdPeerIP, prefixes: 500_000, dwell: "15s", timeout: 300 * time.Second},
-			{prefixBase: "11.0.0.0/24", nexthop: stressBirdPeerIP, prefixes: 1_000_000, dwell: "15s", timeout: 600 * time.Second},
+			{prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 100_000, dwell: dwellFifteenSeconds, timeout: 120 * time.Second},
+			{prefixBase: "10.64.0.0/24", nexthop: stressBirdPeerIP, prefixes: 250_000, dwell: dwellFifteenSeconds, timeout: 180 * time.Second},
+			{prefixBase: "10.128.0.0/24", nexthop: stressBirdPeerIP, prefixes: 500_000, dwell: dwellFifteenSeconds, timeout: 300 * time.Second},
+			{prefixBase: "11.0.0.0/24", nexthop: stressBirdPeerIP, prefixes: 1_000_000, dwell: dwellFifteenSeconds, timeout: 600 * time.Second},
 		},
 	},
 	{
-		name: "02-multi-peer", config: "ze.conf",
+		name: "02-multi-peer", config: zeConfigFile,
 		rounds: []stressRound{
-			{prefixBase: "10.0.0.0/24", nexthop: stressBirdPeerIP, prefixes: 500_000, dwell: "30s", timeout: 900 * time.Second},
+			{prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 500_000, dwell: "30s", timeout: 900 * time.Second},
 			{prefixBase: "2001:db8::/48", nexthop: "2001:db8::3", prefixes: 250_000, dwell: "30s", timeout: 600 * time.Second},
 		},
 	},
 	{
-		name: "03-session-flap", config: "ze.conf",
+		name: "03-session-flap", config: zeConfigFile,
 		rounds: stressFlapRounds(),
 	},
 	{name: stressBirdScenario, config: "bird.conf"},
 	{
-		name: "05-profile-1m", config: "ze.conf",
+		name: scenarioProfile1M, config: zeConfigFile,
 		rounds: []stressRound{
-			{prefixBase: "10.0.0.0/24", nexthop: stressBirdPeerIP, prefixes: 1_000_000, dwell: "60s", timeout: 600 * time.Second},
+			{prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 1_000_000, dwell: "60s", timeout: 600 * time.Second},
 		},
 	},
 }
@@ -149,12 +157,12 @@ func stressFlapRounds() []stressRound {
 	rounds := make([]stressRound, 0, 11)
 	for range 10 {
 		rounds = append(rounds, stressRound{
-			prefixBase: "10.0.0.0/24", nexthop: stressBirdPeerIP, prefixes: 100_000,
+			prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 100_000,
 			dwell: "2s", timeout: 180 * time.Second, pause: stressFlapPause,
 		})
 	}
 	return append(rounds, stressRound{
-		prefixBase: "10.0.0.0/24", nexthop: stressBirdPeerIP, prefixes: 100_000,
+		prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 100_000,
 		dwell: "5s", timeout: 180 * time.Second,
 	})
 }
@@ -248,7 +256,7 @@ func runZeStressScenario(
 	report = StressScenarioReport{Name: scenario.name}
 	defer func() {
 		report.CleanupErrors = runner.base.cleanup(ctx, true)
-		_ = system.Remove(filepath.Join("/tmp", "ze-stress-profile-"+runner.base.suffix+".log"))
+		_ = system.Remove(stressProfilePath(runner.base.suffix))
 		report.Warnings = append(report.Warnings, runner.base.warnings...)
 		if report.Failure == "" && len(report.CleanupErrors) > 0 {
 			report.Failure = "cleanup failed: " + strings.Join(report.CleanupErrors, "; ")
@@ -270,7 +278,7 @@ func runZeStressScenario(
 		report.Failure, report.ExitCode = failure.Message, failure.ExitCode
 		return report
 	}
-	if scenario.name == "05-profile-1m" {
+	if scenario.name == scenarioProfile1M {
 		if failure := runner.startCPUProfile(ctx); failure != nil {
 			report.Failure, report.ExitCode = failure.Message, failure.ExitCode
 			return report
@@ -284,7 +292,7 @@ func runZeStressScenario(
 			return report
 		}
 	}
-	if scenario.name == "05-profile-1m" {
+	if scenario.name == scenarioProfile1M {
 		var failure *StressBirdFailure
 		report.Profiles, failure = runner.finishProfiles(ctx)
 		if failure != nil {
@@ -299,7 +307,7 @@ func (r *stressRunner) preflight(ctx context.Context) *StressBirdFailure {
 		return stressBirdFailure("preflight", 1, "must run as root for network namespaces")
 	}
 	missingRuntime := false
-	for _, tool := range [...]string{"ip", "ethtool"} {
+	for _, tool := range [...]string{"ip", toolEthtool} {
 		if _, err := r.system.LookPath(tool); err != nil {
 			missingRuntime = true
 		}
@@ -309,7 +317,7 @@ func (r *stressRunner) preflight(ctx context.Context) *StressBirdFailure {
 			return failure
 		}
 	}
-	for _, tool := range [...]string{"ip", "ethtool"} {
+	for _, tool := range [...]string{"ip", toolEthtool} {
 		if _, err := r.system.LookPath(tool); err != nil {
 			return stressBirdFailure("preflight", gaterun.CannotStart, "setup completed but required command is still missing: "+tool)
 		}
@@ -517,7 +525,7 @@ func (r *stressRunner) startCPUProfile(ctx context.Context) *StressBirdFailure {
 			"http://127.0.0.1:6060/debug/pprof/profile?seconds=90",
 		),
 		environ:    r.base.environ,
-		outputPath: filepath.Join("/tmp", "ze-stress-profile-"+r.base.suffix+".log"),
+		outputPath: stressProfilePath(r.base.suffix),
 	})
 	if err != nil {
 		return stressBirdFailure("profile", gaterun.CannotStart, "start CPU profile: "+err.Error())
@@ -580,7 +588,7 @@ type realStressSystem struct {
 	realStressBirdSystem
 }
 
-func (realStressSystem) ReadFile(path string) ([]byte, error) { return os.ReadFile(path) }
+func (realStressSystem) ReadFile(path string) ([]byte, error) { return os.ReadFile(path) } //nolint:gosec // a development tool reads the checkout it was pointed at
 
 func (realStressSystem) fileSize(path string) (int64, error) {
 	info, err := os.Stat(path)
@@ -609,3 +617,21 @@ func stressRoundIdentity(round stressRound) string {
 	var text textbuf.Buffer
 	return text.Str(round.prefixBase).Str("/").Int(int64(round.prefixes)).Str("/").Str(round.dwell).String()
 }
+
+// The scenario inputs and host tool names the stress runners repeat. ipAdd and
+// ipLink are the iproute2 object and verb the namespace setup uses.
+const (
+	stressPrefixBase  = "10.0.0.0/24"
+	toolEthtool       = "ethtool"
+	zeConfigFile      = "ze.conf"
+	scenarioProfile1M = "05-profile-1m"
+	ipAdd             = "add"
+	aptGet            = "apt-get"
+	ipLink            = "link"
+)
+
+// The default per-round dwell, and the iproute2 object the lab namespaces use.
+const (
+	dwellFifteenSeconds = "15s"
+	ipNetns             = "netns"
+)

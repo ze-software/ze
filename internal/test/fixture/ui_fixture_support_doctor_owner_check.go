@@ -46,8 +46,7 @@ func supportDoctorOwnerCheck(ctx context.Context) error {
 			return ctxErr
 		}
 
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return productExitError{code: exitErr.ExitCode()}
 		}
 		return fmt.Errorf("run ze support: %w", err)
@@ -56,7 +55,7 @@ func supportDoctorOwnerCheck(ctx context.Context) error {
 	var manifest map[string]any
 	if err := json.Unmarshal(stdout.Bytes(), &manifest); err != nil {
 		return fmt.Errorf(
-			"support json decode failed: %v: %s",
+			"support json decode failed: %w: %s",
 			err,
 			firstRunes(stdout.String(), 200),
 		)
@@ -103,17 +102,17 @@ func (e productExitError) ExitCode() int {
 }
 
 func supportDoctorCodes(archivePath string) ([]any, error) {
-	archiveFile, err := os.Open(archivePath)
+	archiveFile, err := os.Open(archivePath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil, fmt.Errorf("open support archive: %w", err)
 	}
-	defer archiveFile.Close()
+	defer archiveFile.Close() //nolint:errcheck // fixture teardown
 
 	gzipReader, err := gzip.NewReader(archiveFile)
 	if err != nil {
 		return nil, fmt.Errorf("open support archive gzip stream: %w", err)
 	}
-	defer gzipReader.Close()
+	defer gzipReader.Close() //nolint:errcheck // fixture teardown
 
 	tarReader := tar.NewReader(gzipReader)
 	var doctorJSON []byte
@@ -133,7 +132,7 @@ func supportDoctorCodes(archivePath string) ([]any, error) {
 
 		// Archive name lookup selects the last matching member. Keep replacing
 		// the saved value so duplicate entries have the same behavior.
-		foundDoctor = header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeRegA
+		foundDoctor = header.Typeflag == tar.TypeReg
 		doctorJSON = nil
 		if !foundDoctor {
 			continue

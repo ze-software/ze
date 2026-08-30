@@ -274,7 +274,7 @@ func (m *Manager) migrate(link, target string, autoRepoint bool) Result {
 		return m.ensureSymlink(link, target, autoRepoint)
 	}
 	if !info.IsDir() {
-		return statusResult("REFUSE", text.Str("REFUSE   ").Str(filepath.Base(link)).
+		return statusResult(verdictRefuse, text.Str("REFUSE   ").Str(filepath.Base(link)).
 			Str(": exists and is not a directory; resolve manually").String())
 	}
 	undeletable, checkErr := m.firstUndeletableDir(link)
@@ -298,7 +298,7 @@ func (m *Manager) migrate(link, target string, autoRepoint bool) Result {
 			line := text.Reset().Str("REFUSE   ").Str(filepath.Base(link)).Str(": ").
 				Str(entry.Name()).Str(" already exists in the target; resolve manually (moved ").
 				Int(int64(moved)).Str(" so far)").String()
-			return statusResult("REFUSE", line)
+			return statusResult(verdictRefuse, line)
 		}
 		if err := m.moveEntry(filepath.Join(link, entry.Name()), destination); err != nil {
 			return errorResult(filepath.Base(link), fmt.Errorf("move %s: %w", entry.Name(), err))
@@ -321,7 +321,7 @@ func (m *Manager) migrateScratchDirs(link, target string) Result {
 	info, err := os.Lstat(link)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return statusResult("REFUSE", text.Str("REFUSE   ").Str(filepath.Base(link)).
+			return statusResult(verdictRefuse, text.Str("REFUSE   ").Str(filepath.Base(link)).
 				Str(": exists and is not a directory; resolve manually").String())
 		}
 		return errorResult(filepath.Base(link), fmt.Errorf("inspect path: %w", err))
@@ -332,7 +332,7 @@ func (m *Manager) migrateScratchDirs(link, target string) Result {
 		return statusResult("SKIP", line)
 	}
 	if !info.IsDir() {
-		return statusResult("REFUSE", text.Reset().Str("REFUSE   ").Str(filepath.Base(link)).
+		return statusResult(verdictRefuse, text.Reset().Str("REFUSE   ").Str(filepath.Base(link)).
 			Str(": exists and is not a directory; resolve manually").String())
 	}
 	linkDevice, err := m.fs.device(link)
@@ -347,7 +347,7 @@ func (m *Manager) migrateScratchDirs(link, target string) Result {
 		line := text.Reset().Str("REFUSE   ").Str(filepath.Base(link)).Str(": ").Str(target).
 			Str(" is on the same device, so moving there frees nothing. Point TMPDIR at a directory on another drive and retry").
 			String()
-		return statusResult("REFUSE", line)
+		return statusResult(verdictRefuse, line)
 	}
 	if err := os.MkdirAll(target, targetDirMode); err != nil {
 		return errorResult(filepath.Base(link), fmt.Errorf("create target: %w", err))
@@ -479,7 +479,7 @@ func scratchMigrationResult(path, target string, moved, repointed, skipped, refu
 	status := "migrated"
 	if len(refused) > 0 {
 		head = "REFUSE  "
-		status = "REFUSE"
+		status = verdictRefuse
 	}
 	return statusResult(status, text.Reset().Str(head).Byte(' ').Str(path).Str(": ").
 		Join(parts, "; ").Str(" -> ").Str(target).String())
@@ -547,7 +547,7 @@ func deviceOf(path string) (uint64, error) {
 			if !ok {
 				return 0, fmt.Errorf("stat %s has no device id", probe)
 			}
-			return uint64(stat.Dev), nil //nolint:gosec // device IDs are non-negative
+			return uint64(stat.Dev), nil //nolint:gosec,unconvert // device IDs are non-negative, and Stat_t.Dev is int32 on darwin so the conversion is load-bearing there
 		}
 		if !errors.Is(err, os.ErrNotExist) {
 			return 0, err
@@ -579,7 +579,7 @@ func diagnosticLine(line string) bool {
 	if strings.HasPrefix(line, "SKIP") {
 		return true
 	}
-	if strings.HasPrefix(line, "REFUSE") {
+	if strings.HasPrefix(line, verdictRefuse) {
 		return true
 	}
 	return strings.HasPrefix(line, "MISMATCH")
@@ -587,7 +587,7 @@ func diagnosticLine(line string) bool {
 
 func errorResult(path string, err error) Result {
 	var text textbuf.Buffer
-	return Result{Path: path, Status: "REFUSE",
+	return Result{Path: path, Status: verdictRefuse,
 		Line: text.Str("REFUSE   ").Str(path).Str(": ").Err(err).String(), Stderr: true}
 }
 
@@ -597,7 +597,7 @@ func failureReport(path string, err error) Report {
 
 func verdict(results []Result) int {
 	for _, result := range results {
-		if result.Status == "REFUSE" {
+		if result.Status == verdictRefuse {
 			return 1
 		}
 	}
@@ -609,5 +609,10 @@ func undeletableResult(path, undeletable string) Result {
 	line := text.Str("REFUSE   ").Str(path).Str(": ").Str(undeletable).
 		Str(" is not writable and searchable, so its contents cannot be unlinked; nothing was moved. A Go module cache is the usual cause: `go` writes gomodcache directories mode 0555 on purpose. Run the download that made it with GOFLAGS=-modcacherw, or remove the cache, then retry").
 		String()
-	return statusResult("REFUSE", line)
+	return statusResult(verdictRefuse, line)
 }
+
+// verdictRefuse is the refusal word this action prints.
+const (
+	verdictRefuse = "REFUSE"
+)

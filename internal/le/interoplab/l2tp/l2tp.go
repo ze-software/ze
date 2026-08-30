@@ -33,6 +33,7 @@ const (
 
 	commandShow        = "show"
 	commandLink        = "link"
+	commandType        = "type"
 	commandVTYSH       = "vtysh"
 	modulesPath        = "/lib/modules"
 	privilegedArgument = "--privileged"
@@ -302,7 +303,7 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 		builds = append(builds, interoplab.ImageBuild{Name: "frr", Tag: frrImage, Pull: true, Required: true})
 	}
 	if needRadius {
-		builds = append(builds, interoplab.ImageBuild{Name: "radius", Tag: "ze-l2tp-radius", Dockerfile: filepath.Join(root, "internal/le", "interoplab", "l2tp", "radiusmock", "Dockerfile"), Context: root, Required: true})
+		builds = append(builds, interoplab.ImageBuild{Name: "radius", Tag: "ze-l2tp-radius", Dockerfile: filepath.Join(root, "internal", "le", "interoplab", "l2tp", "radiusmock", "Dockerfile"), Context: root, Required: true})
 	}
 	return builds
 }

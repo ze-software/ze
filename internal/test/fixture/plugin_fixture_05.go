@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -125,7 +126,7 @@ func p05TotalRoutes(value any) float64 {
 
 func p05WaitTotalRoute(ctx context.Context, plugin *sdk.Plugin) error {
 	_, value, err := p05PollCommand(ctx, plugin, "show bgp adj-rib-in status", 50, func(status string, value any) bool {
-		return status == "done" && p05TotalRoutes(value) >= 1
+		return status == statusDone && p05TotalRoutes(value) >= 1
 	})
 	if err != nil {
 		return err
@@ -141,10 +142,8 @@ func p05RequireStatus(ctx context.Context, plugin *sdk.Plugin, command string, a
 	if err != nil {
 		return value, err
 	}
-	for _, want := range allowed {
-		if status == want {
-			return value, nil
-		}
+	if slices.Contains(allowed, status) {
+		return value, nil
 	}
 	return value, fmt.Errorf("%s returned status=%s", command, status)
 }
@@ -181,15 +180,11 @@ func p05CommunityCumulative(ctx context.Context, args []string) error {
 }
 
 func p05CommunityMatchAccept(ctx context.Context, args []string) error {
-	return p05Observe(ctx, args, "test-cm-accept", func(ctx context.Context, plugin *sdk.Plugin) error {
-		return p05WaitTotalRoute(ctx, plugin)
-	})
+	return p05Observe(ctx, args, "test-cm-accept", p05WaitTotalRoute)
 }
 
 func p05CommunityMatchLarge(ctx context.Context, args []string) error {
-	return p05Observe(ctx, args, "test-cm-large", func(ctx context.Context, plugin *sdk.Plugin) error {
-		return p05WaitTotalRoute(ctx, plugin)
-	})
+	return p05Observe(ctx, args, "test-cm-large", p05WaitTotalRoute)
 }
 
 func p05PeerRows(value any) map[string]any {
@@ -224,7 +219,7 @@ func p05PeerRow(value any, peer string) map[string]any {
 
 func p05PeerCounter(ctx context.Context, plugin *sdk.Plugin, peer, counter string) float64 {
 	status, value, _, err := p05Dispatch(ctx, plugin, "show bgp peer "+peer+" detail")
-	if err != nil || status != "done" {
+	if err != nil || status != statusDone {
 		return 0
 	}
 	row := p05PeerRow(value, peer)
@@ -274,7 +269,7 @@ func p05Count(ctx context.Context, plugin *sdk.Plugin, command, subject string) 
 	if err != nil {
 		return 0, err
 	}
-	if status != "done" {
+	if status != statusDone {
 		return 0, fmt.Errorf("%s: dispatch failed with status=%s", subject, status)
 	}
 	row := p05Map(value)
@@ -326,7 +321,7 @@ func p05CommunityScrubOwnGA(ctx context.Context, args []string) error {
 }
 
 func p05DestGotRoute(status string, value any) bool {
-	if status != "done" {
+	if status != statusDone {
 		return false
 	}
 	for _, candidate := range p05PeerRows(value) {
@@ -340,7 +335,7 @@ func p05DestGotRoute(status string, value any) bool {
 
 func p05CommunityStrip(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "test-strip", func(ctx context.Context, plugin *sdk.Plugin) error {
-		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != "done" {
+		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != statusDone {
 			return fmt.Errorf("quiesce barrier did not settle: status=%q: %w", status, err)
 		}
 		status, value, err := p05PollCommand(ctx, plugin, "show bgp peer dest-peer detail", 24, p05DestGotRoute)
@@ -348,7 +343,7 @@ func p05CommunityStrip(ctx context.Context, args []string) error {
 			return fmt.Errorf("dest peer was never sent the re-advertised route: %v", value)
 		}
 		queryStatus, totalValue, _, queryErr := p05Dispatch(ctx, plugin, "show bgp adj-rib-in status")
-		if queryErr != nil || queryStatus != "done" {
+		if queryErr != nil || queryStatus != statusDone {
 			return fmt.Errorf("adj-rib-in query failed: status=%s: %w", queryStatus, queryErr)
 		}
 		totalField, exists := p05Map(totalValue)["total-routes"]
@@ -379,7 +374,7 @@ func p05CommunityTag(ctx context.Context, args []string) error {
 func p05ConfigAddpathMode(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "addpath-test", func(ctx context.Context, plugin *sdk.Plugin) error {
 		_, value, err := p05PollCommand(ctx, plugin, "show bgp peer peer1 capabilities", 50, func(status string, value any) bool {
-			if status != "done" {
+			if status != statusDone {
 				return false
 			}
 			negotiated := p05Map(p05PeerRow(value, "peer1")["negotiated"])
@@ -406,7 +401,7 @@ func p05ConfigAdjRIB(ctx context.Context, args []string) error {
 		}) {
 			return errors.New("peer1 initial-sync EOR never reached the wire")
 		}
-		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != "done" {
+		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != statusDone {
 			return fmt.Errorf("quiesce barrier did not settle: status=%q: %w", status, err)
 		}
 		if _, err := p05RequireStatus(ctx, plugin, "show bgp rib received", "done"); err != nil {
@@ -417,12 +412,13 @@ func p05ConfigAdjRIB(ctx context.Context, args []string) error {
 	})
 }
 
-func p05Dial(host string, port int, readBanner bool) (bool, error) {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), 2*time.Second)
+func p05Dial(ctx context.Context, port int, readBanner bool) (bool, error) {
+	dialer := net.Dialer{Timeout: 2 * time.Second}
+	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
 	if err != nil {
 		return false, err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	if !readBanner {
 		return true, nil
 	}
@@ -445,12 +441,12 @@ func p05ConfigEditSSHSession(ctx context.Context, args []string) error {
 	}
 	return Observe(ctx, "ssh-session-test", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
-			ok, _ := p05Dial("127.0.0.1", port, true)
+			ok, _ := p05Dial(ctx, port, true)
 			return ok
 		}) {
 			return errors.New("SSH server not reachable on expected port")
 		}
-		ok, err := p05Dial("127.0.0.1", port, true)
+		ok, err := p05Dial(ctx, port, true)
 		if err != nil || !ok {
 			return errors.New("SSH server not reachable on expected port")
 		}
@@ -473,10 +469,10 @@ func p05ConfigEditSSH(ctx context.Context, args []string) error {
 	}
 	return Observe(ctx, "config-edit-test", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		Poll(ctx, 50, 200*time.Millisecond, func() bool {
-			ok, _ := p05Dial("127.0.0.1", port, false)
+			ok, _ := p05Dial(ctx, port, false)
 			return ok
 		})
-		if ok, err := p05Dial("127.0.0.1", port, false); err == nil && ok {
+		if ok, err := p05Dial(ctx, port, false); err == nil && ok {
 			fmt.Fprintln(os.Stderr, "OK: SSH port reachable")
 		} else {
 			fmt.Fprintf(os.Stderr, "NOTE: SSH port not on %d (%v), checking via dispatch\n", port, err)
@@ -492,7 +488,7 @@ func p05ConfigEditSSH(ctx context.Context, args []string) error {
 func p05ConfigExtNexthop(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ext-nh-test", func(ctx context.Context, plugin *sdk.Plugin) error {
 		_, value, err := p05PollCommand(ctx, plugin, "show bgp peer peer1 capabilities", 50, func(status string, value any) bool {
-			return status == "done" && p05Map(p05PeerRow(value, "peer1"))["negotiation-complete"] == true
+			return status == statusDone && p05Map(p05PeerRow(value, "peer1"))["negotiation-complete"] == true
 		})
 		if err != nil {
 			return err
@@ -523,7 +519,7 @@ func p05ConfigGroupUpdates(ctx context.Context, args []string) error {
 
 func p05ControlCommunityWithdraw(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "control-community-withdraw", func(ctx context.Context, plugin *sdk.Plugin) error {
-		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != "done" {
+		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != statusDone {
 			return fmt.Errorf("quiesce barrier did not settle: status=%q: %w", status, err)
 		}
 		realUpdates := func(peer string) float64 {
@@ -555,7 +551,7 @@ func p05ProfileNames(value any) map[string]bool {
 }
 
 func p05PollDone(ctx context.Context, plugin *sdk.Plugin, command string) (any, error) {
-	_, value, err := p05PollCommand(ctx, plugin, command, 50, func(status string, _ any) bool { return status == "done" })
+	_, value, err := p05PollCommand(ctx, plugin, command, 50, func(status string, _ any) bool { return status == statusDone })
 	return value, err
 }
 
@@ -589,7 +585,7 @@ func p05CoSDynamicSession(ctx context.Context, args []string) error {
 		}
 		for _, candidate := range profiles {
 			profile := p05Map(candidate)
-			if profile["name"] != "residential" {
+			if profile["name"] != profileResidential {
 				continue
 			}
 			matched := false
@@ -636,7 +632,7 @@ func p05RunActivePlugin(ctx context.Context, process string, registration sdk.Re
 	if err != nil {
 		return err
 	}
-	defer plugin.Close() //nolint:errcheck
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	started := make(chan struct{})
 	scenarioDone := make(chan error, 1)
@@ -660,11 +656,11 @@ func p05CustomFlowspecPlugin(ctx context.Context, args []string) error {
 		return err
 	}
 	registration := sdk.Registration{Families: []sdk.FamilyDecl{
-		{Name: "ipv4/flow", Mode: "decode", AFI: 1, SAFI: 133},
-		{Name: "ipv6/flow", Mode: "decode", AFI: 2, SAFI: 133},
-		{Name: "ipv4/flow-vpn", Mode: "decode", AFI: 1, SAFI: 134},
-		{Name: "ipv6/flow-vpn", Mode: "decode", AFI: 2, SAFI: 134},
-		{Name: "ipv4/unicast", Mode: "both", AFI: 1, SAFI: 1},
+		{Name: "ipv4/flow", Mode: modeDecode, AFI: 1, SAFI: 133},
+		{Name: "ipv6/flow", Mode: modeDecode, AFI: 2, SAFI: 133},
+		{Name: "ipv4/flow-vpn", Mode: modeDecode, AFI: 1, SAFI: 134},
+		{Name: "ipv6/flow-vpn", Mode: modeDecode, AFI: 2, SAFI: 134},
+		{Name: familyIPv4Unicast, Mode: modeBoth, AFI: 1, SAFI: 1},
 	}}
 	return p05RunActivePlugin(ctx, "acme-traffic-filter", registration, func(ctx context.Context, plugin *sdk.Plugin) error {
 		if _, _, err := plugin.UpdateRoute(ctx, "*", "update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.0/24"); err != nil {
@@ -687,7 +683,7 @@ func p05DDoSFlowRecent(ctx context.Context, args []string) error {
 			}
 		}
 		status, _, _, err := p05Dispatch(ctx, plugin, "show flow recent bogus arg")
-		if err == nil && status != "error" {
+		if err == nil && status != statusError {
 			return fmt.Errorf("bad grammar status=%s, want error", status)
 		}
 		fmt.Fprintln(os.Stderr, "OK: show flow recent reachable, list shape, dst filter, usage guard")
@@ -701,7 +697,7 @@ func p05DDoSFlowspecAnnounce(ctx context.Context, args []string) error {
 	}
 	return p05RunActivePlugin(ctx, "ddos-flowspec-announce", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		commands := []string{
-			"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24",
+			cmdAnnounceFirstPrefix,
 			"update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 192.0.2.0/24 protocol =6 destination-port =80",
 		}
 		for _, command := range commands {
@@ -732,10 +728,10 @@ func p05ConcurrentConfigCommit(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer plugin.Close()
+	defer plugin.Close() //nolint:errcheck // fixture teardown
 	plugin.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root == "bgp" && strings.Contains(section.Data, "10.0.0.2") {
+			if section.Root == namespaceBGP && strings.Contains(section.Data, "10.0.0.2") {
 				if err := os.WriteFile("verify.started", []byte("started\n"), 0o600); err != nil {
 					return err
 				}
@@ -759,7 +755,7 @@ func p05ConcurrentConfigCommit(ctx context.Context, args []string) error {
 		}()
 		return nil
 	})
-	runErr := plugin.Run(ctx, sdk.Registration{WantsConfig: []string{"bgp"}, VerifyBudget: 3})
+	runErr := plugin.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}, VerifyBudget: 3})
 	select {
 	case driverErr := <-driverDone:
 		return errors.Join(driverErr, runErr)
@@ -792,7 +788,7 @@ func (client p05RESTClient) request(ctx context.Context, method, path string, pa
 	if err != nil {
 		return nil, 0, "", err
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // the body is read
 	raw, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, response.StatusCode, "", err
@@ -834,7 +830,7 @@ func p05DriveRESTCommits(ctx context.Context, port int) error {
 		if sessionID == "" {
 			return "", fmt.Errorf("create session response=%v", created)
 		}
-		_, status, text, err = client.request(ctx, http.MethodPut, "/config/sessions/"+sessionID, map[string]any{"path": "bgp.router-id", "value": value})
+		_, status, text, err = client.request(ctx, http.MethodPut, "/config/sessions/"+sessionID, map[string]any{fieldPath: configPathRouterID, fieldValue: value})
 		if err != nil || status >= 400 {
 			return "", fmt.Errorf("edit session status=%d body=%s: %w", status, text, err)
 		}
@@ -881,7 +877,7 @@ func p05DriveRESTCommits(ctx context.Context, port int) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	if firstResult.err != nil || firstResult.status >= 400 || firstResult.response["status"] != "committed" {
+	if firstResult.err != nil || firstResult.status >= 400 || firstResult.response["status"] != statusCommitted {
 		return fmt.Errorf("first commit failed: status=%d response=%v body=%s: %w", firstResult.status, firstResult.response, firstResult.body, firstResult.err)
 	}
 	active, err := os.ReadFile("concurrent-config-commit.conf")

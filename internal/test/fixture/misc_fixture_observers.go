@@ -73,7 +73,7 @@ func peerDetail(ctx context.Context, plugin *sdk.Plugin, selector string) (map[s
 	if err != nil {
 		return nil, err
 	}
-	if status != "done" {
+	if status != statusDone {
 		return nil, fmt.Errorf("show bgp peer %s detail status=%s", selector, status)
 	}
 	peers, ok := value["peers"].(map[string]any)
@@ -114,7 +114,7 @@ func quiesce(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if status != "done" {
+	if status != statusDone {
 		return fmt.Errorf("request quiesce status=%s", status)
 	}
 	return nil
@@ -125,9 +125,9 @@ func watchdogScenario(ctx context.Context, plugin *sdk.Plugin) error {
 		return errors.New("initial-sync EOR never reached the wire")
 	}
 	for range 3 {
-		for _, command := range []string{"request bgp watchdog announce dnsr", "request bgp watchdog withdraw dnsr"} {
+		for _, command := range []string{"request bgp watchdog announce dnsr", cmdWatchdogWithdrawDNSR} {
 			status, err := Dispatch(ctx, plugin, command, nil)
-			if err != nil || status != "done" {
+			if err != nil || status != statusDone {
 				return fmt.Errorf("%s status=%s: %w", command, status, err)
 			}
 			if err := quiesce(ctx, plugin); err != nil {
@@ -162,7 +162,7 @@ func reloadRESTObserver(pluginName string, mode reloadRESTMode) Driver {
 }
 
 func restStatus(ctx context.Context, port int, token string) int {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/api/v1/commands", port), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/api/v1/commands", port), http.NoBody)
 	if err != nil {
 		return 0
 	}
@@ -180,7 +180,7 @@ func restStatus(ctx context.Context, port int, token string) int {
 
 func reloadGeneration(ctx context.Context, plugin *sdk.Plugin) int64 {
 	status, value, err := dispatchMap(ctx, plugin, "show reload-status")
-	if err != nil || status != "done" {
+	if err != nil || status != statusDone {
 		return -1
 	}
 	generation, ok := value["generation"].(float64)
@@ -267,23 +267,23 @@ func reloadPolicyScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if peer["state"] != "established" {
+	if peer["state"] != stateEstablished {
 		return fmt.Errorf("session must survive import-policy edit, state=%v", peer["state"])
 	}
 	evaluate := func(selector string) (string, error) {
 		status, value, err := dispatchMap(ctx, plugin, "show policy test peer "+selector+" import update "+update)
-		if err != nil || status != "done" {
+		if err != nil || status != statusDone {
 			return "", fmt.Errorf("policy test %s status=%s: %w", selector, status, err)
 		}
 		action, _ := value["action"].(string)
 		return action, nil
 	}
 	control, err := evaluate("control-peer")
-	if err != nil || control != "accept" {
+	if err != nil || control != actionAccept {
 		return fmt.Errorf("unedited ALLOW chain must accept, got %q: %w", control, err)
 	}
 	after, err := evaluate("peer1")
-	if err != nil || after != "reject" {
+	if err != nil || after != actionReject {
 		return fmt.Errorf("DENY chain must reject after reload, got %q: %w", after, err)
 	}
 	fmt.Fprintln(os.Stderr, "OK: the edited chain rejects the route the unedited chain accepts")
@@ -292,13 +292,13 @@ func reloadPolicyScenario(ctx context.Context, plugin *sdk.Plugin) error {
 
 func staleWarning(ctx context.Context, plugin *sdk.Plugin) bool {
 	status, value, err := dispatchMap(ctx, plugin, "show warnings")
-	if err != nil || status != "done" {
+	if err != nil || status != statusDone {
 		return false
 	}
 	warnings, _ := value["warnings"].([]any)
 	for _, raw := range warnings {
 		warning, _ := raw.(map[string]any)
-		if warning["source"] == "bgp" && warning["code"] == "prefix-stale" {
+		if warning["source"] == namespaceBGP && warning["code"] == "prefix-stale" {
 			return true
 		}
 	}
@@ -327,7 +327,7 @@ func signalQuitScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if status != "done" {
+	if status != statusDone {
 		return fmt.Errorf("quit status=%s", status)
 	}
 	fmt.Fprintln(os.Stderr, "OK: daemon quit dispatched")
@@ -348,11 +348,11 @@ func vppLookupScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	var err error
 	if !Poll(ctx, 40, 100*time.Millisecond, func() bool {
 		status, value, err = dispatchMap(ctx, plugin, "show route lookup 10.20.0.1")
-		return err == nil && status == "done"
+		return err == nil && status == statusDone
 	}) {
 		return fmt.Errorf("route lookup status=%s: %w", status, err)
 	}
-	if value["prefix"] != "10.20.0.0/24" || value["destination"] != "10.20.0.1" {
+	if value["prefix"] != prefixTenTwenty || value["destination"] != "10.20.0.1" {
 		return fmt.Errorf("route lookup returned prefix=%v destination=%v", value["prefix"], value["destination"])
 	}
 	fmt.Fprintf(os.Stderr, "OK: route lookup returned prefix=%v dest=%v proto=%v\n", value["prefix"], value["destination"], value["protocol"])
@@ -370,12 +370,12 @@ func managedRejectObserver(ctx context.Context, args []string) error {
 	defer plugin.Close() //nolint:errcheck // Run carries transport errors
 	plugin.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root == "bgp" && strings.Contains(section.Data, "2.2.2.2") {
+			if section.Root == namespaceBGP && strings.Contains(section.Data, "2.2.2.2") {
 				fmt.Fprintln(os.Stderr, "OK: rejecting managed candidate router-id 2.2.2.2")
 				return errors.New("reject router-id 2.2.2.2")
 			}
 		}
 		return nil
 	})
-	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{"bgp"}})
+	return plugin.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}})
 }

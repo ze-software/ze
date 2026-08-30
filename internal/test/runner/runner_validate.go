@@ -133,16 +133,21 @@ func (r *Runner) validateJSON(rec *Record) error {
 	return nil
 }
 
+// nlriFamilyKeys are the family keys a plugin-format JSON object can carry, in
+// both the slash and the space spelling a .ci file writes.
+func nlriFamilyKeys() []string {
+	return []string{
+		"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast",
+		"ipv4/flow", "ipv6/flow", "ipv4 flow", "ipv6 flow",
+	}
+}
+
 // extractNLRIs extracts NLRI identifiers from plugin format JSON for content matching.
 // For unicast: extracts prefix strings.
 // For FlowSpec: extracts the "string" field from the nlri object (human-readable rule).
 func extractNLRIs(m map[string]any) []string {
 	var nlris []string
-	families := []string{
-		"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast",
-		"ipv4/flow", "ipv6/flow", "ipv4 flow", "ipv6 flow",
-	}
-	for _, fam := range families {
+	for _, fam := range nlriFamilyKeys() {
 		if arr, ok := m[fam].([]any); ok {
 			for _, item := range arr {
 				if entry, ok := item.(map[string]any); ok {
@@ -162,11 +167,7 @@ func extractNLRIs(m map[string]any) []string {
 
 // extractAction extracts the action (add/del) from plugin format JSON.
 func extractAction(m map[string]any) string {
-	families := []string{
-		"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast",
-		"ipv4/flow", "ipv6/flow", "ipv4 flow", "ipv6 flow",
-	}
-	for _, fam := range families {
+	for _, fam := range nlriFamilyKeys() {
 		if arr, ok := m[fam].([]any); ok {
 			for _, item := range arr {
 				if entry, ok := item.(map[string]any); ok {

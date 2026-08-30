@@ -20,16 +20,21 @@ import (
 )
 
 func plugin15FreePort() (int, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	// The listener closes on return, so there is nothing to cancel.
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, err
 	}
-	defer listener.Close() //nolint:errcheck
-	return listener.Addr().(*net.TCPAddr).Port, nil
+	defer listener.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return 0, fmt.Errorf("a tcp listener answered %T, want *net.TCPAddr", listener.Addr())
+	}
+	return address.Port, nil
 }
 
-func plugin15RunCommand(ctx context.Context, env []string, stdin string, name string, args ...string) (int, string, string, error) {
-	command := exec.CommandContext(ctx, name, args...)
+func plugin15RunCommand(ctx context.Context, env []string, stdin string, args ...string) (int, string, string, error) {
+	command := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = env
 	command.Stdin = strings.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
@@ -39,8 +44,7 @@ func plugin15RunCommand(ctx context.Context, env []string, stdin string, name st
 	if err == nil {
 		return 0, stdout.String(), stderr.String(), nil
 	}
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exit.ExitCode(), stdout.String(), stderr.String(), nil
 	}
 	return -1, stdout.String(), stderr.String(), err
@@ -62,7 +66,7 @@ func plugin15Environment(updates map[string]string) []string {
 }
 
 func plugin15RPKIPipeSummary(ctx context.Context, _ []string) error {
-	for _, path := range []string{"ssh.addr", "ready"} {
+	for _, path := range []string{"ssh.addr", fieldReady} {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove stale %s: %w", path, err)
 		}
@@ -75,9 +79,9 @@ func plugin15RPKIPipeSummary(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	code, passwordHash, passwordErr, err := plugin15RunCommand(ctx, os.Environ(), "secret\n", "ze", "passwd")
+	code, passwordHash, passwordErr, err := plugin15RunCommand(ctx, os.Environ(), "secret\n", "passwd")
 	if err != nil || code != 0 {
-		return fmt.Errorf("ze passwd: exit=%d error=%v stderr=%s", code, err, passwordErr)
+		return fmt.Errorf("ze passwd: exit=%d error=%w stderr=%s", code, err, passwordErr)
 	}
 	config := fmt.Sprintf(`plugin {
     internal rpki {
@@ -113,12 +117,12 @@ system {
 		return err
 	}
 	daemonEnv := plugin15Environment(map[string]string{
-		"ZE_SSH_EPHEMERAL": cwd + "/ssh.addr",
-		"ZE_READY_FILE":    cwd + "/ready",
-		"ZE_CONFIG_DIR":    cwd,
-		"ze_test_bgp_port": fmt.Sprint(bgpPort),
+		envSSHEphemeral: cwd + "/ssh.addr",
+		envReadyFile:    cwd + "/ready",
+		envConfigDir:    cwd,
+		envTestBGPPort:  fmt.Sprint(bgpPort),
 	})
-	daemon := exec.Command("ze", "-f", "rpki-pipe.conf")
+	daemon := exec.CommandContext(ctx, "ze", "-f", "rpki-pipe.conf")
 	daemon.Env = daemonEnv
 	var daemonOut, daemonErr bytes.Buffer
 	daemon.Stdout = &daemonOut
@@ -148,7 +152,7 @@ system {
 		select {
 		case waitErr := <-waitCh:
 			exited = true
-			return fmt.Errorf("daemon exited early: %v\nstdout:\n%s\nstderr:\n%s", waitErr, daemonOut.String(), daemonErr.String())
+			return fmt.Errorf("daemon exited early: %w\nstdout:\n%s\nstderr:\n%s", waitErr, daemonOut.String(), daemonErr.String())
 		default:
 		}
 		addressBytes, sshErr := os.ReadFile("ssh.addr")
@@ -170,14 +174,14 @@ system {
 		return fmt.Errorf("daemon did not become ready")
 	}
 	cliEnv := plugin15Environment(map[string]string{
-		"ZE_SSH_HOST":     host,
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_USERNAME": "ci",
-		"ZE_SSH_PASSWORD": "secret",
-		"ZE_CONFIG_DIR":   cwd,
+		envSSHHost:     host,
+		envSSHPort:     port,
+		envSSHUsername: "ci",
+		envSSHPassword: valueSecret,
+		envConfigDir:   cwd,
 	})
 	cli := func(command string) (int, string, string, error) {
-		return plugin15RunCommand(ctx, cliEnv, "", "ze", "cli", "-c", command)
+		return plugin15RunCommand(ctx, cliEnv, "", "cli", "-c", command)
 	}
 	answered := false
 	for range 200 {
@@ -199,7 +203,7 @@ system {
 	cliJSON := func(command string) (map[string]any, error) {
 		code, out, stderr, runErr := cli(command)
 		if runErr != nil || code != 0 {
-			return nil, fmt.Errorf("%s exit=%d: %v %s%s", command, code, runErr, out, stderr)
+			return nil, fmt.Errorf("%s exit=%d: %w %s%s", command, code, runErr, out, stderr)
 		}
 		value := map[string]any{}
 		if err := json.Unmarshal([]byte(out), &value); err != nil {
@@ -211,7 +215,7 @@ system {
 	if err != nil {
 		return err
 	}
-	summaryFields := []string{"vrp-count", "validation-enabled", "sessions-total", "sessions-established", "sessions-synced", "aspa-enabled", "aspa-records"}
+	summaryFields := []string{fieldVRPCount, "validation-enabled", "sessions-total", "sessions-established", "sessions-synced", "aspa-enabled", "aspa-records"}
 	for _, field := range summaryFields {
 		if _, ok := whole[field]; !ok {
 			return fmt.Errorf("the bare answer is missing %s: %v", field, whole)
@@ -222,7 +226,7 @@ system {
 		return fmt.Errorf("the bare answer carries no cache server row: %v", whole)
 	}
 	row, _ := rows[0].(map[string]any)
-	if row["address"] != "127.0.0.1" {
+	if row["address"] != addrLoopback {
 		return fmt.Errorf("the cache server row names another address: %v", row)
 	}
 	half, err := cliJSON("show bgp rpki | summary | json")
@@ -261,7 +265,7 @@ system {
 	for _, command := range []string{"show bgp rpki", "show bgp rpki | summary", "show bgp rpki summary"} {
 		code, out, stderr, runErr := cli(command)
 		if runErr != nil || code != 0 {
-			return fmt.Errorf("%s exit=%d: %v %s%s", command, code, runErr, out, stderr)
+			return fmt.Errorf("%s exit=%d: %w %s%s", command, code, runErr, out, stderr)
 		}
 		fmt.Printf("--- %s\n%s", command, out)
 	}
@@ -351,9 +355,9 @@ environment {
 	if err != nil {
 		return err
 	}
-	defer logFile.Close() //nolint:errcheck
-	daemon := exec.Command("ze", "start", "stream-answer-renders-table.conf")
-	daemon.Env = plugin15Environment(map[string]string{"ze_test_bgp_port": fmt.Sprint(bgpPort)})
+	defer logFile.Close() //nolint:errcheck // the fixture is exiting, so a close failure changes no assertion
+	daemon := exec.CommandContext(ctx, "ze", "start", "stream-answer-renders-table.conf")
+	daemon.Env = plugin15Environment(map[string]string{envTestBGPPort: fmt.Sprint(bgpPort)})
 	daemon.Stdout = os.Stdout
 	daemon.Stderr = logFile
 	if err := daemon.Start(); err != nil {
@@ -379,13 +383,13 @@ environment {
 		data, _ := os.ReadFile("daemon.log")
 		return string(data)
 	}
-	addressPattern := regexp.MustCompile(`127\.0\.0\.1:[0-9]+`)
+	addressPattern := regexp.MustCompile(`127\.0\.0\.1:\d+`)
 	var sshAddress string
 	for range 50 {
 		select {
 		case waitErr := <-waitCh:
 			exited = true
-			return fmt.Errorf("daemon exited before SSH started: %v\n%s", waitErr, readLog())
+			return fmt.Errorf("daemon exited before SSH started: %w\n%s", waitErr, readLog())
 		default:
 		}
 		sshAddress = addressPattern.FindString(readLog())
@@ -416,19 +420,19 @@ environment {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(adminDir) //nolint:errcheck
-	initEnv := plugin15Environment(map[string]string{"ZE_CONFIG_DIR": adminDir})
-	initInput := strings.Join([]string{"admin", "testpass", host, port, ""}, "\n")
-	code, _, initErr, runErr := plugin15RunCommand(ctx, initEnv, initInput, "ze", "init")
+	defer os.RemoveAll(adminDir) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
+	initEnv := plugin15Environment(map[string]string{envConfigDir: adminDir})
+	initInput := strings.Join([]string{"admin", valueTestPassword, host, port, ""}, "\n")
+	code, _, initErr, runErr := plugin15RunCommand(ctx, initEnv, initInput, "init")
 	if runErr != nil || code != 0 {
-		return fmt.Errorf("ze init exit=%d: %v %s", code, runErr, initErr)
+		return fmt.Errorf("ze init exit=%d: %w %s", code, runErr, initErr)
 	}
 	cliEnv := plugin15Environment(map[string]string{
-		"ZE_CONFIG_DIR":   adminDir,
-		"ZE_SSH_PASSWORD": "testpass",
+		envConfigDir:   adminDir,
+		envSSHPassword: valueTestPassword,
 	})
 	cli := func(command string) (int, string, string, error) {
-		return plugin15RunCommand(ctx, cliEnv, "", "ze", "cli", "-c", command)
+		return plugin15RunCommand(ctx, cliEnv, "", "cli", "-c", command)
 	}
 	registered := false
 	for range 50 {
@@ -449,7 +453,7 @@ environment {
 	runCLI := func(command string) (string, error) {
 		code, out, stderr, runErr := cli(command)
 		if runErr != nil || code != 0 {
-			return "", fmt.Errorf("%s exit=%d: %v %s", command, code, runErr, stderr)
+			return "", fmt.Errorf("%s exit=%d: %w %s", command, code, runErr, stderr)
 		}
 		return out, nil
 	}
@@ -545,18 +549,18 @@ func plugin15SummaryFormat(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer p.Close() //nolint:errcheck
-	p.SetStartupSubscriptions([]string{"update"}, nil, "summary")
+	defer p.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
+	p.SetStartupSubscriptions([]string{eventUpdate}, nil, "summary")
 	var validated sync.Once
 	validatedCh := make(chan struct{})
 	p.OnEvent(func(event string) error {
 		var root map[string]any
 		if json.Unmarshal([]byte(event), &root) != nil {
-			return nil
+			return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
 		}
 		bgp, _ := root["bgp"].(map[string]any)
 		message, _ := bgp["message"].(map[string]any)
-		if message["type"] != "update" {
+		if message["type"] != eventUpdate {
 			return nil
 		}
 		nlri, ok := bgp["nlri"].(map[string]any)

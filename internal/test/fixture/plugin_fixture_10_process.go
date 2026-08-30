@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,7 +45,7 @@ func init() {
 func fixture10Run(ctx context.Context, env map[string]string, stdin string, argv ...string) fixture10ProcessResult {
 	commandCtx, cancel := context.WithTimeout(ctx, fixture10ProcessTimeout)
 	defer cancel()
-	command := exec.CommandContext(commandCtx, argv[0], argv[1:]...)
+	command := exec.CommandContext(commandCtx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = fixture10Environment(env)
 	command.Stdin = strings.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
@@ -54,8 +55,7 @@ func fixture10Run(ctx context.Context, env map[string]string, stdin string, argv
 	code := 0
 	if err != nil {
 		code = 127
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			code = exitErr.ExitCode()
 		}
 	}
@@ -70,7 +70,7 @@ func fixture10Environment(overrides map[string]string) []string {
 	env := append([]string(nil), os.Environ()...)
 	for key, value := range overrides {
 		prefix := key + "="
-		for index := len(env) - 1; index >= 0; index-- {
+		for index := range slices.Backward(env) {
 			if strings.HasPrefix(env[index], prefix) {
 				env = append(env[:index], env[index+1:]...)
 			}
@@ -81,11 +81,16 @@ func fixture10Environment(overrides map[string]string) []string {
 }
 
 func fixture10FreePort() (string, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	// The listener closes on the next line, so there is nothing to cancel.
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		return "", err
 	}
-	port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return "", fmt.Errorf("a tcp listener answered %T, want *net.TCPAddr", listener.Addr())
+	}
+	port := strconv.Itoa(address.Port)
 	if err := listener.Close(); err != nil {
 		return "", err
 	}
@@ -93,16 +98,16 @@ func fixture10FreePort() (string, error) {
 }
 
 func fixture10StartDaemon(ctx context.Context, configPath, logPath string, env map[string]string) (*exec.Cmd, *os.File, error) {
-	logFile, err := os.Create(logPath)
+	logFile, err := os.Create(logPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil, nil, err
 	}
-	command := exec.CommandContext(ctx, "ze", "start", configPath)
+	command := exec.CommandContext(ctx, "ze", "start", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = fixture10Environment(env)
 	command.Stdout = io.Discard
 	command.Stderr = logFile
 	if err := command.Start(); err != nil {
-		logFile.Close() //nolint:errcheck
+		logFile.Close() //nolint:errcheck // the start failure below is the error worth reporting
 		return nil, nil, err
 	}
 	return command, logFile, nil
@@ -130,7 +135,7 @@ func fixture10ReadLog(logFile *os.File, logPath string) string {
 	if logFile != nil {
 		_ = logFile.Sync()
 	}
-	data, _ := os.ReadFile(logPath)
+	data, _ := os.ReadFile(logPath) //nolint:gosec // the path is the fixture's own scratch file
 	return string(data)
 }
 
@@ -149,7 +154,7 @@ func fixture10NetlabLabProfile(ctx context.Context, _ []string) error {
 		return fmt.Errorf("ZE_REPO_ROOT is empty")
 	}
 	golden := filepath.Join(root, "contrib", "netlab", "golden", "r3.conf")
-	original, err := os.ReadFile(golden)
+	original, err := os.ReadFile(golden) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read committed netlab render: %w", err)
 	}
@@ -171,7 +176,8 @@ func fixture10NetlabLabProfile(ctx context.Context, _ []string) error {
 	if err := os.WriteFile("lab.conf", []byte(config), 0o600); err != nil {
 		return err
 	}
-	credential := regexp.MustCompile(`(?ms)^\s*user\s+([A-Za-z0-9_-]+)\s*\{.*?^\s*plaintext-password\s+"([^"]*)";`).FindStringSubmatch(config)
+	// The second ^ anchors the plaintext-password line inside the user block.
+	credential := regexp.MustCompile(`(?ms)^\s*user\s+([A-Za-z0-9_-]+)\s*\{.*?^\s*plaintext-password\s+"([^"]*)";`).FindStringSubmatch(config) //nolint:gocritic // the second ^ is a line anchor, and (?m) is set
 	if len(credential) != 3 {
 		return fmt.Errorf("render declares no lab credential")
 	}
@@ -181,7 +187,7 @@ func fixture10NetlabLabProfile(ctx context.Context, _ []string) error {
 	}
 	daemonCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	daemon, logFile, err := fixture10StartDaemon(daemonCtx, "lab.conf", "daemon.log", map[string]string{"ze_test_bgp_port": bgpPort})
+	daemon, logFile, err := fixture10StartDaemon(daemonCtx, "lab.conf", "daemon.log", map[string]string{envTestBGPPort: bgpPort})
 	if err != nil {
 		return err
 	}
@@ -189,7 +195,7 @@ func fixture10NetlabLabProfile(ctx context.Context, _ []string) error {
 		fixture10StopProcess(daemon)
 		_ = logFile.Close()
 	}()
-	sshRE := regexp.MustCompile(`SSH server listening.*?127\.0\.0\.1:([0-9]+)`)
+	sshRE := regexp.MustCompile(`SSH server listening.*?127\.0\.0\.1:(\d+)`)
 	sshPort := 0
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
 		sshPort = fixture10PortFromLog(fixture10ReadLog(logFile, "daemon.log"), sshRE)
@@ -201,12 +207,12 @@ func fixture10NetlabLabProfile(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(configDir) //nolint:errcheck
+	defer os.RemoveAll(configDir) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
 	remoteEnv := map[string]string{
-		"ZE_CONFIG_DIR":   configDir,
-		"ZE_SSH_HOST":     "127.0.0.1",
-		"ZE_SSH_PORT":     strconv.Itoa(sshPort),
-		"ZE_SSH_PASSWORD": credential[2],
+		envConfigDir:   configDir,
+		envSSHHost:     addrLoopback,
+		envSSHPort:     strconv.Itoa(sshPort),
+		envSSHPassword: credential[2],
 	}
 	peers := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", credential[1], "-c", "show bgp peer list")
 	if peers.code != 0 {
@@ -259,11 +265,11 @@ type fixture10PTYSession struct {
 }
 
 func fixture10StartPTY(ctx context.Context, sshPort int) (*fixture10PTYSession, error) {
-	command := exec.CommandContext(ctx, "ssh", "-tt", "-p", strconv.Itoa(sshPort),
+	command := exec.CommandContext(ctx, "ssh", "-tt", "-p", strconv.Itoa(sshPort), //nolint:gosec // the fixture chooses the program and its arguments
 		"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
 		"-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no",
 		"-o", "NumberOfPasswordPrompts=1", "-o", "ConnectTimeout=5", "operator@127.0.0.1")
-	command.Env = fixture10Environment(map[string]string{"TERM": "xterm-256color"})
+	command.Env = fixture10Environment(map[string]string{envTerm: "xterm-256color"})
 	terminal, err := pty.StartWithSize(command, &pty.Winsize{Rows: 24, Cols: 100})
 	if err != nil {
 		return nil, err
@@ -321,17 +327,17 @@ func fixture10PTYCommand(ctx context.Context, sshPort int, command, marker strin
 	if err := readUntil(func(text string) bool { return strings.Contains(strings.ToLower(text), "password:") }, "OpenSSH did not request password"); err != nil {
 		return "", err
 	}
-	_, _ = session.file.Write([]byte("testpass\r"))
+	_, _ = session.file.WriteString("testpass\r")
 	if err := readUntil(func(text string) bool { return strings.Contains(strings.ToLower(text), "welcome to ze") }, "authenticated PTY did not render hub model"); err != nil {
 		return "", err
 	}
 	switchAt := len(transcript)
-	_, _ = session.file.Write([]byte("exit\r"))
+	_, _ = session.file.WriteString("exit\r")
 	if err := readUntil(func(text string) bool { return strings.Contains(text[switchAt:], "ze> ") }, "hub model did not enter operational mode"); err != nil {
 		return "", err
 	}
 	commandAt := len(transcript)
-	_, _ = session.file.Write([]byte(command + "\r"))
+	_, _ = session.file.WriteString(command + "\r")
 	if err := readUntil(func(text string) bool {
 		return strings.Contains(strings.ToLower(text[commandAt:]), strings.ToLower(marker))
 	}, "PTY command did not render marker "+marker); err != nil {
@@ -392,7 +398,7 @@ environment {
 	daemonCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	logPath := filepath.Join(work, "daemon.log")
-	daemon, logFile, err := fixture10StartDaemon(daemonCtx, configPath, logPath, map[string]string{"ZE_CONFIG_DIR": stateDir})
+	daemon, logFile, err := fixture10StartDaemon(daemonCtx, configPath, logPath, map[string]string{envConfigDir: stateDir})
 	if err != nil {
 		return err
 	}
@@ -400,8 +406,8 @@ environment {
 		fixture10StopProcess(daemon)
 		_ = logFile.Close()
 	}()
-	sshRE := regexp.MustCompile(`SSH server listening.*?address=127\.0\.0\.1:([0-9]+)`)
-	webRE := regexp.MustCompile(`web server listening on https://127\.0\.0\.1:([0-9]+)/`)
+	sshRE := regexp.MustCompile(`SSH server listening.*?address=127\.0\.0\.1:(\d+)`)
+	webRE := regexp.MustCompile(`web server listening on https://127\.0\.0\.1:(\d+)/`)
 	sshPort, webPort := 0, 0
 	if !Poll(ctx, 60, 250*time.Millisecond, func() bool {
 		log := fixture10ReadLog(logFile, logPath)
@@ -415,8 +421,8 @@ environment {
 		return fmt.Errorf("SSH and web listeners reused port %d", sshPort)
 	}
 	remoteEnv := map[string]string{
-		"ZE_CONFIG_DIR": stateDir, "ZE_SSH_HOST": "127.0.0.1",
-		"ZE_SSH_PORT": strconv.Itoa(sshPort), "ZE_SSH_PASSWORD": "testpass",
+		envConfigDir: stateDir, envSSHHost: addrLoopback,
+		envSSHPort: strconv.Itoa(sshPort), envSSHPassword: valueTestPassword,
 	}
 	oversized := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", "operator", "-c", "show bgp rib | last 257")
 	if err := fixture10RequireRefusal(oversized, "last", "at most 256"); err != nil {
@@ -471,24 +477,24 @@ environment {
 			return fmt.Errorf("PTY refused save still created %s", test.path)
 		}
 	}
-	transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}} //nolint:gosec
+	transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}} //nolint:gosec // the fixture dials the daemon's own self-signed test certificate
 	client := &http.Client{Timeout: 5 * time.Second, Transport: transport}
 	baseURL := "https://127.0.0.1:" + strconv.Itoa(webPort)
 	auth := "Basic " + base64.StdEncoding.EncodeToString([]byte("operator:testpass"))
 	if !Poll(ctx, 60, 250*time.Millisecond, func() bool {
-		request, _ := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/ping", nil)
+		request, _ := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/ping", http.NoBody)
 		request.Header.Set("Authorization", auth)
 		response, requestErr := client.Do(request)
 		if requestErr != nil {
 			return false
 		}
-		defer response.Body.Close() //nolint:errcheck
+		defer response.Body.Close() //nolint:errcheck // the fixture only reads the body, so a close failure changes no assertion
 		return response.StatusCode == http.StatusOK
 	}) {
 		return fmt.Errorf("web server did not become ready: %s", fixture10ReadLog(logFile, logPath))
 	}
 	webSave := filepath.Join(work, "web-must-not-exist.json")
-	form := url.Values{"command": {"show version | save " + webSave}, "mode": {"operational"}}.Encode()
+	form := url.Values{fieldCommand: {"show version | save " + webSave}, fieldMode: {"operational"}}.Encode()
 	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/cli/terminal", strings.NewReader(form))
 	request.Header.Set("Authorization", auth)
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -496,7 +502,7 @@ environment {
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close() //nolint:errcheck
+	defer response.Body.Close() //nolint:errcheck // the fixture only reads the body, so a close failure changes no assertion
 	var webResponse map[string]any
 	if err := json.NewDecoder(response.Body).Decode(&webResponse); err != nil {
 		return err
@@ -509,7 +515,7 @@ environment {
 	if _, err := os.Stat(webSave); !os.IsNotExist(err) {
 		return fmt.Errorf("web refused save still created %s", webSave)
 	}
-	fmt.Fprintln(os.Stdout, "OK: reviewed remote pipe contracts")
+	fmt.Fprintln(os.Stdout, "OK: reviewed remote pipe contracts") //nolint:errcheck // progress output
 	return nil
 }
 
@@ -518,7 +524,7 @@ func fixture10DocumentTooWide(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 	config := `plugin {
 	external record-plugin {
 		run "ze-test record-plugin"
@@ -584,8 +590,8 @@ environment {
 	defer cancel()
 	logPath := filepath.Join(work, "daemon.log")
 	daemon, logFile, err := fixture10StartDaemon(daemonCtx, configPath, logPath, map[string]string{
-		"ze_test_bgp_port": bgpPort,
-		"ZE_CONFIG_DIR":    work,
+		envTestBGPPort: bgpPort,
+		envConfigDir:   work,
 	})
 	if err != nil {
 		return err
@@ -594,7 +600,7 @@ environment {
 		fixture10StopProcess(daemon)
 		_ = logFile.Close()
 	}()
-	sshRE := regexp.MustCompile(`127\.0\.0\.1:([0-9]+)`)
+	sshRE := regexp.MustCompile(`127\.0\.0\.1:(\d+)`)
 	sshPort := 0
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
 		sshPort = fixture10PortFromLog(fixture10ReadLog(logFile, logPath), sshRE)
@@ -606,15 +612,15 @@ environment {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(configDir) //nolint:errcheck
+	defer os.RemoveAll(configDir) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
 	initInput := fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%d\n", sshPort)
-	initResult := fixture10Run(ctx, map[string]string{"ZE_CONFIG_DIR": configDir}, initInput, "ze", "init")
+	initResult := fixture10Run(ctx, map[string]string{envConfigDir: configDir}, initInput, "ze", "init")
 	if initResult.code != 0 {
 		return fmt.Errorf("initialize isolated CLI state: exit=%d stdout=%s stderr=%s", initResult.code, initResult.stdout, initResult.stderr)
 	}
 	remoteEnv := map[string]string{
-		"ZE_CONFIG_DIR": configDir, "ZE_SSH_HOST": "127.0.0.1",
-		"ZE_SSH_PORT": strconv.Itoa(sshPort), "ZE_SSH_PASSWORD": "testpass",
+		envConfigDir: configDir, envSSHHost: addrLoopback,
+		envSSHPort: strconv.Itoa(sshPort), envSSHPassword: valueTestPassword,
 	}
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
 		result := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", "admin", "-c", "system command list | raw")
@@ -651,7 +657,7 @@ environment {
 	if !ok || len(fault) != 4 {
 		return fmt.Errorf("rejected row has wrong shape: %v", errorsList[0])
 	}
-	for _, key := range []string{"encoded-bytes", "limit-bytes", "message", "record"} {
+	for _, key := range []string{"encoded-bytes", "limit-bytes", fieldMessage, "record"} {
 		if _, found := fault[key]; !found {
 			return fmt.Errorf("rejected row missing %s: %v", key, fault)
 		}

@@ -116,11 +116,11 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if claimsResult.code != 0 {
-		return leChecksFailf("`le config-claims | json` exited %d: %s", claimsResult.code, claimsResult.stderr)
+		return leChecksFailf("`le config claims | json` exited %d: %s", claimsResult.code, claimsResult.stderr)
 	}
 	claimsValue, err := leChecksJSON(claimsResult.stdout)
 	if err != nil {
-		return leChecksFailf("`le config-claims | json` did not answer JSON: %v\n%s", err, leChecksPrefix(claimsResult.stdout, 400))
+		return leChecksFailf("`le config claims | json` did not answer JSON: %v\n%s", err, leChecksPrefix(claimsResult.stdout, 400))
 	}
 	claims, err := leChecksObject(claimsValue, "the claim report")
 	if err != nil {
@@ -152,7 +152,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if counted.code != 1 {
-		return leChecksFailf("`le config-claims | count` exited %d, want a refusal", counted.code)
+		return leChecksFailf("`le config claims | count` exited %d, want a refusal", counted.code)
 	}
 	if !strings.Contains(counted.stderr, "count") {
 		return leChecksFailf("the refusal does not name the operator: %q", counted.stderr)
@@ -162,7 +162,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if yaml.code != 0 {
-		return leChecksFailf("`le config-claims | yaml` was refused: %s", yaml.stderr)
+		return leChecksFailf("`le config claims | yaml` was refused: %s", yaml.stderr)
 	}
 
 	// Gates whose complete answer is a row set accept row operators.
@@ -213,7 +213,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if listing.code != 0 {
-		return leChecksFailf("`le config-coercion` exited %d", listing.code)
+		return leChecksFailf("`le config coercion` exited %d", listing.code)
 	}
 	for _, word := range []string{actionCheck, actionSelftest, fieldChecks} {
 		if !strings.Contains(listing.stdout, word) {
@@ -376,7 +376,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if leafResult.code != 0 {
-		return leChecksFailf("`le yang-leaf-mentions report | json` exited %d", leafResult.code)
+		return leChecksFailf("`le yang leaf-mentions report | json` exited %d", leafResult.code)
 	}
 	leafValue, err := leChecksJSON(leafResult.stdout)
 	if err != nil {

@@ -36,7 +36,7 @@ func staticFinish(ctx context.Context, pid int) error {
 }
 
 func staticBootApply(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func staticBootApply(ctx context.Context, _ []string) error {
 }
 
 func staticInterfaceNoBackend(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func staticInterfaceNoBackend(ctx context.Context, _ []string) error {
 }
 
 func staticPerRouteIsolation(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ const staticRemoveConfig = `static {
 `
 
 func staticReloadAdd(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func staticReloadAdd(ctx context.Context, _ []string) error {
 }
 
 func staticReloadEmpty(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func staticReloadEmpty(ctx context.Context, _ []string) error {
 }
 
 func staticReloadRemove(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func staticShow(ctx context.Context, _ []string) error {
 	return Observe(ctx, "static-show", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		var rows []staticRow
 		status, err := Dispatch(ctx, p, "show static", &rows)
-		if err != nil || status != "done" {
+		if err != nil || status != statusDone {
 			return fmt.Errorf("show static: status=%s: %w", status, err)
 		}
 		if len(rows) == 0 {
@@ -257,7 +257,7 @@ func staticTableInterface(ctx context.Context, _ []string) error {
 	return Observe(ctx, "static-show", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		var rows []staticRow
 		status, err := Dispatch(ctx, p, "show static", &rows)
-		if err != nil || status != "done" {
+		if err != nil || status != statusDone {
 			return fmt.Errorf("show static: status=%s: %w", status, err)
 		}
 		if len(rows) < 3 {

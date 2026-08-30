@@ -28,18 +28,42 @@ type DUT struct {
 	Passive                        bool
 }
 
+// The DUT names. Each one is the container name, the Dockerfile suffix and the
+// key every per-DUT switch in this file branches on.
+const (
+	dutZE       = "ze"
+	dutFRR      = "frr"
+	dutBIRD     = "bird"
+	dutGoBGP    = "gobgp"
+	dutRustBGPd = "rustbgpd"
+	dutRustyBGP = "rustybgp"
+	dutFreeRtr  = "freertr"
+	dutOpenBGPd = "openbgpd"
+)
+
+// The docker arguments this file repeats across every image build.
+const (
+	dockerBuildx    = "buildx"
+	dockerBuild     = "build"
+	dockerLoadFlag  = "--load"
+	dockerQuietFlag = "--quiet"
+)
+
+// perfReport is the ze-perf subcommand that renders a result set.
+const perfReport = "report"
+
 func DUTs() []DUT {
 	frr := envOr("FRR_IMAGE", "quay.io/frrouting/frr:10.3.1")
 	rust := envOr("RUSTBGPD_IMAGE", "rustbgpd-interop")
 	return []DUT{
-		{Name: "ze", Image: "ze-interop", IP: "172.31.0.2", Port: 179, SenderPort: 1790, ReceiverPort: 1791},
-		{Name: "frr", Image: frr, IP: "172.31.0.3", Port: 179},
-		{Name: "bird", Image: "bird-interop", IP: "172.31.0.4", Port: 179},
-		{Name: "gobgp", Image: "gobgp-interop", IP: "172.31.0.5", Port: 179},
-		{Name: "rustbgpd", Image: rust, IP: "172.31.0.6", Port: 179, Passive: true},
-		{Name: "rustybgp", Image: "rustybgp-interop", IP: "172.31.0.7", Port: 179},
-		{Name: "freertr", Image: "freertr-interop", IP: "172.31.0.8", Port: 179},
-		{Name: "openbgpd", Image: "openbgpd-interop", IP: "172.31.0.9", Port: 179},
+		{Name: dutZE, Image: "ze-interop", IP: "172.31.0.2", Port: 179, SenderPort: 1790, ReceiverPort: 1791},
+		{Name: dutFRR, Image: frr, IP: "172.31.0.3", Port: 179},
+		{Name: dutBIRD, Image: "bird-interop", IP: "172.31.0.4", Port: 179},
+		{Name: dutGoBGP, Image: "gobgp-interop", IP: "172.31.0.5", Port: 179},
+		{Name: dutRustBGPd, Image: rust, IP: "172.31.0.6", Port: 179, Passive: true},
+		{Name: dutRustyBGP, Image: "rustybgp-interop", IP: "172.31.0.7", Port: 179},
+		{Name: dutFreeRtr, Image: "freertr-interop", IP: "172.31.0.8", Port: 179},
+		{Name: dutOpenBGPd, Image: "openbgpd-interop", IP: "172.31.0.9", Port: 179},
 	}
 }
 
@@ -140,10 +164,10 @@ func (runner *Runner) command(timeout time.Duration, capture bool, args ...strin
 	return output.String(), err
 }
 func (runner *Runner) docker(timeout time.Duration, capture bool, args ...string) (string, error) {
-	if len(args) >= 2 && args[0] == "buildx" && args[1] == "build" && !runner.useBuildx() {
-		converted := []string{"build"}
+	if len(args) >= 2 && args[0] == dockerBuildx && args[1] == dockerBuild && !runner.useBuildx() {
+		converted := []string{dockerBuild}
 		for _, arg := range args[2:] {
-			if arg != "--load" {
+			if arg != dockerLoadFlag {
 				converted = append(converted, arg)
 			}
 		}
@@ -188,19 +212,19 @@ func (runner *Runner) buildImages(duts []DUT) {
 		var args []string
 		timeout := 10 * time.Minute
 		switch dut.Name {
-		case "ze":
-			args = []string{"buildx", "build", "--load", "-t", "ze-interop", "-f", filepath.Join(runner.interopDir, "Dockerfile.ze"), runner.Root, "--quiet"}
-		case "frr":
-			args = []string{"pull", dut.Image, "--quiet"}
+		case dutZE:
+			args = []string{dockerBuildx, dockerBuild, dockerLoadFlag, "-t", "ze-interop", "-f", filepath.Join(runner.interopDir, "Dockerfile.ze"), runner.Root, dockerQuietFlag}
+		case dutFRR:
+			args = []string{"pull", dut.Image, dockerQuietFlag}
 			timeout = 2 * time.Minute
-		case "bird", "gobgp", "rustbgpd", "rustybgp":
-			args = []string{"buildx", "build", "--load", "-t", dut.Image, "-f", filepath.Join(runner.interopDir, "Dockerfile."+dut.Name), runner.interopDir, "--quiet"}
-		case "freertr":
+		case dutBIRD, dutGoBGP, dutRustBGPd, dutRustyBGP:
+			args = []string{dockerBuildx, dockerBuild, dockerLoadFlag, "-t", dut.Image, "-f", filepath.Join(runner.interopDir, "Dockerfile."+dut.Name), runner.interopDir, dockerQuietFlag}
+		case dutFreeRtr:
 			source := envOr("FREERTR_DIR", filepath.Join(filepath.Dir(runner.Root), "rtr"))
-			args = []string{"buildx", "build", "--load", "-t", dut.Image, "-f", filepath.Join(runner.interopDir, "Dockerfile.freertr"), "--build-context", "freertr=" + source, "--quiet", runner.Root}
-		case "openbgpd":
+			args = []string{dockerBuildx, dockerBuild, dockerLoadFlag, "-t", dut.Image, "-f", filepath.Join(runner.interopDir, "Dockerfile.freertr"), "--build-context", "freertr=" + source, dockerQuietFlag, runner.Root}
+		case dutOpenBGPd:
 			source := envOr("OPENBGPD_DIR", filepath.Join(filepath.Dir(runner.Root), "openbgpd-portable"))
-			args = []string{"buildx", "build", "--load", "-t", dut.Image, "-f", filepath.Join(runner.interopDir, "Dockerfile.openbgpd"), source, "--quiet"}
+			args = []string{dockerBuildx, dockerBuild, dockerLoadFlag, "-t", dut.Image, "-f", filepath.Join(runner.interopDir, "Dockerfile.openbgpd"), source, dockerQuietFlag}
 		}
 		_, _ = fmt.Fprintf(runner.Stdout, "Building %s image...\n", dut.Name)
 		if _, err := runner.docker(timeout, false, args...); err != nil {
@@ -211,42 +235,42 @@ func (runner *Runner) buildImages(duts []DUT) {
 
 func (runner *Runner) volumeArgs(name string) []string {
 	switch name {
-	case "ze":
+	case dutZE:
 		return []string{"-v", runner.config("ze.conf") + ":/etc/ze/bgp.conf:ro"}
-	case "frr":
+	case dutFRR:
 		return []string{"-v", runner.config("frr.conf") + ":/etc/frr/frr.conf:ro", "-v", filepath.Join(runner.interopDir, "daemons") + ":/etc/frr/daemons:ro", "-v", filepath.Join(runner.interopDir, "vtysh.conf") + ":/etc/frr/vtysh.conf:ro"}
-	case "bird":
+	case dutBIRD:
 		return []string{"-v", runner.config("bird.conf") + ":/etc/bird/bird.conf:ro"}
-	case "gobgp":
+	case dutGoBGP:
 		return []string{"-v", runner.config("gobgp.toml") + ":/etc/gobgp/gobgp.toml:ro"}
-	case "rustbgpd":
+	case dutRustBGPd:
 		return []string{"-v", runner.config("rustbgpd.toml") + ":/etc/rustbgpd/config.toml:ro"}
-	case "rustybgp":
+	case dutRustyBGP:
 		return []string{"-v", runner.config("rustybgp.toml") + ":/etc/rustybgp/config.toml:ro"}
-	case "freertr":
+	case dutFreeRtr:
 		return []string{"-v", runner.config("freertr-hw.txt") + ":/etc/freertr/freertr-hw.txt:ro", "-v", runner.config("freertr-sw.txt") + ":/etc/freertr/freertr-sw.txt:ro"}
-	case "openbgpd":
+	case dutOpenBGPd:
 		return []string{"-v", runner.config("openbgpd.conf") + ":/etc/bgpd.conf:ro"}
 	}
 	return nil
 }
 func (runner *Runner) startDUT(dut DUT) error {
 	args := []string{"run", "-d", "--name", runner.containerName(dut.Name), "--network", runner.network, "--ip", dut.IP, "--cap-add", "NET_ADMIN"}
-	if dut.Name == "frr" {
+	if dut.Name == dutFRR {
 		args = append(args, "--cap-add", "SYS_ADMIN")
 	}
-	if dut.Name == "freertr" {
+	if dut.Name == dutFreeRtr {
 		args = append(args, "--cap-add", "NET_RAW")
 	}
-	if dut.Name == "openbgpd" {
+	if dut.Name == dutOpenBGPd {
 		args = append(args, "--cap-add", "SYS_CHROOT")
 	}
-	if dut.Name == "ze" && runner.GCTrace {
+	if dut.Name == dutZE && runner.GCTrace {
 		args = append(args, "-e", "GODEBUG=gctrace=1")
 	}
 	args = append(args, runner.volumeArgs(dut.Name)...)
 	args = append(args, dut.Image)
-	if dut.Name == "ze" {
+	if dut.Name == dutZE {
 		if runner.PProf {
 			args = append(args, "--pprof", "127.0.0.1:"+strconv.Itoa(runner.PProfPort))
 		}
@@ -257,7 +281,7 @@ func (runner *Runner) startDUT(dut DUT) error {
 }
 func (runner *Runner) waitDUT(name string) error {
 	limit := 30 * time.Second
-	if name == "freertr" {
+	if name == dutFreeRtr {
 		limit = 45 * time.Second
 	}
 	deadline := time.Now().Add(limit)
@@ -289,7 +313,7 @@ func (runner *Runner) runPerf(dut DUT, senderFirst bool) bool {
 	defer func() { _, _ = runner.docker(30*time.Second, true, "rm", "-f", container) }()
 	_, _ = runner.docker(10*time.Second, true, "exec", container, "ip", "addr", "add", receiverIP+"/24", "dev", "eth0")
 	_, _ = runner.docker(5*time.Second, true, "exec", container, "arping", "-U", "-c", "1", "-I", "eth0", receiverIP)
-	if dut.Name == "freertr" {
+	if dut.Name == dutFreeRtr {
 		_, _ = runner.docker(30*time.Second, true, "exec", container, "apk", "add", "--no-cache", "ethtool")
 		_, _ = runner.docker(10*time.Second, true, "exec", container, "ethtool", "-K", "eth0", "tx", "off")
 	}
@@ -316,24 +340,39 @@ func (runner *Runner) runPerf(dut DUT, senderFirst bool) bool {
 	return err == nil
 }
 
-func (runner *Runner) captureProfile(container, endpoint, path string, timeout time.Duration) bool {
-	file, err := os.Create(path)
+// captureProfile writes one pprof endpoint of the running container to path.
+func (runner *Runner) captureProfile(container, endpoint, path string, timeout time.Duration) error {
+	file, err := os.Create(path) //nolint:gosec // path is PProfDir joined with one of this file's fixed profile names
 	if err != nil {
-		return false
+		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	url := "http://127.0.0.1:" + strconv.Itoa(runner.PProfPort) + "/debug/pprof/" + endpoint
-	err = runner.Run(ctx, file, runner.Stderr, runner.Root, nil, []string{"docker", "exec", container, "ze-test", "http-get", url})
+	runErr := runner.Run(ctx, file, runner.Stderr, runner.Root, nil, []string{"docker", "exec", container, "ze-test", "http-get", url})
 	closeErr := file.Close()
-	return err == nil && closeErr == nil
+	if runErr != nil {
+		return runErr
+	}
+	return closeErr
 }
+
+// captureProfiles collects the CPU and the memory profiles. Profiling is
+// best-effort: a failed capture is reported and the benchmark continues.
 func (runner *Runner) captureProfiles(container, directory string) {
-	_ = os.MkdirAll(directory, 0o750)
+	if err := os.MkdirAll(directory, 0o750); err != nil {
+		_, _ = fmt.Fprintf(runner.Stderr, "perf: create profile directory %s: %v\n", directory, err)
+		return
+	}
 	time.Sleep(5 * time.Second)
-	runner.captureProfile(container, "profile?seconds="+strconv.Itoa(runner.PProfCPUSeconds), filepath.Join(directory, "cpu.pprof"), time.Duration(runner.PProfCPUSeconds+30)*time.Second)
+	cpu := "profile?seconds=" + strconv.Itoa(runner.PProfCPUSeconds)
+	if err := runner.captureProfile(container, cpu, filepath.Join(directory, "cpu.pprof"), time.Duration(runner.PProfCPUSeconds+30)*time.Second); err != nil {
+		_, _ = fmt.Fprintf(runner.Stderr, "perf: capture cpu profile: %v\n", err)
+	}
 	for _, name := range []string{"heap", "allocs", "goroutine"} {
-		runner.captureProfile(container, name, filepath.Join(directory, name+".pprof"), 15*time.Second)
+		if err := runner.captureProfile(container, name, filepath.Join(directory, name+".pprof"), 15*time.Second); err != nil {
+			_, _ = fmt.Fprintf(runner.Stderr, "perf: capture %s profile: %v\n", name, err)
+		}
 	}
 }
 func (runner *Runner) cleanup() {
@@ -412,19 +451,17 @@ func (runner *Runner) RunCLI(args []string) int {
 			continue
 		}
 		var profile sync.WaitGroup
-		if dut.Name == "ze" && runner.PProf {
-			profile.Add(1)
-			go func() {
-				defer profile.Done()
+		if dut.Name == dutZE && runner.PProf {
+			profile.Go(func() {
 				runner.captureProfiles(runner.containerName(dut.Name), filepath.Join(runner.PProfDir, strconv.Itoa(runner.Routes)))
-			}()
+			})
 		}
 		ok := runner.runPerf(dut, false)
 		profile.Wait()
 		if ok {
 			passed++
 			results = append(results, filepath.Join(runner.resultsDir, dut.Name+".json"))
-			if dut.Name == "ze" && runner.runPerf(dut, true) {
+			if dut.Name == dutZE && runner.runPerf(dut, true) {
 				results = append(results, filepath.Join(runner.resultsDir, "ze-propagation.json"))
 			}
 		} else {
@@ -435,11 +472,11 @@ func (runner *Runner) RunCLI(args []string) int {
 	}
 	if len(results) > 0 {
 		ctx := context.Background()
-		report := append([]string{runner.PerfBinary, "report", "--md"}, results...)
+		report := append([]string{runner.PerfBinary, perfReport, "--md"}, results...)
 		_ = runner.Run(ctx, runner.Stdout, runner.Stderr, runner.Root, nil, report)
-		generateToFile(ctx, runner.Run, append([]string{runner.PerfBinary, "report", "--html"}, results...), filepath.Join(runner.resultsDir, "report.html"), runner.Stderr)
+		generateToFile(ctx, runner.Run, append([]string{runner.PerfBinary, perfReport, "--html"}, results...), filepath.Join(runner.resultsDir, "report.html"), runner.Stderr)
 		snapshot := filepath.Join(runner.runDir, "performance.md")
-		if generateToFile(ctx, runner.Run, append([]string{runner.PerfBinary, "report", "--doc"}, results...), snapshot, runner.Stderr) {
+		if generateToFile(ctx, runner.Run, append([]string{runner.PerfBinary, perfReport, "--doc"}, results...), snapshot, runner.Stderr) {
 			if missing := unmeasuredDUTs(results); len(missing) > 0 {
 				_, _ = fmt.Fprintf(runner.Stdout, "  covers this run only; no result for: %s\n", strings.Join(missing, ", "))
 			}

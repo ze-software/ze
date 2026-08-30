@@ -203,7 +203,7 @@ func checkTagPackagesCompile(tree string, tags []Tag, carriers []Carrier) ([]str
 			stake = tb.Str("so the ").Int(int64(len(list))).Str(" RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: ").Str(text).String()
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(pkg).Str(": `go vet` cannot type-check this package, ").Str(stake).Str(". go vet said: ").Str(quoteCompiler(failures[pkg])).Str(". Fix the package so `./le verify-deps unit-cached` compiles it, then re-run `./le rfc check`").String())
+		errs = append(errs, tb.Str(pkg).Str(": `go vet` cannot type-check this package, ").Str(stake).Str(". go vet said: ").Str(quoteCompiler(failures[pkg])).Str(". Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`").String())
 	}
 	sort.Strings(errs)
 	return errs, nil

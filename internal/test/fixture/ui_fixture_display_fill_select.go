@@ -35,7 +35,7 @@ func displayFillSelect(ctx context.Context) (retErr error) {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer os.RemoveAll(workDir) //nolint:errcheck // fixture cleanup
 
 	passwordHash, err := displayFillSelectPasswordHash(ctx, workDir)
 	if err != nil {
@@ -92,7 +92,7 @@ system {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(workDir, "peers.conf"), []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(filepath.Join(workDir, "peers.conf"), []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write peers.conf: %w", err)
 	}
 
@@ -103,12 +103,12 @@ system {
 		return err
 	}
 	daemonEnv := displayFillSelectWithEnv(os.Environ(),
-		displayFillSelectEnvVar{"ZE_SSH_EPHEMERAL", sshAddrPath},
-		displayFillSelectEnvVar{"ZE_READY_FILE", readyPath},
-		displayFillSelectEnvVar{"ZE_CONFIG_DIR", workDir},
+		displayFillSelectEnvVar{envSSHEphemeral, sshAddrPath},
+		displayFillSelectEnvVar{envReadyFile, readyPath},
+		displayFillSelectEnvVar{envConfigDir, workDir},
 		// Leave port 179 alone: this suite runs unprivileged and a bind
 		// failure there takes the daemon down before it writes ready.
-		displayFillSelectEnvVar{"ze_test_bgp_port", fmt.Sprintf("%d", bgpPort)},
+		displayFillSelectEnvVar{envTestBGPPort, fmt.Sprintf("%d", bgpPort)},
 	)
 
 	daemon, err := displayFillSelectStartDaemon(ctx, workDir, daemonEnv)
@@ -124,7 +124,7 @@ system {
 			if retErr == nil {
 				retErr = err
 			} else {
-				retErr = fmt.Errorf("%w; daemon cleanup failed: %v", retErr, err)
+				retErr = fmt.Errorf("%w; daemon cleanup failed: %w", retErr, err)
 			}
 		}
 	}()
@@ -142,7 +142,7 @@ system {
 		return fmt.Errorf("daemon did not become ready")
 	}
 
-	addrBytes, err := os.ReadFile(sshAddrPath)
+	addrBytes, err := os.ReadFile(sshAddrPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -153,11 +153,11 @@ system {
 	}
 	host, port := addr[:colon], addr[colon+1:]
 	cliEnv := displayFillSelectWithEnv(os.Environ(),
-		displayFillSelectEnvVar{"ZE_SSH_HOST", host},
-		displayFillSelectEnvVar{"ZE_SSH_PORT", port},
-		displayFillSelectEnvVar{"ZE_SSH_USERNAME", "ci"},
-		displayFillSelectEnvVar{"ZE_SSH_PASSWORD", "secret"},
-		displayFillSelectEnvVar{"ZE_CONFIG_DIR", workDir},
+		displayFillSelectEnvVar{envSSHHost, host},
+		displayFillSelectEnvVar{envSSHPort, port},
+		displayFillSelectEnvVar{envSSHUsername, "ci"},
+		displayFillSelectEnvVar{envSSHPassword, valueSecret},
+		displayFillSelectEnvVar{envConfigDir, workDir},
 	)
 
 	out, err := displayFillSelectCLI(ctx, workDir, cliEnv, "show bgp peer list | display state name | text")
@@ -168,15 +168,15 @@ system {
 	if err != nil {
 		return err
 	}
-	if !displayFillSelectEqualStrings(header, []string{"state", "name"}) {
+	if !displayFillSelectEqualStrings(header, []string{columnState, columnName}) {
 		return fmt.Errorf("peer columns %q, want the two displayed ones", header)
 	}
-	for _, absent := range []string{"remote-as", "group", "uptime"} {
+	for _, absent := range []string{columnRemoteAS, columnGroup, columnUptime} {
 		if strings.Contains(out, absent) {
 			return fmt.Errorf("a column nobody displayed survived: %q in %q", absent, out)
 		}
 	}
-	for _, peer := range []string{"192.0.2.1", "192.0.2.2"} {
+	for _, peer := range []string{addrTestNet1First, addrTestNet1Second} {
 		if !strings.Contains(out, peer) {
 			return fmt.Errorf("the address that identifies a row was cut: %q not in %q", peer, out)
 		}
@@ -188,7 +188,7 @@ system {
 	if err != nil {
 		return err
 	}
-	for _, present := range []string{"remote-as", "group", "uptime", "name", "state"} {
+	for _, present := range []string{columnRemoteAS, columnGroup, columnUptime, columnName, columnState} {
 		if !strings.Contains(whole, present) {
 			return fmt.Errorf("the unfiltered answer is missing %q: %q", present, whole)
 		}
@@ -293,7 +293,7 @@ func (d *displayFillSelectDaemon) stop() error {
 }
 
 func displayFillSelectCLI(ctx context.Context, dir string, env []string, command string) (string, error) {
-	cmd := exec.CommandContext(ctx, "ze", "cli", "-c", command)
+	cmd := exec.CommandContext(ctx, "ze", "cli", "-c", command) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 	var stdout, stderr bytes.Buffer
@@ -313,12 +313,12 @@ func displayFillSelectCLI(ctx context.Context, dir string, env []string, command
 func displayFillSelectTableHeader(text, marker string) ([]string, error) {
 	// The peer table is the value of a key, so its header row can share a line
 	// with that key. marker names the header unambiguously.
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		if !strings.Contains(line, marker) {
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) > 0 && (fields[0] == "peers" || fields[0] == "peer") {
+		if len(fields) > 0 && (fields[0] == aliasPeers || fields[0] == fieldPeer) {
 			return fields[1:], nil
 		}
 		return fields, nil
@@ -344,7 +344,7 @@ func displayFillSelectExists(path string) bool {
 }
 
 func displayFillSelectPoll(ctx context.Context, attempts int, delay time.Duration, check func() (bool, error)) (bool, error) {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		ready, err := check()
 		if err != nil || ready {
 			return ready, err
@@ -374,8 +374,8 @@ func displayFillSelectWithEnv(base []string, updates ...displayFillSelectEnvVar)
 	env := make([]string, 0, len(base)+len(updates))
 	for _, entry := range base {
 		name := entry
-		if equals := strings.IndexByte(entry, '='); equals >= 0 {
-			name = entry[:equals]
+		if before, _, found := strings.Cut(entry, "="); found {
+			name = before
 		}
 		if _, ok := replaced[name]; !ok {
 			env = append(env, entry)

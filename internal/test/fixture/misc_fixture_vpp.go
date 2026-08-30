@@ -49,8 +49,8 @@ type fixtureProcess struct {
 	output  *lockedBuffer
 }
 
-func startFixtureProcess(ctx context.Context, env []string, stdin string, name string, args ...string) (*fixtureProcess, error) {
-	command := exec.CommandContext(ctx, name, args...)
+func startFixtureProcess(ctx context.Context, env []string, stdin, name string, args ...string) (*fixtureProcess, error) {
+	command := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = env
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if stdin != "" {
@@ -131,7 +131,7 @@ func startVPPZe(ctx context.Context, config string, values map[string]string) (*
 }
 
 func vppLogMatches(path string, predicate func(map[string]any) bool) bool {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return false
 	}
@@ -164,7 +164,7 @@ func vppBootDriver(ctx context.Context, args []string) error {
 		return errors.New("stub socket did not appear")
 	}
 	config := fmt.Sprintf("environment {\n}\n\nbgp {\n router-id 10.0.0.1;\n session { asn { local 65533; } }\n}\n\nvpp {\n enabled true;\n external true;\n api-socket %s;\n}\n", socket)
-	ze, err := startVPPZe(ctx, config, map[string]string{"ZE_CONFIG_DIR": dir, "ze.log.vpp": "info", "ze.log.bgp": "warn"})
+	ze, err := startVPPZe(ctx, config, map[string]string{envConfigDir: dir, envLogVPP: logLevelInfo, envLogBGP: logLevelWarn})
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func vppBootDriver(ctx context.Context, args []string) error {
 	return nil
 }
 
-func vppRouteConfig(socket string, mpls bool, observer bool) string {
+func vppRouteConfig(socket string, mpls, observer bool) string {
 	families := "ipv4/unicast { prefix { maximum 10000; } }"
 	if mpls {
 		families += " ipv4/mpls-label { prefix { maximum 10000; } }"
@@ -237,12 +237,12 @@ func runVPPRouteProgramming(ctx context.Context, args []string, mpls bool) error
 	}
 	defer stopFixtureProcess(peer, 2*time.Second)
 	ze, err := startVPPZe(ctx, vppRouteConfig(socket, mpls, false), map[string]string{
-		"ZE_CONFIG_DIR": dir, "ze.log.vpp": "info", "ze.log.fib.vpp": "debug", "ze.log.bgp": "info", "ze_test_bgp_port": strconv.Itoa(port),
+		envConfigDir: dir, envLogVPP: logLevelInfo, "ze.log.fib.vpp": logLevelDebug, envLogBGP: logLevelInfo, envTestBGPPort: strconv.Itoa(port),
 	})
 	if err != nil {
 		return err
 	}
-	prefix := "10.20.0.0/24"
+	prefix := prefixTenTwenty
 	if mpls {
 		prefix = "10.30.0.0/24"
 	}
@@ -269,7 +269,7 @@ func runVPPRouteProgramming(ctx context.Context, args []string, mpls bool) error
 	})
 	stopFixtureProcess(ze, 3*time.Second)
 	if !ok {
-		if data, readErr := os.ReadFile(log); readErr == nil {
+		if data, readErr := os.ReadFile(log); readErr == nil { //nolint:gosec // the path is the fixture's own scratch file
 			fmt.Fprintf(os.Stderr, "--- stub log ---\n%s--- end ---\n", data)
 		}
 		return fmt.Errorf("stub did not observe programmed route %s", prefix)
@@ -310,7 +310,7 @@ func vppLookupDriver(ctx context.Context, args []string) error {
 	}
 	defer stopFixtureProcess(peer, 2*time.Second)
 	ze, err := startVPPZe(ctx, vppRouteConfig(socket, false, true), map[string]string{
-		"ZE_CONFIG_DIR": dir, "ze.log.vpp": "info", "ze.log.iface": "debug", "ze_test_bgp_port": strconv.Itoa(port),
+		envConfigDir: dir, envLogVPP: logLevelInfo, "ze.log.iface": logLevelDebug, envTestBGPPort: strconv.Itoa(port),
 	})
 	if err != nil {
 		return err
@@ -343,7 +343,7 @@ func vppIfaceDriver(ctx context.Context, args []string) error {
 		return errors.New("stub socket did not appear")
 	}
 	config := fmt.Sprintf("environment {\n}\nbgp { router-id 10.0.0.1; session { asn { local 65533; } } }\nvpp { enabled true; external true; api-socket %s; }\ninterface { backend vpp; }\n", socket)
-	ze, err := startVPPZe(ctx, config, map[string]string{"ZE_CONFIG_DIR": dir, "ze.log.vpp": "info", "ze.log.interface": "info", "ze.log.bgp": "warn"})
+	ze, err := startVPPZe(ctx, config, map[string]string{envConfigDir: dir, envLogVPP: logLevelInfo, "ze.log.interface": logLevelInfo, envLogBGP: logLevelWarn})
 	if err != nil {
 		return err
 	}

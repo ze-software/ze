@@ -33,7 +33,7 @@ func renderFixture(t *testing.T, extra map[string]string) RenderInput {
 		// directory is refused rather than read as "nothing runs". Every
 		// fixture therefore carries one, and a case that needs a schedule
 		// replaces it.
-		".github/workflows/ci.yml": "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify-deps unit-cached\n",
+		".github/workflows/ci.yml": "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify deps unit-cached\n",
 	}
 	maps.Copy(files, extra)
 	tree := fixtureTree(t, files)
@@ -505,7 +505,7 @@ func generatorTree(t *testing.T, extra map[string]string) string {
 		// directory is refused rather than read as "nothing runs". Every
 		// fixture therefore carries one, and a case that needs a schedule
 		// replaces it.
-		".github/workflows/ci.yml": "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify-deps unit-cached\n",
+		".github/workflows/ci.yml": "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify deps unit-cached\n",
 	}
 	maps.Copy(files, extra)
 	return fixtureTree(t, files)
@@ -642,7 +642,7 @@ func TestTheGeneratorRefusesToWriteWhenTheRenderProducesNoRowAtAll(t *testing.T)
 		"rfc/enrolled.txt":            "",
 		"docs/features/rfc-status.md": "",
 		"rfc/requirements/rfc9999.md": "# RFC 9999 -- would be deleted\n",
-		".github/workflows/ci.yml":    "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify-deps unit-cached\n",
+		".github/workflows/ci.yml":    "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify deps unit-cached\n",
 	})
 	_, err := IndexUpdate(tree)
 	if err == nil {

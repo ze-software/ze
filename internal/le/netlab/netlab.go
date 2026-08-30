@@ -3,12 +3,14 @@ package netlab
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -419,9 +421,9 @@ func sortedNames(rendered map[string]string) []string {
 
 func envValue(environment []string, key string) string {
 	prefix := key + "="
-	for i := len(environment) - 1; i >= 0; i-- {
-		if strings.HasPrefix(environment[i], prefix) {
-			return strings.TrimPrefix(environment[i], prefix)
+	for _, entry := range slices.Backward(environment) {
+		if value, ok := strings.CutPrefix(entry, prefix); ok {
+			return value
 		}
 	}
 	return ""
@@ -431,7 +433,7 @@ func execute(spec Command) CommandResult {
 	if len(spec.Argv) == 0 {
 		return CommandResult{Code: -1, Err: errors.New("empty command")}
 	}
-	command := exec.Command(spec.Argv[0], spec.Argv[1:]...) //nolint:gosec // argv comes from repository paths and fixed keywords
+	command := exec.CommandContext(context.Background(), spec.Argv[0], spec.Argv[1:]...) //nolint:gosec // argv comes from repository paths and fixed keywords
 	command.Dir = spec.Dir
 	command.Env = append([]string(nil), spec.Env...)
 	var stdout, stderr bytes.Buffer
@@ -442,8 +444,7 @@ func execute(spec Command) CommandResult {
 	if err == nil {
 		return result
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.Code = exitErr.ExitCode()
 		result.Err = nil
 		return result

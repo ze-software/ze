@@ -25,7 +25,7 @@ func init() {
 }
 
 func fixture06DDOSTransitSetup(context.Context, []string) error {
-	_ = netlink.LinkAdd(&netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: "zdd0"}, PeerName: "zdd0p"})
+	_ = netlink.LinkAdd(&netlink.Veth{Name: "zdd0", PeerName: "zdd0p"})
 	link, err := netlink.LinkByName("zdd0")
 	if err == nil {
 		address, _ := netlink.ParseAddr("203.0.113.1/24")
@@ -37,7 +37,7 @@ func fixture06DDOSTransitSetup(context.Context, []string) error {
 	if peer, peerErr := netlink.LinkByName("zdd0p"); peerErr == nil {
 		_ = netlink.LinkSetUp(peer)
 	}
-	_ = os.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1\n"), 0o644)
+	_ = os.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1\n"), 0o600)
 	return nil
 }
 
@@ -138,7 +138,7 @@ func fixture06DDOSTransitDriver(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer socket.Close()
+	defer func() { _ = socket.Close() }()
 	payload := bytes.Repeat([]byte{'x'}, 64)
 	blast := func(count int) int {
 		sent := 0
@@ -163,7 +163,9 @@ func fixture06DDOSTransitDriver(ctx context.Context, _ []string) error {
 	if !lastForward {
 		return fmt.Errorf("drop installed for 203.0.113.9 but not on the FORWARD hook:\n%s", lastSummary)
 	}
-	fmt.Fprintln(os.Stdout, "FORWARD-DROP-INSTALLED 203.0.113.9")
+	if _, err := fmt.Fprintln(os.Stdout, "FORWARD-DROP-INSTALLED 203.0.113.9"); err != nil {
+		return fmt.Errorf("report forward drop: %w", err)
+	}
 	if !Poll(ctx, 300, 300*time.Millisecond, func() bool {
 		installed, _, summary, stateErr := fixture06DDOSDropState()
 		lastSummary = summary
@@ -171,7 +173,7 @@ func fixture06DDOSTransitDriver(ctx context.Context, _ []string) error {
 	}) {
 		return fmt.Errorf("mitigation never cleared after the flood stopped:\n%s", lastSummary)
 	}
-	if err := os.WriteFile("ze-bgp.conf", []byte(fixture06DDOSConfigOff), 0o644); err != nil {
+	if err := os.WriteFile("ze-bgp.conf", []byte(fixture06DDOSConfigOff), 0o600); err != nil {
 		return err
 	}
 	if err := syscall.Kill(pid, syscall.SIGHUP); err != nil {
@@ -191,7 +193,9 @@ func fixture06DDOSTransitDriver(ctx context.Context, _ []string) error {
 			return err
 		}
 	}
-	fmt.Fprintf(os.Stdout, "REMOTE-DEFER-NO-DROP 203.0.113.9 (sent %d)\n", sent2)
+	if _, err := fmt.Fprintf(os.Stdout, "REMOTE-DEFER-NO-DROP 203.0.113.9 (sent %d)\n", sent2); err != nil {
+		return fmt.Errorf("report remote defer: %w", err)
+	}
 	if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
 		return err
 	}

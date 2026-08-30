@@ -40,26 +40,26 @@ func init() {
 	Register("plugin/route-modify-localpref", plugin14Observer("test-modify-lp", plugin14ModifyLocalpref))
 	Register("plugin/rpf-multicast", plugin14Observer("rpf-multicast-test", plugin14RPFMulticast))
 	Register("plugin/rpki-as-set", plugin14Observer("rpki-asset-test", plugin14RPKIAsSet))
-	Register("plugin/rpki-aspa-disabled", plugin14EventObserver("rpki-aspa-disabled-test", []string{"rpki direction received"}, plugin14ASPADisabled))
+	Register("plugin/rpki-aspa-disabled", plugin14EventObserver("rpki-aspa-disabled-test", []string{textRPKIDirectionReceived}, plugin14ASPADisabled))
 	Register("plugin/rpki-aspa-invalid", plugin14ASPAStateObserver("rpki-aspa-invalid-test", "invalid"))
-	Register("plugin/rpki-aspa-policy-logonly", plugin14EventObserver("rpki-aspa-policy-logonly-test", []string{"rpki direction received"}, plugin14ASPAPolicyLogOnly))
-	Register("plugin/rpki-aspa-policy-reject", plugin14EventObserver("rpki-aspa-policy-reject-test", []string{"rpki direction received"}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
+	Register("plugin/rpki-aspa-policy-logonly", plugin14EventObserver("rpki-aspa-policy-logonly-test", []string{textRPKIDirectionReceived}, plugin14ASPAPolicyLogOnly))
+	Register("plugin/rpki-aspa-policy-reject", plugin14EventObserver("rpki-aspa-policy-reject-test", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
 		return plugin14ASPAPolicyReject(ctx, p, events, "invalid", "ASPA policy", " policy")
 	}))
-	Register("plugin/rpki-aspa-policy-unknown-reject", plugin14EventObserver("rpki-aspa-policy-unknown-reject-test", []string{"rpki direction received"}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
+	Register("plugin/rpki-aspa-policy-unknown-reject", plugin14EventObserver("rpki-aspa-policy-unknown-reject-test", []string{textRPKIDirectionReceived}, func(ctx context.Context, p *sdk.Plugin, events <-chan plugin14Event) error {
 		return plugin14ASPAPolicyReject(ctx, p, events, "unknown", "ASPA unknown policy", " unknown-action=reject")
 	}))
 	Register("plugin/rpki-aspa-unknown", plugin14ASPAStateObserver("rpki-aspa-unknown-test", "unknown"))
 	Register("plugin/rpki-aspa-valid", plugin14ASPAStateObserver("rpki-aspa-valid-test", "valid"))
 	Register("plugin/rpki-cache-connect", plugin14Observer("rpki-cache-test", plugin14RPKICacheConnect))
 	Register("plugin/rpki-cache-update", plugin14Observer("rpki-update-test", plugin14RPKICacheUpdate))
-	Register("plugin/rpki-decorator-autoload", plugin14EventObserver("rpki-auto-test", []string{"update-rpki direction received"}, plugin14DecoratorAutoload))
-	Register("plugin/rpki-decorator-merge", plugin14EventObserver("rpki-dec-test", []string{"update-rpki direction received"}, plugin14DecoratorMerge))
-	Register("plugin/rpki-decorator-register", plugin14EventObserver("rpki-reg-test", []string{"update-rpki direction received"}, plugin14DecoratorRegister))
-	Register("plugin/rpki-decorator-timeout", plugin14EventObserver("rpki-to-test", []string{"update-rpki direction received"}, plugin14DecoratorTimeout))
-	Register("plugin/rpki-event-multi", plugin14EventObserver("rpki-event-multi-test", []string{"rpki direction received"}, plugin14RPKIEventMulti))
-	Register("plugin/rpki-event-unavailable", plugin14EventObserver("rpki-unavail-test", []string{"rpki direction received"}, plugin14RPKIEventUnavailable))
-	Register("plugin/rpki-event-valid", plugin14EventObserver("rpki-event-test", []string{"rpki direction received"}, plugin14RPKIEventValid))
+	Register("plugin/rpki-decorator-autoload", plugin14EventObserver("rpki-auto-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorAutoload))
+	Register("plugin/rpki-decorator-merge", plugin14EventObserver("rpki-dec-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorMerge))
+	Register("plugin/rpki-decorator-register", plugin14EventObserver("rpki-reg-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorRegister))
+	Register("plugin/rpki-decorator-timeout", plugin14EventObserver("rpki-to-test", []string{textUpdateRPKIDirectionReceived}, plugin14DecoratorTimeout))
+	Register("plugin/rpki-event-multi", plugin14EventObserver("rpki-event-multi-test", []string{textRPKIDirectionReceived}, plugin14RPKIEventMulti))
+	Register("plugin/rpki-event-unavailable", plugin14EventObserver("rpki-unavail-test", []string{textRPKIDirectionReceived}, plugin14RPKIEventUnavailable))
+	Register("plugin/rpki-event-valid", plugin14EventObserver("rpki-event-test", []string{textRPKIDirectionReceived}, plugin14RPKIEventValid))
 	Register("plugin/rpki-group-action", plugin14Observer("rpki-group-test", plugin14RPKIGroupAction))
 	Register("plugin/rpki-maxlength", plugin14Observer("rpki-maxlen-test", plugin14RPKIMaxlength))
 	Register("plugin/rpki-multi-prefix", plugin14Observer("rpki-multi-test", plugin14RPKIMultiPrefix))
@@ -75,7 +75,7 @@ func plugin14RunUntilShutdown(ctx context.Context, name string, updates []plugin
 	if err != nil {
 		return fmt.Errorf("connect observer %s: %w", name, err)
 	}
-	defer plugin.Close() //nolint:errcheck
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	result := make(chan error, 1)
 	plugin.OnAllPluginsReady(func() error {
@@ -120,7 +120,7 @@ func plugin14EventObserver(name string, subscriptions []string, scenario plugin1
 			plugin.OnEvent(func(event string) error {
 				var decoded plugin14Event
 				if err := json.Unmarshal([]byte(event), &decoded); err != nil {
-					return nil
+					return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
 				}
 				select {
 				case events <- decoded:
@@ -138,8 +138,8 @@ func plugin14EventObserver(name string, subscriptions []string, scenario plugin1
 }
 
 func plugin14ASPAStateObserver(name, want string) Driver {
-	return plugin14EventObserver(name, []string{"rpki direction received"}, func(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
-		if _, ok := plugin14WaitEvent(ctx, events, 15*time.Second, func(event plugin14Event) bool {
+	return plugin14EventObserver(name, []string{textRPKIDirectionReceived}, func(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
+		if ok := plugin14WaitEvent(ctx, events, 15*time.Second, func(event plugin14Event) bool {
 			return plugin14RPKISection(event, false)["aspa-state"] == want
 		}); !ok {
 			return fmt.Errorf("no rpki event with aspa-state=%s", want)
@@ -233,18 +233,18 @@ func plugin14PollCommand(ctx context.Context, plugin *sdk.Plugin, attempts int, 
 	return status, value, nil
 }
 
-func plugin14WaitEvent(ctx context.Context, events <-chan plugin14Event, timeout time.Duration, predicate func(plugin14Event) bool) (plugin14Event, bool) {
+func plugin14WaitEvent(ctx context.Context, events <-chan plugin14Event, timeout time.Duration, predicate func(plugin14Event) bool) bool {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, false
+			return false
 		case <-timer.C:
-			return nil, false
+			return false
 		case event := <-events:
 			if predicate(event) {
-				return event, true
+				return true
 			}
 		}
 	}
@@ -263,9 +263,12 @@ func plugin14NextEvent(ctx context.Context, events <-chan plugin14Event, timeout
 	}
 }
 
-func plugin14WaitEventAttempts(ctx context.Context, events <-chan plugin14Event, attempts int, timeout time.Duration, predicate func(plugin14Event) bool) (plugin14Event, bool) {
+// plugin14EventTimeout bounds one wait for the next event.
+const plugin14EventTimeout = 500 * time.Millisecond
+
+func plugin14WaitEventAttempts(ctx context.Context, events <-chan plugin14Event, attempts int, predicate func(plugin14Event) bool) (plugin14Event, bool) {
 	for range attempts {
-		event, ok := plugin14NextEvent(ctx, events, timeout)
+		event, ok := plugin14NextEvent(ctx, events, plugin14EventTimeout)
 		if ok && predicate(event) {
 			return event, true
 		}
@@ -574,8 +577,11 @@ func plugin14WaitRPKIReady(ctx context.Context, plugin *sdk.Plugin) error {
 	return plugin14Quiesce(ctx, plugin)
 }
 
-func plugin14AssertRoutePresence(ctx context.Context, plugin *sdk.Plugin, command, prefix string, present bool, label string) error {
-	status, value, err := plugin14Dispatch(ctx, plugin, command)
+// plugin14AdjRIBInCommand is the command these presence assertions read.
+const plugin14AdjRIBInCommand = "show bgp adj-rib-in"
+
+func plugin14AssertRoutePresence(ctx context.Context, plugin *sdk.Plugin, prefix string, present bool, label string) error {
+	status, value, err := plugin14Dispatch(ctx, plugin, plugin14AdjRIBInCommand)
 	if err != nil || status != rpc.StatusDone {
 		return fmt.Errorf("%s status=%q: %w", label, status, err)
 	}
@@ -590,7 +596,7 @@ func plugin14RPKIAsSet(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin14WaitRPKIReady(ctx, plugin); err != nil {
 		return err
 	}
-	if err := plugin14AssertRoutePresence(ctx, plugin, "show bgp adj-rib-in", "10.0.1.0/24", false, "AS_SET validation"); err != nil {
+	if err := plugin14AssertRoutePresence(ctx, plugin, "10.0.1.0/24", false, "AS_SET validation"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: route with AS_SET correctly rejected (OriginNone -> Invalid)")
@@ -598,7 +604,7 @@ func plugin14RPKIAsSet(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin14ASPADisabled(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
-	event, ok := plugin14WaitEventAttempts(ctx, events, 30, 500*time.Millisecond, func(event plugin14Event) bool {
+	event, ok := plugin14WaitEventAttempts(ctx, events, 30, func(event plugin14Event) bool {
 		return plugin14RPKISection(event, false) != nil
 	})
 	if !ok {
@@ -613,8 +619,8 @@ func plugin14ASPADisabled(ctx context.Context, _ *sdk.Plugin, events <-chan plug
 }
 
 func plugin14ASPAPolicyLogOnly(ctx context.Context, plugin *sdk.Plugin, events <-chan plugin14Event) error {
-	if _, ok := plugin14WaitEventAttempts(ctx, events, 30, 500*time.Millisecond, func(event plugin14Event) bool {
-		return plugin14RPKISection(event, false)["aspa-state"] == "invalid"
+	if _, ok := plugin14WaitEventAttempts(ctx, events, 30, func(event plugin14Event) bool {
+		return plugin14RPKISection(event, false)["aspa-state"] == verdictInvalid
 	}); !ok {
 		return errors.New("no rpki event with aspa-state=invalid")
 	}
@@ -630,13 +636,13 @@ func plugin14ASPAPolicyLogOnly(ctx context.Context, plugin *sdk.Plugin, events <
 }
 
 func plugin14ASPAPolicyReject(ctx context.Context, plugin *sdk.Plugin, events <-chan plugin14Event, state, label, outputSuffix string) error {
-	if _, ok := plugin14WaitEventAttempts(ctx, events, 30, 500*time.Millisecond, func(event plugin14Event) bool {
+	if _, ok := plugin14WaitEventAttempts(ctx, events, 30, func(event plugin14Event) bool {
 		return plugin14RPKISection(event, false)["aspa-state"] == state
 	}); !ok {
 		return fmt.Errorf("no rpki event with aspa-state=%s", state)
 	}
 	fmt.Fprintf(os.Stderr, "OK: rpki event has aspa-state=%s\n", state)
-	if err := plugin14AssertRoutePresence(ctx, plugin, "show bgp adj-rib-in", "10.0.1.0/24", false, label); err != nil {
+	if err := plugin14AssertRoutePresence(ctx, plugin, "10.0.1.0/24", false, label); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "OK: route 10.0.1.0/24 correctly rejected by ASPA%s\n", outputSuffix)
@@ -680,8 +686,8 @@ func plugin14RPKICacheUpdate(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func plugin14DecoratorAutoload(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
-	if _, ok := plugin14WaitEventAttempts(ctx, events, 20, 500*time.Millisecond, func(event plugin14Event) bool {
-		return plugin14MessageType(event) == "update-rpki"
+	if _, ok := plugin14WaitEventAttempts(ctx, events, 20, func(event plugin14Event) bool {
+		return plugin14MessageType(event) == messageTypeUpdateRPKI
 	}); !ok {
 		return errors.New("no update-rpki events -- decorator may not have been auto-loaded")
 	}
@@ -690,8 +696,8 @@ func plugin14DecoratorAutoload(ctx context.Context, _ *sdk.Plugin, events <-chan
 }
 
 func plugin14DecoratorRegister(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
-	if _, ok := plugin14WaitEventAttempts(ctx, events, 20, 500*time.Millisecond, func(event plugin14Event) bool {
-		return plugin14MessageType(event) == "update-rpki"
+	if _, ok := plugin14WaitEventAttempts(ctx, events, 20, func(event plugin14Event) bool {
+		return plugin14MessageType(event) == messageTypeUpdateRPKI
 	}); !ok {
 		return errors.New("no update-rpki events received -- registration may have failed")
 	}
@@ -715,7 +721,7 @@ func plugin14CollectEventAttempts(ctx context.Context, events <-chan plugin14Eve
 
 func plugin14DecoratorMerge(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
 	collected := plugin14CollectEventAttempts(ctx, events, 30, 500*time.Millisecond, func(event plugin14Event) bool {
-		return plugin14MessageType(event) == "update-rpki"
+		return plugin14MessageType(event) == messageTypeUpdateRPKI
 	})
 	if len(collected) == 0 {
 		return errors.New("no update-rpki events received")
@@ -731,8 +737,8 @@ func plugin14DecoratorMerge(ctx context.Context, _ *sdk.Plugin, events <-chan pl
 			return fmt.Errorf("update section missing attr key: %v", update)
 		}
 		family := plugin14Map(plugin14Map(bgp["rpki"])["ipv4/unicast"])
-		foundValid = foundValid || family["9.0.1.0/24"] == "valid"
-		foundInvalid = foundInvalid || family["10.0.1.0/24"] == "invalid"
+		foundValid = foundValid || family["9.0.1.0/24"] == verdictValid
+		foundInvalid = foundInvalid || family["10.0.1.0/24"] == verdictInvalid
 		foundNotFound = foundNotFound || family["11.0.1.0/24"] == "not-found"
 	}
 	missing := make([]string, 0, 3)
@@ -754,7 +760,7 @@ func plugin14DecoratorMerge(ctx context.Context, _ *sdk.Plugin, events <-chan pl
 
 func plugin14DecoratorTimeout(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
 	collected := plugin14CollectEventAttempts(ctx, events, 20, 500*time.Millisecond, func(event plugin14Event) bool {
-		return plugin14MessageType(event) == "update-rpki"
+		return plugin14MessageType(event) == messageTypeUpdateRPKI
 	})
 	if len(collected) == 0 {
 		return errors.New("no update-rpki events received after timeout")
@@ -773,7 +779,7 @@ func plugin14DecoratorTimeout(ctx context.Context, _ *sdk.Plugin, events <-chan 
 }
 
 func plugin14RPKIEventMulti(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
-	if _, ok := plugin14WaitEvent(ctx, events, 12*time.Second, func(event plugin14Event) bool {
+	if ok := plugin14WaitEvent(ctx, events, 12*time.Second, func(event plugin14Event) bool {
 		return plugin14RPKIEventHasPrefix(event, "10.0.1.0/24", "valid")
 	}); !ok {
 		return errors.New("no rpki event with valid state for prefix")
@@ -783,7 +789,7 @@ func plugin14RPKIEventMulti(ctx context.Context, _ *sdk.Plugin, events <-chan pl
 }
 
 func plugin14RPKIEventUnavailable(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
-	if _, ok := plugin14WaitEvent(ctx, events, 15*time.Second, func(event plugin14Event) bool {
+	if ok := plugin14WaitEvent(ctx, events, 15*time.Second, func(event plugin14Event) bool {
 		return plugin14RPKISection(event, true)["status"] == "unavailable"
 	}); !ok {
 		return errors.New("expected rpki=unavailable, not found")
@@ -793,7 +799,7 @@ func plugin14RPKIEventUnavailable(ctx context.Context, _ *sdk.Plugin, events <-c
 }
 
 func plugin14RPKIEventValid(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
-	if _, ok := plugin14WaitEvent(ctx, events, 15*time.Second, func(event plugin14Event) bool {
+	if ok := plugin14WaitEvent(ctx, events, 15*time.Second, func(event plugin14Event) bool {
 		return plugin14RPKIEventHasPrefix(event, "10.0.1.0/24", "valid")
 	}); !ok {
 		return errors.New("no rpki event with valid state for 10.0.1.0/24")
@@ -806,7 +812,7 @@ func plugin14RPKIGroupAction(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin14WaitRPKIReady(ctx, plugin); err != nil {
 		return err
 	}
-	if err := plugin14AssertRoutePresence(ctx, plugin, "show bgp adj-rib-in", "10.0.1.0/24", true, "group override"); err != nil {
+	if err := plugin14AssertRoutePresence(ctx, plugin, "10.0.1.0/24", true, "group override"); err != nil {
 		return err
 	}
 	_, statusData, err := plugin14DispatchMap(ctx, plugin, "show bgp rpki status")
@@ -816,7 +822,7 @@ func plugin14RPKIGroupAction(ctx context.Context, plugin *sdk.Plugin) error {
 	var selected map[string]any
 	for _, value := range plugin14Maps(statusData["peer-actions"]) {
 		row := plugin14Map(value)
-		if row["peer"] == "127.0.0.1" {
+		if row["peer"] == addrLoopback {
 			selected = row
 			break
 		}
@@ -825,7 +831,7 @@ func plugin14RPKIGroupAction(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("peer-actions missing 127.0.0.1: %v", statusData["peer-actions"])
 	}
 	invalid := plugin14Map(selected["invalid"])
-	if invalid["action"] != "accept" || invalid["source"] != "group" {
+	if invalid["action"] != actionAccept || invalid["source"] != sourceGroup {
 		return fmt.Errorf("peer 127.0.0.1 invalid action/source wrong (want accept/group): %v", invalid)
 	}
 	fmt.Fprintln(os.Stderr, "OK: Invalid route accepted via group inheritance; status source=group")
@@ -836,7 +842,7 @@ func plugin14RPKIMaxlength(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin14WaitRPKIReady(ctx, plugin); err != nil {
 		return err
 	}
-	if err := plugin14AssertRoutePresence(ctx, plugin, "show bgp adj-rib-in", "10.0.1.0/25", false, "maxLength validation"); err != nil {
+	if err := plugin14AssertRoutePresence(ctx, plugin, "10.0.1.0/25", false, "maxLength validation"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: route 10.0.1.0/25 correctly rejected (exceeds maxLength /24)")

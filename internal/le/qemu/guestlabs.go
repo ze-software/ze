@@ -16,6 +16,16 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
+// The four guest-side labs. A lab name is the report's Lab field, the key its
+// Text renderer switches on, and the word the operator sees, so the three
+// cannot drift apart.
+const (
+	labVRRPKeepalived = "vrrp-keepalived"
+	labPPPoEAccel     = "pppoe-accel"
+	labNetns          = "netns"
+	labPPPoENetns     = "pppoe-netns"
+)
+
 const (
 	vrrpQS1 = "QS-1"
 	vrrpQS2 = "QS-2"
@@ -61,7 +71,7 @@ type guestLabReport struct {
 func (r guestLabReport) Text() string {
 	var out textbuf.Buffer
 	switch r.Lab {
-	case "vrrp-keepalived":
+	case labVRRPKeepalived:
 		for _, scenario := range r.Scenarios {
 			out.Str("\n=== ").Str(scenario.Name).Str(": ").Str(vrrpDescription(scenario.Name)).Str(" ===\n")
 			for _, detail := range scenario.Details {
@@ -75,13 +85,13 @@ func (r guestLabReport) Text() string {
 			out.Str("\nOK: ze VRRP interoperates with keepalived across ").Int(int64(len(r.Selected))).
 				Str(" scenario(s): ").Join(r.Selected, ", ").Byte('\n')
 		}
-	case "pppoe-accel":
+	case labPPPoEAccel:
 		if r.Verdict == VerdictPass && len(r.Scenarios) == 1 {
 			for _, detail := range r.Scenarios[0].Details {
 				out.Str(detail).Byte('\n')
 			}
 		}
-	case "netns", "pppoe-netns":
+	case labNetns, labPPPoENetns:
 		for _, scenario := range r.Scenarios {
 			if scenario.Verdict == VerdictFail {
 				out.Str("FAIL: ").Str(scenario.Name).Str(" netns subset returned ").Str(scenario.Failure).Byte('\n')

@@ -63,7 +63,7 @@ Each recursive `.ci` reader explicitly skips `draft`. Add each new reader to
 |------|----------|
 | accept-only lint | `internal/test/runner/accept_only.go` |
 | BGP frame-length fixtures | `internal/test/runner/ci_fixture_test.go` |
-| documentation wiring | `internal/le/docwiring/checks.go` |
+| documentation wiring | `internal/le/doc/wiring/checks.go` |
 | RFC evidence | `internal/le/rfc/carriers.go` |
 
 ## What a draft does NOT get

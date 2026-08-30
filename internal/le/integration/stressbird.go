@@ -124,7 +124,7 @@ type stressBirdRound struct {
 }
 
 var stressBirdRounds = [...]stressBirdRound{
-	{prefixBase: "10.0.0.0/24", prefixes: 100_000, peerWait: 120 * time.Second},
+	{prefixBase: stressPrefixBase, prefixes: 100_000, peerWait: 120 * time.Second},
 	{prefixBase: "10.64.0.0/24", prefixes: 250_000, peerWait: 180 * time.Second},
 	{prefixBase: "10.128.0.0/24", prefixes: 500_000, peerWait: 300 * time.Second},
 	{prefixBase: "11.0.0.0/24", prefixes: 1_000_000, peerWait: 600 * time.Second},
@@ -304,7 +304,7 @@ func (r *stressBirdRunner) preflight(ctx context.Context) *StressBirdFailure {
 	}
 
 	runtimeMissing := false
-	for _, tool := range [...]string{"ip", "ethtool"} {
+	for _, tool := range [...]string{"ip", toolEthtool} {
 		if _, err := r.system.LookPath(tool); err != nil {
 			runtimeMissing = true
 		}
@@ -315,7 +315,7 @@ func (r *stressBirdRunner) preflight(ctx context.Context) *StressBirdFailure {
 		}
 	}
 	var message textbuf.Buffer
-	for _, tool := range [...]string{"ip", "ethtool"} {
+	for _, tool := range [...]string{"ip", toolEthtool} {
 		if _, err := r.system.LookPath(tool); err != nil {
 			return stressBirdFailure(
 				"preflight", gaterun.CannotStart,
@@ -367,14 +367,14 @@ func (r *stressBirdRunner) preflight(ctx context.Context) *StressBirdFailure {
 }
 
 func (r *stressBirdRunner) installRuntimeTools(ctx context.Context) *StressBirdFailure {
-	if _, err := r.system.LookPath("apt-get"); err != nil {
+	if _, err := r.system.LookPath(aptGet); err != nil {
 		return stressBirdFailure(
 			"preflight", gaterun.CannotStart,
 			"ip or ethtool is missing and apt-get is unavailable",
 		)
 	}
 	if failure := r.runRequiredWithTimeout(
-		ctx, "preflight", []string{"apt-get", "update", "-qq"}, stressBirdSetupTimeout,
+		ctx, "preflight", []string{aptGet, "update", "-qq"}, stressBirdSetupTimeout,
 	); failure != nil {
 		return failure
 	}
@@ -382,15 +382,15 @@ func (r *stressBirdRunner) installRuntimeTools(ctx context.Context) *StressBirdF
 		ctx,
 		"preflight",
 		[]string{
-			"apt-get", "install", "-y", "--no-install-recommends",
-			"iproute2", "ethtool", "tcpdump", "jq",
+			aptGet, "install", "-y", "--no-install-recommends",
+			"iproute2", toolEthtool, "tcpdump", "jq",
 		},
 		stressBirdSetupTimeout,
 	)
 }
 
 func (r *stressBirdRunner) installBird(ctx context.Context) *StressBirdFailure {
-	if _, err := r.system.LookPath("apt-get"); err != nil {
+	if _, err := r.system.LookPath(aptGet); err != nil {
 		return stressBirdFailure(
 			"preflight", gaterun.CannotStart,
 			"BIRD is missing and apt-get is unavailable",
@@ -399,24 +399,24 @@ func (r *stressBirdRunner) installBird(ctx context.Context) *StressBirdFailure {
 	return r.runRequiredWithTimeout(
 		ctx,
 		"preflight",
-		[]string{"apt-get", "install", "-y", "--no-install-recommends", "bird2"},
+		[]string{aptGet, "install", "-y", "--no-install-recommends", "bird2"},
 		stressBirdRouteTimeout,
 	)
 }
 
 func (r *stressBirdRunner) createNamespaces(ctx context.Context) *StressBirdFailure {
 	commands := [][]string{
-		{"ip", "netns", "add", r.zeNS},
-		{"ip", "netns", "add", r.peerNS},
-		{"ip", "link", "add", r.zeVeth, "type", "veth", "peer", "name", r.peerVeth},
-		{"ip", "link", "set", r.zeVeth, "netns", r.zeNS},
-		{"ip", "link", "set", r.peerVeth, "netns", r.peerNS},
-		r.namespaceArgv(r.zeNS, "ip", "addr", "add", stressBirdZeCIDR, "dev", r.zeVeth),
-		r.namespaceArgv(r.zeNS, "ip", "link", "set", r.zeVeth, "up"),
-		r.namespaceArgv(r.zeNS, "ip", "link", "set", "lo", "up"),
-		r.namespaceArgv(r.peerNS, "ip", "addr", "add", stressBirdPeerCIDR, "dev", r.peerVeth),
-		r.namespaceArgv(r.peerNS, "ip", "link", "set", r.peerVeth, "up"),
-		r.namespaceArgv(r.peerNS, "ip", "link", "set", "lo", "up"),
+		{"ip", ipNetns, ipAdd, r.zeNS},
+		{"ip", ipNetns, ipAdd, r.peerNS},
+		{"ip", ipLink, ipAdd, r.zeVeth, "type", "veth", "peer", "name", r.peerVeth},
+		{"ip", ipLink, "set", r.zeVeth, ipNetns, r.zeNS},
+		{"ip", ipLink, "set", r.peerVeth, ipNetns, r.peerNS},
+		r.namespaceArgv(r.zeNS, "ip", "addr", ipAdd, stressBirdZeCIDR, "dev", r.zeVeth),
+		r.namespaceArgv(r.zeNS, "ip", ipLink, "set", r.zeVeth, "up"),
+		r.namespaceArgv(r.zeNS, "ip", ipLink, "set", "lo", "up"),
+		r.namespaceArgv(r.peerNS, "ip", "addr", ipAdd, stressBirdPeerCIDR, "dev", r.peerVeth),
+		r.namespaceArgv(r.peerNS, "ip", ipLink, "set", r.peerVeth, "up"),
+		r.namespaceArgv(r.peerNS, "ip", ipLink, "set", "lo", "up"),
 	}
 	for _, argv := range commands {
 		if failure := r.runRequired(ctx, "namespace", argv); failure != nil {
@@ -426,10 +426,10 @@ func (r *stressBirdRunner) createNamespaces(ctx context.Context) *StressBirdFail
 	// Offload was historically disabled for a userspace TCP stack. Both DUTs in
 	// this scenario use kernel TCP, so the producer explicitly treats it as best effort.
 	r.runOptional(ctx, r.namespaceArgv(
-		r.zeNS, "ethtool", "-K", r.zeVeth, "tx", "off", "rx", "off",
+		r.zeNS, toolEthtool, "-K", r.zeVeth, "tx", "off", "rx", "off",
 	))
 	r.runOptional(ctx, r.namespaceArgv(
-		r.peerNS, "ethtool", "-K", r.peerVeth, "tx", "off", "rx", "off",
+		r.peerNS, toolEthtool, "-K", r.peerVeth, "tx", "off", "rx", "off",
 	))
 	return nil
 }
@@ -701,7 +701,7 @@ func (r *stressBirdRunner) runOptional(ctx context.Context, argv []string) {
 
 func (r *stressBirdRunner) namespaceArgv(namespace string, argv ...string) []string {
 	command := make([]string, 0, len(argv)+4)
-	command = append(command, "ip", "netns", "exec", namespace)
+	command = append(command, "ip", ipNetns, "exec", namespace)
 	return append(command, argv...)
 }
 
@@ -739,7 +739,7 @@ func (r *stressBirdRunner) cleanup(ctx context.Context, reportErrors bool) []str
 
 	for _, namespace := range [...]string{r.zeNS, r.peerNS} {
 		result, err := r.system.Run(ctx, stressBirdCommand{
-			argv:    []string{"ip", "netns", "del", namespace},
+			argv:    []string{"ip", ipNetns, "del", namespace},
 			environ: r.environ, timeout: stressBirdCommandTimeout,
 		})
 		if reportErrors && err != nil {

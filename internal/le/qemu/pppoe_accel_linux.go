@@ -115,15 +115,15 @@ func setupPPPoENamespaces(ctx context.Context, zeNS, acNS, zeVeth, acVeth string
 		argv []string
 		what string
 	}{
-		{argv: []string{"ip", "netns", "add", zeNS}, what: operation("create netns ", zeNS, "")},
-		{argv: []string{"ip", "netns", "add", acNS}, what: operation("create netns ", acNS, "")},
-		{argv: []string{"ip", "link", "add", zeVeth, "type", "veth", "peer", "name", acVeth}, what: "create PPPoE access-link veth pair"},
-		{argv: []string{"ip", "link", "set", zeVeth, "netns", zeNS}, what: "move Ze veth"},
-		{argv: []string{"ip", "link", "set", acVeth, "netns", acNS}, what: "move AC veth"},
-		{ns: zeNS, argv: []string{"ip", "link", "set", "lo", "up"}, what: operation("bring up ", zeNS, " loopback")},
-		{ns: zeNS, argv: []string{"ip", "link", "set", zeVeth, "up"}, what: operation("bring up ", zeVeth, "")},
-		{ns: acNS, argv: []string{"ip", "link", "set", "lo", "up"}, what: operation("bring up ", acNS, " loopback")},
-		{ns: acNS, argv: []string{"ip", "link", "set", acVeth, "up"}, what: operation("bring up ", acVeth, "")},
+		{argv: []string{"ip", ipObjectNetns, ipVerbAdd, zeNS}, what: operation("create netns ", zeNS, "")},
+		{argv: []string{"ip", ipObjectNetns, ipVerbAdd, acNS}, what: operation("create netns ", acNS, "")},
+		{argv: []string{"ip", ipObjectLink, ipVerbAdd, zeVeth, ipKeywordType, linkTypeVeth, ipKeywordPeer, ipKeywordName, acVeth}, what: "create PPPoE access-link veth pair"},
+		{argv: []string{"ip", ipObjectLink, ipVerbSet, zeVeth, ipLinkNetnsTarget, zeNS}, what: "move Ze veth"},
+		{argv: []string{"ip", ipObjectLink, ipVerbSet, acVeth, ipLinkNetnsTarget, acNS}, what: "move AC veth"},
+		{ns: zeNS, argv: []string{"ip", ipObjectLink, ipVerbSet, "lo", "up"}, what: operation("bring up ", zeNS, " loopback")},
+		{ns: zeNS, argv: []string{"ip", ipObjectLink, ipVerbSet, zeVeth, "up"}, what: operation("bring up ", zeVeth, "")},
+		{ns: acNS, argv: []string{"ip", ipObjectLink, ipVerbSet, "lo", "up"}, what: operation("bring up ", acNS, " loopback")},
+		{ns: acNS, argv: []string{"ip", ipObjectLink, ipVerbSet, acVeth, "up"}, what: operation("bring up ", acVeth, "")},
 	}
 	for _, step := range steps {
 		if err := guestRequired(ctx, step.ns, step.argv, step.what); err != nil {
@@ -134,7 +134,7 @@ func setupPPPoENamespaces(ctx context.Context, zeNS, acNS, zeVeth, acVeth string
 }
 
 func pppLinks(ctx context.Context, namespace string) (map[string]bool, error) {
-	result, err := guestRun(ctx, namespace, []string{"ip", "-o", "link", "show", "type", "ppp"}, nil)
+	result, err := guestRun(ctx, namespace, []string{"ip", "-o", ipObjectLink, ipVerbShow, ipKeywordType, "ppp"}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func waitNewPPP(ctx context.Context, namespace, role string, initial map[string]
 func waitPPPAddress(ctx context.Context, namespace, iface, local, peer string, timeout time.Duration) error {
 	last := ""
 	err := waitGuest(ctx, timeout, 500*time.Millisecond, func() (bool, error) {
-		result, err := guestRun(ctx, namespace, []string{"ip", "-o", "addr", "show", "dev", iface}, nil)
+		result, err := guestRun(ctx, namespace, []string{"ip", "-o", ipObjectAddr, ipVerbShow, ipKeywordDev, iface}, nil)
 		if err != nil {
 			return false, err
 		}
@@ -234,11 +234,11 @@ func waitPPPLinksCleared(ctx context.Context, namespace string, initial map[stri
 }
 
 func runPPPoEAccelGuest(ctx context.Context, root string) (report guestLabReport, runErr error) {
-	report = guestLabReport{Lab: "pppoe-accel", Selected: []string{"pppoe-accel"}, Verdict: VerdictUnspecified}
+	report = guestLabReport{Lab: labPPPoEAccel, Selected: []string{labPPPoEAccel}, Verdict: VerdictUnspecified}
 	if err := rejectPPPoEProbeSkip(); err != nil {
 		return report, err
 	}
-	if err := requireGuestCommands("ip", "ping", "accel-pppd"); err != nil {
+	if err := requireGuestCommands("ip", pingCommand, "accel-pppd"); err != nil {
 		return report, err
 	}
 	if err := probePPPoEKernel(ctx); err != nil {
@@ -306,7 +306,7 @@ func runPPPoEAccelGuest(ctx context.Context, root string) (report guestLabReport
 		report.Failure = err.Error()
 		fmt.Fprintf(os.Stderr, "FAIL: %s\n\n--- diagnostics ---\n", err) //nolint:errcheck // evidence diagnostics
 		for _, namespace := range []string{zeNS, acNS} {
-			links, _ := guestRun(context.Background(), namespace, []string{"ip", "-o", "link", "show", "type", "ppp"}, nil)
+			links, _ := guestRun(context.Background(), namespace, []string{"ip", "-o", ipObjectLink, ipVerbShow, ipKeywordType, "ppp"}, nil)
 			text := strings.TrimSpace(links.Stdout)
 			if text == "" {
 				text = "(none)"
@@ -375,7 +375,7 @@ func runPPPoEAccelGuest(ctx context.Context, root string) (report guestLabReport
 	if err := waitPPPAddress(ctx, acNS, acIface, pppoePeerAddress, pppoeLocalAddress, pppoeAddressTimeout); err != nil {
 		return failure(err)
 	}
-	ping, err := guestRun(ctx, zeNS, []string{"ping", "-c", "2", "-W", "3", pppoePeerAddress}, nil)
+	ping, err := guestRun(ctx, zeNS, []string{pingCommand, "-c", "2", "-W", "3", pppoePeerAddress}, nil)
 	if err != nil {
 		return failure(err)
 	}
@@ -395,7 +395,7 @@ func runPPPoEAccelGuest(ctx context.Context, root string) (report guestLabReport
 	detail := tb.Str("OK: ze pppoe-client completed discovery, CHAP, IPCP against accel-ppp; Ze ").
 		Str(zeIface).Str(" (").Str(pppoeLocalAddress).Str(") and accel ").Str(acIface).
 		Str(" (").Str(pppoePeerAddress).Str(") up, dataplane ping ok, clean teardown").String()
-	report.Scenarios = []GuestScenario{{Name: "pppoe-accel", Verdict: VerdictPass, Details: []string{detail}}}
+	report.Scenarios = []GuestScenario{{Name: labPPPoEAccel, Verdict: VerdictPass, Details: []string{detail}}}
 	report.Verdict = VerdictPass
 	success = true
 	return report, nil

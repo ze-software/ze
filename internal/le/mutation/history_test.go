@@ -11,8 +11,8 @@ import (
 
 func TestRecordHistoryAppendsSortedPackagesWithFixedClockAndSHA(t *testing.T) {
 	root := t.TempDir()
-	reportPath := filepath.Join(root, "tmp/report.json")
-	absoluteB := filepath.ToSlash(filepath.Join(root, "internal/b/b.go"))
+	reportPath := filepath.Join(root, "tmp", "report.json")
+	absoluteB := filepath.ToSlash(filepath.Join(root, "internal", "b", "b.go"))
 	mustWriteMutationFile(t, reportPath, []byte(`{"results":[`+
 		`{"status":"SURVIVED"},`+
 		`{"status":"SURVIVED","mutant":{"filePath":"`+absoluteB+`"}},`+

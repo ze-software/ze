@@ -18,19 +18,19 @@ import (
 )
 
 var bgpSummaryPeerOrder = []string{
-	"address", "name", "description", "remote-as", "peer-type",
-	"state", "uptime", "state-changed", "last-error",
+	columnAddress, columnName, "description", columnRemoteAS, "peer-type",
+	columnState, columnUptime, "state-changed", "last-error",
 	"routes-received", "routes-accepted", "routes-sent",
 	"updates-received", "updates-sent",
 	"keepalives-received", "keepalives-sent",
 	"eor-received", "eor-sent",
-	"connections-dropped",
+	columnConnectionsDropped,
 }
 
 var bgpSummaryRecordOrder = []string{
-	"router-id", "local-as", "uptime",
-	"peers-configured", "peers-established",
-	"family", "peers-in-family", "peers",
+	fieldRouterID, fieldLocalAS, columnUptime,
+	fieldPeersConfigured, fieldPeersEstablished,
+	fieldFamily, "peers-in-family", fieldPeers,
 }
 
 func init() {
@@ -109,7 +109,7 @@ system {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(cwd)
+	defer os.RemoveAll(cwd) //nolint:errcheck // fixture cleanup
 	configPath := filepath.Join(cwd, "summary.conf")
 	if err := writeBGPColumnOrderFile(configPath, []byte(config)); err != nil {
 		return fmt.Errorf("write summary.conf: %w", err)
@@ -138,7 +138,7 @@ system {
 
 	var daemonStdout bytes.Buffer
 	var daemonStderr bytes.Buffer
-	daemon := exec.CommandContext(ctx, ze, "-f", configPath)
+	daemon := exec.CommandContext(ctx, ze, "-f", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	daemon.Dir = cwd
 	daemon.Env = daemonEnv
 	daemon.Stdout = &daemonStdout
@@ -161,7 +161,7 @@ system {
 		select {
 		case waitErr := <-daemonDone:
 			return false, fmt.Errorf(
-				"daemon exited early: %v\nstdout:\n%s\nstderr:\n%s",
+				"daemon exited early: %w\nstdout:\n%s\nstderr:\n%s",
 				waitErr, daemonStdout.String(), daemonStderr.String(),
 			)
 		default:
@@ -175,7 +175,7 @@ system {
 		return errors.New("daemon did not become ready")
 	}
 
-	addressBytes, err := os.ReadFile(sshAddressFile)
+	addressBytes, err := os.ReadFile(sshAddressFile) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -206,7 +206,7 @@ system {
 	// header shares a line with that key. connections-dropped identifies the
 	// header unambiguously because no value in the table carries that text.
 	var header []string
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if strings.Contains(line, "connections-dropped") {
 			header = strings.Fields(line)
 			break
@@ -215,7 +215,7 @@ system {
 	if header == nil {
 		return fmt.Errorf("no peer table in the answer: %q", out)
 	}
-	if len(header) != 0 && header[0] == "peers" {
+	if len(header) != 0 && header[0] == aliasPeers {
 		header = header[1:]
 	}
 
@@ -223,13 +223,13 @@ system {
 	if !equalBGPColumnOrderStrings(header, expectedHeader) {
 		return fmt.Errorf("peer columns %q, want %q", header, expectedHeader)
 	}
-	if len(header) == 0 || header[0] != "address" {
+	if len(header) == 0 || header[0] != columnAddress {
 		return fmt.Errorf("the peer row must lead with the peer it is about: %q", header)
 	}
-	if len(header) <= 5 || header[5] != "state" {
+	if len(header) <= 5 || header[5] != columnState {
 		return fmt.Errorf("state must be the sixth column, not buried: %q", header)
 	}
-	if header[len(header)-1] != "connections-dropped" {
+	if header[len(header)-1] != columnConnectionsDropped {
 		return fmt.Errorf("the fault counter must come last: %q", header)
 	}
 	if sortedBGPColumnOrderStrings(header) {
@@ -239,7 +239,7 @@ system {
 	// The outer record carries its own order because it and the peer rows both
 	// hold an uptime key in a different place.
 	var record []string
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if line == "" {
 			continue
 		}
@@ -284,7 +284,7 @@ system {
 func runBGPColumnOrderCommand(ctx context.Context, env []string, stdin, name string, args ...string) (int, string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	if env != nil {
 		cmd.Env = env
 	}
@@ -297,15 +297,14 @@ func runBGPColumnOrderCommand(ctx context.Context, env []string, stdin, name str
 	if err == nil {
 		return 0, stdout.String(), stderr.String(), nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exitErr.ExitCode(), stdout.String(), stderr.String(), nil
 	}
 	return -1, stdout.String(), stderr.String(), err
 }
 
 func pollBGPColumnOrder(ctx context.Context, attempts int, delay time.Duration, check func() (bool, error)) (bool, error) {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		ready, err := check()
 		if err != nil || ready {
 			return ready, err
@@ -355,7 +354,7 @@ func stopBGPColumnOrderDaemon(cmd *exec.Cmd, done <-chan error) error {
 }
 
 func writeBGPColumnOrderFile(name string, data []byte) error {
-	file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
+	file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -367,7 +366,7 @@ func writeBGPColumnOrderFile(name string, data []byte) error {
 }
 
 func fullBGPColumnOrderPath(dir, name string) (string, error) {
-	path := dir + string(os.PathSeparator) + name
+	path := filepath.Join(dir, name)
 	absolute, err := os.Stat(dir)
 	if err != nil {
 		return "", fmt.Errorf("stat working directory: %w", err)
@@ -392,8 +391,8 @@ func replaceBGPColumnOrderEnv(base []string, pairs ...string) []string {
 	env := make([]string, 0, len(base)+len(replacements))
 	for _, entry := range base {
 		key := entry
-		if equals := strings.IndexByte(entry, '='); equals >= 0 {
-			key = entry[:equals]
+		if before, _, found := strings.Cut(entry, "="); found {
+			key = before
 		}
 		if _, replaced := replacements[key]; !replaced {
 			env = append(env, entry)

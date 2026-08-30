@@ -36,6 +36,9 @@ const recordPluginName = "record-plugin"
 
 // The commands this plugin registers. Each one is one property of the record
 // path, so a .ci that fails names the half that broke.
+// recordsKeyRows is the Records key every row-shaped answer in this plugin uses.
+const recordsKeyRows = "rows"
+
 const (
 	recordWalkCommand     = "show test records walk"
 	recordFaultCommand    = "show test records fault"
@@ -144,28 +147,28 @@ func cmdRecordPlugin(_ []string) int {
 		switch command {
 		case recordWalkCommand:
 			return rpc.StatusDone, sdk.Records{
-				Key:  "rows",
+				Key:  recordsKeyRows,
 				Rows: recordRows(recordWalkRows, recordWalkRowBytes, -1),
 			}, nil
 		case recordFaultCommand:
 			return rpc.StatusDone, sdk.Records{
-				Key:  "rows",
+				Key:  recordsKeyRows,
 				Rows: recordRows(recordFaultRows, recordFaultRowBytes, recordFaultIndex),
 			}, nil
 		case recordDocumentCommand:
 			return rpc.StatusDone, sdk.Records{
-				Key:  "rows",
+				Key:  recordsKeyRows,
 				Rows: recordRows(recordDocumentRows, recordDocumentRowBytes, -1),
 			}, nil
 		case recordTableCommand:
 			return rpc.StatusDone, sdk.Records{
-				Key:    "rows",
+				Key:    recordsKeyRows,
 				Fields: recordTableColumns,
 				Rows:   recordColumnRows(recordTableRows, recordTableRowBytes),
 			}, nil
 		case recordObjectCommand:
 			return rpc.StatusDone, sdk.Records{
-				Key:  "rows",
+				Key:  recordsKeyRows,
 				Rows: recordRows(recordTableRows, recordTableRowBytes, -1),
 			}, nil
 		case recordEngineCommand:

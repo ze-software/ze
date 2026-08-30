@@ -98,7 +98,7 @@ func llgrReadvertise09(_ string) Driver {
 				return fmt.Errorf("clear-rib-out failed: %s", clear.text)
 			}
 			fmt.Fprintln(os.Stderr, "OK: mark-stale + clear-rib-out dispatched")
-			if !Poll(ctx, 60, 250*time.Millisecond, func() bool { return routesSent() >= base+1 }) {
+			if !Poll(ctx, 60, 250*time.Millisecond, func() bool { return routesSent() > base }) {
 				return fmt.Errorf("readvertise never reached obsn (routes sent=%d, want %d)", routesSent(), base+1)
 			}
 			return nil
@@ -207,11 +207,11 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer plugin.Close()
+	defer plugin.Close() //nolint:errcheck // fixture teardown
 	var mu sync.Mutex
 	removed := 0
 	plugin.OnFilterUpdate(func(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-		if input.Direction != "export" {
+		if input.Direction != directionExport {
 			return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}, nil
 		}
 		if len(input.Raw) == 0 {
@@ -261,21 +261,21 @@ func rsObserver09(_ string, expectedPeers int, prefix string) Driver {
 		if err != nil {
 			return err
 		}
-		defer plugin.Close()
-		plugin.SetStartupSubscriptions([]string{"update"}, nil, "parsed")
+		defer plugin.Close() //nolint:errcheck // fixture teardown
+		plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
 		plugin.SetEncoding("json")
 		var mu sync.Mutex
 		forwardSeen := prefix == ""
 		plugin.OnEvent(func(event string) error {
 			var decoded map[string]any
 			if json.Unmarshal([]byte(event), &decoded) != nil {
-				return nil
+				return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
 			}
 			bgp := map09(decoded["bgp"])
 			message := map09(bgp["message"])
 			update := map09(bgp["update"])
 			encoded, _ := json.Marshal(update)
-			if message["direction"] == "sent" && update["nlri"] != nil && strings.Contains(string(encoded), prefix) {
+			if message["direction"] == directionSent && update["nlri"] != nil && strings.Contains(string(encoded), prefix) {
 				mu.Lock()
 				forwardSeen = true
 				mu.Unlock()
@@ -433,7 +433,8 @@ func metricsNameShow09(ctx context.Context, _ []string) error {
 		got := ""
 		for _, command := range []string{"show metrics name go_goroutines", "show metrics name"} {
 			r := dispatch09(ctx, p, command)
-			if done09(r) {
+			switch {
+			case done09(r):
 				data := map09(r.data)
 				if _, ok := data["series"]; !ok {
 					return fmt.Errorf("metrics-name: %q bad shape %s", command, r.text)
@@ -441,10 +442,10 @@ func metricsNameShow09(ctx context.Context, _ []string) error {
 				if _, ok := data["metric"]; !ok {
 					return fmt.Errorf("metrics-name: %q bad shape %s", command, r.text)
 				}
-				got = "done"
-			} else if r.status == "error" && strings.Contains(r.text, "metrics not available") {
+				got = statusDone
+			case r.status == statusError && strings.Contains(r.text, "metrics not available"):
 				got = "no-registry"
-			} else {
+			default:
 				return fmt.Errorf("metrics-name: %q did not reach handler: %s", command, r.text)
 			}
 		}
@@ -464,7 +465,7 @@ func metricsLifecycle09(ctx context.Context, _ []string) error {
 		}
 		checks := []string{
 			`ze_peer_sessions_established_total{peer="127.0.0.1"} 1`,
-			`ze_peer_state_transitions_total`, `to="established"`,
+			metricPeerStateTransitions, `to="established"`,
 			`ze_peer_messages_received_total`, `type="keepalive"`, `type="eor"`,
 			`ze_wire_bytes_received_total{peer="127.0.0.1"}`,
 			`ze_wire_bytes_sent_total{peer="127.0.0.1"}`,
@@ -484,15 +485,15 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer plugin.Close()
-	clients := map[string]bool{"127.0.0.2": false, "127.0.0.3": false, "127.0.0.4": false}
+	defer plugin.Close() //nolint:errcheck // fixture teardown
+	clients := map[string]bool{addrLoopbackSecond: false, addrLoopbackThird: false, "127.0.0.4": false}
 	var mu sync.Mutex
-	plugin.SetStartupSubscriptions([]string{"update"}, nil, "parsed")
+	plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
 	plugin.SetEncoding("json")
 	plugin.OnEvent(func(event string) error {
 		var decoded map[string]any
 		if json.Unmarshal([]byte(event), &decoded) != nil {
-			return nil
+			return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
 		}
 		bgp := map09(decoded["bgp"])
 		message := map09(bgp["message"])
@@ -500,7 +501,7 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 		peer := map09(map09(bgp["peer"])["remote"])
 		encoded, _ := json.Marshal(update)
 		address, _ := peer["address"].(string)
-		if message["direction"] == "sent" && update["nlri"] != nil && strings.Contains(string(encoded), "10.0.0.0/24") {
+		if message["direction"] == directionSent && update["nlri"] != nil && strings.Contains(string(encoded), "10.0.0.0/24") {
 			mu.Lock()
 			if _, ok := clients[address]; ok {
 				clients[address] = true

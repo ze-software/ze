@@ -57,9 +57,9 @@ func observer02(name string, scenario ObserverScenario) Driver {
 func command02(ctx context.Context, plugin *sdk.Plugin, command string) (string, json.RawMessage, error) {
 	status, data, err := plugin.DispatchCommand(ctx, command)
 	if err != nil {
-		if status == "error" || strings.HasPrefix(err.Error(), "rpc error:") {
+		if status == statusError || strings.HasPrefix(err.Error(), "rpc error:") {
 			encoded, marshalErr := json.Marshal(err.Error())
-			return "error", encoded, marshalErr
+			return statusError, encoded, marshalErr
 		}
 		return status, nil, err
 	}
@@ -71,7 +71,7 @@ func requireDone02(ctx context.Context, plugin *sdk.Plugin, command string) (jso
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", command, err)
 	}
-	if status != "done" {
+	if status != statusDone {
 		return nil, fmt.Errorf("%s: status=%s data=%s", command, status, data)
 	}
 	return data, nil
@@ -254,7 +254,7 @@ func apiSubscribe02(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if data["namespace"] != "bgp" || data["event"] != "update" {
+	if data["namespace"] != namespaceBGP || data["event"] != eventUpdate {
 		return fmt.Errorf("expected bgp/update, got %v/%v", data["namespace"], data["event"])
 	}
 	fmt.Fprintln(os.Stderr, "OK: subscribed to bgp event update")
@@ -276,7 +276,7 @@ func apiUnsubscribe02(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if data["namespace"] != "bgp" {
+	if data["namespace"] != namespaceBGP {
 		return fmt.Errorf("expected namespace bgp, got %v", data["namespace"])
 	}
 	fmt.Fprintln(os.Stderr, "OK: subscribe+unsubscribe verified")
@@ -308,7 +308,8 @@ func as112Disable02(ctx context.Context, plugin *sdk.Plugin) error {
 
 func listenerBound02(ctx context.Context, address string, attempts int) bool {
 	return Poll(ctx, attempts, 0, func() bool {
-		conn, err := net.DialTimeout("tcp", address, time.Second)
+		dialer := net.Dialer{Timeout: time.Second}
+		conn, err := dialer.DialContext(ctx, "tcp", address)
 		if err != nil {
 			return false
 		}
@@ -354,7 +355,7 @@ func as112DotPKI02(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func checkAS112Health02(status string, raw json.RawMessage, dispatchErr error, command, target string) (bool, error) {
-	if status == "error" {
+	if status == statusError {
 		reason := text02(raw)
 		if dispatchErr != nil {
 			reason = dispatchErr.Error()
@@ -367,7 +368,7 @@ func checkAS112Health02(status string, raw json.RawMessage, dispatchErr error, c
 	if dispatchErr != nil {
 		return false, fmt.Errorf("%s: %w", command, dispatchErr)
 	}
-	if status != "done" {
+	if status != statusDone {
 		return false, fmt.Errorf("%s: unexpected status=%s", command, status)
 	}
 	data, err := map02(raw)
@@ -476,11 +477,11 @@ func deliveryGraph02(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("delivery: expected 3 peers, got %d", len(peers))
 	}
 	fed := peers["127.0.0.1"].Processes
-	if len(fed) != 1 || fed[0].Process != "delivery-graph-test" || len(fed[0].Receive) != 1 || fed[0].Receive[0] != "state" || len(fed[0].Send) != 0 {
+	if len(fed) != 1 || fed[0].Process != "delivery-graph-test" || len(fed[0].Receive) != 1 || fed[0].Receive[0] != eventState || len(fed[0].Send) != 0 {
 		return fmt.Errorf("delivery: peer1 edges are %v", fed)
 	}
 	sender := peers["192.0.2.9"].Processes
-	if len(sender) != 1 || len(sender[0].Send) != 1 || sender[0].Send[0] != "update" || len(sender[0].Receive) != 0 {
+	if len(sender) != 1 || len(sender[0].Send) != 1 || sender[0].Send[0] != eventUpdate || len(sender[0].Receive) != 0 {
 		return fmt.Errorf("delivery: peer2 edges are %v", sender)
 	}
 	if len(peers["192.0.2.10"].Processes) != 0 {
@@ -522,7 +523,7 @@ func bestpathReason02(ctx context.Context, plugin *sdk.Plugin) error {
 		for _, value := range entries {
 			entry, _ := value.(map[string]any)
 			candidates, _ := entry["candidates"].([]any)
-			if entry["prefix"] == "10.1.0.0/24" && len(candidates) >= 2 {
+			if entry["prefix"] == prefixTenOne && len(candidates) >= 2 {
 				chosen = entry
 				return true
 			}
@@ -574,7 +575,7 @@ func bfdAuthSHA102(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if session["peer"] != "203.0.113.9" || session["profile"] != "fast-auth" {
+	if session["peer"] != addrTestNet3Nine || session["profile"] != "fast-auth" {
 		return fmt.Errorf("unexpected session: %v", session)
 	}
 	if int02(session["tx-packets"]) == 0 {

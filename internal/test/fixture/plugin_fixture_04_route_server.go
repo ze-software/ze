@@ -15,21 +15,21 @@ import (
 func summaryFlat04(ctx context.Context, p *sdk.Plugin) error {
 	_, value, err := pollCommand04(ctx, p, 40, "show bgp", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
-		peer := findPeer04(data, "127.0.0.1")
-		return status == "done" && peer != nil && peer["state"] == "established"
+		peer := findPeer04(data)
+		return status == statusDone && peer != nil && peer["state"] == stateEstablished
 	})
 	if err != nil {
 		return err
 	}
 	data, _ := value.(map[string]any)
-	peer := findPeer04(data, "127.0.0.1")
-	if peer == nil || peer["state"] != "established" {
+	peer := findPeer04(data)
+	if peer == nil || peer["state"] != stateEstablished {
 		return fmt.Errorf("the peer never reached established: %v", data)
 	}
 	if _, ok := data["summary"]; ok {
 		return fmt.Errorf("the summary envelope is back")
 	}
-	for _, key := range []string{"router-id", "local-as", "uptime", "peers-configured", "peers-established"} {
+	for _, key := range []string{fieldRouterID, fieldLocalAS, columnUptime, fieldPeersConfigured, fieldPeersEstablished} {
 		if _, ok := data[key]; !ok {
 			return fmt.Errorf("%s is not a top-level key", key)
 		}
@@ -37,7 +37,7 @@ func summaryFlat04(ctx context.Context, p *sdk.Plugin) error {
 	if _, ok := data["peers"].([]any); !ok {
 		return fmt.Errorf("peers is %T, want a list beside the aggregates", data["peers"])
 	}
-	for _, key := range []string{"family", "peers-in-family"} {
+	for _, key := range []string{fieldFamily, "peers-in-family"} {
 		if _, ok := data[key]; ok {
 			return fmt.Errorf("%s appeared without a family filter", key)
 		}
@@ -49,10 +49,10 @@ func summaryFlat04(ctx context.Context, p *sdk.Plugin) error {
 	if _, ok := filtered["summary"]; ok {
 		return fmt.Errorf("the summary envelope is back under a filter")
 	}
-	if filtered["family"] != "ipv4/unicast" || number04(filtered["peers-in-family"]) != 1 {
+	if filtered["family"] != familyIPv4Unicast || number04(filtered["peers-in-family"]) != 1 {
 		return fmt.Errorf("filtered family/count = %v/%v, want ipv4/unicast/1", filtered["family"], filtered["peers-in-family"])
 	}
-	for _, key := range []string{"router-id", "local-as", "uptime", "peers-configured", "peers-established"} {
+	for _, key := range []string{fieldRouterID, fieldLocalAS, columnUptime, fieldPeersConfigured, fieldPeersEstablished} {
 		if _, ok := filtered[key]; !ok {
 			return fmt.Errorf("%s left the filtered record", key)
 		}
@@ -64,14 +64,14 @@ func summaryFlat04(ctx context.Context, p *sdk.Plugin) error {
 func summaryCounts04(ctx context.Context, p *sdk.Plugin) error {
 	_, value, err := pollCommand04(ctx, p, 100, "show bgp", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
-		peer := findPeer04(data, "127.0.0.1")
-		return status == "done" && peer != nil && number04(peer["routes-received"]) >= 1 && number04(peer["eor-sent"]) >= 1
+		peer := findPeer04(data)
+		return status == statusDone && peer != nil && number04(peer["routes-received"]) >= 1 && number04(peer["eor-sent"]) >= 1
 	})
 	if err != nil {
 		return err
 	}
 	data, _ := value.(map[string]any)
-	peer := findPeer04(data, "127.0.0.1")
+	peer := findPeer04(data)
 	if peer == nil {
 		return errors.New("127.0.0.1 not in summary peers")
 	}
@@ -92,7 +92,7 @@ func summaryCounts04(ctx context.Context, p *sdk.Plugin) error {
 	}
 	_, _, err = pollCommand04(ctx, p, 100, "show bgp", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
-		return status == "done" && number04(findPeer04(data, "127.0.0.1")["routes-received"]) >= 2
+		return status == statusDone && number04(findPeer04(data)["routes-received"]) >= 2
 	})
 	if err != nil {
 		return err
@@ -105,10 +105,10 @@ func summaryCounts04(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if number04(findPeer04(both, "127.0.0.1")["routes-received"]) != 2 {
+	if number04(findPeer04(both)["routes-received"]) != 2 {
 		return fmt.Errorf("all-family routes-received is not 2: %v", both)
 	}
-	if number04(findPeer04(v4, "127.0.0.1")["routes-received"]) != 1 {
+	if number04(findPeer04(v4)["routes-received"]) != 1 {
 		return fmt.Errorf("ipv4/unicast routes-received is not 1: %v", v4)
 	}
 	fmt.Fprintln(os.Stderr, "OK: summary route counts merged and family scoped")
@@ -124,16 +124,16 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 		if err != nil {
 			return err
 		}
-		defer p.Close()
+		defer p.Close() //nolint:errcheck // fixture teardown
 		events := make(chan string, expected+16)
 		p.OnEvent(func(event string) error {
 			var decoded map[string]any
 			if json.Unmarshal([]byte(event), &decoded) != nil {
-				return nil
+				return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
 			}
 			bgp, _ := decoded["bgp"].(map[string]any)
 			message, _ := bgp["message"].(map[string]any)
-			if message["direction"] != "sent" {
+			if message["direction"] != directionSent {
 				return nil
 			}
 			if !requireReplay && prefix != "" && !strings.Contains(event, prefix) {
@@ -145,7 +145,7 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 			}
 			return nil
 		})
-		p.SetStartupSubscriptions([]string{"update"}, nil, "parsed")
+		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
 		result := make(chan error, 1)
 		p.OnAllPluginsReady(func() error {
 			go func() {

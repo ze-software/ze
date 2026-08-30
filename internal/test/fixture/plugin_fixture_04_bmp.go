@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -82,7 +83,8 @@ func bmpPeerUp04() []byte {
 
 func bgpUpdate04() []byte {
 	attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x40, 3, 4, 10, 0, 0, 100}
-	body := []byte{0, 0, 0, byte(len(attrs))}
+	body := make([]byte, 0, 4+len(attrs)+4)
+	body = append(body, 0, 0, 0, byte(len(attrs)))
 	body = append(body, attrs...)
 	body = append(body, 24, 10, 0, 0)
 	out := bytes.Repeat([]byte{0xff}, 16)
@@ -100,21 +102,22 @@ func bmpPeerDown04() []byte {
 	return bmpHeader04(2, append(bmpPeerHeader04(), 5))
 }
 
-func connectBMP04(args []string) (net.Conn, error) {
+func connectBMP04(ctx context.Context, args []string) (net.Conn, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("usage: fixture requires BMP port")
 	}
-	return net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", args[0]), 5*time.Second)
+	dialer := net.Dialer{Timeout: 5 * time.Second}
+	return dialer.DialContext(ctx, "tcp", net.JoinHostPort("127.0.0.1", args[0]))
 }
 
 func withBMP04(fn func(context.Context, *sdk.Plugin, net.Conn) error) Driver {
 	return func(ctx context.Context, args []string) error {
 		return Observe(ctx, "fixture-bmp-04", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
-			conn, err := connectBMP04(args)
+			conn, err := connectBMP04(ctx, args)
 			if err != nil {
 				return err
 			}
-			defer conn.Close()
+			defer conn.Close() //nolint:errcheck // fixture teardown
 			return fn(ctx, p, conn)
 		})
 	}
@@ -129,9 +132,12 @@ func writeBMP04(conn net.Conn, messages ...[]byte) error {
 	return nil
 }
 
-func containsPrefix04(value any, prefix string) bool {
+// injectedPrefix04 is the prefix these BMP fixtures announce and then look for.
+const injectedPrefix04 = "10.0.0.0"
+
+func containsPrefix04(value any) bool {
 	encoded, _ := json.Marshal(value)
-	return strings.Contains(string(encoded), prefix)
+	return strings.Contains(string(encoded), injectedPrefix04)
 }
 
 func hasRoute04(value any) bool {
@@ -146,10 +152,8 @@ func hasRoute04(value any) bool {
 			}
 		}
 	case []any:
-		for _, child := range v {
-			if hasRoute04(child) {
-				return true
-			}
+		if slices.ContainsFunc(v, hasRoute04) {
+			return true
 		}
 	}
 	return false
@@ -160,12 +164,12 @@ var bmpIngest04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.Co
 		return err
 	}
 	_, value, err := pollCommand04(ctx, p, 100, "show bmp rib", func(status string, value any) bool {
-		return status == "done" && containsPrefix04(value, "10.0.0.0")
+		return status == statusDone && containsPrefix04(value)
 	})
 	if err != nil {
 		return err
 	}
-	if !containsPrefix04(value, "10.0.0.0") {
+	if !containsPrefix04(value) {
 		return fmt.Errorf("route 10.0.0.0/24 not found in show bmp rib: %v", value)
 	}
 	fmt.Fprintln(os.Stderr, "PASS: BMP route 10.0.0.0/24 found in show bmp rib")
@@ -177,7 +181,7 @@ var bmpBestpath04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.
 		return err
 	}
 	_, value, err := pollCommand04(ctx, p, 100, "show bmp rib", func(status string, value any) bool {
-		return status == "done" && hasRoute04(value)
+		return status == statusDone && hasRoute04(value)
 	})
 	if err != nil {
 		return err
@@ -189,14 +193,14 @@ var bmpBestpath04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.
 	if err != nil {
 		return err
 	}
-	if containsPrefix04(bgpRIB, "10.0.0.0") {
+	if containsPrefix04(bgpRIB) {
 		return errors.New("BMP route leaked into bgp rib show")
 	}
 	_, best, err := command04(ctx, p, "show bgp rib best")
 	if err != nil {
 		return err
 	}
-	if containsPrefix04(best, "10.0.0.0") {
+	if containsPrefix04(best) {
 		return errors.New("BMP route appeared in best-path")
 	}
 	fmt.Fprintln(os.Stderr, "PASS: BMP routes isolated from best-path selection")
@@ -208,7 +212,7 @@ var bmpDisconnect04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn ne
 		return err
 	}
 	_, value, err := pollCommand04(ctx, p, 100, "show bmp rib", func(status string, value any) bool {
-		return status == "done" && hasRoute04(value)
+		return status == statusDone && hasRoute04(value)
 	})
 	if err != nil || !hasRoute04(value) {
 		return errors.Join(err, errors.New("no routes before disconnect"))
@@ -217,7 +221,7 @@ var bmpDisconnect04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn ne
 		return err
 	}
 	_, value, err = pollCommand04(ctx, p, 100, "show bmp rib", func(status string, value any) bool {
-		return status == "done" && !hasRoute04(value)
+		return status == statusDone && !hasRoute04(value)
 	})
 	if err != nil {
 		return err
@@ -238,7 +242,7 @@ var bmpMessages04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.
 		for _, peer := range mapSlice04(data["peers"]) {
 			up, _ := peer["up"].(bool)
 			if number04(peer["peer-as"]) == 65001 && !up {
-				return status == "done"
+				return status == statusDone
 			}
 		}
 		return false
@@ -252,7 +256,7 @@ var bmpMessages04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.
 		up, _ := peer["up"].(bool)
 		down = down || (number04(peer["peer-as"]) == 65001 && !up)
 	}
-	if status != "done" || !down {
+	if status != statusDone || !down {
 		return errors.New("bmp peer-down never reflected in show bmp peers")
 	}
 	if err := conn.Close(); err != nil {
@@ -260,7 +264,7 @@ var bmpMessages04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.
 	}
 	_, _, _ = pollCommand04(ctx, p, 100, "show bmp sessions", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
-		return status == "done" && len(mapSlice04(data["sessions"])) == 0
+		return status == statusDone && len(mapSlice04(data["sessions"])) == 0
 	})
 	return nil
 })
@@ -272,11 +276,12 @@ func bmpReceiverSessionDriver04(ctx context.Context, args []string) error {
 	port := args[0]
 	return Observe(ctx, "fixture-bmp-receiver-session-04", sdk.Registration{}, func(ctx context.Context, _ *sdk.Plugin) error {
 		if !Poll(ctx, 100, 200*time.Millisecond, func() bool {
-			conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", port), time.Second)
+			dialer := net.Dialer{Timeout: time.Second}
+			conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort("127.0.0.1", port))
 			if err != nil {
 				return false
 			}
-			conn.Close()
+			conn.Close() //nolint:errcheck // fixture teardown
 			return true
 		}) {
 			return fmt.Errorf("BMP receiver never listened on port %s", port)
@@ -291,14 +296,14 @@ var bmpSessions04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.
 	}
 	status, value, err := pollCommand04(ctx, p, 40, "show bmp sessions", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
-		return status == "done" && len(mapSlice04(data["sessions"])) > 0
+		return status == statusDone && len(mapSlice04(data["sessions"])) > 0
 	})
 	if err != nil {
 		return err
 	}
 	data, _ := value.(map[string]any)
 	sessions := mapSlice04(data["sessions"])
-	if status != "done" || len(sessions) == 0 {
+	if status != statusDone || len(sessions) == 0 {
 		return fmt.Errorf("expected non-empty session list: %v", value)
 	}
 	if _, a := sessions[0]["sys-name"]; !a {
@@ -309,7 +314,7 @@ var bmpSessions04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.
 		}
 	}
 	status, _, err = command04(ctx, p, "show bmp collectors")
-	if err != nil || status != "done" {
+	if err != nil || status != statusDone {
 		return fmt.Errorf("show bmp collectors status=%s: %w", status, err)
 	}
 	fmt.Fprintf(os.Stderr, "PASS: show bmp sessions returned %d session(s)\n", len(sessions))
@@ -325,7 +330,7 @@ func configuredBMPMarker04(ctx context.Context, p *sdk.Plugin) (string, error) {
 	_, value, err := pollCommand04(ctx, p, 100, "show bmp collectors", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
 		collectors := mapSlice04(data["collectors"])
-		return status == "done" && len(collectors) > 0 && number04(collectors[0]["port"]) > 0
+		return status == statusDone && len(collectors) > 0 && number04(collectors[0]["port"]) > 0
 	})
 	if err != nil {
 		return "", err
@@ -341,7 +346,7 @@ func markerObserver04(_ bool, attempts int, delay time.Duration) ObserverScenari
 		if err != nil {
 			return err
 		}
-		defer os.Remove(marker) //nolint:errcheck
+		defer os.Remove(marker) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
 		if !Poll(ctx, attempts, delay, func() bool {
 			_, err := os.Stat(marker)
 			return err == nil
@@ -364,21 +369,23 @@ func bmpCollector04(mode string) Driver {
 		if err := os.Remove(marker); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("remove stale collector marker: %w", err)
 		}
-		listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", args[0]))
+		listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("127.0.0.1", args[0]))
 		if err != nil {
 			return err
 		}
-		defer listener.Close()
+		defer listener.Close() //nolint:errcheck // fixture teardown
 		fmt.Fprintf(os.Stderr, "BMP-COLLECTOR: listening on %s\n", args[0])
 		if tcp, ok := listener.(*net.TCPListener); ok {
-			tcp.SetDeadline(time.Now().Add(15 * time.Second))
+			if err := tcp.SetDeadline(time.Now().Add(15 * time.Second)); err != nil {
+				return fmt.Errorf("set the collector accept deadline: %w", err)
+			}
 		}
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "BMP-COLLECTOR: invalid-pdu: no connection accepted before timeout")
 			return err
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck // fixture teardown
 		_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 		valid := false
 		for {

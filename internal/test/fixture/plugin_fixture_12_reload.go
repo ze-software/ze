@@ -13,7 +13,7 @@ import (
 )
 
 func p12ReloadTrigger(ctx context.Context, _ []string) error {
-	for _, path := range []string{"daemon.pid", "daemon.ready", "observer.initial-ok"} {
+	for _, path := range []string{fileDaemonPID, fileDaemonReady, "observer.initial-ok"} {
 		if err := p12WaitForFile(ctx, path); err != nil {
 			return err
 		}
@@ -24,7 +24,7 @@ func p12ReloadTrigger(ctx context.Context, _ []string) error {
 	if err := p12SignalDaemon("daemon.pid"); err != nil {
 		return err
 	}
-	return os.WriteFile("reload.done", nil, 0o644)
+	return os.WriteFile("reload.done", nil, 0o600)
 }
 
 func p12WaitForFile(ctx context.Context, path string) error {
@@ -43,18 +43,18 @@ func p12WaitForFile(ctx context.Context, path string) error {
 }
 
 func p12CopyFile(source, destination string) error {
-	data, err := os.ReadFile(source)
+	data, err := os.ReadFile(source) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read %s: %w", source, err)
 	}
-	if err := os.WriteFile(destination, data, 0o644); err != nil {
+	if err := os.WriteFile(destination, data, 0o600); err != nil {
 		return fmt.Errorf("write %s: %w", destination, err)
 	}
 	return nil
 }
 
 func p12SignalDaemon(path string) error {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func p12ReloadL2TP(field string, beforeWant, afterWant int) p12Scenario {
 	return func(ctx context.Context, plugin *sdk.Plugin) error {
 		read := func() (int, bool) {
 			status, data, err := p12DispatchObject(ctx, plugin, "show l2tp config")
-			if err != nil || status != "done" {
+			if err != nil || status != statusDone {
 				return 0, false
 			}
 			value, exists := data[field]
@@ -92,7 +92,7 @@ func p12ReloadL2TP(field string, beforeWant, afterWant int) p12Scenario {
 		if before != beforeWant {
 			return fmt.Errorf("before SIGHUP: %s=%d want %d", field, before, beforeWant)
 		}
-		if err := os.WriteFile("observer.initial-ok", []byte("ok"), 0o644); err != nil {
+		if err := os.WriteFile("observer.initial-ok", []byte("ok"), 0o600); err != nil {
 			return fmt.Errorf("write observer.initial-ok: %w", err)
 		}
 		if !Poll(ctx, 100, 100*time.Millisecond, func() bool {

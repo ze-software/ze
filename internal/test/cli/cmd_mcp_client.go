@@ -80,8 +80,10 @@ const (
 	methodToolsCall = "tools/call"
 	methodToolsList = "tools/list"
 	keyName         = "name"
-	keyTaskID       = "taskId"
-	keyError        = "error"
+	// toolCallArguments is the tools/call parameter that carries the tool arguments.
+	toolCallArguments = "arguments"
+	keyTaskID         = "taskId"
+	keyError          = "error"
 
 	// Multi Round-Trip Requests (basic/patterns/mrtr). An InputRequiredResult
 	// carries inputRequests. The client answers when it retries the ORIGINAL

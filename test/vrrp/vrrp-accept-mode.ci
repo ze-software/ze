@@ -1,0 +1,89 @@
+# Test: RFC 9568 Accept_Mode reaches the dataplane. An Active router that is not
+# the address owner accepts packets addressed to its virtual address only when
+# the operator sets accept-mode true, and never otherwise.
+#
+# VALIDATES:
+#   RFC 9568 Section 6.4.3 -- "It MUST accept packets addressed to the IPvX
+#   address(es) associated with the Virtual Router if it is the IPvX address
+#   owner or if Accept_Mode is True. Otherwise, it MUST NOT accept these
+#   packets." The group here owns no virtual address (the parent holds
+#   198.51.100.251, the group backs 198.51.100.1), so the leaf alone decides.
+#   The proof is a UDP datagram sent to the virtual address on this host: a
+#   packet addressed to a local address goes through the input hook, so a
+#   listener bound to that address receives it exactly when the router accepts.
+#   VIP-NOT-ACCEPTED and VIP-ACCEPTED are that observation, and the test flips
+#   the leaf back to false so acceptance is proven to follow the leaf in both
+#   directions rather than only to be switched on once.
+#
+#   RFC 9568 Section 6.4.3 -- the Active router still answers ARP for the virtual
+#   address, which on Linux follows from the address being installed. So the
+#   suppression is not "do not install the address": ACTIVE-WITH-VIP reads the
+#   address back off the virtual-MAC macvlan while the router is refusing traffic
+#   for it.
+#
+#   RFC 9568 Section 6.1 -- IPv6 Neighbor Solicitations and Advertisements MUST
+#   NOT be dropped when Accept_Mode is False. ND-CARVE-OUT-BEFORE-DROP reads the
+#   kernel rules and proves both ICMPv6 accepts sit ahead of the address drop,
+#   which is where they have to be: the first matching rule takes the verdict.
+#
+#   Teardown -- removing the group takes the rules away with the address.
+#   TEARDOWN-COMPLETE proves no drop rule outlives the group that asked for it,
+#   which would silence the virtual address for whatever runs next.
+#
+# PREVENTS: the defect this test was written against, in which accept-mode
+#   reached config parsing, the version rule and the show snapshot and nothing
+#   else, so an Active ze router answered on the virtual address whichever way
+#   the operator set the leaf. Also a filter that never withdraws, and a carve-out
+#   placed after the drop, where it would do nothing.
+#
+# option=needs-linux: the proof needs macvlan creation, netlink address install
+# and a real nftables ruleset. None of them exists on darwin. Runs as root in the
+# QEMU Linux VM.
+# caps=net-admin because the setup fixture creates the veth parent and the daemon
+# programs netlink and nftables. Without the declaration an unprivileged Linux
+# host does not skip: the calls are refused and the test fails for a capability
+# the host never had (internal/test/runner/record_parse.go, option=needs-linux).
+option=needs-linux:caps=net-admin
+# option=exclusive: reconcileOwnedDevices (iface/config_apply.go) deletes every
+# "ze:owned:" macvlan absent from ITS registry, so two ze daemons owning macvlans
+# in one network namespace remove each other's devices. The group is named for
+# the resource rather than for vrrp: any plugin registering an owned macvlan
+# contends for the same alias namespace.
+option=exclusive:group=iface-owned-macvlan
+
+
+stdin=ze-bgp:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet zeptam0 {
+		unit 0 {
+			ipv4 {
+				address [ 198.51.100.251/24 ];
+				vrrp {
+					group lab {
+						vrid 11;
+						virtual-address [ 198.51.100.1 ];
+						priority 200;
+						accept-mode false;
+						advertise-interval-milliseconds 1000;
+					}
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.vrrp:value=info
+
+cmd=foreground:seq=1:exec=ze-test fixture vrrp/vrrp-accept-mode-setup
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=ze-test fixture vrrp/vrrp-accept-mode-driver:timeout=120s
+expect=exit:code=0
+expect=stdout:contains=ACTIVE-WITH-VIP
+expect=stdout:contains=ND-CARVE-OUT-BEFORE-DROP
+expect=stdout:contains=VIP-NOT-ACCEPTED accept-mode-false
+expect=stdout:contains=VIP-ACCEPTED accept-mode-true
+expect=stdout:contains=VIP-NOT-ACCEPTED accept-mode-false-again
+expect=stdout:contains=TEARDOWN-COMPLETE
+expect=stderr:contains=vrrp: state change

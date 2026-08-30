@@ -10,7 +10,7 @@ import (
 )
 
 func plugin01AdjRIBInQuery(ctx context.Context, plugin *sdk.Plugin) error {
-	if _, ok := plugin01TotalRoutes(ctx, plugin, 40); !ok {
+	if !plugin01TotalRoutes(ctx, plugin, 40) {
 		data, status, err := plugin01DispatchMap(ctx, plugin, "show bgp adj-rib-in status")
 		if err != nil {
 			return fmt.Errorf("adj-rib-in stored no inbound route: status=%q data=%v error=%w", status, data, err)
@@ -40,7 +40,7 @@ func plugin01ReplaySetup(ctx context.Context, plugin *sdk.Plugin, peers int, sou
 	if err := plugin01Quiesce(ctx, plugin); err != nil {
 		return err
 	}
-	if _, ok := plugin01TotalRoutes(ctx, plugin, attempts/2); !ok {
+	if !plugin01TotalRoutes(ctx, plugin, attempts/2) {
 		return errors.New("adj-rib-in stored no route from the source peer")
 	}
 	return nil
@@ -61,7 +61,7 @@ func plugin01ReplayOne(ctx context.Context, plugin *sdk.Plugin, peer string) err
 
 func plugin01ReplayAddPath(ctx context.Context, plugin *sdk.Plugin) error {
 	const source = "127.0.0.1"
-	destinations := []string{"127.0.0.2", "127.0.0.3"}
+	destinations := []string{addrLoopbackSecond, addrLoopbackThird}
 	if err := plugin01ReplaySetup(ctx, plugin, 3, source,
 		"update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 192.0.2.0/24", 40); err != nil {
 		return err
@@ -140,7 +140,7 @@ func plugin01ReplayUnownedPeer(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin01Quiesce(ctx, plugin); err != nil {
 		return err
 	}
-	if _, ok := plugin01TotalRoutes(ctx, plugin, 20); !ok {
+	if !plugin01TotalRoutes(ctx, plugin, 20) {
 		return errors.New("adj-rib-in stored no route from the source peer")
 	}
 	fmt.Fprintln(os.Stderr, "OK: the source route is stored")

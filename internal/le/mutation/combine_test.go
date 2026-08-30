@@ -32,8 +32,8 @@ func TestCombineNoReportsLeavesExistingOutputUntouched(t *testing.T) {
 
 func TestCombineOrdersReportsPreservesResultsAndPinsOutputBytes(t *testing.T) {
 	root := t.TempDir()
-	mustWriteMutationFile(t, filepath.Join(root, "tmp/mutation-report-z.json"), []byte(`{"results":[{"status":"KILLED","n":1.2300}]}`))
-	mustWriteMutationFile(t, filepath.Join(root, "tmp/mutation-report-a.json"), []byte(`{"results":[{"status":"SURVIVED","label":"é","mutant":{"filePath":"internal/a.go"}}]}`))
+	mustWriteMutationFile(t, filepath.Join(root, "tmp", "mutation-report-z.json"), []byte(`{"results":[{"status":"KILLED","n":1.2300}]}`))
+	mustWriteMutationFile(t, filepath.Join(root, "tmp", "mutation-report-a.json"), []byte(`{"results":[{"status":"SURVIVED","label":"é","mutant":{"filePath":"internal/a.go"}}]}`))
 
 	report, err := Combine(root)
 	if err != nil {
@@ -111,7 +111,7 @@ func TestCombineFailureKeepsEveryInputAndPublishedReport(t *testing.T) {
 }
 func TestCombineReportsWithNoResultsUseIntegerZeroScore(t *testing.T) {
 	root := t.TempDir()
-	mustWriteMutationFile(t, filepath.Join(root, "tmp/mutation-report-empty.json"), []byte(`{}`))
+	mustWriteMutationFile(t, filepath.Join(root, "tmp", "mutation-report-empty.json"), []byte(`{}`))
 
 	report, err := Combine(root)
 	if err != nil {
@@ -140,7 +140,7 @@ func TestCombineReportsWithNoResultsUseIntegerZeroScore(t *testing.T) {
 
 func TestCombineRejectsResultWithoutStatusBeforeCleanup(t *testing.T) {
 	root := t.TempDir()
-	input := filepath.Join(root, "tmp/mutation-report-a.json")
+	input := filepath.Join(root, "tmp", "mutation-report-a.json")
 	mustWriteMutationFile(t, input, []byte(`{"results":[{}]}`))
 
 	_, err := Combine(root)

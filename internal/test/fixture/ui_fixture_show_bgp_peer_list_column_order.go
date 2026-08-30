@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,7 +20,7 @@ import (
 
 const peerListColumnOrderFixture = "ui/show-bgp-peer-list-column-order"
 
-var peerListOrder = []string{"name", "group", "remote-as", "state", "uptime"}
+var peerListOrder = []string{columnName, columnGroup, columnRemoteAS, columnState, columnUptime}
 
 func init() {
 	Register(peerListColumnOrderFixture, uiDriver(runShowBGPPeerListColumnOrder))
@@ -60,12 +61,12 @@ type nativeFixture struct{}
 
 // Dispatch runs a compiled product command and captures all of its observable
 // process results without involving a command shell.
-func (nativeFixture) Dispatch(ctx context.Context, argv []string, env []string, stdin io.Reader) (uiShowBgpPeerListColumnOrderCommandResult, error) {
+func (nativeFixture) Dispatch(ctx context.Context, argv, env []string, stdin io.Reader) (uiShowBgpPeerListColumnOrderCommandResult, error) {
 	if len(argv) == 0 {
 		return uiShowBgpPeerListColumnOrderCommandResult{}, errors.New("cannot dispatch an empty command")
 	}
 
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 	cmd.Stdin = stdin
 
@@ -83,8 +84,7 @@ func (nativeFixture) Dispatch(ctx context.Context, argv []string, env []string, 
 		return result, nil
 	}
 
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.ExitCode = exitErr.ExitCode()
 		return result, nil
 	}
@@ -93,13 +93,13 @@ func (nativeFixture) Dispatch(ctx context.Context, argv []string, env []string, 
 
 // Observe starts a compiled product process and retains its output and exit
 // state so readiness polling can fail immediately if the process exits.
-func (nativeFixture) Observe(ctx context.Context, argv []string, env []string) (*observation, error) {
+func (nativeFixture) Observe(ctx context.Context, argv, env []string) (*observation, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("cannot observe an empty command")
 	}
 
 	o := &observation{done: make(chan struct{})}
-	o.cmd = exec.CommandContext(ctx, argv[0], argv[1:]...)
+	o.cmd = exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	o.cmd.Env = env
 	o.cmd.Stdout = &o.stdout
 	o.cmd.Stderr = &o.stderr
@@ -117,7 +117,7 @@ func (nativeFixture) Observe(ctx context.Context, argv []string, env []string) (
 // Poll performs exactly attempts observations, waiting delay only between
 // unsuccessful observations.
 func (nativeFixture) Poll(ctx context.Context, attempts int, delay time.Duration, observe func() (bool, error)) (bool, error) {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		ready, err := observe()
 		if err != nil {
 			return false, err
@@ -209,9 +209,9 @@ system {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(cwd)
+	defer os.RemoveAll(cwd) //nolint:errcheck // fixture cleanup
 	configPath := filepath.Join(cwd, "peers.conf")
-	if err := os.WriteFile(configPath, []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write peers.conf: %w", err)
 	}
 	sshAddressFile, err := absolutePath(cwd, "ssh.addr")
@@ -230,10 +230,10 @@ system {
 		return err
 	}
 	daemonEnv := replaceEnvironment(baseEnv,
-		environmentValue{"ZE_SSH_EPHEMERAL", sshAddressFile},
-		environmentValue{"ZE_READY_FILE", readyFile},
-		environmentValue{"ZE_CONFIG_DIR", cwd},
-		environmentValue{"ze_test_bgp_port", strconv.Itoa(bgpPort)},
+		environmentValue{envSSHEphemeral, sshAddressFile},
+		environmentValue{envReadyFile, readyFile},
+		environmentValue{envConfigDir, cwd},
+		environmentValue{envTestBGPPort, strconv.Itoa(bgpPort)},
 	)
 
 	daemon, err := fixture.Observe(ctx, []string{"ze", "-f", configPath}, daemonEnv)
@@ -263,7 +263,7 @@ system {
 		return errors.New("daemon did not become ready")
 	}
 
-	addressBytes, err := os.ReadFile(sshAddressFile)
+	addressBytes, err := os.ReadFile(sshAddressFile) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh address: %w", err)
 	}
@@ -275,14 +275,14 @@ system {
 	host, port := address[:colon], address[colon+1:]
 
 	cliEnv := replaceEnvironment(baseEnv,
-		environmentValue{"ZE_SSH_HOST", host},
-		environmentValue{"ZE_SSH_PORT", port},
-		environmentValue{"ZE_SSH_USERNAME", "ci"},
-		environmentValue{"ZE_SSH_PASSWORD", "secret"},
-		environmentValue{"ZE_CONFIG_DIR", cwd},
+		environmentValue{envSSHHost, host},
+		environmentValue{envSSHPort, port},
+		environmentValue{envSSHUsername, "ci"},
+		environmentValue{envSSHPassword, valueSecret},
+		environmentValue{envConfigDir, cwd},
 	)
 
-	table, err := fixture.Dispatch(ctx, []string{"ze", "cli", "-c", "show bgp peer list | table"}, cliEnv, nil)
+	table, err := fixture.Dispatch(ctx, []string{"ze", areaCLI, "-c", "show bgp peer list | table"}, cliEnv, nil)
 	if err != nil {
 		return fmt.Errorf("run show bgp peer list | table: %w", err)
 	}
@@ -295,7 +295,7 @@ system {
 
 	// remote-as identifies the header row unambiguously: no cell carries it.
 	var header []string
-	for _, line := range strings.Split(table.Stdout, "\n") {
+	for line := range strings.SplitSeq(table.Stdout, "\n") {
 		if strings.Contains(line, "remote-as") {
 			header = strings.Fields(strings.ReplaceAll(line, "│", " "))
 			break
@@ -325,7 +325,7 @@ system {
 
 	// A program reads the YAML rendering, so the declared display order must
 	// not have reached it.
-	yaml, err := fixture.Dispatch(ctx, []string{"ze", "cli", "-c", "show bgp peer list | yaml"}, cliEnv, nil)
+	yaml, err := fixture.Dispatch(ctx, []string{"ze", areaCLI, "-c", "show bgp peer list | yaml"}, cliEnv, nil)
 	if err != nil {
 		return fmt.Errorf("run show bgp peer list | yaml: %w", err)
 	}
@@ -349,7 +349,7 @@ system {
 }
 
 func absolutePath(cwd, name string) (string, error) {
-	path := cwd + string(os.PathSeparator) + name
+	path := filepath.Join(cwd, name)
 	absolute, err := os.Stat(cwd)
 	if err != nil {
 		return "", fmt.Errorf("stat working directory: %w", err)
@@ -379,8 +379,8 @@ func replaceEnvironment(base []string, values ...environmentValue) []string {
 	env := make([]string, 0, len(base)+len(values))
 	for _, entry := range base {
 		key := entry
-		if at := strings.IndexByte(entry, '='); at >= 0 {
-			key = entry[:at]
+		if before, _, found := strings.Cut(entry, "="); found {
+			key = before
 		}
 		if _, replace := replacements[key]; !replace {
 			env = append(env, entry)
@@ -393,12 +393,7 @@ func replaceEnvironment(base []string, values ...environmentValue) []string {
 }
 
 func uiShowBgpPeerListColumnOrderContainsString(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, wanted)
 }
 
 func uiShowBgpPeerListColumnOrderEqualStrings(left, right []string) bool {

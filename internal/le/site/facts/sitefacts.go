@@ -266,7 +266,7 @@ func liveFacts() map[string]live {
 		},
 		"config_sections": {
 			Category: categoryBuiltBinary,
-			Source:   "ze yang tree --json --config, run against the ze the site build found",
+			Source:   `ze cli -c "show yang tree --config | json", run against the ze the site build found`,
 		},
 	}
 }

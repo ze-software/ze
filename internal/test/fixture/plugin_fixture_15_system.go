@@ -79,7 +79,7 @@ func plugin15SubsystemList(ctx context.Context, p *sdk.Plugin) error {
 		if !ok {
 			return fmt.Errorf("subsystem-list: entry is not a dict: %v", value)
 		}
-		for _, field := range []string{"name", "stage", "running", "command-count"} {
+		for _, field := range []string{fieldName, fieldStage, "running", "command-count"} {
 			if _, ok := subsystem[field]; !ok {
 				return fmt.Errorf("subsystem-list: missing field %q in %v", field, subsystem)
 			}
@@ -108,12 +108,8 @@ func plugin15SysctlDescribe(ctx context.Context, p *sdk.Plugin) error {
 	if !plugin15Done(show) {
 		return fmt.Errorf("sysctl show: status=%s", show.status)
 	}
-	entries, err := plugin15Slice(show)
-	if err != nil {
+	if _, err := plugin15Slice(show); err != nil {
 		return fmt.Errorf("sysctl show: expected list: %w", err)
-	}
-	if entries == nil {
-		entries = []any{}
 	}
 	keysResult := plugin15Dispatch(ctx, p, "show sysctl keys")
 	if !plugin15Done(keysResult) {
@@ -160,7 +156,7 @@ func plugin15SysctlList(ctx context.Context, p *sdk.Plugin) error {
 		if !ok {
 			return fmt.Errorf("sysctl list: entry is not dict: %v", value)
 		}
-		for _, field := range []string{"key", "description", "type"} {
+		for _, field := range []string{"key", "description", fieldType} {
 			if _, ok := entry[field]; !ok {
 				return fmt.Errorf("sysctl list: missing field %s in %v", field, entry)
 			}

@@ -14,7 +14,8 @@ import (
 // the final newline.
 func Render(entries []Entry) ([]byte, error) {
 	groups := make(map[string][]Entry)
-	for _, entry := range entries {
+	for index := range entries {
+		entry := entries[index]
 		entry.Description = normalizeLineBreaks(entry.Description)
 		words := strings.Fields(entry.Path)
 		verb := entry.Path
@@ -62,7 +63,8 @@ func Render(entries []Entry) ([]byte, error) {
 		line(&out, "")
 		line(&out, "| Command | Mode | Description |")
 		line(&out, "|---------|------|-------------|")
-		for _, entry := range group {
+		for index := range group {
+			entry := &group[index]
 			out.WriteString("| ")
 			writeCodeSpan(&out, tableCodeValue(entry.Path))
 			out.WriteString(" | ")
@@ -73,7 +75,8 @@ func Render(entries []Entry) ([]byte, error) {
 		}
 		line(&out, "")
 
-		for _, entry := range group {
+		for index := range group {
+			entry := &group[index]
 			out.WriteString("### ")
 			writeCodeSpan(&out, entry.Path)
 			out.WriteByte('\n')
@@ -105,10 +108,10 @@ func firstLine(description string) string {
 	return first
 }
 
-func renderDetail(out *bytes.Buffer, entry Entry) error {
+func renderDetail(out *bytes.Buffer, entry *Entry) error {
 	if strings.Contains(entry.Description, "\n") {
 		line(out, "")
-		for _, descriptionLine := range strings.Split(entry.Description, "\n") {
+		for descriptionLine := range strings.SplitSeq(entry.Description, "\n") {
 			line(out, markdownLiteralProse(descriptionLine))
 		}
 	}
@@ -171,7 +174,7 @@ func renderDetail(out *bytes.Buffer, entry Entry) error {
 	} else {
 		line(out, "")
 		line(out, "**Pipes:** not available")
-		if entry.Mode == "offline" && entry.WireMethod == "" {
+		if entry.Mode == modeOffline && entry.WireMethod == "" {
 			line(out, "")
 			line(out, "This command runs offline.")
 		}
@@ -186,11 +189,11 @@ func renderDetail(out *bytes.Buffer, entry Entry) error {
 	return nil
 }
 
-func renderPipes(out *bytes.Buffer, entry Entry) error {
+func renderPipes(out *bytes.Buffer, entry *Entry) error {
 	var unknown []string
 	for _, operator := range entry.Operators {
 		switch operator.Available {
-		case "always", "with-rows", "when-streaming":
+		case modeAlways, "with-rows", "when-streaming":
 		default:
 			unknown = append(unknown, operatorName(operator.Name))
 		}
@@ -201,7 +204,7 @@ func renderPipes(out *bytes.Buffer, entry Entry) error {
 
 	line(out, "")
 	line(out, "**Pipes:**")
-	always := operatorNames(entry.Operators, "always", false)
+	always := operatorNames(entry.Operators, modeAlways, false)
 	withRows := operatorNames(entry.Operators, "with-rows", false)
 	streaming := operatorNames(entry.Operators, "when-streaming", false)
 	localOnly := operatorNames(entry.Operators, "", true)
@@ -364,8 +367,9 @@ func catalogHeadingAnchors(
 	next("Contents")
 	for _, verb := range verbs {
 		anchors[verb] = next(verb)
-		for _, entry := range groups[verb] {
-			next(entry.Path)
+		group := groups[verb]
+		for index := range group {
+			next(group[index].Path)
 		}
 	}
 	return anchors
@@ -396,7 +400,7 @@ func headingAnchor(value string) string {
 func markdownLiteralProse(value string) string {
 	var escaped strings.Builder
 	escaped.Grow(len(value))
-	for index := 0; index < len(value); index++ {
+	for index := range len(value) {
 		character := value[index]
 		if character == '\\' {
 			escaped.WriteString(`\\`)

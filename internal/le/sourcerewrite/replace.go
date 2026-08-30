@@ -39,7 +39,7 @@ func isReplaceInputError(err error) bool {
 // replaceFile performs the replace.py operation. It always computes the preview;
 // apply controls only whether the resulting bytes are written.
 func replaceFile(path, old, replacement string, regularExpression, all, apply bool) (replaceReport, error) {
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) //nolint:gosec // a rewrite tool reads the path the operator named
 	if err != nil {
 		if os.IsNotExist(err) {
 			return replaceReport{}, replaceInputError{fmt.Errorf("file not found: %s", path)}
@@ -52,8 +52,8 @@ func replaceFile(path, old, replacement string, regularExpression, all, apply bo
 
 	original := strings.ReplaceAll(string(raw), "\r\n", "\n")
 	original = strings.ReplaceAll(original, "\r", "\n")
-	modified := original
-	count := 0
+	var modified string
+	var count int
 	if regularExpression {
 		pattern, compileErr := regexp.Compile(old)
 		if compileErr != nil {

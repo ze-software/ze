@@ -37,7 +37,7 @@ func (installer *Installer) prepareISOImage(ctx context.Context, work string) (i
 	}
 	applianceDir := filepath.Join(work, "appliances")
 	environ := installer.applianceEnv(applianceDir)
-	result, err := installer.run(ctx, commandSpec{Name: ze, Args: []string{"appliance", "init", InstallApplianceName}, Dir: installer.Tree, Env: environ, Stdin: strings.NewReader("")})
+	result, err := installer.run(ctx, commandSpec{Name: ze, Args: []string{zeApplianceArea, "init", InstallApplianceName}, Dir: installer.Tree, Env: environ, Stdin: strings.NewReader("")})
 	if err != nil {
 		return installISOImage{}, err
 	}
@@ -68,7 +68,7 @@ func (installer *Installer) prepareISOImage(ctx context.Context, work string) (i
 	if err := installer.setApplianceArch(filepath.Join(appDir, "appliance.json")); err != nil {
 		return installISOImage{}, err
 	}
-	result, err = installer.run(ctx, commandSpec{Name: ze, Args: []string{"appliance", "build", InstallApplianceName}, Dir: installer.Tree, Env: environ})
+	result, err = installer.run(ctx, commandSpec{Name: ze, Args: []string{zeApplianceArea, zeApplianceVerbBuild, InstallApplianceName}, Dir: installer.Tree, Env: environ})
 	if err != nil {
 		return installISOImage{}, err
 	}
@@ -97,7 +97,7 @@ func writeInstallSidecar(path string) error {
 
 func (installer *Installer) createISO(ctx context.Context, image installISOImage, kernel, initrd, target string) (string, error) {
 	iso := filepath.Join(image.AppDir, "ze-install.iso")
-	argv := []string{"appliance", "iso", "--kernel", kernel, "--initrd", initrd, "--image", filepath.Base(image.Image), "--output", iso}
+	argv := []string{zeApplianceArea, "iso", "--kernel", kernel, "--initrd", initrd, "--image", filepath.Base(image.Image), "--output", iso}
 	if target != "" {
 		argv = append(argv, "--target", target)
 	}

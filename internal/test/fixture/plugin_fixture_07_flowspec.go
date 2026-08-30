@@ -88,12 +88,12 @@ func flowSpecWithdraw07(ctx context.Context, p *sdk.Plugin) error {
 
 func flowSpecLegacySeed07(ctx context.Context, _ []string) error {
 	commands := [][]string{
-		{"add", "table", "inet", "flowspec"},
-		{"add", "chain", "inet", "flowspec", "flowspec-fwd", "{ type filter hook forward priority -1 ; policy accept ; }"},
-		{"add", "rule", "inet", "flowspec", "flowspec-fwd", "ip", "daddr", "198.51.100.0/24", "drop"},
+		{argAdd, nftTable, nftFamilyInet, nftTableFlowspec},
+		{argAdd, nftChain, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, nftForwardHookSpec},
+		{argAdd, nftRule, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, "ip", nftMatchDestination, "198.51.100.0/24", nftVerdictDrop},
 	}
 	for _, args := range commands {
-		if output, err := exec.CommandContext(ctx, "nft", args...).CombinedOutput(); err != nil {
+		if output, err := exec.CommandContext(ctx, "nft", args...).CombinedOutput(); err != nil { //nolint:gosec // the fixture chooses the program and its arguments
 			return fmt.Errorf("nft %s: %w: %s", strings.Join(args, " "), err, output)
 		}
 	}
@@ -140,7 +140,7 @@ func flowSpecLegacyTable07(ctx context.Context, _ []string) error {
 		ruleset, err = nftRuleset07(ctx)
 		return err == nil && strings.Contains(tableBlock07(ruleset, "table inet ze_flowspec {"), "10.1.0.0/24")
 	})
-	fmt.Fprint(os.Stdout, ruleset)
+	fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
 	_ = terminate07(pid)
 	if !ok {
 		return errors.New("announced route never reached table inet ze_flowspec")
@@ -164,7 +164,7 @@ func flowSpecSCTP07(ctx context.Context, _ []string) error {
 		ruleset, err = nftRuleset07(ctx)
 		return err == nil && strings.Contains(ruleset, "table inet ze_flowspec") && (strings.Contains(ruleset, "l4proto 132") || strings.Contains(ruleset, "l4proto sctp"))
 	})
-	fmt.Fprint(os.Stdout, ruleset)
+	fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
 	_ = terminate07(pid)
 	if !ok {
 		return errors.New("no SCTP rule in kernel ruleset")
@@ -189,10 +189,10 @@ func flowSpecUntranslatable07(ctx context.Context, args []string) error {
 		metrics, err = fetch07(ctx, args[0])
 		return err == nil && strings.Contains(metrics, `ze_flowspec_rules_refused_total{reason="unknown-protocol"}`)
 	})
-	fmt.Fprint(os.Stdout, ruleset)
-	for _, line := range strings.Split(metrics, "\n") {
+	fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
+	for line := range strings.SplitSeq(metrics, "\n") {
 		if strings.HasPrefix(line, "ze_flowspec") {
-			fmt.Fprintln(os.Stdout, line)
+			fmt.Fprintln(os.Stdout, line) //nolint:errcheck // progress output
 		}
 	}
 	_ = terminate07(pid)
@@ -221,7 +221,7 @@ func peerPIDs07() ([]int, error) {
 			continue
 		}
 		argv := strings.Split(string(raw), "\x00")
-		if len(argv) > 1 && argv[1] == "peer" {
+		if len(argv) > 1 && argv[1] == fieldPeer {
 			pids = append(pids, pid)
 		}
 	}
@@ -230,7 +230,7 @@ func peerPIDs07() ([]int, error) {
 
 func flowSpecTables07(ruleset string) []string {
 	var tables []string
-	for _, line := range strings.Split(ruleset, "\n") {
+	for line := range strings.SplitSeq(ruleset, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "table ") && strings.Contains(line, "flowspec") {
 			tables = append(tables, line)
@@ -250,7 +250,7 @@ func flowSpecWithdrawTable07(ctx context.Context, _ []string) error {
 		return err == nil && strings.Contains(ruleset, "table inet ze_flowspec") && strings.Contains(ruleset, "10.1.0.0/24") && !strings.Contains(ruleset, "10.2.0.0/24")
 	})
 	if !settled {
-		fmt.Fprint(os.Stdout, ruleset)
+		fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
 		_ = terminate07(pid)
 		return errors.New("kernel never reached one kept route and no withdrawn route")
 	}
@@ -271,8 +271,8 @@ func flowSpecWithdrawTable07(ctx context.Context, _ []string) error {
 		ruleset, err = nftRuleset07(ctx)
 		return err == nil && len(flowSpecTables07(ruleset)) == 0
 	})
-	fmt.Fprint(os.Stdout, installed)
-	fmt.Fprint(os.Stdout, ruleset)
+	fmt.Fprint(os.Stdout, installed) //nolint:errcheck // progress output
+	fmt.Fprint(os.Stdout, ruleset)   //nolint:errcheck // progress output
 	_ = terminate07(pid)
 	if !gone {
 		return fmt.Errorf("FlowSpec table survives last withdraw: %v", flowSpecTables07(ruleset))

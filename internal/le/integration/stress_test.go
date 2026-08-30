@@ -24,7 +24,7 @@ func TestStressScenarioRegistryIsExact(t *testing.T) {
 		t.Fatalf("stress registry has %d scenarios, want 5", len(stressScenarioRegistry))
 	}
 
-	bulk, _ := stressScenarioNamed("01-bulk-ipv4")
+	bulk := mustStressScenario(t, "01-bulk-ipv4")
 	gotBulk := make([]string, 0, len(bulk.rounds))
 	for _, round := range bulk.rounds {
 		gotBulk = append(gotBulk, stressRoundIdentity(round)+"/"+round.timeout.String())
@@ -39,21 +39,32 @@ func TestStressScenarioRegistryIsExact(t *testing.T) {
 		t.Fatalf("bulk rounds = %q, want %q", gotBulk, wantBulk)
 	}
 
-	mixed, _ := stressScenarioNamed("02-multi-peer")
+	mixed := mustStressScenario(t, "02-multi-peer")
 	if len(mixed.rounds) != 2 || mixed.rounds[0].prefixes != 500_000 ||
 		mixed.rounds[1].prefixes != 250_000 || mixed.rounds[1].nexthop != "2001:db8::3" {
 		t.Fatalf("mixed-family scenario drifted: %#v", mixed.rounds)
 	}
-	flap, _ := stressScenarioNamed("03-session-flap")
+	flap := mustStressScenario(t, "03-session-flap")
 	if len(flap.rounds) != 11 || flap.rounds[9].pause != 2*time.Second ||
 		flap.rounds[10].pause != 0 || flap.rounds[10].dwell != "5s" {
 		t.Fatalf("flap scenario drifted: %#v", flap.rounds)
 	}
-	profile, _ := stressScenarioNamed("05-profile-1m")
+	profile := mustStressScenario(t, "05-profile-1m")
 	if len(profile.rounds) != 1 || profile.rounds[0].prefixes != 1_000_000 ||
 		profile.rounds[0].dwell != "60s" || profile.rounds[0].timeout != 600*time.Second {
 		t.Fatalf("profile scenario drifted: %#v", profile.rounds)
 	}
+}
+
+// mustStressScenario answers the registered scenario. A name the registry does
+// not carry fails the test, so a renamed scenario cannot pass as a zero value.
+func mustStressScenario(t *testing.T, name string) stressScenario {
+	t.Helper()
+	scenario, found := stressScenarioNamed(name)
+	if !found {
+		t.Fatalf("stress registry has no scenario %q", name)
+	}
+	return scenario
 }
 
 func TestStressRegistryRunsEveryScenarioNonVacuously(t *testing.T) {

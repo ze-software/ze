@@ -33,11 +33,15 @@ func extra1AS112ProbeAnycast(ctx context.Context, args []string) error {
 	if err := extra1TouchReady(); err != nil {
 		return err
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return err
 	}
-	sshPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return fmt.Errorf("a tcp listener answered %T, want *net.TCPAddr", listener.Addr())
+	}
+	sshPort := strconv.Itoa(address.Port)
 	if err := listener.Close(); err != nil {
 		return err
 	}
@@ -70,7 +74,7 @@ bgp {
 system { authentication { user admin { password %q; } } }
 environment { ssh { enabled true; server main { ip 127.0.0.1; port %s; } } }
 `, sshPort, extra1AdminHash, sshPort)
-	daemon, port, err := extra1RunDaemon(ctx, "as112-probe-anycast.conf", "daemon.log", config, nil)
+	daemon, port, err := extra1RunDaemon(ctx, "as112-probe-anycast.conf", config, nil)
 	if err != nil {
 		return err
 	}

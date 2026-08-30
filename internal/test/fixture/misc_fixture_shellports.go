@@ -23,28 +23,27 @@ type reloadSignalPlan struct {
 
 func init() {
 	for name, plan := range map[string]reloadSignalPlan{
-		"reload/config-apply-ordering-create-trigger": {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/reload-add-bgp-trigger":               {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/reload-add-peer-trigger":              {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/reload-dynamic-peer-survives-trigger": {source: "config2.conf", destination: "ze-bgp.conf", before: 3 * time.Second, after: 8 * time.Second, hups: 1, terminate: true, requireReady: true},
+		"reload/config-apply-ordering-create-trigger": {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/reload-add-bgp-trigger":               {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/reload-add-peer-trigger":              {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/reload-dynamic-peer-survives-trigger": {source: fileConfig2Conf, destination: fileBGPConf, before: 3 * time.Second, after: 8 * time.Second, hups: 1, terminate: true, requireReady: true},
 		"reload/reload-plugin-only-no-change-trigger": {before: 200 * time.Millisecond, after: time.Second, hups: 1, terminate: true},
-		"reload/tx-bgp-rollback-trigger":              {source: "bad-config.conf", destination: "ze-bgp.conf", before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
-		"reload/tx-iface-apply-trigger":               {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/tx-iface-bgp-chain-trigger":           {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/tx-iface-tunnel-create-trigger":       {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/tx-iface-tunnel-modify-key-trigger":   {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/tx-iface-tunnel-remove-trigger":       {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/tx-iface-wireguard-apply-trigger":     {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/tx-iface-wireguard-modify-trigger":    {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/tx-iface-wireguard-remove-trigger":    {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
-		"reload/tx-protocol-exclusion-trigger":        {source: "config2.conf", destination: "ze-bgp.conf", hups: 2, requireReady: true},
-		"reload/tx-protocol-external-plugin-trigger":  {source: "updated.conf", destination: "ze-bgp.conf", before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
-		"reload/tx-protocol-rollback-trigger":         {source: "bad-config.conf", destination: "ze-bgp.conf", before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
-		"reload/tx-protocol-sighup-trigger":           {source: "config2.conf", destination: "ze-bgp.conf", hups: 1, requireReady: true},
+		"reload/tx-bgp-rollback-trigger":              {source: "bad-config.conf", destination: fileBGPConf, before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
+		"reload/tx-iface-apply-trigger":               {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-bgp-chain-trigger":           {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-tunnel-create-trigger":       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-tunnel-modify-key-trigger":   {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-tunnel-remove-trigger":       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-wireguard-apply-trigger":     {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-wireguard-modify-trigger":    {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-wireguard-remove-trigger":    {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-protocol-exclusion-trigger":        {source: fileConfig2Conf, destination: fileBGPConf, hups: 2, requireReady: true},
+		"reload/tx-protocol-external-plugin-trigger":  {source: "updated.conf", destination: fileBGPConf, before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
+		"reload/tx-protocol-rollback-trigger":         {source: "bad-config.conf", destination: fileBGPConf, before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
+		"reload/tx-protocol-sighup-trigger":           {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/pki-reference-reload-trigger":         {source: "addref.conf", destination: "hub.conf", after: 3 * time.Second, hups: 1, terminate: true},
 		"reload/pki-reference-reload-broken-trigger":  {source: "broken.conf", destination: "hub.conf", after: 3 * time.Second, hups: 1, terminate: true},
 	} {
-		plan := plan
 		Register(name, reloadSignalDriver(plan))
 	}
 	Register("reload/tx-iface-address-swap-driver", ifaceAddressSwapDriver)
@@ -177,7 +176,7 @@ func stopBackgroundAssert(_ context.Context, args []string) error {
 	if err := syscall.Kill(pid, 0); err == nil || errors.Is(err, syscall.EPERM) {
 		return fmt.Errorf("holder-still-alive pid=%d", pid)
 	}
-	fmt.Fprintln(os.Stdout, "holder-stopped")
+	fmt.Fprintln(os.Stdout, "holder-stopped") //nolint:errcheck // progress output
 	return nil
 }
 
@@ -208,7 +207,7 @@ func radiusSecretRotationDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(daemonDir)
+	defer os.RemoveAll(daemonDir) //nolint:errcheck // fixture cleanup
 	bgpPort := 10000 + os.Getpid()%20000
 	config := func(key string) string {
 		return fmt.Sprintf("bgp { peer peer1 { connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } } session { asn { local 65533; remote 65533; } } } }\nsystem { authentication { radius { server %s { port %s; key %q; } timeout 2; } } authorization { profile admin { run { default-action allow; } edit { default-action allow; } } } }\nenvironment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }\n", host, port, key)
@@ -217,7 +216,7 @@ func radiusSecretRotationDriver(ctx context.Context, args []string) error {
 	if err := os.WriteFile(path, []byte(config("wrong-key")), 0o600); err != nil {
 		return err
 	}
-	env := miscEnvironment(map[string]string{"ZE_CONFIG_DIR": daemonDir, "ze_test_bgp_port": strconv.Itoa(bgpPort)})
+	env := miscEnvironment(map[string]string{envConfigDir: daemonDir, envTestBGPPort: strconv.Itoa(bgpPort)})
 	var daemon lockedBuffer
 	command := exec.CommandContext(ctx, "ze", "start", path)
 	command.Env = env
@@ -233,9 +232,9 @@ func radiusSecretRotationDriver(ctx context.Context, args []string) error {
 	sshPort := ""
 	readSSHPort := func() (string, bool) {
 		found := ""
-		for _, field := range strings.Fields(daemon.String()) {
-			if strings.HasPrefix(field, "address=127.0.0.1:") {
-				found = strings.Trim(strings.TrimPrefix(field, "address=127.0.0.1:"), "\"")
+		for field := range strings.FieldsSeq(daemon.String()) {
+			if after, ok := strings.CutPrefix(field, "address=127.0.0.1:"); ok {
+				found = strings.Trim(after, "\"")
 			}
 		}
 		return found, found != ""
@@ -251,12 +250,12 @@ func radiusSecretRotationDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(adminDir)
-	adminEnv := miscEnvironment(map[string]string{"ZE_CONFIG_DIR": adminDir})
+	defer os.RemoveAll(adminDir) //nolint:errcheck // fixture cleanup
+	adminEnv := miscEnvironment(map[string]string{envConfigDir: adminDir})
 	if _, err := commandOutput(ctx, "", adminEnv, "admin\ntestpass\n127.0.0.1\n"+sshPort+"\n", "ze", "init"); err != nil {
 		return err
 	}
-	loginEnv := miscEnvironment(map[string]string{"ZE_CONFIG_DIR": adminDir, "ZE_SSH_PASSWORD": "testpass"})
+	loginEnv := miscEnvironment(map[string]string{envConfigDir: adminDir, envSSHPassword: valueTestPassword})
 	if _, err := commandOutput(ctx, "", loginEnv, "", "ze", "cli", "-c", "show bgp"); err == nil {
 		return errors.New("admin authenticated while configured secret was wrong")
 	}
@@ -281,12 +280,12 @@ func radiusSecretRotationDriver(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		defer os.RemoveAll(adminDir)
-		adminEnv = miscEnvironment(map[string]string{"ZE_CONFIG_DIR": adminDir})
+		defer os.RemoveAll(adminDir) //nolint:errcheck // fixture cleanup
+		adminEnv = miscEnvironment(map[string]string{envConfigDir: adminDir})
 		if _, err := commandOutput(ctx, "", adminEnv, "admin\ntestpass\n127.0.0.1\n"+sshPort+"\n", "ze", "init"); err != nil {
 			return err
 		}
-		loginEnv = miscEnvironment(map[string]string{"ZE_CONFIG_DIR": adminDir, "ZE_SSH_PASSWORD": "testpass"})
+		loginEnv = miscEnvironment(map[string]string{envConfigDir: adminDir, envSSHPassword: valueTestPassword})
 		fmt.Fprintf(os.Stderr, "ssh moved to :%s\n", sshPort)
 	}
 	if _, err := commandOutput(ctx, "", loginEnv, "", "ze", "cli", "-c", "show bgp"); err != nil {

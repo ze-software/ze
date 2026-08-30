@@ -169,7 +169,7 @@ expect=stdout:contains=configuration valid
 
 # Readback of the full unit: the three flags, the four timers, both prefix
 # entries with their own leaves, and both resolvers.
-cmd=foreground:seq=2:exec=ze config dump --json -:stdin=full-dump:exit=0
+cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=full-dump:exit=0
 expect=exit:code=0
 expect=stdout:regex="enabled": "true"
 expect=stdout:regex="managed": "true"
@@ -197,7 +197,7 @@ expect=stdout:contains=configuration valid
 
 # Readback of the two zeros. The quote before "lifetime" holds the second
 # regex off the "router-lifetime" and "valid-lifetime" leaves.
-cmd=foreground:seq=4:exec=ze config dump --json -:stdin=zero-dump:exit=0
+cmd=foreground:seq=4:exec=ze cli -c "show config dump - | json":stdin=zero-dump:exit=0
 expect=exit:code=0
 expect=stdout:regex="router-lifetime": "0"
 expect=stdout:regex="lifetime": "0"

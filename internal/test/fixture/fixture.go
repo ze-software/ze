@@ -127,7 +127,7 @@ func observeConfigured(
 			scenarioErr := invokeScenario(ctx, plugin, scenario)
 			if scenarioErr == nil {
 				status, _, quiesceErr := plugin.DispatchCommand(ctx, "request quiesce")
-				if quiesceErr == nil && status != "done" {
+				if quiesceErr == nil && status != statusDone {
 					scenarioErr = fmt.Errorf("observer quiesce status is %q", status)
 				}
 			}
@@ -233,7 +233,7 @@ func Poll(ctx context.Context, attempts int, delay time.Duration, predicate func
 	if attempts < 1 {
 		attempts = 1
 	}
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		if predicate() {
 			return true
 		}

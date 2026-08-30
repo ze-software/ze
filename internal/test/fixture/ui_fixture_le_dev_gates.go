@@ -37,7 +37,7 @@ func runLEDevAnswers(ctx context.Context) error {
 	if err != nil {
 		return uiLeDevGatesAnswersFailf("creating fixture directory: %v", err)
 	}
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	if err != nil {
@@ -55,10 +55,10 @@ func runLEDevAnswers(ctx context.Context) error {
 		name string
 		args []string
 	}{
-		{name: "gokrazy-gosum", args: []string{"gokrazy-gosum"}},
-		{name: "arch-map check", args: []string{"arch-map", "check"}},
-		{name: "protocol-skeleton report", args: []string{"protocol-skeleton", "report"}},
-		{name: "protocol-skeleton selftest", args: []string{"protocol-skeleton", "selftest"}},
+		{name: gateGokrazyGosum, args: []string{gateGokrazyGosum}},
+		{name: "arch-map check", args: []string{"arch-map", actionCheck}},
+		{name: "protocol-skeleton report", args: []string{gateProtocolSkeleton, actionReport}},
+		{name: "protocol-skeleton selftest", args: []string{gateProtocolSkeleton, actionSelftest}},
 	}
 	for _, page := range pages {
 		answer, err := le(page.args...)
@@ -107,7 +107,7 @@ func runLEDevAnswers(ctx context.Context) error {
 	if err := json.Unmarshal(report.stdout, &gosum); err != nil {
 		return uiLeDevGatesAnswersFailf("`le gokrazy-gosum | json` did not answer JSON: %v\n%s", err, uiLeDevGatesAnswersPrefix(report.stdout, 400))
 	}
-	for _, key := range []string{"files", "shared", "conflicts"} {
+	for _, key := range []string{fieldFiles, "shared", "conflicts"} {
 		if _, found := gosum[key]; !found {
 			return uiLeDevGatesAnswersFailf("the gate answered no %q key: %v", key, uiLeDevGatesAnswersSortedKeys(gosum))
 		}
@@ -119,7 +119,7 @@ func runLEDevAnswers(ctx context.Context) error {
 	if !jsonEmpty(gosum["conflicts"]) {
 		return uiLeDevGatesAnswersFailf("the gate reported conflicts: %v", gosum["conflicts"])
 	}
-	for _, rendering := range []string{"yaml", "table"} {
+	for _, rendering := range []string{renderYAML, renderTable} {
 		answer, err := le("gokrazy-gosum", "|", rendering)
 		if err != nil {
 			return err
@@ -194,7 +194,7 @@ func runLEDevAnswers(ctx context.Context) error {
 	if listing.code != 0 {
 		return uiLeDevGatesAnswersFailf("`le arch-map` exited %d", listing.code)
 	}
-	for _, word := range []string{"check", "update", "writes", "checks"} {
+	for _, word := range []string{actionCheck, actionUpdate, wordWrites, fieldChecks} {
 		if !bytes.Contains(listing.stdout, []byte(word)) {
 			return uiLeDevGatesAnswersFailf("the listing does not carry %q:\n%s", word, listing.stdout)
 		}
@@ -245,7 +245,7 @@ func runLEDevAnswers(ctx context.Context) error {
 		return err
 	}
 	helpText := append(append([]byte(nil), help.stdout...), help.stderr...)
-	for _, command := range []string{"gokrazy-gosum", "working-tree", "arch-map", "protocol-skeleton"} {
+	for _, command := range []string{gateGokrazyGosum, "working-tree", "arch-map", gateProtocolSkeleton} {
 		if !bytes.Contains(helpText, []byte(command)) {
 			return uiLeDevGatesAnswersFailf("`le` does not list %q in its help", command)
 		}
@@ -257,7 +257,7 @@ func runLEDevAnswers(ctx context.Context) error {
 
 func uiLeDevGatesAnswersExecute(ctx context.Context, dir, name string, args ...string) (uiLeDevGatesAnswersCommandAnswer, error) {
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -269,8 +269,7 @@ func uiLeDevGatesAnswersExecute(ctx context.Context, dir, name string, args ...s
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return uiLeDevGatesAnswersCommandAnswer{}, ctxErr
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		answer.code = exitErr.ExitCode()
 		return answer, nil
 	}

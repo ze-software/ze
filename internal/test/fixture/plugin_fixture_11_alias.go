@@ -47,75 +47,75 @@ func aliasProvider(which aliasCase) Driver {
 			aliasCaseBasic:      "pipe-alias-provider",
 			aliasCaseHelp:       "pipe-help-provider",
 			aliasCaseNamespaced: "pipe-alias-scope-provider",
-			aliasCaseCollision:  "pipe-alias-thief",
-			aliasCaseShape:      "shape-typo",
+			aliasCaseCollision:  caseNamePipeAliasThief,
+			aliasCaseShape:      caseNameShapeTypo,
 		}[which]
 		plugin, err := newObserver(name)
 		if err != nil {
 			return err
 		}
-		defer plugin.Close() //nolint:errcheck
+		defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 		var registration sdk.Registration
 		switch which {
 		case aliasCaseBasic:
 			registration = sdk.Registration{
-				Commands: []sdk.CommandDecl{{Name: "show pipealias counters"}},
+				Commands: []sdk.CommandDecl{{Name: cmdShowPipealiasCounters}},
 				Pipes: []sdk.PipeDecl{{
-					Command:     "show pipealias counters",
-					Name:        "totals",
-					Expansion:   "display kind vrp-count",
-					Description: "The counters alone",
+					Command:     cmdShowPipealiasCounters,
+					Name:        fieldTotals,
+					Expansion:   expansionVRPCount,
+					Description: descriptionCountersAlone,
 				}},
 			}
 		case aliasCaseHelp:
 			registration = sdk.Registration{
-				Commands: []sdk.CommandDecl{{Name: "show pipehelp counters"}},
+				Commands: []sdk.CommandDecl{{Name: cmdShowPipehelpCounters}},
 				Pipes: []sdk.PipeDecl{{
-					Command:     "show pipehelp counters",
-					Name:        "totals",
-					Expansion:   "display kind vrp-count",
-					Description: "The counters alone",
+					Command:     cmdShowPipehelpCounters,
+					Name:        fieldTotals,
+					Expansion:   expansionVRPCount,
+					Description: descriptionCountersAlone,
 				}},
 			}
 		case aliasCaseNamespaced:
 			registration = sdk.Registration{
 				Commands: []sdk.CommandDecl{
-					{Name: "show nsalias counters"},
+					{Name: cmdShowNsaliasCounters},
 					{Name: "show nsalias counters rows"},
 				},
 				Pipes: []sdk.PipeDecl{{
-					Command:     "show nsalias counters",
-					Name:        "totals",
-					Expansion:   "display kind vrp-count",
-					Description: "The counters alone",
+					Command:     cmdShowNsaliasCounters,
+					Name:        fieldTotals,
+					Expansion:   expansionVRPCount,
+					Description: descriptionCountersAlone,
 				}},
 			}
 		case aliasCaseCollision:
 			registration = sdk.Registration{
-				Commands: []sdk.CommandDecl{{Name: "show bgp"}},
-				Pipes:    []sdk.PipeDecl{{Command: "show bgp", Name: "summary", Expansion: "display vrp-count", Description: "The name show bgp already answers to"}},
+				Commands: []sdk.CommandDecl{{Name: cmdShowBGP}},
+				Pipes:    []sdk.PipeDecl{{Command: cmdShowBGP, Name: aliasSummary, Expansion: "display vrp-count", Description: "The name show bgp already answers to"}},
 			}
 		case aliasCaseShape:
-			registration = sdk.Registration{Commands: []sdk.CommandDecl{{Name: "show shape typo", Shape: "table", Columns: []string{"address", "state"}}}}
+			registration = sdk.Registration{Commands: []sdk.CommandDecl{{Name: "show shape typo", Shape: renderTable, Columns: []string{columnAddress, columnState}}}}
 		}
 		plugin.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 			switch command {
-			case "show pipealias counters":
-				return "done", pipeAnswer("pipe-alias-probe", "servers"), nil
-			case "show pipehelp counters":
-				return "done", map[string]any{
-					"kind":      "pipe-help-probe",
-					"vrp-count": 7,
+			case cmdShowPipealiasCounters:
+				return statusDone, pipeAnswer("pipe-alias-probe", "servers"), nil
+			case cmdShowPipehelpCounters:
+				return statusDone, map[string]any{
+					fieldKind:     "pipe-help-probe",
+					fieldVRPCount: 7,
 					"servers": []map[string]any{
-						{"address": "192.0.2.101", "state": "established"},
+						{fieldAddress: "192.0.2.101", fieldState: stateEstablished},
 					},
 				}, nil
-			case "show nsalias counters":
-				return "done", pipeAnswer("pipe-alias-scope-probe", "rows"), nil
+			case cmdShowNsaliasCounters:
+				return statusDone, pipeAnswer("pipe-alias-scope-probe", "rows"), nil
 			case "show nsalias counters rows":
-				return "done", map[string]any{"rows": pipeRows()}, nil
+				return statusDone, map[string]any{fieldRows: pipeRows()}, nil
 			default:
-				return "error", map[string]any{"error": "unknown: " + command}, nil
+				return statusError, map[string]any{fieldError: "unknown: " + command}, nil
 			}
 		})
 		return plugin.Run(ctx, registration)
@@ -124,13 +124,13 @@ func aliasProvider(which aliasCase) Driver {
 
 func pipeRows() []map[string]any {
 	return []map[string]any{
-		{"address": "192.0.2.101", "state": "established"},
-		{"address": "192.0.2.102", "state": "connecting"},
+		{fieldAddress: "192.0.2.101", fieldState: stateEstablished},
+		{fieldAddress: "192.0.2.102", fieldState: "connecting"},
 	}
 }
 
 func pipeAnswer(kind, rowsKey string) map[string]any {
-	return map[string]any{"kind": kind, "vrp-count": 7, rowsKey: pipeRows()}
+	return map[string]any{fieldKind: kind, fieldVRPCount: 7, rowsKey: pipeRows()}
 }
 
 type fixtureDaemon struct {
@@ -144,7 +144,7 @@ type fixtureDaemon struct {
 func startFixtureDaemon(ctx context.Context, config string) (*fixtureDaemon, []string, error) {
 	code, hash, passwordErr, err := runCaptured(ctx, os.Environ(), "secret\n", "ze", "passwd")
 	if err != nil || code != 0 {
-		return nil, nil, fmt.Errorf("ze passwd exit=%d: %v %s", code, err, passwordErr)
+		return nil, nil, fmt.Errorf("ze passwd exit=%d: %w %s", code, err, passwordErr)
 	}
 	config = strings.ReplaceAll(config, "$PASSWORD_HASH", strings.TrimSpace(hash))
 	workdir, err := os.MkdirTemp("", "ze-plugin-alias-")
@@ -170,7 +170,7 @@ func startFixtureDaemon(ctx context.Context, config string) (*fixtureDaemon, []s
 		"ze_test_bgp_port="+strconv.Itoa(12000+os.Getpid()%40000),
 	)
 	daemon := &fixtureDaemon{
-		command: exec.CommandContext(ctx, "ze", "-f", configPath),
+		command: exec.CommandContext(ctx, "ze", "-f", configPath), //nolint:gosec // the fixture chooses the program and its arguments
 		done:    make(chan struct{}),
 		workdir: workdir,
 	}
@@ -205,7 +205,7 @@ func startFixtureDaemon(ctx context.Context, config string) (*fixtureDaemon, []s
 		_ = daemon.stop()
 		return nil, nil, fmt.Errorf("daemon did not become ready\nstdout:\n%s\nstderr:\n%s", daemon.stdout.String(), daemon.stderr.String())
 	}
-	address, err := os.ReadFile(sshAddr)
+	address, err := os.ReadFile(sshAddr) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		_ = daemon.stop()
 		return nil, nil, err
@@ -254,13 +254,13 @@ func aliasDriver(which aliasCase) Driver {
 		if err != nil {
 			return err
 		}
-		defer daemon.stop() //nolint:errcheck
+		defer daemon.stop() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 		run := func(command string) (int, string, string, error) { return cli11(ctx, cliEnv, command) }
 		cli := func(command string) (string, error) {
 			code, out, stderr, runErr := run(command)
 			if runErr != nil || code != 0 {
-				return "", fmt.Errorf("%s exit=%d: %v %s%s", command, code, runErr, out, stderr)
+				return "", fmt.Errorf("%s exit=%d: %w %s%s", command, code, runErr, out, stderr)
 			}
 			return out, nil
 		}
@@ -279,7 +279,7 @@ func aliasDriver(which aliasCase) Driver {
 			if err := daemon.stop(); err != nil {
 				return err
 			}
-			for _, word := range []string{"pipe alias refused", "pipe-alias-thief", "summary", "show bgp", "already registered"} {
+			for _, word := range []string{"pipe alias refused", caseNamePipeAliasThief, aliasSummary, cmdShowBGP, "already registered"} {
 				if !strings.Contains(daemon.stderr.String(), word) {
 					return fmt.Errorf("daemon log does not name %q: %s", word, daemon.stderr.String())
 				}
@@ -298,7 +298,7 @@ func aliasDriver(which aliasCase) Driver {
 			if err := daemon.stop(); err != nil {
 				return err
 			}
-			for _, word := range []string{"answer shape", "shape-typo", "show shape typo", "table", "doc, map or tab"} {
+			for _, word := range []string{"answer shape", caseNameShapeTypo, "show shape typo", renderTable, "doc, map or tab"} {
 				if !strings.Contains(daemon.stderr.String(), word) {
 					return fmt.Errorf("daemon log does not name %q: %s", word, daemon.stderr.String())
 				}
@@ -358,12 +358,12 @@ func runAliasHelp(ctx context.Context, cli func(string) (string, error)) error {
 	if err != nil {
 		return err
 	}
-	if declared["command"] != "show pipehelp counters" {
+	if declared["command"] != cmdShowPipehelpCounters {
 		return fmt.Errorf("help does not name plugin command: %v", declared)
 	}
 	aliases := aliasMap(declared)
 	totals := aliases["totals"]
-	if totals == nil || totals["description"] != "The counters alone" || totals["expansion"] != "display kind vrp-count" {
+	if totals == nil || totals["description"] != descriptionCountersAlone || totals["expansion"] != expansionVRPCount {
 		return fmt.Errorf("bad declared alias help: %v", declared)
 	}
 	builtin, err := helpFor("show bgp")
@@ -448,7 +448,7 @@ func aliasConfig(which aliasCase) string {
 		aliasCaseCollision:  "plugin/pipe-alias-collision/provider",
 		aliasCaseShape:      "plugin/shape-declaration-refused/provider",
 	}[which]
-	pluginName := map[aliasCase]string{aliasCaseBasic: "pipe-alias-provider", aliasCaseHelp: "pipe-help-provider", aliasCaseNamespaced: "pipe-alias-scope-provider", aliasCaseCollision: "pipe-alias-thief", aliasCaseShape: "shape-typo"}[which]
+	pluginName := map[aliasCase]string{aliasCaseBasic: "pipe-alias-provider", aliasCaseHelp: "pipe-help-provider", aliasCaseNamespaced: "pipe-alias-scope-provider", aliasCaseCollision: caseNamePipeAliasThief, aliasCaseShape: caseNameShapeTypo}[which]
 	bgp := ""
 	if which == aliasCaseHelp {
 		bgp = "bgp { router-id 192.0.2.254; session { asn { local 65000; } } }\n"

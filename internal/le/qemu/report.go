@@ -18,6 +18,16 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The words a verdict serializes as, in text and in JSON. Three enums in this
+// package answer this one vocabulary -- Verdict, RunVerdict and InstallVerdict
+// -- so a reader and a script see the same words whichever report they got.
+const (
+	verdictWordPass        = "pass"
+	verdictWordSkip        = "skip"
+	verdictWordFail        = "fail"
+	verdictWordUnspecified = "unspecified"
+)
+
 // Verdict is what one QEMU proof concluded.
 //
 // The zero value is Unspecified. Thus, a run that ends before a conclusion
@@ -49,15 +59,15 @@ const (
 func (v Verdict) String() string {
 	switch v {
 	case VerdictPass:
-		return "pass"
+		return verdictWordPass
 	case VerdictSkip:
-		return "skip"
+		return verdictWordSkip
 	case VerdictFail:
-		return "fail"
+		return verdictWordFail
 	case VerdictUnspecified:
-		return "unspecified"
+		return verdictWordUnspecified
 	}
-	return "unspecified"
+	return verdictWordUnspecified
 }
 
 // MarshalJSON writes the word rather than the number, so `| json` and `| yaml`

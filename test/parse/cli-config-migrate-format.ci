@@ -1,7 +1,7 @@
-# Test: ze config migrate --format flag controls output format
-# VALIDATES: --format set produces flat set commands
-# VALIDATES: --format hierarchical produces indented tree
-# PREVENTS: Format flag ignored or broken
+# Test: the `format` keyword controls which form ze config migrate writes
+# VALIDATES: `format set` produces flat set commands
+# VALIDATES: `format hierarchical` produces an indented tree
+# PREVENTS: the form being ignored, or coming back as the deleted --format flag
 
 stdin=config:terminator=EOF_CONF
 bgp {
@@ -55,12 +55,12 @@ bgp {
 }
 EOF_FILE
 
-cmd=foreground:seq=1:exec=ze config migrate --format set test.conf:exit=0
+cmd=foreground:seq=1:exec=ze config migrate format set test.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains=set bgp router-id
 expect=stdout:contains=set bgp peer
 
-cmd=foreground:seq=2:exec=ze config migrate --format hierarchical test.conf:exit=0
+cmd=foreground:seq=2:exec=ze config migrate format hierarchical test.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains=bgp {
 expect=stdout:contains=router-id

@@ -526,11 +526,11 @@ func makeTreeWritable(path string) error {
 		if entry.IsDir() {
 			mode |= 0o100
 		}
-		file, err := root.Open(filepath.FromSlash(path))
+		file, err := root.Open(filepath.FromSlash(path)) //nolint:gosec // G122: os.Root IS the root-scoped API this check asks for
 		if err != nil {
 			return err
 		}
-		return errors.Join(file.Chmod(mode), file.Close())
+		return errors.Join(file.Chmod(mode), file.Close()) //nolint:gosec // G122: the handle came from os.Root, which is the root-scoped API this check asks for
 	})
 	return errors.Join(walkErr, root.Close())
 }

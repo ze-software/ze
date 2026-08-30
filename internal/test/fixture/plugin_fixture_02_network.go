@@ -15,7 +15,7 @@ import (
 )
 
 func observerBudgets02() (time.Duration, time.Duration) {
-	for _, key := range []string{"ze.test.budget", "ze_test_budget", "ZE_TEST_BUDGET"} {
+	for _, key := range []string{envTestBudgetDotted, envTestBudgetLower, envTestBudgetUpper} {
 		if raw := os.Getenv(key); raw != "" {
 			if budget, err := time.ParseDuration(raw); err == nil && budget > 0 {
 				return time.Duration(float64(budget) * 0.60), time.Duration(float64(budget) * 0.25)
@@ -26,7 +26,7 @@ func observerBudgets02() (time.Duration, time.Duration) {
 }
 
 func routeServerObserver02(name string, expectedPeers int, forwardPrefix string) Driver {
-	return eventObserver02(name, []string{"update"}, func(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
+	return eventObserver02(name, []string{eventUpdate}, func(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
 		eorTimeout, shutdownTimeout := observerBudgets02()
 		eorPeers := make(map[string]bool)
 		forwardSeen := forwardPrefix == ""
@@ -39,7 +39,7 @@ func routeServerObserver02(name string, expectedPeers int, forwardPrefix string)
 			}
 			body := eventBody02(event)
 			message, _ := body["message"].(map[string]any)
-			if message["direction"] != "sent" {
+			if message["direction"] != directionSent {
 				continue
 			}
 			update, _ := body["update"].(map[string]any)
@@ -108,7 +108,7 @@ func auditRequest02(ctx context.Context, client *http.Client, method, path strin
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer resp.Body.Close() //nolint:errcheck // the fixture only reads the body, so a close failure changes no assertion
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func auditRESTReady02(ctx context.Context, client *http.Client) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer resp.Body.Close() //nolint:errcheck // the fixture only reads the body, so a close failure changes no assertion
 	return resp.StatusCode >= 200 && resp.StatusCode < 300
 }
 
@@ -157,14 +157,14 @@ func auditConfigCommit02(ctx context.Context, plugin *sdk.Plugin) error {
 	if sessionID == "" {
 		return fmt.Errorf("create session response=%v", created)
 	}
-	if _, err := auditRequest02(ctx, client, http.MethodPut, "/config/sessions/"+sessionID, map[string]any{"path": "bgp.router-id", "value": "10.0.0.2"}); err != nil {
+	if _, err := auditRequest02(ctx, client, http.MethodPut, "/config/sessions/"+sessionID, map[string]any{fieldPath: configPathRouterID, fieldValue: addrPeerTwo}); err != nil {
 		return err
 	}
 	committed, err := auditRequest02(ctx, client, http.MethodPost, "/config/sessions/"+sessionID+"/commit", nil)
 	if err != nil {
 		return err
 	}
-	if committed["status"] != "committed" {
+	if committed["status"] != statusCommitted {
 		return fmt.Errorf("commit response=%v", committed)
 	}
 	fmt.Fprintln(os.Stderr, "OK: REST config commit succeeded")
@@ -180,7 +180,7 @@ func auditConfigCommit02(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("show audit returned no config-commit entries")
 	}
 	entry := audit.Entries[len(audit.Entries)-1]
-	if entry.Action != "config-commit" || entry.Surface != "rest" || entry.Outcome != "success" {
+	if entry.Action != "config-commit" || entry.Surface != "rest" || entry.Outcome != outcomeSuccess {
 		return fmt.Errorf("unexpected audit entry=%+v", entry)
 	}
 	if !strings.Contains(entry.Detail, "router-id") ||
@@ -211,7 +211,7 @@ func auditConfigCommit02(ctx context.Context, plugin *sdk.Plugin) error {
 	if discardID == "" {
 		return fmt.Errorf("create discard session response=%v", created)
 	}
-	if _, err := auditRequest02(ctx, client, http.MethodPut, "/config/sessions/"+discardID, map[string]any{"path": "bgp.router-id", "value": "10.0.0.3"}); err != nil {
+	if _, err := auditRequest02(ctx, client, http.MethodPut, "/config/sessions/"+discardID, map[string]any{fieldPath: configPathRouterID, fieldValue: "10.0.0.3"}); err != nil {
 		return err
 	}
 	discarded, err := auditRequest02(ctx, client, http.MethodDelete, "/config/sessions/"+discardID, nil)
@@ -233,7 +233,7 @@ func auditConfigCommit02(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("show audit returned no config-discard entries")
 	}
 	entry = audit.Entries[len(audit.Entries)-1]
-	if entry.Action != "config-discard" || entry.Surface != "rest" || entry.Outcome != "success" {
+	if entry.Action != "config-discard" || entry.Surface != "rest" || entry.Outcome != outcomeSuccess {
 		return fmt.Errorf("unexpected discard audit entry=%+v", entry)
 	}
 	if !strings.Contains(entry.Detail, "10.0.0.3") {

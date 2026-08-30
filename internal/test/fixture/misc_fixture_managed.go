@@ -63,8 +63,8 @@ func managedConfigPushDriver(ctx context.Context, args []string) error {
 		return errors.New("hub-port and plugin-port are required")
 	}
 	scenarios := []string{*scenario}
-	if *scenario == "both" {
-		scenarios = []string{"success", "reject"}
+	if *scenario == modeBoth {
+		scenarios = []string{outcomeSuccess, actionReject}
 	}
 	for _, name := range scenarios {
 		if err := runManagedScenario(ctx, name, *hubPort, *pluginPort); err != nil {
@@ -76,8 +76,8 @@ func managedConfigPushDriver(ctx context.Context, args []string) error {
 }
 
 func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort int) error {
-	reject := name == "reject"
-	if name != "success" && name != "reject" {
+	reject := name == actionReject
+	if name != outcomeSuccess && name != actionReject {
 		return fmt.Errorf("unknown scenario %q", name)
 	}
 	cwd, err := os.Getwd()
@@ -91,12 +91,12 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 	defer os.RemoveAll(cfgDir) //nolint:errcheck // fixture cleanup
 	dbPath := filepath.Join(cfgDir, "database.zefs")
 	env := miscEnvironment(map[string]string{
-		"ZE_CONFIG_DIR":           cfgDir,
-		"ZE_MANAGED_TLS_INSECURE": "true",
-		"NO_COLOR":                "1",
-		"ze_test_bgp_port":        strconv.Itoa(pluginPort + 1000),
+		envConfigDir:              cfgDir,
+		"ZE_MANAGED_TLS_INSECURE": valueTrue,
+		envNoColor:                "1",
+		envTestBGPPort:            strconv.Itoa(pluginPort + 1000),
 	})
-	if _, err := managedRunCommand(ctx, env, cfgDir, "admin\nsecret123\n127.0.0.1\n2222\n"+managedClientName+"\n", "ze", "init", "--managed"); err != nil {
+	if _, err := managedRunCommand(ctx, env, cfgDir, "admin\nsecret123\n127.0.0.1\n2222\n"+managedClientName+"\n", "init", "--managed"); err != nil {
 		return err
 	}
 	active := managedConfig("1.1.1.1", hubPort, pluginPort, reject)
@@ -105,7 +105,7 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 	if err := os.WriteFile(activePath, []byte(active), 0o600); err != nil {
 		return err
 	}
-	if _, err := managedRunCommand(ctx, env, cfgDir, "", "ze", "data", "--path", dbPath, "import", activePath); err != nil {
+	if _, err := managedRunCommand(ctx, env, cfgDir, "", "data", "--path", dbPath, "import", activePath); err != nil {
 		return err
 	}
 	ackCh, hubErrCh, closeHub, err := startManagedFakeHub(hubPort, managedToken, []byte(pushed))
@@ -158,7 +158,7 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 	} else if !ack.OK {
 		return fmt.Errorf("success scenario ACK failed: %s", ack.Error)
 	}
-	activeData, err := managedRunCommand(ctx, env, cfgDir, "", "ze", "data", "--path", dbPath, "cat", "file/active/"+managedClientName+".conf")
+	activeData, err := managedRunCommand(ctx, env, cfgDir, "", "data", "--path", dbPath, "cat", "file/active/"+managedClientName+".conf")
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 	} else if !strings.Contains(activeText, "router-id 2.2.2.2") {
 		return fmt.Errorf("accepted push did not update active config:\n%s", activeText)
 	}
-	if data, err := managedRunCommand(ctx, env, cfgDir, "", "ze", "data", "--path", dbPath, "cat", "meta/config/candidate"); err == nil {
+	if data, err := managedRunCommand(ctx, env, cfgDir, "", "data", "--path", dbPath, "cat", "meta/config/candidate"); err == nil {
 		return fmt.Errorf("candidate pointer remains after %s scenario: %s", name, data)
 	}
 	return nil
@@ -341,8 +341,8 @@ func managedSelfSignedCert() (tls.Certificate, error) {
 	return tls.X509KeyPair(certPEM, keyPEM)
 }
 
-func managedRunCommand(ctx context.Context, env []string, dir, stdin, name string, args ...string) ([]byte, error) {
-	command := exec.CommandContext(ctx, name, args...)
+func managedRunCommand(ctx context.Context, env []string, dir, stdin string, args ...string) ([]byte, error) {
+	command := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = dir
 	command.Env = env
 	if stdin != "" {
@@ -350,7 +350,7 @@ func managedRunCommand(ctx context.Context, env []string, dir, stdin, name strin
 	}
 	output, err := command.CombinedOutput()
 	if err != nil {
-		return output, fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, output)
+		return output, fmt.Errorf("ze %s: %w\n%s", strings.Join(args, " "), err, output)
 	}
 	return output, nil
 }

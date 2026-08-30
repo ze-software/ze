@@ -10,9 +10,9 @@ import (
 )
 
 func p12AS112Announce(ctx context.Context, plugin *sdk.Plugin) error {
-	peers := []p12Peer{{"peer4", "127.0.0.1"}, {"peer6", "::1"}}
+	peers := []p12Peer{{"peer4", addrLoopback}, {"peer6", "::1"}}
 	if err := p12WaitAllPeerFields(ctx, plugin, peers, "state", func(_ p12Peer, value any) bool {
-		return value == "established"
+		return value == stateEstablished
 	}, "both peers established"); err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func p12AS112Announce(ctx context.Context, plugin *sdk.Plugin) error {
 		}
 		base[peer.name] = value
 	}
-	if _, err := p12RequireDone(ctx, plugin, "request fakeas112 emit add asn 112"); err != nil {
+	if err := p12RequireDone(ctx, plugin, "request fakeas112 emit add asn 112"); err != nil {
 		return err
 	}
 	if err := p12WaitAllPeerFields(ctx, plugin, peers, "updates-sent", func(peer p12Peer, value any) bool {
@@ -42,8 +42,8 @@ func p12AS112Announce(ctx context.Context, plugin *sdk.Plugin) error {
 
 func p12AS112Single(command string) p12Scenario {
 	return func(ctx context.Context, plugin *sdk.Plugin) error {
-		peer := p12Peer{"peer1", "127.0.0.1"}
-		if err := p12WaitPeerField(ctx, plugin, peer, "state", func(value any) bool { return value == "established" }, "peer1 established"); err != nil {
+		peer := p12Peer{peerNameOne, addrLoopback}
+		if err := p12WaitPeerField(ctx, plugin, peer, "state", func(value any) bool { return value == stateEstablished }, "peer1 established"); err != nil {
 			return err
 		}
 		if err := p12WaitPeerField(ctx, plugin, peer, "eor-sent", func(value any) bool { return p12NumberAtLeast(value, 1) }, "initial EOR sent"); err != nil {
@@ -53,7 +53,7 @@ func p12AS112Single(command string) p12Scenario {
 		if !ok {
 			return fmt.Errorf("peer1 updates-sent is not an integer")
 		}
-		if _, err := p12RequireDone(ctx, plugin, command); err != nil {
+		if err := p12RequireDone(ctx, plugin, command); err != nil {
 			return err
 		}
 		return p12WaitPeerField(ctx, plugin, peer, "updates-sent", func(value any) bool { return p12NumberAtLeast(value, base+1) }, "covering-prefix UPDATE sent")
@@ -61,8 +61,8 @@ func p12AS112Single(command string) p12Scenario {
 }
 
 func p12AS112Withdraw(ctx context.Context, plugin *sdk.Plugin) error {
-	peer := p12Peer{"peer1", "127.0.0.1"}
-	if err := p12WaitPeerField(ctx, plugin, peer, "state", func(value any) bool { return value == "established" }, "peer1 established"); err != nil {
+	peer := p12Peer{peerNameOne, addrLoopback}
+	if err := p12WaitPeerField(ctx, plugin, peer, "state", func(value any) bool { return value == stateEstablished }, "peer1 established"); err != nil {
 		return err
 	}
 	if err := p12WaitPeerField(ctx, plugin, peer, "eor-sent", func(value any) bool { return p12NumberAtLeast(value, 1) }, "initial EOR sent"); err != nil {
@@ -73,7 +73,7 @@ func p12AS112Withdraw(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("peer1 updates-sent is not an integer")
 	}
 	for index, command := range []string{"request fakeas112 emit add asn 112", "request fakeas112 emit del asn 112"} {
-		if _, err := p12RequireDone(ctx, plugin, command); err != nil {
+		if err := p12RequireDone(ctx, plugin, command); err != nil {
 			return err
 		}
 		minimum := base + index + 1
@@ -86,7 +86,7 @@ func p12AS112Withdraw(ctx context.Context, plugin *sdk.Plugin) error {
 
 func p12RedistributeNotConfigured(source string) p12Scenario {
 	return func(ctx context.Context, plugin *sdk.Plugin) error {
-		peer := p12Peer{"peer1", "127.0.0.1"}
+		peer := p12Peer{peerNameOne, addrLoopback}
 		if err := p12WaitPeerField(ctx, plugin, peer, "connections-established", func(value any) bool { return p12NumberAtLeast(value, 1) }, "peer1 session established at least once"); err != nil {
 			return err
 		}
@@ -96,49 +96,49 @@ func p12RedistributeNotConfigured(source string) p12Scenario {
 		} else {
 			command += "ipv4/unicast 10.0.0.1/32"
 		}
-		if _, err := p12RequireDone(ctx, plugin, command); err != nil {
+		if err := p12RequireDone(ctx, plugin, command); err != nil {
 			return err
 		}
-		p12Settle(ctx, 10, 200*time.Millisecond)
+		p12Settle(ctx, 10)
 		return nil
 	}
 }
 
 func p12L2TPAnnounce(ctx context.Context, plugin *sdk.Plugin) error {
-	p12Settle(ctx, 10, 200*time.Millisecond)
-	if _, err := p12RequireDone(ctx, plugin, "request fakel2tp emit add ipv4/unicast 10.0.0.1/32"); err != nil {
+	p12Settle(ctx, 10)
+	if err := p12RequireDone(ctx, plugin, "request fakel2tp emit add ipv4/unicast 10.0.0.1/32"); err != nil {
 		return err
 	}
-	p12Settle(ctx, 10, 200*time.Millisecond)
+	p12Settle(ctx, 10)
 	return nil
 }
 
 func p12L2TPMultiPeer(ctx context.Context, plugin *sdk.Plugin) error {
-	p12Settle(ctx, 10, 200*time.Millisecond)
-	if _, err := p12RequireDone(ctx, plugin, "request fakel2tp emit add ipv4/unicast 10.0.0.1/32"); err != nil {
+	p12Settle(ctx, 10)
+	if err := p12RequireDone(ctx, plugin, "request fakel2tp emit add ipv4/unicast 10.0.0.1/32"); err != nil {
 		return err
 	}
-	p12Settle(ctx, 15, 200*time.Millisecond)
+	p12Settle(ctx, 15)
 	return nil
 }
 
 func p12L2TPWithdraw(ctx context.Context, plugin *sdk.Plugin) error {
-	p12Settle(ctx, 10, 200*time.Millisecond)
+	p12Settle(ctx, 10)
 	for _, command := range []string{
 		"request fakel2tp emit add ipv4/unicast 10.0.0.1/32",
 		"request fakel2tp emit remove ipv4/unicast 10.0.0.1/32",
 	} {
-		if _, err := p12RequireDone(ctx, plugin, command); err != nil {
+		if err := p12RequireDone(ctx, plugin, command); err != nil {
 			return err
 		}
-		p12Settle(ctx, 3, 200*time.Millisecond)
+		p12Settle(ctx, 3)
 	}
-	p12Settle(ctx, 10, 200*time.Millisecond)
+	p12Settle(ctx, 10)
 	return nil
 }
 
 func p12LateJoinConfigAdd(ctx context.Context, plugin *sdk.Plugin) error {
-	_, err := p12RequireDone(ctx, plugin, "request fakeredist emit add ipv4/unicast 10.0.0.1/32")
+	err := p12RequireDone(ctx, plugin, "request fakeredist emit add ipv4/unicast 10.0.0.1/32")
 	return err
 }
 

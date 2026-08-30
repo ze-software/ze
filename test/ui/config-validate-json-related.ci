@@ -1,4 +1,4 @@
-# Test: ze config validate --json — listener conflict with related entries
+# Test: `validate config | json` — listener conflict with related entries
 # VALIDATES: AC-16 related entries point to both conflicting listener locations
 
 tmpfs=conflict.conf:terminator=EOF_CONF
@@ -17,7 +17,7 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config validate --json conflict.conf
+cmd=foreground:seq=1:exec=ze cli -c "validate config conflict.conf | json"
 expect=exit:code=1
 expect=stdout:contains=config-listener-conflict
 expect=stdout:contains="related"

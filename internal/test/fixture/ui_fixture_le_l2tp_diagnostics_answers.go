@@ -49,7 +49,7 @@ func runLEL2TPDiagnosticsAnswers(ctx context.Context) error {
 	if err != nil {
 		return uiLeL2tpDiagnosticsAnswersFailf("creating fixture work directory: %v", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	binary := filepath.Join(work, "le")
 	tags, err := uiLEFeatureTags(root, "zetest")
@@ -60,7 +60,7 @@ func runLEL2TPDiagnosticsAnswers(ctx context.Context) error {
 	if err != nil {
 		return uiLeL2tpDiagnosticsAnswersFailf("finding go: %v", err)
 	}
-	build := exec.CommandContext(ctx, goTool, "build", "-tags", strings.Join(tags, ","), "-o", binary, "./cmd/ze")
+	build := exec.CommandContext(ctx, goTool, "build", "-tags", strings.Join(tags, ","), "-o", binary, "./cmd/ze") //nolint:gosec // the fixture chooses the program and its arguments
 	build.Dir = root
 	build.Env = uiLeL2tpDiagnosticsAnswersEnvironmentWith("CGO_ENABLED", "0")
 	var buildOutput bytes.Buffer
@@ -90,10 +90,10 @@ func runLEL2TPDiagnosticsAnswers(ctx context.Context) error {
 
 	pppoxArgs := []string{
 		"l2tp-pppox-diag",
-		"local", "0.0.0.0", "remote", "127.0.0.1",
-		"source-port", "1701", "destination-port", "1701",
-		"tunnel-id", "1", "peer-tunnel-id", "100",
-		"session-id", "1", "peer-session-id", "100",
+		directionLocal, "0.0.0.0", directionRemote, addrLoopback,
+		"source-port", portL2TP, "destination-port", portL2TP,
+		fieldTunnelID, "1", "peer-tunnel-id", valueHundred,
+		"session-id", "1", "peer-session-id", valueHundred,
 	}
 	pppox := runLE(ctx, binary, work, "pppox.ndjson", append(pppoxArgs, "|", "json")...)
 	if pppox.code != 0 {
@@ -154,9 +154,9 @@ func runLEL2TPDiagnosticsAnswers(ctx context.Context) error {
 
 	tunnelArgs := []string{
 		"l2tp-tunnel-diag",
-		"local", "172.30.0.1", "remote", "172.30.0.2",
-		"source-port", "1701", "destination-port", "1702",
-		"tunnel-id", "1", "peer-tunnel-id", "100",
+		directionLocal, "172.30.0.1", directionRemote, "172.30.0.2",
+		"source-port", portL2TP, "destination-port", "1702",
+		fieldTunnelID, "1", "peer-tunnel-id", valueHundred,
 	}
 	tunnel := runLE(ctx, binary, work, "tunnel.ndjson", append(tunnelArgs, "|", "json")...)
 	if tunnel.code != 0 {
@@ -213,7 +213,7 @@ func runLE(ctx context.Context, binary, work, record string, args ...string) uiL
 }
 
 func uiLeL2tpDiagnosticsAnswersRunCommand(ctx context.Context, dir string, env []string, name string, args ...string) uiLeL2tpDiagnosticsAnswersCommandResult {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 
@@ -225,8 +225,7 @@ func uiLeL2tpDiagnosticsAnswersRunCommand(ctx context.Context, dir string, env [
 	err := cmd.Run()
 	code := 0
 	if err != nil {
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
+		if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
 			code = exitError.ExitCode()
 		} else {
 			code = -1
@@ -264,18 +263,18 @@ func uiLeL2tpDiagnosticsAnswersEnvironmentWith(keyValues ...string) []string {
 }
 
 func readDiagnosticCalls(path string) ([]diagnosticCall, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil, uiLeL2tpDiagnosticsAnswersFailf("opening diagnostic recording %s: %v", path, err)
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck // fixture teardown
 
 	reader := bufio.NewReader(file)
 	var calls []diagnosticCall
 	lineNumber := 0
 	for {
 		line, readErr := reader.ReadString('\n')
-		if len(line) != 0 {
+		if line != "" {
 			lineNumber++
 			if strings.TrimSpace(line) != "" {
 				var call diagnosticCall

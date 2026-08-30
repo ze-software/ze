@@ -30,6 +30,17 @@ const (
 	InstallReboot30s        = "rebooting in 30s"
 )
 
+// The installer scenario names. A name is the report's Name field and the
+// selector the dispatch below matches, so the two cannot drift apart.
+const (
+	installScenarioFault      = "fault"
+	installScenarioPinAC4     = "pin-ac4"
+	installScenarioPinAC5     = "pin-ac5"
+	installScenarioRescueAC7  = "rescue-ac7"
+	installScenarioRescueAC7B = "rescue-ac7b"
+	installScenarioRescueAC7C = "rescue-ac7c"
+)
+
 type installFixtures struct {
 	Initrd string
 	Image  string
@@ -93,9 +104,9 @@ func (installer *Installer) setupInstallFixtures(ctx context.Context, work strin
 // FaultArgv returns the forced-panic invocation used by scenario fault.
 func (installer *Installer) FaultArgv(initrd, disk string) ([]string, error) {
 	base := installer.qemuBase(false)
-	console := "ttyS0"
+	console := installConsoleAMD64
 	if installer.Options.Arch == ArchARM64 {
-		console = "ttyAMA0"
+		console = installConsoleARM64
 	}
 	var tb textbuf.Buffer
 	line := tb.Str("console=").Str(console).Str(" ze.server=").Str(InstallGuestServerIP).
@@ -136,15 +147,15 @@ func (installer *Installer) scenarioFault(ctx context.Context, work string) (Ins
 
 func installFaultScenario(serial string) InstallScenarioReport {
 	if strings.Contains(serial, InstallKernelPanicMark) {
-		return InstallScenarioReport{Name: "fault", Verdict: InstallVerdictFail, Detail: "kernel reported PID-1 death"}
+		return InstallScenarioReport{Name: installScenarioFault, Verdict: InstallVerdictFail, Detail: "kernel reported PID-1 death"}
 	}
 	if !strings.Contains(serial, InstallFaultRecoverMark) {
-		return InstallScenarioReport{Name: "fault", Verdict: InstallVerdictFail, Detail: "recover marker absent"}
+		return InstallScenarioReport{Name: installScenarioFault, Verdict: InstallVerdictFail, Detail: "recover marker absent"}
 	}
 	if !strings.Contains(serial, InstallFatalPolicyMark) {
-		return InstallScenarioReport{Name: "fault", Verdict: InstallVerdictFail, Detail: "fatal policy marker absent"}
+		return InstallScenarioReport{Name: installScenarioFault, Verdict: InstallVerdictFail, Detail: "fatal policy marker absent"}
 	}
-	return InstallScenarioReport{Name: "fault", Verdict: InstallVerdictPass, Detail: "goroutine panic recovered -> FATAL -> reboot; init never killed"}
+	return InstallScenarioReport{Name: installScenarioFault, Verdict: InstallVerdictPass, Detail: "goroutine panic recovered -> FATAL -> reboot; init never killed"}
 }
 
 func (installer *Installer) bootPin(
@@ -153,9 +164,9 @@ func (installer *Installer) bootPin(
 	disk, pinned, foreign string,
 ) (string, error) {
 	base := installer.qemuBase(false)
-	console := "ttyS0"
+	console := installConsoleAMD64
 	if installer.Options.Arch == ArchARM64 {
-		console = "ttyAMA0"
+		console = installConsoleARM64
 	}
 	var tb textbuf.Buffer
 	line := tb.Str("console=").Str(console).Str(" ze.server=").Str(InstallGuestServerIP).
@@ -187,7 +198,7 @@ func (installer *Installer) scenarioPin(ctx context.Context, work, name string, 
 		return InstallScenarioReport{}, "", err
 	}
 	pinned, foreign := "user,id=net0", "user,id=net1,net=10.0.99.0/24,restrict=on"
-	if name == "pin-ac5" {
+	if name == installScenarioPinAC5 {
 		pinned, foreign = "user,id=net0,net=10.0.88.0/24,restrict=on", "user,id=net1"
 	}
 	serial, err := installer.bootPin(ctx, fixtures, disk, pinned, foreign)
@@ -204,7 +215,7 @@ func installPinScenario(name, serial string) InstallScenarioReport {
 	if !strings.Contains(serial, InstallPinnedMAC) {
 		return InstallScenarioReport{Name: name, Verdict: InstallVerdictFail, Detail: "installer did not pin to the ze.mac NIC"}
 	}
-	if name == "pin-ac4" {
+	if name == installScenarioPinAC4 {
 		if !strings.Contains(serial, InstallPinReachableMark) {
 			return InstallScenarioReport{Name: name, Verdict: InstallVerdictFail, Detail: "server not reachable over pinned NIC"}
 		}
@@ -226,7 +237,7 @@ func installPinScenario(name, serial string) InstallScenarioReport {
 		return InstallScenarioReport{Name: name, Verdict: InstallVerdictFail, Detail: "install did not complete"}
 	}
 	detail := "pinned to ze.mac NIC, foreign NIC never up, install completed"
-	if name == "pin-ac5" {
+	if name == installScenarioPinAC5 {
 		detail = "pinned NIC flushed, install recovered on remaining NIC"
 	}
 	return InstallScenarioReport{Name: name, Verdict: InstallVerdictPass, Detail: detail}
@@ -235,9 +246,9 @@ func installPinScenario(name, serial string) InstallScenarioReport {
 // RescueArgv returns one source and credential branch of the rescue proof.
 func (installer *Installer) RescueArgv(initrd, source string, auth bool) ([]string, error) {
 	base := installer.qemuBase(false)
-	console := "ttyS0"
+	console := installConsoleAMD64
 	if installer.Options.Arch == ArchARM64 {
-		console = "ttyAMA0"
+		console = installConsoleARM64
 	}
 	var tb textbuf.Buffer
 	consoleSetting := tb.Str("console=").Str(console).String()
@@ -314,17 +325,17 @@ func (installer *Installer) scenarioRescue(ctx context.Context, work, name strin
 		return InstallScenarioReport{}, "", err
 	}
 	source, auth := "http", false
-	if name == "rescue-ac7" {
+	if name == installScenarioRescueAC7 {
 		auth = true
 	}
-	if name == "rescue-ac7b" {
+	if name == installScenarioRescueAC7B {
 		source = "iso"
 	}
 	argv, err := installer.RescueArgv(initrd, source, auth)
 	if err != nil {
 		return InstallScenarioReport{}, "", err
 	}
-	if name == "rescue-ac7c" {
+	if name == installScenarioRescueAC7C {
 		serial, runErr := installer.runCapture(ctx, argv, installer.Options.RescueTimeout)
 		if runErr != nil {
 			return InstallScenarioReport{}, serial, runErr
@@ -344,7 +355,7 @@ func (installer *Installer) scenarioRescue(ctx context.Context, work, name strin
 	defer func() {
 		resultErr = joinInstallCleanup(resultErr, run.Close, "close interactive installer QEMU")
 	}()
-	if name == "rescue-ac7" {
+	if name == installScenarioRescueAC7 {
 		if ok, expectErr := run.serial.expect(ctx, InstallTokenPrompt, installer.Options.RescueStepTimeout); expectErr != nil || !ok {
 			return InstallScenarioReport{Name: name, Verdict: InstallVerdictFail, Detail: "gated password prompt never appeared"}, run.serial.snapshot(), expectErr
 		}
@@ -403,14 +414,17 @@ func (installer *Installer) executeScenarios(ctx context.Context, work string, r
 		report.line(installer.prefix(), tb.Str("install fixtures unavailable, fixture scenarios will skip: ").
 			Str(skipReason).String())
 	}
-	names := []string{"fault", "pin-ac4", "pin-ac5", "rescue-ac7", "rescue-ac7b", "rescue-ac7c"}
+	names := []string{
+		installScenarioFault, installScenarioPinAC4, installScenarioPinAC5,
+		installScenarioRescueAC7, installScenarioRescueAC7B, installScenarioRescueAC7C,
+	}
 	for _, name := range names {
 		var scenario InstallScenarioReport
 		var serial string
 		switch name {
-		case "fault":
+		case installScenarioFault:
 			scenario, serial, err = installer.scenarioFault(ctx, work)
-		case "pin-ac4", "pin-ac5":
+		case installScenarioPinAC4, installScenarioPinAC5:
 			scenario, serial, err = installer.scenarioPin(ctx, work, name, fixtures)
 		default:
 			scenario, serial, err = installer.scenarioRescue(ctx, work, name)

@@ -61,12 +61,20 @@ var requestAttrs = map[string]bool{
 	"hx-delete": true,
 }
 
+// The rename targets that more than one htmx 1.x event maps to. Each is named
+// once so the many-to-one mapping in eventRenames is checked by the compiler.
+const (
+	eventAfterInit = "htmx:after:init"
+	eventAfterSwap = "htmx:after:swap"
+	eventError     = "htmx:error"
+)
+
 var eventRenames = []renameRule{
-	{old: "htmx:afterOnLoad", new: "htmx:after:init"},
-	{old: "htmx:afterProcessNode", new: "htmx:after:init"},
+	{old: "htmx:afterOnLoad", new: eventAfterInit},
+	{old: "htmx:afterProcessNode", new: eventAfterInit},
 	{old: "htmx:afterRequest", new: "htmx:after:request"},
-	{old: "htmx:afterSettle", new: "htmx:after:swap"},
-	{old: "htmx:afterSwap", new: "htmx:after:swap"},
+	{old: "htmx:afterSettle", new: eventAfterSwap},
+	{old: "htmx:afterSwap", new: eventAfterSwap},
 	{old: "htmx:beforeCleanupElement", new: "htmx:before:cleanup"},
 	{old: "htmx:beforeHistorySave", new: "htmx:before:history:update"},
 	{old: "htmx:beforeOnLoad", new: "htmx:before:init"},
@@ -76,16 +84,16 @@ var eventRenames = []renameRule{
 	{old: "htmx:configRequest", new: "htmx:config:request"},
 	{old: "htmx:historyCacheMiss", new: "htmx:before:history:restore"},
 	{old: "htmx:historyRestore", new: "htmx:before:history:restore"},
-	{old: "htmx:load", new: "htmx:after:init"},
-	{old: "htmx:oobAfterSwap", new: "htmx:after:swap"},
+	{old: "htmx:load", new: eventAfterInit},
+	{old: "htmx:oobAfterSwap", new: eventAfterSwap},
 	{old: "htmx:oobBeforeSwap", new: "htmx:before:swap"},
 	{old: "htmx:pushedIntoHistory", new: "htmx:after:history:push"},
 	{old: "htmx:replacedInHistory", new: "htmx:after:history:replace"},
 	{old: "htmx:responseError", new: "htmx:response:error"},
-	{old: "htmx:sendError", new: "htmx:error"},
-	{old: "htmx:swapError", new: "htmx:error"},
-	{old: "htmx:targetError", new: "htmx:error"},
-	{old: "htmx:timeout", new: "htmx:error"},
+	{old: "htmx:sendError", new: eventError},
+	{old: "htmx:swapError", new: eventError},
+	{old: "htmx:targetError", new: eventError},
+	{old: "htmx:timeout", new: eventError},
 }
 
 var removedEvents = []string{

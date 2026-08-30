@@ -43,7 +43,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create fixture working directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	goTool, err := exec.LookPath("go")
 	if err != nil {
@@ -56,46 +56,46 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	}
 
 	fixtureRoot := filepath.Join(work, "fixture")
-	if err := os.MkdirAll(fixtureRoot, 0o755); err != nil {
+	if err := os.MkdirAll(fixtureRoot, 0o750); err != nil {
 		return fmt.Errorf("create fixture checkout: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(fixtureRoot, "go.mod"), []byte("module example.test/m\n\ngo 1.26\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(fixtureRoot, "go.mod"), []byte("module example.test/m\n\ngo 1.26\n"), 0o600); err != nil {
 		return fmt.Errorf("write fixture go.mod: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(fixtureRoot, "feature-gates.txt"), []byte("ze_bgp internal/component/bgp\nze_vpp internal/component/vpp\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(fixtureRoot, "feature-gates.txt"), []byte("ze_bgp internal/component/bgp\nze_vpp internal/component/vpp\n"), 0o600); err != nil {
 		return fmt.Errorf("write fixture feature manifest: %w", err)
 	}
 
 	stubs := filepath.Join(work, "stubs")
-	if err := os.MkdirAll(stubs, 0o755); err != nil {
+	if err := os.MkdirAll(stubs, 0o750); err != nil {
 		return fmt.Errorf("create stand-in directory: %w", err)
 	}
 	helperFile := filepath.Join(work, "vpp-evidence-helper.go")
-	if err := os.WriteFile(helperFile, []byte(vppEvidenceHelperSource), 0o644); err != nil {
+	if err := os.WriteFile(helperFile, []byte(vppEvidenceHelperSource), 0o600); err != nil {
 		return fmt.Errorf("write stand-in helper source: %w", err)
 	}
 	var buildOut, buildErr bytes.Buffer
 	firstStub := filepath.Join(stubs, "docker")
-	helperBuild := exec.CommandContext(ctx, goTool, "build", "-o", firstStub, helperFile)
+	helperBuild := exec.CommandContext(ctx, goTool, "build", "-o", firstStub, helperFile) //nolint:gosec // the fixture chooses the program and its arguments
 	helperBuild.Dir = work
-	helperBuild.Env = overlayEnv(os.Environ(), map[string]string{"CGO_ENABLED": "0"})
+	helperBuild.Env = overlayEnv(os.Environ(), map[string]string{envCGOEnabled: "0"})
 	helperBuild.Stdout = &buildOut
 	helperBuild.Stderr = &buildErr
 	buildOut.Reset()
 	buildErr.Reset()
 	if err := helperBuild.Run(); err != nil {
-		return fmt.Errorf("compile VPP command stand-ins: %v\n%s", err, buildErr.String())
+		return fmt.Errorf("compile VPP command stand-ins: %w\n%s", err, buildErr.String())
 	}
-	helperBytes, err := os.ReadFile(firstStub)
+	helperBytes, err := os.ReadFile(firstStub) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read compiled stand-in: %w", err)
 	}
-	for _, name := range []string{"go", "qemu-system-x86_64", "qemu-system-aarch64", "sshpass", "mkfs.ext4", "debugfs"} {
-		if err := os.WriteFile(filepath.Join(stubs, name), helperBytes, 0o755); err != nil {
+	for _, name := range []string{"go", "qemu-system-x86_64", programQEMUAArch64, "sshpass", "mkfs.ext4", "debugfs"} {
+		if err := os.WriteFile(filepath.Join(stubs, name), helperBytes, 0o755); err != nil { //nolint:gosec // the fixture writes an executable stand-in, so it needs the execute bit
 			return fmt.Errorf("install %s stand-in: %w", name, err)
 		}
 	}
-	if err := os.Chmod(firstStub, 0o755); err != nil {
+	if err := os.Chmod(firstStub, 0o755); err != nil { //nolint:gosec // the fixture writes an executable stand-in, so it needs the execute bit
 		return fmt.Errorf("make docker stand-in executable: %w", err)
 	}
 
@@ -117,21 +117,21 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 			total = "64"
 		}
 		env := overlayEnv(os.Environ(), map[string]string{
-			"PATH":                   stubs + string(os.PathListSeparator) + os.Getenv("PATH"),
-			"ZE_REPO_ROOT":           fixtureRoot,
+			envPath:                  stubs + string(os.PathListSeparator) + os.Getenv("PATH"),
+			envRepoRoot:              fixtureRoot,
 			"ZE_RECORD_DOCKER":       record,
 			"ZE_VPP_WORK":            filepath.Join(work, "vpp-work"),
 			"ZE_VPP_STATE":           filepath.Join(work, "vpp-state-"+filepath.Base(record)),
 			"ZE_VPP_DOCKER_IMAGE":    "ligato/vpp-base:latest",
 			"ZE_VPP_DOCKER_PLATFORM": "linux/amd64",
-			"ZE_VPP_DOCKER_GOARCH":   "amd64",
+			"ZE_VPP_DOCKER_GOARCH":   archAMD64,
 			"ZE_PLUGINS_EXIT":        pluginsExit,
 			"ZE_VPP_HP_KEEP":         "1",
 			"ZE_VPP_HP_SSH_PORT":     "34122",
 			"ZE_HP_CMDLINE":          cmdline,
 			"ZE_HP_TOTAL":            total,
 		})
-		cmd := exec.CommandContext(ctx, binary, args...)
+		cmd := exec.CommandContext(ctx, binary, args...) //nolint:gosec // the fixture chooses the program and its arguments
 		cmd.Dir = work
 		cmd.Env = env
 		var stdout, stderr bytes.Buffer
@@ -140,8 +140,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		err := cmd.Run()
 		code := 0
 		if err != nil {
-			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
+			if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 				code = exitErr.ExitCode()
 			} else {
 				code = -1
@@ -150,17 +149,17 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		return uiLeEvidenceVppAnswersCommandResult{stdout: stdout.String(), stderr: stderr.String(), code: code}
 	}
 
-	usage := runLE([]string{"--help"}, leOptions{})
+	usage := runLE([]string{flagHelp}, leOptions{})
 	page := usage.stdout + usage.stderr
-	for _, name := range []string{"deployment", "qemu"} {
+	for _, name := range []string{areaDeployment, areaQEMU} {
 		if !strings.Contains(page, name) {
 			return fmt.Errorf("le --help does not list the %s command", name)
 		}
 	}
 
 	for _, test := range []struct{ area, action string }{
-		{"deployment", "vpp-iface-test"},
-		{"qemu", "vpp-hugepages-test"},
+		{areaDeployment, actionVPPIfaceTest},
+		{areaQEMU, actionVPPHugepagesTest},
 	} {
 		listing := runLE([]string{test.area}, leOptions{})
 		if listing.code != 0 {
@@ -175,7 +174,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	}
 
 	ifaceRecord := filepath.Join(work, "iface-argv")
-	proof := runLE([]string{"deployment", "vpp-iface-test", "|", "json"}, leOptions{record: ifaceRecord})
+	proof := runLE([]string{areaDeployment, actionVPPIfaceTest, "|", renderJSON}, leOptions{record: ifaceRecord})
 	if proof.code != 0 {
 		return fmt.Errorf("the VPP interface proof exited %d: %s", proof.code, uiLeEvidenceVppAnswersTail(proof.stderr, 800))
 	}
@@ -183,7 +182,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if err := json.Unmarshal([]byte(proof.stdout), &iface); err != nil {
 		return fmt.Errorf("decode VPP interface proof: %w; output %q", err, proof.stdout)
 	}
-	for _, key := range []string{"image", "container", "vpp-version", "plugins", "scenarios", "passed"} {
+	for _, key := range []string{fieldImage, fieldContainer, "vpp-version", sectionPlugins, "scenarios", fieldPassed} {
 		if _, ok := iface[key]; !ok {
 			return fmt.Errorf("the proof answered no %q key: %v", key, uiLeEvidenceVppAnswersSortedKeys(iface))
 		}
@@ -203,7 +202,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		if !ok {
 			return fmt.Errorf("the proof returned a non-object scenario: %T", raw)
 		}
-		if one["outcome"] != "pass" {
+		if one["outcome"] != verdictPass {
 			return fmt.Errorf("scenario %v answered %v: %v", one["feature"], one["outcome"], one["detail"])
 		}
 	}
@@ -225,7 +224,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	}
 
 	brokenRecord := filepath.Join(work, "iface-broken")
-	broken := runLE([]string{"deployment", "vpp-iface-test"}, leOptions{record: brokenRecord, pluginsExit: "1"})
+	broken := runLE([]string{areaDeployment, actionVPPIfaceTest}, leOptions{record: brokenRecord, pluginsExit: "1"})
 	if broken.code != 1 {
 		return fmt.Errorf("a failed plugin query exited %d, want 1", broken.code)
 	}
@@ -238,7 +237,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	}
 
 	vppRecord := filepath.Join(work, "vpp-evidence-argv")
-	evidence := runLE([]string{"deployment", "vpp-test", "|", "json"}, leOptions{record: vppRecord})
+	evidence := runLE([]string{areaDeployment, actionVPPTest, "|", renderJSON}, leOptions{record: vppRecord})
 	if evidence.code != 0 {
 		return fmt.Errorf("the VPP deployment proof exited %d: %s", evidence.code, uiLeEvidenceVppAnswersTail(evidence.stderr, 800))
 	}
@@ -246,7 +245,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if err := json.Unmarshal([]byte(evidence.stdout), &vpp); err != nil {
 		return fmt.Errorf("decode VPP deployment proof: %w; output %q", err, evidence.stdout)
 	}
-	for _, key := range []string{"image", "container", "vpp-version", "interface", "scenarios", "passed"} {
+	for _, key := range []string{fieldImage, fieldContainer, "vpp-version", argInterface, "scenarios", fieldPassed} {
 		if _, ok := vpp[key]; !ok {
 			return fmt.Errorf("the VPP deployment proof answered no %q: %v", key, uiLeEvidenceVppAnswersSortedKeys(vpp))
 		}
@@ -272,7 +271,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 			return fmt.Errorf("VPP scenario %v returned non-list checks", one["scenario"])
 		}
 		checkCount += len(checks)
-		if one["verdict"] != "pass" {
+		if one["verdict"] != verdictPass {
 			return fmt.Errorf("VPP scenario %v answered %v", one["scenario"], one["verdict"])
 		}
 	}
@@ -292,7 +291,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		}
 	}
 
-	evidenceYAML := runLE([]string{"deployment", "vpp-test", "|", "yaml"}, leOptions{record: filepath.Join(work, "vpp-evidence-yaml-argv")})
+	evidenceYAML := runLE([]string{areaDeployment, actionVPPTest, "|", renderYAML}, leOptions{record: filepath.Join(work, "vpp-evidence-yaml-argv")})
 	if evidenceYAML.code != 0 {
 		return fmt.Errorf("the YAML VPP deployment proof exited %d", evidenceYAML.code)
 	}
@@ -300,11 +299,11 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		return fmt.Errorf("the YAML renderer omitted the structured report: %q", head(evidenceYAML.stdout, 300))
 	}
 
-	evidenceTable := runLE([]string{"deployment", "vpp-test", "|", "table"}, leOptions{record: filepath.Join(work, "vpp-evidence-table-argv")})
+	evidenceTable := runLE([]string{areaDeployment, actionVPPTest, "|", renderTable}, leOptions{record: filepath.Join(work, "vpp-evidence-table-argv")})
 	if evidenceTable.code != 0 {
 		return fmt.Errorf("the table VPP deployment proof exited %d", evidenceTable.code)
 	}
-	for _, heading := range []string{"scenario", "verdict", "checks"} {
+	for _, heading := range []string{"scenario", "verdict", fieldChecks} {
 		if !strings.Contains(evidenceTable.stdout, heading) {
 			return fmt.Errorf("the VPP table has no %q scenario column: %q", heading, head(evidenceTable.stdout, 500))
 		}
@@ -315,7 +314,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		}
 	}
 
-	boot := runLE([]string{"qemu", "vpp-hugepages-test", "|", "json"}, leOptions{})
+	boot := runLE([]string{areaQEMU, actionVPPHugepagesTest, "|", renderJSON}, leOptions{})
 	if boot.code != 0 {
 		return fmt.Errorf("the hugepage proof exited %d: %s", boot.code, uiLeEvidenceVppAnswersTail(boot.stderr, 800))
 	}
@@ -328,7 +327,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 			return fmt.Errorf("the proof answered no %q key: %v", key, uiLeEvidenceVppAnswersSortedKeys(verdict))
 		}
 	}
-	if verdict["verdict"] != "pass" {
+	if verdict["verdict"] != verdictPass {
 		return fmt.Errorf("the proof answered %v", verdict["verdict"])
 	}
 	if verdict["pages"] != float64(64) {
@@ -338,12 +337,12 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		return fmt.Errorf("the kernel reserved %v, want 64", verdict["hugepages-total"])
 	}
 
-	partial := runLE([]string{"qemu", "vpp-hugepages-test"}, leOptions{cmdline: "default_hugepagesz=2M hugepages=64"})
+	partial := runLE([]string{areaQEMU, actionVPPHugepagesTest}, leOptions{cmdline: "default_hugepagesz=2M hugepages=64"})
 	if partial.code != 1 {
 		return fmt.Errorf("a cmdline with no standalone hugepagesz exited %d, want 1", partial.code)
 	}
 
-	none := runLE([]string{"qemu", "vpp-hugepages-test"}, leOptions{total: "0"})
+	none := runLE([]string{areaQEMU, actionVPPHugepagesTest}, leOptions{total: "0"})
 	if none.code != 1 {
 		return fmt.Errorf("a kernel that reserved no pages exited %d, want 1", none.code)
 	}
@@ -355,8 +354,8 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		args   []string
 		needle string
 	}{
-		{[]string{"deployment", "vpp-iface-test", "|", "yaml"}, "passed:"},
-		{[]string{"qemu", "vpp-hugepages-test", "|", "yaml"}, "verdict:"},
+		{[]string{areaDeployment, actionVPPIfaceTest, "|", renderYAML}, "passed:"},
+		{[]string{areaQEMU, actionVPPHugepagesTest, "|", renderYAML}, "verdict:"},
 	} {
 		out := runLE(rendering.args, leOptions{record: filepath.Join(work, "render-argv")})
 		if !strings.Contains(out.stdout, rendering.needle) {
@@ -364,11 +363,11 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		}
 	}
 
-	missing := runLE([]string{"qemu", "no-such-action"}, leOptions{})
+	missing := runLE([]string{areaQEMU, "no-such-action"}, leOptions{})
 	if missing.code != 2 {
 		return fmt.Errorf("an unknown action exited %d, want 2", missing.code)
 	}
-	extra := runLE([]string{"deployment", "vpp-iface-test", "somewhere"}, leOptions{})
+	extra := runLE([]string{areaDeployment, actionVPPIfaceTest, "somewhere"}, leOptions{})
 	if extra.code != 2 {
 		return fmt.Errorf("a value after an action exited %d, want 2", extra.code)
 	}
@@ -377,32 +376,12 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	return nil
 }
 
-func uiLeEvidenceVppAnswersFeatureTags(path string) ([]string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read feature manifest: %w", err)
-	}
-	set := map[string]struct{}{"ze_le": {}}
-	for _, line := range strings.Split(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) != 0 && strings.HasPrefix(fields[0], "ze_") {
-			set[fields[0]] = struct{}{}
-		}
-	}
-	tags := make([]string, 0, len(set))
-	for tag := range set {
-		tags = append(tags, tag)
-	}
-	sort.Strings(tags)
-	return tags, nil
-}
-
 func overlayEnv(base []string, changes map[string]string) []string {
 	out := make([]string, 0, len(base)+len(changes))
 	for _, entry := range base {
 		key := entry
-		if i := strings.IndexByte(entry, '='); i >= 0 {
-			key = entry[:i]
+		if before, _, found := strings.Cut(entry, "="); found {
+			key = before
 		}
 		if _, replaced := changes[key]; !replaced {
 			out = append(out, entry)
@@ -420,7 +399,7 @@ func overlayEnv(base []string, changes map[string]string) []string {
 }
 
 func uiLeEvidenceVppAnswersRecorded(path string) ([]string, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -521,7 +500,7 @@ func setState(name string) { _ = os.WriteFile(statePath(name), nil, 0644) }
 func clearState(name string) { _ = os.Remove(statePath(name)) }
 
 func awaitState(name string) bool {
-    for i := 0; i < 60; i++ {
+    for range 60 {
         if hasState(name) { return true }
         time.Sleep(50 * time.Millisecond)
     }
@@ -529,7 +508,7 @@ func awaitState(name string) bool {
 }
 
 func awaitDaemon(name string) {
-    for i := 0; i < 60; i++ {
+    for range 60 {
         if _, err := os.Stat(workPath() + "." + name); err == nil { return }
         time.Sleep(50 * time.Millisecond)
     }

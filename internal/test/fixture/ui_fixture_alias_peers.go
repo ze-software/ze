@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -24,8 +25,8 @@ type uiAliasPeersResult struct {
 	stderr string
 }
 
-func uiAliasPeersRun(ctx context.Context, argv []string, env []string) (uiAliasPeersResult, error) {
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+func uiAliasPeersRun(ctx context.Context, argv, env []string) (uiAliasPeersResult, error) {
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 
 	var stdout bytes.Buffer
@@ -43,8 +44,7 @@ func uiAliasPeersRun(ctx context.Context, argv []string, env []string) (uiAliasP
 		return result, nil
 	}
 
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}
@@ -138,11 +138,11 @@ system {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 	configPath := filepath.Join(work, "summary.conf")
 	sshAddressPath := filepath.Join(work, "ssh.addr")
 	readyPath := filepath.Join(work, "ready")
-	if err := os.WriteFile(configPath, []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write summary.conf: %w", err)
 	}
 	bgpPort, err := uiFreeTCPPort()
@@ -150,15 +150,15 @@ system {
 		return err
 	}
 	daemonEnv := uiAliasPeersEnv(os.Environ(), map[string]string{
-		"ZE_SSH_EPHEMERAL": sshAddressPath,
-		"ZE_READY_FILE":    readyPath,
-		"ZE_CONFIG_DIR":    work,
+		envSSHEphemeral: sshAddressPath,
+		envReadyFile:    readyPath,
+		envConfigDir:    work,
 		// Leave port 179 alone: this suite runs unprivileged and a bind failure there
 		// takes the daemon down before it writes `ready`.
-		"ze_test_bgp_port": strconv.Itoa(bgpPort),
+		envTestBGPPort: strconv.Itoa(bgpPort),
 	})
 
-	daemon := exec.CommandContext(ctx, "ze", "-f", configPath)
+	daemon := exec.CommandContext(ctx, "ze", "-f", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	daemon.Dir = work
 	daemon.Env = daemonEnv
 	var daemonStdout bytes.Buffer
@@ -215,7 +215,7 @@ system {
 
 	testErr := func() error {
 		ready := false
-		for attempt := 0; attempt < 200; attempt++ {
+		for range 200 {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -244,7 +244,7 @@ system {
 			return errors.New("daemon did not become ready")
 		}
 
-		addressBytes, err := os.ReadFile(sshAddressPath)
+		addressBytes, err := os.ReadFile(sshAddressPath) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return fmt.Errorf("read ssh.addr: %w", err)
 		}
@@ -255,15 +255,15 @@ system {
 		}
 		host, port := address[:colon], address[colon+1:]
 		cliEnv := uiAliasPeersEnv(os.Environ(), map[string]string{
-			"ZE_SSH_HOST":     host,
-			"ZE_SSH_PORT":     port,
-			"ZE_SSH_USERNAME": "ci",
-			"ZE_SSH_PASSWORD": "secret",
-			"ZE_CONFIG_DIR":   work,
+			envSSHHost:     host,
+			envSSHPort:     port,
+			envSSHUsername: "ci",
+			envSSHPassword: valueSecret,
+			envConfigDir:   work,
 		})
 
 		cli := func(command string) (string, error) {
-			result, err := uiAliasPeersRun(ctx, []string{"ze", "cli", "-c", command}, cliEnv)
+			result, err := uiAliasPeersRun(ctx, []string{"ze", areaCLI, "-c", command}, cliEnv)
 			if err != nil {
 				return "", fmt.Errorf("run %q: %w", command, err)
 			}
@@ -279,7 +279,7 @@ system {
 		if err != nil {
 			return err
 		}
-		for _, key := range []string{"router-id", "local-as", "peers-configured"} {
+		for _, key := range []string{fieldRouterID, fieldLocalAS, fieldPeersConfigured} {
 			if !strings.Contains(whole, key) {
 				return fmt.Errorf("the summary does not carry %s: %q", key, whole)
 			}
@@ -308,13 +308,13 @@ system {
 		// The rows render as a TABLE, so one header line names the peer columns and
 		// each peer sits on a line of its own.
 		var header []string
-		for _, line := range strings.Split(rows, "\n") {
+		for line := range strings.SplitSeq(rows, "\n") {
 			fields := strings.Fields(line)
-			if len(fields) == 0 || (fields[0] != "address" && fields[0] != "peers") {
+			if len(fields) == 0 || (fields[0] != columnAddress && fields[0] != aliasPeers) {
 				continue
 			}
 			for _, field := range fields {
-				if field != "peers" {
+				if field != aliasPeers {
 					header = append(header, field)
 				}
 			}
@@ -323,17 +323,10 @@ system {
 		if header == nil {
 			return fmt.Errorf("the peer rows did not render as a table: %q", rows)
 		}
-		if len(header) == 0 || header[0] != "address" {
+		if len(header) == 0 || header[0] != columnAddress {
 			return fmt.Errorf("the peer table must lead with the peer: %q", header)
 		}
-		hasState := false
-		for _, field := range header {
-			if field == "state" {
-				hasState = true
-				break
-			}
-		}
-		if !hasState {
+		if !slices.Contains(header, "state") {
 			return fmt.Errorf("the peer table lost its state column: %q", header)
 		}
 
@@ -353,7 +346,7 @@ system {
 		// An alias takes no argument, and a word after it is refused by name. The
 		// refusal is asserted on the message rather than on the alias name, which
 		// the accepted answer would carry as a column header too.
-		refused, err := uiAliasPeersRun(ctx, []string{"ze", "cli", "-c", "show bgp | peers established"}, cliEnv)
+		refused, err := uiAliasPeersRun(ctx, []string{"ze", areaCLI, "-c", "show bgp | peers established"}, cliEnv)
 		if err != nil {
 			return fmt.Errorf("run refused alias chain: %w", err)
 		}

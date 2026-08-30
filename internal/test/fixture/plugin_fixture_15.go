@@ -48,7 +48,7 @@ func (r plugin15Result) value(dst any) error {
 func plugin15Dispatch(ctx context.Context, p *sdk.Plugin, command string) plugin15Result {
 	status, raw, err := p.DispatchCommand(ctx, command)
 	if err != nil && status == "" {
-		status = "error"
+		status = statusError
 	}
 	return plugin15Result{status: status, raw: raw, err: err}
 }
@@ -62,7 +62,7 @@ func plugin15PollCommand(ctx context.Context, p *sdk.Plugin, command string, att
 	return last
 }
 
-func plugin15Done(r plugin15Result) bool { return r.err == nil && r.status == "done" }
+func plugin15Done(r plugin15Result) bool { return r.err == nil && r.status == statusDone }
 
 func plugin15Map(r plugin15Result) (map[string]any, error) {
 	value := map[string]any{}
@@ -108,7 +108,7 @@ func plugin15ObserveStarted(name string, registration sdk.Registration, scenario
 		if err != nil {
 			return err
 		}
-		defer p.Close() //nolint:errcheck
+		defer p.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 		result := make(chan error, 1)
 		started := make(chan struct{})
 		p.OnStarted(func(context.Context) error {
@@ -116,7 +116,7 @@ func plugin15ObserveStarted(name string, registration sdk.Registration, scenario
 			go func() {
 				scenarioErr := scenario(ctx, p)
 				result <- scenarioErr
-				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 				defer cancel()
 				_, _, _ = p.DispatchCommand(shutdownCtx, "request shutdown")
 			}()

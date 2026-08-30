@@ -18,8 +18,8 @@ import (
 
 func (c *mcpClient) callTool(tool string, args json.RawMessage) (string, error) {
 	result, err := c.send(methodToolsCall, map[string]any{
-		keyName:     tool,
-		"arguments": args,
+		keyName:           tool,
+		toolCallArguments: args,
 	})
 	if err != nil {
 		return "", err
@@ -278,8 +278,8 @@ func firstDifference(a, b []string) (int, bool) {
 // rather than as the missing feature it is.
 func (c *mcpClient) taskCall(tool string, args json.RawMessage) (string, error) {
 	result, err := c.send(methodToolsCall, map[string]any{
-		keyName:     tool,
-		"arguments": args,
+		keyName:           tool,
+		toolCallArguments: args,
 	})
 	if err != nil {
 		return "", err
@@ -307,8 +307,8 @@ func (c *mcpClient) taskCall(tool string, args json.RawMessage) (string, error) 
 // server that failed the request, so the test also has to prove the work ran.
 func (c *mcpClient) taskCallSync(tool string, args json.RawMessage) (string, error) {
 	result, err := c.send(methodToolsCall, map[string]any{
-		keyName:     tool,
-		"arguments": args,
+		keyName:           tool,
+		toolCallArguments: args,
 	})
 	if err != nil {
 		return "", err

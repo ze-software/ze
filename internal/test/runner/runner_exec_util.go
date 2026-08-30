@@ -248,7 +248,7 @@ const (
 // suite that polls daemon.pid/daemon.ready. A TmpfsTempDir is required because
 // that is where the handshake files live. Non-ze binaries are never armed.
 func zeReadyFileEnabled(mode, binName, tmpfsTempDir string) bool {
-	if binName != "ze" || tmpfsTempDir == "" {
+	if binName != binNameZe || tmpfsTempDir == "" {
 		return false
 	}
 	return mode == modeForeground || mode == modeBackground
@@ -584,7 +584,7 @@ func zeDaemonConfigArgIndex(args []string) int {
 		arg := args[i]
 		switch arg {
 		// "start" verb precedes a config path after spec-fixit-config-file-positional-grammar
-		case "start", "-d", "--debug", "--insecure-web", "--color", "--no-color":
+		case zeVerbStart, "-d", "--debug", "--insecure-web", "--color", "--no-color":
 			continue
 		case "-f", "--server", "--name", "--token", "--plugin", "--pprof", "--chaos-seed", "--chaos-rate", "--mcp", "--mcp-token", "--web":
 			i++
@@ -622,11 +622,15 @@ func zeDaemonShouldForceFileStorage(args []string) bool {
 // invocations (`ze -`, `ze x.conf`, `ze --web 8080 ...`) are also daemons; those
 // are detected structurally (zeDaemonConfigArgIndex / zeDaemonUsesWeb) rather
 // than by verb. cli/monitor block on stdin or stream continuously.
+// zeVerbStart is the `ze start <config>` verb: it precedes a config path and it
+// starts a daemon.
+const zeVerbStart = "start"
+
 var zeDaemonVerbs = map[string]bool{
-	"hub":     true,
-	"start":   true,
-	"cli":     true,
-	"monitor": true,
+	"hub":       true,
+	zeVerbStart: true,
+	"cli":       true,
+	"monitor":   true,
 }
 
 // firstZeSubcommand returns the first non-flag token in a ze argument list (the

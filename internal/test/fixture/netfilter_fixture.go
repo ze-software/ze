@@ -89,21 +89,24 @@ func init() {
 }
 
 func netfilterCommandOutput(ctx context.Context, name string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	out, err := cmd.Output()
 	return string(out), err
 }
 
 func commandIgnore(ctx context.Context, name string, args ...string) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	_ = cmd.Run()
 }
 
-func waitDaemon(ctx context.Context, attempts int, delay time.Duration) (int, error) {
+// netfilterPollDelay is the gap between two reads of the daemon's pid file.
+const netfilterPollDelay = 50 * time.Millisecond
+
+func waitDaemon(ctx context.Context, attempts int) (int, error) {
 	var pid int
-	ok := Poll(ctx, attempts, delay, func() bool {
+	ok := Poll(ctx, attempts, netfilterPollDelay, func() bool {
 		if _, err := os.Stat("daemon.ready"); err != nil {
 			return false
 		}
@@ -136,20 +139,22 @@ func waitDead(ctx context.Context, pid int) {
 	Poll(ctx, 100, 50*time.Millisecond, func() bool { return !processAlive(pid) })
 }
 
-func copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
+// stageReloadConfig replaces the live configuration with the second one, so
+// the SIGHUP that follows makes the daemon read the new content.
+func stageReloadConfig() error {
+	data, err := os.ReadFile("config2.conf")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, data, 0o600)
+	return os.WriteFile("ze-bgp.conf", data, 0o600)
 }
 
 func reloadAndStop(ctx context.Context, hold time.Duration) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
-	if err := copyFile("config2.conf", "ze-bgp.conf"); err != nil {
+	if err := stageReloadConfig(); err != nil {
 		return err
 	}
 	if err := signalProcess(pid, syscall.SIGHUP); err != nil {

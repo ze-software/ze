@@ -3,7 +3,7 @@
 #
 # WHAT THIS PROVES: the YANG grammar accepts a `prefix` block on each family
 # carrying its own `maximum`, `warning`, `teardown`, `idle-timeout`, `reconnect`
-# and `count`, and `ze config dump --json` gives back both families' values
+# and `count`, and `show config dump | json` gives back both families' values
 # unmerged. The families are declared with ipv6/unicast FIRST, so the config
 # text order is the reverse of the key sort order.
 #
@@ -69,7 +69,7 @@ expect=stdout:contains=configuration valid
 # needle names a value that belongs to ONE family and disagrees with the
 # other's, so a tree that carried one family's values into both cannot satisfy
 # all four.
-cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump:exit=0
+cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=config-dump:exit=0
 expect=exit:code=0
 expect=stdout:pattern="maximum": ?"?100
 expect=stdout:pattern="maximum": ?"?500

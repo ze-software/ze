@@ -37,13 +37,17 @@ func TestTunnelRadiusAccessAcceptWireShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	port := probe.LocalAddr().(*net.UDPAddr).Port
+	local, ok := probe.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("a udp4 socket answered %T, want *net.UDPAddr", probe.LocalAddr())
+	}
+	port := local.Port
 	_ = probe.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- tunnelRadiusDriver(port, 2, tunnelRadiusUint32Attr(27, 60), false)(ctx, []string{strconv.Itoa(port)})
+		done <- tunnelRadiusDriver(port, 2, tunnelRadiusUint32Attr(27, 60))(ctx, []string{strconv.Itoa(port)})
 	}()
 	defer func() {
 		cancel()
@@ -61,7 +65,7 @@ func TestTunnelRadiusAccessAcceptWireShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
+	defer client.Close() //nolint:errcheck // fixture teardown
 	request := make([]byte, 20)
 	request[0], request[1] = 1, 9
 	binary.BigEndian.PutUint16(request[2:4], 20)

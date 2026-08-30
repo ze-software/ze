@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -92,28 +93,28 @@ system {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(work)
-	configPath := work + string(os.PathSeparator) + "peers.conf"
-	if err := os.WriteFile(configPath, []byte(config), 0o666); err != nil {
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
+	configPath := filepath.Join(work, "peers.conf")
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write peers.conf: %w", err)
 	}
 
-	sshAddr := work + string(os.PathSeparator) + "ssh.addr"
-	readyFile := work + string(os.PathSeparator) + "ready"
+	sshAddr := filepath.Join(work, "ssh.addr")
+	readyFile := filepath.Join(work, "ready")
 
 	bgpPort, err := uiFreeTCPPort()
 	if err != nil {
 		return err
 	}
 	daemonEnv := displayFillEnvironment(os.Environ(), map[string]string{
-		"ZE_SSH_EPHEMERAL": sshAddr,
-		"ZE_READY_FILE":    readyFile,
-		"ZE_CONFIG_DIR":    work,
-		"ze_test_bgp_port": strconv.Itoa(bgpPort),
+		envSSHEphemeral: sshAddr,
+		envReadyFile:    readyFile,
+		envConfigDir:    work,
+		envTestBGPPort:  strconv.Itoa(bgpPort),
 	})
 
 	var daemonStdout, daemonStderr bytes.Buffer
-	daemonCmd := exec.CommandContext(ctx, "ze", "-f", configPath)
+	daemonCmd := exec.CommandContext(ctx, "ze", "-f", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	daemonCmd.Dir = work
 	daemonCmd.Stdin = os.Stdin
 	daemonCmd.Stdout = &daemonStdout
@@ -138,7 +139,7 @@ system {
 		return errors.New("daemon did not become ready")
 	}
 
-	addrBytes, err := os.ReadFile(sshAddr)
+	addrBytes, err := os.ReadFile(sshAddr) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -150,13 +151,13 @@ system {
 	host, port := addr[:colon], addr[colon+1:]
 
 	cliEnv := displayFillEnvironment(os.Environ(), map[string]string{
-		"ZE_SSH_HOST":     host,
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_USERNAME": "ci",
-		"ZE_SSH_PASSWORD": "secret",
-		"ZE_CONFIG_DIR":   work,
-		"TERM":            "xterm",
-		"NO_COLOR":        "1",
+		envSSHHost:     host,
+		envSSHPort:     port,
+		envSSHUsername: "ci",
+		envSSHPassword: valueSecret,
+		envConfigDir:   work,
+		envTerm:        "xterm",
+		envNoColor:     "1",
 	})
 
 	// `show bgp peer list` declares name, group, remote-as, state and uptime.
@@ -164,9 +165,9 @@ system {
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{"name", "group", "remote-as", "state", "uptime"} {
+	for _, name := range []string{columnName, columnGroup, columnRemoteAS, columnState, columnUptime} {
 		if !strings.Contains(first, name) {
-			return fmt.Errorf("Tab after `| display ` did not offer %q:\n%s", name, first)
+			return fmt.Errorf("tab after `| display ` did not offer %q:\n%s", name, first)
 		}
 	}
 
@@ -176,9 +177,9 @@ system {
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{"name", "group", "remote-as", "uptime"} {
+	for _, name := range []string{columnName, columnGroup, columnRemoteAS, columnUptime} {
 		if !strings.Contains(second, name) {
-			return fmt.Errorf("Tab after a first field did not offer %q:\n%s", name, second)
+			return fmt.Errorf("tab after a first field did not offer %q:\n%s", name, second)
 		}
 	}
 
@@ -191,13 +192,13 @@ system {
 	}
 	for _, word := range []string{"alpha", "reverse"} {
 		if !strings.Contains(ways, word) {
-			return fmt.Errorf("Tab after `| fill ` did not offer %q:\n%s", word, ways)
+			return fmt.Errorf("tab after `| fill ` did not offer %q:\n%s", word, ways)
 		}
 	}
 	if strings.Contains(ways, "overall") {
 		return fmt.Errorf("`| fill` still offers the removed `overall`:\n%s", ways)
 	}
-	for _, name := range []string{"remote-as", "uptime"} {
+	for _, name := range []string{columnRemoteAS, columnUptime} {
 		if strings.Contains(ways, name) {
 			return fmt.Errorf("`| fill` offered the field name %q:\n%s", name, ways)
 		}
@@ -212,7 +213,7 @@ func displayFillTabAfter(ctx context.Context, env []string, text string) (string
 	if err != nil {
 		return "", fmt.Errorf("open pseudo-terminal: %w", err)
 	}
-	defer master.Close()
+	defer master.Close() //nolint:errcheck // fixture teardown
 
 	clientCmd := exec.CommandContext(ctx, "ze", "cli")
 	clientCmd.Stdin = slave
@@ -294,7 +295,7 @@ func displayFillWait(p *displayFillProcess, timeout time.Duration) bool {
 }
 
 func displayFillPoll(ctx context.Context, attempts int, delay time.Duration, check func() (bool, error)) (bool, error) {
-	for i := 0; i < attempts; i++ {
+	for range attempts {
 		ok, err := check()
 		if err != nil || ok {
 			return ok, err
@@ -329,8 +330,8 @@ func displayFillEnvironment(base []string, updates map[string]string) []string {
 		env = append(env, entry)
 	}
 	for _, name := range []string{
-		"ZE_SSH_EPHEMERAL", "ZE_READY_FILE", "ZE_CONFIG_DIR", "ze_test_bgp_port",
-		"ZE_SSH_HOST", "ZE_SSH_PORT", "ZE_SSH_USERNAME", "ZE_SSH_PASSWORD", "TERM", "NO_COLOR",
+		envSSHEphemeral, envReadyFile, envConfigDir, envTestBGPPort,
+		envSSHHost, envSSHPort, envSSHUsername, envSSHPassword, envTerm, envNoColor,
 	} {
 		if value, ok := updates[name]; ok {
 			env = append(env, name+"="+value)
@@ -351,11 +352,11 @@ func displayFillOpenPTY(rows, cols uint16) (*os.File, *os.File, error) {
 	}
 
 	var unlock int32
-	if err := displayFillIOCTL(masterFD, tioCSPTLCK, unsafe.Pointer(&unlock)); err != nil {
+	if err := displayFillIOCTL(masterFD, tioCSPTLCK, unsafe.Pointer(&unlock)); err != nil { //nolint:gosec // an ioctl takes a pointer argument, and the value is this fixture\'s own
 		return fail(err)
 	}
 	var number uint32
-	if err := displayFillIOCTL(masterFD, tioCGPTN, unsafe.Pointer(&number)); err != nil {
+	if err := displayFillIOCTL(masterFD, tioCGPTN, unsafe.Pointer(&number)); err != nil { //nolint:gosec // an ioctl takes a pointer argument, and the value is this fixture\'s own
 		return fail(err)
 	}
 
@@ -367,7 +368,7 @@ func displayFillOpenPTY(rows, cols uint16) (*os.File, *os.File, error) {
 	slave := os.NewFile(uintptr(slaveFD), slaveName)
 
 	winsize := displayFillWinsize{rows: rows, cols: cols}
-	if err := displayFillIOCTL(slaveFD, tioCSWINSZ, unsafe.Pointer(&winsize)); err != nil {
+	if err := displayFillIOCTL(slaveFD, tioCSWINSZ, unsafe.Pointer(&winsize)); err != nil { //nolint:gosec // an ioctl takes a pointer argument, and the value is this fixture\'s own
 		_ = slave.Close()
 		return fail(err)
 	}

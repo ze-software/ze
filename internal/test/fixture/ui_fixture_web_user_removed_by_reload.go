@@ -34,10 +34,10 @@ type webReloadHTTP struct {
 
 func newWebReloadHTTP(baseURL string) *webReloadHTTP {
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // The fixture daemon uses its generated test certificate.
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // the fixture daemon uses its own generated test certificate
 	}
 	loginTransport := &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, // The fixture daemon uses its generated test certificate.
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // the fixture daemon uses its own generated test certificate
 		DisableKeepAlives: true,
 	}
 	return &webReloadHTTP{
@@ -63,7 +63,7 @@ func (h *webReloadHTTP) probe(ctx context.Context, headers http.Header) int {
 	requestCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, h.baseURL+"/show/environment/daemon/", nil)
+	req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, h.baseURL+"/show/environment/daemon/", http.NoBody)
 	if err != nil {
 		return 0
 	}
@@ -77,7 +77,7 @@ func (h *webReloadHTTP) probe(ctx context.Context, headers http.Header) int {
 	if err != nil {
 		return 0
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // the body is read
 	_, _ = io.Copy(io.Discard, resp.Body)
 	return resp.StatusCode
 }
@@ -110,17 +110,16 @@ func (h *webReloadHTTP) loginCookie(ctx context.Context, user, password string) 
 	if err != nil {
 		return "", false
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // the body is read
 	_, _ = io.Copy(io.Discard, resp.Body)
 
 	for _, value := range resp.Header.Values("Set-Cookie") {
 		if !strings.HasPrefix(value, "ze-session=") {
 			continue
 		}
-		pair := strings.SplitN(value, ";", 2)[0]
-		parts := strings.SplitN(pair, "=", 2)
-		if len(parts) == 2 {
-			return parts[1], true
+		pair, _, _ := strings.Cut(value, ";")
+		if _, cookie, found := strings.Cut(pair, "="); found {
+			return cookie, true
 		}
 	}
 	return "", false
@@ -132,12 +131,12 @@ type webReloadDaemon struct {
 }
 
 func startWebReloadDaemon(ctx context.Context, dir, configName, logPath string, env []string) (*webReloadDaemon, *os.File, error) {
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o666)
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o666) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil, nil, err
 	}
 
-	cmd := exec.CommandContext(ctx, "ze", "start", configName)
+	cmd := exec.CommandContext(ctx, "ze", "start", configName) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 	cmd.Stdout = os.Stdout
@@ -234,7 +233,7 @@ func runWebUserRemovedByReload(ctx context.Context) error {
 	}
 }
 `, webHash, keepHash)
-	if err := os.WriteFile(usersBothPath, []byte(usersBoth), 0o666); err != nil {
+	if err := os.WriteFile(usersBothPath, []byte(usersBoth), 0o600); err != nil {
 		return err
 	}
 
@@ -249,7 +248,7 @@ func runWebUserRemovedByReload(ctx context.Context) error {
 	}
 }
 `, keepHash, newHash)
-	if err := os.WriteFile(usersKeptPath, []byte(usersKept), 0o666); err != nil {
+	if err := os.WriteFile(usersKeptPath, []byte(usersKept), 0o600); err != nil {
 		return err
 	}
 
@@ -279,7 +278,7 @@ func runWebUserRemovedByReload(ctx context.Context) error {
 		return statErr == nil && !info.IsDir()
 	})
 	if !ready {
-		err := requireWebReload(false, "daemon never became ready, so the reload could not be signalled")
+		err := requireWebReload(false, "daemon never became ready, so the reload could not be signaled")
 		dumpWebReloadLog(logPath, false)
 		return err
 	}
@@ -403,7 +402,7 @@ func webReloadPasswordHash(ctx context.Context, dir string, env []string, passwo
 }
 
 func writeWebReloadConfig(configPath, usersPath string, webPort, sshPort int) error {
-	users, err := os.ReadFile(usersPath)
+	users, err := os.ReadFile(usersPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -439,15 +438,15 @@ bgp {
 	contents := make([]byte, 0, len(users)+len(remainder))
 	contents = append(contents, users...)
 	contents = append(contents, remainder...)
-	return os.WriteFile(configPath, contents, 0o666)
+	return os.WriteFile(configPath, contents, 0o600)
 }
 
 func saveWebReloadCookie(workspace, user, token string) error {
-	return os.WriteFile(filepath.Join(workspace, "cookie-"+user+".txt"), []byte(token), 0o666)
+	return os.WriteFile(filepath.Join(workspace, "cookie-"+user+".txt"), []byte(token), 0o600)
 }
 
 func loadWebReloadCookie(workspace, user string) (string, error) {
-	contents, err := os.ReadFile(filepath.Join(workspace, "cookie-"+user+".txt"))
+	contents, err := os.ReadFile(filepath.Join(workspace, "cookie-"+user+".txt")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return "", err
 	}
@@ -464,7 +463,7 @@ func requireWebReload(condition bool, message string) error {
 }
 
 func pollWebReload(ctx context.Context, attempts int, delay time.Duration, observe func() bool) bool {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		if observe() {
 			return true
 		}
@@ -488,7 +487,7 @@ func dumpWebReloadLog(path string, withHeader bool) {
 	if withHeader {
 		fmt.Fprintln(os.Stderr, "--- daemon.log ---")
 	}
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err == nil {
 		_, _ = os.Stderr.Write(contents)
 	}

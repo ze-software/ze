@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -21,7 +22,8 @@ func cmdStaticHTTP(args []string) int {
 		fmt.Fprintln(os.Stderr, "static-http: unexpected positional arguments")
 		return 2
 	}
-	listener, err := net.Listen("tcp", *bind)
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(context.Background(), "tcp", *bind)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "static-http: listen: %v\n", err)
 		return 1

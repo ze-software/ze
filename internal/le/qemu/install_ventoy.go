@@ -63,9 +63,9 @@ func (installer *Installer) buildVentoyDisk(ctx context.Context, iso, work strin
 // VentoyArgv returns the direct-kernel invocation with target disk before the FAT disk.
 func (installer *Installer) VentoyArgv(initrd, target, ventoyDisk, mediaID, image string) ([]string, error) {
 	base := installer.qemuBase(false)
-	console := "ttyS0"
+	console := installConsoleAMD64
 	if installer.Options.Arch == ArchARM64 {
-		console = "ttyAMA0"
+		console = installConsoleARM64
 	}
 	var tb textbuf.Buffer
 	line := tb.Str("console=").Str(console).Str(" ze.source=iso ze.media-id=").Str(mediaID).

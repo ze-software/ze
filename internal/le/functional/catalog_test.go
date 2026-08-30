@@ -10,10 +10,10 @@ import (
 func TestGatingNamesIsAReadOnlyCatalogue(t *testing.T) {
 	names := GatingNames()
 	if !slices.Equal(names, Gating) {
-		t.Fatalf("the catalogue is %v, want %v", names, Gating)
+		t.Fatalf("the catalog is %v, want %v", names, Gating)
 	}
 	names[0] = "changed-by-consumer"
 	if Gating[0] == names[0] {
-		t.Fatal("the read-only catalogue aliases the runner's mutable slice")
+		t.Fatal("the read-only catalog aliases the runner's mutable slice")
 	}
 }

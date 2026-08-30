@@ -51,7 +51,7 @@ func lePlacementAnswers(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: creating fixture directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	work, err = filepath.EvalSymlinks(work)
 	if err != nil {
@@ -110,14 +110,14 @@ func lePlacementAnswers(ctx context.Context) error {
 		args   []string
 		marker string
 	}{
-		{[]string{"digest", "|", "json"}, `"anchors"`},
-		{[]string{"digest", "|", "yaml"}, "digests:"},
-		{[]string{"repository", "tree-check", "|", "json"}, `"findings"`},
-		{[]string{"repository", "tree-check", "|", "yaml"}, "issues:"},
-		{[]string{"tier", "check", "|", "json"}, `"checks"`},
-		{[]string{"tier", "report", "|", "json"}, `"module"`},
-		{[]string{"tier", "|", "table"}, "write-baseline"},
-		{[]string{"repository", "|", "table"}, "tree-check"},
+		{[]string{areaDigest, "|", renderJSON}, `"anchors"`},
+		{[]string{areaDigest, "|", renderYAML}, "digests:"},
+		{[]string{areaRepository, actionTreeCheck, "|", renderJSON}, `"findings"`},
+		{[]string{areaRepository, actionTreeCheck, "|", renderYAML}, "issues:"},
+		{[]string{areaTier, actionCheck, "|", renderJSON}, `"checks"`},
+		{[]string{areaTier, actionReport, "|", renderJSON}, `"module"`},
+		{[]string{areaTier, "|", renderTable}, "write-baseline"},
+		{[]string{areaRepository, "|", renderTable}, actionTreeCheck},
 	}
 	for _, render := range renders {
 		got, err := command(render.args...)
@@ -180,7 +180,7 @@ func lePlacementAnswers(ctx context.Context) error {
 		return err
 	}
 	page := listed.stdout + listed.stderr
-	for _, name := range []string{"digest", "repository", "tier"} {
+	for _, name := range []string{areaDigest, areaRepository, areaTier} {
 		if !strings.Contains(page, "\n  "+name+" ") {
 			return fmt.Errorf("FAIL: `le --help` does not list %s:\n%s", name, page)
 		}
@@ -208,7 +208,7 @@ func leExpectSuccessfulPage(command func(...string) (leCommandResult, error), na
 }
 
 func leRun(ctx context.Context, dir, executable string, args ...string) (leCommandResult, error) {
-	cmd := exec.CommandContext(ctx, executable, args...)
+	cmd := exec.CommandContext(ctx, executable, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = os.Environ()
 
@@ -229,8 +229,7 @@ func leRun(ctx context.Context, dir, executable string, args ...string) (leComma
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return leCommandResult{}, fmt.Errorf("FAIL: %s was interrupted: %w", executable, ctxErr)
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}

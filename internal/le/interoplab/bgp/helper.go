@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -30,7 +31,7 @@ func Helper(args []string) int {
 	switch args[0] {
 	case "process":
 		err = runProcessHelper(args[1:])
-	case "speaker":
+	case zeTestCommandSpeaker:
 		err = runSpeakerHelper(args[1:], os.Stdout)
 	case "bmp-collector":
 		err = runBMPCollector(context.Background(), ":11019", "/tmp/bmp-collector.json")
@@ -42,7 +43,7 @@ func Helper(args []string) int {
 		err = fmt.Errorf("unknown interop-bgp personality %q", args[0])
 	}
 	if err != nil {
-		slog.Error("interop-bgp helper failed", "error", err)
+		slog.Error("interop-bgp helper failed", fieldError, err)
 		return 1
 	}
 	return 0
@@ -67,10 +68,10 @@ func runProcessHelper(args []string) error {
 		return errors.New("process wants SCENARIO and PLUGIN-NAME")
 	}
 	scenario, name := args[0], args[1]
-	if scenario == "bgp-med-ibgp-post-selection-removal-gobgp" {
+	if scenario == scenarioMEDIBGPPostSelectionRemovalGoBGP {
 		return runRawMEDFilter(name)
 	}
-	if scenario == "rpki-frr" {
+	if scenario == scenarioRPKIFRR {
 		return runRPKIObserver(name)
 	}
 	if scenario == "lg-graph-lab" {
@@ -107,7 +108,7 @@ func runAnnouncements(ctx context.Context, plugin *sdk.Plugin, scenario string, 
 	if err := sleepContext(ctx, plan.startup); err != nil {
 		return err
 	}
-	if scenario == "bgp-wire-edit-api-origin-bird" {
+	if scenario == scenarioWireEditAPIOriginBIRD {
 		if err := runWireEditAnnouncements(ctx, plugin); err != nil {
 			return err
 		}
@@ -149,28 +150,28 @@ func announcementPlan(scenario string) (processPlan, error) {
 	}
 	switch scenario {
 	case "bgp-routes-to-frr", "bgp-route-refresh-frr":
-		add(v4 + "10.10.0.0/24")
-		addAfter(100*time.Millisecond, v4+"10.10.1.0/24")
-		addAfter(100*time.Millisecond, v4+"10.10.2.0/24")
+		add(v4 + injectPrefixFirst)
+		addAfter(100*time.Millisecond, v4+injectPrefixSecond)
+		addAfter(100*time.Millisecond, v4+injectPrefixThird)
 	case "bgp-route-withdrawal-frr":
-		add(v4 + "10.10.0.0/24")
-		addAfter(100*time.Millisecond, v4+"10.10.1.0/24")
-		addAfter(100*time.Millisecond, v4+"10.10.2.0/24")
+		add(v4 + injectPrefixFirst)
+		addAfter(100*time.Millisecond, v4+injectPrefixSecond)
+		addAfter(100*time.Millisecond, v4+injectPrefixThird)
 		addAfter(5*time.Second, "update text nlri ipv4/unicast del 10.10.1.0/24")
-	case "bgp-routes-gobgp", "bgp-multihop-ebgp-bird", "bgp-multihop-ebgp-frr", "bgp-multihop-ebgp-gobgp", "bgp-graceful-restart-frr":
-		add(v4 + "10.10.0.0/24")
-		addAfter(100*time.Millisecond, v4+"10.10.1.0/24")
+	case "bgp-routes-gobgp", "bgp-multihop-ebgp-bird", "bgp-multihop-ebgp-frr", "bgp-multihop-ebgp-gobgp", scenarioGracefulRestartFRR:
+		add(v4 + injectPrefixFirst)
+		addAfter(100*time.Millisecond, v4+injectPrefixSecond)
 	case "bgp-ipv6-ebgp-bird":
 		plan.updates = []announcement{
-			{selector: "*", command: v6 + "2001:db8:1::/48", quiesce: true},
-			{selector: "*", command: v6 + "2001:db8:2::/48", quiesce: true},
-			{selector: "*", command: v6 + "2001:db8:3::/48", quiesce: true},
+			{selector: "*", command: v6 + injectPrefixV6First, quiesce: true},
+			{selector: "*", command: v6 + injectPrefixV6Second, quiesce: true},
+			{selector: "*", command: v6 + injectPrefixV6Third, quiesce: true},
 		}
 	case "bgp-ipv6-ebgp-frr", "bgp-ipv6-ebgp-gobgp":
-		add(v6 + "2001:db8:1::/48")
-		addAfter(100*time.Millisecond, v6+"2001:db8:2::/48")
-		addAfter(100*time.Millisecond, v6+"2001:db8:3::/48")
-	case "bgp-addpath-frr":
+		add(v6 + injectPrefixV6First)
+		addAfter(100*time.Millisecond, v6+injectPrefixV6Second)
+		addAfter(100*time.Millisecond, v6+injectPrefixV6Third)
+	case scenarioAddPathFRR:
 		add("update text path-information 0.0.0.1 origin igp path 65001 65010 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24")
 		addAfter(100*time.Millisecond, "update text path-information 0.0.0.2 origin igp path 65001 65020 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24")
 	case "bgp-paths-limit-frr":
@@ -189,24 +190,30 @@ func announcementPlan(scenario string) (processPlan, error) {
 		addAfter(100*time.Millisecond, "update text origin igp path 65001 nhop 172.30.0.2 large-community [65001:0:1] nlri ipv4/unicast add 10.10.1.0/24")
 	case "bgp-extended-community-frr":
 		add("update text origin igp path 65001 nhop 172.30.0.2 extended-community [target:65001:100] nlri ipv4/unicast add 10.10.0.0/24")
-	case "bgp-ecmp-frr":
+	case scenarioECMPFRR:
 		add("update text origin igp path 65001 nhop 172.30.0.2 nlri ipv4/unicast add 10.100.0.0/24")
-	case "bgp-flowspec-frr":
+	case scenarioFlowspecFRR:
 		plan.updates = []announcement{
 			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.0.0/24", quiesce: true},
 			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.1.0/24 source 10.0.0.0/8 protocol tcp", quiesce: true},
 		}
-	case "bgp-flowspec-gobgp":
+	case scenarioFlowspecGoBGP:
+		// The third rule is an OR of two AND groups on one component type. RFC 8955
+		// Section 4.2 allows a component type exactly once, so it MUST reach GoBGP as
+		// one Type 4 component holding both groups. GoBGP renders that as
+		// flowspecOrOfAndRule; two Type 4 components render as two [port: ...] terms
+		// and do not match.
 		plan.updates = []announcement{
 			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.0.0/24"},
 			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.1.0/24 source 10.0.0.0/8 protocol tcp", delay: 100 * time.Millisecond, quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.2.0/24 port >80 <100 port >443 <500", delay: 100 * time.Millisecond, quiesce: true},
 		}
-	case "bgp-evpn-frr", "bgp-evpn-gobgp":
+	case scenarioEVPNFRR, scenarioEVPNGoBGP:
 		plan.updates = []announcement{
 			{selector: "*", command: "update text origin igp nhop 172.30.0.2 nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 etag 0 label 100", quiesce: true},
 			{selector: "*", command: "update text origin igp nhop 172.30.0.2 nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:66 ip 192.168.1.1 etag 0 label 100", quiesce: true},
 		}
-	case "bgp-vpn-frr", "bgp-vpn-gobgp":
+	case scenarioVPNFRR, scenarioVPNGoBGP:
 		plan.updates = []announcement{
 			{selector: "*", command: "update text origin igp nhop 172.30.0.2 nlri ipv4/mpls-vpn rd 65001:100 label 1000 add 10.99.0.0/24", quiesce: true},
 			{selector: "*", command: "update text origin igp nhop 172.30.0.2 nlri ipv4/mpls-vpn rd 65001:100 label 1001 add 10.99.1.0/24", quiesce: true},
@@ -214,17 +221,17 @@ func announcementPlan(scenario string) (processPlan, error) {
 	case "as112-community-frr":
 		add("update text origin igp nhop 172.30.0.2 community [no-export] nlri ipv4/unicast add 192.175.48.0/24")
 		addAfter(100*time.Millisecond, "update text origin igp nhop 172.30.0.2 community [nopeer] nlri ipv4/unicast add 192.31.196.0/24")
-	case "as112-origin-as-frr":
+	case scenarioAS112OriginASFRR:
 		add("update text origin igp nhop 172.30.0.2 nlri ipv4/unicast add 192.175.48.0/24")
 		addAfter(100*time.Millisecond, "update text origin igp nhop 172.30.0.2 nlri ipv4/unicast add 192.31.196.0/24")
 	case "bgp-med-across-as-gobgp":
 		plan.startup = 25 * time.Second
 		plan.life = 180 * time.Second
 		plan.updates = []announcement{{selector: "!172.30.0.9", command: "update text origin igp med 42 nhop 172.30.0.2 nlri ipv4/unicast add 10.60.9.0/24"}}
-	case "shutdown-cease-frr":
+	case scenarioShutdownCeaseFRR:
 		plan.life = 180 * time.Second
-		add(v4 + "10.10.0.0/24")
-	case "bgp-wire-edit-api-origin-bird":
+		add(v4 + injectPrefixFirst)
+	case scenarioWireEditAPIOriginBIRD:
 		plan.startup = 0
 	default:
 		return processPlan{}, fmt.Errorf("scenario %q has no compiled process helper", scenario)
@@ -241,11 +248,11 @@ func runWireEditAnnouncements(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return fmt.Errorf("queue-rail guard: %w", err)
 	}
-	state, ok := row["state"].(string)
-	if !ok || (state != "stopped" && state != "connecting" && state != "active" && state != "established" && state != "idle-hold") {
-		return fmt.Errorf("peer %s reports state=%v, which is not a peer state", birdAddress, row["state"])
+	state, ok := row[fieldState].(string)
+	if !ok || (state != "stopped" && state != "connecting" && state != "active" && state != peerStateEstablished && state != "idle-hold") {
+		return fmt.Errorf("peer %s reports state=%v, which is not a peer state", birdAddress, row[fieldState])
 	}
-	if state == "established" {
+	if state == peerStateEstablished {
 		sent, valid := number(row["eor-sent"])
 		if !valid || sent != 0 {
 			return fmt.Errorf("peer %s already established with eor-sent=%v; queue rail was not exercised", birdAddress, row["eor-sent"])
@@ -305,7 +312,7 @@ func findPeerRow(value any, selector string) map[string]any {
 		if row, ok := current[selector].(map[string]any); ok {
 			return row
 		}
-		if _, ok := current["state"]; ok {
+		if _, ok := current[fieldState]; ok {
 			return current
 		}
 		for _, child := range current {
@@ -428,7 +435,7 @@ func runRPKIObserver(name string) error {
 	plugin.OnAllPluginsReady(func() error {
 		go func() {
 			if err := observeRPKI(ctx, plugin, "/tmp/rpki-check.json"); err != nil {
-				slog.Error("RPKI interop validation failed", "error", err)
+				slog.Error("RPKI interop validation failed", fieldError, err)
 			}
 			_ = sleepContext(ctx, 120*time.Second)
 			cancel()
@@ -448,7 +455,7 @@ func observeRPKI(ctx context.Context, plugin *sdk.Plugin, statusPath string) err
 	for time.Now().Before(deadline) {
 		_, statusData, statusErr := plugin.DispatchCommand(ctx, "show bgp rpki status")
 		_, routesData, routesErr := plugin.DispatchCommand(ctx, "show bgp adj-rib-in")
-		last = map[string]any{"rpki": json.RawMessage(statusData), "adj-rib-in": json.RawMessage(routesData)}
+		last = map[string]any{fieldRPKI: statusData, "adj-rib-in": routesData}
 		if statusErr == nil && routesErr == nil {
 			status, statusDecodeErr := decodeDispatchDocument(statusData)
 			routes, routesDecodeErr := decodeDispatchDocument(routesData)
@@ -459,7 +466,7 @@ func observeRPKI(ctx context.Context, plugin *sdk.Plugin, statusPath string) err
 				vrps := recursiveNumber(status, "vrp-count-ipv4")
 				_, invalidPresent := states["10.43.0.0/24"]
 				if sessions >= 1 && vrps >= 1 && states["9.43.0.0/24"] == 1 && !invalidPresent && states["11.43.0.0/24"] == 2 {
-					return writeJSON(statusPath, map[string]any{"status": "ok", "detail": map[string]any{"rpki": status, "routes": states}})
+					return writeJSON(statusPath, map[string]any{fieldStatus: "ok", "detail": map[string]any{fieldRPKI: status, "routes": states}})
 				}
 			}
 		}
@@ -467,7 +474,7 @@ func observeRPKI(ctx context.Context, plugin *sdk.Plugin, statusPath string) err
 			return err
 		}
 	}
-	if err := writeJSON(statusPath, map[string]any{"status": "fail", "detail": last}); err != nil {
+	if err := writeJSON(statusPath, map[string]any{fieldStatus: "fail", "detail": last}); err != nil {
 		return err
 	}
 	return errors.New("RPKI decisions did not reach the expected states")
@@ -532,7 +539,8 @@ func recursiveNumber(value any, key string) int64 {
 
 func runBMPCollector(ctx context.Context, address, statusPath string) error {
 	deadline := time.Now().Add(180 * time.Second)
-	listener, err := net.Listen("tcp", address)
+	var config net.ListenConfig
+	listener, err := config.Listen(ctx, "tcp", address)
 	if err != nil {
 		return err
 	}
@@ -542,7 +550,7 @@ func runBMPCollector(ctx context.Context, address, statusPath string) error {
 	}
 	connection, err := listener.Accept()
 	if err != nil {
-		if writeErr := writeJSON(statusPath, map[string]any{"types": []uint8{}, "error": err.Error()}); writeErr != nil {
+		if writeErr := writeJSON(statusPath, map[string]any{fieldTypes: []uint8{}, fieldError: err.Error()}); writeErr != nil {
 			return writeErr
 		}
 		return waitBMPDeadline(ctx, deadline)
@@ -553,7 +561,7 @@ func runBMPCollector(ctx context.Context, address, statusPath string) error {
 	header := make([]byte, 6)
 	for {
 		if _, err := io.ReadFull(connection, header); err != nil {
-			if writeErr := writeJSON(statusPath, map[string]any{"types": types, "error": err.Error()}); writeErr != nil {
+			if writeErr := writeJSON(statusPath, map[string]any{fieldTypes: types, fieldError: err.Error()}); writeErr != nil {
 				return writeErr
 			}
 			return waitBMPDeadline(ctx, deadline)
@@ -563,13 +571,13 @@ func runBMPCollector(ctx context.Context, address, statusPath string) error {
 			return waitBMPDeadline(ctx, deadline)
 		}
 		if _, err := io.CopyN(io.Discard, connection, int64(length-6)); err != nil {
-			if writeErr := writeJSON(statusPath, map[string]any{"types": types, "error": err.Error()}); writeErr != nil {
+			if writeErr := writeJSON(statusPath, map[string]any{fieldTypes: types, fieldError: err.Error()}); writeErr != nil {
 				return writeErr
 			}
 			return waitBMPDeadline(ctx, deadline)
 		}
 		types = append(types, header[5])
-		if err := writeJSON(statusPath, map[string]any{"types": types}); err != nil {
+		if err := writeJSON(statusPath, map[string]any{fieldTypes: types}); err != nil {
 			return err
 		}
 		if containsType(types, 0) && containsType(types, 3) && containsType(types, 4) {
@@ -590,12 +598,7 @@ func waitBMPDeadline(ctx context.Context, deadline time.Time) error {
 }
 
 func containsType(types []uint8, wanted uint8) bool {
-	for _, current := range types {
-		if current == wanted {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(types, wanted)
 }
 
 func writeJSON(path string, value any) error {

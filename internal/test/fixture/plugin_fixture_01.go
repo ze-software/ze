@@ -23,7 +23,7 @@ type plugin01Observer struct {
 
 func init() {
 	observers := map[string]plugin01Observer{
-		"plugin/add-remove":                         {"add-remove", plugin01AddRemove},
+		"plugin/add-remove":                         {pluginNameAddRemove, plugin01AddRemove},
 		"plugin/adj-rib-in-query":                   {"adj-rib-query-test", plugin01AdjRIBInQuery},
 		"plugin/adj-rib-in-replay-addpath-source":   {"replay-addpath", plugin01ReplayAddPath},
 		"plugin/adj-rib-in-replay-on-peerup":        {"replay-relay", plugin01ReplayOnPeerUp},
@@ -52,7 +52,6 @@ func init() {
 		"plugin/api-rib-in-show":                    {"rib-in-show-test", plugin01APIRIBInShow},
 	}
 	for fixtureName, observer := range observers {
-		fixtureName, observer := fixtureName, observer
 		Register(fixtureName, func(ctx context.Context, _ []string) error {
 			return Observe(ctx, observer.authName, sdk.Registration{}, ObserverScenario(observer.scenario))
 		})
@@ -70,7 +69,7 @@ func plugin01DispatchMap(ctx context.Context, plugin *sdk.Plugin, command string
 	status, raw, err := plugin.DispatchCommand(ctx, command)
 	if err != nil {
 		if status == rpc.StatusError || strings.HasPrefix(err.Error(), "rpc error:") {
-			return map[string]any{"error": err.Error()}, rpc.StatusError, nil
+			return map[string]any{fieldError: err.Error()}, rpc.StatusError, nil
 		}
 		return nil, status, err
 	}
@@ -90,7 +89,7 @@ func plugin01DispatchMap(ctx context.Context, plugin *sdk.Plugin, command string
 	if data, ok := value.(map[string]any); ok {
 		return data, status, nil
 	}
-	return map[string]any{"value": value}, status, nil
+	return map[string]any{fieldValue: value}, status, nil
 }
 
 func plugin01RequireDone(ctx context.Context, plugin *sdk.Plugin, command string) (map[string]any, error) {
@@ -183,17 +182,14 @@ func plugin01Quiesce(ctx context.Context, plugin *sdk.Plugin) error {
 	return err
 }
 
-func plugin01TotalRoutes(ctx context.Context, plugin *sdk.Plugin, attempts int) (float64, bool) {
-	var total float64
-	ok := Poll(ctx, attempts, plugin01PollDelay, func() bool {
+func plugin01TotalRoutes(ctx context.Context, plugin *sdk.Plugin, attempts int) bool {
+	return Poll(ctx, attempts, plugin01PollDelay, func() bool {
 		data, status, err := plugin01DispatchMap(ctx, plugin, "show bgp adj-rib-in status")
 		if err != nil || status != rpc.StatusDone {
 			return false
 		}
-		total = plugin01Number(data["total-routes"])
-		return total > 0
+		return plugin01Number(data["total-routes"]) > 0
 	})
-	return total, ok
 }
 
 func plugin01RouteUpdates(ctx context.Context, plugin *sdk.Plugin, peer string) float64 {
@@ -202,7 +198,7 @@ func plugin01RouteUpdates(ctx context.Context, plugin *sdk.Plugin, peer string) 
 
 func plugin01AddRemove(ctx context.Context, plugin *sdk.Plugin) error {
 	commands := []string{
-		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24",
+		cmdAnnounceFirstPrefix,
 		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25",
 	}
 	for _, command := range commands {

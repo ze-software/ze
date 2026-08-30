@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,7 +48,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	tags, err := uiLeDocvalidAnswersFeatureTags(filepath.Join(root, "feature-gates.txt"))
 	if err != nil {
@@ -58,9 +59,9 @@ func leDocvalidAnswers(ctx context.Context) error {
 		return fmt.Errorf("find go: %w", err)
 	}
 	le := filepath.Join(work, "le")
-	build := exec.CommandContext(ctx, goTool, "build", "-tags", tags, "-o", le, "./cmd/ze")
+	build := exec.CommandContext(ctx, goTool, "build", "-tags", tags, "-o", le, "./cmd/ze") //nolint:gosec // the fixture chooses the program and its arguments
 	build.Dir = root
-	build.Env = uiLeDocvalidAnswersEnvironment(map[string]string{"CGO_ENABLED": "0"})
+	build.Env = uiLeDocvalidAnswersEnvironment(map[string]string{envCGOEnabled: "0"})
 	var buildOutput bytes.Buffer
 	build.Stdout = &buildOutput
 	build.Stderr = &buildOutput
@@ -102,7 +103,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		return fmt.Errorf("doc-drift data exited %d; human rendering exited %d", driftData.code, drift.code)
 	}
 	for i, finding := range driftIssues {
-		for _, key := range []string{"file", "message"} {
+		for _, key := range []string{fieldFile, fieldMessage} {
 			if _, ok := finding[key]; !ok {
 				return fmt.Errorf("finding %d has no %q field: %#v", i, key, finding)
 			}
@@ -203,7 +204,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	// count is rejected by action name before any checkout walk. A deliberately
 	// absent root ensures that a different validation order cannot satisfy this.
 	missingRoot := filepath.Join(work, "does-not-exist")
-	counted, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{"ZE_REPO_ROOT": missingRoot}, le, "docvalid", "command-contract", "|", "count")
+	counted, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: missingRoot}, le, "docvalid", "command-contract", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -221,13 +222,13 @@ func leDocvalidAnswers(ctx context.Context) error {
 	if listing.code != 0 {
 		return fmt.Errorf("docvalid listing exited %d: %s", listing.code, listing.stderr)
 	}
-	for _, wanted := range []string{"command-contract", "doc-drift", "pipe-operators-update", "writes", "checks"} {
+	for _, wanted := range []string{"command-contract", "doc-drift", "pipe-operators-update", wordWrites, fieldChecks} {
 		if !bytes.Contains(listing.stdout, []byte(wanted)) {
 			return fmt.Errorf("docvalid listing does not contain %q:\n%s", wanted, listing.stdout)
 		}
 	}
 	foundWriter := false
-	for _, line := range strings.Split(string(listing.stdout), "\n") {
+	for line := range strings.SplitSeq(string(listing.stdout), "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "pipe-operators-update ") {
 			foundWriter = true
 			if !strings.Contains(line, "writes") {
@@ -242,7 +243,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	// Drive the writer over two isolated roots. Both begin stale, both must be
 	// overwritten, and every resulting byte and report must be deterministic.
 	publishedPath := filepath.Join(root, filepath.FromSlash(generatedTable))
-	publishedBefore, err := os.ReadFile(publishedPath)
+	publishedBefore, err := os.ReadFile(publishedPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read published generated table: %w", err)
 	}
@@ -250,17 +251,17 @@ func leDocvalidAnswers(ctx context.Context) error {
 	trees := []string{filepath.Join(work, "first-tree"), filepath.Join(work, "second-tree")}
 	for _, tree := range trees {
 		path := filepath.Join(tree, filepath.FromSlash(generatedTable))
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			return fmt.Errorf("create isolated tree: %w", err)
 		}
-		if err := os.WriteFile(path, []byte("# a stale table\n"), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("# a stale table\n"), 0o600); err != nil {
 			return fmt.Errorf("seed stale generated table: %w", err)
 		}
 	}
 
 	writes := make([]uiLeDocvalidAnswersCommandResult, 0, len(trees))
 	for _, tree := range trees {
-		written, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{"ZE_REPO_ROOT": tree}, le, "docvalid", "pipe-operators-update")
+		written, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: tree}, le, "docvalid", "pipe-operators-update")
 		if err != nil {
 			return err
 		}
@@ -297,7 +298,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	if !bytes.Equal(generated, publishedBefore) {
 		return fmt.Errorf("writer output differs from the table published by the checkout")
 	}
-	publishedAfter, err := os.ReadFile(publishedPath)
+	publishedAfter, err := os.ReadFile(publishedPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("re-read published generated table: %w", err)
 	}
@@ -310,11 +311,11 @@ func leDocvalidAnswers(ctx context.Context) error {
 }
 
 func uiLeDocvalidAnswersFeatureTags(path string) (string, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return "", fmt.Errorf("open feature gates: %w", err)
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck // fixture teardown
 
 	found := make(map[string]struct{})
 	scanner := bufio.NewScanner(file)
@@ -333,11 +334,11 @@ func uiLeDocvalidAnswersFeatureTags(path string) (string, error) {
 		declared = append(declared, tag)
 	}
 	sort.Strings(declared)
-	return strings.Join(append([]string{"ze_le", "ze_docvalid_fixture"}, declared...), ","), nil
+	return strings.Join(append([]string{buildTagLE, "ze_docvalid_fixture"}, declared...), ","), nil
 }
 
 func uiLeDocvalidAnswersRunCommand(ctx context.Context, dir string, overrides map[string]string, name string, args ...string) (uiLeDocvalidAnswersCommandResult, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = uiLeDocvalidAnswersEnvironment(overrides)
 	var stdout, stderr bytes.Buffer
@@ -351,8 +352,7 @@ func uiLeDocvalidAnswersRunCommand(ctx context.Context, dir string, overrides ma
 	if err == nil {
 		return result, nil
 	}
-	var exitError *exec.ExitError
-	if errors.As(err, &exitError) {
+	if _, ok := errors.AsType[*exec.ExitError](err); ok {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return result, ctxErr
 		}
@@ -368,9 +368,7 @@ func uiLeDocvalidAnswersEnvironment(overrides map[string]string) []string {
 			values[key] = value
 		}
 	}
-	for key, value := range overrides {
-		values[key] = value
-	}
+	maps.Copy(values, overrides)
 	keys := make([]string, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)
@@ -417,7 +415,7 @@ func digestTree(root string) (map[string][]byte, error) {
 		if entry.IsDir() {
 			return nil
 		}
-		contents, err := os.ReadFile(path)
+		contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}

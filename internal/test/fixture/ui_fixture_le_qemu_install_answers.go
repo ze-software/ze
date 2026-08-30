@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -39,7 +38,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: create fixture working directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	if err != nil {
@@ -49,12 +48,12 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	// Deliberately provide an empty executable search path. Each action must
 	// report its missing-emulator skip before doing any installer work.
 	emptyPath := filepath.Join(work, "empty-path")
-	if err := os.MkdirAll(emptyPath, 0o777); err != nil {
+	if err := os.MkdirAll(emptyPath, 0o750); err != nil {
 		return fmt.Errorf("FAIL: creating empty executable path: %w", err)
 	}
 
 	kernel := filepath.Join(work, "installer-kernel")
-	if err := os.WriteFile(kernel, []byte("kernel"), 0o666); err != nil {
+	if err := os.WriteFile(kernel, []byte("kernel"), 0o600); err != nil {
 		return fmt.Errorf("FAIL: writing installer kernel: %w", err)
 	}
 
@@ -72,14 +71,15 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	}
 
 	invokeLE := func(action string, pipes ...string) uiLeQemuInstallAnswersCommandResult {
-		args := []string{"qemu", action}
+		args := make([]string, 0, 2+len(pipes))
+		args = append(args, areaQEMU, action)
 		args = append(args, pipes...)
 		return runQEMUInstallCommand(ctx, work, runEnv, binary, args...)
 	}
 
 	listing := runQEMUInstallCommand(ctx, work, runEnv, binary, "qemu")
 	if listing.startErr != nil {
-		return fmt.Errorf("FAIL: qemu listing failed: %v", listing.startErr)
+		return fmt.Errorf("FAIL: qemu listing failed: %w", listing.startErr)
 	}
 	if listing.exitCode != 0 {
 		return fmt.Errorf("FAIL: qemu listing failed: %s", listing.stderr)
@@ -93,7 +93,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	for _, action := range actions {
 		bare := invokeLE(action.name)
 		if bare.startErr != nil {
-			return fmt.Errorf("FAIL: %s skip failed to start: %v", action.name, bare.startErr)
+			return fmt.Errorf("FAIL: %s skip failed to start: %w", action.name, bare.startErr)
 		}
 		if bare.exitCode != 0 {
 			return fmt.Errorf("FAIL: %s skip exited %d: %s", action.name, bare.exitCode, bare.stderr)
@@ -106,7 +106,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 
 		answer := invokeLE(action.name, "|", "json")
 		if answer.startErr != nil {
-			return fmt.Errorf("FAIL: %s json failed to start: %v", action.name, answer.startErr)
+			return fmt.Errorf("FAIL: %s json failed to start: %w", action.name, answer.startErr)
 		}
 		if answer.exitCode != 0 {
 			return fmt.Errorf("FAIL: %s json exited %d: %s", action.name, answer.exitCode, answer.stderr)
@@ -124,7 +124,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 		if report["verdict"] != "skip" {
 			return fmt.Errorf("FAIL: %s report verdict changed: %v", action.name, report)
 		}
-		if report["arch"] != "amd64" || !qemuInstallJSONTruthy(report["accelerator"]) {
+		if report["arch"] != archAMD64 || !qemuInstallJSONTruthy(report["accelerator"]) {
 			return fmt.Errorf("FAIL: %s report lost plan data: %v", action.name, report)
 		}
 		reason, ok := report["reason"].(string)
@@ -133,10 +133,10 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 		}
 	}
 
-	for _, operator := range []string{"json", "ndjson", "table", "text", "yaml", "raw", "no-more"} {
+	for _, operator := range []string{renderJSON, "ndjson", renderTable, "text", renderYAML, renderRaw, "no-more"} {
 		rendered := invokeLE("install-test", "|", operator)
 		if rendered.startErr != nil {
-			return fmt.Errorf("FAIL: global pipe %s failed to start: %v", operator, rendered.startErr)
+			return fmt.Errorf("FAIL: global pipe %s failed to start: %w", operator, rendered.startErr)
 		}
 		if rendered.exitCode != 0 {
 			return fmt.Errorf("FAIL: global pipe %s exited %d: %s", operator, rendered.exitCode, rendered.stderr)
@@ -148,7 +148,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 
 	logged := invokeLE("install-test", "|", "log", "|", "json")
 	if logged.startErr != nil {
-		return fmt.Errorf("FAIL: one-shot log refusal failed to start: %v", logged.startErr)
+		return fmt.Errorf("FAIL: one-shot log refusal failed to start: %w", logged.startErr)
 	}
 	if logged.exitCode != 1 {
 		return fmt.Errorf("FAIL: one-shot log refusal exited %d", logged.exitCode)
@@ -164,7 +164,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	savedPath := filepath.Join(work, "install-answer.json")
 	saved := invokeLE("install-test", "|", "save", savedPath)
 	if saved.startErr != nil {
-		return fmt.Errorf("FAIL: save pipe failed to start: %v", saved.startErr)
+		return fmt.Errorf("FAIL: save pipe failed to start: %w", saved.startErr)
 	}
 	if saved.exitCode != 0 {
 		return fmt.Errorf("FAIL: save pipe exited %d: %s", saved.exitCode, saved.stderr)
@@ -178,30 +178,6 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 	return nil
 }
 
-func qemuInstallFeatureTags(root string) (string, error) {
-	contents, err := os.ReadFile(filepath.Join(root, "feature-gates.txt"))
-	if err != nil {
-		return "", err
-	}
-
-	found := make(map[string]struct{})
-	for _, line := range strings.Split(string(contents), "\n") {
-		words := strings.Fields(line)
-		if len(words) != 0 && strings.HasPrefix(words[0], "ze_") {
-			found[words[0]] = struct{}{}
-		}
-	}
-
-	declared := make([]string, 0, len(found))
-	for tag := range found {
-		declared = append(declared, tag)
-	}
-	sort.Strings(declared)
-
-	tags := append([]string{"ze_le"}, declared...)
-	return strings.Join(tags, ","), nil
-}
-
 func runQEMUInstallCommand(
 	ctx context.Context,
 	dir string,
@@ -209,7 +185,7 @@ func runQEMUInstallCommand(
 	program string,
 	args ...string,
 ) uiLeQemuInstallAnswersCommandResult {
-	cmd := exec.CommandContext(ctx, program, args...)
+	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 
@@ -228,8 +204,7 @@ func runQEMUInstallCommand(
 		return result
 	}
 
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.exitCode = exitErr.ExitCode()
 		return result
 	}

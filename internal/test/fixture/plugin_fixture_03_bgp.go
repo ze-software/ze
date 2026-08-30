@@ -41,7 +41,7 @@ func bgpHealthShow03(ctx context.Context, p *sdk.Plugin) error {
 	if !ok {
 		return fmt.Errorf("bgp-health: expected object, got %T", value)
 	}
-	for _, key := range []string{"peers", "count", "not-established"} {
+	for _, key := range []string{fieldPeers, fieldCount, "not-established"} {
 		if _, exists := data[key]; !exists {
 			return fmt.Errorf("bgp-health: missing key %q", key)
 		}
@@ -64,7 +64,7 @@ func bgpMonitorDashboard03(ctx context.Context, p *sdk.Plugin) error {
 	if !ok {
 		return fmt.Errorf("show bgp: expected object, got %T", value)
 	}
-	for _, key := range []string{"router-id", "peers", "local-as"} {
+	for _, key := range []string{fieldRouterID, fieldPeers, fieldLocalAS} {
 		if _, exists := data[key]; !exists {
 			return fmt.Errorf("show bgp: missing %s", key)
 		}
@@ -94,7 +94,7 @@ func bgpPeerDetailShow03(ctx context.Context, p *sdk.Plugin) error {
 	if !ok {
 		return fmt.Errorf("missing messages block")
 	}
-	for _, direction := range []string{"received", "sent"} {
+	for _, direction := range []string{directionReceived, directionSent} {
 		row, ok := messages[direction].(map[string]any)
 		if !ok {
 			return fmt.Errorf("missing messages.%s", direction)
@@ -114,7 +114,7 @@ func bgpPeerDetailShow03(ctx context.Context, p *sdk.Plugin) error {
 			return fmt.Errorf("missing capabilities.%s", field)
 		}
 	}
-	for _, field := range []string{"connections-established", "connections-dropped", "flap-count", "connect-retry-counter", "updates-received", "updates-sent", "keepalives-received", "keepalives-sent", "eor-received", "eor-sent"} {
+	for _, field := range []string{"connections-established", columnConnectionsDropped, "flap-count", "connect-retry-counter", "updates-received", "updates-sent", "keepalives-received", "keepalives-sent", "eor-received", "eor-sent"} {
 		if _, exists := peer[field]; !exists {
 			return fmt.Errorf("missing peer detail field %s", field)
 		}
@@ -294,7 +294,7 @@ bgp {
 
 func bgpBFDOptIn03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bgpBFDOptInConfig03,
-		[]string{"bfd plugin starting", "bfd plugin configured", "bfd plugin running"},
+		[]string{logBFDStarting, logBFDConfigured, logBFDRunning},
 		[]string{"unknown top-level keyword", "unknown key bfd", "invalid bfd"},
-		12*time.Second, map[string]string{"ze.log.bfd": "debug", "ze.log.bgp": "info"})
+		12*time.Second, map[string]string{envLogBFD: logLevelDebug, envLogBGP: logLevelInfo})
 }

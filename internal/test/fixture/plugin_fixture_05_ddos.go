@@ -34,8 +34,11 @@ type p05FloodSockets struct {
 	payload []byte
 }
 
-func p05OpenFlood(sourceIP, victim string, port, payloadSize int) (*p05FloodSockets, error) {
-	target, err := net.ResolveUDPAddr("udp4", net.JoinHostPort(victim, strconv.Itoa(port)))
+// floodPort05 is the UDP port every flood in these fixtures targets.
+const floodPort05 = 9999
+
+func p05OpenFlood(sourceIP, victim string, payloadSize int) (*p05FloodSockets, error) {
+	target, err := net.ResolveUDPAddr("udp4", net.JoinHostPort(victim, strconv.Itoa(floodPort05)))
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +55,7 @@ func p05OpenFlood(sourceIP, victim string, port, payloadSize int) (*p05FloodSock
 	}
 	sink, err := net.ListenUDP("udp4", target)
 	if err != nil {
-		sender.Close()
+		sender.Close() //nolint:errcheck // fixture teardown
 		return nil, err
 	}
 	_ = sink.SetReadBuffer(1 << 20)
@@ -85,19 +88,19 @@ func p05Wait(ctx context.Context, duration time.Duration) error {
 	}
 }
 
-func p05ShowMap(ctx context.Context, plugin *sdk.Plugin, command string) (map[string]any, string, error) {
-	status, value, raw, err := p05Dispatch(ctx, plugin, command)
+func p05ShowMap(ctx context.Context, plugin *sdk.Plugin, command string) (map[string]any, error) {
+	status, value, _, err := p05Dispatch(ctx, plugin, command)
 	if err != nil {
-		return nil, string(raw), err
+		return nil, err
 	}
-	if status != "done" {
-		return nil, string(raw), fmt.Errorf("%s status=%s", command, status)
+	if status != statusDone {
+		return nil, fmt.Errorf("%s status=%s", command, status)
 	}
 	row := p05Map(value)
 	if row == nil {
-		return nil, string(raw), fmt.Errorf("%s returned %T", command, value)
+		return nil, fmt.Errorf("%s returned %T", command, value)
 	}
-	return row, string(raw), nil
+	return row, nil
 }
 
 func p05DDoSBPSAmplification(ctx context.Context, args []string) error {
@@ -107,7 +110,7 @@ func p05DDoSBPSAmplification(ctx context.Context, args []string) error {
 				return err
 			}
 		}
-		sockets, err := p05OpenFlood("", "127.0.0.5", 9999, 16000)
+		sockets, err := p05OpenFlood("", "127.0.0.5", 16000)
 		if err != nil {
 			return err
 		}
@@ -120,7 +123,7 @@ func p05DDoSBPSAmplification(ctx context.Context, args []string) error {
 		for time.Now().Before(deadline) {
 			sent += sockets.blast(1500)
 			status, value, _, dispatchErr := p05Dispatch(ctx, plugin, "show ddos status")
-			if dispatchErr == nil && status == "done" {
+			if dispatchErr == nil && status == statusDone {
 				row := p05Map(value)
 				if row["enabled"] == true {
 					active = p05Float(row["active-attacks"])
@@ -178,7 +181,7 @@ func p05DDoSDetectCharacterize(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	sockets, err := p05OpenFlood("127.0.1.2", "127.0.0.2", 9999, 64)
+	sockets, err := p05OpenFlood("127.0.1.2", "127.0.0.2", 64)
 	if err != nil {
 		return err
 	}
@@ -204,7 +207,7 @@ func p05DDoSDetectCharacterize(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	fmt.Fprint(os.Stdout, ruleset)
+	fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
 	_ = syscall.Kill(pid, syscall.SIGTERM)
 	if !narrowed {
 		return fmt.Errorf("ddos-local did not narrow to udp sport 11211 -> 127.0.0.2 (sent %d packets); rule stayed coarse or classifier missed the flow", sent)
@@ -221,7 +224,7 @@ func p05DDoSDetectMitigate(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	sockets, err := p05OpenFlood("", "127.0.0.4", 9999, 64)
+	sockets, err := p05OpenFlood("", "127.0.0.4", 64)
 	if err != nil {
 		return err
 	}
@@ -233,7 +236,7 @@ func p05DDoSDetectMitigate(ctx context.Context, args []string) error {
 		ruleset, _ = p05NFTRuleset(ctx)
 		return strings.Contains(ruleset, "ddos-local") && strings.Contains(ruleset, "127.0.0.4")
 	})
-	fmt.Fprint(os.Stdout, ruleset)
+	fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
 	_ = syscall.Kill(pid, syscall.SIGTERM)
 	if !installed {
 		return fmt.Errorf("ddos-local drop rule for 127.0.0.4 not installed (sent %d packets)", sent)
@@ -242,7 +245,7 @@ func p05DDoSDetectMitigate(ctx context.Context, args []string) error {
 }
 
 func p05IncidentRows(ctx context.Context, plugin *sdk.Plugin) []any {
-	row, _, err := p05ShowMap(ctx, plugin, "show ddos incidents")
+	row, err := p05ShowMap(ctx, plugin, "show ddos incidents")
 	if err != nil {
 		return nil
 	}
@@ -251,7 +254,7 @@ func p05IncidentRows(ctx context.Context, plugin *sdk.Plugin) []any {
 
 func p05DDoSDirection(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ddos-direction-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
-		sockets, err := p05OpenFlood("", "127.0.0.3", 9999, 64)
+		sockets, err := p05OpenFlood("", "127.0.0.3", 64)
 		if err != nil {
 			return err
 		}
@@ -264,7 +267,7 @@ func p05DDoSDirection(ctx context.Context, args []string) error {
 			sent += sockets.blast(4000)
 			incidents = p05IncidentRows(ctx, plugin)
 			for _, candidate := range incidents {
-				if p05Map(candidate)["direction"] == "local" {
+				if p05Map(candidate)["direction"] == directionLocal {
 					foundLocal = true
 				}
 			}
@@ -283,7 +286,7 @@ func p05DDoSDirection(ctx context.Context, args []string) error {
 		dropDeadline := time.Now().Add(30 * time.Second)
 		for time.Now().Before(dropDeadline) {
 			sent += sockets.blast(4000)
-			local, _, _ = p05ShowMap(ctx, plugin, "show ddos local")
+			local, _ = p05ShowMap(ctx, plugin, "show ddos local")
 			if local["active"] == true {
 				break
 			}
@@ -391,7 +394,7 @@ func p05WatchDispatch(ctx context.Context, watch *p05DispatchWatch, stop <-chan 
 
 func p05DDoSFirewallConcurrency(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ddos-firewall-concurrency-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
-		sockets, err := p05OpenFlood("", "127.0.0.8", 9999, 64)
+		sockets, err := p05OpenFlood("", "127.0.0.8", 64)
 		if err != nil {
 			return err
 		}
@@ -419,7 +422,7 @@ func p05DDoSFirewallConcurrency(ctx context.Context, args []string) error {
 				return nil, nil, err
 			}
 			local := p05Map(localValue)
-			if status != "done" {
+			if status != statusDone {
 				local = nil
 			}
 			if _, _, err := watch.dispatch(ctx, plugin, "show ddos incidents"); err != nil {
@@ -429,7 +432,7 @@ func p05DDoSFirewallConcurrency(ctx context.Context, args []string) error {
 			if err != nil {
 				return local, nil, err
 			}
-			if status != "done" {
+			if status != statusDone {
 				return local, nil, fmt.Errorf("show firewall ruleset fwconc: status=%s data=%v", status, rulesetValue)
 			}
 			return local, p05Map(rulesetValue), nil
@@ -477,7 +480,7 @@ func p05DDoSFirewallConcurrency(ctx context.Context, args []string) error {
 }
 
 func p05IncidentConfidence(ctx context.Context, plugin *sdk.Plugin) float64 {
-	row, _, err := p05ShowMap(ctx, plugin, "show ddos incidents")
+	row, err := p05ShowMap(ctx, plugin, "show ddos incidents")
 	if err != nil || row["enabled"] != true {
 		return 0
 	}
@@ -503,7 +506,7 @@ func p05DDoSState(ctx context.Context, plugin *sdk.Plugin, victim string) string
 
 func p05DDoSIncidentConfidence(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ddos-conf-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
-		sockets, err := p05OpenFlood("127.0.1.6", "127.0.0.6", 9999, 64)
+		sockets, err := p05OpenFlood("127.0.1.6", "127.0.0.6", 64)
 		if err != nil {
 			return err
 		}
@@ -538,7 +541,7 @@ func p05DDoSIncidentConfidence(ctx context.Context, args []string) error {
 
 func p05DDoSPolicy(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "ddos-policy-probe", func(ctx context.Context, plugin *sdk.Plugin) error {
-		sockets, err := p05OpenFlood("", "127.0.0.7", 9999, 64)
+		sockets, err := p05OpenFlood("", "127.0.0.7", 64)
 		if err != nil {
 			return err
 		}
@@ -548,7 +551,7 @@ func p05DDoSPolicy(ctx context.Context, args []string) error {
 		deadline := time.Now().Add(45 * time.Second)
 		for time.Now().Before(deadline) {
 			sent += sockets.blast(4000)
-			status, _, err := p05ShowMap(ctx, plugin, "show ddos status")
+			status, err := p05ShowMap(ctx, plugin, "show ddos status")
 			if err == nil && status["enabled"] == true && p05Float(status["active-attacks"]) > 0 {
 				detected = true
 				break
@@ -557,7 +560,7 @@ func p05DDoSPolicy(ctx context.Context, args []string) error {
 				return err
 			}
 		}
-		local, _, _ := p05ShowMap(ctx, plugin, "show ddos local")
+		local, _ := p05ShowMap(ctx, plugin, "show ddos local")
 		if !detected {
 			return fmt.Errorf("detection never opened an incident under the allow/mitigation policy (sent %d packets); the policy or detector is broken", sent)
 		}

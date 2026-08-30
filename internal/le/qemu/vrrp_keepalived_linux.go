@@ -39,6 +39,11 @@ const (
 	vrrpVersionV3    = 3
 )
 
+// keepalivedCommand is the peer daemon this lab interoperates with. The name
+// is argv[0] of every command run against it, the name requireGuestCommands
+// looks for on PATH, and the label its process carries in the teardown record.
+const keepalivedCommand = "keepalived"
+
 const (
 	vrrpQS2PromoteMin = 3.0
 	vrrpQS2PromoteMax = 6.0
@@ -259,25 +264,25 @@ func probeVRRPKernel(ctx context.Context, names vrrpNames) error {
 		return errors.New("VRRP keepalived interop evidence requires root or CAP_NET_ADMIN (netns/veth/bridge/macvlan creation) plus CAP_NET_RAW (ze's raw proto-112 and AF_PACKET sockets)")
 	}
 	if modprobe, err := execLookPath("modprobe"); err == nil && os.Geteuid() == 0 {
-		for _, module := range []string{"veth", "bridge", "macvlan", "dummy"} {
+		for _, module := range []string{linkTypeVeth, linkTypeBridge, linkTypeMacvlan, linkTypeDummy} {
 			if _, loadErr := guestRun(ctx, "", []string{modprobe, module}, nil); loadErr != nil {
 				fmt.Fprintf(os.Stderr, "load optional VRRP module %s: %v\n", module, loadErr) //nolint:errcheck // probe diagnostics
 			}
 		}
 	}
-	if _, deleteErr := guestRun(ctx, "", []string{"ip", "netns", "delete", names.probeNS}, nil); deleteErr != nil {
+	if _, deleteErr := guestRun(ctx, "", []string{"ip", ipObjectNetns, ipVerbDelete, names.probeNS}, nil); deleteErr != nil {
 		fmt.Fprintf(os.Stderr, "delete stale VRRP probe namespace: %v\n", deleteErr) //nolint:errcheck // probe diagnostics
 	}
 	if err := os.MkdirAll("/run/netns", 0o750); err != nil {
 		return fmt.Errorf("create /run/netns: %w", err)
 	}
 	var tb textbuf.Buffer
-	if err := guestRequired(ctx, "", []string{"ip", "netns", "add", names.probeNS},
+	if err := guestRequired(ctx, "", []string{"ip", ipObjectNetns, ipVerbAdd, names.probeNS},
 		tb.Str("create probe netns ").Str(names.probeNS).String()); err != nil {
 		return err
 	}
 	defer func() {
-		if _, cleanupErr := guestRun(context.Background(), "", []string{"ip", "netns", "delete", names.probeNS}, nil); cleanupErr != nil {
+		if _, cleanupErr := guestRun(context.Background(), "", []string{"ip", ipObjectNetns, ipVerbDelete, names.probeNS}, nil); cleanupErr != nil {
 			fmt.Fprintf(os.Stderr, "delete VRRP probe namespace: %v\n", cleanupErr) //nolint:errcheck // cleanup diagnostics
 		}
 	}()
@@ -285,9 +290,9 @@ func probeVRRPKernel(ctx context.Context, names vrrpNames) error {
 		argv            []string
 		symbol, feature string
 	}{
-		{[]string{"ip", "link", "add", "zprobe0", "type", "veth", "peer", "name", "zprobe1"}, "CONFIG_VETH", "veth pair support"},
-		{[]string{"ip", "link", "add", "zprobebr", "type", "bridge"}, "CONFIG_BRIDGE", "bridge support"},
-		{[]string{"ip", "link", "add", "zprobemv", "link", "zprobe0", "type", "macvlan", "mode", "bridge"}, "CONFIG_MACVLAN", "bridge-mode macvlan support"},
+		{[]string{"ip", ipObjectLink, ipVerbAdd, "zprobe0", ipKeywordType, linkTypeVeth, ipKeywordPeer, ipKeywordName, "zprobe1"}, "CONFIG_VETH", "veth pair support"},
+		{[]string{"ip", ipObjectLink, ipVerbAdd, "zprobebr", ipKeywordType, linkTypeBridge}, "CONFIG_BRIDGE", "bridge support"},
+		{[]string{"ip", ipObjectLink, ipVerbAdd, "zprobemv", ipLinkParent, "zprobe0", ipKeywordType, linkTypeMacvlan, "mode", macvlanModeBridge}, "CONFIG_MACVLAN", "bridge-mode macvlan support"},
 	}
 	for _, probe := range probes {
 		result, err := guestRun(ctx, names.probeNS, probe.argv, nil)
@@ -352,7 +357,7 @@ func (l *vrrpLab) teardown(success bool) {
 		name    string
 		process *guestProcess
 	}{
-		{"keepalived", l.keepalived}, {"ze", l.ze}, {"capture", l.capture}, {"pcap", l.pcapProcess},
+		{keepalivedCommand, l.keepalived}, {"ze", l.ze}, {"capture", l.capture}, {"pcap", l.pcapProcess},
 	} {
 		if item.process != nil {
 			item.process.stop()
@@ -382,19 +387,19 @@ func (l *vrrpLab) addLeaf(ctx context.Context, namespace, leaf, bridgeEnd, addre
 		argv []string
 		what string
 	}{
-		{"", []string{"ip", "link", "add", leaf, "type", "veth", "peer", "name", bridgeEnd},
+		{"", []string{"ip", ipObjectLink, ipVerbAdd, leaf, ipKeywordType, linkTypeVeth, ipKeywordPeer, ipKeywordName, bridgeEnd},
 			operation("create veth pair ", leaf, "/", bridgeEnd)},
-		{"", []string{"ip", "link", "set", leaf, "netns", namespace},
+		{"", []string{"ip", ipObjectLink, ipVerbSet, leaf, ipLinkNetnsTarget, namespace},
 			operation("move ", leaf, " into ", namespace)},
-		{"", []string{"ip", "link", "set", bridgeEnd, "netns", l.names.lanNS},
+		{"", []string{"ip", ipObjectLink, ipVerbSet, bridgeEnd, ipLinkNetnsTarget, l.names.lanNS},
 			operation("move ", bridgeEnd, " into ", l.names.lanNS)},
-		{l.names.lanNS, []string{"ip", "link", "set", bridgeEnd, "master", l.names.bridge},
+		{l.names.lanNS, []string{"ip", ipObjectLink, ipVerbSet, bridgeEnd, "master", l.names.bridge},
 			operation("enslave ", bridgeEnd, "", "")},
-		{l.names.lanNS, []string{"ip", "link", "set", bridgeEnd, "up"},
+		{l.names.lanNS, []string{"ip", ipObjectLink, ipVerbSet, bridgeEnd, "up"},
 			operation("up ", bridgeEnd, "", "")},
-		{namespace, []string{"ip", "link", "set", "lo", "up"},
+		{namespace, []string{"ip", ipObjectLink, ipVerbSet, "lo", "up"},
 			operation("up loopback in ", namespace, "", "")},
-		{namespace, []string{"ip", "link", "set", leaf, "up"},
+		{namespace, []string{"ip", ipObjectLink, ipVerbSet, leaf, "up"},
 			operation("up ", leaf, "", "")},
 	}
 	for _, step := range steps {
@@ -407,7 +412,7 @@ func (l *vrrpLab) addLeaf(ctx context.Context, namespace, leaf, bridgeEnd, addre
 		tb.Reset()
 		assign := tb.Str("assign ").Str(address).String()
 		return guestRequired(ctx, namespace,
-			[]string{"ip", "addr", "add", addressWithPrefix, "dev", leaf}, assign)
+			[]string{"ip", ipObjectAddr, ipVerbAdd, addressWithPrefix, ipKeywordDev, leaf}, assign)
 	}
 	return nil
 }
@@ -419,13 +424,18 @@ func (l *vrrpLab) setup(ctx context.Context) error {
 		return err
 	}
 	for _, namespace := range []string{l.names.lanNS, l.names.zeNS, l.names.kaNS, l.names.obNS} {
-		if err := guestRequired(ctx, "", []string{"ip", "netns", "add", namespace},
+		if err := guestRequired(ctx, "", []string{"ip", ipObjectNetns, ipVerbAdd, namespace},
 			tb.Str("create netns ").Str(namespace).String()); err != nil {
 			return err
 		}
 		tb.Reset()
 	}
-	for _, step := range [][]string{{"ip", "link", "set", "lo", "up"}, {"ip", "link", "add", l.names.bridge, "type", "bridge"}, {"ip", "link", "set", l.names.bridge, "type", "bridge", "mcast_snooping", "0"}, {"ip", "link", "set", l.names.bridge, "up"}} {
+	for _, step := range [][]string{
+		{"ip", ipObjectLink, ipVerbSet, "lo", "up"},
+		{"ip", ipObjectLink, ipVerbAdd, l.names.bridge, ipKeywordType, linkTypeBridge},
+		{"ip", ipObjectLink, ipVerbSet, l.names.bridge, ipKeywordType, linkTypeBridge, "mcast_snooping", "0"},
+		{"ip", ipObjectLink, ipVerbSet, l.names.bridge, "up"},
+	} {
 		if err := guestRequired(ctx, l.names.lanNS, step, "prepare LAN bridge"); err != nil {
 			return err
 		}
@@ -439,7 +449,7 @@ func (l *vrrpLab) setup(ctx context.Context) error {
 	if err := l.addLeaf(ctx, l.names.obNS, l.names.obVeth, l.names.obBridge, vrrpOBAddress); err != nil {
 		return err
 	}
-	ping, err := guestRun(ctx, l.names.obNS, []string{"ping", "-c", "1", "-W", "3", vrrpKAAddress}, nil)
+	ping, err := guestRun(ctx, l.names.obNS, []string{pingCommand, "-c", "1", "-W", "3", vrrpKAAddress}, nil)
 	if err != nil {
 		return err
 	}
@@ -458,7 +468,7 @@ func (l *vrrpLab) setup(ctx context.Context) error {
 }
 
 func linkMAC(ctx context.Context, namespace, device string) (string, error) {
-	result, err := guestRun(ctx, namespace, []string{"ip", "-j", "link", "show", device}, nil)
+	result, err := guestRun(ctx, namespace, []string{"ip", "-j", ipObjectLink, ipVerbShow, device}, nil)
 	if err != nil {
 		return "", err
 	}
@@ -581,7 +591,7 @@ func (l *vrrpLab) waitZeState(ctx context.Context, state string) error {
 }
 
 func (l *vrrpLab) keepalivedVersion(ctx context.Context) string {
-	result, _ := guestRun(ctx, l.names.kaNS, []string{"keepalived", "-v"}, nil)
+	result, _ := guestRun(ctx, l.names.kaNS, []string{keepalivedCommand, "-v"}, nil)
 	var tb textbuf.Buffer
 	text := strings.TrimSpace(tb.Str(result.Stdout).Str(result.Stderr).String())
 	if line, _, ok := strings.Cut(text, "\n"); ok {
@@ -598,7 +608,7 @@ func (l *vrrpLab) startKeepalived(ctx context.Context, config []byte) error {
 	if err := os.WriteFile(path, config, 0o600); err != nil {
 		return err
 	}
-	check, err := guestRun(ctx, l.names.kaNS, []string{"keepalived", "-t", "-f", path}, nil)
+	check, err := guestRun(ctx, l.names.kaNS, []string{keepalivedCommand, "-t", "-f", path}, nil)
 	if err != nil {
 		return err
 	}
@@ -607,7 +617,7 @@ func (l *vrrpLab) startKeepalived(ctx context.Context, config []byte) error {
 		return fmt.Errorf("keepalived rejected the generated config (%s); see %s",
 			l.keepalivedVersion(ctx), path)
 	}
-	l.keepalived, _, err = startGuestProcess(ctx, l.names.kaNS, []string{"keepalived", "-n", "-l", "-D", "-P", "-f", path, "-p", filepath.Join(l.work, "keepalived.pid")}, os.Environ(), "ka> ")
+	l.keepalived, _, err = startGuestProcess(ctx, l.names.kaNS, []string{keepalivedCommand, "-n", "-l", "-D", "-P", "-f", path, "-p", filepath.Join(l.work, "keepalived.pid")}, os.Environ(), "ka> ")
 	return err
 }
 
@@ -726,7 +736,7 @@ func (l *vrrpLab) assertNoKAAdverts(since float64) error {
 }
 
 func neighborMAC(ctx context.Context, namespace, device, destination string) string {
-	result, err := guestRun(ctx, namespace, []string{"ip", "-j", "neigh", "show", "dev", device}, nil)
+	result, err := guestRun(ctx, namespace, []string{"ip", "-j", ipObjectNeigh, ipVerbShow, ipKeywordDev, device}, nil)
 	if err != nil || result.Code != 0 {
 		return ""
 	}
@@ -746,10 +756,10 @@ func neighborMAC(ctx context.Context, namespace, device, destination string) str
 }
 func (l *vrrpLab) assertVIP(ctx context.Context) error {
 	err := waitGuest(ctx, vrrpPingTimeout, guestPollInterval, func() (bool, error) {
-		if _, flushErr := guestRun(ctx, l.names.obNS, []string{"ip", "neigh", "flush", "all"}, nil); flushErr != nil {
+		if _, flushErr := guestRun(ctx, l.names.obNS, []string{"ip", ipObjectNeigh, "flush", "all"}, nil); flushErr != nil {
 			return false, flushErr
 		}
-		ping, err := guestRun(ctx, l.names.obNS, []string{"ping", "-c", "2", "-W", "3", vrrpVIP}, nil)
+		ping, err := guestRun(ctx, l.names.obNS, []string{pingCommand, "-c", "2", "-W", "3", vrrpVIP}, nil)
 		if err != nil {
 			return false, err
 		}
@@ -820,7 +830,7 @@ func (l *vrrpLab) runQS2(ctx context.Context) error {
 		return err
 	}
 	tb.Reset()
-	if err := guestRequired(ctx, l.names.zeNS, []string{"ip", "link", "set", l.names.zeVeth, "down"},
+	if err := guestRequired(ctx, l.names.zeNS, []string{"ip", ipObjectLink, ipVerbSet, l.names.zeVeth, "down"},
 		tb.Str("down ").Str(l.names.zeVeth).String()); err != nil {
 		return err
 	}
@@ -872,7 +882,7 @@ func (l *vrrpLab) runQS2(ctx context.Context) error {
 	l.details = append(l.details, tb.Str("  failover: keepalived sent gratuitous ARP for ").
 		Str(vrrpVIP).Str(" from ").Str(l.kaMAC).String())
 	tb.Reset()
-	if err := guestRequired(ctx, l.names.zeNS, []string{"ip", "link", "set", l.names.zeVeth, "up"},
+	if err := guestRequired(ctx, l.names.zeNS, []string{"ip", ipObjectLink, ipVerbSet, l.names.zeVeth, "up"},
 		tb.Str("up ").Str(l.names.zeVeth).String()); err != nil {
 		return err
 	}
@@ -1033,19 +1043,19 @@ func (l *vrrpLab) diagnostics() {
 	fmt.Fprintf(os.Stderr, "keepalived state markers: %v\n", l.kaStates())                          //nolint:errcheck // evidence diagnostics
 	for _, namespace := range []string{l.names.zeNS, l.names.kaNS, l.names.obNS} {
 		fmt.Fprintf(os.Stderr, "\n%s links:\n%s", namespace,
-			vrrpDiagnosticOutput(namespace, []string{"ip", "addr"})) //nolint:errcheck // evidence diagnostics
+			vrrpDiagnosticOutput(namespace, []string{"ip", ipObjectAddr})) //nolint:errcheck // evidence diagnostics
 		fmt.Fprintf(os.Stderr, "%s neigh:\n%s", namespace,
-			vrrpDiagnosticOutput(namespace, []string{"ip", "neigh", "show"})) //nolint:errcheck // evidence diagnostics
+			vrrpDiagnosticOutput(namespace, []string{"ip", ipObjectNeigh, ipVerbShow})) //nolint:errcheck // evidence diagnostics
 	}
 	fmt.Fprintf(os.Stderr, "\n%s macvlan detail:\n%s", l.names.zeNS,
-		vrrpDiagnosticOutput(l.names.zeNS, []string{"ip", "-d", "link", "show"})) //nolint:errcheck // evidence diagnostics
+		vrrpDiagnosticOutput(l.names.zeNS, []string{"ip", "-d", ipObjectLink, ipVerbShow})) //nolint:errcheck // evidence diagnostics
 	sysctls := "grep -H . /proc/sys/net/ipv4/conf/*/arp_ignore " +
 		"/proc/sys/net/ipv4/conf/*/arp_filter /proc/sys/net/ipv4/conf/*/rp_filter " +
 		"/proc/sys/net/ipv6/conf/*/disable_ipv6 2>/dev/null | grep -vE '/(default|lo)/'"
 	fmt.Fprintf(os.Stderr, "%s dataplane sysctls:\n%s", l.names.zeNS,
 		vrrpDiagnosticOutput(l.names.zeNS, []string{"sh", "-c", sysctls})) //nolint:errcheck // evidence diagnostics
 	fmt.Fprintf(os.Stderr, "\n%s bridge:\n%s", l.names.lanNS,
-		vrrpDiagnosticOutput(l.names.lanNS, []string{"ip", "link", "show", "master", l.names.bridge})) //nolint:errcheck // evidence diagnostics
+		vrrpDiagnosticOutput(l.names.lanNS, []string{"ip", ipObjectLink, ipVerbShow, "master", l.names.bridge})) //nolint:errcheck // evidence diagnostics
 	if l.captureLines != nil {
 		fmt.Fprint(os.Stderr, "capture tail:\n", strings.Join(lastLines(l.captureLines.snapshot(), 60), "")) //nolint:errcheck // evidence diagnostics
 	}
@@ -1060,8 +1070,8 @@ func lastLines(lines []string, count int) []string {
 }
 
 func runVRRPGuest(ctx context.Context, root string, selected []string) (guestLabReport, error) {
-	report := guestLabReport{Lab: "vrrp-keepalived", Selected: append([]string(nil), selected...), Verdict: VerdictUnspecified}
-	if err := requireGuestCommands("ip", "ping", "tcpdump", "keepalived"); err != nil {
+	report := guestLabReport{Lab: labVRRPKeepalived, Selected: append([]string(nil), selected...), Verdict: VerdictUnspecified}
+	if err := requireGuestCommands("ip", pingCommand, "tcpdump", keepalivedCommand); err != nil {
 		return report, err
 	}
 	names := newVRRPNames()

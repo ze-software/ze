@@ -37,7 +37,7 @@ func init() {
 }
 
 func readTrimmed08(path string) (string, bool) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return "", false
 	}
@@ -94,7 +94,7 @@ func netlinkDrops08() int {
 }
 
 func scrape08(ctx context.Context, port string) (string, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:"+port+"/metrics", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:"+port+"/metrics", http.NoBody)
 	if err != nil {
 		return "", err
 	}
@@ -103,7 +103,7 @@ func scrape08(ctx context.Context, port string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // the body is read
 	data, err := io.ReadAll(response.Body)
 	return string(data), err
 }
@@ -134,15 +134,15 @@ func flapCommit08(pid int) error {
 	text := strings.ReplaceAll(string(data), "hostname flap-a", "hostname flap-Z")
 	text = strings.ReplaceAll(text, "hostname flap-b", "hostname flap-a")
 	text = strings.ReplaceAll(text, "hostname flap-Z", "hostname flap-b")
-	if err := os.WriteFile("ze-bgp.conf", []byte(text), 0644); err != nil {
+	if err := os.WriteFile("ze-bgp.conf", []byte(text), 0o600); err != nil {
 		return err
 	}
 	return syscall.Kill(pid, syscall.SIGHUP)
 }
 
-func ifaceLinkFlap08(ctx context.Context, p *sdk.Plugin, port string) error {
-	defer runCommand08(context.Background(), false, "ip", "-6", "neigh", "del", flapGateway08, "dev", flapDevice08)
-	defer runCommand08(context.Background(), false, "ip", "link", "set", flapPeer08, "up")
+func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
+	defer runCommand08(context.Background(), false, "ip", "-6", "neigh", "del", flapGateway08, "dev", flapDevice08) //nolint:errcheck // best-effort cleanup
+	defer runCommand08(context.Background(), false, "ip", "link", "set", flapPeer08, "up")                          //nolint:errcheck // best-effort cleanup
 	if !Poll(ctx, 1000, 20*time.Millisecond, func() bool {
 		_, a := os.Stat("/sys/class/net/" + flapDevice08)
 		_, b := os.Stat("/sys/class/net/" + flapPeer08)
@@ -150,7 +150,7 @@ func ifaceLinkFlap08(ctx context.Context, p *sdk.Plugin, port string) error {
 	}) {
 		return fmt.Errorf("timed out waiting for %s and %s to exist", flapDevice08, flapPeer08)
 	}
-	for _, args := range [][]string{{"link", "set", flapDevice08, "up"}, {"link", "set", flapPeer08, "up"}} {
+	for _, args := range [][]string{{ipObjectLink, ipWordSet, flapDevice08, "up"}, {ipObjectLink, ipWordSet, flapPeer08, "up"}} {
 		if _, _, err := runCommand08(ctx, true, "ip", args...); err != nil {
 			return err
 		}
@@ -168,11 +168,11 @@ func ifaceLinkFlap08(ctx context.Context, p *sdk.Plugin, port string) error {
 	for i := range flapTransitions08 {
 		state := "up"
 		if i%2 == 0 {
-			state = "down"
+			state = linkStateDown
 		}
 		fmt.Fprintf(&batch, "link set %s %s\n", flapPeer08, state)
 	}
-	if err := os.WriteFile("flap.batch", []byte(batch.String()), 0644); err != nil {
+	if err := os.WriteFile("flap.batch", []byte(batch.String()), 0o600); err != nil {
 		return err
 	}
 	pidText, ok := readTrimmed08("daemon.pid")

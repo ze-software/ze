@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the repository-facts area, as one command
 //
-// actions.go is the command surface: `le site-facts update` writes the
-// committed file, and `le site-facts check` reports what has gone stale in it.
+// actions.go is the command surface: `le site facts update` writes the
+// committed file, and `le site facts check` reports what has gone stale in it.
 // The pair is the shape ze-test-health-update and ze-test-health-check already
 // have, which is the point -- a generated file nobody gates goes stale in
 // silence.
@@ -48,7 +48,7 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le site-facts` command.
+// Answer is the `le site facts` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 // written is what the update answers: the file it wrote, what it put there, and
@@ -59,7 +59,7 @@ type written struct {
 	Uncommitted []change        `json:"uncommitted"`
 }
 
-// runUpdate is `le site-facts update`.
+// runUpdate is `le site facts update`.
 func runUpdate() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -123,7 +123,7 @@ func warnUncommitted(changes []change) {
 	fmt.Fprintln(os.Stderr, tb.Str("commit them with ").Str(factsFile).Str(", or run this again once they are committed.").String()) //nolint:errcheck // CLI output
 }
 
-// runCheck is `le site-facts check`.
+// runCheck is `le site facts check`.
 //
 // A stale file answers 1 and a checkout that could not be judged answers 2, so
 // a caller reads "the numbers are out of date" apart from "the question was

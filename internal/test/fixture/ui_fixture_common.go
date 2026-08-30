@@ -41,13 +41,13 @@ func uiLEBinary(root string) (string, error) {
 }
 
 func uiLEFeatureTags(root string, extra ...string) ([]string, error) {
-	data, err := os.ReadFile(filepath.Join(root, "feature-gates.txt"))
+	data, err := os.ReadFile(filepath.Join(root, "feature-gates.txt")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil, fmt.Errorf("read feature-gates.txt: %w", err)
 	}
-	tags := []string{"ze_le"}
-	seen := map[string]struct{}{"ze_le": {}}
-	for _, line := range strings.Split(string(data), "\n") {
+	tags := []string{buildTagLE}
+	seen := map[string]struct{}{buildTagLE: {}}
+	for line := range strings.SplitSeq(string(data), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 0 || strings.HasPrefix(fields[0], "#") {
 			continue
@@ -79,11 +79,16 @@ func uiZEBinary(root string) (string, error) {
 }
 
 func uiFreeTCPPort() (int, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	// The listener closes on the next line, so there is nothing to cancel.
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, fmt.Errorf("reserve ephemeral TCP port: %w", err)
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return 0, fmt.Errorf("a tcp listener answered %T, want *net.TCPAddr", listener.Addr())
+	}
+	port := address.Port
 	if err := listener.Close(); err != nil {
 		return 0, fmt.Errorf("release ephemeral TCP port: %w", err)
 	}

@@ -35,22 +35,22 @@ func leJobAdmits(ctx context.Context) error {
 	case "shared":
 		root := os.Getenv("ZE_REPO_ROOT")
 		marker := filepath.Join(root, "tmp", "ran")
-		file, err := os.OpenFile(marker, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
+		file, err := os.OpenFile(marker, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return fmt.Errorf("open shared-run marker: %w", err)
 		}
-		if _, err := io.WriteString(file, "once\n"); err != nil {
+		if _, err := file.WriteString("once\n"); err != nil {
 			_ = file.Close()
 			return fmt.Errorf("write shared-run marker: %w", err)
 		}
 		if err := file.Close(); err != nil {
 			return fmt.Errorf("close shared-run marker: %w", err)
 		}
-		fmt.Fprintln(os.Stdout, "THE-SHARED-OUTPUT")
+		fmt.Fprintln(os.Stdout, "THE-SHARED-OUTPUT") //nolint:errcheck // progress output
 		time.Sleep(3 * time.Second)
 		os.Exit(3)
 		return nil
-	case "success":
+	case outcomeSuccess:
 		os.Exit(0)
 		return nil
 	}
@@ -73,7 +73,7 @@ func leJobAdmits(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(testDir)
+	defer os.RemoveAll(testDir) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(checkout)
 	if err != nil {
@@ -81,7 +81,7 @@ func leJobAdmits(ctx context.Context) error {
 	}
 
 	scratch := filepath.Join(testDir, "tree")
-	if err := os.MkdirAll(filepath.Join(scratch, "tmp"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(scratch, "tmp"), 0o750); err != nil {
 		return fmt.Errorf("create scratch registry tree: %w", err)
 	}
 
@@ -90,7 +90,7 @@ func leJobAdmits(ctx context.Context) error {
 	environment = uiLeJobAdmitsWithEnv(environment, "MAKEFLAGS", "")
 
 	runLE := func(runCtx context.Context, env []string, args ...string) leJobAdmitsResult {
-		command := exec.CommandContext(runCtx, binary, args...)
+		command := exec.CommandContext(runCtx, binary, args...) //nolint:gosec // the fixture chooses the program and its arguments
 		command.Dir = scratch
 		command.Env = env
 		var stdout, stderr bytes.Buffer
@@ -115,7 +115,7 @@ func leJobAdmits(ctx context.Context) error {
 	}
 	hasRun := false
 	for _, action := range actions.Actions {
-		if action.Verb == "run" {
+		if action.Verb == actionRun {
 			hasRun = true
 			break
 		}
@@ -134,7 +134,7 @@ func leJobAdmits(ctx context.Context) error {
 	}
 
 	sharedEnv := uiLeJobAdmitsWithEnv(environment, leJobAdmitsHelperEnv, "shared")
-	holder := exec.CommandContext(ctx, binary,
+	holder := exec.CommandContext(ctx, binary, //nolint:gosec // the fixture chooses the program and its arguments
 		"job", "run", "label", "ui-shared", "command",
 		testBinary, "fixture", "ui/le-job-admits",
 	)
@@ -187,7 +187,7 @@ func leJobAdmits(ctx context.Context) error {
 		holderFinished = true
 	case <-timer.C:
 		_ = holder.Process.Kill()
-		holderWaitErr = <-holderWait
+		<-holderWait
 		holderFinished = true
 		return fmt.Errorf("the holder did not finish within 60s: %s", holderStderr.String())
 	case <-ctx.Done():
@@ -206,7 +206,7 @@ func leJobAdmits(ctx context.Context) error {
 	}
 
 	marker := filepath.Join(scratch, "tmp", "ran")
-	markerContents, err := os.ReadFile(marker)
+	markerContents, err := os.ReadFile(marker) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read shared-run marker: %w", err)
 	}
@@ -251,8 +251,7 @@ func commandExitCode(err error) int {
 	if err == nil {
 		return 0
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exitErr.ExitCode()
 	}
 	return -1
@@ -266,8 +265,8 @@ func withoutEnv(environment []string, names ...string) []string {
 	answer := make([]string, 0, len(environment))
 	for _, entry := range environment {
 		name := entry
-		if equal := strings.IndexByte(entry, '='); equal >= 0 {
-			name = entry[:equal]
+		if before, _, found := strings.Cut(entry, "="); found {
+			name = before
 		}
 		if _, found := removed[name]; !found {
 			answer = append(answer, entry)

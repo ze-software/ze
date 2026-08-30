@@ -141,7 +141,7 @@ func (recorder historyRecorder) record(reportPath string) (historyReport, error)
 	}
 
 	historyPath := filepath.Join(root, historyRel)
-	if err := os.MkdirAll(filepath.Dir(historyPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(historyPath), 0o750); err != nil {
 		return historyReport{}, fmt.Errorf("create mutation history directory: %w", err)
 	}
 	existing, err := os.ReadFile(historyPath) //nolint:gosec // committed local history
@@ -234,8 +234,8 @@ func pythonTruthy(value jsonValue) bool {
 
 func packageOf(filePath, root string) string {
 	relative := filePath
-	if strings.HasPrefix(relative, root) {
-		relative = strings.TrimLeft(strings.TrimPrefix(relative, root), "/")
+	if rest, ok := strings.CutPrefix(relative, root); ok {
+		relative = strings.TrimLeft(rest, "/")
 	}
 	name := posixDirname(relative)
 	if name == "" {

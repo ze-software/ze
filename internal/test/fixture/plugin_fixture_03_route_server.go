@@ -88,7 +88,7 @@ func bgpRSPprof03(ctx context.Context, p *sdk.Plugin, port string) error {
 	if !waitPeersEOR03(ctx, p, 1) {
 		return fmt.Errorf("initial-sync EOR never reached the wire")
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:"+port+"/debug/pprof/", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:"+port+"/debug/pprof/", http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func bgpRSPprof03(ctx context.Context, p *sdk.Plugin, port string) error {
 	if err != nil {
 		return fmt.Errorf("pprof endpoint not reachable: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // the body is read
 	raw, err := io.ReadAll(response.Body)
 	if err != nil {
 		return fmt.Errorf("read pprof index: %w", err)
@@ -115,12 +115,17 @@ func pollHTTP03(ctx context.Context, url string, attempts int, ready func(string
 	var body string
 	var lastErr error
 	ok := Poll(ctx, attempts, 250*time.Millisecond, func() bool {
-		resp, err := client.Get(url)
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 		if err != nil {
 			lastErr = err
 			return false
 		}
-		defer resp.Body.Close()
+		resp, err := client.Do(request)
+		if err != nil {
+			lastErr = err
+			return false
+		}
+		defer resp.Body.Close() //nolint:errcheck // the body is read
 		raw, err := io.ReadAll(resp.Body)
 		if err != nil {
 			lastErr = err

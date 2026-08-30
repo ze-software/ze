@@ -243,7 +243,7 @@ func (r *Run) brewFiles(relative string) []string {
 	if brew, err := r.ops.Look("brew"); err == nil {
 		prefixes = append(prefixes, filepath.Dir(filepath.Dir(brew)))
 	}
-	if r.ops.GOOS == "darwin" {
+	if r.ops.GOOS == goosDarwin {
 		prefixes = append(prefixes, "/opt/homebrew", "/usr/local")
 	}
 	seen := make(map[string]bool, len(prefixes))

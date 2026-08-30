@@ -13,18 +13,20 @@ import (
 const area = "hook-check"
 
 var actions = func() leaction.Area {
-	list := []leaction.Action{{
+	verbs := [...]string{
+		"session-start", "compaction-reminder", "verify-claim-reminder", categoryDelegationReminder,
+		"block-until-lsp", "pretool-bash", "pretool-writeedit", "pretool-agent-skill",
+		"pre-compact-save", "block-premature-stop", "rule-coverage-report", "session-end-summary",
+		"session-end-deferrals", categorySubagentContext, "mark-lsp-invoked", categoryMarkSourceRead,
+		"mark-agent-spawned", categoryValidateSpec, "posttool-writeedit", categorySessionID,
+	}
+	list := make([]leaction.Action, 0, 1+len(verbs))
+	list = append(list, leaction.Action{
 		Verb:   "unit",
 		Why:    "run every hook dispatcher golden row and every behavioral fixture category in-process",
 		Answer: runHere,
-	}}
-	for _, verb := range []string{
-		"session-start", "compaction-reminder", "verify-claim-reminder", "delegation-reminder",
-		"block-until-lsp", "pretool-bash", "pretool-writeedit", "pretool-agent-skill",
-		"pre-compact-save", "block-premature-stop", "rule-coverage-report", "session-end-summary",
-		"session-end-deferrals", "subagent-context", "mark-lsp-invoked", "mark-source-read",
-		"mark-agent-spawned", "validate-spec", "posttool-writeedit", "session-id",
-	} {
+	})
+	for _, verb := range verbs {
 		kind := verb
 		list = append(list, leaction.Action{
 			Verb: kind,

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"os"
 	"os/exec"
@@ -28,7 +29,7 @@ func plugin01AnswerManyRecords(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if answer.Type != rpc.AnswerTypeMap || answer.Key != "commands" || len(answer.Fields) != 0 {
+	if answer.Type != rpc.AnswerTypeMap || answer.Key != fieldCommands || len(answer.Fields) != 0 {
 		return fmt.Errorf("unexpected answer head: type=%q key=%q fields=%v", answer.Type, answer.Key, answer.Fields)
 	}
 	count := 0
@@ -92,7 +93,7 @@ func plugin01AnswerUnconditionalFirst(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer plugin.Close() //nolint:errcheck
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 	result := make(chan error, 1)
 	plugin.OnAllPluginsReady(func() error {
 		version, scenarioErr := plugin01ReadOneDocument(ctx, plugin, "system version api")
@@ -215,9 +216,7 @@ func plugin01Environment(values map[string]string) []string {
 			environment[key] = value
 		}
 	}
-	for key, value := range values {
-		environment[key] = value
-	}
+	maps.Copy(environment, values)
 	result := make([]string, 0, len(environment))
 	for key, value := range environment {
 		result = append(result, key+"="+value)
@@ -267,13 +266,13 @@ func plugin01StartSSHRuntime(ctx context.Context, configPath, config string) (*p
 		return nil, err
 	}
 	logPath := filepath.Join(workDir, "daemon.log")
-	log, err := os.Create(logPath)
+	log, err := os.Create(logPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		_ = os.RemoveAll(workDir)
 		return nil, err
 	}
 	daemonCtx, cancel := context.WithCancel(ctx)
-	command := exec.CommandContext(daemonCtx, "ze", "start", configPath)
+	command := exec.CommandContext(daemonCtx, "ze", "start", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = workDir
 	command.Cancel = func() error {
 		if command.Process == nil {
@@ -283,8 +282,8 @@ func plugin01StartSSHRuntime(ctx context.Context, configPath, config string) (*p
 	}
 	command.WaitDelay = 2 * time.Second
 	command.Env = plugin01Environment(map[string]string{
-		"ze.config.dir":    workDir,
-		"ze_test_bgp_port": strconv.Itoa(10000 + os.Getpid()%50000),
+		"ze.config.dir": workDir,
+		envTestBGPPort:  strconv.Itoa(10000 + os.Getpid()%50000),
 	})
 	command.Stderr = log
 	if err := command.Start(); err != nil {
@@ -297,7 +296,7 @@ func plugin01StartSSHRuntime(ctx context.Context, configPath, config string) (*p
 	var logBody []byte
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
 		_ = log.Sync()
-		logBody, _ = os.ReadFile(logPath)
+		logBody, _ = os.ReadFile(logPath) //nolint:gosec // the path is the fixture's own scratch file
 		runtime.port = plugin01SSHPort(logBody)
 		return runtime.port != ""
 	}) {
@@ -315,7 +314,7 @@ func plugin01StartSSHRuntime(ctx context.Context, configPath, config string) (*p
 		return nil, err
 	}
 	initCommand := exec.CommandContext(ctx, "ze", "init")
-	initCommand.Env = plugin01Environment(map[string]string{"ZE_CONFIG_DIR": runtime.adminDir})
+	initCommand.Env = plugin01Environment(map[string]string{envConfigDir: runtime.adminDir})
 	initCommand.Stdin = strings.NewReader("admin\ntestpass\n127.0.0.1\n" + runtime.port + "\n")
 	initCommand.Stdout = io.Discard
 	initCommand.Stderr = os.Stderr
@@ -350,13 +349,11 @@ func (runtime *plugin01SSHRuntime) path(name string) string {
 
 func (runtime *plugin01SSHRuntime) CLI(ctx context.Context, command string, extraEnv map[string]string) ([]byte, []byte, error) {
 	values := map[string]string{
-		"ZE_CONFIG_DIR":   runtime.adminDir,
-		"ZE_SSH_PASSWORD": "testpass",
+		envConfigDir:   runtime.adminDir,
+		envSSHPassword: valueTestPassword,
 	}
-	for key, value := range extraEnv {
-		values[key] = value
-	}
-	executable := exec.CommandContext(ctx, "ze", "cli", "-c", command)
+	maps.Copy(values, extraEnv)
+	executable := exec.CommandContext(ctx, "ze", "cli", "-c", command) //nolint:gosec // the fixture chooses the program and its arguments
 	executable.Env = plugin01Environment(values)
 	var stdout, stderr bytes.Buffer
 	executable.Stdout = &stdout
@@ -377,7 +374,7 @@ func plugin01CommandRows(raw []byte) ([]json.RawMessage, error) {
 
 func plugin01LinesStartingObject(raw []byte) int {
 	count := 0
-	for _, line := range bytes.Split(raw, []byte{'\n'}) {
+	for line := range bytes.SplitSeq(raw, []byte{'\n'}) {
 		if len(line) > 0 && line[0] == '{' {
 			count++
 		}
@@ -514,7 +511,7 @@ func plugin01AnswerSingleRecord(ctx context.Context, args []string) error {
 	if records := plugin01LinesStartingObject(ndjson); records != len(fullRows) {
 		return fmt.Errorf("ndjson rendered %d record lines, want %d", records, len(fullRows))
 	}
-	for _, line := range bytes.Split(ndjson, []byte{'\n'}) {
+	for line := range bytes.SplitSeq(ndjson, []byte{'\n'}) {
 		if bytes.HasPrefix(line, []byte(`{"commands"`)) {
 			return errors.New("a record line carries the commands envelope")
 		}
@@ -559,7 +556,7 @@ func plugin01AnswerPayloadUnchanged(ctx context.Context, args []string) error {
 }
 
 func plugin01ReadRelayCount(path string) (connections int, forwarded int64, err error) {
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return 0, 0, err
 	}
@@ -603,14 +600,14 @@ func plugin01AnswerTruncationDetected(ctx context.Context, args []string) error 
 	if !plugin01WaitForFile(ctx, wholePort) {
 		return errors.New("whole.port never appeared")
 	}
-	wholePortRaw, err := os.ReadFile(wholePort)
+	wholePortRaw, err := os.ReadFile(wholePort) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
 	relayEnvironment := map[string]string{
-		"ZE_SSH_USERNAME": "admin",
-		"ZE_SSH_PASSWORD": "testpass",
-		"ZE_SSH_PORT":     strings.TrimSpace(string(wholePortRaw)),
+		envSSHUsername: "admin",
+		envSSHPassword: valueTestPassword,
+		envSSHPort:     strings.TrimSpace(string(wholePortRaw)),
 	}
 	full, stderr, err := runtime.CLI(ctx, "system command list | ndjson", relayEnvironment)
 	if err != nil {
@@ -643,7 +640,7 @@ func plugin01AnswerTruncationDetected(ctx context.Context, args []string) error 
 	if !plugin01WaitForFile(ctx, cutPort) {
 		return errors.New("cut.port never appeared")
 	}
-	cutPortRaw, err := os.ReadFile(cutPort)
+	cutPortRaw, err := os.ReadFile(cutPort) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -698,7 +695,7 @@ func plugin01CompareBounded(_ context.Context, args []string) error {
 		return err
 	}
 	read := func(path string) ([]json.RawMessage, error) {
-		raw, err := os.ReadFile(path)
+		raw, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return nil, err
 		}
@@ -741,7 +738,7 @@ func plugin01CompareBounded(_ context.Context, args []string) error {
 }
 
 func plugin01ProducedRow(index, fill int) []byte {
-	return []byte(fmt.Sprintf(`{"index":%d,"fill":"%s"}`, index, strings.Repeat("x", fill)))
+	return []byte(fmt.Sprintf(`{"index":%d,"fill":%q}`, index, strings.Repeat("x", fill)))
 }
 
 func plugin01CompactJSON(raw []byte) ([]byte, error) {
@@ -769,7 +766,7 @@ func plugin01ComparePayloads(_ context.Context, args []string) error {
 		keys = append(keys, key)
 	}
 	slices.Sort(keys)
-	if !slices.Equal(keys, []string{"errors", "rows"}) {
+	if !slices.Equal(keys, []string{fieldErrors, fieldRows}) {
 		return fmt.Errorf("collapsed answer carries %v, want errors and rows", keys)
 	}
 	var rows []json.RawMessage
@@ -801,7 +798,7 @@ func plugin01ComparePayloads(_ context.Context, args []string) error {
 		faultKeys = append(faultKeys, key)
 	}
 	slices.Sort(faultKeys)
-	if !slices.Equal(faultKeys, []string{"encoded-bytes", "limit-bytes", "message", "record"}) {
+	if !slices.Equal(faultKeys, []string{"encoded-bytes", "limit-bytes", fieldMessage, "record"}) {
 		return fmt.Errorf("rejection fields are %v", faultKeys)
 	}
 	fmt.Fprintf(os.Stderr, "OK: %d collapsed rows are the bytes the producer wrote\n", len(rows))
@@ -857,16 +854,20 @@ func plugin01CutRelay(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp4", "127.0.0.1:0")
 	if err != nil {
 		return err
 	}
-	defer listener.Close() //nolint:errcheck
+	defer listener.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 	go func() {
 		<-ctx.Done()
-		listener.Close() //nolint:errcheck
+		listener.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 	}()
-	port := listener.Addr().(*net.TCPAddr).Port
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return fmt.Errorf("a tcp4 listener answered %T, want *net.TCPAddr", listener.Addr())
+	}
+	port := address.Port
 	if err := plugin01AtomicWrite(args[0], []byte(strconv.Itoa(port))); err != nil {
 		return err
 	}
@@ -881,13 +882,17 @@ func plugin01CutRelay(ctx context.Context, args []string) error {
 			return err
 		}
 		connections++
-		daemon, err := net.DialTimeout("tcp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(daemonPort)), 5*time.Second)
+		dialer := net.Dialer{Timeout: 5 * time.Second}
+		daemon, err := dialer.DialContext(ctx, "tcp4", net.JoinHostPort("127.0.0.1", strconv.Itoa(daemonPort)))
 		if err != nil {
-			client.Close() //nolint:errcheck
+			client.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 			return err
 		}
-		clientTCP := client.(*net.TCPConn)
-		daemonTCP := daemon.(*net.TCPConn)
+		clientTCP, clientOK := client.(*net.TCPConn)
+		daemonTCP, daemonOK := daemon.(*net.TCPConn)
+		if !clientOK || !daemonOK {
+			return fmt.Errorf("a tcp4 dial answered %T and %T, want *net.TCPConn", client, daemon)
+		}
 		upstreamDone := make(chan struct{})
 		go func() {
 			_, _ = io.Copy(daemonTCP, clientTCP)

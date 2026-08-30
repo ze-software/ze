@@ -20,7 +20,7 @@ environment {
 }
 EOF_CONF
 
-# `ze config dump --json -` resolves the full BGP tree and refuses a config with
+# `show config dump - | json` resolves the full BGP tree and refuses a config with
 # no bgp { } block, so the readback runs against an augmented copy that prepends a
 # minimal bgp block. The validate step above still proves the ntp-ONLY config is
 # accepted; this block only exists to render the parsed ntp subtree for readback.
@@ -44,7 +44,7 @@ environment {
 EOF_DUMP
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=0
-cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump:exit=0
+cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=config-dump:exit=0
 expect=exit:code=0
 # The JSON needle carries a ':' so it MUST use pattern= (contains= truncates at
 # the first colon; only json=/text=/hex=/pattern= preserve colons). The values are

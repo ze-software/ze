@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -82,14 +83,14 @@ system {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(work)
-	configPath := work + string(os.PathSeparator) + "format.conf"
-	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
+	configPath := filepath.Join(work, "format.conf")
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write format.conf: %w", err)
 	}
 
-	sshAddressFile := work + string(os.PathSeparator) + "ssh.addr"
-	readyFile := work + string(os.PathSeparator) + "ready"
+	sshAddressFile := filepath.Join(work, "ssh.addr")
+	readyFile := filepath.Join(work, "ready")
 	bgpPort, err := uiFreeTCPPort()
 	if err != nil {
 		return err
@@ -111,7 +112,7 @@ system {
 	// between unsuccessful attempts, rather than relying on a guessed sleep.
 	err = cliFormatDefaultPoll(ctx, 200, 100*time.Millisecond, func() (bool, error) {
 		if exited, waitErr := daemon.exited(); exited {
-			return false, fmt.Errorf("daemon exited early: %v\nstdout:\n%s\nstderr:\n%s", waitErr, daemon.stdout.String(), daemon.stderr.String())
+			return false, fmt.Errorf("daemon exited early: %w\nstdout:\n%s\nstderr:\n%s", waitErr, daemon.stdout.String(), daemon.stderr.String())
 		}
 		if _, err := os.Stat(sshAddressFile); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -131,7 +132,7 @@ system {
 		return fmt.Errorf("daemon did not become ready: %w", err)
 	}
 
-	addressBytes, err := os.ReadFile(sshAddressFile)
+	addressBytes, err := os.ReadFile(sshAddressFile) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -169,7 +170,7 @@ system {
 	}
 	var object map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(out), &object); err != nil {
-		return fmt.Errorf("--format json did not answer JSON (%v): %q", err, out)
+		return fmt.Errorf("--format json did not answer JSON (%w): %q", err, out)
 	}
 	if _, ok := object["version"]; !ok {
 		return fmt.Errorf("--format json answered JSON without the field: %q", out)
@@ -220,7 +221,7 @@ system {
 	if strings.TrimSpace(out) != "" {
 		var parsed any
 		if err := json.Unmarshal([]byte(out), &parsed); err != nil {
-			return fmt.Errorf("the emptied answer was not JSON (%v): %q", err, out)
+			return fmt.Errorf("the emptied answer was not JSON (%w): %q", err, out)
 		}
 		peers := parsed
 		if parsedObject, ok := parsed.(map[string]any); ok {
@@ -258,7 +259,7 @@ system {
 	}
 	object = nil
 	if err := json.Unmarshal([]byte(out), &object); err != nil {
-		return fmt.Errorf("| raw did not answer the dispatcher JSON (%v): %q", err, out)
+		return fmt.Errorf("| raw did not answer the dispatcher JSON (%w): %q", err, out)
 	}
 	if _, ok := object["version"]; !ok {
 		return fmt.Errorf("| raw answered JSON without the field: %q", out)
@@ -269,7 +270,7 @@ system {
 	if code != 0 {
 		return fmt.Errorf("ze completion peers exit=%d: %s%s", code, out, stderr)
 	}
-	for _, selector := range []string{"192.0.2.1", "peer1", "as65001"} {
+	for _, selector := range []string{addrTestNet1First, peerNameOne, "as65001"} {
 		if !strings.Contains(out, selector) {
 			return fmt.Errorf("completion lost the %s selector to the configured format: %q", selector, out)
 		}
@@ -280,7 +281,7 @@ system {
 }
 
 func cliFormatDefaultRun(ctx context.Context, env []string, stdin string, args ...string) (int, string, string) {
-	cmd := exec.CommandContext(ctx, "ze", args...)
+	cmd := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
@@ -292,8 +293,7 @@ func cliFormatDefaultRun(ctx context.Context, env []string, stdin string, args .
 	if err == nil {
 		return 0, stdout.String(), stderr.String()
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exitErr.ExitCode(), stdout.String(), stderr.String()
 	}
 	if stderr.Len() != 0 && !strings.HasSuffix(stderr.String(), "\n") {
@@ -305,7 +305,7 @@ func cliFormatDefaultRun(ctx context.Context, env []string, stdin string, args .
 
 func cliFormatDefaultStart(ctx context.Context, dir string, env []string, args ...string) (*cliFormatDefaultProcess, error) {
 	process := &cliFormatDefaultProcess{done: make(chan struct{})}
-	process.cmd = exec.CommandContext(ctx, "ze", args...)
+	process.cmd = exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	process.cmd.Dir = dir
 	process.cmd.Env = env
 	process.cmd.Stdout = &process.stdout
@@ -358,7 +358,7 @@ func (process *cliFormatDefaultProcess) wait(timeout time.Duration) bool {
 }
 
 func cliFormatDefaultPoll(ctx context.Context, attempts int, delay time.Duration, condition func() (bool, error)) error {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		ready, err := condition()
 		if err != nil {
 			return err

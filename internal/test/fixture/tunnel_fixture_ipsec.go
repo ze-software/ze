@@ -27,7 +27,7 @@ func init() {
 }
 
 func tunnelIPsecCommand(ctx context.Context, args ...string) (string, error) {
-	command := exec.CommandContext(ctx, args[0], args[1:]...)
+	command := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	output, err := command.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%s failed: %s: %w", strings.Join(args, " "), strings.TrimSpace(string(output)), err)
@@ -42,12 +42,12 @@ func tunnelIPsecSPIs(ctx context.Context, endpoints map[string]bool) ([]string, 
 	}
 	found := make(map[string]struct{})
 	include := endpoints == nil
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue
 		}
-		if fields[0] == "src" && len(fields) >= 4 {
+		if fields[0] == xfrmWordSource && len(fields) >= 4 {
 			include = endpoints == nil || (endpoints[fields[1]] && endpoints[fields[3]])
 			continue
 		}
@@ -75,12 +75,12 @@ func tunnelIPsecPolicies(ctx context.Context, networks ...string) ([]string, err
 	}
 	found := make(map[string]struct{})
 	selector := ""
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue
 		}
-		if fields[0] == "src" {
+		if fields[0] == xfrmWordSource {
 			selector = ""
 			matches := true
 			for _, network := range networks {
@@ -200,7 +200,7 @@ func tunnelIPsecRekey(ctx context.Context, _ []string) error {
 }
 
 func tunnelIPsecRekeyNarrowing(ctx context.Context, _ []string) error {
-	endpoints := map[string]bool{"127.0.0.1": true, "127.0.0.2": true}
+	endpoints := map[string]bool{addrLoopback: true, addrLoopbackSecond: true}
 	readSPIs := func() ([]string, error) { return tunnelIPsecSPIs(ctx, endpoints) }
 	readPolicies := func() ([]string, error) { return tunnelIPsecPolicies(ctx, "192.0.2.0/26") }
 	firstSPIs, err := tunnelIPsecWait(ctx, 400, 250*time.Millisecond, readSPIs, func(values []string) bool { return len(values) >= 2 })
@@ -283,7 +283,7 @@ func tunnelIPsecReloadSelectors(ctx context.Context, _ []string) error {
 		if _, statErr := os.Stat("daemon.pid"); statErr != nil {
 			return nil, statErr
 		}
-		return []string{"ready"}, nil
+		return []string{fieldReady}, nil
 	}, func(values []string) bool { return len(values) == 1 }); err != nil {
 		return err
 	}
@@ -332,7 +332,7 @@ func tunnelIPsecReloadQuiet(ctx context.Context, _ []string) error {
 		if _, statErr := os.Stat("daemon.pid"); statErr != nil {
 			return nil, statErr
 		}
-		return []string{"ready"}, nil
+		return []string{fieldReady}, nil
 	}, func(values []string) bool { return len(values) == 1 }); err != nil {
 		return err
 	}
@@ -402,12 +402,12 @@ func tunnelIPsecTeardownResidue(ctx context.Context, _ []string) error {
 		return err
 	}
 	states, policies := 0, 0
-	for _, line := range strings.Split(statesOutput, "\n") {
+	for line := range strings.SplitSeq(statesOutput, "\n") {
 		if strings.HasPrefix(line, "src") {
 			states++
 		}
 	}
-	for _, line := range strings.Split(policiesOutput, "\n") {
+	for line := range strings.SplitSeq(policiesOutput, "\n") {
 		if strings.HasPrefix(line, "src") {
 			policies++
 		}
@@ -449,7 +449,7 @@ func tunnelIPsecErrorNotify(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	read := func(timeout time.Duration) ([]byte, error) {
 		buffer := make([]byte, 4096)
 		_ = conn.SetReadDeadline(time.Now().Add(timeout))
@@ -483,7 +483,7 @@ func tunnelIPsecErrorNotify(ctx context.Context, _ []string) error {
 	}
 	body := answer[32:]
 	if len(body) != 4 || body[1] != 0 || binary.BigEndian.Uint16(body[2:4]) != 4 {
-		return errors.New("Notify payload is not empty INVALID_IKE_SPI")
+		return errors.New("the Notify payload is not empty INVALID_IKE_SPI")
 	}
 	if _, err := conn.Write(answer); err != nil {
 		return fmt.Errorf("feed INVALID_IKE_SPI answer back: %w", err)

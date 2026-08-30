@@ -622,7 +622,7 @@ func runExaBGPServerForeground(test *exabgpTestEntry, port int, saveDir string) 
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(context.Background(), binary, exaBGPServerArgs(test, port, saveDir)...)
+	cmd := exec.CommandContext(context.Background(), binary, exaBGPServerArgs(test, port, saveDir)...) //nolint:gosec // binary is os.Executable(), this test runner re-executing itself
 	cmd.Env = exaBGPServerEnv(test, port)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -634,7 +634,7 @@ func runExaBGPClientForeground(test *exabgpTestEntry, port int, zeBinary string)
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(context.Background(), zeBinary, "start", config)
+	cmd := exec.CommandContext(context.Background(), zeBinary, "start", config) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
 	cmd.Env = exaBGPClientEnv(test, port, zeBinary)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -700,7 +700,7 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary string) []string 
 func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary string) (string, error) {
 	var config strings.Builder
 	for _, source := range test.configs {
-		command := exec.CommandContext(ctx, zeBinary, "exabgp", "migrate", source)
+		command := exec.CommandContext(ctx, zeBinary, "exabgp", "migrate", source) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
 		output, err := command.Output()
 		if err != nil {
 			return "", fmt.Errorf("migrate %s: %w", source, err)

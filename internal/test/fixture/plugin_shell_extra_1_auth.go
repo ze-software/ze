@@ -45,7 +45,7 @@ system {
 }
 environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
 `, host, port)
-	daemon, sshPort, err := extra1RunDaemon(ctx, "aaa-radius-admin.conf", "daemon.log", config, nil)
+	daemon, sshPort, err := extra1RunDaemon(ctx, "aaa-radius-admin.conf", config, nil)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ system {
 }
 environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
 `, extra1AdminHash)
-	daemon, sshPort, err := extra1RunDaemon(ctx, "aaa-radius-fallback.conf", "daemon.log", config, nil)
+	daemon, sshPort, err := extra1RunDaemon(ctx, "aaa-radius-fallback.conf", config, nil)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
 	if err := extra1Wait(ctx, 500*time.Millisecond); err != nil {
 		return err
 	}
-	if _, err := extra1RequireCommand(sshPort, "admin", "testpass", "show bgp"); err != nil {
+	if err := extra1RequireCommand(sshPort, "admin", "testpass", "show bgp"); err != nil {
 		return fmt.Errorf("show summary via local fallback after RADIUS unreachable: %w\n%s", err, daemon.contents())
 	}
 	fmt.Fprintln(os.Stderr, "OK: summary ran via local fallback")
@@ -150,7 +150,7 @@ system {
 }
 environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
 `, extra1AdminHash)
-	daemon, sshPort, err := extra1RunDaemon(ctx, "answer-unknown-command.conf", "daemon.log", config, nil)
+	daemon, sshPort, err := extra1RunDaemon(ctx, "answer-unknown-command.conf", config, nil)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ environment { ssh { enabled true; server main { ip 127.0.0.1; port 0; } } }
 		}
 	}
 	fmt.Fprintln(os.Stderr, "OK: the typo was reported as an unknown command")
-	if _, err := extra1RequireCommand(sshPort, "admin", "testpass", "show version"); err != nil {
+	if err := extra1RequireCommand(sshPort, "admin", "testpass", "show version"); err != nil {
 		return fmt.Errorf("a command that exists did not answer: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "OK: a command that exists is not reported as unknown")

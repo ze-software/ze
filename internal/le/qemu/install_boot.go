@@ -247,9 +247,9 @@ func (installer *Installer) runCapture(ctx context.Context, argv []string, timeo
 // HTTPArgv returns the complete direct-kernel HTTP installer invocation.
 func (installer *Installer) HTTPArgv(kernel, initrd, disk string, port int) ([]string, error) {
 	base := installer.qemuBase(false)
-	console := "ttyS0"
+	console := installConsoleAMD64
 	if installer.Options.Arch == ArchARM64 {
-		console = "ttyAMA0"
+		console = installConsoleARM64
 	}
 	var b textbuf.Buffer
 	appendLine := b.Str("console=").Str(console).Str(" ze.server=").Str(InstallGuestServerIP).

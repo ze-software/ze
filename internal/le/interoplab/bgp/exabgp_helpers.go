@@ -22,7 +22,7 @@ func runExaBGPHelper(args []string, input io.Reader, output, diagnostic io.Write
 		return errors.New("exabgp-api wants a profile")
 	}
 	switch args[0] {
-	case "echo":
+	case exabgpModeEcho:
 		return runExaBGPEcho(input, output, diagnostic)
 	case "stderr":
 		return runExaBGPLineLog(input, diagnostic, args[1:], false)
@@ -88,7 +88,7 @@ func exaLines(input io.Reader) <-chan string {
 func runExaBGPEcho(input io.Reader, output, diagnostic io.Writer) error {
 	mode := os.Getenv("TEST_MODE")
 	if mode == "" {
-		mode = "echo"
+		mode = exabgpModeEcho
 	}
 	_, _ = fmt.Fprintf(diagnostic, "[exabgp_echo] starting, mode=%s\n", mode)
 	scanner := bufio.NewScanner(input)
@@ -110,7 +110,7 @@ func runExaBGPEcho(input io.Reader, output, diagnostic io.Writer) error {
 			pretty, _ := json.MarshalIndent(event, "", "  ")
 			_, _ = fmt.Fprintf(diagnostic, "[exabgp_echo] full json: %s\n", pretty)
 		}
-		if mode == "echo" && event["type"] == "update" {
+		if mode == exabgpModeEcho && event["type"] == "update" {
 			if err := echoExaBGPUpdate(event, output, diagnostic); err != nil {
 				return err
 			}
@@ -228,7 +228,7 @@ var exaProfiles = map[string]exaProfile{
 	"api-eor":              p(2*time.Second, 100*time.Millisecond, 5*time.Second, "announce eor", "announce eor ipv6 unicast", "announce eor ipv4 unicast"),
 	"api-fast":             p(200*time.Millisecond, 0, 5*time.Second, "announce route 1.1.0.0/24 next-hop 101.1.101.1", "announce route 1.1.0.0/25 next-hop 101.1.101.1", "withdraw route 1.1.0.0/24 next-hop 101.1.101.1", "announce route 2.2.0.0/25 next-hop 101.1.101.1", "announce route 2.2.0.0/24 next-hop 101.1.101.1", "withdraw route 2.2.0.0/25 next-hop 101.1.101.1", "announce route 0.0.0.0/0  next-hop 1.101.1.101"),
 	"api-flow":             p(200*time.Millisecond, 0, time.Second, "withdraw flow route { match { source 0.0.0.0/32; destination 0.0.0.0/32; destination-port =3128; protocol tcp; } }", "announce flow route { match { source 0.0.0.0/32; destination 0.0.0.0/32; destination-port =3128; protocol tcp; } then { rate-limit 0; } }", "announce flow route { match { source 255.255.255.255/32; destination 255.255.255.255/32; } then { rate-limit 65535; } }"),
-	"api-health":           p(2*time.Second, 100*time.Millisecond, 7*time.Second, "ping", "announce route 192.168.0.1/32 next-hop 10.0.0.1", "status", "announce route 192.168.0.2/32 next-hop 10.0.0.2"),
+	"api-health":           p(2*time.Second, 100*time.Millisecond, 7*time.Second, "ping", "announce route 192.168.0.1/32 next-hop 10.0.0.1", exabgpCommandStatus, "announce route 192.168.0.2/32 next-hop 10.0.0.2"),
 	"api-flow-merge":       p(0, 0, time.Second, "announce flow route { match { source 4.4.4.4/32; } then { rate-limit 0; } }", "announce flow route { match { source 5.5.5.5/32; } then { discard; } }", "announce flow route { match { source 6.6.6.6/32; } scope { interface-set [ non-transitive:input:3405770241:1 ]; } then { discard; } }", "announce flow route { match { source 7.7.7.7/32; } scope { interface-set [ non-transitive:input:3405770241:1 transitive:output:254:254 ]; } then { discard; } }", "announce flow route { match { source 8.8.8.8/32; } then { discard; } scope { interface-set [ non-transitive:input:3405770241:1 transitive:output:254:254 ]; } }", "announce flow route { match { source 9.9.9.9/32; } then { discard; } scope { interface-set [ non-transitive:input:3405770241:1 transitive:output:254:254 ]; } }", "announce flow route { match { source 10.10.10.10/32; } scope { interface-set [ transitive:input-output:1234:10 transitive:input:1234:10 transitive:output:0:0]; } then { discard; } }", "announce flow route destination 133.130.1.219/32 discard interface-set [ transitive:input:1234:10]", "announce flow route destination 133.130.1.19/32 interface-set [ transitive:input:1234:10 ] discard"),
 	"api-ipv4":             p(2*time.Second, 200*time.Millisecond, 5*time.Second, "announce ipv4 unicast 10.0.1.0/24 next-hop 10.0.1.254 local-preference 200", "withdraw ipv4 unicast 10.0.1.0/24 next-hop 10.0.1.254 local-preference 200", "announce ipv4 mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )", "withdraw ipv4 mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )"),
 	"api-ipv6":             p(200*time.Millisecond, 200*time.Millisecond, 5*time.Second, "announce ipv6 unicast fc00:1::/64 next-hop 2001::11 local-preference 200", "withdraw ipv6 unicast fc00:1::/64 next-hop 2001::11 local-preference 200", "announce ipv6 mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )", "withdraw ipv6 mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )"),
@@ -251,7 +251,7 @@ var exaProfiles = map[string]exaProfile{
 	"api-rr-rib":           p(time.Second, 100*time.Millisecond, 7*time.Second, ribCommands()...),
 	"api-rr":               p(200*time.Millisecond, 200*time.Millisecond, 15*time.Second, "announce route 192.168.0.0/32 next-hop 10.0.0.0", "announce route 192.168.0.1/32 next-hop 10.0.0.1", "announce route-refresh ipv4 unicast", "announce route 192.168.0.2/32 next-hop 10.0.0.1"),
 	"api-silence-ack":      p(200*time.Millisecond, 100*time.Millisecond, 5*time.Second, "announce route 2.1.0.0/24 next-hop 102.1.102.1", "silence-ack", "announce route 2.2.0.0/24 next-hop 102.1.102.1", "enable-ack", "announce route 2.3.0.0/24 next-hop 102.1.102.1"),
-	"api-simple":           p(time.Second, 0, time.Second, "version", "ping", "status", "shutdown"),
+	"api-simple":           p(time.Second, 0, time.Second, "version", "ping", exabgpCommandStatus, "shutdown"),
 	"api-teardown":         p(200*time.Millisecond, 200*time.Millisecond, 5*time.Second, "announce route 1.1.0.0/16 next-hop 1.1.1.1", "neighbor 127.0.0.1 teardown 4", "announce route 2.2.0.0/16 next-hop 2.2.2.2", "announce route 3.3.0.0/16 next-hop 3.3.3.3"),
 	"api-v6-comprehensive": p(500*time.Millisecond, 0, 2*time.Second, comprehensiveCommands()...),
 	"api-vpls":             p(200*time.Millisecond, 200*time.Millisecond, 5*time.Second, "neighbor 127.0.0.1 announce vpls endpoint 5 base 10702 offset 1 size 8 rd 192.168.201.1:123 next-hop 192.168.201.1 origin igp as-path [ 30740 30740 30740 30740 30740 30740 30740 ] local-preference 100 med 2000 community [ 54591:123] extended-community [ target:54591:6 l2info:19:0:1500:111] originator-id 192.168.22.1 cluster-list [ 3.3.3.3 192.168.201.1 ]", "neighbor 127.0.0.1 withdraw vpls endpoint 5 base 10702 offset 1 size 8 rd 192.168.201.1:123 next-hop 192.168.201.1"),
@@ -264,7 +264,7 @@ var exaProfiles = map[string]exaProfile{
 }
 
 func ribCommands() []string {
-	return []string{"announce route 192.168.0.0/32 next-hop 10.0.0.0", "clear adj-rib out", "announce route 192.168.0.1/32 next-hop 10.0.0.1", "clear adj-rib out", "announce route 192.168.0.2/32 next-hop 10.0.0.2", "announce route 192.168.0.3/32 next-hop 10.0.0.3", "flush adj-rib out", "announce route 192.168.0.4/32 next-hop 10.0.0.4", "flush adj-rib out", "clear adj-rib out", "announce route 192.168.0.5/32 next-hop 10.0.0.5"}
+	return []string{"announce route 192.168.0.0/32 next-hop 10.0.0.0", exabgpClearAdjRIBOut, "announce route 192.168.0.1/32 next-hop 10.0.0.1", exabgpClearAdjRIBOut, "announce route 192.168.0.2/32 next-hop 10.0.0.2", "announce route 192.168.0.3/32 next-hop 10.0.0.3", "flush adj-rib out", "announce route 192.168.0.4/32 next-hop 10.0.0.4", "flush adj-rib out", exabgpClearAdjRIBOut, "announce route 192.168.0.5/32 next-hop 10.0.0.5"}
 }
 
 func mvpnCommands() []string {

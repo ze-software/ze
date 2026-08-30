@@ -66,30 +66,30 @@ func leSpecStatusAnswers(ctx context.Context) error {
 	}
 
 	if page1.code != 0 {
-		return uiLeSpecStatusAnswersFailf("le spec-status exited %d; stderr: %q", page1.code, page1.stderr)
+		return uiLeSpecStatusAnswersFailf("le spec status exited %d; stderr: %q", page1.code, page1.stderr)
 	}
 	if len(page1.stderr) != 0 {
-		return uiLeSpecStatusAnswersFailf("le spec-status wrote warnings: %q", page1.stderr)
+		return uiLeSpecStatusAnswersFailf("le spec status wrote warnings: %q", page1.stderr)
 	}
 	if page2.code != page1.code || !bytes.Equal(page2.stderr, page1.stderr) || !bytes.Equal(page2.stdout, page1.stdout) {
-		return uiLeSpecStatusAnswersFailf("two le spec-status answers disagree:\n%s", lineDifference(page1.stdout, page2.stdout, 2000))
+		return uiLeSpecStatusAnswersFailf("two le spec status answers disagree:\n%s", lineDifference(page1.stdout, page2.stdout, 2000))
 	}
 	if bytes.Count(page1.stdout, []byte{'\n'}) <= 100 {
 		return uiLeSpecStatusAnswersFailf("the comparison ran over %d lines, which is too few to mean anything", bytes.Count(page1.stdout, []byte{'\n'}))
 	}
 	trimmedPage := bytes.TrimSpace(page1.stdout)
 	if len(trimmedPage) == 0 {
-		return uiLeSpecStatusAnswersFailf("le spec-status returned an empty page")
+		return uiLeSpecStatusAnswersFailf("le spec status returned an empty page")
 	}
 	if trimmedPage[0] == '[' || trimmedPage[0] == '{' {
-		return uiLeSpecStatusAnswersFailf("le spec-status returned structured records instead of the default page")
+		return uiLeSpecStatusAnswersFailf("le spec status returned structured records instead of the default page")
 	}
 
 	if json1.code != 0 {
-		return uiLeSpecStatusAnswersFailf("le spec-status | json exited %d; stderr: %q", json1.code, json1.stderr)
+		return uiLeSpecStatusAnswersFailf("le spec status | json exited %d; stderr: %q", json1.code, json1.stderr)
 	}
 	if len(json1.stderr) != 0 {
-		return uiLeSpecStatusAnswersFailf("le spec-status | json wrote warnings: %q", json1.stderr)
+		return uiLeSpecStatusAnswersFailf("le spec status | json wrote warnings: %q", json1.stderr)
 	}
 	if json2.code != json1.code || !bytes.Equal(json2.stderr, json1.stderr) || !bytes.Equal(json2.stdout, json1.stdout) {
 		return uiLeSpecStatusAnswersFailf("two structured inventory answers disagree")
@@ -118,14 +118,14 @@ func leSpecStatusAnswers(ctx context.Context) error {
 		return err
 	}
 	if counted.code != 0 {
-		return uiLeSpecStatusAnswersFailf("le spec-status | count exited %d; stderr: %q", counted.code, counted.stderr)
+		return uiLeSpecStatusAnswersFailf("le spec status | count exited %d; stderr: %q", counted.code, counted.stderr)
 	}
 	if len(counted.stderr) != 0 {
-		return uiLeSpecStatusAnswersFailf("le spec-status | count wrote warnings: %q", counted.stderr)
+		return uiLeSpecStatusAnswersFailf("le spec status | count wrote warnings: %q", counted.stderr)
 	}
 	wantCount := fmt.Sprintf("%d", len(records1))
 	if strings.TrimSpace(string(counted.stdout)) != wantCount {
-		return uiLeSpecStatusAnswersFailf("le spec-status | count answered %q, want %s", counted.stdout, wantCount)
+		return uiLeSpecStatusAnswersFailf("le spec status | count answered %q, want %s", counted.stdout, wantCount)
 	}
 
 	refused, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status", "--json")
@@ -133,12 +133,12 @@ func leSpecStatusAnswers(ctx context.Context) error {
 		return err
 	}
 	if refused.code != 2 {
-		return uiLeSpecStatusAnswersFailf("le spec-status --json exited %d, want 2", refused.code)
+		return uiLeSpecStatusAnswersFailf("le spec status --json exited %d, want 2", refused.code)
 	}
 	if len(refused.stdout) != 0 {
-		return uiLeSpecStatusAnswersFailf("le spec-status --json wrote unexpected stdout: %q", refused.stdout)
+		return uiLeSpecStatusAnswersFailf("le spec status --json wrote unexpected stdout: %q", refused.stdout)
 	}
-	if !bytes.Contains(refused.stderr, []byte("usage: le spec-status")) ||
+	if !bytes.Contains(refused.stderr, []byte("usage: le spec status")) ||
 		!bytes.Contains(refused.stderr, []byte(`got "--json"`)) {
 		return uiLeSpecStatusAnswersFailf("the refusal does not identify the invalid argument: %q", refused.stderr)
 	}

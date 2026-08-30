@@ -129,16 +129,6 @@ func Run(root string) (Report, int) {
 	return report, report.Code
 }
 
-// categoryNames returns the complete fixture category population in catalog
-// order. A caller receives a copy and cannot alter the selftest table.
-func categoryNames() []string {
-	names := make([]string, 0, len(fixtureCategories))
-	for _, category := range &fixtureCategories {
-		names = append(names, category.name)
-	}
-	return names
-}
-
 func fixtureCases() []FixtureCase {
 	cases := make([]FixtureCase, 0, len(fixtureCatalog))
 	for _, fixture := range fixtureCatalog {

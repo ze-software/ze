@@ -74,7 +74,7 @@ func p12WaitRoutes(minimum int) p12Scenario {
 
 func p12RIBCount(ctx context.Context, plugin *sdk.Plugin) (int, bool) {
 	status, data, err := p12DispatchObject(ctx, plugin, "show bgp rib received count")
-	if err != nil || status != "done" {
+	if err != nil || status != statusDone {
 		return 0, false
 	}
 	value, exists := data["count"]
@@ -121,11 +121,11 @@ func p12RouteServerReplay(plugin *sdk.Plugin) p12Scenario {
 	plugin.OnEvent(func(event string) error {
 		var decoded map[string]any
 		if json.Unmarshal([]byte(event), &decoded) != nil {
-			return nil
+			return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
 		}
 		bgp, _ := decoded["bgp"].(map[string]any)
 		message, _ := bgp["message"].(map[string]any)
-		if message["direction"] != "sent" {
+		if message["direction"] != directionSent {
 			return nil
 		}
 		update, _ := bgp["update"].(map[string]any)
@@ -175,12 +175,14 @@ func p12RouteServerReplay(plugin *sdk.Plugin) p12Scenario {
 				return ctx.Err()
 			case <-hard.C:
 				mu.Lock()
-				defer mu.Unlock()
-				return fmt.Errorf("route server replay exceeded hard deadline (eor-peers=%d forward-seen=%t)", len(eorPeers), forwardSeen)
+				hardErr := fmt.Errorf("route server replay exceeded hard deadline (eor-peers=%d forward-seen=%t)", len(eorPeers), forwardSeen)
+				mu.Unlock()
+				return hardErr
 			case <-idle.C:
 				mu.Lock()
-				defer mu.Unlock()
-				return fmt.Errorf("route server replay made no progress for %s (eor-peers=%d forward-seen=%t)", idleWindow, len(eorPeers), forwardSeen)
+				idleErr := fmt.Errorf("route server replay made no progress for %s (eor-peers=%d forward-seen=%t)", idleWindow, len(eorPeers), forwardSeen)
+				mu.Unlock()
+				return idleErr
 			case <-progress:
 				if !idle.Stop() {
 					select {
@@ -214,7 +216,7 @@ func mustJSONP12(value any) []byte {
 
 func p12QuiesceBarrier(ctx context.Context, plugin *sdk.Plugin) error {
 	for _, command := range []string{
-		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24",
+		cmdAnnounceFirstPrefix,
 		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.2.0.0/25",
 	} {
 		if _, _, err := plugin.UpdateRoute(ctx, "*", command); err != nil {

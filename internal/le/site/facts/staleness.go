@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- what makes a published number checkable
 //
-// staleness.go answers `le site-facts check`: does the committed file still
+// staleness.go answers `le site facts check`: does the committed file still
 // publish what the commit says about this repository?
 //
 // Two properties make that question answerable, and both are deliberate.
@@ -68,7 +68,7 @@ const shaShown = 12
 // fixAction is what a person runs when a fact has gone stale. The check names
 // it in every rendering, because a gate that reports a red without the command
 // that clears it leaves the reader to search for one.
-const fixAction = "./le site-facts update, then commit website/data/repo-facts.json with the change that moved the count"
+const fixAction = "./le site facts update, then commit website/data/repo-facts.json with the change that moved the count"
 
 // roundedMark is the suffix fmt_int puts on a figure it floored.
 const roundedMark = "+"

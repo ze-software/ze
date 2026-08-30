@@ -38,7 +38,8 @@ func Answer(args []string) (any, int) {
 		return actions(), 0
 	}
 	if len(args) != 1 {
-		return refuse("expected exactly one action"), 2
+		refuse("expected exactly one action")
+		return nil, 2
 	}
 
 	signal.Ignore(os.Interrupt)
@@ -46,12 +47,13 @@ func Answer(args []string) (any, int) {
 
 	var err error
 	switch args[0] {
-	case "dynamic":
+	case actionDynamic:
 		err = streamDynamic(ctx, os.Stdout, wait)
-	case "watchdog":
+	case actionWatchdog:
 		err = streamWatchdog(ctx, os.Stdout, wait)
 	default:
-		return refuse("unknown action " + args[0]), 2
+		refuse("unknown action " + args[0])
+		return nil, 2
 	}
 	if err != nil {
 		leaction.ReportError(err)
@@ -62,14 +64,13 @@ func Answer(args []string) (any, int) {
 
 func actions() Actions {
 	return Actions{Actions: []Action{
-		{Action: "dynamic", Usage: "dynamic"},
-		{Action: "watchdog", Usage: "watchdog"},
+		{Action: actionDynamic, Usage: actionDynamic},
+		{Action: actionWatchdog, Usage: actionWatchdog},
 	}}
 }
 
-func refuse(message string) any {
+func refuse(message string) {
 	leaction.ReportError(errors.New("test-helper: " + message))
-	return nil
 }
 
 type waiter func(context.Context, time.Duration) bool
@@ -158,3 +159,9 @@ func writeLine(out io.Writer, line string) error {
 	}
 	return nil
 }
+
+// The two streams this helper can drive.
+const (
+	actionDynamic  = "dynamic"
+	actionWatchdog = "watchdog"
+)

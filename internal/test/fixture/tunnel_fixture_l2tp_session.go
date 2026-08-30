@@ -27,9 +27,9 @@ func tunnelL2TPSessionDriver(peerTID, firstPeerSID uint16, challengeHex string, 
 		if err != nil {
 			return err
 		}
-		defer conn.Close()
-		hostname := "py-peer"
-		if mode == "auth-pool" {
+		defer conn.Close() //nolint:errcheck // fixture teardown
+		hostname := hostnamePyPeer
+		if mode == modeAuthPool {
 			hostname = "py-e2e"
 		}
 		reply, _, err := tunnelL2TPExchange(ctx, conn, target, tunnelL2TPSCCRQ(peerTID, hostname, challenge), 20, 250*time.Millisecond)
@@ -41,7 +41,8 @@ func tunnelL2TPSessionDriver(peerTID, firstPeerSID uint16, challengeHex string, 
 			return errors.New("SCCRP missing Challenge or Assigned Tunnel ID")
 		}
 		localTID := binary.BigEndian.Uint16(avps[9])
-		digest := md5.Sum(append(append([]byte{3}, tunnelL2TPTestSecret()...), avps[11]...))
+		digest := md5.Sum( //nolint:gosec // RFC 2661 Section 4.4.3 makes the Challenge Response a CHAP value, and RFC 1994 CHAP is MD5
+			append(append([]byte{3}, tunnelL2TPTestSecret()...), avps[11]...))
 		body := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(3)), tunnelL2TPAVP(true, 13, digest[:])...)
 		if _, err := conn.WriteToUDP(tunnelL2TPControl(localTID, 0, 1, 1, body), target); err != nil {
 			return err
@@ -52,9 +53,9 @@ func tunnelL2TPSessionDriver(peerTID, firstPeerSID uint16, challengeHex string, 
 		for index := range sessions {
 			peerSID := firstPeerSID + uint16(index)
 			callSerial := uint32(index + 1)
-			if mode == "auth-pool" {
+			if mode == modeAuthPool {
 				callSerial = 99
-			} else if mode != "stopccn" {
+			} else if mode != modeStopCCN {
 				callSerial = 42
 			}
 			icrq := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(10)), tunnelL2TPAVP(true, 14, tunnelL2TPU16(peerSID))...)
@@ -75,7 +76,7 @@ func tunnelL2TPSessionDriver(peerTID, firstPeerSID uint16, challengeHex string, 
 			ns++
 			nr++
 			connectSpeed, framing := uint32(10000000), uint32(2)
-			if mode == "stopccn" && index == 1 {
+			if mode == modeStopCCN && index == 1 {
 				connectSpeed, framing = 56000, 1
 			}
 			iccn := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(12)), tunnelL2TPAVP(true, 24, tunnelL2TPU32(connectSpeed))...)
@@ -100,9 +101,9 @@ func tunnelL2TPSessionDriver(peerTID, firstPeerSID uint16, challengeHex string, 
 		switch mode {
 		case "incoming":
 			fmt.Println("OK: ICCN sent, session should be established")
-		case "auth-pool":
+		case modeAuthPool:
 			fmt.Printf("OK: session established with auth+pool config, ze SID=%d\n", lastZeSID)
-		case "stopccn":
+		case modeStopCCN:
 			stop := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(4)), tunnelL2TPAVP(true, 9, tunnelL2TPU16(peerTID))...)
 			stop = append(stop, tunnelL2TPAVP(true, 1, append(tunnelL2TPU16(1), tunnelL2TPU16(0)...))...)
 			if _, err := conn.WriteToUDP(tunnelL2TPControl(localTID, 0, ns, nr, stop), target); err != nil {
@@ -151,7 +152,7 @@ func tunnelL2TPOutgoingDriver(peerTID, peerSID uint16, requireSessionIDs bool) D
 		if err != nil {
 			return err
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck // fixture teardown
 
 		type restResult struct {
 			body map[string]any
@@ -210,7 +211,8 @@ func tunnelL2TPOutgoingDriver(peerTID, peerSID uint16, requireSessionIDs bool) D
 				response = append(response, tunnelL2TPAVP(true, 9, tunnelL2TPU16(peerTID))...)
 				response = append(response, tunnelL2TPAVP(true, 10, tunnelL2TPU16(8))...)
 				if challenge := avps[11]; challenge != nil {
-					digest := md5.Sum(append(append([]byte{2}, []byte(tunnelL2TPSecret)...), challenge...))
+					digest := md5.Sum( //nolint:gosec // RFC 2661 Section 4.4.3 makes the Challenge Response a CHAP value, and RFC 1994 CHAP is MD5
+						append(append([]byte{2}, []byte(tunnelL2TPSecret)...), challenge...))
 					response = append(response, tunnelL2TPAVP(true, 13, digest[:])...)
 				}
 				_, _ = conn.WriteToUDP(tunnelL2TPControl(zeTID, 0, ourNS, ourNR, response), address)
@@ -245,7 +247,7 @@ func tunnelL2TPOutgoingDriver(peerTID, peerSID uint16, requireSessionIDs bool) D
 			if result.err != nil {
 				return fmt.Errorf("outgoing-call RPC errored: %w", result.err)
 			}
-			if result.body["status"] != "done" {
+			if result.body["status"] != statusDone {
 				return fmt.Errorf("outgoing-call RPC did not complete: %#v", result.body)
 			}
 			encoded, _ := json.Marshal(result.body)
@@ -273,7 +275,7 @@ func tunnelL2TPCallREST(ctx context.Context, port int) (map[string]any, error) {
 	client := &http.Client{Timeout: 2 * time.Second}
 	base := fmt.Sprintf("http://127.0.0.1:%d/api/v1", port)
 	ready := Poll(ctx, 40, 300*time.Millisecond, func() bool {
-		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, base+"/commands", nil)
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, base+"/commands", http.NoBody)
 		req.Header.Set("Authorization", "Bearer secret")
 		response, err := client.Do(req)
 		if err != nil {
@@ -294,7 +296,7 @@ func tunnelL2TPCallREST(ctx context.Context, port int) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // the body is read
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		body, _ := io.ReadAll(response.Body)
 		return nil, fmt.Errorf("HTTP %d: %s", response.StatusCode, body)
@@ -323,7 +325,7 @@ func tunnelL2TPEmittedShape(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	reply, _, err := tunnelL2TPExchange(ctx, conn, target, tunnelL2TPSCCRQ(0x0301, "py-shape", challenge), 40, 250*time.Millisecond)
 	if err != nil {
 		return errors.New("no SCCRP received; cannot inspect wire shape")
@@ -362,12 +364,14 @@ func tunnelL2TPEmittedShape(ctx context.Context, args []string) error {
 		return parseErr
 	}
 	check(tunnelL2TPMessageType(avps) == 2, "first AVP names SCCRP")
-	want := md5.Sum(append(append([]byte{2}, []byte(tunnelL2TPSecret)...), challenge...))
+	want := md5.Sum( //nolint:gosec // RFC 2661 Section 4.4.3 makes the Challenge Response a CHAP value, and RFC 1994 CHAP is MD5
+		append(append([]byte{2}, []byte(tunnelL2TPSecret)...), challenge...))
 	check(bytes.Equal(avps[13], want[:]), "SCCRP Challenge Response equals independently computed digest")
 	if len(avps[9]) != 2 || len(avps[11]) == 0 {
 		return errors.New("SCCRP lacked Assigned Tunnel ID or Challenge")
 	}
-	digest := md5.Sum(append(append([]byte{3}, []byte(tunnelL2TPSecret)...), avps[11]...))
+	digest := md5.Sum( //nolint:gosec // RFC 2661 Section 4.4.3 makes the Challenge Response a CHAP value, and RFC 1994 CHAP is MD5
+		append(append([]byte{3}, []byte(tunnelL2TPSecret)...), avps[11]...))
 	body := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(3)), tunnelL2TPAVP(true, 13, digest[:])...)
 	_, err = conn.WriteToUDP(tunnelL2TPControl(binary.BigEndian.Uint16(avps[9]), 0, 1, 1, body), target)
 	if err != nil {
@@ -390,7 +394,7 @@ func tunnelL2TPZeroTunnelID(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	bad, _, err := tunnelL2TPExchange(ctx, conn, target, tunnelL2TPSCCRQ(0, "py-zero-tid", nil), 40, 250*time.Millisecond)
 	if err != nil {
 		return errors.New("no reply to zero Assigned Tunnel ID SCCRQ")

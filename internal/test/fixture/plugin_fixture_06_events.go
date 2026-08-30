@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-func fixture06Errors(ctx context.Context, p *sdk.Plugin, attempts int, match func(map[string]any) bool) (map[string]any, []any, error) {
+func fixture06Errors(ctx context.Context, p *sdk.Plugin, attempts int, match func(map[string]any) bool) ([]any, error) {
 	data, err := fixture06PollObject(ctx, p, "show errors", attempts, func(data map[string]any) bool {
 		errorsList, ok := data["errors"].([]any)
 		if !ok {
@@ -26,10 +27,10 @@ func fixture06Errors(ctx context.Context, p *sdk.Plugin, attempts int, match fun
 		return false
 	})
 	if err != nil {
-		return data, nil, err
+		return nil, err
 	}
 	entries, _ := data["errors"].([]any)
-	return data, entries, nil
+	return entries, nil
 }
 
 func fixture06MatchingErrors(entries []any, match func(map[string]any) bool) []map[string]any {
@@ -46,9 +47,9 @@ func fixture06MatchingErrors(entries []any, match func(map[string]any) bool) []m
 func fixture06ErrorsConfigAbort(ctx context.Context, p *sdk.Plugin) error {
 	p.OnConfigVerify(func([]sdk.ConfigSection) error { return errors.New("test plugin rejects reload") })
 	match := func(entry map[string]any) bool {
-		return entry["source"] == "config" && entry["code"] == "commit-aborted"
+		return entry["source"] == sourceConfig && entry["code"] == "commit-aborted"
 	}
-	_, entries, err := fixture06Errors(ctx, p, 60, match)
+	entries, err := fixture06Errors(ctx, p, 60, match)
 	if err != nil {
 		return errors.New("timed out waiting for config/commit-aborted entry")
 	}
@@ -60,7 +61,7 @@ func fixture06ErrorsConfigAbort(ctx context.Context, p *sdk.Plugin) error {
 	detail, _ := entry["detail"].(map[string]any)
 	subject, _ := entry["subject"].(string)
 	reason, _ := detail["reason"].(string)
-	if entry["severity"] != "error" || subject == "" || detail["phase"] != "verify" || reason == "" {
+	if entry["severity"] != severityError || subject == "" || detail["phase"] != "verify" || reason == "" {
 		return fmt.Errorf("invalid commit-aborted entry: %v", entry)
 	}
 	fmt.Fprintf(os.Stderr, "OK: show errors returned %d entries; commit-aborted present\n", len(entries))
@@ -69,9 +70,9 @@ func fixture06ErrorsConfigAbort(ctx context.Context, p *sdk.Plugin) error {
 
 func fixture06ErrorsReceived(ctx context.Context, p *sdk.Plugin) error {
 	match := func(entry map[string]any) bool {
-		return entry["source"] == "bgp" && entry["code"] == "notification-received" && entry["subject"] == "127.0.0.1"
+		return entry["source"] == namespaceBGP && entry["code"] == "notification-received" && entry["subject"] == addrLoopback
 	}
-	_, entries, err := fixture06Errors(ctx, p, 20, match)
+	entries, err := fixture06Errors(ctx, p, 20, match)
 	if err != nil {
 		return errors.New("timed out waiting for bgp/notification-received entry")
 	}
@@ -83,7 +84,7 @@ func fixture06ErrorsReceived(ctx context.Context, p *sdk.Plugin) error {
 	detail, _ := entry["detail"].(map[string]any)
 	code, codeOK := fixture06Number(detail["code"])
 	subcode, subcodeOK := fixture06Number(detail["subcode"])
-	if entry["severity"] != "error" || detail["direction"] != "received" || !codeOK || code != 6 || !subcodeOK || subcode != 2 {
+	if entry["severity"] != severityError || detail["direction"] != directionReceived || !codeOK || code != 6 || !subcodeOK || subcode != 2 {
 		return fmt.Errorf("invalid notification-received entry: %v", entry)
 	}
 	fmt.Fprintf(os.Stderr, "OK: show errors returned %d entry(s); 1 matching notification-received\n", len(entries))
@@ -98,9 +99,9 @@ func fixture06ErrorsSent(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	match := func(entry map[string]any) bool {
-		return entry["source"] == "bgp" && entry["code"] == "notification-sent" && entry["subject"] == "127.0.0.1"
+		return entry["source"] == namespaceBGP && entry["code"] == "notification-sent" && entry["subject"] == addrLoopback
 	}
-	_, entries, err := fixture06Errors(ctx, p, 20, match)
+	entries, err := fixture06Errors(ctx, p, 20, match)
 	if err != nil {
 		return errors.New("timed out waiting for bgp/notification-sent entry")
 	}
@@ -112,7 +113,7 @@ func fixture06ErrorsSent(ctx context.Context, p *sdk.Plugin) error {
 	detail, _ := entry["detail"].(map[string]any)
 	code, codeOK := fixture06Number(detail["code"])
 	subcode, subcodeOK := fixture06Number(detail["subcode"])
-	if entry["severity"] != "error" || detail["direction"] != "sent" || !codeOK || code != 6 || !subcodeOK || subcode != 4 {
+	if entry["severity"] != severityError || detail["direction"] != directionSent || !codeOK || code != 6 || !subcodeOK || subcode != 4 {
 		return fmt.Errorf("invalid notification-sent entry: %v", entry)
 	}
 	fmt.Fprintf(os.Stderr, "OK: show errors returned %d entry(s); 1 matching notification-sent\n", len(entries))
@@ -127,7 +128,7 @@ func fixture06EventMonitorBasic(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if data["status"] != "monitor-configured" {
+	if data["status"] != statusMonitorConfigured {
 		return fmt.Errorf("monitor event status=%v, want monitor-configured", data["status"])
 	}
 	fmt.Fprintln(os.Stderr, "OK: monitor event returned status=monitor-configured")
@@ -174,7 +175,7 @@ func fixture06EventMonitorPeer(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if data["peer"] != "10.0.0.1" {
+	if data["peer"] != addrPeerOne {
 		return fmt.Errorf("monitor event peer=%v, want 10.0.0.1", data["peer"])
 	}
 	fmt.Fprintln(os.Stderr, "OK: monitor event peer filter parsed: 10.0.0.1")
@@ -182,12 +183,7 @@ func fixture06EventMonitorPeer(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, target)
 }
 
 func fixture06EventPredicateWait(ctx context.Context, p *sdk.Plugin) error {

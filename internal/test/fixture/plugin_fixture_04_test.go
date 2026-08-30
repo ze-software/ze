@@ -58,11 +58,15 @@ func TestPluginFixture04CollectorValidators(t *testing.T) {
 
 func TestPluginFixture04CollectorDriver(t *testing.T) {
 	t.Chdir(t.TempDir())
-	reservation, err := net.Listen("tcp", "127.0.0.1:0")
+	reservation, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	port := reservation.Addr().(*net.TCPAddr).Port
+	address, ok := reservation.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("a tcp listener answered %T, want *net.TCPAddr", reservation.Addr())
+	}
+	port := address.Port
 	if err := reservation.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +77,8 @@ func TestPluginFixture04CollectorDriver(t *testing.T) {
 	var conn net.Conn
 	deadline := time.Now().Add(5 * time.Second)
 	for conn == nil && time.Now().Before(deadline) {
-		conn, _ = net.DialTimeout("tcp", "127.0.0.1:"+strconv.Itoa(port), 100*time.Millisecond)
+		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
+		conn, _ = dialer.DialContext(t.Context(), "tcp", "127.0.0.1:"+strconv.Itoa(port))
 	}
 	if conn == nil {
 		t.Fatal("collector did not listen")

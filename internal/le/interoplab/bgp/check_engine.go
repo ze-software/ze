@@ -77,7 +77,7 @@ func checkScenario(ctx context.Context, check *interoplab.CheckContext, name str
 }
 func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string, assertion int, cause error) error {
 	var diagnostics strings.Builder
-	for _, peer := range []string{"ze", "frr", "bird", "gobgp", "inject", "speaker", "speaker2"} {
+	for _, peer := range []string{"ze", peerFRR, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2} {
 		logs, err := lab.Logs(ctx, peer, 80)
 		if err != nil || !logs.Available || strings.TrimSpace(logs.Text) == "" {
 			continue
@@ -107,9 +107,9 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 		return waitContains(
 			ctx,
 			lab,
-			"frr",
+			peerFRR,
 			[]string{
-				"vtysh",
+				cmdVtysh,
 				"-c",
 				command.Str("show bgp neighbor ").Str(current.argument).String(),
 			},
@@ -117,9 +117,9 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 			"BGP state = Established",
 		)
 	case opBIRDSession:
-		return waitContains(ctx, lab, "bird", []string{"birdc", "show protocols"}, current.timeout, current.argument, "Established")
+		return waitContains(ctx, lab, peerBIRD, []string{cmdBirdc, "show protocols"}, current.timeout, current.argument, "Established")
 	case opGoBGPSession:
-		return waitContainsFold(ctx, lab, "gobgp", []string{"gobgp", "neighbor", current.argument}, current.timeout, "established")
+		return waitContainsFold(ctx, lab, peerGoBGP, []string{cmdGoBGP, gobgpNeighbor, current.argument}, current.timeout, peerStateEstablished)
 	case opFRRRoute:
 		return waitFRRRoute(ctx, lab, current.argument, current.family, current.timeout, true)
 	case opFRRRouteAbsent:
@@ -128,9 +128,9 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 		return waitContains(
 			ctx,
 			lab,
-			"bird",
+			peerBIRD,
 			[]string{
-				"birdc",
+				cmdBirdc,
 				command.Str("show route for ").Str(current.argument).String(),
 			},
 			current.timeout,
@@ -139,9 +139,9 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 	case opBIRDRouteAbsent:
 		output, err := lab.Query(
 			ctx,
-			"bird",
+			peerBIRD,
 			[]string{
-				"birdc",
+				cmdBirdc,
 				command.Str("show route for ").Str(current.argument).String(),
 			},
 			nil,
@@ -152,17 +152,17 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 		return requireAbsentWithProof(output, []string{current.argument}, current.proof)
 	case opGoBGPRoute:
 		afi := strings.Fields(current.family)
-		family := "ipv4"
+		family := gobgpFamilyIPv4
 		if len(afi) > 0 {
 			family = afi[0]
 		}
-		return waitContains(ctx, lab, "gobgp", []string{"gobgp", "global", "rib", "-a", family, current.argument, "-j"}, current.timeout, current.argument)
+		return waitContains(ctx, lab, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", family, current.argument, "-j"}, current.timeout, current.argument)
 	case opFRRCommunity:
 		output, err := lab.Query(
 			ctx,
-			"frr",
+			peerFRR,
 			[]string{
-				"vtysh",
+				cmdVtysh,
 				"-c",
 				command.Str("show bgp ipv4 unicast ").Str(current.argument).String(),
 			},
@@ -181,9 +181,9 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 		return requireASAbsent(
 			ctx,
 			lab,
-			"frr",
+			peerFRR,
 			[]string{
-				"vtysh",
+				cmdVtysh,
 				"-c",
 				command.Str("show bgp ipv4 unicast ").Str(current.argument).Str(" json").String(),
 			},
@@ -370,7 +370,7 @@ func waitAbsent(ctx context.Context, lab interoplab.CheckerLab, peer string, com
 	return err
 }
 func queryEnvironment(peer string, command []string) []interoplab.EnvironmentVariable {
-	if peer == "ze" && len(command) >= 2 && command[0] == "ze" && command[1] == "cli" {
+	if peer == "ze" && len(command) >= 2 && command[0] == "ze" && command[1] == zeCLICommand {
 		return []interoplab.EnvironmentVariable{{Name: "ZE_SSH_PASSWORD", Value: "testpass"}}
 	}
 	return nil
@@ -402,7 +402,7 @@ func waitFRRRoute(ctx context.Context, lab interoplab.CheckerLab, prefix, family
 	}
 	var text textbuf.Buffer
 	command := []string{
-		"vtysh",
+		cmdVtysh,
 		"-c",
 		text.Str("show bgp ").Str(family).Byte(' ').Str(prefix).Str(" json").String(),
 	}
@@ -412,7 +412,7 @@ func waitFRRRoute(ctx context.Context, lab interoplab.CheckerLab, prefix, family
 		Interval:    2 * time.Second,
 		Description: description,
 	}, func(probeCtx context.Context) (string, error) {
-		return lab.Query(probeCtx, "frr", command, nil)
+		return lab.Query(probeCtx, peerFRR, command, nil)
 	}, func(output string) bool {
 		hasRoute, measured := jsonHasRoute(output)
 		return measured && hasRoute == present

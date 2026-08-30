@@ -1,6 +1,7 @@
 package bgp
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"flag"
@@ -146,7 +147,7 @@ func (f *familyFlags) Set(value string) error {
 
 func speakerMessage(messageType byte, body []byte) []byte {
 	message := make([]byte, bgpHeaderLength+len(body))
-	for index := 0; index < 16; index++ {
+	for index := range 16 {
 		message[index] = 0xff
 	}
 	binary.BigEndian.PutUint16(message[16:18], uint16(len(message)))
@@ -246,10 +247,10 @@ func runSpeakerHelper(args []string, output io.Writer) error {
 	}
 	plugin := filepath.Base(options.test)
 	switch plugin {
-	case "no-duplicate-attribute":
-		plugin = "no-duplicate-attribute"
-	case "no-unrecognized-evpn-type":
-		plugin = "no-unrecognized-evpn-type"
+	case speakerOracleNoDuplicateAttribute:
+		plugin = speakerOracleNoDuplicateAttribute
+	case speakerOracleNoUnrecognizedEVPNType:
+		plugin = speakerOracleNoUnrecognizedEVPNType
 	default:
 		return fmt.Errorf("unknown native speaker oracle %q", options.test)
 	}
@@ -287,7 +288,8 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 	if options.connectDelay > 0 {
 		time.Sleep(options.connectDelay)
 	}
-	connection, err := net.DialTimeout("tcp", options.connect, 10*time.Second)
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+	connection, err := dialer.DialContext(context.Background(), "tcp", options.connect)
 	if err != nil {
 		return err
 	}
@@ -359,7 +361,7 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 	} else {
 		verdict.notes = append(verdict.notes, "established: no")
 	}
-	if verdict.plugin == "no-unrecognized-evpn-type" {
+	if verdict.plugin == speakerOracleNoUnrecognizedEVPNType {
 		verdict.notes = append(verdict.notes, fmt.Sprintf("evpn-nlri: %d", verdict.evpnNLRI))
 	}
 	return nil
@@ -401,7 +403,7 @@ func readSpeakerExact(connection net.Conn, size int) ([]byte, bool, error) {
 
 func applySpeakerOracle(update speakerUpdate, verdict *speakerVerdict) {
 	switch verdict.plugin {
-	case "no-duplicate-attribute":
+	case speakerOracleNoDuplicateAttribute:
 		seen := make(map[byte]struct{}, len(update.attributes))
 		for _, attribute := range update.attributes {
 			if _, exists := seen[attribute.code]; exists {
@@ -409,7 +411,7 @@ func applySpeakerOracle(update speakerUpdate, verdict *speakerVerdict) {
 			}
 			seen[attribute.code] = struct{}{}
 		}
-	case "no-unrecognized-evpn-type":
+	case speakerOracleNoUnrecognizedEVPNType:
 		applyEVPNOracle(update, verdict)
 	}
 }

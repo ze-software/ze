@@ -156,7 +156,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 		if len(preview) > 400 {
 			preview = preview[:400]
 		}
-		return uiLeCodegenAnswersFailf("`le plugin-imports check | json` did not answer JSON: %v\n%s", err, preview)
+		return uiLeCodegenAnswersFailf("`le plugin imports check | json` did not answer JSON: %v\n%s", err, preview)
 	}
 
 	for _, key := range []string{sectionPlugins, "schemas", "rpcs", "namespaces", "gated-groups", fieldFiles} {
@@ -202,10 +202,10 @@ func runLECodegenAnswers(ctx context.Context) error {
 
 	counted := runLE("plugin imports", "check", "|", "count")
 	if counted.exitCode() != 0 {
-		return uiLeCodegenAnswersFailf("`le plugin-imports check | count` exited %d: %s", counted.exitCode(), counted.output())
+		return uiLeCodegenAnswersFailf("`le plugin imports check | count` exited %d: %s", counted.exitCode(), counted.output())
 	}
 	if !strings.Contains(counted.stdout, strconv.Itoa(len(files))) {
-		return uiLeCodegenAnswersFailf("`le plugin-imports check | count` answered %q, want %d", counted.stdout, len(files))
+		return uiLeCodegenAnswersFailf("`le plugin imports check | count` answered %q, want %d", counted.stdout, len(files))
 	}
 
 	// web-assets pages is a document-shaped answer. JSON is supported, while

@@ -65,14 +65,14 @@ func ribAdvertisedUserPath13(ctx context.Context, args []string) error {
 			return fmt.Errorf("expected received count 0, got %s", result.raw)
 		}
 		fmt.Fprintln(os.Stderr, "OK: show bgp rib advertised selects Adj-RIB-Out from user update")
-		return waitEORSent13(ctx, plugin, "*", 1)
+		return waitEORSent13(ctx, plugin, "*")
 	})
 }
 
 type assertions13 struct{ failures []error }
 
-func (a *assertions13) status(label string, result commandResult13, want string) {
-	if err := requireStatus13(label, result, want); err != nil {
+func (a *assertions13) status(label string, result commandResult13) {
+	if err := requireStatus13(label, result, "done"); err != nil {
 		a.failures = append(a.failures, err)
 		fmt.Fprintln(os.Stderr, "FAIL", err)
 		return
@@ -129,21 +129,21 @@ func ribBestSelection13(ctx context.Context, args []string) error {
 			{"inject-lp200", "request bgp rib inject 10.0.0.2 ipv4/unicast 10.10.1.0/24 localpref 200"},
 		}
 		for _, injection := range injections {
-			a.status(injection.label, command13(ctx, plugin, injection.command), "done")
+			a.status(injection.label, command13(ctx, plugin, injection.command))
 		}
 		best := command13(ctx, plugin, "show bgp rib best")
-		a.status("best-localpref", best, "done")
-		if row := bestPathFor13(best, "10.10.1.0/24"); row == nil || row["best-peer"] != "10.0.0.2" {
+		a.status("best-localpref", best)
+		if row := bestPathFor13(best, "10.10.1.0/24"); row == nil || row["best-peer"] != addrPeerTwo {
 			a.failures = append(a.failures, fmt.Errorf("localpref winner=%v want 10.0.0.2", row))
 		}
 		for _, injection := range []struct{ label, command string }{
 			{"inject-short-path", "request bgp rib inject 10.0.0.3 ipv4/unicast 10.20.1.0/24 aspath 64501"},
 			{"inject-long-path", "request bgp rib inject 10.0.0.4 ipv4/unicast 10.20.1.0/24 aspath 64501,64502,64503"},
 		} {
-			a.status(injection.label, command13(ctx, plugin, injection.command), "done")
+			a.status(injection.label, command13(ctx, plugin, injection.command))
 		}
 		best = command13(ctx, plugin, "show bgp rib best")
-		a.status("best-aspath", best, "done")
+		a.status("best-aspath", best)
 		if row := bestPathFor13(best, "10.20.1.0/24"); row == nil || row["best-peer"] != "10.0.0.3" {
 			a.failures = append(a.failures, fmt.Errorf("aspath winner=%v want 10.0.0.3", row))
 		}
@@ -151,15 +151,15 @@ func ribBestSelection13(ctx context.Context, args []string) error {
 			{"inject-peer6", "request bgp rib inject 10.0.0.6 ipv4/unicast 10.30.1.0/24 origin igp"},
 			{"inject-peer5", "request bgp rib inject 10.0.0.5 ipv4/unicast 10.30.1.0/24 origin igp"},
 		} {
-			a.status(injection.label, command13(ctx, plugin, injection.command), "done")
+			a.status(injection.label, command13(ctx, plugin, injection.command))
 		}
 		best = command13(ctx, plugin, "show bgp rib best")
-		a.status("best-tiebreak", best, "done")
+		a.status("best-tiebreak", best)
 		if row := bestPathFor13(best, "10.30.1.0/24"); row == nil || row["best-peer"] != "10.0.0.5" {
 			a.failures = append(a.failures, fmt.Errorf("tiebreak winner=%v want 10.0.0.5", row))
 		}
 		count := command13(ctx, plugin, "show bgp rib best count")
-		a.status("best-count", count, "done")
+		a.status("best-count", count)
 		if value, ok := countFrom13(count); !ok || value != 3 {
 			a.failures = append(a.failures, fmt.Errorf("best count=%d valid=%v want 3", value, ok))
 		}
@@ -175,7 +175,7 @@ func ribClearOutFamily13(ctx context.Context, args []string) error {
 		if err := requireStatus13("clear out missing selector", command13(ctx, plugin, "clear bgp rib out"), "error"); err != nil {
 			return err
 		}
-		return waitEORSent13(ctx, plugin, "peer1", 1)
+		return waitEORSent13(ctx, plugin, "peer1")
 	})
 }
 
@@ -186,9 +186,9 @@ func ribFilterShow13(ctx context.Context, args []string) error {
 			label, command string
 			errorData      bool
 		}{
-			{"community", "show bgp rib received community 65000:100", false},
-			{"path", "show bgp rib received path 64501", false},
-			{"count", "show bgp rib count", false},
+			{fieldCommunity, "show bgp rib received community 65000:100", false},
+			{fieldPath, "show bgp rib received path 64501", false},
+			{pipeCount, "show bgp rib count", false},
 			{"family+community", "show bgp rib received family ipv4/unicast community 65000:100", false},
 			{"unknown-keyword", "show bgp rib bogus", true},
 		}
@@ -201,20 +201,20 @@ func ribFilterShow13(ctx context.Context, args []string) error {
 				return fmt.Errorf("%s: expected error JSON, got %.200s", check.label, result.raw)
 			}
 		}
-		return waitEORSent13(ctx, plugin, "peer1", 1)
+		return waitEORSent13(ctx, plugin, "peer1")
 	})
 }
 
 func ribForwardObserved13(ctx context.Context, args []string) error {
 	return observe13(ctx, "shutdown-after-update", func(ctx context.Context, plugin *sdk.Plugin) error {
-		if err := waitEORSent13(ctx, plugin, "peer1", 1); err != nil {
+		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
 			return err
 		}
 		result := pollCommand13(ctx, plugin, "show bgp rib best", 40, 100*time.Millisecond, func(result commandResult13) bool { return strings.Contains(result.text(), "192.168.1.0/24") })
 		if !strings.Contains(result.text(), "192.168.1.0/24") {
 			return errors.New("192.168.1.0/24 never appeared in bgp rib show best")
 		}
-		return waitEORSent13(ctx, plugin, "peer1", 1)
+		return waitEORSent13(ctx, plugin, "peer1")
 	})
 }
 
@@ -224,10 +224,10 @@ func ribGraphBest13(ctx context.Context, args []string) error {
 			return err
 		}
 		a := &assertions13{}
-		a.status("inject", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502"), "done")
+		a.status("inject", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502"))
 		graph := command13(ctx, plugin, "show bgp rib best graph")
-		a.status("best-graph", graph, "done")
-		for _, want := range []string{"AS64501", "AS64502", "┌"} {
+		a.status("best-graph", graph)
+		for _, want := range []string{asnLabel64501, asnLabel64502, "┌"} {
 			a.contains("best-graph", graph, want)
 		}
 		return a.finish("best-graph")
@@ -240,11 +240,11 @@ func ribGraphFiltered13(ctx context.Context, args []string) error {
 			return err
 		}
 		a := &assertions13{}
-		a.status("inject-1", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502"), "done")
-		a.status("inject-2", command13(ctx, plugin, "request bgp rib inject 10.0.0.2 ipv4/unicast 10.20.1.0/24 aspath 64601,64602"), "done")
+		a.status("inject-1", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502"))
+		a.status("inject-2", command13(ctx, plugin, "request bgp rib inject 10.0.0.2 ipv4/unicast 10.20.1.0/24 aspath 64601,64602"))
 		graph := command13(ctx, plugin, "show bgp rib received prefix 10.10 graph")
-		a.status("filtered-graph", graph, "done")
-		for _, want := range []string{"AS64501", "AS64502"} {
+		a.status("filtered-graph", graph)
+		for _, want := range []string{asnLabel64501, asnLabel64502} {
 			a.contains("filtered-graph", graph, want)
 		}
 		for _, absent := range []string{"AS64601", "AS64602"} {
@@ -260,14 +260,14 @@ func ribGraph13(ctx context.Context, args []string) error {
 			return err
 		}
 		a := &assertions13{}
-		a.status("inject-1", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502,64503"), "done")
-		a.status("inject-2", command13(ctx, plugin, "request bgp rib inject 10.0.0.2 ipv4/unicast 10.10.2.0/24 aspath 64504,64502,64503"), "done")
+		a.status("inject-1", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502,64503"))
+		a.status("inject-2", command13(ctx, plugin, "request bgp rib inject 10.0.0.2 ipv4/unicast 10.10.2.0/24 aspath 64504,64502,64503"))
 		graph := command13(ctx, plugin, "show bgp rib received graph")
-		a.status("graph", graph, "done")
-		for _, want := range []string{"AS64501", "AS64502", "AS64503", "AS64504", "┌"} {
+		a.status("graph", graph)
+		for _, want := range []string{asnLabel64501, asnLabel64502, "AS64503", "AS64504", "┌"} {
 			a.contains("graph", graph, want)
 		}
-		a.status("empty-graph", command13(ctx, plugin, "show bgp rib received prefix 99.99.99.0/24 graph"), "done")
+		a.status("empty-graph", command13(ctx, plugin, "show bgp rib received prefix 99.99.99.0/24 graph"))
 		return a.finish("graph")
 	})
 }
@@ -286,18 +286,18 @@ func ribInjectRFC5549(ctx context.Context, args []string) error {
 			return fmt.Errorf("extended next-hop missing from best show: %.300s", best.raw)
 		}
 		fmt.Fprintln(os.Stderr, "OK: RFC 5549 extended next-hop stored and recovered")
-		if err := waitEORSent13(ctx, plugin, "peer1", 1); err != nil {
+		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
 			return err
 		}
 		var state string
 		result := pollCommand13(ctx, plugin, "show bgp peer peer1 detail", 60, 250*time.Millisecond, func(result commandResult13) bool {
 			value, ok := peerField13(result, "state")
 			state, _ = value.(string)
-			return ok && state != "" && state != "established"
+			return ok && state != "" && state != stateEstablished
 		})
 		value, _ := peerField13(result, "state")
 		state, _ = value.(string)
-		if state == "" || state == "established" {
+		if state == "" || state == stateEstablished {
 			return fmt.Errorf("peer1 never consumed End-of-RIB (state=%q)", state)
 		}
 		return nil
@@ -328,7 +328,7 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 		if err := ribReady13(ctx, plugin); err != nil {
 			return err
 		}
-		if err := waitEORSent13(ctx, plugin, "peer1", 1); err != nil {
+		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
 			return err
 		}
 		injected := command13(ctx, plugin, "peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24")
@@ -354,13 +354,13 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 			label, command string
 			directions     []string
 		}{
-			{"scope-received", "show bgp rib received", []string{"received"}},
-			{"scope-sent", "show bgp rib sent", []string{"sent"}},
-			{"scope-sent-received", "show bgp rib sent-received", []string{"received", "sent"}},
-			{"scope-default", "show bgp rib", []string{"received", "sent"}},
+			{"scope-received", "show bgp rib received", []string{directionReceived}},
+			{"scope-sent", "show bgp rib sent", []string{directionSent}},
+			{"scope-sent-received", "show bgp rib sent-received", []string{directionReceived, directionSent}},
+			{"scope-default", "show bgp rib", []string{directionReceived, directionSent}},
 		} {
 			result := command13(ctx, plugin, check.command)
-			a.status(check.label, result, "done")
+			a.status(check.label, result)
 			for _, direction := range check.directions {
 				count, valid, allPeer := directionCount13(result, direction)
 				if !valid || count == 0 || !allPeer {
@@ -382,21 +382,21 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 			{"combined-filter", "show bgp rib received family ipv4/unicast community 65000:100 count", 0},
 		} {
 			result := command13(ctx, plugin, check.command)
-			a.status(check.label, result, "done")
+			a.status(check.label, result)
 			if count, ok := countFrom13(result); !ok || count != check.count {
 				a.failures = append(a.failures, fmt.Errorf("%s count=%d valid=%v want %d", check.label, count, ok, check.count))
 			}
 		}
 		for _, check := range []struct{ label, command string }{{"best-path", "show bgp rib best"}, {"best-prefix", "show bgp rib best prefix 0.0.0.0/0"}} {
 			result := command13(ctx, plugin, check.command)
-			a.status(check.label, result, "done")
+			a.status(check.label, result)
 			if _, ok := result.object()["best-path"]; !ok {
 				a.failures = append(a.failures, fmt.Errorf("%s missing best-path", check.label))
 			}
 		}
 		for _, check := range []struct{ label, command string }{{"unknown-keyword", "show bgp rib bogus"}, {"old-show-in", "show bgp rib in"}, {"old-show-out", "show bgp rib out"}} {
 			result := command13(ctx, plugin, check.command)
-			a.status(check.label, result, "done")
+			a.status(check.label, result)
 			if _, ok := result.object()["error"]; !ok {
 				keys := make([]string, 0, len(result.object()))
 				for key := range result.object() {

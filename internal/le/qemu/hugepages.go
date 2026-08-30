@@ -126,7 +126,7 @@ const consoleTailLines = 25
 func stringSetting(key, fallback, description string) env.EnvEntry {
 	return env.MustRegister(env.EnvEntry{
 		Key:         key,
-		Type:        "string",
+		Type:        envTypeString,
 		Default:     fallback,
 		Description: description,
 		Private:     true,
@@ -247,9 +247,9 @@ func hostArch() string {
 // qemuBinary answers the QEMU system emulator for an architecture.
 func qemuBinary(arch string) string {
 	if arch == ArchARM64 {
-		return "qemu-system-aarch64"
+		return qemuSystemARM64
 	}
-	return "qemu-system-x86_64"
+	return qemuSystemAMD64
 }
 
 // accelerator answers the hypervisor QEMU is asked for on this machine.
@@ -262,15 +262,15 @@ func qemuBinary(arch string) string {
 // accelerator opens the node for reading and writing, as QEMU itself does. It
 // then closes the node.
 func accelerator() string {
-	if runtime.GOOS == "darwin" {
-		return "hvf"
+	if runtime.GOOS == goosDarwin {
+		return acceleratorHVF
 	}
 	node, err := os.OpenFile("/dev/kvm", os.O_RDWR, 0)
 	if err != nil {
-		return "tcg"
+		return acceleratorTCG
 	}
 	node.Close() //nolint:errcheck // the probe is the open; nothing was written
-	return "kvm"
+	return acceleratorKVM
 }
 
 // freePort answers a TCP port that has no listener on this machine. It binds a
@@ -299,7 +299,7 @@ func freePort() (int, error) {
 // emulation. It is what decides whether an appliance that never answered is a
 // failure or a slow machine.
 func Hardware(accelerator string) bool {
-	return accelerator == "kvm" || accelerator == "hvf"
+	return accelerator == acceleratorKVM || accelerator == acceleratorHVF
 }
 
 // Run performs the proof and answers what happened.
@@ -455,7 +455,7 @@ func (h *Hugepages) buildHostZe(work string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hostBuildTimeout)
 	defer cancel()
 
-	build := exec.CommandContext(ctx, "go", "build", "-tags", "ze_core,ze_setup", "-o", host, "./cmd/ze") //nolint:gosec // host is a path under the work directory this run made
+	build := exec.CommandContext(ctx, "go", goCommandBuild, "-tags", "ze_core,ze_setup", "-o", host, "./cmd/ze") //nolint:gosec // host is a path under the work directory this run made
 	build.Dir = h.Tree
 	build.Env = append(os.Environ(), "CGO_ENABLED=0")
 	out, err := build.CombinedOutput()
@@ -489,7 +489,7 @@ func (h *Hugepages) buildImage(host, work string) (string, error) {
 	if err := h.writeApplianceConfig(filepath.Join(dir, ApplianceName, "appliance.json")); err != nil {
 		return "", err
 	}
-	out, err := h.appliance(host, environment, "build")
+	out, err := h.appliance(host, environment, zeApplianceVerbBuild)
 	if err != nil {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("ze appliance build failed:").Str(buildHint(out)).Byte('\n').Str(out).String())
@@ -505,7 +505,7 @@ func (h *Hugepages) appliance(host string, environment []string, verb string) (s
 	ctx, cancel := context.WithTimeout(context.Background(), applianceTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, host, "appliance", verb, ApplianceName) //nolint:gosec // host is a binary this run just built
+	cmd := exec.CommandContext(ctx, host, zeApplianceArea, verb, ApplianceName) //nolint:gosec // host is a binary this run just built
 	cmd.Env = environment
 	cmd.Stdin = strings.NewReader("")
 	out, err := cmd.CombinedOutput()

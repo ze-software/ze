@@ -86,11 +86,11 @@ system {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 	configPath := filepath.Join(work, "summary.conf")
 	sshAddrPath := filepath.Join(work, "ssh.addr")
 	readyPath := filepath.Join(work, "ready")
-	if err := os.WriteFile(configPath, []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write summary.conf: %w", err)
 	}
 
@@ -108,7 +108,7 @@ system {
 	)
 
 	daemon := &aliasSummaryDaemon{done: make(chan error, 1)}
-	daemon.cmd = exec.CommandContext(ctx, "ze", "-f", configPath)
+	daemon.cmd = exec.CommandContext(ctx, "ze", "-f", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	daemon.cmd.Dir = work
 	daemon.cmd.Env = daemonEnv
 	daemon.cmd.Stdout = &daemon.stdout
@@ -140,8 +140,7 @@ func aliasSummaryPasswordHash(ctx context.Context) (string, error) {
 	if err == nil {
 		return strings.TrimSpace(string(out)), nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return "", fmt.Errorf("ze passwd exit=%d: %s%s", exitErr.ExitCode(), out, exitErr.Stderr)
 	}
 	return "", fmt.Errorf("run ze passwd: %w", err)
@@ -152,7 +151,7 @@ func aliasSummaryRunAssertions(ctx context.Context, daemon *aliasSummaryDaemon, 
 		return err
 	}
 
-	addrBytes, err := os.ReadFile(sshAddrPath)
+	addrBytes, err := os.ReadFile(sshAddrPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -198,7 +197,7 @@ func aliasSummaryRunAssertions(ctx context.Context, daemon *aliasSummaryDaemon, 
 	if err != nil {
 		return err
 	}
-	for _, key := range []string{"router-id", "local-as", "peers-configured", "peers-established"} {
+	for _, key := range []string{fieldRouterID, fieldLocalAS, fieldPeersConfigured, fieldPeersEstablished} {
 		if !strings.Contains(only, key) {
 			return fmt.Errorf("the aggregate %s is missing: %q", key, only)
 		}
@@ -215,9 +214,9 @@ func aliasSummaryRunAssertions(ctx context.Context, daemon *aliasSummaryDaemon, 
 
 	// "peers" is a prefix of two aggregate keys, so look for the rows array by
 	// checking the key at the start of each non-empty line.
-	for _, line := range strings.Split(only, "\n") {
+	for line := range strings.SplitSeq(only, "\n") {
 		fields := strings.Fields(line)
-		if len(fields) != 0 && fields[0] == "peers" {
+		if len(fields) != 0 && fields[0] == aliasPeers {
 			return fmt.Errorf("the peers array survived `| summary`: %q", only)
 		}
 	}
@@ -237,7 +236,7 @@ func aliasSummaryRunAssertions(ctx context.Context, daemon *aliasSummaryDaemon, 
 }
 
 func aliasSummaryWaitReady(ctx context.Context, daemon *aliasSummaryDaemon, sshAddrPath, readyPath string, attempts int, delay time.Duration) error {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for range attempts {
 		if exited, _ := daemon.exited(); exited {
 			return fmt.Errorf("daemon exited early\nstdout:\n%s\nstderr:\n%s", daemon.stdout.String(), daemon.stderr.String())
 		}
@@ -264,7 +263,7 @@ func aliasSummaryPathExists(path string) bool {
 }
 
 func aliasSummaryRunCommand(ctx context.Context, env []string, name string, args ...string) (int, string, string, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -273,8 +272,7 @@ func aliasSummaryRunCommand(ctx context.Context, env []string, name string, args
 	if err == nil {
 		return 0, stdout.String(), stderr.String(), nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exitErr.ExitCode(), stdout.String(), stderr.String(), nil
 	}
 	return 0, stdout.String(), stderr.String(), err
@@ -283,15 +281,14 @@ func aliasSummaryRunCommand(ctx context.Context, env []string, name string, args
 func aliasSummaryEnvironment(base []string, overrides ...string) []string {
 	replaced := make(map[string]struct{}, len(overrides))
 	for _, item := range overrides {
-		if equals := strings.IndexByte(item, '='); equals >= 0 {
-			replaced[item[:equals]] = struct{}{}
+		if key, _, found := strings.Cut(item, "="); found {
+			replaced[key] = struct{}{}
 		}
 	}
 	out := make([]string, 0, len(base)+len(overrides))
 	for _, item := range base {
-		equals := strings.IndexByte(item, '=')
-		if equals >= 0 {
-			if _, ok := replaced[item[:equals]]; ok {
+		if key, _, found := strings.Cut(item, "="); found {
+			if _, ok := replaced[key]; ok {
 				continue
 			}
 		}

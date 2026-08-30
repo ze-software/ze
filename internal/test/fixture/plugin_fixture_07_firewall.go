@@ -30,10 +30,10 @@ func firewallGlobalOptions07(ctx context.Context, p *sdk.Plugin) error {
 				return false
 			}
 		}
-		return result.status == "done"
+		return result.status == statusDone
 	})
-	if result.status != "done" {
-		return fmt.Errorf("show sysctl status=%s error=%v", result.status, result.err)
+	if result.status != statusDone {
+		return fmt.Errorf("show sysctl status=%s error=%w", result.status, result.err)
 	}
 	byKey := map[string]map[string]any{}
 	for _, row := range array07(result.data) {
@@ -61,7 +61,7 @@ func firewallMetrics07(ctx context.Context, args []string) error {
 	}
 	var body string
 	if !Poll(ctx, 200, 50*time.Millisecond, func() bool { body, err = fetch07(ctx, args[0]); return err == nil }) {
-		return fmt.Errorf("Prometheus endpoint on 127.0.0.1:%s never answered", args[0])
+		return fmt.Errorf("the Prometheus endpoint on 127.0.0.1:%s never answered", args[0])
 	}
 	for _, family := range []string{"go_goroutines", "process_start_time_seconds"} {
 		if !strings.Contains(body, family) {
@@ -75,6 +75,6 @@ func firewallMetrics07(ctx context.Context, args []string) error {
 	}) {
 		return fmt.Errorf("missing firewall metrics from exposed registry")
 	}
-	fmt.Fprintln(os.Stdout, "firewall metrics exposed")
+	fmt.Fprintln(os.Stdout, "firewall metrics exposed") //nolint:errcheck // progress output
 	return terminate07(pid)
 }

@@ -35,7 +35,7 @@ func readRepositoryFile(t *testing.T, root, path string) string {
 func featureTags(t *testing.T, root string) map[string]bool {
 	t.Helper()
 	tags := make(map[string]bool)
-	for _, line := range strings.Split(readRepositoryFile(t, root, "feature-gates.txt"), "\n") {
+	for line := range strings.SplitSeq(readRepositoryFile(t, root, "feature-gates.txt"), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) != 0 && strings.HasPrefix(fields[0], "ze_") {
 			tags[fields[0]] = true

@@ -23,11 +23,11 @@ const (
 func (v RunVerdict) String() string {
 	switch v {
 	case RunVerdictPass:
-		return "pass"
+		return verdictWordPass
 	case RunVerdictFail:
-		return "fail"
+		return verdictWordFail
 	case RunVerdictUnspecified:
-		return "unspecified"
+		return verdictWordUnspecified
 	default:
 		return "invalid"
 	}

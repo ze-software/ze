@@ -12,6 +12,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -91,7 +92,7 @@ func (f coverageFixture) writeTranscript(t *testing.T, calls ...transcriptCall) 
 	}
 }
 
-func (f coverageFixture) analyse(t *testing.T) (sessionCoverageReport, string) {
+func (f coverageFixture) analyze(t *testing.T) (sessionCoverageReport, string) {
 	t.Helper()
 	var errOut bytes.Buffer
 	rules, err := loadCoverageRules(f.rulesDir, &errOut)
@@ -102,16 +103,11 @@ func (f coverageFixture) analyse(t *testing.T) (sessionCoverageReport, string) {
 	if err != nil {
 		t.Fatalf("NativeTranscriptSource.Files: %v", err)
 	}
-	return analyseSessionCoverage(rules, files), errOut.String()
+	return analyzeSessionCoverage(rules, files), errOut.String()
 }
 
 func containsCoverageName(names []string, want string) bool {
-	for _, name := range names {
-		if name == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(names, want)
 }
 
 func TestSessionCoverageReportsOnlyUnreadMatchedBlockingRules(t *testing.T) {
@@ -120,7 +116,7 @@ func TestSessionCoverageReportsOnlyUnreadMatchedBlockingRules(t *testing.T) {
 	fixture.writeRule(t, "advisory-one.md", "writing any wire-encoding path", "advisory")
 	fixture.writeTranscript(t, transcriptCall{"Edit", filepath.Join(fixture.root, "internal", "wire.go")})
 
-	report, _ := fixture.analyse(t)
+	report, _ := fixture.analyze(t)
 	if len(report.Missed) != 1 || report.Missed[0] != "performance.md" {
 		t.Fatalf("missed = %v, want performance.md", report.Missed)
 	}
@@ -132,7 +128,7 @@ func TestSessionCoverageReportsOnlyUnreadMatchedBlockingRules(t *testing.T) {
 		transcriptCall{"Edit", filepath.Join(fixture.root, "internal", "wire.go")},
 		transcriptCall{"Read", filepath.Join(fixture.rulesDir, "performance.md")},
 	)
-	report, _ = fixture.analyse(t)
+	report, _ = fixture.analyze(t)
 	if len(report.Missed) != 0 || !containsCoverageName(report.RulesRead, "performance.md") {
 		t.Errorf("direct read did not clear the miss: read=%v missed=%v", report.RulesRead, report.Missed)
 	}
@@ -154,7 +150,7 @@ func TestSessionCoverageCreditsNeitherDigestNorPointReads(t *testing.T) {
 		transcriptCall{"Read", point},
 	)
 
-	report, _ := fixture.analyse(t)
+	report, _ := fixture.analyze(t)
 	if len(report.RulesRead) != 0 {
 		t.Errorf("digest or point read was credited: %v", report.RulesRead)
 	}
@@ -170,7 +166,7 @@ func TestSessionCoverageCoreMembershipIsAStandaloneArtifactPath(t *testing.T) {
 	fixture.writeCore(t, "spec-no-code.md")
 	fixture.writeTranscript(t, transcriptCall{"Edit", filepath.Join(fixture.root, "plan", "spec-thing.md")})
 
-	report, _ := fixture.analyse(t)
+	report, _ := fixture.analyze(t)
 	if len(report.AlwaysOnRules) != 1 || report.AlwaysOnRules[0] != "spec-no-code.md" {
 		t.Fatalf("always-on = %v, inline citation must not count", report.AlwaysOnRules)
 	}
@@ -226,7 +222,7 @@ func TestSessionCoverageMissingOrChangedCoreExcludesNothingAndSpeaks(t *testing.
 			}
 			fixture.writeTranscript(t, transcriptCall{"Edit", filepath.Join(fixture.root, "plan", "spec-thing.md")})
 
-			report, diagnostic := fixture.analyse(t)
+			report, diagnostic := fixture.analyze(t)
 			if len(report.Missed) != 1 || report.AlwaysOnExcluded != 0 {
 				t.Errorf("safe fallback = missed %v, excluded %d", report.Missed, report.AlwaysOnExcluded)
 			}
@@ -246,7 +242,7 @@ func TestSessionCoveragePublishesTheUnmatchableBlindSpot(t *testing.T) {
 		"before deleting, reverting, or overwriting any file holding uncommitted work", "blocking")
 	fixture.writeTranscript(t, transcriptCall{"Edit", filepath.Join(fixture.root, "internal", "wire.go")})
 
-	report, _ := fixture.analyse(t)
+	report, _ := fixture.analyze(t)
 	if len(report.Missed) != 0 || report.Unmatchable != 1 ||
 		!containsCoverageName(report.UnmatchableRules, "never-destroy-work.md") {
 		t.Errorf("unmatchable report = missed %v, count %d, rules %v",
@@ -528,7 +524,7 @@ func TestSessionCoverageReportHasTheLegacyMachineReadableSet(t *testing.T) {
 			t.Errorf("machine-readable report lacks %q: %s", name, raw)
 		}
 	}
-	clean := analyseSessionCoverage(nil, TranscriptFiles{Written: []string{}, RulesRead: []string{}})
+	clean := analyzeSessionCoverage(nil, TranscriptFiles{Written: []string{}, RulesRead: []string{}})
 	cleanRaw, err := json.Marshal(clean)
 	if err != nil {
 		t.Fatalf("marshal empty report: %v", err)

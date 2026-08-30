@@ -46,7 +46,7 @@ func fixture06ExecAnswerDriver(ctx context.Context, _ []string) error {
 	if len(publicFields) != 2 {
 		return fmt.Errorf("authorized key has %d fields, want 2", len(publicFields))
 	}
-	if err := os.WriteFile("testkey.pub", ssh.MarshalAuthorizedKey(sshPublicKey), 0o644); err != nil {
+	if err := os.WriteFile("testkey.pub", ssh.MarshalAuthorizedKey(sshPublicKey), 0o600); err != nil {
 		return fmt.Errorf("write SSH public key: %w", err)
 	}
 
@@ -111,9 +111,9 @@ environment {
 	if err != nil {
 		return fmt.Errorf("create daemon log: %w", err)
 	}
-	defer logFile.Close()
+	defer logFile.Close() //nolint:errcheck // fixture teardown
 
-	daemon := exec.Command("ze", "start", "exec-answer-unconditional.conf")
+	daemon := exec.CommandContext(ctx, "ze", "start", "exec-answer-unconditional.conf")
 	daemon.Stdout = os.Stdout
 	daemon.Stderr = logFile
 	daemon.Env = append(os.Environ(), "ze_test_bgp_port="+strconv.Itoa(10000+os.Getpid()%50000))
@@ -128,7 +128,7 @@ environment {
 	}()
 	defer fixture06StopDaemon(daemon, daemonDone)
 
-	addressPattern := regexp.MustCompile(`127\.0\.0\.1:([0-9]+)`)
+	addressPattern := regexp.MustCompile(`127\.0\.0\.1:(\d+)`)
 	var sshPort string
 	var daemonExited bool
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
@@ -167,16 +167,16 @@ environment {
 	ask := func(name, command string, wantedExit int) error {
 		bodyPath := name + ".body"
 		framePath := name + ".frame"
-		bodyFile, err := os.OpenFile(bodyPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+		bodyFile, err := os.OpenFile(bodyPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}
-		frameFile, err := os.OpenFile(framePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+		frameFile, err := os.OpenFile(framePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
-			bodyFile.Close()
+			bodyFile.Close() //nolint:errcheck // fixture teardown
 			return err
 		}
-		client := exec.CommandContext(ctx, "ssh",
+		client := exec.CommandContext(ctx, "ssh", //nolint:gosec // the fixture chooses the program and its arguments
 			"-o", "StrictHostKeyChecking=no",
 			"-o", "UserKnownHostsFile=/dev/null",
 			"-o", "LogLevel=ERROR",
@@ -205,7 +205,7 @@ environment {
 			exitCode = exitErr.ExitCode()
 		}
 		if exitCode != wantedExit {
-			frame, _ := os.ReadFile(framePath)
+			frame, _ := os.ReadFile(framePath) //nolint:gosec // the path is the fixture's own scratch file
 			return fmt.Errorf("%s exited %d, want %d\n%s", command, exitCode, wantedExit, frame)
 		}
 		frameInfo, err := os.Stat(framePath)
@@ -223,10 +223,10 @@ environment {
 		command    string
 		wantedExit int
 	}{
-		{name: "document", command: "show version", wantedExit: 0},
+		{name: "document", command: cmdShowVersion, wantedExit: 0},
 		{name: "streamed", command: "system command list | ndjson", wantedExit: 0},
-		{name: "unknown", command: "shwo bgp peers", wantedExit: 1},
-		{name: "failed", command: "show pki certificate name Жé", wantedExit: 1},
+		{name: valueUnknown, command: "shwo bgp peers", wantedExit: 1},
+		{name: outcomeFailed, command: "show pki certificate name Жé", wantedExit: 1},
 	} {
 		if err := ask(test.name, test.command, test.wantedExit); err != nil {
 			return err

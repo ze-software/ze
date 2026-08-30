@@ -40,11 +40,13 @@ type pluginShapesProcess struct {
 
 // Observe runs an actual compiled product binary and records all three parts of
 // its observable result: status, standard output, and standard error.
+type pluginShapesFixture struct{}
+
 func (f *pluginShapesFixture) Observe(ctx context.Context, dir string, env []string, stdin string, argv ...string) (pluginShapesResult, error) {
 	if len(argv) == 0 {
 		return pluginShapesResult{}, errors.New("Observe: empty command")
 	}
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 	if stdin != "" {
@@ -62,8 +64,7 @@ func (f *pluginShapesFixture) Observe(ctx context.Context, dir string, env []str
 	if err == nil {
 		return result, nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}
@@ -77,7 +78,7 @@ func (f *pluginShapesFixture) Dispatch(ctx context.Context, dir string, env []st
 		return nil, errors.New("Dispatch: empty command")
 	}
 	p := &pluginShapesProcess{done: make(chan struct{})}
-	p.cmd = exec.CommandContext(ctx, argv[0], argv[1:]...)
+	p.cmd = exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	p.cmd.Dir = dir
 	p.cmd.Env = env
 	p.cmd.Stdout = &p.stdout
@@ -98,7 +99,7 @@ func (f *pluginShapesFixture) Dispatch(ctx context.Context, dir string, env []st
 // Poll evaluates observe immediately and then at the requested interval. An
 // observation error aborts the poll rather than being mistaken for a timeout.
 func (f *pluginShapesFixture) Poll(ctx context.Context, attempts int, delay time.Duration, observe func() (bool, error)) (bool, error) {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		ready, err := observe()
 		if err != nil || ready {
 			return ready, err
@@ -119,15 +120,13 @@ func (f *pluginShapesFixture) Poll(ctx context.Context, attempts int, delay time
 	return false, nil
 }
 
-type pluginShapesFixture struct{}
-
 func showBGPPluginShapes(ctx context.Context) error {
 	f := &pluginShapesFixture{}
 	dir, err := os.MkdirTemp("", "ze-show-bgp-plugin-shapes-")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(dir) //nolint:errcheck // fixture cleanup
 
 	baseEnv := setPluginShapesEnv(os.Environ(), "PWD", dir)
 	passwd, err := f.Observe(ctx, dir, baseEnv, "secret\n", "ze", "passwd")
@@ -185,7 +184,7 @@ system {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "shapes.conf"), []byte(config), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "shapes.conf"), []byte(config), 0o600); err != nil {
 		return err
 	}
 
@@ -215,7 +214,7 @@ system {
 			daemon.mu.Lock()
 			waitErr := daemon.waitErr
 			daemon.mu.Unlock()
-			return false, fmt.Errorf("daemon exited early (%v)\nstdout:\n%s\nstderr:\n%s", waitErr, daemon.stdout.String(), daemon.stderr.String())
+			return false, fmt.Errorf("daemon exited early (%w)\nstdout:\n%s\nstderr:\n%s", waitErr, daemon.stdout.String(), daemon.stderr.String())
 		default:
 		}
 		_, addrErr := os.Stat(sshAddrPath)
@@ -229,7 +228,7 @@ system {
 		return errors.New("daemon did not become ready")
 	}
 
-	addrBytes, err := os.ReadFile(sshAddrPath)
+	addrBytes, err := os.ReadFile(sshAddrPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -290,12 +289,12 @@ system {
 		result, observeErr := f.Observe(ctx, dir, cliEnv, "", "ze", "cli", "-c", "show bgp rpki cache | json")
 		if observeErr != nil || result.code != 0 {
 			lastCacheRows = nil
-			return false, nil
+			return false, nil //nolint:nilerr // the daemon has not published the cache yet, so the poll continues
 		}
 		rows, rowsErr := pluginShapesRowsOf(result.stdout, "cache-servers")
 		if rowsErr != nil {
 			lastCacheRows = nil
-			return false, nil
+			return false, nil //nolint:nilerr // the rows are not shaped yet, so the poll continues
 		}
 		lastCacheRows = rows
 		return len(rows) == 2, nil
@@ -321,7 +320,7 @@ system {
 	}
 	for _, row := range displayed {
 		keys := pluginShapesSortedKeys(row)
-		if len(keys) != 2 || keys[0] != "address" || keys[1] != "state" {
+		if len(keys) != 2 || keys[0] != columnAddress || keys[1] != columnState {
 			return fmt.Errorf("`| display address state` answered fields %v", keys)
 		}
 	}
@@ -374,18 +373,18 @@ system {
 		reason   string
 	}{
 		// AC-11 and AC-12, followed by the other document-shaped answers.
-		{"show bgp rpki summary | first 2", "first", "one document"},
-		{"show bgp rpki status | count", "count", "one document"},
-		{"show bgp rs status | count", "count", "one document"},
-		{"show bgp adj-rib-in | first 1", "first", "one document"},
-		{"show bgp adj-rib-in | count", "count", "one document"},
-		{"show bgp adj-rib-in status | count", "count", "one document"},
+		{"show bgp rpki summary | first 2", pipeFirst, shapeOneDocument},
+		{"show bgp rpki status | count", pipeCount, shapeOneDocument},
+		{"show bgp rs status | count", pipeCount, shapeOneDocument},
+		{"show bgp adj-rib-in | first 1", pipeFirst, shapeOneDocument},
+		{"show bgp adj-rib-in | count", pipeCount, shapeOneDocument},
+		{"show bgp adj-rib-in status | count", pipeCount, shapeOneDocument},
 		// AC-10b: address-field requirements are declared per child command.
-		{"show bgp rpki summary | resolve", "resolve", "IP address"},
-		{"show bgp rpki aspa | origin", "origin", "IP address"},
-		{"show bgp rs status | resolve", "resolve", "IP address"},
-		{"show bgp adj-rib-in | resolve", "resolve", "IP address"},
-		{"show bgp healthcheck | resolve", "resolve", "IP address"},
+		{"show bgp rpki summary | resolve", pipeResolve, shapeIPAddress},
+		{"show bgp rpki aspa | origin", pipeOrigin, shapeIPAddress},
+		{"show bgp rs status | resolve", pipeResolve, shapeIPAddress},
+		{"show bgp adj-rib-in | resolve", pipeResolve, shapeIPAddress},
+		{"show bgp healthcheck | resolve", pipeResolve, shapeIPAddress},
 	}
 	for _, refusalCase := range refusals {
 		text, err := refusal(refusalCase.command)

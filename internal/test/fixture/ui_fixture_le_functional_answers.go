@@ -32,7 +32,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 	if err != nil {
 		return uiLeFunctionalAnswersFailf("creating the fixture directory: %v", err)
 	}
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 	binary, err := uiLEBinary(root)
 	if err != nil {
 		return uiLeFunctionalAnswersFailf("%v", err)
@@ -73,7 +73,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 
 	gating := 0
 	seenNames := make(map[string]struct{}, len(suites))
-	wantFields := []string{"name", "gating", "action", "rerun", "budget", "budget-variable", "command", "why"}
+	wantFields := []string{fieldName, "gating", "action", fieldRerun, "budget", "budget-variable", fieldCommand, "why"}
 	for i, row := range suites {
 		if len(row) != len(wantFields) {
 			return uiLeFunctionalAnswersFailf("suite row %d has %d fields, want exactly %v", i, len(row), wantFields)
@@ -146,7 +146,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 	}
 
 	// One payload through every supported rendering used by this contract.
-	for _, operator := range []string{"yaml", "table"} {
+	for _, operator := range []string{renderYAML, renderTable} {
 		rendered, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "functional", "list", "|", operator)
 		if err != nil {
 			return err
@@ -229,7 +229,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 func uiLeFunctionalAnswersRunCommand(ctx context.Context, dir, program string, args ...string) (uiLeFunctionalAnswersCommandResult, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, program, args...)
+	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -242,8 +242,7 @@ func uiLeFunctionalAnswersRunCommand(ctx context.Context, dir, program string, a
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return uiLeFunctionalAnswersCommandResult{}, uiLeFunctionalAnswersFailf("running %s: %v", program, ctxErr)
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.exitCode = exitErr.ExitCode()
 		return result, nil
 	}

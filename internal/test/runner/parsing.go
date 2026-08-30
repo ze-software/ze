@@ -578,7 +578,7 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 	cmdLine := ci.Exec
 	if strings.HasPrefix(cmdLine, "ze ") {
 		cmdLine = r.zePath + cmdLine[2:]
-	} else if cmdLine == "ze" {
+	} else if cmdLine == binNameZe {
 		cmdLine = r.zePath
 	}
 

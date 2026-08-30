@@ -34,7 +34,7 @@ func captureInterface04(ctx context.Context, p *sdk.Plugin) error {
 		if err != nil {
 			return err
 		}
-		if status != "error" {
+		if status != statusError {
 			return fmt.Errorf("%s: expected error, got %s", check.command, status)
 		}
 		text := fmt.Sprint(value)
@@ -99,7 +99,7 @@ func grammarActionFirst04(ctx context.Context, p *sdk.Plugin) error {
 	}
 	if !Poll(ctx, 100, 200*time.Millisecond, func() bool {
 		data, err := requireDone04(ctx, p, "show bgp")
-		return err == nil && number04(findPeer04(data, "127.0.0.1")["eor-sent"]) >= 1
+		return err == nil && number04(findPeer04(data)["eor-sent"]) >= 1
 	}) {
 		return errors.New("ze did not send the End-of-RIB to peer1 before shutdown")
 	}
@@ -149,14 +149,14 @@ func logSet04(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	newLevels, _ := changed["levels"].(map[string]any)
-	if newLevels[name] != "debug" {
+	if newLevels[name] != logLevelDebug {
 		return fmt.Errorf("%s level is %v, expected debug", name, newLevels[name])
 	}
 	status, _, err := command04(ctx, p, "request log level nonexistent info")
 	if err != nil {
 		return err
 	}
-	if status != "error" {
+	if status != statusError {
 		return errors.New("expected error for unknown subsystem")
 	}
 	fmt.Fprintf(os.Stderr, "OK: %s level changed to debug and unknown subsystem rejected\n", name)
@@ -175,7 +175,7 @@ func metricsListData04(ctx context.Context, p *sdk.Plugin) (map[string]any, []st
 	return data, names, nil
 }
 
-func requireNames04(names []string, required []string) error {
+func requireNames04(names, required []string) error {
 	set := make(map[string]struct{}, len(names))
 	for _, name := range names {
 		set[name] = struct{}{}
@@ -198,7 +198,7 @@ func waitMetricsNames04(ctx context.Context, p *sdk.Plugin, required []string) (
 	_, value, err := pollCommand04(ctx, p, 40, "show metrics list", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
 		names := stringSlice04(data["names"])
-		return status == "done" && requireNames04(names, required) == nil
+		return status == statusDone && requireNames04(names, required) == nil
 	})
 	if err != nil {
 		return nil, err
@@ -228,10 +228,10 @@ func metricsList04(ctx context.Context, p *sdk.Plugin) error {
 
 func metricsListDeep04(ctx context.Context, p *sdk.Plugin) error {
 	required := []string{
-		"ze_peer_sessions_established_total", "ze_peer_session_flaps_total", "ze_peer_state_transitions_total",
+		"ze_peer_sessions_established_total", "ze_peer_session_flaps_total", metricPeerStateTransitions,
 		"ze_peer_notifications_sent_total", "ze_peer_notifications_received_total", "ze_peer_session_duration_seconds",
 		"ze_bgp_connect_retry_counter", "ze_forward_congestion_events_total", "ze_forward_congestion_resumed_total",
-		"ze_bgp_pool_used_ratio", "ze_bgp_overflow_items", "ze_bgp_overflow_ratio", "ze_config_reloads_total",
+		metricPoolUsedRatio, "ze_bgp_overflow_items", "ze_bgp_overflow_ratio", "ze_config_reloads_total",
 		"ze_config_reload_errors_total", "ze_peers_added_total", "ze_peers_removed_total", "ze_wire_bytes_received_total",
 		"ze_wire_bytes_sent_total", "ze_wire_read_errors_total", "ze_wire_write_errors_total",
 	}
@@ -278,14 +278,14 @@ func metricsDeepShow04(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	required := []string{
-		"ze_peer_sessions_established_total", "ze_peer_state_transitions_total", "ze_bgp_pool_used_ratio",
+		"ze_peer_sessions_established_total", metricPeerStateTransitions, metricPoolUsedRatio,
 		"ze_config_reloads_total", "ze_peers_added_total", "ze_peers_removed_total", "ze_wire_bytes_received_total",
 		"ze_wire_bytes_sent_total", "ze_uptime_seconds", "ze_peers_configured",
 	}
 	_, value, err := pollCommand04(ctx, p, 40, "show metrics values", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
 		text, _ := data["metrics"].(string)
-		if status != "done" || text == "" {
+		if status != statusDone || text == "" {
 			return false
 		}
 		for _, name := range required {
@@ -325,7 +325,7 @@ func runCommand04(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if status != "done" || value == nil {
+	if status != statusDone || value == nil {
 		return fmt.Errorf("empty help response or status=%s", status)
 	}
 	encoded, _ := json.Marshal(value)
@@ -359,17 +359,17 @@ func commitRejectPlugin04(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer p.Close()
+	defer p.Close() //nolint:errcheck // fixture teardown
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root == "bgp" && strings.Contains(section.Data, "2.2.2.2") {
+			if section.Root == namespaceBGP && strings.Contains(section.Data, "2.2.2.2") {
 				fmt.Fprintln(os.Stderr, "OK: rejecting candidate router-id 2.2.2.2")
 				return errors.New("reject router-id 2.2.2.2")
 			}
 		}
 		return nil
 	})
-	return p.Run(ctx, sdk.Registration{WantsConfig: []string{"bgp"}})
+	return p.Run(ctx, sdk.Registration{WantsConfig: []string{namespaceBGP}})
 }
 
 func cliCommitDriver04(reject bool) Driver {
@@ -381,7 +381,7 @@ func cliCommitDriver04(reject bool) Driver {
 		if err != nil {
 			return err
 		}
-		if err := os.MkdirAll(clientDir, 0o755); err != nil {
+		if err := os.MkdirAll(clientDir, 0o750); err != nil {
 			return err
 		}
 		env := overrideEnv04(os.Environ(),
@@ -430,7 +430,7 @@ func cliCommitDriver04(reject bool) Driver {
 }
 
 func runCommandProcess04(ctx context.Context, env []string, input io.Reader, name string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 	cmd.Stdin = input
 	var output bytes.Buffer
@@ -460,25 +460,25 @@ func overrideEnv04(base []string, values ...string) []string {
 }
 
 func driveEditor04(ctx context.Context, env []string, config string, reject bool) (string, error) {
-	cmd := exec.CommandContext(ctx, "ze", "config", "edit", "-f", config)
+	cmd := exec.CommandContext(ctx, "ze", "config", "edit", "-f", config) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 	terminal, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 30, Cols: 120})
 	if err != nil {
 		return "", err
 	}
-	defer terminal.Close()
-	transcript, _, err := readPTYUntil04(terminal, nil, 20*time.Second, false, "\x1b[?1049h", "╭")
+	defer terminal.Close() //nolint:errcheck // fixture teardown
+	transcript, err := readPTYUntil04(terminal, nil, 20*time.Second, false, "\x1b[?1049h", "╭")
 	if err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 		return transcript, fmt.Errorf("config editor did not draw its first frame: %w", err)
 	}
 	send := func(command string, needles ...string) error {
-		if _, err := terminal.Write([]byte(command + "\r")); err != nil {
+		if _, err := terminal.WriteString(command + "\r"); err != nil {
 			return fmt.Errorf("config editor closed before command %q: %w", command, err)
 		}
 		var chunk string
-		chunk, _, err = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, false, needles...)
+		chunk, err = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, false, needles...)
 		transcript = chunk
 		return err
 	}
@@ -501,27 +501,27 @@ func driveEditor04(ctx context.Context, env []string, config string, reject bool
 	} else if strings.Contains(transcript, "commit failed:") || strings.Contains(transcript, "commit blocked:") {
 		return transcript, errors.New("config editor rejected the commit")
 	}
-	if _, err := terminal.Write([]byte("quit\r")); err != nil {
+	if _, err := terminal.WriteString("quit\r"); err != nil {
 		return transcript, err
 	}
-	transcript, _, _ = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, true)
+	transcript, _ = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, true)
 	if err := cmd.Wait(); err != nil {
 		return transcript, fmt.Errorf("config editor exited: %w\n%s", err, transcript)
 	}
 	return transcript, nil
 }
 
-func readPTYUntil04(file *os.File, initial []byte, timeout time.Duration, eofOK bool, needles ...string) (string, bool, error) {
+func readPTYUntil04(file *os.File, initial []byte, timeout time.Duration, eofOK bool, needles ...string) (string, error) {
 	buf := append([]byte(nil), initial...)
 	deadline := time.Now().Add(timeout)
 	for {
 		for _, needle := range needles {
 			if bytes.Contains(buf, []byte(needle)) {
-				return string(buf), false, nil
+				return string(buf), nil
 			}
 		}
 		if time.Now().After(deadline) {
-			return string(buf), false, errors.New("output deadline expired")
+			return string(buf), errors.New("output deadline expired")
 		}
 		_ = file.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 		chunk := make([]byte, 65536)
@@ -534,13 +534,13 @@ func readPTYUntil04(file *os.File, initial []byte, timeout time.Duration, eofOK 
 				continue
 			}
 			if eofOK && (errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed)) {
-				return string(buf), true, nil
+				return string(buf), nil
 			}
 			var opErr *os.PathError
 			if eofOK && errors.As(err, &opErr) {
-				return string(buf), true, nil
+				return string(buf), nil
 			}
-			return string(buf), false, err
+			return string(buf), err
 		}
 	}
 }

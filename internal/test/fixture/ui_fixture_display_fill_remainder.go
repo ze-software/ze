@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,9 +30,9 @@ type managedProcess struct {
 	waitErr error
 }
 
-func startManagedProcess(argv []string, dir string, env []string) (*managedProcess, error) {
+func startManagedProcess(ctx context.Context, argv []string, dir string, env []string) (*managedProcess, error) {
 	p := &managedProcess{done: make(chan struct{})}
-	p.cmd = exec.Command(argv[0], argv[1:]...)
+	p.cmd = exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	p.cmd.Dir = dir
 	p.cmd.Env = env
 	p.cmd.Stdout = &p.stdout
@@ -103,7 +104,7 @@ func displayFillRemainder(ctx context.Context) (retErr error) {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(dir) //nolint:errcheck // fixture cleanup
 
 	passwordHash, err := zePasswordHash(ctx, dir, "secret\n")
 	if err != nil {
@@ -161,7 +162,7 @@ system {
 }
 `
 	configPath := filepath.Join(dir, "peers.conf")
-	if err := os.WriteFile(configPath, []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write peers.conf: %w", err)
 	}
 
@@ -172,15 +173,15 @@ system {
 		return err
 	}
 	daemonEnv := uiDisplayFillRemainderEnvironmentWith(os.Environ(), map[string]string{
-		"ZE_SSH_EPHEMERAL": sshAddrPath,
-		"ZE_READY_FILE":    readyPath,
-		"ZE_CONFIG_DIR":    dir,
+		envSSHEphemeral: sshAddrPath,
+		envReadyFile:    readyPath,
+		envConfigDir:    dir,
 		// Leave port 179 alone: the suite runs unprivileged, and a bind
 		// failure there takes the daemon down before it writes ready.
-		"ze_test_bgp_port": fmt.Sprintf("%d", bgpPort),
+		envTestBGPPort: fmt.Sprintf("%d", bgpPort),
 	})
 
-	daemon, err := startManagedProcess([]string{"ze", "-f", "peers.conf"}, dir, daemonEnv)
+	daemon, err := startManagedProcess(ctx, []string{"ze", "-f", "peers.conf"}, dir, daemonEnv)
 	if err != nil {
 		return fmt.Errorf("start daemon: %w", err)
 	}
@@ -194,7 +195,7 @@ system {
 	ready := Poll(ctx, 200, 100*time.Millisecond, func() bool {
 		if daemon.exited() {
 			stdout, stderr := daemon.output()
-			readyErr = fmt.Errorf("daemon exited early: %v\nstdout:\n%s\nstderr:\n%s", daemon.result(), stdout, stderr)
+			readyErr = fmt.Errorf("daemon exited early: %w\nstdout:\n%s\nstderr:\n%s", daemon.result(), stdout, stderr)
 			return true
 		}
 		return uiDisplayFillRemainderPathExists(sshAddrPath) && uiDisplayFillRemainderPathExists(readyPath)
@@ -206,7 +207,7 @@ system {
 		return errors.New("daemon did not become ready")
 	}
 
-	addrBytes, err := os.ReadFile(sshAddrPath)
+	addrBytes, err := os.ReadFile(sshAddrPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -218,11 +219,11 @@ system {
 	host, port := addr[:colon], addr[colon+1:]
 
 	cliEnv := uiDisplayFillRemainderEnvironmentWith(os.Environ(), map[string]string{
-		"ZE_SSH_HOST":     host,
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_USERNAME": "ci",
-		"ZE_SSH_PASSWORD": "secret",
-		"ZE_CONFIG_DIR":   dir,
+		envSSHHost:     host,
+		envSSHPort:     port,
+		envSSHUsername: "ci",
+		envSSHPassword: valueSecret,
+		envConfigDir:   dir,
 	})
 
 	// A bare | fill brings the rest back in the order the command declared.
@@ -231,11 +232,11 @@ system {
 	if err != nil {
 		return err
 	}
-	header, err := tableHeader(out, "state")
+	header, err := tableHeader(out)
 	if err != nil {
 		return err
 	}
-	if err := uiDisplayFillRemainderRequire(len(header) > 0 && header[0] == "state", "the displayed column must lead: %q", header); err != nil {
+	if err := uiDisplayFillRemainderRequire(len(header) > 0 && header[0] == columnState, "the displayed column must lead: %q", header); err != nil {
 		return err
 	}
 	if err := uiDisplayFillRemainderRequire(len(header) > 2, "nothing was filled in, so this file proves nothing: %q", header); err != nil {
@@ -251,7 +252,7 @@ system {
 	if err != nil {
 		return err
 	}
-	header, err = tableHeader(out, "state")
+	header, err = tableHeader(out)
 	if err != nil {
 		return err
 	}
@@ -268,11 +269,11 @@ system {
 	if err != nil {
 		return err
 	}
-	header, err = tableHeader(out, "state")
+	header, err = tableHeader(out)
 	if err != nil {
 		return err
 	}
-	if err := uiDisplayFillRemainderRequire(len(header) > 0 && header[0] == "state", "the displayed column must lead: %q", header); err != nil {
+	if err := uiDisplayFillRemainderRequire(len(header) > 0 && header[0] == columnState, "the displayed column must lead: %q", header); err != nil {
 		return err
 	}
 	if err := uiDisplayFillRemainderRequire(uiDisplayFillRemainderEqualStrings(header[1:], sortedStrings(header[1:], false)), "the remaining columns are not in name order: %q", header); err != nil {
@@ -288,11 +289,11 @@ system {
 	if err != nil {
 		return err
 	}
-	reversedHeader, err := tableHeader(out, "state")
+	reversedHeader, err := tableHeader(out)
 	if err != nil {
 		return err
 	}
-	if err := uiDisplayFillRemainderRequire(len(reversedHeader) > 0 && reversedHeader[0] == "state", "the displayed column must still lead: %q", reversedHeader); err != nil {
+	if err := uiDisplayFillRemainderRequire(len(reversedHeader) > 0 && reversedHeader[0] == columnState, "the displayed column must still lead: %q", reversedHeader); err != nil {
 		return err
 	}
 	if err := uiDisplayFillRemainderRequire(uiDisplayFillRemainderEqualStrings(reversedHeader[1:], sortedStrings(reversedHeader[1:], true)), "reverse did not flip the name order: %q", reversedHeader); err != nil {
@@ -302,7 +303,7 @@ system {
 		return err
 	}
 
-	fmt.Fprintln(os.Stdout, "OK")
+	fmt.Fprintln(os.Stdout, "OK") //nolint:errcheck // progress output
 	return nil
 }
 
@@ -321,7 +322,7 @@ func zePasswordHash(ctx context.Context, dir, input string) (string, error) {
 }
 
 func uiDisplayFillRemainderRunCLI(ctx context.Context, dir string, env []string, command string) (string, error) {
-	cmd := exec.CommandContext(ctx, "ze", "cli", "-c", command)
+	cmd := exec.CommandContext(ctx, "ze", "cli", "-c", command) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 	var stdout, stderr bytes.Buffer
@@ -339,18 +340,21 @@ func uiDisplayFillRemainderRunCLI(ctx context.Context, dir string, env []string,
 	return "", fmt.Errorf("%s exit=%d: %s%s", command, exitCode, stdout.String(), stderr.String())
 }
 
-func tableHeader(text, marker string) ([]string, error) {
-	for _, line := range strings.Split(text, "\n") {
-		if !strings.Contains(line, marker) {
+// tableHeaderMarker names the column that marks the header row of a peer table.
+const tableHeaderMarker = "state"
+
+func tableHeader(text string) ([]string, error) {
+	for line := range strings.SplitSeq(text, "\n") {
+		if !strings.Contains(line, tableHeaderMarker) {
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) > 0 && (fields[0] == "peers" || fields[0] == "peer") {
+		if len(fields) > 0 && (fields[0] == aliasPeers || fields[0] == fieldPeer) {
 			return fields[1:], nil
 		}
 		return fields, nil
 	}
-	return nil, fmt.Errorf("no header row carrying %q in: %q", marker, text)
+	return nil, fmt.Errorf("no header row carrying %q in: %q", tableHeaderMarker, text)
 }
 
 func uiDisplayFillRemainderRequire(condition bool, format string, args ...any) error {
@@ -416,9 +420,7 @@ func uiDisplayFillRemainderEnvironmentWith(base []string, overrides map[string]s
 			values[key] = value
 		}
 	}
-	for key, value := range overrides {
-		values[key] = value
-	}
+	maps.Copy(values, overrides)
 
 	keys := make([]string, 0, len(values))
 	for key := range values {

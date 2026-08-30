@@ -30,7 +30,7 @@ func plugin15SubscriberEnricher(ctx context.Context, p *sdk.Plugin) error {
 	}
 	for _, value := range profiles {
 		profile, _ := value.(map[string]any)
-		if profile["name"] == "residential" {
+		if profile["name"] == profileResidential {
 			return plugin15WaitEOR(ctx, p, "peer1")
 		}
 	}
@@ -56,11 +56,11 @@ func plugin15SubscriberSummary(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("show subscriber sessions=%d want 0", len(sessions))
 	}
 	missing := plugin15Dispatch(ctx, p, "show subscriber id detail")
-	if missing.status != "error" {
+	if missing.status != statusError {
 		return fmt.Errorf("show subscriber id detail (no id): expected rejection")
 	}
 	unknown := plugin15Dispatch(ctx, p, "show subscriber id nonexistent-id detail")
-	if unknown.status != "error" {
+	if unknown.status != statusError {
 		return fmt.Errorf("show subscriber detail nonexistent-id: expected status=error got %q", unknown.status)
 	}
 	if !strings.Contains(unknown.text(), "not found") {

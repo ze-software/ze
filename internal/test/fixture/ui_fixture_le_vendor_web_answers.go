@@ -52,7 +52,7 @@ func leVendorWebAnswers(parent context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: create work directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 	binary, err := uiLEBinary(root)
 	if err != nil {
 		return fmt.Errorf("FAIL: %w", err)
@@ -92,7 +92,7 @@ func leVendorWebAnswers(parent context.Context) error {
 		if len(preview) > 400 {
 			preview = preview[:400]
 		}
-		return fmt.Errorf("FAIL: `le vendor-web check | json` did not answer JSON: %v\n%s", err, preview)
+		return fmt.Errorf("FAIL: `le vendor-web check | json` did not answer JSON: %w\n%s", err, preview)
 	}
 	for _, key := range []string{"problems", "compared", "skipped", "drift-checked"} {
 		if _, ok := report[key]; !ok {
@@ -150,13 +150,13 @@ func leVendorWebAnswers(parent context.Context) error {
 	if listing.stderr != "" {
 		return fmt.Errorf("FAIL: `le vendor-web` wrote stderr: %q", listing.stderr)
 	}
-	for _, wanted := range []string{"check", "sync", "update-report", "writes", "checks"} {
+	for _, wanted := range []string{actionCheck, "sync", "update-report", wordWrites, fieldChecks} {
 		if !strings.Contains(listing.stdout, wanted) {
 			return fmt.Errorf("FAIL: the listing does not name %q:\n%s", wanted, listing.stdout)
 		}
 	}
 	foundSync := false
-	for _, line := range strings.Split(listing.stdout, "\n") {
+	for line := range strings.SplitSeq(listing.stdout, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "sync ") {
 			foundSync = true
@@ -176,7 +176,7 @@ func leVendorWebAnswers(parent context.Context) error {
 	pristine := make([]map[string][]byte, 0, 2)
 	for _, name := range []string{"first-tree", "second-tree"} {
 		tree := filepath.Join(work, name)
-		if err := os.MkdirAll(tree, 0o755); err != nil {
+		if err := os.MkdirAll(tree, 0o750); err != nil {
 			return fmt.Errorf("FAIL: create %s: %w", name, err)
 		}
 		for _, subtree := range leVendorWebSubtrees {
@@ -188,7 +188,7 @@ func leVendorWebAnswers(parent context.Context) error {
 		if err != nil {
 			return fmt.Errorf("FAIL: digest pristine %s: %w", name, err)
 		}
-		if err := os.WriteFile(filepath.Join(tree, filepath.FromSlash(leVendorWebCorrupted)), []byte("// an edited consumer copy\n"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(tree, filepath.FromSlash(leVendorWebCorrupted)), []byte("// an edited consumer copy\n"), 0o600); err != nil {
 			return fmt.Errorf("FAIL: corrupt %s in %s: %w", leVendorWebCorrupted, name, err)
 		}
 		trees = append(trees, tree)
@@ -242,7 +242,7 @@ func leVendorWebAnswers(parent context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: read restored consumer: %w", err)
 	}
-	source, err := os.ReadFile(filepath.Join(root, "third_party", "web", "htmx", "htmx.min.js"))
+	source, err := os.ReadFile(filepath.Join(root, "third_party", "web", "htmx", "htmx.min.js")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("FAIL: read vendored source: %w", err)
 	}
@@ -264,7 +264,7 @@ func leVendorWebAnswers(parent context.Context) error {
 
 func leVendorWebRun(ctx context.Context, dir string, env []string, program string, args ...string) (leVendorWebResult, error) {
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, program, args...)
+	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 	cmd.Stdout = &stdout
@@ -274,8 +274,7 @@ func leVendorWebRun(ctx context.Context, dir string, env []string, program strin
 	if err == nil {
 		return result, nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}
@@ -337,12 +336,12 @@ func leVendorWebCopyTree(src, dst string) error {
 }
 
 func leVendorWebCopyFile(src, dst string, mode os.FileMode) error {
-	in, err := os.Open(src)
+	in, err := os.Open(src) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
-	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
+	defer in.Close()                                                       //nolint:errcheck // fixture teardown
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -380,7 +379,7 @@ func leVendorWebDigest(root string) (map[string][]byte, error) {
 		if entry.IsDir() {
 			return nil
 		}
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}

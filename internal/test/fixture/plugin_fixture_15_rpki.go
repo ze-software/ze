@@ -74,7 +74,7 @@ func plugin15RPKIPerPeer(ctx context.Context, p *sdk.Plugin) error {
 	}
 	rib := plugin15Dispatch(ctx, p, "show bgp adj-rib-in")
 	if !plugin15Done(rib) || !strings.Contains(rib.text(), "10.0.1.0/24") {
-		return fmt.Errorf("Invalid route 10.0.1.0/24 should be ACCEPTED via per-peer override: status=%s data=%s", rib.status, rib.text())
+		return fmt.Errorf("invalid route 10.0.1.0/24 should be ACCEPTED via per-peer override: status=%s data=%s", rib.status, rib.text())
 	}
 	status, err := plugin15Map(plugin15Dispatch(ctx, p, "show bgp rpki status"))
 	if err != nil {
@@ -84,7 +84,7 @@ func plugin15RPKIPerPeer(ctx context.Context, p *sdk.Plugin) error {
 	var entry map[string]any
 	for _, row := range rows {
 		m, _ := row.(map[string]any)
-		if m["peer"] == "127.0.0.1" {
+		if m["peer"] == addrLoopback {
 			entry = m
 			break
 		}
@@ -93,7 +93,7 @@ func plugin15RPKIPerPeer(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("peer-actions missing 127.0.0.1: %v", rows)
 	}
 	invalid, _ := entry["invalid"].(map[string]any)
-	if invalid["action"] != "accept" || invalid["source"] != "peer" {
+	if invalid["action"] != actionAccept || invalid["source"] != sourcePeer {
 		return fmt.Errorf("peer 127.0.0.1 invalid action/source wrong: %v", invalid)
 	}
 	notFound, _ := entry["not-found"].(map[string]any)

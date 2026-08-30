@@ -28,7 +28,13 @@ const (
 	cmdReload    = "reload"
 	cmdChaosWeb  = "chaos-web"
 	cmdChaosIntg = "chaos"
+	cmdEncode    = "encode"
+	cmdDecode    = "decode"
+	cmdParse     = "parse"
 )
+
+// packageZe is the Go package every binary this runner builds comes from.
+const packageZe = "./cmd/ze"
 
 // bgpCIRunnerDirs is the set of "ze-test bgp <sub>" subcommands. Each name is
 // also the test/<name> directory that subcommand walks (see zeTestRunEncodingOrAPI
@@ -37,10 +43,10 @@ const (
 // guard (TestCIRootsRegistered): those dirs are covered by a big runner, not
 // registerCIRoot.
 var bgpCIRunnerDirs = map[string]bool{
-	"encode":     true,
+	cmdEncode:    true,
 	cmdPlugin:    true,
-	"decode":     true,
-	"parse":      true,
+	cmdDecode:    true,
+	cmdParse:     true,
 	cmdReload:    true,
 	cmdChaosIntg: true,
 	cmdChaosWeb:  true,
@@ -78,11 +84,11 @@ func zeTestBgpMain(args []string) error {
 	}
 
 	switch cli.command {
-	case "encode", cmdPlugin, cmdReload, cmdChaosWeb, cmdChaosIntg:
+	case cmdEncode, cmdPlugin, cmdReload, cmdChaosWeb, cmdChaosIntg:
 		return zeTestRunEncodingOrAPI(ctx, cli, baseDir)
-	case "decode":
+	case cmdDecode:
 		return zeTestRunSimpleTests(ctx, cli, baseDir, zeTestNewDecodingTestSuite)
-	case "parse":
+	case cmdParse:
 		return zeTestRunSimpleTests(ctx, cli, baseDir, zeTestNewParsingTestSuite)
 	default:
 		return fmt.Errorf("unknown command: %s", cli.command)
@@ -156,10 +162,10 @@ func zeTestRunSimpleTests(ctx context.Context, cli *zeTestRunCLIFlags, baseDir s
 
 	var testDir string
 	switch cli.command {
-	case "decode":
-		testDir = runner.SuiteDir(baseDir, "decode", cli.draft)
-	case "parse":
-		testDir = runner.SuiteDir(baseDir, "parse", cli.draft)
+	case cmdDecode:
+		testDir = runner.SuiteDir(baseDir, cmdDecode, cli.draft)
+	case cmdParse:
+		testDir = runner.SuiteDir(baseDir, cmdParse, cli.draft)
 	}
 
 	if err := tests.Discover(testDir); err != nil {
@@ -215,7 +221,7 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	runner.ResetNickCounter()
 
 	tests := runner.NewEncodingTests(baseDir)
-	suite := "encode"
+	suite := cmdEncode
 	switch cli.command {
 	case cmdPlugin:
 		suite = "plugin"
@@ -287,12 +293,12 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	switch cli.command {
 	case cmdChaosWeb:
 		r.SetExtraBinaries(map[string]runner.ExtraBinary{
-			"ze-chaos": {Pkg: "./cmd/ze", Tags: chaosTags},
+			"ze-chaos": {Pkg: packageZe, Tags: chaosTags},
 		})
 	case cmdChaosIntg:
 		r.SetExtraBinaries(map[string]runner.ExtraBinary{
-			"ze-chaos": {Pkg: "./cmd/ze", Tags: chaosTags},
-			"ze":       {Pkg: "./cmd/ze"},
+			"ze-chaos": {Pkg: packageZe, Tags: chaosTags},
+			"ze":       {Pkg: packageZe},
 		})
 	}
 
@@ -495,7 +501,7 @@ func buildZe(ctx context.Context, baseDir string) (string, error) {
 		}
 		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)
 	}
-	cmd := exec.CommandContext(ctx, "go", "build", "-tags", runner.TestBuildTags(), "-o", zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	cmd := exec.CommandContext(ctx, "go", "build", "-tags", runner.TestBuildTags(), "-o", zePath, packageZe) //nolint:gosec // paths from internal runner
 	cmd.Dir = baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {

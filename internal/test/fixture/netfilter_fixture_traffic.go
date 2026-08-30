@@ -17,7 +17,7 @@ func sleepFixture(duration time.Duration) Driver {
 }
 
 func trafficReloadQdisc(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -28,7 +28,7 @@ func trafficReloadQdisc(ctx context.Context, _ []string) error {
 	if err := os.WriteFile("tc-before.txt", []byte(before), 0o600); err != nil {
 		return err
 	}
-	if err := copyFile("config2.conf", "ze-bgp.conf"); err != nil {
+	if err := stageReloadConfig(); err != nil {
 		return err
 	}
 	if err := signalProcess(pid, syscall.SIGHUP); err != nil {

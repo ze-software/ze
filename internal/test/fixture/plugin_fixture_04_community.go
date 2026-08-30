@@ -20,12 +20,12 @@ func communityAttributes04(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer p.Close()
+	defer p.Close() //nolint:errcheck // fixture teardown
 	events := make(chan map[string]any, 1)
 	p.OnEvent(func(event string) error {
 		var decoded map[string]any
 		if json.Unmarshal([]byte(event), &decoded) != nil {
-			return nil
+			return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
 		}
 		bgp, _ := decoded["bgp"].(map[string]any)
 		update, _ := bgp["update"].(map[string]any)
@@ -38,7 +38,7 @@ func communityAttributes04(ctx context.Context, args []string) error {
 		}
 		return nil
 	})
-	p.SetStartupSubscriptions([]string{"update"}, nil, "parsed")
+	p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
 	result := make(chan error, 1)
 	p.OnAllPluginsReady(func() error {
 		go func() {

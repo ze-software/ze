@@ -10,8 +10,7 @@ import (
 )
 
 func init() {
-	for _, name := range []string{"auth-reject", "cli-reads-meta-keys", "client-backup-start", "client-cached-boot", "client-first-boot", "client-reconnect", "client-reject-invalid", "config-change-notify", "file-namespace", "init-managed-key", "init-meta-keys", "per-client-auth"} {
-		name := name
+	for _, name := range []string{"auth-reject", scenarioCLIReadsMetaKeys, scenarioClientBackupStart, scenarioClientCachedBoot, scenarioClientFirstBoot, scenarioClientReconnect, "client-reject-invalid", scenarioConfigChangeNotify, "file-namespace", scenarioInitManagedKey, "init-meta-keys", "per-client-auth"} {
 		Register("managed/"+name, func(ctx context.Context, args []string) error { return managedLegacyScenario(ctx, name, args) })
 	}
 }
@@ -35,23 +34,23 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(dir) //nolint:errcheck // fixture cleanup
 	db := filepath.Join(dir, "database.zefs")
-	managed := scenario == "client-backup-start" || scenario == "client-cached-boot" || scenario == "client-first-boot" || scenario == "client-reconnect" || scenario == "init-managed-key"
+	managed := scenario == scenarioClientBackupStart || scenario == scenarioClientCachedBoot || scenario == scenarioClientFirstBoot || scenario == scenarioClientReconnect || scenario == scenarioInitManagedKey
 	name := ""
 	switch scenario {
-	case "client-backup-start", "client-cached-boot", "client-first-boot", "client-reconnect":
+	case scenarioClientBackupStart, scenarioClientCachedBoot, scenarioClientFirstBoot, scenarioClientReconnect:
 		name = "edge-01"
-	case "config-change-notify":
+	case scenarioConfigChangeNotify:
 		name = "hub-01"
 	}
-	host, port := "127.0.0.1", "2222"
-	if scenario == "cli-reads-meta-keys" {
-		host, port = "10.0.0.1", "3333"
+	host, port := addrLoopback, "2222"
+	if scenario == scenarioCLIReadsMetaKeys {
+		host, port = addrPeerOne, "3333"
 	}
 	input := "admin\nsecret123\n" + host + "\n" + port + "\n" + name + "\n"
-	env := miscEnvironment(map[string]string{"ZE_CONFIG_DIR": dir})
-	initArgs := []string{"init"}
+	env := miscEnvironment(map[string]string{envConfigDir: dir})
+	initArgs := []string{argInit}
 	if managed {
 		initArgs = append(initArgs, "--managed")
 	}
@@ -79,7 +78,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 			return errors.New("expected validation failure for short client secret")
 		}
 		fmt.Fprintln(os.Stderr, "OK: short per-client secret correctly rejected")
-	case "cli-reads-meta-keys":
+	case scenarioCLIReadsMetaKeys:
 		if err := mustEqual("meta/ssh/default", "10.0.0.1/3333"); err != nil {
 			return err
 		}
@@ -94,14 +93,14 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 			return errors.New("password is not a bcrypt hash")
 		}
 		fmt.Fprintln(os.Stderr, "OK: ze data reads meta/ssh/* keys")
-	case "client-backup-start", "client-cached-boot", "client-reconnect":
-		if scenario == "client-backup-start" {
+	case scenarioClientBackupStart, scenarioClientCachedBoot, scenarioClientReconnect:
+		if scenario == scenarioClientBackupStart {
 			if err := mustEqual("meta/instance/managed", "true"); err != nil {
 				return err
 			}
 		}
 		config := managedCachedBase + `plugin { hub { server local { ip 127.0.0.1; port 1790; secret "local-secret-that-is-at-least-32ch"; }`
-		if scenario != "client-cached-boot" {
+		if scenario != scenarioClientCachedBoot {
 			config += ` client edge-01 { host 10.0.0.1; port 1791; secret "client-token-that-is-at-least-32ch"; }`
 		}
 		config += " } }\n"
@@ -116,7 +115,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 		if err != nil || !strings.Contains(string(listing), "edge-01.conf") {
 			return fmt.Errorf("cached config not found: %w", err)
 		}
-		if scenario != "client-backup-start" {
+		if scenario != scenarioClientBackupStart {
 			active, err := cat("file/active/edge-01.conf")
 			if err != nil {
 				return err
@@ -125,9 +124,9 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 				return err
 			}
 		}
-		messages := map[string]string{"client-backup-start": "OK: cached config written for managed client", "client-cached-boot": "OK: cached config written and valid for managed boot", "client-reconnect": "OK: config with hub client block valid for reconnect"}
+		messages := map[string]string{scenarioClientBackupStart: "OK: cached config written for managed client", scenarioClientCachedBoot: "OK: cached config written and valid for managed boot", scenarioClientReconnect: "OK: config with hub client block valid for reconnect"}
 		fmt.Fprintln(os.Stderr, messages[scenario])
-	case "client-first-boot":
+	case scenarioClientFirstBoot:
 		if err := mustEqual("meta/instance/managed", "true"); err != nil {
 			return err
 		}
@@ -145,7 +144,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 			return errors.New("expected validation failure for invalid port")
 		}
 		fmt.Fprintln(os.Stderr, "OK: invalid hub config correctly rejected")
-	case "config-change-notify":
+	case scenarioConfigChangeNotify:
 		config := managedValidationConfig(false)
 		if _, err := commandOutput(ctx, "", os.Environ(), config, "ze", "config", "validate", "-"); err != nil {
 			return err
@@ -165,7 +164,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 			return errors.New("no file/active key found")
 		}
 		fmt.Fprintln(os.Stderr, "OK: config stored under file/active/ namespace")
-	case "init-managed-key":
+	case scenarioInitManagedKey:
 		if err := mustEqual("meta/instance/managed", "true"); err != nil {
 			return err
 		}

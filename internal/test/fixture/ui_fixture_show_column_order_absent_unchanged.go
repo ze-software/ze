@@ -42,7 +42,7 @@ func runShowColumnOrderAbsentUnchanged(ctx context.Context) (retErr error) {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(cwd)
+	defer os.RemoveAll(cwd) //nolint:errcheck // fixture cleanup
 
 	config := `bgp {
     router-id 192.0.2.254
@@ -80,7 +80,7 @@ system {
 }
 `
 	configPath := filepath.Join(cwd, "absent.conf")
-	if err := os.WriteFile(configPath, []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write absent.conf: %w", err)
 	}
 
@@ -92,10 +92,10 @@ system {
 		return err
 	}
 	daemonEnv := uiShowColumnOrderAbsentUnchangedReplaceEnv(os.Environ(), map[string]string{
-		"ZE_SSH_EPHEMERAL": sshAddressFile,
-		"ZE_READY_FILE":    readyFile,
-		"ZE_CONFIG_DIR":    cwd,
-		"ze_test_bgp_port": fmt.Sprintf("%d", bgpPort),
+		envSSHEphemeral: sshAddressFile,
+		envReadyFile:    readyFile,
+		envConfigDir:    cwd,
+		envTestBGPPort:  fmt.Sprintf("%d", bgpPort),
 	})
 
 	daemon, err := startManagedCommand(ctx, daemonEnv, "ze", "-f", configPath)
@@ -118,13 +118,9 @@ system {
 		default:
 		}
 
-		if _, err := os.Stat(sshAddressFile); err != nil {
-			return false, nil
-		}
-		if _, err := os.Stat(readyFile); err != nil {
-			return false, nil
-		}
-		return true, nil
+		_, sshErr := os.Stat(sshAddressFile)
+		_, readyErr := os.Stat(readyFile)
+		return sshErr == nil && readyErr == nil, nil
 	})
 	if err != nil {
 		return err
@@ -133,7 +129,7 @@ system {
 		return errors.New("daemon did not become ready")
 	}
 
-	addressBytes, err := os.ReadFile(sshAddressFile)
+	addressBytes, err := os.ReadFile(sshAddressFile) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -145,11 +141,11 @@ system {
 	host, port := address[:colon], address[colon+1:]
 
 	cliEnv := uiShowColumnOrderAbsentUnchangedReplaceEnv(os.Environ(), map[string]string{
-		"ZE_SSH_HOST":     host,
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_USERNAME": "ci",
-		"ZE_SSH_PASSWORD": "secret",
-		"ZE_CONFIG_DIR":   cwd,
+		envSSHHost:     host,
+		envSSHPort:     port,
+		envSSHUsername: "ci",
+		envSSHPassword: valueSecret,
+		envConfigDir:   cwd,
 	})
 
 	code, out, stderr, err := uiShowColumnOrderAbsentUnchangedRunCaptured(
@@ -197,7 +193,7 @@ system {
 
 func recordKeys(text string) []string {
 	var keys []string
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		if line == "" {
 			continue
 		}
@@ -233,7 +229,7 @@ func uiShowColumnOrderAbsentUnchangedPoll(
 	delay time.Duration,
 	check func() (bool, error),
 ) (bool, error) {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		ready, err := check()
 		if err != nil || ready {
 			return ready, err
@@ -258,11 +254,10 @@ func uiShowColumnOrderAbsentUnchangedPoll(
 func uiShowColumnOrderAbsentUnchangedRunCaptured(
 	ctx context.Context,
 	env []string,
-	stdin string,
-	name string,
+	stdin, name string,
 	args ...string,
-) (code int, stdout string, stderr string, startErr error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+) (code int, stdout, stderr string, startErr error) {
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	if env != nil {
 		cmd.Env = env
 	}
@@ -280,8 +275,7 @@ func uiShowColumnOrderAbsentUnchangedRunCaptured(
 	if err == nil {
 		return 0, stdout, stderr, nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exitErr.ExitCode(), stdout, stderr, nil
 	}
 	return -1, stdout, stderr, err
@@ -321,7 +315,7 @@ type managedCommand struct {
 }
 
 func startManagedCommand(ctx context.Context, env []string, name string, args ...string) (*managedCommand, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 
 	managed := &managedCommand{

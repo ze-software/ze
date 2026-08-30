@@ -18,11 +18,16 @@ import (
 )
 
 func availablePort09() (int, error) {
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	// The listener closes on the next line, so there is nothing to cancel.
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp4", "127.0.0.1:0")
 	if err != nil {
 		return 0, err
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return 0, fmt.Errorf("a tcp4 listener answered %T, want *net.TCPAddr", listener.Addr())
+	}
+	port := address.Port
 	if err := listener.Close(); err != nil {
 		return 0, err
 	}
@@ -30,11 +35,11 @@ func availablePort09() (int, error) {
 }
 
 func startProcess09(ctx context.Context, args []string, stdin io.Reader, environment []string, logPath string) (*exec.Cmd, error) {
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil, err
 	}
-	command := exec.CommandContext(ctx, "ze", args...)
+	command := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Stdin = stdin
 	command.Stdout = os.Stdout
 	command.Stderr = logFile
@@ -72,11 +77,11 @@ func stopProcess09(command *exec.Cmd) {
 func waitForLog09(ctx context.Context, path, needle string) (string, error) {
 	var content []byte
 	ready := Poll(ctx, 100, 200*time.Millisecond, func() bool {
-		content, _ = os.ReadFile(path)
+		content, _ = os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 		return bytes.Contains(content, []byte(needle))
 	})
 	if !ready {
-		content, _ = os.ReadFile(path)
+		content, _ = os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 		return string(content), fmt.Errorf("looking glass never announced a listener")
 	}
 	return string(content), nil
@@ -85,7 +90,7 @@ func waitForLog09(ctx context.Context, path, needle string) (string, error) {
 func lgTLSStatusBody09(ctx context.Context, port int) (string, error) {
 	transport := &http.Transport{Proxy: nil, TLSClientConfig: &tls.Config{InsecureSkipVerify: true}} //nolint:gosec // fixture proves the generated self-signed certificate is served
 	client := &http.Client{Transport: transport, Timeout: 10 * time.Second}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://127.0.0.1:"+strconv.Itoa(port)+"/api/looking-glass/status", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://127.0.0.1:"+strconv.Itoa(port)+"/api/looking-glass/status", http.NoBody)
 	if err != nil {
 		return "", err
 	}
@@ -93,7 +98,7 @@ func lgTLSStatusBody09(ctx context.Context, port int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("TLS request to the looking glass failed: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // the body is read
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", err
@@ -109,7 +114,7 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(root)
+	defer os.RemoveAll(root) //nolint:errcheck // fixture cleanup
 	adminDir := filepath.Join(root, "admin")
 	if err := os.Mkdir(adminDir, 0o700); err != nil {
 		return err
@@ -165,7 +170,7 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 	var daemon *exec.Cmd
 	defer func() { stopProcess09(daemon) }()
 	defaultLog := filepath.Join(root, "default.log")
-	daemon, err = startProcess09(ctx, []string{"start", defaultPath}, nil, environment, defaultLog)
+	daemon, err = startProcess09(ctx, []string{actionStart, defaultPath}, nil, environment, defaultLog)
 	if err != nil {
 		return fmt.Errorf("start default TLS daemon: %w", err)
 	}
@@ -190,7 +195,7 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 	daemon = nil
 
 	plaintextLog := filepath.Join(root, "plaintext.log")
-	daemon, err = startProcess09(ctx, []string{"start", plaintextPath}, nil, environment, plaintextLog)
+	daemon, err = startProcess09(ctx, []string{actionStart, plaintextPath}, nil, environment, plaintextLog)
 	if err != nil {
 		return fmt.Errorf("start plaintext daemon: %w", err)
 	}
@@ -209,7 +214,7 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 }
 
 func lgHTTPStatus09(ctx context.Context, port int, path, authorization string) (int, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:"+strconv.Itoa(port)+path, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:"+strconv.Itoa(port)+path, http.NoBody)
 	if err != nil {
 		return 0, err
 	}
@@ -220,7 +225,7 @@ func lgHTTPStatus09(ctx context.Context, port int, path, authorization string) (
 	if err != nil {
 		return 0, err
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // the body is read
 	return response.StatusCode, nil
 }
 
@@ -229,7 +234,7 @@ func lgTokenGate09(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(root)
+	defer os.RemoveAll(root) //nolint:errcheck // fixture cleanup
 	port, err := availablePort09()
 	if err != nil {
 		return err

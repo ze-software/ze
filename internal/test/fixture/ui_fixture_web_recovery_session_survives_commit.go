@@ -42,7 +42,7 @@ func runWebRecoverySessionSurvivesCommit(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer os.RemoveAll(workDir) //nolint:errcheck // fixture cleanup
 
 	zeDir := filepath.Join(workDir, "zefs")
 	if err := os.Mkdir(zeDir, 0o700); err != nil {
@@ -77,7 +77,7 @@ func runWebRecoverySessionSurvivesCommit(ctx context.Context) error {
 	}
 }
 `, webPort)
-	if err := os.WriteFile(configPath, []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write web-recovery.conf: %w", err)
 	}
 
@@ -87,11 +87,11 @@ func runWebRecoverySessionSurvivesCommit(ctx context.Context) error {
 	}
 
 	logPath := filepath.Join(workDir, "daemon.log")
-	logFile, err := os.Create(logPath)
+	logFile, err := os.Create(logPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("create daemon.log: %w", err)
 	}
-	defer logFile.Close()
+	defer logFile.Close() //nolint:errcheck // fixture teardown
 
 	daemon := exec.CommandContext(ctx, "ze", "start", "web-recovery.conf")
 	daemon.Dir = workDir
@@ -176,7 +176,7 @@ func webRecoveryExercise(client *webRecoveryClient, logPath string) error {
 	}
 
 	reloadStarted := Poll(client.ctx, 60, 500*time.Millisecond, func() bool {
-		contents, err := os.ReadFile(logPath)
+		contents, err := os.ReadFile(logPath) //nolint:gosec // the path is the fixture's own scratch file
 		return err == nil && strings.Contains(string(contents), "config reload started")
 	})
 	if err := webRecoveryRequire(reloadStarted,
@@ -236,7 +236,7 @@ func (client *webRecoveryClient) loginCookie(user, password string) *string {
 	if err != nil {
 		return nil
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // the body is read
 	if _, err := io.ReadAll(response.Body); err != nil {
 		return nil
 	}
@@ -246,8 +246,8 @@ func (client *webRecoveryClient) loginCookie(user, password string) *string {
 			continue
 		}
 		token := strings.TrimPrefix(value, "ze-session=")
-		if semicolon := strings.IndexByte(token, ';'); semicolon >= 0 {
-			token = token[:semicolon]
+		if before, _, found := strings.Cut(token, ";"); found {
+			token = before
 		}
 		return &token
 	}
@@ -257,8 +257,8 @@ func (client *webRecoveryClient) loginCookie(user, password string) *string {
 func (client *webRecoveryClient) setFormat(token, value string) webRecoveryResponse {
 	return client.post(
 		"/config/set/environment/cli/format/",
-		[]webRecoveryField{{name: "leaf", value: "default"}, {name: "value", value: value}},
-		map[string]string{"Cookie": "ze-session=" + token, "HX-Request": "true"},
+		[]webRecoveryField{{name: fieldLeaf, value: "default"}, {name: fieldValue, value: value}},
+		map[string]string{"Cookie": "ze-session=" + token, "HX-Request": valueTrue},
 	)
 }
 
@@ -266,7 +266,7 @@ func (client *webRecoveryClient) commit(token string) webRecoveryResponse {
 	return client.post(
 		"/config/commit",
 		nil,
-		map[string]string{"Cookie": "ze-session=" + token, "HX-Request": "true"},
+		map[string]string{"Cookie": "ze-session=" + token, "HX-Request": valueTrue},
 	)
 }
 
@@ -293,7 +293,7 @@ func (client *webRecoveryClient) post(path string, fields []webRecoveryField, he
 		fmt.Fprintf(os.Stderr, "transport: POST %s: %T: %v\n", path, err, err)
 		return webRecoveryResponse{}
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // the body is read
 
 	contents, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -306,7 +306,7 @@ func (client *webRecoveryClient) post(path string, fields []webRecoveryField, he
 
 func webRecoveryHTTPClient() (*http.Client, *http.Transport) {
 	transport := &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, // The product fixture uses its generated test certificate.
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // the product fixture uses its own generated test certificate
 		DisableKeepAlives: true,
 	}
 	client := &http.Client{
@@ -365,14 +365,12 @@ func webRecoveryEnvironment(base []string, assignments ...string) []string {
 			environment = append(environment, entry)
 		}
 	}
-	for _, assignment := range assignments {
-		environment = append(environment, assignment)
-	}
+	environment = append(environment, assignments...)
 	return environment
 }
 
 func webRecoveryPrintLog(path string) {
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return

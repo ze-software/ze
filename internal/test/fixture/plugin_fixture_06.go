@@ -48,7 +48,6 @@ func init() {
 		"plugin/fib-recursive":                  fixture06FIBRecursive,
 	}
 	for name, scenario := range observers {
-		name, scenario := name, scenario
 		Register(name, func(ctx context.Context, _ []string) error {
 			return Observe(ctx, name, fixture06Registration(name), scenario)
 		})
@@ -64,14 +63,14 @@ func fixture06Registration(name string) sdk.Registration {
 	case "plugin/enricher-external-show-checker":
 		return sdk.Registration{}
 	case "plugin/errors-config-abort-show":
-		return sdk.Registration{WantsConfig: []string{"bgp"}}
+		return sdk.Registration{WantsConfig: []string{namespaceBGP}}
 	case "plugin/explicit-plugin-config":
 		return sdk.Registration{Families: []sdk.FamilyDecl{
-			{Name: "ipv4/flow", Mode: "decode", AFI: 1, SAFI: 133},
-			{Name: "ipv6/flow", Mode: "decode", AFI: 2, SAFI: 133},
-			{Name: "ipv4/flow-vpn", Mode: "decode", AFI: 1, SAFI: 134},
-			{Name: "ipv6/flow-vpn", Mode: "decode", AFI: 2, SAFI: 134},
-			{Name: "ipv4/unicast", Mode: "both", AFI: 1, SAFI: 1},
+			{Name: "ipv4/flow", Mode: modeDecode, AFI: 1, SAFI: 133},
+			{Name: "ipv6/flow", Mode: modeDecode, AFI: 2, SAFI: 133},
+			{Name: "ipv4/flow-vpn", Mode: modeDecode, AFI: 1, SAFI: 134},
+			{Name: "ipv6/flow-vpn", Mode: modeDecode, AFI: 2, SAFI: 134},
+			{Name: familyIPv4Unicast, Mode: modeBoth, AFI: 1, SAFI: 1},
 		}}
 	default:
 		return sdk.Registration{}
@@ -84,7 +83,7 @@ func fixture06DispatchObject(ctx context.Context, p *sdk.Plugin, command string)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", command, err)
 	}
-	if status != "done" {
+	if status != statusDone {
 		return nil, fmt.Errorf("%s: status=%s", command, status)
 	}
 	if value == nil {
@@ -99,7 +98,7 @@ func fixture06DispatchArray(ctx context.Context, p *sdk.Plugin, command string) 
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", command, err)
 	}
-	if status != "done" {
+	if status != statusDone {
 		return nil, fmt.Errorf("%s: status=%s", command, status)
 	}
 	return value, nil
@@ -110,7 +109,7 @@ func fixture06DispatchDone(ctx context.Context, p *sdk.Plugin, command string) e
 	if err != nil {
 		return fmt.Errorf("%s: %w", command, err)
 	}
-	if status != "done" {
+	if status != statusDone {
 		return fmt.Errorf("%s: status=%s", command, status)
 	}
 	return nil
@@ -131,17 +130,20 @@ func fixture06PollObject(ctx context.Context, p *sdk.Plugin, command string, att
 	return last, nil
 }
 
-func fixture06PollArray(ctx context.Context, p *sdk.Plugin, command string, attempts int, predicate func([]map[string]any) bool) ([]map[string]any, error) {
+// fixture06RIBCommand is the only command fixture06PollArray polls.
+const fixture06RIBCommand = "show rib"
+
+func fixture06PollArray(ctx context.Context, p *sdk.Plugin, attempts int, predicate func([]map[string]any) bool) ([]map[string]any, error) {
 	var last []map[string]any
 	var lastErr error
 	if !Poll(ctx, attempts, fixture06PollDelay, func() bool {
-		last, lastErr = fixture06DispatchArray(ctx, p, command)
+		last, lastErr = fixture06DispatchArray(ctx, p, fixture06RIBCommand)
 		return lastErr == nil && predicate(last)
 	}) {
 		if lastErr != nil {
 			return nil, lastErr
 		}
-		return last, fmt.Errorf("%s: predicate not satisfied after %d attempts", command, attempts)
+		return last, fmt.Errorf("%s: predicate not satisfied after %d attempts", fixture06RIBCommand, attempts)
 	}
 	return last, nil
 }
@@ -248,7 +250,7 @@ func fixture06DeadpeerHolddown(ctx context.Context, p *sdk.Plugin) error {
 	const metric = `ze_peer_session_flaps_total{peer="127.0.0.1"}`
 	_, err := fixture06PollObject(ctx, p, "show metrics values", 20, func(data map[string]any) bool {
 		text, _ := data["metrics"].(string)
-		for _, line := range strings.Split(text, "\n") {
+		for line := range strings.SplitSeq(text, "\n") {
 			if strings.HasPrefix(line, "#") || !strings.Contains(line, metric) {
 				continue
 			}
@@ -286,7 +288,7 @@ func fixture06DNSCacheShow(ctx context.Context, p *sdk.Plugin) error {
 		fmt.Fprintf(os.Stderr, "OK: %s returned keys %v\n", command, actual)
 		return data, nil
 	}
-	stats, err := checkShape("show dns cache stats", []string{"capacity", "entries", "evictions", "expired", "hit-rate", "hits", "miss-rate", "misses"})
+	stats, err := checkShape("show dns cache stats", []string{"capacity", fieldEntries, "evictions", "expired", "hit-rate", "hits", "miss-rate", "misses"})
 	if err != nil {
 		return err
 	}
@@ -299,8 +301,8 @@ func fixture06DNSCacheShow(ctx context.Context, p *sdk.Plugin) error {
 		command string
 		keys    []string
 	}{
-		{"show dns cache list", []string{"count", "entries"}},
-		{"show dns cache record localhost", []string{"count", "entries", "filter"}},
+		{"show dns cache list", []string{fieldCount, fieldEntries}},
+		{"show dns cache record localhost", []string{fieldCount, fieldEntries, "filter"}},
 	} {
 		data, shapeErr := checkShape(test.command, test.keys)
 		if shapeErr != nil {
@@ -360,10 +362,10 @@ func fixture06EnricherExternalProvider(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer p.Close()
+	defer p.Close() //nolint:errcheck // fixture teardown
 	p.OnEnrichShow(func(command, key, _ string, _ map[string]any) (map[string]any, error) {
 		if command == "show test enrich" && key == "ext-cos" {
-			return map[string]any{"cos-profile": "residential", "ext-source": "enricher-provider"}, nil
+			return map[string]any{"cos-profile": profileResidential, "ext-source": "enricher-provider"}, nil
 		}
 		return map[string]any{}, nil
 	})
@@ -375,7 +377,7 @@ func fixture06EnricherExternalChecker(ctx context.Context, p *sdk.Plugin) error 
 		return err
 	}
 	data, err := fixture06PollObject(ctx, p, "show test enrich", 60, func(data map[string]any) bool {
-		return data["cos-profile"] == "residential" && data["ext-source"] == "enricher-provider"
+		return data["cos-profile"] == profileResidential && data["ext-source"] == "enricher-provider"
 	})
 	if err != nil {
 		return fmt.Errorf("show test enrich external data missing: %v: %w", data, err)

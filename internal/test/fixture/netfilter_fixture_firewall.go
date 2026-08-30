@@ -13,7 +13,7 @@ import (
 
 func registerTableSnapshot(name, family, table string) {
 	Register(name, func(ctx context.Context, _ []string) error {
-		pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+		pid, err := waitDaemon(ctx, 200)
 		if err != nil {
 			return err
 		}
@@ -30,7 +30,7 @@ func registerTableSnapshot(name, family, table string) {
 }
 
 func coppTrusted(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func coppTrusted(ctx context.Context, _ []string) error {
 }
 
 func coppWithdraw(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func coppWithdraw(ctx context.Context, _ []string) error {
 }
 
 func ddosLocalWithdraw(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -124,12 +124,13 @@ func ddosLocalWithdraw(ctx context.Context, _ []string) error {
 }
 
 func firewallCLIShow(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
 	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
-		conn, dialErr := net.DialTimeout("tcp", "127.0.0.1:2222", 200*time.Millisecond)
+		dialer := net.Dialer{Timeout: 200 * time.Millisecond}
+		conn, dialErr := dialer.DialContext(ctx, "tcp", "127.0.0.1:2222")
 		if dialErr != nil {
 			return false
 		}
@@ -142,7 +143,7 @@ func firewallCLIShow(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(clientDir)
+	defer os.RemoveAll(clientDir) //nolint:errcheck // fixture cleanup
 	env := append(os.Environ(), "ze.config.dir="+clientDir, "ze.ssh.insecure=true")
 	initCmd := exec.CommandContext(ctx, "ze", "init")
 	initCmd.Env = env
@@ -173,9 +174,9 @@ func firewallCLIShow(ctx context.Context, _ []string) error {
 func firewallCoexistenceSetup(ctx context.Context, _ []string) error {
 	commandIgnore(ctx, "nft", "delete", "table", "inet", "surfprotect")
 	commands := [][]string{
-		{"add", "table", "inet", "surfprotect"},
-		{"add", "chain", "inet", "surfprotect", "input"},
-		{"add", "rule", "inet", "surfprotect", "input", "ip", "saddr", "10.0.0.1", "accept"},
+		{argAdd, nftTable, nftFamilyInet, nftTableSurfprotect},
+		{argAdd, nftChain, nftFamilyInet, nftTableSurfprotect, nftChainInput},
+		{argAdd, nftRule, nftFamilyInet, nftTableSurfprotect, nftChainInput, "ip", "saddr", addrPeerOne, nftVerdictAccept},
 	}
 	for _, args := range commands {
 		if _, err := netfilterCommandOutput(ctx, "nft", args...); err != nil {
@@ -187,7 +188,7 @@ func firewallCoexistenceSetup(ctx context.Context, _ []string) error {
 
 func firewallCoexistence(ctx context.Context, _ []string) error {
 	defer commandIgnore(ctx, "nft", "delete", "table", "inet", "surfprotect")
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -208,12 +209,12 @@ func firewallCoexistence(ctx context.Context, _ []string) error {
 
 func firewallLegacySeed(ctx context.Context, _ []string) error {
 	commands := [][]string{
-		{"add", "table", "inet", "flowspec"},
-		{"add", "chain", "inet", "flowspec", "flowspec-fwd", "{ type filter hook forward priority -1 ; policy accept ; }"},
-		{"add", "rule", "inet", "flowspec", "flowspec-fwd", "ip", "daddr", "198.51.100.0/24", "drop"},
-		{"add", "table", "ip", "anomaly-shape"},
-		{"add", "chain", "ip", "anomaly-shape", "forward", "{ type filter hook forward priority -1 ; policy accept ; }"},
-		{"add", "rule", "ip", "anomaly-shape", "forward", "ip", "daddr", "203.0.113.0/24", "drop"},
+		{argAdd, nftTable, nftFamilyInet, nftTableFlowspec},
+		{argAdd, nftChain, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, nftForwardHookSpec},
+		{argAdd, nftRule, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, "ip", nftMatchDestination, "198.51.100.0/24", nftVerdictDrop},
+		{argAdd, nftTable, "ip", nftTableAnomalyShape},
+		{argAdd, nftChain, "ip", nftTableAnomalyShape, "forward", nftForwardHookSpec},
+		{argAdd, nftRule, "ip", nftTableAnomalyShape, "forward", "ip", nftMatchDestination, "203.0.113.0/24", nftVerdictDrop},
 	}
 	for _, args := range commands {
 		if _, err := netfilterCommandOutput(ctx, "nft", args...); err != nil {
@@ -228,7 +229,7 @@ func firewallLegacySeed(ctx context.Context, _ []string) error {
 }
 
 func firewallLegacySweep(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 400, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 400)
 	if err != nil {
 		return err
 	}
@@ -255,7 +256,7 @@ func firewallLegacySweep(ctx context.Context, _ []string) error {
 }
 
 func firewallReload(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -266,7 +267,7 @@ func firewallReload(ctx context.Context, _ []string) error {
 	}) {
 		return fmt.Errorf("initial state missing dport 22 rule")
 	}
-	if err := copyFile("config2.conf", "ze-bgp.conf"); err != nil {
+	if err := stageReloadConfig(); err != nil {
 		return err
 	}
 	if err := signalProcess(pid, syscall.SIGHUP); err != nil {
@@ -284,7 +285,7 @@ func firewallReload(ctx context.Context, _ []string) error {
 }
 
 func firewallSetElementTimeout(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}
@@ -301,7 +302,7 @@ func firewallSetElementTimeout(ctx context.Context, _ []string) error {
 
 func firewallPersist(ctx context.Context, table string, sig syscall.Signal, phase string) error {
 	defer commandIgnore(context.Background(), "nft", "delete", "table", "inet", table)
-	pid, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	pid, err := waitDaemon(ctx, 200)
 	if err != nil {
 		return err
 	}

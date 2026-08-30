@@ -69,8 +69,8 @@ func observePort03(name string, scenario func(context.Context, *sdk.Plugin, stri
 func dispatchAny03(ctx context.Context, p *sdk.Plugin, command string) (string, any, error) {
 	status, raw, err := p.DispatchCommand(ctx, command)
 	if err != nil {
-		if status == "error" || strings.HasPrefix(err.Error(), "rpc error:") {
-			return "error", err.Error(), nil
+		if status == statusError || strings.HasPrefix(err.Error(), "rpc error:") {
+			return statusError, err.Error(), nil
 		}
 		return status, nil, err
 	}
@@ -95,7 +95,7 @@ func done03(ctx context.Context, p *sdk.Plugin, command string) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", command, err)
 	}
-	if status != "done" {
+	if status != statusDone {
 		return value, fmt.Errorf("%s: status=%s data=%v", command, status, value)
 	}
 	return value, nil
@@ -107,7 +107,7 @@ func donePoll03(ctx context.Context, p *sdk.Plugin, command string) (any, error)
 	var lastErr error
 	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
 		status, value, lastErr = dispatchAny03(ctx, p, command)
-		return lastErr == nil && status == "done"
+		return lastErr == nil && status == statusDone
 	}) {
 		if lastErr != nil {
 			return nil, fmt.Errorf("%s: %w", command, lastErr)

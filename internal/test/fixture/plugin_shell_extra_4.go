@@ -17,7 +17,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-const pluginShellExtra4PasswordHash = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+const pluginShellExtra4PasswordHash = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO" //nolint:gosec // the bcrypt hash of the fixture account, which exists only in this test
 
 func init() {
 	Register("plugin/ssh-remote-hash-rejected", pluginShellExtra4RemoteHash)
@@ -50,8 +50,8 @@ func pluginShellExtra4Command(host, port, user, password, command string) (strin
 	}, command)
 }
 
-func pluginShellExtra4RequireCommand(host, port, user, password, command, label string) (string, error) {
-	output, err := pluginShellExtra4Command(host, port, user, password, command)
+func pluginShellExtra4RequireCommand(port, user, password, command, label string) (string, error) {
+	output, err := pluginShellExtra4Command("127.0.0.1", port, user, password, command)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", label, err)
 	}
@@ -78,7 +78,7 @@ func pluginShellExtra4InitCLI(ctx context.Context, port, username, password stri
 		return "", err
 	}
 	command := exec.CommandContext(ctx, "ze", "init")
-	command.Env = pluginShellExtra4Environment(map[string]string{"ZE_CONFIG_DIR": configDir})
+	command.Env = pluginShellExtra4Environment(map[string]string{envConfigDir: configDir})
 	command.Stdin = strings.NewReader(fmt.Sprintf("%s\n%s\n127.0.0.1\n%s\n", username, password, port))
 	output, err := command.CombinedOutput()
 	if err != nil {
@@ -88,21 +88,24 @@ func pluginShellExtra4InitCLI(ctx context.Context, port, username, password stri
 	return configDir, nil
 }
 
-func pluginShellExtra4CLI(ctx context.Context, configDir, host, port, userFlag, user, password string, insecure bool, commandText string) (string, error) {
-	arguments := []string{"cli"}
+// pluginShellExtra4Probe is the command every CLI probe in these fixtures runs.
+const pluginShellExtra4Probe = "show bgp peer list"
+
+func pluginShellExtra4CLI(ctx context.Context, configDir, host, port, userFlag, user, password string, insecure bool) (string, error) {
+	arguments := []string{areaCLI}
 	if host != "" {
 		arguments = append(arguments, "--remote", net.JoinHostPort(host, port))
 	}
 	if userFlag != "" {
 		arguments = append(arguments, userFlag, user)
 	}
-	arguments = append(arguments, "-c", commandText)
+	arguments = append(arguments, "-c", pluginShellExtra4Probe)
 	environment := map[string]string{
-		"ZE_CONFIG_DIR":   configDir,
-		"ZE_SSH_PASSWORD": password,
+		envConfigDir:   configDir,
+		envSSHPassword: password,
 	}
 	if insecure {
-		environment["ZE_SSH_INSECURE"] = "true"
+		environment["ZE_SSH_INSECURE"] = valueTrue
 	}
 	command := exec.CommandContext(ctx, "ze", arguments...)
 	command.Env = pluginShellExtra4Environment(environment)
@@ -119,12 +122,12 @@ func pluginShellExtra4RemoteHash(ctx context.Context, args []string) error {
 		}
 		defer os.RemoveAll(configDir) //nolint:errcheck // fixture cleanup
 
-		if output, err := pluginShellExtra4CLI(ctx, configDir, "127.0.0.1", loopPort, "--user", "alice", pluginShellExtra4PasswordHash, false, "show bgp peer list"); err != nil {
+		if output, err := pluginShellExtra4CLI(ctx, configDir, "127.0.0.1", loopPort, "--user", "alice", pluginShellExtra4PasswordHash, false); err != nil {
 			return fmt.Errorf("hash-as-token over loopback must authenticate: %w\n%s", err, output)
 		}
 		fmt.Fprintln(os.Stderr, "OK: AC-2 -- hash-as-token accepted over loopback")
 
-		if output, err := pluginShellExtra4CLI(ctx, configDir, "127.0.0.1", loopPort, "--user", "alice", "testpass", false, "show bgp peer list"); err != nil {
+		if output, err := pluginShellExtra4CLI(ctx, configDir, "127.0.0.1", loopPort, "--user", "alice", "testpass", false); err != nil {
 			return fmt.Errorf("plaintext over loopback must authenticate: %w\n%s", err, output)
 		}
 		fmt.Fprintln(os.Stderr, "OK: AC-3 -- plaintext accepted over loopback")
@@ -138,12 +141,12 @@ func pluginShellExtra4RemoteHash(ctx context.Context, args []string) error {
 			return nil
 		}
 
-		if _, err := pluginShellExtra4CLI(ctx, configDir, nonLoopback, lanPort, "--user", "alice", pluginShellExtra4PasswordHash, true, "show bgp peer list"); err == nil {
+		if _, err := pluginShellExtra4CLI(ctx, configDir, nonLoopback, lanPort, "--user", "alice", pluginShellExtra4PasswordHash, true); err == nil {
 			return errors.New("hash-as-token MUST be rejected over a non-loopback peer")
 		}
 		fmt.Fprintln(os.Stderr, "OK: AC-1 -- hash-as-token rejected over non-loopback")
 
-		if output, err := pluginShellExtra4CLI(ctx, configDir, nonLoopback, lanPort, "--user", "alice", "testpass", true, "show bgp peer list"); err != nil {
+		if output, err := pluginShellExtra4CLI(ctx, configDir, nonLoopback, lanPort, "--user", "alice", "testpass", true); err != nil {
 			return fmt.Errorf("plaintext over a non-loopback peer must authenticate: %w\n%s", err, output)
 		}
 		fmt.Fprintln(os.Stderr, "OK: AC-3 -- plaintext accepted over non-loopback")
@@ -181,22 +184,22 @@ func pluginShellExtra4UserLogin(ctx context.Context, args []string) error {
 		}
 		defer os.RemoveAll(configDir) //nolint:errcheck // fixture cleanup
 
-		if output, err := pluginShellExtra4CLI(ctx, configDir, "", "", "", "", "testpass", false, "show bgp peer list"); err != nil {
+		if output, err := pluginShellExtra4CLI(ctx, configDir, "", "", "", "", "testpass", false); err != nil {
 			return fmt.Errorf("super-admin baseline failed: %w\n%s", err, output)
 		}
 		fmt.Fprintln(os.Stderr, "OK: super-admin baseline")
 
-		if output, err := pluginShellExtra4CLI(ctx, configDir, "", "", "--user", "alice", "testpass", false, "show bgp peer list"); err != nil {
+		if output, err := pluginShellExtra4CLI(ctx, configDir, "", "", "--user", "alice", "testpass", false); err != nil {
 			return fmt.Errorf("--user alice should authenticate: %w\n%s", err, output)
 		}
 		fmt.Fprintln(os.Stderr, "OK: --user alice authenticated and was identified as alice")
 
-		if output, err := pluginShellExtra4CLI(ctx, configDir, "", "", "-u", "alice", "testpass", false, "show bgp peer list"); err != nil {
+		if output, err := pluginShellExtra4CLI(ctx, configDir, "", "", "-u", "alice", "testpass", false); err != nil {
 			return fmt.Errorf("-u alice should authenticate: %w\n%s", err, output)
 		}
 		fmt.Fprintln(os.Stderr, "OK: -u alice authenticated as alice")
 
-		if _, err := pluginShellExtra4CLI(ctx, configDir, "", "", "--user", "alice", "wrongpass", false, "show bgp peer list"); err == nil {
+		if _, err := pluginShellExtra4CLI(ctx, configDir, "", "", "--user", "alice", "wrongpass", false); err == nil {
 			return errors.New("wrong password should NOT authenticate")
 		}
 		fmt.Fprintln(os.Stderr, "OK: wrong password rejected")
@@ -231,7 +234,7 @@ func pluginShellExtra4StartupUnreachable(ctx context.Context, args []string) err
 	configPath := args[0]
 	return Observe(ctx, "fixture-plugin-shell-extra-4-startup-unreachable", sdk.Registration{}, func(ctx context.Context, _ *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: daemon reached ready with all external services blackholed")
-		config, err := os.ReadFile(configPath)
+		config, err := os.ReadFile(configPath) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return fmt.Errorf("read reload config: %w", err)
 		}
@@ -286,7 +289,7 @@ func pluginShellExtra4StartTacacs(ctx context.Context, port, user string, deny .
 			return false
 		default:
 		}
-		data, readErr := os.ReadFile(addrFile)
+		data, readErr := os.ReadFile(addrFile) //nolint:gosec // the path is the fixture's own scratch file
 		return readErr == nil && strings.HasSuffix(strings.TrimSpace(string(data)), ":"+port)
 	})
 	if !ready {
@@ -312,7 +315,7 @@ func pluginShellExtra4TacacsDriver(ctx context.Context, name string, args []stri
 
 func pluginShellExtra4TacacsAuth(ctx context.Context, args []string) error {
 	return pluginShellExtra4TacacsDriver(ctx, "tacacs-auth", args, "admin:testpass:15", nil, func(_ context.Context, _ *sdk.Plugin, port string) error {
-		if _, err := pluginShellExtra4RequireCommand("127.0.0.1", port, "admin", "testpass", "show bgp", "show summary via TACACS+ auth"); err != nil {
+		if _, err := pluginShellExtra4RequireCommand(port, "admin", "testpass", "show bgp", "show summary via TACACS+ auth"); err != nil {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: summary ran via TACACS+ auth")
@@ -323,11 +326,11 @@ func pluginShellExtra4TacacsAuth(ctx context.Context, args []string) error {
 
 func pluginShellExtra4TacacsAccounting(ctx context.Context, args []string) error {
 	return pluginShellExtra4TacacsDriver(ctx, "tacacs-acct", args, "admin:testpass:15", nil, func(_ context.Context, _ *sdk.Plugin, port string) error {
-		if _, err := pluginShellExtra4RequireCommand("127.0.0.1", port, "admin", "testpass", "show bgp", "show summary via TACACS+ auth"); err != nil {
+		if _, err := pluginShellExtra4RequireCommand(port, "admin", "testpass", "show bgp", "show summary via TACACS+ auth"); err != nil {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: summary ran via TACACS+ auth")
-		output, err := pluginShellExtra4RequireCommand("127.0.0.1", port, "admin", "testpass", "show aaa accounting", "show aaa accounting")
+		output, err := pluginShellExtra4RequireCommand(port, "admin", "testpass", "show aaa accounting", "show aaa accounting")
 		if err != nil {
 			return err
 		}
@@ -342,7 +345,7 @@ func pluginShellExtra4TacacsAccounting(ctx context.Context, args []string) error
 
 func pluginShellExtra4TacacsAuthor(ctx context.Context, args []string) error {
 	return pluginShellExtra4TacacsDriver(ctx, "tacacs-author", args, "admin:testpass:15", []string{"clear"}, func(_ context.Context, _ *sdk.Plugin, port string) error {
-		if _, err := pluginShellExtra4RequireCommand("127.0.0.1", port, "admin", "testpass", "show bgp", "show bgp should have been authorized by TACACS+"); err != nil {
+		if _, err := pluginShellExtra4RequireCommand(port, "admin", "testpass", "show bgp", "show bgp should have been authorized by TACACS+"); err != nil {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: 'show bgp' authorized")
@@ -362,7 +365,7 @@ func pluginShellExtra4TacacsAuthor(ctx context.Context, args []string) error {
 
 func pluginShellExtra4TacacsFallback(ctx context.Context, args []string) error {
 	return pluginShellExtra4Observe(ctx, "tacacs-fallback", args, 1, func(_ context.Context, _ *sdk.Plugin, args []string) error {
-		if _, err := pluginShellExtra4RequireCommand("127.0.0.1", args[0], "admin", "testpass", "show bgp", "show summary via local fallback after TACACS+ unreachable"); err != nil {
+		if _, err := pluginShellExtra4RequireCommand(args[0], "admin", "testpass", "show bgp", "show summary via local fallback after TACACS+ unreachable"); err != nil {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: summary ran via local fallback")
@@ -373,7 +376,7 @@ func pluginShellExtra4TacacsFallback(ctx context.Context, args []string) error {
 
 func pluginShellExtra4TacacsLocalOnly(ctx context.Context, args []string) error {
 	return pluginShellExtra4Observe(ctx, "tacacs-local-only", args, 1, func(_ context.Context, _ *sdk.Plugin, args []string) error {
-		if _, err := pluginShellExtra4RequireCommand("127.0.0.1", args[0], "admin", "testpass", "show bgp", "show summary via local auth"); err != nil {
+		if _, err := pluginShellExtra4RequireCommand(args[0], "admin", "testpass", "show bgp", "show summary via local auth"); err != nil {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: summary ran via local auth")
@@ -384,7 +387,7 @@ func pluginShellExtra4TacacsLocalOnly(ctx context.Context, args []string) error 
 
 func pluginShellExtra4TacacsReadonly(ctx context.Context, args []string) error {
 	return pluginShellExtra4TacacsDriver(ctx, "tacacs-readonly", args, "noc:nocpass:1", nil, func(_ context.Context, _ *sdk.Plugin, port string) error {
-		if _, err := pluginShellExtra4RequireCommand("127.0.0.1", port, "noc", "nocpass", "show bgp", "noc should be allowed to run show bgp"); err != nil {
+		if _, err := pluginShellExtra4RequireCommand(port, "noc", "nocpass", "show bgp", "noc should be allowed to run show bgp"); err != nil {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: noc allowed summary (priv-lvl 1 -> read-only)")
@@ -403,8 +406,8 @@ func pluginShellExtra4TacacsReadonly(ctx context.Context, args []string) error {
 
 func pluginShellExtra4TacacsSingleConnect(ctx context.Context, args []string) error {
 	return pluginShellExtra4TacacsDriver(ctx, "tacacs-singleconnect", args, "admin:testpass:15", nil, func(_ context.Context, _ *sdk.Plugin, port string) error {
-		for _, command := range []string{"show bgp", "show bgp peer list", "show bgp", "show bgp peer list"} {
-			if _, err := pluginShellExtra4RequireCommand("127.0.0.1", port, "admin", "testpass", command, command); err != nil {
+		for _, command := range []string{cmdShowBGP, cmdShowBGPPeerList, cmdShowBGP, cmdShowBGPPeerList} {
+			if _, err := pluginShellExtra4RequireCommand(port, "admin", "testpass", command, command); err != nil {
 				return err
 			}
 		}

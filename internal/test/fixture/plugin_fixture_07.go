@@ -88,7 +88,7 @@ func until07(ctx context.Context, p *sdk.Plugin, command string, attempts int, d
 }
 
 func done07(ctx context.Context, p *sdk.Plugin, command string) commandResult07 {
-	return until07(ctx, p, command, 20, 250*time.Millisecond, func(r commandResult07) bool { return r.status == "done" })
+	return until07(ctx, p, command, 20, 250*time.Millisecond, func(r commandResult07) bool { return r.status == statusDone })
 }
 
 func object07(value any) map[string]any {
@@ -136,9 +136,9 @@ func waitEOR07(ctx context.Context, p *sdk.Plugin, expected int) error {
 				ready++
 			}
 		}
-		return r.status == "done" && ready >= expected
+		return r.status == statusDone && ready >= expected
 	})
-	if result.status != "done" {
+	if result.status != statusDone {
 		if result.err != nil {
 			return fmt.Errorf("initial-sync End-of-RIB did not reach %d peer(s): status=%s error=%w", expected, result.status, result.err)
 		}
@@ -159,7 +159,7 @@ func waitEOR07(ctx context.Context, p *sdk.Plugin, expected int) error {
 
 func peerRow07(ctx context.Context, p *sdk.Plugin, address string) (map[string]any, error) {
 	result := command07(ctx, p, "show bgp peer "+address+" detail")
-	if result.status != "done" {
+	if result.status != statusDone {
 		if result.err != nil {
 			return nil, fmt.Errorf("show peer %s: status=%s error=%w", address, result.status, result.err)
 		}
@@ -174,7 +174,7 @@ func peerRow07(ctx context.Context, p *sdk.Plugin, address string) (map[string]a
 
 func quiesce07(ctx context.Context, p *sdk.Plugin) error {
 	result := command07(ctx, p, "request quiesce")
-	if result.status != "done" {
+	if result.status != statusDone {
 		if result.err != nil {
 			return fmt.Errorf("quiesce: status=%s error=%w", result.status, result.err)
 		}
@@ -190,9 +190,6 @@ func observerMessage07(message string) ObserverScenario {
 	}
 }
 
-func waitForPeerEOR07(expected int) ObserverScenario {
-	return func(ctx context.Context, p *sdk.Plugin) error { return waitEOR07(ctx, p, expected) }
-}
 func waitForPeerUpdate07() ObserverScenario {
 	return func(ctx context.Context, p *sdk.Plugin) error {
 		processed := func(value any) bool {
@@ -203,7 +200,7 @@ func waitForPeerUpdate07() ObserverScenario {
 		result := until07(ctx, p, "show bgp peer * detail", 40, 125*time.Millisecond, func(result commandResult07) bool {
 			for _, value := range object07(object07(result.data)["peers"]) {
 				if processed(value) {
-					return result.status == "done"
+					return result.status == statusDone
 				}
 			}
 			return false
@@ -213,7 +210,7 @@ func waitForPeerUpdate07() ObserverScenario {
 				return nil
 			}
 		}
-		return fmt.Errorf("peer UPDATE was not processed: status=%s data=%s error=%v", result.status, text07(result.data), result.err)
+		return fmt.Errorf("peer UPDATE was not processed: status=%s data=%s error=%w", result.status, text07(result.data), result.err)
 	}
 }
 
@@ -244,7 +241,7 @@ func terminate07(pid int) error {
 }
 
 func fetch07(ctx context.Context, port string) (string, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:"+port+"/metrics", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:"+port+"/metrics", http.NoBody)
 	if err != nil {
 		return "", err
 	}
@@ -253,7 +250,7 @@ func fetch07(ctx context.Context, port string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // the body is read
 	body, err := io.ReadAll(response.Body)
 	return string(body), err
 }

@@ -4,6 +4,7 @@
 package bgp
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"runtime"
@@ -12,6 +13,16 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// joinISISInjectionError adds one cleanup failure to the error already being
+// returned, so a namespace or descriptor that would not close is reported
+// beside the failure that led to it rather than replacing it.
+func joinISISInjectionError(resultErr error, operation string, err error) error {
+	if err == nil {
+		return resultErr
+	}
+	return errors.Join(resultErr, fmt.Errorf("%s: %w", operation, err))
+}
 
 func injectISISPurgeHost(pid int, interfaceName string, pdu []byte) (resultErr error) {
 	if pid <= 0 {

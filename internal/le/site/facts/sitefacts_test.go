@@ -451,7 +451,7 @@ func TestCheckNamesTheStaleFactAndTheFix(t *testing.T) {
 	if got.Committed != "40" || got.Derived != "1" {
 		t.Errorf("the gate reported committed %q derived %q, want \"40\" and \"1\"", got.Committed, got.Derived)
 	}
-	if !strings.Contains(report.Fix, "./le site-facts update") {
+	if !strings.Contains(report.Fix, "./le site facts update") {
 		t.Errorf("the check offers %q as the fix, which names no action to run", report.Fix)
 	}
 	if !strings.Contains(report.Text(), "repo.design_comments") {

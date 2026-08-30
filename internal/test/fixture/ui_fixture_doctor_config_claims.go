@@ -62,7 +62,7 @@ func doctorConfigClaims(ctx context.Context) error {
 	if err != nil {
 		return doctorConfigClaimsFail("inspect %s severity: %v", doctorConfigClaimsUnclaimed, err)
 	}
-	if severity != "warning" {
+	if severity != severityWarning {
 		return doctorConfigClaimsFail("want a warning, got %s", severity)
 	}
 
@@ -132,7 +132,7 @@ func doctorConfigClaimsRun(ctx context.Context, name string, args ...string) (do
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -153,8 +153,7 @@ func doctorConfigClaimsRun(ctx context.Context, name string, args ...string) (do
 
 	// Product exit failures are returned to the caller as data, matching
 	// check-disabled command execution. Start and wait failures remain errors.
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if _, ok := errors.AsType[*exec.ExitError](err); ok {
 		return result, nil
 	}
 	return result, err

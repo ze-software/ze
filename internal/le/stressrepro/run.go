@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -161,7 +160,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	}
 
 	outDir := filepath.Join(root, "tmp", "stress-repro")
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(outDir, 0o750); err != nil {
 		return setupFailure(report, fmt.Errorf("create capture directory: %w", err))
 	}
 	slug, err := runSlug(opts.Suite, opts.Test)
@@ -252,7 +251,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 			}
 			_, _ = fmt.Fprintf(log, "\n===== invocation %d exit=%d %s =====\n", report.Completed, result.code, label)
 			if hit {
-				_, _ = io.WriteString(log, result.output)
+				_, _ = log.WriteString(result.output)
 				report.Reproduced = true
 				report.Exit = result.code
 				report.Signature = signature
@@ -261,7 +260,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 				}
 				cancelBatch()
 			} else {
-				_, _ = io.WriteString(log, outputTail(result.output, 500)+"\n")
+				_, _ = log.WriteString(outputTail(result.output, 500) + "\n")
 			}
 		}
 		cancelBatch()
@@ -309,7 +308,7 @@ func binaryFromEnvironment(root, key, name string) string {
 }
 
 func raceTags(root, extra string) (string, error) {
-	file, err := os.Open(filepath.Join(root, "feature-gates.txt"))
+	file, err := os.Open(filepath.Join(root, "feature-gates.txt")) //nolint:gosec // the tracked feature-gate manifest under the checkout root
 	if err != nil {
 		return "", fmt.Errorf("read feature gates: %w", err)
 	}

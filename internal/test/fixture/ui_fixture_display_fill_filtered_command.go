@@ -22,7 +22,7 @@ func displayFillFilteredCommand(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(dir) //nolint:errcheck // fixture cleanup
 
 	dir, err = filepath.Abs(dir)
 	if err != nil {
@@ -79,7 +79,7 @@ system {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(dir, "rib.conf"), []byte(config), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "rib.conf"), []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write rib.conf: %w", err)
 	}
 
@@ -211,7 +211,7 @@ func exerciseDisplayAndFill(ctx context.Context, daemon *uiDisplayFillFilteredCo
 		return fmt.Errorf("daemon did not become ready")
 	}
 
-	addrBytes, err := os.ReadFile(sshAddr)
+	addrBytes, err := os.ReadFile(sshAddr) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -262,7 +262,7 @@ func exerciseDisplayAndFill(ctx context.Context, daemon *uiDisplayFillFilteredCo
 	if err != nil {
 		return err
 	}
-	if !uiDisplayFillFilteredCommandEqualStrings(cutColumns, []string{"prefix"}) {
+	if !uiDisplayFillFilteredCommandEqualStrings(cutColumns, []string{columnPrefix}) {
 		return fmt.Errorf("the display was dropped on a filtered command: %q", cut)
 	}
 	if !strings.Contains(cut, "10.10.1.0/24") {
@@ -278,7 +278,7 @@ func exerciseDisplayAndFill(ctx context.Context, daemon *uiDisplayFillFilteredCo
 	if err != nil {
 		return err
 	}
-	if filledColumns[0] != "prefix" {
+	if filledColumns[0] != columnPrefix {
 		return fmt.Errorf("the displayed column must lead: %q", filledColumns)
 	}
 	if len(filledColumns) != len(columns) {
@@ -305,7 +305,7 @@ func exerciseDisplayAndFill(ctx context.Context, daemon *uiDisplayFillFilteredCo
 }
 
 func uiDisplayFillFilteredCommandRunCLI(ctx context.Context, dir string, env []string, command string) (string, error) {
-	cmd := exec.CommandContext(ctx, "ze", "cli", "-c", command)
+	cmd := exec.CommandContext(ctx, "ze", "cli", "-c", command) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 
@@ -326,7 +326,7 @@ func uiDisplayFillFilteredCommandRunCLI(ctx context.Context, dir string, env []s
 func headerOf(text string) ([]string, error) {
 	// Text output writes the header row first and draws no border, so the first
 	// non-empty line names the columns.
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		if fields := strings.Fields(line); len(fields) != 0 {
 			return fields, nil
 		}
@@ -352,7 +352,7 @@ func uiDisplayFillFilteredCommandPathExists(name string) bool {
 }
 
 func pollFixture(ctx context.Context, attempts int, delay time.Duration, check func() (bool, error)) (bool, error) {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		ok, err := check()
 		if err != nil || ok {
 			return ok, err
@@ -383,8 +383,8 @@ func setEnvironment(base []string, pairs ...string) []string {
 	env := make([]string, 0, len(base)+len(pairs)/2)
 	for _, entry := range base {
 		key := entry
-		if equals := strings.IndexByte(entry, '='); equals >= 0 {
-			key = entry[:equals]
+		if before, _, found := strings.Cut(entry, "="); found {
+			key = before
 		}
 		if _, replaced := keys[key]; !replaced {
 			env = append(env, entry)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,8 +31,7 @@ func uiLeEvidenceAnswersRequire(condition bool, format string, args ...any) {
 func leEvidenceAnswers(ctx context.Context) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			var failure fixtureFailure
-			if errors.As(asError(recovered), &failure) {
+			if failure, ok := errors.AsType[fixtureFailure](asError(recovered)); ok {
 				err = failure
 				return
 			}
@@ -55,8 +55,8 @@ type uiLeEvidenceAnswersCommandResult struct {
 	err    error
 }
 
-func uiLeEvidenceAnswersRunCommand(ctx context.Context, dir, program string, args []string, env []string) uiLeEvidenceAnswersCommandResult {
-	command := exec.CommandContext(ctx, program, args...)
+func uiLeEvidenceAnswersRunCommand(ctx context.Context, dir, program string, args, env []string) uiLeEvidenceAnswersCommandResult {
+	command := exec.CommandContext(ctx, program, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = dir
 	if env != nil {
 		command.Env = env
@@ -67,8 +67,7 @@ func uiLeEvidenceAnswersRunCommand(ctx context.Context, dir, program string, arg
 	err := command.Run()
 	code := 0
 	if err != nil {
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
+		if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
 			code = exitError.ExitCode()
 		} else {
 			code = -1
@@ -85,9 +84,7 @@ func uiLeEvidenceAnswersEnvironment(overrides map[string]string) []string {
 			values[key] = value
 		}
 	}
-	for key, value := range overrides {
-		values[key] = value
-	}
+	maps.Copy(values, overrides)
 	result := make([]string, 0, len(values))
 	for key, value := range values {
 		result = append(result, key+"="+value)
@@ -107,7 +104,7 @@ func writeFile(path, contents string, mode os.FileMode) {
 }
 
 func uiLeEvidenceAnswersRecorded(path string) []string {
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -146,13 +143,13 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	work, err := os.MkdirTemp("", "le-evidence-answers-")
 	uiLeEvidenceAnswersRequire(err == nil, "creating fixture work directory failed: %v", err)
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	uiLeEvidenceAnswersRequire(err == nil, "%v", err)
 
 	checkout := filepath.Join(work, "fixture")
-	uiLeEvidenceAnswersRequire(os.MkdirAll(checkout, 0o755) == nil, "creating fixture checkout failed")
+	uiLeEvidenceAnswersRequire(os.MkdirAll(checkout, 0o750) == nil, "creating fixture checkout failed")
 	writeFile(filepath.Join(checkout, "go.mod"), "module example.test/m\n\ngo 1.26\n", 0o644)
 	writeFile(filepath.Join(checkout, "feature-gates.txt"),
 		"ze_bgp internal/component/bgp\nze_l2tp internal/component/l2tp\n", 0o644)
@@ -161,27 +158,27 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	uiLeEvidenceAnswersRequire(err == nil, "finding fixture executable failed: %v", err)
 	stubs, err := os.MkdirTemp(filepath.Dir(self), "le-evidence-stubs-")
 	uiLeEvidenceAnswersRequire(err == nil, "creating stub directory failed: %v", err)
-	defer os.RemoveAll(stubs)
+	defer os.RemoveAll(stubs) //nolint:errcheck // fixture cleanup
 	goTool, err := exec.LookPath("go")
 	uiLeEvidenceAnswersRequire(err == nil, "finding go for tool stubs failed: %v", err)
 	stubPath := filepath.Join(stubs, "docker")
-	buildStub := exec.CommandContext(ctx, goTool, "build", "-o", stubPath, "./internal/test/toolstub/cmd")
+	buildStub := exec.CommandContext(ctx, goTool, "build", "-o", stubPath, "./internal/test/toolstub/cmd") //nolint:gosec // the fixture chooses the program and its arguments
 	buildStub.Dir = root
-	buildStub.Env = uiLeEvidenceAnswersEnvironment(map[string]string{"CGO_ENABLED": "0"})
+	buildStub.Env = uiLeEvidenceAnswersEnvironment(map[string]string{envCGOEnabled: "0"})
 	output, buildErr := buildStub.CombinedOutput()
 	uiLeEvidenceAnswersRequire(buildErr == nil, "building tool stub failed: %v\n%s", buildErr, output)
-	stubBytes, err := os.ReadFile(stubPath)
+	stubBytes, err := os.ReadFile(stubPath) //nolint:gosec // the path is the fixture's own scratch file
 	uiLeEvidenceAnswersRequire(err == nil, "reading tool stub failed: %v", err)
 	for _, name := range []string{"git", "ip", "ping", "xl2tpd", "pppd", "go"} {
-		err := os.WriteFile(filepath.Join(stubs, name), stubBytes, 0o755)
+		err := os.WriteFile(filepath.Join(stubs, name), stubBytes, 0o755) //nolint:gosec // the fixture writes an executable stand-in, so it needs the execute bit
 		uiLeEvidenceAnswersRequire(err == nil, "writing native %s stub failed: %v", name, err)
 	}
 
 	defaultDockerRecord := filepath.Join(work, "docker-argv")
 	ipRecord := filepath.Join(work, "ip-argv")
 	baseOverrides := map[string]string{
-		"PATH":             stubs + string(os.PathListSeparator) + os.Getenv("PATH"),
-		"ZE_REPO_ROOT":     checkout,
+		envPath:            stubs + string(os.PathListSeparator) + os.Getenv("PATH"),
+		envRepoRoot:        checkout,
 		"ZE_GIT_STATUS":    "",
 		"ZE_DOCKER_EXIT":   "0",
 		"ZE_RECORD_DOCKER": defaultDockerRecord,
@@ -190,9 +187,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	le := func(args []string, status, exitCode, record string, extra map[string]string) uiLeEvidenceAnswersCommandResult {
 		overrides := make(map[string]string, len(baseOverrides)+len(extra))
-		for key, value := range baseOverrides {
-			overrides[key] = value
-		}
+		maps.Copy(overrides, baseOverrides)
 		overrides["ZE_GIT_STATUS"] = status
 		if exitCode != "" {
 			overrides["ZE_DOCKER_EXIT"] = exitCode
@@ -200,25 +195,23 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 		if record != "" {
 			overrides["ZE_RECORD_DOCKER"] = record
 		}
-		for key, value := range extra {
-			overrides[key] = value
-		}
+		maps.Copy(overrides, extra)
 		return uiLeEvidenceAnswersRunCommand(ctx, work, binary, args, uiLeEvidenceAnswersEnvironment(overrides))
 	}
 
 	// Both commands must be present in the composition root used by help.
-	usage := le([]string{"--help"}, "", "", "", nil)
+	usage := le([]string{flagHelp}, "", "", "", nil)
 	page := usage.stdout + usage.stderr
-	for _, name := range []string{"evidence", "deployment"} {
+	for _, name := range []string{areaEvidence, areaDeployment} {
 		uiLeEvidenceAnswersRequire(strings.Contains(page, name), "le --help does not list the %s command", name)
 	}
 
 	// Bare areas list all actions and identify them as read-only checks.
 	listings := []struct{ name, verb string }{
-		{"evidence", "release-candidate"},
-		{"deployment", "l2tp-test"},
-		{"deployment", "l2tp-ppp-test"},
-		{"deployment", "gokrazy-l2tp-ppp-test"},
+		{areaEvidence, actionReleaseCandidate},
+		{areaDeployment, actionL2TPTest},
+		{areaDeployment, "l2tp-ppp-test"},
+		{areaDeployment, "gokrazy-l2tp-ppp-test"},
 	}
 	for _, item := range listings {
 		listing := le([]string{item.name}, "", "", "", nil)
@@ -231,7 +224,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// A clean release-candidate check starts exactly one container.
 	rcRecord := filepath.Join(work, "rc-argv")
-	answer := le([]string{"evidence", "release-candidate"}, "", "", rcRecord, nil)
+	answer := le([]string{areaEvidence, actionReleaseCandidate}, "", "", rcRecord, nil)
 	uiLeEvidenceAnswersRequire(answer.code == 0,
 		"the release-candidate check exited %d: %s", answer.code, uiLeEvidenceAnswersTail(answer.stderr, 800))
 	calls := uiLeEvidenceAnswersRecorded(rcRecord)
@@ -241,12 +234,12 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	uiLeEvidenceAnswersRequire(strings.Contains(calls[0], "git clone --no-local /host /work/src"),
 		"the container program does not clone the mount")
 
-	rendered := le([]string{"evidence", "release-candidate", "|", "json"}, "", "",
+	rendered := le([]string{areaEvidence, actionReleaseCandidate, "|", renderJSON}, "", "",
 		filepath.Join(work, "rc-json"), nil)
 	var report map[string]any
 	err = json.Unmarshal([]byte(rendered.stdout), &report)
 	uiLeEvidenceAnswersRequire(err == nil, "the release-candidate JSON is invalid: %v; output %q", err, rendered.stdout)
-	for _, key := range []string{"image", "platform", "tree", "dirty", "passed", "code"} {
+	for _, key := range []string{fieldImage, "platform", "tree", "dirty", fieldPassed, "code"} {
 		uiLeEvidenceAnswersRequire(hasKey(report, key), "the report answered no %q key: %v", key, uiLeEvidenceAnswersSortedKeys(report))
 	}
 	uiLeEvidenceAnswersRequire(report["passed"] == true, "a container that exited 0 reports %v", report["passed"])
@@ -254,7 +247,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// Preserve the container's exact status rather than flattening it.
 	for _, code := range []string{"2", "3", "125"} {
-		failed := le([]string{"evidence", "release-candidate"}, "", code,
+		failed := le([]string{areaEvidence, actionReleaseCandidate}, "", code,
 			filepath.Join(work, "rc-"+code), nil)
 		want, _ := strconv.Atoi(code)
 		uiLeEvidenceAnswersRequire(failed.code == want,
@@ -263,7 +256,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// Dirty trees are rejected before any container is started.
 	dirtyRecord := filepath.Join(work, "rc-dirty")
-	dirty := le([]string{"evidence", "release-candidate"}, " M internal/a.go\n", "",
+	dirty := le([]string{areaEvidence, actionReleaseCandidate}, " M internal/a.go\n", "",
 		dirtyRecord, nil)
 	uiLeEvidenceAnswersRequire(dirty.code == 1, "a dirty tree exited %d, want 1", dirty.code)
 	uiLeEvidenceAnswersRequire(len(uiLeEvidenceAnswersRecorded(dirtyRecord)) == 0, "a container was started over a dirty tree")
@@ -272,13 +265,13 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// The L2TP proof builds its daemon, starts the peer, and observes a session.
 	l2tpRecord := filepath.Join(work, "l2tp-argv")
-	proof := le([]string{"deployment", "l2tp-test", "|", "json"}, "", "", l2tpRecord, nil)
+	proof := le([]string{areaDeployment, actionL2TPTest, "|", renderJSON}, "", "", l2tpRecord, nil)
 	uiLeEvidenceAnswersRequire(proof.code == 0,
 		"the L2TP proof exited %d: %s", proof.code, uiLeEvidenceAnswersTail(proof.stderr, 800))
 	var verdict map[string]any
 	err = json.Unmarshal([]byte(proof.stdout), &verdict)
 	uiLeEvidenceAnswersRequire(err == nil, "the L2TP JSON is invalid: %v; output %q", err, proof.stdout)
-	for _, key := range []string{"peer", "image", "container", "established", "log-tail"} {
+	for _, key := range []string{fieldPeer, fieldImage, fieldContainer, stateEstablished, "log-tail"} {
 		uiLeEvidenceAnswersRequire(hasKey(verdict, key), "the proof answered no %q key: %v", key, uiLeEvidenceAnswersSortedKeys(verdict))
 	}
 	uiLeEvidenceAnswersRequire(verdict["established"] == true, "the proof did not read the session")
@@ -298,8 +291,8 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// Both machine-touching proofs reject the kernel-probe escape before making
 	// any namespace, lab, image, or container change.
-	escaped := le([]string{"deployment", "l2tp-ppp-test", "|", "json"}, "", "", "",
-		map[string]string{"ZE_L2TP_SKIP_KERNEL_PROBE": "true"})
+	escaped := le([]string{areaDeployment, "l2tp-ppp-test", "|", renderJSON}, "", "", "",
+		map[string]string{"ZE_L2TP_SKIP_KERNEL_PROBE": valueTrue})
 	uiLeEvidenceAnswersRequire(escaped.code == 1,
 		"a run carrying the kernel-probe escape exited %d, want 1", escaped.code)
 	uiLeEvidenceAnswersRequire(strings.Contains(escaped.stdout+escaped.stderr, "ZE_L2TP_SKIP_KERNEL_PROBE"),
@@ -308,13 +301,13 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	var refused map[string]any
 	err = json.Unmarshal([]byte(escaped.stdout), &refused)
 	uiLeEvidenceAnswersRequire(err == nil, "the refused proof JSON is invalid: %v; output %q", err, escaped.stdout)
-	for _, key := range []string{"peer", "ze-namespace", "lac-namespace", "proven", "local-address"} {
+	for _, key := range []string{fieldPeer, "ze-namespace", "lac-namespace", "proven", "local-address"} {
 		uiLeEvidenceAnswersRequire(hasKey(refused, key), "the refusal answered no %q key: %v", key, uiLeEvidenceAnswersSortedKeys(refused))
 	}
 	uiLeEvidenceAnswersRequire(refused["proven"] == false, "a refused run reports itself proven")
 
-	appliance := le([]string{"deployment", "gokrazy-l2tp-ppp-test", "|", "json"}, "", "", "",
-		map[string]string{"ZE_L2TP_SKIP_KERNEL_PROBE": "true"})
+	appliance := le([]string{areaDeployment, "gokrazy-l2tp-ppp-test", "|", renderJSON}, "", "", "",
+		map[string]string{"ZE_L2TP_SKIP_KERNEL_PROBE": valueTrue})
 	uiLeEvidenceAnswersRequire(appliance.code == 1,
 		"the appliance proof exited %d on the escape, want 1", appliance.code)
 	uiLeEvidenceAnswersRequire(len(uiLeEvidenceAnswersRecorded(ipRecord)) == 0, "the refused appliance run still made a lab")
@@ -328,8 +321,8 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// The shared operators render the same command payloads.
 	renderings := []struct{ name, verb, operator, needle string }{
-		{"evidence", "release-candidate", "yaml", "passed:"},
-		{"deployment", "l2tp-test", "yaml", "peer:"},
+		{areaEvidence, actionReleaseCandidate, renderYAML, "passed:"},
+		{areaDeployment, actionL2TPTest, renderYAML, "peer:"},
 	}
 	for _, item := range renderings {
 		out := le([]string{item.name, item.verb, "|", item.operator}, "", "",
@@ -341,9 +334,9 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 
 	// Unknown actions and trailing values remain distinguishable from a gate
 	// which ran and failed, and neither rejected invocation performs work.
-	missing := le([]string{"evidence", "no-such-action"}, "", "", "", nil)
+	missing := le([]string{areaEvidence, "no-such-action"}, "", "", "", nil)
 	uiLeEvidenceAnswersRequire(missing.code == 2, "an unknown action exited %d, want 2", missing.code)
-	extra := le([]string{"deployment", "l2tp-test", "somewhere"}, "", "", "", nil)
+	extra := le([]string{areaDeployment, actionL2TPTest, "somewhere"}, "", "", "", nil)
 	uiLeEvidenceAnswersRequire(extra.code == 2, "a value after an action exited %d, want 2", extra.code)
 	uiLeEvidenceAnswersRequire(len(uiLeEvidenceAnswersRecorded(defaultDockerRecord)) == 0,
 		"a refused invocation still started something")

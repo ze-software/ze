@@ -465,9 +465,9 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 
 func ipsecPeerByName(t *testing.T, peers []interoplab.PeerConfig, name string) interoplab.PeerConfig {
 	t.Helper()
-	for _, peer := range peers {
-		if peer.Name == name {
-			return peer
+	for index := range peers {
+		if peers[index].Name == name {
+			return peers[index]
 		}
 	}
 	t.Fatalf("peer %s missing from %#v", name, peers)
@@ -475,8 +475,8 @@ func ipsecPeerByName(t *testing.T, peers []interoplab.PeerConfig, name string) i
 }
 
 func ipsecHasPeer(peers []interoplab.PeerConfig, name string) bool {
-	for _, peer := range peers {
-		if peer.Name == name {
+	for index := range peers {
+		if peers[index].Name == name {
 			return true
 		}
 	}

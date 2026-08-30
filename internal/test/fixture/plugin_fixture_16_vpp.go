@@ -47,11 +47,11 @@ func init() {
 }
 
 func plugin16ReadVPPLog(path string) []plugin16VPPEntry {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck // fixture teardown
 	entries := make([]plugin16VPPEntry, 0, 16)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -115,7 +115,7 @@ func plugin16VPPFailure(reason, zeLog string, entries []plugin16VPPEntry) error 
 	for _, entry := range entries {
 		fmt.Fprintf(os.Stderr, "stub: %s %v\n", entry.Message, entry.Fields)
 	}
-	if content, err := os.ReadFile(zeLog); err == nil {
+	if content, err := os.ReadFile(zeLog); err == nil { //nolint:gosec // the path is the fixture's own scratch file
 		_, _ = os.Stderr.Write(content)
 	}
 	return fmt.Errorf("%s", reason)
@@ -126,7 +126,7 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	defer os.RemoveAll(tmp) //nolint:errcheck // fixture cleanup
 	socketPath := filepath.Join(tmp, "api.sock")
 	if len(socketPath) >= 108 {
 		return fmt.Errorf("driver: socket path too long: %s", socketPath)
@@ -142,7 +142,7 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	stub := exec.Command(executable, "vpp-stub", "--socket", socketPath, "--log", requestLog, "--deadline", "120")
+	stub := exec.CommandContext(ctx, executable, "vpp-stub", "--socket", socketPath, "--log", requestLog, "--deadline", "120") //nolint:gosec // the fixture chooses the program and its arguments
 	stub.Stdout = io.Discard
 	stub.Stderr = io.Discard
 	stubDone, err := plugin16StartProcess(stub)
@@ -161,28 +161,28 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	if err := os.Mkdir(configDir, 0o700); err != nil {
 		return err
 	}
-	logFile, err := os.OpenFile(zeLog, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	logFile, err := os.OpenFile(zeLog, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
-	ze := exec.Command("ze", "start", configPath)
+	ze := exec.CommandContext(ctx, "ze", "start", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	ze.Stdout = logFile
 	ze.Stderr = logFile
 	ze.Env = plugin15Environment(map[string]string{
 		"ze.config.dir":    configDir,
-		"ze.log.vpp":       "info",
-		"ze.log.interface": "info",
-		"ze.log.bgp":       "warn",
+		envLogVPP:          logLevelInfo,
+		"ze.log.interface": logLevelInfo,
+		envLogBGP:          logLevelWarn,
 	})
 	zeDone, err := plugin16StartProcess(ze)
 	if err != nil {
-		logFile.Close()
+		logFile.Close() //nolint:errcheck // fixture teardown
 		return fmt.Errorf("start ze: %w", err)
 	}
 	var entries []plugin16VPPEntry
 	defer func() {
 		plugin16StopProcess(ze, zeDone)
-		logFile.Close()
+		logFile.Close() //nolint:errcheck // fixture teardown
 	}()
 
 	entries = plugin16WaitVPPMessage(ctx, requestLog, "create_loopback", 800)

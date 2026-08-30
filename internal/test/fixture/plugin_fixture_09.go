@@ -100,7 +100,7 @@ func dispatch09(ctx context.Context, p *sdk.Plugin, command string) commandResul
 	return r
 }
 
-func done09(r commandResult09) bool { return r.status == "done" && r.err == nil }
+func done09(r commandResult09) bool { return r.status == statusDone && r.err == nil }
 
 func map09(v any) map[string]any {
 	m, _ := v.(map[string]any)
@@ -133,7 +133,7 @@ func passiveObserve09(ctx context.Context, name string, registration sdk.Registr
 	if err != nil {
 		return fmt.Errorf("connect observer %s: %w", name, err)
 	}
-	defer plugin.Close()
+	defer plugin.Close() //nolint:errcheck // fixture teardown
 	result := make(chan error, 1)
 	plugin.OnAllPluginsReady(func() error {
 		go func() {
@@ -224,7 +224,7 @@ func interfaceTypeShow09(ctx context.Context, _ []string) error {
 		}
 		unknown := "zz-not-an-interface-type"
 		rejected := dispatch09(ctx, p, "show interface type "+unknown)
-		if rejected.status != "error" || rejected.err == nil {
+		if rejected.status != statusError || rejected.err == nil {
 			return fmt.Errorf("interface-type %s: expected error, status=%s data=%s", unknown, rejected.status, rejected.text)
 		}
 		if !strings.Contains(rejected.text, "unknown interface type") || !strings.Contains(strings.ToLower(rejected.text), strings.ToLower(wanted)) {
@@ -274,7 +274,12 @@ func lgCSVDownload09(ctx context.Context, _ []string) error {
 		var lastErr error
 		lastStatus := 0
 		if !Poll(ctx, 75, 200*time.Millisecond, func() bool {
-			candidate, err := client.Get(url)
+			request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+			if err != nil {
+				lastErr = err
+				return false
+			}
+			candidate, err := client.Do(request)
 			lastErr = err
 			if err != nil {
 				return false
@@ -292,7 +297,7 @@ func lgCSVDownload09(ctx context.Context, _ []string) error {
 			}
 			return fmt.Errorf("csv: LG download never responded at %s: %w", url, lastErr)
 		}
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint:errcheck // the body is read
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("csv: read body: %w", err)

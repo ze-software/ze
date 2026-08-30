@@ -1,7 +1,12 @@
-# Test: show policy test error paths (peer not found, unknown filter)
+# Test: show policy test error paths (peer not found, unknown filter), and the
+# placement of the direction token the command model declares.
 # VALIDATES: spec-pol-4-explain AC-11 -- peer selector matching no peer returns error
 # VALIDATES: spec-pol-4-explain AC-4  -- unknown filter override returns error, no plugin call
+# VALIDATES: spec-generated-command-usage -- `import|export` is placed on the
+#            direction leaf, and that leaf is mandatory because the handler
+#            refuses a call without a direction
 # PREVENTS: error paths returning a misleading success/accept result
+# PREVENTS: a direction token binding to the `filter` leaf as a filter NAME
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -61,3 +66,19 @@ expect=exit:code=0
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error
+
+# The two directives below read the DAEMON's log, which is the surface that
+# carries a dispatcher verdict. Every command this fixture sends must reach the
+# handler except the one that omits the direction.
+#
+# `invalid value` is the dispatcher refusing a token no argument definition
+# accepts. Before the direction leaf was declared, `show policy test peer
+# <selector> export filter <name> update <hex>` produced exactly that: the
+# `filter` keyword had already taken its value, so the bare `export` was offered
+# to the source-asn4 enum and the documented form never ran.
+reject=stderr:pattern=invalid value
+# `required argument missing` is the dispatcher refusing the call that omits the
+# direction. parsePolicyTestArgs answers errMissingDirection without one, so the
+# leaf is mandatory, and this line is what says the model agrees with the
+# handler. An optional leaf would let that call through to the handler instead.
+expect=stderr:contains=required argument missing

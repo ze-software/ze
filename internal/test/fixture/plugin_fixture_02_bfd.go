@@ -157,7 +157,7 @@ func commandOutput02(deadline time.Time, args ...string) ([]byte, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), left)
 	defer cancel()
-	return exec.CommandContext(ctx, args[0], args[1:]...).Output()
+	return exec.CommandContext(ctx, args[0], args[1:]...).Output() //nolint:gosec // the fixture chooses the program and its arguments
 }
 
 func (p *storeProbe02) seq02(deadline time.Time) int {
@@ -169,7 +169,7 @@ func (p *storeProbe02) seq02(deadline time.Time) int {
 		if err != nil {
 			return 0
 		}
-		for _, key := range strings.Fields(string(listing)) {
+		for key := range strings.FieldsSeq(string(listing)) {
 			if strings.HasPrefix(key, "meta/bfd/auth/") {
 				p.key = key
 				break

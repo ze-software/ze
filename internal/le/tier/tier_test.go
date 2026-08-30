@@ -24,7 +24,7 @@ func fixtureTree(t *testing.T, files map[string]string) string {
 // VALIDATES: the plugin search roots this gate scans are the composition-root
 // generator's own list, obtained by a CALL.
 // PREVENTS: the step-14 landmine. The script parsed the roots out of
-// internal/le/pluginimports/pluginimports.go's source text, so deleting that
+// internal/le/plugin/imports/pluginimports.go's source text, so deleting that
 // script leaves the gate with no roots and every nested sub-plugin
 // engine reads as misplaced.
 func TestThePluginDirsAreTheGeneratorsOwnList(t *testing.T) {

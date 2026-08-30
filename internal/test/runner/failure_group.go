@@ -14,6 +14,7 @@ const (
 	nativeFailureGroupPrefix = "VERIFY FAILURE GROUP:"
 	defaultFailureSuite      = "encode"
 	editorSuite              = "editor"
+	decodeSuite              = "decode"
 )
 
 // failureGroup is the native suite-local failure routing unit emitted by ze-test.
@@ -114,7 +115,7 @@ func failureGroupTarget(suite string, rec *Record) groupTarget {
 
 func usesFullNameGrouping(suite string) bool {
 	switch suite {
-	case "decode", editorSuite, "firewall", "install", "l2tp", "managed", "parse", "policy", "ui", "web":
+	case decodeSuite, editorSuite, "firewall", "install", "l2tp", "managed", "parse", "policy", "ui", "web":
 		return true
 	default:
 		return false
@@ -164,7 +165,7 @@ func FormatRerunCommand(suite string, args []string) string {
 	if suite == "" {
 		suite = defaultFailureSuite
 	}
-	command := []string{"ze-test"}
+	command := []string{binNameZeTest}
 	switch {
 	case suite == editorSuite:
 		command = append(command, editorSuite)
@@ -199,7 +200,7 @@ func formatRecordRerunCommand(suite string, rec *Record) string {
 
 func isBGPSuite(suite string) bool {
 	switch suite {
-	case defaultFailureSuite, "plugin", "decode", "parse", "reload", "chaos-web", "chaos":
+	case defaultFailureSuite, "plugin", decodeSuite, "parse", "reload", "chaos-web", "chaos":
 		return true
 	default:
 		return false

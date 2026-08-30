@@ -24,8 +24,8 @@ func init() {
 	Register("reload/reload-prefix-updated-clears-stale-trigger", reloadTriggerDriver("saw-stale", false))
 }
 
-func commandOutput(ctx context.Context, dir string, env []string, stdin string, name string, args ...string) ([]byte, error) {
-	command := exec.CommandContext(ctx, name, args...)
+func commandOutput(ctx context.Context, dir string, env []string, stdin, name string, args ...string) ([]byte, error) {
+	command := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = dir
 	if env != nil {
 		command.Env = env
@@ -62,7 +62,7 @@ func waitForFile(ctx context.Context, path string, attempts int, delay time.Dura
 }
 
 func readPID(path string) (int, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return 0, err
 	}
@@ -91,7 +91,7 @@ func backgroundReadinessDriver(ctx context.Context, args []string) error {
 	if pid == os.Getpid() {
 		return errors.New("daemon.pid holds the driver's own pid, not the ze daemon")
 	}
-	fmt.Fprintln(os.Stdout, "background ze readiness files present")
+	fmt.Fprintln(os.Stdout, "background ze readiness files present") //nolint:errcheck // progress output
 	return syscall.Kill(pid, syscall.SIGTERM)
 }
 
@@ -100,7 +100,7 @@ func reloadTriggerDriver(barrier string, writeDone bool) Driver {
 		if len(args) != 0 {
 			return errors.New("reload trigger takes no arguments")
 		}
-		for _, path := range []string{"daemon.pid", "daemon.ready", barrier} {
+		for _, path := range []string{fileDaemonPID, fileDaemonReady, barrier} {
 			if !waitForFile(ctx, path, 300, 100*time.Millisecond) {
 				return fmt.Errorf("reload trigger timed out waiting for %s", path)
 			}
@@ -134,7 +134,7 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	env := miscEnvironment(map[string]string{"ZE_CONFIG_DIR": work})
+	env := miscEnvironment(map[string]string{envConfigDir: work})
 	run := func(name string, args ...string) ([]byte, error) {
 		return commandOutput(ctx, work, env, "", name, args...)
 	}
@@ -171,7 +171,7 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 		if err := json.Unmarshal(output, &value); err != nil {
 			return nil, fmt.Errorf("decode %s: %w", command, err)
 		}
-		fmt.Fprintln(os.Stdout, "COVERED: "+evidence)
+		fmt.Fprintln(os.Stdout, "COVERED: "+evidence) //nolint:errcheck // progress output
 		return value, nil
 	}
 	asMap := func(value any) map[string]any { result, _ := value.(map[string]any); return result }
@@ -197,11 +197,11 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 		if !ok || int(count) != want || len(pipe) != 1 {
 			return false
 		}
-		return asMap(pipe[0])["op"] == "count"
+		return asMap(pipe[0])["op"] == pipeCount
 	}
 	must := func(value any, err error) (any, error) { return value, err }
 	value, err := must(localJSON("show config dump "+configPath+" | json compact", "show config dump"))
-	if err != nil || asMap(asMap(asMap(asMap(value)["environment"])["cli"])["format"])["default"] != "table" {
+	if err != nil || asMap(asMap(asMap(asMap(value)["environment"])["cli"])["format"])["default"] != renderTable {
 		return fmt.Errorf("config dump lost default table: %v: %w", value, err)
 	}
 	value, err = localJSON("show config history pipe-local.conf | json compact", "show config history")
@@ -286,7 +286,7 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 		return errors.New("yang --commands returned no nodes")
 	}
 	for _, node := range commandNodes {
-		if node["source"] == "config" {
+		if node["source"] == sourceConfig {
 			return errors.New("yang --commands leaked a config-only node")
 		}
 	}
@@ -299,7 +299,7 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 		return errors.New("yang --config returned no nodes")
 	}
 	for _, node := range configNodes {
-		if node["source"] == "command" {
+		if node["source"] == sourceCommand {
 			return errors.New("yang --config leaked a command-only node")
 		}
 	}
@@ -316,25 +316,28 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	totalAffected := 0
 	for _, raw := range collisions {
 		group := asMap(raw)
-		if group["max-chars"].(float64) < 2 {
+		maxChars, _ := group["max-chars"].(float64)
+		if maxChars < 2 {
 			return fmt.Errorf("completion ignored min-prefix: %v", group)
 		}
 		totalAffected += len(rows(group["siblings"], ""))
 	}
 	summary := asMap(asMap(value)["summary"])
-	if int(summary["total-groups"].(float64)) != len(collisions) || int(summary["total-affected"].(float64)) != totalAffected {
+	totalGroups, _ := summary["total-groups"].(float64)
+	reportedAffected, _ := summary["total-affected"].(float64)
+	if int(totalGroups) != len(collisions) || int(reportedAffected) != totalAffected {
 		return fmt.Errorf("completion summary mismatch: %v", value)
 	}
 	value, err = localJSON("show env list | json compact", "show env list")
 	if err != nil || !hasRow(rows(value, "variables"), func(row map[string]any) bool {
 		_, current := row["current"]
-		return row["key"] == "ze.cli.format" && current
+		return row["key"] == envCLIFormat && current
 	}) {
 		return fmt.Errorf("env list lost ze.cli.format: %v: %w", value, err)
 	}
 	value, err = localJSON("show env get ze.cli.format | json compact", "show env get")
 	selected := rows(value, "variables")
-	if err != nil || len(selected) != 1 || asMap(selected[0])["key"] != "ze.cli.format" {
+	if err != nil || len(selected) != 1 || asMap(selected[0])["key"] != envCLIFormat {
 		return fmt.Errorf("env get returned wrong row: %v: %w", value, err)
 	}
 	if _, ok := asMap(selected[0])["current"]; !ok {
@@ -343,7 +346,7 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	value, err = localJSON("show env registered | json compact", "show env registered")
 	if err != nil || !hasRow(rows(value, "variables"), func(row map[string]any) bool {
 		_, current := row["current"]
-		return row["key"] == "ze.cli.format" && !current
+		return row["key"] == envCLIFormat && !current
 	}) {
 		return fmt.Errorf("env registered leaked or lost declaration: %v: %w", value, err)
 	}
@@ -352,7 +355,7 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	saved, err := os.ReadFile(savePath)
+	saved, err := os.ReadFile(savePath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil || !bytes.Equal(saved, shown) {
 		return fmt.Errorf("local save bytes differ: %w", err)
 	}
@@ -363,6 +366,6 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	if saveInfo.Mode().Perm() != 0o600 {
 		return fmt.Errorf("local save mode=%v, want 0600", saveInfo.Mode().Perm())
 	}
-	fmt.Fprintln(os.Stdout, "OK: 15/15 local-data commands and local one-shot save")
+	fmt.Fprintln(os.Stdout, "OK: 15/15 local-data commands and local one-shot save") //nolint:errcheck // progress output
 	return nil
 }

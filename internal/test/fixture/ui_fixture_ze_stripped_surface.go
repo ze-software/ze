@@ -48,7 +48,7 @@ func (h *productHarness) Dispatch(
 	inheritStderr bool,
 	args ...string,
 ) (uiZeStrippedSurfaceCommandResult, error) {
-	cmd := exec.CommandContext(ctx, "ze-stripped", args...)
+	cmd := exec.CommandContext(ctx, "ze-stripped", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = h.dir
 	if env != nil {
 		cmd.Env = env
@@ -82,8 +82,7 @@ func (h *productHarness) Dispatch(
 		return result, nil
 	}
 
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}
@@ -93,7 +92,7 @@ func (h *productHarness) Dispatch(
 // Observe starts and continuously observes the compiled daemon process.
 func (h *productHarness) Observe(ctx context.Context, env []string, args ...string) (*observedProcess, error) {
 	p := &observedProcess{done: make(chan struct{})}
-	p.cmd = exec.CommandContext(ctx, "ze-stripped", args...)
+	p.cmd = exec.CommandContext(ctx, "ze-stripped", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	p.cmd.Dir = h.dir
 	p.cmd.Env = env
 	p.cmd.Stdin = os.Stdin
@@ -150,9 +149,7 @@ func (h *productHarness) Poll(
 			return errors.New("daemon did not become ready")
 		}
 		wait := interval
-		if remaining < wait {
-			wait = remaining
-		}
+		wait = min(wait, remaining)
 		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
@@ -213,7 +210,7 @@ func runZEStrippedSurface(ctx context.Context) (retErr error) {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(wd)
+	defer os.RemoveAll(wd) //nolint:errcheck // fixture cleanup
 	h := &productHarness{dir: wd}
 
 	help, err := h.Dispatch(ctx, nil, "", true, "help", "command", "--json")
@@ -283,17 +280,17 @@ func runZEStrippedSurface(ctx context.Context) (retErr error) {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(wd, "stripped.conf"), []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(filepath.Join(wd, "stripped.conf"), []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write stripped.conf: %w", err)
 	}
 
 	dbPath := filepath.Join(wd, "database.zefs")
 	usernamePath := filepath.Join(wd, "username.txt")
 	passwordPath := filepath.Join(wd, "password.txt")
-	if err := os.WriteFile(usernamePath, []byte("ci"), 0o666); err != nil {
+	if err := os.WriteFile(usernamePath, []byte("ci"), 0o600); err != nil {
 		return fmt.Errorf("write username.txt: %w", err)
 	}
-	if err := os.WriteFile(passwordPath, []byte(passwordHash), 0o666); err != nil {
+	if err := os.WriteFile(passwordPath, []byte(passwordHash), 0o600); err != nil {
 		return fmt.Errorf("write password.txt: %w", err)
 	}
 	for _, write := range []struct {
@@ -334,7 +331,7 @@ func runZEStrippedSurface(ctx context.Context) (retErr error) {
 		return err
 	}
 
-	addressBytes, err := os.ReadFile(sshAddressPath)
+	addressBytes, err := os.ReadFile(sshAddressPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}

@@ -1,6 +1,7 @@
 package sourcerewrite
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -182,7 +183,7 @@ func reorderExpectationLine(line string) (string, bool, error) {
 	if len(message) < bgpHeaderLength {
 		return line, false, unparseableError{fmt.Sprintf("message shorter than a BGP header (%d bytes)", len(message))}
 	}
-	for i := 0; i < markerLength; i++ {
+	for i := range markerLength {
 		if message[i] != 0xff {
 			return line, false, unparseableError{"no all-ones BGP marker"}
 		}
@@ -199,7 +200,7 @@ func reorderExpectationLine(line string) (string, bool, error) {
 	if err != nil {
 		return line, false, err
 	}
-	if string(newPayload) == string(payload) {
+	if bytes.Equal(newPayload, payload) {
 		return line, false, nil
 	}
 	if len(newPayload) != len(payload) {
@@ -219,7 +220,7 @@ func reorderExpectationLine(line string) (string, bool, error) {
 func reorderExpectationFiles(paths []string, write bool) (expectationRewriteReport, error) {
 	report := expectationRewriteReport{Write: write, Files: []ExpectationFileResult{}, Warnings: []string{}}
 	for _, path := range paths {
-		raw, err := os.ReadFile(path)
+		raw, err := os.ReadFile(path) //nolint:gosec // a rewrite tool reads the path the operator named
 		if err != nil {
 			return report, err
 		}

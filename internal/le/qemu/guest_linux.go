@@ -31,6 +31,69 @@ const (
 	collectorLineMax  = 4096
 )
 
+// The iproute2 objects a guest command vector names. `ip <object> <verb> ...`
+// is the shape every vector in this package builds, so each word is written
+// once and a vector still reads as the command line it runs.
+const (
+	ipObjectAddr  = "addr"
+	ipObjectLink  = "link"
+	ipObjectNeigh = "neigh"
+	ipObjectNetns = "netns"
+)
+
+// The iproute2 verbs a guest command vector applies to an object.
+const (
+	ipVerbAdd    = "add"
+	ipVerbDelete = "delete"
+	ipVerbSet    = "set"
+	ipVerbShow   = "show"
+)
+
+// The iproute2 keywords that introduce an argument of a verb.
+const (
+	// ipKeywordDev narrows a query to one device: `ip addr show dev DEVICE`.
+	ipKeywordDev = "dev"
+	// ipKeywordName names the far end of a veth pair:
+	// `ip link add NAME type veth peer name FARNAME`.
+	ipKeywordName = "name"
+	// ipKeywordPeer opens the far end of a veth pair.
+	ipKeywordPeer = "peer"
+	// ipKeywordType selects the driver of a new link:
+	// `ip link add NAME type TYPE`.
+	ipKeywordType = "type"
+)
+
+// Two object words appear again as keywords, where they introduce an argument
+// rather than name the object the command acts on. Each slot has its own
+// constant, because one name for both would tell the reader that the word
+// means the same thing in each place, and it does not.
+const (
+	// ipLinkParent introduces a macvlan's parent device:
+	// `ip link add NAME link PARENT type macvlan`.
+	ipLinkParent = "link"
+	// ipLinkNetnsTarget introduces the namespace a device moves into:
+	// `ip link set DEVICE netns NAMESPACE`.
+	ipLinkNetnsTarget = "netns"
+)
+
+// The link types a lab asks the kernel for. Each is also the name of the
+// kernel module that provides the type, which is what probeVRRPKernel loads.
+const (
+	linkTypeBridge  = "bridge"
+	linkTypeDummy   = "dummy"
+	linkTypeMacvlan = "macvlan"
+	linkTypeVeth    = "veth"
+)
+
+// macvlanModeBridge is a macvlan's forwarding mode, not a device type. It
+// holds the same text as linkTypeBridge and means something else, so the two
+// are two constants: `ip link add NAME link PARENT type macvlan mode bridge`.
+const macvlanModeBridge = "bridge"
+
+// pingCommand is the reachability prober a lab runs. The name is argv[0] of a
+// command vector and the name requireGuestCommands looks for on PATH.
+const pingCommand = "ping"
+
 const (
 	guestStorageBlobKey = "ZE_STORAGE_BLOB"
 	guestConfigDirKey   = "ZE_CONFIG_DIR"
@@ -54,7 +117,7 @@ func startGuestProcess(ctx context.Context, namespace string, argv, environ []st
 	name, args := argv[0], argv[1:]
 	if namespace != "" {
 		name = "ip"
-		args = append([]string{"netns", "exec", namespace}, argv...)
+		args = append([]string{ipObjectNetns, "exec", namespace}, argv...)
 	}
 	// #nosec G204 -- guest evidence actions provide closed command shapes whose variable paths are fixture-created binaries and configuration.
 	command := exec.CommandContext(ctx, name, args...)
@@ -256,7 +319,7 @@ func guestRun(ctx context.Context, namespace string, argv, environ []string) (co
 	name, args := argv[0], argv[1:]
 	if namespace != "" {
 		name = "ip"
-		args = append([]string{"netns", "exec", namespace}, argv...)
+		args = append([]string{ipObjectNetns, "exec", namespace}, argv...)
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -346,7 +409,7 @@ func buildGuestZe(ctx context.Context, root, output string, overrideKeys ...stri
 		"CGO_ENABLED": "0",
 		"GOCACHE":     settingFromEnv("GOCACHE", filepath.Join(root, "tmp", "go-cache")),
 	})
-	result, err := guestRun(ctx, "", []string{"go", "build", "-tags", tags, "-o", binary, "./cmd/ze"}, environ)
+	result, err := guestRun(ctx, "", []string{"go", goCommandBuild, "-tags", tags, "-o", binary, "./cmd/ze"}, environ)
 	if err != nil {
 		return "", err
 	}
@@ -418,7 +481,7 @@ func cleanupNamespaces(ctx context.Context, namespaces, rootLinks []string, orde
 			*order = append(*order, tb.Str("term:").Str(namespace).String())
 			tb.Reset()
 		}
-		pids, _ := guestRun(ctx, "", []string{"ip", "netns", "pids", namespace}, nil)
+		pids, _ := guestRun(ctx, "", []string{"ip", ipObjectNetns, "pids", namespace}, nil)
 		for raw := range strings.FieldsSeq(pids.Stdout) {
 			pid, err := strconv.Atoi(raw)
 			if err == nil {
@@ -435,7 +498,7 @@ func cleanupNamespaces(ctx context.Context, namespaces, rootLinks []string, orde
 			*order = append(*order, tb.Str("kill:").Str(namespace).String())
 			tb.Reset()
 		}
-		pids, _ := guestRun(context.Background(), "", []string{"ip", "netns", "pids", namespace}, nil)
+		pids, _ := guestRun(context.Background(), "", []string{"ip", ipObjectNetns, "pids", namespace}, nil)
 		for raw := range strings.FieldsSeq(pids.Stdout) {
 			pid, err := strconv.Atoi(raw)
 			if err == nil {
@@ -448,7 +511,7 @@ func cleanupNamespaces(ctx context.Context, namespaces, rootLinks []string, orde
 			*order = append(*order, tb.Str("link:").Str(link).String())
 			tb.Reset()
 		}
-		if _, err := guestRun(context.Background(), "", []string{"ip", "link", "delete", link}, nil); err != nil {
+		if _, err := guestRun(context.Background(), "", []string{"ip", ipObjectLink, ipVerbDelete, link}, nil); err != nil {
 			fmt.Fprintf(os.Stderr, "cleanup root link %s: %v\n", link, err) //nolint:errcheck // cleanup diagnostics
 		}
 	}
@@ -457,7 +520,7 @@ func cleanupNamespaces(ctx context.Context, namespaces, rootLinks []string, orde
 			*order = append(*order, tb.Str("netns:").Str(namespace).String())
 			tb.Reset()
 		}
-		if _, err := guestRun(context.Background(), "", []string{"ip", "netns", "delete", namespace}, nil); err != nil {
+		if _, err := guestRun(context.Background(), "", []string{"ip", ipObjectNetns, ipVerbDelete, namespace}, nil); err != nil {
 			fmt.Fprintf(os.Stderr, "cleanup network namespace %s: %v\n", namespace, err) //nolint:errcheck // cleanup diagnostics
 		}
 	}

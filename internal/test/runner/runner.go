@@ -23,15 +23,23 @@ import (
 
 var logger = slogutil.LazyLogger("test.runner")
 
+// envTypeString is the env registry's name for a free-text value.
+const envTypeString = "string"
+
 // Test-runner env vars (also read by internal/test/cli, which imports this package).
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.tags", Type: "string", Description: "Extra Go build tags for test builds (comma or space separated)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bin", Type: "string", Description: "Pre-built ze binary path for the test runner (absolute or repo-relative)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.test.bin", Type: "string", Description: "Pre-built ze-test binary path for the test runner (absolute or repo-relative)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.tags", Type: envTypeString, Description: "Extra Go build tags for test builds (comma or space separated)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bin", Type: envTypeString, Description: "Pre-built ze binary path for the test runner (absolute or repo-relative)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.test.bin", Type: envTypeString, Description: "Pre-built ze-test binary path for the test runner (absolute or repo-relative)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.test.no.build", Type: "bool", Description: "Skip the in-process go build and require pre-built test binaries"})
 )
 
-const binNameZePeer = "ze-peer"
+// Names of the binaries the runner builds, shims, and execs.
+const (
+	binNameZe     = "ze"
+	binNameZePeer = "ze-peer"
+	binNameZeTest = "ze-test"
+)
 
 // TestPluginBuildTag enables internal/test/plugins for functional-test DUTs.
 const TestPluginBuildTag = "zetest"
@@ -198,14 +206,14 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 	// unlocked by design; isolation, not locking, is what makes it safe.
 	binDir := sessionpath.BinDir(baseDir)
 
-	zePath := filepath.Join(binDir, "ze")
+	zePath := filepath.Join(binDir, binNameZe)
 	if v := env.Get("ze.bin"); v != "" {
 		if !filepath.IsAbs(v) {
 			v = filepath.Join(baseDir, v)
 		}
 		zePath = v
 	}
-	testBinPath := filepath.Join(binDir, "ze-test")
+	testBinPath := filepath.Join(binDir, binNameZeTest)
 	if v := env.Get("ze.test.bin"); v != "" {
 		if !filepath.IsAbs(v) {
 			v = filepath.Join(baseDir, v)
@@ -282,7 +290,7 @@ func (r *Runner) setupBinShims() error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create bin shim dir: %w", err)
 	}
-	for name, target := range map[string]string{"ze": r.zePath, "ze-test": r.testPath} {
+	for name, target := range map[string]string{binNameZe: r.zePath, binNameZeTest: r.testPath} {
 		abs, err := filepath.Abs(target)
 		if err != nil {
 			return fmt.Errorf("resolve %s binary %q: %w", name, target, err)
@@ -428,9 +436,9 @@ func (r *Runner) verifyPrebuilt() error {
 		_, zeErr := os.Stat(r.zePath)
 		_, testErr := os.Stat(r.testPath)
 		if zeErr != nil || testErr != nil {
-			if dir := sessionpath.FindPrebuiltDir(r.baseDir, "ze", "ze-test"); dir != "" {
-				r.zePath = filepath.Join(dir, "ze")
-				r.testPath = filepath.Join(dir, "ze-test")
+			if dir := sessionpath.FindPrebuiltDir(r.baseDir, binNameZe, binNameZeTest); dir != "" {
+				r.zePath = filepath.Join(dir, binNameZe)
+				r.testPath = filepath.Join(dir, binNameZeTest)
 			}
 		}
 	}

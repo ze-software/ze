@@ -69,7 +69,7 @@ func leGoExtractAnswers(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(here)
+	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
 	le, err := uiLEBinary(checkout)
 	if err != nil {
@@ -101,8 +101,8 @@ func leGoExtractAnswers(ctx context.Context) error {
 		return err
 	}
 	wantCommand := map[string]string{
-		"beta.go":   goExtractBetaFile,
-		"sample.go": goExtractSourceAfterBeta,
+		"beta.go":    goExtractBetaFile,
+		fileSampleGo: goExtractSourceAfterBeta,
 	}
 	if !reflect.DeepEqual(byCommand, wantCommand) {
 		return fmt.Errorf("FAIL: le go-extract wrote different files:\n got: %#v\nwant: %#v", byCommand, wantCommand)
@@ -133,9 +133,9 @@ func leGoExtractAnswers(ctx context.Context) error {
 		if len(preview) > 400 {
 			preview = preview[:400]
 		}
-		return fmt.Errorf("FAIL: `le go-extract | json` did not answer JSON: %v\n%s", err, preview)
+		return fmt.Errorf("FAIL: `le go-extract | json` did not answer JSON: %w\n%s", err, preview)
 	}
-	if report["source"] != "sample.go" {
+	if report["source"] != fileSampleGo {
 		return fmt.Errorf("FAIL: source = %#v", report["source"])
 	}
 	if report["dest"] != "beta.go" {
@@ -245,7 +245,7 @@ func leGoExtractAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	wantTypo := map[string]string{"sample.go": goExtractSource}
+	wantTypo := map[string]string{fileSampleGo: goExtractSource}
 	if !reflect.DeepEqual(typoFiles, wantTypo) {
 		return fmt.Errorf("FAIL: a refused move wrote something: %v", sortedGoExtractFileNames(typoFiles))
 	}
@@ -259,10 +259,10 @@ func makeGoExtractTree(parent, name string) (string, error) {
 	if err := os.RemoveAll(path); err != nil {
 		return "", fmt.Errorf("FAIL: remove %s: %w", path, err)
 	}
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	if err := os.MkdirAll(path, 0o750); err != nil {
 		return "", fmt.Errorf("FAIL: create %s: %w", path, err)
 	}
-	if err := os.WriteFile(filepath.Join(path, "sample.go"), []byte(goExtractSource), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(path, "sample.go"), []byte(goExtractSource), 0o600); err != nil {
 		return "", fmt.Errorf("FAIL: write fixture in %s: %w", path, err)
 	}
 	return path, nil
@@ -275,7 +275,7 @@ func readGoExtractFiles(path string) (map[string]string, error) {
 	}
 	out := make(map[string]string, len(entries))
 	for _, entry := range entries {
-		contents, err := os.ReadFile(filepath.Join(path, entry.Name()))
+		contents, err := os.ReadFile(filepath.Join(path, entry.Name())) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return nil, fmt.Errorf("FAIL: read %s: %w", filepath.Join(path, entry.Name()), err)
 		}
@@ -287,7 +287,7 @@ func readGoExtractFiles(path string) (map[string]string, error) {
 func runGoExtractCommand(ctx context.Context, dir, program string, args ...string) (goExtractResult, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, program, args...)
+	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -296,8 +296,7 @@ func runGoExtractCommand(ctx context.Context, dir, program string, args ...strin
 	if err == nil {
 		return result, nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}

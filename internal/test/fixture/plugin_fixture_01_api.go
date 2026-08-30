@@ -30,7 +30,7 @@ func plugin01APIBGPSummary(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	found := false
 	for _, value := range plugin01Array(data["peers"]) {
-		if plugin01Object(value)["address"] == "127.0.0.1" {
+		if plugin01Object(value)["address"] == addrLoopback {
 			found = true
 		}
 	}
@@ -130,7 +130,7 @@ func plugin01REST(ctx context.Context, method, path string, payload any) (map[st
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close() //nolint:errcheck
+	defer response.Body.Close() //nolint:errcheck // the fixture only reads the body, so a close failure changes no assertion
 	raw, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
@@ -157,7 +157,7 @@ func plugin01RESTReady(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	defer response.Body.Close() //nolint:errcheck
+	defer response.Body.Close() //nolint:errcheck // the fixture only reads the body, so a close failure changes no assertion
 	return response.StatusCode >= 200 && response.StatusCode < 300
 }
 
@@ -176,7 +176,7 @@ func plugin01APIConfigCommitReject(ctx context.Context, plugin *sdk.Plugin) erro
 		return fmt.Errorf("create session response=%v", created)
 	}
 	if _, err := plugin01REST(ctx, http.MethodPut, "/config/sessions/"+sessionID,
-		map[string]string{"path": "bgp.peer.peer1.timer.receive-hold-time", "value": "2"}); err != nil {
+		map[string]string{fieldPath: "bgp.peer.peer1.timer.receive-hold-time", fieldValue: "2"}); err != nil {
 		return err
 	}
 	_, err = plugin01REST(ctx, http.MethodPost, "/config/sessions/"+sessionID+"/commit", nil)
@@ -211,17 +211,17 @@ func plugin01APIDoctorProvider(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer plugin.Close() //nolint:errcheck
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 	plugin.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
 		if name != "test-cache-reachable" {
 			return nil, nil
 		}
 		return []rpc.DoctorCheckDiagnostic{{
-			Code: "doctor-test-cache-down", Severity: "warning", Message: "test cache not responding",
+			Code: codeDoctorTestCacheDown, Severity: severityWarning, Message: "test cache not responding",
 		}}, nil
 	})
 	return plugin.Run(ctx, sdk.Registration{DoctorChecks: []sdk.DoctorCheckDecl{{
-		Name: "test-cache-reachable", Phase: sdk.DoctorPhasePostConfig, Codes: []string{"doctor-test-cache-down"},
+		Name: "test-cache-reachable", Phase: sdk.DoctorPhasePostConfig, Codes: []string{codeDoctorTestCacheDown},
 	}}})
 }
 
@@ -235,7 +235,7 @@ func plugin01APIDoctorChecker(ctx context.Context, plugin *sdk.Plugin) error {
 			return false
 		}
 		for _, value := range plugin01Array(data["diagnostics"]) {
-			if plugin01Object(value)["code"] == "doctor-test-cache-down" {
+			if plugin01Object(value)["code"] == codeDoctorTestCacheDown {
 				return true
 			}
 		}
@@ -246,10 +246,10 @@ func plugin01APIDoctorChecker(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	for _, value := range plugin01Array(data["diagnostics"]) {
 		diagnostic := plugin01Object(value)
-		if diagnostic["code"] != "doctor-test-cache-down" {
+		if diagnostic["code"] != codeDoctorTestCacheDown {
 			continue
 		}
-		if diagnostic["severity"] != "warning" || !strings.Contains(fmt.Sprint(diagnostic["message"]), "test cache not responding") {
+		if diagnostic["severity"] != severityWarning || !strings.Contains(fmt.Sprint(diagnostic["message"]), "test cache not responding") {
 			return fmt.Errorf("wrong diagnostic: %v", diagnostic)
 		}
 		return nil
@@ -271,7 +271,7 @@ func plugin01APIPeerCapabilities(ctx context.Context, plugin *sdk.Plugin) error 
 	}
 	row := plugin01Object(rows[0])
 	negotiated := plugin01Object(row["negotiated"])
-	if row["peer"] != "127.0.0.1" || len(negotiated) == 0 {
+	if row["peer"] != addrLoopback || len(negotiated) == 0 {
 		return fmt.Errorf("unexpected capability row: %v", row)
 	}
 	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
@@ -327,7 +327,7 @@ func plugin01APIPeerPrefixUpdate(ctx context.Context, plugin *sdk.Plugin) error 
 	}
 	result := plugin01Object(results[0])
 	changes := plugin01Object(result["changes"])
-	if result["status"] != "updated" || plugin01Number(changes["ipv4/unicast"]) != 71501 {
+	if result["status"] != statusUpdated || plugin01Number(changes["ipv4/unicast"]) != 71501 {
 		return fmt.Errorf("unexpected peer prefix changes: %v", result)
 	}
 	fmt.Fprintln(os.Stderr, "OK: prefix update succeeded, ipv4=71501")

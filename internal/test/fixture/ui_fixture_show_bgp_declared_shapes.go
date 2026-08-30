@@ -39,9 +39,9 @@ func showBGPDeclaredShapes(ctx context.Context) (retErr error) {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer os.RemoveAll(workDir) //nolint:errcheck // fixture cleanup
 
-	passwd, err := showBGPDeclaredShapesRun(ctx, workDir, os.Environ(), "secret\n", "ze", "passwd")
+	passwd, err := showBGPDeclaredShapesRun(ctx, workDir, os.Environ(), "secret\n", "passwd")
 	if err != nil {
 		return fmt.Errorf("run ze passwd: %w", err)
 	}
@@ -98,7 +98,7 @@ system {
     }
 }
 `, passwordHash)
-	if err := os.WriteFile(filepath.Join(workDir, "shapes.conf"), []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(filepath.Join(workDir, "shapes.conf"), []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write shapes.conf: %w", err)
 	}
 
@@ -128,7 +128,7 @@ system {
 			if retErr == nil {
 				retErr = cleanupErr
 			} else {
-				retErr = fmt.Errorf("%v; cleanup failed: %w", retErr, cleanupErr)
+				retErr = fmt.Errorf("%w; cleanup failed: %w", retErr, cleanupErr)
 			}
 		}
 	}()
@@ -152,7 +152,7 @@ system {
 		return fmt.Errorf("daemon did not become ready")
 	}
 
-	addrBytes, err := os.ReadFile(sshAddrPath)
+	addrBytes, err := os.ReadFile(sshAddrPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -171,7 +171,7 @@ system {
 	)
 
 	cli := func(command string) (string, error) {
-		result, runErr := showBGPDeclaredShapesRun(ctx, workDir, cliEnv, "", "ze", "cli", "-c", command)
+		result, runErr := showBGPDeclaredShapesRun(ctx, workDir, cliEnv, "", "cli", "-c", command)
 		if runErr != nil {
 			return "", fmt.Errorf("%s: %w", command, runErr)
 		}
@@ -181,7 +181,7 @@ system {
 		return result.stdout, nil
 	}
 	refusal := func(command string) (string, error) {
-		result, runErr := showBGPDeclaredShapesRun(ctx, workDir, cliEnv, "", "ze", "cli", "-c", command)
+		result, runErr := showBGPDeclaredShapesRun(ctx, workDir, cliEnv, "", "cli", "-c", command)
 		if runErr != nil {
 			return "", fmt.Errorf("%s: %w", command, runErr)
 		}
@@ -269,14 +269,14 @@ system {
 		operator string
 		reason   string
 	}{
-		{"show bgp rib status | count", "count", "one document"},
-		{"show bgp rib status | first 2", "first", "one document"},
-		{"show bgp rib best status | count", "count", "one document"},
-		{"show bgp rib rpf | count", "count", "one document"},
-		{"show bgp irr check | first 1", "first", "one document"},
-		{"show bgp peer list | resolve", "resolve", "IP address"},
-		{"show bgp peer history | resolve", "resolve", "IP address"},
-		{"show bgp irr | resolve", "resolve", "IP address"},
+		{"show bgp rib status | count", pipeCount, shapeOneDocument},
+		{"show bgp rib status | first 2", pipeFirst, shapeOneDocument},
+		{"show bgp rib best status | count", pipeCount, shapeOneDocument},
+		{"show bgp rib rpf | count", pipeCount, shapeOneDocument},
+		{"show bgp irr check | first 1", pipeFirst, shapeOneDocument},
+		{"show bgp peer list | resolve", pipeResolve, shapeIPAddress},
+		{"show bgp peer history | resolve", pipeResolve, shapeIPAddress},
+		{"show bgp irr | resolve", pipeResolve, shapeIPAddress},
 	}
 	for _, tc := range refusals {
 		text, refusalErr := refusal(tc.command)
@@ -289,7 +289,7 @@ system {
 	}
 
 	published := func(command string) (string, map[string]struct{}, error) {
-		result, runErr := showBGPDeclaredShapesRun(ctx, workDir, cliEnv, "", "ze", "help", "command", command, "--json")
+		result, runErr := showBGPDeclaredShapesRun(ctx, workDir, cliEnv, "", "help", "command", command, "--json")
 		if runErr != nil {
 			return "", nil, fmt.Errorf("ze help command %q: %w", command, runErr)
 		}
@@ -318,7 +318,7 @@ system {
 		if operators, ok := entry["operators"].([]any); ok {
 			for _, rawOperator := range operators {
 				operator, ok := rawOperator.(map[string]any)
-				if !ok || operator["available"] != "always" {
+				if !ok || operator["available"] != valueAlways {
 					continue
 				}
 				if name, ok := operator["name"].(string); ok {
@@ -335,10 +335,10 @@ system {
 	if err != nil {
 		return err
 	}
-	if shape != "tab" {
+	if shape != shapeTab {
 		return fmt.Errorf("`show bgp rib best` publishes shape %q, want tab", shape)
 	}
-	for _, operator := range []string{"count", "first", "display", "origin", "resolve"} {
+	for _, operator := range []string{pipeCount, pipeFirst, "display", pipeOrigin, pipeResolve} {
 		if _, ok := always[operator]; !ok {
 			return fmt.Errorf("`show bgp rib best` does not publish `%s`: %v", operator, showBGPDeclaredShapesSortedSet(always))
 		}
@@ -348,10 +348,10 @@ system {
 	if err != nil {
 		return err
 	}
-	if shape != "doc" {
+	if shape != shapeDoc {
 		return fmt.Errorf("`show bgp rib status` publishes shape %q, want doc", shape)
 	}
-	for _, operator := range []string{"count", "first", "display", "origin", "resolve"} {
+	for _, operator := range []string{pipeCount, pipeFirst, "display", pipeOrigin, pipeResolve} {
 		if _, ok := always[operator]; ok {
 			return fmt.Errorf("`show bgp rib status` publishes `%s` over an answer with no rows: %v", operator, showBGPDeclaredShapesSortedSet(always))
 		}
@@ -361,7 +361,7 @@ system {
 	if err != nil {
 		return err
 	}
-	if shape != "map" {
+	if shape != shapeMap {
 		return fmt.Errorf("`show bgp irr prefix` publishes shape %q, want map", shape)
 	}
 	if _, ok := always["count"]; !ok {
@@ -380,8 +380,8 @@ system {
 	return nil
 }
 
-func showBGPDeclaredShapesRun(ctx context.Context, dir string, env []string, stdin, name string, args ...string) (showBGPDeclaredShapesResult, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+func showBGPDeclaredShapesRun(ctx context.Context, dir string, env []string, stdin string, args ...string) (showBGPDeclaredShapesResult, error) {
+	cmd := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	cmd.Env = env
 	if stdin != "" {
@@ -444,7 +444,7 @@ func (daemon *showBGPDeclaredShapesDaemon) stop() error {
 }
 
 func showBGPDeclaredShapesPoll(ctx context.Context, attempts int, delay time.Duration, observe func() (bool, error)) (bool, error) {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		ready, err := observe()
 		if err != nil || ready {
 			return ready, err
@@ -475,8 +475,8 @@ func showBGPDeclaredShapesSetEnv(base []string, keyValues ...string) []string {
 	result := make([]string, 0, len(base)+len(order))
 	for _, item := range base {
 		key := item
-		if equal := strings.IndexByte(item, '='); equal >= 0 {
-			key = item[:equal]
+		if before, _, found := strings.Cut(item, "="); found {
+			key = before
 		}
 		if _, replaced := replacements[key]; !replaced {
 			result = append(result, item)

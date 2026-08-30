@@ -143,11 +143,11 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		return err
 	}
 	if listing.code != 0 {
-		return fmt.Errorf("FAIL: `le command-list | json` exited %d", listing.code)
+		return fmt.Errorf("FAIL: `le command list | json` exited %d", listing.code)
 	}
 	var commands []map[string]any
 	if err := json.Unmarshal([]byte(listing.stdout), &commands); err != nil {
-		return fmt.Errorf("FAIL: `le command-list | json` did not answer a JSON array: %w\n%s", err, uiLeInventoryAnswersPrefix(listing.stdout, 400))
+		return fmt.Errorf("FAIL: `le command list | json` did not answer a JSON array: %w\n%s", err, uiLeInventoryAnswersPrefix(listing.stdout, 400))
 	}
 	if len(commands) == 0 {
 		return errors.New("FAIL: the command list answered an empty array")
@@ -165,11 +165,11 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		return err
 	}
 	if counted.code != 0 {
-		return fmt.Errorf("FAIL: `le command-list | count` exited %d", counted.code)
+		return fmt.Errorf("FAIL: `le command list | count` exited %d", counted.code)
 	}
 	wantCount := strconv.Itoa(len(commands))
 	if !strings.Contains(counted.stdout, wantCount) {
-		return fmt.Errorf("FAIL: `le command-list | count` answered %q, want %d", counted.stdout, len(commands))
+		return fmt.Errorf("FAIL: `le command list | count` answered %q, want %d", counted.stdout, len(commands))
 	}
 
 	// Inventory is one document containing several row sets. There is no

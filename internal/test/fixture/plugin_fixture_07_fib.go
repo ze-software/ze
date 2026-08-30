@@ -14,15 +14,15 @@ import (
 )
 
 func fibRIBEvent07(ctx context.Context, p *sdk.Plugin) error {
-	if status := done07(ctx, p, "show bgp rib status").status; status != "done" {
+	if status := done07(ctx, p, "show bgp rib status").status; status != statusDone {
 		return fmt.Errorf("rib plugin did not become ready: status=%s", status)
 	}
-	if result := command07(ctx, p, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.0.0/24 origin igp"); result.status != "done" {
-		return fmt.Errorf("inject-route: status=%s error=%v", result.status, result.err)
+	if result := command07(ctx, p, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.0.0/24 origin igp"); result.status != statusDone {
+		return fmt.Errorf("inject-route: status=%s error=%w", result.status, result.err)
 	}
 	result := command07(ctx, p, "show bgp rib best")
-	if result.status != "done" {
-		return fmt.Errorf("show-best: status=%s error=%v", result.status, result.err)
+	if result.status != statusDone {
+		return fmt.Errorf("show-best: status=%s error=%w", result.status, result.err)
 	}
 	found := false
 	for _, row := range array07(object07(result.data)["best-path"]) {
@@ -42,8 +42,8 @@ func fibSRv6Kernel07(ctx context.Context, p *sdk.Plugin) error {
 	}
 	for _, command := range commands {
 		result := command07(ctx, p, command)
-		if result.status != "done" {
-			return fmt.Errorf("%s: status=%s error=%v", command, result.status, result.err)
+		if result.status != statusDone {
+			return fmt.Errorf("%s: status=%s error=%w", command, result.status, result.err)
 		}
 		timer := time.NewTimer(time.Second)
 		select {
@@ -57,22 +57,22 @@ func fibSRv6Kernel07(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func fibSysRIB07(ctx context.Context, p *sdk.Plugin) error {
-	if status := done07(ctx, p, "show bgp rib status").status; status != "done" {
+	if status := done07(ctx, p, "show bgp rib status").status; status != statusDone {
 		return fmt.Errorf("rib plugin did not become ready: status=%s", status)
 	}
-	if result := command07(ctx, p, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.20.0.0/24 origin igp"); result.status != "done" {
-		return fmt.Errorf("inject-route: status=%s error=%v", result.status, result.err)
+	if result := command07(ctx, p, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.20.0.0/24 origin igp"); result.status != statusDone {
+		return fmt.Errorf("inject-route: status=%s error=%w", result.status, result.err)
 	}
 	result := until07(ctx, p, "show rib", 20, 250*time.Millisecond, func(result commandResult07) bool {
 		for _, row := range array07(result.data) {
-			if object07(row)["prefix"] == "10.20.0.0/24" {
-				return result.status == "done"
+			if object07(row)["prefix"] == prefixTenTwenty {
+				return result.status == statusDone
 			}
 		}
 		return false
 	})
 	for _, row := range array07(result.data) {
-		if object07(row)["prefix"] == "10.20.0.0/24" {
+		if object07(row)["prefix"] == prefixTenTwenty {
 			return waitEOR07(ctx, p, 1)
 		}
 	}
@@ -81,20 +81,20 @@ func fibSysRIB07(ctx context.Context, p *sdk.Plugin) error {
 
 func fibTable07(ctx context.Context, p *sdk.Plugin) error {
 	result := command07(ctx, p, "request fakefib emit add ipv4/unicast 10.0.0.0/24 nexthop 192.168.1.1 tableid 100")
-	if result.status != "done" {
-		return fmt.Errorf("fakefib table-id emit: status=%s error=%v", result.status, result.err)
+	if result.status != statusDone {
+		return fmt.Errorf("fakefib table-id emit: status=%s error=%w", result.status, result.err)
 	}
 	result = until07(ctx, p, "show metrics values", 40, 250*time.Millisecond, func(result commandResult07) bool {
 		text := text07(result.data)
-		return result.status == "done" &&
+		return result.status == statusDone &&
 			(strings.Contains(text, "ze_fibkernel_route_installs_total 1") ||
 				strings.Contains(text, `ze_fibkernel_errors_total{operation="add"} 1`))
 	})
 	text := text07(result.data)
-	if result.status != "done" ||
+	if result.status != statusDone ||
 		(!strings.Contains(text, "ze_fibkernel_route_installs_total 1") &&
 			!strings.Contains(text, `ze_fibkernel_errors_total{operation="add"} 1`)) {
-		return fmt.Errorf("fib-kernel did not report table-id route processing: status=%s error=%v data=%s", result.status, result.err, text)
+		return fmt.Errorf("fib-kernel did not report table-id route processing: status=%s error=%w data=%s", result.status, result.err, text)
 	}
 	fmt.Fprintln(os.Stderr, "OK: fib-kernel processed the table-id route")
 	return waitEOR07(ctx, p, 1)
@@ -119,7 +119,7 @@ fib {
 }
 `
 
-func runZePatterns07(ctx context.Context, config string, env []string, required []string) error {
+func runZePatterns07(ctx context.Context, config string, env, required []string) error {
 	cmd := exec.CommandContext(ctx, "ze", "-")
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdin = strings.NewReader(config)
@@ -129,12 +129,12 @@ func runZePatterns07(ctx context.Context, config string, env []string, required 
 	}
 	cmd.Stderr = stderrWriter
 	if err := cmd.Start(); err != nil {
-		stderr.Close()       //nolint:errcheck
-		stderrWriter.Close() //nolint:errcheck
+		stderr.Close()       //nolint:errcheck // the start failure below is the error worth reporting
+		stderrWriter.Close() //nolint:errcheck // the start failure below is the error worth reporting
 		return err
 	}
 	stderrWriter.Close() //nolint:errcheck // child owns its duplicate
-	defer stderr.Close() //nolint:errcheck
+	defer stderr.Close() //nolint:errcheck // the fixture is exiting, so a close failure changes no assertion
 
 	observed := make(chan string, len(required))
 	scanErr := make(chan error, 1)

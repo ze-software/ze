@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- native general interoperability gate.
 // Related: prepare.go -- scenario rendering and peer construction.
-// Related: checkers.go -- complete typed scenario checker catalogue.
+// Related: checkers.go -- complete typed scenario checker catalog.
 package bgp
 
 import (
@@ -69,11 +69,11 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 		Docker: interoplab.NewDocker(),
 		Images: []interoplab.ImageBuild{
 			{Name: "ze", Tag: "ze-interop", Dockerfile: filepath.Join(producer, "Dockerfile.ze"), Context: root, BuildArgs: []string{"ZE_FEATURES=" + strings.Join(tags, " ")}, Required: true},
-			{Name: "bird", Tag: "bird-interop", Dockerfile: filepath.Join(producer, "Dockerfile.bird"), Context: producer, Required: true},
-			{Name: "gobgp", Tag: "gobgp-interop", Dockerfile: filepath.Join(producer, "Dockerfile.gobgp"), Context: producer},
-			{Name: "keepalived", Tag: "keepalived-interop", Dockerfile: filepath.Join(producer, "Dockerfile.keepalived"), Context: producer, Required: true},
-			{Name: "stayrtr", Tag: "stayrtr-interop", Dockerfile: filepath.Join(producer, "Dockerfile.stayrtr"), Context: producer},
-			{Name: "frr", Tag: environment.Image, Pull: true, Required: true},
+			{Name: peerBIRD, Tag: "bird-interop", Dockerfile: filepath.Join(producer, "Dockerfile.bird"), Context: producer, Required: true},
+			{Name: peerGoBGP, Tag: "gobgp-interop", Dockerfile: filepath.Join(producer, "Dockerfile.gobgp"), Context: producer},
+			{Name: peerKeepalived, Tag: "keepalived-interop", Dockerfile: filepath.Join(producer, "Dockerfile.keepalived"), Context: producer, Required: true},
+			{Name: peerStayRTR, Tag: "stayrtr-interop", Dockerfile: filepath.Join(producer, "Dockerfile.stayrtr"), Context: producer},
+			{Name: peerFRR, Tag: environment.Image, Pull: true, Required: true},
 		},
 		Scenarios: plans,
 		NoBuild:   options.NoBuild,

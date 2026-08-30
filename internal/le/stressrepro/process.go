@@ -26,7 +26,9 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 	if err != nil {
 		return processResult{code: 2, err: fmt.Errorf("split test: %w", err)}
 	}
-	argv := append(words, "-v")
+	argv := make([]string, 0, len(words)+1+max(1, len(testWords)))
+	argv = append(argv, words...)
+	argv = append(argv, "-v")
 	if len(testWords) == 0 {
 		argv = append(argv, "--all")
 	} else {
@@ -89,8 +91,7 @@ func runCommand(ctx context.Context, dir string, env []string, program string, a
 	if err == nil {
 		return processResult{output: output}
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return processResult{code: exitErr.ExitCode(), output: output}
 	}
 	if errors.Is(ctx.Err(), context.Canceled) {

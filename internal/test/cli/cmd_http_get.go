@@ -16,7 +16,7 @@ func cmdHTTPGet(args []string) int {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, args[0], nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, args[0], http.NoBody)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "http-get: %v\n", err)
 		return 1
@@ -26,7 +26,7 @@ func cmdHTTPGet(args []string) int {
 		fmt.Fprintf(os.Stderr, "http-get: %v\n", err)
 		return 1
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() //nolint:errcheck // read-only response body
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		fmt.Fprintf(os.Stderr, "http-get: %s\n", response.Status)
 		return 1

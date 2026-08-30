@@ -14,7 +14,7 @@ import (
 )
 
 func waitForDaemonFixture(ctx context.Context, _ []string) error {
-	_, err := waitDaemon(ctx, 200, 50*time.Millisecond)
+	_, err := waitDaemon(ctx, 200)
 	return err
 }
 
@@ -66,7 +66,7 @@ func flowExportShow(ctx context.Context, _ []string) error {
 		if !Poll(ctx, 100, 100*time.Millisecond, func() bool {
 			collectors = nil
 			status, err := Dispatch(ctx, p, "show flow export", &collectors)
-			return err == nil && status == "done" && len(collectors) >= 1
+			return err == nil && status == statusDone && len(collectors) >= 1
 		}) {
 			return fmt.Errorf("no collector ever appeared in `show flow export`")
 		}
@@ -74,7 +74,7 @@ func flowExportShow(ctx context.Context, _ []string) error {
 		if got.Name != "c1" {
 			return fmt.Errorf("collector name=%q want %q", got.Name, "c1")
 		}
-		if got.Address != "127.0.0.1" {
+		if got.Address != addrLoopback {
 			return fmt.Errorf("collector address=%q want %q", got.Address, "127.0.0.1")
 		}
 		if got.Protocol != "sflow" {
@@ -93,7 +93,7 @@ func receiveOne(ctx context.Context, name string, args []string, check func([]by
 	if err != nil {
 		return err
 	}
-	defer sock.Close()
+	defer sock.Close() //nolint:errcheck // fixture teardown
 	_ = sock.SetReadDeadline(time.Now().Add(8 * time.Second))
 	return Observe(ctx, name, sdk.Registration{}, func(context.Context, *sdk.Plugin) error {
 		data := make([]byte, 65535)
@@ -160,12 +160,12 @@ func multiCollectorReceiver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer sflowSock.Close()
+	defer sflowSock.Close() //nolint:errcheck // fixture teardown
 	ipfixSock, err := listenUDP(ipfixPort)
 	if err != nil {
 		return err
 	}
-	defer ipfixSock.Close()
+	defer ipfixSock.Close() //nolint:errcheck // fixture teardown
 	return Observe(ctx, "multi-receiver", sdk.Registration{}, func(context.Context, *sdk.Plugin) error {
 		type result struct {
 			kind string

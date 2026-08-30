@@ -16,7 +16,6 @@ const (
 	isisChecksumOffset  = 12
 	isisFletcherModulus = 255
 	isisClaimedSequence = 4096
-	isisPurgeInterface  = "eth0"
 )
 
 type isisPurgeSender func(pid int, interfaceName string, pdu []byte) error
@@ -27,7 +26,7 @@ func injectISISOwnLSPPurge(ctx context.Context, lab interoplab.CheckerLab, send 
 		return fmt.Errorf("resolve Ze network namespace: %w", err)
 	}
 	pdu := buildISISL1Purge([6]byte{0, 0, 0, 0, 0, 2}, isisClaimedSequence, 0, 0)
-	if err := send(pid, isisPurgeInterface, pdu[:]); err != nil {
+	if err := send(pid, containerInterface, pdu[:]); err != nil {
 		return fmt.Errorf("inject own-LSP purge: %w", err)
 	}
 	return nil
@@ -103,11 +102,4 @@ func buildISISEthernetFrame(source net.HardwareAddr, pdu []byte) ([]byte, error)
 	copy(frame[14:17], []byte{0xfe, 0xfe, 0x03})
 	copy(frame[17:], pdu)
 	return frame, nil
-}
-
-func joinISISInjectionError(resultErr error, operation string, err error) error {
-	if err == nil {
-		return resultErr
-	}
-	return errors.Join(resultErr, fmt.Errorf("%s: %w", operation, err))
 }

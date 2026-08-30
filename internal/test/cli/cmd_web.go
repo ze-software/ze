@@ -129,10 +129,8 @@ func cmdWebMain(args []string) error {
 			rel = path
 		}
 		tests.Add(&zeTestWebTest{
-			BaseTest: runner.BaseTest{
-				Name: rel,
-				Nick: runner.GenerateNick(rel),
-			},
+			Name: rel,
+			Nick: runner.GenerateNick(rel),
 			Path: path,
 		})
 		return nil
@@ -404,7 +402,7 @@ func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error
 		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (unset ZE_TEST_NO_BUILD or run the native functional action that prepared this suite)", chaosPath)
 	}
 
-	cmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_chaos ze_bgp", "-o", chaosPath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	cmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_chaos ze_bgp", "-o", chaosPath, packageZe) //nolint:gosec // paths from internal runner
 	cmd.Dir = baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 

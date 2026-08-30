@@ -34,7 +34,7 @@ func requireDone08(ctx context.Context, p *sdk.Plugin, command string) (json.Raw
 	if err != nil {
 		return raw, fmt.Errorf("%s: %w", command, err)
 	}
-	if status != "done" {
+	if status != statusDone {
 		return raw, fmt.Errorf("%s: status=%s data=%s", command, status, raw)
 	}
 	return raw, nil
@@ -88,20 +88,9 @@ func number08(v any) float64 {
 	}
 }
 
-func pollCommand08(ctx context.Context, p *sdk.Plugin, attempts int, delay time.Duration, command string, predicate func(string, json.RawMessage, error) bool) (string, json.RawMessage, error) {
-	var status string
-	var raw json.RawMessage
-	var err error
-	Poll(ctx, attempts, delay, func() bool {
-		status, raw, err = command08(ctx, p, command)
-		return predicate(status, raw, err)
-	})
-	return status, raw, err
-}
-
 func peerCounter08(ctx context.Context, p *sdk.Plugin, peer, counter string) (float64, bool) {
 	status, raw, err := command08(ctx, p, "show bgp peer "+peer+" detail")
-	if err != nil || status != "done" {
+	if err != nil || status != statusDone {
 		return 0, false
 	}
 	obj, err := object08(raw)
@@ -179,8 +168,8 @@ func init() {
 	registerPlugin08("plugin/forward-congestion-overflow-metrics", "overflow-metrics-test", metricsScenario08("ze_bgp_pool_used_ratio", "ze_forward_workers_active"))
 	registerPlugin08("plugin/forward-congestion-teardown-metrics", "congestion-teardown-test", forwardCongestionTeardown08)
 	registerPlugin08("plugin/forward-mpreach-nexthop-self-two-peer", "mpreach-nexthop-test", forwardMPReach08)
-	registerPlugin08("plugin/forward-overflow-two-tier", "overflow-test", forwardLoad08(50, []string{"ze_bgp_pool_used_ratio"}, "overflow"))
-	registerPlugin08("plugin/forward-two-tier-under-load", "two-tier-load-test", forwardLoad08(80, []string{"ze_bgp_pool_used_ratio", "ze_forward_workers_active"}, "two-tier"))
+	registerPlugin08("plugin/forward-overflow-two-tier", "overflow-test", forwardLoad08(50, []string{metricPoolUsedRatio}, "overflow"))
+	registerPlugin08("plugin/forward-two-tier-under-load", "two-tier-load-test", forwardLoad08(80, []string{metricPoolUsedRatio, "ze_forward_workers_active"}, "two-tier"))
 	registerPlugin08("plugin/forward-write-deadline", "deadline-test", forwardDeadline08)
 	registerPlugin08("plugin/geodns-dot-pki", "geodns-dot-pki-test", geodnsDotPKI08)
 	registerPlugin08("plugin/geodns-show", "geodns-show-test", geodnsShow08)
@@ -206,7 +195,7 @@ func forwardBackpressure08(ctx context.Context, p *sdk.Plugin) error {
 		if err != nil {
 			return fmt.Errorf("subscribe %s: %w", event, err)
 		}
-		if obj["namespace"] != "bgp" || obj["event"] != event {
+		if obj["namespace"] != namespaceBGP || obj["event"] != event {
 			return fmt.Errorf("subscribe %s: expected bgp/%s, got %v/%v", event, event, obj["namespace"], obj["event"])
 		}
 		fmt.Fprintf(os.Stderr, "OK: subscribed to bgp event %s\n", event)
@@ -230,7 +219,7 @@ func forwardCongestionTeardown08(ctx context.Context, p *sdk.Plugin) error {
 	}) {
 		return fmt.Errorf("empty metrics after poll")
 	}
-	for _, name := range []string{"ze_forward_buffer_denied_total", "ze_forward_congestion_teardown_total", "ze_bgp_pool_used_ratio"} {
+	for _, name := range []string{"ze_forward_buffer_denied_total", "ze_forward_congestion_teardown_total", metricPoolUsedRatio} {
 		if !strings.Contains(text, name) {
 			return fmt.Errorf("missing congestion metric %s", name)
 		}
@@ -261,7 +250,7 @@ func forwardLoad08(expected int, required []string, label string) plugin08Scenar
 		var total float64
 		if !Poll(ctx, 80, 250*time.Millisecond, func() bool {
 			status, raw, err := command08(ctx, p, "show bgp adj-rib-in status")
-			if err != nil || status != "done" {
+			if err != nil || status != statusDone {
 				return false
 			}
 			obj, err := object08(raw)
@@ -276,7 +265,7 @@ func forwardLoad08(expected int, required []string, label string) plugin08Scenar
 		fmt.Fprintf(os.Stderr, "OK: %.0f routes in adj-rib-in\n", total)
 		if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
 			status, _, err := command08(ctx, p, "request peer * flush")
-			return err == nil && status == "done"
+			return err == nil && status == statusDone
 		}) {
 			return fmt.Errorf("forward-pool flush did not complete")
 		}
@@ -300,11 +289,11 @@ func forwardDeadline08(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("ze did not send the End-of-RIB to the peer: %w", err)
 	}
 	status, _, err := command08(ctx, p, "peer * update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
-	if err != nil && status != "error" {
+	if err != nil && status != statusError {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "update status=%s\n", status)
-	if status != "done" && status != "error" {
+	if status != statusDone && status != statusError {
 		return fmt.Errorf("unexpected update status=%s", status)
 	}
 	if !waitPeerCounter08(ctx, p, "peer1", "updates-sent", 2, 40) {
@@ -319,7 +308,8 @@ func geodnsDotPKI08(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
-		conn, err := net.DialTimeout("tcp", "127.0.0.1:18855", time.Second)
+		dialer := net.Dialer{Timeout: time.Second}
+		conn, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:18855")
 		if err != nil {
 			return false
 		}
@@ -407,7 +397,7 @@ func grpcExecute08(ctx context.Context, p *sdk.Plugin) error {
 	found := false
 	for _, value := range peers {
 		row, _ := value.(map[string]any)
-		if row["address"] == "127.0.0.1" {
+		if row["address"] == addrLoopback {
 			found = true
 		}
 	}
@@ -438,7 +428,7 @@ func healthShow08(ctx context.Context, p *sdk.Plugin) error {
 			names[name] = true
 		}
 	}
-	for _, required := range []string{"bgp", "fib", "firewall", "plugins"} {
+	for _, required := range []string{namespaceBGP, "fib", "firewall", sectionPlugins} {
 		if !names[required] {
 			return fmt.Errorf("missing health component %s; got %v", required, names)
 		}
@@ -450,8 +440,8 @@ func healthShow08(ctx context.Context, p *sdk.Plugin) error {
 func ifaceKernelRead08(ctx context.Context, p *sdk.Plugin) error {
 	for _, command := range []string{"show route", "show route 10.0.0.0/8", "show route default", "show route limit 5", "show neighbor", "show neighbor ipv4", "show neighbor ipv6", "show arp"} {
 		status, raw, err := command08(ctx, p, command)
-		if status != "done" && strings.Contains(strings.ToLower(string(raw)+fmt.Sprint(err)), "unknown command") {
-			return fmt.Errorf("%s: not wired: %s %v", command, raw, err)
+		if status != statusDone && strings.Contains(strings.ToLower(string(raw)+fmt.Sprint(err)), "unknown command") {
+			return fmt.Errorf("%s: not wired: %s %w", command, raw, err)
 		}
 	}
 	fmt.Fprintln(os.Stderr, "OK iface kernel-read dispatch verified")
@@ -464,7 +454,7 @@ func ifaceRateJSON08(ctx context.Context, p *sdk.Plugin) error {
 	}
 	status, raw, err := command08(ctx, p, "show interface rate")
 	message := string(raw) + fmt.Sprint(err)
-	if status != "error" {
+	if status != statusError {
 		return fmt.Errorf("interface rate: expected error, got status=%s", status)
 	}
 	if !strings.Contains(message, "rate tracker not running") && !strings.Contains(message, "no backend loaded") {
@@ -499,7 +489,7 @@ func interfaceRateShow08(ctx context.Context, p *sdk.Plugin) error {
 	fmt.Fprintf(os.Stderr, "OK: show interface rate resolves: %s\n", message)
 	status, raw, err = command08(ctx, p, "show interface rate zz-not-an-interface0")
 	message = string(raw) + fmt.Sprint(err)
-	if status != "error" || !strings.Contains(message, "interface not found: zz-not-an-interface0") {
+	if status != statusError || !strings.Contains(message, "interface not found: zz-not-an-interface0") {
 		return fmt.Errorf("interface-rate zz-not-an-interface0: expected named refusal, status=%s data=%s", status, message)
 	}
 	fmt.Fprintf(os.Stderr, "OK: show interface rate zz-not-an-interface0 refused gracefully: %s\n", message)

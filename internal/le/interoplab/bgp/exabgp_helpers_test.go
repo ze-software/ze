@@ -66,9 +66,9 @@ func TestExaBGPProfileOrderAndTimingFixture(t *testing.T) {
 	digest := sha256.New()
 	for _, name := range names {
 		profile := exaProfiles[name]
-		fmt.Fprintf(digest, "%s|%d|%d|%d\n", name, profile.startup, profile.between, profile.wait)
+		fmt.Fprintf(digest, "%s|%d|%d|%d\n", name, profile.startup, profile.between, profile.wait) //nolint:errcheck // hash.Hash.Write never returns an error
 		for _, command := range profile.commands {
-			fmt.Fprintln(digest, command)
+			fmt.Fprintln(digest, command) //nolint:errcheck // hash.Hash.Write never returns an error
 		}
 	}
 	const want = "48c4f2f8acd1c70d419252442ac9f8979df692d46887289bb68c7f5dc8f2606c"

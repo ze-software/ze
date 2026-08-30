@@ -76,11 +76,11 @@ system {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer os.RemoveAll(workDir) //nolint:errcheck // fixture cleanup
 	configPath := filepath.Join(workDir, "children.conf")
 	sshAddr := filepath.Join(workDir, "ssh.addr")
 	readyFile := filepath.Join(workDir, "ready")
-	if err := os.WriteFile(configPath, []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write children.conf: %w", err)
 	}
 
@@ -91,10 +91,10 @@ system {
 		return err
 	}
 	daemonEnv := uiShowBgpChildrenDoNotInheritReplaceEnv(os.Environ(), map[string]string{
-		"ZE_SSH_EPHEMERAL": sshAddr,
-		"ZE_READY_FILE":    readyFile,
-		"ZE_CONFIG_DIR":    workDir,
-		"ze_test_bgp_port": strconv.Itoa(bgpPort),
+		envSSHEphemeral: sshAddr,
+		envReadyFile:    readyFile,
+		envConfigDir:    workDir,
+		envTestBGPPort:  strconv.Itoa(bgpPort),
 	})
 
 	daemon, err := uiShowBgpChildrenDoNotInheritStartDaemon(ctx, workDir, daemonEnv)
@@ -121,7 +121,7 @@ system {
 		return fmt.Errorf("daemon did not become ready")
 	}
 
-	addrBytes, err := os.ReadFile(sshAddr)
+	addrBytes, err := os.ReadFile(sshAddr) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -133,11 +133,11 @@ system {
 	host, port := addr[:colon], addr[colon+1:]
 
 	cliEnv := uiShowBgpChildrenDoNotInheritReplaceEnv(os.Environ(), map[string]string{
-		"ZE_SSH_HOST":     host,
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_USERNAME": "ci",
-		"ZE_SSH_PASSWORD": "secret",
-		"ZE_CONFIG_DIR":   workDir,
+		envSSHHost:     host,
+		envSSHPort:     port,
+		envSSHUsername: "ci",
+		envSSHPassword: valueSecret,
+		envConfigDir:   workDir,
 	})
 
 	// The control. The parent DOES answer both aliases, so a refusal below is a
@@ -167,7 +167,7 @@ system {
 	// Each child is driven with BOTH names, because they are registered together
 	// and a repair that reaches one can miss the other.
 	children := []string{
-		"show bgp peer list",
+		cmdShowBGPPeerList,
 		"show bgp peer 192.0.2.1 detail",
 		"show bgp peer 192.0.2.1 statistics",
 		"show bgp peer 192.0.2.1 capabilities",
@@ -186,7 +186,7 @@ system {
 			return fmt.Errorf("%s answered nothing: %q", child, result.stdout)
 		}
 
-		for _, alias := range []string{"peers", "summary"} {
+		for _, alias := range []string{aliasPeers, aliasSummary} {
 			command := child + " | " + alias
 			result, err = uiShowBgpChildrenDoNotInheritRunZE(ctx, cliEnv, "cli", "-c", command)
 			if err != nil {
@@ -263,7 +263,7 @@ func uiShowBgpChildrenDoNotInheritWaitForDone(done <-chan struct{}, timeout time
 }
 
 func uiShowBgpChildrenDoNotInheritRunZE(ctx context.Context, env []string, args ...string) (childResult, error) {
-	cmd := exec.CommandContext(ctx, "ze", args...)
+	cmd := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -286,7 +286,7 @@ func uiShowBgpChildrenDoNotInheritRunZE(ctx context.Context, env []string, args 
 }
 
 func uiShowBgpChildrenDoNotInheritPoll(ctx context.Context, attempts int, delay time.Duration, check func() (bool, error)) (bool, error) {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		ready, err := check()
 		if err != nil || ready {
 			return ready, err

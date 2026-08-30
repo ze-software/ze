@@ -54,13 +54,13 @@ func fixture06AllNextHops(entry map[string]any) []string {
 
 func fixture06FIBECMPRealtime(ctx context.Context, p *sdk.Plugin) error {
 	const prefix = "10.55.0.0/24"
-	for _, route := range []struct{ peer, nextHop string }{{"10.0.0.1", "10.0.0.11"}, {"10.0.0.2", "10.0.0.12"}} {
+	for _, route := range []struct{ peer, nextHop string }{{addrPeerOne, "10.0.0.11"}, {addrPeerTwo, "10.0.0.12"}} {
 		command := fmt.Sprintf("request bgp rib inject %s ipv4/unicast %s origin igp localpref 100 aspath 65001 nexthop %s", route.peer, prefix, route.nextHop)
 		if err := fixture06DispatchDone(ctx, p, command); err != nil {
 			return err
 		}
 	}
-	rows, err := fixture06PollArray(ctx, p, "show rib", 30, func(rows []map[string]any) bool {
+	rows, err := fixture06PollArray(ctx, p, 30, func(rows []map[string]any) bool {
 		entry := fixture06RIBEntry(rows, prefix)
 		paths, _ := entry["ecmp-paths"].([]any)
 		return len(paths) >= 1
@@ -77,7 +77,7 @@ func fixture06FIBECMPRealtime(ctx context.Context, p *sdk.Plugin) error {
 	if err := fixture06DispatchDone(ctx, p, "request bgp rib withdraw 10.0.0.2 ipv4/unicast "+prefix); err != nil {
 		return err
 	}
-	rows, err = fixture06PollArray(ctx, p, "show rib", 30, func(rows []map[string]any) bool {
+	rows, err = fixture06PollArray(ctx, p, 30, func(rows []map[string]any) bool {
 		entry := fixture06RIBEntry(rows, prefix)
 		paths, _ := entry["ecmp-paths"].([]any)
 		return entry != nil && len(paths) == 0
@@ -92,7 +92,10 @@ func fixture06FIBECMPRealtime(ctx context.Context, p *sdk.Plugin) error {
 	return fixture06WaitEOR(ctx, p, 1)
 }
 
-func fixture06BestEntry(ctx context.Context, p *sdk.Plugin, prefix string) map[string]any {
+// ecmpPrefix06 is the prefix the ECMP fixture injects and then inspects.
+const ecmpPrefix06 = "10.50.0.0/24"
+
+func fixture06BestEntry(ctx context.Context, p *sdk.Plugin) map[string]any {
 	data, err := fixture06DispatchObject(ctx, p, "show bgp rib best")
 	if err != nil {
 		return nil
@@ -100,7 +103,7 @@ func fixture06BestEntry(ctx context.Context, p *sdk.Plugin, prefix string) map[s
 	rows, _ := data["best-path"].([]any)
 	for _, raw := range rows {
 		entry, _ := raw.(map[string]any)
-		if entry["prefix"] == prefix {
+		if entry["prefix"] == ecmpPrefix06 {
 			return entry
 		}
 	}
@@ -119,7 +122,7 @@ func fixture06FIBECMP(ctx context.Context, p *sdk.Plugin) error {
 	if _, err := fixture06PollObject(ctx, p, "show bgp rib status", 60, func(map[string]any) bool { return true }); err != nil {
 		return errors.New("rib plugin did not become ready")
 	}
-	const prefix = "10.50.0.0/24"
+	const prefix = ecmpPrefix06
 	inject := func(peer string) error {
 		return fixture06DispatchDone(ctx, p, fmt.Sprintf("request bgp rib inject %s ipv4/unicast %s origin igp localpref 100 aspath 65001", peer, prefix))
 	}
@@ -129,12 +132,12 @@ func fixture06FIBECMP(ctx context.Context, p *sdk.Plugin) error {
 	if err := inject("10.0.0.2"); err != nil {
 		return err
 	}
-	if !Poll(ctx, 40, fixture06PollDelay, func() bool { return fixture06SiblingCount(fixture06BestEntry(ctx, p, prefix)) == 1 }) {
+	if !Poll(ctx, 40, fixture06PollDelay, func() bool { return fixture06SiblingCount(fixture06BestEntry(ctx, p)) == 1 }) {
 		return fmt.Errorf("AC-1: expected 1 multipath sibling for %s", prefix)
 	}
-	entry := fixture06BestEntry(ctx, p, prefix)
+	entry := fixture06BestEntry(ctx, p)
 	peers, _ := entry["multipath-peers"].([]any)
-	rows, err := fixture06PollArray(ctx, p, "show rib", 40, func(rows []map[string]any) bool { return fixture06RIBEntry(rows, prefix) != nil })
+	rows, err := fixture06PollArray(ctx, p, 40, func(rows []map[string]any) bool { return fixture06RIBEntry(rows, prefix) != nil })
 	if err != nil || fixture06RIBEntry(rows, prefix) == nil {
 		return fmt.Errorf("AC-1: %s not in sysrib: %w", prefix, err)
 	}
@@ -142,10 +145,10 @@ func fixture06FIBECMP(ctx context.Context, p *sdk.Plugin) error {
 	if err := fixture06DispatchDone(ctx, p, "request bgp rib withdraw 10.0.0.2 ipv4/unicast "+prefix); err != nil {
 		return err
 	}
-	if !Poll(ctx, 40, fixture06PollDelay, func() bool { return fixture06SiblingCount(fixture06BestEntry(ctx, p, prefix)) == 0 }) {
+	if !Poll(ctx, 40, fixture06PollDelay, func() bool { return fixture06SiblingCount(fixture06BestEntry(ctx, p)) == 0 }) {
 		return fmt.Errorf("AC-2: multipath sibling remained after withdraw")
 	}
-	entry = fixture06BestEntry(ctx, p, prefix)
+	entry = fixture06BestEntry(ctx, p)
 	rows, err = fixture06DispatchArray(ctx, p, "show rib")
 	if err != nil {
 		return err
@@ -160,10 +163,10 @@ func fixture06FIBECMP(ctx context.Context, p *sdk.Plugin) error {
 	if err := inject("10.0.0.3"); err != nil {
 		return err
 	}
-	if !Poll(ctx, 40, fixture06PollDelay, func() bool { return fixture06SiblingCount(fixture06BestEntry(ctx, p, prefix)) == 2 }) {
+	if !Poll(ctx, 40, fixture06PollDelay, func() bool { return fixture06SiblingCount(fixture06BestEntry(ctx, p)) == 2 }) {
 		return fmt.Errorf("AC-3: expected 2 multipath siblings for %s", prefix)
 	}
-	entry = fixture06BestEntry(ctx, p, prefix)
+	entry = fixture06BestEntry(ctx, p)
 	peers, _ = entry["multipath-peers"].([]any)
 	fmt.Fprintf(os.Stderr, "OK AC-3: multipath 3-path: best=%v, siblings=%v\n", entry["best-peer"], peers)
 	return fixture06WaitEOR(ctx, p, 1)
@@ -176,7 +179,7 @@ func fixture06FIBMetric(ctx context.Context, p *sdk.Plugin) error {
 	if err := fixture06DispatchDone(ctx, p, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.20.0.0/24 origin igp med 200"); err != nil {
 		return err
 	}
-	rows, err := fixture06PollArray(ctx, p, "show rib", 40, func(rows []map[string]any) bool { return fixture06RIBEntry(rows, "10.20.0.0/24") != nil })
+	rows, err := fixture06PollArray(ctx, p, 40, func(rows []map[string]any) bool { return fixture06RIBEntry(rows, "10.20.0.0/24") != nil })
 	if err != nil || fixture06RIBEntry(rows, "10.20.0.0/24") == nil {
 		return fmt.Errorf("AC-2: route missing from sysrib: %w", err)
 	}
@@ -207,7 +210,7 @@ func fixture06FIBRecursive(ctx context.Context, p *sdk.Plugin) error {
 			return err
 		}
 	}
-	rows, err := fixture06PollArray(ctx, p, "show rib", 40, func(rows []map[string]any) bool { return fixture06RIBEntry(rows, "172.16.0.0/16") != nil })
+	rows, err := fixture06PollArray(ctx, p, 40, func(rows []map[string]any) bool { return fixture06RIBEntry(rows, "172.16.0.0/16") != nil })
 	if err != nil || fixture06RIBEntry(rows, "172.16.0.0/16") == nil {
 		return fmt.Errorf("AC-2: recursive route missing from system RIB: %w", err)
 	}

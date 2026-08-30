@@ -3,6 +3,7 @@ package bgp
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -36,7 +37,8 @@ func runExaBGPServer(args []string, output io.Writer) error {
 	if value, conversionErr := strconv.Atoi(os.Getenv("exabgp_tcp_connections")); conversionErr == nil && value > 0 {
 		connections = value
 	}
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	var config net.ListenConfig
+	listener, err := config.Listen(context.Background(), "tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		return err
 	}
@@ -64,7 +66,7 @@ func runExaBGPServer(args []string, output io.Writer) error {
 }
 
 func readExaBGPCase(path string) (map[int][][]byte, uint32, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // the case file is the .ci fixture this helper is pointed at by the tracked lab runner
 	if err != nil {
 		return nil, 0, err
 	}

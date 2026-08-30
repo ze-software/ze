@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,12 +31,12 @@ type dispatchResult struct {
 }
 
 // Dispatch runs a compiled product command and captures both output streams.
-func (peerRowsFixture) Dispatch(ctx context.Context, argv []string, env []string, stdin *string) dispatchResult {
+func (peerRowsFixture) Dispatch(ctx context.Context, argv, env []string, stdin *string) dispatchResult {
 	if len(argv) == 0 {
 		return dispatchResult{code: -1, err: errors.New("empty command")}
 	}
 
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	if env != nil {
 		cmd.Env = env
 	}
@@ -79,7 +80,7 @@ func (peerRowsFixture) Poll(
 	delay time.Duration,
 	observe func() (bool, error),
 ) (bool, error) {
-	for attempt := 0; attempt < attempts; attempt++ {
+	for attempt := range attempts {
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
@@ -267,11 +268,11 @@ system {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(workingDirectory)
+	defer os.RemoveAll(workingDirectory) //nolint:errcheck // fixture cleanup
 	configPath := filepath.Join(workingDirectory, "rows.conf")
 	sshAddressFile := filepath.Join(workingDirectory, "ssh.addr")
 	readyFile := filepath.Join(workingDirectory, "ready")
-	if err := os.WriteFile(configPath, []byte(config), 0o666); err != nil {
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write rows.conf: %w", err)
 	}
 
@@ -280,10 +281,10 @@ system {
 		return err
 	}
 	daemonEnv := uiShowBgpPeerRowsEnvironment(map[string]string{
-		"ZE_SSH_EPHEMERAL": sshAddressFile,
-		"ZE_READY_FILE":    readyFile,
-		"ZE_CONFIG_DIR":    workingDirectory,
-		"ze_test_bgp_port": strconv.Itoa(bgpPort),
+		envSSHEphemeral: sshAddressFile,
+		envReadyFile:    readyFile,
+		envConfigDir:    workingDirectory,
+		envTestBGPPort:  strconv.Itoa(bgpPort),
 	})
 	daemon, err := uiShowBgpPeerRowsStartDaemon(ctx, workingDirectory, daemonEnv)
 	if err != nil {
@@ -316,7 +317,7 @@ system {
 		return err
 	}
 
-	addressBytes, err := os.ReadFile(sshAddressFile)
+	addressBytes, err := os.ReadFile(sshAddressFile) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -332,19 +333,19 @@ system {
 	host, port := address[:colon], address[colon+1:]
 
 	cliEnv := uiShowBgpPeerRowsEnvironment(map[string]string{
-		"ZE_SSH_HOST":     host,
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_USERNAME": "ci",
-		"ZE_SSH_PASSWORD": "secret",
-		"ZE_CONFIG_DIR":   workingDirectory,
+		envSSHHost:     host,
+		envSSHPort:     port,
+		envSSHUsername: "ci",
+		envSSHPassword: valueSecret,
+		envConfigDir:   workingDirectory,
 	})
 
 	tests := []struct {
 		commandTemplate string
 		addressKey      string
 	}{
-		{commandTemplate: "show bgp peer %s statistics", addressKey: "address"},
-		{commandTemplate: "show bgp peer %s capabilities", addressKey: "peer"},
+		{commandTemplate: "show bgp peer %s statistics", addressKey: fieldAddress},
+		{commandTemplate: "show bgp peer %s capabilities", addressKey: fieldPeer},
 	}
 
 	for _, test := range tests {
@@ -375,7 +376,7 @@ system {
 		}
 		sort.Strings(severalAddresses)
 		if err := fixture.Observe(
-			uiShowBgpPeerRowsEqualStrings(severalAddresses, []string{"192.0.2.1", "192.0.2.2"}),
+			uiShowBgpPeerRowsEqualStrings(severalAddresses, []string{addrTestNet1First, addrTestNet1Second}),
 			"%s lost a peer row: %v",
 			severalCommand,
 			several,
@@ -393,7 +394,7 @@ system {
 		}
 		oneAddress, ok := one[0][test.addressKey].(string)
 		if err := fixture.Observe(
-			ok && oneAddress == "192.0.2.1",
+			ok && oneAddress == addrTestNet1First,
 			"%s named the wrong peer: %v",
 			test.commandTemplate,
 			one,
@@ -461,7 +462,7 @@ system {
 		}
 		firstAddress, ok := first[0][test.addressKey].(string)
 		if err := fixture.Observe(
-			ok && (firstAddress == "192.0.2.1" || firstAddress == "192.0.2.2"),
+			ok && (firstAddress == addrTestNet1First || firstAddress == addrTestNet1Second),
 			"`| first 1` answered a peer that is not configured: %v",
 			answered,
 		); err != nil {
@@ -480,7 +481,7 @@ system {
 }
 
 func cli(ctx context.Context, fixture peerRowsFixture, env []string, command string) (string, error) {
-	result := fixture.Dispatch(ctx, []string{"ze", "cli", "-c", command}, env, nil)
+	result := fixture.Dispatch(ctx, []string{"ze", areaCLI, "-c", command}, env, nil)
 	if err := fixture.Observe(
 		result.code == 0,
 		"%s exit=%d: %s%s",
@@ -604,9 +605,7 @@ func uiShowBgpPeerRowsEnvironment(overrides map[string]string) []string {
 			values[key] = value
 		}
 	}
-	for key, value := range overrides {
-		values[key] = value
-	}
+	maps.Copy(values, overrides)
 
 	env := make([]string, 0, len(values))
 	for key, value := range values {

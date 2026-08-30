@@ -1,6 +1,7 @@
 package fixture
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -14,17 +15,17 @@ func init() {
 	registerFixture("ui/cli-data-config-dir", runUIFixtureCLIDataConfigDir)
 }
 
-func runUIFixtureCLIDataConfigDir() error {
+func runUIFixtureCLIDataConfigDir(ctx context.Context) error {
 	initDir, err := os.MkdirTemp("", "ze-data-config-dir-")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(initDir)
+	defer os.RemoveAll(initDir) //nolint:errcheck // fixture cleanup
 
 	env := uiCliDataConfigDirSetFixtureEnv(os.Environ(), "ZE_CONFIG_DIR", initDir)
 
 	// ze init writes the store through the env-honoring resolver.
-	initCmd := exec.Command("ze", "init")
+	initCmd := exec.CommandContext(ctx, "ze", "init")
 	initCmd.Env = env
 	initCmd.Stdin = strings.NewReader("admin\nsecret123\n127.0.0.1\n2222\n")
 	initCmd.Stdout = io.Discard
@@ -41,7 +42,7 @@ func runUIFixtureCLIDataConfigDir() error {
 	}
 
 	// ze data must resolve that same store rather than one derived from its own location.
-	checkCmd := exec.Command("ze", "data", "check")
+	checkCmd := exec.CommandContext(ctx, "ze", "data", "check")
 	checkCmd.Env = env
 	checkCmd.Stdin = os.Stdin
 	checkCmd.Stdout = os.Stdout

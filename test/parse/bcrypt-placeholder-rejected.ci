@@ -26,6 +26,6 @@ expect=stdout:contains=password
 # agent keys on it. The guard covers every secret leaf, not the bcrypt half it
 # started with, so the code names a secret. It is registered in
 # internal/core/diagnostic/codes.go.
-cmd=foreground:seq=2:exec=ze config validate --json -:stdin=config
+cmd=foreground:seq=2:exec=ze cli -c "validate config - | json":stdin=config
 expect=exit:code=1
 expect=stdout:contains=config-secret-masked
