@@ -17,17 +17,29 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// question is one of the three headings a metric can belong to.
-type question struct {
-	key, title, prompt string
+// Question is one of the three headings a metric can belong to. Key is the
+// value a metric carries; Title heads the section; Prompt is the sentence under
+// it.
+type Question struct {
+	Key    string `json:"key"`
+	Title  string `json:"title"`
+	Prompt string `json:"prompt"`
 }
 
 // questions are the three questions, in the order the page asks them.
-var questions = [...]question{
+var questions = [...]Question{
 	{"Q1", "Sensitivity", "If the code were wrong, would something go red?"},
 	{"Q2", "Intent coverage", "Are the things that matter checked, or only the happy path?"},
 	{"Q3", "Integrity", "When something goes red, does it stop the line?"},
 }
+
+// Questions answers the three questions, in the order the page asks them.
+//
+// A second renderer of this record, the website's quality/health/ page, groups
+// its metrics under the same headings. It reads them here rather than spelling
+// them again, because two statements of one heading drift apart and the reader
+// then meets a metric under a question it does not answer.
+func Questions() []Question { return questions[:] }
 
 // statusMark is the word the page prints beside a value.
 var statusMark = map[string]string{
@@ -38,12 +50,35 @@ var statusMark = map[string]string{
 // because a number nobody is computing is worse than a number that looks bad.
 var statusOrder = map[string]int{statusUnknown: 0, statusWarn: 1, statusOK: 2}
 
-// trendSeries are the four series the trend table draws, in page order.
-var trendSeries = [...]struct{ key, label string }{
+// Statuses answers the statuses a collector can produce, worst first: unknown,
+// then warn, then ok.
+//
+// The ORDER is the fact. A renderer that lists metrics in it puts the dead
+// sensors above the known problems and the known problems above the calm rows,
+// and a status this does not name sorts with the first entry rather than the
+// last, so a typo cannot present as calm.
+func Statuses() []string { return []string{statusUnknown, statusWarn, statusOK} }
+
+// Series is one line of the trend table: the key a history sample stores it
+// under, and the label the table prints.
+type Series struct {
+	Key   string `json:"key"`
+	Label string `json:"label"`
+}
+
+// trendSeries are the series the trend table draws, in page order.
+var trendSeries = [...]Series{
 	{"rfc_proof_percent", "RFC proof density %"},
 	{"assert_nothing", "Assert-nothing tests"},
 	{"tag_orphan", "Tag-orphaned files"},
 }
+
+// TrendSeries answers the series the trend table draws, in page order.
+//
+// The website draws the same series from the same history, so it reads the
+// labels here: a page and its Markdown mirror that named one series two ways
+// would be two names for one measurement (ai/rules/writing.md).
+func TrendSeries() []Series { return trendSeries[:] }
 
 // The sparkline's box, in the units the SVG viewBox states.
 const (
@@ -55,8 +90,8 @@ const (
 //
 // It renders as a chart in any Markdown viewer that passes block-level HTML
 // through, and degrades to an inert tag elsewhere. It is NOT what the website
-// draws: the site build renders the published page from latest.json with its
-// own sparkline.
+// draws: the site build reads Render and draws its own sparkline, sized for a
+// page rather than for a table cell.
 func sparkline(values []pyNum) string {
 	const width, height = sparklineWidth, sparklineHeight
 	if len(values) < 2 {
@@ -193,7 +228,7 @@ func renderGroups(add func(string), metrics []Metric) {
 	for _, asked := range questions {
 		var group []Metric
 		for _, metric := range metrics {
-			if metric.Question == asked.key {
+			if metric.Question == asked.Key {
 				group = append(group, metric)
 			}
 		}
@@ -202,10 +237,10 @@ func renderGroups(add func(string), metrics []Metric) {
 		}
 
 		tb.Reset()
-		add(tb.Str("## ").Str(asked.title).String())
+		add(tb.Str("## ").Str(asked.Title).String())
 		add("")
 		tb.Reset()
-		add(tb.Byte('*').Str(asked.prompt).Byte('*').String())
+		add(tb.Byte('*').Str(asked.Prompt).Byte('*').String())
 		add("")
 
 		for _, metric := range byStatus(group) {
@@ -251,7 +286,7 @@ func renderTrends(add func(string), history []object) {
 	for _, series := range trendSeries {
 		var values []pyNum
 		for _, sample := range history {
-			number, ok := sample.get(series.key).(pyNum)
+			number, ok := sample.get(series.Key).(pyNum)
 			if !ok {
 				continue
 			}
@@ -259,11 +294,11 @@ func renderTrends(add func(string), history []object) {
 		}
 		tb.Reset()
 		if len(values) < minSamples {
-			add(tb.Str("| ").Str(series.label).Str(" | insufficient data | - | ").
+			add(tb.Str("| ").Str(series.Label).Str(" | insufficient data | - | ").
 				Int(int64(len(values))).Str(" |").String())
 			continue
 		}
-		add(tb.Str("| ").Str(series.label).Str(" | ").Str(sparkline(values)).Str(" | ").
+		add(tb.Str("| ").Str(series.Label).Str(" | ").Str(sparkline(values)).Str(" | ").
 			Str(values[len(values)-1].String()).Str(" | ").Int(int64(len(values))).
 			Str(" |").String())
 	}

@@ -19,7 +19,7 @@ The feature is two things that share collectors but not enforcement.
 | Enforced by | `./le test-sensitivity check`, stage 10 of `./le verify current mode full` | `./le test-health check`, inside `./le repository generated-check` |
 | Reads | `test/health/sensitivity-baseline.json` + the working tree | the committed report vs the tree |
 | Source | `internal/le/testsensitivity.Answer` | `internal/le/testhealth.Answer` |
-<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
 The ratchets do NOT depend on the report. `./le test-sensitivity check` reads only
 the baseline and the tree, so a stale or wrong report cannot weaken the
@@ -104,7 +104,7 @@ naming the test the edit weakens.
 | Reads | `test/weakened.md` + the HEAD content of the paths the commit names |
 | Source | `internal/le/testweakened.Answer`, called by both gates |
 | Parse gate | `./le test-weakened check`, in `./le verify current mode full` both modes |
-<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
 **The file is replaced per commit, and that shape is the whole design.** Delete
 the rows of the last commit. Write the rows of this one. Git history holds every
@@ -173,9 +173,19 @@ number of runs.
 ## Publication
 
 The native `./le site build` action renders the website health page from
-`test/health/latest.json`, `history.ndjson`, and the generated Markdown. The
-site builder computes no new test-health facts.
-<!-- source: internal/le/site/build.go -- Build -->
+`internal/le/testhealth.Render`, which answers the metric record and the page
+Markdown for the tree being built and writes neither file. The site builder
+computes no new test-health facts: it draws the same metrics, under the same
+three questions, in the same worst-first order.
+
+It reads the tree rather than the committed `test/health/latest.json`, because
+the volume counters are published rather than gated (above) and are refreshed by
+hand. A page sourced from the committed snapshot would state the tree as of the
+last refresh while claiming to describe the tree it was built from. The KPI
+trends still come from the committed `test/health/history.ndjson`, which is the
+only record of how the numbers moved.
+<!-- source: internal/le/testhealth/modes.go -- Render -->
+<!-- source: internal/le/site/health.go -- renderHealth -->
 <!-- source: internal/le/testhealth/actions.go -- Actions -->
 
 ## Full operator reference

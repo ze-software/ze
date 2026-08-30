@@ -221,6 +221,51 @@ func Write(root string, bootstrap bool) (WriteReport, error) {
 	return WriteReport{Page: Page, Latest: Latest, Baseline: Baseline}, nil
 }
 
+// Rendered is the pair of generated artifacts for one checkout, produced
+// without writing either file.
+//
+// Record is the JSON document `{"metrics": [...], "history": [...]}`: the
+// metrics exactly as test/health/latest.json states them, and the committed KPI
+// samples beside them. Page is the Markdown docs/features/test-health.md holds.
+type Rendered struct {
+	Record string `json:"record"`
+	Page   string `json:"page"`
+}
+
+// Render answers both generated artifacts for one checkout, reading the tree
+// once and writing nothing.
+//
+// It exists for the website, which publishes quality/health/ from the tree it
+// is building rather than from the last commit: the volume counters move with
+// every test added, so a page sourced from the committed snapshot would state
+// yesterday's tree while claiming to describe today's.
+//
+// It does NOT tighten a ratchet floor. Write does that, because a floor is a
+// committed fact and a site build is a reader.
+func Render(root string) (Rendered, error) {
+	built, err := build(root)
+	if err != nil {
+		return Rendered{}, err
+	}
+	document := object{}
+	metrics := make([]any, 0, len(built.metrics))
+	for _, metric := range built.objects() {
+		metrics = append(metrics, metric)
+	}
+	document.set("metrics", metrics)
+	samples := make([]any, 0, len(built.history))
+	for _, sample := range built.history {
+		samples = append(samples, sample)
+	}
+	document.set("history", samples)
+
+	body, err := dumpIndented(document)
+	if err != nil {
+		return Rendered{}, collectErrorf("the site record cannot be encoded: %w", err)
+	}
+	return Rendered{Record: body, Page: renderMarkdown(built.metrics, built.history)}, nil
+}
+
 // writeFile writes one artifact, creating its directory.
 func writeFile(root, rel, body string) error {
 	path := filepath.Join(root, filepath.FromSlash(rel))

@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 7 of 10 |
+| Phase | 8 of 10 |
 | Deferral shard | `plan/deferrals/site-renderers-in-go.md` |
 | Handoff | - |
 | Updated | 2026-08-30 |
@@ -340,6 +340,7 @@ editing them would have cross-committed that session's work.
 | R-3 | The first full build rewrites all 895 pages at once and the diff is unreviewable | phase 10 lands and `git status` in the artifact shows everything modified | each phase lands its own commit, so the artifact diff is reviewed one population at a time. The build is never run to completion until phase 10 |
 | R-4 | The facts snapshot reaches the network during a build, so a build is not reproducible and can fail closed in CI | a build in a sandbox hangs for five seconds and publishes a stale star count | AC-11 requires the offline path to keep the previous value and say so; the timeout stays and the failure stays non-fatal |
 | R-5 | Restoring `llms.txt` collides with the docvalid producer that owns it today | two writers, last one wins, and the file's content depends on producer order | phase 4 makes the command section one section of the restored file, and the coverage check refuses two claimants |
+| R-12 | `internal/le/site`'s tests are hostage to every component package in the checkout | `go test ./internal/le/site/` fails with `[build failed]` naming a package the site does not use | Consequence of the phase 7 decision to read `registry.All()` through `internal/le/inventory`, which blank-imports the composition root. Observed three times on 2026-08-29 and 2026-08-30, most recently on `internal/component/config/yang/cli`. The decision itself was right, because `ai/rules/evidence.md` prefers the registry over a regex across its source, but the coupling was not priced: in a five-session checkout the site suite cannot run while ANY component is mid-refactor, and the red names a package the reader must then rule out by hand. The fix is the seam this package already uses twice: take the plugin data through an injected reader, as `liveCommandCatalog` and `stubLiveInputs` do for the command catalog, so the import is the build's and not the test's. Not done here; it is a change to phase 7's shape and belongs to closure or a follow-up |
 | R-11 | The coverage check cannot answer about the one tree state where its answer matters most | `./le site check` reports nothing at all, rather than reporting a gap | Found from outside on 2026-08-29 by the session blocked by it. `./le` is an EXISTENCE CACHE that rebuilds on first use, so a working tree that does not compile leaves every session without the tool, not merely without the check. AC-1 assumes the check can always answer; a tree mid-refactor is exactly when a producer might have been dropped, and exactly when the check is unavailable. This also means a broken `internal/le/site` takes out shared tooling for every session in the checkout, which is a cost the phase boundaries did not price. Mitigation while the spec runs: each phase agent closes every unit of work with the tree compiling, checked with `go vet ./internal/le/site/` rather than at the end. The design hole itself is NOT closed here and should not be closed by weakening the check |
 | R-8 | Phase 10 cannot run a full build until the terminal-demo media is rendered | 17 of the 148 docs pages refuse with `errDemoMediaAbsent` | Found in phase 3. Those pages carry a `<!-- terminal-demo: -->` marker and read `website/assets/demos/`, which is generated, gitignored and absent from this checkout. The retired build could not render them here either. `./le terminal-demo render-all` is the producer, and it MUST run before phase 10 attempts a whole-site build |
 | R-9 | The published demo media disagrees with the published demo manifest | 11 of 17 recordings mismatch | Found in phase 3 at `gh-pages` HEAD: `assets/demos/launcher.cast` is 23445 bytes where `assets/demos/manifest.json` states 23416. The published artifact is internally inconsistent, so it CANNOT be used as fixture data for the demo path. Fixtures for that path come from a fresh render, never from the artifact |
@@ -579,6 +580,37 @@ and its carry-over are untouched.
 | `TestAnEmptyConfigurationTreeIsRefused` | `internal/le/site/config_test.go` | AC-4, an absent tree is refused rather than published empty | pass |
 | `TestANodeReadsAsAnOperatorWouldTypeIt` | `internal/le/site/config_test.go` | AC-4, the head and the badge of each node kind | pass |
 | `TestAClosingScriptTagInASchemaDescriptionCannotEndThePayload` | `internal/le/site/config_test.go` | AC-4, the embedded payload cannot escape its element | pass |
+| `TestRenderAnswersTheArtifactsAndTheVocabularyThatReadsThem` | `internal/le/testhealth/site_test.go` | AC-10, the accessor answers both artifacts and writes neither | pass |
+| `TestTheTestingHealthPageReadsAsThePublishedPage` | `internal/le/site/health_test.go` | AC-3, AC-4, AC-10, rendered parity above the trend table | pass |
+| `TestTheHealthPageIsLabelledByItsOwnHeading` | `internal/le/site/health_test.go` | AC-3, the attribute visibleText cannot see | pass |
+| `TestAnUnmeasuredMetricSortsAboveAKnownProblem` | `internal/le/site/health_test.go` | AC-10, unknown outranks warn outranks ok | pass |
+| `TestAStatusNobodyDeclaredIsTreatedAsUnmeasured` | `internal/le/site/health_test.go` | AC-10, sensor rot cannot present as calm | pass |
+| `TestThePageHasALabelForEveryStatus` | `internal/le/site/health_test.go` | AC-10, the labels are indexed by rank | pass |
+| `TestTheTrendTableTakesItsSeriesFromTheGenerator` | `internal/le/site/health_test.go` | AC-10, one series list, not two | pass |
+| `TestASeriesIsDrawnOnlyWhenThereAreEnoughSamples` | `internal/le/site/health_test.go` | AC-10, the four-sample floor | pass |
+| `TestALongHistoryDrawsABoundedLine` | `internal/le/site/health_test.go` | AC-10, the append-only history is bounded | pass |
+| `TestATestHealthRecordAPageCannotBeMadeFromIsRefused` | `internal/le/site/health_test.go` | AC-10, six refusals by name | pass |
+| `TestTheHealthMirrorIsTheGeneratedPage` | `internal/le/site/health_test.go` | AC-5, the mirror is the generator's own bytes | pass |
+| `TestTheHealthProducerClaimsItsPublishedRoute` | `internal/le/site/health_test.go` | AC-1, 1 of 712 | pass |
+| `TestTheRFCComplianceSectionsReadAsThePublishedPage` | `internal/le/site/rfccompliance_test.go` | AC-3, AC-4, AC-10, parity on the three unchanged sections | pass |
+| `TestTheRFCCompliancePageIsLabelledByItsOwnHeading` | `internal/le/site/rfccompliance_test.go` | AC-3, the two attributes visibleText cannot see | pass |
+| `TestTheHeadlineCardsCarryThePublishedNumbers` | `internal/le/site/rfccompliance_test.go` | AC-10, the four cards whose inputs did not change | pass |
+| `TestTheGuardBlockIsAnsweredByTheVerifyStages` | `internal/le/site/rfccompliance_test.go` | R-7, the redefined guard names no deleted file | pass |
+| `TestTheGateInputRowsReadAsThePublishedRows` | `internal/le/site/rfccompliance_test.go` | AC-10, the five unchanged producer rows | pass |
+| `TestTheCheckSectionPublishesTheGatesOwnIssues` | `internal/le/site/rfccompliance_test.go` | AC-10, no fabricated per-check zeros | pass |
+| `TestALongIssueListIsBoundedAndSaysHowManyItLeftOut` | `internal/le/site/rfccompliance_test.go` | AC-10, a red gate is not a log file | pass |
+| `TestTheRFCComplianceMirrorReadsAsThePublishedMirror` | `internal/le/site/rfccompliance_test.go` | AC-5 | pass |
+| `TestTheComplianceSnapshotIsPublishedBesideThePage` | `internal/le/site/rfccompliance_test.go` | AC-16, `data/rfc-compliance.json` | pass |
+| `TestTheRFCComplianceProducerClaimsItsPublishedRoute` | `internal/le/site/rfccompliance_test.go` | AC-1, 1 of 712 | pass |
+| `TestEveryAnnotationKindTheCorpusCarriesHasABucket` | `internal/le/site/rfccompliance_test.go` | AC-10, a fourth kind cannot fall in no bucket | pass |
+| `TestTheGateSnapshotAgreesWithItself` | `internal/le/site/rfccompliance_test.go` | AC-10, the live collector's own arithmetic | pass |
+| `TestEachGatedRequirementFallsInTheBucketItsEvidencePutsItIn` | `internal/le/site/rfccompliance_test.go` | AC-10, one polarity is not a pair | pass |
+| `TestTheGapDisclosureOrdersStatusesAndBoundsTheClusters` | `internal/le/site/rfccompliance_test.go` | AC-10, the three orderings a Go port loses | pass |
+| `TestTwoRFCsTyingOnGapsKeepTheParseOrder` | `internal/le/site/rfccompliance_test.go` | AC-10, `Counter.most_common` tie order | pass |
+| `TestAGapWithNoPublicRowIsCountedAsMissing` | `internal/le/site/rfccompliance_test.go` | AC-10, an undisclosed gap is not a blank cell | pass |
+| `TestAShiftedVerdictIsCountedApartFromAStaleOne` | `internal/le/site/rfccompliance_test.go` | AC-10, a line shift is not a void verdict | pass |
+| `TestTheQuotedGateOutputIsTheGatesOwnLine` | `internal/le/site/rfccompliance_test.go` | AC-10, the page quotes rather than composes | pass |
+| `TestASummaryStemIsPrintedAsTheReaderKnowsIt` | `internal/le/site/rfccompliance_test.go` | AC-10, RFC 9012 and a draft stem | pass |
 | `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts/sitefacts_test.go` | AC-11 | |
 | `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12 | |
 | `TestLLMSFullCarriesEveryPublishedMirror` | `internal/le/site/derived_test.go` | AC-15 | |
@@ -858,7 +890,33 @@ and its carry-over are untouched.
      reads `data/plugin-registry.json` from the ARTIFACT, and a build's three
      live readers are stubbed together by `stubLiveInputs`.
 8. **Phase: Quality pages** -- test-health and RFC-compliance, re-sourced
-   - Files: `quality.go`
+   - Files: `health.go`, `rfccompliance.go` (the spec's one `quality.go` became
+     one file per page, as phase 7 split the plugin catalog)
+   -> Decision 2026-08-30: the health page reads `testhealth.Render` over the
+   TREE BEING BUILT, not the committed `test/health/latest.json`. The volume
+   counters are published rather than gated and are refreshed by hand, so a page
+   from the snapshot states the last refresh while claiming to describe the tree
+   it was built from. This is what the retired renderer preferred too.
+   -> Decision 2026-08-30: `internal/le/rfc` is NOT edited.
+   `TestNativeImplementationFixture` seals every non-test file of it by digest,
+   the seal is already red from another session's uncommitted edits, and
+   re-sealing would encode their work. The ledger accessor the phase brief
+   expected was unnecessary: `rfc.NewRenderInput` already answers `Rows`,
+   `Audits` and `States`, and sharing that parse is what the ledger render does.
+   -> Decision 2026-08-30: the page's six check cards are NOT reconstructed.
+   `rfc.Check` answers one flat `Violations []string`, so a per-check count has
+   no producer. The section publishes the verdict, the count and the issues,
+   bounded to 25. A table of named zeros would be a number nobody can trace
+   (`ai/rules/evidence.md`).
+   -> Decision 2026-08-30: the agent-guard block is REDEFINED against the
+   registered stage population, `verifyengine.StagesForMode`. Three of its five
+   keys counted text in deleted files and a fourth advertised
+   `rfc-test-change-approved`, retired by owner ruling on 2026-08-19. The page
+   now states that `./le rfc check` runs as one of the full-mode verify stages.
+   -> Constraint: the published health page was rendered from a LIVE generator
+   run, so no committed `latest.json` reproduces it. The fixture is
+   `93cd4c1e`'s record shape with the published numbers substituted; the golden
+   HTML is untouched, and parity holds above the trend table.
 9. **Phase: Facts and homepage** -- the facts snapshot, then the homepage that
    depends on it
    - Files: `internal/le/site/facts/`, `home.go`
@@ -952,6 +1010,19 @@ and its carry-over are untouched.
 - The RFC-compliance page's agent-guard block counted text in a hook file, a
   Makefile and a status script that no longer exist. It is redefined against the
   registered action table rather than ported.
+- The testing-health page loses one card and one trend series. The published
+  page carried a `mutation` metric and a `mutation_percent` series;
+  `internal/le/testhealth` answers nine metrics and three series, and none is
+  mutation. The renderer is generic over the record, so nothing here needs
+  changing if the collector regains one.
+- Two trend-series labels differ from the published ones ("Assert-nothing tests"
+  for "Tests that cannot fail", "Tag-orphaned files" for "Test files nothing
+  runs"). The page reads `testhealth.TrendSeries()` so that it and its Markdown
+  mirror name one measurement one way.
+- The RFC-compliance page's "Check results" section lists the gate's open issues
+  instead of a count for each named check. Restoring the per-check counts means
+  grouping the appends in `internal/le/rfc/check.go`, which that package's
+  digest seal puts outside this spec.
 - The star count still reaches api.github.com and still falls back to the
   previously published number, so one figure on the site is not derivable from
   the tree alone. Changing that is a separate decision.
