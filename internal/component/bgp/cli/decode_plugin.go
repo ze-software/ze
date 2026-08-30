@@ -26,6 +26,10 @@ import (
 
 var errEmptyAddressFamily = errors.New("empty address family")
 
+// zeCmdPlugin is the argv verb of the top-level `ze plugin` command, which this
+// file re-executes to decode. It is not the `ze bgp plugin` subcommand.
+const zeCmdPlugin = "plugin"
+
 // pluginMode represents how a plugin should be invoked.
 type pluginMode int
 
@@ -77,7 +81,7 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 	}
 
 	// Build plugin command - pluginName comes from lazy registry maps (capabilityMap, familyMap)
-	args := []string{"plugin", pluginName, "--decode"}
+	args := []string{zeCmdPlugin, pluginName, "--decode"}
 
 	// Create command with timeout context for subprocess decode operation.
 	// 5s allows for process startup chain (sh -> wrapper -> ze plugin --decode).
@@ -277,7 +281,7 @@ func invokePluginSubprocess(pluginName, request string) any {
 		return nil // Fall back to in-process via invokePluginNLRIDecodeRequest
 	}
 
-	args := []string{"plugin", pluginName, "--decode"}
+	args := []string{zeCmdPlugin, pluginName, "--decode"}
 
 	// 5s allows for process startup chain (sh -> wrapper -> ze plugin --decode).
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

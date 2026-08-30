@@ -77,7 +77,7 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 	if len(update.WithdrawnRoutes) > 0 {
 		prefixes := parseIPv4Prefixes(update.WithdrawnRoutes)
 		if len(prefixes) > 0 {
-			withdrawOp := map[string]any{"action": "del", "nlri": prefixes}
+			withdrawOp := map[string]any{jsonKeyAction: "del", jsonKeyNLRI: prefixes}
 			if existing, ok := updateContent["ipv4/unicast"].([]map[string]any); ok {
 				updateContent["ipv4/unicast"] = append(existing, withdrawOp)
 			} else {
@@ -90,7 +90,7 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 	if len(update.NLRI) > 0 {
 		prefixes := parseIPv4Prefixes(update.NLRI)
 		if len(prefixes) > 0 {
-			announceOp := map[string]any{"next-hop": nextHop, "action": "add", "nlri": prefixes}
+			announceOp := map[string]any{"next-hop": nextHop, jsonKeyAction: "add", jsonKeyNLRI: prefixes}
 			if existing, ok := updateContent["ipv4/unicast"].([]map[string]any); ok {
 				updateContent["ipv4/unicast"] = append(existing, announceOp)
 			} else {

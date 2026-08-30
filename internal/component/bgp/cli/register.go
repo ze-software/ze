@@ -15,16 +15,25 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// Subcommand tokens accepted by Run (main.go). One name for each token, so the
+// switch, the suggestion list, and the hint map cannot drift apart.
+const (
+	bgpCmdDecode = "decode"
+	bgpCmdEncode = "encode"
+	bgpCmdPlugin = "plugin"
+	bgpCmdHelp   = "help"
+)
+
 // bgpCommands lists the bare user-facing subcommand names, kept in sync with
 // the switch cases in Run (main.go). Used for suggestion matching and as the
 // basis for the Subs string.
-var bgpCommands = []string{"decode", "encode", "plugin"}
+var bgpCommands = []string{bgpCmdDecode, bgpCmdEncode, bgpCmdPlugin}
 
 // bgpSubHints maps each command to its argument hint for display. Commands with
 // no arguments are omitted.
 var bgpSubHints = map[string]string{
-	"decode": "decode <hex>",
-	"encode": "encode <route>",
+	bgpCmdDecode: "decode <hex>",
+	bgpCmdEncode: "encode <route>",
 }
 
 // subcommands returns the user-facing subcommand list as a comma-separated
@@ -56,9 +65,9 @@ func init() {
 		Subs:        subcommands(),
 	})
 	registry.MustRegisterLocal("show bgp decode", func(args []string) int {
-		return Run(append([]string{"decode"}, args...))
+		return Run(append([]string{bgpCmdDecode}, args...))
 	})
 	registry.MustRegisterLocal("show bgp encode", func(args []string) int {
-		return Run(append([]string{"encode"}, args...))
+		return Run(append([]string{bgpCmdEncode}, args...))
 	})
 }

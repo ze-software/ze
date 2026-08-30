@@ -70,11 +70,11 @@ func formatOpenHuman(result map[string]any) string {
 // Works with Ze format: {"code": N, "name": "...", "value": "..."}.
 func formatCapabilityHuman(sb *textbuf.Buffer, cap map[string]any) {
 	name, _ := cap["name"].(string)
-	if name == "" || name == "unknown" {
+	if name == "" || name == capNameUnknown {
 		if code, ok := cap["code"]; ok {
 			name = fmt.Sprintf("code=%v", formatNumber(code))
 		} else {
-			name = "unknown"
+			name = capNameUnknown
 		}
 	}
 
@@ -98,7 +98,7 @@ func formatCapabilityHuman(sb *textbuf.Buffer, cap map[string]any) {
 		// Plugin-decoded capabilities may use custom keys (e.g., "version" for software-version).
 		// Display any string value that isn't "code" or "name".
 		for k, v := range cap {
-			if k == "code" || k == "name" || k == "raw" {
+			if k == "code" || k == "name" || k == jsonKeyRaw {
 				continue
 			}
 			if s, ok := v.(string); ok {
@@ -109,7 +109,7 @@ func formatCapabilityHuman(sb *textbuf.Buffer, cap map[string]any) {
 	}
 
 	// Unknown capabilities (name starts with "code=") show raw hex data
-	if raw, ok := cap["raw"].(string); ok && raw != "" {
+	if raw, ok := cap[jsonKeyRaw].(string); ok && raw != "" {
 		sb.Str(raw)
 	}
 
@@ -279,7 +279,7 @@ func formatNLRIListHuman(sb *textbuf.Buffer, data any) {
 			if nlriList, ok := nlris.([]any); ok {
 				for _, n := range nlriList {
 					if nMap, ok := n.(map[string]any); ok {
-						if prefix, ok := nMap["nlri"].(string); ok {
+						if prefix, ok := nMap[jsonKeyNLRI].(string); ok {
 							fmt.Fprintf(sb, "      %s\n", prefix) //nolint:errcheck // output
 						}
 					}

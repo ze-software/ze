@@ -12,6 +12,19 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
+// Prometheus label NAMES. These name the dimension a metric is sliced by, and
+// they are not the label values: metricLabelPeer is the string "peer" that
+// heads the column, while the value in that column is a peer address. A label
+// name is part of the metric's published contract, so an operator's query
+// breaks when one changes.
+const (
+	metricLabelPeer    = "peer"
+	metricLabelType    = "type"
+	metricLabelCode    = "code"
+	metricLabelSubcode = "subcode"
+	metricLabelFamily  = "family"
+)
+
 // metricsUpdateIntervalDefault is how often periodic metrics are refreshed.
 // Overridable via ze.metrics.interval env var for testing.
 const metricsUpdateIntervalDefault = 10 * time.Second
@@ -135,26 +148,26 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		forwardWorkersActive: reg.Gauge("ze_forward_workers_active", "Active forward pool workers."),
 		poolUsedRatio:        reg.Gauge("ze_bgp_pool_used_ratio", "Overflow pool utilization (0.0 = empty, 1.0 = full)."),
 
-		peerState:     reg.GaugeVec("ze_peer_state", "Peer FSM state (0=stopped, 1=connecting, 2=active, 3=established).", []string{"peer"}),
-		peerMsgRecv:   reg.CounterVec("ze_peer_messages_received_total", "BGP messages received from peer.", []string{"peer", "type"}),
-		peerMsgSent:   reg.CounterVec("ze_peer_messages_sent_total", "BGP messages sent to peer.", []string{"peer", "type"}),
-		overflowItems: reg.GaugeVec("ze_bgp_overflow_items", "Items in per-destination overflow buffer.", []string{"peer"}),
+		peerState:     reg.GaugeVec("ze_peer_state", "Peer FSM state (0=stopped, 1=connecting, 2=active, 3=established).", []string{metricLabelPeer}),
+		peerMsgRecv:   reg.CounterVec("ze_peer_messages_received_total", "BGP messages received from peer.", []string{metricLabelPeer, metricLabelType}),
+		peerMsgSent:   reg.CounterVec("ze_peer_messages_sent_total", "BGP messages sent to peer.", []string{metricLabelPeer, metricLabelType}),
+		overflowItems: reg.GaugeVec("ze_bgp_overflow_items", "Items in per-destination overflow buffer.", []string{metricLabelPeer}),
 		overflowRatio: reg.GaugeVec("ze_bgp_overflow_ratio", "Per-source overflow ratio: overflowed/(forwarded+overflowed).", []string{"source"}),
 
 		// Session lifecycle
-		sessionsEstablished: reg.CounterVec("ze_peer_sessions_established_total", "Times session reached Established.", []string{"peer"}),
-		sessionFlaps:        reg.CounterVec("ze_peer_session_flaps_total", "Sessions dropped from Established.", []string{"peer"}),
-		stateTransitions:    reg.CounterVec("ze_peer_state_transitions_total", "Peer state transitions.", []string{"peer", "from", "to"}),
-		notifSent:           reg.CounterVec("ze_peer_notifications_sent_total", "NOTIFICATION messages sent.", []string{"peer", "code", "subcode"}),
-		notifRecv:           reg.CounterVec("ze_peer_notifications_received_total", "NOTIFICATION messages received.", []string{"peer", "code", "subcode"}),
-		sessionDuration:     reg.GaugeVec("ze_peer_session_duration_seconds", "Seconds since session established.", []string{"peer"}),
-		connectRetryCounter: reg.GaugeVec("ze_bgp_connect_retry_counter", "RFC 4271 ConnectRetryCounter: times this peer has tried to establish a session since the last operator start or stop.", []string{"peer"}),
+		sessionsEstablished: reg.CounterVec("ze_peer_sessions_established_total", "Times session reached Established.", []string{metricLabelPeer}),
+		sessionFlaps:        reg.CounterVec("ze_peer_session_flaps_total", "Sessions dropped from Established.", []string{metricLabelPeer}),
+		stateTransitions:    reg.CounterVec("ze_peer_state_transitions_total", "Peer state transitions.", []string{metricLabelPeer, "from", "to"}),
+		notifSent:           reg.CounterVec("ze_peer_notifications_sent_total", "NOTIFICATION messages sent.", []string{metricLabelPeer, metricLabelCode, metricLabelSubcode}),
+		notifRecv:           reg.CounterVec("ze_peer_notifications_received_total", "NOTIFICATION messages received.", []string{metricLabelPeer, metricLabelCode, metricLabelSubcode}),
+		sessionDuration:     reg.GaugeVec("ze_peer_session_duration_seconds", "Seconds since session established.", []string{metricLabelPeer}),
+		connectRetryCounter: reg.GaugeVec("ze_bgp_connect_retry_counter", "RFC 4271 ConnectRetryCounter: times this peer has tried to establish a session since the last operator start or stop.", []string{metricLabelPeer}),
 		openInEstablished: reg.CounterVec("ze_bgp_open_in_established_total",
-			"OPEN messages refused because the connection was already in Established or OpenConfirm.", []string{"peer"}),
+			"OPEN messages refused because the connection was already in Established or OpenConfirm.", []string{metricLabelPeer}),
 
 		// Forward pool events
-		fwdCongestionEvents:  reg.CounterVec("ze_forward_congestion_events_total", "Channel full events (onset).", []string{"peer"}),
-		fwdCongestionResume:  reg.CounterVec("ze_forward_congestion_resumed_total", "Channel resumed from congestion.", []string{"peer"}),
+		fwdCongestionEvents:  reg.CounterVec("ze_forward_congestion_events_total", "Channel full events (onset).", []string{metricLabelPeer}),
+		fwdCongestionResume:  reg.CounterVec("ze_forward_congestion_resumed_total", "Channel resumed from congestion.", []string{metricLabelPeer}),
 		fwdBufferDeniedTotal: reg.Counter("ze_forward_buffer_denied_total", "Buffer denials due to congestion backpressure (AC-2)."),
 		fwdTeardownTotal:     reg.Counter("ze_forward_congestion_teardown_total", "Forced session teardowns due to pool exhaustion (AC-4)."),
 
@@ -176,15 +189,15 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		peersAddedTotal:    reg.Counter("ze_peers_added_total", "Peers added via config."),
 		peersRemovedTotal:  reg.Counter("ze_peers_removed_total", "Peers removed via config."),
 		captureDroppedEvents: reg.CounterVec("ze_bgp_capture_dropped_events_total",
-			"Protocol event capture records shed because the writer queue was full.", []string{"peer"}),
+			"Protocol event capture records shed because the writer queue was full.", []string{metricLabelPeer}),
 
 		// Wire layer
-		wireBytesRecv:   reg.CounterVec("ze_wire_bytes_received_total", "Bytes read from TCP.", []string{"peer"}),
-		wireBytesSent:   reg.CounterVec("ze_wire_bytes_sent_total", "Bytes written to TCP.", []string{"peer"}),
-		wireReadErrors:  reg.CounterVec("ze_wire_read_errors_total", "Socket read failures.", []string{"peer"}),
-		wireWriteErrors: reg.CounterVec("ze_wire_write_errors_total", "Socket write failures.", []string{"peer"}),
+		wireBytesRecv:   reg.CounterVec("ze_wire_bytes_received_total", "Bytes read from TCP.", []string{metricLabelPeer}),
+		wireBytesSent:   reg.CounterVec("ze_wire_bytes_sent_total", "Bytes written to TCP.", []string{metricLabelPeer}),
+		wireReadErrors:  reg.CounterVec("ze_wire_read_errors_total", "Socket read failures.", []string{metricLabelPeer}),
+		wireWriteErrors: reg.CounterVec("ze_wire_write_errors_total", "Socket write failures.", []string{metricLabelPeer}),
 		attrSpanSpill: reg.CounterVec("ze_bgp_update_span_spill_total",
-			"Received UPDATEs whose attribute count exceeded the inline span capacity.", []string{"peer"}),
+			"Received UPDATEs whose attribute count exceeded the inline span capacity.", []string{metricLabelPeer}),
 
 		// Startup and connection timing
 		pluginStartupSeconds: reg.Histogram("ze_plugin_startup_seconds", "WaitForPluginStartupComplete duration.",
@@ -192,22 +205,22 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		apiReadySeconds: reg.Histogram("ze_api_ready_seconds", "WaitForAPIReady duration.",
 			[]float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15}),
 		peerDialSeconds: reg.HistogramVec("ze_peer_dial_seconds", "TCP dial duration.",
-			[]float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5}, []string{"peer", "result"}),
+			[]float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5}, []string{metricLabelPeer, "result"}),
 		peerConnectAttemptSeconds: reg.HistogramVec("ze_peer_connect_attempt_seconds", "Full connection attempt (runOnce) duration.",
-			[]float64{0.1, 0.5, 1, 5, 10, 30, 60, 300}, []string{"peer"}),
-		peerConnectAttempts: reg.CounterVec("ze_peer_connect_attempts_total", "Connection attempts.", []string{"peer"}),
+			[]float64{0.1, 0.5, 1, 5, 10, 30, 60, 300}, []string{metricLabelPeer}),
+		peerConnectAttempts: reg.CounterVec("ze_peer_connect_attempts_total", "Connection attempts.", []string{metricLabelPeer}),
 		peerBackoffSeconds: reg.HistogramVec("ze_peer_backoff_seconds", "Backoff wait duration before retry.",
-			[]float64{1, 2, 5, 10, 30, 60, 120}, []string{"peer"}),
+			[]float64{1, 2, 5, 10, 30, 60, 120}, []string{metricLabelPeer}),
 
 		// RFC 4486: Prefix limit metrics
-		prefixCount:           reg.GaugeVec("ze_bgp_prefix_count", "Current prefix count per family.", []string{"peer", "family"}),
-		prefixMaximum:         reg.GaugeVec("ze_bgp_prefix_maximum", "Configured hard maximum per family.", []string{"peer", "family"}),
-		prefixWarning:         reg.GaugeVec("ze_bgp_prefix_warning", "Configured warning threshold per family.", []string{"peer", "family"}),
-		prefixWarningExceeded: reg.GaugeVec("ze_bgp_prefix_warning_exceeded", "1 if count >= warning for this family.", []string{"peer", "family"}),
-		prefixRatio:           reg.GaugeVec("ze_bgp_prefix_ratio", "Current prefix count / maximum (0.0 to 1.0+).", []string{"peer", "family"}),
-		prefixExceededTotal:   reg.CounterVec("ze_bgp_prefix_maximum_exceeded_total", "Times this family exceeded maximum.", []string{"peer", "family"}),
-		prefixTeardownTotal:   reg.CounterVec("ze_bgp_prefix_teardown_total", "Times session torn down for prefix limit.", []string{"peer"}),
-		prefixStale:           reg.GaugeVec("ze_bgp_prefix_stale", "1 if prefix data is older than 6 months.", []string{"peer"}),
+		prefixCount:           reg.GaugeVec("ze_bgp_prefix_count", "Current prefix count per family.", []string{metricLabelPeer, metricLabelFamily}),
+		prefixMaximum:         reg.GaugeVec("ze_bgp_prefix_maximum", "Configured hard maximum per family.", []string{metricLabelPeer, metricLabelFamily}),
+		prefixWarning:         reg.GaugeVec("ze_bgp_prefix_warning", "Configured warning threshold per family.", []string{metricLabelPeer, metricLabelFamily}),
+		prefixWarningExceeded: reg.GaugeVec("ze_bgp_prefix_warning_exceeded", "1 if count >= warning for this family.", []string{metricLabelPeer, metricLabelFamily}),
+		prefixRatio:           reg.GaugeVec("ze_bgp_prefix_ratio", "Current prefix count / maximum (0.0 to 1.0+).", []string{metricLabelPeer, metricLabelFamily}),
+		prefixExceededTotal:   reg.CounterVec("ze_bgp_prefix_maximum_exceeded_total", "Times this family exceeded maximum.", []string{metricLabelPeer, metricLabelFamily}),
+		prefixTeardownTotal:   reg.CounterVec("ze_bgp_prefix_teardown_total", "Times session torn down for prefix limit.", []string{metricLabelPeer}),
+		prefixStale:           reg.GaugeVec("ze_bgp_prefix_stale", "1 if prefix data is older than 6 months.", []string{metricLabelPeer}),
 	}
 }
 

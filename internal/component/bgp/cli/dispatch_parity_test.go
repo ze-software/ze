@@ -4,8 +4,10 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -21,7 +23,7 @@ func TestDispatchParity(t *testing.T) {
 		"help": true, "-h": true, "--help": true,
 	}
 
-	switchCases := dispatchSwitchCases(t, "main.go", "Run")
+	switchCases := dispatchSwitchCases(t, "main.go", "Run", packageStringConsts(t))
 
 	var wantCommands []string
 	for _, c := range switchCases {
@@ -49,10 +51,58 @@ func TestDispatchParity(t *testing.T) {
 	}
 }
 
+// packageStringConsts returns every `const name = "value"` the package's
+// non-test files declare. The dispatch switch names its cases through those
+// constants, so the parity check has to resolve them before it can compare the
+// switch against bgpCommands.
+func packageStringConsts(t *testing.T) map[string]string {
+	t.Helper()
+
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatalf("read package directory: %v", err)
+	}
+
+	consts := make(map[string]string)
+	fset := token.NewFileSet()
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		file, parseErr := parser.ParseFile(fset, name, nil, 0)
+		if parseErr != nil {
+			t.Fatalf("parse %s: %v", name, parseErr)
+		}
+		for _, decl := range file.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.CONST {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				value, ok := spec.(*ast.ValueSpec)
+				if !ok || len(value.Names) != len(value.Values) {
+					continue
+				}
+				for i, ident := range value.Names {
+					lit, ok := value.Values[i].(*ast.BasicLit)
+					if !ok || lit.Kind != token.STRING {
+						continue
+					}
+					consts[ident.Name] = mustUnquote(t, lit.Value)
+				}
+			}
+		}
+	}
+	return consts
+}
+
 // dispatchSwitchCases parses fileName in the current package and returns the
-// string-literal case values of the first switch statement found inside the
-// named function. Cases like `case "a", "b":` contribute both "a" and "b".
-func dispatchSwitchCases(t *testing.T, fileName, funcName string) []string {
+// case values of the first switch statement found inside the named function.
+// Cases like `case "a", "b":` contribute both "a" and "b". A case named by an
+// identifier is resolved through consts, and an identifier that is not a
+// package string constant fails the test rather than being skipped.
+func dispatchSwitchCases(t *testing.T, fileName, funcName string, consts map[string]string) []string {
 	t.Helper()
 
 	fset := token.NewFileSet()
@@ -86,11 +136,19 @@ func dispatchSwitchCases(t *testing.T, fileName, funcName string) []string {
 				continue
 			}
 			for _, expr := range cc.List {
-				lit, ok := expr.(*ast.BasicLit)
-				if !ok || lit.Kind != token.STRING {
-					continue
+				switch e := expr.(type) {
+				case *ast.BasicLit:
+					if e.Kind == token.STRING {
+						cases = append(cases, mustUnquote(t, e.Value))
+					}
+				case *ast.Ident:
+					value, ok := consts[e.Name]
+					if !ok {
+						t.Errorf("case %s in %s is not a package string constant", e.Name, funcName)
+						continue
+					}
+					cases = append(cases, value)
 				}
-				cases = append(cases, mustUnquote(t, lit.Value))
 			}
 		}
 		return false

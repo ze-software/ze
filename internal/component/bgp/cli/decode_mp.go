@@ -49,9 +49,9 @@ func buildMPReachZe(mpReach []byte) (string, []map[string]any) {
 
 	// Ze format: array of operations with action/next-hop/nlri
 	op := map[string]any{
-		"next-hop": nextHop,
-		"action":   "add",
-		"nlri":     routes,
+		"next-hop":    nextHop,
+		jsonKeyAction: "add",
+		jsonKeyNLRI:   routes,
 	}
 
 	return familyKey, []map[string]any{op}
@@ -80,8 +80,8 @@ func buildMPUnreachZe(mpUnreach []byte) (string, []map[string]any) {
 
 	// Ze format: withdraw operation
 	op := map[string]any{
-		"action": "del",
-		"nlri":   routes,
+		jsonKeyAction: "del",
+		jsonKeyNLRI:   routes,
 	}
 
 	return familyKey, []map[string]any{op}
@@ -161,7 +161,7 @@ func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []
 			}
 		} else {
 			// Plugin failed or unavailable - return raw bytes
-			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
+			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
 		}
 	case safi == family.SAFIFlowSpec || safi == family.SAFIFlowSpecVPN:
 		// FlowSpec decoding delegated to plugin
@@ -177,7 +177,7 @@ func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []
 			}
 		} else {
 			// Plugin failed or unavailable - return raw bytes
-			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
+			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
 		}
 	case afi == family.AFIBGPLS:
 		// BGP-LS decoding delegated to plugin
@@ -191,7 +191,7 @@ func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []
 				routes = []any{result}
 			}
 		} else {
-			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
+			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
 		}
 	case safi == family.SAFIVPN:
 		// VPN decoding delegated to plugin (RFC 4364, 4659)
@@ -205,7 +205,7 @@ func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []
 				routes = []any{result}
 			}
 		} else {
-			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
+			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
 		}
 	case safi == family.SAFISRPolicy:
 		famStr := family.Family{AFI: afi, SAFI: safi}.String()
@@ -217,7 +217,7 @@ func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []
 			}
 		}
 		if routes == nil {
-			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
+			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
 		}
 	default: // IPv4/IPv6 unicast/multicast - simple prefix format
 		routes = parseGenericNLRI(data, afi)
@@ -308,8 +308,8 @@ func decodeNLRIOnly(data []byte, family string, outputJSON bool) (string, error)
 
 	// No decoder available - return raw bytes.
 	result := map[string]any{
-		"parsed": false,
-		"raw":    hexData,
+		jsonKeyParsed: false,
+		jsonKeyRaw:    hexData,
 	}
 
 	// Human-readable output

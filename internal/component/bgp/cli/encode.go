@@ -56,7 +56,7 @@ func cmdEncode(args []string) int {
 			Summary: "Encode API route command to BGP message hex. Route command can be provided as argument or via stdin",
 			Usage:   []string{"ze bgp encode [options] [route-command]"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-f <family>", Desc: "Address family (default: ipv4/unicast) (e.g., 'ipv4/unicast', 'ipv6/unicast', 'l2vpn/evpn')"},
 					{Name: "-a <asn>", Desc: "Local AS number (default: 65533)"},
 					{Name: "-z <asn>", Desc: "Peer AS number (default: 65533)"},

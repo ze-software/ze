@@ -12,6 +12,9 @@ import (
 	"github.com/ze-software/ze/internal/core/suggest"
 )
 
+// helpSectionOptions titles the flag section of every help page in this package.
+const helpSectionOptions = "Options"
+
 // Run executes the bgp subcommand with the given arguments.
 // Returns exit code.
 func Run(args []string) int {
@@ -24,20 +27,20 @@ func Run(args []string) int {
 
 	// Check for known commands first
 	switch arg {
-	case "decode":
+	case bgpCmdDecode:
 		return cmdDecode(args[1:])
-	case "encode":
+	case bgpCmdEncode:
 		return cmdEncode(args[1:])
-	case "plugin":
+	case bgpCmdPlugin:
 		return cmdPlugin(args[1:])
-	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
+	case bgpCmdHelp, "-h", "--help":
 		usage()
 		return 0
 	}
 
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
-	if s := suggest.Command(arg, append(bgpCommands, "help")); s != "" {
+	if s := suggest.Command(arg, append(bgpCommands, bgpCmdHelp)); s != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 	}
 	usage()
@@ -53,8 +56,8 @@ func usage() {
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "decode <hex>", Desc: "Decode BGP message from hex to JSON"},
 				{Name: "encode <route>", Desc: "Encode API route command to BGP hex"},
-				{Name: "plugin", Desc: "Interactive plugin simulator"},
-				{Name: "help", Desc: "Show this help"},
+				{Name: bgpCmdPlugin, Desc: "Interactive plugin simulator"},
+				{Name: bgpCmdHelp, Desc: "Show this help"},
 			}},
 		},
 		Examples: []string{

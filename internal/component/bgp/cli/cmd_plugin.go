@@ -29,7 +29,7 @@ func cmdPlugin(args []string) int {
 	switch args[0] {
 	case "cli":
 		return cmdPluginCLI(args[1:])
-	case "help", "-h", "--help":
+	case bgpCmdHelp, "-h", "--help":
 		pluginUsage()
 		return 0
 	default:
@@ -47,7 +47,7 @@ func pluginUsage() {
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "cli", Desc: "Interactive plugin debug shell (5-stage handshake + commands)"},
-				{Name: "help", Desc: "Show this help"},
+				{Name: bgpCmdHelp, Desc: "Show this help"},
 			}},
 		},
 		Examples: []string{
@@ -82,7 +82,7 @@ func cmdPluginCLI(args []string) int {
 					{Name: "encode-nlri <family> <args...>", Desc: "Encode NLRI"},
 					{Name: "bye", Desc: "Disconnect"},
 				}},
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--name <name>", Desc: "Plugin name (default: auto-generated)"},
 				}},
 			},

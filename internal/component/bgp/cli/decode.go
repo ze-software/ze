@@ -28,6 +28,19 @@ const (
 	msgTypeKeepalive    = "keepalive"
 )
 
+// Keys of the decode output map. jsonKeyNLRI is the key that carries the route
+// list inside an operation; msgTypeNLRI above is the name of the decode mode,
+// so the two spellings stay separate names.
+const (
+	jsonKeyAction = "action"
+	jsonKeyNLRI   = "nlri"
+	jsonKeyParsed = "parsed"
+	jsonKeyRaw    = "raw"
+)
+
+// capNameUnknown is the capability name used when the code has no decoder.
+const capNameUnknown = "unknown"
+
 // cmdDecode handles the 'decode' subcommand.
 // Decodes BGP messages from hex and outputs Ze-format JSON.
 func cmdDecode(args []string) int {
@@ -50,7 +63,7 @@ func cmdDecode(args []string) int {
 			Summary: "Decode BGP message from hexadecimal and output Ze-format JSON",
 			Usage:   []string{"ze bgp decode [options] <hex-payload>"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--open", Desc: "Decode as OPEN message"},
 					{Name: "--update", Desc: "Decode as UPDATE message"},
 					{Name: "--notification", Desc: "Decode as NOTIFICATION message"},
@@ -111,8 +124,8 @@ func cmdDecode(args []string) int {
 		if *outputJSON {
 			// Return valid JSON error
 			errJSON := map[string]any{
-				"error":  err.Error(),
-				"parsed": false,
+				"error":       err.Error(),
+				jsonKeyParsed: false,
 			}
 			data, _ := json.Marshal(errJSON)
 			fmt.Println(string(data))
