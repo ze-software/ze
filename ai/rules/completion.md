@@ -76,7 +76,7 @@ nobody checked.
 | 3 | Every user-facing behavior has a functional test (`.ci`/`.et`) per `ai/rules/testing.md` |
 | 4 | Protocol features have interop tests per `ai/rules/interop-and-goal-validation.md` |
 | 5 | Goal Validation table filled with concrete evidence per goal |
-| 6 | The code compiles and `./le verify worktree` passes |
+| 6 | The code compiles. A GREEN gate is NOT a requirement for done (`ai/rules/pre-release.md`): name each red you leave and say which side of the product-or-scaffolding line it falls on |
 | 7 | No TODO, FIXME, or stub remains in the new code |
 | 8 | No item was silently dropped from scope |
 | 9 | Every function is reachable from a user entry point (wired, not just library) |
@@ -415,7 +415,8 @@ Rationale: `ai/rationale/anti-rationalization.md`
 | "Timing-dependent" | Race condition. Fix it |
 | "Pre-existing issue" | It is yours: "pre-existing" says when it started, not whose it is, and you are the entry point that reached it. Blocks your goal, fix it now; does not, spec it, close, ask |
 
-**Every test failure MUST be fixed, by you when it blocks your goal, and by the spec-close-ask route when it does not, which is where the decision to fix it is Thomas's. BLOCKING either way.** Logging is not an alternative outcome (owner directive 2026-07-23; see "Recording is not fixing" above). A `plan/known-failures/` shard is the running record of an investigation you are still driving, never a place to leave a defect.
+**A test failure that says the PRODUCT is wrong MUST be fixed: by you when it blocks your goal, and by one journal row when it does not.** Logging is not an alternative outcome for a product defect (owner directive 2026-07-23; see "Recording is not fixing" above). A `plan/known-failures/` shard is the running record of an investigation you are still driving, never a place to leave a product defect.
+**A test failure that says the SCAFFOLDING is wrong MUST NOT be fixed on the way past.** Name it in one line and step over it (`ai/rules/pre-release.md`). Fixture drift, a stale golden file and a broken runner path are instrument failures, and repairing them is how a session spends its budget on nothing.
 
 1. **You MUST spec it, close the work in hand, then ask ("A problem you FIND while working on something else gets a SPEC", above). You MUST NOT block current work on a failure you did not cause, and you MUST NOT fix it in this session either: the fix runs when Thomas answers, as its own spec and its own commit, never mixed with the feature work you were closing.**
 2. **A shard MAY be used for ONE case only: a failure whose MECHANISM you could not

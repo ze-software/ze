@@ -26,6 +26,7 @@ full before acting on a topic it covers.
 | Specs and Phases | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes | blocking | `ai/rules/planning.md` |
 | Linux, QEMU and the Appliance | writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency | blocking | `ai/rules/platform-linux.md` |
 | Plugins | creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate | blocking | `ai/rules/plugins.md` |
+| Pre-Release, and the Product Is the Deliverable | when a test or a gate goes red, when you are about to re-run a check, or when you are deciding what a commit owes | blocking | `ai/rules/pre-release.md` |
 | Pre-Commit Verification | before running precommit-verify, judging its red in a shared checkout, or running the tracked-build check after a commit script | blocking | `ai/rules/precommit-verify.md` |
 | Protocol Implementation | implementing or changing a protocol, an external API, a wire format, or a backend that applies operator config | blocking | `ai/rules/protocol.md` |
 | Quality Standards | before presenting any work as complete | blocking | `ai/rules/quality.md` |

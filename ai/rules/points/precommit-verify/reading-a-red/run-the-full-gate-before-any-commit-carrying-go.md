@@ -1,7 +1,8 @@
 ---
 kind: directive
-level: MUST
+level: MUST NOT
 stage:
 rationale: ai/rationale/git-safety.md
 ---
-**Owner directive, 2026-08-17: a commit carrying `.go`, `go.mod`, `go.sum` or `vendor/` MUST be preceded by a full `./le verify worktree` whose run STARTED after your last Go edit. You MUST NOT reach such a commit on scoped gates alone, and you MUST NOT re-run the gate to watch somebody else's red clear.** What the commit owes is the run's COVERAGE, never its exit code: the exit code is read through the attribution table below. `./le commit create` enforces the coverage and names the owner-only escape when no such run exists.
+**The 2026-08-17 directive requiring a full `./le verify worktree` before every Go commit is SUPERSEDED and MUST NOT be followed.** Two later owner directives replace it: the gate gates PUSHING rather than committing (2026-08-21, `ai/rules/git-safety.md`), and ze is pre-release so a commit owes no green (2026-08-30, `ai/rules/pre-release.md`).
+**A Go commit owes the FOCUSED test for what it changed, run once, and nothing more.** A missing full run records verification debt, which `./le commit create` writes and a push refuses to carry. You MUST NOT re-run the gate to watch somebody else's red clear, and you MUST NOT hold finished work waiting for one.

@@ -13,7 +13,7 @@ Rationale: `ai/rationale/quality.md`
 
 ## Self-Critical Review
 
-All checks must pass before claiming "done."
+The checks that cover the behavior you changed are run once and read. A check that stays red is NAMED in the done-claim, with the one-line reason it is scaffolding rather than a product defect (`ai/rules/pre-release.md`). A tree-wide green is not what "done" means here.
 
 | Check | Question |
 |-------|----------|
@@ -54,7 +54,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 Paste command output as evidence. "Should work" is not evidence.
 
-`./le verify worktree` is the ONLY acceptable verification before claiming done. Run it in the foreground and wait for it to finish. Output auto-captured to `tmp/ze-verify.log`. See `ai/rules/precommit-verify.md` for the full pre-commit workflow, and its "Running The Gate" for why you must not kill it for being slow.
+The evidence a done-claim owes is the focused test for the behavior you changed, run once. `./le verify worktree` is the FULL gate, it costs 25 to 53 minutes, and it is owed before a push rather than before a done-claim (`ai/rules/pre-release.md`). When you do run it, run it in the foreground and wait: output lands in `tmp/ze-verify.log`, and killing it for being slow wastes the whole run. `ai/rules/precommit-verify.md` carries how to read its red.
 
 Race coverage: `./le verify current mode full` runs `-race` on component groups with changed `.go` files. For reactor concurrency changes, also run `go test -race -count=20 ./internal/component/bgp/reactor/...`.
 

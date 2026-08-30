@@ -10,7 +10,7 @@ stage:
 | 3 | Every user-facing behavior has a functional test (`.ci`/`.et`) per `ai/rules/testing.md` |
 | 4 | Protocol features have interop tests per `ai/rules/interop-and-goal-validation.md` |
 | 5 | Goal Validation table filled with concrete evidence per goal |
-| 6 | The code compiles and `./le verify worktree` passes |
+| 6 | The code compiles. A GREEN gate is NOT a requirement for done (`ai/rules/pre-release.md`): name each red you leave and say which side of the product-or-scaffolding line it falls on |
 | 7 | No TODO, FIXME, or stub remains in the new code |
 | 8 | No item was silently dropped from scope |
 | 9 | Every function is reachable from a user entry point (wired, not just library) |

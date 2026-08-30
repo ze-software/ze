@@ -227,8 +227,7 @@ the usual carriers, because each lands in a tree something else counts.
 `ai/rules/repo-maintenance.md` maps each gate to the rule it enforces. When a
 surface has no owning action, you SHOULD say so in the report rather than reach for the full gate.
 
-Unless Thomas Owner Override is active, never commit with lint issues and never
-commit without test evidence when code changed.
+Never commit with lint issues your own diff caused: lint costs seconds and says the tree is broken. Test evidence is the focused test for what you changed, run once. A test that stays red is named in the commit body, and it does not hold the commit (`ai/rules/pre-release.md`).
 
 ```
 [ ] 3. Spec completion gate (if driven by a plan/ spec):
@@ -268,15 +267,15 @@ check cheaply is already green: `./le verify lint run`, the touched packages' `g
 and the gate owning each surface you changed. A run started before those are clean
 is a run you will pay for twice.
 
-**You MUST NOT stop to ask which way.** The operator is often not present, and a session
-that halts on this question has spent their time to save its own. You MUST clear the cheap
-gates, run the full pass once, and commit.
+**You MUST NOT stop to ask which way.** The operator is often not present, and a session that halts on this question has spent their time to save its own.
+**Clear the cheap structural gates your own diff caused, then commit.** The full pass is owed before a push, not before this commit (`ai/rules/pre-release.md`).
 
 **Several agents work this checkout at once. `./le verify worktree` reads the WORKING
 TREE, so it reads their half-finished edits too, and a fully GREEN run is
 unreachable by construction. You MUST NOT wait for one and you MUST NOT re-run for one: what is unreachable is the green bar, never the run.**
 
-**Owner directive, 2026-08-17: a commit carrying `.go`, `go.mod`, `go.sum` or `vendor/` MUST be preceded by a full `./le verify worktree` whose run STARTED after your last Go edit. You MUST NOT reach such a commit on scoped gates alone, and you MUST NOT re-run the gate to watch somebody else's red clear.** What the commit owes is the run's COVERAGE, never its exit code: the exit code is read through the attribution table below. `./le commit create` enforces the coverage and names the owner-only escape when no such run exists.
+**The 2026-08-17 directive requiring a full `./le verify worktree` before every Go commit is SUPERSEDED and MUST NOT be followed.** Two later owner directives replace it: the gate gates PUSHING rather than committing (2026-08-21, `ai/rules/git-safety.md`), and ze is pre-release so a commit owes no green (2026-08-30, `ai/rules/pre-release.md`).
+**A Go commit owes the FOCUSED test for what it changed, run once, and nothing more.** A missing full run records verification debt, which `./le commit create` writes and a push refuses to carry. You MUST NOT re-run the gate to watch somebody else's red clear, and you MUST NOT hold finished work waiting for one.
 
 **One full run covers EVERY commit prepared from it. You MUST NOT re-run the gate between back-to-back commits of the same code.** The debt is incurred by an EDIT, never by a commit: one body of work split into three commits owes one run, not three, and the same run answers for all of them. What owes a fresh run is a Go file written again after that run started, and nothing else does.
 
@@ -395,26 +394,11 @@ caused by your own change must be fixed, not scoped around. Activate it only on 
 explicit owner direction (e.g. "another session is clearing ./le verify current mode full, check only
 what we changed"), never inferred from a red suite alone.
 
-**The red MUST be attributed, not assumed (BLOCKING).** "Known-red" means you
-have identified the specific failing stage/test and confirmed it is pre-existing
-(logged in `plan/known-failures/`) or owned by another active session. An
-*undocumented* red is NOT scope-aroundable: treat it as possibly your own
-regression until proven otherwise. Scope-to-changed has a blind spot -- it tests
-packages you edited, not packages your edit breaks **transitively**: a new import
-can break a different package's compile/test (a real case: `aihelp` broke
-`bgp/config` through `plugin/all`), a config-driven gap surfaces only in a
-consumer's tests (a missing YANG typedef failed `bgp/config`, not the plugin that
-introduced it), and adding a plugin invalidates the `plugin/all` golden
-snapshots. Before scoping around a red, `go test`/`vet` the reverse-dependency
-closure of your changed packages, or run full `./le verify current mode full` once.
+**A red you have not looked at MUST NOT be assumed to be somebody else's.** Read the failing assertion once, and decide whether your own diff produces the symbol it names.
+**A change that could break a package you did not edit MUST have its reverse-dependency closure compiled once.** Scope-to-changed tests the packages you edited, not the packages your edit breaks TRANSITIVELY: a new import broke `bgp/config` through `plugin/all`, a missing YANG typedef failed a consumer rather than the plugin that introduced it, and adding a plugin invalidates the `plugin/all` golden snapshots. `go vet` over that closure answers it in seconds, and the full gate is not the way to ask.
 
-**You MUST NOT let a red persist.** Scope-to-changed is a temporary bridge while the
-global suite is being cleared, not a standing mode. A `./le verify current mode full` that stays red
-across sessions hides newly-introduced breakage under the existing red -- that is
-exactly how an import cycle, a YANG typedef gap, and stale registry snapshots all
-landed under one persistent red without any gate firing. You MUST log the failing stage in
-`plan/known-failures/` with who owns clearing it; if nobody does, clearing it
-MUST come before stacking more changes on top.
+**A red that says the PRODUCT is wrong MUST NOT be left to persist across sessions.** A standing product red hides newly-introduced breakage underneath it: an import cycle, a YANG typedef gap and stale registry snapshots each landed under one persistent red with no gate firing.
+**A red that says the SCAFFOLDING is wrong MAY persist indefinitely, and clearing it MUST NOT be made a precondition of further work** (`ai/rules/pre-release.md`). Name it once where the next reader will meet it. Ze has no release and no user, so an unclear instrument costs only the session that stops for it.
 
 ## What May Be Overridden
 
