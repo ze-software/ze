@@ -13,6 +13,7 @@
 package engine
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -181,7 +182,7 @@ func TestRFC7427SignatureAlgorithmIsOneThePeerSent(t *testing.T) {
 			if err != nil {
 				t.Fatalf("selectSignatureAlgorithm: %v", err)
 			}
-			if string(algID) != string(tc.want) {
+			if !bytes.Equal(algID, tc.want) {
 				t.Fatalf("algorithm identifier is % x, want % x", algID, tc.want)
 			}
 		})
