@@ -20,12 +20,63 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
 )
 
+// Subcommand names. ifaceCommands below and the Run dispatch each list the
+// whole set, and both read from here so neither can grow a name the other
+// does not have.
+const (
+	subcmdShow      = "show"
+	subcmdScan      = "scan"
+	subcmdCreate    = "create"
+	subcmdDelete    = "delete"
+	subcmdUnit      = "unit"
+	subcmdAddr      = "addr"
+	subcmdMigrate   = "migrate"
+	subcmdUp        = "up"
+	subcmdDown      = "down"
+	subcmdMTU       = "mtu"
+	subcmdMAC       = "mac"
+	subcmdNeighbors = "neighbors"
+	subcmdRoutes    = "routes"
+	subcmdClear     = "clear"
+	subcmdHelp      = "help"
+)
+
+// Help tokens every interface subcommand accepts.
+const (
+	flagHelpShort = "-h"
+	flagHelpLong  = "--help"
+)
+
+// Interface type names an operator types after `create` or `--create`. They
+// spell the same words as the zeType* constants of internal/component/iface,
+// which are unexported and so cannot be shared with this package.
+const (
+	ifaceTypeDummy  = "dummy"
+	ifaceTypeVeth   = "veth"
+	ifaceTypeBridge = "bridge"
+)
+
+// Help page vocabulary shared by every subcommand that takes --json.
+const (
+	helpSectionOptions = "Options"
+	flagJSONLong       = "--json"
+	helpDescJSON       = "Output in JSON format"
+)
+
+// Full command paths. Each is spelled in this page's Examples and again in the
+// subcommand's own flag set and help page.
+const (
+	cmdPathShow      = "ze interface show"
+	cmdPathNeighbors = "ze interface neighbors"
+	cmdPathRoutes    = "ze interface routes"
+)
+
 // ifaceCommands lists the user-facing subcommand names, kept in sync
 // with the switch cases in Run below. Used by the known-subcommand gate,
 // suggestion hints, and Meta.Subs in register.go.
 var ifaceCommands = []string{
-	"show", "scan", "create", "delete", "unit", "addr", "migrate",
-	"up", "down", "mtu", "mac", "neighbors", "routes", "clear",
+	subcmdShow, subcmdScan, subcmdCreate, subcmdDelete, subcmdUnit, subcmdAddr, subcmdMigrate,
+	subcmdUp, subcmdDown, subcmdMTU, subcmdMAC, subcmdNeighbors, subcmdRoutes, subcmdClear,
 }
 
 // Run executes the interface subcommand with the given arguments.
@@ -46,7 +97,7 @@ func Run(args []string) int {
 	subcmd := args[0]
 	subArgs := args[1:]
 
-	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" { //nolint:goconst // consistent pattern across cmd files
+	if subcmd == subcmdHelp || subcmd == flagHelpShort || subcmd == flagHelpLong {
 		usage()
 		return 0
 	}
@@ -56,7 +107,7 @@ func Run(args []string) int {
 	// package-global state that parallel unit tests rely on.
 	if !slices.Contains(ifaceCommands, subcmd) {
 		fmt.Fprintf(os.Stderr, "error: unknown interface subcommand: %s\n", subcmd)
-		if s := suggest.Command(subcmd, append(ifaceCommands, "help")); s != "" {
+		if s := suggest.Command(subcmd, append(ifaceCommands, subcmdHelp)); s != "" {
 			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 		}
 		usage()
@@ -74,33 +125,33 @@ func Run(args []string) int {
 	}()
 
 	switch subcmd {
-	case "show":
+	case subcmdShow:
 		return cmdShow(subArgs)
-	case "scan":
+	case subcmdScan:
 		return cmdScan(subArgs)
-	case "create":
+	case subcmdCreate:
 		return cmdCreate(subArgs)
-	case "delete":
+	case subcmdDelete:
 		return cmdDelete(subArgs)
-	case "unit":
+	case subcmdUnit:
 		return cmdUnit(subArgs)
-	case "addr":
+	case subcmdAddr:
 		return cmdAddr(subArgs)
-	case "migrate":
+	case subcmdMigrate:
 		return cmdMigrate(subArgs)
-	case "up":
+	case subcmdUp:
 		return cmdUp(subArgs)
-	case "down":
+	case subcmdDown:
 		return cmdDown(subArgs)
-	case "mtu":
+	case subcmdMTU:
 		return cmdMTU(subArgs)
-	case "mac":
+	case subcmdMAC:
 		return cmdMAC(subArgs)
-	case "neighbors":
+	case subcmdNeighbors:
 		return cmdNeighbors(subArgs)
-	case "routes":
+	case subcmdRoutes:
 		return cmdRoutes(subArgs)
-	case "clear":
+	case subcmdClear:
 		return cmdClear(subArgs)
 	}
 	// Unreachable: known-subcommand gate above.
@@ -131,12 +182,12 @@ func usage() {
 				{Name: "unit del <name> <id>", Desc: "Delete a logical unit"},
 				{Name: "addr add <name> unit <id> <cidr>", Desc: "Add an IP address to a unit"},
 				{Name: "addr del <name> unit <id> <cidr>", Desc: "Remove an IP address from a unit"},
-				{Name: "migrate --from .. --to .. --address", Desc: "Make-before-break IP migration"},
-				{Name: "help", Desc: "Show this help"},
+				{Name: "migrate from .. to .. address ..", Desc: "Make-before-break IP migration"},
+				{Name: subcmdHelp, Desc: "Show this help"},
 			}},
 		},
 		Examples: []string{
-			"ze interface show",
+			cmdPathShow,
 			"ze interface show eth0",
 			"ze interface create dummy lo1",
 			"ze interface create veth ze0 ze1",
@@ -146,9 +197,9 @@ func usage() {
 			"ze interface down eth0",
 			"ze interface mtu eth0 9000",
 			"ze interface mac eth0 02:00:00:00:00:01",
-			"ze interface neighbors",
+			cmdPathNeighbors,
 			"ze interface neighbors ipv6",
-			"ze interface routes",
+			cmdPathRoutes,
 			"ze interface routes 10.0.0.0/8",
 			"ze interface clear counters",
 			"ze interface clear counters eth0",

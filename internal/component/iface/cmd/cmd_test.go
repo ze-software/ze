@@ -11,28 +11,45 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestParseMigrateArgs drives the daemon's reader of `request interface
+// migrate` over the keyword grammar an operator types and over every way of
+// getting it wrong.
+//
+// VALIDATES: each keyword binds its own value, the order the keywords arrive in
+// does not matter, and an unknown keyword, a repeated keyword, a keyword with
+// no value, a missing required keyword and a malformed value are each refused
+// by name.
+// PREVENTS: a token nobody recognized being SKIPPED. An operator who misspells
+// a keyword would otherwise be handed a migration of an address they did not
+// name, and the parser would report success.
 func TestParseMigrateArgs(t *testing.T) {
+	minimal := iface.MigrateConfig{
+		OldIface: "eth0", OldUnit: 0,
+		NewIface: "lo1", NewUnit: 0,
+		Address: "10.0.0.1/24",
+	}
+
 	tests := []struct {
-		name      string
-		args      []string
-		wantCfg   iface.MigrateConfig
-		wantTime  time.Duration
-		wantError string
+		name string
+		args []string
+		// wantGrammar says the refusal is about the shape of the command, so it
+		// must quote the whole form back. A refusal about ONE value states what
+		// that value should look like instead, which is the narrower answer.
+		wantGrammar bool
+		wantCfg     iface.MigrateConfig
+		wantTime    time.Duration
+		wantError   string
 	}{
 		{
-			name: "valid minimal",
-			args: []string{"--from", "eth0.0", "--to", "lo1.0", "--address", "10.0.0.1/24"},
-			wantCfg: iface.MigrateConfig{
-				OldIface: "eth0", OldUnit: 0,
-				NewIface: "lo1", NewUnit: 0,
-				Address: "10.0.0.1/24",
-			},
+			name:     "required keywords only",
+			args:     []string{"from", "eth0.0", "to", "lo1.0", "address", "10.0.0.1/24"},
+			wantCfg:  minimal,
 			wantTime: 30 * time.Second,
 		},
 		{
-			name: "with create and timeout",
-			args: []string{"--from", "eth0.0", "--to", "lo1.0", "--address", "10.0.0.1/24",
-				"--create", "dummy", "--timeout", "60s"},
+			name: "every keyword",
+			args: []string{"from", "eth0.0", "to", "lo1.0", "address", "10.0.0.1/24",
+				"create", "dummy", "timeout", "60s"},
 			wantCfg: iface.MigrateConfig{
 				OldIface: "eth0", OldUnit: 0,
 				NewIface: "lo1", NewUnit: 0,
@@ -41,44 +58,83 @@ func TestParseMigrateArgs(t *testing.T) {
 			wantTime: 60 * time.Second,
 		},
 		{
-			name:      "missing from",
-			args:      []string{"--to", "lo1.0", "--address", "10.0.0.1/24"},
-			wantError: "--from, --to, and --address are required",
+			name:     "keyword order does not matter",
+			args:     []string{"address", "10.0.0.1/24", "to", "lo1.0", "from", "eth0.0"},
+			wantCfg:  minimal,
+			wantTime: 30 * time.Second,
 		},
 		{
-			name:      "missing to",
-			args:      []string{"--from", "eth0.0", "--address", "10.0.0.1/24"},
-			wantError: "--from, --to, and --address are required",
+			name: "unit is read from the value",
+			args: []string{"from", "eth0.100", "to", "lo1.7", "address", "10.0.0.1/24"},
+			wantCfg: iface.MigrateConfig{
+				OldIface: "eth0", OldUnit: 100,
+				NewIface: "lo1", NewUnit: 7,
+				Address: "10.0.0.1/24",
+			},
+			wantTime: 30 * time.Second,
 		},
 		{
-			name:      "missing address",
-			args:      []string{"--from", "eth0.0", "--to", "lo1.0"},
-			wantError: "--from, --to, and --address are required",
+			name:        "unknown keyword",
+			wantGrammar: true,
+			args:        []string{"from", "eth0.0", "bogus", "value"},
+			wantError:   `unknown keyword "bogus"`,
+		},
+		{
+			name:        "a value with no keyword before it",
+			wantGrammar: true,
+			args:        []string{"eth0.0", "to", "lo1.0", "address", "10.0.0.1/24"},
+			wantError:   `unknown keyword "eth0.0"`,
+		},
+		{
+			name:        "keyword given twice",
+			wantGrammar: true,
+			args:        []string{"from", "eth0.0", "from", "eth1.0", "to", "lo1.0", "address", "10.0.0.1/24"},
+			wantError:   `keyword "from" given twice`,
+		},
+		{
+			name:        "keyword with no value",
+			wantGrammar: true,
+			args:        []string{"from", "eth0.0", "to", "lo1.0", "address"},
+			wantError:   `keyword "address" has no value`,
+		},
+		{
+			name:        "no arguments at all",
+			wantGrammar: true,
+			args:        nil,
+			wantError:   `keyword "from" is missing`,
+		},
+		{
+			name:        "missing from",
+			wantGrammar: true,
+			args:        []string{"to", "lo1.0", "address", "10.0.0.1/24"},
+			wantError:   `keyword "from" is missing`,
+		},
+		{
+			name:        "missing to",
+			wantGrammar: true,
+			args:        []string{"from", "eth0.0", "address", "10.0.0.1/24"},
+			wantError:   `keyword "to" is missing`,
+		},
+		{
+			name:        "missing address",
+			wantGrammar: true,
+			args:        []string{"from", "eth0.0", "to", "lo1.0"},
+			wantError:   `keyword "address" is missing`,
 		},
 		{
 			name:      "invalid from format",
-			args:      []string{"--from", "noDot", "--to", "lo1.0", "--address", "10.0.0.1/24"},
-			wantError: "invalid --from",
+			args:      []string{"from", "noDot", "to", "lo1.0", "address", "10.0.0.1/24"},
+			wantError: `invalid from value "noDot"`,
 		},
 		{
 			name:      "invalid to format",
-			args:      []string{"--from", "eth0.0", "--to", "noDot", "--address", "10.0.0.1/24"},
-			wantError: "invalid --to",
+			args:      []string{"from", "eth0.0", "to", "noDot", "address", "10.0.0.1/24"},
+			wantError: `invalid to value "noDot"`,
 		},
 		{
 			name:      "invalid timeout",
-			args:      []string{"--from", "eth0.0", "--to", "lo1.0", "--address", "10.0.0.1/24", "--timeout", "bad"},
-			wantError: "invalid --timeout",
-		},
-		{
-			name:      "unknown flag rejected",
-			args:      []string{"--from", "eth0.0", "--bogus", "val"},
-			wantError: "unknown argument",
-		},
-		{
-			name:      "from missing value",
-			args:      []string{"--from"},
-			wantError: "--from requires a value",
+			args:      []string{"from", "eth0.0", "to", "lo1.0", "address", "10.0.0.1/24", "timeout", "bad"},
+			wantError: `invalid timeout value "bad"`,
 		},
 	}
 
@@ -88,6 +144,10 @@ func TestParseMigrateArgs(t *testing.T) {
 			if tt.wantError != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantError)
+				if tt.wantGrammar {
+					assert.Contains(t, err.Error(), migrateGrammar,
+						"a refusal about the shape of the command quotes the whole form back")
+				}
 				return
 			}
 			require.NoError(t, err)
@@ -134,7 +194,7 @@ func TestParseIfaceUnit(t *testing.T) {
 func TestHandleInterfaceMigrateNoBus(t *testing.T) {
 	// With no bus set, should return error response.
 	resp, err := handleInterfaceMigrate(nil, []string{
-		"--from", "eth0.0", "--to", "lo1.0", "--address", "10.0.0.1/24",
+		"from", "eth0.0", "to", "lo1.0", "address", "10.0.0.1/24",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)

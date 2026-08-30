@@ -13,8 +13,8 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,14 +32,40 @@ const (
 	fieldName       = "name"
 )
 
-var (
-	errFromRequiresAValue          = errors.New("--from requires a value")
-	errToRequiresAValue            = errors.New("--to requires a value")
-	errAddressRequiresAValue       = errors.New("--address requires a value")
-	errCreateRequiresAValue        = errors.New("--create requires a value")
-	errTimeoutRequiresAValue       = errors.New("--timeout requires a value")
-	errFromToAndAddressAreRequired = errors.New("--from, --to, and --address are required")
+// Keywords `request interface migrate` takes, each one before its own value.
+// Container migrate of internal/component/iface/yang/ze-iface-cmd.yang declares
+// the same five as modifier groups, so completion, the published usage line and
+// this parser all state one grammar.
+const (
+	migrateKeywordFrom    = "from"
+	migrateKeywordTo      = "to"
+	migrateKeywordAddress = "address"
+	migrateKeywordCreate  = "create"
+	migrateKeywordTimeout = "timeout"
 )
+
+// migrateKeywords is the closed set a token is tested against before it is
+// read as a keyword. A token that is in neither this set nor a keyword's value
+// slot is refused, never ignored.
+var migrateKeywords = []string{
+	migrateKeywordFrom,
+	migrateKeywordTo,
+	migrateKeywordAddress,
+	migrateKeywordCreate,
+	migrateKeywordTimeout,
+}
+
+// migrateRequired lists the keywords the command cannot run without, in the
+// order an operator types them.
+var migrateRequired = []string{migrateKeywordFrom, migrateKeywordTo, migrateKeywordAddress}
+
+// migrateGrammar is the form every refusal quotes back, so an operator reads
+// what was expected without opening the schema.
+const migrateGrammar = "from <name>.<unit> to <name>.<unit> address <cidr> [create <dummy|veth|bridge>] [timeout <duration>]"
+
+// migrateTimeoutDefault is how long phase 3 waits for BGP readiness on the
+// destination address when the operator names no timeout.
+const migrateTimeoutDefault = 30 * time.Second
 
 func init() {
 	pluginserver.RegisterRPCs(
@@ -66,7 +92,7 @@ func errResp(msg string) (*plugin.Response, error) {
 }
 
 // handleInterfaceMigrate performs a make-before-break IP migration.
-// Accepts --from, --to, --address, --create, and --timeout flags.
+// Reads the keyword grammar migrateGrammar states.
 func handleInterfaceMigrate(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	eb := iface.GetEventBus()
 	if eb == nil {
@@ -88,64 +114,67 @@ func handleInterfaceMigrate(_ *pluginserver.CommandContext, args []string) (*plu
 	}, nil
 }
 
-// parseMigrateArgs parses --from/--to/--address/--create/--timeout from args.
+// parseMigrateArgs reads the keyword/value pairs of `request interface migrate`
+// and answers the migration they describe plus the BGP readiness wait.
+//
+// Every token is one of migrateKeywords or the value of the keyword before it.
+// A token that is neither is REFUSED rather than skipped: an operator who
+// misspells a keyword must be told, not handed a migration that moves an
+// address they did not name.
+//
+// The loop is bounded by the token count the dispatcher parsed from one command
+// line, and it steps by two because a keyword and its value are one unit.
 func parseMigrateArgs(args []string) (iface.MigrateConfig, time.Duration, error) {
 	var cfg iface.MigrateConfig
-	timeout := 30 * time.Second
+	timeout := migrateTimeoutDefault
+	seen := make(map[string]bool, len(migrateKeywords))
 
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--from":
-			if i+1 >= len(args) {
-				return cfg, 0, errFromRequiresAValue
-			}
-			i++
-			name, unit, ok := parseIfaceUnit(args[i])
+	for i := 0; i < len(args); i += 2 {
+		keyword := args[i]
+		if !slices.Contains(migrateKeywords, keyword) {
+			return cfg, 0, fmt.Errorf("unknown keyword %q, expected: %s", keyword, migrateGrammar)
+		}
+		if seen[keyword] {
+			return cfg, 0, fmt.Errorf("keyword %q given twice, expected: %s", keyword, migrateGrammar)
+		}
+		if i+1 >= len(args) {
+			return cfg, 0, fmt.Errorf("keyword %q has no value, expected: %s", keyword, migrateGrammar)
+		}
+		seen[keyword] = true
+
+		value := args[i+1]
+		switch keyword {
+		case migrateKeywordFrom:
+			name, unit, ok := parseIfaceUnit(value)
 			if !ok {
-				return cfg, 0, fmt.Errorf("invalid --from value %q (expected <name>.<unit>)", args[i])
+				return cfg, 0, fmt.Errorf("invalid %s value %q, expected <name>.<unit>", keyword, value)
 			}
 			cfg.OldIface = name
 			cfg.OldUnit = unit
-		case "--to":
-			if i+1 >= len(args) {
-				return cfg, 0, errToRequiresAValue
-			}
-			i++
-			name, unit, ok := parseIfaceUnit(args[i])
+		case migrateKeywordTo:
+			name, unit, ok := parseIfaceUnit(value)
 			if !ok {
-				return cfg, 0, fmt.Errorf("invalid --to value %q (expected <name>.<unit>)", args[i])
+				return cfg, 0, fmt.Errorf("invalid %s value %q, expected <name>.<unit>", keyword, value)
 			}
 			cfg.NewIface = name
 			cfg.NewUnit = unit
-		case "--address":
-			if i+1 >= len(args) {
-				return cfg, 0, errAddressRequiresAValue
-			}
-			i++
-			cfg.Address = args[i]
-		case "--create":
-			if i+1 >= len(args) {
-				return cfg, 0, errCreateRequiresAValue
-			}
-			i++
-			cfg.NewIfaceType = args[i]
-		case "--timeout":
-			if i+1 >= len(args) {
-				return cfg, 0, errTimeoutRequiresAValue
-			}
-			i++
-			d, err := time.ParseDuration(args[i])
+		case migrateKeywordAddress:
+			cfg.Address = value
+		case migrateKeywordCreate:
+			cfg.NewIfaceType = value
+		case migrateKeywordTimeout:
+			d, err := time.ParseDuration(value)
 			if err != nil {
-				return cfg, 0, fmt.Errorf("invalid --timeout: %w", err)
+				return cfg, 0, fmt.Errorf("invalid %s value %q, expected a number and a unit such as 30s: %w", keyword, value, err)
 			}
 			timeout = d
-		default:
-			return cfg, 0, fmt.Errorf("unknown argument %q", args[i])
 		}
 	}
 
-	if cfg.OldIface == "" || cfg.NewIface == "" || cfg.Address == "" {
-		return cfg, 0, errFromToAndAddressAreRequired
+	for _, keyword := range migrateRequired {
+		if !seen[keyword] {
+			return cfg, 0, fmt.Errorf("keyword %q is missing, expected: %s", keyword, migrateGrammar)
+		}
 	}
 
 	return cfg, timeout, nil

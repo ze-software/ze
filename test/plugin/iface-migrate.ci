@@ -1,0 +1,95 @@
+# Test: `request interface migrate` takes its five values as keyword grammar and
+#       reaches the handler that performs the make-before-break migration.
+#
+# VALIDATES: the command an operator types, and the command string
+#            `ze interface migrate` builds and sends over SSH
+#            (migrateRequest.command, internal/component/iface/cli/migrate.go),
+#            crosses the client/daemon boundary intact. The fixture dispatches
+#            `request interface migrate from zemig0.0 to zemig1.0 address
+#            10.98.0.1/24 create dummy timeout 2s` through
+#            ze-plugin-engine:dispatch-command, which is the same
+#            (*Dispatcher).Dispatch every operator command goes through
+#            (internal/component/plugin/server/command.go). It then asserts each
+#            value reached the handler: the destination named by `to` was
+#            created as the type named by `create`, the address named by
+#            `address` was added to it, the wait named by `timeout` was honored,
+#            and the phase 3 rollback removed the destination while the source
+#            kept the address phase 4 never reached. It also asserts an unknown
+#            keyword and a missing required keyword are each refused BY NAME
+#            (parseMigrateArgs, internal/component/iface/cmd/cmd.go).
+# PREVENTS:  the defect this grammar replaced. The five values were client-side
+#            flags, and firstFlagToken (same file as Dispatch) answers
+#            `unexpected flag ...` for any dash-prefixed token before a handler
+#            runs, so every invocation failed and the daemon-side parser was
+#            unreachable. Nothing under test/ or demos/ sent the command, which
+#            is why no gate saw it. This test is that gate.
+#
+# needs-linux: the fixture creates a dummy interface, brings it up and adds an
+# address through netlink, and the migration under test creates a second dummy.
+# All of that needs CAP_NET_ADMIN, so the marker names the capability rather
+# than only the kernel: on an unprivileged host `create interface dummy name
+# zemig0` comes back `operation not permitted`. Run via `./le qemu all-tests`,
+# which boots a root QEMU VM on ze's runtime kernel. zemig0 and zemig1 are
+# uniquely named throwaway dummies in the VM's default namespace, deleted at the
+# end and on every failure path (idempotent on rerun).
+option=needs-linux:caps=net-admin
+
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external iface-migrate {
+		run "ze-test fixture plugin/iface-migrate"
+		encoder json
+	}
+}
+
+# The interface block makes the iface component run OnConfigure ->
+# iface.LoadBackend("netlink"), so the imperative ze-iface:* verbs and
+# iface.MigrateInterface have an active netlink backend. Without it every verb
+# returns "iface: no backend loaded". No interface is declared, so applyConfig's
+# managed set is empty and it creates nothing; zemig0 is built by the verbs and
+# zemig1 by the migration under test.
+interface {
+	backend netlink
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=migrate bound from, to, address, create and timeout
+expect=stderr:contains=migrate refused an unknown keyword by name
+expect=stderr:contains=migrate refused a command with no address keyword
+reject=stderr:pattern=unexpected flag
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=unknown method
