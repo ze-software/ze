@@ -82,8 +82,7 @@ The match components come from ze-flowspec-cmd, which augments this container.
 They are the FlowSpec codec vocabulary and the plugin that owns it declares
 them, so this module never restates another plugin's words. An augmented
 container carries no declaration order, so the components sort by name and land
-in front of the action and the options declared here.
-Usage: announce flowspec [destination <prefix> ...] [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] [destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] [fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] [next-header <value> ...] [packet-length <value> ...] [port <value> ...] [protocol <value> ...] [rd <value>] [source <prefix> ...] [source-ipv4 <prefix> ...] [source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] [community <value>] [rate-limit <bytes-per-second>] [discard] [tag <key> <value>] [for <duration>].";
+in front of the action and the options declared here.";
 
             container community {
                 config false;
