@@ -557,6 +557,12 @@ func TestStaleDrainDoesNotDiscardTheNextSessionsQueue(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC7854-x-11 positive -- a Termination message is produced
+// when the session is being closed, driven through the teardown path a shutdown
+// actually takes (stop() racing holdConnection -> terminateAndClose) rather than
+// by calling the encoder. Deleting the sendTermination call from
+// terminateAndClose leaves TestBMPSenderTermination, which carries the same tag,
+// green; it turns this test red (mutation-tested, 2026-08-30).
 func TestSenderStopSendsTerminationToCollector(t *testing.T) {
 	// VALIDATES: RFC 7854 Section 4.5 -- when ze closes a BMP session, the
 	// collector receives a Termination message BEFORE the TCP connection goes
