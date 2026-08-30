@@ -3,23 +3,23 @@
     {
       "action": "Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.",
       "annotations": {
-        "gap": 518,
-        "not-applicable": 839,
-        "single-polarity": 370
+        "gap": 503,
+        "not-applicable": 840,
+        "single-polarity": 364
       },
-      "detail": "41.8% carry both polarities. Of the remaining 1727: 839 not-applicable (ze deliberately does not do it, so no test is owed), 518 known gap (unimplemented, genuinely untested), and 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
+      "detail": "42.6% carry both polarities. Of the remaining 1707: 840 not-applicable (ze deliberately does not do it, so no test is owed), 503 known gap (unimplemented, genuinely untested), and 364 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
       "key": "rfc-proof-density",
       "label": "RFC MUST requirements proven by a positive+negative test pair",
       "proof_density": {
-        "denominator": 2966,
-        "numerator": 1239,
-        "percent": 41.8
+        "denominator": 2976,
+        "numerator": 1269,
+        "percent": 42.6
       },
       "question": "Q2",
       "rfcs_total": 170,
-      "rfcs_without_any_proof": 36,
+      "rfcs_without_any_proof": 34,
       "status": "ok",
-      "value": "1239 / 2966",
+      "value": "1269 / 2976",
       "worst": [
         {
           "gated": 38,
@@ -55,11 +55,11 @@
         },
         {
           "gated": 13,
-          "rfc": "rfc6396"
+          "rfc": "rfc9514"
         },
         {
-          "gated": 13,
-          "rfc": "rfc9514"
+          "gated": 12,
+          "rfc": "rfc9085"
         }
       ]
     },
@@ -72,8 +72,8 @@
       "status": "warn",
       "unproven": {
         "denominator": 170,
-        "numerator": 36,
-        "percent": 21.2
+        "numerator": 34,
+        "percent": 20.0
       },
       "unproven_rfcs": [
         "rfc2003",
@@ -93,9 +93,7 @@
         "rfc4761",
         "rfc4862",
         "rfc5561",
-        "rfc5575",
         "rfc6071",
-        "rfc6396",
         "rfc6397",
         "rfc6482",
         "rfc6608",
@@ -113,26 +111,22 @@
         "rfc9319",
         "rfc9514"
       ],
-      "value": "36 / 170"
+      "value": "34 / 170"
     },
     {
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 23683,
-        "numerator": 134,
-        "percent": 0.6
+        "denominator": 26649,
+        "numerator": 132,
+        "percent": 0.5
       },
       "key": "assert-nothing",
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "134 / 23683 (floor 134)",
+      "value": "132 / 26649 (floor 132)",
       "worst": [
-        {
-          "file": "cmd/ze/hub/aaa_lifecycle_test.go",
-          "test": "TestCloseAAABundleNoBundle"
-        },
         {
           "file": "internal/chaos/chaos_test.go",
           "test": "TestChaosConcurrency"
@@ -168,6 +162,10 @@
         {
           "file": "internal/component/bgp/plugins/bmp/route_action_test.go",
           "test": "TestProcessRouteMonitoring_ShortUpdate_Skipped"
+        },
+        {
+          "file": "internal/component/bgp/plugins/filter_irr/filter_irr_test.go",
+          "test": "TestRefreshSwapsAtomically"
         }
       ]
     },
@@ -175,132 +173,41 @@
       "action": "Add the tag to a native Go test action, or delete the file. Either way the false inventory shrinks.",
       "detail": "No registered Go test action supplies these build tags, so the tests exist but never run.",
       "key": "tag-orphan",
-      "label": "Test files no `go test` target can build",
-      "orphan_count": 8,
-      "orphans": [
-        {
-          "file": "cmd/ze/build_tag_appliance_test.go",
-          "requires": "ze_appliance, ze_setup"
-        },
-        {
-          "file": "cmd/ze/build_tag_distro_test.go",
-          "requires": "ze_appliance, ze_distro, ze_setup"
-        },
-        {
-          "file": "cmd/ze/build_tag_full_test.go",
-          "requires": "ze_appliance, ze_distro, ze_setup"
-        },
-        {
-          "file": "cmd/ze/build_tag_setup_test.go",
-          "requires": "ze_appliance, ze_distro, ze_setup"
-        },
-        {
-          "file": "cmd/ze/ze_chaos_main_test.go",
-          "requires": "ze_chaos"
-        },
-        {
-          "file": "internal/component/config/system/backend_ze_distro_test.go",
-          "requires": "ze_distro"
-        },
-        {
-          "file": "internal/component/config/system/selfupdate_test.go",
-          "requires": "ze_distro"
-        },
-        {
-          "file": "internal/install/disk/fault_linux_test.go",
-          "requires": "ze_installer_fault"
-        }
-      ],
+      "label": "Test files no native test action can build",
+      "orphan_count": 0,
+      "orphans": [],
       "question": "Q3",
       "status": "ok",
-      "value": "8 (floor 8)"
+      "value": "0 (floor 0)"
     },
     {
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
         "bench_funcs": 132,
-        "ci_files": 1728,
+        "ci_files": 1795,
         "et_files": 166,
-        "fuzz_funcs": 78,
-        "test_files": 3235,
-        "test_funcs": 23718
+        "fuzz_funcs": 79,
+        "test_files": 3590,
+        "test_funcs": 26680
       },
-      "detail": "3235 Go test files, 78 fuzz targets, 132 benchmarks, 1728 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "3590 Go test files, 79 fuzz targets, 132 benchmarks, 1795 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "23718 test functions"
-    },
-    {
-      "action": "Take the lowest-scoring package and add tests until its survivors die.",
-      "detail": "60.4% across 22 of the repository's packages. Mutation operators are biased toward arithmetic, conditionals and returns, and are nearly blind to concurrency and wire-format semantics.",
-      "key": "mutation",
-      "kill_rate": {
-        "denominator": 7112,
-        "numerator": 4294,
-        "percent": 60.4
-      },
-      "label": "Mutants killed, latest sample per package",
-      "packages_measured": 22,
-      "question": "Q1",
-      "samples": 45,
-      "status": "ok",
-      "value": "4294 / 7112",
-      "worst": [
-        {
-          "package": "internal/plugins/static/events",
-          "score": 0.0
-        },
-        {
-          "package": "internal/plugins/static/vpp",
-          "score": 0.0
-        },
-        {
-          "package": "internal/core/crashlog",
-          "score": 28.1
-        },
-        {
-          "package": "internal/plugins/static",
-          "score": 34.7
-        },
-        {
-          "package": "internal/core/privilege",
-          "score": 34.7
-        },
-        {
-          "package": "internal/plugins/sysrib",
-          "score": 51.4
-        },
-        {
-          "package": "internal/component/bgp/format",
-          "score": 53.2
-        },
-        {
-          "package": "internal/component/bgp/attrpool",
-          "score": 62.3
-        },
-        {
-          "package": "internal/core/events",
-          "score": 66.5
-        },
-        {
-          "package": "internal/core/slogutil",
-          "score": 66.8
-        }
-      ]
+      "value": "26680 test functions"
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",
-      "actual": 75,
-      "baseline": 75,
+      "actual": 0,
+      "baseline": 52,
       "detail": "A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.",
-      "headroom": 0,
+      "headroom": 52,
       "key": "ci-sleeps",
       "label": "time.sleep() calls in .ci tests",
       "question": "Q1",
       "status": "ok",
-      "value": "75 (floor 75)"
+      "value": "0 (floor 52)"
     },
     {
       "action": "Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.",
@@ -308,13 +215,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 3235,
-        "numerator": 1101,
-        "percent": 34.0
+        "denominator": 3590,
+        "numerator": 1272,
+        "percent": 35.4
       },
       "question": "Q2",
-      "status": "warn",
-      "value": "1101 / 3235",
+      "status": "ok",
+      "value": "1272 / 3590",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -360,9 +267,9 @@
         },
         {
           "area": "internal/component/lg",
-          "files": 16,
+          "files": 17,
           "negative": 1,
-          "percent": 6.2
+          "percent": 5.9
         },
         {
           "area": "internal/component/sysrib",
@@ -388,10 +295,10 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 504,
+          "packages": 608,
           "with_ci": 31,
           "with_fuzz": 31,
-          "with_rfc_tag": 98
+          "with_rfc_tag": 99
         }
       },
       "detail": "A technique adopted only forward from its introduction shows here as a step: recent buckets carry it, older ones never do.",

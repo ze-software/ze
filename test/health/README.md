@@ -87,5 +87,5 @@ func TestCloseWithNoBundle(t *testing.T) { ... }
 | `./le test-sensitivity check` | Enforce the ratchets (runs inside `./le verify current mode full`) |
 | `./le test-sensitivity check` | Human-readable list of every inert and orphaned test |
 
-The native site builder under `internal/le/sitebuild` publishes the same data
+The native site builder under `internal/le/site` publishes the same data
 at `quality/health/` and computes nothing of its own.
