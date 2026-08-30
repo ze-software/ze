@@ -16,8 +16,18 @@ import (
 )
 
 func init() {
-	// RFC 6514: Register PMSI Tunnel attribute (type 22).
-	attribute.RegisterName(22, "PMSI_TUNNEL")
+	// RFC 6514: name the PMSI Tunnel attribute (type 22) WITHOUT claiming ze
+	// reads it. No parser exists for code 22 — it is absent from
+	// knownAttrParsers (internal/core/bgp/attribute/wire.go) and no code reads a
+	// PMSI byte — so the name is for rendering only.
+	//
+	// The distinction is load-bearing rather than cosmetic. PMSI_TUNNEL is
+	// optional TRANSITIVE, and RFC 4271 Section 9 says an unrecognized transitive
+	// attribute must be passed along with the Partial bit SET. Registering it as
+	// recognized suppressed that bit, so ze forwarded a peer's PMSI attribute
+	// clean and told the next speaker ze had understood something it never
+	// looked at.
+	attribute.RegisterNameOnly(22, "PMSI_TUNNEL")
 
 	// RFC 7606 Section 5.4: MCAST-VPN is one of the section's own examples of a typed
 	// address family, and RFC 6514 states no deviation, so a route whose type ze does

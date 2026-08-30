@@ -120,6 +120,22 @@ func RegisterName(code AttributeCode, name string) {
 	markRecognized(code)
 }
 
+// RegisterNameOnly registers a display name WITHOUT claiming ze holds a meaning
+// for the code.
+//
+// The two are separate questions and only one of them is about rendering. A name
+// makes a log line and a JSON dump readable; RECOGNITION is what RFC 4271
+// Section 5 hangs its forwarding obligations on, and claiming it for an
+// attribute no parser reads makes ze forward an unrecognized OPTIONAL TRANSITIVE
+// attribute with the Partial bit CLEAR, which Section 9 forbids. The next
+// speaker is then told ze understood something it never looked at.
+//
+// Use this when ze can NAME an attribute and nothing more. Use RegisterName when
+// a parser exists, which is the claim that function makes.
+func RegisterNameOnly(code AttributeCode, name string) {
+	attrCodeNames[code] = name
+}
+
 // Recognized reports whether ze holds a meaning for this attribute type code.
 //
 // RFC 4271 Section 5 hangs two obligations on the answer: an UNRECOGNIZED
