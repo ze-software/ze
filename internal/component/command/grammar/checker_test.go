@@ -267,15 +267,17 @@ func TestRootNamespaceGrammar(t *testing.T) { // R9 across surfaces, root namesp
 
 func TestExemptCategory(t *testing.T) {
 	cases := map[string]string{
-		"ze-bgp:announce":        "bridge",
-		"ze-bgp:withdraw-tag":    "bridge",
-		"ze-bgp:withdraw-id":     "bridge",
-		"ze-bgp:withdraw-all":    "bridge",
-		"ze-bgp:peer-raw":        "bridge",
-		"ze-plugin:command-list": "wire-protocol",
-		"ze-system:command-list": "wire-protocol",
-		"ze-bgp:plugin-encoding": "wire-protocol",
-		"ze-editor:mode-command": "editor",
+		"ze-bgp:announce-unicast":   "bridge",
+		"ze-bgp:announce-blackhole": "bridge",
+		"ze-bgp:announce-flowspec":  "bridge",
+		"ze-bgp:withdraw-tag":       "bridge",
+		"ze-bgp:withdraw-id":        "bridge",
+		"ze-bgp:withdraw-all":       "bridge",
+		"ze-bgp:peer-raw":           "bridge",
+		"ze-plugin:command-list":    "wire-protocol",
+		"ze-system:command-list":    "wire-protocol",
+		"ze-bgp:plugin-encoding":    "wire-protocol",
+		"ze-editor:mode-command":    "editor",
 	}
 	for wm, wantCat := range cases {
 		cat, ok := ExemptCategory(wm)
@@ -292,5 +294,11 @@ func TestExemptCategory(t *testing.T) {
 	// no command claims (ai/rules/no-layering.md).
 	if _, ok := ExemptCategory("ze-bgp:withdraw"); ok {
 		t.Error("ze-bgp:withdraw is retired and must carry no exemption")
+	}
+	// announce took the same split for the same reason, so it owes the same
+	// retirement: three forms, three wire methods, and no exemption left
+	// behind on the name that used to carry the keyword switch.
+	if _, ok := ExemptCategory("ze-bgp:announce"); ok {
+		t.Error("ze-bgp:announce is retired and must carry no exemption")
 	}
 }

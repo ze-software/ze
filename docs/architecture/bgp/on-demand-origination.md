@@ -5,7 +5,7 @@ maintenance. The runtime announce path was fire-and-forget: nothing recorded
 what had been announced, so nothing could withdraw it by reference.
 
 <!-- source: internal/component/bgp/plugins/cmd/announce/registry.go -- Registry, tagEntry -->
-<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- handleAnnounce, getOrInitRegistry -->
+<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- announceRegistry, getOrInitRegistry -->
 
 ## The decisions
 
@@ -49,14 +49,21 @@ An `UpdateRoute` call that carries no `tag.` meta stays fire-and-forget.
 **The dispatcher strips the tokens it matched, so `ze:command` decides what
 `args[0]` is.** `matchCommandTokens`
 (`internal/component/plugin/server/command.go`) returns the tokens after the
-command's own path. A `ze:command` on `announce > unicast` would mean the
-handler never receives the family keyword, so `announce` keeps its command on the
-parent and switches on `args[0]` itself.
+command's own path. A `ze:command` on `announce > unicast` means the handler
+never receives the family keyword, which is what each form's handler wants: it
+read `args[1:]` behind the switch and now reads `args`.
 
-`withdraw` goes the other way, and the choice is the same fact read forwards: a
-command on each sub-container is exactly how each handler gets the tail it
-already wanted. Put the command where the grammar divides, and the model states
-the division rather than the handler.
+Both verbs carry a command on every sub-container. Put the command where the
+grammar divides, and the model states the division rather than the handler.
+
+`announce` kept its command on the parent until 2026-08-30 and switched on
+`args[0]` itself. The cost fell on the model rather than on the code. One node
+states one grammar and the three forms take three, so the generated usage line
+named a first token no operator types and spelled the rest as `<args>`. The
+split states unicast and blackhole in full. `announce flowspec` still spells its
+own form: its match components are the FlowSpec codec vocabulary, which the
+flowspec NLRI plugin owns and this module must not restate, and its action is a
+mandatory choice where one branch carries a value, which no modifier states.
 
 **A leaf whose name equals its container arrives as a SELECTOR, not in args.**
 `withdraw > id` declares `leaf id`, so `matchCommandTokens` matches the keyword

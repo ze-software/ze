@@ -46,9 +46,7 @@ const fieldWithdrawn = "withdrawn"
 const maxTagLen = 128
 
 var (
-	errMissingFamily = errors.New("missing family")
 	errMissingPrefix = errors.New("missing prefix")
-	errUnknownFamily = errors.New("unknown family")
 	errTagTooLong    = errors.New("tag key or value exceeds 128 characters")
 
 	errFlowspecRequiresAction    = errors.New("flowspec announce requires an action: rate-limit <bytes-per-sec> or discard")
@@ -80,7 +78,9 @@ func getOrInitRegistry(ctx *pluginserver.CommandContext) *Registry {
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce", Handler: handleAnnounce, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce-unicast", Handler: handleAnnounceUnicastCmd, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce-blackhole", Handler: handleAnnounceBlackholeCmd, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:announce-flowspec", Handler: handleAnnounceFlowspecCmd, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-tag", Handler: handleWithdrawTag},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-id", Handler: handleWithdrawID},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:withdraw-all", Handler: handleWithdrawAll},
@@ -88,34 +88,50 @@ func init() {
 	)
 }
 
-func handleAnnounce(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+// announceRegistry answers the reactor and the announcement registry the three
+// announce commands share, or the response their caller owes when the reactor
+// is down.
+//
+// It exists for the reason withdrawRegistry does: each form is its own command
+// with its own wire method, so the reactor check that used to sit once in front
+// of a keyword switch is owed three times.
+func announceRegistry(ctx *pluginserver.CommandContext) (bgptypes.BGPReactor, *Registry, *plugin.Response, error) {
 	bgpReactor, errResp, err := requireBGPReactor(ctx)
+	if err != nil {
+		return nil, nil, errResp, err
+	}
+	reg := getOrInitRegistry(ctx)
+	if reg == nil {
+		return nil, nil, nil, errReactorNotAvailable
+	}
+	return bgpReactor, reg, nil, nil
+}
+
+// handleAnnounceUnicastCmd answers `announce unicast <prefix> ...`.
+func handleAnnounceUnicastCmd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	bgpReactor, reg, errResp, err := announceRegistry(ctx)
 	if err != nil {
 		return errResp, err
 	}
+	return handleAnnounceUnicast(ctx, bgpReactor, reg, args)
+}
 
-	if len(args) < 1 {
-		return nil, errMissingFamily
+// handleAnnounceBlackholeCmd answers `announce blackhole <prefix> ...`.
+func handleAnnounceBlackholeCmd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	bgpReactor, reg, errResp, err := announceRegistry(ctx)
+	if err != nil {
+		return errResp, err
 	}
+	return handleAnnounceBlackhole(ctx, bgpReactor, reg, args)
+}
 
-	reg := getOrInitRegistry(ctx)
-	if reg == nil {
-		return nil, errReactorNotAvailable
+// handleAnnounceFlowspecCmd answers `announce flowspec <components> ...`.
+func handleAnnounceFlowspecCmd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	bgpReactor, reg, errResp, err := announceRegistry(ctx)
+	if err != nil {
+		return errResp, err
 	}
-
-	familyName := strings.ToLower(args[0])
-	remaining := args[1:]
-
-	switch familyName {
-	case "unicast":
-		return handleAnnounceUnicast(ctx, bgpReactor, reg, remaining)
-	case "blackhole":
-		return handleAnnounceBlackhole(ctx, bgpReactor, reg, remaining)
-	case "flowspec":
-		return handleAnnounceFlowspec(ctx, bgpReactor, reg, remaining)
-	default:
-		return nil, fmt.Errorf("%w: %s (valid: unicast, blackhole, flowspec)", errUnknownFamily, familyName)
-	}
+	return handleAnnounceFlowspec(ctx, bgpReactor, reg, args)
 }
 
 type announceOpts struct {

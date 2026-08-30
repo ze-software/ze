@@ -278,13 +278,15 @@ func CheckRootNamespace(roots []string, namespaces map[string]bool) []Finding {
 // (plan/spec-generated-command-usage.md, class (e)). The line protocol they
 // mirror is unchanged, so the exemption follows the split rather than the name.
 var bridgeSurface = map[string]bool{
-	"ze-bgp:announce":     true,
-	"ze-bgp:withdraw-tag": true,
-	"ze-bgp:withdraw-id":  true,
-	"ze-bgp:withdraw-all": true,
-	"ze-bgp:peer-raw":     true,
-	"ze-bgp:peer-update":  true,
-	"ze-bgp:help":         true,
+	"ze-bgp:announce-unicast":   true,
+	"ze-bgp:announce-blackhole": true,
+	"ze-bgp:announce-flowspec":  true,
+	"ze-bgp:withdraw-tag":       true,
+	"ze-bgp:withdraw-id":        true,
+	"ze-bgp:withdraw-all":       true,
+	"ze-bgp:peer-raw":           true,
+	"ze-bgp:peer-update":        true,
+	"ze-bgp:help":               true,
 }
 
 // ExemptCategory reports whether a command (identified by its handler wire method)

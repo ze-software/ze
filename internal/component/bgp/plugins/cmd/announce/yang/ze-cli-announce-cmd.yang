@@ -3,30 +3,86 @@ module ze-cli-announce-cmd {
     prefix cliannouncecmd;
     import ze-extensions { prefix ze; }
     description "On-demand route origination and lifecycle management";
+    revision 2026-08-30 { description "announce is three commands, one per form: unicast, blackhole and flowspec. The arguments after the form word differ between them, so one node could state at most one of the three and the description spelled the rest in prose. This is what withdraw was already split into. unicast and blackhole now state their whole grammar; flowspec states its trailing options only, because the match components are the flowspec NLRI plugin's vocabulary."; }
     revision 2026-08-29 { description "Declare the announce trailing groups: tag carries a key AND a value, so it is one group rather than two leaves, and for carries a duration whose keyword differs from its value name."; }
     revision 2026-08-29 { description "withdraw is three commands, one per form: tag, id and all. Each states its own arguments, so the grammar is in the model rather than in a handler's switch and in a description."; }
     revision 2026-06-27 { description "Initial revision"; }
 
     container announce {
         config false;
-        ze:command "ze-bgp:announce";
         description "Announce a route on demand to selected peers.
-Usage: announce <unicast|blackhole|flowspec> <args> [tag <key> <value>] [for <duration>]";
-        leaf selector { type string; mandatory true; description "Peer selector"; }
+Each form is a command of its own: the arguments after the form word differ
+between them, and one node cannot state three grammars.";
 
-        container tag {
+        container unicast {
             config false;
-            ze:modifier "once";
-            description "A key and a value carried with the announcement, so a later withdraw can name it.";
-            leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
-            leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
+            ze:command "ze-bgp:announce-unicast";
+            description "Originate a unicast route on demand.";
+            leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix to originate, in CIDR form"; }
+
+            container next-hop {
+                config false;
+                ze:modifier "once";
+                description "The next hop to advertise. Defaults to this router.";
+                leaf address { type string { length "1..46"; } mandatory true; description "An address, or self for this router"; }
+            }
+
+            container community {
+                config false;
+                ze:modifier "repeat";
+                description "A community to attach, repeated for each one.";
+                leaf value { type string { length "1..32"; } mandatory true; description "Community, as ASN:value or a well-known name"; }
+            }
+
+            container tag {
+                config false;
+                ze:modifier "once";
+                description "A key and a value carried with the announcement, so a later withdraw can name it.";
+                leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
+                leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
+            }
+
+            container for {
+                config false;
+                ze:modifier "once";
+                description "How long the announcement lives before ze withdraws it.";
+                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
+            }
         }
 
-        container for {
+        container blackhole {
             config false;
-            ze:modifier "once";
-            description "How long the announcement lives before ze withdraws it.";
-            leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
+            ze:command "ze-bgp:announce-blackhole";
+            description "Originate a blackhole route on demand.
+The BLACKHOLE community is attached by this command, so RFC 7999 Section 3.1
+narrows the fan-out to the sessions that recorded the agreement.";
+            leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix to blackhole, in CIDR form"; }
+
+            container tag {
+                config false;
+                ze:modifier "once";
+                description "A key and a value carried with the announcement, so a later withdraw can name it.";
+                leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
+                leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
+            }
+
+            container for {
+                config false;
+                ze:modifier "once";
+                description "How long the announcement lives before ze withdraws it.";
+                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
+            }
+        }
+
+        container flowspec {
+            config false;
+            ze:command "ze-bgp:announce-flowspec";
+            description "Originate a FlowSpec rule on demand (RFC 8955).
+The match components are the FlowSpec codec vocabulary, which the flowspec NLRI
+plugin owns and this module must not restate. The action is a mandatory choice
+where one branch carries a value, which no modifier states. Both are why this
+one command still spells its own form.
+Usage: announce flowspec <components> rate-limit <bytes-per-sec>|discard [tag <key> <value>] [for <duration>].";
         }
     }
 
