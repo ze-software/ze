@@ -176,6 +176,14 @@ func lowerSetType(st firewall.SetType) (nftables.SetDatatype, error) {
 // library emits NFTA_SET_ELEM_TIMEOUT for an element only when the parent
 // set carries HasTimeout, so omitting it silently drops every per-element
 // timeout on the way to the kernel.
+//
+// EVERY flag the config can express is lowered here, for the same reason. The
+// operator writes `flags-constant` or `flags-dynamic`, parseSet reads it into
+// Set.Flags (internal/component/firewall/config.go), the web page renders it
+// back, and readback_linux.go recognises it on a set the kernel already holds.
+// A flag that is parsed, displayed and read back but never programmed is a
+// setting that does nothing and says nothing: the operator has no way to learn
+// that the kernel never received it.
 func lowerSet(t *nftables.Table, s *firewall.Set) (*nftables.Set, []nftables.SetElement, error) {
 	keyType, err := lowerSetType(s.Type)
 	if err != nil {
@@ -187,6 +195,8 @@ func lowerSet(t *nftables.Table, s *firewall.Set) (*nftables.Set, []nftables.Set
 		KeyType:    keyType,
 		Interval:   s.Flags&firewall.SetFlagInterval != 0,
 		HasTimeout: s.Flags&firewall.SetFlagTimeout != 0,
+		Constant:   s.Flags&firewall.SetFlagConstant != 0,
+		Dynamic:    s.Flags&firewall.SetFlagDynamic != 0,
 	}
 	var elements []nftables.SetElement
 	for _, e := range s.Elements {

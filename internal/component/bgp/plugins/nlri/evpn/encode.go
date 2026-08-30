@@ -162,15 +162,15 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 	// First argument is route type
 	routeType := strings.ToLower(args[0])
 	switch routeType {
-	case "mac-ip", "macip", "type2":
+	case "mac-ip", "macip", routeTypeToken2:
 		route.RouteType = "mac-ip"
-	case RouteNameIPPrefix, "ipprefix", "type5":
+	case RouteNameIPPrefix, "ipprefix", routeTypeToken5:
 		route.RouteType = RouteNameIPPrefix
-	case "multicast", RouteNameInclusiveMulticast, "type3":
+	case "multicast", RouteNameInclusiveMulticast, routeTypeToken3:
 		route.RouteType = "multicast"
-	case RouteNameEthernetSegment, "es", "type4":
+	case RouteNameEthernetSegment, "es", routeTypeToken4:
 		route.RouteType = RouteNameEthernetSegment
-	case "ethernet-ad", "ead", "type1":
+	case "ethernet-ad", "ead", routeTypeToken1:
 		route.RouteType = "ethernet-ad"
 	default:
 		return route, fmt.Errorf("invalid route type: %s", routeType)
@@ -182,37 +182,37 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 		value := args[i+1]
 
 		switch key {
-		case "rd":
+		case fieldRD:
 			route.RD = value
-		case "esi":
+		case fieldESI:
 			route.ESI = value
-		case "ethernet-tag", "etag":
+		case fieldEthernetTag, "etag":
 			n, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
 				return route, fmt.Errorf("invalid ethernet-tag: %s", value)
 			}
 			route.EthernetTag = uint32(n)
-		case "mac":
+		case fieldMAC:
 			route.MAC = value
-		case "ip":
+		case fieldIP:
 			ip, err := netip.ParseAddr(value)
 			if err != nil {
 				return route, fmt.Errorf("invalid ip: %s", value)
 			}
 			route.IP = ip
-		case "prefix":
+		case fieldPrefix:
 			prefix, err := netip.ParsePrefix(value)
 			if err != nil {
 				return route, fmt.Errorf("invalid prefix: %s", value)
 			}
 			route.Prefix = prefix
-		case "gateway", "gw":
+		case fieldGateway, "gw":
 			gw, err := netip.ParseAddr(value)
 			if err != nil {
 				return route, fmt.Errorf("invalid gateway: %s", value)
 			}
 			route.Gateway = gw
-		case "label", "label1":
+		case fieldLabel, "label1":
 			n, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
 				return route, fmt.Errorf("invalid label: %s", value)

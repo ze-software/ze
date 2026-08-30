@@ -505,7 +505,7 @@ environment {
 // VALIDATES: AC-19 --pending flag error path.
 // PREVENTS: Confusing error when no draft exists.
 func TestValidatePendingMissingDraft(t *testing.T) {
-	code := cmdValidate([]string{"--json", "--pending", "/nonexistent/path/config.conf"})
+	code := cmdValidate([]string{"--pending", "/nonexistent/path/config.conf"})
 	assert.Equal(t, 2, code)
 }
 
@@ -514,16 +514,7 @@ func TestValidatePendingMissingDraft(t *testing.T) {
 // VALIDATES: --pending cannot read from stdin (no draft path for stdin).
 // PREVENTS: Confusing "-.draft" file-not-found error.
 func TestValidatePendingRejectsStdin(t *testing.T) {
-	code := cmdValidate([]string{"--json", "--pending", "-"})
-	assert.Equal(t, 1, code)
-}
-
-// TestValidatePendingRequiresJSON verifies --pending without --json returns exit code 1.
-//
-// VALIDATES: AC-19 --pending requires --json.
-// PREVENTS: Unstructured output from pending validation.
-func TestValidatePendingRequiresJSON(t *testing.T) {
-	code := cmdValidate([]string{"--pending", "/nonexistent/path/config.conf"})
+	code := cmdValidate([]string{"--pending", "-"})
 	assert.Equal(t, 1, code)
 }
 
@@ -543,7 +534,7 @@ func TestValidatePendingReadsDraft(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	code := cmdValidate([]string{"--json", "--pending", configPath})
+	code := cmdValidate([]string{"--pending", configPath})
 
 	w.Close() //nolint:errcheck // test pipe
 	os.Stdout = old
@@ -552,9 +543,79 @@ func TestValidatePendingReadsDraft(t *testing.T) {
 	io.Copy(&buf, r) //nolint:errcheck // test
 
 	assert.Equal(t, 1, code, "invalid draft should return exit code 1")
+	assert.Contains(t, buf.String(), "configuration invalid",
+		"the pending report named no verdict")
+}
+
+// TestValidateConfigAnswersDiagnosticsAndFails verifies that the answer
+// `validate config` registers carries the diagnostics of a configuration it
+// rejects, and that the command still exits 1.
+//
+// VALIDATES: the verdict is the exit code and the evidence is the payload, so
+// `validate config bad.conf | json` renders the diagnostics and fails.
+// PREVENTS: the local-data path dropping the answer of any command that exits
+// non-zero, which would have made a rejected config answer nothing at all.
+func TestValidateConfigAnswersDiagnosticsAndFails(t *testing.T) {
+	dir := t.TempDir()
+	configPath := dir + "/broken.conf"
+	require.NoError(t, os.WriteFile(configPath, []byte("invalid config syntax"), 0o600))
+
+	payload, code := dataValidate([]string{configPath})
+	assert.Equal(t, exitInvalid, code, "a rejected configuration must fail")
+	require.NotNil(t, payload, "a rejected configuration must still answer its diagnostics")
+
+	encoded, err := json.Marshal(payload)
+	require.NoError(t, err)
 
 	var out map[string]json.RawMessage
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &out))
+	require.NoError(t, json.Unmarshal(encoded, &out))
 	assert.Contains(t, out, envelopeKey())
 	assert.Contains(t, out, "diagnostics")
+
+	var result diagnostic.ValidateResult
+	require.NoError(t, json.Unmarshal(encoded, &result))
+	assert.False(t, result.Valid)
+	assert.NotEmpty(t, result.Diagnostics)
+}
+
+// TestValidateConfigAnswersAValidConfiguration verifies the same path answers a
+// verdict and exits 0 when the configuration is usable.
+//
+// VALIDATES: the valid case answers a record rather than nothing.
+// PREVENTS: an empty answer for a good config, which every pipe operator would
+// then render as no data.
+func TestValidateConfigAnswersAValidConfiguration(t *testing.T) {
+	dir := t.TempDir()
+	configPath := dir + "/good.conf"
+	require.NoError(t, os.WriteFile(configPath, []byte(validConfig), 0o600))
+
+	payload, code := dataValidate([]string{configPath})
+	require.Equal(t, exitOK, code)
+	require.NotNil(t, payload)
+
+	encoded, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	var result diagnostic.ValidateResult
+	require.NoError(t, json.Unmarshal(encoded, &result))
+	assert.True(t, result.Valid)
+}
+
+// TestValidateConfigNamesABadArgumentCount verifies the answer path refuses a
+// second config file by name instead of validating the first and ignoring it.
+//
+// VALIDATES: the operator's intent is never silently dropped.
+// PREVENTS: `validate config a.conf b.conf` reporting on a.conf alone.
+func TestValidateConfigNamesABadArgumentCount(t *testing.T) {
+	dir := t.TempDir()
+	configPath := dir + "/good.conf"
+	require.NoError(t, os.WriteFile(configPath, []byte(validConfig), 0o600))
+
+	payload, code := dataValidate([]string{configPath, configPath})
+	assert.Nil(t, payload)
+	assert.Equal(t, exitError, code)
+
+	payload, code = dataValidate(nil)
+	assert.Nil(t, payload)
+	assert.Equal(t, exitError, code)
 }

@@ -31,9 +31,12 @@ const (
 // the runtime cache verb, the runtime-lifecycle verb create, and the diagnostic verb
 // debug. Adding a verb here is a deliberate vocabulary decision, not a convenience:
 // a small, learnable verb set is the point.
+// verbShow is the read verb every show tree hangs from.
+const verbShow = "show"
+
 var Verbs = map[string]verbRole{
 	// Reads.
-	"show":    VerbRead,
+	verbShow:  VerbRead,
 	"monitor": VerbRead,
 	"resolve": VerbRead,
 	// Engine config-tree mutation (path form: set <path> <value> / delete <path>).

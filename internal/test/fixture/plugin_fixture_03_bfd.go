@@ -38,7 +38,7 @@ func bfdEchoConfig03(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	session, ok := value.(map[string]any)
-	if !ok || session["peer"] != "203.0.113.9" || session["mode"] != "single-hop" || session["profile"] != "fast-echo" {
+	if !ok || session["peer"] != addrTestNet3Nine || session["mode"] != "single-hop" || session["profile"] != "fast-echo" {
 		return fmt.Errorf("session payload: %v", value)
 	}
 	return nil
@@ -53,7 +53,7 @@ func bfdJSONShow03(ctx context.Context, p *sdk.Plugin) error {
 	var dispatchErr error
 	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
 		status, dispatchErr = Dispatch(ctx, p, "show bfd sessions", &raw)
-		return dispatchErr == nil && status == "done"
+		return dispatchErr == nil && status == statusDone
 	}) {
 		if dispatchErr != nil {
 			return dispatchErr
@@ -79,7 +79,7 @@ func bfdJSONShow03(ctx context.Context, p *sdk.Plugin) error {
 		if !ok {
 			return fmt.Errorf("show bfd sessions: element is %T, not object", raw)
 		}
-		for _, key := range []string{"peer", "state", "mode", "local-discriminator"} {
+		for _, key := range []string{fieldPeer, fieldState, fieldMode, "local-discriminator"} {
 			if _, exists := session[key]; !exists {
 				return fmt.Errorf("show bfd sessions: missing field %s in %v", key, session["peer"])
 			}
@@ -124,7 +124,7 @@ func bfdProfileShow03(ctx context.Context, p *sdk.Plugin) error {
 			}
 		}
 	}
-	for _, want := range []string{"fast", "slow"} {
+	for _, want := range []string{profileFast, "slow"} {
 		if !names[want] {
 			return fmt.Errorf("missing profile %s", want)
 		}
@@ -134,14 +134,14 @@ func bfdProfileShow03(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	fast, ok := value.(map[string]any)
-	if !ok || fast["name"] != "fast" || number03(fast["desired-min-tx-us"]) != 50000 {
+	if !ok || fast["name"] != profileFast || number03(fast["desired-min-tx-us"]) != 50000 {
 		return fmt.Errorf("fast profile: %v", value)
 	}
 	status, _, err := dispatchAny03(ctx, p, "show bfd profile name nope")
 	if err != nil {
 		return err
 	}
-	if status != "error" {
+	if status != statusError {
 		return fmt.Errorf("unknown profile status: %s", status)
 	}
 	return nil
@@ -156,14 +156,14 @@ func bfdSessionShow03(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	detail, ok := value.(map[string]any)
-	if !ok || detail["peer"] != "203.0.113.9" || detail["mode"] != "single-hop" {
+	if !ok || detail["peer"] != addrTestNet3Nine || detail["mode"] != "single-hop" {
 		return fmt.Errorf("known peer payload: %v", value)
 	}
 	status, value, err := dispatchAny03(ctx, p, "show bfd session address 198.51.100.200")
 	if err != nil {
 		return err
 	}
-	if status != "error" || !strings.Contains(fmt.Sprint(value), "no session for peer") {
+	if status != statusError || !strings.Contains(fmt.Sprint(value), "no session for peer") {
 		return fmt.Errorf("unknown peer: status=%s data=%v", status, value)
 	}
 	return nil
@@ -189,16 +189,16 @@ func bfdSessionsShow03(ctx context.Context, p *sdk.Plugin) error {
 		}
 		peer, _ := session["peer"].(string)
 		peers[peer] = true
-		for _, key := range []string{"mode", "state", "vrf", "local-discriminator"} {
+		for _, key := range []string{fieldMode, fieldState, "vrf", "local-discriminator"} {
 			if _, exists := session[key]; !exists {
 				return fmt.Errorf("show bfd sessions: missing field %s in %s", key, peer)
 			}
 		}
-		if session["profile"] != "fast" {
+		if session["profile"] != profileFast {
 			return fmt.Errorf("show bfd sessions: profile=%v want fast (%s)", session["profile"], peer)
 		}
 	}
-	for _, peer := range []string{"203.0.113.9", "198.51.100.9"} {
+	for _, peer := range []string{addrTestNet3Nine, "198.51.100.9"} {
 		if !peers[peer] {
 			return fmt.Errorf("show bfd sessions: missing peer %s", peer)
 		}
@@ -278,24 +278,24 @@ bfd {
 `
 
 func bfdConfigLoad03(ctx context.Context, _ []string) error {
-	return runZeUntilLogs03(ctx, bfdConfigLoadConfig03, []string{"bfd plugin starting", "bfd plugin configured", "bfd plugin running", "subsystem=bfd"}, map[string]string{"ze.log.bfd": "debug"})
+	return runZeUntilLogs03(ctx, bfdConfigLoadConfig03, []string{logBFDStarting, logBFDConfigured, logBFDRunning, "subsystem=bfd"}, map[string]string{envLogBFD: logLevelDebug})
 }
 
 func bfdEchoMultiHopReject03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bfdEchoMultiHopConfig03,
 		[]string{"prohibits multi-hop echo"}, nil, 8*time.Second,
-		map[string]string{"ze.log.bfd": "debug", "ze.bfd.test-parallel": "true"})
+		map[string]string{envLogBFD: logLevelDebug, "ze.bfd.test-parallel": valueTrue})
 }
 
 func bfdIPv6DualBind03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bfdIPv6Config03,
-		[]string{"bfd plugin starting", "bfd pinned session created", "ipv6=true", "bfd plugin running"},
+		[]string{logBFDStarting, "bfd pinned session created", "ipv6=true", logBFDRunning},
 		nil, 8*time.Second,
-		map[string]string{"ze.log.bfd": "debug", "ze.bfd.test-parallel": "true"})
+		map[string]string{envLogBFD: logLevelDebug, "ze.bfd.test-parallel": valueTrue})
 }
 
 func bfdTransportStage203(ctx context.Context, _ []string) error {
-	return runZeUntilLogs03(ctx, bfdStage2Config03, []string{"bfd plugin starting", "bfd plugin configured", "bfd loop started", "bfd pinned session created", "mode=single-hop", "mode=multi-hop"}, map[string]string{"ze.log.bfd": "debug"})
+	return runZeUntilLogs03(ctx, bfdStage2Config03, []string{logBFDStarting, logBFDConfigured, "bfd loop started", "bfd pinned session created", "mode=single-hop", "mode=multi-hop"}, map[string]string{envLogBFD: logLevelDebug})
 }
 
 func runZeUntilLogs03(ctx context.Context, config string, required []string, extraEnv map[string]string) error {
@@ -303,7 +303,7 @@ func runZeUntilLogs03(ctx context.Context, config string, required []string, ext
 }
 
 func runZeUntilLogsRejecting03(ctx context.Context, config string, required, forbidden []string, wait time.Duration, extraEnv map[string]string) error {
-	cmd := exec.Command("ze", "-")
+	cmd := exec.CommandContext(ctx, "ze", "-")
 	cmd.Stdin = strings.NewReader(config)
 	cmd.Stdout = os.Stdout
 	stderr, err := cmd.StderrPipe()
@@ -416,7 +416,7 @@ func bfdEchoHandshake03(ctx context.Context, p *sdk.Plugin, port string) error {
 }
 
 func positiveMetric03(body, name string) bool {
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		if strings.HasPrefix(line, "#") || !strings.HasPrefix(line, name) {
 			continue
 		}
@@ -439,12 +439,12 @@ func bfdEchoPeer03(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("listen control: %w", err)
 	}
-	defer control.Close()
+	defer control.Close() //nolint:errcheck // fixture teardown
 	echo, err := listenBFDUDP03("127.0.0.2:3785")
 	if err != nil {
 		return fmt.Errorf("listen echo: %w", err)
 	}
-	defer echo.Close()
+	defer echo.Close() //nolint:errcheck // fixture teardown
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
@@ -482,7 +482,7 @@ func listenBFDUDP03(address string) (*net.UDPConn, error) {
 	}
 	conn, ok := packet.(*net.UDPConn)
 	if !ok {
-		packet.Close()
+		packet.Close() //nolint:errcheck // fixture teardown
 		return nil, fmt.Errorf("unexpected packet connection %T", packet)
 	}
 	return conn, nil
@@ -495,8 +495,7 @@ func bfdControlLoop03(ctx context.Context, conn *net.UDPConn) {
 		_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 		n, address, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			var timeout net.Error
-			if errors.As(err, &timeout) && timeout.Timeout() {
+			if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 				continue
 			}
 			return
@@ -540,8 +539,7 @@ func bfdEchoLoop03(ctx context.Context, conn *net.UDPConn) {
 		_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 		n, address, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			var timeout net.Error
-			if errors.As(err, &timeout) && timeout.Timeout() {
+			if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 				continue
 			}
 			return

@@ -211,7 +211,7 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 		Pipeline: noAutomatedCaller,
 	}, Carrier{
 		Name: kindUnit, Kind: kindUnit, Tier: tierVerify, Prefix: "", Suffix: "_test.go",
-		Reader: "go", Runner: "./le verify-deps unit-cached",
+		Reader: "go", Runner: "./le verify deps unit-cached",
 		Pipeline: "./le verify current mode full (unit stage)",
 	})
 	// ONE verify-tier row per suite the run list actually names. A single

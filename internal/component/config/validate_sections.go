@@ -50,8 +50,8 @@ var ErrCustomValidation = errors.New("config validation failed")
 // from PeersFromTree and NewServer, both strictly later than LoadConfig, so
 // they would fail closed on valid input at exactly the point this walk runs.
 var validatedSections = []string{
-	"interface", "sysctl", "fib", "plugin", "web", "ssh", "dns",
-	"telemetry", "looking-glass", "mcp", "managed", "vpp",
+	sectionInterface, "sysctl", "fib", sectionPlugin, sectionWeb, "ssh", "dns",
+	sectionTelemetry, sectionLookingGlass, "mcp", "managed", "vpp",
 	"vpn", "pki", "l2tp", "isis", "ospf",
 }
 

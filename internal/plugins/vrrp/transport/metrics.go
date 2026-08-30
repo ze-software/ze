@@ -23,6 +23,13 @@ type transportMetrics struct {
 	socketsOpen       metrics.Gauge      // ze_vrrp_sockets_open
 }
 
+// The metric labels every per-group transport series carries.
+const (
+	labelInterface = "interface"
+	labelVRID      = "vrid"
+	labelFamily    = "family"
+)
+
 // newTransportMetrics registers the five series on reg. Exact names/labels come
 // from the spec Metrics table.
 func newTransportMetrics(reg metrics.Registry) *transportMetrics {
@@ -30,22 +37,22 @@ func newTransportMetrics(reg metrics.Registry) *transportMetrics {
 		advertsSent: reg.CounterVec(
 			"ze_vrrp_adverts_sent_total",
 			"Total VRRP advertisements transmitted, by interface, vrid and family.",
-			[]string{"interface", "vrid", "family"},
+			[]string{labelInterface, labelVRID, labelFamily},
 		),
 		advertsReceived: reg.CounterVec(
 			"ze_vrrp_adverts_received_total",
 			"Total VRRP advertisement datagrams delivered to the engine, by interface, vrid and family.",
-			[]string{"interface", "vrid", "family"},
+			[]string{labelInterface, labelVRID, labelFamily},
 		),
 		packetErrors: reg.CounterVec(
 			"ze_vrrp_packet_errors_total",
 			"Total VRRP transport and receive-validation errors, by interface, vrid, family and reason.",
-			[]string{"interface", "vrid", "family", "reason"},
+			[]string{labelInterface, labelVRID, labelFamily, "reason"},
 		),
 		announcementsSent: reg.CounterVec(
 			"ze_vrrp_announcements_sent_total",
 			"Total VRRP gratuitous-ARP / unsolicited-NA frames sent, by interface, vrid, family and kind.",
-			[]string{"interface", "vrid", "family", "kind"},
+			[]string{labelInterface, labelVRID, labelFamily, "kind"},
 		),
 		socketsOpen: reg.Gauge(
 			"ze_vrrp_sockets_open",

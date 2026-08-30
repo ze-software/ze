@@ -14,7 +14,7 @@ import (
 //
 // This is the feeder that makes `ze-yang-glue-check` reachable. The Makefile
 // target existed but had no caller: not in `generate`'s check twin, not in
-// stagesForMode (internal/le/verifyengine/run.go), not in .github/workflows. A `.yang`
+// stagesForMode (internal/le/verify/engine/run.go), not in .github/workflows. A `.yang`
 // file added or edited without `make generate` therefore left a stale
 // yang/*/register.go, and the module was silently never wired -- the failure
 // mode is invisible, because nothing errors, the schema simply is not there.
@@ -34,7 +34,7 @@ import (
 // make stage on the strength of it.
 //
 // VALIDATES: every yang/*/register.go is current with respect to its .yang
-// sources, checked by the generator itself (internal/le/yangglue/yangglue.go).
+// sources, checked by the generator itself (internal/le/yang/glue/yangglue.go).
 // PREVENTS: a YANG module silently never being wired because register.go was
 // not regenerated -- config for that module would parse as unknown, with no
 // build or test failure to point at the cause.
@@ -45,7 +45,7 @@ func TestYANGGlueCurrent(t *testing.T) {
 		ctx, cancel = context.WithDeadline(ctx, deadline)
 		defer cancel()
 	}
-	cmd := exec.CommandContext(ctx, "go", "run", "../../../../internal/le/yangglue/yangglue.go", "--check")
+	cmd := exec.CommandContext(ctx, "go", "run", "../../../../internal/le/yang/glue/yangglue.go", "--check")
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	out, err := cmd.CombinedOutput()
 	if err != nil {

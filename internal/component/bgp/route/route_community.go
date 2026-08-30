@@ -1,7 +1,6 @@
 // Design: docs/architecture/route-types.md — community route parsing
 // Overview: route.go — core route types and attribute parsing
 
-//nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package route
 
 import (
@@ -92,9 +91,9 @@ func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int
 		return parseTrafficRateFunction(args)
 	case "traffic-rate-packets":
 		return parseTrafficRatePacketsFunction(args)
-	case "discard":
+	case flowspecActionDiscard:
 		return parseDiscardFunction()
-	case "redirect":
+	case flowspecActionRedirect:
 		return parseRedirectFunction(args)
 	case "traffic-marking":
 		return parseTrafficMarkingFunction(args)
@@ -256,11 +255,11 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 		return parseRouteTargetExtCommunity(value)
 	case "origin":
 		return parseOriginExtCommunity(value)
-	case "redirect":
+	case flowspecActionRedirect:
 		return parseRedirectExtCommunity(value)
-	case "rate-limit":
+	case flowspecActionRateLimit:
 		return parseRateLimitExtCommunity(value)
-	case "rate-limit-packets":
+	case flowspecActionRateLimitPackets:
 		return parseRateLimitExtCommunityWithSubtype(value, attribute.FlowSpecRatePackets)
 	default:
 		return attribute.ExtendedCommunity{}, fmt.Errorf("unknown extended community type: %s", typePrefix)

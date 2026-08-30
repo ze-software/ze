@@ -265,6 +265,42 @@ func (r *PluginRegistry) GetDecodeFamilies() []string {
 	return families
 }
 
+// DecodeFamiliesForPlugins returns the decode families of the NAMED plugins
+// only, sorted, lowercase.
+//
+// GetDecodeFamilies answers for the whole process, which is the right answer for
+// startup validation and the wrong one for a peer. A peer whose config names no
+// family block took every loaded plugin's families into its OPEN, so an ordinary
+// peer was offered link-state and the rest, and the implicit ipv4/unicast
+// default never fired because the set was not empty. What a peer should offer is
+// what ITS attached processes decode.
+//
+// An empty name list returns nil, which is what lets the implicit default fire
+// for a peer with no family block and no attached process.
+func (r *PluginRegistry) DecodeFamiliesForPlugins(names []string) []string {
+	if len(names) == 0 {
+		return nil
+	}
+
+	wanted := make(map[string]bool, len(names))
+	for _, name := range names {
+		wanted[strings.ToLower(name)] = true
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var families []string
+	for fam, plugin := range r.families {
+		if wanted[strings.ToLower(plugin)] {
+			families = append(families, fam)
+		}
+	}
+	sort.Strings(families)
+
+	return families
+}
+
 // registerCapabilities adds capability declarations, checking for conflicts.
 func (r *PluginRegistry) registerCapabilities(caps *PluginCapabilities) error {
 	r.mu.Lock()

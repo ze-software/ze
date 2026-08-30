@@ -121,10 +121,10 @@ func newEmptyState() *registry {
 // Declaration order matters: these vars must be initialized AFTER initEmptyState
 // above so that MustRegister sees a non-nil state pointer.
 var (
-	IPv4Unicast   = MustRegister(AFIIPv4, SAFIUnicast, "ipv4", "unicast")
-	IPv6Unicast   = MustRegister(AFIIPv6, SAFIUnicast, "ipv6", "unicast")
-	IPv4Multicast = MustRegister(AFIIPv4, SAFIMulticast, "ipv4", "multicast")
-	IPv6Multicast = MustRegister(AFIIPv6, SAFIMulticast, "ipv6", "multicast")
+	IPv4Unicast   = MustRegister(AFIIPv4, SAFIUnicast, afiNameIPv4, "unicast")
+	IPv6Unicast   = MustRegister(AFIIPv6, SAFIUnicast, afiNameIPv6, "unicast")
+	IPv4Multicast = MustRegister(AFIIPv4, SAFIMulticast, afiNameIPv4, "multicast")
+	IPv6Multicast = MustRegister(AFIIPv6, SAFIMulticast, afiNameIPv6, "multicast")
 )
 
 // RegisterFamily registers a family with its AFI/SAFI names. Returns the Family value.

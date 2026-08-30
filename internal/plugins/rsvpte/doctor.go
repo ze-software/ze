@@ -25,7 +25,7 @@ func checkRSVPTERawSocket(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiag
 	if !ok || tree == nil {
 		return nil
 	}
-	if tree.GetContainer("rsvp-te") == nil {
+	if tree.GetContainer(Namespace) == nil {
 		return nil
 	}
 	if rsvpRawSocketProbe() {

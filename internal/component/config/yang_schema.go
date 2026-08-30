@@ -425,7 +425,7 @@ func getKeyTypeExtension(entry *gyang.Entry) ValueType {
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:key-type" || strings.HasSuffix(ext.Keyword, ":key-type") {
 			switch ext.Argument {
-			case "string":
+			case valueTypeString:
 				return TypeString
 			case "prefix":
 				return TypePrefix
@@ -520,7 +520,7 @@ func hasBcryptExtension(entry *gyang.Entry) bool {
 func hasHiddenExtension(entry *gyang.Entry) bool {
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:hidden" || strings.HasSuffix(ext.Keyword, ":hidden") {
-			return ext.Argument == "true"
+			return ext.Argument == configTrue
 		}
 	}
 	return false

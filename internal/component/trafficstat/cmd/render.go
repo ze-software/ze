@@ -77,9 +77,14 @@ func createTrafficMonitorSession(ctx context.Context, args []string) (eventCh <-
 		return nil, nil, nil, errors.New("trafficstat service not available")
 	}
 
+	// selectorName is the `name <interface>` CLI keyword that filters the
+	// monitor to one interface. It is grammar an operator types, not a
+	// payload key.
+	const selectorName = "name"
+
 	var filterName string
 	for i, arg := range args {
-		if arg == "name" && i+1 < len(args) {
+		if arg == selectorName && i+1 < len(args) {
 			filterName = args[i+1]
 			break
 		}

@@ -1,4 +1,4 @@
-// Design: role-selected Docker topology for both PPPoE scenarios.
+// Design: docs/architecture/testing/interop.md -- role-selected Docker topology for both PPPoE scenarios.
 // Related: pppoe.go -- suite discovery, images, preflight, and network lifecycle.
 package pppoe
 

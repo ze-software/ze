@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -47,8 +48,8 @@ func init() {
 		{"plugin/system-memory-map-show", "system-memory-map-show-test", plugin16AfterEOR(plugin16SystemMemory)},
 		{"plugin/system-ntp-show", "system-ntp-show-test", plugin16AfterEOR(plugin16SystemNTP)},
 		{"plugin/system-platform-show", "system-platform-show-test", plugin16AfterEOR(plugin16SystemPlatform)},
-		{"plugin/system-profile-show", "system-profile-show-test", plugin16SystemProfile},
-		{"plugin/system-sockets-show", "system-sockets-show-test", plugin16SystemSockets},
+		{"plugin/system-profile-show", "system-profile-show-test", plugin16AfterEOR(plugin16SystemProfile)},
+		{"plugin/system-sockets-show", "system-sockets-show-test", plugin16AfterEOR(plugin16SystemSockets)},
 		{"plugin/system-update-backend-show", "system-update-backend-show", plugin16AfterEOR(plugin16SystemUpdate)},
 		{"plugin/tcp-check-show", "tcp-check-show-test", plugin16AfterEOR(plugin16TCPCheck)},
 		{"plugin/traceroute-show", "traceroute-show-test", plugin16AfterEOR(plugin16Traceroute)},
@@ -111,7 +112,7 @@ func (r plugin16Response) text() string {
 
 func plugin16DoneMap(ctx context.Context, p *sdk.Plugin, command, label string) (map[string]any, error) {
 	r := plugin16Dispatch(ctx, p, command)
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return nil, fmt.Errorf("%s: status=%s data=%s", label, r.status, r.text())
 	}
 	data, ok := r.data.(map[string]any)
@@ -241,7 +242,7 @@ func plugin16SystemFD(ctx context.Context, p *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: file-descriptors not available on this platform (expected on non-Linux)")
 		return nil
 	}
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("fd: status=%s data=%s", r.status, r.text())
 	}
 	data, ok := r.data.(map[string]any)
@@ -284,7 +285,7 @@ func plugin16SystemGoroutines(ctx context.Context, p *sdk.Plugin) error {
 func plugin16WaitEOR(ctx context.Context, p *sdk.Plugin, command string, attempts int) bool {
 	return Poll(ctx, attempts, 100*time.Millisecond, func() bool {
 		r := plugin16Dispatch(ctx, p, command)
-		return r.status == "done" && plugin16HasEOR(r.data)
+		return r.status == statusDone && plugin16HasEOR(r.data)
 	})
 }
 
@@ -300,10 +301,8 @@ func plugin16HasEOR(value any) bool {
 			}
 		}
 	case []any:
-		for _, child := range typed {
-			if plugin16HasEOR(child) {
-				return true
-			}
+		if slices.ContainsFunc(typed, plugin16HasEOR) {
+			return true
 		}
 	}
 	return false
@@ -322,7 +321,7 @@ func plugin16SystemKernelLog(ctx context.Context, p *sdk.Plugin) error {
 		fmt.Fprintf(os.Stderr, "OK: kernel-log refused by host policy: %s\n", r.text())
 		return nil
 	}
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("kernel-log: status=%s data=%s", r.status, r.text())
 	}
 	data, ok := r.data.(map[string]any)
@@ -345,7 +344,7 @@ func plugin16SystemMemory(ctx context.Context, p *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: memory-map not available on this platform (expected on non-Linux)")
 		return nil
 	}
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("memory-map: status=%s data=%s", r.status, r.text())
 	}
 	data, ok := r.data.(map[string]any)
@@ -384,7 +383,7 @@ func plugin16SystemPlatform(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	platformType, ok := data["type"].(string)
-	valid := map[string]bool{"gokrazy": true, "systemd": true, "container": true, "plain-linux": true, "darwin": true, "unknown": true}
+	valid := map[string]bool{"gokrazy": true, "systemd": true, fieldContainer: true, "plain-linux": true, "darwin": true, valueUnknown: true}
 	if !ok || !valid[platformType] {
 		return fmt.Errorf("platform: type=%v is not valid", data["type"])
 	}
@@ -419,7 +418,7 @@ func plugin16SystemSockets(ctx context.Context, p *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: sockets not available on this platform (expected on non-Linux)")
 		return nil
 	}
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("sockets: status=%s data=%s", r.status, r.text())
 	}
 	data, ok := r.data.(map[string]any)
@@ -531,7 +530,7 @@ func plugin16Warnings(ctx context.Context, p *sdk.Plugin) error {
 	found := false
 	for _, value := range warnings {
 		warning, _ := value.(map[string]any)
-		if warning["source"] == "bgp" && warning["code"] == "prefix-stale" {
+		if warning["source"] == namespaceBGP && warning["code"] == "prefix-stale" {
 			found = true
 			message, _ := warning["message"].(string)
 			if !strings.Contains(message, "2024-01-01") {
@@ -569,7 +568,7 @@ func plugin16WarningsFilter(ctx context.Context, p *sdk.Plugin) error {
 	}
 	for _, value := range warnings {
 		warning, _ := value.(map[string]any)
-		if warning["source"] != "bgp" {
+		if warning["source"] != namespaceBGP {
 			return fmt.Errorf("non-bgp warning in filtered result: %v", warning)
 		}
 	}
@@ -591,7 +590,7 @@ func plugin16PipeFirstLast(ctx context.Context, p *sdk.Plugin) error {
 		r := plugin16Dispatch(ctx, p, "show bgp rib received count")
 		settled, _ = r.data.(map[string]any)
 		count, ok := plugin16Number(settled["count"])
-		return r.status == "done" && ok && count == 5
+		return r.status == statusDone && ok && count == 5
 	}) {
 		return fmt.Errorf("adj-rib-in never reached 5 routes, last=%v", settled)
 	}
@@ -609,7 +608,7 @@ func plugin16PipeFirstLast(ctx context.Context, p *sdk.Plugin) error {
 		if !ok {
 			return fmt.Errorf("first 3 carries a non-route row: %v", value)
 		}
-		if row["direction"] != "received" {
+		if row["direction"] != directionReceived {
 			continue
 		}
 		if _, ok := row["peer"].(string); !ok {
@@ -618,7 +617,7 @@ func plugin16PipeFirstLast(ctx context.Context, p *sdk.Plugin) error {
 		prefix, _ := row["prefix"].(string)
 		prefixes = append(prefixes, prefix)
 	}
-	want := []string{"10.1.0.0/24", "10.2.0.0/24", "10.3.0.0/24"}
+	want := []string{prefixTenOne, "10.2.0.0/24", "10.3.0.0/24"}
 	if !reflect.DeepEqual(prefixes, want) {
 		return fmt.Errorf("first 3 returned %v, expected %v", prefixes, want)
 	}
@@ -648,7 +647,7 @@ func plugin16PipeFirstLast(ctx context.Context, p *sdk.Plugin) error {
 
 func plugin16PeerRealUpdates(ctx context.Context, p *sdk.Plugin, peer string) (int64, bool) {
 	r := plugin16Dispatch(ctx, p, "show bgp peer "+peer+" detail")
-	if r.status != "done" {
+	if r.status != statusDone {
 		return 0, false
 	}
 	return plugin16FindCounterDifference(r.data, "updates-sent", "eor-sent")
@@ -679,14 +678,14 @@ func plugin16FindCounterDifference(value any, left, right string) (int64, bool) 
 
 func plugin16WellknownCounts(ctx context.Context, p *sdk.Plugin, internalWant, externalWant int64, internalMessage, externalMessage string) error {
 	q := plugin16Dispatch(ctx, p, "request quiesce")
-	if q.err != nil || q.status != "done" {
+	if q.err != nil || q.status != statusDone {
 		return fmt.Errorf("quiesce: status=%s data=%s", q.status, q.text())
 	}
 	for _, check := range []struct {
 		peer string
 		want int64
 		msg  string
-	}{{"127.0.0.2", internalWant, internalMessage}, {"127.0.0.3", externalWant, externalMessage}} {
+	}{{addrLoopbackSecond, internalWant, internalMessage}, {addrLoopbackThird, externalWant, externalMessage}} {
 		var count int64
 		if !Poll(ctx, 40, 100*time.Millisecond, func() bool {
 			var ok bool
@@ -734,7 +733,7 @@ func plugin16UpdateAndQuiesce(ctx context.Context, p *sdk.Plugin, selector, comm
 		return err
 	}
 	q := plugin16Dispatch(ctx, p, "request quiesce")
-	if q.err != nil || q.status != "done" {
+	if q.err != nil || q.status != statusDone {
 		return fmt.Errorf("quiesce after %q: status=%s data=%s", command, q.status, q.text())
 	}
 	return nil
@@ -745,7 +744,7 @@ func plugin16TeardownCmd(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	r := plugin16Dispatch(ctx, p, "request peer 127.0.0.1 teardown 4")
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("teardown: status=%s data=%s", r.status, r.text())
 	}
 	return nil
@@ -756,28 +755,28 @@ func plugin16TeardownMsg(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	r := plugin16Dispatch(ctx, p, "request peer 127.0.0.1 teardown 2 test")
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("teardown message: status=%s data=%s", r.status, r.text())
 	}
 	return nil
 }
 
 func plugin16WatchdogMED(ctx context.Context, p *sdk.Plugin) error {
-	if q := plugin16Dispatch(ctx, p, "request quiesce"); q.err != nil || q.status != "done" {
+	if q := plugin16Dispatch(ctx, p, "request quiesce"); q.err != nil || q.status != statusDone {
 		return fmt.Errorf("startup quiesce: status=%s data=%s", q.status, q.text())
 	}
 	for _, command := range []string{
 		"request bgp watchdog announce dnsr med 500",
 		"request bgp watchdog announce dnsr med 1000",
-		"request bgp watchdog withdraw dnsr",
+		cmdWatchdogWithdrawDNSR,
 		"request bgp watchdog announce dnsr med 200",
 	} {
 		r := plugin16Dispatch(ctx, p, command)
-		if r.err != nil || r.status != "done" {
+		if r.err != nil || r.status != statusDone {
 			return fmt.Errorf("%s: status=%s data=%s", command, r.status, r.text())
 		}
 		q := plugin16Dispatch(ctx, p, "request quiesce")
-		if q.err != nil || q.status != "done" {
+		if q.err != nil || q.status != statusDone {
 			return fmt.Errorf("quiesce after %s: status=%s data=%s", command, q.status, q.text())
 		}
 	}

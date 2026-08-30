@@ -21,6 +21,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/dockerhost"
 )
 
 const (
@@ -44,6 +45,13 @@ const (
 	installDefaultNIC          = "virtio-net-pci"
 	installSerialMax           = 1 << 20
 	installSerialTailBytes     = 8000
+)
+
+// The kernel console the guest is told to write its boot to. The device name
+// follows the architecture's serial port: 8250 on x86-64, PL011 on arm64.
+const (
+	installConsoleAMD64 = "ttyS0"
+	installConsoleARM64 = "ttyAMA0"
 )
 
 const (
@@ -88,7 +96,7 @@ var _ = []env.EnvEntry{
 }
 
 func installSetting(key, fallback, description string) env.EnvEntry {
-	return env.MustRegister(env.EnvEntry{Key: key, Type: "string", Default: fallback, Description: description, Private: true})
+	return env.MustRegister(env.EnvEntry{Key: key, Type: envTypeString, Default: fallback, Description: description, Private: true})
 }
 
 // InstallKind identifies one of the four import-linked installer proofs.
@@ -113,7 +121,7 @@ func (kind InstallKind) String() string {
 	case InstallKindVentoy:
 		return "install-ventoy-test"
 	default:
-		return "unspecified"
+		return verdictWordUnspecified
 	}
 }
 
@@ -130,13 +138,13 @@ const (
 func (verdict InstallVerdict) String() string {
 	switch verdict {
 	case InstallVerdictPass:
-		return "pass"
+		return verdictWordPass
 	case InstallVerdictSkip:
-		return "skip"
+		return verdictWordSkip
 	case InstallVerdictFail:
-		return "fail"
+		return verdictWordFail
 	default:
-		return "unspecified"
+		return verdictWordUnspecified
 	}
 }
 
@@ -231,10 +239,17 @@ type Installer struct {
 type installOps struct {
 	runOps
 	Access func(string, uint32) bool
+	// Socket reports whether a path is a usable Docker socket. It is a seam so a
+	// test can drive the Colima selection on any platform.
+	Socket func(string) bool
 }
 
 func productionInstallOps() installOps {
-	return installOps{runOps: productionRunOps(), Access: func(path string, mode uint32) bool { return unix.Access(path, mode) == nil }}
+	return installOps{
+		runOps: productionRunOps(),
+		Access: func(path string, mode uint32) bool { return unix.Access(path, mode) == nil },
+		Socket: dockerhost.IsSocket,
+	}
 }
 
 // NewInstaller creates one proof over tree.
@@ -360,22 +375,22 @@ func (installer *Installer) prefix() string {
 
 func (installer *Installer) qemuBinary() string {
 	if installer.Options.Arch == ArchARM64 {
-		return "qemu-system-aarch64"
+		return qemuSystemARM64
 	}
-	return "qemu-system-x86_64"
+	return qemuSystemAMD64
 }
 
 func (installer *Installer) accelerator() string {
 	if installer.Options.Accelerator != "" {
 		return installer.Options.Accelerator
 	}
-	if installer.ops.GOOS == "darwin" {
-		return "hvf"
+	if installer.ops.GOOS == goosDarwin {
+		return acceleratorHVF
 	}
 	if installer.ops.Access("/dev/kvm", unix.R_OK|unix.W_OK) {
-		return "kvm"
+		return acceleratorKVM
 	}
-	return "tcg"
+	return acceleratorTCG
 }
 
 func (installer *Installer) skip(report InstallReport, reason string) (InstallReport, error) {

@@ -117,24 +117,36 @@ const (
 	HookEgress                 // egress
 )
 
+// Hook names in the config surface: what the `hook` leaf accepts and what
+// String() prints. The two tables below are inverses over this set.
+const (
+	hookNameInput       = "input"
+	hookNameOutput      = "output"
+	hookNameForward     = "forward"
+	hookNamePrerouting  = "prerouting"
+	hookNamePostrouting = "postrouting"
+	hookNameIngress     = "ingress"
+	hookNameEgress      = "egress"
+)
+
 var chainHookNames = map[ChainHook]string{
-	HookInput:       "input",
-	HookOutput:      "output",
-	HookForward:     "forward",
-	HookPrerouting:  "prerouting",
-	HookPostrouting: "postrouting",
-	HookIngress:     "ingress",
-	HookEgress:      "egress",
+	HookInput:       hookNameInput,
+	HookOutput:      hookNameOutput,
+	HookForward:     hookNameForward,
+	HookPrerouting:  hookNamePrerouting,
+	HookPostrouting: hookNamePostrouting,
+	HookIngress:     hookNameIngress,
+	HookEgress:      hookNameEgress,
 }
 
 var chainHookByName = map[string]ChainHook{
-	"input":       HookInput,
-	"output":      HookOutput,
-	"forward":     HookForward,
-	"prerouting":  HookPrerouting,
-	"postrouting": HookPostrouting,
-	"ingress":     HookIngress,
-	"egress":      HookEgress,
+	hookNameInput:       HookInput,
+	hookNameOutput:      HookOutput,
+	hookNameForward:     HookForward,
+	hookNamePrerouting:  HookPrerouting,
+	hookNamePostrouting: HookPostrouting,
+	hookNameIngress:     HookIngress,
+	hookNameEgress:      HookEgress,
 }
 
 func (h ChainHook) String() string {

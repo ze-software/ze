@@ -71,11 +71,10 @@ const (
 	cmdPathRoutes    = "ze interface routes"
 )
 
-// cmdPathShowInterfaceScan is the path the scan's ANSWER is registered under,
-// which the renderer reads the declared column order from. register.go spells
-// it again as a string literal, because `./le docvalid command-contract` and
-// the local-data coverage scan bind a command by parsing that literal and a
-// const identifier reaches them as no path at all.
+// cmdPathShowInterfaceScan is the command path the scan prints under, which the
+// renderer reads the declared column order and the default format from. The
+// daemon serves the same path (internal/component/iface/cmd/show_interface.go,
+// handleShowInterfaceScan), so the two spellings answer under one name.
 const cmdPathShowInterfaceScan = "show interface scan"
 
 // backendNetlink is the interface backend every subcommand here runs against.

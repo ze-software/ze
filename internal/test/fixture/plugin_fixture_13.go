@@ -80,9 +80,9 @@ func (r commandResult13) text() string {
 
 func requireStatus13(label string, result commandResult13, want string) error {
 	if result.status != want {
-		return fmt.Errorf("%s: status=%s want %s: %.200s: %v", label, result.status, want, result.raw, result.err)
+		return fmt.Errorf("%s: status=%s want %s: %.200s: %w", label, result.status, want, result.raw, result.err)
 	}
-	if result.err != nil && want != "error" {
+	if result.err != nil && want != statusError {
 		return fmt.Errorf("%s: %w", label, result.err)
 	}
 	return nil
@@ -97,7 +97,7 @@ func pollCommand13(ctx context.Context, plugin *sdk.Plugin, command string, atte
 	return result
 }
 
-func done13(result commandResult13) bool { return result.err == nil && result.status == "done" }
+func done13(result commandResult13) bool { return result.err == nil && result.status == statusDone }
 
 func number13(value any) int {
 	switch n := value.(type) {
@@ -143,7 +143,10 @@ func peerCounter13(result commandResult13, field string) int {
 	return total
 }
 
-func waitEORSent13(ctx context.Context, plugin *sdk.Plugin, selector string, expected int) error {
+// eorSentExpected13 is the number of peers these fixtures wait to see send EOR.
+const eorSentExpected13 = 1
+
+func waitEORSent13(ctx context.Context, plugin *sdk.Plugin, selector string) error {
 	result := pollCommand13(ctx, plugin, "show bgp peer "+selector+" detail", 40, 250*time.Millisecond, func(result commandResult13) bool {
 		count := 0
 		for _, value := range peerRows13(result) {
@@ -151,7 +154,7 @@ func waitEORSent13(ctx context.Context, plugin *sdk.Plugin, selector string, exp
 				count++
 			}
 		}
-		return count >= expected
+		return count >= eorSentExpected13
 	})
 	count := 0
 	for _, value := range peerRows13(result) {
@@ -159,7 +162,7 @@ func waitEORSent13(ctx context.Context, plugin *sdk.Plugin, selector string, exp
 			count++
 		}
 	}
-	if count < expected {
+	if count < eorSentExpected13 {
 		return fmt.Errorf("ze never sent its End-of-RIB to %s", selector)
 	}
 	return nil
@@ -174,7 +177,7 @@ func runPlugin13(ctx context.Context, name string, setup func(*sdk.Plugin), scen
 	if err != nil {
 		return err
 	}
-	defer plugin.Close() //nolint:errcheck
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 	if setup != nil {
 		setup(plugin)
 	}
@@ -209,7 +212,7 @@ func passivePlugin13(name string) Driver {
 		if err != nil {
 			return err
 		}
-		defer plugin.Close() //nolint:errcheck
+		defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 		return plugin.Run(ctx, sdk.Registration{})
 	}
 }
@@ -294,8 +297,8 @@ func reloadSharedSecret13(ctx context.Context, args []string) error {
 			return errors.New("trigger did not create reload.done")
 		}
 		after := ""
-		Poll(ctx, 50, 100*time.Millisecond, func() bool { after = readSecret(); return after == "<set>" })
-		if after != "<set>" {
+		Poll(ctx, 50, 100*time.Millisecond, func() bool { after = readSecret(); return after == valueRedacted })
+		if after != valueRedacted {
 			return fmt.Errorf("after SIGHUP: shared-secret=%q want <set>", after)
 		}
 		return nil
@@ -347,7 +350,7 @@ func removePrivateASImport13(ctx context.Context, args []string) error {
 
 func resolvePing13(ctx context.Context, args []string) error {
 	return observe13(ctx, "ping-test", func(ctx context.Context, plugin *sdk.Plugin) error {
-		if err := waitEORSent13(ctx, plugin, "peer1", 1); err != nil {
+		if err := waitEORSent13(ctx, plugin, "peer1"); err != nil {
 			return err
 		}
 		result := command13(ctx, plugin, "resolve ping 127.0.0.1")
@@ -355,7 +358,7 @@ func resolvePing13(ctx context.Context, args []string) error {
 			return err
 		}
 		data := result.object()
-		if data["destination"] != "127.0.0.1" {
+		if data["destination"] != addrLoopback {
 			return fmt.Errorf("expected destination 127.0.0.1, got %v", data["destination"])
 		}
 		if number13(data["sent"]) <= 0 || number13(data["received"]) <= 0 {
@@ -376,7 +379,7 @@ func resolvePing13(ctx context.Context, args []string) error {
 }
 
 func replayIdleTimeout13() time.Duration {
-	for _, key := range []string{"ze.test.budget", "ze_test_budget", "ZE_TEST_BUDGET"} {
+	for _, key := range []string{envTestBudgetDotted, envTestBudgetLower, envTestBudgetUpper} {
 		if raw := os.Getenv(key); raw != "" {
 			if budget, err := time.ParseDuration(raw); err == nil {
 				return budget * 60 / 100
@@ -405,7 +408,7 @@ func routeServerReplay13(name, prefix string) Driver {
 	return func(ctx context.Context, args []string) error {
 		events := make(chan string, 128)
 		setup := func(plugin *sdk.Plugin) {
-			plugin.SetStartupSubscriptions([]string{"update"}, nil, "parsed")
+			plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
 			plugin.OnEvent(func(event string) error {
 				select {
 				case events <- event:
@@ -444,7 +447,7 @@ func routeServerReplay13(name, prefix string) Driver {
 					}
 					bgp, _ := root["bgp"].(map[string]any)
 					message, _ := bgp["message"].(map[string]any)
-					if message["direction"] != "sent" {
+					if message["direction"] != directionSent {
 						continue
 					}
 					update, _ := bgp["update"].(map[string]any)
@@ -455,7 +458,7 @@ func routeServerReplay13(name, prefix string) Driver {
 						if address, _ := remote["address"].(string); address != "" {
 							eorPeers[address] = struct{}{}
 						}
-					} else if strings.Contains(string(event), prefix) {
+					} else if strings.Contains(event, prefix) {
 						forwardSeen = true
 					}
 					if !idle.Stop() {
@@ -474,11 +477,11 @@ func routeServerReplay13(name, prefix string) Driver {
 
 func rfc7606Withdraw13(ctx context.Context, args []string) error {
 	return runPlugin13(ctx, "rfc7606-test", func(plugin *sdk.Plugin) {
-		plugin.SetStartupSubscriptions([]string{"state"}, nil, "parsed")
+		plugin.SetStartupSubscriptions([]string{eventState}, nil, "parsed")
 	}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		pollCommand13(ctx, plugin, "show bgp peer peer1 detail", 20, 250*time.Millisecond, func(result commandResult13) bool {
 			state, _ := peerField13(result, "state")
-			return state == "established"
+			return state == stateEstablished
 		})
 		if _, _, err := plugin.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"); err != nil {
 			return err
@@ -548,7 +551,7 @@ func opaqueWithdraw13(ctx context.Context, args []string) error {
 }
 
 func reloadTrigger13(ctx context.Context, args []string) error {
-	for _, marker := range []string{"daemon.pid", "daemon.ready", "observer.initial-ok"} {
+	for _, marker := range []string{fileDaemonPID, fileDaemonReady, "observer.initial-ok"} {
 		if !Poll(ctx, 1_000, 100*time.Millisecond, func() bool {
 			_, err := os.Stat(marker)
 			return err == nil

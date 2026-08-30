@@ -21,7 +21,7 @@ const removalTestPeer = "10.0.0.1"
 // presence or absence of a specific per-peer series (behavioral, not count-only).
 func scrapeMetrics(t *testing.T, reg *metrics.PrometheusRegistry) string {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
 	w := httptest.NewRecorder()
 	reg.Handler().ServeHTTP(w, req)
 	return w.Body.String()

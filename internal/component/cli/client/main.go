@@ -29,7 +29,7 @@ import (
 	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
 	"github.com/ze-software/ze/internal/component/plugin"
 
-	// plugin/all is GENERATED (internal/le/pluginimports/pluginimports.go) and blank-
+	// plugin/all is GENERATED (internal/le/plugin/imports/pluginimports.go) and blank-
 	// imports every schema, RPC command, and plugin package -- including the
 	// verb/cmd packages this file used to enumerate by hand. Never re-add
 	// per-package blank imports here; regenerate with `make generate`.
@@ -981,13 +981,13 @@ func fetchPeerSelectorsFromDispatch(dispatch CommandFunc) []cmd.Suggestion {
 		suggestions = append(suggestions, cmd.Suggestion{
 			Text:        ip,
 			Description: "peer",
-			Type:        "selector",
+			Type:        cmd.SuggestionSelector,
 		})
 		if info.Name != "" {
 			suggestions = append(suggestions, cmd.Suggestion{
 				Text:        info.Name,
 				Description: func() string { var tb textbuf.Buffer; return tb.Str("peer (").Str(ip).Byte(')').String() }(),
-				Type:        "selector",
+				Type:        cmd.SuggestionSelector,
 			})
 		}
 	}
@@ -1039,13 +1039,13 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 		suggestions = append(suggestions, cmd.Suggestion{
 			Text:        ip,
 			Description: "peer",
-			Type:        "selector",
+			Type:        cmd.SuggestionSelector,
 		})
 		if info.Name != "" {
 			suggestions = append(suggestions, cmd.Suggestion{
 				Text:        info.Name,
 				Description: func() string { var tb textbuf.Buffer; return tb.Str("peer (").Str(ip).Byte(')').String() }(),
-				Type:        "selector",
+				Type:        cmd.SuggestionSelector,
 			})
 		}
 	}

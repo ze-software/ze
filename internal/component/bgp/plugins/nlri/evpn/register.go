@@ -29,7 +29,7 @@ func init() {
 		RFCs:         []string{"7432", "9136"},
 		SupportsNLRI: true,
 		Features:     "nlri",
-		Families:     []string{"l2vpn/evpn"},
+		Families:     []string{familyNameEVPN},
 		RunEngine:    runEVPNPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setEVPNLogger(slogutil.Logger(loggerName))
@@ -49,7 +49,7 @@ func init() {
 			setEVPNLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
-			family = fs.String("family", "l2vpn/evpn", "Address family (l2vpn/evpn)")
+			family = fs.String("family", familyNameEVPN, "Address family (l2vpn/evpn)")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
 			return RunCLIDecode(hex, *family, text, out, errOut)

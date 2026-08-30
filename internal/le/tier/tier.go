@@ -16,7 +16,7 @@
 //
 // Plugin roots come from internal/le/pluginimports.PluginSearchRoots. This function
 // uses the composition-root generator's actual list. The replaced script parsed
-// the same list from internal/le/pluginimports/pluginimports.go. A direct call preserves
+// the same list from internal/le/plugin/imports/pluginimports.go. A direct call preserves
 // the guarantee and survives script deletion.
 //
 // Detail: gates.go -- the five checks --check runs

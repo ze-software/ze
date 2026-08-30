@@ -1,4 +1,4 @@
-// Design: independent RADIUS wire peer for the L2TP accounting scenario.
+// Design: docs/architecture/testing/interop.md -- independent RADIUS wire peer for the L2TP accounting scenario.
 // Related: RFC 2865 section 3 -- packet framing and response authenticator.
 // Related: RFC 2866 section 3 -- Accounting-Response packet framing.
 package main

@@ -15,6 +15,20 @@ var (
 	errMissingPartialInput = errors.New("missing partial input")
 )
 
+// The JSON keys the plugin and system RPC handlers answer with. One spelling
+// for each, so the two handler families cannot drift apart on a rename.
+const (
+	fieldArgs        = "args"
+	fieldCommand     = "command"
+	fieldCommands    = "commands"
+	fieldCompletions = "completions"
+	fieldCount       = "count"
+	fieldDescription = "description"
+	fieldMessage     = "message"
+	fieldSource      = "source"
+	fieldSubsystems  = "subsystems"
+)
+
 func init() {
 	RegisterRPCs(
 		RPCRegistration{WireMethod: "ze-plugin:help", Handler: handlePluginHelp},
@@ -29,7 +43,7 @@ func handlePluginHelp(_ *CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"subcommands": []string{"session", "command"},
+			"subcommands": []string{"session", fieldCommand},
 		},
 	}, nil
 }
@@ -41,8 +55,8 @@ func handlePluginCommandList(ctx *CommandContext, _ []string) (*plugin.Response,
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Registry().All() {
 			commands = append(commands, map[string]any{
-				"name":        cmd.Name,
-				"description": cmd.Description,
+				"name":           cmd.Name,
+				fieldDescription: cmd.Description,
 			})
 		}
 	}
@@ -50,7 +64,7 @@ func handlePluginCommandList(ctx *CommandContext, _ []string) (*plugin.Response,
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"commands": commands,
+			fieldCommands: commands,
 		},
 	}, nil
 }
@@ -71,10 +85,10 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 			return &plugin.Response{
 				Status: plugin.StatusDone,
 				Data: plugin.Map{
-					"command":     cmd.Name,
-					"description": cmd.Description,
-					"args":        cmd.Args,
-					"source":      cmd.Process.Name(),
+					fieldCommand:     cmd.Name,
+					fieldDescription: cmd.Description,
+					fieldArgs:        cmd.Args,
+					fieldSource:      cmd.Process.Name(),
 				},
 			}, nil
 		}
@@ -105,7 +119,7 @@ func handlePluginCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"completions": completions,
+			fieldCompletions: completions,
 		},
 	}, nil
 }

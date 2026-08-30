@@ -72,14 +72,14 @@ func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string)
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"subsystems": []any{}, "count": 0},
+			Data:   plugin.Map{keySubsystems: []any{}, keyCount: 0},
 		}, nil
 	}
 	pm := ctx.Server.ProcessManager()
 	if pm == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"subsystems": []any{}, "count": 0},
+			Data:   plugin.Map{keySubsystems: []any{}, keyCount: 0},
 		}, nil
 	}
 	// The dispatcher's registry is what command-count counts. A per-Process list
@@ -101,7 +101,7 @@ func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string)
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"subsystems": out, "count": len(out)},
+		Data:   plugin.Map{keySubsystems: out, keyCount: len(out)},
 	}, nil
 }
 

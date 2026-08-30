@@ -227,7 +227,7 @@ func lgGoldenRequest(t *testing.T, c lgHandlerCase) *http.Request {
 		body = strings.NewReader(c.Form)
 	}
 
-	req := httptest.NewRequest(c.Method, c.Target, body)
+	req := httptest.NewRequestWithContext(t.Context(), c.Method, c.Target, body)
 	if c.Form != "" {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}

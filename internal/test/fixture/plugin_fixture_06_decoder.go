@@ -21,7 +21,7 @@ func fixture06DecodeMPReach(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if result.Family != "ipv4/unicast" || result.NextHop != "192.168.1.1" {
+	if result.Family != familyIPv4Unicast || result.NextHop != "192.168.1.1" {
 		return fmt.Errorf("unexpected MP_REACH decode: family=%q next-hop=%q", result.Family, result.NextHop)
 	}
 	var nlri []string
@@ -46,7 +46,7 @@ func fixture06DecodeMPUnreach(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if result.Family != "ipv4/unicast" {
+	if result.Family != familyIPv4Unicast {
 		return fmt.Errorf("unexpected MP_UNREACH family %q", result.Family)
 	}
 	var nlri []string
@@ -136,7 +136,7 @@ func fixture06DiagCapture(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if start["action"] != "start" {
+	if start["action"] != actionStart {
 		return fmt.Errorf("capture raw start: action=%v", start["action"])
 	}
 	if _, ok := start["started"].([]any); !ok {
@@ -194,9 +194,7 @@ const fixture06DigitsMax = 20
 func fixture06ReadDigits(data []byte, at int, field string) (uint64, int, error) {
 	walk := at
 	limit := at + fixture06DigitsMax + 1
-	if limit > len(data) {
-		limit = len(data)
-	}
+	limit = min(limit, len(data))
 	for walk < limit && data[walk] >= '0' && data[walk] <= '9' {
 		walk++
 	}
@@ -260,7 +258,7 @@ func fixture06ReadFrameLine(data []byte, at int) (fixture06FrameLine, int, error
 		return line, at, io.ErrUnexpectedEOF
 	}
 	line.kind = string(data[at : at+3])
-	if line.kind != "top" && line.kind != "end" && line.kind != "nay" {
+	if line.kind != decoderKindTop && line.kind != decoderKindEnd && line.kind != decoderKindNay {
 		return line, at, fmt.Errorf("kind %q is not top, end or nay", line.kind)
 	}
 	at += 3
@@ -270,12 +268,12 @@ func fixture06ReadFrameLine(data []byte, at int) (fixture06FrameLine, int, error
 		return line, at, err
 	}
 	switch line.kind {
-	case "top":
+	case decoderKindTop:
 		if at+3 > len(data) {
 			return line, at, io.ErrUnexpectedEOF
 		}
 		line.item = string(data[at : at+3])
-		if line.item != "doc" && line.item != "map" && line.item != "tab" {
+		if line.item != shapeDoc && line.item != shapeMap && line.item != shapeTab {
 			return line, at, fmt.Errorf("item type %q is not doc, map or tab", line.item)
 		}
 		at += 3
@@ -292,7 +290,7 @@ func fixture06ReadFrameLine(data []byte, at int) (fixture06FrameLine, int, error
 			return line, at, err
 		}
 		line.columns, line.columnsCount, at, err = fixture06ReadText(data, at, "column names")
-	case "end":
+	case decoderKindEnd:
 		line.count, at, err = fixture06ReadNumber(data, at, "count")
 		if err == nil {
 			at, err = fixture06CloseField(data, at, "count")
@@ -306,7 +304,7 @@ func fixture06ReadFrameLine(data []byte, at int) (fixture06FrameLine, int, error
 		if err == nil {
 			line.message, line.messageCount, at, err = fixture06ReadText(data, at, "message")
 		}
-	case "nay":
+	case decoderKindNay:
 		line.code, line.codeCount, at, err = fixture06ReadText(data, at, "error code")
 		if err == nil {
 			at, err = fixture06CloseField(data, at, "error code")
@@ -382,11 +380,11 @@ func fixture06FrameCheck(_ context.Context, args []string) error {
 	var said string
 	switch args[0] {
 	case "document":
-		if err := fail(len(lines) == 2 && lines[0].kind == "top" && lines[1].kind == "end", "want top,end, got %v", lines); err != nil {
+		if err := fail(len(lines) == 2 && lines[0].kind == decoderKindTop && lines[1].kind == decoderKindEnd, "want top,end, got %v", lines); err != nil {
 			return err
 		}
 		head, tail := lines[0], lines[1]
-		if err := fail(head.item == "doc" && head.keyCount == 0 && head.key == "" && head.columnsCount == 0 && head.columns == "", "invalid document head: %+v", head); err != nil {
+		if err := fail(head.item == shapeDoc && head.keyCount == 0 && head.key == "" && head.columnsCount == 0 && head.columns == "", "invalid document head: %+v", head); err != nil {
 			return err
 		}
 		if err := fail(tail.count == 1 && tail.faults == 0 && tail.messageCount == 0 && tail.message == "", "invalid document tail: %+v", tail); err != nil {
@@ -394,18 +392,18 @@ func fixture06FrameCheck(_ context.Context, args []string) error {
 		}
 		said = "a built payload is framed `top doc 0: 0:` and `end 1 0 0:`"
 	case "streamed":
-		if err := fail(len(lines) == 2 && lines[0].kind == "top" && lines[1].kind == "end", "want top,end, got %v", lines); err != nil {
+		if err := fail(len(lines) == 2 && lines[0].kind == decoderKindTop && lines[1].kind == decoderKindEnd, "want top,end, got %v", lines); err != nil {
 			return err
 		}
 		head, tail := lines[0], lines[1]
-		if err := fail(head.item == "map" && head.key == "commands" && head.keyCount == uint64(len(head.key)) && head.columnsCount == 0 && head.columns == "", "invalid streamed head: %+v", head); err != nil {
+		if err := fail(head.item == shapeMap && head.key == fieldCommands && head.keyCount == uint64(len(head.key)) && head.columnsCount == 0 && head.columns == "", "invalid streamed head: %+v", head); err != nil {
 			return err
 		}
 		if err := fail(tail.count > 256 && tail.faults == 0, "invalid streamed tail: %+v", tail); err != nil {
 			return err
 		}
 		rendered := 0
-		for _, row := range bytes.Split(body, []byte{'\n'}) {
+		for row := range bytes.SplitSeq(body, []byte{'\n'}) {
 			if bytes.HasPrefix(row, []byte{'{'}) {
 				rendered++
 			}
@@ -414,8 +412,8 @@ func fixture06FrameCheck(_ context.Context, args []string) error {
 			return err
 		}
 		said = fmt.Sprintf("a walk of %d records is framed `top map 8:commands 0:` and counted on `end`", tail.count)
-	case "unknown":
-		if err := fail(len(lines) == 1 && lines[0].kind == "nay", "want one nay line, got %v", lines); err != nil {
+	case valueUnknown:
+		if err := fail(len(lines) == 1 && lines[0].kind == decoderKindNay, "want one nay line, got %v", lines); err != nil {
 			return err
 		}
 		nay := lines[0]
@@ -423,13 +421,13 @@ func fixture06FrameCheck(_ context.Context, args []string) error {
 			return err
 		}
 		said = "a command text naming no command is the whole answer: `nay 0: 15:unknown command`"
-	case "failed":
-		if err := fail(len(lines) == 2 && lines[0].kind == "top" && lines[1].kind == "end", "want top,end, got %v", lines); err != nil {
+	case outcomeFailed:
+		if err := fail(len(lines) == 2 && lines[0].kind == decoderKindTop && lines[1].kind == decoderKindEnd, "want top,end, got %v", lines); err != nil {
 			return err
 		}
 		head, tail := lines[0], lines[1]
 		characters := utf8.RuneCountInString(tail.message)
-		if err := fail(head.item == "doc" && tail.count == 0 && tail.faults == 0 && tail.message == "pki: certificate Жé not found" && tail.messageCount == uint64(len(tail.message)) && int(tail.messageCount) != characters, "invalid failed frame: head=%+v tail=%+v", head, tail); err != nil {
+		if err := fail(head.item == shapeDoc && tail.count == 0 && tail.faults == 0 && tail.message == "pki: certificate Жé not found" && tail.messageCount == uint64(len(tail.message)) && int(tail.messageCount) != characters, "invalid failed frame: head=%+v tail=%+v", head, tail); err != nil {
 			return err
 		}
 		said = fmt.Sprintf("a failed command states its message as %d BYTES, not the %d characters it decodes to", tail.messageCount, characters)

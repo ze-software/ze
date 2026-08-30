@@ -117,7 +117,7 @@ func TestConfigDiffChanged(t *testing.T) {
 	file1 := writeTestConfig(t, testConfigBase)
 	file2 := writeTestConfig(t, testConfigChanged)
 
-	code := cmdDiff([]string{"--json", file1, file2})
+	code := cmdDiff([]string{file1, file2})
 	assert.Equal(t, exitOK, code)
 }
 
@@ -129,7 +129,7 @@ func TestConfigDiffAdded(t *testing.T) {
 	file1 := writeTestConfig(t, testConfigBase)
 	file2 := writeTestConfig(t, testConfigAdded)
 
-	code := cmdDiff([]string{"--json", file1, file2})
+	code := cmdDiff([]string{file1, file2})
 	assert.Equal(t, exitOK, code)
 }
 
@@ -144,46 +144,26 @@ func TestConfigDiffMissingFile(t *testing.T) {
 	assert.Equal(t, exitError, code)
 }
 
-// TestConfigDiffJSON verifies JSON output matches ConfigDiff structure.
+// TestConfigDiffAnswersThreeKeyedSets verifies the answer `show config diff`
+// hands the pipe layer carries added, removed and changed.
 //
-// VALIDATES: AC-10 — JSON output has added/removed/changed keys.
-// PREVENTS: Malformed JSON diff output.
-func TestConfigDiffJSON(t *testing.T) {
+// VALIDATES: AC-10 — the diff payload has added/removed/changed keys.
+// PREVENTS: a renderer receiving a diff that names no change set, which every
+// pipe operator would then answer emptily.
+func TestConfigDiffAnswersThreeKeyedSets(t *testing.T) {
 	file1 := writeTestConfig(t, testConfigBase)
 	file2 := writeTestConfig(t, testConfigChanged)
 
-	// Capture stdout
-	old := os.Stdout
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-	os.Stdout = w
+	payload, code := dataDiff([]string{file1, file2})
+	require.Equal(t, exitOK, code)
+	require.NotNil(t, payload)
 
-	code := cmdDiff([]string{"--json", file1, file2})
-
-	if cerr := w.Close(); cerr != nil {
-		t.Logf("close write pipe: %v", cerr)
+	answer, ok := payload.(map[string]any)
+	require.True(t, ok, "the diff answered %T, not a document", payload)
+	for _, key := range []string{"added", "removed", "changed"} {
+		_, present := answer[key]
+		assert.True(t, present, "expected %q in the diff answer", key)
 	}
-	os.Stdout = old
-
-	assert.Equal(t, exitOK, code)
-
-	var buf [4096]byte
-	n, readErr := r.Read(buf[:])
-	require.NoError(t, readErr)
-	if cerr := r.Close(); cerr != nil {
-		t.Logf("close read pipe: %v", cerr)
-	}
-
-	var result map[string]any
-	require.NoError(t, json.Unmarshal(buf[:n], &result))
-
-	// Should have added, removed, changed keys
-	_, hasAdded := result["added"]
-	_, hasRemoved := result["removed"]
-	_, hasChanged := result["changed"]
-	assert.True(t, hasAdded, "expected 'added' key in JSON output")
-	assert.True(t, hasRemoved, "expected 'removed' key in JSON output")
-	assert.True(t, hasChanged, "expected 'changed' key in JSON output")
 }
 
 // The md5 password the diff fixture stores, and the value an operator rotates
@@ -266,6 +246,20 @@ bgp {
 }
 `
 
+// marshalDiffAnswer runs the diff answer `show config diff` registers and
+// answers it encoded, which is what the pipe layer renders.
+func marshalDiffAnswer(t *testing.T, file1, file2 string) (string, int) {
+	t.Helper()
+
+	payload, code := dataDiff([]string{file1, file2})
+	if payload == nil {
+		return "", code
+	}
+	encoded, err := json.Marshal(payload)
+	require.NoError(t, err)
+	return string(encoded), code
+}
+
 // captureDiffStdout runs fn with os.Stdout redirected and answers what it wrote.
 func captureDiffStdout(t *testing.T, fn func() int) (int, string) {
 	t.Helper()
@@ -308,10 +302,16 @@ func TestConfigDiffMasksASecret(t *testing.T) {
 		args []string
 	}{
 		{"text", []string{file1, file2}},
-		{"json", []string{"--json", file1, file2}},
+		{"data", nil},
 	} {
 		t.Run(shape.name, func(t *testing.T) {
-			code, out := captureDiffStdout(t, func() int { return cmdDiff(shape.args) })
+			var code int
+			var out string
+			if shape.args == nil {
+				out, code = marshalDiffAnswer(t, file1, file2)
+			} else {
+				code, out = captureDiffStdout(t, func() int { return cmdDiff(shape.args) })
+			}
 
 			assert.Equal(t, exitOK, code)
 			assert.Contains(t, out, "password",
@@ -334,9 +334,7 @@ func TestConfigDiffJSONNamesARotatedSecret(t *testing.T) {
 	file1 := writeTestConfig(t, testConfigSecretBase)
 	file2 := writeTestConfig(t, testConfigSecretRotated)
 
-	code, out := captureDiffStdout(t, func() int {
-		return cmdDiff([]string{"--json", file1, file2})
-	})
+	out, code := marshalDiffAnswer(t, file1, file2)
 	require.Equal(t, exitOK, code)
 
 	var decoded struct {

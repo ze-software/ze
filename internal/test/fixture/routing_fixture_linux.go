@@ -21,6 +21,8 @@ func init() {
 	Register("vrrp/vrrp-instance-up-driver", vrrpInstanceDriver)
 	Register("vrrp/vrrp-macvlan-parent-selector-setup", vrrpSelectorSetup)
 	Register("vrrp/vrrp-macvlan-parent-selector-driver", vrrpSelectorDriver)
+	Register("vrrp/vrrp-accept-mode-setup", vrrpAcceptModeSetup)
+	Register("vrrp/vrrp-accept-mode-driver", vrrpAcceptModeDriver)
 }
 
 func addRoutingLink(link netlink.Link) error {
@@ -42,7 +44,7 @@ func addRoutingAddress(link netlink.Link, cidr string) error {
 }
 
 func vrrpInstanceSetup(context.Context, []string) error {
-	if err := addRoutingLink(&netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: "zept0"}, PeerName: "zept0p"}); err != nil {
+	if err := addRoutingLink(&netlink.Veth{Name: "zept0", PeerName: "zept0p"}); err != nil {
 		return fmt.Errorf("add zept0 veth: %w", err)
 	}
 	parent, err := netlink.LinkByName("zept0")
@@ -84,6 +86,11 @@ func routingDaemonPID(ctx context.Context) (int, error) {
 	return pid, nil
 }
 
+// errLinkAbsent says no link carries the requested hardware address. Absence is
+// an expected state here: a fixture waits for a device to appear, and another
+// waits for it to go.
+var errLinkAbsent = errors.New("no link carries that hardware address")
+
 func routingLinkByMAC(mac string) (netlink.Link, error) {
 	links, err := netlink.LinkList()
 	if err != nil {
@@ -94,7 +101,7 @@ func routingLinkByMAC(mac string) (netlink.Link, error) {
 			return link, nil
 		}
 	}
-	return nil, nil
+	return nil, errLinkAbsent
 }
 
 func routingIPv4Addresses(link netlink.Link) (map[string]bool, error) {
@@ -130,7 +137,7 @@ func routingAnyAddress(addresses map[string]bool) (bool, error) {
 
 func vrrpInstanceDriver(ctx context.Context, _ []string) error {
 	const virtualMAC = "00:00:5e:00:01:0a"
-	vipSet := map[string]bool{"192.0.2.1": true, "192.0.2.2": true}
+	vipSet := map[string]bool{addrTestNet1First: true, addrTestNet1Second: true}
 	pid, err := routingDaemonPID(ctx)
 	if err != nil {
 		return err
@@ -141,7 +148,7 @@ func vrrpInstanceDriver(ctx context.Context, _ []string) error {
 		macvlan, lookupErr = routingLinkByMAC(virtualMAC)
 		return lookupErr == nil && macvlan != nil
 	}) {
-		if lookupErr != nil {
+		if lookupErr != nil && !errors.Is(lookupErr, errLinkAbsent) {
 			return fmt.Errorf("list links: %w", lookupErr)
 		}
 		return fmt.Errorf("macvlan with virtual MAC %s never appeared", virtualMAC)
@@ -164,7 +171,7 @@ func vrrpInstanceDriver(ctx context.Context, _ []string) error {
 	fmt.Println("VIPS-INSTALLED 192.0.2.1,192.0.2.2")
 
 	const emptyConfig = "interface {\n\tbackend netlink;\n\tethernet zept0 {\n\t\tunit 0 {\n\t\t\tipv4 {\n\t\t\t\taddress [ 192.0.2.251/24 ];\n\t\t\t}\n\t\t}\n\t}\n}\n"
-	if err := os.WriteFile("ze-bgp.conf", []byte(emptyConfig), 0o644); err != nil {
+	if err := os.WriteFile("ze-bgp.conf", []byte(emptyConfig), 0o600); err != nil {
 		return fmt.Errorf("rewrite config: %w", err)
 	}
 	process, err := os.FindProcess(pid)
@@ -177,7 +184,7 @@ func vrrpInstanceDriver(ctx context.Context, _ []string) error {
 	var vipPresent bool
 	if !Poll(ctx, 200, 100*time.Millisecond, func() bool {
 		macvlan, lookupErr = routingLinkByMAC(virtualMAC)
-		if lookupErr != nil {
+		if lookupErr != nil && !errors.Is(lookupErr, errLinkAbsent) {
 			return false
 		}
 		vipPresent, lookupErr = routingAnyAddress(vipSet)
@@ -207,7 +214,7 @@ func lenRoutingVIPs(installed, wanted map[string]bool) int {
 }
 
 func vrrpSelectorSetup(context.Context, []string) error {
-	if err := addRoutingLink(&netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: "zevrsel0"}, PeerName: "zevrsel0p"}); err != nil {
+	if err := addRoutingLink(&netlink.Veth{Name: "zevrsel0", PeerName: "zevrsel0p"}); err != nil {
 		return fmt.Errorf("add zevrsel0 veth: %w", err)
 	}
 	selected, err := netlink.LinkByName("zevrsel0")
@@ -234,7 +241,7 @@ func vrrpSelectorSetup(context.Context, []string) error {
 	if err := netlink.LinkSetUp(peer); err != nil {
 		return fmt.Errorf("bring zevrsel0p up: %w", err)
 	}
-	if err := addRoutingLink(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "zevrwan"}}); err != nil {
+	if err := addRoutingLink(&netlink.Dummy{Name: "zevrwan"}); err != nil {
 		return fmt.Errorf("add zevrwan decoy: %w", err)
 	}
 	decoy, err := netlink.LinkByName("zevrwan")
@@ -266,7 +273,7 @@ func vrrpSelectorDriver(ctx context.Context, _ []string) error {
 		macvlan, lookupErr = routingLinkByMAC(virtualMAC)
 		return lookupErr == nil && macvlan != nil
 	}) {
-		if lookupErr != nil {
+		if lookupErr != nil && !errors.Is(lookupErr, errLinkAbsent) {
 			return fmt.Errorf("list links: %w", lookupErr)
 		}
 		return fmt.Errorf("no device carrying the virtual MAC %s ever appeared; the group never started", virtualMAC)

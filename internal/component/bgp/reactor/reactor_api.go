@@ -1290,13 +1290,12 @@ func (a *reactorAPIAdapter) SignalPeerUpBarrier(peerAddr string) {
 // If msgType is 0, payload is a full BGP packet (user provides marker+header).
 // If msgType is non-zero, payload is message body (we add the header).
 //
-// A process must be ATTACHED to the peer, and that is the whole permission: raw
-// carries a message of the caller's choosing, so no `send` type describes it and
-// the guard asks the weaker question the vocabulary already supports
-// (send_permission.go, rawOrigin). It is strictly more than the nothing this
-// rail checked before, which let any connected process put arbitrary bytes,
-// a forged NOTIFICATION included, on any peer's socket. An operator is exempt,
-// as on every other rail, and an unnamed sender is refused.
+// The peer must attach the process with `send [ raw ]`, the word the owner added
+// to the send vocabulary on 2026-08-30 for a message of the caller's choosing
+// (send_permission.go, rawOrigin). Until then this rail was gated on ATTACHMENT
+// alone, which left a raw-capable binding invisible to the initial-sync barrier
+// that holds the peer's End-of-RIB. An operator is exempt, as on every other
+// rail, and an unnamed sender is refused.
 func (a *reactorAPIAdapter) SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte, sender plugin.Sender) error {
 	origin := rawOrigin(sender)
 	if !origin.sender.IsSet() {

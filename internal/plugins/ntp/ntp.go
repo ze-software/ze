@@ -119,7 +119,7 @@ func (w *syncWorker) run() {
 	// shared zefs store, not the (vestigial) path value.
 	if w.cfg.PersistPath != "" {
 		if t, err := loadTime(); err == nil {
-			if err := setClock(t); err != nil {
+			if err := setClock(t); err != nil { //nolint:staticcheck // SA4023 holds only on darwin: the !linux stub always errors, the linux implementation can return nil
 				logger.Warn("ntp: restore clock failed", "err", err)
 			} else {
 				logger.Info("ntp: clock restored from saved time", "time", t)
@@ -232,7 +232,7 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 
 	clockTime := time.Now().Add(best.Offset)
 	if action == actionSlew {
-		if err := slewClock(best.Offset); err != nil {
+		if err := slewClock(best.Offset); err != nil { //nolint:staticcheck // SA4023 holds only on darwin: the !linux stub always errors, the linux implementation can return nil
 			logger.Warn("ntp: slew failed, falling back to step", "server", best.Address, "err", err)
 			if err := setClockFn(clockTime); err != nil {
 				logger.Warn("ntp: set clock failed", "server", best.Address, "err", err)
@@ -260,7 +260,7 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 	}
 
 	// Write RTC if available.
-	if err := setRTC(clockTime); err != nil {
+	if err := setRTC(clockTime); err != nil { //nolint:staticcheck // SA4023 holds only on darwin: the !linux stub always errors, the linux implementation can return nil
 		logger.Debug("ntp: rtc write failed (non-fatal)", "err", err)
 	}
 
@@ -417,7 +417,7 @@ func parseNTPConfig(data string) (ntpConfig, error) {
 		return cfg, nil
 	}
 
-	if v, ok := ntpMap["enabled"].(string); ok {
+	if v, ok := ntpMap[fieldEnabled].(string); ok {
 		cfg.Enabled = v == "true"
 	}
 	if v, ok := ntpMap["interval"].(string); ok {

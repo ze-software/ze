@@ -15,7 +15,7 @@ func TestPlugin16L2TPTunnelPeerHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer server.Close()
+	defer server.Close() //nolint:errcheck // fixture teardown
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	serverErr := make(chan error, 1)
@@ -56,7 +56,11 @@ func TestPlugin16L2TPTunnelPeerHandshake(t *testing.T) {
 		cancel()
 	}()
 
-	port := strconv.Itoa(server.LocalAddr().(*net.UDPAddr).Port)
+	local, ok := server.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("a udp socket answered %T, want *net.UDPAddr", server.LocalAddr())
+	}
+	port := strconv.Itoa(local.Port)
 	if err := plugin16L2TPTunnelPeer(ctx, []string{port, "0x0123"}); err != nil {
 		t.Fatal(err)
 	}

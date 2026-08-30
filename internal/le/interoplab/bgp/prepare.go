@@ -46,8 +46,8 @@ environment {
 `
 
 var containerRoles = []string{
-	"ze", "frr", "bird", "gobgp", "bmp", "rpki", "inject", "speaker",
-	"speaker2", "keepalived", "stayrtr",
+	"ze", peerFRR, peerBIRD, peerGoBGP, peerBMP, peerRPKI, peerInject, peerSpeaker,
+	peerSpeaker2, peerKeepalived, peerStayRTR,
 }
 
 func scenarioPlans(root, producer, suffix string, sources []interoplab.ScenarioSource) ([]interoplab.ScenarioPlan, error) {
@@ -253,8 +253,8 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	}
 
 	if configContains(filepath.Join(scenario, "ze.conf"), "bmp {") {
-		peers = append(peers, interoplab.PeerConfig{Name: "bmp", Container: containerName("bmp", suffix), Image: "ze", Host: 6,
-			Arguments: []string{"--entrypoint", "ze-test"}, Command: []string{"interop-bgp", "bmp-collector"}})
+		peers = append(peers, interoplab.PeerConfig{Name: peerBMP, Container: containerName(peerBMP, suffix), Image: "ze", Host: 6,
+			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: []string{"interop-bgp", "bmp-collector"}})
 	}
 	if path := filepath.Join(scenario, "inject.msg"); regularFile(path) {
 		arguments, err := readArguments(scenario, "inject-args")
@@ -265,11 +265,11 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		command = append(command, "peer", "--port", "179", "--decode")
 		command = append(command, arguments...)
 		command = append(command, "/inject.msg")
-		peers = append(peers, interoplab.PeerConfig{Name: "inject", Container: containerName("inject", suffix), Image: "ze", Host: 9,
-			Mounts: []interoplab.Mount{mount(path, "/inject.msg")}, Arguments: []string{"--entrypoint", "ze-test"}, Command: command})
+		peers = append(peers, interoplab.PeerConfig{Name: peerInject, Container: containerName(peerInject, suffix), Image: "ze", Host: 9,
+			Mounts: []interoplab.Mount{mount(path, "/inject.msg")}, Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: command})
 	}
 	if path := filepath.Join(scenario, "vrps.json"); regularFile(path) {
-		peers = append(peers, interoplab.PeerConfig{Name: "stayrtr", Container: containerName("stayrtr", suffix), Image: "stayrtr", Host: 12,
+		peers = append(peers, interoplab.PeerConfig{Name: peerStayRTR, Container: containerName(peerStayRTR, suffix), Image: peerStayRTR, Host: 12,
 			Mounts: []interoplab.Mount{mount(path, "/vrps.json")}, Ready: ready("wget", "-q", "-O", "-", rendered.Str("http://127.0.0.1:").Int(stayRTRPort).Str("/rpki.json").String())})
 	}
 	if path := filepath.Join(scenario, "rpki-server"); regularFile(path) {
@@ -278,13 +278,13 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			return nil, err
 		}
 		command := append([]string{"rpki", "--bind", "0.0.0.0"}, arguments...)
-		peers = append(peers, interoplab.PeerConfig{Name: "rpki", Container: containerName("rpki", suffix), Image: "ze", Host: 7,
-			Arguments: []string{"--entrypoint", "ze-test"}, Command: command})
+		peers = append(peers, interoplab.PeerConfig{Name: peerRPKI, Container: containerName(peerRPKI, suffix), Image: "ze", Host: 7,
+			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: command})
 	}
 
 	zeMounts := []interoplab.Mount{mount(filepath.Join(scenario, "ze.conf"), "/etc/ze/bgp.conf")}
 	peers = append(peers, interoplab.PeerConfig{Name: "ze", Container: containerName("ze", suffix), Image: "ze", Host: 2,
-		Mounts: zeMounts, Capabilities: []string{"NET_ADMIN"}, Arguments: ipv6Sysctls(),
+		Mounts: zeMounts, Capabilities: []string{capabilityNetAdmin}, Arguments: ipv6Sysctls(),
 		Environment: []interoplab.EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: strconv.Itoa(int(timeout / time.Second))}},
 		Command:     []string{"start", "/etc/ze/bgp.conf"}, Ready: ready("true")})
 
@@ -292,7 +292,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		file string
 		name string
 		host uint8
-	}{{"speaker-args", "speaker", 10}, {"speaker2-args", "speaker2", 11}} {
+	}{{"speaker-args", peerSpeaker, 10}, {"speaker2-args", peerSpeaker2, 11}} {
 		path := filepath.Join(scenario, speaker.file)
 		if !regularFile(path) {
 			continue
@@ -303,30 +303,30 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		}
 		command := []string{
 			"interop-bgp",
-			"speaker",
+			zeTestCommandSpeaker,
 			"--connect",
 			rendered.Reset().Str(networkHostAddress(network, 2)).Str(":179").String(),
 		}
 		command = append(command, arguments...)
 		peers = append(peers, interoplab.PeerConfig{Name: speaker.name, Container: containerName(speaker.name, suffix), Image: "ze", Host: speaker.host,
-			Arguments: []string{"--entrypoint", "ze-test"}, Command: command})
+			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: command})
 	}
 	if path := filepath.Join(scenario, "frr.conf"); regularFile(path) {
-		peers = append(peers, interoplab.PeerConfig{Name: "frr", Container: containerName("frr", suffix), Image: "frr", Host: 3,
+		peers = append(peers, interoplab.PeerConfig{Name: peerFRR, Container: containerName(peerFRR, suffix), Image: peerFRR, Host: 3,
 			Mounts:       []interoplab.Mount{mount(path, "/etc/frr/frr.conf"), mount(filepath.Join(producer, "daemons"), "/etc/frr/daemons"), mount(filepath.Join(producer, "vtysh.conf"), "/etc/frr/vtysh.conf")},
-			Capabilities: []string{"NET_ADMIN", "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready("vtysh", "-c", "show version")})
+			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", "show version")})
 	}
 	if path := filepath.Join(scenario, "bird.conf"); regularFile(path) {
-		peers = append(peers, interoplab.PeerConfig{Name: "bird", Container: containerName("bird", suffix), Image: "bird", Host: 4,
-			Mounts: []interoplab.Mount{mount(path, "/etc/bird/bird.conf")}, Capabilities: []string{"NET_ADMIN"}, Ready: ready("birdc", "show status")})
+		peers = append(peers, interoplab.PeerConfig{Name: peerBIRD, Container: containerName(peerBIRD, suffix), Image: peerBIRD, Host: 4,
+			Mounts: []interoplab.Mount{mount(path, "/etc/bird/bird.conf")}, Capabilities: []string{capabilityNetAdmin}, Ready: ready(cmdBirdc, "show status")})
 	}
 	if path := filepath.Join(scenario, "keepalived.conf"); regularFile(path) {
-		peers = append(peers, interoplab.PeerConfig{Name: "keepalived", Container: containerName("keepalived", suffix), Image: "keepalived", Host: 8,
-			Mounts: []interoplab.Mount{mount(path, "/etc/keepalived/keepalived.conf")}, Capabilities: []string{"NET_ADMIN", "NET_RAW", "NET_BROADCAST"}, Arguments: ipv6Sysctls(), Ready: ready("ip", "link")})
+		peers = append(peers, interoplab.PeerConfig{Name: peerKeepalived, Container: containerName(peerKeepalived, suffix), Image: peerKeepalived, Host: 8,
+			Mounts: []interoplab.Mount{mount(path, "/etc/keepalived/keepalived.conf")}, Capabilities: []string{capabilityNetAdmin, "NET_RAW", "NET_BROADCAST"}, Arguments: ipv6Sysctls(), Ready: ready("ip", ipObjectLink)})
 	}
 	if path := filepath.Join(scenario, "gobgp.toml"); regularFile(path) {
-		peers = append(peers, interoplab.PeerConfig{Name: "gobgp", Container: containerName("gobgp", suffix), Image: "gobgp", Host: 5,
-			Mounts: []interoplab.Mount{mount(path, "/etc/gobgp/gobgp.toml")}, Capabilities: []string{"NET_ADMIN"}})
+		peers = append(peers, interoplab.PeerConfig{Name: peerGoBGP, Container: containerName(peerGoBGP, suffix), Image: peerGoBGP, Host: 5,
+			Mounts: []interoplab.Mount{mount(path, "/etc/gobgp/gobgp.toml")}, Capabilities: []string{capabilityNetAdmin}})
 	}
 	return peers, nil
 }
@@ -341,7 +341,7 @@ func regularFile(path string) bool {
 }
 
 func configContains(path, token string) bool {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path is a scenario config inside the tracked checkout
 	return err == nil && strings.Contains(string(data), token)
 }
 

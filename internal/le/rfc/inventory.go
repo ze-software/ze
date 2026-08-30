@@ -321,12 +321,23 @@ func isASCIISpace(c byte) bool {
 // Excluding the key-words paragraph then takes the obligation with it, and it
 // leaves no trace: the gate reads an RFC that asks for nothing.
 //
-// WHAT IT DOES NOT REACH, because the caller must not read it as a closed
-// bound. A chunk with no terminator leaves WHOLE with the obligation inside it.
-// An obligation BEFORE the key-words paragraph is never cut, because the
-// paragraph's own keyword listing sits to the left of an "interpreted as
-// described in" match and a left-hand cut would promote a listing to an
-// obligation.
+// A chunk with NO terminator is cut at the end of the boilerplate match when
+// its tail still carries a MUST-level keyword. Leaving it whole was an
+// under-count, and an under-count is the one direction that cannot be seen
+// downstream: the caller drops a boilerplate-matching sentence entire, so the
+// obligation left inside it never becomes a site, and the RFC reads as asking
+// for nothing. Over-counting is visible to a reviewer, who deletes a row;
+// under-counting is silent, and the gate cannot ask for evidence it never knew
+// was owed.
+//
+// The tail is required to carry a keyword before the cut is taken, so a chunk
+// that is only boilerplate is still dropped whole and no listing is promoted to
+// an obligation.
+//
+// WHAT IT DOES NOT REACH. An obligation BEFORE the key-words paragraph is never
+// cut, because the paragraph's own keyword listing sits to the left of an
+// "interpreted as described in" match and a left-hand cut would promote that
+// listing to an obligation.
 func splitOffBoilerplate(sentence string) []string {
 	var out []string
 	rest := sentence
@@ -337,6 +348,17 @@ func splitOffBoilerplate(sentence string) []string {
 		}
 		end, ok := boilerplateEnd(rest, loc[1])
 		if !ok {
+			// No terminator, so the sentence splitter fused the key-words paragraph
+			// to whatever follows. Cut at the end of the boilerplate match itself
+			// when the tail still states an obligation, so the obligation survives
+			// the exclusion the caller is about to apply.
+			if tail := strings.TrimSpace(rest[loc[1]:]); siteKeywordRE.MatchString(tail) {
+				if head := strings.TrimSpace(rest[:loc[1]]); head != "" {
+					out = append(out, head)
+				}
+				rest = tail
+				continue
+			}
 			break
 		}
 		// The cut can land inside a citation, and the quote a reviewer reads is

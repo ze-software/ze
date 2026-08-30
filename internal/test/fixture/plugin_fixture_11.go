@@ -49,35 +49,6 @@ func init() {
 	Register("plugin/prefix-filter-accept", routeCountAtLeastOne("test-prefix-accept", "OK: %d matching route(s) accepted by prefix-list"))
 }
 
-func observe11(ctx context.Context, name string, registration sdk.Registration, setup func(*sdk.Plugin), scenario ObserverScenario) error {
-	plugin, err := newObserver(name)
-	if err != nil {
-		return fmt.Errorf("connect observer %s: %w", name, err)
-	}
-	defer plugin.Close() //nolint:errcheck
-	if setup != nil {
-		setup(plugin)
-	}
-	result := make(chan error, 1)
-	plugin.OnAllPluginsReady(func() error {
-		go func() {
-			scenarioErr := invokeScenario(ctx, plugin, scenario)
-			result <- scenarioErr
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_, _, _ = plugin.DispatchCommand(shutdownCtx, "request shutdown")
-		}()
-		return nil
-	})
-	runErr := plugin.Run(ctx, registration)
-	select {
-	case scenarioErr := <-result:
-		return errors.Join(scenarioErr, runErr)
-	default:
-		return runErr
-	}
-}
-
 // runPlugin11 runs a scenario after startup and then remains connected until
 // the daemon sends its shutdown notification. Route-producing fixtures use
 // this path because their peer, rather than the plugin, decides when the test
@@ -87,7 +58,7 @@ func runPlugin11(ctx context.Context, name string, registration sdk.Registration
 	if err != nil {
 		return fmt.Errorf("connect plugin %s: %w", name, err)
 	}
-	defer plugin.Close() //nolint:errcheck
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 	if setup != nil {
 		setup(plugin)
 	}
@@ -150,7 +121,7 @@ func quiesce11(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if status != "done" {
+	if status != statusDone {
 		return fmt.Errorf("request quiesce status=%s", status)
 	}
 	return nil
@@ -164,7 +135,7 @@ func update11(ctx context.Context, plugin *sdk.Plugin, command string) error {
 func peerDetailReady(ctx context.Context, plugin *sdk.Plugin, attempts int, field string, predicate func(any) bool) bool {
 	return Poll(ctx, attempts, 250*time.Millisecond, func() bool {
 		status, data, err := dispatchMap11(ctx, plugin, "show bgp peer * detail")
-		if err != nil || status != "done" || data == nil {
+		if err != nil || status != statusDone || data == nil {
 			return false
 		}
 		peers, _ := data["peers"].(map[string]any)
@@ -244,15 +215,15 @@ func nexthopRoutes(ctx context.Context, _ []string) error {
 func refreshRoute(ctx context.Context, _ []string) error {
 	stateUp := make(chan struct{}, 1)
 	setup := func(p *sdk.Plugin) {
-		p.SetStartupSubscriptions([]string{"state"}, nil, "")
+		p.SetStartupSubscriptions([]string{eventState}, nil, "")
 		p.OnEvent(func(event string) error {
 			var doc map[string]any
 			if json.Unmarshal([]byte(event), &doc) != nil {
-				return nil
+				return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
 			}
 			bgp, _ := doc["bgp"].(map[string]any)
 			message, _ := bgp["message"].(map[string]any)
-			if message["type"] == "state" && bgp["state"] == "up" {
+			if message["type"] == eventState && bgp["state"] == "up" {
 				select {
 				case stateUp <- struct{}{}:
 				default:
@@ -275,12 +246,12 @@ func refreshRoute(ctx context.Context, _ []string) error {
 
 func registrationObserver(ctx context.Context, _ []string) error {
 	reg := sdk.Registration{
-		Families: []sdk.FamilyDecl{{Name: "ipv4/unicast", Mode: "both", AFI: 1, SAFI: 1}},
+		Families: []sdk.FamilyDecl{{Name: familyIPv4Unicast, Mode: modeBoth, AFI: 1, SAFI: 1}},
 		Commands: []sdk.CommandDecl{{Name: "show test-plugin registration"}},
 	}
 	return runPlugin11(ctx, "test-plugin", reg, nil, func(ctx context.Context, p *sdk.Plugin) error {
 		status, data, err := dispatchMap11(ctx, p, "system command list")
-		if err != nil || status != "done" {
+		if err != nil || status != statusDone {
 			return fmt.Errorf("system command list status=%s: %w", status, err)
 		}
 		commands, _ := data["commands"].([]any)
@@ -292,7 +263,7 @@ func registrationObserver(ctx context.Context, _ []string) error {
 		if !found {
 			return errors.New("declared command missing from the engine command list")
 		}
-		if !peerDetailReady(ctx, p, 60, "state", func(v any) bool { return v == "established" }) {
+		if !peerDetailReady(ctx, p, 60, "state", func(v any) bool { return v == stateEstablished }) {
 			return errors.New("peer never reached established")
 		}
 		if err := update11(ctx, p, "update text nlri ipv4/unicast eor"); err != nil {
@@ -314,9 +285,9 @@ func watchdogCommands(ctx context.Context, _ []string) error {
 			return err
 		}
 		for range 3 {
-			for _, command := range []string{"request bgp watchdog announce dnsr", "request bgp watchdog withdraw dnsr"} {
+			for _, command := range []string{"request bgp watchdog announce dnsr", cmdWatchdogWithdrawDNSR} {
 				status, _, err := p.DispatchCommand(ctx, command)
-				if err != nil || status != "done" {
+				if err != nil || status != statusDone {
 					return fmt.Errorf("%s status=%s: %w", command, status, err)
 				}
 				if err := quiesce11(ctx, p); err != nil {
@@ -331,7 +302,7 @@ func watchdogCommands(ctx context.Context, _ []string) error {
 func metricsOwned(ctx context.Context, _ []string) error {
 	return Observe(ctx, "metrics-list-test", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 		status, data, err := dispatchMap11(ctx, p, "show metrics list")
-		if err != nil || status != "done" {
+		if err != nil || status != statusDone {
 			return fmt.Errorf("show metrics list status=%s: %w", status, err)
 		}
 		names, ok := data["names"].([]any)
@@ -370,7 +341,7 @@ func metricsRegistered(ctx context.Context, _ []string) error {
 			ok := Poll(ctx, 40, 250*time.Millisecond, func() bool {
 				status, data, err := dispatchMap11(ctx, p, "show metrics name "+name)
 				count = metricSeriesCount(data)
-				return err == nil && status == "done" && count > 0
+				return err == nil && status == statusDone && count > 0
 			})
 			if !ok {
 				return fmt.Errorf("%s is absent from the metrics registry", name)
@@ -378,16 +349,50 @@ func metricsRegistered(ctx context.Context, _ []string) error {
 			fmt.Fprintf(os.Stderr, "OK: %s has %d series\n", name, count)
 		}
 		status, data, err := dispatchMap11(ctx, p, "show metrics name ze_peers_configured")
-		if err != nil || status != "done" || metricSeriesCount(data) == 0 {
+		if err != nil || status != statusDone || metricSeriesCount(data) == 0 {
 			return errors.New("reactor metrics missing too; telemetry is not enabled in this test")
 		}
-		return nil
+		return metricsLabelFilter11(ctx, p, "ze_peers_configured")
 	})
+}
+
+// metricsLabelFilter11 checks the two-token label filter of `show metrics name`
+// against a running daemon: a complete group filters, and a group that stops
+// short of its value is refused.
+//
+// The filter names a label no series carries, so it answers zero series. A
+// filter that never reached the handler answers every series of the metric,
+// which is what the retired `label=value` packing did to any token it could not
+// split (plan/spec-generated-command-usage.md).
+func metricsLabelFilter11(ctx context.Context, p *sdk.Plugin, metric string) error {
+	status, data, err := dispatchMap11(ctx, p, "show metrics name "+metric+" label nosuchlabel nosuchvalue")
+	if err != nil || status != statusDone {
+		return fmt.Errorf("label filter on %s: status=%s: %w", metric, status, err)
+	}
+	if count := metricSeriesCount(data); count != 0 {
+		return fmt.Errorf("label filter on %s matched %d series, want 0", metric, count)
+	}
+	fmt.Fprintf(os.Stderr, "OK: a label filter that matches nothing answers no series\n")
+
+	// A handler error arrives as a Go error beside the status, never in the
+	// data (dispatchCommandResult, pkg/plugin/sdk/sdk_engine.go).
+	status, _, err = p.DispatchCommand(ctx, "show metrics name "+metric+" label nosuchlabel")
+	if err == nil {
+		return fmt.Errorf("label with no value on %s: status=%s, want an error", metric, status)
+	}
+	if status != statusError {
+		return fmt.Errorf("label with no value on %s: status=%s: %w", metric, status, err)
+	}
+	if !strings.Contains(err.Error(), "label needs a key and a value") {
+		return fmt.Errorf("label with no value on %s said: %w", metric, err)
+	}
+	fmt.Fprintln(os.Stderr, "OK: a label with no value is refused")
+	return nil
 }
 
 func routeCount(ctx context.Context, p *sdk.Plugin, command string) (int, bool) {
 	status, data, err := dispatchMap11(ctx, p, command)
-	if err != nil || status != "done" || data == nil {
+	if err != nil || status != statusDone || data == nil {
 		return 0, false
 	}
 	value, ok := data["total-routes"].(float64)
@@ -474,7 +479,7 @@ const policyUpdate = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E0200000023400101004002
 
 func policyObserve(ctx context.Context, name string, fn func(context.Context, *sdk.Plugin) error) error {
 	return Observe(ctx, name, sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
-		if !peerDetailReady(ctx, plugin, 40, "state", func(value any) bool { return value == "established" }) {
+		if !peerDetailReady(ctx, plugin, 40, "state", func(value any) bool { return value == stateEstablished }) {
 			return errors.New("configured policy peer never reached established")
 		}
 		return fn(ctx, plugin)
@@ -484,7 +489,7 @@ func policyObserve(ctx context.Context, name string, fn func(context.Context, *s
 func policyChainNames(ctx context.Context, _ []string) error {
 	return policyObserve(ctx, "policy-chain-names", func(ctx context.Context, p *sdk.Plugin) error {
 		status, data, err := dispatchMap11(ctx, p, "show policy chain peer test-peer export")
-		if err != nil || status != "done" {
+		if err != nil || status != statusDone {
 			return fmt.Errorf("status=%s: %w", status, err)
 		}
 		chains, _ := data["chains"].([]any)
@@ -515,18 +520,18 @@ func policyConfiguredImport(ctx context.Context, _ []string) error {
 func policyDirection(ctx context.Context, name, direction string) error {
 	return policyObserve(ctx, name, func(ctx context.Context, p *sdk.Plugin) error {
 		status, data, err := dispatchMap11(ctx, p, "show policy test peer receiver-peer "+direction+" update "+policyUpdate)
-		if err != nil || status != "done" {
+		if err != nil || status != statusDone {
 			return fmt.Errorf("dry-run status=%s: %w", status, err)
 		}
 		if data["direction"] != direction {
 			return fmt.Errorf("direction=%v, want %s", data["direction"], direction)
 		}
 		action, _ := data["action"].(string)
-		if action != "accept" && action != "modify" && action != "reject" {
+		if action != actionAccept && action != "modify" && action != actionReject {
 			return fmt.Errorf("unexpected action: %s", action)
 		}
 		fmt.Printf("OK: show policy test %s returned action=%s direction=%s\n", direction, action, direction)
-		if direction == "export" {
+		if direction == directionExport {
 			trace, _ := data["trace"].([]any)
 			fmt.Printf("OK: trace entries: %d\n", len(trace))
 		}
@@ -534,22 +539,58 @@ func policyDirection(ctx context.Context, name, direction string) error {
 	})
 }
 
+// policyErrors proves the two handler-side error paths of `show policy test
+// peer`, and with them that a direction token reaches the handler as a
+// DIRECTION rather than as a filter name.
+//
+// Each case names the message it expects, because the message is what says who
+// answered. Argument validation runs before the handler, so a case that
+// accepted any error would pass on a refusal from the dispatcher and prove
+// nothing about the handler. The second command is the form the command's own
+// documentation states, and the dispatcher refuses it outright when the model
+// declares no direction leaf: `export` is then offered to the `filter` leaf,
+// whose own keyword has already taken a value, and the only definition left is
+// the source-asn4 enum (spec-generated-command-usage).
 func policyErrors(ctx context.Context, _ []string) error {
 	return policyObserve(ctx, "policy-test-errors", func(ctx context.Context, p *sdk.Plugin) error {
 		cases := []struct {
 			command string
 			label   string
+			want    string
 		}{
-			{"show policy test peer 192.0.2.99 export update " + policyUpdate, "peer not found"},
-			{"show policy test peer test-peer export filter NOPE update " + policyUpdate, "unknown filter"},
+			{"show policy test peer 192.0.2.99 export update " + policyUpdate, "peer not found", "peer not found"},
+			{"show policy test peer test-peer export filter NOPE update " + policyUpdate, "unknown filter", "filter not found in peer chain"},
 		}
 		for _, test := range cases {
 			status, _, dispatchErr := dispatchValue(ctx, p, test.command)
-			if status != "error" {
-				return fmt.Errorf("%s expected error, got %s", test.label, status)
+			if dispatchErr == nil {
+				return fmt.Errorf("%s was accepted, with status %s", test.label, status)
 			}
-			fmt.Printf("OK: %s rejected: %v\n", test.label, dispatchErr)
+			// A refusal from argument validation answers no status at all, so
+			// the status is what says who refused before the message does.
+			if status != statusError {
+				return fmt.Errorf("%s was refused before the handler ran, with status %q: %w", test.label, status, dispatchErr)
+			}
+			if !strings.Contains(dispatchErr.Error(), test.want) {
+				return fmt.Errorf("%s does not carry %q, so the handler did not answer: %w", test.label, test.want, dispatchErr)
+			}
+			fmt.Printf("OK: %s rejected by the handler: %v\n", test.label, dispatchErr)
 		}
+
+		// The model must REQUIRE the direction, because the handler does:
+		// parsePolicyTestArgs answers errMissingDirection without one. Declared
+		// mandatory, the leaf makes the dispatcher refuse the call before the
+		// handler runs, so the message this asks for is the dispatcher's. An
+		// optional leaf would leave the same command reaching the handler.
+		_, _, noDirectionErr := dispatchValue(ctx, p, "show policy test peer test-peer update "+policyUpdate)
+		if noDirectionErr == nil {
+			return errors.New("a call with no direction was accepted")
+		}
+		if !strings.Contains(noDirectionErr.Error(), "required argument missing: direction") {
+			return fmt.Errorf("the call with no direction was not refused for the missing direction: %w", noDirectionErr)
+		}
+		fmt.Printf("OK: a call with no direction is refused: %v\n", noDirectionErr)
+
 		fmt.Println("ALL PASS: policy test error paths")
 		return nil
 	})
@@ -567,7 +608,7 @@ func policyBadHex(ctx context.Context, _ []string) error {
 		}
 		for _, test := range cases {
 			status, _, dispatchErr := dispatchValue(ctx, p, "show policy test peer test-peer export update "+test.update)
-			if status != "error" {
+			if status != statusError {
 				return fmt.Errorf("%s was not rejected: %s", test.label, status)
 			}
 			fmt.Printf("OK: %s rejected: %v\n", test.label, dispatchErr)
@@ -580,7 +621,7 @@ func policyBadHex(ctx context.Context, _ []string) error {
 func policyRemovePrivateAS(ctx context.Context, _ []string) error {
 	return policyObserve(ctx, "policy-test-rpa", func(ctx context.Context, p *sdk.Plugin) error {
 		status, data, err := dispatchMap11(ctx, p, "show policy test peer test-peer export filter STRIP update "+policyUpdate)
-		if err != nil || status != "done" {
+		if err != nil || status != statusDone {
 			return fmt.Errorf("dry-run status=%s: %w", status, err)
 		}
 		if data["action"] != "modify" {
@@ -589,7 +630,7 @@ func policyRemovePrivateAS(ctx context.Context, _ []string) error {
 		changed, _ := data["changed-attrs"].([]any)
 		found := false
 		for _, attr := range changed {
-			found = found || attr == "as-path"
+			found = found || attr == fieldASPath
 		}
 		if !found {
 			return fmt.Errorf("as-path not in changed-attrs: %v", changed)
@@ -610,7 +651,7 @@ func policyAS4Suppress(ctx context.Context, _ []string) error {
 	return policyObserve(ctx, "policy-test-as4", func(ctx context.Context, p *sdk.Plugin) error {
 		command := "show policy test peer test-peer export filter STRIP update " + update + " source-asn4 false"
 		status, data, err := dispatchMap11(ctx, p, command)
-		if err != nil || status != "done" {
+		if err != nil || status != statusDone {
 			return fmt.Errorf("dry-run status=%s: %w", status, err)
 		}
 		changes, _ := data["wire-changes"].([]any)
@@ -630,8 +671,8 @@ func eofNoSpin(ctx context.Context, _ []string) error {
 	plugin := sdk.NewWithConn("eof-no-spin", pluginSide)
 	engineConn := rpc.NewConn(engineSide, engineSide)
 	engine := rpc.NewMuxConn(engineConn)
-	defer plugin.Close() //nolint:errcheck
-	defer engine.Close() //nolint:errcheck
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
+	defer engine.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
 	runResult := make(chan error, 1)
 	go func() { runResult <- plugin.Run(ctx, sdk.Registration{}) }()
@@ -700,7 +741,7 @@ func verifyCommandStream(_ context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck // fixture teardown
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 64*1024), 20*1024*1024)
 	seen := 0
@@ -747,7 +788,7 @@ func verifyEngineAnswer(_ context.Context, args []string) error {
 	if !ok {
 		return fmt.Errorf("answer carries unexpected keys: %v", doc)
 	}
-	if reading["type"] != "map" || reading["key"] != "commands" || reading["verdict"] != "done" {
+	if reading["type"] != shapeMap || reading["key"] != fieldCommands || reading["verdict"] != statusDone {
 		return fmt.Errorf("unexpected streamed answer: %v", reading)
 	}
 	rows, _ := reading["rows"].(float64)
@@ -817,7 +858,7 @@ func verifyPartialFault(_ context.Context, args []string) error {
 }
 
 func runCaptured(ctx context.Context, env []string, stdin string, argv ...string) (int, string, string, error) {
-	command := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	command := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = env
 	command.Stdin = strings.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
@@ -825,8 +866,7 @@ func runCaptured(ctx context.Context, env []string, stdin string, argv ...string
 	err := command.Run()
 	code := 0
 	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
+		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 			code = exit.ExitCode()
 		} else {
 			return -1, stdout.String(), stderr.String(), err

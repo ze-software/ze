@@ -1,4 +1,4 @@
-// Design: native accel-ppp and pppd Docker interop gate.
+// Design: docs/architecture/testing/interop.md -- native accel-ppp and pppd Docker interop gate.
 // Related: scenarios.go -- typed container plans for both PPPoE roles.
 // Related: check_client.go -- Ze client assertions against accel-ppp.
 // Related: check_ac.go -- Ze access-concentrator assertions against pppd.

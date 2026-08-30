@@ -35,6 +35,15 @@ const (
 	AFIBGPLS AFI = 16388 // BGP-LS - RFC 9552
 )
 
+// The name each AFI registers under. A registration passes one of these as its
+// afiName, and AFI.String() returns it once the family is registered.
+const (
+	afiNameIPv4  = "ipv4"
+	afiNameIPv6  = "ipv6"
+	afiNameL2VPN = "l2vpn"
+	afiNameBGPLS = "bgp-ls"
+)
+
 // String returns the registered name for this AFI, or "afi-N" if unregistered.
 func (a AFI) String() string {
 	if s := lookupAFIName(a); s != "" {

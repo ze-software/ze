@@ -1,4 +1,4 @@
-// Design: fail-closed peer queries and bounded PPPoE observations.
+// Design: docs/architecture/testing/interop.md -- fail-closed peer queries and bounded PPPoE observations.
 // Related: check_client.go -- accel-ppp checker.
 // Related: check_ac.go -- pppd checker.
 package pppoe

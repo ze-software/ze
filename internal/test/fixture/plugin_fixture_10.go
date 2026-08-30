@@ -48,35 +48,36 @@ func init() {
 		"plugin/peer-selector-name-and-ip":   {pluginName: "peer-selector", scenario: fixture10PeerSelectorNameIP},
 		"plugin/ping-show":                   {pluginName: "ping-show-test", scenario: fixture10PingShow},
 		"plugin/pki-certificate-export-show": {pluginName: "pki-export-show-test", scenario: fixture10PKIExport},
-		"plugin/plugin-announce":             {pluginName: "add-remove", scenario: fixture10PluginAnnounce},
-		"plugin/plugin-attributes":           {pluginName: "add-remove", scenario: fixture10PluginAttributes},
+		"plugin/plugin-announce":             {pluginName: pluginNameAddRemove, scenario: fixture10PluginAnnounce},
+		"plugin/plugin-attributes":           {pluginName: pluginNameAddRemove, scenario: fixture10PluginAttributes},
 		"plugin/plugin-command-completion": {
 			pluginName: "completion-test",
 			registration: sdk.Registration{Commands: []sdk.CommandDecl{
-				{Name: "show test-completion visible", Description: "Visible command"},
-				{Name: "show test-completion hidden", Description: "Hidden command", Hidden: true},
+				{Name: cmdShowTestCompletionVisible, Description: "Visible command"},
+				{Name: cmdShowTestCompletionHidden, Description: "Hidden command", Hidden: true},
 			}},
 			setup: fixture10CompletionSetup, scenario: fixture10CommandCompletion,
 		},
 	}
-	for name, observer := range observers {
-		observer := observer
+	// Each closure keeps its own copy of the driver, so the value is copied
+	// deliberately rather than indexed.
+	for name, observer := range observers { //nolint:gocritic // the registered closure outlives the iteration
 		Register(name, func(ctx context.Context, _ []string) error {
 			if observer.setup == nil {
 				return Observe(ctx, observer.pluginName, observer.registration, observer.scenario)
 			}
-			return fixture10Observe(ctx, observer)
+			return fixture10Observe(ctx, &observer)
 		})
 	}
 	Register("plugin/plugin-check", fixture10PluginCheck)
 }
 
-func fixture10Observe(ctx context.Context, driver fixture10Driver) error {
+func fixture10Observe(ctx context.Context, driver *fixture10Driver) error {
 	plugin, err := newObserver(driver.pluginName)
 	if err != nil {
 		return fmt.Errorf("connect observer %s: %w", driver.pluginName, err)
 	}
-	defer plugin.Close() //nolint:errcheck
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 	if driver.setup != nil {
 		driver.setup(plugin)
 	}
@@ -113,8 +114,8 @@ func fixture10Call(ctx context.Context, plugin *sdk.Plugin, command string) fixt
 }
 
 func (reply fixture10Reply) requireDone(label string) error {
-	if reply.err != nil || reply.status != "done" {
-		return fmt.Errorf("%s: status=%q data=%s error=%v", label, reply.status, reply.raw, reply.err)
+	if reply.err != nil || reply.status != statusDone {
+		return fmt.Errorf("%s: status=%q data=%s error=%w", label, reply.status, reply.raw, reply.err)
 	}
 	return nil
 }
@@ -264,7 +265,7 @@ func fixture10MonitorBasic(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if data["status"] != "monitor-configured" {
+	if data["status"] != statusMonitorConfigured {
 		return fmt.Errorf("monitor bgp: expected monitor-configured, got %v", data["status"])
 	}
 	fmt.Fprintln(os.Stderr, "OK: monitor returned status=monitor-configured")
@@ -285,8 +286,8 @@ func fixture10MonitorEvents(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	foundUpdate, foundState := false, false
 	for _, event := range events {
-		foundUpdate = foundUpdate || event == "update"
-		foundState = foundState || event == "state"
+		foundUpdate = foundUpdate || event == eventUpdate
+		foundState = foundState || event == eventState
 	}
 	if !foundUpdate || !foundState {
 		return fmt.Errorf("monitor bgp event: expected update and state, got %v", events)
@@ -303,7 +304,7 @@ func fixture10MonitorPeer(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if data["peer"] != "10.0.0.1" {
+	if data["peer"] != addrPeerOne {
 		return fmt.Errorf("monitor bgp peer: expected 10.0.0.1, got %v", data["peer"])
 	}
 	fmt.Fprintln(os.Stderr, "OK: monitor peer=10.0.0.1")
@@ -320,18 +321,18 @@ func fixture10MonitorSystemNetlink(ctx context.Context, plugin *sdk.Plugin) erro
 	if err != nil {
 		return err
 	}
-	if data["status"] != "monitor-configured" || data["group"] != "all" {
+	if data["status"] != statusMonitorConfigured || data["group"] != "all" {
 		return fmt.Errorf("netlink monitor: expected status=monitor-configured group=all, got %v", data)
 	}
 	route, err := fixture10Object(fixture10Call(ctx, plugin, "monitor system netlink route"), "netlink route monitor")
 	if err != nil {
 		return err
 	}
-	if route["group"] != "route" {
+	if route["group"] != groupRoute {
 		return fmt.Errorf("netlink route monitor: expected group=route, got %v", route["group"])
 	}
 	bogus := fixture10Call(ctx, plugin, "monitor system netlink bogus")
-	if bogus.status != "error" && bogus.err == nil {
+	if bogus.status != statusError && bogus.err == nil {
 		return fmt.Errorf("netlink bogus group: expected error, got status=%q data=%s", bogus.status, bogus.raw)
 	}
 	fmt.Fprintln(os.Stderr, "OK: monitor system netlink all/route/bogus contracts held")
@@ -340,9 +341,9 @@ func fixture10MonitorSystemNetlink(ctx context.Context, plugin *sdk.Plugin) erro
 
 func fixture10Probe(ctx context.Context, plugin *sdk.Plugin, command, label string) error {
 	reply := fixture10Call(ctx, plugin, command)
-	if reply.status == "error" || reply.err != nil {
+	if reply.status == statusError || reply.err != nil {
 		if reply.err == nil || !strings.Contains(reply.err.Error(), "CAP_NET_RAW") {
-			return fmt.Errorf("%s: unexpected error (want CAP_NET_RAW): %v", label, reply.err)
+			return fmt.Errorf("%s: unexpected error (want CAP_NET_RAW): %w", label, reply.err)
 		}
 		fmt.Fprintf(os.Stderr, "OK: %s wired; raw ICMP needs CAP_NET_RAW: %v\n", label, reply.err)
 		return nil
@@ -356,7 +357,7 @@ func fixture10Probe(ctx context.Context, plugin *sdk.Plugin, command, label stri
 		return fmt.Errorf("%s: expected non-empty hops, got %v", label, data["hops"])
 	}
 	hop, ok := hops[0].(map[string]any)
-	if !ok || fixture10Number(hop["ttl"]) != 1 || hop["addr"] != "127.0.0.1" {
+	if !ok || fixture10Number(hop["ttl"]) != 1 || hop["addr"] != addrLoopback {
 		return fmt.Errorf("%s: invalid first hop: %v", label, hops[0])
 	}
 	for _, field := range []string{"ttl", "addr", "rtt-ms"} {
@@ -378,6 +379,12 @@ func fixture10MonitorTraceroute(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func fixture10MPLSForwardingShow(ctx context.Context, plugin *sdk.Plugin) error {
+	// The .ci expects ze's initial-sync End-of-RIB on the peer. Returning before
+	// it is on the wire lets ze shut down first, and the peer then reads the
+	// Cease NOTIFICATION where the marker should be.
+	if err := fixture10WaitEOR(ctx, plugin, "peer1", 60); err != nil {
+		return err
+	}
 	data, err := fixture10Object(fixture10Call(ctx, plugin, "show mpls forwarding"), "mpls-forwarding")
 	if err != nil {
 		return err
@@ -484,7 +491,7 @@ func fixture10Multipath(ctx context.Context, plugin *sdk.Plugin) error {
 	}) {
 		return fmt.Errorf("10.1.0.0/24 never formed a two-path multipath entry")
 	}
-	peers := found["multipath-peers"].([]any)
+	peers, _ := found["multipath-peers"].([]any)
 	fmt.Fprintf(os.Stderr, "OK: multipath: best=%v, siblings=%v\n", found["best-peer"], peers)
 	return fixture10WaitEOR(ctx, plugin, "peer1", 40)
 }
@@ -594,7 +601,7 @@ func fixture10OriginatedNextHop(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := announce("203.0.113.1", "10.0.0.0/24"); err != nil {
 		return err
 	}
-	if !Poll(ctx, 40, fixture10PollDelay, func() bool { count, ok := peerUpdates(); return ok && count >= before+1 }) {
+	if !Poll(ctx, 40, fixture10PollDelay, func() bool { count, ok := peerUpdates(); return ok && count > before }) {
 		return fmt.Errorf("peer was never sent the route before the withheld one")
 	}
 	middle, _ := peerUpdates()
@@ -604,7 +611,7 @@ func fixture10OriginatedNextHop(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := announce("203.0.113.1", "10.2.0.0/24"); err != nil {
 		return err
 	}
-	if !Poll(ctx, 40, fixture10PollDelay, func() bool { count, ok := peerUpdates(); return ok && count >= middle+1 }) {
+	if !Poll(ctx, 40, fixture10PollDelay, func() bool { count, ok := peerUpdates(); return ok && count > middle }) {
 		return fmt.Errorf("peer was never sent the route after the withheld one")
 	}
 	fmt.Fprintln(os.Stderr, "OK: peer received the routes before and after the withheld route")
@@ -621,7 +628,7 @@ func fixture10OpenInEstablished(ctx context.Context, plugin *sdk.Plugin) error {
 			return false
 		}
 		text, _ := data["metrics"].(string)
-		for _, line := range strings.Split(text, "\n") {
+		for line := range strings.SplitSeq(text, "\n") {
 			if strings.HasPrefix(line, metric) {
 				observed = line
 				return strings.HasSuffix(line, " 1")
@@ -657,24 +664,24 @@ func fixture10PeerSelectorNameIP(ctx context.Context, plugin *sdk.Plugin) error 
 }
 
 func fixture10PingCAPError(reply fixture10Reply, label string) error {
-	if reply.status != "error" && reply.err == nil {
+	if reply.status != statusError && reply.err == nil {
 		return fmt.Errorf("%s: expected error, got status=%q data=%s", label, reply.status, reply.raw)
 	}
 	if reply.err == nil || !strings.Contains(reply.err.Error(), "CAP_NET_RAW") {
-		return fmt.Errorf("%s: unexpected error (want CAP_NET_RAW): %v", label, reply.err)
+		return fmt.Errorf("%s: unexpected error (want CAP_NET_RAW): %w", label, reply.err)
 	}
 	return nil
 }
 
 func fixture10PingShow(ctx context.Context, plugin *sdk.Plugin) error {
 	plain := fixture10Call(ctx, plugin, "show ping 127.0.0.1 count 1 timeout 2s")
-	if plain.status == "done" && plain.err == nil {
+	if plain.status == statusDone && plain.err == nil {
 		data, err := fixture10Object(plain, "ping")
 		if err != nil {
 			return err
 		}
 		replies, ok := data["replies"].([]any)
-		if data["destination"] != "127.0.0.1" || fixture10Number(data["sent"]) != 1 || fixture10Number(data["received"]) != 1 || !ok || len(replies) != 1 {
+		if data["destination"] != addrLoopback || fixture10Number(data["sent"]) != 1 || fixture10Number(data["received"]) != 1 || !ok || len(replies) != 1 {
 			return fmt.Errorf("ping: unexpected loopback result: %v", data)
 		}
 		reply, ok := replies[0].(map[string]any)
@@ -686,22 +693,22 @@ func fixture10PingShow(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 
 	sized := fixture10Call(ctx, plugin, "show ping 127.0.0.1 count 1 size 1400 timeout 2s")
-	if sized.status != "done" || sized.err != nil {
+	if sized.status != statusDone || sized.err != nil {
 		if err := fixture10PingCAPError(sized, "ping size 1400"); err != nil {
 			return err
 		}
 	}
 
 	rejected := fixture10Call(ctx, plugin, "show ping 127.0.0.1 count 1 size 99999 timeout 2s")
-	if rejected.status != "error" && rejected.err == nil {
+	if rejected.status != statusError && rejected.err == nil {
 		return fmt.Errorf("ping size: expected error for 99999")
 	}
 	if rejected.err == nil || !strings.Contains(rejected.err.Error(), "65507") {
-		return fmt.Errorf("ping size: expected bound naming 65507, got %v", rejected.err)
+		return fmt.Errorf("ping size: expected bound naming 65507, got %w", rejected.err)
 	}
 
 	batch := fixture10Call(ctx, plugin, "show ping 127.0.0.1 count 3 timeout 2s")
-	if batch.status == "done" && batch.err == nil {
+	if batch.status == statusDone && batch.err == nil {
 		data, err := fixture10Object(batch, "ping batch")
 		if err != nil {
 			return err
@@ -761,7 +768,7 @@ func fixture10PKIExport(ctx context.Context, plugin *sdk.Plugin) error {
 		return fmt.Errorf("ca-pem: missing certificate header")
 	}
 	caBundle := fixture10Call(ctx, plugin, "show pki certificate name test-ca bundle pem")
-	if caBundle.status != "error" && caBundle.err == nil {
+	if caBundle.status != statusError && caBundle.err == nil {
 		return fmt.Errorf("ca-bundle: expected error for CA certificate")
 	}
 	fmt.Fprintln(os.Stderr, "OK: PKI PEM, bundle, fingerprint, CA, and CA refusal contracts held")
@@ -770,7 +777,7 @@ func fixture10PKIExport(ctx context.Context, plugin *sdk.Plugin) error {
 
 func fixture10PluginAnnounce(ctx context.Context, plugin *sdk.Plugin) error {
 	for _, command := range []string{
-		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24",
+		cmdAnnounceFirstPrefix,
 		"update text nhop 101.1.101.1 nlri ipv4/unicast add 1.2.0.0/25",
 	} {
 		if err := fixture10Update(ctx, plugin, "*", command); err != nil {
@@ -797,12 +804,12 @@ func fixture10PluginAttributes(ctx context.Context, plugin *sdk.Plugin) error {
 func fixture10CompletionSetup(plugin *sdk.Plugin) {
 	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
 		switch command {
-		case "show test-completion visible":
-			return "done", map[string]any{"result": "visible-ok"}, nil
-		case "show test-completion hidden":
-			return "done", map[string]any{"result": "hidden-ok"}, nil
+		case cmdShowTestCompletionVisible:
+			return statusDone, map[string]any{"result": "visible-ok"}, nil
+		case cmdShowTestCompletionHidden:
+			return statusDone, map[string]any{"result": "hidden-ok"}, nil
 		default:
-			return "error", nil, fmt.Errorf("unknown command %q", command)
+			return statusError, nil, fmt.Errorf("unknown command %q", command)
 		}
 	})
 }
@@ -826,12 +833,12 @@ func fixture10CommandCompletion(ctx context.Context, plugin *sdk.Plugin) error {
 			continue
 		}
 		switch command["value"] {
-		case "show test-completion visible":
+		case cmdShowTestCompletionVisible:
 			visibleCount++
 			if hidden, _ := command["hidden"].(bool); hidden {
 				return fmt.Errorf("visible command marked hidden")
 			}
-		case "show test-completion hidden":
+		case cmdShowTestCompletionHidden:
 			hiddenCount++
 			if hidden, _ := command["hidden"].(bool); !hidden {
 				return fmt.Errorf("hidden command not marked hidden")
@@ -850,21 +857,21 @@ func fixture10PluginCheck(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer plugin.Close() //nolint:errcheck
+	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 	matched := make(chan struct{}, 1)
 	result := make(chan error, 1)
-	plugin.SetStartupSubscriptions([]string{"update"}, nil, "parsed")
+	plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
 	plugin.SetEncoding("json")
 	plugin.OnEvent(func(event string) error {
 		var root map[string]any
 		if json.Unmarshal([]byte(event), &root) != nil {
-			return nil
+			return nil //nolint:nilerr // a malformed event is skipped, and failing the handler would end the session
 		}
 		bgp, _ := root["bgp"].(map[string]any)
 		message, _ := bgp["message"].(map[string]any)
 		peer, _ := bgp["peer"].(map[string]any)
 		remote, _ := peer["remote"].(map[string]any)
-		if message["type"] != "update" || remote["address"] != "127.0.0.1" {
+		if message["type"] != eventUpdate || remote["address"] != addrLoopback {
 			return nil
 		}
 		update, _ := bgp["update"].(map[string]any)

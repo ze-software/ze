@@ -51,6 +51,29 @@ const (
 	serialReadSize        = 4096
 )
 
+// goosDarwin is the one runtime.GOOS this harness branches on. It has no
+// /dev/kvm, so it selects the Apple hypervisor, and its QEMU firmware and
+// tooling arrive through a Homebrew prefix rather than a system path.
+const goosDarwin = "darwin"
+
+// The QEMU accelerators the harness asks for. hvf is the Apple hypervisor, kvm
+// is the Linux one, and tcg is the software emulator that both fall back to.
+const (
+	acceleratorHVF = "hvf"
+	acceleratorKVM = "kvm"
+	acceleratorTCG = "tcg"
+)
+
+// The QEMU system emulator that boots each target architecture.
+const (
+	qemuSystemARM64 = "qemu-system-aarch64"
+	qemuSystemAMD64 = "qemu-system-x86_64"
+)
+
+// envTypeString is the env.EnvEntry Type of a setting this package uses as
+// written, with no parse (internal/core/env/registry.go, EnvEntry.Type).
+const envTypeString = "string"
+
 const (
 	runMemoryKey  = "ze.qemu.memory"
 	runCPUsKey    = "ze.qemu.cpus"
@@ -62,7 +85,7 @@ const (
 
 func runSetting(key, fallback, description string) env.EnvEntry {
 	return env.MustRegister(env.EnvEntry{
-		Key: key, Type: "string", Default: fallback, Description: description, Private: true,
+		Key: key, Type: envTypeString, Default: fallback, Description: description, Private: true,
 	})
 }
 
@@ -383,9 +406,9 @@ func runAlpineArch(goarch string) string {
 
 func runQEMUBinary(goarch string) string {
 	if goarch == ArchARM64 {
-		return "qemu-system-aarch64"
+		return qemuSystemARM64
 	}
-	return "qemu-system-x86_64"
+	return qemuSystemAMD64
 }
 
 func (r *Run) ensureScratch() error {
@@ -522,9 +545,9 @@ func shellQuote(value string) string {
 }
 
 func (r *Run) setupCommand() (string, error) {
-	arch := "amd64"
+	arch := ArchAMD64
 	if runAlpineArch(r.ops.GOARCH) == "aarch64" {
-		arch = "arm64"
+		arch = ArchARM64
 	}
 	var b textbuf.Buffer
 	repositories := b.Str("printf 'https://dl-cdn.alpinelinux.org/alpine/v").Str(AlpineVersion).

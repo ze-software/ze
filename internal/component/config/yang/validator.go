@@ -288,6 +288,10 @@ func (v *Validator) validateString(path string, yangType *yang.YangType, value a
 	return nil
 }
 
+// msgExpectedUnsigned is the diagnostic every rejected unsigned value carries.
+// One spelling keeps the four branches of validateUnsigned reporting one error.
+const msgExpectedUnsigned = "expected unsigned integer"
+
 // validateUnsigned validates unsigned integer against YangType.
 // Accepts numeric types and strings (config values often arrive as strings).
 func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value any) error {
@@ -306,7 +310,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 			return &ValidationError{
 				Path:     path,
 				Type:     ErrTypeType,
-				Message:  "expected unsigned integer",
+				Message:  msgExpectedUnsigned,
 				Expected: yangType.Name,
 				Got:      strconv.Itoa(n),
 			}
@@ -317,7 +321,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 			return &ValidationError{
 				Path:     path,
 				Type:     ErrTypeType,
-				Message:  "expected unsigned integer",
+				Message:  msgExpectedUnsigned,
 				Expected: yangType.Name,
 				Got:      strconv.Itoa(int(n)),
 			}
@@ -328,7 +332,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 			return &ValidationError{
 				Path:     path,
 				Type:     ErrTypeType,
-				Message:  "expected unsigned integer",
+				Message:  msgExpectedUnsigned,
 				Expected: yangType.Name,
 				Got:      fmt.Sprintf("%v", n),
 			}
@@ -351,7 +355,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 		return &ValidationError{
 			Path:     path,
 			Type:     ErrTypeType,
-			Message:  "expected unsigned integer",
+			Message:  msgExpectedUnsigned,
 			Expected: yangType.Name,
 			Got:      fmt.Sprintf("%T", value),
 		}

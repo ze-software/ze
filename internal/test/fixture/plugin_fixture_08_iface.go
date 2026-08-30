@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ func init() {
 	registerPlugin08("plugin/iface-ensure-rollback", "iface-ensure-rollback", ifaceEnsureRollback08)
 	registerPlugin08("plugin/iface-learned-route-metric", "iface-learned-route-metric", ifaceLearnedRouteMetric08)
 	registerPlugin08("plugin/iface-mac-match-address-apply", "iface-mac-match-address-apply", ifaceMACMatch08)
+	registerPlugin08("plugin/iface-migrate", "iface-migrate", ifaceMigrate08)
 	registerPlugin08("plugin/iface-osname-alias-apply", "iface-osname-alias-apply", ifaceOSName08)
 	registerPlugin08("plugin/iface-route-protocol-name", "iface-route-protocol-name", ifaceRouteProtocol08)
 	registerPlugin08("plugin/iface-tunnel-kinds", "iface-tunnel-kinds-test", ifaceTunnelKinds08)
@@ -68,12 +70,7 @@ func addresses08(ctx context.Context, device string) []string {
 }
 
 func containsString08(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, wanted)
 }
 
 func ifaceBridgeMACMatch08(ctx context.Context, p *sdk.Plugin) error {
@@ -129,9 +126,15 @@ func status08(ctx context.Context, p *sdk.Plugin, command string) (string, strin
 	return status, string(raw) + fmt.Sprint(err)
 }
 
-func pollStatus08(ctx context.Context, p *sdk.Plugin, command, wanted string, attempts int) (string, string) {
+// statusPollAttempts bounds every wait in this file at ten seconds, which is
+// the netlink round trip an interface verb completes asynchronously plus a wide
+// margin for a loaded VM. Every caller wants that same bound, so it is stated
+// once here rather than repeated at each call.
+const statusPollAttempts = 40
+
+func pollStatus08(ctx context.Context, p *sdk.Plugin, command, wanted string) (string, string) {
 	var status, message string
-	Poll(ctx, attempts, 250*time.Millisecond, func() bool {
+	Poll(ctx, statusPollAttempts, 250*time.Millisecond, func() bool {
 		status, message = status08(ctx, p, command)
 		return status == wanted
 	})
@@ -140,15 +143,15 @@ func pollStatus08(ctx context.Context, p *sdk.Plugin, command, wanted string, at
 
 func ifaceEnsureRollback08(ctx context.Context, p *sdk.Plugin) error {
 	present := func(name, why string) error {
-		status, message := pollStatus08(ctx, p, "show interface name "+name+" detail", "done", 40)
-		if status != "done" {
+		status, message := pollStatus08(ctx, p, "show interface name "+name+" detail", "done")
+		if status != statusDone {
 			return fmt.Errorf("%s: expected %s to exist: status=%s %s", why, name, status, message)
 		}
 		return nil
 	}
 	absent := func(name, why string) error {
-		status, message := pollStatus08(ctx, p, "show interface name "+name+" detail", "error", 40)
-		if status != "error" {
+		status, message := pollStatus08(ctx, p, "show interface name "+name+" detail", "error")
+		if status != statusError {
 			return fmt.Errorf("%s: expected %s absent: status=%s %s", why, name, status, message)
 		}
 		return nil
@@ -156,7 +159,7 @@ func ifaceEnsureRollback08(ctx context.Context, p *sdk.Plugin) error {
 	done := func(command string) error { _, err := requireDone08(ctx, p, command); return err }
 	errorOnce := func(command string) error {
 		status, message := status08(ctx, p, command)
-		if status != "error" {
+		if status != statusError {
 			return fmt.Errorf("%q: expected status=error for VLAN 9999, got %s %s", command, status, message)
 		}
 		return nil
@@ -243,8 +246,8 @@ func ifaceLearnedRouteMetric08(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("ze installs learned routes at metric 0, the static metric")
 	}
 	dev := "zermetric0"
-	defer runCommand08(context.Background(), false, "ip", "link", "del", dev)
-	commands := [][]string{{"link", "add", dev, "type", "dummy"}, {"address", "add", "198.51.100.193/28", "dev", dev}, {"link", "set", dev, "up"}, {"route", "replace", "203.0.113.192/28", "via", "198.51.100.194", "dev", dev, "proto", "static", "metric", "0"}, {"route", "replace", "203.0.113.192/28", "via", "198.51.100.195", "dev", dev, "proto", "253", "metric", strconv.Itoa(metric)}}
+	defer runCommand08(context.Background(), false, "ip", "link", "del", dev) //nolint:errcheck // best-effort cleanup
+	commands := [][]string{{ipObjectLink, argAdd, dev, argType, ipTypeDummy}, {ipObjectAddress, argAdd, "198.51.100.193/28", ipWordDev, dev}, {ipObjectLink, ipWordSet, dev, "up"}, {ipObjectRoute, "replace", "203.0.113.192/28", ipWordVia, "198.51.100.194", ipWordDev, dev, ipWordProto, "static", ipWordMetric, "0"}, {ipObjectRoute, "replace", "203.0.113.192/28", ipWordVia, "198.51.100.195", ipWordDev, dev, ipWordProto, "253", ipWordMetric, strconv.Itoa(metric)}}
 	for _, args := range commands {
 		if _, _, err := runCommand08(ctx, true, "ip", args...); err != nil {
 			return err
@@ -293,6 +296,118 @@ func ifaceMACMatch08(ctx context.Context, p *sdk.Plugin) error {
 	return nil
 }
 
+// detailCarries08 answers nil when `show interface name <name> detail` reports
+// the address, and an error naming what it reported instead.
+//
+// It reads Ze's own producer rather than `ip -j addr show`, so it needs no
+// iproute2 in the guest and it asserts what an operator would see. The poll
+// covers the netlink round trip the address add completes asynchronously.
+func detailCarries08(ctx context.Context, p *sdk.Plugin, name, address string, prefixLength float64) error {
+	var addresses []any
+	if Poll(ctx, statusPollAttempts, 250*time.Millisecond, func() bool {
+		raw, err := requireDone08(ctx, p, "show interface name "+name+" detail")
+		if err != nil {
+			return false
+		}
+		info, err := object08(raw)
+		if err != nil {
+			return false
+		}
+		addresses, _ = info["addresses"].([]any)
+		for _, value := range addresses {
+			row, _ := value.(map[string]any)
+			if row["address"] == address && number08(row["prefix-length"]) == prefixLength {
+				return true
+			}
+		}
+		return false
+	}) {
+		return nil
+	}
+	return fmt.Errorf("%s carries %v, not %s/%.0f", name, addresses, address, prefixLength)
+}
+
+// ifaceMigrate08 drives `request interface migrate` over the daemon's own
+// dispatcher, in the keyword form `ze interface migrate` builds and sends.
+//
+// It proves the boundary the grammar exists to cross. Every value arrives after
+// its own keyword, the dispatcher hands the tokens to the handler, and the
+// handler binds each one: the migration reaches phase 3 on the address the
+// command named, having created the destination the create keyword named and
+// waited the time the timeout keyword named.
+//
+// Phase 3 is where the observable ends, and that is a property of the
+// make-before-break protocol rather than a gap in this test. Phase 3 waits for a
+// (bgp, listener-ready) event on the NEW address, which a running daemon emits
+// only after BGP is reconfigured to bind it. A migration driven by a command
+// alone therefore always ends in the phase 3 timeout, and its rollback is the
+// evidence phases 1 and 2 ran: the destination was created and is gone again,
+// and the source still holds the address phase 4 never removed.
+func ifaceMigrate08(ctx context.Context, p *sdk.Plugin) error {
+	const (
+		source      = "zemig0"
+		destination = "zemig1"
+		cidr        = "10.98.0.1/24"
+		migrate     = "request interface migrate from zemig0.0 to zemig1.0 address 10.98.0.1/24"
+	)
+	defer func() {
+		for _, name := range []string{destination, source} {
+			_, _, _ = command08(context.Background(), p, "delete interface name "+name) //nolint:errcheck // best-effort teardown
+		}
+	}()
+
+	for _, command := range []string{
+		"create interface dummy name " + source,
+		"request interface " + source + " up",
+		"create interface " + source + " address " + cidr,
+	} {
+		if _, err := requireDone08(ctx, p, command); err != nil {
+			return err
+		}
+	}
+	if err := detailCarries08(ctx, p, source, "10.98.0.1", 24); err != nil {
+		return fmt.Errorf("precondition: %w", err)
+	}
+
+	// A: the whole grammar reaches the handler and the migration runs.
+	// A wait of 2s is long enough to tell a honored timeout from the 30s
+	// default, and short enough that the test does not sit on it.
+	started := time.Now()
+	status, message := status08(ctx, p, migrate+" create dummy timeout 2s")
+	waited := time.Since(started)
+	if status != statusError || !strings.Contains(message, cidr) {
+		return fmt.Errorf("%q: expected the phase 3 timeout naming %s, got status=%s %s", migrate, cidr, status, message)
+	}
+	if !strings.Contains(message, "phase 3") {
+		return fmt.Errorf("%q: the migration stopped before phase 3: %s", migrate, message)
+	}
+	if waited > 20*time.Second {
+		return fmt.Errorf("%q: waited %s, so the timeout keyword did not reach the handler", migrate, waited)
+	}
+	if status, message := pollStatus08(ctx, p, "show interface name "+destination+" detail", statusError); status != statusError {
+		return fmt.Errorf("%s survived the phase 3 rollback: status=%s %s", destination, status, message)
+	}
+	if err := detailCarries08(ctx, p, source, "10.98.0.1", 24); err != nil {
+		return fmt.Errorf("phase 4 ran without phase 3: %w", err)
+	}
+	fmt.Fprintln(os.Stderr, "OK: migrate bound from, to, address, create and timeout; it reached phase 3 in "+waited.String()+" and rolled back")
+
+	// B: a keyword nobody declared is refused by name, not skipped.
+	status, message = status08(ctx, p, migrate+" bogus value")
+	if status != statusError || !strings.Contains(message, "bogus") {
+		return fmt.Errorf("an unknown keyword was not refused by name: status=%s %s", status, message)
+	}
+	fmt.Fprintln(os.Stderr, "OK: migrate refused an unknown keyword by name")
+
+	// C: a required keyword left out is refused by name.
+	status, message = status08(ctx, p, "request interface migrate from zemig0.0 to zemig1.0")
+	if status != statusError || !strings.Contains(message, "address") {
+		return fmt.Errorf("a missing required keyword was not refused by name: status=%s %s", status, message)
+	}
+	fmt.Fprintln(os.Stderr, "OK: migrate refused a command with no address keyword")
+	return nil
+}
+
 func ifaceOSName08(ctx context.Context, p *sdk.Plugin) error {
 	device, logical, cidr := "zeosnsel0", "zeosnwan", "198.51.100.113/28"
 	links := ipJSONOptional08(ctx, "link", "show", device)
@@ -321,8 +436,8 @@ func ifaceOSName08(ctx context.Context, p *sdk.Plugin) error {
 
 func ifaceRouteProtocol08(ctx context.Context, p *sdk.Plugin) error {
 	dev := "zertproto0"
-	defer runCommand08(context.Background(), false, "ip", "link", "del", dev)
-	commands := [][]string{{"link", "add", dev, "type", "dummy"}, {"address", "add", "198.51.100.161/28", "dev", dev}, {"link", "set", dev, "up"}, {"route", "add", "203.0.113.160/28", "via", "198.51.100.162", "dev", dev, "proto", "253", "metric", "7"}, {"route", "add", "203.0.113.176/28", "via", "198.51.100.162", "dev", dev, "proto", "boot", "metric", "7"}}
+	defer runCommand08(context.Background(), false, "ip", "link", "del", dev) //nolint:errcheck // best-effort cleanup
+	commands := [][]string{{ipObjectLink, argAdd, dev, argType, ipTypeDummy}, {ipObjectAddress, argAdd, "198.51.100.161/28", ipWordDev, dev}, {ipObjectLink, ipWordSet, dev, "up"}, {ipObjectRoute, argAdd, "203.0.113.160/28", ipWordVia, addrTestNet2Nexthop, ipWordDev, dev, ipWordProto, "253", ipWordMetric, "7"}, {ipObjectRoute, argAdd, "203.0.113.176/28", ipWordVia, addrTestNet2Nexthop, ipWordDev, dev, ipWordProto, "boot", ipWordMetric, "7"}}
 	for _, args := range commands {
 		if _, _, err := runCommand08(ctx, true, "ip", args...); err != nil {
 			return err
@@ -332,7 +447,7 @@ func ifaceRouteProtocol08(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil || len(rows) == 0 {
 		return fmt.Errorf("iface route missing: %v: %w", rows, err)
 	}
-	if rows[0]["protocol"] != "ze-iface" || rows[0]["device"] != dev || rows[0]["nexthop"] != "198.51.100.162" {
+	if rows[0]["protocol"] != "ze-iface" || rows[0]["device"] != dev || rows[0]["nexthop"] != addrTestNet2Nexthop {
 		return fmt.Errorf("wrong iface route: %v", rows[0])
 	}
 	rows, err = showRoutes08(ctx, p, "203.0.113.176/28")
@@ -374,7 +489,7 @@ func ifaceTunnelKinds08(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func sysfs08(path, label string) (string, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return "", fmt.Errorf("%s: %s: %w", label, path, err)
 	}
@@ -417,12 +532,12 @@ func ifaceTunnelRestartBoot08(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer p.Close()
+	defer p.Close() //nolint:errcheck // fixture teardown
 	result := make(chan error, 1)
 	p.OnAllPluginsReady(func() error {
 		index, err := sysfs08("/sys/class/net/trs0/ifindex", "first run: kernel holds no trs0")
 		if err == nil {
-			err = os.WriteFile("restart-ifindex", []byte(index), 0644)
+			err = os.WriteFile("restart-ifindex", []byte(index), 0o600)
 		}
 		if err == nil {
 			fmt.Fprintf(os.Stderr, "OK: tunnel restart pass 1 created trs0 ifindex %s\n", index)
@@ -480,7 +595,7 @@ func ifaceTunnelRestartCheck08(ctx context.Context, p *sdk.Plugin) error {
 
 func ifaceVerbs08(ctx context.Context, p *sdk.Plugin) error {
 	name := "zetest0"
-	defer command08(context.Background(), p, "delete interface name "+name)
+	defer command08(context.Background(), p, "delete interface name "+name) //nolint:errcheck // best-effort cleanup
 	for _, command := range []string{"create interface dummy name zetest0", "request interface zetest0 mtu 1400", "request interface zetest0 mac 02:de:ad:be:ef:01", "request interface zetest0 up", "create interface zetest0 address 10.99.0.1/24"} {
 		if _, err := requireDone08(ctx, p, command); err != nil {
 			return err
@@ -501,7 +616,7 @@ func ifaceVerbs08(ctx context.Context, p *sdk.Plugin) error {
 	}) {
 		return fmt.Errorf("show interface detail has no addresses: %v", info)
 	}
-	if info["type"] != "dummy" || number08(info["mtu"]) != 1400 || strings.ToLower(fmt.Sprint(info["mac-address"])) != "02:de:ad:be:ef:01" || info["state"] != "up" {
+	if info["type"] != ipTypeDummy || number08(info["mtu"]) != 1400 || strings.ToLower(fmt.Sprint(info["mac-address"])) != "02:de:ad:be:ef:01" || info["state"] != "up" {
 		return fmt.Errorf("wrong interface detail: %v", info)
 	}
 	addresses, _ := info["addresses"].([]any)
@@ -521,8 +636,8 @@ func ifaceVerbs08(ctx context.Context, p *sdk.Plugin) error {
 			return err
 		}
 	}
-	status, _ := pollStatus08(ctx, p, "show interface name zetest0 detail", "error", 40)
-	if status != "error" {
+	status, _ := pollStatus08(ctx, p, "show interface name zetest0 detail", "error")
+	if status != statusError {
 		return fmt.Errorf("delete: zetest0 still present")
 	}
 	fmt.Fprintln(os.Stderr, "OK: zetest0 removed; show interface detail reports error")

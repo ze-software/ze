@@ -219,13 +219,13 @@ func lgRouteRowPtr(i int) *routeRow {
 func lgPeersVariants(render func(peersView) templ.Component) []golden.Variant {
 	return []golden.Variant{
 		{Name: "full", Data: render(peersView{
-			layoutView: layoutView{Title: "Peers", ActiveTab: "peers"},
-			Peers:      lgPeerRows(),
-			BMPPeers:   lgBMPPeerRows(),
+			Title: "Peers", ActiveTab: "peers",
+			Peers:    lgPeerRows(),
+			BMPPeers: lgBMPPeerRows(),
 		})},
 		{Name: "empty", Data: render(peersView{
-			layoutView: layoutView{Title: "Peers", ActiveTab: "peers"},
-			Error:      "engine unreachable",
+			Title: "Peers", ActiveTab: "peers",
+			Error: "engine unreachable",
 		})},
 	}
 }

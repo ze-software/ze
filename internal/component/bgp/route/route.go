@@ -5,7 +5,6 @@
 // Detail: route_community.go — community attribute parsing
 // Detail: route_flowspec.go — FlowSpec route parsing
 
-//nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package route
 
 import (
@@ -375,7 +374,7 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 
 		// Handle route-specific keywords
 		switch key {
-		case "next-hop":
+		case keywordNextHop:
 			if i+1 >= len(args) {
 				return ParsedRoute{}, ErrMissingNextHop
 			}
@@ -497,7 +496,7 @@ func parseAttributesNLRI(args []string) (batchAttributes, []netip.Prefix, error)
 		key := strings.ToLower(args[i])
 
 		// Handle next-hop
-		if key == "next-hop" {
+		if key == keywordNextHop {
 			if i+1 >= nlriIndex {
 				return attrs, nil, ErrMissingNextHop
 			}
@@ -580,7 +579,7 @@ func parseUpdateCommand(args []string) (batchAttributes, string, string, []netip
 		key := strings.ToLower(args[i])
 
 		// Handle next-hop
-		if key == "next-hop" {
+		if key == keywordNextHop {
 			if i+1 >= familyIndex {
 				return attrs, "", "", nil, ErrMissingNextHop
 			}
@@ -651,8 +650,8 @@ func ParseRouteArgs(args []string) (bgptypes.RouteSpec, error) {
 		key := strings.ToLower(args[i])
 		value := args[i+1]
 
-		switch key { //nolint:goconst,gocritic // String literals are clearer; switch for future cases
-		case "next-hop":
+		switch key { //nolint:gocritic // One case today; the keyword set grows per family
+		case keywordNextHop:
 			if strings.EqualFold(value, "self") {
 				route.NextHop = bgptypes.NewNextHopSelf()
 				continue

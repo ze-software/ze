@@ -242,7 +242,7 @@ func TestTheRenderingSwitchesToATableAtFourFiles(t *testing.T) {
 	if !strings.Contains(body, "| File | Docs |") {
 		t.Errorf("%d files did not render as a table:\n%s", namedInline+1, body)
 	}
-	if !strings.Contains(body, "Files: 4 | Docs: `docs/one.md`") {
+	if !strings.Contains(body, "Files: 4 | Docs: `docs/one.md`") { // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 		t.Errorf("the table's header does not carry the counts:\n%s", body)
 	}
 }

@@ -651,14 +651,14 @@ func (c ospfConfig) forInstance(id uint8) ospfConfig {
 func parseOSPFConfig(sections []configSection, source routerIDSource) (ospfConfig, error) {
 	cfg := defaultOSPFConfig()
 	for _, s := range sections {
-		if s.Root != "ospf" || s.Data == "" {
+		if s.Root != Namespace || s.Data == "" {
 			continue
 		}
 		var wrapper map[string]any
 		if err := json.Unmarshal([]byte(s.Data), &wrapper); err != nil {
 			return cfg, fmt.Errorf("ospf: invalid config JSON: %w", err)
 		}
-		tree, _ := wrapper["ospf"].(map[string]any)
+		tree, _ := wrapper[Namespace].(map[string]any)
 		if tree == nil {
 			continue
 		}
@@ -766,7 +766,7 @@ func applyTree(cfg *ospfConfig, tree map[string]any) error {
 		cfg.Redistribute = append(cfg.Redistribute, parseRedistribute(entry))
 	}
 	if areas, ok := tree["areas"].(map[string]any); ok {
-		for _, entry := range keyedList(areas["area"], false) {
+		for _, entry := range keyedList(areas[labelArea], false) {
 			area, err := parseArea(entry)
 			if err != nil {
 				return err
@@ -783,7 +783,7 @@ func applyTree(cfg *ospfConfig, tree map[string]any) error {
 		}
 	}
 	if interfaces, ok := tree["interfaces"].(map[string]any); ok {
-		for _, entry := range keyedList(interfaces["interface"], false) {
+		for _, entry := range keyedList(interfaces[labelInterface], false) {
 			ic, err := parseInterface(entry)
 			if err != nil {
 				return err
@@ -1135,7 +1135,7 @@ func parseRouterInformation(m map[string]any) routerInformationConfig {
 	// one-member leaf-list to a bare string, so the assertion emptied the scope
 	// list whenever the operator named exactly one scope, and the default below
 	// then substituted BOTH scopes -- a wrong value rather than a missing one.
-	for _, s := range configvalue.LeafList(m["scope"]) {
+	for _, s := range configvalue.LeafList(m[labelScope]) {
 		if sc, ok := routerInfoScope(s); ok && !cfg.HasScope(sc) {
 			cfg.Scopes = append(cfg.Scopes, sc)
 		}
@@ -1339,7 +1339,7 @@ func parseInterface(entry listEntry) (interfaceConfig, error) {
 	if s := configString(m["name"]); s != "" {
 		ic.Name = s
 	}
-	areaText := configString(m["area"])
+	areaText := configString(m[labelArea])
 	if areaText == "" {
 		return ic, fmt.Errorf("ospf: interface %q missing area", ic.Name)
 	}

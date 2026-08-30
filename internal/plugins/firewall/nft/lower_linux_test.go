@@ -1889,3 +1889,38 @@ func TestMergeRuleCountersSumsTheRulesOfOneTerm(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: every set flag the config can express reaches the kernel, not just
+// the two that had a test.
+// PREVENTS: an operator writing `flags-constant` or `flags-dynamic`, seeing it
+// parsed by parseSet and rendered back by the web page, while lowerSet sent
+// neither to the kernel. readback_linux.go recognises both on a set the kernel
+// already holds, so ze could display a flag it was unable to apply itself and
+// the operator had no way to learn the difference.
+func TestLowerSetCarriesConstantAndDynamic(t *testing.T) {
+	table := &nftables.Table{Name: "ze_t", Family: nftables.TableFamilyINet}
+
+	for name, tc := range map[string]struct {
+		flags        firewall.SetFlags
+		wantConstant bool
+		wantDynamic  bool
+	}{
+		"constant": {firewall.SetFlagConstant, true, false},
+		"dynamic":  {firewall.SetFlagDynamic, false, true},
+		"both":     {firewall.SetFlagConstant | firewall.SetFlagDynamic, true, true},
+		"neither":  {firewall.SetFlagInterval, false, false},
+	} {
+		s := &firewall.Set{Name: "s", Type: firewall.SetTypeIPv4, Flags: tc.flags}
+
+		nftSet, _, err := lowerSet(table, s)
+		if err != nil {
+			t.Fatalf("%s: lowerSet: %v", name, err)
+		}
+		if nftSet.Constant != tc.wantConstant {
+			t.Errorf("%s: Constant = %v, want %v", name, nftSet.Constant, tc.wantConstant)
+		}
+		if nftSet.Dynamic != tc.wantDynamic {
+			t.Errorf("%s: Dynamic = %v, want %v", name, nftSet.Dynamic, tc.wantDynamic)
+		}
+	}
+}

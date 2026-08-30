@@ -1,4 +1,4 @@
-// Design: fail-closed strongSwan and Ze queries with bounded observations.
+// Design: docs/architecture/testing/interop.md -- fail-closed strongSwan and Ze queries with bounded observations.
 // Related: ipsec.go -- topology and rendered configuration.
 // Related: checkers.go -- protocol assertions built from these typed operations.
 package ipsec

@@ -129,7 +129,7 @@ func commandLoader(tree string) (*yangloader.Loader, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
-			if entry.Name() == "testdata" {
+			if entry.Name() == testdataDir {
 				return filepath.SkipDir
 			}
 			return nil
@@ -208,7 +208,7 @@ func pluginCommandDecls(tree string) (names, unreadable []string, err error) {
 			if err != nil {
 				return err
 			}
-			if entry.IsDir() && entry.Name() == "testdata" {
+			if entry.IsDir() && entry.Name() == testdataDir {
 				return filepath.SkipDir
 			}
 			if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
@@ -296,7 +296,7 @@ func stringConstsByDir(tree string, fset *token.FileSet) (map[string]map[string]
 			if err != nil {
 				return err
 			}
-			if entry.IsDir() && entry.Name() == "testdata" {
+			if entry.IsDir() && entry.Name() == testdataDir {
 				return filepath.SkipDir
 			}
 			if entry.IsDir() || !strings.HasSuffix(path, ".go") {

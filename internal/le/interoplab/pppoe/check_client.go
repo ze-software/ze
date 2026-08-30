@@ -1,4 +1,4 @@
-// Design: typed Ze client checks against an independent accel-ppp concentrator.
+// Design: docs/architecture/testing/interop.md -- typed Ze client checks against an independent accel-ppp concentrator.
 // Related: scenarios.go -- accel-ppp starts before the Ze client.
 package pppoe
 

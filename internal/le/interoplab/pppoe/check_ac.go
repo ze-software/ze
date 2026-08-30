@@ -1,4 +1,4 @@
-// Design: typed Ze access-concentrator checks against an independent pppd client.
+// Design: docs/architecture/testing/interop.md -- typed Ze access-concentrator checks against an independent pppd client.
 // Related: scenarios.go -- Ze starts before the idle pppd client container.
 package pppoe
 

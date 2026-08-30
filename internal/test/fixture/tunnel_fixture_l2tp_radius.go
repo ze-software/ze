@@ -23,7 +23,7 @@ func tunnelRadiusUint32Attr(attribute byte, value uint32) []byte {
 	return tunnelRadiusAttr(attribute, tunnelL2TPU32(value))
 }
 
-func tunnelRadiusDriver(defaultPort int, accessCode byte, accessAttrs []byte, logPackets bool) Driver {
+func tunnelRadiusDriver(defaultPort int, accessCode byte, accessAttrs []byte) Driver {
 	return func(ctx context.Context, args []string) error {
 		port := defaultPort
 		if configured := os.Getenv("RADIUS_PORT"); configured != "" {
@@ -51,7 +51,7 @@ func tunnelRadiusDriver(defaultPort int, accessCode byte, accessAttrs []byte, lo
 		if err != nil {
 			return err
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck // fixture teardown
 		fmt.Printf("RADIUS mock listening on 127.0.0.1:%d\n", port)
 		buffer := make([]byte, 4096)
 		for {
@@ -61,8 +61,7 @@ func tunnelRadiusDriver(defaultPort int, accessCode byte, accessAttrs []byte, lo
 				if ctx.Err() != nil {
 					return nil
 				}
-				var netErr net.Error
-				if errors.As(err, &netErr) && netErr.Timeout() {
+				if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
 					continue
 				}
 				return err
@@ -71,7 +70,8 @@ func tunnelRadiusDriver(defaultPort int, accessCode byte, accessAttrs []byte, lo
 				continue
 			}
 			code := buffer[0]
-			responseCode, attrs := byte(0), []byte(nil)
+			var responseCode byte
+			var attrs []byte
 			switch code {
 			case 1:
 				responseCode, attrs = accessCode, accessAttrs
@@ -92,9 +92,6 @@ func tunnelRadiusDriver(defaultPort int, accessCode byte, accessAttrs []byte, lo
 			copy(response[4:20], hash.Sum(nil))
 			if _, err := conn.WriteToUDP(response, address); err != nil {
 				return err
-			}
-			if logPackets {
-				fmt.Printf("RADIUS response code %d sent to %s\n", responseCode, address)
 			}
 		}
 	}
@@ -130,7 +127,7 @@ func tunnelRadiusCoA(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	response, _, err := tunnelL2TPExchange(ctx, conn, target, request, 40, 500*time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("no answer from CoA listener on port %d", port)
@@ -182,7 +179,7 @@ func tunnelRadiusAccounting(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	fmt.Printf("radius-mock listening on 127.0.0.1:%d\n", port)
 	buffer := make([]byte, 4096)
 	for {

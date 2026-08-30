@@ -92,7 +92,7 @@ func TestAnAmbiguousAnchorFailsClosed(t *testing.T) {
 // flag every prose mention of a file name or stop checking doc links.
 func TestTheTwoNoLineBranchesAnswerDifferently(t *testing.T) {
 	root := tree(t, map[string]string{
-		"ai/digests/bare.md": "<!-- digest-base: internal/a -->\n`nowhere.go` and `internal/a/gone.go`\n",
+		"ai/digests/bare.md": "<!-- digest-base: internal/a -->\n`nowhere.go` and `internal/a/gone.go`\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 		"internal/a/here.go": "package a\n",
 	})
 	got := problems(t, root)
@@ -128,7 +128,7 @@ func TestTheLastLineIsInRangeAndTheNextOneIsNot(t *testing.T) {
 		"internal/a/x.go": "1\n2\n3\n4",
 	})
 	got := problems(t, root)
-	want := "line 5 out of range (`internal/a/x.go` has 4 lines)"
+	want := "line 5 out of range (`internal/a/x.go` has 4 lines)" // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("problems %q, want exactly %q", got, want)
 	}
@@ -153,7 +153,7 @@ func TestAZeroLineIsNamedBareAndStillChecked(t *testing.T) {
 	if report.Errors[0].Anchor != "x.go" {
 		t.Fatalf("anchor named %q, want the bare path the script names", report.Errors[0].Anchor)
 	}
-	if report.Errors[0].Detail != "line 0 out of range (`internal/a/x.go` has 2 lines)" {
+	if report.Errors[0].Detail != "line 0 out of range (`internal/a/x.go` has 2 lines)" { // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 		t.Fatalf("detail %q, want the out-of-range finding", report.Errors[0].Detail)
 	}
 }
@@ -183,7 +183,7 @@ func TestADeclaredBaseThatDoesNotExistIsReportedWithItsPythonRendering(t *testin
 	})
 	got := problems(t, root)
 	want := []string{
-		"declared base subtree `internal/gone` does not exist",
+		"declared base subtree `internal/gone` does not exist", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 		"file not found under ['internal/gone']",
 	}
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
@@ -232,7 +232,7 @@ func TestTheIndexSkipsVendorAndDotDirectories(t *testing.T) {
 // deliberately qualified anchor into an ambiguous one and reports the author
 // for qualifying it.
 func TestAPartialPathIsMatchedBySuffixAndNotByBaseName(t *testing.T) {
-	// The base-plus-path join is `internal/b/x.go`, which does not exist, so
+	// The base-plus-path join is `internal/b/x.go`, which does not exist, so // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	// the suffix branch is what has to resolve this. A base-name match would
 	// take internal/other/x.go too and report the anchor as ambiguous.
 	root := tree(t, map[string]string{
@@ -267,7 +267,7 @@ func TestASkippedDirectoryIsAbsentEvenWithNoDirectHit(t *testing.T) {
 // internal/a/internal/a/x.go is what would be looked for.
 func TestARepoRelativeAnchorResolvesAgainstTheRoot(t *testing.T) {
 	root := tree(t, map[string]string{
-		"ai/digests/f.md": "<!-- digest-base: internal/b -->\n`internal/a/x.go:2`\n",
+		"ai/digests/f.md": "<!-- digest-base: internal/b -->\n`internal/a/x.go:2`\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 		"internal/a/x.go": "1\n2\n",
 		"internal/b/y.go": "1\n",
 	})

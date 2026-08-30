@@ -34,6 +34,10 @@ const (
 // doctor_other.go).
 var macvlanProbe = probeMacvlanCapability
 
+// codeIfaceMacvlan is the diagnostic code the macvlan capability check
+// registers and reports.
+const codeIfaceMacvlan = "doctor-iface-macvlan"
+
 // macvlanDoctorCheck is the doctor-check registration, installed from
 // register.go's init() (registration belongs in register.go, not init() here).
 var macvlanDoctorCheck = diagnostic.DoctorCheck{
@@ -43,7 +47,7 @@ var macvlanDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "iface",
 	Dependencies: []string{"kernel-macvlan"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{"doctor-iface-macvlan"},
+	Codes:        []string{codeIfaceMacvlan},
 	Check:        checkIfaceMacvlan,
 }
 
@@ -68,13 +72,13 @@ func checkIfaceMacvlan(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 		return nil
 	case macvlanProbeNoPrivilege:
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-iface-macvlan",
+			Code:     codeIfaceMacvlan,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "cannot create a probe macvlan device (requires CAP_NET_ADMIN); plugin-owned macvlan devices will fail at apply without it",
 		}}
 	case macvlanProbeUnsupported:
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-iface-macvlan",
+			Code:     codeIfaceMacvlan,
 			Severity: diagnostic.SeverityError,
 			Message:  "kernel cannot create a bridge-mode macvlan device; enable CONFIG_MACVLAN or load the macvlan module",
 		}}

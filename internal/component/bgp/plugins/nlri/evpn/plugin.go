@@ -55,7 +55,7 @@ func runEVPNPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "l2vpn/evpn", Mode: "decode", AFI: 25, SAFI: 70},
+			{Name: familyNameEVPN, Mode: "decode", AFI: 25, SAFI: 70},
 		},
 	})
 	if err != nil {
@@ -134,8 +134,8 @@ type evpnEncodeParams struct {
 
 // evpnEncodeKeys is the set of valid keys for EVPN encoding.
 var evpnEncodeKeys = map[string]bool{
-	"rd": true, "esi": true, "ethernet-tag": true, "mac": true,
-	"ip": true, "prefix": true, "gateway": true, "label": true,
+	fieldRD: true, fieldESI: true, fieldEthernetTag: true, fieldMAC: true,
+	fieldIP: true, fieldPrefix: true, fieldGateway: true, fieldLabel: true,
 }
 
 // parseEVPNEncodeArgs parses key-value pairs for EVPN encoding.
@@ -164,50 +164,50 @@ func parseEVPNEncodeArgs(kvArgs []string) (*evpnEncodeParams, error) {
 // setField sets a single field from a key-value pair.
 func (p *evpnEncodeParams) setField(key, value string) error {
 	switch key {
-	case "rd":
+	case fieldRD:
 		parsed, err := nlri.ParseRDString(value)
 		if err != nil {
 			return fmt.Errorf("invalid rd: %w", err)
 		}
 		p.rd = parsed
 		p.hasRD = true
-	case "esi":
+	case fieldESI:
 		parsed, err := ParseESIString(value)
 		if err != nil {
 			return fmt.Errorf("invalid esi: %w", err)
 		}
 		p.esi = [10]byte(parsed)
-	case "ethernet-tag":
+	case fieldEthernetTag:
 		v, err := strconv.ParseUint(value, 10, 32)
 		if err != nil {
 			return fmt.Errorf("invalid ethernet-tag: %w", err)
 		}
 		p.ethernetTag = uint32(v)
-	case "mac":
+	case fieldMAC:
 		parsed, err := evpnParseMAC(value)
 		if err != nil {
 			return fmt.Errorf("invalid mac: %w", err)
 		}
 		p.mac = parsed
-	case "ip":
+	case fieldIP:
 		parsed, err := netip.ParseAddr(value)
 		if err != nil {
 			return fmt.Errorf("invalid ip: %w", err)
 		}
 		p.ip = parsed
-	case "prefix":
+	case fieldPrefix:
 		parsed, err := netip.ParsePrefix(value)
 		if err != nil {
 			return fmt.Errorf("invalid prefix: %w", err)
 		}
 		p.prefix = parsed
-	case "gateway":
+	case fieldGateway:
 		parsed, err := netip.ParseAddr(value)
 		if err != nil {
 			return fmt.Errorf("invalid gateway: %w", err)
 		}
 		p.gateway = parsed
-	case "label":
+	case fieldLabel:
 		v, err := strconv.ParseUint(value, 10, 32)
 		if err != nil {
 			return fmt.Errorf("invalid label: %w", err)
@@ -219,7 +219,7 @@ func (p *evpnEncodeParams) setField(key, value string) error {
 
 // evpnRouteTypes is the set of valid EVPN route types for encoding.
 var evpnRouteTypes = map[string]bool{
-	"type2": true, "type3": true, "type5": true,
+	routeTypeToken2: true, routeTypeToken3: true, routeTypeToken5: true,
 }
 
 // buildEVPNFromParams creates an EVPN NLRI from parsed parameters.
@@ -229,11 +229,11 @@ func buildEVPNFromParams(routeType string, p *evpnEncodeParams) (EVPN, error) {
 		return nil, fmt.Errorf("unsupported EVPN route type: %s", routeType)
 	}
 	switch routeType {
-	case "type2":
+	case routeTypeToken2:
 		return NewEVPNType2(p.rd, p.esi, p.ethernetTag, p.mac, p.ip, p.labels), nil
-	case "type3":
+	case routeTypeToken3:
 		return NewEVPNType3(p.rd, p.ethernetTag, p.ip), nil
-	case "type5":
+	case routeTypeToken5:
 		return newEVPNType5(p.rd, p.esi, p.ethernetTag, p.prefix, p.gateway, p.labels), nil
 	}
 	return nil, fmt.Errorf("unsupported EVPN route type: %s", routeType)
@@ -423,7 +423,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 
 // isValidEVPNFamily checks if family is an EVPN family.
 func isValidEVPNFamily(family string) bool {
-	return family == "l2vpn/evpn"
+	return family == familyNameEVPN
 }
 
 // decodeEVPNNLRI decodes EVPN NLRI wire bytes to array of JSON maps.
@@ -489,12 +489,12 @@ func evpnToJSON(e EVPN, rawData []byte) map[string]any {
 
 	switch v := e.(type) {
 	case *EVPNType1:
-		result["esi"] = formatESIForJSON(v.ESI())
+		result[fieldESI] = formatESIForJSON(v.ESI())
 		result["ethernet-tag"] = v.EthernetTag()
 		result["label"] = formatLabelsForJSON(v.Labels())
 
 	case *EVPNType2:
-		result["esi"] = formatESIForJSON(v.ESI())
+		result[fieldESI] = formatESIForJSON(v.ESI())
 		result["ethernet-tag"] = v.EthernetTag()
 		result["mac"] = formatMACUpper(v.MAC())
 		if v.IP().IsValid() {
@@ -507,15 +507,15 @@ func evpnToJSON(e EVPN, rawData []byte) map[string]any {
 		result["originator"] = v.OriginatorIP().String()
 
 	case *EVPNType4:
-		result["esi"] = formatESIForJSON(v.ESI())
+		result[fieldESI] = formatESIForJSON(v.ESI())
 		result["originator"] = v.OriginatorIP().String()
 
 	case *EVPNType5:
-		result["esi"] = formatESIForJSON(v.ESI())
+		result[fieldESI] = formatESIForJSON(v.ESI())
 		result["ethernet-tag"] = v.EthernetTag()
 		result["prefix"] = v.Prefix().String()
 		if v.Gateway().IsValid() && !v.Gateway().IsUnspecified() {
-			result["gateway"] = v.Gateway().String()
+			result[fieldGateway] = v.Gateway().String()
 		}
 		result["label"] = formatLabelsForJSON(v.Labels())
 	}
@@ -589,7 +589,7 @@ func formatEVPNTextSingle(result map[string]any) string {
 	if v, ok := result["rd"].(string); ok {
 		field("rd=", v)
 	}
-	if v, ok := result["esi"].(string); ok && v != "00:00:00:00:00:00:00:00:00:00" {
+	if v, ok := result[fieldESI].(string); ok && v != "00:00:00:00:00:00:00:00:00:00" {
 		field("esi=", v)
 	}
 	if v, ok := result["mac"].(string); ok {
@@ -604,7 +604,7 @@ func formatEVPNTextSingle(result map[string]any) string {
 	if v, ok := result["originator"].(string); ok {
 		field("originator=", v)
 	}
-	if v, ok := result["gateway"].(string); ok {
+	if v, ok := result[fieldGateway].(string); ok {
 		field("gateway=", v)
 	}
 	if v, ok := result["ethernet-tag"].(uint32); ok && v != 0 {

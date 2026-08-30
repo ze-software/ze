@@ -33,10 +33,10 @@ func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
 	bmpData := parseJSON(bmpResult)
 
 	v := peersView{
-		layoutView: layoutView{Title: "Peers", ActiveTab: fieldPeers, Page: pgPeersPage},
-		Peers:      s.extractPeers(zeData),
-		BMPPeers:   s.extractBMPPeers(bmpData),
-		Error:      engineError(zeData),
+		Title: "Peers", ActiveTab: fieldPeers, Page: pgPeersPage,
+		Peers:    s.extractPeers(zeData),
+		BMPPeers: s.extractBMPPeers(bmpData),
+		Error:    engineError(zeData),
 	}
 
 	if isHTMXRequest(r) {
@@ -229,11 +229,9 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := peerRoutesView{
-		layoutView: layoutView{
-			Title:     tb.Reset().Str("Routes from ").Str(address).String(),
-			ActiveTab: fieldPeers,
-			Page:      pgPeerRoutesPage,
-		},
+		Title:     tb.Reset().Str("Routes from ").Str(address).String(),
+		ActiveTab: fieldPeers,
+		Page:      pgPeerRoutesPage,
 		Address:   address,
 		Peer:      peerInfoFrom(peerInfo),
 		Histogram: histogram,

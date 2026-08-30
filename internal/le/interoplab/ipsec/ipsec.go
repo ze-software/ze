@@ -1,4 +1,4 @@
-// Design: native strongSwan scenario selection, images, topology, and verdicts.
+// Design: docs/architecture/testing/interop.md -- native strongSwan scenario selection, images, topology, and verdicts.
 // Detail: checkers.go and helpers.go carry every typed protocol observation.
 // Related: test/interop-ipsec/parity_test.go pins the complete fixture population.
 package ipsec

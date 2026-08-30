@@ -186,7 +186,7 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 	writeIndex := func(extra map[string]any) error {
 		groups := []any{map[string]any{
 			fieldStage: checkDocWiring, fieldGroupID: "files:wiring", fieldKind: fieldFiles, fieldRelated: []string{"theirs.go"},
-			fieldSummary: "an exported symbol added by this change has no non-test reference", fieldRerun: "le doc-wiring", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
+			fieldSummary: "an exported symbol added by this change has no non-test reference", fieldRerun: "le doc wiring", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
 		}}
 		if extra != nil {
 			groups = append(groups, extra)
@@ -220,7 +220,7 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 	fmt.Fprintln(os.Stdout, "wiring-red-of-another-session-not-charged") //nolint:errcheck // progress output
 	if err := writeIndex(map[string]any{
 		fieldStage: checkDocWiring, fieldGroupID: "files:design-refs", fieldKind: fieldFiles, fieldRelated: []string{"mine.go"},
-		fieldSummary: "a Design reference does not resolve", fieldRerun: "le doc-check links", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
+		fieldSummary: "a Design reference does not resolve", fieldRerun: "le doc check links", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
 	}); err != nil {
 		return err
 	}
@@ -231,7 +231,7 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 	fmt.Fprintln(os.Stdout, "wiring-red-of-my-own-file-still-refuses") //nolint:errcheck // progress output
 	if err := writeIndex(map[string]any{
 		fieldStage: checkDocWiring, fieldGroupID: "subcheck:ci-sleep-ratchet", fieldKind: "subcheck", fieldRelated: []string{},
-		fieldSummary: "functional fixtures exceed the wait-call ceiling", fieldRerun: "le doc-wiring", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
+		fieldSummary: "functional fixtures exceed the wait-call ceiling", fieldRerun: "le doc wiring", fieldDetailLog: pathDocWiringLog, fieldParallel: columnGroup,
 	}); err != nil {
 		return err
 	}

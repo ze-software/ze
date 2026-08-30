@@ -82,7 +82,7 @@ func Execute(tc gotoolchain.Toolchain, suite Suite, set BinarySet, cover string)
 //
 // A budget expiry has already consumed the full run budget.
 // Its failure group therefore includes the same rerun command as an ordinary suite failure.
-// functionalSuiteRerun defines that command (internal/le/verifyengine/run.go).
+// functionalSuiteRerun defines that command (internal/le/verify/engine/run.go).
 // The failure kind is timeout rather than a failed test.
 func failureGroupLine(suite Suite, summary string) string {
 	group := map[string]any{

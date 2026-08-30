@@ -26,6 +26,10 @@ var (
 	errShutdownNotConfigured       = errors.New("shutdown not available: no reactor and no shutdown function configured")
 )
 
+// messageConfigReloaded is the answer every reload path gives once the new
+// configuration is in force, whichever of the three routes applied it.
+const messageConfigReloaded = "configuration reloaded"
+
 func init() {
 	RegisterRPCs(
 		RPCRegistration{WireMethod: "ze-system:help", Handler: handleSystemHelp},
@@ -110,7 +114,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"commands": commands,
+			fieldCommands: commands,
 		},
 	}, nil
 }
@@ -173,7 +177,7 @@ func shutdownInitiated(action func()) *plugin.Response {
 	resp := &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"message": "shutdown initiated",
+			fieldMessage: "shutdown initiated",
 		},
 	}
 	resp.OnTransportComplete(action)
@@ -197,7 +201,7 @@ func handleDaemonReboot(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	resp := &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"message": "reboot initiated",
+			fieldMessage: "reboot initiated",
 		},
 	}
 	resp.OnTransportComplete(func() {
@@ -254,7 +258,7 @@ func quitInitiated(action func()) *plugin.Response {
 	resp := &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"message": "quit initiated (goroutines dumped)",
+			fieldMessage: "quit initiated (goroutines dumped)",
 		},
 	}
 	resp.OnTransportComplete(action)
@@ -298,7 +302,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data: plugin.Map{
-				"message": "configuration reloaded",
+				fieldMessage: messageConfigReloaded,
 			},
 		}, nil
 	}
@@ -315,7 +319,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data: plugin.Map{
-				"message": "configuration reloaded",
+				fieldMessage: messageConfigReloaded,
 			},
 		}, nil
 	}
@@ -330,7 +334,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"message": "configuration reloaded",
+			fieldMessage: messageConfigReloaded,
 		},
 	}, nil
 }
@@ -340,14 +344,14 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Respons
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"subsystems": []any{}, "count": 0},
+			Data:   plugin.Map{fieldSubsystems: []any{}, fieldCount: 0},
 		}, nil
 	}
 	pm := ctx.Server.ProcessManager()
 	if pm == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"subsystems": []any{}, "count": 0},
+			Data:   plugin.Map{fieldSubsystems: []any{}, fieldCount: 0},
 		}, nil
 	}
 	// The dispatcher's registry is what command-count counts. A per-Process list
@@ -369,7 +373,7 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Respons
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"subsystems": out, "count": len(out)},
+		Data:   plugin.Map{fieldSubsystems: out, fieldCount: len(out)},
 	}, nil
 }
 
@@ -388,7 +392,7 @@ func handleSystemCommandList(ctx *CommandContext, args []string) (*plugin.Respon
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Records{
-			Key:  "commands",
+			Key:  fieldCommands,
 			Rows: commandRows(dispatcher, verbose),
 		},
 	}, nil
@@ -474,7 +478,7 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 		}, errMissingCommandName
 	}
 
-	return lookupCommandHelp(ctx, args[0], "command")
+	return lookupCommandHelp(ctx, args[0], fieldCommand)
 }
 
 // lookupCommandHelp looks up a command by name in builtins then plugins.
@@ -485,9 +489,9 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 			return &plugin.Response{
 				Status: plugin.StatusDone,
 				Data: plugin.Map{
-					"command":     cmd.Name,
-					"description": cmd.Help,
-					"source":      sourceBuiltin,
+					fieldCommand:     cmd.Name,
+					fieldDescription: cmd.Help,
+					fieldSource:      sourceBuiltin,
 				},
 			}, nil
 		}
@@ -496,11 +500,11 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 			return &plugin.Response{
 				Status: plugin.StatusDone,
 				Data: plugin.Map{
-					"command":     cmd.Name,
-					"description": cmd.Description,
-					"args":        cmd.Args,
-					"source":      cmd.Process.Name(),
-					"timeout":     cmd.Timeout.String(),
+					fieldCommand:     cmd.Name,
+					fieldDescription: cmd.Description,
+					fieldArgs:        cmd.Args,
+					fieldSource:      cmd.Process.Name(),
+					"timeout":        cmd.Timeout.String(),
 				},
 			}, nil
 		}
@@ -527,7 +531,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 	}
 
 	// Arg completion: the keyword must come before the free-form command string.
-	if args[0] == "args" {
+	if args[0] == fieldArgs {
 		if len(args) < 3 {
 			return &plugin.Response{
 				Status: plugin.StatusError,
@@ -566,7 +570,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"completions": completions,
+			fieldCompletions: completions,
 		},
 	}, nil
 }
@@ -575,7 +579,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []string, partial string) (*plugin.Response, error) {
 	emptyResult := &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"completions": []Completion{}},
+		Data:   plugin.Map{fieldCompletions: []Completion{}},
 	}
 
 	if ctx.Dispatcher() == nil {

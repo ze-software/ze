@@ -15,6 +15,9 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
+// encoderJSON is the wire encoder every auto-loaded internal plugin speaks.
+const encoderJSON = "json"
+
 // getUnclaimedFamilyPlugins returns plugins to auto-load for configured families
 // that are NOT claimed by any explicit plugin.
 // Uses registry.LookupFamily for family-based detection (not name-based).
@@ -47,7 +50,7 @@ func (s *Server) getUnclaimedFamilyPlugins() []plugin.PluginConfig {
 
 		plugins = append(plugins, plugin.PluginConfig{
 			Name:     pluginName,
-			Encoder:  "json",
+			Encoder:  encoderJSON,
 			Internal: true,
 		})
 	}
@@ -131,7 +134,7 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 		}
 		plugins = append(plugins, plugin.PluginConfig{
 			Name:     name,
-			Encoder:  "json",
+			Encoder:  encoderJSON,
 			Internal: true,
 		})
 	}
@@ -204,7 +207,7 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 		}
 		plugins = append(plugins, plugin.PluginConfig{
 			Name:     name,
-			Encoder:  "json",
+			Encoder:  encoderJSON,
 			Internal: true,
 		})
 	}
@@ -511,7 +514,7 @@ func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(str
 
 		plugins = append(plugins, plugin.PluginConfig{
 			Name:     name,
-			Encoder:  "json",
+			Encoder:  encoderJSON,
 			Internal: true,
 		})
 	}

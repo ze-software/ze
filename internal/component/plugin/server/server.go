@@ -733,3 +733,12 @@ func (s *Server) GetDecodeFamilies() []string {
 	}
 	return s.registry.GetDecodeFamilies()
 }
+
+// DecodeFamiliesForPlugins returns the decode families of the named plugins only.
+// A peer offers what ITS attached processes decode, not what the process holds.
+func (s *Server) DecodeFamiliesForPlugins(names []string) []string {
+	if s.registry == nil {
+		return nil
+	}
+	return s.registry.DecodeFamiliesForPlugins(names)
+}

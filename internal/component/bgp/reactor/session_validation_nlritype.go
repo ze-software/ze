@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md -- RFC 7606 UPDATE validation
-// RFC: rfc/short/rfc7606.md -- Section 5.4 typed NLRI; rfc/short/rfc9552.md -- Section 5.2
+// RFC: rfc/short/rfc7606.md -- Section 5.4 typed NLRI; rfc/short/rfc9552.md -- Sections 5.2 and 8.2.2
 // Overview: session_validation.go -- enforceRFC7606, which applies this
+// Related: ../message/rfc7606_bgpls_nlri.go -- RetainWellFormedNLRI, the Section 8.2.2 walk
 //
 // RFC 7606 Section 5.4: "A BGP speaker advertising support for such a typed
 // address family MUST handle routes with unrecognized NLRI types within that
@@ -58,10 +59,12 @@ const (
 	typedNLRIUnparseable
 )
 
-// applyTypedNLRIDiscard removes every route with an unrecognized NLRI type from
-// the UPDATE's MP attributes. It returns the UPDATE downstream consumers will
-// see, that UPDATE's attribute section, and what the pass decided about the
-// UPDATE as a whole.
+// applyTypedNLRIDiscard removes from the UPDATE's MP attributes every route its
+// family's own rules discard one at a time: an unrecognized NLRI type under
+// RFC 7606 Section 5.4, and a malformed Link-State NLRI under RFC 9552
+// Section 8.2.2. It returns the UPDATE downstream consumers will see, that
+// UPDATE's attribute section, and what the pass decided about the UPDATE as a
+// whole.
 //
 // Returns wu and pathAttrs unchanged, sharing the received wire bytes, whenever
 // nothing was discarded. That covers every family with no Section 5.4 ruling and
@@ -124,20 +127,28 @@ func (s *Session) applyTypedNLRIDiscard(
 // typedNLRIEdit appends the edit for one MP attribute, or nothing when that
 // attribute is absent, its family has no ruling, or every route survives.
 //
+// Two rulings can remove a route here and a family may carry either or both.
+// RFC 7606 Section 5.4 removes a route whose NLRI TYPE ze does not implement, in
+// a family that has not overridden the rule. RFC 9552 Section 8.2.2 removes a
+// Link-State NLRI whose SYNTAX is malformed in a way that lets ze skip it and
+// keep processing the UPDATE. Both are per route and both keep the UPDATE, so one
+// pass applies them in that order and one rewrite carries the result.
+//
 // Returns false when the attribute's NLRI framing could not be walked. RFC 7606
 // Section 5.3 makes an MP attribute incorrect when "the length of the last NLRI
 // found exceeds the amount of unconsumed data remaining in the attribute", and
 // Section 3(j) says treat-as-withdraw needs the NLRI field parsed, so "if this is
-// not possible ... the 'session reset' approach ... MUST be followed". The caller
-// applies that.
+// not possible ... the 'session reset' approach ... MUST be followed". RFC 9552
+// Section 8.2.2 names the same class for BGP-LS and prescribes the same verdict.
+// The caller applies it.
 //
 // Nothing upstream has already made this check for a typed family.
 // message.validateMPNLRISyntax runs the Section 5.3 walk only for IPv4 and IPv6
 // unicast and multicast, whose NLRI is a plain list of length-prefixed prefixes,
-// and returns nil for every typed family. Relaying the section unchanged on a
-// framing error would therefore have handed a peer a one-byte way to bypass the
-// Section 5.4 MUST: append one truncated NLRI and the split fails, so no route in
-// the attribute is judged.
+// and for BGP-LS, whose own RFC states a walk. It returns nil for every other
+// typed family. Relaying the section unchanged on a framing error would therefore
+// have handed a peer a one-byte way to bypass the Section 5.4 MUST: append one
+// truncated NLRI and the split fails, so no route in the attribute is judged.
 func (s *Session) typedNLRIEdit(
 	edits []mpNLRIEdit,
 	code uint8,
@@ -152,7 +163,13 @@ func (s *Session) typedNLRIEdit(
 	// One registry read, not two: the answer is carried into Retain rather than looked up
 	// again there. This is the gate every MP-bearing UPDATE passes, IPv6 unicast included.
 	recognize := nlritype.Get(fam)
-	if recognize == nil {
+	// RFC 9552 Section 8.2.2 rules on the SYNTAX of an individual Link-State NLRI where
+	// Section 5.4 rules on the TYPE of an individual typed NLRI. Both prescribe discarding
+	// the NLRI and keeping the UPDATE, so one pass applies both and one rewrite carries
+	// them. A family with neither ruling leaves before the attribute is located.
+	afi := attribute.AFI(loc.AFI)
+	safi := attribute.SAFI(loc.SAFI)
+	if recognize == nil && !message.NLRISyntaxRuled(afi, safi) {
 		return edits, true
 	}
 
@@ -172,25 +189,51 @@ func (s *Session) typedNLRIEdit(
 			"peer", s.settings.Address, "family", fam, "attr", code, "error", err)
 		return edits, false
 	}
-	if dropped == 0 {
-		return edits, true
+	if dropped > 0 {
+		// RFC 7606 Section 6: name what was dropped, so an operator can trace a route
+		// that stopped arriving back to the type ze does not implement.
+		//
+		// Debug, not Info. A peer decides how often this fires: one line per UPDATE it
+		// sends carrying a type ze does not implement, on the receive goroutine, with the
+		// slog argument boxing that costs. Section 6 asks for a debugging facility, and
+		// that is what this is; the record an operator is owed for a route that stopped
+		// arriving comes from rfc7606Diagnostics, which enforceRFC7606 still calls on
+		// every non-None action.
+		//
+		// The louder levels in this package are kept for outcomes a peer cannot repeat
+		// cheaply: each Warn here fires once per session-resetting UPDATE, and the session
+		// then goes down.
+		sessionLogger().Debug("RFC 7606 Section 5.4: discarded routes with unrecognized NLRI types",
+			"peer", s.settings.Address, "family", fam, "attr", code, "discarded", dropped)
 	}
 
-	// RFC 7606 Section 6: name what was dropped, so an operator can trace a route
-	// that stopped arriving back to the type ze does not implement.
+	// RFC 9552 Section 8.2.2: "A BGP-LS Speaker MUST perform the following syntactic
+	// validation of the Link-State NLRI to determine if it is malformed", and a malformed
+	// NLRI it can skip past "MUST" be handled "as 'NLRI discard'". Runs on the survivors of
+	// the Section 5.4 filter, so the two rulings compose in one direction only.
 	//
-	// Debug, not Info. A peer decides how often this fires: one line per UPDATE it sends
-	// carrying a type ze does not implement, on the receive goroutine, with the slog
-	// argument boxing that costs. Section 6 asks for a debugging facility, and that is what
-	// this is; the record an operator is owed for a route that stopped arriving comes from
-	// rfc7606Diagnostics, which enforceRFC7606 still calls on every non-None action.
-	//
-	// The louder levels in this package are kept for outcomes a peer cannot repeat cheaply:
-	// the Warn above fires once per session-resetting UPDATE, and the session then goes down.
-	sessionLogger().Debug("RFC 7606 Section 5.4: discarded routes with unrecognized NLRI types",
-		"peer", s.settings.Address, "family", fam, "attr", code, "discarded", dropped)
+	// A framing failure here means the same thing it means above, and takes the same route:
+	// the boundaries between NLRIs are unknowable, so no discard decision is possible.
+	// Section 8.2.2 calls that the non-skipable class and prescribes a session reset for it,
+	// which is the verdict the caller reaches on a false return.
+	kept, malformed, framed := message.RetainWellFormedNLRI(afi, safi, kept, addPath)
+	if !framed {
+		sessionLogger().Warn("RFC 9552 Section 8.2.2: Link-State NLRI lengths do not sum to the MP attribute length",
+			"peer", s.settings.Address, "family", fam, "attr", code)
+		return edits, false
+	}
+	if malformed > 0 {
+		// RFC 9552 Section 8.2.2: "An implementation SHOULD log a message for any errors
+		// found during syntax validation for further analysis." Debug for the reason the
+		// Section 5.4 line below gives: a peer decides how often it fires.
+		sessionLogger().Debug("RFC 9552 Section 8.2.2: discarded malformed Link-State NLRIs",
+			"peer", s.settings.Address, "family", fam, "attr", code, "discarded", malformed)
+	}
 
-	return append(edits, mpNLRIEdit{code: code, nlri: kept, dropped: dropped}), true
+	if dropped+malformed == 0 {
+		return edits, true
+	}
+	return append(edits, mpNLRIEdit{code: code, nlri: kept, dropped: dropped + malformed}), true
 }
 
 // updateCarriesNoRoutes reports whether an UPDATE body conveys no reachability at

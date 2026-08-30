@@ -42,6 +42,9 @@ const (
 // areas maps a path prefix to the area a reader thinks in. FIRST MATCH WINS, so
 // the specific prefixes come before the general ones and the order of this
 // table is behavior rather than style.
+// areaEvidenceTools names the group whose changes produce release evidence.
+const areaEvidenceTools = "evidence-tools"
+
 var areas = []struct {
 	Prefix string
 	Name   string
@@ -53,9 +56,9 @@ var areas = []struct {
 	{"plan/", "specs"},
 	{"docs/", "docs"},
 	{"test/", "tests"},
-	{"internal/le/deployment/", "evidence-tools"},
-	{"internal/le/evidence/", "evidence-tools"},
-	{"internal/le/qemu/", "evidence-tools"},
+	{"internal/le/deployment/", areaEvidenceTools},
+	{"internal/le/evidence/", areaEvidenceTools},
+	{"internal/le/qemu/", areaEvidenceTools},
 	{"internal/le/", "tooling"},
 	{".golangci.yml", buildArea},
 	{"pkg/plugin/", "plugin-sdk"},

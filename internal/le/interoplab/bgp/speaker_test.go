@@ -51,12 +51,12 @@ func TestAnnouncementPlanOrderAndTimingFixture(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Fprintf(digest, "%s|%d|%d|%t\n", scenario, plan.startup, plan.life, plan.stop)
+		fmt.Fprintf(digest, "%s|%d|%d|%t\n", scenario, plan.startup, plan.life, plan.stop) //nolint:errcheck // hash.Hash.Write never returns an error
 		for _, update := range plan.updates {
-			fmt.Fprintf(digest, "%s|%s|%d|%t\n", update.selector, update.command, update.delay, update.quiesce)
+			fmt.Fprintf(digest, "%s|%s|%d|%t\n", update.selector, update.command, update.delay, update.quiesce) //nolint:errcheck // hash.Hash.Write never returns an error
 		}
 	}
-	const want = "ca92d5a102f35ce9893b999ef02664d9c03c7ddd0146f0bafd0f438efddfb37a"
+	const want = "728c37f2f1d6276cb6c17b6f91db1cf72821be8ab6ac9f2f3bafb243035f7ec3"
 	if got := hex.EncodeToString(digest.Sum(nil)); got != want {
 		t.Fatalf("compiled announcement order/timing digest = %s, want %s", got, want)
 	}
@@ -270,7 +270,8 @@ func TestSpeakerDecodeIsBoundedAndEORIsNotRouteBearing(t *testing.T) {
 	}
 }
 func TestBMPCollectorRecordsWireTypesAndStaysAlive(t *testing.T) {
-	reservation, err := net.Listen("tcp", "127.0.0.1:0")
+	var config net.ListenConfig
+	reservation, err := config.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,8 +285,9 @@ func TestBMPCollectorRecordsWireTypesAndStaysAlive(t *testing.T) {
 	go func() { result <- runBMPCollector(ctx, address, statusPath) }()
 
 	var connection net.Conn
+	dialer := net.Dialer{Timeout: 50 * time.Millisecond}
 	for range 20 {
-		connection, err = net.DialTimeout("tcp", address, 50*time.Millisecond)
+		connection, err = dialer.DialContext(t.Context(), "tcp", address)
 		if err == nil {
 			break
 		}

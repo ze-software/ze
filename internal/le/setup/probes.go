@@ -13,12 +13,18 @@
 //	            Therefore, a PATH-based probe reported the tools as missing
 //	            although the build used them. Setup then reported pending forever.
 //
-//	staticcheck must be one exact VERSION. A different version on PATH runs but
-//	            disagrees. This result is worse than an absent tool.
+//	staticcheck must be one exact VERSION, and must be BUILT with a Go at
+//	            least as new as go.mod asks for. A different version on PATH
+//	            runs but disagrees. This result is worse than an absent tool.
+//	            An older build toolchain is worse still: the analyser cannot
+//	            read the export data the local Go writes, so it reports
+//	            hundreds of import failures that read as source defects in
+//	            files that are correct.
 
 package setup
 
 import (
+	"go/version"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -80,7 +86,74 @@ func (s *Setup) probeStaticcheck(tool Tool) bool {
 	if !result.OK() {
 		return false
 	}
-	return staticcheckVersionMatches(strings.TrimSpace(result.Out))
+	if !staticcheckVersionMatches(strings.TrimSpace(result.Out)) {
+		return false
+	}
+	return s.staticcheckBuiltNewEnough(path)
+}
+
+// staticcheckBuiltNewEnough reports whether the staticcheck binary was built
+// with a Go at least as new as the one go.mod asks for.
+//
+// The analyser reads the export data the local Go writes. A binary built with
+// an older Go cannot, and says so per import rather than once: every file that
+// imports anything reports "could not import X", and an import whose uses it
+// then cannot see reports "imported and not used". Both name files that are
+// correct, so the run reads as a source defect in someone else's package and
+// the tool is the last thing suspected.
+//
+// A build newer than the directive is fine. Only older is refused.
+func (s *Setup) staticcheckBuiltNewEnough(path string) bool {
+	want := s.goDirective()
+	if want == "" {
+		return true // no directive to hold it to
+	}
+	built := s.goBuildVersion(path)
+	if built == "" {
+		return true // an unreadable build stamp is not evidence of staleness
+	}
+	return version.Compare(built, want) >= 0
+}
+
+// goDirective returns the go.mod `go` line as a version string ("go1.27.0"), or
+// empty when it cannot be read.
+func (s *Setup) goDirective() string {
+	body, err := os.ReadFile(filepath.Join(s.Root, "go.mod"))
+	if err != nil {
+		return ""
+	}
+	for line := range strings.Lines(string(body)) {
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "go ")
+		if !ok {
+			continue
+		}
+		return "go" + strings.TrimSpace(rest)
+	}
+	return ""
+}
+
+// goBuildVersion returns the Go version a binary was built with, read from its
+// own build stamp with `go version -m`, or empty when it cannot be read.
+//
+// The first line is "<path>: goX.Y.Z". Later lines carry the module table.
+func (s *Setup) goBuildVersion(path string) string {
+	result := s.Shell.Run(Cmd{
+		Argv:    []string{"go", "version", "-m", path},
+		Timeout: staticcheckProbeTimeout,
+	})
+	if !result.OK() {
+		return ""
+	}
+	first, _, _ := strings.Cut(result.Out, "\n")
+	_, stamp, ok := strings.Cut(first, ": ")
+	if !ok {
+		return ""
+	}
+	stamp = strings.TrimSpace(stamp)
+	if !version.IsValid(stamp) {
+		return ""
+	}
+	return stamp
 }
 
 // staticcheckVersionMatches reports whether a `staticcheck -version` line names

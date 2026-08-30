@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -36,6 +37,10 @@ const (
 	reportCodeCommitAborted  = "commit-aborted"     // verify phase failed
 	reportCodeCommitRollback = "commit-rollback"    // apply phase failed, rollback initiated
 	reportCodeCommitSaveFail = "commit-save-failed" // apply succeeded but config file write failed
+
+	// reportKeyPhase names the transaction phase in the detail map of every
+	// error this file raises, so an operator can group them by phase.
+	reportKeyPhase = "phase"
 )
 
 // Transaction states.
@@ -703,7 +708,7 @@ func (o *TxCoordinator) publishAbort(reason string) {
 		reportCodeCommitAborted,
 		o.txID,
 		"config commit aborted during verify: "+reason,
-		map[string]any{"reason": reason, "phase": "verify"},
+		map[string]any{"reason": reason, reportKeyPhase: "verify"},
 	)
 }
 
@@ -734,7 +739,7 @@ func (o *TxCoordinator) publishRollback(reason string) {
 		reportCodeCommitRollback,
 		o.txID,
 		"config commit rolled back during apply: "+reason,
-		map[string]any{"reason": reason, "phase": "apply"},
+		map[string]any{"reason": reason, reportKeyPhase: "apply"},
 	)
 }
 
@@ -796,9 +801,9 @@ func (o *TxCoordinator) collectRollbackAcks(ctx context.Context) {
 
 	pending := make(map[string]RollbackAck)
 
-	for i := len(tiers) - 1; i >= 0; i-- {
+	for i, tier := range slices.Backward(tiers) {
 		expected := make(map[string]struct{})
-		for _, name := range tiers[i] {
+		for _, name := range tier {
 			if _, ok := nameToIndex[name]; ok {
 				expected[name] = struct{}{}
 			}
@@ -874,7 +879,7 @@ func (o *TxCoordinator) writeConfigFile() bool {
 			reportCodeCommitSaveFail,
 			o.txID,
 			"config commit succeeded but file write failed: "+err.Error(),
-			map[string]any{"error": err.Error(), "phase": "save"},
+			map[string]any{"error": err.Error(), reportKeyPhase: "save"},
 		)
 		return false
 	}

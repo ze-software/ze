@@ -9,17 +9,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 )
 
 func init() {
 	switch filepath.Base(os.Args[0]) {
-	case "docker":
+	case builderDocker:
 		os.Exit(installDockerStub(os.Args[1:]))
 	case "go":
 		os.Exit(installGoStub(os.Args[1:]))
@@ -77,7 +79,7 @@ func installDockerStub(args []string) int {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
-		file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+		file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
@@ -88,34 +90,34 @@ func installDockerStub(args []string) int {
 			return 2
 		}
 	}
-	if len(args) > 0 && args[0] == "run" && containsArg(args, "ze-kernel-builder") {
+	if len(args) > 0 && args[0] == actionRun && containsArg(args, "ze-kernel-builder") {
 		output := dockerOutputMount(args)
 		if output == "" {
 			fmt.Fprintln(os.Stderr, "fake kernel worker has no /out mount")
 			return 2
 		}
-		if err := os.MkdirAll(output, 0o755); err != nil {
+		if err := os.MkdirAll(output, 0o750); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
 		artifact := filepath.Join(output, "Image")
-		if argumentValue(args, "--modules") == "yes" {
+		if argumentValue(args, "--modules") == valueYes {
 			artifact = filepath.Join(output, "vmlinuz")
-			if err := os.MkdirAll(filepath.Join(output, "lib", "modules", "7.1.1-fixture"), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Join(output, "lib", "modules", "7.1.1-fixture"), 0o750); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				return 2
 			}
 		}
-		if err := os.WriteFile(artifact, []byte("fixture kernel\n"), 0o644); err != nil {
+		if err := os.WriteFile(artifact, []byte("fixture kernel\n"), 0o600); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
-		if err := os.WriteFile(filepath.Join(output, "config"), []byte("CONFIG_FIXTURE=y\n"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(output, "config"), []byte("CONFIG_FIXTURE=y\n"), 0o600); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
 	}
-	if len(args) > 0 && args[0] == "run" && os.Getenv("ZE_INSTALL_DOCKER_FAIL_BUILD") != "" &&
+	if len(args) > 0 && args[0] == actionRun && os.Getenv("ZE_INSTALL_DOCKER_FAIL_BUILD") != "" &&
 		containsArg(args, "ze-kernel-builder") {
 		fmt.Fprintln(os.Stderr, "fake kernel build failure")
 		return 1
@@ -125,7 +127,7 @@ func installDockerStub(args []string) int {
 func installGoStub(args []string) int {
 	arch := os.Getenv("GOARCH")
 	if logPath := os.Getenv("ZE_INSTALL_GOARCH_LOG"); logPath != "" {
-		file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+		file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
@@ -158,11 +160,11 @@ func installGoStub(args []string) int {
 		return 0
 	}
 	if output := argumentValue(args, "-o"); output != "" {
-		if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(output), 0o750); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
-		if err := os.WriteFile(output, []byte("fake binary\n"), 0o755); err != nil {
+		if err := os.WriteFile(output, []byte("fake binary\n"), 0o755); err != nil { //nolint:gosec // the fixture writes an executable stand-in, so it needs the execute bit
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
@@ -181,16 +183,16 @@ func installGRUBStub(args []string) int {
 		return 2
 	}
 	if logPath := os.Getenv("ZE_INSTALL_GRUB_LOG"); logPath != "" {
-		if err := os.WriteFile(logPath, []byte(target+"\n"), 0o644); err != nil {
+		if err := os.WriteFile(logPath, []byte(target+"\n"), 0o600); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(output), 0o750); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	if err := os.WriteFile(output, []byte("efi-"+target+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(output, []byte("efi-"+target+"\n"), 0o600); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
@@ -219,7 +221,7 @@ func installXorrisoStub(args []string) int {
 		fmt.Fprintf(os.Stderr, "xorriso EFI image missing: %v\n", err)
 		return 2
 	}
-	if err := os.WriteFile(output, []byte("fixture iso\n"), 0o644); err != nil {
+	if err := os.WriteFile(output, []byte("fixture iso\n"), 0o600); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
@@ -236,17 +238,12 @@ func argumentValue(args []string, name string) string {
 }
 
 func containsArg(args []string, want string) bool {
-	for _, arg := range args {
-		if arg == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(args, want)
 }
 func dockerOutputMount(args []string) string {
 	for _, arg := range args {
-		if strings.HasSuffix(arg, ":/out") {
-			return strings.TrimSuffix(arg, ":/out")
+		if before, ok := strings.CutSuffix(arg, ":/out"); ok {
+			return before
 		}
 	}
 	return ""
@@ -281,7 +278,7 @@ func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
 		return err
 	}
 	appliances := filepath.Join(work, "appliances")
-	if err := os.Mkdir(appliances, 0o755); err != nil {
+	if err := os.Mkdir(appliances, 0o750); err != nil {
 		return err
 	}
 	config := filepath.Join(work, "build-config.json")
@@ -302,7 +299,7 @@ func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
 	}
 	logPath := filepath.Join(fakebin, "goarch.log")
 	fakePackage := filepath.Join(fakebin, "package")
-	if err := os.Mkdir(fakePackage, 0o755); err != nil {
+	if err := os.Mkdir(fakePackage, 0o750); err != nil {
 		return err
 	}
 	restores := []func(){
@@ -313,11 +310,11 @@ func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
 		setFixtureEnv("ZE_INSTALL_FAKE_PKGDIR", fakePackage),
 	}
 	defer func() {
-		for index := len(restores) - 1; index >= 0; index-- {
-			restores[index]()
+		for _, restore := range slices.Backward(restores) {
+			restore()
 		}
 	}()
-	cmd := exec.CommandContext(ctx, ze, "appliance", "--dir", appliances, "build", "lab")
+	cmd := exec.CommandContext(ctx, ze, "appliance", "--dir", appliances, "build", "lab") //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = args[0]
 	output, buildErr := cmd.CombinedOutput()
 	if ctx.Err() != nil {
@@ -326,7 +323,7 @@ func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
 	if strings.Contains(string(output), "fake go saw GOARCH=") {
 		return fmt.Errorf("arm64 build request: %s", output)
 	}
-	data, err := os.ReadFile(logPath)
+	data, err := os.ReadFile(logPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("appliance build did not reach go (build error %s, output %s): %w", fmt.Sprint(buildErr), output, err)
 	}
@@ -335,7 +332,7 @@ func applianceBuildARM64Fixture(ctx context.Context, args []string) error {
 		return fmt.Errorf("appliance build did not invoke go (build error %s, output %s)", fmt.Sprint(buildErr), output)
 	}
 	for _, arch := range lines {
-		if arch != "arm64" {
+		if arch != archARM64 {
 			return fmt.Errorf("gok go subprocess used GOARCH=%s, want arm64 (build error %s, output %s)", arch, fmt.Sprint(buildErr), output)
 		}
 	}
@@ -355,7 +352,7 @@ func applianceISOFixture(ctx context.Context, arch string, magicOffset int, magi
 	if repo == "" {
 		return errors.New("ZE_REPO_ROOT is not set")
 	}
-	version, err := os.ReadFile(filepath.Join(repo, "internal", "appliance", "kernel.version"))
+	version, err := os.ReadFile(filepath.Join(repo, "internal", "appliance", "kernel.version")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read kernel version: %w", err)
 	}
@@ -365,12 +362,12 @@ func applianceISOFixture(ctx context.Context, arch string, magicOffset int, magi
 		filepath.Join("build", "kernel"),
 		filepath.Join("build", "initrd"),
 	} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return err
 		}
 	}
 	for _, name := range []string{"kernel.config", "kernel.require", "qemu.config", "qemu.require"} {
-		if err := os.WriteFile(filepath.Join("tools", "installer-kernel", name), nil, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join("tools", "installer-kernel", name), nil, 0o600); err != nil {
 			return err
 		}
 	}
@@ -383,21 +380,21 @@ func applianceISOFixture(ctx context.Context, arch string, magicOffset int, magi
 	}
 	image := filepath.Join("appliances", "lab", "ze-20260101-000000.img")
 	kernel := filepath.Join("build", "kernel", "Image")
-	if err := os.WriteFile(image, []byte("image-bytes\n"), 0o644); err != nil {
+	if err := os.WriteFile(image, []byte("image-bytes\n"), 0o600); err != nil {
 		return err
 	}
 	if err := prepareISOInputs([]string{kernel, image}, magicOffset, magic); err != nil {
 		return err
 	}
 	variant := fmt.Sprintf("%s-qemu-%s-test\n", arch, strings.TrimSpace(string(version)))
-	if err := os.WriteFile(filepath.Join("build", "kernel", ".variant"), []byte(variant), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join("build", "kernel", ".variant"), []byte(variant), 0o600); err != nil {
 		return err
 	}
 	initrd := "initrd-" + arch + "\n"
-	if arch == "amd64" {
+	if arch == archAMD64 {
 		initrd = "initrd-default\n"
 	}
-	if err := os.WriteFile(filepath.Join("build", "initrd", "initrd.img.gz"), []byte(initrd), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join("build", "initrd", "initrd.img.gz"), []byte(initrd), 0o600); err != nil {
 		return err
 	}
 	self, err := os.Executable()
@@ -433,13 +430,13 @@ func applianceISOFixture(ctx context.Context, arch string, magicOffset int, magi
 		return fmt.Errorf("ISO staging directories = %v, want exactly one", stages)
 	}
 	stage := stages[0]
-	grub, err := os.ReadFile(filepath.Join(stage, "boot", "grub", "grub.cfg"))
+	grub, err := os.ReadFile(filepath.Join(stage, "boot", "grub", "grub.cfg")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
 	console := "console=ttyAMA0,115200n8 console=tty0"
 	bootEFI := "BOOTAA64.EFI"
-	if arch == "amd64" {
+	if arch == archAMD64 {
 		console = "console=ttyS0,115200n8 console=tty0"
 		bootEFI = "BOOTX64.EFI"
 	}
@@ -448,7 +445,7 @@ func applianceISOFixture(ctx context.Context, arch string, magicOffset int, magi
 			return fmt.Errorf("grub.cfg missing %q", text)
 		}
 	}
-	if arch == "arm64" && !bytes.Contains(grub, []byte("search --no-floppy --file /ze-install/media-id --set=root")) {
+	if arch == archARM64 && !bytes.Contains(grub, []byte("search --no-floppy --file /ze-install/media-id --set=root")) {
 		return errors.New("arm64 grub.cfg missing media root search")
 	}
 	for _, path := range []string{
@@ -460,22 +457,22 @@ func applianceISOFixture(ctx context.Context, arch string, magicOffset int, magi
 			return fmt.Errorf("ISO staging artifact: %w", err)
 		}
 	}
-	target, err := os.ReadFile(grubLog)
+	target, err := os.ReadFile(grubLog) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
 	if strings.TrimSpace(string(target)) != grubTarget {
 		return fmt.Errorf("grub target = %q, want %q", strings.TrimSpace(string(target)), grubTarget)
 	}
-	if arch == "amd64" {
-		kernelData, err := os.ReadFile(filepath.Join(stage, "boot", "kernel"))
+	if arch == archAMD64 {
+		kernelData, err := os.ReadFile(filepath.Join(stage, "boot", "kernel")) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}
 		if len(kernelData) != 0x206 {
 			return fmt.Errorf("staged amd64 kernel length = %d, want %d", len(kernelData), 0x206)
 		}
-		initrdData, err := os.ReadFile(filepath.Join(stage, "boot", "initrd.img.gz"))
+		initrdData, err := os.ReadFile(filepath.Join(stage, "boot", "initrd.img.gz")) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}
@@ -490,7 +487,7 @@ func applianceISOFixture(ctx context.Context, arch string, magicOffset int, magi
 }
 
 func runApplianceCapture(ctx context.Context, ze string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, ze, append([]string{"appliance"}, args...)...)
+	cmd := exec.CommandContext(ctx, ze, append([]string{"appliance"}, args...)...) //nolint:gosec // the fixture chooses the program and its arguments
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
@@ -506,13 +503,13 @@ func requireRegularFile(path string) error {
 }
 
 func appliancePushEscapeFixture(ctx context.Context, _ []string) error {
-	if err := os.Mkdir("appliances", 0o755); err != nil {
+	if err := os.Mkdir("appliances", 0o750); err != nil {
 		return err
 	}
 	if code := applianceCommand(ctx, "--dir", "appliances", "init", "--config", "push-config.json", "lab"); code != 0 {
 		return fmt.Errorf("appliance init exited %d", code)
 	}
-	if err := os.WriteFile("outside.img", []byte("outside image\n"), 0o644); err != nil {
+	if err := os.WriteFile("outside.img", []byte("outside image\n"), 0o600); err != nil {
 		return err
 	}
 	if err := os.Symlink("../../outside.img", filepath.Join("appliances", "lab", "ze-20260101-000000.img")); err != nil {
@@ -525,7 +522,7 @@ func appliancePushEscapeFixture(ctx context.Context, _ []string) error {
 }
 
 func applianceReplaceCertFixture(ctx context.Context, _ []string) error {
-	if err := os.Mkdir("appliances", 0o755); err != nil {
+	if err := os.Mkdir("appliances", 0o750); err != nil {
 		return err
 	}
 	for _, item := range [][2]string{{"lab-config.json", "lab"}, {"other-config.json", "other"}} {
@@ -535,15 +532,15 @@ func applianceReplaceCertFixture(ctx context.Context, _ []string) error {
 	}
 	lab := filepath.Join("appliances", "lab", "secrets", "tls")
 	other := filepath.Join("appliances", "other", "secrets", "tls")
-	cert, err := os.ReadFile(filepath.Join(lab, "cert.pem"))
+	cert, err := os.ReadFile(filepath.Join(lab, "cert.pem")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
-	key, err := os.ReadFile(filepath.Join(lab, "key.pem"))
+	key, err := os.ReadFile(filepath.Join(lab, "key.pem")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
-	otherKey, err := os.ReadFile(filepath.Join(other, "key.pem"))
+	otherKey, err := os.ReadFile(filepath.Join(other, "key.pem")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -555,11 +552,11 @@ func applianceReplaceCertFixture(ctx context.Context, _ []string) error {
 	if code := applianceCommand(ctx, "--dir", "appliances", "replace-cert", "--cert", "good.pem", "--key", "good.key", "lab"); code != 0 {
 		return fmt.Errorf("valid replacement exited %d", code)
 	}
-	storedCert, err := os.ReadFile(filepath.Join(lab, "cert.pem"))
+	storedCert, err := os.ReadFile(filepath.Join(lab, "cert.pem")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
-	storedKey, err := os.ReadFile(filepath.Join(lab, "key.pem"))
+	storedKey, err := os.ReadFile(filepath.Join(lab, "key.pem")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -569,11 +566,11 @@ func applianceReplaceCertFixture(ctx context.Context, _ []string) error {
 	if code := applianceCommand(ctx, "--dir", "appliances", "replace-cert", "--cert", "good.pem", "--key", "other.key", "lab"); code == 0 {
 		return errors.New("mismatched certificate and key were accepted")
 	}
-	afterCert, err := os.ReadFile(filepath.Join(lab, "cert.pem"))
+	afterCert, err := os.ReadFile(filepath.Join(lab, "cert.pem")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
-	afterKey, err := os.ReadFile(filepath.Join(lab, "key.pem"))
+	afterKey, err := os.ReadFile(filepath.Join(lab, "key.pem")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -594,12 +591,11 @@ func applianceReplaceCertFixture(ctx context.Context, _ []string) error {
 }
 
 func applianceCommand(ctx context.Context, args ...string) int {
-	cmd := exec.CommandContext(ctx, "ze", append([]string{"appliance"}, args...)...)
+	cmd := exec.CommandContext(ctx, "ze", append([]string{"appliance"}, args...)...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return exitErr.ExitCode()
 		}
 		fmt.Fprintf(os.Stderr, "cannot run ze appliance: %v\n", err)
@@ -622,7 +618,7 @@ func applianceSerialLoginFixture(ctx context.Context, _ []string) error {
 	if err := os.Symlink(ze, ash); err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, ash)
+	cmd := exec.CommandContext(ctx, ash) //nolint:gosec // the fixture chooses the program and its arguments
 	var stderr bytes.Buffer
 	cmd.Stdin, cmd.Stderr = bytes.NewReader(nil), &stderr
 	if err := cmd.Run(); err == nil {
@@ -631,7 +627,7 @@ func applianceSerialLoginFixture(ctx context.Context, _ []string) error {
 	if strings.Contains(stderr.String(), "granting access without authentication") {
 		return errors.New("serial login reached authentication before terminal rejection")
 	}
-	if err := exec.CommandContext(ctx, ze, "show", "version").Run(); err != nil {
+	if err := exec.CommandContext(ctx, ze, "show", "version").Run(); err != nil { //nolint:gosec // the fixture chooses the program and its arguments
 		return fmt.Errorf("normal ze dispatch: %w", err)
 	}
 	return nil
@@ -651,7 +647,7 @@ func prepareISOInputs(args []string, magicOffset int, magic uint32) error {
 	}
 	kernel := make([]byte, 0x206)
 	binary.LittleEndian.PutUint32(kernel[magicOffset:], magic)
-	if err := os.WriteFile(args[0], kernel, 0o644); err != nil {
+	if err := os.WriteFile(args[0], kernel, 0o600); err != nil {
 		return fmt.Errorf("write kernel image: %w", err)
 	}
 	data, err := os.ReadFile(args[1])
@@ -660,7 +656,7 @@ func prepareISOInputs(args []string, magicOffset int, magic uint32) error {
 	}
 	sum := sha256.Sum256(data)
 	sidecar := fmt.Sprintf("%x  %s\n", sum, filepath.Base(args[1]))
-	if err := os.WriteFile(args[1]+".sha256", []byte(sidecar), 0o644); err != nil {
+	if err := os.WriteFile(args[1]+".sha256", []byte(sidecar), 0o600); err != nil {
 		return fmt.Errorf("write appliance checksum: %w", err)
 	}
 	return nil
@@ -691,14 +687,14 @@ func kernelAutoBuilderFixture(ctx context.Context, _ []string) error {
 	defer cleanup()
 
 	bin := filepath.Join(root, "bin")
-	if err := os.MkdirAll(bin, 0o755); err != nil {
+	if err := os.MkdirAll(bin, 0o750); err != nil {
 		return err
 	}
 	noop, err := noopBinary()
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{"docker", "qemu-system-aarch64", "go"} {
+	for _, name := range []string{builderDocker, programQEMUAArch64, "go"} {
 		if err := os.Symlink(noop, filepath.Join(bin, name)); err != nil {
 			return err
 		}
@@ -713,7 +709,7 @@ func kernelAutoBuilderFixture(ctx context.Context, _ []string) error {
 	if !strings.Contains(out, "builder=docker") {
 		return fmt.Errorf("auto selection did not prefer docker: %s", out)
 	}
-	req.Arch = "amd64"
+	req.Arch = archAMD64
 	req.OutputDir = "out-docker-amd64"
 	out, err = runBuildCapture(ctx, &req)
 	if err != nil {
@@ -722,15 +718,15 @@ func kernelAutoBuilderFixture(ctx context.Context, _ []string) error {
 	if !strings.Contains(out, "arch=amd64") || !strings.Contains(out, "builder=docker") {
 		return fmt.Errorf("amd64 mapping output = %q", out)
 	}
-	req.Arch = "arm64"
+	req.Arch = archARM64
 
 	if err := os.Remove(filepath.Join(bin, "docker")); err != nil {
 		return err
 	}
 	req.OutputDir = "out-qemu"
-	cancelled, cancel := context.WithCancel(ctx)
+	canceled, cancel := context.WithCancel(ctx)
 	cancel()
-	out, err = runBuildCapture(cancelled, &req)
+	out, err = runBuildCapture(canceled, &req)
 	if err == nil || !errors.Is(err, context.Canceled) || !strings.Contains(out, "builder=qemu") {
 		return fmt.Errorf("auto selection did not enter and cancel qemu: output=%q error=%s", out, fmt.Sprint(err))
 	}
@@ -758,7 +754,7 @@ func kernelQEMUFixture(ctx context.Context, args []string) error {
 		return err
 	}
 	tmpRoot := filepath.Join(root, "tmp")
-	if err := os.MkdirAll(tmpRoot, 0o755); err != nil {
+	if err := os.MkdirAll(tmpRoot, 0o750); err != nil {
 		return err
 	}
 	out, err := os.MkdirTemp(tmpRoot, "install-fixture-qemu-")
@@ -772,14 +768,14 @@ func kernelQEMUFixture(ctx context.Context, args []string) error {
 	}
 	defer func() { _ = os.RemoveAll(cache) }()
 	bin := filepath.Join(cache, "bin")
-	if err := os.MkdirAll(bin, 0o755); err != nil {
+	if err := os.MkdirAll(bin, 0o750); err != nil {
 		return err
 	}
 	noop, err := noopBinary()
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{"qemu-system-aarch64", "go"} {
+	for _, name := range []string{programQEMUAArch64, "go"} {
 		if err := os.Symlink(noop, filepath.Join(bin, name)); err != nil {
 			return err
 		}
@@ -793,19 +789,19 @@ func kernelQEMUFixture(ctx context.Context, args []string) error {
 		return err
 	}
 	fragments := []string{
-		"tools/installer-kernel/kernel.config",
+		pathInstallerKernelConfig,
 		"tools/installer-kernel/hardware.config",
-		"tools/kernel-builder/common/efi-console.config",
+		pathEFIConsoleConfig,
 	}
-	cancelled, cancel := context.WithCancel(ctx)
+	canceled, cancel := context.WithCancel(ctx)
 	cancel()
 	req := kernelbuilder.Request{
-		Root: root, Version: "7.1.1", Arch: "arm64", Profile: "hardware", Builder: "qemu",
-		Target: "installer", SourceDir: "tools/installer-kernel", OutputDir: relOut,
-		BuilderDir: "tools/kernel-builder", CommonDir: "tools/kernel-builder/common",
+		Root: root, Version: versionKernel711, Arch: archARM64, Profile: "hardware", Builder: builderQEMU,
+		Target: targetInstaller, SourceDir: pathInstallerKernel, OutputDir: relOut,
+		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
 		Modules: "no", Fragments: fragments,
 	}
-	progress, err := runBuildCapture(cancelled, &req)
+	progress, err := runBuildCapture(canceled, &req)
 	if err == nil || !errors.Is(err, context.Canceled) || !strings.Contains(progress, "builder=qemu") {
 		return fmt.Errorf("native QEMU backend was not selected and canceled: output=%q error=%s", progress, fmt.Sprint(err))
 	}
@@ -820,7 +816,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		}
 		defer cleanup()
 		bin := filepath.Join(root, "bin")
-		if err := os.MkdirAll(bin, 0o755); err != nil {
+		if err := os.MkdirAll(bin, 0o750); err != nil {
 			return err
 		}
 		self, err := os.Executable()
@@ -836,7 +832,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		restoreLog := setFixtureEnv("ZE_INSTALL_DOCKER_LOG", logPath)
 		defer restoreLog()
 
-		req.Builder = "docker"
+		req.Builder = builderDocker
 		req.OutputDir = filepath.Join(root, "isolated-output")
 		if err := kernelbuilder.Build(ctx, req); err != nil {
 			return fmt.Errorf("successful ownership build: %w", err)
@@ -860,7 +856,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 			return fmt.Errorf("runtime provenance = %q, want %q", provenance, wantProvenance)
 		}
 
-		if err := os.WriteFile(logPath, nil, 0o644); err != nil {
+		if err := os.WriteFile(logPath, nil, 0o600); err != nil {
 			return err
 		}
 		req.OutputDir = filepath.Join(root, "failed-output")
@@ -886,19 +882,19 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		return errors.New("kernel-build-output-ownership requires REPOSITORY OUTPUT")
 	}
 	return kernelbuilder.Build(ctx, kernelbuilder.Request{
-		Root: args[0], Version: "7.1.1", Arch: "amd64", Profile: "runtime", Builder: "docker",
-		Target: "runtime", SourceDir: "gokrazy/kernel", OutputDir: args[1],
-		BuilderDir: "tools/kernel-builder", CommonDir: "tools/kernel-builder/common",
-		Modules: "yes", PatchesDir: "gokrazy/kernel/patches",
+		Root: args[0], Version: versionKernel711, Arch: archAMD64, Profile: targetRuntime, Builder: builderDocker,
+		Target: targetRuntime, SourceDir: pathGokrazyKernel, OutputDir: args[1],
+		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
+		Modules: valueYes, PatchesDir: "gokrazy/kernel/patches",
 		Fragments: []string{
-			"gokrazy/kernel/kernel.config",
-			"gokrazy/kernel/runtime.config",
-			"tools/kernel-builder/common/efi-console.config",
+			pathGokrazyKernelConfig,
+			pathGokrazyRuntimeConfig,
+			pathEFIConsoleConfig,
 		},
 	})
 }
 func readDockerCalls(path string) ([][]string, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return nil, err
 	}
@@ -965,7 +961,7 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 		}
 		defer cleanup()
 		bin := filepath.Join(root, "bin")
-		if err := os.MkdirAll(bin, 0o755); err != nil {
+		if err := os.MkdirAll(bin, 0o750); err != nil {
 			return err
 		}
 		self, err := os.Executable()
@@ -980,8 +976,8 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 		logPath := filepath.Join(root, "docker.log")
 		restoreLog := setFixtureEnv("ZE_INSTALL_DOCKER_LOG", logPath)
 		defer restoreLog()
-		req.Builder = "docker"
-		req.Target, req.Profile, req.Modules = "installer", "qemu", "no"
+		req.Builder = builderDocker
+		req.Target, req.Profile, req.Modules = targetInstaller, profileQEMU, "no"
 		req.OutputDir = filepath.Join(root, "provenance")
 		if err := kernelbuilder.Build(ctx, req); err != nil {
 			return err
@@ -994,7 +990,7 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 		if string(data) != want {
 			return fmt.Errorf("provenance = %q, want %q", data, want)
 		}
-		if err := os.WriteFile(logPath, nil, 0o644); err != nil {
+		if err := os.WriteFile(logPath, nil, 0o600); err != nil {
 			return err
 		}
 		for _, badVersion := range []string{"not-a-version", "6.12.9"} {
@@ -1016,12 +1012,12 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 		return errors.New("kernel-version-provenance requires REPOSITORY OUTPUT VERSION")
 	}
 	return kernelbuilder.Build(ctx, kernelbuilder.Request{
-		Root: args[0], Version: args[2], Arch: "amd64", Profile: "qemu", Builder: "docker",
-		Target: "installer", SourceDir: "tools/installer-kernel", OutputDir: args[1],
-		BuilderDir: "tools/kernel-builder", CommonDir: "tools/kernel-builder/common",
+		Root: args[0], Version: args[2], Arch: archAMD64, Profile: profileQEMU, Builder: builderDocker,
+		Target: targetInstaller, SourceDir: pathInstallerKernel, OutputDir: args[1],
+		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
 		Modules: "no",
 		Fragments: []string{
-			"tools/installer-kernel/kernel.config",
+			pathInstallerKernelConfig,
 			"tools/installer-kernel/qemu.config",
 		},
 	})
@@ -1089,14 +1085,14 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 	if err != nil {
 		return "", err
 	}
-	defer os.RemoveAll(root)
+	defer os.RemoveAll(root) //nolint:errcheck // fixture cleanup
 	work := filepath.Join(root, "work")
 	build := filepath.Join(root, "build")
 	out := filepath.Join(root, "out")
 	tree := filepath.Join(build, "linux-7.1.1-"+modules)
 	fragment := filepath.Join(root, "custom.config")
 	for _, dir := range []string{work, filepath.Join(tree, "scripts", "kconfig"), filepath.Join(tree, "scripts"), filepath.Join(tree, "arch", "x86", "boot"), out} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return "", err
 		}
 	}
@@ -1110,7 +1106,7 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 		filepath.Join(work, "linux-7.1.1-"+modules+".built.tar.part"):     "",
 	}
 	for path, data := range files {
-		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 			return "", err
 		}
 	}
@@ -1122,7 +1118,7 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 		return "", err
 	}
 	bin := filepath.Join(root, "bin")
-	if err := os.MkdirAll(bin, 0o755); err != nil {
+	if err := os.MkdirAll(bin, 0o750); err != nil {
 		return "", err
 	}
 	if err := os.Symlink("/bin/echo", filepath.Join(bin, "make")); err != nil {
@@ -1135,7 +1131,7 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 	defer restore()
 	var output bytes.Buffer
 	err = kernelbuilder.RunWorker(ctx, kernelbuilder.WorkerRequest{
-		Version: "7.1.1", Arch: "amd64", Profile: profile, Modules: modules, Jobs: "1",
+		Version: versionKernel711, Arch: archAMD64, Profile: profile, Modules: modules, Jobs: "1",
 		SourceDir: root, OutputDir: out, WorkDir: work, BuildDir: build,
 		Fragments: []string{fragment}, Stdout: &output, Stderr: &output,
 	})
@@ -1153,7 +1149,7 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 	if err := requireRegularFile(filepath.Join(root, "tools", "kernel-builder", "main.go")); err != nil {
 		return fmt.Errorf("shared native entrypoint: %w", err)
 	}
-	versionData, err := os.ReadFile(filepath.Join(root, "internal", "appliance", "kernel.version"))
+	versionData, err := os.ReadFile(filepath.Join(root, "internal", "appliance", "kernel.version")) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -1162,9 +1158,9 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 	bin := filepath.Join(work, "bin")
-	if err := os.MkdirAll(bin, 0o755); err != nil {
+	if err := os.MkdirAll(bin, 0o750); err != nil {
 		return err
 	}
 	self, err := os.Executable()
@@ -1187,39 +1183,40 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 		wantProv string
 	}{
 		{
-			name: "installer",
+			name: targetInstaller,
 			request: kernelbuilder.Request{
-				Root: root, Version: version, Arch: "amd64", Profile: "qemu", Builder: "docker",
-				Target: "installer", SourceDir: "tools/installer-kernel", OutputDir: filepath.Join(work, "installer"),
-				BuilderDir: "tools/kernel-builder", CommonDir: "tools/kernel-builder/common", Modules: "no",
-				Fragments: []string{"tools/installer-kernel/kernel.config", "tools/installer-kernel/qemu.config"},
+				Root: root, Version: version, Arch: archAMD64, Profile: profileQEMU, Builder: builderDocker,
+				Target: targetInstaller, SourceDir: pathInstallerKernel, OutputDir: filepath.Join(work, "installer"),
+				BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon, Modules: "no",
+				Fragments: []string{pathInstallerKernelConfig, "tools/installer-kernel/qemu.config"},
 			},
-			worker:   []string{"--modules", "no", "--fragment", "/src/kernel.config", "--fragment", "/src/qemu.config"},
+			worker:   []string{"--modules", "no", flagFragment, "/src/kernel.config", flagFragment, "/src/qemu.config"},
 			wantProv: fmt.Sprintf("version=%s\ntarget=installer\nprofile=qemu\narch=amd64\nmodules=no\nbuilder=docker\n", version),
 		},
 		{
-			name: "runtime",
+			name: targetRuntime,
 			request: kernelbuilder.Request{
-				Root: root, Version: version, Arch: "amd64", Profile: "runtime", Builder: "docker",
-				Target: "runtime", SourceDir: "gokrazy/kernel", OutputDir: filepath.Join(work, "runtime"),
-				BuilderDir: "tools/kernel-builder", CommonDir: "tools/kernel-builder/common", Modules: "yes",
+				Root: root, Version: version, Arch: archAMD64, Profile: targetRuntime, Builder: builderDocker,
+				Target: targetRuntime, SourceDir: pathGokrazyKernel, OutputDir: filepath.Join(work, "runtime"),
+				BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon, Modules: valueYes,
 				PatchesDir: "gokrazy/kernel/patches",
 				Fragments: []string{
-					"gokrazy/kernel/kernel.config",
-					"gokrazy/kernel/runtime.config",
-					"tools/kernel-builder/common/efi-console.config",
+					pathGokrazyKernelConfig,
+					pathGokrazyRuntimeConfig,
+					pathEFIConsoleConfig,
 				},
 			},
 			worker: []string{
-				"--modules", "yes", "--patches-dir", "/src/patches",
-				"--fragment", "/src/kernel.config", "--fragment", "/src/runtime.config",
-				"--fragment", "/builder/common/efi-console.config",
+				"--modules", valueYes, "--patches-dir", "/src/patches",
+				flagFragment, "/src/kernel.config", flagFragment, "/src/runtime.config",
+				flagFragment, "/builder/common/efi-console.config",
 			},
 			wantProv: fmt.Sprintf("version=%s\ntarget=runtime\nprofile=runtime\narch=amd64\nmodules=yes\nbuilder=docker\n", version),
 		},
 	}
-	for _, test := range requests {
-		if err := os.WriteFile(logPath, nil, 0o644); err != nil {
+	for index := range requests {
+		test := &requests[index]
+		if err := os.WriteFile(logPath, nil, 0o600); err != nil {
 			return err
 		}
 		output, err := runBuildCapture(ctx, &test.request)
@@ -1244,13 +1241,13 @@ func kernelBuilderSingleDriverFixture(ctx context.Context, args []string) error 
 			return fmt.Errorf("%s provenance = %q, want %q", test.name, provenance, test.wantProv)
 		}
 		artifact := "Image"
-		if test.request.Target == "runtime" {
+		if test.request.Target == targetRuntime {
 			artifact = "vmlinuz"
 		}
 		if err := requireRegularFile(filepath.Join(test.request.OutputDir, artifact)); err != nil {
 			return fmt.Errorf("%s output artifact: %w", test.name, err)
 		}
-		if test.request.Target == "runtime" {
+		if test.request.Target == targetRuntime {
 			if info, err := os.Stat(filepath.Join(test.request.OutputDir, "lib", "modules")); err != nil || !info.IsDir() {
 				if err == nil {
 					err = errors.New("not a directory")
@@ -1290,11 +1287,11 @@ func kernelQEMUArchAliasFixture(_ context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(root)
+	defer os.RemoveAll(root) //nolint:errcheck // fixture cleanup
 	err = kernelbuilder.Build(context.Background(), kernelbuilder.Request{
-		Root: root, Version: "7.1.1", Arch: "aarch64", Profile: "runtime", Builder: "qemu",
-		Target: "runtime", SourceDir: "../bad", OutputDir: "out", BuilderDir: "builder",
-		CommonDir: "common", Modules: "yes", Fragments: []string{"fragment.config"},
+		Root: root, Version: versionKernel711, Arch: "aarch64", Profile: targetRuntime, Builder: builderQEMU,
+		Target: targetRuntime, SourceDir: "../bad", OutputDir: "out", BuilderDir: dirBuilder,
+		CommonDir: dirCommon, Modules: valueYes, Fragments: []string{"fragment.config"},
 	})
 	if err == nil {
 		return errors.New("expected repository-path validation failure")
@@ -1320,7 +1317,7 @@ func kernelRuntimeDepsFixture(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(scratch)
+	defer os.RemoveAll(scratch) //nolint:errcheck // fixture cleanup
 	query := func(target, arch, profile string) (string, error) {
 		return queryKernelCache(ctx, ze, scratch, target, arch, profile)
 	}
@@ -1349,7 +1346,7 @@ func kernelRuntimeDepsFixture(ctx context.Context, args []string) error {
 		}
 	}
 	probe := filepath.Join(scratch, "internal", "appliance", "kernelbuilder", "zz_runtime_deps_probe.go")
-	if err := os.WriteFile(probe, []byte("package kernelbuilder\nconst fixtureProbe = true\n"), 0o644); err != nil {
+	if err := os.WriteFile(probe, []byte("package kernelbuilder\nconst fixtureProbe = true\n"), 0o600); err != nil {
 		return err
 	}
 	changed, err := query("runtime", "amd64", "runtime")
@@ -1373,21 +1370,21 @@ func kernelRuntimeDepsFixture(ctx context.Context, args []string) error {
 }
 func kernelCacheMutationPaths(root string) ([]string, error) {
 	paths := []string{
-		"gokrazy/kernel/kernel.config",
+		pathGokrazyKernelConfig,
 		"gokrazy/kernel/kernel.require",
-		"gokrazy/kernel/runtime.config",
+		pathGokrazyRuntimeConfig,
 		"gokrazy/kernel/runtime.require",
-		"tools/kernel-builder/common/efi-console.config",
+		pathEFIConsoleConfig,
 		"tools/kernel-builder/common/efi-console.require",
 	}
-	for _, sourceRoot := range []string{"tools/kernel-builder", "internal/appliance/kernelbuilder"} {
+	for _, sourceRoot := range []string{pathKernelBuilder, "internal/appliance/kernelbuilder"} {
 		absoluteRoot := filepath.Join(root, filepath.FromSlash(sourceRoot))
 		err := filepath.WalkDir(absoluteRoot, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}
 			if entry.IsDir() {
-				if sourceRoot == "tools/kernel-builder" && path != absoluteRoot {
+				if sourceRoot == pathKernelBuilder && path != absoluteRoot {
 					return filepath.SkipDir
 				}
 				return nil
@@ -1411,7 +1408,7 @@ func kernelCacheMutationPaths(root string) ([]string, error) {
 
 func assertCacheMutation(ctx context.Context, ze, root, rel, baseline string) error {
 	path := filepath.Join(root, filepath.FromSlash(rel))
-	original, err := os.ReadFile(path)
+	original, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -1452,9 +1449,9 @@ func kernelSharedFragmentFixture(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(scratch)
+	defer os.RemoveAll(scratch) //nolint:errcheck // fixture cleanup
 	common := filepath.Join(scratch, "tools", "kernel-builder", "common", "efi-console.config")
-	data, err := os.ReadFile(common)
+	data, err := os.ReadFile(common) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return err
 	}
@@ -1463,8 +1460,8 @@ func kernelSharedFragmentFixture(ctx context.Context, args []string) error {
 		if !hasExactLine(data, symbol+"=y") {
 			return fmt.Errorf("%s missing from shared console fragment", symbol)
 		}
-		for _, rel := range []string{"gokrazy/kernel/kernel.config", "tools/installer-kernel/hardware.config"} {
-			profile, err := os.ReadFile(filepath.Join(scratch, filepath.FromSlash(rel)))
+		for _, rel := range []string{pathGokrazyKernelConfig, "tools/installer-kernel/hardware.config"} {
+			profile, err := os.ReadFile(filepath.Join(scratch, filepath.FromSlash(rel))) //nolint:gosec // the path is the fixture's own scratch file
 			if err != nil {
 				return err
 			}
@@ -1476,7 +1473,7 @@ func kernelSharedFragmentFixture(ctx context.Context, args []string) error {
 	if err := assertRuntimeKernelComposition(scratch); err != nil {
 		return err
 	}
-	profiles := [][3]string{{"runtime", "amd64", "runtime"}, {"installer", "amd64", "hardware"}, {"installer", "amd64", "hardware-kms"}, {"installer", "amd64", "qemu"}}
+	profiles := [][3]string{{targetRuntime, archAMD64, targetRuntime}, {targetInstaller, archAMD64, "hardware"}, {targetInstaller, archAMD64, "hardware-kms"}, {targetInstaller, archAMD64, profileQEMU}}
 	before := make([]string, len(profiles))
 	for i, profile := range profiles {
 		before[i], err = queryKernelCache(ctx, ze, scratch, profile[0], profile[1], profile[2])
@@ -1484,7 +1481,7 @@ func kernelSharedFragmentFixture(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	if err := os.WriteFile(common, append(data, []byte("\n# fixture mutation\n")...), 0o644); err != nil {
+	if err := os.WriteFile(common, append(data, []byte("\n# fixture mutation\n")...), 0o600); err != nil {
 		return err
 	}
 	for i, profile := range profiles {
@@ -1492,7 +1489,7 @@ func kernelSharedFragmentFixture(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		included := profile[2] != "qemu"
+		included := profile[2] != profileQEMU
 		if included == (after == before[i]) {
 			return fmt.Errorf("shared fragment membership wrong for %s: before=%s after=%s", profile[2], before[i], after)
 		}
@@ -1502,11 +1499,11 @@ func kernelSharedFragmentFixture(ctx context.Context, args []string) error {
 func assertRuntimeKernelComposition(root string) error {
 	var combined []byte
 	for _, rel := range []string{
-		"gokrazy/kernel/kernel.config",
-		"gokrazy/kernel/runtime.config",
-		"tools/kernel-builder/common/efi-console.config",
+		pathGokrazyKernelConfig,
+		pathGokrazyRuntimeConfig,
+		pathEFIConsoleConfig,
 	} {
-		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}
@@ -1532,7 +1529,7 @@ func assertRuntimeKernelComposition(root string) error {
 		return err
 	}
 	for _, path := range installerConfigs {
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}
@@ -1572,7 +1569,7 @@ func hasLinePrefix(data []byte, prefix string) bool {
 }
 
 func queryKernelCache(ctx context.Context, ze, root, target, arch, profile string) (string, error) {
-	cmd := exec.CommandContext(ctx, ze, "appliance", "kernel", "--print-cache-dir", "--target", target, "--arch", arch, "--profile", profile)
+	cmd := exec.CommandContext(ctx, ze, "appliance", "kernel", "--print-cache-dir", "--target", target, "--arch", arch, "--profile", profile) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "XDG_CACHE_HOME="+filepath.Join(root, "cache"))
 	output, err := cmd.CombinedOutput()
@@ -1587,9 +1584,9 @@ func copyKernelFixtureTree(repo string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, rel := range []string{"gokrazy/kernel", "tools/installer-kernel", "tools/kernel-builder", "internal/appliance/kernelbuilder"} {
+	for _, rel := range []string{pathGokrazyKernel, pathInstallerKernel, pathKernelBuilder, "internal/appliance/kernelbuilder"} {
 		if err := copyFixtureTree(filepath.Join(repo, filepath.FromSlash(rel)), filepath.Join(root, filepath.FromSlash(rel))); err != nil {
-			os.RemoveAll(root)
+			os.RemoveAll(root) //nolint:errcheck // fixture cleanup
 			return "", err
 		}
 	}
@@ -1607,23 +1604,23 @@ func copyFixtureTree(source, dest string) error {
 		}
 		target := filepath.Join(dest, rel)
 		if entry.IsDir() {
-			return os.MkdirAll(target, 0o755)
+			return os.MkdirAll(target, 0o750)
 		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
 		}
-		in, err := os.Open(path)
+		in, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			in.Close()
+		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+			in.Close() //nolint:errcheck // fixture teardown
 			return err
 		}
-		out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode().Perm())
+		out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode().Perm()) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
-			in.Close()
+			in.Close() //nolint:errcheck // fixture teardown
 			return err
 		}
 		_, copyErr := io.Copy(out, in)
@@ -1636,25 +1633,25 @@ func syntheticBuildRequest() (string, kernelbuilder.Request, func(), error) {
 	if err != nil {
 		return "", kernelbuilder.Request{}, func() {}, err
 	}
-	cleanup := func() { os.RemoveAll(root) }
-	for _, dir := range []string{"src", "common", "builder"} {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+	cleanup := func() { os.RemoveAll(root) } //nolint:errcheck // fixture cleanup
+	for _, dir := range []string{dirSource, dirCommon, dirBuilder} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o750); err != nil {
 			cleanup()
 			return "", kernelbuilder.Request{}, func() {}, err
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, "src", "runtime.config"), []byte("CONFIG_TEST=y\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "src", "runtime.config"), []byte("CONFIG_TEST=y\n"), 0o600); err != nil {
 		cleanup()
 		return "", kernelbuilder.Request{}, func() {}, err
 	}
-	if err := os.WriteFile(filepath.Join(root, "builder", "Dockerfile"), []byte("FROM scratch\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "builder", "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {
 		cleanup()
 		return "", kernelbuilder.Request{}, func() {}, err
 	}
 	req := kernelbuilder.Request{
-		Root: root, Version: "7.1.1", Arch: "arm64", Profile: "runtime", Target: "runtime",
-		SourceDir: "src", OutputDir: "out", BuilderDir: "builder", CommonDir: "common",
-		Modules: "yes", Fragments: []string{"src/runtime.config"}, Image: "fixture-builder",
+		Root: root, Version: versionKernel711, Arch: archARM64, Profile: targetRuntime, Target: targetRuntime,
+		SourceDir: dirSource, OutputDir: "out", BuilderDir: dirBuilder, CommonDir: dirCommon,
+		Modules: valueYes, Fragments: []string{"src/runtime.config"}, Image: "fixture-builder",
 	}
 	return root, req, cleanup, nil
 }
@@ -1665,11 +1662,11 @@ func runBuildCapture(ctx context.Context, req *kernelbuilder.Request) (string, e
 		return "", err
 	}
 	path := file.Name()
-	defer os.Remove(path)
+	defer os.Remove(path) //nolint:errcheck // fixture cleanup
 	req.Stdout, req.Stderr = file, file
 	buildErr := kernelbuilder.Build(ctx, *req)
 	closeErr := file.Close()
-	data, readErr := os.ReadFile(path)
+	data, readErr := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	return string(data), errors.Join(buildErr, closeErr, readErr)
 }
 

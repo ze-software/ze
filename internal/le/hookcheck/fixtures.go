@@ -33,16 +33,16 @@ const (
 
 var (
 	fixtureSiteDigest = [sha256.Size]byte{
-		0x10, 0x48, 0xd1, 0xf0, 0x0f, 0xda, 0x05, 0x4f,
-		0xf0, 0x20, 0xd6, 0x3b, 0xd6, 0x8c, 0x36, 0xa8,
-		0x0a, 0x49, 0x3c, 0x88, 0x59, 0x89, 0xbc, 0xde,
-		0xf4, 0x41, 0x67, 0x29, 0x3a, 0x40, 0x37, 0xd1,
+		0xa3, 0xd9, 0x13, 0x1c, 0x90, 0x11, 0xb8, 0xde,
+		0x1b, 0xeb, 0x33, 0x3c, 0x92, 0x7e, 0x1e, 0xab,
+		0x0f, 0x9c, 0xf8, 0x2c, 0x27, 0xfd, 0x53, 0xb5,
+		0x47, 0x87, 0x15, 0x50, 0x17, 0xbd, 0xa2, 0x75,
 	}
 	fixtureCatalogDigest = [sha256.Size]byte{
-		0xfa, 0xe1, 0x9b, 0x3c, 0x4c, 0xae, 0x4b, 0x1e,
-		0xcd, 0xf6, 0x60, 0x5c, 0x87, 0x8a, 0x04, 0x97,
-		0x7f, 0x48, 0xe5, 0x7d, 0x40, 0xb8, 0x44, 0xdc,
-		0xc1, 0x44, 0x7e, 0x57, 0x90, 0x91, 0xbd, 0x04,
+		0x94, 0x22, 0x6a, 0x4b, 0xb2, 0xae, 0xf9, 0xef,
+		0x5b, 0xfb, 0xe1, 0xd2, 0x90, 0x12, 0x25, 0x05,
+		0x2b, 0x5f, 0x63, 0xa2, 0xbb, 0xac, 0x10, 0x02,
+		0xc8, 0x4b, 0x56, 0x46, 0xe1, 0x2d, 0xcb, 0xe3,
 	}
 	fixtureCategoryDigest = [sha256.Size]byte{
 		0x11, 0x5e, 0xef, 0x79, 0x05, 0x58, 0x9e, 0x40,
@@ -102,31 +102,31 @@ type fixtureCategory struct {
 }
 
 var fixtureCategories = [...]fixtureCategory{
-	{"format-alloc", "run_format_alloc", "internal/le/hookruntime/writeedit.go", "func writeGoPatterns(", "return fmt.Errorf(\"x\")", "return fmt.\u0053printf(\"%d\", n)"},
-	{"design-ref", "run_design_ref", "internal/le/hookruntime/writeedit.go", "func writeDesignEvidence(", "// Design: docs/x.md\npackage x", "package x"},
-	{"test-first", "run_test_first", "internal/le/hookruntime/writeedit.go", "func writeSpecStatus(", "foo_test.go", "foo.go"},
-	{"rendered-rule", "run_rendered_rule", "internal/le/hookruntime/writeedit.go", "func writeRenderedRule(", "ai/rules/points/commands/x.md", "ai/rules/commands.md"},
-	{"rfc-language", "run_rfc_language", "internal/le/hookruntime/writeedit.go", "func writePointLanguage(", "The caller MUST stop.", "The caller stops."},
-	{"validate-spec", "run_validate_spec", "internal/le/hookruntime/lifecycle.go", "func hookValidateSpec(", "# Spec: x\n## Risks & Assumptions\n## Critical Review Checklist", "# Spec: x"},
-	{"commit-gate", "run_commit_gate", "", "", "implemented now", "deferred to later"},
-	{"session-id", "run_session_id", "internal/le/hookruntime/session.go", "func resolvedSessionID(", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "../shared"},
-	{"rfc-test-guard", "test-weakened proposed", "internal/le/hookruntime/writeedit.go", "func writeWeakening(", "ordinary test edit", "RFC 4271: MUST accept"},
-	{"weakened-hatch", "test-weakened proposed", "internal/le/hookruntime/writeedit.go", "func writeWeakening(", "pkg/x_test.go::TestX", "pkg/y_test.go::TestY"},
-	{"rfc-changed-ledger", "test-weakened proposed", "internal/le/hookruntime/writeedit.go", "func writeWeakening(", "pkg/x_test.go::TestRFC", "pkg/x_test.go::TestOther"},
-	{"draft-incubator", "run_draft_incubator", "internal/le/hookruntime/writeedit.go", "func writeWeakening(", "test/unit/x_test.go", "test/draft/x_test.go"},
-	{"governed-doc-edit", "run_governed_doc_edit", "internal/le/hookruntime/bash.go", "func bashGovernedWrite(", "cat plan/spec-x.md", "echo x > plan/spec-x.md"},
-	{"mark-source-read", "run_mark_source_read", "internal/le/hookruntime/lifecycle.go", "func hookSourceRead(", "internal/x.go", "docs/x.md"},
-	{"design-gate", "run_design_gate", "internal/le/hookruntime/writeedit.go", "func writeDesignEvidence(", "go:go", "go:script"},
-	{"delegation", "run_delegation", "internal/le/hookruntime/lifecycle.go", "func hookStop(", "spawned", "not-spawned"},
-	{"session-state", "run_session_state", "internal/le/hookruntime/lifecycle.go", "func hookEndSummary(", "## Phase 4 handoff\nkept", "## Snapshot\nonly"},
-	{"session-state-location", "run_session_state_location", "internal/le/hookruntime/lifecycle.go", "func stateFile(", "tmp/session/2026-08-25-id/state/session-state-x-id.md", "tmp/session/shared/state/x.md"},
-	{"subagent-context", "run_subagent_context", "internal/le/hookruntime/lifecycle.go", "func hookSubagentContext(", "batch reads; state/session-state-x.md", "generic context"},
-	{"delegation-reminder", "run_delegation_reminder", "internal/le/hookruntime/lifecycle.go", "case \"delegation-reminder\":", "needs no permission; planning.md", "permission denied"},
-	{"phase-gates", "run_phase_gates", "internal/le/hookruntime/agent.go", "func coveredSkill(", "/ze-explore", "raw research agent"},
-	{"raw-job-admission", "run_raw_job_admission", "internal/le/hookruntime/bash.go", "func bashRawHeavy(", "./le test-unit core", "go test ./..."},
-	{"journal-row-shape", "run_journal_row_shape", "internal/le/hookruntime/postwrite.go", "func postJournal(", "| 2026-08-22 | spec-x | hooks | symptom | fix |", "| 2026-08-22 | spec-x | hooks | broken |"},
-	{"script-weakening-arms", "run_script_weakening_arms", "internal/le/hookruntime/writeedit.go", "func writeWeakening(", "self.assertEqual(1, f())", "@pytest.mark.xfail\nself.assertEqual(1, f())"},
-	{"ci-sleep-marker", "run_ci_sleep_marker", "internal/le/hookruntime/writeedit.go", "func writeCISleep(", "# sleep(timer): tracker ticks\ntime.sleep(2)", "time.sleep(2)"},
+	{categoryFormatAlloc, "run_format_alloc", hookWriteEditFile, "func writeGoPatterns(", "return fmt.Errorf(\"x\")", "return fmt.\u0053printf(\"%d\", n)"},
+	{categoryDesignRef, "run_design_ref", hookWriteEditFile, "func writeDesignEvidence(", "// Design: docs/x.md\npackage x", "package x"},
+	{categoryTestFirst, "run_test_first", hookWriteEditFile, "func writeSpecStatus(", "foo_test.go", "foo.go"},
+	{categoryRenderedRule, "run_rendered_rule", hookWriteEditFile, "func writeRenderedRule(", "ai/rules/points/commands/x.md", "ai/rules/commands.md"},
+	{categoryRFCLanguage, "run_rfc_language", hookWriteEditFile, "func writePointLanguage(", "The caller MUST stop.", "The caller stops."},
+	{categoryValidateSpec, "run_validate_spec", hookLifecycleFile, "func hookValidateSpec(", "# Spec: x\n## Risks & Assumptions\n## Critical Review Checklist", "# Spec: x"},
+	{categoryCommitGate, "run_commit_gate", "", "", "implemented now", "deferred to later"},
+	{categorySessionID, "run_session_id", "internal/le/hookruntime/session.go", "func resolvedSessionID(", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "../shared"},
+	{categoryRFCTestGuard, weakenedProposedFixture, hookWriteEditFile, writeWeakeningAnchor, "ordinary test edit", "RFC 4271: MUST accept"},
+	{categoryWeakenedHatch, weakenedProposedFixture, hookWriteEditFile, writeWeakeningAnchor, "pkg/x_test.go::TestX", "pkg/y_test.go::TestY"},
+	{categoryRFCChangedLedger, weakenedProposedFixture, hookWriteEditFile, writeWeakeningAnchor, "pkg/x_test.go::TestRFC", "pkg/x_test.go::TestOther"},
+	{categoryDraftIncubator, "run_draft_incubator", hookWriteEditFile, writeWeakeningAnchor, "test/unit/x_test.go", "test/draft/x_test.go"},
+	{categoryGovernedDocEdit, "run_governed_doc_edit", hookBashFile, "func bashGovernedWrite(", "cat plan/spec-x.md", "echo x > plan/spec-x.md"},
+	{categoryMarkSourceRead, "run_mark_source_read", hookLifecycleFile, "func hookSourceRead(", "internal/x.go", "docs/x.md"},
+	{categoryDesignGate, "run_design_gate", hookWriteEditFile, "func writeDesignEvidence(", "go:go", "go:script"},
+	{categoryDelegation, "run_delegation", hookLifecycleFile, "func hookStop(", "spawned", "not-spawned"},
+	{categorySessionState, "run_session_state", hookLifecycleFile, "func hookEndSummary(", "## Phase 4 handoff\nkept", "## Snapshot\nonly"},
+	{categorySessionStateLocation, "run_session_state_location", hookLifecycleFile, "func stateFile(", "tmp/session/2026-08-25-id/state/session-state-x-id.md", "tmp/session/shared/state/x.md"},
+	{categorySubagentContext, "run_subagent_context", hookLifecycleFile, "func hookSubagentContext(", "batch reads; state/session-state-x.md", "generic context"},
+	{categoryDelegationReminder, "run_delegation_reminder", hookLifecycleFile, "case \"delegation-reminder\":", "needs no permission; planning.md", "permission denied"},
+	{categoryPhaseGates, "run_phase_gates", "internal/le/hookruntime/agent.go", "func coveredSkill(", exploreSkill, "raw research agent"},
+	{categoryRawJobAdmission, "run_raw_job_admission", hookBashFile, "func bashRawHeavy(", "./le test-unit core", "go test ./..."},
+	{categoryJournalRowShape, "run_journal_row_shape", "internal/le/hookruntime/postwrite.go", "func postJournal(", "| 2026-08-22 | spec-x | hooks | symptom | fix |", "| 2026-08-22 | spec-x | hooks | broken |"},
+	{categoryScriptWeakeningArms, "run_script_weakening_arms", hookWriteEditFile, writeWeakeningAnchor, "self.assertEqual(1, f())", "@pytest.mark.xfail\nself.assertEqual(1, f())"},
+	{categoryCISleepMarker, "run_ci_sleep_marker", hookWriteEditFile, "func writeCISleep(", "# sleep(timer): tracker ticks\ntime.sleep(2)", "time.sleep(2)"},
 }
 
 type fixtureProducerBoundary struct {
@@ -139,24 +139,24 @@ type fixtureProducerBoundary struct {
 
 var fixtureProducerBoundaries = [...]fixtureProducerBoundary{
 	{
-		"rfc-test-guard",
-		"internal/le/weakened/actions.go",
-		`Verb:   "proposed"`,
-		"internal/le/weakened/proposed.go",
+		categoryRFCTestGuard,
+		weakenedActionsFile,
+		proposedVerbAnchor,
+		weakenedProposedFile,
 		"func proposedRFCChanges(",
 	},
 	{
-		"weakened-hatch",
-		"internal/le/weakened/actions.go",
-		`Verb:   "proposed"`,
-		"internal/le/weakened/proposed.go",
+		categoryWeakenedHatch,
+		weakenedActionsFile,
+		proposedVerbAnchor,
+		weakenedProposedFile,
 		"func proposedFindings(",
 	},
 	{
-		"rfc-changed-ledger",
-		"internal/le/weakened/actions.go",
-		`Verb:   "proposed"`,
-		"internal/le/weakened/proposed.go",
+		categoryRFCChangedLedger,
+		weakenedActionsFile,
+		proposedVerbAnchor,
+		weakenedProposedFile,
 		"func proposedLedger(",
 	},
 }
@@ -164,20 +164,20 @@ var fixtureProducerBoundaries = [...]fixtureProducerBoundary{
 var hookSourcePaths = [...]string{
 	"internal/le/hookruntime/runtime.go",
 	"internal/le/hookruntime/session.go",
-	"internal/le/hookruntime/bash.go",
-	"internal/le/hookruntime/writeedit.go",
+	hookBashFile,
+	hookWriteEditFile,
 	"internal/le/hookruntime/postwrite.go",
 	"internal/le/hookruntime/agent.go",
-	"internal/le/hookruntime/lifecycle.go",
-	"internal/le/weakened/actions.go",
-	"internal/le/weakened/proposed.go",
+	hookLifecycleFile,
+	weakenedActionsFile,
+	weakenedProposedFile,
 }
 
 func runFixtures(root string) ([]Result, int) {
 	results := make([]Result, 0, len(fixtureCategories)+2)
 	results = append(results,
-		checkFixturePopulation(fixtureCategories[:], fixtureSites[:], fixtureCatalog))
-	results = append(results, checkHookSources(root))
+		checkFixturePopulation(fixtureCategories[:], fixtureSites[:], fixtureCatalog),
+		checkHookSources(root))
 	for _, category := range &fixtureCategories {
 		results = append(results, checkFixtureCategory(category, fixtureCatalog))
 	}
@@ -399,62 +399,62 @@ func producerBoundaryDigest(boundaries []fixtureProducerBoundary) [sha256.Size]b
 
 func categoryVerdict(category, value string) bool {
 	switch category {
-	case "format-alloc":
+	case categoryFormatAlloc:
 		return !strings.Contains(value, "fmt.Sprintf") &&
 			!strings.Contains(value, "strconv.Format")
-	case "design-ref":
+	case categoryDesignRef:
 		return strings.Contains(value, "// Design:")
-	case "test-first":
+	case categoryTestFirst:
 		return strings.HasSuffix(value, "_test.go")
-	case "rendered-rule":
+	case categoryRenderedRule:
 		return strings.Contains(value, "/points/")
-	case "rfc-language":
+	case categoryRFCLanguage:
 		return rfcLanguagePattern.MatchString(value)
-	case "validate-spec":
+	case categoryValidateSpec:
 		return strings.Contains(value, "## Risks & Assumptions") &&
 			strings.Contains(value, "## Critical Review Checklist")
-	case "commit-gate":
+	case categoryCommitGate:
 		return !deferralPattern.MatchString(value)
-	case "session-id":
+	case categorySessionID:
 		return safeSessionID(value)
-	case "rfc-test-guard":
+	case categoryRFCTestGuard:
 		return !strings.Contains(value, "RFC ")
-	case "weakened-hatch":
+	case categoryWeakenedHatch:
 		return strings.Contains(value, "x_test.go::TestX")
-	case "rfc-changed-ledger":
+	case categoryRFCChangedLedger:
 		return strings.HasSuffix(value, "::TestRFC")
-	case "draft-incubator":
+	case categoryDraftIncubator:
 		return !strings.Contains(value, "/draft/")
-	case "governed-doc-edit":
+	case categoryGovernedDocEdit:
 		return !governedWrite(value)
-	case "mark-source-read":
+	case categoryMarkSourceRead:
 		return sourceKind(value) != ""
-	case "design-gate":
+	case categoryDesignGate:
 		left, right, ok := strings.Cut(value, ":")
 		return ok && left == right
-	case "delegation":
+	case categoryDelegation:
 		return value == "spawned"
-	case "session-state":
+	case categorySessionState:
 		return strings.Contains(value, "handoff")
-	case "session-state-location":
+	case categorySessionStateLocation:
 		return strings.Contains(value, "/state/session-state-") &&
 			!strings.Contains(value, "/shared/")
-	case "subagent-context":
+	case categorySubagentContext:
 		return strings.Contains(value, "batch") &&
 			strings.Contains(value, "session-state-")
-	case "delegation-reminder":
+	case categoryDelegationReminder:
 		return strings.Contains(value, "needs no permission") &&
-			strings.Contains(value, "planning.md")
-	case "phase-gates":
+			strings.Contains(value, planningRule)
+	case categoryPhaseGates:
 		return strings.HasPrefix(value, "/ze-")
-	case "raw-job-admission":
+	case categoryRawJobAdmission:
 		return strings.HasPrefix(value, "make ") || !rawJob(value)
-	case "journal-row-shape":
+	case categoryJournalRowShape:
 		return journalCells(value) == 5
-	case "script-weakening-arms":
+	case categoryScriptWeakeningArms:
 		return !strings.Contains(value, "@pytest.mark.xfail") &&
 			!strings.Contains(value, "@unittest.expectedFailure")
-	case "ci-sleep-marker":
+	case categoryCISleepMarker:
 		return !strings.Contains(value, "time.sleep(") || sleepMarkerPattern.MatchString(value)
 	default:
 		return false
@@ -476,12 +476,12 @@ func governedWrite(command string) bool {
 
 func sourceKind(path string) string {
 	switch {
-	case strings.HasSuffix(path, ".go"):
+	case strings.HasSuffix(path, goSuffix):
 		return "go"
 	case strings.HasSuffix(path, ".sh"):
-		return "shell"
+		return kindShell
 	case strings.HasSuffix(path, ".yang"):
-		return "yang"
+		return kindYang
 	case filepath.Base(path) == "Makefile" || strings.HasSuffix(path, ".mk"):
 		return "make"
 	default:
@@ -496,3 +496,73 @@ func journalCells(row string) int {
 	}
 	return len(strings.Split(trimmed[1:len(trimmed)-1], "|"))
 }
+
+// The fixture catalog's own vocabulary: the message match kinds, the behavioral
+// category names, the producer files a category is bound to, and the message
+// fragments and generator labels that more than two rows repeat.
+const (
+	matchContains                = "contains"
+	matchNotContains             = "not-contains"
+	matchEquals                  = "equals"
+	matchSuffix                  = "suffix"
+	categoryFormatAlloc          = "format-alloc"
+	categoryDesignRef            = "design-ref"
+	categoryTestFirst            = "test-first"
+	categoryRenderedRule         = "rendered-rule"
+	categoryRFCLanguage          = "rfc-language"
+	categoryValidateSpec         = "validate-spec"
+	categoryCommitGate           = "commit-gate"
+	categorySessionID            = "session-id"
+	categoryWeakenedHatch        = "weakened-hatch"
+	categoryRFCChangedLedger     = "rfc-changed-ledger"
+	categoryDraftIncubator       = "draft-incubator"
+	categoryGovernedDocEdit      = "governed-doc-edit"
+	categoryDelegation           = "delegation"
+	categoryDelegationReminder   = "delegation-reminder"
+	categoryPhaseGates           = "phase-gates"
+	categoryDesignGate           = "design-gate"
+	categoryRFCTestGuard         = "rfc-test-guard"
+	categoryJournalRowShape      = "journal-row-shape"
+	categoryRawJobAdmission      = "raw-job-admission"
+	categoryScriptWeakeningArms  = "script-weakening-arms"
+	categoryCISleepMarker        = "ci-sleep-marker"
+	categorySessionStateLocation = "session-state-location"
+	categorySessionState         = "session-state"
+	categoryMarkSourceRead       = "mark-source-read"
+	categorySubagentContext      = "subagent-context"
+	hookLifecycleFile            = "internal/le/hookruntime/lifecycle.go"
+	weakenedActionsFile          = "internal/le/testweakened/actions.go"
+	weakenedProposedFile         = "internal/le/testweakened/proposed.go"
+	delegationHeading            = "Delegation:"
+	planningRule                 = "planning.md"
+	goSuffix                     = ".go"
+	exploreSkill                 = "/ze-explore"
+	governedPrefix               = "governed-"
+	kindMakefile                 = "makefile"
+	kindShell                    = "shell"
+	kindYang                     = "yang"
+	labelDot                     = "dot"
+	entryPointPlaceholder        = "Entry Point contains placeholder"
+	writeWeakeningAnchor         = "func writeWeakening("
+	removingExpectations         = "removing expectations"
+	statesNoRFCLevel             = "states no RFC 2119 level"
+	wouldYouLikeMe               = "would you like me to"
+)
+
+// The remaining producer files and repeated fixture strings.
+const (
+	labelDotDot             = "dot-dot"
+	ribHoldsRow             = "| TestRibHolds |"
+	hookWriteEditFile       = "internal/le/hookruntime/writeedit.go"
+	hookBashFile            = "internal/le/hookruntime/bash.go"
+	weakenedProposedFixture = "test-weakened proposed"
+)
+
+// proposedVerbAnchor is the registration line that binds the weakened proposed
+// action to its command surface.
+const proposedVerbAnchor = `Verb:   "proposed"`
+
+// labelTrailingNewline is the generator label for a trailing-newline input.
+const (
+	labelTrailingNewline = "trailing-newline"
+)

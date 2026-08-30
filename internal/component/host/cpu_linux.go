@@ -257,7 +257,7 @@ func averageCurrentFreqMHz(cores []CoreInfo) int {
 // cpu_capacity, cpufreq/scaling_cur_freq, thermal_throttle counters.
 // Missing files are skipped silently per AC-21.
 func (d *Detector) fillCoreSysfs(c *CoreInfo) {
-	base := d.sysfsPath("devices/system/cpu", textbuf.StrInt("cpu", int64(c.CPU)))
+	base := d.sysfsPath("devices/system/cpu", textbuf.StrInt(cpuNamePrefix, int64(c.CPU)))
 	c.Capacity = readFileInt(filepath.Join(base, "cpu_capacity"))
 	c.CurrentFreqMHz = khzToMHz(readFileInt(filepath.Join(base, "cpufreq", "scaling_cur_freq")))
 	//nolint:gosec // throttle counts are small non-negative integers
@@ -269,7 +269,7 @@ func (d *Detector) fillCoreSysfs(c *CoreInfo) {
 // readScalingDriver reads /sys/devices/system/cpu/cpu<N>/cpufreq/scaling_driver
 // and maps to ScalingDriver.
 func (d *Detector) readScalingDriver(cpu int) ScalingDriver {
-	path := d.sysfsPath("devices/system/cpu", textbuf.StrInt("cpu", int64(cpu)), "cpufreq/scaling_driver")
+	path := d.sysfsPath("devices/system/cpu", textbuf.StrInt(cpuNamePrefix, int64(cpu)), "cpufreq/scaling_driver")
 	b, err := os.ReadFile(path) //nolint:gosec // path is under /sys root
 	if err != nil {
 		return ScalingDriverUnknown
@@ -293,7 +293,7 @@ func (d *Detector) readScalingDriver(cpu int) ScalingDriver {
 // readCPUFreqInt reads a kHz-valued integer file under
 // /sys/devices/system/cpu/cpu<N>/cpufreq/. Returns 0 if unreadable.
 func (d *Detector) readCPUFreqInt(cpu int, leaf string) int {
-	path := d.sysfsPath("devices/system/cpu", textbuf.StrInt("cpu", int64(cpu)), "cpufreq", leaf)
+	path := d.sysfsPath("devices/system/cpu", textbuf.StrInt(cpuNamePrefix, int64(cpu)), "cpufreq", leaf)
 	return readFileInt(path)
 }
 

@@ -77,6 +77,11 @@ var firstLiteral = regexp.MustCompile(`'([^'\\]*)'|"([^"\\]*)"`)
 //
 // floor is a parameter because a fixture tree holds fewer emitters than the
 // checkout.
+// testdataDir is the directory name the Go tool treats as invisible. Every
+// tree walk in this package skips it, so the name is declared once rather
+// than repeated at each walk.
+const testdataDir = "testdata"
+
 func Check(tree string, floor int) (Report, error) {
 	surface, err := newSurface(tree)
 	if err != nil {
@@ -102,7 +107,7 @@ func CheckWith(surface Surface, tree string, floor int) (Report, error) {
 			rel := filepath.ToSlash(relPath)
 
 			if entry.IsDir() {
-				if entry.Name() == "testdata" {
+				if entry.Name() == testdataDir {
 					return filepath.SkipDir
 				}
 				return nil

@@ -22,7 +22,7 @@ func resolveOrConfigureIP(ifaceName, override, network string) (serverIP, addedC
 
 	serverIP, addedCIDR = serverAddrFromPrefix(prefix)
 
-	if cfgErr := ensureAddress(ifaceName, addedCIDR); cfgErr != nil {
+	if cfgErr := ensureAddress(ifaceName, addedCIDR); cfgErr != nil { //nolint:staticcheck // SA4023 holds only on darwin: the !linux stub always errors, the linux implementation can return nil
 		return "", "", fmt.Errorf("configure %s on %s: %w", addedCIDR, ifaceName, cfgErr)
 	}
 
@@ -40,7 +40,7 @@ func serverAddrFromPrefix(prefix netip.Prefix) (serverIP, cidr string) {
 }
 
 func cleanupAddress(ifaceName, cidr string) {
-	if err := removeAddress(ifaceName, cidr); err != nil {
+	if err := removeAddress(ifaceName, cidr); err != nil { //nolint:staticcheck // SA4023 holds only on darwin: the !linux stub always errors, the linux implementation can return nil
 		slog.Warn("provision: remove address", "cidr", cidr, "interface", ifaceName, "error", err)
 	} else {
 		slog.Info("provision: removed address", "cidr", cidr, "interface", ifaceName)

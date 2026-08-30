@@ -14,8 +14,10 @@ import (
 func init() {
 	Register("plugin/bgp-rs-reactor-fastpath-fallback", rsObserver04(1, "10.0.0.0/24", false))
 	Register("plugin/bgp-rs-reactor-fastpath", rsObserver04(2, "10.0.0.0/24", true))
+	Register("plugin/bgp-local-as-options", rsObserver04(5, "10.0.0.0/24", true))
 	Register("plugin/bgp-rs-relay-aspath-transparency", rsObserver04(3, "10.0.0.0/24", true))
 	Register("plugin/bgp-rs-replaying-gate", rsObserver04(1, "", true))
+	Register("plugin/prefixsid-ebgp-egress-boundary", rsObserver04(3, "10.0.0.0/24", true))
 	Register("plugin/bgp-summary-flat-payload", observe04(summaryFlat04))
 	Register("plugin/bgp-summary-route-counts", observe04(summaryCounts04))
 	Register("plugin/bmp-lg-bestpath-isolation", bmpBestpath04)
@@ -63,8 +65,8 @@ func observe04(s ObserverScenario) Driver {
 func command04(ctx context.Context, p *sdk.Plugin, command string) (string, any, error) {
 	status, raw, err := p.DispatchCommand(ctx, command)
 	if err != nil {
-		if status == "error" || strings.HasPrefix(err.Error(), "rpc error:") {
-			return "error", err.Error(), nil
+		if status == statusError || strings.HasPrefix(err.Error(), "rpc error:") {
+			return statusError, err.Error(), nil
 		}
 		return status, nil, err
 	}
@@ -97,7 +99,7 @@ func requireDone04(ctx context.Context, p *sdk.Plugin, command string) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	if status != "done" {
+	if status != statusDone {
 		return nil, fmt.Errorf("%s: status=%s data=%v", command, status, data)
 	}
 	return data, nil
@@ -140,9 +142,12 @@ func mapSlice04(v any) []map[string]any {
 	return out
 }
 
-func findPeer04(summary map[string]any, address string) map[string]any {
+// peerAddress04 is the address of the only peer these fixtures configure.
+const peerAddress04 = "127.0.0.1"
+
+func findPeer04(summary map[string]any) map[string]any {
 	for _, peer := range mapSlice04(summary["peers"]) {
-		if peer["address"] == address {
+		if peer["address"] == peerAddress04 {
 			return peer
 		}
 	}
@@ -169,14 +174,14 @@ func pollCommand04(ctx context.Context, p *sdk.Plugin, attempts int, command str
 func waitPeerEOR04(ctx context.Context, p *sdk.Plugin) error {
 	_, _, err := pollCommand04(ctx, p, 40, "show bgp", func(status string, value any) bool {
 		data, _ := value.(map[string]any)
-		peer := findPeer04(data, "127.0.0.1")
-		return status == "done" && peer != nil && number04(peer["eor-sent"]) >= 1
+		peer := findPeer04(data)
+		return status == statusDone && peer != nil && number04(peer["eor-sent"]) >= 1
 	})
 	return err
 }
 
 func testBudgetDuration04(fallback time.Duration, share float64) time.Duration {
-	for _, key := range []string{"ze.test.budget", "ze_test_budget", "ZE_TEST_BUDGET"} {
+	for _, key := range []string{envTestBudgetDotted, envTestBudgetLower, envTestBudgetUpper} {
 		if raw := os.Getenv(key); raw != "" {
 			if budget, err := time.ParseDuration(raw); err == nil {
 				return time.Duration(float64(budget) * share)

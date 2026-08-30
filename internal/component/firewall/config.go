@@ -1204,6 +1204,12 @@ const maxSetElements = 65536
 // stable SetElement order (Go map iteration is randomized; without
 // sorting, `show firewall` and LastApplied would shuffle on every
 // parse).
+// Leaf keys a YANG `list element` entry carries.
+const (
+	leafElementTimeout = "timeout"
+	leafElementValue   = "value"
+)
+
 func parseSetElements(setName string, m map[string]any) ([]SetElement, error) {
 	if len(m) > maxSetElements {
 		return nil, fmt.Errorf("set %q: %d elements exceeds cap %d", setName, len(m), maxSetElements)
@@ -1216,7 +1222,7 @@ func parseSetElements(setName string, m map[string]any) ([]SetElement, error) {
 		}
 		el := SetElement{Value: value}
 		for k, v := range entry {
-			if k == "timeout" {
+			if k == leafElementTimeout {
 				n, err := parseElementTimeout(v)
 				if err != nil {
 					return nil, fmt.Errorf("set %q: element %q: %w", setName, value, err)
@@ -1224,7 +1230,7 @@ func parseSetElements(setName string, m map[string]any) ([]SetElement, error) {
 				el.Timeout = n
 				continue
 			}
-			if k == "value" {
+			if k == leafElementValue {
 				// The key leaf is echoed in the entry body by some
 				// YANG serializers; accept and ignore when it matches
 				// the map key. Mismatch is a parser bug upstream.

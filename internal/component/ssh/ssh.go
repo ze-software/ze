@@ -135,6 +135,13 @@ type ShutdownFunc func()
 // It writes the GR marker to zefs, then shuts down the daemon.
 type RestartFunc func()
 
+// The two exec commands that end the daemon's current run.
+const (
+	commandReboot  = "reboot"
+	commandRestart = "restart"
+	commandStop    = "stop"
+)
+
 // RebootFunc is called when the SSH server receives a "reboot" exec command.
 // It initiates graceful shutdown followed by an OS-level system reboot.
 type RebootFunc func()
@@ -786,7 +793,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 			// action (the dispatcher does not register lifecycle commands,
 			// so "unknown command" errors are expected and allowed through).
 			lcInput := strings.ToLower(strings.TrimSpace(input))
-			if lcInput == "stop" || lcInput == "restart" || lcInput == "reboot" {
+			if lcInput == commandStop || lcInput == commandRestart || lcInput == commandReboot {
 				s.mu.Lock()
 				lcFactory := s.executorFactory
 				s.mu.Unlock()
@@ -806,16 +813,16 @@ func (s *Server) execMiddleware() wish.Middleware {
 				s.mu.Lock()
 				var fn func()
 				switch lcInput {
-				case "stop":
+				case commandStop:
 					fn = s.shutdownFunc
-				case "restart":
+				case commandRestart:
 					fn = s.restartFunc
-				case "reboot":
+				case commandReboot:
 					fn = s.rebootFunc
 				}
 				s.mu.Unlock()
 				if fn != nil {
-					msg := map[string]string{"stop": "stopping", "restart": "restarting", "reboot": "rebooting"}
+					msg := map[string]string{commandStop: "stopping", commandRestart: "restarting", commandReboot: "rebooting"}
 					fmt.Fprintf(sess, "%s daemon\n", msg[lcInput]) //nolint:errcheck // best-effort
 					sess.Exit(0)                                   //nolint:errcheck // best-effort exit status
 					rendered.TransportComplete()

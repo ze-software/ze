@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -167,8 +168,8 @@ func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQ
 		// Undo what this Apply programmed so VPP returns to its pre-Apply
 		// state before the component's journal rollback re-applies the
 		// previous desired.
-		for i := len(undo) - 1; i >= 0; i-- {
-			undo[i]()
+		for _, rollback := range slices.Backward(undo) {
+			rollback()
 		}
 		return fmt.Errorf("traffic-vpp: %w", applyErr)
 	}

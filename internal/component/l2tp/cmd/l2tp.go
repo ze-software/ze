@@ -36,12 +36,29 @@ var (
 	errL2tpMissingLoginArgument          = errors.New("l2tp: missing login argument")
 )
 
+// The CLI argument keywords these handlers read.
+const (
+	argAll       = "all"
+	argSessionID = "session-id"
+	argTunnelID  = "tunnel-id"
+)
+
+// The response payload keys. Two of them hold the same text as an argument
+// keyword above and name something else: one is what an operator types, the
+// other is what the JSON carries.
+const (
+	keyAction    = "action"
+	keyCount     = "count"
+	keyLogin     = "login"
+	keySessionID = "session-id"
+	keyState     = "state"
+	keyTunnelID  = "tunnel-id"
+)
+
 // errSubsystemUnavailable is returned when any show/teardown command
 // runs while the L2TP subsystem has not been started (or has been
 // stopped). The handler converts it into a plugin.StatusError response
 // so the CLI prints a clear message.
-const argAll = "all"
-
 var errSubsystemUnavailable = errors.New("l2tp: subsystem not running")
 
 func init() {
@@ -118,7 +135,7 @@ func idSelectorArgs(ctx *pluginserver.CommandContext, args []string) []string {
 
 // handleTunnel returns one tunnel by ID.
 func handleTunnel(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	tid, err := parseIDArg(idSelectorArgs(ctx, args), "tunnel-id")
+	tid, err := parseIDArg(idSelectorArgs(ctx, args), argTunnelID)
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -151,7 +168,7 @@ func handleSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Respons
 
 // handleSession returns one session by ID.
 func handleSession(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	sid, err := parseIDArg(idSelectorArgs(ctx, args), "session-id")
+	sid, err := parseIDArg(idSelectorArgs(ctx, args), argSessionID)
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -243,7 +260,7 @@ func handleObserver(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 		for i := range summaries {
 			s := &summaries[i]
 			m := map[string]any{
-				"session-id":  int(s.SessionID),
+				keySessionID:  int(s.SessionID),
 				"event-count": s.EventCount,
 			}
 			if s.EventCount > 0 {
@@ -254,10 +271,10 @@ func handleObserver(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 		}
 		return jsonResponse("l2tp observer", map[string]any{
 			"sessions": out,
-			"count":    len(out),
+			keyCount:   len(out),
 		})
 	}
-	sid, err := parseIDArg(args, "session-id")
+	sid, err := parseIDArg(args, argSessionID)
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -271,8 +288,8 @@ func handleObserver(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 		m := map[string]any{
 			"timestamp":  ev.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
 			"type":       ev.Type.String(),
-			"tunnel-id":  int(ev.TunnelID),
-			"session-id": int(ev.SessionID),
+			keyTunnelID:  int(ev.TunnelID),
+			keySessionID: int(ev.SessionID),
 		}
 		if ev.RTT > 0 {
 			m["rtt-ms"] = float64(ev.RTT.Microseconds()) / 1000.0
@@ -289,9 +306,9 @@ func handleObserver(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 		out = append(out, m)
 	}
 	return jsonResponse("l2tp observer", map[string]any{
-		"session-id": int(sid),
+		keySessionID: int(sid),
 		"events":     out,
-		"count":      len(out),
+		keyCount:     len(out),
 	})
 }
 
@@ -310,7 +327,7 @@ func handleCQM(_ *pluginserver.CommandContext, args []string) (*plugin.Response,
 		for i := range summaries {
 			s := &summaries[i]
 			out = append(out, map[string]any{
-				"login":        s.Login,
+				keyLogin:       s.Login,
 				"bucket-count": s.BucketCount,
 				"last-state":   s.LastState,
 				"echo-count":   int(s.EchoCount),
@@ -319,7 +336,7 @@ func handleCQM(_ *pluginserver.CommandContext, args []string) (*plugin.Response,
 		}
 		return jsonResponse("l2tp cqm", map[string]any{
 			"logins": out,
-			"count":  len(out),
+			keyCount: len(out),
 		})
 	}
 	buckets := svc.LoginSamples(arg)
@@ -331,7 +348,7 @@ func handleCQM(_ *pluginserver.CommandContext, args []string) (*plugin.Response,
 		b := &buckets[i]
 		out = append(out, map[string]any{
 			"start":      b.Start.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			"state":      b.State.String(),
+			keyState:     b.State.String(),
 			"echo-count": int(b.EchoCount),
 			"min-rtt-ms": float64(b.MinRTT.Microseconds()) / 1000.0,
 			"max-rtt-ms": float64(b.MaxRTT.Microseconds()) / 1000.0,
@@ -339,9 +356,9 @@ func handleCQM(_ *pluginserver.CommandContext, args []string) (*plugin.Response,
 		})
 	}
 	return jsonResponse("l2tp cqm", map[string]any{
-		"login":   arg,
+		keyLogin:  arg,
 		"buckets": out,
-		"count":   len(out),
+		keyCount:  len(out),
 	})
 }
 
@@ -359,7 +376,7 @@ func handleEcho(_ *pluginserver.CommandContext, args []string) (*plugin.Response
 		return errResponse(fmt.Errorf("l2tp: no echo data for login %q", login)), nil
 	}
 	m := map[string]any{
-		"login":        state.Login,
+		keyLogin:       state.Login,
 		"last-rtt-ms":  float64(state.LastRTT.Microseconds()) / 1000.0,
 		"bucket-state": state.BucketState,
 	}
@@ -371,7 +388,7 @@ func handleEcho(_ *pluginserver.CommandContext, args []string) (*plugin.Response
 }
 
 func handleReliable(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	tid, err := parseIDArg(args, "tunnel-id")
+	tid, err := parseIDArg(args, argTunnelID)
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -384,7 +401,7 @@ func handleReliable(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 		return errResponse(fmt.Errorf("l2tp: no tunnel with local-tid=%d", tid)), nil
 	}
 	return jsonResponse("l2tp reliable", map[string]any{
-		"tunnel-id":        int(tid),
+		keyTunnelID:        int(tid),
 		"ns":               int(stats.NextSendSeq),
 		"nr":               int(stats.NextRecvSeq),
 		"peer-nr":          int(stats.PeerNr),
@@ -411,7 +428,7 @@ func firstPositionalArg(args []string) string {
 // -----------------------------------------------------------------
 
 func handleTunnelHistory(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	tid, err := parseIDArg(args, "tunnel-id")
+	tid, err := parseIDArg(args, argTunnelID)
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -427,7 +444,7 @@ func handleTunnelHistory(_ *pluginserver.CommandContext, args []string) (*plugin
 }
 
 func handleSessionHistory(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	sid, err := parseIDArg(args, "session-id")
+	sid, err := parseIDArg(args, argSessionID)
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -458,7 +475,7 @@ func fsmTransitionsJSON(transitions []l2tp.FSMTransition) map[string]any {
 		}
 		out = append(out, m)
 	}
-	return map[string]any{"transitions": out, "count": len(out)}
+	return map[string]any{"transitions": out, keyCount: len(out)}
 }
 
 // -----------------------------------------------------------------
@@ -466,7 +483,7 @@ func fsmTransitionsJSON(transitions []l2tp.FSMTransition) map[string]any {
 // -----------------------------------------------------------------
 
 func handleTunnelTeardown(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	tid, err := parseIDArg(args, "tunnel-id")
+	tid, err := parseIDArg(args, argTunnelID)
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -478,8 +495,8 @@ func handleTunnelTeardown(_ *pluginserver.CommandContext, args []string) (*plugi
 		return errResponse(err), nil
 	}
 	return jsonResponse("l2tp tunnel teardown", map[string]any{
-		"action":    "tunnel-teardown",
-		"tunnel-id": int(tid),
+		keyAction:   "tunnel-teardown",
+		keyTunnelID: int(tid),
 		"status":    "sent",
 	})
 }
@@ -491,13 +508,13 @@ func handleTunnelTeardownAll(_ *pluginserver.CommandContext, _ []string) (*plugi
 	}
 	n := svc.TeardownAllTunnels()
 	return jsonResponse("l2tp tunnel teardown-all", map[string]any{
-		"action":          "tunnel-teardown-all",
+		keyAction:         "tunnel-teardown-all",
 		"tunnels-cleared": n,
 	})
 }
 
 func handleSessionTeardown(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	sid, err := parseIDArg(args, "session-id")
+	sid, err := parseIDArg(args, argSessionID)
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -515,8 +532,8 @@ func handleSessionTeardown(_ *pluginserver.CommandContext, args []string) (*plug
 		return errResponse(err), nil
 	}
 	result := map[string]any{
-		"action":     "session-teardown",
-		"session-id": int(sid),
+		keyAction:    "session-teardown",
+		keySessionID: int(sid),
 		"status":     "sent",
 	}
 	if reason != "" {
@@ -535,7 +552,7 @@ func handleSessionTeardownAll(_ *pluginserver.CommandContext, _ []string) (*plug
 	}
 	n := svc.TeardownAllSessions()
 	return jsonResponse("l2tp session teardown-all", map[string]any{
-		"action":           "session-teardown-all",
+		keyAction:          "session-teardown-all",
 		"sessions-cleared": n,
 	})
 }
@@ -554,7 +571,7 @@ func tunnelJSON(t *l2tp.TunnelSnapshot, detail bool) map[string]any {
 		"remote-tid":    int(t.RemoteTID),
 		"peer":          t.PeerAddr.String(),
 		"peer-hostname": t.PeerHostName,
-		"state":         t.State,
+		keyState:        t.State,
 		"session-count": t.SessionCount,
 		"created-at":    t.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 		"last-activity": formatTime(t.LastActivity),
@@ -585,7 +602,7 @@ func sessionJSON(s *l2tp.SessionSnapshot, detail bool) map[string]any {
 		"local-sid":        int(s.LocalSID),
 		"remote-sid":       int(s.RemoteSID),
 		"tunnel-local-tid": int(s.TunnelLocalTID),
-		"state":            s.State,
+		keyState:           s.State,
 		"username":         s.Username,
 		"assigned-addr":    assigned,
 		"family":           s.Family,
@@ -707,7 +724,7 @@ func handleSessionTraffic(_ *pluginserver.CommandContext, args []string) (*plugi
 		return sessionTrafficAll(svc)
 	}
 
-	sid, err := parseIDArg(args, "session-id")
+	sid, err := parseIDArg(args, argSessionID)
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -734,7 +751,7 @@ func sessionTrafficAll(svc l2tp.Service) (*plugin.Response, error) {
 			row, err := sessionTrafficRow(ss)
 			if err != nil {
 				row = map[string]any{
-					"session-id":    int(ss.LocalSID),
+					keySessionID:    int(ss.LocalSID),
 					"ppp-interface": ss.PppInterface,
 					"error":         err.Error(),
 				}
@@ -744,7 +761,7 @@ func sessionTrafficAll(svc l2tp.Service) (*plugin.Response, error) {
 	}
 	return jsonResponse("l2tp session-traffic", map[string]any{
 		"sessions": rows,
-		"count":    len(rows),
+		keyCount:   len(rows),
 	})
 }
 
@@ -757,7 +774,7 @@ func sessionTrafficRow(ss l2tp.SessionSnapshot) (map[string]any, error) {
 		return nil, fmt.Errorf("l2tp: stats for %s: %w", ss.PppInterface, err)
 	}
 	return map[string]any{
-		"session-id":    int(ss.LocalSID),
+		keySessionID:    int(ss.LocalSID),
 		"ppp-interface": ss.PppInterface,
 		"rx-bytes":      stats.RxBytes,
 		"tx-bytes":      stats.TxBytes,

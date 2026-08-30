@@ -10,11 +10,15 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 )
 
+// backendName is this AAA backend's identifier, and the AuthResult.Source every
+// result carries. It is not the config container of the same spelling.
+const backendName = "tacacs"
+
 // tacacsBackend is the AAA backend for TACACS+ (RFC 8907).
 type tacacsBackend struct{}
 
 // Name returns the backend identifier matching AuthResult.Source.
-func (tacacsBackend) Name() string { return "tacacs" }
+func (tacacsBackend) Name() string { return backendName }
 
 // Priority 100 places tacacs before local (priority 200) in the chain.
 func (tacacsBackend) Priority() int { return 100 }

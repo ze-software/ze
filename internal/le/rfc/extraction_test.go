@@ -455,3 +455,58 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 		t.Error("help renders no hint under the command")
 	}
 }
+
+func TestAFusedObligationWithNoTerminatorIsStillCutFree(t *testing.T) {
+	// The sibling above has a terminator after "RFC 2119", so boilerplateEnd
+	// finds one and the cut is taken. This one does not: the paragraph runs
+	// straight into the obligation with no end punctuation anywhere after the
+	// match. The splitter used to give up there and hand the chunk back WHOLE,
+	// and sitesFor drops a boilerplate-matching chunk entire, so the MUST inside
+	// it never became a site.
+	//
+	// That is the one direction nothing downstream can see. An over-count is
+	// visible to a reviewer, who deletes the row. An under-count is silent: the
+	// gate cannot ask for evidence of an obligation it never knew was owed.
+	fused := "The key words are to be interpreted as described in RFC 2119 " +
+		"and 6PE routers MUST support the widget"
+
+	got := splitOffBoilerplate(fused)
+
+	if len(got) != 2 {
+		t.Fatalf("the obligation was swallowed with the boilerplate: %q", got)
+	}
+	if !strings.Contains(got[1], "MUST support the widget") {
+		t.Errorf("the tail is %q, and must still state the obligation", got[1])
+	}
+}
+
+func TestATerminatorLessChunkWithNoObligationIsStillDroppedWhole(t *testing.T) {
+	// The discrimination case. The cut is conditioned on the TAIL carrying a
+	// MUST-level keyword, so a chunk that is only boilerplate must not be split:
+	// splitting it would promote the paragraph's own keyword listing to an
+	// obligation, which is the over-count the condition exists to avoid.
+	onlyBoilerplate := "The key words are to be interpreted as described in RFC 2119 " +
+		"and in RFC 8174 when they appear in all capitals"
+
+	got := splitOffBoilerplate(onlyBoilerplate)
+
+	if len(got) != 1 {
+		t.Fatalf("a chunk stating no obligation was split: %q", got)
+	}
+}
+
+func TestATerminatorLessFusedObligationBecomesASite(t *testing.T) {
+	// The same case as the first test above, driven through the walk that
+	// actually feeds the gate rather than through the splitter alone.
+	body := "1.  Terms\n\n    The key words are to be interpreted as described in RFC 2119 " +
+		"and 6PE routers MUST support the widget\n"
+
+	sites := sitesFor(body, siteKeywordRE)
+
+	if len(sites) != 1 {
+		t.Fatalf("the obligation never became a site: %+v", sites)
+	}
+	if !strings.Contains(sites[0].Quote, "MUST support the widget") {
+		t.Errorf("the site quote is %q", sites[0].Quote)
+	}
+}

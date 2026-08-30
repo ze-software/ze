@@ -157,11 +157,11 @@ func TestTheWholeIndexIsRenderedByteForByte(t *testing.T) {
 		"header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side\n" +
 		"`<!-- source: -->` anchors). See `ai/rules/go-standards.md`.\n" +
 		"\n" +
-		"## `docs/a.md`\n" +
+		"## `docs/a.md`\n" + // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 		"\n" +
 		"- `a.go` -- one\n" +
 		"\n" +
-		"## `docs/b.md`\n" +
+		"## `docs/b.md`\n" + // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 		"\n" +
 		"- `b.go`\n"
 

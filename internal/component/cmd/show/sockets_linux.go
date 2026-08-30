@@ -89,7 +89,7 @@ func handleShowSystemSockets(_ *pluginserver.CommandContext, args []string) (*pl
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"sockets": filtered,
-			"count":   len(filtered),
+			keyCount:  len(filtered),
 		},
 	}, nil
 }
