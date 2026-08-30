@@ -4,7 +4,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -30,20 +29,16 @@ func cmdDiff(args []string) int {
 
 func cmdDiffImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config diff", flag.ExitOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command: "ze config diff",
 			Summary: "Compare two configuration files and show differences",
 			Usage: []string{
-				"ze config diff [options] <file1> <file2>",
-				"ze config diff [options] <N> <file>",
+				"ze config diff <file1> <file2>",
+				"ze config diff <N> <file>",
 			},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--json", Desc: "Output as JSON"},
-				}},
-				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
 					{Name: "0", Desc: "Success (differences shown, or no differences)"},
 					{Name: "2", Desc: "File not found or parse error"},
 				}},
@@ -59,20 +54,35 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	if fs.NArg() < 2 {
+	diff, code := resolveDiff(store, fs.Args())
+	if code != exitOK {
+		if fs.NArg() < 2 {
+			fs.Usage()
+		}
+		return code
+	}
+	return outputDiffText(diff)
+}
+
+// resolveDiff compares the two configurations named in args, with every secret
+// value masked, and answers the diff both spellings of this command render.
+//
+// It is the payload half of cmdDiffImpl, lifted so `show config diff` answers
+// with DATA (dataDiff, config_data.go) and the two spellings cannot drift.
+func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int) {
+	if len(args) < 2 {
 		fmt.Fprintf(os.Stderr, "error: requires two config files, or revision number and config file\n")
-		fs.Usage()
-		return exitError
+		return nil, exitError
 	}
 
 	// Check if first arg is a revision number (diff against rollback)
-	file1 := fs.Arg(0)
-	file2 := fs.Arg(1)
+	file1 := args[0]
+	file2 := args[1]
 	if n, err := strconv.Atoi(file1); err == nil {
 		resolved, err := resolveRollbackPath(store, file2, n)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return exitError
+			return nil, exitError
 		}
 		file1 = resolved
 	}
@@ -80,28 +90,24 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 	schema, err := config.YANGSchema()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: YANG schema: %v\n", err)
-		return exitError
+		return nil, exitError
 	}
 
 	tree1, err := loadAndResolve(store, schema, file1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file1, err)
-		return exitError
+		return nil, exitError
 	}
 
 	tree2, err := loadAndResolve(store, schema, file2)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file2, err)
-		return exitError
+		return nil, exitError
 	}
 
 	diff := config.DiffMaps(tree1, tree2)
 	maskDiffSecrets(diff, config.SecretKeys(schema))
-
-	if *jsonOutput {
-		return outputDiffJSON(diff)
-	}
-	return outputDiffText(diff)
+	return diff, exitOK
 }
 
 // resolveRollbackPath resolves a revision number to a rollback file path.
@@ -205,21 +211,6 @@ func maskDiffValue(path string, value any, secretKeys map[string]bool) any {
 		return config.SecretDataPlaceholder
 	}
 	return value
-}
-
-func outputDiffJSON(diff *config.ConfigDiff) int {
-	out := map[string]any{
-		"added":   diff.Added,
-		"removed": diff.Removed,
-		"changed": diff.Changed,
-	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(out); err != nil {
-		fmt.Fprintf(os.Stderr, "error: encoding JSON: %v\n", err)
-		return exitError
-	}
-	return exitOK
 }
 
 func outputDiffText(diff *config.ConfigDiff) int {

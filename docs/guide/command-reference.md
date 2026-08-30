@@ -90,14 +90,13 @@ Validate a configuration file without starting the daemon.
 ```
 ze config validate <config-file>
 ze config validate -q <config-file>     # Quiet: exit code only
-ze config validate --json <config-file> # JSON output
+ze cli -c "validate config <config-file> | json"   # the same verdict as JSON
 ```
 
 | Flag | Purpose |
 |------|---------|
 | `-v` | Verbose output |
 | `-q` | Quiet mode (exit code only) |
-| `--json` | JSON output |
 
 Exit codes: 0 = valid, 1 = invalid, 2 = file not found.
 
@@ -141,7 +140,7 @@ ze config cat <key>              # Print database entry
 
 ```
 ze config validate <file>        # Validate configuration file
-ze config show <file> [path...]  # Show the config tree at a path (one-shot; --json)
+ze config show <file> [path...]  # Show the config tree at a path (one-shot)
 ze config dump <file>            # Dump parsed configuration
 ze config diff <f1> <f2>         # Compare two configs
 ze config diff <N> <file>        # Compare with rollback revision
@@ -1504,7 +1503,15 @@ ze schema events [module]        # List notifications
 ze schema protocol               # Show protocol version
 ```
 
-All subcommands accept `--json`.
+No subcommand takes a rendering flag. Each answer is registered, so the pipe
+layer renders it, and `| json`, `| yaml` and `| table` are three renderings of
+one payload:
+
+```
+ze cli -c "show schema list | json"
+ze cli -c "show schema module ze-bgp-conf | json"
+ze cli -c "show schema methods | match peer"
+```
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
 
 ### ze yang
@@ -1519,11 +1526,13 @@ ze yang doc [command]            # Command documentation
 
 | Flag | Purpose |
 |------|---------|
-| `--json` | JSON output |
 | `--commands` | Show command tree (tree) |
 | `--config` | Show config tree (tree) |
 | `--min-prefix <N>` | Minimum prefix length (completion, default: 1) |
 | `--list` | List commands (doc) |
+
+The tree and the collision report are registered answers, so the pipe layer
+renders them: `ze cli -c "show yang tree --config | json"`.
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
 
 ### ze init

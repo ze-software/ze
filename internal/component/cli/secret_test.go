@@ -188,7 +188,7 @@ func secretCLIRenders(t *testing.T, schema *config.Schema, tree *config.Tree) ma
 	return out
 }
 
-// displayTreeJSON answers what `ze config show --json` writes at path. That
+// displayTreeJSON answers the masked tree at path. That
 // command encodes the tree itself, never the serialized text. The map is
 // therefore its own producer, and it carries its own copy of every leaf value.
 func displayTreeJSON(t *testing.T, editor *Editor, path []string) string {
@@ -306,7 +306,7 @@ func TestCLISecretMaskingFollowsTheSchemaMarking(t *testing.T) {
 }
 
 // VALIDATES: DisplayTreeAtPath answers nothing when nothing can be masked.
-// PREVENTS: `ze config show --json` writing the live tree. config.MaskSecrets
+// PREVENTS: a caller answering the live tree. config.MaskSecrets
 // answers its INPUT unchanged when the schema is nil. A nil schema therefore
 // handed the caller every stored value, and the map it encoded carried them.
 // Every sibling fails closed. DisplayContentAtPath guards on the schema, and

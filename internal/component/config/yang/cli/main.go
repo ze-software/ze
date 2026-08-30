@@ -18,6 +18,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// helpSectionOptions is the section title every usage page in this file carries.
+const helpSectionOptions = "Options"
+
 // Run executes the ze yang subcommand. Returns exit code.
 func Run(args []string) int {
 	if len(args) < 1 {
@@ -25,6 +28,9 @@ func Run(args []string) int {
 		return 1
 	}
 
+	// The cases stay written out. TestDispatchParity reads them from this
+	// file's AST and compares them with yangCommands, and it can only see a
+	// string literal.
 	switch args[0] {
 	case "completion":
 		return cmdCompletion(args[1:])
@@ -52,20 +58,20 @@ func usage() {
 		Usage:   []string{"ze yang <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
-				{Name: "completion", Desc: "Detect prefix collisions in config and command trees"},
-				{Name: "tree", Desc: "Print unified config + command tree"},
-				{Name: "doc", Desc: "Command documentation"},
+				{Name: subCompletion, Desc: "Detect prefix collisions in config and command trees"},
+				{Name: subTree, Desc: "Print unified config + command tree"},
+				{Name: subDoc, Desc: "Command documentation"},
 				{Name: "help", Desc: "Show this help"},
 			}},
 		},
 		Examples: []string{
 			"ze yang completion",
-			"ze yang completion --json",
 			"ze yang completion --min-prefix 3",
+			`ze cli -c "show yang completion | json"`,
 			"ze yang tree",
 			"ze yang tree --commands",
 			"ze yang tree --config",
-			"ze yang tree --json",
+			`ze cli -c "show yang tree --config | json"`,
 			"ze yang doc --list",
 			`ze yang doc "show bgp peer list"`,
 		},
@@ -86,14 +92,6 @@ func cmdCompletion(args []string) int {
 	}
 
 	groups := collectCollisions(root, options.minPrefix)
-	if options.jsonOutput {
-		if err := formatCollisionsJSON(os.Stdout, groups); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return 1
-		}
-		return 0
-	}
-
 	if err := formatCollisionsText(os.Stdout, groups); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -102,15 +100,13 @@ func cmdCompletion(args []string) int {
 }
 
 type completionOptions struct {
-	jsonOutput bool
-	minPrefix  int
+	minPrefix int
 }
 
 func parseCompletionOptions(args []string) (completionOptions, error) {
 	options := completionOptions{minPrefix: 1}
 	fs := flag.NewFlagSet("yang completion", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	fs.BoolVar(&options.jsonOutput, "json", false, "output as JSON")
 	fs.IntVar(&options.minPrefix, "min-prefix", 1,
 		"minimum disambiguation depth to report (1-10)")
 	fs.Usage = completionUsage
@@ -135,10 +131,9 @@ func completionUsage() {
 	p := helpfmt.Page{
 		Command: "ze yang completion",
 		Summary: "Detect prefix collisions in config and command trees",
-		Usage:   []string{"ze yang completion [--json] [--min-prefix N]"},
+		Usage:   []string{"ze yang completion [--min-prefix N]"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Options", Entries: []helpfmt.HelpEntry{
-				{Name: "--json", Desc: "Output as JSON"},
+			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 				{Name: "--min-prefix N", Desc: "Minimum disambiguation depth to report (1-10)"},
 			}},
 		},
@@ -158,14 +153,6 @@ func cmdTree(args []string) int {
 		return 1
 	}
 
-	if options.jsonOutput {
-		if err := formatTreeJSON(os.Stdout, root, options.filter); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return 1
-		}
-		return 0
-	}
-
 	if err := formatTreeText(os.Stdout, root, options.filter); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -174,8 +161,7 @@ func cmdTree(args []string) int {
 }
 
 type treeOptions struct {
-	filter     string
-	jsonOutput bool
+	filter string
 }
 
 func parseTreeOptions(args []string) (treeOptions, error) {
@@ -185,7 +171,6 @@ func parseTreeOptions(args []string) (treeOptions, error) {
 
 	fs := flag.NewFlagSet("yang tree", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	fs.BoolVar(&options.jsonOutput, "json", false, "output as JSON")
 	fs.BoolVar(&commands, FilterCommands, false, "show command nodes only")
 	fs.BoolVar(&config, "config", false, "show config nodes only")
 	fs.Usage = treeUsage
@@ -213,10 +198,9 @@ func treeUsage() {
 	p := helpfmt.Page{
 		Command: "ze yang tree",
 		Summary: "Print unified config + command tree",
-		Usage:   []string{"ze yang tree [--json] [--commands] [--config]"},
+		Usage:   []string{"ze yang tree [--commands] [--config]"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Options", Entries: []helpfmt.HelpEntry{
-				{Name: "--json", Desc: "Output as JSON"},
+			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 				{Name: "--commands", Desc: "Show command nodes only"},
 				{Name: "--config", Desc: "Show config nodes only"},
 			}},
@@ -242,7 +226,7 @@ func cmdDoc(args []string) int {
 			Summary: "Command documentation",
 			Usage:   []string{"ze yang doc [--list] [<command>]"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--list", Desc: "List all commands"},
 				}},
 			},

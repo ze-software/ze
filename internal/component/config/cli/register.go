@@ -71,28 +71,39 @@ func init() {
 		return code
 	}, registry.Meta{
 		Description: "Configuration editing, formatting, validation, and history",
-		Mode:        "offline",
+		Mode:        modeOffline,
 		Section:     registry.SectionConfiguration,
 		Subs:        subcommands(),
 	})
 
 	// Non-storage shortcuts: read the candidate/running config without the blob.
-	// dump answers with DATA: one nested document, the same map `--json`
-	// emits. It printed and returned an exit code before, which is why
+	// Each of these answers with DATA, so the operator's pipe chain renders it
+	// and no command carries a rendering flag of its own. They printed and
+	// returned an exit code before, which is why
 	// `ze cli -c "show config dump x.conf | json"` answered `unknown command`.
 	registry.MustRegisterLocalData("show config dump", dataDump, registry.Meta{
-		Description: "Show the fully resolved config tree as JSON. What you see is exactly what the daemon uses.",
-		Mode:        "offline",
+		Description: "Show the fully resolved config tree. What you see is exactly what the daemon uses.",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalMeta("show config diff", func(args []string) int {
-		return Run(append([]string{"diff"}, args...))
-	}, registry.Meta{Description: "Show what changed between the running and candidate configurations."})
+	registry.MustRegisterLocalData("show config diff", dataDiff, registry.Meta{
+		Description: "Show what changed between the running and candidate configurations.",
+		Mode:        modeOffline,
+	}, command.RenderLocalAnswer)
+	registry.MustRegisterLocalData("show config fix", dataFix, registry.Meta{
+		Description: "Show the repair plan a config's diagnostics imply. It never edits the file.",
+		Mode:        modeOffline,
+	}, command.RenderLocalAnswer)
+	registry.MustRegisterLocalData("show config completion", dataCompletion, registry.Meta{
+		Description: "Show what the config editor would offer next at a context path.",
+		Mode:        modeOffline,
+	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalMeta("show config fmt", func(args []string) int {
 		return Run(append([]string{"fmt"}, args...))
 	}, registry.Meta{Description: "Pretty-print the config with consistent formatting and ordering."})
-	registry.MustRegisterLocalMeta("validate config", func(args []string) int {
-		return Run(append([]string{"validate"}, args...))
-	}, registry.Meta{Description: "Check your config for errors without applying anything. Reports syntax and semantic issues."})
+	registry.MustRegisterLocalData("validate config", dataValidate, registry.Meta{
+		Description: "Check your config for errors without applying anything. Reports syntax and semantic issues.",
+		Mode:        modeOffline,
+	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalMeta("show config graph", func(args []string) int {
 		return Run(append([]string{"graph"}, args...))
 	}, registry.Meta{Description: "Show how components and peers depend on each other (DOT graph format)."})
@@ -100,20 +111,28 @@ func init() {
 	// Storage-backed shortcuts: resolve the blob store lazily at dispatch.
 	registry.MustRegisterLocalData("show config history", dataHistory, registry.Meta{
 		Description: "List config snapshots with timestamps and commit messages.",
-		Mode:        "offline",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show config ls", dataLs, registry.Meta{
 		Description: "List all config snapshots stored in the blob store.",
-		Mode:        "offline",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 
-	// dump is ONE document, so the row operators are refused over it by name.
-	// history and ls answer rows.
-	command.RegisterShape([]string{"show config dump"}, command.ShapeDoc)
-	command.RegisterShape([]string{"show config history", "show config ls"}, command.ShapeTab)
+	// dump, diff, fix and the validation verdict are each ONE document, so the
+	// row operators are refused over them by name. history, ls and the
+	// completion candidates answer rows.
+	command.RegisterShape([]string{
+		"show config dump", "show config diff",
+		"show config fix", "validate config",
+	}, command.ShapeDoc)
+	command.RegisterShape([]string{
+		"show config history", "show config ls", "show config completion",
+	}, command.ShapeTab)
 	command.RegisterColumns([]string{"show config history"},
-		command.ColumnOrder{"revision", "timestamp", "path", "state"})
-	command.RegisterColumns([]string{"show config ls"}, command.ColumnOrder{"source", "path"})
+		command.ColumnOrder{keyRevision, "timestamp", keyPath, "state"})
+	command.RegisterColumns([]string{"show config ls"}, command.ColumnOrder{keySource, keyPath})
+	command.RegisterColumns([]string{"show config completion"},
+		command.ColumnOrder{keyType, keyText, keyDescription})
 	registry.MustRegisterLocalMeta("show config cat", storageShortcut("cat"),
 		registry.Meta{Description: "Print the full configuration text for a stored snapshot."})
 }

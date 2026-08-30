@@ -4,7 +4,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -104,7 +103,6 @@ func cmdValidate(args []string) int {
 	fs := flag.NewFlagSet("config validate", flag.ExitOnError)
 	verbose := fs.Bool("v", false, "verbose output")
 	quiet := fs.Bool("q", false, "quiet mode (exit code only)")
-	jsonOut := fs.Bool("json", false, "output as JSON")
 	pending := fs.Bool("pending", false, "validate pending draft config")
 	limit := fs.String("limit", "", "limit validation to section (environment)")
 
@@ -114,17 +112,16 @@ func cmdValidate(args []string) int {
 			Summary: "Validate a ze configuration file",
 			Usage:   []string{"ze config validate [options] <config-file>"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-v", Desc: "Verbose output"},
 					{Name: "-q", Desc: "Quiet mode (exit code only)"},
-					{Name: "--json", Desc: "Output as JSON"},
-					{Name: "--pending", Desc: "Validate pending draft config (requires --json)"},
+					{Name: "--pending", Desc: "Validate pending draft config"},
 					{Name: "--limit <section>", Desc: "Limit validation to section (environment)"},
 				}},
 				{Title: "Limit values", Entries: []helpfmt.HelpEntry{
 					{Name: "environment", Desc: "Validate environment variables only (no config file needed)"},
 				}},
-				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
 					{Name: "0", Desc: "Configuration is valid"},
 					{Name: "1", Desc: "Configuration has errors"},
 					{Name: "2", Desc: "File not found or unreadable"},
@@ -146,7 +143,7 @@ func cmdValidate(args []string) int {
 
 	// Handle --limit environment (no file needed).
 	if *limit == "environment" {
-		return validateEnvironment(*jsonOut, *quiet)
+		return validateEnvironment(*quiet)
 	}
 
 	if *limit != "" {
@@ -163,15 +160,11 @@ func cmdValidate(args []string) int {
 	configPath := fs.Arg(0)
 
 	if *pending {
-		if !*jsonOut {
-			fmt.Fprintf(os.Stderr, "error: --pending requires --json\n")
-			return 1
-		}
 		if configPath == "-" {
 			fmt.Fprintf(os.Stderr, "error: --pending cannot read from stdin\n")
 			return 1
 		}
-		return validatePending(configPath, *quiet)
+		return validatePending(configPath, *verbose, *quiet)
 	}
 
 	// Read file (or stdin if "-").
@@ -186,10 +179,6 @@ func cmdValidate(args []string) int {
 	// Parse and validate.
 	result := runValidation(string(data), configPath)
 
-	// Output.
-	if *jsonOut {
-		return outputValidateJSON(result, *quiet)
-	}
 	return outputValidateText(result, *verbose, *quiet)
 }
 
@@ -198,18 +187,14 @@ func cmdValidate(args []string) int {
 // are now validated lazily at consumer call sites (env.GetInt/GetDuration
 // return the default for unparseable values; YANG restrictions on the
 // `environment/` block are enforced at config parse time).
-func validateEnvironment(jsonOutput, quiet bool) int {
+func validateEnvironment(quiet bool) int {
 	if !quiet {
-		if jsonOutput {
-			fmt.Println(`{"valid":true}`)
-		} else {
-			fmt.Println("Environment variables valid")
-		}
+		fmt.Println("Environment variables valid")
 	}
 	return 0
 }
 
-func validatePending(configPath string, quiet bool) int {
+func validatePending(configPath string, verbose, quiet bool) int {
 	var tb textbuf.Buffer
 	draftPath := tb.Str(configPath).Str(".draft").String()
 	data, err := os.ReadFile(draftPath) //nolint:gosec // Config path from CLI args
@@ -221,7 +206,7 @@ func validatePending(configPath string, quiet bool) int {
 	}
 
 	result := runValidation(string(data), configPath)
-	return outputValidateJSON(result, quiet)
+	return outputValidateText(result, verbose, quiet)
 }
 
 func runValidation(input, path string) *validationResult {
@@ -668,28 +653,6 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 		} else {
 			fmt.Fprintf(os.Stdout, "  %s\n", errs[i].Message) //nolint:errcheck // output
 		}
-	}
-	return 1
-}
-
-func outputValidateJSON(result *validationResult, quiet bool) int {
-	if quiet {
-		if result.Valid {
-			return 0
-		}
-		return 1
-	}
-
-	out := diagnostic.NewValidateResult(result.Path, result.Valid, result.Diagnostics, result.Config)
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(out); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-
-	if result.Valid {
-		return 0
 	}
 	return 1
 }

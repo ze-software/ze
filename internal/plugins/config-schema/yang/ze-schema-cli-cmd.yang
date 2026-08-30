@@ -4,6 +4,7 @@ module ze-schema-cli-cmd {
     import ze-extensions { prefix ze; }
     description "show schema command tree. Owned by the config schema subsystem because these handlers inspect registered YANG schemas, RPCs, and events. See ai/rules/plugin-self-containment.md.";
     revision 2026-06-06 { description "Relocated show schema out of the central show schema (plugin self-containment)."; }
+    revision 2026-08-30 { description "Declare show schema module, the one-module answer that replaces the rendering option on ze schema show."; }
 
     container show {
         config false;
@@ -18,6 +19,14 @@ module ze-schema-cli-cmd {
                 ze:command "ze-show:schema-list";
                 description "List all YANG schemas loaded by the daemon.
 Shows module name, namespace, and revision for each schema.";
+            }
+
+            container module {
+                config false;
+                ze:command "ze-show:schema-module";
+                description "Show one module: its YANG source, its namespace,
+the plugin that registered it, and the handler paths it binds.
+Name the module as show schema list spells it.";
             }
 
             container methods {

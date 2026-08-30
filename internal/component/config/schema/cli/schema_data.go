@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — where a command is served
 // Related: docs/architecture/api/commands.md — the operator model this serves
 //
-// schema_data.go answers the five `show schema *` commands with structured
+// schema_data.go answers the six `show schema *` commands with structured
 // data, so they reach the pipe layer.
 //
 // They printed a table and returned an exit code. YANG declares a wire method
@@ -9,9 +9,9 @@
 // list | json"` answered `unknown command` while `ze help command --json`
 // published `global-pipes: true` for it.
 //
-// The payloads are the ones the `--json` flag already produced, lifted out of
-// the printers rather than invented, so the two spellings of each answer cannot
-// disagree. The root `ze schema` command keeps its own printing and its flag.
+// The payloads are the ones the deleted rendering option produced, lifted out
+// of the printers rather than invented, so the answer has one definition. The
+// root `ze schema` command keeps its own printing, and prints only.
 
 package cli
 
@@ -21,6 +21,17 @@ import (
 	"sort"
 
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+)
+
+// Row and field keys of the answers below. register.go declares the column
+// order with the same names, so a rename that misses one drops a column.
+const (
+	keyModule      = "module"
+	keyNamespace   = "namespace"
+	keyMethod      = "method"
+	keyDescription = "description"
+	keyPlugin      = "plugin"
+	keyYANG        = "yang"
 )
 
 // writeSchemaError reports why the schema registry could not be built. The
@@ -45,7 +56,7 @@ func dataList(_ []string) (any, int) {
 		if s == nil {
 			continue
 		}
-		row := map[string]any{"module": name, "namespace": s.Namespace}
+		row := map[string]any{keyModule: name, keyNamespace: s.Namespace}
 		if len(s.WantsConfig) > 0 {
 			row["wants-config"] = s.WantsConfig
 		}
@@ -57,9 +68,44 @@ func dataList(_ []string) (any, int) {
 	return map[string]any{"schemas": rows}, 0
 }
 
+// dataModule answers `show schema module <name>`: one module, as the document
+// `ze schema show` prints as YANG source.
+//
+// It is ONE document rather than rows, and it declares that shape, so a row
+// operator is refused over it by name instead of answering something
+// plausible. The yang field is omitted when the module registered no source,
+// which is what the printed form says in its header line.
+func dataModule(args []string) (any, int) {
+	if len(args) != 1 {
+		fmt.Fprintln(os.Stderr,
+			"error: show schema module takes one module name; `show schema list` names every module")
+		return nil, 1
+	}
+	registry, err := buildSchemaRegistry(nil)
+	if err != nil {
+		writeSchemaError(err)
+		return nil, 1
+	}
+	schema, err := registry.GetByModule(args[0])
+	if err != nil {
+		writeSchemaError(err)
+		return nil, 1
+	}
+	document := map[string]any{
+		keyModule:    args[0],
+		keyNamespace: schema.Namespace,
+		keyPlugin:    schema.Plugin,
+		subHandlers:  schema.Handlers,
+	}
+	if schema.Yang != "" {
+		document[keyYANG] = schema.Yang
+	}
+	return document, 0
+}
+
 // dataHandlers answers `show schema handlers` as ROWS rather than as the
-// path-to-module map the --json flag emits. A map keyed by path carries the
-// same facts, and rows are what a row operator can act on.
+// path-to-module map the deleted rendering option emitted. A map keyed by path
+// carries the same facts, and rows are what a row operator can act on.
 func dataHandlers(_ []string) (any, int) {
 	registry, err := buildSchemaRegistry(nil)
 	if err != nil {
@@ -75,9 +121,9 @@ func dataHandlers(_ []string) (any, int) {
 
 	rows := make([]map[string]any, 0, len(paths))
 	for _, path := range paths {
-		rows = append(rows, map[string]any{"handler": path, "module": handlers[path]})
+		rows = append(rows, map[string]any{"handler": path, keyModule: handlers[path]})
 	}
-	return map[string]any{"handlers": rows}, 0
+	return map[string]any{subHandlers: rows}, 0
 }
 
 // dataMethods answers `show schema methods [module]`.
@@ -125,7 +171,7 @@ func schemaEntryRows(args []string, key string,
 	rows := make([]map[string]any, 0, len(entries))
 	for _, e := range entries {
 		rows = append(rows, map[string]any{
-			"method": e.wire, "module": e.module, "description": e.desc,
+			keyMethod: e.wire, keyModule: e.module, keyDescription: e.desc,
 		})
 	}
 	// An empty answer is not an error here: `| match` over it answers nothing
@@ -140,7 +186,7 @@ func schemaEntryRows(args []string, key string,
 // over it instead of answering something plausible.
 func dataProtocol(_ []string) (any, int) {
 	return map[string]any{
-		"protocol": "Hub Architecture",
-		"version":  "1.0",
+		subProtocol: "Hub Architecture",
+		"version":   "1.0",
 	}, 0
 }

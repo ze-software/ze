@@ -32,8 +32,8 @@ func plugin16TacacsShow(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer mockLog.Close()
-	mock := exec.Command(executable, "tacacs-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:15", "--addr-file", "mock.addr")
+	defer mockLog.Close()                                                                                                                                         //nolint:errcheck // fixture teardown
+	mock := exec.CommandContext(ctx, executable, "tacacs-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:15", "--addr-file", "mock.addr") //nolint:gosec // the fixture chooses the program and its arguments
 	mock.Stdout = io.Discard
 	mock.Stderr = mockLog
 	mockDone, err := plugin16StartProcess(mock)
@@ -60,11 +60,15 @@ func plugin16TacacsShow(ctx context.Context, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("parse mock port %q: %w", mockPortText, err)
 	}
-	dead, err := net.Listen("tcp4", "127.0.0.1:0")
+	dead, err := (&net.ListenConfig{}).Listen(ctx, "tcp4", "127.0.0.1:0")
 	if err != nil {
 		return fmt.Errorf("pick dead port: %w", err)
 	}
-	deadPort := dead.Addr().(*net.TCPAddr).Port
+	deadAddress, ok := dead.Addr().(*net.TCPAddr)
+	if !ok {
+		return fmt.Errorf("a tcp4 listener answered %T, want *net.TCPAddr", dead.Addr())
+	}
+	deadPort := deadAddress.Port
 	if err := dead.Close(); err != nil {
 		return err
 	}
@@ -88,21 +92,27 @@ func plugin16TacacsShow(ctx context.Context, _ []string) error {
 	if len(table) != 0 && table[len(table)-1] != '\n' {
 		fmt.Fprintln(os.Stderr)
 	}
-	jsonOutput, jsonErr := exec.CommandContext(ctx, "ze", "tacacs", "show", "--json", "probe.conf").CombinedOutput()
+	// The JSON rendering comes from the pipe layer over the same registered
+	// answer the table above rendered, with no rendering flag anywhere: the
+	// deleted `--json` was the table renderer's second spelling
+	// (ai/rules/cli.md). No daemon runs here, and none is needed: the command
+	// is served in this process by registry.MustRegisterLocalData.
+	jsonOutput, jsonErr := exec.CommandContext(ctx, "ze", "cli", "-c",
+		"show tacacs servers probe.conf | json").CombinedOutput()
 	fmt.Fprintln(os.Stderr, "--- json output ---")
 	_, _ = os.Stderr.Write(jsonOutput)
 	if len(jsonOutput) != 0 && jsonOutput[len(jsonOutput)-1] != '\n' {
 		fmt.Fprintln(os.Stderr)
 	}
 	if jsonErr != nil {
-		return fmt.Errorf("--json exit: %w", jsonErr)
+		return fmt.Errorf("pipe-layer json exit: %w", jsonErr)
 	}
-	rowPattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(mockIP+":"+mockPortText) + `[[:space:]].* yes `)
+	rowPattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(mockIP+":"+mockPortText) + `[[:space:]].* true `)
 	if !rowPattern.Match(table) {
-		return fmt.Errorf("mock server row missing yes in table")
+		return fmt.Errorf("mock server row missing reachable true in table")
 	}
-	if !strings.Contains(string(table), " no ") {
-		return fmt.Errorf("expected at least one no row")
+	if !strings.Contains(string(table), " false ") {
+		return fmt.Errorf("expected at least one unreachable row")
 	}
 	fmt.Fprintln(os.Stderr, "OK: ze tacacs show reports mock reachable, second server unreachable")
 	return nil

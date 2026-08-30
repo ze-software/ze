@@ -3,20 +3,21 @@
 # Flow:
 # 1. Mock listens; reachable server written to the config
 # 2. Second loopback server uses a just-released port and is unreachable
-# 3. ze tacacs show prints a table with one 'yes' and one 'no' row
+# 3. ze tacacs show prints a table with one reachable and one unreachable row
+# 4. `ze cli -c "show tacacs servers probe.conf | json"` renders the SAME answer
 #
 # VALIDATES: AC-13 -- ze show tacacs displays server status
 #            (reachable / unreachable), auth stats.
 # PREVENTS: The offline reachability tool goes stale: config schema changes,
-#           flag parsing regressions, or missing AAA backend registration
+#           a lost local-data registration, or missing AAA backend registration
 #           would all fail this check.
 
 
 cmd=foreground:seq=1:exec=ze-test fixture plugin/tacacs-show:timeout=15s
 expect=exit:code=0
-# Headline headers present (proves tabwriter ran with the right columns).
-expect=stderr:pattern=ADDRESS\s+PORT\s+REACHABLE\s+RTT\s+ERROR
-# JSON output included a reachable entry.
+# Headline headers present (proves the declared column order rendered).
+expect=stderr:pattern=address\s+port\s+reachable\s+rtt\s+error
+# The pipe layer rendered the same answer as JSON, with a reachable entry.
 expect=stderr:pattern="reachable": true
 # The released-port entry is unreachable.
 expect=stderr:pattern="reachable": false

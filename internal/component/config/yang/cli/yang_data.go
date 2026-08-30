@@ -6,16 +6,15 @@
 // an exit code, while YANG declared a wire method for each that no daemon
 // handler implements.
 //
-// The payload is produced by the SAME writer the `--json` flag uses, then
-// decoded. That costs a marshal and a parse on two offline introspection
-// commands, and it buys the guarantee that the piped answer and the `--json`
-// answer are the same shape by construction rather than by two definitions
-// somebody has to keep in step.
+// The payload is produced by the JSON writer that sits beside each text
+// formatter in format.go, then decoded. That costs a marshal and a parse on
+// two offline introspection commands. It buys one definition of the answer's
+// shape, rather than two somebody has to keep in step.
 //
 // `show yang doc` is NOT converted. It renders documentation PROSE for a
-// reader, it has no --json path to lift, and the same facts already reach a
-// machine as structured data through `ze help command --json`. Inventing a
-// second record for them would be a second surface to keep true.
+// reader, and the same facts already reach a machine as structured data
+// through `ze help command --json`. Inventing a second record for them would
+// be a second surface to keep true.
 
 package cli
 
@@ -27,7 +26,8 @@ import (
 )
 
 // The two filter flags `show yang tree` accepts, spelled as an operator types
-// them.
+// them. They SELECT which half of the tree is fetched, so they are the
+// command's own grammar rather than a rendering option.
 const (
 	flagCommands = "--commands"
 	flagConfig   = "--config"
@@ -59,10 +59,6 @@ func dataTree(args []string) (any, int) {
 	if err != nil {
 		return nil, writeOptionError(err)
 	}
-	if options.jsonOutput {
-		writeLocalJSONFlagError()
-		return nil, 1
-	}
 
 	root, err := buildUnifiedTree()
 	if err != nil {
@@ -80,10 +76,6 @@ func dataCompletion(args []string) (any, int) {
 	if err != nil {
 		return nil, writeOptionError(err)
 	}
-	if options.jsonOutput {
-		writeLocalJSONFlagError()
-		return nil, 1
-	}
 
 	root, err := buildUnifiedTree()
 	if err != nil {
@@ -92,8 +84,4 @@ func dataCompletion(args []string) (any, int) {
 	}
 	groups := collectCollisions(root, options.minPrefix)
 	return decodeWritten(func(w *bytes.Buffer) error { return formatCollisionsJSON(w, groups) })
-}
-
-func writeLocalJSONFlagError() {
-	fmt.Fprintln(os.Stderr, "error: --json is a ze yang rendering option; use | json")
 }

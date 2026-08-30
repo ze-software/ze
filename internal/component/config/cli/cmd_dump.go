@@ -4,7 +4,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -20,16 +19,14 @@ import (
 
 func cmdDump(args []string) int {
 	fs := flag.NewFlagSet("config dump", flag.ExitOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSON")
 	stripPrivate := fs.Bool("strip-private", false, "replace sensitive values with /* SECRET-DATA */")
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command: "ze config dump",
-			Summary: "Dump parsed configuration in human-readable or JSON format",
+			Summary: "Dump parsed configuration in human-readable form",
 			Usage:   []string{"ze config dump [options] <config>"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--json", Desc: "Output as JSON"},
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--strip-private", Desc: "Replace sensitive values with /* SECRET-DATA */"},
 				}},
 			},
@@ -55,16 +52,6 @@ func cmdDump(args []string) int {
 	res, code := resolveDump(configPath, *stripPrivate)
 	if code != 0 {
 		return code
-	}
-
-	if *jsonOutput {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(res.dumpMap); err != nil {
-			fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-			return 1
-		}
-		return 0
 	}
 
 	printConfig(res.bgpTree, res.tree, res.sensitiveKeys, res.mode)
@@ -169,8 +156,8 @@ func printTreeMap(m map[string]any, indent string, sensitiveKeys map[string]bool
 	}
 }
 
-// dumpResult is everything cmdDump's two output paths need from one parse: the
-// resolved map the JSON and data paths answer with, and the pieces printConfig
+// dumpResult is everything the two callers of resolveDump need from one parse:
+// the resolved map `show config dump` answers with, and the pieces printConfig
 // renders for a reader.
 type dumpResult struct {
 	dumpMap       map[string]any
@@ -181,11 +168,10 @@ type dumpResult struct {
 }
 
 // resolveDump parses a config file and answers the fully resolved tree, with
-// sensitive values masked, exactly as `--json` emits it.
+// sensitive values masked.
 //
-// It is the payload half of cmdDump, lifted so `show config dump` can answer
-// with DATA and the two spellings cannot drift. Everything above the return is
-// what cmdDump did before the split, unchanged.
+// It is the payload half of cmdDump, lifted so `show config dump` answers with
+// DATA and the two spellings cannot drift.
 func resolveDump(configPath string, stripPrivate bool) (dumpResult, int) {
 
 	data, err := cliio.ReadFile(configPath)

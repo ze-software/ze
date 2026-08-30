@@ -317,6 +317,10 @@ func TestCollisionRowsRequireNamedObjectSiblings(t *testing.T) {
 func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 	want := []Invocation{
 		{Command: "show config dump %s | json compact", Evidence: "show config dump"},
+		{Command: "show config diff pipe-local.conf pipe-local-other.conf | json compact", Evidence: "show config diff"},
+		{Command: "show config fix pipe-local-broken.conf | json compact", Evidence: "show config fix"},
+		{Command: "show config completion pipe-local.conf | json compact", Evidence: "show config completion"},
+		{Command: "validate config pipe-local.conf | json compact", Evidence: "validate config"},
 		{Command: "show config history pipe-local.conf | json compact", Evidence: "show config history"},
 		{Command: "show config ls | json compact", Evidence: "show config ls"},
 		{Command: "show schema list | json compact", Evidence: "show schema list"},
@@ -324,6 +328,7 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 		{Command: "show schema events | count | json compact", Evidence: "show schema events"},
 		{Command: "show schema handlers | count | json compact", Evidence: "show schema handlers"},
 		{Command: "show schema protocol | json compact", Evidence: "show schema protocol"},
+		{Command: "show schema module ze-fib-conf | json compact", Evidence: "show schema module"},
 		{Command: "show data ls --path %s | json compact", Evidence: "show data ls"},
 		{Command: "show data registered | json compact", Evidence: "show data registered"},
 		{Command: "show yang tree --commands | json compact", Evidence: "show yang tree"},
@@ -333,11 +338,13 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 		{Command: "show env get ze.cli.format | json compact", Evidence: "show env get"},
 		{Command: "show env registered | json compact", Evidence: "show env registered"},
 		{Command: "show plugins | json compact", Evidence: "show plugins"},
+		{Command: "show tacacs servers %s | json compact", Evidence: "show tacacs servers"},
+		{Command: "show interface scan | json compact", Evidence: "show interface scan", NeedsLinux: true},
 	}
 	if got := Evidence(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("Evidence() = %#v, want %#v", got, want)
 	}
-	if CompletionMarker != "OK: 16/16 local-data commands and local one-shot save" {
+	if CompletionMarker != "OK: 22/22 local-data commands and local one-shot save" {
 		t.Fatalf("CompletionMarker = %q", CompletionMarker)
 	}
 	for _, invocation := range want {

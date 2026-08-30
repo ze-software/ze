@@ -4,7 +4,6 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -84,23 +83,6 @@ func TestConfigShowPathNotFound(t *testing.T) {
 	}
 }
 
-// TestConfigShowJSON verifies `--json` emits a JSON object for the subtree.
-func TestConfigShowJSON(t *testing.T) {
-	configPath := writeTestConfig(t, showTestConfig)
-	var buf bytes.Buffer
-	rc := showConfig(&buf, storage.NewFilesystem(), []string{"--json", configPath, "bgp"})
-	if rc != exitOK {
-		t.Fatalf("exit code = %d, want %d", rc, exitOK)
-	}
-	var decoded map[string]any
-	if err := json.Unmarshal(buf.Bytes(), &decoded); err != nil {
-		t.Fatalf("output is not valid JSON: %v\n%s", err, buf.String())
-	}
-	if _, ok := decoded["peer"]; !ok {
-		t.Fatalf("JSON subtree missing 'peer' key: %v", decoded)
-	}
-}
-
 // showSecretToken is the value the fixture stores on a real ze:sensitive leaf.
 const showSecretToken = "show-stored-api-token" //nolint:gosec // fixture value, not a credential
 
@@ -144,8 +126,6 @@ func TestConfigShowMasksASecret(t *testing.T) {
 	}{
 		{"text whole tree", []string{configPath}, "router-id"},
 		{"text at path", []string{configPath, "environment", "api-server"}, "token"},
-		{"json whole tree", []string{"--json", configPath}, "router-id"},
-		{"json at path", []string{"--json", configPath, "environment", "api-server"}, "token"},
 	}
 
 	for _, tc := range cases {
@@ -168,12 +148,12 @@ func TestConfigShowMasksASecret(t *testing.T) {
 	}
 }
 
-// TestConfigShowUnparsableConfig verifies the two output shapes agree about a
+// TestConfigShowUnparsableConfig verifies the two answer shapes agree about a
 // configuration that parses nowhere.
 //
-// VALIDATES: the JSON form reports the parse failure rather than writing `{}`.
+// VALIDATES: the data form reports the parse failure rather than answering `{}`.
 // PREVENTS: a silent empty answer. newEditor substitutes an empty tree when
-// nothing parses, so the JSON form said the configuration held nothing while
+// nothing parses, so the data form said the configuration held nothing while
 // the text form printed the file. The text form keeps that fallback for the
 // whole configuration, because the operator must read the broken line to
 // repair it.
@@ -189,18 +169,12 @@ func TestConfigShowUnparsableConfig(t *testing.T) {
 		t.Fatalf("the text form must answer the file so the operator can repair it:\n%s", textOut.String())
 	}
 
-	for _, args := range [][]string{
-		{"--json", configPath},
-		{"--json", configPath, "bgp"},
-		{configPath, "bgp"},
-	} {
-		var buf bytes.Buffer
-		if rc := showConfig(&buf, storage.NewFilesystem(), args); rc == exitOK {
-			t.Fatalf("args %v exited 0 on a configuration that does not parse:\n%s", args, buf.String())
-		}
-		if buf.Len() != 0 {
-			t.Fatalf("args %v wrote output for a configuration that does not parse:\n%s", args, buf.String())
-		}
+	var buf bytes.Buffer
+	if rc := showConfig(&buf, storage.NewFilesystem(), []string{configPath, "bgp"}); rc == exitOK {
+		t.Fatalf("the text form exited 0 at a path of a configuration that does not parse:\n%s", buf.String())
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("the text form wrote output for a configuration that does not parse:\n%s", buf.String())
 	}
 }
 

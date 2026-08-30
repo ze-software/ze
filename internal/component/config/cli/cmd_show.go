@@ -5,12 +5,12 @@
 package cli
 
 import (
-	"encoding/json"
 	"flag"
 	"io"
 	"os"
 
 	editor "github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -38,7 +38,7 @@ func openShowEditor(store storage.Storage, configFile string) (*editor.Editor, e
 // that path. With no path it prints the whole parsed tree. The path tokens are
 // the same space-separated config path that `ze config set` and the
 // `ze config completion` engine use; list entries are addressed by their key
-// (`bgp peer edge1`). `--json` emits the subtree as a JSON object.
+// (`bgp peer edge1`).
 //
 // Every secret leaf reads as the display placeholder, in the text form and in
 // the JSON form. The parser decodes a $9$ value into the tree, so an unmasked
@@ -54,17 +54,11 @@ func cmdShow(args []string) int {
 // can assert on the rendered tree without capturing os.Stdout.
 func showConfig(out io.Writer, store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config show", flag.ExitOnError)
-	jsonOutput := fs.Bool("json", false, "output the subtree as JSON")
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command: "ze config show",
 			Summary: "Show the configuration tree at a path",
 			Usage:   []string{"ze config show <file> [path...]"},
-			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--json", Desc: "Output the subtree as JSON"},
-				}},
-			},
 			Examples: []string{
 				"ze config show ze.conf",
 				"ze config show ze.conf bgp",
@@ -95,46 +89,44 @@ func showConfig(out io.Writer, store storage.Storage, args []string) int {
 	}
 	defer ed.Close() //nolint:errcheck // read-only inspection, nothing to flush
 
-	// Resolve the whole tree first. A configuration that parses nowhere is a
-	// different answer from a path that does not resolve. Both output shapes owe
-	// the operator the same one.
-	//
-	// The text form of the whole configuration still answers the raw file: the
-	// operator must read the broken line to repair it. Every other shape reports
-	// the failure. The JSON form has no text to carry, and writing the empty
-	// object there would read as a configuration that parsed and held nothing.
-	whole := ed.DisplayTreeAtPath(nil)
-	if whole == nil {
-		if !*jsonOutput && len(path) == 0 {
-			return writeText(out, ed.DisplayContentAtPath(nil))
-		}
-		helpfmt.WriteError(os.Stderr, false, "%s: the configuration does not parse", configFile)
-		return exitError
-	}
-
-	// No path: whole tree. Both shapes are masked, because the JSON is the same
-	// disclosure as the text to anything that reads it.
-	if len(path) == 0 {
-		if *jsonOutput {
-			return encodeJSONTo(out, whole.ToMap())
-		}
+	// The text form of the whole configuration still answers the raw file when
+	// the parse failed: the operator must read the broken line to repair it.
+	// Every other shape reports the failure, which is what showTree does.
+	if ed.DisplayTreeAtPath(nil) == nil && len(path) == 0 {
 		return writeText(out, ed.DisplayContentAtPath(nil))
 	}
 
-	// Resolve the path first so a miss is an explicit error, not a silent
-	// fall-back to the whole tree (which DisplayContentAtPath does on a bad
-	// path). DisplayTreeAtPath resolves it with the same rules as WalkPath.
+	// Resolve the tree first so a parse failure and a path miss are two
+	// answers, and so a bad path is an explicit error rather than the silent
+	// fall-back to the whole tree that DisplayContentAtPath does.
+	if _, code := showTree(ed, configFile, path); code != exitOK {
+		return code
+	}
+	return writeText(out, ed.DisplayContentAtPath(path))
+}
+
+// showTree resolves the masked display tree of an open config at a path, and
+// names on stderr which of the two failures it met: a configuration that parses
+// nowhere, or a path that resolves to nothing.
+//
+// It is the one resolution both spellings of this command run: the text form
+// above.
+func showTree(ed *editor.Editor, configFile string, path []string) (*config.Tree, int) {
+	whole := ed.DisplayTreeAtPath(nil)
+	if whole == nil {
+		helpfmt.WriteError(os.Stderr, false, "%s: the configuration does not parse", configFile)
+		return nil, exitError
+	}
+	if len(path) == 0 {
+		return whole, exitOK
+	}
 	subtree := ed.DisplayTreeAtPath(path)
 	if subtree == nil {
 		var b textbuf.Buffer
 		helpfmt.WriteError(os.Stderr, false, "path not found: %s", b.Join(path, " ").String())
-		return exitError
+		return nil, exitError
 	}
-
-	if *jsonOutput {
-		return encodeJSONTo(out, subtree.ToMap())
-	}
-	return writeText(out, ed.DisplayContentAtPath(path))
+	return subtree, exitOK
 }
 
 // writeText writes s to w and maps a write error (e.g. a closed pipe) to a
@@ -142,17 +134,6 @@ func showConfig(out io.Writer, store storage.Storage, args []string) int {
 func writeText(w io.Writer, s string) int {
 	if _, err := io.WriteString(w, s); err != nil {
 		helpfmt.WriteError(os.Stderr, false, "write: %v", err)
-		return exitError
-	}
-	return exitOK
-}
-
-// encodeJSONTo writes v as indented JSON to w, returning an exit code.
-func encodeJSONTo(w io.Writer, v any) int {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(v); err != nil {
-		helpfmt.WriteError(os.Stderr, false, "encoding JSON: %v", err)
 		return exitError
 	}
 	return exitOK

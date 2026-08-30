@@ -79,7 +79,7 @@ func (e *Editor) displayTree() *config.Tree {
 
 // DisplayTreeAtPath answers the tree at path with every secret leaf masked. A
 // caller that renders the TREE, rather than the text serializeMasked writes,
-// reads this instead of Tree(). `ze config show --json` writes the map, and a
+// reads this instead of Tree(). A caller that renders the map, and a
 // map built from the working tree carries the value the parser decoded.
 //
 // An empty path answers the whole tree, which is what the no-path form of that

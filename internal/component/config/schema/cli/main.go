@@ -6,12 +6,11 @@ package cli
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -55,6 +54,17 @@ func Run(args, plugins []string) int {
 		return 1
 	}
 
+	// `-h` and `--help` are the one flag spelling every command keeps
+	// (ai/rules/cli.md). They are answered wherever they appear: no subcommand
+	// here parses a flag of its own.
+	if slices.Contains(args, "-h") || slices.Contains(args, "--help") {
+		usage()
+		return 0
+	}
+
+	// The cases stay written out. TestDispatchParity reads them from this
+	// file's AST and compares them with schemaCommands, and it can only see a
+	// string literal.
 	switch args[0] {
 	case "list":
 		return cmdList(args[1:], plugins)
@@ -88,21 +98,18 @@ func usage() {
 		Usage:   []string{"ze schema <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
-				{Name: "list", Desc: "List all registered schemas"},
+				{Name: subList, Desc: "List all registered schemas"},
 				{Name: "show <module>", Desc: "Show YANG content for a module"},
-				{Name: "handlers", Desc: "List handler -> module mapping"},
+				{Name: subHandlers, Desc: "List handler -> module mapping"},
 				{Name: "methods [module]", Desc: "List RPCs from YANG (all or specific module)"},
 				{Name: "events [module]", Desc: "List notifications from YANG"},
-				{Name: "protocol", Desc: "Show protocol version and format info"},
+				{Name: subProtocol, Desc: "Show protocol version and format info"},
 				{Name: "help", Desc: "Show this help"},
-			}},
-			{Title: "Options (list, show, handlers, methods, events)", Entries: []helpfmt.HelpEntry{
-				{Name: "--json", Desc: "Output as JSON"},
 			}},
 		},
 		Examples: []string{
 			"ze schema list",
-			"ze schema list --json",
+			`ze cli -c "show schema list | json"`,
 			"ze schema show ze-bgp",
 			"ze schema handlers",
 			"ze schema methods",
@@ -113,23 +120,38 @@ func usage() {
 	p.WriteErr()
 }
 
-// encodeJSON writes v as indented JSON to stdout.
-func encodeJSON(v any) int {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(v); err != nil {
-		fmt.Fprintf(os.Stderr, "error: encoding JSON: %v\n", err)
-		return 1
+// commandArguments answers the positional arguments a schema subcommand takes,
+// and refuses every other token by name.
+//
+// No subcommand here parses a flag. Rendering belongs to the pipe layer, so
+// `show schema list | json` answers what an option once answered. A token this
+// dispatch dropped in silence would report success for a question nobody
+// answered.
+func commandArguments(subcommand, takes string, args []string, most int) ([]string, error) {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			return nil, fmt.Errorf(
+				"ze schema %s: unknown option %q; render the answer with a pipe: ze cli -c %q",
+				subcommand, arg, "show schema "+subcommand+" | json")
+		}
 	}
-	return 0
+	if len(args) > most {
+		return nil, fmt.Errorf("ze schema %s: unexpected argument %q; it takes %s",
+			subcommand, args[most], takes)
+	}
+	return args, nil
+}
+
+// writeArgumentError reports a refused argument and answers the exit code.
+func writeArgumentError(err error) int {
+	fmt.Fprintln(os.Stderr, "error:", err)
+	return 1
 }
 
 // cmdList lists all registered schemas.
 func cmdList(args, plugins []string) int {
-	fs := flag.NewFlagSet("schema list", flag.ExitOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSON")
-	if err := fs.Parse(args); err != nil {
-		return 1
+	if _, err := commandArguments(subList, "no argument", args, 0); err != nil {
+		return writeArgumentError(err)
 	}
 
 	registry, err := buildSchemaRegistry(plugins)
@@ -140,37 +162,11 @@ func cmdList(args, plugins []string) int {
 
 	modules := registry.ListModules()
 	if len(modules) == 0 {
-		if *jsonOutput {
-			fmt.Println("[]")
-			return 0
-		}
 		fmt.Println("No schemas registered")
 		return 0
 	}
 
 	sort.Strings(modules)
-
-	if *jsonOutput {
-		var entries []map[string]any
-		for _, name := range modules {
-			s, _ := registry.GetByModule(name)
-			if s == nil {
-				continue
-			}
-			entry := map[string]any{
-				"module":    name,
-				"namespace": s.Namespace,
-			}
-			if len(s.WantsConfig) > 0 {
-				entry["wants-config"] = s.WantsConfig
-			}
-			if len(s.Imports) > 0 {
-				entry["imports"] = s.Imports
-			}
-			entries = append(entries, entry)
-		}
-		return encodeJSON(entries)
-	}
 
 	// Print header
 	fmt.Printf("%-24s %-20s %-16s %s\n", "Module", "Namespace", "Wants Config", "Imports")
@@ -199,18 +195,17 @@ func cmdList(args, plugins []string) int {
 
 // cmdShow shows YANG content for a specific module.
 func cmdShow(args, plugins []string) int {
-	fs := flag.NewFlagSet("schema show", flag.ExitOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSON")
-	if err := fs.Parse(args); err != nil {
+	positional, err := commandArguments("show", "one module name", args, 1)
+	if err != nil {
+		return writeArgumentError(err)
+	}
+	if len(positional) < 1 {
+		fmt.Fprintln(os.Stderr,
+			"error: ze schema show: no module named; ze schema list names every module")
 		return 1
 	}
 
-	if fs.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "Usage: ze schema show <module>\n")
-		return 1
-	}
-
-	moduleName := fs.Arg(0)
+	moduleName := positional[0]
 	registry, err := buildSchemaRegistry(plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -221,19 +216,6 @@ func cmdShow(args, plugins []string) int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
-	}
-
-	if *jsonOutput {
-		out := map[string]any{
-			"module":    moduleName,
-			"namespace": s.Namespace,
-			"plugin":    s.Plugin,
-			"handlers":  s.Handlers,
-		}
-		if s.Yang != "" {
-			out["yang"] = s.Yang
-		}
-		return encodeJSON(out)
 	}
 
 	if s.Yang == "" {
@@ -250,10 +232,8 @@ func cmdShow(args, plugins []string) int {
 
 // cmdHandlers lists handler → module mapping.
 func cmdHandlers(args, plugins []string) int {
-	fs := flag.NewFlagSet("schema handlers", flag.ExitOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSON")
-	if err := fs.Parse(args); err != nil {
-		return 1
+	if _, err := commandArguments(subHandlers, "no argument", args, 0); err != nil {
+		return writeArgumentError(err)
 	}
 
 	registry, err := buildSchemaRegistry(plugins)
@@ -264,16 +244,8 @@ func cmdHandlers(args, plugins []string) int {
 
 	handlers := registry.ListHandlers()
 	if len(handlers) == 0 {
-		if *jsonOutput {
-			fmt.Println("{}")
-			return 0
-		}
 		fmt.Println("No handlers registered")
 		return 0
-	}
-
-	if *jsonOutput {
-		return encodeJSON(handlers)
 	}
 
 	paths := make([]string, 0, len(handlers))
@@ -348,7 +320,7 @@ func printSchemaTable(header, kind string, entries []schemaEntry) {
 
 // cmdMethods lists RPCs from YANG API modules.
 func cmdMethods(args, plugins []string) int {
-	return cmdListSchema(args, plugins, "RPC", "Method", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
+	return cmdListSchema(args, plugins, "methods", "RPC", "Method", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
 		rpcs := reg.ListRPCs(module)
 		entries := make([]schemaEntry, len(rpcs))
 		for i, rpc := range rpcs {
@@ -360,7 +332,7 @@ func cmdMethods(args, plugins []string) int {
 
 // cmdEvents lists notifications from YANG API modules.
 func cmdEvents(args, plugins []string) int {
-	return cmdListSchema(args, plugins, "notification", "Event", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
+	return cmdListSchema(args, plugins, "events", "notification", "Event", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
 		notifs := reg.ListNotifications(module)
 		entries := make([]schemaEntry, len(notifs))
 		for i, notif := range notifs {
@@ -374,19 +346,19 @@ func cmdEvents(args, plugins []string) int {
 func cmdListSchema(
 	args []string,
 	plugins []string,
+	subcommand string,
 	kind string,
 	header string,
 	listFn func(*pluginserver.SchemaRegistry, string) []schemaEntry,
 ) int {
-	fs := flag.NewFlagSet("schema "+strings.ToLower(header), flag.ExitOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSON")
-	if err := fs.Parse(args); err != nil {
-		return 1
+	positional, err := commandArguments(subcommand, "one module name", args, 1)
+	if err != nil {
+		return writeArgumentError(err)
 	}
 
 	var module string
-	if fs.NArg() > 0 {
-		module = fs.Arg(0)
+	if len(positional) > 0 {
+		module = positional[0]
 	}
 
 	registry, err := buildSchemaRegistry(plugins)
@@ -397,27 +369,8 @@ func cmdListSchema(
 
 	entries := listFn(registry, module)
 	if len(entries) == 0 && module != "" {
-		if *jsonOutput {
-			fmt.Println("[]")
-			return 0
-		}
 		fmt.Fprintf(os.Stderr, "no %ss found for module %s\n", kind, module)
 		return 1
-	}
-
-	if *jsonOutput {
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].wire < entries[j].wire
-		})
-		var out []map[string]string
-		for _, e := range entries {
-			out = append(out, map[string]string{
-				"method":      e.wire,
-				"module":      e.module,
-				"description": e.desc,
-			})
-		}
-		return encodeJSON(out)
 	}
 
 	printSchemaTable(header, kind, entries)
