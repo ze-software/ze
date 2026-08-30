@@ -78,7 +78,7 @@ const (
 	CodeASN4                 Code = 65 // RFC 6793 Section 3
 	CodeAddPath              Code = 69 // RFC 7911 Section 4
 	CodeEnhancedRouteRefresh Code = 70 // RFC 7313 Section 3.1
-	CodeFQDN                 Code = 73 // RFC 8516
+	CodeFQDN                 Code = 73 // draft-walton-bgp-hostname-capability
 	CodePathsLimit           Code = 76 // draft-abraitis-idr-addpath-paths-limit
 )
 
@@ -685,9 +685,13 @@ func parseExtendedNextHop(data []byte) (*ExtendedNextHop, error) {
 	return &ExtendedNextHop{Families: families}, nil
 }
 
-// FQDN represents FQDN capability (RFC 8516).
+// FQDN represents the FQDN capability, code 73.
 //
-// RFC 8516 Section 3: Capability Code 73, variable length.
+// The document is draft-walton-bgp-hostname-capability, which IANA names as the
+// reference for capability code 73. It is NOT RFC 8516, which this file cited
+// until 2026-08-30: RFC 8516 is the CoAP "Too Many Requests" response code and
+// says nothing about BGP. The scoped config keys this type emits below have
+// always spelled the draft, so the two disagreed inside one file.
 // This capability advertises the fully qualified domain name (hostname
 // and domain name) of the BGP speaker.
 //
@@ -730,7 +734,7 @@ func (f *FQDN) ConfigValues() map[string]string {
 
 // parseFQDN parses an FQDN capability.
 //
-// RFC 8516 Section 3: Minimum length is 2 bytes (two length fields).
+// The minimum length is 2 bytes, the two length fields with both values empty.
 func parseFQDN(data []byte) (*FQDN, error) {
 	if len(data) < 2 {
 		return nil, ErrShortRead

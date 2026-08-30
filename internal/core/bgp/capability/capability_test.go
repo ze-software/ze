@@ -567,7 +567,7 @@ func TestExtendedNextHopRoundTrip(t *testing.T) {
 	assert.Equal(t, original.Families[1].NLRISAFI, enh.Families[1].NLRISAFI)
 }
 
-// TestFQDNCapability verifies FQDN parsing (RFC 8516).
+// TestFQDNCapability verifies FQDN parsing (draft-walton-bgp-hostname-capability).
 //
 // VALIDATES: FQDN capability for hostname advertisement.
 //
