@@ -2,6 +2,7 @@
 package flowspec
 
 import (
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -9,17 +10,22 @@ import (
 	flowspecyang "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec/yang"
 )
 
-// encoderComponentKeywords is every keyword isComponentKeyword accepts, listed
-// so the test can walk the set in both directions. A keyword added to the
-// encoder without being added here fails the guard below rather than passing
-// unnoticed.
-var encoderComponentKeywords = []string{
-	kwDestination, kwDestinationIPv4, kwDestinationIPv6,
-	kwSource, kwSourceIPv4, kwSourceIPv6,
-	kwProtocol, kwNextHeader, kwPort, kwDestPort, kwSourcePort,
-	kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
-	kwFragment, kwFlowLabel, kwRD,
-}
+const (
+	// encoderSourceFile is the file isComponentKeyword lives in, so the set
+	// this test reads and the function that accepts it cannot come from two
+	// different places.
+	encoderSourceFile = "plugin_encode_text.go"
+
+	// encoderKeywordMarker opens the const block that declares the component
+	// keywords, and it is the whole reason the block can be found by reading.
+	encoderKeywordMarker = "// FlowSpec component keywords."
+
+	// componentCountHint sizes the two slices this test builds. RFC 8955 and
+	// RFC 8956 define thirteen component types between them, and Ze spells
+	// several of them more than one way, so the count is a hint and never a
+	// bound: both readers grow past it rather than truncate.
+	componentCountHint = 19
+)
 
 // TestModelDeclaresEveryComponentKeyword holds the YANG this plugin publishes
 // against the function that decides what its encoder accepts.
@@ -45,14 +51,65 @@ func TestModelDeclaresEveryComponentKeyword(t *testing.T) {
 		}
 	}
 
-	for _, name := range encoderComponentKeywords {
+	for _, name := range encoderComponentKeywords(t) {
+		// The const block and the switch beside it disagreeing means the set
+		// read below is not the set the encoder accepts, so every comparison
+		// after this one would report noise. Stop rather than add to it.
 		if !isComponentKeyword(name) {
-			t.Fatalf("this test names %q, which isComponentKeyword refuses: the list here is wrong, not the model", name)
+			t.Fatalf("the const block declares %q and isComponentKeyword refuses it", name)
 		}
 		if !declaresComponent(declared, name) {
 			t.Errorf("the encoder accepts %q and the model does not declare it", name)
 		}
 	}
+}
+
+// encoderComponentKeywords answers the keywords the encoder's own source
+// declares, read out of the const block encoderKeywordMarker opens.
+//
+// It READS the set rather than restating it, because a list written here would
+// be a THIRD copy and it would fail open in the one direction that matters. A
+// keyword added to isComponentKeyword and to neither the list nor the model
+// leaves both loops above with nothing to compare, so the drift this test
+// exists to catch would pass unseen. Reading the block instead makes the new
+// constant arrive on the encoder side by itself.
+//
+// The loop is bounded by the line count of one file this test compiles beside.
+func encoderComponentKeywords(t *testing.T) []string {
+	t.Helper()
+	source, err := os.ReadFile(encoderSourceFile)
+	if err != nil {
+		t.Fatalf("read %s: %v", encoderSourceFile, err)
+	}
+
+	_, after, found := strings.Cut(string(source), encoderKeywordMarker)
+	if !found {
+		t.Fatalf("%s no longer carries %q, so the encoder's set could not be read", encoderSourceFile, encoderKeywordMarker)
+	}
+	block, _, closed := strings.Cut(after, "\n)")
+	if !closed {
+		t.Fatalf("the const block after %q in %s is not closed", encoderKeywordMarker, encoderSourceFile)
+	}
+
+	keywords := make([]string, 0, componentCountHint)
+	for line := range strings.SplitSeq(block, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "kw") {
+			continue
+		}
+		_, value, opened := strings.Cut(line, `= "`)
+		if !opened {
+			continue
+		}
+		keyword, _, terminated := strings.Cut(value, `"`)
+		if !terminated {
+			continue
+		}
+		keywords = append(keywords, keyword)
+	}
+	if len(keywords) == 0 {
+		t.Fatalf("no keyword parsed out of the const block in %s, so this test could not discriminate", encoderSourceFile)
+	}
+	return keywords
 }
 
 func declaresComponent(sorted []string, want string) bool {
@@ -70,9 +127,9 @@ func declaresComponent(sorted []string, want string) bool {
 func augmentedContainerNames(t *testing.T, module string) []string {
 	t.Helper()
 	const componentIndent = "        container "
-	names := make([]string, 0, len(encoderComponentKeywords))
+	names := make([]string, 0, componentCountHint)
 	inAugment := false
-	for _, line := range strings.Split(module, "\n") {
+	for line := range strings.SplitSeq(module, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "augment ") {
 			inAugment = true
 			continue

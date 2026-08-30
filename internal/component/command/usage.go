@@ -259,8 +259,15 @@ func appendGroupTokens(tokens []UsageToken, node *Node) []UsageToken {
 //
 // A child that runs a command of its own is a SUBCOMMAND and is never a group,
 // whatever else it carries: it has an invocation form of its own, on its own
-// line. Children is a map, so the order comes from ModifierOrder, and a name
-// breaks a tie no module should produce.
+// line. Children is a map, so the order comes from ModifierOrder, and the name
+// breaks a tie.
+//
+// A tie is ordinary rather than a defect a module should avoid.
+// declaredContainerOrder (internal/component/config/yang/command.go) counts the
+// PARENT's own container statements, so every container an augment contributes
+// carries order 0: the whole augmented set sorts by name, ahead of the groups
+// the parent's module declares. `announce flowspec` is the case that reads
+// this way, and its nineteen match components come from ze-flowspec-cmd.yang.
 //
 // Nothing is hoisted for being required. A module that declares its groups in
 // the order an operator types them already answers the question, and a

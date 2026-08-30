@@ -285,6 +285,71 @@ func TestHandleAnnounceFlowspec(t *testing.T) {
 	assert.Equal(t, 0, rctr.calls, "nothing dispatched on error")
 }
 
+// TestFlowspecActionAcceptsACommunity drives the community spelling of the
+// action through the same handler and fake reactor the two sugar spellings use.
+//
+// VALIDATES: RFC 8955 Section 7 makes the action an extended community, so
+// `community <action>` reaches route.ParseExtendedCommunities and every form it
+// defines is reachable. `rate-limit` and `discard` keep producing the exact
+// attribute bytes they produced before, which is what "unchanged for the
+// operator" means at the wire.
+// PREVENTS: two failures that a "the command still ran" assertion misses. The
+// sugar quietly encoding something else once it shares a path with the general
+// form, and the general form silently DROPPING the tail: every action parser
+// answers how many tokens it read, that count was discarded, and an operator
+// typo after a complete action would have been announced as a rule they never
+// described.
+func TestFlowspecActionAcceptsACommunity(t *testing.T) {
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
+	ctx := &pluginserver.CommandContext{}
+
+	announce := func(t *testing.T, args []string) []byte {
+		t.Helper()
+		rctr := &captureReactor{}
+		resp, err := handleAnnounceFlowspec(ctx, rctr, reg, args)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, 1, rctr.calls)
+		return rctr.batch.Attrs.Build()
+	}
+
+	const prefix = "192.0.2.0/24"
+
+	// A rate of 9600 through the sugar and through the community are the same
+	// announcement, so the attribute sections are byte-identical.
+	sugar := announce(t, []string{"destination", prefix, "rate-limit", "9600"})
+	spelled := announce(t, []string{"destination", prefix, "community", "traffic-rate", "0", "9600", "bytes"})
+	assert.Equal(t, sugar, spelled, "rate-limit is a spelling of a traffic-rate community")
+
+	discard := announce(t, []string{"destination", prefix, "discard"})
+	zeroRate := announce(t, []string{"destination", prefix, "community", "traffic-rate", "0", "0", "bytes"})
+	assert.Equal(t, discard, zeroRate, "discard is a spelling of a traffic-rate of zero")
+
+	// redirect is an action the two keywords cannot spell, and reaching it is
+	// the point of the community form.
+	redirect := announce(t, []string{"destination", prefix, "community", "redirect", "65001", "100"})
+	assert.NotEqual(t, discard, redirect, "redirect encodes an action of its own")
+
+	// The trailing options still cut the action short.
+	withOpts := announce(t, []string{"destination", prefix, "community", "redirect", "65001", "100", "for", "300s"})
+	assert.Equal(t, redirect, withOpts, "the trailing options are not action tokens")
+
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"a word after a complete action", []string{"destination", prefix, "community", "redirect", "65001", "100", "junk"}},
+		{"a word after the sugar's own form", []string{"destination", prefix, "community", "traffic-rate", "0", "9600", "bytes", "junk"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rctr := &captureReactor{}
+			_, err := handleAnnounceFlowspec(ctx, rctr, reg, tc.args)
+			require.ErrorIs(t, err, errFlowspecActionExtraTokens)
+			assert.Equal(t, 0, rctr.calls, "nothing is announced when a token is left over")
+		})
+	}
+}
+
 func TestParseTrailingOptsTag(t *testing.T) {
 	opts, err := parseTrailingOpts([]string{"tag", "mitigation", "ddos-udp"})
 	require.NoError(t, err)

@@ -89,7 +89,10 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		{"show firewall ruleset", "show firewall ruleset <name>"},
 		{"show interface type", "show interface type <type>"},
 		{"show route lookup", "show route lookup <ip>"},
-		{"announce", "announce <selector> [tag <key> <value>] [for <duration>]"},
+		// `announce` itself carries no command since it became three of them on
+		// 2026-08-30, so it renders nothing and each form states its own line.
+		{"announce unicast", "announce unicast <prefix> [next-hop <address>] [community <value> ...] [tag <key> <value>] [for <duration>]"},
+		{"announce blackhole", "announce blackhole <prefix> [tag <key> <value>] [for <duration>]"},
 		{"show announcements", "show announcements [tag <tag>] [selector <selector>] [family <family>]"},
 		// The value set reads in the order ze-log-cmd.yang declares it, which
 		// for a severity is the progression an operator expects. enumNames
@@ -97,7 +100,10 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		// the bare-alternation rule needed the module's own order.
 		{"request log level", "request log level <logger> <disabled|debug|info|warn|err>"},
 		{"request peer teardown", "request peer <selector> teardown <cease-subcode>"},
-		{"show policy test peer", "show policy test peer <selector> <import|export> [filter <filter>] [update <update>] [source-asn4 <true|false>]"},
+		// `filter` and `update` each declare a leaf of their own name, so the
+		// line reads the leaf rather than the container, and `update` states
+		// its value with no brackets because the group is required.
+		{"show policy test peer", "show policy test peer <selector> <import|export> [filter <name>] update <hex> [source-asn4 <true|false>]"},
 		{"show metrics name", "show metrics name <name> [label <key> <value> ...]"},
 
 		// The four rendering rules this phase added, on the commands that
@@ -304,11 +310,11 @@ func TestDeclaredValuesKeepAcceptedInvocations(t *testing.T) {
 			args:  []string{"192.0.2.1"},
 		},
 		{
-			path:             "announce",
+			path:             "announce unicast",
 			input:            "announce unicast 10.0.0.0/24 next-hop self tag color blue for 300s",
 			requiresSelector: true,
 			peer:             "edge1",
-			args:             []string{"unicast", "10.0.0.0/24", "next-hop", "self", "tag", "color", "blue", "for", "300s"},
+			args:             []string{"10.0.0.0/24", "next-hop", "self", "tag", "color", "blue", "for", "300s"},
 			// A modifier group is a child of the command node, so its leaves are
 			// not the command's own argument definitions and the whole tail
 			// still reaches parseTrailingOpts unchanged. No selector is adopted:
@@ -549,6 +555,22 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 			selectors:  map[string]string{"name": "device"},
 			ownArgDefs: 1,
 		},
+		{
+			// The one command whose groups are declared by ANOTHER module. The
+			// nineteen match components reach this node through the augment in
+			// ze-flowspec-cmd.yang, and the property is the same one: they are
+			// groups, so the node's own argument definitions stay at zero and
+			// handleAnnounceFlowspecCmd
+			// (internal/component/bgp/plugins/cmd/announce/announce.go) reads
+			// the whole tail. A component lifted out here would never reach
+			// splitFlowspecArgs, which is what cuts the tail at the action.
+			path:  "announce flowspec",
+			input: "announce flowspec destination 192.0.2.0/24 protocol =6 destination-port =80 rate-limit 9600",
+			args: []string{
+				"destination", "192.0.2.0/24", "protocol", "=6",
+				"destination-port", "=80", "rate-limit", "9600",
+			},
+		},
 	}
 
 	loader, err := yang.DefaultLoader()
@@ -579,6 +601,43 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 			assert.Equal(t, c.selectors, gotSelectors)
 		})
 	}
+}
+
+// TestAnnounceFlowspecUsageStatesTheComponents pins the line `announce flowspec
+// help` prints, which is the line that replaced the last authored `Usage:`
+// sentence in the tree.
+//
+// VALIDATES: the whole grammar comes from the model. The nineteen components
+// are declared by ze-flowspec-cmd.yang and arrive through an augment, the
+// action and the two options are declared by ze-cli-announce-cmd.yang, and one
+// line carries both modules' words.
+// PREVENTS: an augment that loads without contributing anything. A container
+// that omits `config false` is dropped by mergeYANGEntry
+// (internal/component/config/yang/command.go) with no diagnostic, so the module
+// would still parse, the gate would still count zero authored sentences, and
+// the operator would read `announce flowspec` with no grammar at all.
+//
+// The second render comes from a SECOND tree, because commandNode loads and
+// builds one for each call. That is what A-3 asks: Children is a map, every
+// augmented container carries ModifierOrder 0, and the answer must not depend
+// on which order the map was walked in.
+func TestAnnounceFlowspecUsageStatesTheComponents(t *testing.T) {
+	const path = "announce flowspec"
+	const want = "announce flowspec " +
+		"[destination <prefix> ...] [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] " +
+		"[destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] " +
+		"[fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] " +
+		"[next-header <value> ...] [packet-length <value> ...] [port <value> ...] " +
+		"[protocol <value> ...] [rd <value>] [source <prefix> ...] [source-ipv4 <prefix> ...] " +
+		"[source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] " +
+		"[community <value>] [rate-limit <bytes-per-second>] [discard] " +
+		"[tag <key> <value>] [for <duration>]"
+
+	first := command.UsageLine(command.Usage(strings.Fields(path), commandNode(t, path)))
+	assert.Equal(t, want, first)
+
+	second := command.UsageLine(command.Usage(strings.Fields(path), commandNode(t, path)))
+	assert.Equal(t, first, second, "a second build of the tree renders the same line")
 }
 
 // TestDeclaredNumericBoundsHold walks each numeric leaf this spec declared to

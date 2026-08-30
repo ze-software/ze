@@ -78,13 +78,28 @@ land ahead of every locally declared one, which is why the components print
 before the action and the options.
 
 **The action is an extended community, not an alternation.** RFC 8955 Section 7
-says so, and `handleAnnounceFlowspec` already agreed before it was modelled: it
-synthesises `traffic-rate` arguments for `rate-limit` and a rate of zero for
+says so, and `handleAnnounceFlowspec` already agreed before it was modeled: it
+synthesizes `traffic-rate` arguments for `rate-limit` and a rate of zero for
 `discard`, then hands both to `route.ParseExtendedCommunities`. Those two are
 spellings of one thing rather than two branches of a choice, so the model states
 `community <value>` as the general case and keeps them as sugar. Reading them as
 a mandatory choice where one branch carries a value is what made this command
 look inexpressible, and it is why it kept an authored sentence until 2026-08-30.
+
+The generated line brackets all three, so it says an action is optional and the
+handler says it is not: `splitFlowspecArgs` answers `errFlowspecRequiresAction`
+for a tail that names none, and `handleAnnounceFlowspec` answers
+`errMissingFlowspecComponents` for a tail with no component. A group states
+`once` or `repeat`, and `required` is the wrong word for one member of a set
+where any single member satisfies the rule. The operator reads the obligation
+from the error rather than from the line, and closing that gap needs a modifier
+that states "one of these", which no command declares today.
+
+<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- splitFlowspecArgs -->
+<!-- source: internal/component/command/usage.go -- modifierChildren -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/yang/ze-flowspec-cmd.yang -- augment -->
+<!-- source: internal/component/config/yang/command.go -- declaredContainerOrder -->
+<!-- source: internal/component/config/yang/command.go -- mergeYANGEntry -->
 
 **A leaf whose name equals its container arrives as a SELECTOR, not in args.**
 `withdraw > id` declares `leaf id`, so `matchCommandTokens` matches the keyword

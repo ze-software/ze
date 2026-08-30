@@ -51,6 +51,7 @@ var (
 
 	errFlowspecRequiresAction    = errors.New("flowspec announce requires an action: rate-limit <bytes-per-sec>, discard, or community <action>")
 	errCommunityRequiresAction   = errors.New("community requires an action, such as traffic-rate <asn> <rate> or redirect <asn> <target>")
+	errFlowspecActionExtraTokens = errors.New("flowspec action does not use every token given to it")
 	errRateLimitRequiresBytes    = errors.New("rate-limit requires a bytes-per-second value")
 	errMissingFlowspecComponents = errors.New("flowspec announce requires at least one match component (e.g. destination <prefix>)")
 )
@@ -404,9 +405,17 @@ func handleAnnounceFlowspec(ctx *pluginserver.CommandContext, bgpReactor bgptype
 
 	builder := attribute.NewBuilder()
 	builder.SetOrigin(0) // IGP
-	ecs, _, err := route.ParseExtendedCommunities(actionArgs)
+	ecs, consumed, err := route.ParseExtendedCommunities(actionArgs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid flowspec action: %w", err)
+	}
+	// Every action form reads a fixed number of tokens, so a token left over is
+	// a word the operator typed and this rule does not carry. The two sugar
+	// spellings are synthesized here and always consume what they produce; the
+	// `community` form is the operator's own text, and announcing a rule that
+	// silently drops part of it advertises something they did not describe.
+	if consumed < len(actionArgs) {
+		return nil, fmt.Errorf("%w: %s", errFlowspecActionExtraTokens, strings.Join(actionArgs[consumed:], " "))
 	}
 	for _, ec := range ecs {
 		builder.AddExtendedCommunity(ec)
