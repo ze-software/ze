@@ -232,12 +232,12 @@ The files it reads come from the PreToolUse entries in `.claude/settings.json`.
 A fourth dispatcher joins the map by being wired up. A dispatcher that no entry
 runs is reported rather than skipped.
 
-The same target compares the Hook-to-Rule Mapping tables in
-`ai/rules/repo-maintenance.md` against those comments. Each table carries two
-columns, `Check` and `Enforces`, under a heading naming its Go source. A new
-check therefore owes a row, and a deleted check's row cannot survive it. What
-each check triggers on and what it does is documentation, and it lives in
-`.claude/hooks/README.md`.
+The same target compares the check tables in `.claude/hooks/README.md` against
+those comments. Each table sits under a heading naming its Go source and opens
+with the `Check` and `Enforces` columns. A new check therefore owes a row, and
+a deleted check's row cannot survive it. What each check triggers on and what
+it does is documentation, and it sits in the remaining column of the same
+table.
 
 ## The order the generators run in
 

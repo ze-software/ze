@@ -312,8 +312,7 @@ func Coverage(tree string) (*CoverageReport, error) {
 		report.Diagnosis = append(report.Diagnosis, tb.Str("rules-points: ").Str(reason).String())
 	}
 
-	tb.Reset()
-	docPath := filepath.Join(tree, filepath.FromSlash(rulesRel), tb.Str(docRule).Str(".md").String())
+	docPath := filepath.Join(tree, filepath.FromSlash(hookDoc))
 	report.Doc = relTo(tree, docPath)
 	docText, err := os.ReadFile(docPath) // #nosec G304 -- a path derived from the checkout
 	if err != nil {
@@ -331,7 +330,7 @@ func Coverage(tree string) (*CoverageReport, error) {
 	if len(report.Published) > 0 {
 		tb.Reset()
 		report.Diagnosis = append(report.Diagnosis,
-			tb.Str("rules-points: the Hook-to-Rule Mapping table in ").Str(report.Doc).
+			tb.Str("rules-points: the check tables in ").Str(report.Doc).
 				Str(" disagrees with the binding comments").String())
 	}
 	return &report, nil

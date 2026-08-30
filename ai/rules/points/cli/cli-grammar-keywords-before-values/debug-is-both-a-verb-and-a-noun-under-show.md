@@ -1,8 +1,8 @@
 ---
-kind: note
-level:
+kind: directive
+level: MAY
 stage:
 ---
-`debug` is a verb (first token) *and* a legitimate noun under a read verb
-(`show debug` = display debug state). They do not collide: `show debug` reads,
+`debug` MAY be a verb (first token) and a noun under a read verb at the same time
+(`show debug` displays debug state). The two do not collide: `show debug` reads,
 `debug ...` perturbs.

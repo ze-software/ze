@@ -1,13 +1,14 @@
-// Design: docs/architecture/core-design.md -- the published Hook-to-Rule Mapping
+// Design: docs/architecture/core-design.md -- the published hook check tables
 // Overview: coverage.go -- the gate map this claim is compared against
 // Overview: coverage_report.go -- the answer these problems are printed in
 //
 // hooktable.go checks the published claim against the native Go checks.
 //
-// `ai/rules/repo-maintenance.md` publishes one table for each hookruntime source
+// `.claude/hooks/README.md` publishes one table for each hookruntime source
 // that owns registered checks. Its Check and Enforces columns repeat the
-// registry function names and binding comments. The table remains authored
-// because each row also explains its trigger and behavior.
+// registry function names and binding comments, and its remaining column says
+// what each check does, which is why the table is authored rather than
+// generated.
 
 package rules
 
@@ -19,10 +20,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// docRule is the rule that publishes the mapping, and tableHead opens each of
-// its sub-tables.
+// hookDoc is the document that publishes the mapping, and tableHead opens each
+// of its sub-tables.
 const (
-	docRule   = "repo-maintenance"
+	hookDoc   = ".claude/hooks/README.md"
 	tableHead = "| Check | Enforces |"
 )
 
@@ -107,8 +108,8 @@ func ruleStemsNamed(cell string, stems map[string]bool) map[string]bool {
 	return found
 }
 
-// hookTableProblems answers where the published Hook-to-Rule Mapping differs
-// from the registered native checks and their bindings.
+// hookTableProblems answers where the published hook tables differ from the
+// registered native checks and their bindings.
 //
 // It fails closed for a missing or empty source table, a stale source/check row,
 // a missing registered check row, and an Enforces cell that disagrees with the
@@ -138,7 +139,7 @@ func hookTableProblems(gm gateMap, docText string, sources map[string]string) []
 	for _, name := range sortedKeys(tables) {
 		if _, exists := sources[name]; !exists || len(rosters[name]) == 0 {
 			tb.Reset()
-			problems = append(problems, tb.Str(rulesRel).Byte('/').Str(docRule).Str(".md: heading `").
+			problems = append(problems, tb.Str(hookDoc).Str(": heading `").
 				Str(name).Str("` names no source with registered native checks").String())
 		}
 	}
@@ -149,9 +150,9 @@ func hookTableProblems(gm gateMap, docText string, sources map[string]string) []
 		rows := tables[name]
 		if len(rows) == 0 {
 			tb.Reset()
-			problems = append(problems, tb.Str(name).Str(": no `").Str(tableHead).
-				Str("...` table under a heading naming it; ").Int(int64(len(roster))).
-				Str(" check(s) are published nowhere").String())
+			problems = append(problems, tb.Str(hookDoc).Str(": no `").Str(tableHead).
+				Str("...` table under a heading naming ").Str(name).Str("; ").
+				Int(int64(len(roster))).Str(" check(s) are published nowhere").String())
 			continue
 		}
 
@@ -159,7 +160,7 @@ func hookTableProblems(gm gateMap, docText string, sources map[string]string) []
 		for _, row := range rows {
 			if first, twice := seen[row.Check]; twice {
 				tb.Reset()
-				problems = append(problems, tb.Str(rulesRel).Byte('/').Str(docRule).Str(".md:").
+				problems = append(problems, tb.Str(hookDoc).Byte(':').
 					Int(int64(row.Line)).Str(": `").Str(row.Check).
 					Str("` has a second row (the first is line ").Int(int64(first)).Byte(')').String())
 				continue
@@ -167,7 +168,7 @@ func hookTableProblems(gm gateMap, docText string, sources map[string]string) []
 			seen[row.Check] = row.Line
 			if !roster[row.Check] {
 				tb.Reset()
-				problems = append(problems, tb.Str(rulesRel).Byte('/').Str(docRule).Str(".md:").
+				problems = append(problems, tb.Str(hookDoc).Byte(':').
 					Int(int64(row.Line)).Str(": row `").Str(row.Check).Str("` names no check in ").
 					Str(name).Str("; delete the row or restore the function").String())
 				continue
@@ -190,8 +191,8 @@ func hookTableProblems(gm gateMap, docText string, sources map[string]string) []
 				continue
 			}
 			tb.Reset()
-			problems = append(problems, tb.Str(name).Str(": `").Str(check).
-				Str("` has no row in the Hook-to-Rule Mapping table").String())
+			problems = append(problems, tb.Str(hookDoc).Str(": `").Str(check).
+				Str("` has no row under the heading naming ").Str(name).String())
 		}
 	}
 	return problems
@@ -217,7 +218,7 @@ func enforcesProblem(row publishedRow, want, have map[string]bool) string {
 		held = tb.Join(sortedKeys(have), ", ").String()
 	}
 	tb.Reset()
-	return tb.Str(rulesRel).Byte('/').Str(docRule).Str(".md:").Int(int64(row.Line)).
+	return tb.Str(hookDoc).Byte(':').Int(int64(row.Line)).
 		Str(": `").Str(row.Check).Str("` Enforces names ").Str(held).
 		Str(", its bindings say ").Str(wanted).String()
 }

@@ -607,9 +607,10 @@ test, verify, or build command MUST NOT be piped through `tail`.**
 
 ## Editor Tests (.et format)
 
-`.et` files in `test/editor/` test the interactive TUI editor via headless simulation.
-Infrastructure: `internal/component/cli/testing/` (parser, expect, headless, input, runner).
-Run `./le functional editor`. Use focused Go tests under the compiled runner when iterating.
+An editor test MUST be an `.et` file in `test/editor/`, which drives the interactive
+TUI editor through headless simulation (`internal/component/cli/testing/`: parser,
+expect, headless, input, runner). Run the suite with `./le functional editor`, and use
+focused Go tests under the compiled runner while iterating.
 
 ## OS-Specific Tests
 

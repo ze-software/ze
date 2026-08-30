@@ -1,8 +1,8 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-When you migrate, also drop the command's verb from `IsReadOnlyPath`
-(`internal/component/plugin/server/command.go`) if it was only there as a legacy
-noun-first form.
+When you migrate a command, you MUST also drop its verb from `IsReadOnlyPath`
+(`internal/component/plugin/server/command.go`) when the verb was there only as a
+legacy noun-first form.

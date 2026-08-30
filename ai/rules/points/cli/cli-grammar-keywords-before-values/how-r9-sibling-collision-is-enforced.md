@@ -11,7 +11,8 @@ and fires only when the namespace literally exists as a sibling, so a genuine co
 is never flagged. **Root commands are a separate surface:** they register via
 `registry.MustRegisterRootHandler` / `RegisterRoot` and never enter the YANG tree, so
 `CheckSiblings` cannot see them. The root-namespace feeder (`grammar.CheckRootNamespace`,
-the fourth feeder below) governs them with a cross-surface check: a hyphenated root whose
+the fourth feeder on `docs/architecture/cli/root-namespace-grammar.md`) governs them with a
+cross-surface check: a hyphenated root whose
 left segment names a YANG verb or container is the same R9 violation (`traffic-control`
 vs the `traffic` container). MUST NOT assume a root is ungoverned because it is not in the
 tree.

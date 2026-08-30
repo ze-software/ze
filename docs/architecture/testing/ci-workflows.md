@@ -21,7 +21,7 @@ shared Woodpecker instance could not.
 | `./le qemu all-tests`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
 | The LDP, IS-IS and VRRP protocol labs, each inside `./le qemu run` | `qemu-nightly.yml`, job `protocol-labs` | schedule | advisory |
 | The L2TP appliance proof, the PPPoE labs and the traffic-usage eBPF proof | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
-| `bin/ze-perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory |
+| `bin/ze-perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history file is written by the nightly job and is not committed; perf-nightly.yml:33 guards on its absence) -->
 | `./le verify deps vulnerability` | `govulncheck.yml` | schedule `37 5 * * *` | advisory |
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
 

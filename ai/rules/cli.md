@@ -31,18 +31,15 @@
 
 ## CLI Grammar: Keywords Before Values
 
-```
-<verb> <noun> <action> [<args>]
-<verb> <noun> <selector-kind> <selector-value> <action> [<args>]
-```
+The first token after the noun (component or resource) MUST be a keyword from a
+closed set known at compile time. A command that targets one member of a set MUST
+also type the selector with a keyword such as `name`, `id`, `index`, `address`, or
+`type`. A free-form value MUST NOT appear in an untyped positional slot. The two
+token orders this produces are on
+`docs/architecture/cli/root-namespace-grammar.md`, "The command shape, and what
+each feeder checks".
 
-The first token after the noun (component/resource) MUST be a keyword from a
-closed set known at compile time. If a command targets one member of a set,
-the selector itself MUST also be typed by a keyword such as `name`, `id`,
-`index`, `address`, or `type`. Free-form values MUST NOT appear in an untyped
-positional slot.
-
-Use an explicit selector kind whenever a command addresses one member of a set.
+A command that addresses one member of a set MUST use an explicit selector kind.
 
 A selector keyword MUST be one of these:
 
@@ -54,8 +51,6 @@ A selector keyword MUST be one of these:
 - `key <key>` for generic key
 - another schema-defined closed keyword when the domain needs something more specific
 
-Examples:
-
 Typed-selector commands MUST take this form:
 
 - `show interface type dummy`
@@ -64,37 +59,36 @@ Typed-selector commands MUST take this form:
 - `show sysctl key net.ipv4.ip_forward`
 - `show sysctl profile router`
 
-Peer commands are the explicit exception to the generic typed-selector
-keyword form.
-
-Use:
+Peer commands MAY carry a bare `<name|address>` selector. They are the explicit
+exception to the generic typed-selector keyword form.
 
 Peer commands MUST take this form:
 
 - `show bgp peer <name|address> detail`
 - `show bgp peer <name|address> rib`
 
-Do not invent mutating peer examples here unless the exact grammar was
-explicitly agreed in source or by the user.
+A mutating peer example MUST NOT be invented here unless the exact grammar was
+agreed in source or by the user.
 
-Do not invent a user-facing `selector` keyword. `selector` may exist as an
-internal concept in dispatcher code, but it MUST NOT leak into operator
-syntax.
+A user-facing `selector` keyword MUST NOT be invented. `selector` exists as an
+internal concept in dispatcher code, and it MUST NOT leak into operator syntax.
 
-The "named-resource" pattern `<resource> <id> <action>` violates this rule.
-Correct form: `<resource> <action> <id>`.
+The named-resource pattern `<resource> <id> <action>` MUST NOT be used. The correct
+form is `<resource> <action> <id>`.
 
 The action MUST come before the identifier:
 
 - `cache retain <id>`, not `cache <id> retain`
 - `commit start <name>`, not `commit <name> start`
 
-The `list` action (no identifier) already works correctly in both.
+The `list` action carries no identifier, so `cache list` and `commit list` MAY keep
+their existing form.
 
-A hyphen inside a command token joins words that name **one indivisible thing**.
-Two separate ideas are two tokens, never one hyphenated token.
+A hyphen inside a command token MUST join words that name **one indivisible thing**.
+Two separate ideas MUST be two tokens, never one hyphenated token.
 
-Decision test, in order:
+Whether a hyphenated string is one compound token or a namespace MUST be decided by
+these tests, in order:
 
 1. Would you naturally say the two parts separately about the object ("show the
    *health* of *bgp*", "show the *feature* signals for *traffic*")? If yes, they are
@@ -123,7 +117,8 @@ and fires only when the namespace literally exists as a sibling, so a genuine co
 is never flagged. **Root commands are a separate surface:** they register via
 `registry.MustRegisterRootHandler` / `RegisterRoot` and never enter the YANG tree, so
 `CheckSiblings` cannot see them. The root-namespace feeder (`grammar.CheckRootNamespace`,
-the fourth feeder below) governs them with a cross-surface check: a hyphenated root whose
+the fourth feeder on `docs/architecture/cli/root-namespace-grammar.md`) governs them with a
+cross-surface check: a hyphenated root whose
 left segment names a YANG verb or container is the same R9 violation (`traffic-control`
 vs the `traffic` container). MUST NOT assume a root is ungoverned because it is not in the
 tree.
@@ -147,10 +142,9 @@ it under the `router` sibling -- the Type 1 Router-LSA -- would be wrong). Note 
 only ever looks left, so the same shared-word situation on the right (`summary` /
 `asbr-summary`, `external` / `nssa-external`) is never flagged at all.
 
-The verb is chosen by the command's **effect on live state**, not by how
-"diagnostic" it feels. The deciding question:
-
-> Does running this command change what the router does, emits, or forwards?
+The verb MUST be chosen by the command's **effect on live state**, not by how
+"diagnostic" it feels. The deciding question is: does running this command change
+what the router does, emits, or forwards?
 
 - **No -- it only reports current state.** Use `show` (one snapshot) or
   `monitor` (a continuous stream of the same read). These are the read-only
@@ -168,37 +162,28 @@ The verb is chosen by the command's **effect on live state**, not by how
   debug`) plus an explicit, fail-closed runtime enablement
   (see `internal/plugins/ospf/debug_enable.go`).
 
-`debug` is a verb (first token) *and* a legitimate noun under a read verb
-(`show debug` = display debug state). They do not collide: `show debug` reads,
+`debug` MAY be a verb (first token) and a noun under a read verb at the same time
+(`show debug` displays debug state). The two do not collide: `show debug` reads,
 `debug ...` perturbs.
 
-Not `debug`: turning on verbose **logging** changes output, not protocol
-behaviour -- model it as configuration (`set ... log level debug`), never as a
-`debug` command. The `debug` verb is reserved for perturbing protocol/dataplane
-state.
+Turning on verbose **logging** changes output, not protocol behavior, so it MUST NOT
+be modeled as a `debug` command. Model it as configuration
+(`set ... log level debug`). The `debug` verb is reserved for perturbing protocol or
+dataplane state.
 
-| Command | Verb | Why |
-|---------|------|-----|
-| `show ospf database opaque-area detail` | `show` | reads the LSDB; observes only |
-| `monitor ospf ...` | `monitor` | streams events; observes only |
-| `debug ospf inject enable` / `debug ip ospf inject opaque ...` | `debug` | injects a crafted LSA / toggles injection; perturbs the LSDB (double-gated) |
-| `set ospf area <a> log level debug` | `set` | verbose logging is config, not perturbation |
-
-Do not invent operational `add`, `del`, `remove`, or similar verbs for
-objects that already live in the config YANG tree.
-
-Config mutation belongs to the engine verbs:
+An operational `add`, `del`, `remove`, or similar verb MUST NOT be invented for an
+object that already lives in the config YANG tree.
 
 Engine tree mutation MUST use these verbs:
 
 - `set <path> <value>`
 - `delete <path>`
 
-If a change means "create/delete/change a node in the YANG config tree",
-the command surface MUST stay in engine path form. Do not mirror that
-operation as an RPC command just to make the grammar look regular.
+When a change creates, deletes, or alters a node in the YANG config tree, the command
+surface MUST stay in engine path form. That operation MUST NOT be mirrored as an RPC
+command to make the grammar look regular.
 
-Examples:
+A tree mutation and a runtime action MUST take different surfaces:
 
 - Interface addresses and units are config-tree mutations. They MUST belong under
   engine `set` / `delete`, not operational commands like `interface addr del`
@@ -206,7 +191,7 @@ Examples:
 - Runtime actions that are not tree mutation, such as `clear counters`,
   `teardown`, or `pause`, MAY have operational command verbs.
 
-Before changing any command grammar, classify it first:
+Before changing any command grammar, you MUST classify the command first.
 
 Each command class MUST use this surface:
 
@@ -214,35 +199,37 @@ Each command class MUST use this surface:
 2. **Runtime operational action** -> CLI/RPC command grammar applies
 3. **Read/query** -> `show ...`
 
-If the command is class (1), stop. Do not redesign it as a verb-first RPC.
+A class (1) command is a config tree mutation, and it MUST NOT be redesigned as a
+verb-first RPC.
 
-Do not move a command family into a different YANG module while fixing
-grammar unless the architecture explicitly requires that move.
+A command family MUST NOT be moved into a different YANG module while grammar is
+being fixed, unless the architecture requires that move.
 
-First identify the owning module from source:
-
-The owning module MUST be recorded in one of these places:
+The owning module MUST be identified from source before the grammar is edited, and it
+is recorded in one of these places:
 
 - the existing `ze:command` path
 - the module `register.go` / `embed.go`
 - the handler `RPCRegistration`
 
-Then edit that module. Grammar cleanup is not permission to reshuffle
-command ownership across components.
+Edit the owning module and no other. Grammar cleanup MUST NOT reshuffle command
+ownership across components.
 
 The daemon dispatcher registers each built-in handler under its **YANG path**, not
 its wire method: `LoadBuiltins` does `d.RegisterWithOptions(wireToPath[wireMethod], ...)`
-(`internal/component/plugin/server/command.go`). So **moving a `ze:command` container
-in the YANG tree changes the command's dispatch key.** Relocating `command list` to
-`show command list` deletes the old `command list` key entirely.
+(`internal/component/plugin/server/command.go`). Moving a `ze:command` container in
+the YANG tree therefore changes the command's dispatch key, and the move MUST be
+treated as a rename. Relocating `command list` to `show command list` deletes the old
+`command list` key entirely.
 
-That is fine for a command an operator types. It is a **wire break** for any command a
-plugin or script sends by its bare path, over the plugin CLI protocol
-(`dispatch-command` / `dispatch-command-args`) or an interactive `ze <subsystem> plugin cli`
-session. A verb-first "rename" of such a command is a protocol break, not a cosmetic
-change.
+A rename is harmless for a command an operator types. It is a **wire break** for any
+command a plugin or script sends by its bare path, over the plugin CLI protocol
+(`dispatch-command` / `dispatch-command-args`) or an interactive
+`ze <subsystem> plugin cli` session. A verb-first rename of such a command MUST be
+treated as a protocol break, not a cosmetic change.
 
-Before migrating any noun-first built-in to verb-first:
+Before migrating any noun-first built-in to verb-first, you MUST work through each
+step:
 
 1. **Grep for programmatic senders of the bare path:** `.ci` tests, `DispatchCommand`
    / `DispatchCommandArgs` calls, `printf ... | ze ... plugin cli`, `SendCommand`. MUST
@@ -258,26 +245,27 @@ Before migrating any noun-first built-in to verb-first:
    Mutation). `command list/help/complete` (engine introspection) migrated cleanly to
    `show command ...`; `plugin ...` stayed.
 
-When you migrate, also drop the command's verb from `IsReadOnlyPath`
-(`internal/component/plugin/server/command.go`) if it was only there as a legacy
-noun-first form.
+When you migrate a command, you MUST also drop its verb from `IsReadOnlyPath`
+(`internal/component/plugin/server/command.go`) when the verb was there only as a
+legacy noun-first form.
 
-Use string-typed identifiers even when the conventional representation is numeric.
-Cache IDs, VLAN IDs, session IDs: accept and store as strings. Parse to numeric
-only at the point of use if the underlying API requires it. This avoids:
+An identifier MUST be string-typed even when the conventional representation is
+numeric. Cache IDs, VLAN IDs and session IDs are accepted and stored as strings, and
+parsed to numeric only at the point of use when the underlying API requires it. This
+avoids:
+
 - Grammar ambiguity between numeric keywords and numeric IDs
-- Unnecessary coupling to a representation (IDs may become non-numeric later)
+- Unnecessary coupling to a representation (an ID can become non-numeric later)
 - Parsing errors surfacing at the wrong layer
 
-Replace a wrong grammar outright. Ze has never been released, so no grammar is
-owed to a user and none is kept working alongside its replacement: delete the
-old form, then implement the new one (`ai/rules/go-standards.md`, "No Backwards
+A wrong grammar MUST be replaced outright. Ze has never been released, so no grammar
+is owed to a user and none is kept working beside its replacement: delete the old
+form, then implement the new one (`ai/rules/go-standards.md`, "No Backwards
 Compatibility"; `ai/rules/no-layering.md`).
 
-For every handler that dispatches on `args[0]`:
-
 A positional argument before the action or selector-kind MUST NOT be a
-user-supplied value. Ask these questions to decide whether a handler conforms:
+user-supplied value. Ask these questions of every handler that dispatches on
+`args[0]`:
 
 1. Is `args[0]` always a keyword from a known set? -> Correct.
 2. If the command selects one member of a set, does the handler consume a
@@ -285,60 +273,52 @@ user-supplied value. Ask these questions to decide whether a handler conforms:
 3. Can any positional argument before the action or selector-kind be a
    user-supplied value? -> Violation.
 
-If any `args[0]` usage passes the value to a lookup/parse function (GetInterface,
-ParseUint, etc.) without first matching it against a keyword set, that is a violation.
+An `args[0]` value MUST NOT reach a lookup or parse function (`GetInterface`,
+`ParseUint`) before it is matched against a keyword set.
 
-These rules are enforced automatically, not just by review. The reverse-engineered
-ruleset is R1-R9 (verb-first, token form, no `--flag`, namespace discipline,
-keyword-before-value, action-before-identifier, config-tree-mutation stays in
-`set`/`delete`, string identifiers, compound-vs-namespace split), implemented once in
-`internal/component/command/grammar` and read from the canonical verb registry
-`internal/component/command` (`Verbs`). Seven feeders enforce it:
+The R1-R9 ruleset (verb-first, token form, no `--flag`, namespace discipline,
+keyword-before-value, action-before-identifier, config-tree mutation stays in
+`set`/`delete`, string identifiers, compound-versus-namespace split) is implemented
+once in `internal/component/command/grammar`, and reads the canonical verb registry
+`internal/component/command` (`Verbs`). Seven feeders enforce it, and
+`docs/architecture/cli/root-namespace-grammar.md` names what each one checks. A
+grammar change MUST be run through `./le cli-grammar`, which drives them.
 
-Feeder 3 is an **in-process** guard, not a daemon-boot audit: built-ins are 100%
-YANG-derived (a handler with no YANG path is skipped, `LoadBuiltinsWithAliases`) so
-they are a strict subset of the static gate's tree, and plugin commands are rejected
-at registration by Feeder 2. The merged `system command list` surface therefore
-contains only conforming commands by construction: a boot-and-dump audit would add
-no catch value while depending on an all-plugins config that cannot exist (startup is
-config-path-gated). The guard instead locks the two runtime sources against
-regression cheaply and deterministically.
-
-The YANG container nesting must mirror the corrected grammar. If the CLI path
-changes from `show interface <name>` to `show interface name <name> detail`,
-the YANG tree needs a `name` container under `interface`, then `detail`
-under that selector. Filter forms like `show interface type <type>` need a
-`type` container that consumes the typed selector value.
+The YANG container nesting MUST mirror the corrected grammar. When the CLI path
+changes from `show interface <name>` to `show interface name <name> detail`, the YANG
+tree needs a `name` container under `interface`, then `detail` under that selector. A
+filter form such as `show interface type <type>` needs a `type` container that
+consumes the typed selector value.
 
 YANG schemas describe command structure and semantics, not CLI presentation.
-`--flag` syntax MUST NOT appear anywhere in a `.yang` file: not in a
-`description`, not in a `//` comment, not in examples.
+`--flag` syntax MUST NOT appear anywhere in a `.yang` file: not in a `description`,
+not in a `//` comment, not in examples.
 
-A **filter** (address family, row limit, VRF, table, ...) is grammar, so it is a
-YANG keyword selector, never a flag:
+A **filter** (address family, row limit, VRF, table) is grammar, so it MUST NOT be a
+flag. The vendor namespacing logic behind family-as-filter (Cisco `ip` against Nokia
+`router` against Juniper `show route`) is on
+`docs/architecture/cli/command-namespacing.md`.
 
-- MUST model it as a container or leaf the command consumes as `keyword value`
+- MUST model a filter as a container or leaf the command consumes as `keyword value`
   (`... arp family ipv6`, `... route limit 50`). It is then visible to
   completion and RPC dispatch, which are built from the YANG tree.
 - A `description` states what the leaf MEANS. It MUST NOT prescribe a CLI spelling
   ("Filter by address family", not "Filter with `--family`"; not "as a positional
   argument" either).
 
-The `--flag` form (`--json`, `--socket`, `--limit`) is a presentation artifact of
-the offline `cmd/ze/` Go flag tooling (`flag.NewFlagSet`) and belongs ONLY there,
-never in the YANG layer. A `--flag` baked into a YANG description is documentation
-lying about structure: it is invisible to completion and dispatch, and it couples
-the shared model to one front-end.
-
-Rationale and the vendor namespacing logic behind family-as-filter (Cisco `ip`
-vs Nokia `router` vs Juniper `show route`):
-`docs/architecture/cli/command-namespacing.md`.
+The `--flag` form (`--json`, `--socket`, `--limit`) is a presentation artifact of the
+offline `cmd/ze/` Go flag tooling (`flag.NewFlagSet`) and it MUST NOT reach the YANG
+layer. A `--flag` baked into a YANG description is documentation lying about
+structure: it is invisible to completion and dispatch, and it couples the shared model
+to one front-end.
 
 - **A `--flag` belongs to the PROCESS that runs a command; a bare keyword belongs to the COMMAND itself.** The daemon states the cut in the error it returns when a flag reaches it: `flags are interpreted by the client, not the daemon` (`firstFlagToken`, `internal/component/plugin/server/command.go`).
 - **A filter names part of the question, so it MUST take the first register and never the third.** `family`, `limit`, `vrf` and `table` are keywords: `show bgp neighbor ipv6`, never `--family ipv6`.
 
-| Test, applied in order, first yes wins | Register | Form |
-|----------------------------------------|----------|------|
+A token MUST be placed in its register by these tests, applied in order, first yes wins:
+
+| Test | Register | Form |
+|------|----------|------|
 | Does it change WHICH answer is produced: the object, the sub-section, the selector, the filter, the variant? | Command grammar | bare keyword, declared in YANG or a `CommandDecl` |
 | Does it change how an answer already in hand is rendered or reduced? | Pipe operator | `\| json`, `\| count`, `\| match` |
 | Does it change how this process starts, before any command exists: which config, which daemon, which credentials, which plugins, which listener, which colors? | Process option | `--flag` |
@@ -362,9 +342,9 @@ vs Nokia `router` vs Juniper `show route`):
 
 - **Every flag an offline command accepts MUST be declared once through `registry.RegisterCommandFlags` (`internal/component/command/registry/flags.go`).** A flag declared only in `Meta.Subs` prose is invisible to completion, and prose drifts from the parser in both directions: a flag the handler parses and the help never names, and a flag the help names and the handler never reads.
 
-All CLI commands: online (RPC handlers via YANG dispatch) and offline
-(`cmd/ze/` subcommand dispatch). No exceptions for "simple" commands or
-"obvious" identifier positions.
+This rule MUST be applied to all CLI commands: online (RPC handlers through YANG
+dispatch) and offline (`cmd/ze/` subcommand dispatch). A "simple" command and an
+"obvious" identifier position are no exception.
 
 ## CLI Patterns
 

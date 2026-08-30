@@ -48,6 +48,16 @@ static gate derive from. Category exemptions — the text bridge, the
 live in `grammar.ExemptCategory`, keyed on the handler wire-method namespace,
 never a per-command allowlist.
 
+The runtime guard is an in-process check, not a daemon-boot audit. Built-ins are
+fully YANG-derived (a handler with no YANG path is skipped,
+`LoadBuiltinsWithAliases`), so they are a strict subset of the static gate's tree,
+and plugin commands are rejected at registration by the registration feeder. The
+merged `system command list` surface therefore holds only conforming commands by
+construction. A boot-and-dump audit would add no catch value, and it would depend on
+an all-plugins config that cannot exist, because startup is config-path-gated. The
+guard instead locks the two runtime sources against regression cheaply and
+deterministically.
+
 ## Decision: a fourth feeder for the grammar gate
 
 `grammar.CheckRootNamespace(roots, namespaces)` flags a root whose left

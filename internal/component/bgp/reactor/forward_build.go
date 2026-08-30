@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — exactly-sized one-pass rebuild for egress attribute modification
-// Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (Outgoing Peer Pool is the copy point)
+// Design: docs/architecture/buffer-architecture.md -- zero-copy, copy-on-modify (Outgoing Peer Pool is the copy point)
 // RFC: rfc/short/rfc4271.md — UPDATE body layout, Total Path Attribute Length, attribute ordering (Section 5)
 // RFC: rfc/short/rfc8654.md — extended message body ceiling
 // RFC: rfc/short/rfc9494.md — announce-to-withdrawal conversion for non-LLGR EBGP peers

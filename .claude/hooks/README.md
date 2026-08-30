@@ -58,40 +58,46 @@ in-process rather than launching a second implementation.
 A dispatcher returns the worst verdict of its checks, and `pretool-bash` also
 writes the parent session prefix when nothing blocked.
 
+Each section below carries one table under a heading naming its Go source. The
+`Enforces` column names the rule stems that check's `// ze point:` bindings
+name. `hookTableProblems` (`internal/le/rules/hooktable.go`) compares the two
+columns against the Go registry, so a new check owes a row here and a deleted
+check's row cannot survive it.
+
 ## PreToolUse: Bash (`internal/le/hookruntime/bash.go`)
 
 <!-- source: internal/le/hookruntime/bash.go -- bashWorktreeCopy, bashDestructiveGit, bashRootBuild, bashLossyPipe, bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch, bashTestDeletion, bashGovernedWrite -->
 
-| Check | What it refuses |
-|---|---|
-| `bashWorktreeCopy` | A file copy out of a worktree into the main tree. A worktree agent lands its work by committing, and a direct copy overwrites whatever another session left uncommitted at the destination. |
-| `bashDestructiveGit` | Every git verb that discards work or publishes it. Committing and pushing are allowed through the prepared script alone, because sessions share one index. |
-| `bashRootBuild` | A Go compile that names no output path. Without `-o` the binary lands in the working directory under the package name. |
-| `bashLossyPipe` | Piping an expensive command through a filter that drops output. The part a filter removes is usually the part that says why the run failed. |
-| `bashRawHeavy` | A heavy job typed raw, outside job admission. One machine carries several sessions, and an unadmitted job oversubscribes it. |
-| `bashPollLoop` | An unbounded wait loop. A loop with no timeout holds the session captive. |
-| `bashSystemTmp` | The system temporary directory. Session scratch belongs under the per-session directory, which is reaped with the session. |
-| `bashScratch` | Ad-hoc scratch written at the `tmp/` root. Sessions share that tree, so an unqualified name collides. |
-| `bashTestDeletion` | Deleting a test without approval. A deleted test is indistinguishable from a test that never existed. |
-| `bashGovernedWrite` | A shell write into `plan/` or `ai/rules/`. Those trees are guarded by the Write/Edit hook, and a shell write runs none of its checks. |
+| Check | Enforces | What it refuses |
+|---|---|---|
+| `bashWorktreeCopy` | `ai/INSTRUCTIONS.md` prohibition, no rule point | A file copy out of a worktree into the main tree. A worktree agent lands its work by committing, and a direct copy overwrites whatever another session left uncommitted at the destination. |
+| `bashDestructiveGit` | `git-safety.md` | Every git verb that discards work or publishes it. Committing and pushing are allowed through the prepared script alone, because sessions share one index. |
+| `bashRootBuild` | build hygiene, no rule point | A Go compile that names no output path. Without `-o` the binary lands in the working directory under the package name. |
+| `bashLossyPipe` | `commands.md` | Piping an expensive command through a filter that drops output. The part a filter removes is usually the part that says why the run failed. |
+| `bashRawHeavy` | `commands.md` | A heavy job typed raw, outside job admission. One machine carries several sessions, and an unadmitted job oversubscribes it. |
+| `bashPollLoop` | `commands.md` | An unbounded wait loop. A loop with no timeout holds the session captive. |
+| `bashSystemTmp` | `testing.md` | The system temporary directory. Session scratch belongs under the per-session directory, which is reaped with the session. |
+| `bashScratch` | `commands.md` | Ad-hoc scratch written at the `tmp/` root. Sessions share that tree, so an unqualified name collides. |
+| `bashTestDeletion` | `testing.md` | Deleting a test without approval. A deleted test is indistinguishable from a test that never existed. |
+| `bashGovernedWrite` | `commands.md` | A shell write into `plan/` or `ai/rules/`. Those trees are guarded by the Write/Edit hook, and a shell write runs none of its checks. |
 
 ## PreToolUse: Write/Edit (`internal/le/hookruntime/writeedit.go`)
 
 <!-- source: internal/le/hookruntime/writeedit.go -- writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite, writePointLanguage, writeDesignEvidence, writeSpecStatus, writeGoPatterns, writeFilePatterns, writeWeakening, writeCISleep -->
 
-| Check | What it refuses |
-|---|---|
-| `writeLineCitation` | A line-number citation in repository prose. |
-| `writeGenerated` | An edit to a generated file. The verdict names its source. |
-| `writeRenderedRule` | An edit to a rendered rule, which `ai/rules/points/` owns. |
-| `writePointOverwrite` | A Write that replaces an existing rule point. |
-| `writePointLanguage` | A rule directive that states no RFC 2119 level. |
-| `writeDesignEvidence` | A spec or design written before its source was read. |
-| `writeSpecStatus` | A source edit while the claimed spec is not `in-progress`. |
-| `writeGoPatterns` | The Go patterns the rules ban, file by file: handlers, panic, legacy logging, allocating formatting, nolint, init registration, switch dispatch, anonymous goroutines, and fake buffer handles. |
-| `writeFilePatterns` | The file-level patterns the rules ban, by path: path shape, package name, scratch location, lint exclusion, config version, and CI observers. |
-| `writeWeakening` | A proposed edit that lowers what a test proves. |
-| `writeCISleep` | A pause in a `.ci` test that names no justification marker. |
+| Check | Enforces | What it refuses |
+|---|---|---|
+| `writeLineCitation` | `evidence.md`, `writing.md` | A line-number citation in repository prose. |
+| `writeGenerated` | `repo-maintenance.md` | An edit to a generated file. The verdict names its source. |
+| `writeRenderedRule` | `repo-maintenance.md` | An edit to a rendered rule, which `ai/rules/points/` owns. |
+| `writePointOverwrite` | `never-destroy-work.md` | A Write that replaces an existing rule point. |
+| `writePointLanguage` | `rule-format.md` | A rule directive that states no RFC 2119 level. |
+| `writeDesignEvidence` | `evidence.md` | A spec or design written before its source was read. |
+| `writeSpecStatus` | `planning.md` | A source edit while the claimed spec is not `in-progress`. |
+| `writeGoPatterns` | `architecture.md`, `cli.md`, `go-standards.md`, `performance.md`, `quality.md`, `plugins.md`, `goroutine-lifecycle.md` | The Go patterns the rules ban, file by file: handlers, panic, legacy logging, allocating formatting, nolint, init registration, switch dispatch, anonymous goroutines, and fake buffer handles. |
+| `writeFilePatterns` | `architecture.md`, `commands.md`, `config.md`, `quality.md`, `testing.md` | The file-level patterns the rules ban, by path: path shape, package name, scratch location, lint exclusion, config version, and CI observers. |
+| `writeWeakening` | `testing.md` | A proposed edit that lowers what a test proves. |
+| `writeCISleep` | `testing.md` | A pause in a `.ci` test that names no justification marker. |
 
 `writeGoPatterns` is the edit-time allocation-pattern check. It blocks
 `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Printf`, and `strconv.FormatInt` or
@@ -102,27 +108,27 @@ its native verification action.
 
 <!-- source: internal/le/hookruntime/agent.go -- agentReviewModel, agentSkill, agentStyleGuide -->
 
-| Check | What it does |
-|---|---|
-| `agentReviewModel` | Refuses a review agent that does not run on Opus 5. |
-| `agentSkill` | Refuses a hand-written prompt that a `ze-*` skill already covers. |
-| `agentStyleGuide` | Warns when a brief will produce Go and names no style guide. |
+| Check | Enforces | What it does |
+|---|---|---|
+| `agentReviewModel` | `planning.md` | Refuses a review agent that does not run on Opus 5. |
+| `agentSkill` | `cli.md` | Refuses a hand-written prompt that a `ze-*` skill already covers. |
+| `agentStyleGuide` | `go-standards.md` | Warns when a brief will produce Go and names no style guide. |
 
 ## PostToolUse: Write/Edit (`internal/le/hookruntime/postwrite.go`)
 
 <!-- source: internal/le/hookruntime/postwrite.go -- postFormatGo, postFileSize, postDeferral, postJournal, postRFCHeader, postTestDocs, postFuzz, postVague, postBoundary -->
 
-| Check | What it does |
-|---|---|
-| `postFormatGo` | Formats the edited Go file, then refuses it while the linter still reports an issue in its package. |
-| `postFileSize` | Reports a Go file past the 1,000-line advisory. |
-| `postDeferral` | Reports deferral language in a document that is not a deferral. |
-| `postJournal` | Reports a journal file that `./le commit create` would refuse. |
-| `postRFCHeader` | Reports a file citing RFCs with no `// RFC:` header. |
-| `postTestDocs` | Reports a test file with no `VALIDATES:` or `PREVENTS:` comment. |
-| `postFuzz` | Reports a wire parser whose package carries no fuzz target. |
-| `postVague` | Reports a vague variable name in the edited Go file. |
-| `postBoundary` | Reports numeric validation whose sibling test names no boundary. |
+| Check | Enforces | What it does |
+|---|---|---|
+| `postFormatGo` | `quality.md` | Formats the edited Go file, then refuses it while the linter still reports an issue in its package. |
+| `postFileSize` | Go style guidance, no rule point | Reports a Go file past the 1,000-line advisory. |
+| `postDeferral` | heuristic advisory, no rule point | Reports deferral language in a document that is not a deferral. |
+| `postJournal` | journal format, no rule point | Reports a journal file that `./le commit create` would refuse. |
+| `postRFCHeader` | Go style guidance, no rule point | Reports a file citing RFCs with no `// RFC:` header. |
+| `postTestDocs` | Go style guidance, no rule point | Reports a test file with no `VALIDATES:` or `PREVENTS:` comment. |
+| `postFuzz` | advisory, no rule point | Reports a wire parser whose package carries no fuzz target. |
+| `postVague` | Go style guidance, no rule point | Reports a vague variable name in the edited Go file. |
+| `postBoundary` | advisory, no rule point | Reports numeric validation whose sibling test names no boundary. |
 
 ## Lifecycle actions (`internal/le/hookruntime/lifecycle.go`)
 

@@ -3,6 +3,9 @@ kind: directive
 level: MUST
 stage:
 ---
+Whether a hyphenated string is one compound token or a namespace MUST be decided by
+these tests, in order:
+
 1. Would you naturally say the two parts separately about the object ("show the
    *health* of *bgp*", "show the *feature* signals for *traffic*")? If yes, they are
    two tokens. The left part becomes a container node so the tree stays object-rooted

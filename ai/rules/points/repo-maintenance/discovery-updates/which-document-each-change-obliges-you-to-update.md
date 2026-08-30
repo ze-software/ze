@@ -13,7 +13,7 @@ stage:
 | Architecture contract, invariant, or documented data flow | The owning `docs/architecture/` page or flow digest, with source anchors per `ai/rules/writing.md` |
 | CLI command grammar or command availability | `ai/rules/cli.md` or `ai/rules/cli.md`, plus command validation docs if needed |
 | New tool or native action | `ai/INDEX.md` Dev Tools or keyword map, plus the owning `docs/contributing/` or `docs/architecture/testing/` page |
-| New verification gate or hook | `.claude/hooks/README.md`, the `Check`/`Enforces` row in the "Hook-to-Rule Mapping" section below, and the rule the hook enforces |
+| New verification gate or hook | `.claude/hooks/README.md`, including the `Check`/`Enforces` row in the table under the heading naming its Go source, and the rule the hook enforces |
 | New doc or inventory checker | `docs/contributing/documentation-testing.md`, the owning `internal/le/<area>/actions.go`, and `ai/rules/writing.md` if policy changed |
 | New test runner or format | `ai/rules/testing.md`, `ai/patterns/functional-test.md` if `.ci`, and the relevant `docs/architecture/testing/` page |
 | New runtime dependency | The "Doctor Checks" section below, `docs/architecture/doctor-and-health-checks.md`, diagnostic code registration, and a `ze doctor` unit plus functional test |

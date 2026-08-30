@@ -33,14 +33,6 @@ hook-to-rule-mapping ## Hook-to-Rule Mapping
   edit-the-dispatcher-function-then-check-parity
   keep-the-session-id-resolvers-in-agreement
   stdout-reaches-the-model-stderr-costs-no-context
-  bash-pretool-native-go
-  the-bash-checks-and-what-each-one-blocks
-  write-edit-pretool-native-go
-  the-write-edit-checks-and-what-each-one-blocks
-  agent-skill-pretool-native-go
-  the-task-agent-checks-and-what-each-one-blocks
-  posttooluse-checks-run-after-the-tool-completes
-  the-posttooluse-checks-and-what-each-one-does
 gate-population ## Gate Population
   state-what-the-gate-cannot-see
   anchor-a-structural-read-on-a-marker-not-a-position

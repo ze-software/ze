@@ -4,7 +4,8 @@
 //
 // The batch sync.Pool exists so producers can emit at sustained burst rates
 // (AC-13: 500 events / invocation) without per-event heap allocation. Per
-// rules/design-principles.md "Pool strategy by goroutine shape (b)", we use
+// docs/architecture/buffer-architecture.md "Pool shape follows goroutine
+// shape", we use
 // sync.Pool seeded for peak concurrent producers; producers Get -> fill ->
 // Emit -> Put.
 //

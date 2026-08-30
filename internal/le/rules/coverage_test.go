@@ -185,23 +185,11 @@ func TestCurrentNativeHookChecksAreBound(t *testing.T) {
 	if len(gateMap.Dangling) != 0 {
 		t.Fatalf("native hook bindings name missing points: %+v", gateMap.Dangling)
 	}
-	fragments := []string{
-		"bash-pretool-native-go.md", "the-bash-checks-and-what-each-one-blocks.md",
-		"write-edit-pretool-native-go.md", "the-write-edit-checks-and-what-each-one-blocks.md",
-		"agent-skill-pretool-native-go.md", "the-task-agent-checks-and-what-each-one-blocks.md",
-		"posttooluse-checks-run-after-the-tool-completes.md", "the-posttooluse-checks-and-what-each-one-does.md",
+	published, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(hookDoc)))
+	if err != nil {
+		t.Fatalf("published hook tables: %v", err)
 	}
-	var published strings.Builder
-	for _, name := range fragments {
-		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(pointsRel),
-			docRule, "hook-to-rule-mapping", name))
-		if err != nil {
-			t.Fatalf("published fragment %s: %v", name, err)
-		}
-		published.Write(body)
-		published.WriteByte('\n')
-	}
-	if problems := hookTableProblems(gateMap, published.String(), sources); len(problems) != 0 {
+	if problems := hookTableProblems(gateMap, string(published), sources); len(problems) != 0 {
 		t.Fatalf("published native hook rows: %v", problems)
 	}
 }
@@ -251,6 +239,10 @@ func TestPublishedRowsMustMatchNativeBindings(t *testing.T) {
 	missing := strings.Replace(doc, "| `firstCheck` | `alpha.md` | always |\n", "", 1)
 	if problems := hookTableProblems(gm, missing, map[string]string{"bash.go": "package hookruntime\n"}); !containsString(problems, "firstCheck") {
 		t.Fatalf("a missing published row passed: %v", problems)
+	}
+	wrong := strings.Replace(doc, "| `firstCheck` | `alpha.md` |", "| `firstCheck` | `beta.md` |", 1)
+	if problems := hookTableProblems(gm, wrong, map[string]string{"bash.go": "package hookruntime\n"}); !containsString(problems, "Enforces names") {
+		t.Fatalf("a row naming the wrong point passed: %v", problems)
 	}
 }
 

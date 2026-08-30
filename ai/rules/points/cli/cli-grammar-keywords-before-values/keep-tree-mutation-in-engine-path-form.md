@@ -1,8 +1,8 @@
 ---
-kind: note
+kind: directive
 level: MUST
 stage:
 ---
-If a change means "create/delete/change a node in the YANG config tree",
-the command surface MUST stay in engine path form. Do not mirror that
-operation as an RPC command just to make the grammar look regular.
+When a change creates, deletes, or alters a node in the YANG config tree, the command
+surface MUST stay in engine path form. That operation MUST NOT be mirrored as an RPC
+command to make the grammar look regular.

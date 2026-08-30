@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — per-peer forward worker pool
-// Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (Incoming/Outgoing Peer Pools, Global Shared Pool)
+// Design: docs/architecture/buffer-architecture.md -- zero-copy, copy-on-modify (Incoming/Outgoing Peer Pools, Global Shared Pool)
 // Overview: reactor.go — BGP reactor event loop and peer management
 // Detail: forward_pool_weight.go — burst fraction, buffer demand calculation
 // Detail: forward_pool_weight_tracker.go — per-peer weight tracking and pool budget

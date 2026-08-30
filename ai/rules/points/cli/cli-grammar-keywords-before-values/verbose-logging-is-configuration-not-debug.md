@@ -1,9 +1,9 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Not `debug`: turning on verbose **logging** changes output, not protocol
-behaviour -- model it as configuration (`set ... log level debug`), never as a
-`debug` command. The `debug` verb is reserved for perturbing protocol/dataplane
-state.
+Turning on verbose **logging** changes output, not protocol behavior, so it MUST NOT
+be modeled as a `debug` command. Model it as configuration
+(`set ... log level debug`). The `debug` verb is reserved for perturbing protocol or
+dataplane state.

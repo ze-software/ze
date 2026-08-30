@@ -31,7 +31,7 @@
 | Architecture contract, invariant, or documented data flow | The owning `docs/architecture/` page or flow digest, with source anchors per `ai/rules/writing.md` |
 | CLI command grammar or command availability | `ai/rules/cli.md` or `ai/rules/cli.md`, plus command validation docs if needed |
 | New tool or native action | `ai/INDEX.md` Dev Tools or keyword map, plus the owning `docs/contributing/` or `docs/architecture/testing/` page |
-| New verification gate or hook | `.claude/hooks/README.md`, the `Check`/`Enforces` row in the "Hook-to-Rule Mapping" section below, and the rule the hook enforces |
+| New verification gate or hook | `.claude/hooks/README.md`, including the `Check`/`Enforces` row in the table under the heading naming its Go source, and the rule the hook enforces |
 | New doc or inventory checker | `docs/contributing/documentation-testing.md`, the owning `internal/le/<area>/actions.go`, and `ai/rules/writing.md` if policy changed |
 | New test runner or format | `ai/rules/testing.md`, `ai/patterns/functional-test.md` if `.ci`, and the relevant `docs/architecture/testing/` page |
 | New runtime dependency | The "Doctor Checks" section below, `docs/architecture/doctor-and-health-checks.md`, diagnostic code registration, and a `ze doctor` unit plus functional test |
@@ -117,7 +117,7 @@ diff, and it MUST be fixed with `./le ai skills-sync`. `ai/rules/<rule>.md` is t
 ## Hook-to-Rule Mapping
 
 - **Every registered native check MUST declare the rule point it enforces**, with a `// ze point: <rule>/<section>/<slug>` line in its Go doc comment, or `// ze point: none -- <why>` when nothing written binds it. `nativeHookActions` in `internal/le/hookruntime/runtime.go` is the authority for what is registered; `./le rules gate-map-report` refuses a binding on an unwired function and a registered check with no binding.
-- **The `Check` and `Enforces` columns below MUST name exactly the registered checks and the rule stems their bindings name.** They are a gated mirror rather than a second roster: `hookTableProblems` in `internal/le/rules/hooktable.go` compares them against the Go registry. What each check triggers on and what it does is documentation, and it lives in `.claude/hooks/README.md`.
+- **The `Check` and `Enforces` columns of the tables in `.claude/hooks/README.md` MUST name exactly the registered checks and the rule stems their bindings name.** They are a gated mirror rather than a second roster: `hookTableProblems` in `internal/le/rules/hooktable.go` compares them against the Go registry. What each check triggers on and what it does is documentation, and it sits in the remaining column of the same table.
 
 - **Changing a check MUST keep four things in agreement: the Go function in `internal/le/hookruntime`, its entry in `nativeHookActions`, its `// ze point:` binding, and its published row.** `./le hook-check unit` MUST run afterwards, an intentional fixture change MUST update the owned native golden in the same change, and the "Discovery Updates" section above MUST also be satisfied.
 
@@ -125,59 +125,6 @@ diff, and it MUST be fixed with `./le ai skills-sync`. `ai/rules/<rule>.md` is t
 - **A hook MUST NOT persist `$ZE_SESSION_ID`.** Native session and spec lifecycle commands resolve the current harness session themselves. `./le hook-check session-id` locks this behavior.
 
 - **A `UserPromptSubmit` reminder that MUST land in the context writes to stdout; a banner that MUST cost no context tokens writes to stderr.** The reminders fire on every turn, so each one MUST stay a single line. `.claude/hooks/README.md` lists the lifecycle actions and their events.
-
-#### Bash (`internal/le/hookruntime/bash.go`)
-
-| Check | Enforces |
-|---|---|
-| `bashWorktreeCopy` | `ai/INSTRUCTIONS.md` prohibition, no rule point |
-| `bashDestructiveGit` | `git-safety.md` |
-| `bashRootBuild` | build hygiene, no rule point |
-| `bashLossyPipe` | `commands.md` |
-| `bashRawHeavy` | `commands.md` |
-| `bashPollLoop` | `commands.md` |
-| `bashSystemTmp` | `testing.md` |
-| `bashScratch` | `commands.md` |
-| `bashTestDeletion` | `testing.md` |
-| `bashGovernedWrite` | `commands.md` |
-
-#### Write/Edit (`internal/le/hookruntime/writeedit.go`)
-
-| Check | Enforces |
-|---|---|
-| `writeLineCitation` | `evidence.md`, `writing.md` |
-| `writeGenerated` | `repo-maintenance.md` |
-| `writeRenderedRule` | `repo-maintenance.md` |
-| `writePointOverwrite` | `never-destroy-work.md` |
-| `writePointLanguage` | `rule-format.md` |
-| `writeDesignEvidence` | `evidence.md` |
-| `writeSpecStatus` | `planning.md` |
-| `writeGoPatterns` | `architecture.md`, `cli.md`, `go-standards.md`, `performance.md`, `quality.md`, `plugins.md`, `goroutine-lifecycle.md` |
-| `writeFilePatterns` | `architecture.md`, `commands.md`, `config.md`, `quality.md`, `testing.md` |
-| `writeWeakening` | `testing.md` |
-| `writeCISleep` | `testing.md` |
-
-#### Task/Agent (`internal/le/hookruntime/agent.go`)
-
-| Check | Enforces |
-|---|---|
-| `agentReviewModel` | `planning.md` |
-| `agentSkill` | `cli.md` |
-| `agentStyleGuide` | `go-standards.md` |
-
-#### Post Write/Edit (`internal/le/hookruntime/postwrite.go`)
-
-| Check | Enforces |
-|---|---|
-| `postFormatGo` | `quality.md` |
-| `postFileSize` | Go style guidance, no rule point |
-| `postDeferral` | heuristic advisory, no rule point |
-| `postJournal` | journal format, no rule point |
-| `postRFCHeader` | Go style guidance, no rule point |
-| `postTestDocs` | Go style guidance, no rule point |
-| `postFuzz` | advisory, no rule point |
-| `postVague` | Go style guidance, no rule point |
-| `postBoundary` | advisory, no rule point |
 
 ## Gate Population
 

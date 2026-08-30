@@ -1,7 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Do not invent mutating peer examples here unless the exact grammar was
-explicitly agreed in source or by the user.
+A mutating peer example MUST NOT be invented here unless the exact grammar was
+agreed in source or by the user.

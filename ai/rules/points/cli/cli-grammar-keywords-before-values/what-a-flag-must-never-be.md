@@ -1,6 +1,6 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
 | A `--flag` MUST NOT be | Why | Use instead |

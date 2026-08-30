@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Before changing any command grammar, classify it first:
+Before changing any command grammar, you MUST classify the command first.

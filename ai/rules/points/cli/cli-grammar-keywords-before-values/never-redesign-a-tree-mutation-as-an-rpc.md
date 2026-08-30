@@ -1,6 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-If the command is class (1), stop. Do not redesign it as a verb-first RPC.
+A class (1) command is a config tree mutation, and it MUST NOT be redesigned as a
+verb-first RPC.

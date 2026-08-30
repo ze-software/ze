@@ -1,7 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-If any `args[0]` usage passes the value to a lookup/parse function (GetInterface,
-ParseUint, etc.) without first matching it against a keyword set, that is a violation.
+An `args[0]` value MUST NOT reach a lookup or parse function (`GetInterface`,
+`ParseUint`) before it is matched against a keyword set.

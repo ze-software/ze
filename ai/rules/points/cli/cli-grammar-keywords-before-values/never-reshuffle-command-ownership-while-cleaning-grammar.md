@@ -1,7 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Then edit that module. Grammar cleanup is not permission to reshuffle
-command ownership across components.
+Edit the owning module and no other. Grammar cleanup MUST NOT reshuffle command
+ownership across components.

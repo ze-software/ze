@@ -3,6 +3,9 @@ kind: directive
 level: MUST
 stage:
 ---
+Before migrating any noun-first built-in to verb-first, you MUST work through each
+step:
+
 1. **Grep for programmatic senders of the bare path:** `.ci` tests, `DispatchCommand`
    / `DispatchCommandArgs` calls, `printf ... | ze ... plugin cli`, `SendCommand`. MUST
    update every one in the same change. (In-tree these are greppable; external plugins/scripts

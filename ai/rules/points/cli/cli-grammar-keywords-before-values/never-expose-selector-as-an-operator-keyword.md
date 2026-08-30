@@ -1,8 +1,7 @@
 ---
-kind: note
+kind: directive
 level: MUST NOT
 stage:
 ---
-Do not invent a user-facing `selector` keyword. `selector` may exist as an
-internal concept in dispatcher code, but it MUST NOT leak into operator
-syntax.
+A user-facing `selector` keyword MUST NOT be invented. `selector` exists as an
+internal concept in dispatcher code, and it MUST NOT leak into operator syntax.

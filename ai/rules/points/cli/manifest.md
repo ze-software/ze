@@ -15,14 +15,11 @@ directives ## Directives
   follow-the-json-format-conventions-in-all-json-output
   follow-the-agent-tooling-contract-in-agent-facing-output
 cli-grammar-keywords-before-values ## CLI Grammar: Keywords Before Values
-  the-command-token-order
   the-first-token-after-the-noun-must-be-a-keyword
   type-the-selector-when-addressing-one-member
   the-selector-keywords-and-what-each-one-addresses
-  typed-selector-examples
   commands-using-a-typed-selector
   peer-commands-are-the-exception-to-typed-selectors
-  peer-command-form-to-use
   peer-command-examples
   never-invent-a-mutating-peer-example
   never-expose-selector-as-an-operator-keyword
@@ -30,47 +27,37 @@ cli-grammar-keywords-before-values ## CLI Grammar: Keywords Before Values
   put-the-action-before-the-identifier
   the-list-action-needs-no-change
   hyphenate-only-words-that-name-one-thing
-  decision-test-in-order
   the-tests-that-decide-compound-token-or-namespace
   how-r9-sibling-collision-is-enforced
   when-the-compound-is-genuine-exempt-it-do-not-split-it
   the-verb-is-chosen-by-the-command-s-effect-on-live-state
-  the-question-that-decides-the-verb
   pick-show-monitor-or-an-action-verb-by-effect
   debug-is-both-a-verb-and-a-noun-under-show
   verbose-logging-is-configuration-not-debug
-  which-verb-each-example-command-takes-and-why
   do-not-invent-operational-add-del-remove-or-similar-verbs
-  config-mutation-belongs-to-the-engine-verbs
   the-engine-mutation-verbs
   keep-tree-mutation-in-engine-path-form
-  tree-mutation-examples
   tree-mutations-versus-runtime-actions
   before-changing-any-command-grammar-classify-it-first
   the-command-classes-and-the-surface-each-one-uses
   never-redesign-a-tree-mutation-as-an-rpc
   never-move-a-command-family-while-fixing-grammar
-  first-identify-the-owning-module-from-source
   where-the-owning-module-is-recorded
   never-reshuffle-command-ownership-while-cleaning-grammar
   the-yang-path-is-the-dispatch-key
   renaming-a-programmatic-command-path-breaks-the-wire
-  what-to-check-before-migrating-a-built-in-path
   find-every-programmatic-sender-before-migrating
   drop-the-legacy-verb-from-isreadonlypath
   keep-identifiers-string-typed-even-when-numeric
   replace-an-unreleased-grammar-outright
-  for-every-handler-that-dispatches-on-args-0
   the-questions-that-decide-if-a-handler-conforms
   passing-args-0-to-a-parser-is-a-violation
   the-r1-to-r9-ruleset-and-where-it-is-implemented
-  why-feeder-3-is-an-in-process-guard
   mirror-the-command-grammar-in-the-yang-tree
   never-write-flag-syntax-in-a-yang-file
   a-filter-is-keyword-grammar-never-a-flag
   model-a-filter-as-a-yang-keyword-value-pair
   flags-belong-to-the-offline-tooling-only
-  where-the-family-as-filter-rationale-lives
   a-flag-belongs-to-the-process-a-keyword-to-the-command
   the-tests-that-place-a-token-in-its-register
   what-a-flag-must-never-be
