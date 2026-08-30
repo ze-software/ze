@@ -19,6 +19,15 @@ missing tools, vendors Go dependencies, and reports what it did.
 launcher executes the cached `bin/le` binary and builds it only when absent.
 Setup behavior lives in `internal/le/setup.Answer`.
 
+The cache is an existence test, never a freshness test, so a change under
+`internal/le/` does not reach `./le` on its own.
+<!-- source: le -- the binary existence cache -->
+Delete the binary to pick the change up, and the next `./le` call rebuilds it:
+
+```bash
+rm bin/le
+```
+
 ## Check Mode
 
 Probe the current host without installing anything:
