@@ -37,7 +37,6 @@ func TestEveryForbiddenGitVerbIsRefused(t *testing.T) {
 		"git" + " reset --hard origin/main",
 		"git" + " clean -f",
 		"git" + " revert HEAD",
-		"git" + " merge other",
 		"git" + " push --force",
 	}
 	for _, command := range commands {
@@ -84,6 +83,108 @@ func TestTheCommitRouteAndReadsAreNotBlocked(t *testing.T) {
 	}
 }
 
+// TestEveryBranchMovingVerbIsRefused covers the family the guard above carried
+// one member of. `git merge` was blocked while `git rebase`, `git switch`,
+// `git checkout -b` and every branch deletion and rename went through, so the
+// rule that a session stays on the branch it started on was enforced against
+// the one verb the repository already tells nobody to use.
+//
+// VALIDATES: creating, switching, renaming, deleting and integrating a branch
+// are each refused, and the refusal says the branch is the user's to move.
+// PREVENTS: a session landing its work on a branch the user is not looking at,
+// or rewriting the history of the one they are.
+func TestEveryBranchMovingVerbIsRefused(t *testing.T) {
+	commands := []string{
+		"git" + " merge other",
+		"git" + " rebase main",
+		"git" + " rebase -i HEAD~3",
+		"git" + " switch other",
+		"git" + " switch -c new-branch",
+		"git" + " checkout -b new-branch",
+		"git" + " checkout -B new-branch",
+		"git" + " branch -d old",
+		"git" + " branch -D old",
+		"git" + " branch --delete old",
+		"git" + " branch -m old new",
+		"git" + " branch -M old new",
+		"git" + " branch --move old new",
+	}
+	for _, command := range commands {
+		t.Run(command, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": command},
+			})
+			if code != 2 {
+				t.Fatalf("code = %d, want 2 for %q", code, command)
+			}
+			if !strings.Contains(message, "the user's to move") {
+				t.Errorf("the refusal does not say who owns the branch: %s", message)
+			}
+		})
+	}
+}
+
+// TestReadingBranchesIsNotMovingThem is the other polarity. `git branch` with
+// no mutating flag lists, and a session asking which branch it is on is the
+// first thing the branch rule expects it to do. A guard that blocked the
+// question would push sessions into guessing.
+func TestReadingBranchesIsNotMovingThem(t *testing.T) {
+	commands := []string{
+		"git" + " branch --show-current",
+		"git" + " branch -a",
+		"git" + " branch --list",
+		"git" + " branch -vv",
+	}
+	for _, command := range commands {
+		t.Run(command, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": command},
+			})
+			if code != 0 {
+				t.Fatalf("code = %d, want 0 for %q: %s", code, command, message)
+			}
+		})
+	}
+}
+
+// TestAGlobalOptionDoesNotHideTheVerb is the hole under BOTH guards. Each
+// compares the command against the literal text `git <verb>`, and git accepts
+// options before its verb, so `git -C /path commit` contained no pattern any
+// guard held and reached the shared index unopposed. `-c commit.gpgsign=false`
+// is the sharper one: CLAUDE.md bans it by name, and it was the flag that
+// carried the banned verb past the guard.
+//
+// VALIDATES: a verb behind -C, -c, --git-dir, --work-tree or --no-pager is
+// refused exactly as the bare verb is.
+// PREVENTS: every pattern in both lists being one documented flag from useless.
+func TestAGlobalOptionDoesNotHideTheVerb(t *testing.T) {
+	commands := []string{
+		"git" + " -C /other/tree commit -m subject",
+		"git" + " -c commit.gpgsign=false commit -m subject",
+		"git" + " --git-dir=/other/.git push",
+		"git" + " --work-tree /other reset --hard",
+		"git" + " --no-pager add .",
+		"git" + " -C /other/tree rebase main",
+		"cd /x && git" + " -C /other/tree stash",
+	}
+	for _, command := range commands {
+		t.Run(command, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, _ := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": command},
+			})
+			if code != 2 {
+				t.Fatalf("code = %d, want 2 for %q", code, command)
+			}
+		})
+	}
+}
+
 // TestNamingAVerbIsNotRunningIt proves the guard reads a command POSITION
 // rather than a substring. A commit message explaining why a verb is banned, a
 // grep for one, and an echo quoting one are all prose ABOUT the rule. Refusing
@@ -94,7 +195,17 @@ func TestNamingAVerbIsNotRunningIt(t *testing.T) {
 		"grep -rn 'git" + " add' internal/le/hookruntime",
 		"echo the staging verbs are git" + " add, git" + " rm and git" + " mv",
 	}
-	for _, command := range allowed {
+	// A separator INSIDE quotes is part of a pattern, not part of the shell.
+	// This is where the exemption failed: a grep alternation puts a pipe
+	// directly before the verb, so searching the repository for the rule was
+	// refused as an attempt to break it. It happened twice in one session, to
+	// the session editing this guard.
+	quoted := []string{
+		`grep -rn "destructive\|git ` + `merge" docs/`,
+		`grep -rn 'a;git ` + `commit' ai/`,
+		`echo "the verbs are: git ` + `add | git ` + `rm"`,
+	}
+	for _, command := range append(allowed, quoted...) {
 		t.Run(command, func(t *testing.T) {
 			root := t.TempDir()
 			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
@@ -108,11 +219,15 @@ func TestNamingAVerbIsNotRunningIt(t *testing.T) {
 	}
 
 	// Every separator a real invocation hides behind still counts as a run.
+	// The last two are the quote exemption withdrawn: handing a string to
+	// another shell to RUN is the one place quotes do not mean prose.
 	blocked := []string{
 		"cd /x && git" + " add .",
 		"true; git" + " commit -m subject",
 		"(git" + " push)",
 		"false || git" + " reset --hard",
+		`bash -c "cd /x && git` + ` commit -m subject"`,
+		`eval "git` + ` push"`,
 	}
 	for _, command := range blocked {
 		t.Run(command, func(t *testing.T) {

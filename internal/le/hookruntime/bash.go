@@ -56,6 +56,30 @@ func bashWorktreeCopy(ctx context) *verdict {
 	return &verdict{2, "❌ Blocked: copying files from worktree to main repo\nWorktree agents must commit their changes. Use git merge or cherry-pick.\nDirect file copying overwrites uncommitted work from other sessions."}
 }
 
+// shellInvoker matches a command that hands a quoted string to another shell to
+// RUN. Quotes mean prose everywhere else, and here they mean the opposite, so
+// the prose exemption below is withdrawn for the whole command when this
+// matches.
+var shellInvoker = regexp.MustCompile(`(?:^|[\s;&|(])(?:(?:ba|z|k|da)?sh)[ \t]+(?:-[A-Za-z]*c\b|--command\b)|(?:^|[\s;&|(])eval\b`)
+
+// insideQuotes reports whether offset sits inside a single- or double-quoted
+// string. A backslash escapes the next byte, which is how a shell-quoted
+// alternation such as `a\|b` reads.
+func insideQuotes(command string, offset int) bool {
+	var quote byte
+	for i := 0; i < offset && i < len(command); i++ {
+		switch c := command[i]; {
+		case c == '\\':
+			i++
+		case quote == 0 && (c == '\'' || c == '"'):
+			quote = c
+		case quote == c:
+			quote = 0
+		}
+	}
+	return quote != 0
+}
+
 // gitVerbRun reports whether command RUNS the given git verb, rather than
 // merely naming it.
 //
@@ -66,6 +90,7 @@ func bashWorktreeCopy(ctx context) *verdict {
 // at the beginning, or after a separator, a pipe, an opening subshell, or a
 // newline. Quoting it, as `git add`, is then how prose names it safely.
 func gitVerbRun(command, verb string) bool {
+	prose := !shellInvoker.MatchString(command)
 	for offset := 0; ; {
 		at := strings.Index(command[offset:], verb)
 		if at < 0 {
@@ -73,10 +98,26 @@ func gitVerbRun(command, verb string) bool {
 		}
 		at += offset
 		offset = at + len(verb)
+		// A verb inside quotes is being NAMED. The separator test alone cannot
+		// see that, and the pipe is where it showed: `grep "a\|git me`+`rge" docs/`
+		// puts a separator directly before the verb, so a search for the rule
+		// was refused as an attempt to break it. Quoting is what the comment
+		// above offers as the safe way to write about a verb, and until now it
+		// worked only when no separator happened to precede it.
+		if prose && insideQuotes(command, at) {
+			continue
+		}
 		if at == 0 {
 			return true
 		}
 		switch command[at-1] {
+		case '\'', '"':
+			// An opening quote is a command position only where another shell
+			// is being handed the string to RUN. Everywhere else it opens
+			// prose, which is the case the exemption above already took.
+			if !prose {
+				return true
+			}
 		case ' ', '\t':
 			// A leading space is only a command position when what precedes
 			// it is a separator rather than another word: `&& git add` runs
@@ -93,16 +134,31 @@ func gitVerbRun(command, verb string) bool {
 	}
 }
 
+// gitGlobalOptions matches the options git accepts BEFORE its verb. Every
+// pattern in the two guards below is the literal text `git <verb>`, and an
+// option between the two hides the verb from all of them: `git -C /path commit`
+// contains no such text, so the shared index was reachable through a directory
+// flag. `-c commit.gpgsign=false`, which CLAUDE.md bans outright, was reachable
+// the same way.
+var gitGlobalOptions = regexp.MustCompile(`(^|[\s;&|(` + "`" + `])git((?:[ \t]+(?:-C[ \t]+\S+|-c[ \t]+\S+|--git-dir(?:=\S+|[ \t]+\S+)|--work-tree(?:=\S+|[ \t]+\S+)|--namespace(?:=\S+|[ \t]+\S+)|--exec-path(?:=\S+)?|--no-pager|--paginate|--bare|--no-replace-objects|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs))+)`)
+
+// gitInvocation puts the verb back beside the word `git` by removing the
+// options git reads before it. A guard that compares against `git <verb>` calls
+// this first, so the option is not a way around the guard.
+func gitInvocation(command string) string {
+	return gitGlobalOptions.ReplaceAllString(command, "${1}git")
+}
+
 // ze point: git-safety/before-destructive-actions/never-run-a-destructive-git-verb
 // bashDestructiveGit refuses every git verb that discards work or publishes it.
 // Committing and pushing are allowed, through the prepared script alone, because
 // sessions share one index and a loose verb carries another session's changes.
 func bashDestructiveGit(ctx context) *verdict {
-	command := stringInput(ctx.input, "command")
+	command := gitInvocation(stringInput(ctx.input, "command"))
 	for _, pattern := range []string{
 		"git commit", "git push", "git reset", "git checkout --", "git checkout -f",
 		"git checkout HEAD", "git restore", "git revert", "git stash",
-		"git clean", "git push --force", "git push -f", "git merge",
+		"git clean", "git push --force", "git push -f",
 		// The staging verbs. Several sessions share one index, so a loose
 		// stage puts another session's path into your commit, or yours into
 		// theirs. The generated commit script stages inside itself, and it
@@ -114,6 +170,32 @@ func bashDestructiveGit(ctx context) *verdict {
 				"Staging and committing go through ./le commit create, which writes one\n" +
 				"script that stages, commits and checks the index for another session's paths.\n" +
 				"To delete a tracked file, use plain `rm` and pass the path to `remove`."}
+		}
+	}
+	return nil
+}
+
+// ze point: git-safety/directives/stay-on-your-branch-and-integrate-by-rebase
+// bashBranchMove refuses the verbs that create, switch, rename, delete or
+// integrate a branch. Which branch a session works on is the user's choice, and
+// a session that moves it lands the work where the user is not looking.
+//
+// `git merge` was the only one of these the guard above carried, under a
+// message about staging that does not describe it. Integration is what it does,
+// so it moved here beside the rest of the family.
+func bashBranchMove(ctx context) *verdict {
+	command := gitInvocation(stringInput(ctx.input, "command"))
+	for _, pattern := range []string{
+		"git merge", "git rebase", "git switch",
+		"git checkout -b", "git checkout -B",
+		"git branch -d", "git branch -D", "git branch --delete",
+		"git branch -m", "git branch -M", "git branch --move",
+	} {
+		if gitVerbRun(command, pattern) {
+			return &verdict{2, "❌ Blocked: " + pattern + " (the branch is the user's to move)\n" +
+				"Stay on the branch this session started on, and ask the user to create,\n" +
+				"switch, rename, delete or integrate one. A worktree branch lands on main\n" +
+				"with `git rebase <branch>` run by the user, never `git merge`."}
 		}
 	}
 	return nil

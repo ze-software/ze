@@ -79,7 +79,7 @@ var nativeHookActions = map[string]hookAction{
 	"pretool-bash": {
 		tools: []string{"Bash"},
 		checks: []hookCheck{
-			bashWorktreeCopy, bashDestructiveGit, bashRootBuild, bashLossyPipe,
+			bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe,
 			bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch,
 			bashTestDeletion, bashGovernedWrite,
 		},

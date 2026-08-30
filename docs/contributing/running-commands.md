@@ -306,17 +306,27 @@ what makes the escape auditable by reading the session.
 
 ## The Bash guard matches your command text
 
-`internal/le/hookruntime/bash.go` judges the command STRING. It cannot distinguish
-a forbidden verb being executed from the same token appearing in a search pattern,
-so a read-only search can be refused: a `grep -l` whose PATTERN spells one of the
-banned git verbs is blocked on that pattern.
+`internal/le/hookruntime/bash.go` judges the command STRING. It reads a command
+POSITION rather than a substring, so a verb at the start of the command or after a
+separator is a run, and a verb inside quotes is prose: a search pattern, an echo,
+or a commit message explaining the rule. `gitVerbRun` decides it, and the quote
+exemption is withdrawn for a command that hands a string to another shell to run
+(`bash -c`, `eval`), which is the one place quotes open a command position.
 
-The answer is to run the scan through the harness `Grep` tool, with a pattern such
-as `add\s+(-A|--all|\.)` and a path such as `tmp/commit-*.sh`. The query never
-enters a Bash command line, and the result still names every matching script.
+Git's pre-verb options are stripped before the comparison (`gitInvocation`), so
+`git -C /other/tree commit` and `git -c commit.gpgsign=false commit` are refused
+exactly as the bare verb is.
 
-The guard is coarse on purpose. One extra round-trip costs less than one real bare
-staging or commit verb in a shared checkout.
+Two guards read the result. `bashDestructiveGit` refuses the verbs that discard
+work or publish it, staging included, and names `./le commit create` as the route
+that works. `bashBranchMove` refuses the verbs that create, switch, rename, delete
+or integrate a branch, and says the branch is the user's to move; `git branch`
+with no mutating flag is a read and passes.
+
+The guard is still coarse where quoting cannot help: an unquoted verb in a
+pipeline reads as a run. One extra round-trip costs less than one real bare
+staging or commit verb in a shared checkout. Running the scan through the harness
+`Grep` tool avoids the question, because the query never enters a command line.
 
 The same guard refuses a write to `plan/` or `ai/rules/` from Bash
 (`bashGovernedWrite`), because the Write and Edit tools are where the document
