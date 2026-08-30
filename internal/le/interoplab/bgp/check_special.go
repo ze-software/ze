@@ -37,7 +37,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"bgp-local-pref-strip-gobgp":            checkLocalPrefStrip,
 	"bgp-med-across-as-gobgp":               checkMEDAcrossAS,
 	"bgp-med-remove-configured-gobgp":       checkMEDRemovalConfiguration,
-	"bgp-wire-edit-api-origin-bird":         checkWireEditAPIOriginBIRD,
+	scenarioWireEditAPIOriginBIRD:           checkWireEditAPIOriginBIRD,
 	"bgp-relay-withdraw-reflector-frr":      checkReflectorWithdrawal,
 	"bgp-relay-withdraw-shape-frr":          checkRelayWithdrawalShape,
 	"bgp-rfc2545-linklocal-nexthop-frr":     checkRFC2545NextHops,
@@ -65,20 +65,20 @@ func checkBFDFailover(ctx context.Context, check *interoplab.CheckContext) (resu
 	neighbor := networkHostAddress(check.Network, 2)
 	var command textbuf.Buffer
 	session := []string{
-		"vtysh",
+		cmdVtysh,
 		"-c",
 		command.Str("show bgp neighbor ").Str(neighbor).String(),
 	}
-	if err := waitContains(ctx, check.Lab, "frr", session, 90*time.Second, "BGP state = Established"); err != nil {
+	if err := waitContains(ctx, check.Lab, peerFRR, session, 90*time.Second, "BGP state = Established"); err != nil {
 		return err
 	}
-	if err := waitContains(ctx, check.Lab, "frr", []string{"vtysh", "-c", "show bfd peers"}, 90*time.Second, neighbor, "Status: up"); err != nil {
+	if err := waitContains(ctx, check.Lab, peerFRR, []string{cmdVtysh, "-c", frrShowBFDPeers}, 90*time.Second, neighbor, bfdStatusUp); err != nil {
 		return err
 	}
 
 	started := time.Now()
-	drop := []string{"iptables", "-I", "OUTPUT", "1", "-p", "udp", "--dport", "3784", "-j", "DROP"}
-	if _, err := check.Lab.Exec(ctx, "frr", drop, nil); err != nil {
+	drop := []string{cmdIptables, "-I", iptablesChainOutput, "1", "-p", iptablesProtocolUDP, iptablesDestinationPortFlag, "3784", "-j", iptablesTargetDrop}
+	if _, err := check.Lab.Exec(ctx, peerFRR, drop, nil); err != nil {
 		return err
 	}
 	restored := false
@@ -86,8 +86,8 @@ func checkBFDFailover(ctx context.Context, check *interoplab.CheckContext) (resu
 		if restored {
 			return
 		}
-		restore := []string{"iptables", "-D", "OUTPUT", "-p", "udp", "--dport", "3784", "-j", "DROP"}
-		_, restoreErr := check.Lab.Exec(context.WithoutCancel(ctx), "frr", restore, nil)
+		restore := []string{cmdIptables, "-D", iptablesChainOutput, "-p", iptablesProtocolUDP, iptablesDestinationPortFlag, "3784", "-j", iptablesTargetDrop}
+		_, restoreErr := check.Lab.Exec(context.WithoutCancel(ctx), peerFRR, restore, nil)
 		if restoreErr != nil && resultErr == nil {
 			resultErr = fmt.Errorf("restore BFD traffic: %w", restoreErr)
 		}
@@ -98,7 +98,7 @@ func checkBFDFailover(ctx context.Context, check *interoplab.CheckContext) (resu
 		Interval:    100 * time.Millisecond,
 		Description: "BGP teardown after BFD failure",
 	}, func(probeCtx context.Context) (string, error) {
-		return check.Lab.Query(probeCtx, "frr", session, nil)
+		return check.Lab.Query(probeCtx, peerFRR, session, nil)
 	}, bfdSessionDown)
 	if err != nil {
 		return errors.New("BGP session still Established 5.0s after BFD link break")
@@ -108,8 +108,8 @@ func checkBFDFailover(ctx context.Context, check *interoplab.CheckContext) (resu
 	if err := requireBFDTeardownBudget(elapsed); err != nil {
 		return err
 	}
-	restore := []string{"iptables", "-D", "OUTPUT", "-p", "udp", "--dport", "3784", "-j", "DROP"}
-	if _, err := check.Lab.Exec(ctx, "frr", restore, nil); err != nil {
+	restore := []string{cmdIptables, "-D", iptablesChainOutput, "-p", iptablesProtocolUDP, iptablesDestinationPortFlag, "3784", "-j", iptablesTargetDrop}
+	if _, err := check.Lab.Exec(ctx, peerFRR, restore, nil); err != nil {
 		return fmt.Errorf("restore BFD traffic: %w", err)
 	}
 	restored = true
@@ -138,14 +138,14 @@ func checkReflectorWithdrawal(ctx context.Context, check *interoplab.CheckContex
 	zeAddress := networkHostAddress(check.Network, 2)
 	var command textbuf.Buffer
 	session := []string{
-		"vtysh",
+		cmdVtysh,
 		"-c",
 		command.Str("show bgp neighbor ").Str(zeAddress).String(),
 	}
 	if err := waitContains(
 		ctx,
 		check.Lab,
-		"frr",
+		peerFRR,
 		session,
 		90*time.Second,
 		"BGP state = Established",
@@ -158,7 +158,7 @@ func checkReflectorWithdrawal(ctx context.Context, check *interoplab.CheckContex
 		Interval:    2 * time.Second,
 		Description: "reflected ORIGINATOR_ID and CLUSTER_LIST",
 	}, func(probeCtx context.Context) (string, error) {
-		answer, logErr := check.Lab.Logs(probeCtx, "inject", 4000)
+		answer, logErr := check.Lab.Logs(probeCtx, peerInject, 4000)
 		if logErr != nil {
 			return "", logErr
 		}
@@ -176,16 +176,16 @@ func checkReflectorWithdrawal(ctx context.Context, check *interoplab.CheckContex
 	if err := requireNoEarlyReflectorWithdrawal(logs); err != nil {
 		return err
 	}
-	if _, err := check.Lab.Exec(ctx, "frr", []string{
-		"vtysh", "-c", "configure terminal", "-c", "router bgp 65000",
+	if _, err := check.Lab.Exec(ctx, peerFRR, []string{
+		cmdVtysh, "-c", frrConfigureTerminal, "-c", "router bgp 65000",
 		"-c", "address-family ipv4 unicast", "-c", "no network 10.20.0.0/24",
 	}, nil); err != nil {
 		return err
 	}
-	if err := waitLogContains(ctx, check.Lab, "inject", 90*time.Second, withdrawal); err != nil {
+	if err := waitLogContains(ctx, check.Lab, peerInject, 90*time.Second, withdrawal); err != nil {
 		return err
 	}
-	output, err := check.Lab.Query(ctx, "frr", session, nil)
+	output, err := check.Lab.Query(ctx, peerFRR, session, nil)
 	if err != nil {
 		return err
 	}
@@ -217,16 +217,16 @@ func checkWireEditAPIOriginBIRD(ctx context.Context, check *interoplab.CheckCont
 	if err := observerFailure(ctx, check.Lab); err != nil {
 		return err
 	}
-	if err := waitContains(ctx, check.Lab, "bird", []string{"birdc", "show protocols"}, timeout, "ze_peer", "Established"); err != nil {
+	if err := waitContains(ctx, check.Lab, peerBIRD, []string{cmdBirdc, "show protocols"}, timeout, birdZeProtocol, "Established"); err != nil {
 		return err
 	}
 	var command textbuf.Buffer
 	for _, prefix := range []string{"10.55.0.0/24", "10.55.1.0/24"} {
 		argv := []string{
-			"birdc",
+			cmdBirdc,
 			command.Str("show route for ").Str(prefix).String(),
 		}
-		if err := waitContains(ctx, check.Lab, "bird", argv, timeout, prefix); err != nil {
+		if err := waitContains(ctx, check.Lab, peerBIRD, argv, timeout, prefix); err != nil {
 			return err
 		}
 		if err := checkBIRDAPICommunities(ctx, check.Lab, prefix); err != nil {
@@ -237,7 +237,7 @@ func checkWireEditAPIOriginBIRD(ctx context.Context, check *interoplab.CheckCont
 	if err := observerFailure(ctx, check.Lab); err != nil {
 		return err
 	}
-	logs, err := check.Lab.Logs(ctx, "bird", 2000)
+	logs, err := check.Lab.Logs(ctx, peerBIRD, 2000)
 	if err != nil {
 		return err
 	}
@@ -292,9 +292,9 @@ func checkBIRDAPICommunities(ctx context.Context, lab interoplab.CheckerLab, pre
 	var command textbuf.Buffer
 	output, err := lab.Query(
 		ctx,
-		"bird",
+		peerBIRD,
 		[]string{
-			"birdc",
+			cmdBirdc,
 			command.Str("show route for ").Str(prefix).Str(" all").String(),
 		},
 		nil,
@@ -337,11 +337,11 @@ func checkMaxPrefixPerFamily(ctx context.Context, check *interoplab.CheckContext
 	neighbor := networkHostAddress(check.Network, 2)
 	var command textbuf.Buffer
 	session := []string{
-		"vtysh",
+		cmdVtysh,
 		"-c",
 		command.Str("show bgp neighbor ").Str(neighbor).String(),
 	}
-	if err := waitContains(ctx, check.Lab, "frr", session, 90*time.Second, "BGP state = Established"); err != nil {
+	if err := waitContains(ctx, check.Lab, peerFRR, session, 90*time.Second, "BGP state = Established"); err != nil {
 		return err
 	}
 	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
@@ -371,7 +371,7 @@ func checkMaxPrefixPerFamily(ctx context.Context, check *interoplab.CheckContext
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
-		output, err := check.Lab.Query(ctx, "frr", session, nil)
+		output, err := check.Lab.Query(ctx, peerFRR, session, nil)
 		if err != nil {
 			return err
 		}
@@ -404,21 +404,21 @@ func checkHoldtimeDeadPeer(ctx context.Context, check *interoplab.CheckContext) 
 	neighbor := networkHostAddress(check.Network, 2)
 	var command textbuf.Buffer
 	session := []string{
-		"vtysh",
+		cmdVtysh,
 		"-c",
 		command.Str("show bgp neighbor ").Str(neighbor).String(),
 	}
 	if err := waitContains(
 		ctx,
 		check.Lab,
-		"frr",
+		peerFRR,
 		session,
 		90*time.Second,
 		"BGP state = Established",
 	); err != nil {
 		return err
 	}
-	if err := check.Lab.Pause(ctx, "frr"); err != nil {
+	if err := check.Lab.Pause(ctx, peerFRR); err != nil {
 		return fmt.Errorf("freeze FRR: %w", err)
 	}
 	thawed := false
@@ -426,7 +426,7 @@ func checkHoldtimeDeadPeer(ctx context.Context, check *interoplab.CheckContext) 
 		if thawed {
 			return
 		}
-		thawErr := check.Lab.Unpause(context.WithoutCancel(ctx), "frr")
+		thawErr := check.Lab.Unpause(context.WithoutCancel(ctx), peerFRR)
 		if thawErr != nil && resultErr == nil {
 			resultErr = fmt.Errorf("thaw FRR during cleanup: %w", thawErr)
 		}
@@ -441,7 +441,7 @@ func checkHoldtimeDeadPeer(ctx context.Context, check *interoplab.CheckContext) 
 		}
 		return logs.Text, nil
 	}, holdNotificationSeen)
-	if thawErr := check.Lab.Unpause(context.WithoutCancel(ctx), "frr"); thawErr != nil {
+	if thawErr := check.Lab.Unpause(context.WithoutCancel(ctx), peerFRR); thawErr != nil {
 		return fmt.Errorf("thaw FRR: %w", thawErr)
 	}
 	thawed = true
@@ -452,12 +452,12 @@ func checkHoldtimeDeadPeer(ctx context.Context, check *interoplab.CheckContext) 
 		return fmt.Errorf("hold timer expired after %s, expected 6s <= elapsed < 13.5s", report.Elapsed)
 	}
 	jsonSession := []string{
-		"vtysh",
+		cmdVtysh,
 		"-c",
 		command.Reset().Str("show bgp neighbor ").Str(neighbor).Str(" json").String(),
 	}
 	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 60 * time.Second, Interval: time.Second, Description: "FRR received Hold Timer Expired"}, func(probeCtx context.Context) (map[string]any, error) {
-		output, queryErr := check.Lab.Query(probeCtx, "frr", jsonSession, nil)
+		output, queryErr := check.Lab.Query(probeCtx, peerFRR, jsonSession, nil)
 		if queryErr != nil {
 			return nil, queryErr
 		}
@@ -472,7 +472,7 @@ func checkHoldtimeDeadPeer(ctx context.Context, check *interoplab.CheckContext) 
 	return waitContains(
 		ctx,
 		check.Lab,
-		"frr",
+		peerFRR,
 		session,
 		90*time.Second,
 		"BGP state = Established",
@@ -505,7 +505,7 @@ func checkISISOwnLSPPurge(ctx context.Context, check *interoplab.CheckContext) e
 }
 
 func checkISISOwnLSPPurgeWith(ctx context.Context, check *interoplab.CheckContext, send isisPurgeSender) error {
-	if err := waitContains(ctx, check.Lab, "frr", []string{"vtysh", "-c", "show isis neighbor"}, 90*time.Second, "Up"); err != nil {
+	if err := waitContains(ctx, check.Lab, peerFRR, []string{cmdVtysh, "-c", frrShowISISNeighbor}, 90*time.Second, "Up"); err != nil {
 		return err
 	}
 	before, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 60 * time.Second, Interval: time.Second, Description: "live Ze LSP before purge"}, func(probeCtx context.Context) (isisLSPRow, error) {
@@ -528,7 +528,7 @@ func checkISISOwnLSPPurgeWith(ctx context.Context, check *interoplab.CheckContex
 		return err
 	}
 	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 60 * time.Second, Interval: time.Second, Description: "Ze in FRR Level-1 topology"}, func(probeCtx context.Context) (string, error) {
-		return check.Lab.Query(probeCtx, "frr", []string{"vtysh", "-c", "show isis topology level-1"}, nil)
+		return check.Lab.Query(probeCtx, peerFRR, []string{cmdVtysh, "-c", "show isis topology level-1"}, nil)
 	}, func(output string) bool {
 		return strings.Contains(output, "ze-purge") || strings.Contains(output, "0000.0000.0002")
 	}); err != nil {
@@ -541,7 +541,7 @@ func checkISISOwnLSPPurgeWith(ctx context.Context, check *interoplab.CheckContex
 		return ctx.Err()
 	case <-stability.C:
 	}
-	output, err := check.Lab.Query(ctx, "frr", []string{"vtysh", "-c", "show isis neighbor"}, nil)
+	output, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", frrShowISISNeighbor}, nil)
 	if err != nil {
 		return err
 	}
@@ -552,7 +552,7 @@ func checkISISOwnLSPPurgeWith(ctx context.Context, check *interoplab.CheckContex
 }
 
 func queryISISLSP(ctx context.Context, lab interoplab.CheckerLab) (isisLSPRow, error) {
-	output, err := lab.Query(ctx, "frr", []string{"vtysh", "-c", "show isis database"}, nil)
+	output, err := lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", frrShowISISDatabase}, nil)
 	if err != nil {
 		return isisLSPRow{}, err
 	}
@@ -599,7 +599,7 @@ func checkOSPFFastReroute(ctx context.Context, check *interoplab.CheckContext, t
 	if !check.Network.IPv4.IsValid() {
 		return errors.New("LFA scenario has no selected IPv4 network")
 	}
-	if err := waitContains(ctx, check.Lab, "frr", []string{"vtysh", "-c", "show ip ospf neighbor"}, 90*time.Second, "Full"); err != nil {
+	if err := waitContains(ctx, check.Lab, peerFRR, []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, 90*time.Second, ospfStateFull); err != nil {
 		return err
 	}
 	if tiLFA {
@@ -638,7 +638,7 @@ func checkOSPFFastReroute(ctx context.Context, check *interoplab.CheckContext, t
 	}); err != nil {
 		return err
 	}
-	if _, err := check.Lab.Exec(ctx, "frr", []string{"ip", "link", "set", "eth0", "down"}, nil); err != nil {
+	if _, err := check.Lab.Exec(ctx, peerFRR, []string{"ip", ipObjectLink, ipActionSet, containerInterface, linkDown}, nil); err != nil {
 		return err
 	}
 	restored := false
@@ -646,7 +646,7 @@ func checkOSPFFastReroute(ctx context.Context, check *interoplab.CheckContext, t
 		if restored {
 			return
 		}
-		_, restoreErr := check.Lab.Exec(context.WithoutCancel(ctx), "frr", []string{"ip", "link", "set", "eth0", "up"}, nil)
+		_, restoreErr := check.Lab.Exec(context.WithoutCancel(ctx), peerFRR, []string{"ip", ipObjectLink, ipActionSet, containerInterface, "up"}, nil)
 		if restoreErr != nil && resultErr == nil {
 			resultErr = fmt.Errorf("restore LFA primary link: %w", restoreErr)
 		}
@@ -661,7 +661,7 @@ func checkOSPFFastReroute(ctx context.Context, check *interoplab.CheckContext, t
 	if err := waitPingSuccess(ctx, check.Lab, "172.30.255.3", 12*time.Second); err != nil {
 		return err
 	}
-	if _, err := check.Lab.Exec(ctx, "frr", []string{"ip", "link", "set", "eth0", "up"}, nil); err != nil {
+	if _, err := check.Lab.Exec(ctx, peerFRR, []string{"ip", ipObjectLink, ipActionSet, containerInterface, "up"}, nil); err != nil {
 		return err
 	}
 	restored = true
@@ -747,16 +747,16 @@ func checkAddPathRailAgreement(ctx context.Context, check *interoplab.CheckConte
 	}
 	speaker1 := networkHostAddress(check.Network, 10)
 	speaker2 := networkHostAddress(check.Network, 11)
-	if err := waitZePeerState(ctx, check.Lab, speaker1, "established", 60*time.Second); err != nil {
+	if err := waitZePeerState(ctx, check.Lab, speaker1, peerStateEstablished, 60*time.Second); err != nil {
 		return err
 	}
 	zeAddress := networkHostAddress(check.Network, 2)
-	if err := waitContainsFold(ctx, check.Lab, "gobgp", []string{"gobgp", "neighbor", zeAddress}, 90*time.Second, "established"); err != nil {
+	if err := waitContainsFold(ctx, check.Lab, peerGoBGP, []string{cmdGoBGP, gobgpNeighbor, zeAddress}, 90*time.Second, peerStateEstablished); err != nil {
 		return err
 	}
-	if _, err := check.Lab.Exec(ctx, "gobgp", []string{
-		"gobgp", "global", "rib", "add", "10.99.0.0/24", "-a", "ipv4",
-		"nexthop", networkHostAddress(check.Network, 5),
+	if _, err := check.Lab.Exec(ctx, peerGoBGP, []string{
+		cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFirst, "-a", gobgpFamilyIPv4,
+		gobgpNextHop, networkHostAddress(check.Network, 5),
 	}, nil); err != nil {
 		return err
 	}
@@ -769,14 +769,14 @@ func checkAddPathRailAgreement(ctx context.Context, check *interoplab.CheckConte
 	if err != nil {
 		return err
 	}
-	if state == "established" {
+	if state == peerStateEstablished {
 		return errors.New("speaker2 joined before the route was stored, so the replay rail was not exercised")
 	}
-	live, err := waitSpeakerUpdate(ctx, check.Lab, "speaker", 150*time.Second)
+	live, err := waitSpeakerUpdate(ctx, check.Lab, peerSpeaker, 150*time.Second)
 	if err != nil {
 		return err
 	}
-	replayed, err := waitSpeakerUpdate(ctx, check.Lab, "speaker2", 150*time.Second)
+	replayed, err := waitSpeakerUpdate(ctx, check.Lab, peerSpeaker2, 150*time.Second)
 	if err != nil {
 		return err
 	}
@@ -847,7 +847,7 @@ func waitSpeakerUpdate(ctx context.Context, lab interoplab.CheckerLab, peer stri
 }
 
 func speakerRouteUpdate(logs, peer string) ([]byte, error) {
-	if established, ok := logField(logs, "established"); !ok || established != "yes" {
+	if established, ok := logField(logs, fieldEstablished); !ok || established != logValueYes {
 		return nil, fmt.Errorf("%s never reached Established with Ze", peer)
 	}
 	updates := speakerUpdateHexes(logs)
@@ -906,14 +906,14 @@ func checkShowRIBUnderFRRLoad(ctx context.Context, check *interoplab.CheckContex
 	neighbor := networkHostAddress(check.Network, 2)
 	var command textbuf.Buffer
 	session := []string{
-		"vtysh",
+		cmdVtysh,
 		"-c",
 		command.Str("show bgp neighbor ").Str(neighbor).String(),
 	}
 	if err := waitContains(
 		ctx,
 		check.Lab,
-		"frr",
+		peerFRR,
 		session,
 		90*time.Second,
 		"BGP state = Established",
@@ -958,7 +958,7 @@ func checkShowRIBUnderFRRLoad(ctx context.Context, check *interoplab.CheckContex
 	return waitContains(
 		ctx,
 		check.Lab,
-		"frr",
+		peerFRR,
 		session,
 		90*time.Second,
 		"BGP state = Established",
@@ -1052,8 +1052,8 @@ func setFRRRedistribution(ctx context.Context, lab interoplab.CheckerLab, enable
 	if enabled {
 		verb = "redistribute static"
 	}
-	_, err := lab.Exec(ctx, "frr", []string{
-		"vtysh", "-c", "configure terminal", "-c", "router bgp 65002",
+	_, err := lab.Exec(ctx, peerFRR, []string{
+		cmdVtysh, "-c", frrConfigureTerminal, "-c", "router bgp 65002",
 		"-c", "address-family ipv4 unicast", "-c", verb,
 	}, nil)
 	return err

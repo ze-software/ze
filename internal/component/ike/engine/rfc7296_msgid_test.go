@@ -31,7 +31,7 @@ func midTemporaryFailure() []wire.PayloadEntry {
 
 // the unused helper midChildRekeyPending was removed here. No test called it, so
 // it carried no coverage. Its only failure path was a constructor guard on its own input.
-// `./le verify-lint run` fails this package while it stands ("func
+// `./le verify lint run` fails this package while it stands ("func
 // midChildRekeyPending is unused"). A later work package must build its own fixture.
 
 // VALIDATES: the outbound Message ID stops at the 32-bit ceiling instead of wrapping,

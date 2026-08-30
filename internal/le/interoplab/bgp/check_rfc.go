@@ -15,8 +15,6 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-const addPathEvidencePrefix = "10.99.0.0/24"
-
 // RFC requirement: RFC7911-2-2 positive -- a BGP speaker that re-advertises a route
 // generates its own Path Identifier and does not relay the received one. Asserted at
 // FRR, a foreign daemon holding the RIB Ze filled, because the loss this requirement
@@ -36,7 +34,7 @@ func checkAddPathReadvertiseCollision(ctx context.Context, check *interoplab.Che
 	if err != nil {
 		return err
 	}
-	if _, err := check.Lab.Exec(ctx, "frr", []string{"vtysh", "-c", "clear bgp " + zeAddress}, nil); err != nil {
+	if _, err := check.Lab.Exec(ctx, peerFRR, []string{cmdVtysh, "-c", "clear bgp " + zeAddress}, nil); err != nil {
 		return err
 	}
 	if err := waitFRRNewEpoch(ctx, check.Lab, zeAddress, before); err != nil {
@@ -163,10 +161,10 @@ func checkRFC7999Blackhole(ctx context.Context, check *interoplab.CheckContext) 
 func checkOTCWithdrawal(ctx context.Context, check *interoplab.CheckContext) error {
 	const (
 		name   = "bgp-role-otc-withdraw-frr"
-		prefix = "10.10.0.0/24"
+		prefix = injectPrefixFirst
 	)
 	positive := []operation{
-		{kind: opFRRSession, argument: "172.30.0.2"},
+		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: prefix, timeout: 60 * time.Second},
 	}
 	for index := range positive {
@@ -174,7 +172,7 @@ func checkOTCWithdrawal(ctx context.Context, check *interoplab.CheckContext) err
 			return checkerFailure(ctx, check.Lab, name, index+1, err)
 		}
 	}
-	output, err := check.Lab.Query(ctx, "frr", []string{"vtysh", "-c", "show bgp ipv4 unicast " + prefix}, nil)
+	output, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + prefix}, nil)
 	if err != nil {
 		return checkerFailure(ctx, check.Lab, name, 3, err)
 	}
@@ -185,12 +183,14 @@ func checkOTCWithdrawal(ctx context.Context, check *interoplab.CheckContext) err
 	if value != 65001 {
 		return checkerFailure(ctx, check.Lab, name, 3, fmt.Errorf("FRR reports OTC %d, want local AS 65001", value))
 	}
-	negative := []operation{
-		{kind: opFRRRouteAbsent, argument: prefix, timeout: 90 * time.Second},
-		{kind: opFRRSession, argument: "172.30.0.2"},
-	}
-	negative = append(negative, relayWithdrawalExtras(prefix)...)
-	negative = append(negative, operation{kind: opFRRSession, argument: "172.30.0.2"})
+	extras := relayWithdrawalExtras(prefix)
+	negative := make([]operation, 0, len(extras)+3)
+	negative = append(negative,
+		operation{kind: opFRRRouteAbsent, argument: prefix, timeout: 90 * time.Second},
+		operation{kind: opFRRSession, argument: zeLabAddress},
+	)
+	negative = append(negative, extras...)
+	negative = append(negative, operation{kind: opFRRSession, argument: zeLabAddress})
 	for index := range negative {
 		if err := runOperation(ctx, check.Network, check.Lab, &negative[index]); err != nil {
 			return checkerFailure(ctx, check.Lab, name, index+4, err)
@@ -262,9 +262,9 @@ func parseAddPathState(output string) (map[string]uint64, error) {
 	if err := json.Unmarshal([]byte(output), &document); err != nil {
 		return nil, fmt.Errorf("decode FRR ADD-PATH JSON: %w", err)
 	}
-	paths := document.Routes[addPathEvidencePrefix]
+	paths := document.Routes[peerPrefixFirst]
 	if len(paths) < 2 {
-		return nil, fmt.Errorf("FRR holds %d paths for %s, want 2", len(paths), addPathEvidencePrefix)
+		return nil, fmt.Errorf("FRR holds %d paths for %s, want 2", len(paths), peerPrefixFirst)
 	}
 	state := make(map[string]uint64, len(paths))
 	for _, path := range paths {
@@ -289,7 +289,7 @@ func parseOTCValue(output string) (uint64, error) {
 		return 0, errors.New("FRR reported no OTC Attribute")
 	}
 	tail := output[index+len("OTC"):]
-	for len(tail) > 0 {
+	for tail != "" {
 		switch tail[0] {
 		case ' ', '\t', ':', '=', '"':
 			tail = tail[1:]
@@ -313,7 +313,7 @@ digits:
 }
 func waitAddPathState(ctx context.Context, lab interoplab.CheckerLab) (map[string]uint64, error) {
 	state, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 60 * time.Second, Interval: 2 * time.Second, Description: "two re-advertised paths with distinct Path Identifiers"}, func(probeCtx context.Context) (map[string]uint64, error) {
-		output, err := lab.Query(probeCtx, "frr", []string{"vtysh", "-c", "show bgp ipv4 unicast detail json"}, nil)
+		output, err := lab.Query(probeCtx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast detail json"}, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -323,7 +323,7 @@ func waitAddPathState(ctx context.Context, lab interoplab.CheckerLab) (map[strin
 }
 
 func queryFRREstablishedEpoch(ctx context.Context, lab interoplab.CheckerLab, neighbor string) (uint64, error) {
-	output, err := lab.Query(ctx, "frr", []string{"vtysh", "-c", "show bgp neighbor " + neighbor + " json"}, nil)
+	output, err := lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp neighbor " + neighbor + " json"}, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -376,7 +376,7 @@ func parseFRRNextHops(output string) ([]nextHop, error) {
 }
 
 func queryFRRNextHops(ctx context.Context, lab interoplab.CheckerLab, prefix string) ([]nextHop, error) {
-	output, err := lab.Query(ctx, "frr", []string{"vtysh", "-c", "show bgp ipv6 unicast " + prefix + " json"}, nil)
+	output, err := lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv6 unicast " + prefix + " json"}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -399,7 +399,7 @@ func requireNextHopShape(entries []nextHop, global, linkLocal netip.Addr) error 
 			return fmt.Errorf("invalid FRR next hop %q: %w", entry.IP, err)
 		}
 		switch entry.Scope {
-		case "global":
+		case nextHopScopeGlobal:
 			seenGlobal = address == global
 		case "link-local":
 			seenLinkLocal = linkLocal.IsValid() && address == linkLocal

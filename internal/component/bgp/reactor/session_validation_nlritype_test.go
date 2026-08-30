@@ -189,7 +189,11 @@ func TestRFC7606Section54PropagatesUnknownBGPLSType(t *testing.T) {
 	registerEVPNRecognizer(t) // only evpn is ruled on; bgp-ls deliberately is not
 	s := nlriTypeTestSession()
 
-	known := lsWireNLRI(1, 0x02, 0x00)    // Node NLRI
+	// The known NLRI must be WELL-FORMED, not merely of a known type. Section
+	// 8.2.2's syntactic walk runs on the survivors of the Section 5.4 filter, so a
+	// Node NLRI whose body cannot hold its own Protocol-ID and Identifier is
+	// dropped as malformed and the test would then be measuring the wrong rule.
+	known := lsNodeNLRI(65001)
 	unknown := lsWireNLRI(99, 0xde, 0xad) // a type ze does not parse
 
 	nlri := append(append([]byte{}, known...), unknown...)

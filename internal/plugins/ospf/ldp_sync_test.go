@@ -7,6 +7,7 @@
 package ospf
 
 import (
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -51,9 +52,9 @@ func (c *fakeTimers) lastArmed(t *testing.T) armedTimer {
 	t.Helper()
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for i := len(c.armed) - 1; i >= 0; i-- {
-		if !c.armed[i].tm.stopped {
-			return c.armed[i]
+	for _, armed := range slices.Backward(c.armed) {
+		if !armed.tm.stopped {
+			return armed
 		}
 	}
 	t.Fatalf("no armed timer")

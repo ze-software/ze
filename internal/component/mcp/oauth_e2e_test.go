@@ -155,7 +155,7 @@ func TestNewStreamable_OAuth_AcceptsValidToken(t *testing.T) {
 	token := as.MintToken(t, nil)
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
 		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
 	req.Header.Set("Mcp-Method", "tools/list")
@@ -197,7 +197,7 @@ func TestNewStreamable_OAuth_RejectsMissingBearer(t *testing.T) {
 
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
 		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
 	req.Header.Set("Mcp-Method", "tools/list")
@@ -240,7 +240,7 @@ func TestNewStreamable_OAuth_RejectsWrongAudience(t *testing.T) {
 	token := as.MintToken(t, map[string]any{"aud": "https://wrong/"})
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
 		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
 	req.Header.Set("Mcp-Method", "tools/list")
@@ -275,7 +275,7 @@ func TestNewStreamable_OAuth_MetadataEndpoint(t *testing.T) {
 	}
 	defer s.Close()
 
-	req := httptest.NewRequest(http.MethodGet, OAuthMetadataPath, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, OAuthMetadataPath, http.NoBody)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
 
@@ -399,7 +399,7 @@ func TestNewStreamable_OAuth_AcceptsSlashDivergentAudience(t *testing.T) {
 	token := as.MintToken(t, map[string]any{"aud": "https://mcp.example"}) // no trailing slash
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
 		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
 	req.Header.Set("Mcp-Method", "tools/list")
@@ -482,7 +482,7 @@ func TestStreamable_EndpointCORSPreflight(t *testing.T) {
 	}
 	defer s.Close()
 
-	req := httptest.NewRequest(http.MethodOptions, Endpoint, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, Endpoint, http.NoBody)
 	req.Header.Set("Origin", "https://app.example/")
 	req.Header.Set("Access-Control-Request-Method", "POST")
 	req.Header.Set("Access-Control-Request-Headers", "Authorization, Content-Type")
@@ -524,7 +524,7 @@ func TestStreamable_EndpointCORSPreflight_RejectsNonAllowlistedOrigin(t *testing
 	}
 	defer s.Close()
 
-	req := httptest.NewRequest(http.MethodOptions, Endpoint, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, Endpoint, http.NoBody)
 	req.Header.Set("Origin", "https://evil.example/")
 	req.Header.Set("Access-Control-Request-Method", "POST")
 	w := httptest.NewRecorder()
@@ -554,7 +554,7 @@ func TestStreamable_MainPathResponseCORSEchoesOrigin(t *testing.T) {
 
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
 		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
 	req.Header.Set("Mcp-Method", "tools/list")
@@ -601,7 +601,7 @@ func TestStreamable_MainPath401CORSEchoesOrigin(t *testing.T) {
 
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
 		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
 	req.Header.Set("Mcp-Method", "tools/list")
@@ -635,7 +635,7 @@ func TestStreamable_NotFoundCarriesCORS(t *testing.T) {
 	}
 	defer s.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/mcp/extra", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/mcp/extra", http.NoBody)
 	req.Header.Set("Origin", "https://app.example/")
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -661,7 +661,7 @@ func TestStreamable_MethodNotAllowedCarriesCORS(t *testing.T) {
 	}
 	defer s.Close()
 
-	req := httptest.NewRequest(http.MethodPatch, Endpoint, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPatch, Endpoint, http.NoBody)
 	req.Header.Set("Origin", "https://app.example/")
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -723,7 +723,7 @@ func TestStreamable_MainPathNoOriginNoCORS(t *testing.T) {
 
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
 		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
 	req.Header.Set("Mcp-Method", "tools/list")
@@ -748,7 +748,7 @@ func TestStreamable_EndpointPreflight_RequiresOrigin(t *testing.T) {
 	}
 	defer s.Close()
 
-	req := httptest.NewRequest(http.MethodOptions, Endpoint, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, Endpoint, http.NoBody)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
 
@@ -851,7 +851,7 @@ func TestNewStreamable_OAuth_MetadataCORS(t *testing.T) {
 	defer s.Close()
 
 	// Cross-origin GET succeeds despite non-loopback Origin header.
-	req := httptest.NewRequest(http.MethodGet, OAuthMetadataPath, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, OAuthMetadataPath, http.NoBody)
 	req.Header.Set("Origin", "https://app.example/")
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -863,7 +863,7 @@ func TestNewStreamable_OAuth_MetadataCORS(t *testing.T) {
 	}
 
 	// Preflight OPTIONS returns 204 + allows GET.
-	req2 := httptest.NewRequest(http.MethodOptions, OAuthMetadataPath, http.NoBody)
+	req2 := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, OAuthMetadataPath, http.NoBody)
 	req2.Header.Set("Origin", "https://app.example/")
 	req2.Header.Set("Access-Control-Request-Method", "GET")
 	w2 := httptest.NewRecorder()
@@ -900,7 +900,7 @@ func TestBearerList_DuplicateTokensCollapseToFirstMatch(t *testing.T) {
 		{name: "alice", hash: hashToken("shared"), scopes: []string{"first"}},
 		{name: "bob", hash: hashToken("shared"), scopes: []string{"second-unreachable"}},
 	}}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer shared")
 	id, err := a.Authenticate(r)
 	if err != nil {
@@ -1051,7 +1051,7 @@ func TestNewStreamable_OAuth_MetadataUsesCanonicalIssuer(t *testing.T) {
 		}
 		defer s.Close()
 
-		req := httptest.NewRequest(http.MethodGet, OAuthMetadataPath, http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, OAuthMetadataPath, http.NoBody)
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, req)
 		if w.Code != http.StatusOK {

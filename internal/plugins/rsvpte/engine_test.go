@@ -3,6 +3,7 @@ package rsvpte
 
 import (
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 
@@ -42,10 +43,10 @@ func (f *fakeTransport) Close() error        { close(f.recvCh); return nil }
 func (f *fakeTransport) lastByType(msgType uint8) (*ParsedMessage, netip.Addr, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	for i := len(f.sent) - 1; i >= 0; i-- {
-		msg, err := DecodeMessage(f.sent[i].payload)
+	for _, sent := range slices.Backward(f.sent) {
+		msg, err := DecodeMessage(sent.payload)
 		if err == nil && msg.Header.MsgType == msgType {
-			return msg, f.sent[i].dst, true
+			return msg, sent.dst, true
 		}
 	}
 	return nil, netip.Addr{}, false

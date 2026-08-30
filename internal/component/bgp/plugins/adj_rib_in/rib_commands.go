@@ -49,6 +49,12 @@ func (r *AdjRIBInManager) handleCommand(command string, args []string, peer stri
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
 
+// JSON keys of the adj-rib-in command responses.
+const (
+	jsonKeyEarly  = "early"
+	jsonKeyStatus = "status"
+)
+
 const (
 	batchValidateStride   = 6
 	maxBatchValidateCount = 256 // higher than rpki sender's 128: external plugins may batch up to 256
@@ -135,7 +141,7 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 // mid-batch does not leave the RIB partially applied.
 func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, error) {
 	if len(args) == 0 {
-		return statusDone, map[string]any{"accepted": 0, "rejected": 0, "early": 0}, nil
+		return statusDone, map[string]any{"accepted": 0, "rejected": 0, jsonKeyEarly: 0}, nil
 	}
 	if len(args)%batchValidateStride != 0 {
 		return statusError, "", errBatchValidateStride
@@ -226,7 +232,7 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 		}
 	}
 
-	return statusDone, map[string]any{"accepted": accepted, "rejected": rejected, "early": early}, nil
+	return statusDone, map[string]any{"accepted": accepted, "rejected": rejected, jsonKeyEarly: early}, nil
 }
 
 func showSelector(args []string, peer string) string {
@@ -447,16 +453,16 @@ func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error
 	pr, ok := r.pending[key]
 	if !ok {
 		if r.applyToInstalled(peerAddr, rKey, true, valState) {
-			return statusDone, map[string]any{"status": "ok"}, nil
+			return statusDone, map[string]any{jsonKeyStatus: "ok"}, nil
 		}
 		r.storeEarlyDecision(peerAddr, rKey, earlyAccept, valState)
-		return statusDone, map[string]any{"status": "ok", "early": true}, nil
+		return statusDone, map[string]any{jsonKeyStatus: "ok", jsonKeyEarly: true}, nil
 	}
 
 	r.promoteToInstalled(pr, valState)
 	delete(r.pending, key)
 
-	return statusDone, map[string]any{"status": "ok"}, nil
+	return statusDone, map[string]any{jsonKeyStatus: "ok"}, nil
 }
 
 // rejectRoutesCommand handles "request bgp adj-rib-in reject-routes <peer> <family> <prefix> <pathID>".
@@ -485,16 +491,16 @@ func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error
 	key := pendingKey(peerAddr, rKey)
 	if _, ok := r.pending[key]; !ok {
 		if r.applyToInstalled(peerAddr, rKey, false, 0) {
-			return statusDone, map[string]any{"status": "ok"}, nil
+			return statusDone, map[string]any{jsonKeyStatus: "ok"}, nil
 		}
 		r.storeEarlyDecision(peerAddr, rKey, earlyReject, 0)
-		return statusDone, map[string]any{"status": "ok", "early": true}, nil
+		return statusDone, map[string]any{jsonKeyStatus: "ok", jsonKeyEarly: true}, nil
 	}
 
 	delete(r.pending, key)
 	logger().Debug("rejected pending route", "peer", peerAddr, "family", fam, "prefix", prefix, "pathID", pathID)
 
-	return statusDone, map[string]any{"status": "ok"}, nil
+	return statusDone, map[string]any{jsonKeyStatus: "ok"}, nil
 }
 
 // revalidateCommand handles "request bgp adj-rib-in revalidate <family> <prefix>".

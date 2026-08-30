@@ -120,7 +120,7 @@ func shardRel(stem string) string {
 // derives from.
 //
 // Composed here rather than spelled into the banner's format string, because
-// internal/le/doccheck/links.go reads a backticked path out of ANY tracked
+// internal/le/doc/check/links.go reads a backticked path out of ANY tracked
 // file, this one included. A summary path written with a placeholder in it is a
 // dead citation to that sweep, even though every path it renders resolves.
 func summaryRelOf(stem string) string {

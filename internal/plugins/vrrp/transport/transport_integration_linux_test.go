@@ -115,7 +115,7 @@ func setupLab(t *testing.T, family uint8) vrrpLab {
 	peer := fmt.Sprintf("zevrpe%d", suffix)
 	macvlan := fmt.Sprintf("zevrpm%d", suffix)
 
-	veth := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: parent}, PeerName: peer}
+	veth := &netlink.Veth{Name: parent, PeerName: peer}
 	if err := netlink.LinkAdd(veth); err != nil {
 		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
 	}

@@ -36,7 +36,7 @@ func newOAuthAuth(t *testing.T, priv *rsa.PrivateKey, scopes []string) oauthAuth
 func TestOAuth_Authenticate_MissingHeader(t *testing.T) {
 	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
 	a := newOAuthAuth(t, priv, nil)
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 
 	_, aerr := a.Authenticate(r)
 	if aerr == nil {
@@ -58,7 +58,7 @@ func TestOAuth_Authenticate_ValidToken(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0)
 	token := signRS256(t, priv, "k", standardClaims(now, "https://as/", "https://mcp/", time.Hour))
 
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer "+token)
 
 	id, aerr := a.Authenticate(r)
@@ -79,7 +79,7 @@ func TestOAuth_Authenticate_WrongAudience(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0)
 	token := signRS256(t, priv, "k", standardClaims(now, "https://as/", "https://other/", time.Hour))
 
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer "+token)
 
 	_, aerr := a.Authenticate(r)
@@ -97,7 +97,7 @@ func TestOAuth_Authenticate_WrongIssuer(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0)
 	token := signRS256(t, priv, "k", standardClaims(now, "https://other/", "https://mcp/", time.Hour))
 
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer "+token)
 
 	_, aerr := a.Authenticate(r)
@@ -112,7 +112,7 @@ func TestOAuth_Authenticate_Expired(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0)
 	token := signRS256(t, priv, "k", standardClaims(now, "https://as/", "https://mcp/", -2*time.Minute))
 
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer "+token)
 
 	_, aerr := a.Authenticate(r)
@@ -128,7 +128,7 @@ func TestOAuth_Authenticate_InsufficientScope(t *testing.T) {
 	// Token only has mcp.read + mcp.write (from standardClaims).
 	token := signRS256(t, priv, "k", standardClaims(now, "https://as/", "https://mcp/", time.Hour))
 
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer "+token)
 
 	_, aerr := a.Authenticate(r)
@@ -156,7 +156,7 @@ func TestOAuth_Authenticate_AlgNoneRejected(t *testing.T) {
 	payload, _ := json.Marshal(map[string]any{"sub": "x"})
 	token := b64url(header) + "." + b64url(payload) + "."
 
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer "+token)
 
 	_, aerr := a.Authenticate(r)
@@ -272,7 +272,7 @@ func TestStreamable_MetadataEndpoint_Gated(t *testing.T) {
 		t.Fatalf("NewStreamable: %v", err)
 	}
 	defer s.Close()
-	req := httptest.NewRequest(http.MethodGet, OAuthMetadataPath, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, OAuthMetadataPath, http.NoBody)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
 	// RFC requirement: RFC9728-3.1-1 negative -- when AuthMode is not OAuth the well-known metadata path is not served (handleResourceMetadata 404s at streamable.go:353-355), proving the endpoint is not unconditionally exposed
