@@ -29,28 +29,6 @@ const (
 	navFile        = "data/nav.json"
 )
 
-// siteFacts is the numbers a build derived about this repository.
-type siteFacts struct {
-	CLICommands    int `json:"cli_commands"`
-	ConfigSections int `json:"config_sections"`
-	Dependencies   int `json:"dependencies"`
-	Changes        int `json:"changes"`
-	Features       struct {
-		CoreExperimental int `json:"core_experimental"`
-		Planned          int `json:"planned"`
-	} `json:"features"`
-	Tests struct {
-		UnitDisplay string `json:"unit_display"`
-		FuzzDisplay string `json:"fuzz_display"`
-		E2EDisplay  string `json:"e2e_display"`
-	} `json:"tests"`
-	Interop struct {
-		Scenarios     int    `json:"scenarios"`
-		TargetDisplay string `json:"target_display"`
-	} `json:"interop"`
-	GeneratedAt string `json:"generated_at"`
-}
-
 // registryPlugin is one runtime plugin registration, as the catalog holds it.
 type registryPlugin struct {
 	Name                 string   `json:"name"`

@@ -264,21 +264,24 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 // stubLiveInputs makes a build read stated inputs instead of building the
 // daemon, and restores the real readers when the test ends.
 //
-// A build refreshes three data files from the live product before any producer
-// runs: the command catalog, the plugin registry and the YANG configuration
-// tree. Each costs a compile of cmd/ze, and each needs a real checkout, so a
-// test over a synthetic tree states all three together rather than one at a
-// time: a build test that stubbed one and forgot another would fail on a
-// missing feature-gates.txt rather than on what it set out to check.
+// A build refreshes four data files from the live product before any producer
+// runs: the command catalog, the plugin registry, the YANG configuration tree
+// and the facts snapshot. Each needs a real checkout -- three cost a compile of
+// cmd/ze and the fourth walks the test tree and the RFC ledger -- so a test
+// over a synthetic tree states all four together rather than one at a time: a
+// build test that stubbed one and forgot another would fail on a missing
+// feature-gates.txt rather than on what it set out to check.
 func stubLiveInputs(t *testing.T, catalog string) {
 	t.Helper()
 	previousCatalog := liveCommandCatalog
 	previousPlugins := livePluginRegistry
 	previousTree := liveYANGConfigTree
+	previousFacts := liveSiteFacts
 	t.Cleanup(func() {
 		liveCommandCatalog = previousCatalog
 		livePluginRegistry = previousPlugins
 		liveYANGConfigTree = previousTree
+		liveSiteFacts = previousFacts
 	})
 	liveCommandCatalog = func(string) ([]byte, error) { return []byte(catalog), nil }
 	livePluginRegistry = func(string) ([]inventory.Plugin, error) {
@@ -289,6 +292,10 @@ func stubLiveInputs(t *testing.T, catalog string) {
 	}
 	liveYANGConfigTree = func(string, string) ([]byte, error) {
 		return []byte(`[{"name":"static","kind":"container","description":"Static routes."}]`), nil
+	}
+	liveSiteFacts = func(Paths) (siteFacts, error) {
+		return siteFacts{Sources: map[string]string{"tests": "a test stated these"},
+			CLICommands: 1, Tests: factsTests{Unit: 1, UnitDisplay: "1"}}, nil
 	}
 }
 

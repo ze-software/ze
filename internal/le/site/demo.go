@@ -218,6 +218,42 @@ func (catalog *demoCatalog) expand(body, mirror, root, docRel string) (string, s
 	return substituteDemoMarkers(body, bodyByID), substituteDemoMarkers(mirror, mirrorByID), head, nil
 }
 
+// heroMount answers the player element the homepage hero replays, bound to the
+// same manifest every other page reads.
+//
+// The hero used to spell the recording's asset paths and digests by hand, which
+// made it a fourth place the asset set was written down and the only one no
+// render could correct. A recording that is not a terminal one is refused: the
+// hero frame is a terminal window, so a video in it would be a frame around the
+// wrong thing.
+func (catalog *demoCatalog) heroMount(id, root, label string) (string, error) {
+	if err := catalog.load(); err != nil {
+		return "", err
+	}
+	demo, known := catalog.demos[id]
+	if !known {
+		return "", fmt.Errorf("unknown terminal demo: %s", id)
+	}
+	if demo.Kind != "terminal" {
+		return "", fmt.Errorf("hero demo %s is a %s recording, and the hero frame replays a terminal", id, demo.Kind)
+	}
+	entry, generated := catalog.built[id]
+	if !generated {
+		return "", fmt.Errorf("terminal demo %s has no generated artifacts", id)
+	}
+	assets, err := catalog.verifyAssets(id, demo.Kind, entry)
+	if err != nil {
+		return "", err
+	}
+	facts, err := readCastFacts(assets[demoCast])
+	if err != nil {
+		return "", err
+	}
+	return playerMount(html.EscapeString(demoAssetURL(root, id, entry, demoCast)),
+		html.EscapeString(demoAssetURL(root, id, entry, demoTranscript)),
+		facts, html.EscapeString(label)), nil
+}
+
 // sameDemoOrder reports whether two marker runs name the same demonstrations
 // in the same order.
 func sameDemoOrder(left, right [][]string) bool {

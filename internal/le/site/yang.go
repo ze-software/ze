@@ -25,7 +25,7 @@ type yangNode struct {
 	Name string `json:"name"`
 }
 
-// liveYANGConfigTree answers `ze yang tree --json --config` for one checkout.
+// liveYANGConfigTree answers `show yang tree --config | json` for one checkout.
 // It is a variable so a test can state a tree rather than compile the daemon.
 var liveYANGConfigTree = runYANGConfigTree
 
@@ -37,7 +37,7 @@ var liveYANGConfigTree = runYANGConfigTree
 // with unknown gates and would publish a configuration reference for a daemon
 // nobody ships. That is the staleness the site build exists to remove.
 func runYANGConfigTree(repository, binary string) ([]byte, error) {
-	name, args := binary, []string{"yang", "tree", "--json", "--config"}
+	name, args := binary, []string{"cli", "-c", "show yang tree --config | json"}
 	if binary == "" {
 		tags, err := featuretags.DaemonTags(repository)
 		if err != nil {
@@ -63,7 +63,7 @@ func runYANGConfigTree(repository, binary string) ([]byte, error) {
 	command.Stderr = &stderr
 	raw, err := command.Output()
 	if err != nil {
-		return nil, fmt.Errorf("%s yang tree --json --config: %w: %s", name, err, stderr.String())
+		return nil, fmt.Errorf("%s show yang tree --config | json: %w: %s", name, err, stderr.String())
 	}
 	return raw, nil
 }

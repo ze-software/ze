@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 8 of 10 |
+| Phase | 9 of 10 |
 | Deferral shard | `plan/deferrals/site-renderers-in-go.md` |
 | Handoff | - |
 | Updated | 2026-08-30 |
@@ -611,7 +611,32 @@ and its carry-over are untouched.
 | `TestAShiftedVerdictIsCountedApartFromAStaleOne` | `internal/le/site/rfccompliance_test.go` | AC-10, a line shift is not a void verdict | pass |
 | `TestTheQuotedGateOutputIsTheGatesOwnLine` | `internal/le/site/rfccompliance_test.go` | AC-10, the page quotes rather than composes | pass |
 | `TestASummaryStemIsPrintedAsTheReaderKnowsIt` | `internal/le/site/rfccompliance_test.go` | AC-10, RFC 9012 and a draft stem | pass |
-| `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts/sitefacts_test.go` | AC-11 | |
+| `TestTheFactsSnapshotStatesEveryKeyTheContractNames` | `internal/le/site/facts_test.go` | AC-11, the published contract's shape | pass |
+| `TestEveryNumberIsTheOneItsInputStates` | `internal/le/site/facts_test.go` | AC-11, each number comes from the input that owns it | pass |
+| `TestAFactTheTreeCannotAnswerStopsTheBuild` | `internal/le/site/facts_test.go` | AC-11, nine refusals, none published as zero | pass |
+| `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts_test.go` | AC-11 | pass |
+| `TestAStarCountNoBuildCanAnswerSaysUnknown` | `internal/le/site/facts_test.go` | AC-11, no invented fallback | pass |
+| `TestEveryProseTokenResolvesAgainstTheSnapshotThisBuildWrites` | `internal/le/site/facts_test.go` | AC-4, all 18 tokens, both forms | pass |
+| `TestTheFactsSnapshotIsWrittenBeforeAnyProducerReadsIt` | `internal/le/site/facts_test.go` | AC-11, the ordering the three readers depend on | pass |
+| `TestTheSnapshotIsWrittenKeySorted` | `internal/le/site/facts_test.go` | AC-14, no output order comes from a Go map | pass |
+| `TestADisplayCountRoundsDownToItsOwnMagnitude` | `internal/le/site/facts_test.go` | AC-11, the rounding of every count | pass |
+| `TestEveryDisplayFigureIsTheRoundingOfTheNumberBesideIt` | `internal/le/site/facts_test.go` | AC-11, the pair cannot disagree | pass |
+| `TestTheRFCFiguresArePrintedExactly` | `internal/le/site/facts_test.go` | AC-11, the gate compares these numbers | pass |
+| `TestThisCheckoutCanAnswerEveryPublishedFact` | `internal/le/site/facts_test.go` | AC-11, this tree can publish its own numbers | pass |
+| `TestTheHomepageReadsAsThePublishedHomepage` | `internal/le/site/home_test.go` | AC-3, AC-4, rendered parity over the whole body | pass |
+| `TestTheHomepageProofStripCarriesItsSixStatSpans` | `internal/le/site/home_test.go` | AC-4, the six numbers and the keys they name | pass |
+| `TestAFactTheSnapshotLostStopsTheHomepage` | `internal/le/site/home_test.go` | AC-11, a blank where a number belongs is refused | pass |
+| `TestTheHomepageCardsKeepTheDataFilesOwnOrder` | `internal/le/site/home_test.go` | AC-8, both grids in the author's order | pass |
+| `TestTheFeatureCategoryLinksFollowThePagesOwnOrder` | `internal/le/site/home_test.go` | AC-8, no output order comes from a Go map | pass |
+| `TestTheLatestNewsBandTakesTheNewestArticleAndWeek` | `internal/le/site/home_test.go` | AC-7, the two generated slots and the note | pass |
+| `TestASummaryIsCutOnAWordBoundary` | `internal/le/site/home_test.go` | AC-7, runes rather than bytes | pass |
+| `TestATeaserShowsOneTagPerCategoryFirst` | `internal/le/site/home_test.go` | AC-7, the breadth rule | pass |
+| `TestTheTeasersAreTheThreeNewestWeeks` | `internal/le/site/home_test.go` | AC-7, order, numbering and tone by position | pass |
+| `TestAHomepageInputNoPageCanBeMadeFromIsRefused` | `internal/le/site/home_test.go` | AC-8, five refusals by name | pass |
+| `TestTheTemplateAndTheProducerAgreeAboutEverySlot` | `internal/le/site/home_test.go` | AC-2, a slot nobody fills is a red | pass |
+| `TestTheHeroReplaysTheRecordingTheManifestNames` | `internal/le/site/home_test.go` | AC-4, the hero reads the demo manifest | pass |
+| `TestTheHomepageCarriesTheShellAndItsMirror` | `internal/le/site/home_test.go` | AC-3, AC-5, the route that never had a mirror | pass |
+| `TestTheHomeProducerClaimsTheSiteRoot` | `internal/le/site/home_test.go` | AC-1, 1 of 712 | pass |
 | `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12 | |
 | `TestLLMSFullCarriesEveryPublishedMirror` | `internal/le/site/derived_test.go` | AC-15 | |
 | `TestLLMSFullPutsEvaluationBeforeUsage` | `internal/le/site/derived_test.go` | AC-15a, AC-15d | |
@@ -919,7 +944,65 @@ and its carry-over are untouched.
    HTML is untouched, and parity holds above the trend table.
 9. **Phase: Facts and homepage** -- the facts snapshot, then the homepage that
    depends on it
-   - Files: `internal/le/site/facts/`, `home.go`
+   - Files: `internal/le/site/facts.go`, `home.go`, `homebody.go`
+     -> Landed 2026-08-30. One route claimed, the site root, which leaves 16 for
+     phase 10. One named non-route artifact is written and AC-16 must name it:
+     `data/site-facts.json`.
+     -> Decision 2026-08-30: the snapshot producer is `internal/le/site`, NOT
+     `internal/le/site/facts`. The spec's TDD row named
+     `internal/le/site/facts/sitefacts_test.go` and that is the wrong package.
+     That one writes `website/data/repo-facts.json` and its own design comment
+     says why: it publishes COMMITTED data, so a person can regenerate it and a
+     gate can compare it. A build timestamp and a star count are neither, and
+     the snapshot also reads the ARTIFACT (the command catalog, the
+     configuration tree, the previous star count), which that package cannot
+     see: it takes a checkout root and nothing else.
+     -> Decision 2026-08-30: `data/site-facts.json` is written by
+     `refreshNativeSurfaces`, beside `data/cli-commands.json`,
+     `data/plugin-registry.json` and `data/yang-config-tree.json`, and NOT by a
+     producer. Three surfaces read it -- the homepage proof strip, every page
+     carrying a `{{ze:...}}` token, and llms.txt -- and a producer runs in
+     registration order, so an input a producer writes cannot be an input
+     another producer reads. This is phase 7's rule and it closes the ordering
+     hole phase 1 recorded ("the homepage after the facts snapshot has NO
+     mechanism today"): no mechanism is needed.
+     -> Decision 2026-08-30: `interop.*` and `repo.*` come from the COMMITTED
+     `website/data/repo-facts.json`, which is what the published `_sources`
+     names and what `internal/le/site/facts` exists to write. `tests.*` come
+     from `testhealth.Render` over the tree being built, the same producer
+     `health.go` reads, so the two pages cannot state two different unit-test
+     counts. The published `_sources` named `test/health/latest.json` for that
+     one; the snapshot now names the producer instead, because phase 8 moved the
+     health page off the committed file.
+     -> Decision 2026-08-30: the four RFC figures are derived from
+     `rfc.Collect`, not parsed back out of `ai/RFC-REQUIREMENTS.md`
+     (`ai/rules/evidence.md`: read the producer). Measured 2026-08-30: the
+     derivation reproduces the generated ledger's own summary line exactly --
+     4747 requirements, 178 summaries, 3070 MUST-level, 2975 gated.
+     -> Decision 2026-08-30: the star count keeps the fetch, keeps the 5s bound
+     and keeps the failure non-fatal, and the `_sources` entry says which of
+     three things happened: fetched, carried from the previous artifact, or
+     unknown. The retired renderer fell back to a literal 46 that traced to
+     nothing; an honest absence is a zero whose source says "unknown".
+     -> Decision 2026-08-30: the homepage PUBLISHES a mirror, which the retired
+     build never did. `./le site check` refuses a published route with no
+     `index.md` and the site root was the one route the mirror contract never
+     covered. It is converted back from the rendered page rather than written a
+     second time, because the copy lives in `homeTemplate` and the numbers come
+     from the snapshot, so a hand-written mirror would state both twice.
+     -> Constraint: the `{{ze:*}}` token system ALREADY EXISTED, written by
+     phase 3 (`numberTokenSpecs`, `numberTokens.substitute`, `docpage.go`). No
+     second one is written. What phase 9 adds is
+     `TestEveryProseTokenResolvesAgainstTheSnapshotThisBuildWrites`, which holds
+     all eighteen token names against the keys the writer produces.
+     -> Constraint: `llmsdata.go`'s narrow `siteFacts` model is DELETED. One
+     model of the file, written here and read by llms.txt, the prose tokens and
+     the homepage, as phase 6 settled for features.json and dependencies.json.
+     -> Constraint: the homepage hero replays `cli-dashboard` from
+     `website/assets/demos/`, which is generated, gitignored and absent from
+     this checkout, so a live build refuses at the homepage as it already
+     refuses at 17 docs pages. R-8 already requires `./le terminal-demo
+     render-all` before phase 10.
 10. **Phase: Derived** -- the search index, the sitemap, the robots file,
     `llms-full.txt`, and the 177 redirect stubs in their recorded order. The
     coverage check extends from routes to the named non-route artifacts
@@ -1025,7 +1108,16 @@ and its carry-over are untouched.
   digest seal puts outside this spec.
 - The star count still reaches api.github.com and still falls back to the
   previously published number, so one figure on the site is not derivable from
-  the tree alone. Changing that is a separate decision.
+  the tree alone. Changing that is a separate decision. The snapshot now says
+  which of the three happened in its `_sources`, so a reader can tell a measured
+  number from a carried one, and a build with neither publishes zero and calls
+  it unknown rather than inventing the retired renderer's literal 46.
+- The published site-facts numbers and the ones this tree derives DIFFER, by
+  construction. Measured 2026-08-30: design comments 4354 against a published
+  3852, Go packages 755 against 687, unit tests 26552 against 23718, direct
+  dependencies 47 against 42. The first two are the `git ls-files` versus
+  filesystem-walk difference the spec records; the third is nine months of
+  tests; the fourth is the curated-list drift phase 6 fixed.
 - `plan/verification-debt/c7beceff.md` is published on the live site and no map
   explains it. Removing a published file is the owner's call and is not done
   here.

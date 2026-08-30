@@ -120,7 +120,13 @@ func (week changeWeek) categories() []string {
 
 // dest answers this week's published page, relative to the artifact.
 func (week changeWeek) dest() string {
-	return changesDirectory + "/" + week.Slug + "/" + pageIndexFile
+	return week.route() + pageIndexFile
+}
+
+// route answers this week's published address, relative to the site root. The
+// homepage teasers link a week by it, so the address has one spelling.
+func (week changeWeek) route() string {
+	return changesDirectory + "/" + week.Slug + "/"
 }
 
 // renderChanges publishes every week, the index over them, both feeds and the

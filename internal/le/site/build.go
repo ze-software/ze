@@ -350,6 +350,11 @@ func refreshNativeSurfaces(paths Paths) error {
 	if err := publishYANGConfigTree(paths); err != nil {
 		return err
 	}
+	// The facts snapshot counts the two files above, so it is written after
+	// them and before any producer reads it.
+	if err := publishSiteFacts(paths); err != nil {
+		return err
+	}
 	if err := renderCSS(paths.Source, paths.Output); err != nil {
 		return err
 	}

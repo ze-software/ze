@@ -27,6 +27,10 @@ const (
 	dependenciesDest      = "reference/" + dependenciesDirectory + "/" + pageIndexFile
 	dependenciesRoot      = "../../"
 	dependenciesRoute     = "/reference/" + dependenciesDirectory + "/"
+	// goModuleFile names the module file, relative to the checkout root. The
+	// dependency page reads its versions and the facts snapshot counts its
+	// direct requirements, so the path is stated once.
+	goModuleFile = "go.mod"
 )
 
 // dependencyData is data/dependencies.json: the curated grouping, which decides
@@ -146,7 +150,7 @@ func renderDependencies(paths Paths) ([]string, error) {
 	if err := readSourceJSON(paths.Source, dependenciesDataFile, &data); err != nil {
 		return nil, err
 	}
-	versions, err := directModuleVersions(filepath.Join(paths.Repository, "go.mod"))
+	versions, err := directModuleVersions(filepath.Join(paths.Repository, goModuleFile))
 	if err != nil {
 		return nil, err
 	}

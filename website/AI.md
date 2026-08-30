@@ -56,6 +56,9 @@ website/
     dependencies.json                     -- direct Go dependency explanations
     command-equivalents.json              -- curated vendor equivalents keyed by Ze CLI paths
     page-links.json                       -- page navigation and external project links
+    repo-facts.json                       -- the six committed counts about this repository
+                                              (`./le site facts update` writes it; the build
+                                              reads it rather than walking the tree)
 ```
 
 The native implementation lives in `internal/le/site`. `./le site build`
@@ -122,6 +125,13 @@ artifact boundary and can seed it from the current complete Pages checkout.
 - **Prose number tokens.** Website-owned Markdown may embed `{{ze:<name>}}`
   tokens whose values come from `data/site-facts.json`. HTML output carries a
   `data-ze-stat` marker, while Markdown mirrors receive plain text.
+- **The facts snapshot.** `data/site-facts.json` is written by the build, not by
+  hand, and it is written BEFORE any page producer runs: the prose tokens, the
+  homepage proof strip and `llms.txt` all read it back. Each number is derived
+  from one input and `_sources` names that input. Two of them are not derived
+  from this tree: the star count reaches api.github.com and keeps the previously
+  published number when it cannot, saying so in `_sources`, and the command and
+  configuration counts come from the binary this build compiled.
 - **Verification commands.** `go test ./internal/le/site` exercises the
   build boundary, source digest, asset expansion and deck bundling.
   `go test ./internal/le/docvalid -run CommandSurface` exercises native command
@@ -193,7 +203,8 @@ can request the same URL with `.md` and receive the source form used by
 Pages backed by Markdown publish that source with internal links rewritten to
 their public siblings. Pages built from JSON produce HTML and Markdown from the
 same typed input. Hand-authored HTML pages derive their mirror from the
-published main content.
+published main content, and the homepage is one of them: its copy lives in the
+build's own template, so a hand-written mirror would state that copy twice.
 
 
 ### Site design and content rules

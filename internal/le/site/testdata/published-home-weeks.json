@@ -1,0 +1,14 @@
+{
+  "2026-08-17": {
+    "intro": "The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.",
+    "tags": "BGP, CLI, API, Flow Export, DDoS, IPsec, Firewall, Appliance, RFC Compliance, Quality Improvement"
+  },
+  "2026-08-10": {
+    "intro": "Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week.",
+    "tags": "BGP, Route Server, RPKI, PPPoE, BNG, IPsec, DNS, Config, Web UI, Looking Glass, Appliance, Interfaces, RFC Compliance, Interop, Quality Improvement"
+  },
+  "2026-08-03": {
+    "intro": "Ze is being checked against the RFCs it implements, one MUST at a time, and that is where most of this week's work came from. BGP took the largest share. IS-IS learned to answer a purge of its own LSP, gNMI stopped serving unauthenticated writes, and web and DNS listeners can now carry an operator's own certificate.",
+    "tags": "BGP, IS-IS, IPsec, DDoS, RADIUS, L2TP, Interfaces, DNS, gNMI, MCP, Looking Glass, Web UI, CLI, Config, Appliance, Storage, Diagnostics, Telemetry, Security, RFC Compliance, Interop, Under the Hood, Quality Improvement"
+  }
+}

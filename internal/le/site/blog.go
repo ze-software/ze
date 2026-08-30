@@ -39,11 +39,24 @@ func blogIndexLead(changelogLink string) string {
 		"For week-by-week shipping notes, read the " + changelogLink + "."
 }
 
-// presentationTones color the index cards. They are a presentation cycle and
-// never a topic category, so a card's color states nothing about what it says.
-// The order is the palette's own, and a card takes the tone at its position in
-// the list, so inserting an article recolors the ones below it.
-var presentationTones = []string{"sky", "lemon", "grape", "mint", "pink", "gold", "teal"}
+// The site's presentation palette. A tone is a color and never a topic
+// category, so a card carrying one states nothing about what it says. Naming
+// each one keeps the seven spellings in one place: blog.go cycles them for the
+// index cards, plugins.go picks one per plugin, and home.go uses three of them.
+const (
+	toneSky   = "sky"
+	toneLemon = "lemon"
+	toneGrape = "grape"
+	toneMint  = "mint"
+	tonePink  = "pink"
+	toneGold  = "gold"
+	toneTeal  = "teal"
+)
+
+// presentationTones color the index cards. The order is the palette's own, and
+// a card takes the tone at its position in the list, so inserting an article
+// recolors the ones below it.
+var presentationTones = []string{toneSky, toneLemon, toneGrape, toneMint, tonePink, toneGold, toneTeal}
 
 // blogArticle is one editorial article: its front matter and its Markdown body.
 //
