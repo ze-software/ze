@@ -78,6 +78,21 @@ plugin {
 	internal rs {
 		use bgp-rs
 	}
+	# bgp-adj-rib-in is declared AND attached to both peers, which is not
+	# optional here. selectForwardTargets (rs/server_forward.go) skips a
+	# destination whose msgID is at or below peer.ForwardFrom, on the promise
+	# that the peer-up replay carries it, and replayForPeer
+	# (rs/server_handlers.go) can only replay what adj-rib-in ingested. A
+	# plugin that is loaded but attached to no peer receives no peer-scoped
+	# event (server/delivery_reconcile.go, reasonUnattached), so the replay
+	# gave up at "cut=9 ingested=0 budget=5s" and BOTH rails dropped the
+	# route. That happens whenever rs takes the source's UPDATE before it
+	# processes the receiver's peer-up, which is why the test passed alone
+	# and failed in the suite. remove-private-as-replace-peer.ci carries the
+	# same three blocks for the same reason.
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
 	external remove-private-as-export {
 		run "ze-test fixture plugin/remove-private-as-export"
 		encoder json
@@ -119,6 +134,10 @@ bgp {
 			receive [ update-received state open-received refresh ]
 			send [ update ]
 		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+			send [ update ]
+		}
 	}
 	peer receiver-peer {
 		connection {
@@ -151,6 +170,10 @@ bgp {
 		}
 		attach process rs {
 			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
 			send [ update ]
 		}
 	}
