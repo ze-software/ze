@@ -4,9 +4,9 @@ Ze ships native Go tools that compare documentation with the live registries
 and source tree. Pre-commit verification selects the checks affected by a
 change.
 
-<!-- source: internal/le/doccheck/actions.go -- Actions -->
-<!-- source: internal/le/docwiring/docwiring.go -- Run -->
-<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
+<!-- source: internal/le/doc/check/actions.go -- Actions -->
+<!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
 ## Quick start
 
@@ -40,9 +40,9 @@ pre-commit gate.
 <!-- source: internal/le/docvalid/actions.go -- Answer -->
 <!-- source: internal/le/docvalid/actions.go -- Answer -->
 <!-- source: internal/le/docstocode/actions.go -- Answer -->
-<!-- source: internal/le/doccheck/actions.go -- Answer -->
+<!-- source: internal/le/doc/check/actions.go -- Answer -->
 <!-- source: internal/le/consistency/consistency.go -- Answer -->
-<!-- source: internal/le/docwiring/docwiring.go -- Answer -->
+<!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
 <!-- source: internal/le/ste/actions.go -- Answer -->
 
 ## When to run
@@ -61,8 +61,8 @@ The full `./le doc check verify` remains the explicit documentation review targe
 `./le verify current mode full` runs `./le doc wiring`, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.
 
-<!-- source: internal/le/docwiring/docwiring.go -- Answer -->
-<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
+<!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
 ## How to interpret output
 
@@ -141,7 +141,20 @@ keeps an identifier or dotted method chain from the claim and compares it with
 the declarations in the anchored Go file. The scan is independent of build
 tags, so a Linux declaration remains visible on a macOS host.
 
-`internal/le/doccheck.Answer` walks the instruction corpus for paths,
+The same walk answers the opposite question. `internal/le/docstocode.ClaimsByPath`
+maps a code path to the claims written about it, each with the symbols its
+anchor names, and the `doc-drift` check in `internal/le/doc/wiring` refuses a
+commit that changed one of those symbols and left its page alone.
+<!-- source: internal/le/doc/wiring/checks.go -- checkDocDrift, touchedSymbols -->
+The check reads the diff hunks, maps each to the declaration it lands in, and
+compares those names with the anchor's claim. So an edit elsewhere in the same
+file reports nothing, and a page counts for itself alone. A test file is out of
+scope. A claim naming no resolvable symbol blocks nothing and is counted in the
+verdict line, because silence and "nothing to say" must not read alike.
+`ai/rules/documentation.md` states the obligation this enforces: the page edit
+belongs in the same work as the code edit.
+
+`internal/le/doc/check.Answer` walks the instruction corpus for paths,
 `// Design:` targets and hook names. Its last two checks do not use that
 corpus. `sweep_tracked` reads every file `git ls-files` names, one time, and
 `check_ignore_reasons` and `check_tracked_citations` share that one walk.
@@ -152,7 +165,7 @@ Two moves remove a finding: repair the reference, or mark its line with a
 marker that states why the path cannot resolve.
 
 The references that predate check 5 are grandfathered in
-`internal/le/doccheck/testdata/doc_citation_baseline.txt`, one
+`internal/le/doc/check/testdata/doc_citation_baseline.txt`, one
 `citing file<TAB>dead target` pair per line. It records pairs rather than bare
 targets, so a new file that cites an already-dead target is reported. The check
 compares the file with its version at `HEAD` and refuses every pair that `HEAD`
@@ -180,7 +193,7 @@ packages that no longer exist.
    another root name.
 3. Register the action with `internal/le/leroot` and expose it as
    `./le <area> <action>`.
-4. Add the callable action to `internal/le/docwiring` when changed files should
+4. Add the callable action to `internal/le/doc/wiring` when changed files should
    trigger it during pre-commit verification.
 5. Add its producer and exact command to this page and `ai/INDEX.md`.
 6. If agent rules need the command, edit the canonical rule point and render the
@@ -196,5 +209,5 @@ belong in that package's `testdata/` directory.
 - `ai/rules/repo-maintenance.md` -- required discovery updates when new
   checks, tools, or verification gates are added
 - `ai/rules/repo-maintenance.md` -- which native gates enforce which rules
-- `internal/le/doccheck` and `internal/le/docwiring` -- documentation checks,
+- `internal/le/doc/check` and `internal/le/doc/wiring` -- documentation checks,
   command validation, and changed-file wiring
