@@ -556,6 +556,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/discoveryindex` | generates one ai/PACKAGE-MAP.md line for each Go package |  |
 | `internal/le/doc/check` | owns the three documentation actions that the verifier runs directly |  |
 | `internal/le/doc/wiring` | calls these owners directly |  |
+| `internal/le/dockerhost` | names the Docker daemon socket a development command must talk to when nothing else can name one |  |
 | `internal/le/docstocode` | generates ai/DOCS-TO-CODE.md, the reverse index from the `// Design:` headers that live in Go files |  |
 | `internal/le/docvalid` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |  |
 | `internal/le/evidence` | owns the release-candidate container proof |  |

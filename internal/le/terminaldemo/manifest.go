@@ -108,7 +108,7 @@ func (e *Engine) validateContract(manifest Manifest) (map[string]Demo, error) {
 	}{
 		{ipName, manifest.Renderer.Name},
 		{commandVersion, manifest.Renderer.Version},
-		{"image", manifest.Renderer.Image},
+		{imageLabel, manifest.Renderer.Image},
 		{platformLabel, manifest.Renderer.Platform},
 	}
 	for _, field := range rendererFields {
@@ -445,7 +445,7 @@ func artifactJSONValue(generated artifactManifest) map[string]any {
 	return map[string]any{
 		"demos": demos,
 		"renderer": map[string]any{
-			"image":        generated.Renderer.Image,
+			imageLabel:     generated.Renderer.Image,
 			ipName:         generated.Renderer.Name,
 			platformLabel:  generated.Renderer.Platform,
 			commandVersion: generated.Renderer.Version,

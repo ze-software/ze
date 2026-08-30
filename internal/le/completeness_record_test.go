@@ -288,6 +288,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-evidence-perf-record", Area: "perf-bench", Verb: "evidence-record", Note: "run, append, then `ze-perf track --check` over the history, which is the regression gate the recipe ended on"},
 
 	// The published terminal demonstrations.
+	{Target: "ze-terminal-demo-image-build", Area: "terminal-demo", Verb: "image-build", Note: "the action reads the tag from demos/terminal/manifest.json rather than repeating it, so the image it builds is the one renderDemo runs"},
 	{Target: "ze-terminal-demo-check-all", Area: "terminal-demo", Verb: "check-all"},
 	{Target: "ze-terminal-demo-validation-check-all", Area: "terminal-demo", Verb: "validation-check-all"},
 	{Target: "ze-terminal-demo-release-check-all", Area: "terminal-demo", Verb: "release-check-all"},
@@ -490,10 +491,6 @@ var retiredProducers = []retiredProducer{
 	{
 		Target: "ze-docker-lab-build",
 		Reason: "a wrapper: the recipe was `docker build -f docker/Dockerfile.lab` with the same build arguments, and added nothing. The docker program is the producer",
-	},
-	{
-		Target: "ze-terminal-demo-image-build",
-		Reason: "a wrapper: the recipe was `docker build -f demos/terminal/Dockerfile demos/terminal` and added nothing. The tag it passed is the renderer image the manifest names, which internal/le/terminaldemo/render.go reads",
 	},
 	{
 		Target: "ze-evidence-functional-test",

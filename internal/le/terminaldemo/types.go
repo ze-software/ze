@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- the terminal-demo action area and its external renderer boundary
-// Detail: actions.go -- the six actions and their metadata
+// Detail: actions.go -- the eight actions and their metadata
 // Detail: lock.go -- the cross-process artifact-tree lock
 // Detail: manifest.go -- manifest contracts, digests, and artifact verification
 // Detail: render.go -- Docker and media execution pipeline
@@ -26,6 +26,8 @@ const (
 	outputHeight           = 1008
 	rendererValidateMode   = "validate"
 	rendererRenderMode     = "render"
+	rendererImageBuildMode = "image-build"
+	dockerProgram          = "docker"
 	platformLabel          = "platform"
 	sourceLabel            = "source"
 	transcriptLabel        = "transcript"
@@ -34,6 +36,18 @@ const (
 	transcriptFilename     = transcriptLabel + textExtension
 	dockerCapAddToken      = "--cap-add"
 	dockerEnvironmentToken = "--env"
+)
+
+// The words this package drives two other programs with, and the manifest key
+// that happens to share a spelling with one of them. Each names one thing, so a
+// rename of any of them must not move the others: goCommandBuild is a Go
+// toolchain subcommand, dockerCommandBuild and dockerCommandImage are Docker
+// subcommands, and imageLabel is a field of demos/terminal/manifest.json.
+const (
+	goCommandBuild     = "build"
+	dockerCommandBuild = "build"
+	dockerCommandImage = "image"
+	imageLabel         = "image"
 )
 
 // Command is one external renderer or media invocation. Args includes argv[0].

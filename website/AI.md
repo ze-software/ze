@@ -9,6 +9,9 @@ All `../gh-pages` content MUST be generated from this repository.
 `./le site build` replaces that worktree with the publishable artifact and keeps `.git`.
 It reuses the existing demo artifacts unless the checked-in tape definitions changed.
 Use `./le terminal-demo render-all` to force new demo artifacts.
+A recording runs in a container this repository builds, so run
+`./le terminal-demo image-build` once per checkout first. A render refuses to
+start without it and names the action.
 Commit `../gh-pages` without source code.
 
 ## Structure

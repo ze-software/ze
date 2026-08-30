@@ -17,9 +17,9 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
-// VALIDATES: all seven terminal-demo actions keep their names, reason text, and writes metadata, and only the single-demo render takes a value.
+// VALIDATES: all eight terminal-demo actions keep their names, reason text, and writes metadata, and only the single-demo render takes a value.
 // PREVENTS: a port that claims a writing renderer as a read-only check, drops one build action, or lets a demo id sit in an untyped positional slot.
-func TestActionsCarryTheSevenActionContracts(t *testing.T) {
+func TestActionsCarryTheEightActionContracts(t *testing.T) {
 	want := []struct {
 		verb   string
 		writes bool
@@ -28,6 +28,7 @@ func TestActionsCarryTheSevenActionContracts(t *testing.T) {
 		{"check-all", false, "every demo the manifest declares has its published artifacts"},
 		{"validation-check-all", false, "each scenario's output validators pass, so a demo shows the product working"},
 		{"release-check-all", false, "the published artifacts carry this release identity, which is what a tag ships"},
+		{"image-build", true, "the container every demo is recorded in, tagged as the manifest names it"},
 		{"binaries-build-ze", true, "the ze a demo drives, cross-built for the renderer container"},
 		{"binaries-build-ze-test", true, "the ze-test a demo drives, which carries ze_test alone and no version"},
 		{"render-all", true, "re-record every website demo from its checked-in tape"},
@@ -51,7 +52,7 @@ func TestActionsCarryTheSevenActionContracts(t *testing.T) {
 	if !table.TakesArguments("render") {
 		t.Error("render declares no keyword grammar, so a demo id would sit in an untyped positional slot")
 	}
-	for _, verb := range []string{"check-all", "validation-check-all", "release-check-all", "binaries-build-ze", "binaries-build-ze-test", "render-all"} {
+	for _, verb := range []string{"check-all", "validation-check-all", "release-check-all", "image-build", "binaries-build-ze", "binaries-build-ze-test", "render-all"} {
 		if table.TakesArguments(verb) {
 			t.Errorf("%s takes arguments, and a sweep of several actions can no longer name it", verb)
 		}
@@ -150,6 +151,11 @@ type demoFixture struct {
 	failValidation  int
 	wrongTranscript bool
 	failFFmpeg      int
+	// missingImage is the exit code `docker image inspect` answers with, so a
+	// case can model a host where the renderer image was never built.
+	missingImage int
+	// failImageBuild is the exit code `docker build` answers with.
+	failImageBuild int
 }
 
 func newDemoFixture(t *testing.T) *demoFixture {
@@ -222,6 +228,16 @@ func (f *demoFixture) execute(command Command) int {
 		}
 		return 0
 	}
+	// `docker image inspect <image>` is how the pipeline asks whether the renderer
+	// image is built. The fixture image is, unless a case says otherwise.
+	if len(command.Args) >= 3 && command.Args[1] == "image" && command.Args[2] == "inspect" {
+		return f.missingImage
+	}
+	// `docker build` writes no artifact this fixture publishes; the test that
+	// covers it reads the argv.
+	if len(command.Args) >= 2 && command.Args[1] == "build" {
+		return f.failImageBuild
+	}
 	entry := command.Args[len(command.Args)-1]
 	if len(command.Args) >= 2 && command.Args[len(command.Args)-2] == "validate" {
 		if f.failValidation != 0 {
@@ -265,19 +281,22 @@ func TestRenderAllRunsValidationAndPublishesExactArtifacts(t *testing.T) {
 	if report.Mode != "render" || !reflect.DeepEqual(report.Demos, []string{"term", "browser"}) {
 		t.Errorf("report = %#v", report)
 	}
-	if len(fixture.commands) != 6 {
-		t.Fatalf("commands = %d, want 6: %#v", len(fixture.commands), fixture.commands)
+	// The first command asks whether the renderer image is built. The six that
+	// follow are the two validations, the two recordings and the two ffmpeg passes.
+	if len(fixture.commands) != 7 {
+		t.Fatalf("commands = %d, want 7: %#v", len(fixture.commands), fixture.commands)
 	}
-	validation := fixture.commands[0].Args
+	assertSubsequence(t, fixture.commands[0].Args, []string{"docker", "image", "inspect", "fixture-renderer:3"})
+	validation := fixture.commands[1].Args
 	assertSubsequence(t, validation, []string{"docker", "run", "--rm", "--platform", "linux/amd64", "--network", "none"})
 	assertSubsequence(t, validation, []string{"--env", "ZE_DEMO_LOCK_HELD=1"})
 	assertSubsequence(t, validation, []string{"fixture-renderer:3", "/src/tmp/terminal-demos/bin/ze-demo", "validate", "term"})
 	if containsPrefix(validation, "ZE_DEMO_RELEASE=") {
 		t.Errorf("validation received render release env: %v", validation)
 	}
-	render := fixture.commands[2].Args
+	render := fixture.commands[3].Args
 	assertSubsequence(t, render, []string{"--env", "ZE_DEMO_RELEASE=26.08.27", "--env", "ZE_DEMO_SPEEDUP=5", "fixture-renderer:3"})
-	browserRender := fixture.commands[3].Args
+	browserRender := fixture.commands[4].Args
 	assertSubsequence(t, browserRender, []string{"docker", "run", "--rm", "--platform", "linux/amd64", "--privileged", "--network", "none"})
 	for _, name := range []string{"term.cast", "term.txt", "browser.webm", "browser.png", "browser.txt", "manifest.json"} {
 		info, statErr := os.Stat(filepath.Join(fixture.artifacts, name))
@@ -324,11 +343,11 @@ func TestRenderOneRecordsTheNamedDemoAndKeepsTheRest(t *testing.T) {
 	if report.Mode != rendererRenderMode || !reflect.DeepEqual(report.Demos, []string{"term"}) {
 		t.Errorf("report = %#v, want mode %q over [term] alone", report, rendererRenderMode)
 	}
-	// One validation and one recording. RenderAll ran six commands for the two
-	// demos, and every one of the four this run did not repeat is the cost the
-	// action exists to remove.
-	if len(fixture.commands) != 2 {
-		t.Fatalf("commands = %d, want 2: %#v", len(fixture.commands), fixture.commands)
+	// One image check, one validation and one recording. RenderAll ran seven
+	// commands for the two demos, and every one of the four this run did not
+	// repeat is the cost the action exists to remove.
+	if len(fixture.commands) != 3 {
+		t.Fatalf("commands = %d, want 3: %#v", len(fixture.commands), fixture.commands)
 	}
 	for _, command := range fixture.commands {
 		for _, argument := range command.Args {
@@ -487,8 +506,74 @@ func TestValidationStopsAtTheFirstFailure(t *testing.T) {
 	if code != 1 {
 		t.Errorf("action code = %d, want renderer code 1", code)
 	}
+	// The image check, then the validation that failed. Nothing after it ran.
+	if len(fixture.commands) != 2 {
+		t.Errorf("commands after first failure = %d, want 2", len(fixture.commands))
+	}
+}
+
+// VALIDATES: image-build tags the image the manifest names and reads the
+// Dockerfile from the demo tree.
+// PREVENTS: building under any other tag, which leaves the recorder pulling an
+// image nobody publishes while a correctly built one sits beside it.
+func TestBuildImageTagsTheImageTheManifestNames(t *testing.T) {
+	fixture := newDemoFixture(t)
+	var output bytes.Buffer
+	report, err := fixture.engine(&output).BuildImage()
+	if err != nil {
+		t.Fatalf("BuildImage: %v", err)
+	}
+	if report.Mode != rendererImageBuildMode {
+		t.Errorf("report = %#v, want mode %q", report, rendererImageBuildMode)
+	}
 	if len(fixture.commands) != 1 {
-		t.Errorf("commands after first failure = %d, want 1", len(fixture.commands))
+		t.Fatalf("commands = %d, want the build alone: %#v", len(fixture.commands), fixture.commands)
+	}
+	assertSubsequence(t, fixture.commands[0].Args, []string{
+		"docker", "build",
+		"-f", filepath.Join(fixture.root, "demos", "terminal", "Dockerfile"),
+		"-t", "fixture-renderer:3",
+		filepath.Join(fixture.root, "demos", "terminal"),
+	})
+}
+
+// VALIDATES: a failed image build is reported with the argv that failed, and its
+// report still names the action that ran.
+// PREVENTS: a build failure reaching the operator as a bare exit code, with no
+// way to see which tag or Dockerfile Docker refused.
+func TestBuildImageReportsTheArgvThatFailed(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.failImageBuild = 7
+	var output bytes.Buffer
+	report, err := fixture.engine(&output).BuildImage()
+	if err == nil {
+		t.Fatal("a failed docker build was reported as success")
+	}
+	if report.Mode != rendererImageBuildMode {
+		t.Errorf("report = %#v, want mode %q", report, rendererImageBuildMode)
+	}
+	if !strings.Contains(err.Error(), "fixture-renderer:3") || !strings.Contains(err.Error(), "code 7") {
+		t.Errorf("error = %v, want the exit code and the tag it refused", err)
+	}
+}
+
+// VALIDATES: a render on a host where the renderer image is not built is refused
+// by name, before any validator runs, and the refusal names the action that builds it.
+// PREVENTS: Docker answering a missing local image with a registry pull, which fails
+// as "pull access denied" after every validator has already run.
+func TestRenderRefusesAnUnbuiltRendererImage(t *testing.T) {
+	fixture := newDemoFixture(t)
+	fixture.missingImage = 1
+	var output bytes.Buffer
+	_, err := fixture.engine(&output).RenderAll("26.08.30")
+	if err == nil {
+		t.Fatal("a render with no renderer image was accepted")
+	}
+	if !strings.Contains(err.Error(), "le terminal-demo image-build") {
+		t.Errorf("error = %v, want the action that builds the image", err)
+	}
+	if len(fixture.commands) != 1 {
+		t.Errorf("commands = %d, want the image check alone: %#v", len(fixture.commands), fixture.commands)
 	}
 }
 

@@ -22,9 +22,20 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/dockerhost"
 )
 
 const installBuildTimeout = 20 * time.Minute
+
+// The command words this package drives two other programs with. The two
+// spellings of "build" are two words, not one: goCommandBuild is a Go
+// toolchain subcommand and zeApplianceVerbBuild is a verb of the `ze
+// appliance` area, so a rename of either must not move the other.
+const (
+	goCommandBuild       = "build"
+	zeApplianceArea      = "appliance"
+	zeApplianceVerbBuild = "build"
+)
 
 func (installer *Installer) buildHostZe(ctx context.Context, work string) (string, error) {
 	return installer.buildHostZeEnv(ctx, work, nil)
@@ -35,7 +46,7 @@ func (installer *Installer) buildHostZeEnv(ctx context.Context, work string, ext
 	hostEnv := installEnvWithoutTarget(installer.ops.Environ())
 	hostEnv = installEnvSet(hostEnv, extraEnv...)
 	result, err := installer.run(ctx, commandSpec{
-		Name: "go", Args: []string{"build", "-tags", "ze_core,ze_setup", "-o", ze, "./cmd/ze"},
+		Name: "go", Args: []string{goCommandBuild, "-tags", "ze_core,ze_setup", "-o", ze, "./cmd/ze"},
 		Dir: installer.Tree, Env: hostEnv,
 	})
 	if err != nil {
@@ -58,7 +69,7 @@ func (installer *Installer) buildInitrd(ctx context.Context, work string, extraE
 	targetEnv := installEnvSet(installer.ops.Environ(), "GOOS=linux", arch, "CGO_ENABLED=0")
 	targetEnv = installEnvSet(targetEnv, extraEnv...)
 	result, err := installer.run(ctx, commandSpec{
-		Name: ze, Args: []string{"appliance", "initrd"}, Dir: installer.Tree, Env: targetEnv,
+		Name: ze, Args: []string{zeApplianceArea, "initrd"}, Dir: installer.Tree, Env: targetEnv,
 	})
 	if err != nil {
 		return "", err
@@ -108,7 +119,7 @@ func (installer *Installer) buildImage(ctx context.Context, work string) (instal
 	applianceDir := filepath.Join(work, "appliances")
 	environ := installer.applianceEnv(applianceDir)
 	result, err := installer.run(ctx, commandSpec{
-		Name: ze, Args: []string{"appliance", "init", InstallApplianceName}, Dir: installer.Tree,
+		Name: ze, Args: []string{zeApplianceArea, "init", InstallApplianceName}, Dir: installer.Tree,
 		Env: environ, Stdin: strings.NewReader(""),
 	})
 	if err != nil {
@@ -124,7 +135,7 @@ func (installer *Installer) buildImage(ctx context.Context, work string) (instal
 		return installImage{}, err
 	}
 	result, err = installer.run(ctx, commandSpec{
-		Name: ze, Args: []string{"appliance", "build", InstallApplianceName}, Dir: installer.Tree, Env: environ,
+		Name: ze, Args: []string{zeApplianceArea, zeApplianceVerbBuild, InstallApplianceName}, Dir: installer.Tree, Env: environ,
 	})
 	if err != nil {
 		return installImage{}, err
@@ -142,7 +153,7 @@ func (installer *Installer) buildImage(ctx context.Context, work string) (instal
 		return installImage{}, errors.New("appliance build produced no image")
 	}
 	result, err = installer.run(ctx, commandSpec{
-		Name: ze, Args: []string{"appliance", "assemble", "--keep", InstallApplianceName}, Dir: installer.Tree, Env: environ,
+		Name: ze, Args: []string{zeApplianceArea, "assemble", "--keep", InstallApplianceName}, Dir: installer.Tree, Env: environ,
 	})
 	if err != nil {
 		return installImage{}, err
@@ -168,7 +179,12 @@ func (installer *Installer) applianceEnv(applianceDir string) []string {
 	applianceSetting := tb.Str("ZE_APPLIANCE_DIR=").Str(applianceDir).String()
 	tb.Reset()
 	passwordSetting := tb.Str("ze.appliance.ssh.password=").Str(installer.Options.SSHPassword).String()
-	environ := installEnvSet(installer.ops.Environ(), applianceSetting, passwordSetting)
+	// `ze appliance build` runs Docker to build the kernel and the initrd, and it
+	// inherits this environment, so the daemon socket is named here when nothing
+	// else can name it (`internal/le/dockerhost`).
+	home, _ := installer.ops.Home()
+	inherited := dockerhost.Environment(installer.ops.GOOS, home, installer.ops.Environ(), installer.ops.Socket)
+	environ := installEnvSet(inherited, applianceSetting, passwordSetting)
 	dirs := installer.brewKegDirs("e2fsprogs", "sbin")
 	if len(dirs) == 0 {
 		return environ
@@ -336,7 +352,7 @@ func (r *Run) brewPrefixes() []string {
 	if brew, err := r.ops.Look("brew"); err == nil {
 		prefixes = append(prefixes, filepath.Dir(filepath.Dir(brew)))
 	}
-	if r.ops.GOOS == "darwin" {
+	if r.ops.GOOS == goosDarwin {
 		prefixes = append(prefixes, "/opt/homebrew", "/usr/local")
 	}
 	seen := make(map[string]bool, len(prefixes))
@@ -379,22 +395,4 @@ func installVersionLess(left, right string) bool {
 		}
 	}
 	return len(leftParts) < len(rightParts)
-}
-
-// InstallDockerHost returns the inherited environment with the Darwin Colima socket selected when usable.
-func InstallDockerHost(goos, home string, environ []string, socket func(string) bool) []string {
-	if goos != "darwin" {
-		return environ
-	}
-	for _, entry := range environ {
-		if strings.HasPrefix(entry, "DOCKER_HOST=") && entry != "DOCKER_HOST=" {
-			return environ
-		}
-	}
-	candidate := filepath.Join(home, ".colima", "default", "docker.sock")
-	if !socket(candidate) {
-		return environ
-	}
-	var b textbuf.Buffer
-	return installEnvSet(environ, b.Str("DOCKER_HOST=unix://").Str(candidate).String())
 }

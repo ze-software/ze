@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/dockerhost"
 )
 
 var (
@@ -70,8 +71,61 @@ func executeCommand(command Command) int {
 	return 0
 }
 
+// BuildImage builds the renderer image the manifest names, from
+// demos/terminal/Dockerfile.
+//
+// The manifest's image tag is the only name for this image: renderDemo passes
+// it to `docker run`, so building under any other tag records nothing. The tag
+// carries the renderer's pinned versions, so a Dockerfile change that bumps one
+// is a new tag and this action builds it beside the old one.
+func (e *Engine) BuildImage() (Report, error) {
+	report := Report{Mode: rendererImageBuildMode}
+	manifest, _, err := e.loadManifest()
+	if err != nil {
+		return report, err
+	}
+	image := manifest.Renderer.Image
+	if image == "" {
+		return report, errors.New("demos/terminal/manifest.json names no renderer image")
+	}
+	if _, err := e.lookup(dockerProgram); err != nil {
+		return report, errors.New("docker is required to build the terminal-demo renderer image")
+	}
+	args := []string{dockerProgram, dockerCommandBuild, "-f", filepath.Join(e.demoRoot, "Dockerfile"), "-t", image, e.demoRoot}
+	if code := e.execute(e.externalCommand(args, e.root)); code != 0 {
+		return report, commandFailure{code: code, args: args}
+	}
+	return report, nil
+}
+
+// requireRendererImage refuses a run whose renderer image is not built yet, and
+// names the action that builds it.
+//
+// Docker's own answer to a missing image is to try a registry pull, and this
+// image is published to none, so the run dies on "pull access denied" after
+// every validator has already run. Nothing else builds the image: it comes from
+// demos/terminal/Dockerfile through `le terminal-demo image-build`.
+func (e *Engine) requireRendererImage(manifest Manifest) error {
+	image := manifest.Renderer.Image
+	if _, err := e.lookup(dockerProgram); err != nil {
+		return errors.New("docker is required to record a terminal demo")
+	}
+	command := e.externalCommand([]string{dockerProgram, dockerCommandImage, "inspect", image}, e.root)
+	command.Stdout = io.Discard
+	command.Stderr = io.Discard
+	if code := e.execute(command); code != 0 {
+		var buffer textbuf.Buffer
+		return errors.New(buffer.Str("the renderer image ").Str(image).
+			Str(" is not built on this host; run: le terminal-demo image-build").String())
+	}
+	return nil
+}
+
+// externalCommand runs Docker or ffmpeg as a child of this process. The child
+// inherits an environment, never the operator's Docker context, so on macOS the
+// daemon socket is named here (`internal/le/dockerhost`).
 func (e *Engine) externalCommand(args []string, dir string) Command {
-	return Command{Args: args, Dir: dir, Stdout: e.output, Stderr: e.output}
+	return Command{Args: args, Dir: dir, Env: dockerhost.Inherited(), Stdout: e.output, Stderr: e.output}
 }
 
 // checkAll verifies all published artifacts. A non-empty release also verifies
@@ -102,6 +156,9 @@ func (e *Engine) validationCheckAll() (Report, error) {
 			relative = e.binaryPath
 		}
 		return Report{Mode: rendererValidateMode, Demos: selected}, fmt.Errorf("missing demo binary: %s", filepath.ToSlash(relative))
+	}
+	if err := e.requireRendererImage(manifest); err != nil {
+		return Report{Mode: rendererValidateMode, Demos: selected}, err
 	}
 	for _, demoID := range selected {
 		if err := e.runValidation(manifest, indexed[demoID]); err != nil {
@@ -164,6 +221,9 @@ func (e *Engine) validateAndRender(manifest Manifest, indexed map[string]Demo, s
 		}
 		return report, fmt.Errorf("missing demo binary: %s", filepath.ToSlash(relative))
 	}
+	if err := e.requireRendererImage(manifest); err != nil {
+		return report, err
+	}
 	for _, demoID := range selected {
 		if err := e.runValidation(manifest, indexed[demoID]); err != nil {
 			return report, err
@@ -212,7 +272,7 @@ func (e *Engine) containerCommand(renderer Renderer, privileged bool, entries ..
 	buffer.Reset()
 	artifactVolume := buffer.Str(e.artifactRoot).Str(":/src/demos/terminal/artifacts").String()
 	args := []string{
-		"docker", "run", "--rm",
+		dockerProgram, "run", "--rm",
 		"--network", "none",
 		dockerCapAddToken, "NET_ADMIN",
 		dockerCapAddToken, "NET_RAW",

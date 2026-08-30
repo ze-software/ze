@@ -8,6 +8,13 @@ old source-only files there. It reuses matching demo artifacts. Run
 `./le terminal-demo render name <demo-id>` re-records one demo while you work on
 its tape, and publishes it beside the artifacts it did not record. The ids are in
 `demos/terminal/manifest.json`.
+
+A recording runs in a container this repository builds and publishes to no
+registry, so build it once per checkout with `./le terminal-demo image-build`.
+It reads the image tag from `demos/terminal/manifest.json`, which is the tag the
+recorder runs. A render refuses to start when that image is absent and names
+this action. Rebuild after any change to `demos/terminal/Dockerfile`.
+
 See `website/AI.md` for the full reference: structure, tools, and how to add a talk.
 
 

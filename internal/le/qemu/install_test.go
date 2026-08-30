@@ -492,20 +492,32 @@ func TestInstallerActionsAreNativeAndComplete(t *testing.T) {
 	}
 }
 
-// VALIDATES: Darwin Colima selection changes only DOCKER_HOST data and never invokes a shell.
-// PREVENTS: Linux /usr/local assumptions or an existing Docker context being overwritten.
-func TestInstallDockerHostSelection(t *testing.T) {
-	socket := func(path string) bool { return path == "/home/me/.colima/default/docker.sock" }
-	got := InstallDockerHost("darwin", "/home/me", []string{"PATH=/bin"}, socket)
+// VALIDATES: applianceEnv names the Colima socket on darwin when the client's
+// default endpoint is absent, and keeps a DOCKER_HOST the operator already set.
+// PREVENTS: `ze appliance build` running Docker with no reachable endpoint, and
+// the selection overwriting an operator's remote daemon. The selection's own
+// conditions are tested in internal/le/dockerhost.
+func TestApplianceEnvNamesTheDockerSocket(t *testing.T) {
+	ops := productionInstallOps()
+	ops.GOOS = "darwin"
+	ops.Home = func() (string, error) { return "/home/me", nil }
+	ops.Environ = func() []string { return []string{"PATH=/bin"} }
+	// Colima serves its own socket and the client's default is absent, which is
+	// the only shape that selects.
+	ops.Socket = func(path string) bool { return path == "/home/me/.colima/default/docker.sock" }
+	installer := &Installer{ops: ops}
+	got := installer.applianceEnv("/work/appliances")
 	if !envHas(got, "DOCKER_HOST=unix:///home/me/.colima/default/docker.sock") {
-		t.Fatalf("env=%q", got)
+		t.Fatalf("env=%q, want the Colima socket named for `ze appliance build`", got)
 	}
-	original := []string{"DOCKER_HOST=tcp://docker", "PATH=/bin"}
-	if changed := InstallDockerHost("darwin", "/home/me", original, socket); !reflect.DeepEqual(changed, original) {
-		t.Fatalf("existing changed=%q", changed)
+	if !envHas(got, "ZE_APPLIANCE_DIR=/work/appliances") {
+		t.Fatalf("appliance directory missing: %q", got)
 	}
-	if changed := InstallDockerHost("linux", "/home/me", []string{"PATH=/bin"}, socket); len(changed) != 1 {
-		t.Fatalf("linux changed=%q", changed)
+
+	ops.Environ = func() []string { return []string{"DOCKER_HOST=tcp://docker", "PATH=/bin"} }
+	installer = &Installer{ops: ops}
+	if got := installer.applianceEnv("/work/appliances"); !envHas(got, "DOCKER_HOST=tcp://docker") {
+		t.Fatalf("an operator's daemon was overwritten: %q", got)
 	}
 }
 

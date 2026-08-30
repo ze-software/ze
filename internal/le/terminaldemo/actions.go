@@ -53,6 +53,9 @@ func actionTable() leaction.Area {
 			Answer: func() (any, int) { return runRenderer(rendererValidateMode, false) }},
 		leaction.Action{Verb: "release-check-all", Why: "the published artifacts carry this release identity, which is what a tag ships",
 			Answer: func() (any, int) { return runRenderer("check", true) }},
+		leaction.Action{Verb: "image-build", Why: "the container every demo is recorded in, tagged as the manifest names it",
+			Writes: true,
+			Answer: runImageBuild},
 		leaction.Action{Verb: "binaries-build-ze", Why: "the ze a demo drives, cross-built for the renderer container",
 			Writes: true,
 			Answer: func() (any, int) { return runBuild(false) }},
@@ -69,7 +72,7 @@ func actionTable() leaction.Area {
 	)
 }
 
-// Actions answers all seven actions with their exact writes metadata.
+// Actions answers all eight actions with their exact writes metadata.
 func Actions() leaction.List { return actionTable().Actions() }
 
 // Subs answers the action hint from the same table.
@@ -153,7 +156,7 @@ func buildCommand(root string, toolchain gotoolchain.Toolchain, arch string, tes
 	}
 	output := filepath.Join(root, "tmp", "terminal-demos", "bin", outputName)
 	args := make([]string, 0, 7+len(ldflags))
-	args = append(args, "go", "build", "-tags", tags)
+	args = append(args, "go", goCommandBuild, "-tags", tags)
 	args = append(args, ldflags...)
 	args = append(args, "-o", output, "./cmd/ze")
 	environ := toolchain.Environment(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: arch})
@@ -164,7 +167,7 @@ func buildCommand(root string, toolchain gotoolchain.Toolchain, arch string, tes
 func ptyBuildCommand(root string, environ []string) Command {
 	output := filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-terminal-pty")
 	return Command{
-		Args: []string{"go", "build", "-o", output, "./cmd/ze-terminal-pty"},
+		Args: []string{"go", goCommandBuild, "-o", output, "./cmd/ze-terminal-pty"},
 		Dir:  root,
 		Env:  environ,
 	}
@@ -173,7 +176,7 @@ func ptyBuildCommand(root string, environ []string) Command {
 func runtimeBuildCommand(root string, environ []string) Command {
 	output := filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-demo")
 	return Command{
-		Args: []string{"go", "build", "-o", output, "./demos/terminal/cmd/ze-demo"},
+		Args: []string{"go", goCommandBuild, "-o", output, "./demos/terminal/cmd/ze-demo"},
 		Dir:  root,
 		Env:  environ,
 	}
@@ -202,6 +205,22 @@ func runRenderer(mode string, releaseRequired bool) (any, int) {
 		leaction.ReportError(err)
 	}
 	return report, code
+}
+
+// runImageBuild builds the renderer container image. It needs no release,
+// because the image carries the renderer's pinned versions and not Ze's.
+func runImageBuild() (any, int) {
+	engine, _, err := renderEngine(false)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	report, err := engine.BuildImage()
+	if err != nil {
+		leaction.ReportError(err)
+		return report, 1
+	}
+	return report, 0
 }
 
 // runRenderOne records the one demo the invocation names.
