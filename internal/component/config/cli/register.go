@@ -89,14 +89,6 @@ func init() {
 		Description: "Show what changed between the running and candidate configurations.",
 		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show config fix", dataFix, registry.Meta{
-		Description: "Show the repair plan a config's diagnostics imply. It never edits the file.",
-		Mode:        modeOffline,
-	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show config completion", dataCompletion, registry.Meta{
-		Description: "Show what the config editor would offer next at a context path.",
-		Mode:        modeOffline,
-	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalMeta("show config fmt", func(args []string) int {
 		return Run(append([]string{"fmt"}, args...))
 	}, registry.Meta{Description: "Pretty-print the config with consistent formatting and ordering."})
@@ -118,21 +110,17 @@ func init() {
 		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 
-	// dump, diff, fix and the validation verdict are each ONE document, so the
-	// row operators are refused over them by name. history, ls and the
-	// completion candidates answer rows.
+	// dump, diff and the validation verdict are each ONE document, so the row
+	// operators are refused over them by name. history and ls answer rows.
 	command.RegisterShape([]string{
-		"show config dump", "show config diff",
-		"show config fix", "validate config",
+		"show config dump", "show config diff", "validate config",
 	}, command.ShapeDoc)
 	command.RegisterShape([]string{
-		"show config history", "show config ls", "show config completion",
+		"show config history", "show config ls",
 	}, command.ShapeTab)
 	command.RegisterColumns([]string{"show config history"},
 		command.ColumnOrder{keyRevision, "timestamp", keyPath, "state"})
 	command.RegisterColumns([]string{"show config ls"}, command.ColumnOrder{keySource, keyPath})
-	command.RegisterColumns([]string{"show config completion"},
-		command.ColumnOrder{keyType, keyText, keyDescription})
 	registry.MustRegisterLocalMeta("show config cat", storageShortcut("cat"),
 		registry.Meta{Description: "Print the full configuration text for a stored snapshot."})
 }

@@ -14,6 +14,11 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// modeOffline is the help tag for a command that answers with no running
+// daemon. Every `ze interface` subcommand reads or writes the kernel from this
+// process, so the root is one.
+const modeOffline = "offline"
+
 // subcommands returns the sorted, comma-separated list of user-facing
 // subcommands, derived from ifaceCommands (the single source of truth shared
 // with the known-subcommand gate in Run).
@@ -29,11 +34,11 @@ func init() {
 		return Run(args)
 	}, registry.Meta{
 		Description: "Manage OS network interfaces",
-		Mode:        "offline",
+		Mode:        modeOffline,
 		Section:     registry.SectionConfiguration,
 		Subs:        subcommands(),
 	})
 	registry.MustRegisterLocal("show interface", func(args []string) int {
-		return Run(append([]string{"show"}, args...))
+		return Run(append([]string{subcmdShow}, args...))
 	})
 }

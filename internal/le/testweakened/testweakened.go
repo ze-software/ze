@@ -393,6 +393,25 @@ func readRepositoryFile(root, path string) ([]byte, error) {
 	return content, nil
 }
 
+// distinctPackages counts the package names among the findings a row hit.
+//
+// It decides whether the ambiguity the caller found is one the OPERATOR can
+// answer. A qualified row names package.Test, so it separates two findings
+// only when their packages are named differently. Two packages can share a
+// name (internal/component/iface/cli and internal/component/tacacs/cli are
+// both `cli`), and then no row text separates them: parseLedger refuses a
+// second row under the same name ("one test, one reason"), and a path scope
+// is accepted only for a path the commit RETIRES, which a surviving test file
+// is not. Demanding a row per package there is a demand nothing can meet, so
+// one row answers both occurrences and its reason covers them.
+func distinctPackages(findings []Finding, hits []int) int {
+	seen := make(map[string]bool, len(hits))
+	for _, hit := range hits {
+		seen[findings[hit].Package] = true
+	}
+	return len(seen)
+}
+
 func unmatchedProblems(rows []Row, findings []Finding) []string {
 	problems := make([]string, 0)
 	claimed := make([]bool, len(findings))
@@ -416,7 +435,7 @@ func unmatchedProblems(rows []Row, findings []Finding) []string {
 		// Only an exact-name row matching more than one finding is a
 		// collision (the same test name in two packages), and only that
 		// shape needs the operator to write one qualified row per package.
-		if len(hits) > 1 && !isScopedRowName(row.Name) {
+		if len(hits) > 1 && !isScopedRowName(row.Name) && distinctPackages(findings, hits) > 1 {
 			text.Reset().Str(ContractPath).Byte(':').Int(int64(row.Line)).
 				Str(" names ").Str(row.Name).
 				Str(", which this commit weakens in ").Int(int64(len(hits))).Str(" packages: ")

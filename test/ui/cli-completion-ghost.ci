@@ -1,0 +1,20 @@
+# Test: ze config completion --ghost — the ghost text of a partial token
+# VALIDATES: --ghost answers the completion of what the operator has typed.
+# PREVENTS: the ghost path being lost with the --json flag that used to wrap it.
+#           Ghost text is ONE line, so it stays text, and the candidate list
+#           answers through the bare `ze config completion` spelling.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 65000
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --ghost --context bgp --input set+router test.conf
+expect=exit:code=0
+expect=stdout:contains=-id

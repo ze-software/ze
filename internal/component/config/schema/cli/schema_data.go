@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — where a command is served
 // Related: docs/architecture/api/commands.md — the operator model this serves
 //
-// schema_data.go answers the six `show schema *` commands with structured
+// schema_data.go answers the five `show schema *` commands with structured
 // data, so they reach the pipe layer.
 //
 // They printed a table and returned an exit code. YANG declares a wire method
@@ -30,8 +30,6 @@ const (
 	keyNamespace   = "namespace"
 	keyMethod      = "method"
 	keyDescription = "description"
-	keyPlugin      = "plugin"
-	keyYANG        = "yang"
 )
 
 // writeSchemaError reports why the schema registry could not be built. The
@@ -66,41 +64,6 @@ func dataList(_ []string) (any, int) {
 		rows = append(rows, row)
 	}
 	return map[string]any{"schemas": rows}, 0
-}
-
-// dataModule answers `show schema module <name>`: one module, as the document
-// `ze schema show` prints as YANG source.
-//
-// It is ONE document rather than rows, and it declares that shape, so a row
-// operator is refused over it by name instead of answering something
-// plausible. The yang field is omitted when the module registered no source,
-// which is what the printed form says in its header line.
-func dataModule(args []string) (any, int) {
-	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr,
-			"error: show schema module takes one module name; `show schema list` names every module")
-		return nil, 1
-	}
-	registry, err := buildSchemaRegistry(nil)
-	if err != nil {
-		writeSchemaError(err)
-		return nil, 1
-	}
-	schema, err := registry.GetByModule(args[0])
-	if err != nil {
-		writeSchemaError(err)
-		return nil, 1
-	}
-	document := map[string]any{
-		keyModule:    args[0],
-		keyNamespace: schema.Namespace,
-		keyPlugin:    schema.Plugin,
-		subHandlers:  schema.Handlers,
-	}
-	if schema.Yang != "" {
-		document[keyYANG] = schema.Yang
-	}
-	return document, 0
 }
 
 // dataHandlers answers `show schema handlers` as ROWS rather than as the

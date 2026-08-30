@@ -12,7 +12,6 @@ import (
 func TestSchemaCliCmdSchemaOwnsSchemaCommands(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:schema-list"`,
-		`ze:command "ze-show:schema-module"`,
 		`ze:command "ze-show:schema-methods"`,
 		`ze:command "ze-show:schema-events"`,
 		`ze:command "ze-show:schema-handlers"`,

@@ -13,10 +13,8 @@ option=timeout:value=45s
 
 cmd=foreground:seq=1:exec=ze-test local-data-coverage
 expect=exit:code=0
-expect=stdout:contains=COVERED: show config completion [done]
 expect=stdout:contains=COVERED: show config diff [done]
 expect=stdout:contains=COVERED: show config dump [done]
-expect=stdout:contains=COVERED: show config fix [done]
 expect=stdout:contains=COVERED: show config history [done]
 expect=stdout:contains=COVERED: show config ls [done]
 expect=stdout:contains=COVERED: show data ls [done]
@@ -29,10 +27,8 @@ expect=stdout:contains=COVERED: show schema events [done]
 expect=stdout:contains=COVERED: show schema handlers [done]
 expect=stdout:contains=COVERED: show schema list [done]
 expect=stdout:contains=COVERED: show schema methods [done]
-expect=stdout:contains=COVERED: show schema module [done]
 expect=stdout:contains=COVERED: show schema protocol [done]
-expect=stdout:contains=COVERED: show tacacs servers [done]
 expect=stdout:contains=COVERED: show yang completion [done]
 expect=stdout:contains=COVERED: show yang tree [done]
 expect=stdout:contains=COVERED: validate config [done]
-expect=stdout:contains=OK: 22/22 local-data commands and local one-shot save
+expect=stdout:contains=OK: 18/18 local-data commands and local one-shot save

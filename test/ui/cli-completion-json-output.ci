@@ -1,5 +1,6 @@
-# Test: ze config completion — JSON output format
-# VALIDATES: --json flag produces valid JSON with correct structure
+# Test: `ze config completion` — the candidates at a context path
+# VALIDATES: the completion engine answers the candidates the config tree
+#            allows next, queried non-interactively
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -12,10 +13,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --json --context bgp --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp --input set+ test.conf
 expect=exit:code=0
-expect=stdout:contains="Text"
-expect=stdout:contains="Description"
-expect=stdout:contains="Type"
 expect=stdout:contains=router-id
 expect=stdout:contains=session

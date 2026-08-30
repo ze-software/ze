@@ -11,7 +11,7 @@
 // drift. The rendering flag each of those commands carried is DELETED: `| json`,
 // `| yaml` and `| table` render one payload (ai/rules/cli.md).
 //
-// FOUR config answers are deliberately NOT here, and that is an answer rather
+// THREE config answers are deliberately NOT here, and that is an answer rather
 // than a gap:
 //
 //   - `show config cat` returns the configuration TEXT of one snapshot. The
@@ -21,9 +21,6 @@
 //   - `ze config migrate` returns a configuration in the set or the
 //     hierarchical form. Both are configuration TEXT, for the same reason, and
 //     the form is grammar the operator types (parseOutputForm, cmd_migrate.go).
-//   - `ze config completion --ghost` returns one line of ghost text. One string
-//     is not a record, and the completion CANDIDATES, which are, answer through
-//     `show config completion`.
 
 package cli
 
@@ -45,12 +42,9 @@ import (
 // Row keys of the answers below. register.go declares the column order with the
 // same names, so a rename here that misses that file drops a column.
 const (
-	keyPath        = "path"
-	keyRevision    = "revision"
-	keySource      = "source"
-	keyType        = "type"
-	keyText        = "text"
-	keyDescription = "description"
+	keyPath     = "path"
+	keyRevision = "revision"
+	keySource   = "source"
 )
 
 // withRuntimeStore runs fn against the process's config storage.
@@ -235,52 +229,4 @@ func dataDiff(args []string) (any, int) {
 		"removed": diff.Removed,
 		"changed": diff.Changed,
 	}, exitOK
-}
-
-// dataFix answers `show config fix <file>`: the repair plan a configuration's
-// diagnostics imply. It never edits the file.
-func dataFix(args []string) (any, int) {
-	if len(args) == 0 {
-		helpfmt.WriteError(os.Stderr, false, "missing config file (use - for stdin)")
-		return nil, exitError
-	}
-	if len(args) > 1 {
-		helpfmt.WriteError(os.Stderr, false, "expected one config file, got %d", len(args))
-		return nil, exitError
-	}
-	return resolveFixPlan(args[0])
-}
-
-// dataCompletion answers `show config completion --input <text> [--context
-// <path>] <file>`: what the editor would offer next, as ROWS.
-//
-// The text form pads three columns into a line (printCompletions,
-// cmd_completion.go); the row carries the same three as FIELDS, which is what a
-// row operator can select on, and under the kebab-case names the rest of the
-// CLI answers with rather than the Go field names.
-func dataCompletion(args []string) (any, int) {
-	request, code := parseCompletionRequest(args, nil)
-	if code != exitOK {
-		return nil, code
-	}
-	if request.ghost {
-		helpfmt.WriteError(os.Stderr, false,
-			"--ghost is not part of `show config completion`: ghost text is one line, "+
-				"so ask `ze config completion --ghost` for it")
-		return nil, exitError
-	}
-
-	completer, code := completerFor(request.configPath)
-	if code != exitOK {
-		return nil, code
-	}
-
-	completions := completer.Complete(request.input, request.context)
-	rows := make([]map[string]any, 0, len(completions))
-	for _, comp := range completions {
-		rows = append(rows, map[string]any{
-			keyType: comp.Type, keyText: comp.Text, keyDescription: comp.Description,
-		})
-	}
-	return map[string]any{"completions": rows}, exitOK
 }

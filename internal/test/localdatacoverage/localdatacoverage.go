@@ -25,21 +25,7 @@ const (
 // envKeyCLIFormat is the env row this walk reads, sets and clears.
 const envKeyCLIFormat = "ze.cli.format"
 
-// keyTacacsServers is the envelope key the TACACS+ probe answers under
-// (internal/component/tacacs/cli/main.go, keyServers).
-const keyTacacsServers = "servers"
-
-// keyInterfaces names the interface scan's rows for a reader of the walk. The
-// scan answers a bare row list rather than an envelope, and rows() reads the
-// list itself when the answer is not an object.
-const keyInterfaces = "interfaces"
-
-const CompletionMarker = "OK: 22/22 local-data commands and local one-shot save"
-
-// LinuxCompletionMarker is what the linux walk prints last, and it is a SECOND
-// marker rather than a larger count in the one above: the two walks run on
-// different populations of hosts, so neither can report the other's work.
-const LinuxCompletionMarker = "OK: 1/1 linux-only local-data commands"
+const CompletionMarker = "OK: 18/18 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -50,17 +36,6 @@ func Marker(evidence string) string {
 type Invocation struct {
 	Command  string
 	Evidence string
-	// NeedsLinux marks an invocation whose command can only ANSWER on Linux,
-	// so it runs in the linux walk (RunLinux) and its scenario carries
-	// option=needs-linux rather than gating the host-safe walk with it.
-	//
-	// `show interface scan` is one: it classifies links through the netlink
-	// backend, and the backend of every other platform refuses ListInterfaces
-	// (internal/plugins/iface/netlink/backend_other.go, stubBackend). Putting
-	// it in the host walk would make that walk red on a developer's machine,
-	// and gating the whole walk on Linux would stop the other commands being
-	// proven there at all.
-	NeedsLinux bool
 }
 
 // Evidence returns the complete executable command/evidence population. Dynamic
@@ -70,8 +45,6 @@ func Evidence() []Invocation {
 	return []Invocation{
 		{Command: "show config dump %s | json compact", Evidence: "show config dump"},
 		{Command: "show config diff pipe-local.conf pipe-local-other.conf | json compact", Evidence: "show config diff"},
-		{Command: "show config fix pipe-local-broken.conf | json compact", Evidence: "show config fix"},
-		{Command: "show config completion pipe-local.conf | json compact", Evidence: "show config completion"},
 		{Command: "validate config pipe-local.conf | json compact", Evidence: "validate config"},
 		{Command: "show config history pipe-local.conf | json compact", Evidence: "show config history"},
 		{Command: "show config ls | json compact", Evidence: "show config ls"},
@@ -80,7 +53,6 @@ func Evidence() []Invocation {
 		{Command: "show schema events | count | json compact", Evidence: commandShowSchemaEvents},
 		{Command: "show schema handlers | count | json compact", Evidence: commandShowSchemaHandlers},
 		{Command: "show schema protocol | json compact", Evidence: "show schema protocol"},
-		{Command: "show schema module ze-fib-conf | json compact", Evidence: "show schema module"},
 		{Command: "show data ls --path %s | json compact", Evidence: "show data ls"},
 		{Command: "show data registered | json compact", Evidence: "show data registered"},
 		{Command: "show yang tree --commands | json compact", Evidence: "show yang tree"},
@@ -90,8 +62,6 @@ func Evidence() []Invocation {
 		{Command: "show env get ze.cli.format | json compact", Evidence: "show env get"},
 		{Command: "show env registered | json compact", Evidence: "show env registered"},
 		{Command: "show plugins | json compact", Evidence: "show plugins"},
-		{Command: "show tacacs servers %s | json compact", Evidence: "show tacacs servers"},
-		{Command: "show interface scan | json compact", Evidence: "show interface scan", NeedsLinux: true},
 	}
 }
 
@@ -341,41 +311,6 @@ func Run(output io.Writer) error {
 	})
 }
 
-// RunLinux walks the local-data commands that can only answer on a Linux
-// kernel. Its scenario carries option=needs-linux, so it runs on Linux and in
-// the QEMU virtual machine, and is skipped on a developer's other machine.
-func RunLinux(output io.Writer) error {
-	return inPrivateWorkspace(func(string) error {
-		return runLinuxScenario(output)
-	})
-}
-
-// runLinuxScenario proves that `show interface scan` reaches the pipe layer
-// with no daemon running: the local handler loads the netlink backend itself,
-// classifies every link, and the chain renders the rows.
-//
-// It asserts on the loopback interface, which is the one link every Linux
-// host has, a container and a network namespace included.
-func runLinuxScenario(output io.Writer) error {
-	payload, err := localJSON("show interface scan | json compact", "show interface scan", output)
-	if err != nil {
-		return err
-	}
-	values, err := rows(payload, keyInterfaces)
-	if err != nil {
-		return err
-	}
-	if err := requireAnyRow(values, func(row map[string]any) bool {
-		return row["name"] == "lo" && row["type"] == "loopback"
-	}, "interface scan lost the loopback row: %#v", values); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(output, LinuxCompletionMarker); err != nil {
-		return fmt.Errorf("write the linux completion marker: %w", err)
-	}
-	return nil
-}
-
 func inPrivateWorkspace(scenario func(string) error) (result error) {
 	runMu.Lock()
 	defer runMu.Unlock()
@@ -434,14 +369,9 @@ func runScenario(output io.Writer, work string) error {
 	}
 	// The diff needs a second configuration that differs inside bgp{}: the
 	// command resolves the BGP tree, so a difference anywhere else is invisible
-	// to it. The fix plan needs one that does not parse, because a plan over a
-	// clean config is a record of nothing.
+	// to it.
 	otherPath := filepath.Join(work, "pipe-local-other.conf")
 	if err := writeFixture(otherPath, "bgp {\n    router-id 10.0.0.1;\n}\n"); err != nil {
-		return err
-	}
-	brokenPath := filepath.Join(work, "pipe-local-broken.conf")
-	if err := writeFixture(brokenPath, "invalid config syntax\n"); err != nil {
 		return err
 	}
 	resolvedConfigPath, err := filepath.EvalSymlinks(configPath)
@@ -487,37 +417,6 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 
-	payload, err = localJSON("show config fix pipe-local-broken.conf | json compact", "show config fix", output)
-	if err != nil {
-		return err
-	}
-	values, err := rows(payload, "diagnostics")
-	if err != nil {
-		return err
-	}
-	if err := requireAnyRow(values, func(row map[string]any) bool {
-		return row["code"] == "config-parse"
-	}, "config fix lost the parse diagnostic of a broken config: %#v", values); err != nil {
-		return err
-	}
-
-	payload, err = localJSON("show config completion pipe-local.conf | json compact",
-		"show config completion", output)
-	if err != nil {
-		return err
-	}
-	values, err = rows(payload, "completions")
-	if err != nil {
-		return err
-	}
-	if err := requireAnyRow(values, func(row map[string]any) bool {
-		text, _ := row["text"].(string)
-		kind, _ := row["type"].(string)
-		return text != "" && kind != ""
-	}, "config completion answered no typed candidate: %#v", values); err != nil {
-		return err
-	}
-
 	payload, err = localJSON("validate config pipe-local.conf | json compact", "validate config", output)
 	if err != nil {
 		return err
@@ -532,7 +431,7 @@ func runScenario(output io.Writer, work string) error {
 	if err != nil {
 		return err
 	}
-	values, err = rows(payload, "revisions")
+	values, err := rows(payload, "revisions")
 	if err != nil {
 		return err
 	}
@@ -613,19 +512,6 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 	if err := validateProtocolDocument(payload); err != nil {
-		return err
-	}
-
-	payload, err = localJSON("show schema module ze-fib-conf | json compact", "show schema module", output)
-	if err != nil {
-		return err
-	}
-	document, _ = object(payload)
-	source, _ := document["yang"].(string)
-	if err := require(document["module"] == "ze-fib-conf" && document["namespace"] == "ze.fib.conf" &&
-		strings.Contains(source, "module ze-fib-conf"),
-		"schema module answered something other than the module it was asked for: %#v",
-		payload); err != nil {
 		return err
 	}
 
@@ -772,32 +658,6 @@ func runScenario(output io.Writer, work string) error {
 		description, ok := row["description"].(string)
 		return row["name"] == "rib" && ok && description != ""
 	}, "show plugins lost the system RIB row or its description"); err != nil {
-		return err
-	}
-
-	// The probe dials a port nothing listens on, so the row carries a refusal
-	// rather than a timeout and the walk stays fast and deterministic. The row
-	// IS the answer either way: a server that does not answer is what this
-	// command exists to report, so it still reaches the pipe layer and exits 0.
-	tacacsPath := filepath.Join(work, "tacacs-probe.conf")
-	if err := writeFixture(tacacsPath, "system {\n\tauthentication {\n\t\ttacacs {\n"+
-		"\t\t\tserver 127.0.0.1 { port 1; key \"probe\"; }\n\t\t\ttimeout 1;\n\t\t}\n\t}\n}\n"); err != nil {
-		return err
-	}
-	payload, err = localJSON(
-		"show tacacs servers "+tacacsPath+" | json compact", "show tacacs servers", output)
-	if err != nil {
-		return err
-	}
-	values, err = rows(payload, keyTacacsServers)
-	if err != nil {
-		return err
-	}
-	if err := requireAnyRow(values, func(row map[string]any) bool {
-		rtt, isText := row["rtt"].(string)
-		return row["address"] == "127.0.0.1:1" && row["port"] == float64(1) &&
-			row["reachable"] == false && isText && rtt != ""
-	}, "tacacs servers lost the probed row: %#v", values); err != nil {
 		return err
 	}
 

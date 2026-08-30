@@ -51,17 +51,17 @@ func TestEveryLocalDataRegistrationHasAFunctionalCase(t *testing.T) {
 
 func TestLocalDataCoverageEvidenceIsNonVacuousAndComplete(t *testing.T) {
 	invocations := localdatacoverage.Evidence()
-	if len(invocations) != 16 {
-		t.Fatalf("executable local-data calls = %d, want 16", len(invocations))
+	if len(invocations) != 19 {
+		t.Fatalf("executable local-data calls = %d, want 19", len(invocations))
 	}
 	distinct := make(map[string]bool, len(invocations))
 	for _, invocation := range invocations {
 		distinct[invocation.Evidence] = true
 	}
-	if len(distinct) != 15 {
-		t.Fatalf("distinct registration evidence = %d, want 15: %v", len(distinct), distinct)
+	if len(distinct) != 18 {
+		t.Fatalf("distinct registration evidence = %d, want 18: %v", len(distinct), distinct)
 	}
-	if localdatacoverage.CompletionMarker != "OK: 15/15 local-data commands and local one-shot save" {
+	if localdatacoverage.CompletionMarker != "OK: 18/18 local-data commands and local one-shot save" {
 		t.Fatalf("completion marker = %q", localdatacoverage.CompletionMarker)
 	}
 }
@@ -151,7 +151,7 @@ func validateCompiledScenario(content string, invocations []localdatacoverage.In
 
 	options, commands, exits := 0, 0, 0
 	markers := make([]string, 0)
-	for _, raw := range strings.Split(content, "\n") {
+	for raw := range strings.SplitSeq(content, "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue

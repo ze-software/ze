@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"os"
 	"testing"
 
@@ -13,11 +11,26 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
-// TestConfigFixPlanJSON verifies the full cmdFix path: reads a config file,
-// runs validation, and emits a fix-plan JSON envelope with diagnostics.
+// fixPlanAnswer runs the answer `ze config fix --plan` renders over a config
+// file and answers it encoded, which is the record cmdFix prints.
+func fixPlanAnswer(t *testing.T, configPath string) ([]byte, int) {
+	t.Helper()
+
+	payload, code := resolveFixPlan(configPath)
+	if payload == nil {
+		return nil, code
+	}
+	encoded, err := json.Marshal(payload)
+	require.NoError(t, err)
+	return encoded, code
+}
+
+// TestConfigFixPlanJSON verifies the answer path: reads a config file, runs
+// validation, and answers a fix-plan envelope with diagnostics.
 //
-// VALIDATES: AC-9 fix-plan emits plan-only JSON with diagnostics and repair candidates.
-// PREVENTS: cmdFix silently failing or producing malformed output.
+// VALIDATES: AC-9 fix-plan answers a plan-only record with diagnostics and
+// repair candidates.
+// PREVENTS: the fix plan silently failing or answering a malformed record.
 func TestConfigFixPlanJSON(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "ze-fix-test-*.conf")
 	require.NoError(t, err)
@@ -27,27 +40,16 @@ func TestConfigFixPlanJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tmpFile.Close())
 
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	code := cmdFix([]string{"--plan", "--json", tmpFile.Name()})
-
-	w.Close() //nolint:errcheck // test pipe
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r) //nolint:errcheck // test
-
-	assert.Equal(t, 0, code, "fix --plan --json should return 0")
+	encoded, code := fixPlanAnswer(t, tmpFile.Name())
+	assert.Equal(t, exitOK, code, "the fix plan of a broken config should still answer")
 
 	var raw map[string]json.RawMessage
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &raw))
+	require.NoError(t, json.Unmarshal(encoded, &raw))
 	assert.Contains(t, raw, envelopeKey())
 	assert.Contains(t, raw, "diagnostics")
 
 	var result diagnostic.FixPlanResult
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
+	require.NoError(t, json.Unmarshal(encoded, &result))
 	assert.NotEmpty(t, result.Diagnostics)
 	assert.Equal(t, "config-parse", result.Diagnostics[0].Code)
 }
@@ -79,22 +81,11 @@ func TestConfigFixPlanRepairIDsFromFix(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tmpFile.Close())
 
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	code := cmdFix([]string{"--plan", "--json", tmpFile.Name()})
-
-	w.Close() //nolint:errcheck // test pipe
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r) //nolint:errcheck // test
-
-	assert.Equal(t, 0, code)
+	encoded, code := fixPlanAnswer(t, tmpFile.Name())
+	assert.Equal(t, exitOK, code)
 
 	var result diagnostic.FixPlanResult
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
+	require.NoError(t, json.Unmarshal(encoded, &result))
 
 	var hasRepair bool
 	for _, d := range result.Diagnostics {
@@ -104,4 +95,19 @@ func TestConfigFixPlanRepairIDsFromFix(t *testing.T) {
 		}
 	}
 	assert.True(t, hasRepair, "expected at least one diagnostic with a repair ID in fix-plan output")
+}
+
+// TestConfigFixRequiresPlan verifies `ze config fix` refuses to run without
+// --plan, and names the option it wants.
+//
+// VALIDATES: the plan-only guard survived the deletion of --json.
+// PREVENTS: the guard being dropped with the rendering flag it sat beside.
+func TestConfigFixRequiresPlan(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "ze-fix-guard-*.conf")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.Remove(tmpFile.Name()) }) //nolint:errcheck,gosec // test cleanup
+	require.NoError(t, tmpFile.Close())
+
+	assert.Equal(t, 1, cmdFix([]string{tmpFile.Name()}))
+	assert.Equal(t, exitOK, cmdFix([]string{"--plan", tmpFile.Name()}))
 }

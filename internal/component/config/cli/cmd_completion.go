@@ -33,9 +33,7 @@ type completionRequest struct {
 	ghost      bool
 }
 
-// parseCompletionRequest reads the query an operator typed, for both spellings
-// of this command: the text form below and `show config completion`
-// (dataCompletion, config_data.go).
+// parseCompletionRequest reads the query an operator typed.
 //
 // usage is the help page to print when the query is unusable; a caller with no
 // page of its own passes nil.
@@ -139,7 +137,6 @@ func completionUsage() {
 			"ze config completion --input set+ config.conf",
 			"ze config completion --context bgp --input set+ config.conf",
 			"ze config completion --context bgp --input set+local config.conf",
-			"ze cli -c \"show config completion --context bgp --input set+p config.conf | json\"",
 			"ze config completion --ghost --context bgp --input set+router config.conf",
 		},
 	}
@@ -151,9 +148,7 @@ func completionUsage() {
 	fmt.Fprintln(os.Stderr, "  --input set+local      equivalent to \"set local\"")
 }
 
-// printCompletions writes the completion candidates for a reader. The same
-// candidates reach a machine as rows through `show config completion`
-// (dataCompletion, config_data.go).
+// printCompletions writes the completion candidates for a reader.
 func printCompletions(completions []cli.Completion) int {
 	var line textbuf.Buffer
 	for _, comp := range completions {

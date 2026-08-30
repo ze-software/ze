@@ -43,17 +43,16 @@ func cmdFix(args []string) int {
 	if payload == nil {
 		return code
 	}
-	// The path is the one `show config fix` registers (register.go), so this
-	// spelling of the command renders through the same column order and the
-	// same default format the pipe layer gives the other one.
-	return command.RenderLocalAnswer("show config fix", payload)
+	// The plan is rendered in the configured default format, through the same
+	// renderer every locally answered command uses, so this command prints what
+	// the rest of the CLI prints. The command path is what the renderer reads a
+	// declared column order from, and the plan is ONE document that declares
+	// none.
+	return command.RenderLocalAnswer("config fix", payload)
 }
 
 // resolveFixPlan reads a configuration, validates it, and answers the repair
 // plan its diagnostics imply. It never edits the file.
-//
-// It is the payload half of cmdFix, lifted so `show config fix` answers with
-// DATA (dataFix, config_data.go) and the two spellings cannot drift.
 func resolveFixPlan(configPath string) (any, int) {
 	data, err := cliio.ReadFile(configPath)
 	if err != nil {
@@ -77,7 +76,6 @@ func fixUsage() {
 		},
 		Examples: []string{
 			"ze config fix --plan config.conf",
-			"ze cli -c \"show config fix config.conf | json\"",
 		},
 	}
 	p.WriteErr()

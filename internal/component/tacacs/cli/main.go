@@ -6,10 +6,10 @@
 // a config file, without needing the daemon. This is the operator's "is the
 // auth server even up" probe (AC-13).
 //
-// The probe answers with DATA, so `| json`, `| yaml` and `| table` are three
-// renderings of one payload (ai/rules/cli.md). register.go serves that answer
-// as `show tacacs servers`, and the `ze tacacs show` spelling renders the same
-// payload through the same renderer, so the two spellings cannot drift apart.
+// The probe rows are rendered in the configured default format, through the
+// renderer every locally answered command uses. The `--json` flag it carried
+// before was a second, hand-written rendering of the same rows
+// (ai/rules/cli.md).
 package cli
 
 import (
@@ -28,9 +28,8 @@ import (
 	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
-// keyServers is the envelope key the probe rows travel under, so a caller
-// parses one shape whichever format it asked for. register.go declares the
-// column order against the row keys below.
+// keyServers is the envelope key the probe rows travel under, so a reader sees
+// one shape whichever way the probe was spelled.
 const keyServers = "servers"
 
 // Run dispatches `ze tacacs <sub> [args]`. Returns an exit code.
@@ -66,7 +65,6 @@ func usage() {
 		},
 		Examples: []string{
 			"ze tacacs show /etc/ze.conf",
-			`ze cli -c "show tacacs servers /etc/ze.conf | json"`,
 		},
 	}
 	p.WriteErr()
@@ -75,10 +73,9 @@ func usage() {
 // probeResult is a single server's reachability probe outcome, and one row of
 // the answer.
 //
-// RTT is the probe duration as a string, rounded to the microsecond, because
-// ONE payload serves both readers: a person reads `1.234ms` in the table, and
-// a program parses it with time.ParseDuration. A time.Duration reaches a table
-// renderer as a bare nanosecond count.
+// RTT is the probe duration as a string, rounded to the microsecond: a person
+// reads `1.234ms` in the table, and a time.Duration reaches a table renderer as
+// a bare nanosecond count.
 type probeResult struct {
 	Address   string `json:"address"`
 	Port      uint16 `json:"port"`
@@ -98,14 +95,8 @@ const (
 // cmdShow renders the probe for the `ze tacacs show <config>` spelling and
 // answers the reachability verdict as its exit code.
 //
-// The rendering goes through command.RenderLocalAnswer, the renderer the
-// `show tacacs servers` registration uses, so both spellings print one payload
-// in the configured default format.
-//
-// The exit code is where the two spellings differ, and deliberately: this one
-// is the "is the auth server up" probe, so exitAllUnreach is its answer, while
-// the command served through the pipe layer answers exitOK and puts the
-// verdict in the `reachable` field of every row.
+// The rendering goes through command.RenderLocalAnswer, so the probe prints in
+// the configured default format like every other locally answered command.
 func cmdShow(args []string) int {
 	fs := flag.NewFlagSet("ze tacacs show", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
@@ -124,7 +115,6 @@ func cmdShow(args []string) int {
 			},
 			Examples: []string{
 				"ze tacacs show /etc/ze.conf",
-				`ze cli -c "show tacacs servers /etc/ze.conf | json"`,
 			},
 		}
 		p.WriteErr()
@@ -137,30 +127,17 @@ func cmdShow(args []string) int {
 	if code != exitOK {
 		return code
 	}
-	if renderCode := command.RenderLocalAnswer("show tacacs servers", serversAnswer(results)); renderCode != 0 {
+	// The command path is what the renderer reads a declared column order and
+	// the default format from. This command declares no column order, so the
+	// rows come out in field order.
+	if renderCode := command.RenderLocalAnswer("tacacs show", serversAnswer(results)); renderCode != 0 {
 		fmt.Fprintln(os.Stderr, "error: the probe could not be rendered")
 		return exitIOOrParse
 	}
 	return showExitCode(results)
 }
 
-// dataServers answers `show tacacs servers <config>`: one row per TACACS+
-// server the config names, carrying the outcome of a TCP probe against it.
-//
-// It answers exitOK whenever the probe ran, unreachable servers included: the
-// rows ARE the answer, and a caller reads the verdict off the `reachable`
-// field. A non-zero code here would leave the operator's `| json` with nothing
-// to render, because command.ServeLocal drops the payload of a failed command.
-func dataServers(args []string) (any, int) {
-	results, code := probeConfig(args)
-	if code != exitOK {
-		return nil, code
-	}
-	return serversAnswer(results), exitOK
-}
-
-// serversAnswer wraps the probe rows in the envelope both spellings answer
-// with, so a caller parses one shape whichever one it typed.
+// serversAnswer wraps the probe rows in the envelope the renderer reads.
 func serversAnswer(results []probeResult) map[string]any {
 	return map[string]any{keyServers: results}
 }

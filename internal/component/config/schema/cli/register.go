@@ -55,7 +55,7 @@ func init() {
 		Section:     registry.SectionConfiguration,
 		Subs:        subcommands(),
 	})
-	// These six answer with DATA, so their answers go through the pipe layer
+	// These five answer with DATA, so their answers go through the pipe layer
 	// like any other command's. They printed a table and returned an exit code
 	// before, which is why `ze cli -c "show schema list | json"` answered
 	// `unknown command`: YANG declares a wire method for each and no daemon
@@ -84,19 +84,14 @@ func init() {
 		Description: "The hub architecture protocol version.",
 		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show schema module", dataModule, registry.Meta{
-		Description: "One module's YANG source, with its namespace, plugin and handlers.",
-		Mode:        modeOffline,
-	}, command.RenderLocalAnswer)
 
 	// Four answer rows read against declared column names. `show schema
-	// protocol` and `show schema module` each answer ONE document, so each
-	// declares doc. A row operator is then refused over them by name, rather
-	// than answered with something plausible.
+	// protocol` answers ONE document, so it declares doc. A row operator is
+	// then refused over it by name, rather than answered with something
+	// plausible.
 	command.RegisterShape([]string{"show schema list", "show schema methods",
 		"show schema events", "show schema handlers"}, command.ShapeTab)
-	command.RegisterShape([]string{"show schema protocol", "show schema module"},
-		command.ShapeDoc)
+	command.RegisterShape([]string{"show schema protocol"}, command.ShapeDoc)
 
 	command.RegisterColumns([]string{"show schema list"},
 		command.ColumnOrder{keyModule, keyNamespace, "wants-config", "imports"})

@@ -92,21 +92,6 @@ func plugin16TacacsShow(ctx context.Context, _ []string) error {
 	if len(table) != 0 && table[len(table)-1] != '\n' {
 		fmt.Fprintln(os.Stderr)
 	}
-	// The JSON rendering comes from the pipe layer over the same registered
-	// answer the table above rendered, with no rendering flag anywhere: the
-	// deleted `--json` was the table renderer's second spelling
-	// (ai/rules/cli.md). No daemon runs here, and none is needed: the command
-	// is served in this process by registry.MustRegisterLocalData.
-	jsonOutput, jsonErr := exec.CommandContext(ctx, "ze", "cli", "-c",
-		"show tacacs servers probe.conf | json").CombinedOutput()
-	fmt.Fprintln(os.Stderr, "--- json output ---")
-	_, _ = os.Stderr.Write(jsonOutput)
-	if len(jsonOutput) != 0 && jsonOutput[len(jsonOutput)-1] != '\n' {
-		fmt.Fprintln(os.Stderr)
-	}
-	if jsonErr != nil {
-		return fmt.Errorf("pipe-layer json exit: %w", jsonErr)
-	}
 	rowPattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(mockIP+":"+mockPortText) + `[[:space:]].* true `)
 	if !rowPattern.Match(table) {
 		return fmt.Errorf("mock server row missing reachable true in table")

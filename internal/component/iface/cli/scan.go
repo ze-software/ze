@@ -17,12 +17,10 @@ import (
 // cmdScan walks the OS for network interfaces, classifies each by Ze type, and
 // prints the result.
 //
-// The scan answers with DATA. register.go serves that answer as
-// `show interface scan`, so `| json`, `| yaml` and `| table` are three
-// renderings of ONE payload, and this handler prints the same payload through
-// the same renderer (ai/rules/cli.md). It carried a `--json` flag and a
-// `--yaml` flag before, which were two hand-written renderings of the one the
-// pipe layer already offers six of.
+// The rows are rendered in the configured default format, through the renderer
+// every locally answered command uses. It carried a `--json` flag and a
+// `--yaml` flag before, which were two hand-written renderings of what the pipe
+// layer already offers six of (ai/rules/cli.md).
 //
 // `--config` is not a rendering of the answer: it emits Ze config syntax
 // through iface.EmitConfig, so an operator can pipe the result into
@@ -48,8 +46,6 @@ func cmdScan(args []string) int {
 				"ze interface scan",
 				"ze interface scan --config",
 				"ze interface scan --managed",
-				`ze cli -c "show interface scan | json"`,
-				`ze cli -c "show interface scan | yaml"`,
 			},
 		}
 		p.WriteErr()
@@ -82,39 +78,11 @@ func cmdScan(args []string) int {
 	return command.RenderLocalAnswer(cmdPathShowInterfaceScan, scanAnswer(discovered))
 }
 
-// dataScan answers `show interface scan` with every interface the OS carries,
-// classified by Ze type.
-//
-// It loads the backend itself: the registry reaches this handler directly,
-// while the `ze interface scan` spelling arrives through Run, which has
-// already loaded one.
-//
-// It takes no arguments. The answer is every interface, and a reader who wants
-// a subset narrows it with `| match <text>` or `| display <fields>`.
-func dataScan(_ []string) (any, int) {
-	if err := ifacepkg.LoadBackend(backendNetlink); err != nil {
-		fmt.Fprintln(os.Stderr, "error: load netlink backend:", err)
-		return nil, 1
-	}
-	defer func() {
-		if err := ifacepkg.CloseBackend(); err != nil {
-			fmt.Fprintln(os.Stderr, "warning: close netlink backend:", err)
-		}
-	}()
-
-	discovered, err := ifacepkg.DiscoverInterfaces()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return nil, 1
-	}
-	return scanAnswer(discovered), 0
-}
-
-// scanAnswer is the answer both spellings carry: the rows, in the type the
+// scanAnswer is the answer this command carries: the rows, in the type the
 // daemon's own `show interface scan` handler answers with
 // (internal/component/iface/cmd/show_interface.go, handleShowInterfaceScan),
-// so the local answer and the daemon answer are the same shape rather than two
-// shapes one command can produce.
+// so the offline answer and the daemon answer are the same shape rather than
+// two shapes one command can produce.
 func scanAnswer(discovered []ifacepkg.DiscoveredInterface) plugin.Slice[ifacepkg.DiscoveredInterface] {
 	return plugin.Slice[ifacepkg.DiscoveredInterface](discovered)
 }
