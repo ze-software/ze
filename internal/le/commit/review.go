@@ -62,6 +62,20 @@ func relocatedSpecs(paths []string) map[string]bool {
 	return moved
 }
 
+// closureStem answers the one spec this commit closes, or the empty string.
+//
+// A REMOVED spec file is the closure. A journal row is evidence about it, and
+// it decides nothing on its own: five sessions share this checkout, so a class
+// file under plan/journal/ carries rows nobody in this commit wrote, and the
+// commit stages the file whole. Reading those rows as closures charged a
+// session with other people's specs, and several of them refused the commit
+// outright. Nothing could clear that: the rows land only by committing the
+// file, and the file could not be committed. A shared log that no session may
+// commit is a log that loses work.
+//
+// So a row is read only when the commit removes NO spec, which is the case the
+// single-session evidence was written for, and only when the rows agree on one
+// stem. Removals still refuse a second closure: one commit closes one spec.
 func closureStem(root string, paths, removed []string) (string, error) {
 	moved := relocatedSpecs(paths)
 	stems := make(map[string]bool)
@@ -72,6 +86,9 @@ func closureStem(root string, paths, removed []string) (string, error) {
 			!moved[base] {
 			stems[strings.TrimSuffix(strings.TrimPrefix(base, "spec-"), ".md")] = true
 		}
+	}
+	if len(stems) != 0 {
+		return oneStem(stems)
 	}
 
 	journalPaths := make([]string, 0)
@@ -93,9 +110,21 @@ func closureStem(root string, paths, removed []string) (string, error) {
 			stems[stem] = true
 		}
 	}
-	if len(stems) == 0 {
+	if len(stems) != 1 {
+		// Rows from several specs, and no spec removed. This commit closes
+		// nothing, so it owes no review artifact, and the rows ride along.
 		return "", nil
 	}
+	for stem := range stems {
+		return stem, nil
+	}
+	return "", nil
+}
+
+// oneStem answers the single closure, and refuses a commit that closes two.
+// One commit closes one spec, so a second removal is the batch this gate exists
+// to stop.
+func oneStem(stems map[string]bool) (string, error) {
 	if len(stems) > 1 {
 		names := make([]string, 0, len(stems))
 		for stem := range stems {

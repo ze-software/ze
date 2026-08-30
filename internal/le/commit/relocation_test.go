@@ -73,6 +73,59 @@ func TestAClosureBesideRelocationsIsStillRefused(t *testing.T) {
 	}
 }
 
+// TestAJournalCarryingSeveralSessionsRowsClosesNothing is the deadlock this
+// gate used to create in a shared checkout. Five sessions add rows to one class
+// file, a commit that names that file stages every row, and reading rows as
+// closures then refused the commit for specs this session never touched. The
+// rows could land only through that commit, so nothing could ever clear it.
+//
+// A removed spec file is the closure. A row is evidence about one.
+func TestAJournalCarryingSeveralSessionsRowsClosesNothing(t *testing.T) {
+	root := newCommitRepository(t)
+	path := "plan/journal/shared.md"
+	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
+	writeCommitFixture(t, root, path, header)
+	runCommitGit(t, root, "add", "--", path)
+	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
+		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "journal baseline")
+
+	writeCommitFixture(t, root, path, header+
+		"| 2026-08-30 | spec-one | cli | theirs | fixed |\n"+
+		"| 2026-08-30 | spec-two | web | theirs | fixed |\n"+
+		"| 2026-08-30 | - | doc | mine | fixed |\n")
+
+	stem, err := closureStem(root, []string{path}, nil)
+	if err != nil {
+		t.Fatalf("a shared journal refused the commit: %v", err)
+	}
+	if stem != "" {
+		t.Fatalf("closureStem = %q, want empty: this commit removes no spec", stem)
+	}
+}
+
+// TestARemovedSpecOutranksForeignJournalRows keeps the artifact bound to the
+// spec this commit actually closes, not to whatever rows the shared class file
+// happened to carry.
+func TestARemovedSpecOutranksForeignJournalRows(t *testing.T) {
+	root := newCommitRepository(t)
+	path := "plan/journal/shared.md"
+	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
+	writeCommitFixture(t, root, path, header)
+	runCommitGit(t, root, "add", "--", path)
+	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
+		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "journal baseline")
+
+	writeCommitFixture(t, root, path, header+"| 2026-08-30 | spec-theirs | cli | theirs | fixed |\n")
+
+	stem, err := closureStem(root, []string{path}, []string{"plan/spec-mine.md"})
+	if err != nil {
+		t.Fatalf("closureStem: %v", err)
+	}
+	if stem != "mine" {
+		t.Fatalf("closureStem = %q, want \"mine\": the removed spec is the closure", stem)
+	}
+}
+
 // TestOneClosureBesideRelocationsIsAllowed is the shape a real closure takes
 // when it happens to travel with bookkeeping: exactly one spec closes.
 func TestOneClosureBesideRelocationsIsAllowed(t *testing.T) {
