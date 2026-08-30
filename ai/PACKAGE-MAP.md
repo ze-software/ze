@@ -194,6 +194,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/component/bgp/plugins/llnh/yang` | embeds and registers the link-local-nexthop plugin's YANG configuration schema module |  |
 | `internal/component/bgp/plugins/nlri/evpn` | implements an EVPN family plugin for ze | bgp-nlri-evpn |
 | `internal/component/bgp/plugins/nlri/flowspec` | implements a FlowSpec family plugin for ze | bgp-nlri-flowspec |
+| `internal/component/bgp/plugins/nlri/flowspec/yang` | embeds and registers the FlowSpec match components that augment the announce command tree |  |
 | `internal/component/bgp/plugins/nlri/labeled` | implements a Labeled Unicast family plugin for ze | bgp-nlri-labeled |
 | `internal/component/bgp/plugins/nlri/ls` | implements BGP-LS family types and plugin for ze | bgp-nlri-ls |
 | `internal/component/bgp/plugins/nlri/mup` | implements a Mobile User Plane family plugin for ze | bgp-nlri-mup |

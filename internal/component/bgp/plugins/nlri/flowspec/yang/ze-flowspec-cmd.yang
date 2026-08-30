@@ -1,0 +1,158 @@
+module ze-flowspec-cmd {
+    namespace "urn:ze:flowspec:cmd";
+    prefix flowspeccmd;
+    import ze-extensions       { prefix ze; }
+    import ze-cli-announce-cmd { prefix cliannouncecmd; }
+    description "The FlowSpec match components an operator types after
+`announce flowspec`. They live here rather than in the announce module because
+this plugin owns the vocabulary: parseComponentText dispatches on it and
+isComponentKeyword is its single producer. The announce module must not restate
+another plugin's words, and an augment means it does not have to.
+
+Every component is `repeat` rather than `once`. RFC 8955 Section 4.2 allows each
+component type exactly once, so a repeated keyword is another OR group joined
+into the SAME component rather than a second one, which is what AddComponent
+performs.
+
+Each container states `config false` itself. mergeYANGEntry skips a child whose
+own Config is not false, and goyang sets Config from the node's own statement
+with no propagation from the parent, so an augmented container that omits it is
+dropped from the command tree without a word.";
+    revision 2026-08-30 { description "Initial revision: state the match components announce flowspec takes, so the model rather than a description states the grammar."; }
+
+    augment "/cliannouncecmd:announce/cliannouncecmd:flowspec" {
+
+        container destination {
+            config false;
+            ze:modifier "repeat";
+            description "Destination prefix to match (RFC 8955 type 1).";
+            leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix in CIDR form"; }
+        }
+
+        container destination-ipv4 {
+            config false;
+            ze:modifier "repeat";
+            description "Destination prefix to match, spelled for IPv4 (RFC 8955 type 1).";
+            leaf prefix { type string { length "1..49"; } mandatory true; description "IPv4 prefix in CIDR form"; }
+        }
+
+        container destination-ipv6 {
+            config false;
+            ze:modifier "repeat";
+            description "Destination prefix to match, for IPv6 (RFC 8956 type 1).";
+            leaf prefix { type string { length "1..49"; } mandatory true; description "IPv6 prefix in CIDR form"; }
+        }
+
+        container source {
+            config false;
+            ze:modifier "repeat";
+            description "Source prefix to match (RFC 8955 type 2).";
+            leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix in CIDR form"; }
+        }
+
+        container source-ipv4 {
+            config false;
+            ze:modifier "repeat";
+            description "Source prefix to match, spelled for IPv4 (RFC 8955 type 2).";
+            leaf prefix { type string { length "1..49"; } mandatory true; description "IPv4 prefix in CIDR form"; }
+        }
+
+        container source-ipv6 {
+            config false;
+            ze:modifier "repeat";
+            description "Source prefix to match, for IPv6 (RFC 8956 type 2).";
+            leaf prefix { type string { length "1..49"; } mandatory true; description "IPv6 prefix in CIDR form"; }
+        }
+
+        container protocol {
+            config false;
+            ze:modifier "repeat";
+            description "IP protocol to match, by name or number (RFC 8955 type 3).";
+            leaf value { type string { pattern '=?([0-9]+|[a-z0-9-]+)'; length "1..16"; } mandatory true; description "Protocol name such as tcp, or a number, optionally with a leading ="; }
+        }
+
+        container next-header {
+            config false;
+            ze:modifier "repeat";
+            description "IPv6 Next Header to match, by name or number (RFC 8956 type 3).";
+            leaf value { type string { pattern '=?([0-9]+|[a-z0-9-]+)'; length "1..16"; } mandatory true; description "Header name such as tcp, or a number, optionally with a leading ="; }
+        }
+
+        container port {
+            config false;
+            ze:modifier "repeat";
+            description "Source or destination port to match (RFC 8955 type 4).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Port, optionally with a comparison operator"; }
+        }
+
+        container destination-port {
+            config false;
+            ze:modifier "repeat";
+            description "Destination port to match (RFC 8955 type 5).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Port, optionally with a comparison operator"; }
+        }
+
+        container source-port {
+            config false;
+            ze:modifier "repeat";
+            description "Source port to match (RFC 8955 type 6).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Port, optionally with a comparison operator"; }
+        }
+
+        container icmp-type {
+            config false;
+            ze:modifier "repeat";
+            description "ICMP type to match (RFC 8955 type 7).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "ICMP type, optionally with a comparison operator"; }
+        }
+
+        container icmp-code {
+            config false;
+            ze:modifier "repeat";
+            description "ICMP code to match (RFC 8955 type 8).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "ICMP code, optionally with a comparison operator"; }
+        }
+
+        container tcp-flags {
+            config false;
+            ze:modifier "repeat";
+            description "TCP flags to match (RFC 8955 type 9).";
+            leaf value { type string { length "1..32"; } mandatory true; description "Flag name such as syn, or a bitmask, optionally with an operator"; }
+        }
+
+        container packet-length {
+            config false;
+            ze:modifier "repeat";
+            description "Packet length to match (RFC 8955 type 10).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Length in octets, optionally with a comparison operator"; }
+        }
+
+        container dscp {
+            config false;
+            ze:modifier "repeat";
+            description "DSCP value to match (RFC 8955 type 11).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "DSCP, optionally with a comparison operator"; }
+        }
+
+        container fragment {
+            config false;
+            ze:modifier "repeat";
+            description "Fragment bits to match (RFC 8955 type 12).";
+            leaf value { type string { length "1..32"; } mandatory true; description "Fragment name such as is-fragment, or a bitmask"; }
+        }
+
+        container flow-label {
+            config false;
+            ze:modifier "repeat";
+            description "IPv6 Flow Label to match (RFC 8956 type 13).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Flow label, optionally with a comparison operator"; }
+        }
+
+        container rd {
+            config false;
+            ze:modifier "once";
+            description "Route Distinguisher, for a VPN FlowSpec family only.";
+            leaf value { type string { length "1..32"; } mandatory true; description "Route Distinguisher, as ASN:value or address:value"; }
+        }
+    }
+}

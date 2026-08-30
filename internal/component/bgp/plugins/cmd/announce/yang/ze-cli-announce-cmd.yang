@@ -78,11 +78,48 @@ narrows the fan-out to the sessions that recorded the agreement.";
             config false;
             ze:command "ze-bgp:announce-flowspec";
             description "Originate a FlowSpec rule on demand (RFC 8955).
-The match components are the FlowSpec codec vocabulary, which the flowspec NLRI
-plugin owns and this module must not restate. The action is a mandatory choice
-where one branch carries a value, which no modifier states. Both are why this
-one command still spells its own form.
-Usage: announce flowspec <components> rate-limit <bytes-per-sec>|discard [tag <key> <value>] [for <duration>].";
+The match components come from ze-flowspec-cmd, which augments this container.
+They are the FlowSpec codec vocabulary and the plugin that owns it declares
+them, so this module never restates another plugin's words. An augmented
+container carries no declaration order, so the components sort by name and land
+in front of the action and the options declared here.
+Usage: announce flowspec [destination <prefix> ...] [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] [destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] [fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] [next-header <value> ...] [packet-length <value> ...] [port <value> ...] [protocol <value> ...] [rd <value>] [source <prefix> ...] [source-ipv4 <prefix> ...] [source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] [community <value>] [rate-limit <bytes-per-second>] [discard] [tag <key> <value>] [for <duration>].";
+
+            container community {
+                config false;
+                ze:modifier "once";
+                description "The traffic action, as the extended community RFC 8955
+Section 7 defines it. rate-limit and discard are spellings of one.";
+                leaf value { type string { length "1..64"; } mandatory true; description "Action community, such as traffic-rate or redirect"; }
+            }
+
+            container rate-limit {
+                config false;
+                ze:modifier "once";
+                description "Rate-limit the matched traffic. Sugar for a traffic-rate community.";
+                leaf bytes-per-second { type string { pattern '[0-9]+'; length "1..20"; } mandatory true; description "Rate in bytes per second"; }
+            }
+
+            container discard {
+                config false;
+                ze:modifier "once";
+                description "Discard the matched traffic. Sugar for a traffic-rate of zero.";
+            }
+
+            container tag {
+                config false;
+                ze:modifier "once";
+                description "A key and a value carried with the announcement, so a later withdraw can name it.";
+                leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
+                leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
+            }
+
+            container for {
+                config false;
+                ze:modifier "once";
+                description "How long the announcement lives before ze withdraws it.";
+                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
+            }
         }
     }
 

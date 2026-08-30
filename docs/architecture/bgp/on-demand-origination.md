@@ -59,11 +59,32 @@ grammar divides, and the model states the division rather than the handler.
 `announce` kept its command on the parent until 2026-08-30 and switched on
 `args[0]` itself. The cost fell on the model rather than on the code. One node
 states one grammar and the three forms take three, so the generated usage line
-named a first token no operator types and spelled the rest as `<args>`. The
-split states unicast and blackhole in full. `announce flowspec` still spells its
-own form: its match components are the FlowSpec codec vocabulary, which the
-flowspec NLRI plugin owns and this module must not restate, and its action is a
-mandatory choice where one branch carries a value, which no modifier states.
+named a first token no operator types and spelled the rest as `<args>`.
+
+**The vocabulary a command borrows is declared by the plugin that owns it.**
+`announce flowspec` takes nineteen match components, and they belong to the
+FlowSpec codec: `isComponentKeyword`
+(`internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go`) is their
+single producer, and `handleAnnounceFlowspec` never reads them. So the flowspec
+plugin declares them itself, through an `augment` onto the announce module's
+`flowspec` container, and the announce module never restates another plugin's
+words. Two things follow that a reader will otherwise meet as a silent
+behaviour. An augmented container states `config false` itself, because
+`mergeYANGEntry` (`internal/component/config/yang/command.go`) drops a child
+whose own `Config` is not false and goyang never propagates it from a parent.
+And `declaredContainerOrder` counts the PARENT's own container statements, so
+an augmented container's `ModifierOrder` is 0: augmented groups sort by name and
+land ahead of every locally declared one, which is why the components print
+before the action and the options.
+
+**The action is an extended community, not an alternation.** RFC 8955 Section 7
+says so, and `handleAnnounceFlowspec` already agreed before it was modelled: it
+synthesises `traffic-rate` arguments for `rate-limit` and a rate of zero for
+`discard`, then hands both to `route.ParseExtendedCommunities`. Those two are
+spellings of one thing rather than two branches of a choice, so the model states
+`community <value>` as the general case and keeps them as sugar. Reading them as
+a mandatory choice where one branch carries a value is what made this command
+look inexpressible, and it is why it kept an authored sentence until 2026-08-30.
 
 **A leaf whose name equals its container arrives as a SELECTOR, not in args.**
 `withdraw > id` declares `leaf id`, so `matchCommandTokens` matches the keyword

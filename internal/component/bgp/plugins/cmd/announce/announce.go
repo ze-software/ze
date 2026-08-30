@@ -49,7 +49,8 @@ var (
 	errMissingPrefix = errors.New("missing prefix")
 	errTagTooLong    = errors.New("tag key or value exceeds 128 characters")
 
-	errFlowspecRequiresAction    = errors.New("flowspec announce requires an action: rate-limit <bytes-per-sec> or discard")
+	errFlowspecRequiresAction    = errors.New("flowspec announce requires an action: rate-limit <bytes-per-sec>, discard, or community <action>")
+	errCommunityRequiresAction   = errors.New("community requires an action, such as traffic-rate <asn> <rate> or redirect <asn> <target>")
 	errRateLimitRequiresBytes    = errors.New("rate-limit requires a bytes-per-second value")
 	errMissingFlowspecComponents = errors.New("flowspec announce requires at least one match component (e.g. destination <prefix>)")
 )
@@ -440,11 +441,36 @@ func splitFlowspecArgs(args []string) (components, action, opts []string, err er
 				return nil, nil, nil, errRateLimitRequiresBytes
 			}
 			return args[:i], []string{"traffic-rate", "0", args[i+1], "bytes"}, args[i+2:], nil
+		case kwCommunity:
+			// RFC 8955 Section 7 makes the action an extended community, and
+			// route.ParseExtendedCommunities reads every form it defines. The
+			// two spellings above are sugar over one, so this is the general
+			// case rather than a third alternative beside them.
+			tail := args[i+1:]
+			end := trailingOptsAt(tail)
+			if end == 0 {
+				return nil, nil, nil, errCommunityRequiresAction
+			}
+			return args[:i], tail[:end], tail[end:], nil
 		case kwTag, kwFor:
 			return nil, nil, nil, errFlowspecRequiresAction
 		}
 	}
 	return nil, nil, nil, errFlowspecRequiresAction
+}
+
+// trailingOptsAt answers where the tag/for options begin, which is where the
+// action's own tokens end. An action is variable length: `discard` is one word
+// and `traffic-rate <asn> <rate> bytes` is four, so only the option keywords
+// say where it stops.
+func trailingOptsAt(args []string) int {
+	for i := range args {
+		switch strings.ToLower(args[i]) {
+		case kwTag, kwFor:
+			return i
+		}
+	}
+	return len(args)
 }
 
 // flowspecFamilyName picks "ipv4/flow" vs "ipv6/flow" from the destination or

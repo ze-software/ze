@@ -163,7 +163,32 @@ func TestSplitFlowspecArgs(t *testing.T) {
 			[]string{},
 			false,
 		},
+		{
+			// RFC 8955 Section 7 makes the action an extended community, and
+			// rate-limit and discard are spellings of one. The community form
+			// is the general case, so an action route.ParseExtendedCommunities
+			// defines and the two keywords do not, such as redirect, is now
+			// reachable rather than refused before it is ever parsed.
+			"community carries the action verbatim",
+			[]string{"destination", "10.0.0.0/24", "community", "traffic-rate", "65001", "9600", "bytes", "for", "300s"},
+			[]string{"destination", "10.0.0.0/24"},
+			[]string{"traffic-rate", "65001", "9600", "bytes"},
+			[]string{"for", "300s"},
+			false,
+		},
+		{
+			// An action's token count varies, so only the option keywords say
+			// where it ends. With none present it runs to the end.
+			"community with no trailing options",
+			[]string{"destination", "10.0.0.0/24", "community", "redirect", "65001", "100"},
+			[]string{"destination", "10.0.0.0/24"},
+			[]string{"redirect", "65001", "100"},
+			[]string{},
+			false,
+		},
 		{"rate-limit missing value", []string{"destination", "10.0.0.0/24", "rate-limit"}, nil, nil, nil, true},
+		{"community missing action", []string{"destination", "10.0.0.0/24", "community"}, nil, nil, nil, true},
+		{"community missing action before options", []string{"destination", "10.0.0.0/24", "community", "for", "300s"}, nil, nil, nil, true},
 		{"no action", []string{"destination", "10.0.0.0/24"}, nil, nil, nil, true},
 		{"opts before action", []string{"destination", "10.0.0.0/24", "tag", "x", "y"}, nil, nil, nil, true},
 	}
