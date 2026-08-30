@@ -39,17 +39,19 @@ phase itself.
    - Task section (features/requirements)
    - TDD Test Plan (unit + functional tests)
    - Files to Modify / Files to Create
-3. **Audit each requirement against the codebase** using Grep, Glob, and Read:
+3. **Read the pages before the search (BLOCKING, `ai/rules/documentation.md`):** `ai/CODE-TO-DOCS.md` lists them per file. The files are **Files to Modify** and **Files to Create**. Read those pages. Read each file's `// Design:` header. A page states what the surface promises, which is half of this audit.
+4. **Audit each requirement against the codebase** using Grep, Glob, and Read:
    - Does the code already exist? (file + symbol)
    - Is it partially implemented? What's missing?
    - Is it completely absent?
-4. **Check git history:** Run `git log --oneline -30` to find recent commits that may have implemented spec items
-5. **Report findings** as a table:
+   - Does a page from step 3 disagree with what the code does? Report it as a finding with the page, the sentence, and the producing function.
+5. **Check git history:** Run `git log --oneline -30` to find recent commits that may have implemented spec items
+6. **Report findings** as a table:
 
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
 | [item] | Done / Partial / Missing | file + symbol | what's missing or done |
 
-6. **Summarize:** Count done/partial/missing. Recommend which items to implement first based on dependencies.
+7. **Summarize:** Count done/partial/missing. Recommend which items to implement first based on dependencies. List every page-versus-code disagreement separately: those are defects the implementation repairs, not spec items.
 
 Do NOT implement anything. Report the audit only. Wait for user to decide what to build.

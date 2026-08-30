@@ -120,6 +120,14 @@ none of them.
 - **Draft first (BLOCKING).** A `.ci` under development belongs in
   `test/draft/<suite>/`. Editing a live test in place is how another session
   inherits your red.
+- **Read the documentation for the surface under test before you write the test
+  (BLOCKING, `ai/rules/documentation.md`).** `ai/CODE-TO-DOCS.md` names the pages
+  for the files the test drives. The page states what the behavior is supposed to
+  be, which is what the test asserts. A page that disagrees with the code is a
+  defect: raise it, and fix the side that is wrong, in this work.
+- **A new test format, runner, or suite convention updates its page with the
+  test, never after (`ai/rules/documentation.md`).** `ai/rules/testing.md` and the
+  owning page under `docs/architecture/testing/` are the surfaces.
 - **A red test means the code is wrong by default** (`ai/rules/testing.md`).
   Do not weaken an assertion to reach green. If the test is genuinely asking for
   something the product does not define (an ordering RFC 4271 leaves free, an

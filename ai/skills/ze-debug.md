@@ -31,7 +31,8 @@ Never trade their model down for cost; cut their NUMBER instead
 
 1. **Read the failing test output** provided by the user
 2. **Identify the failing tests:** Extract test names, packages, error messages, and expected vs actual values
-3. **Launch 4 parallel investigation agents** (use `model: opus` -- diagnosis is judgment work, see `ai/rules/planning.md`):
+3. **Read the page before you spawn anything (BLOCKING, `ai/rules/documentation.md`):** look up each failing file in `ai/CODE-TO-DOCS.md`. Read the pages it lists. Read the file's `// Design:` header. Put those page paths in every agent prompt below. Say what each page claimed. A page that contradicts the failure is the bug or the defect. Step 5 decides which.
+4. **Launch 4 parallel investigation agents** (use `model: opus` -- diagnosis is judgment work, see `ai/rules/planning.md`):
 
    **Task 1 -- Format/parsing mismatch:**
    Check test expectations against actual output formats. Are the tests expecting a different structure, field name, or encoding than what the code produces?
@@ -45,15 +46,16 @@ Never trade their model down for cost; cut their NUMBER instead
    **Task 4 -- Concurrency/wiring issue:**
    Check for race conditions, nil pointer from uninitialized dependencies, wrong production path (grep for ALL implementations of the handler -- the test may call a different one than production), and plugin wiring gaps (feature implemented but not reachable from its entry point).
 
-4. **Each task must DIAGNOSE before it fixes** (per `ai/rules/completion.md`):
+5. **Each task must DIAGNOSE before it fixes** (per `ai/rules/completion.md`):
    - Read the relevant source code.
    - Produce a Diagnosis: **symptom**, **root cause traced to the exact function** where behavior diverges from intent (cite it — no guessing), the **owning layer**, **two candidate fixes labeled `[workaround]` vs `[source]`**, and one line on **why the workaround is wrong**.
    - If the failure is a check/validation rejecting the input, answer the three-way question: is the check wrong, is the input wrong, or is the check's data/config incomplete?
    - **Only then** implement the `[source]` fix at the owning layer.
    - Run `go test ./...` to verify the specific fix.
-5. **Confirm the fix is at the source, not the symptom:** before accepting any fix, re-read its Diagnosis. If the change makes the test pass by editing the test, renaming a symbol, or special-casing the failing input rather than correcting the traced root cause, reject it and return to step 4. Changing a test to match broken code is never the fix (`ai/rules/testing.md`).
-6. **Run full verification:** `./le verify lint run && ./le test-unit && ./le functional` -- the fix must not break anything else
-7. **Report back** with, for each fixed failure: the Diagnosis (symptom, root-cause function, owning layer), which hypothesis was correct, the `[source]` fix chosen over the `[workaround]`, and full test suite passing
+6. **Confirm the fix is at the source, not the symptom:** before accepting any fix, re-read its Diagnosis. If the change makes the test pass by editing the test, renaming a symbol, or special-casing the failing input rather than correcting the traced root cause, reject it and return to step 5. Changing a test to match broken code is never the fix (`ai/rules/testing.md`).
+7. **Update the pages the fix made wrong, in this diff (BLOCKING, `ai/rules/documentation.md`):** the pages are the ones step 3 read. Two things get repaired here. A page the fix made wrong, and a page step 3 found wrong about the code. Neither waits for closure.
+8. **Run full verification:** `./le verify lint run && ./le test-unit && ./le functional` -- the fix must not break anything else
+9. **Report back** on each fixed failure. Give the Diagnosis (symptom, root-cause function, owning layer). Give the correct hypothesis, the `[source]` fix chosen over the `[workaround]`, the page updated, and the full suite green
 
 ## Fallback
 

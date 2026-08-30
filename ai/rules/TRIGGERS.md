@@ -16,6 +16,7 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/completion.md` | blocking | before claiming any work done, complete, or ready to commit, and whenever a defect, a red test, or a missing behavior blocks that claim |
 | `ai/rules/config.md` | blocking | adding or changing a config option, YANG module, env var, listener endpoint, or code that reads config values |
 | `ai/rules/context-economy.md` | blocking | spawning an agent, batching tool calls, looking up a symbol, reading a source file, or running a shell command in a long session |
+| `ai/rules/documentation.md` | blocking, always-on | before you spawn an agent or open a search to learn how a surface works, and whenever an edit changes behavior a page describes |
 | `ai/rules/evidence.md` | blocking | stating what code does, acting on recorded claims, writing or reviewing a guard, or writing any string that enumerates data a registry already holds |
 | `ai/rules/git-safety.md` | blocking, always-on | before any git operation, and when writing or running a commit script |
 | `ai/rules/go-standards.md` | blocking | writing Go in Ze: naming, env access, context, logging, imports, errors, API contracts, typed-vs-string choices, file layout and cross-references... |

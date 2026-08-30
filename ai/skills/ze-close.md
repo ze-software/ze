@@ -85,7 +85,7 @@ command removes the spec). The handoff commit is neither of them. Get the handof
 |------|--------------------------|
 | 1. Deliverables review | **Deliverables Checklist**, then APPEND `plan/TEMPLATE-CLOSURE.md` and fill **Goal Validation** + **Implementation Summary** |
 | 2. Security review | **Security Review Checklist** (feature-specific concerns) |
-| 4. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
+| 4. Documentation review | **Documentation Update Checklist** (verify the per-category doc updates the implementation already made) |
 | 5. Review Gate | **Review Gate**: record via `./le spec session review record`, loop to 0 BLOCKER/0 ISSUE |
 | 6. Close + commit | **Implementation Audit**, **Pre-Commit Verification**, **Deferrals Resolved** |
 
@@ -119,8 +119,8 @@ command removes the spec). The handoff commit is neither of them. Get the handof
      - Any OWASP Top 10 relevant to the code's context
    - Fix every issue found. If a fix requires design changes, present to user before proceeding.
 3. **Re-run verification:** `./le verify worktree`
-4. **Documentation review (BLOCKING):** Use the spec's **Documentation Update Checklist** table. For each row:
-   - Answer Yes or No. Every Yes MUST name the file and describe the update needed.
+4. **Documentation review (BLOCKING):** This step VERIFIES the pages `/ze-implement` already updated, and finds the gaps it left. It is not where documentation starts (`ai/rules/documentation.md`). A page this step finds stale is a defect of the phase that changed the behavior. Repair it here. Record a Mistake Log row, so the next spec does not repeat it. Use the spec's **Documentation Update Checklist** table. For each row:
+   - Answer Yes or No. Every Yes MUST name the file and the update, and MUST point at the commit or diff hunk that already made it.
    - Every No MUST be backed by source-aware evidence. At minimum, grep `docs/` for source anchors pointing at changed files and check the category does not apply.
    - Do NOT say "update the docs." Name the specific file, the specific section, and what to add.
    - Categories: feature list, user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
@@ -132,7 +132,7 @@ command removes the spec). The handoff commit is neither of them. Get the handof
    - Every factual doc update MUST include or update a `<!-- source: path -- symbol -->` anchor immediately after the claim.
    - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, external socket, kernel module, listen port, external binary, TLS cert), verify a corresponding `ze doctor` check exists per `ai/rules/repo-maintenance.md`. Add missing checks and register diagnostic codes in `internal/core/diagnostic/codes.go`.
    - **RFC status (BLOCKING):** If the change implements, changes, or newly proves any RFC-level protocol behavior, update the matching `docs/features/rfc-status.md` row (Status, Implemented coverage, Remaining) with a source anchor to the producing `file:line`, and reconcile `docs/comparison.md` / `docs/features.md` when the support level changes. Per `ai/rules/repo-maintenance.md`.
-   - Write the doc updates, run `./le doc check verify`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
+   - Repair whatever this check found stale, run `./le doc check verify`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
 5. **/ze-review gate (BLOCKING -- the final review before closure):** `/ze-implement`'s inline reviews check the diff against the spec's own checklists. This gate runs the generic adversarial `/ze-review` over the COMPLETE diff -- including every fix those reviews produced -- and loops until it is clean. It satisfies the Review Gate defined in `ai/rules/planning.md`; the inline reviews do not substitute for it (they check the spec's own checklists; `/ze-review` checks what nobody planned for).
    - Run `/ze-review`'s steps YOURSELF over the uncommitted changes. Its own Delegation section tells a main thread to spawn a reviewer; you are not a main thread, so that paragraph does not apply to you and you MUST NOT spawn one (see Delegation above). Read the skill, then work its steps in this context. It runs its own automated pre-checks (`./le repository check`, `./le commit audit`) as its step 0.
    - **The style pass is part of that gate, and it is the part a reviewer under time pressure drops.** `/ze-review` step 18 checks every changed Go file against `docs/contributing/ze-go-style.md`. It asks six questions there. The first one is a BLOCKER whenever its trace reaches a socket: can a peer reach this `panic()`? A run that reports no style finding on a diff carrying new Go states that it ran the pass.

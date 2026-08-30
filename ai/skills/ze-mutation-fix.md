@@ -37,6 +37,9 @@ See also: `./le mutation` (report combination and history actions)
 5. Implement fixes in batches by file:
    - For test gaps: write the minimal test that fails with the mutation applied
    - For code bugs: fix the code, then verify existing tests catch the fix
+   - For a code bug that changes documented behavior: update the pages
+     `ai/CODE-TO-DOCS.md` lists for that file in the same batch, never at the end
+     (`ai/rules/documentation.md`)
    - Run `go test -race "$ARGUMENTS"` after each batch
 
 6. Re-run the same `go run github.com/sivchari/gomu/cmd/gomu run ... "$ARGUMENTS"` command to measure improvement. Use `./le mutation record-history report mutation-report.json` when the run must enter the committed history.

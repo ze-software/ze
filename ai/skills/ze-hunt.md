@@ -35,7 +35,10 @@ Example: `/ze-hunt internal/component/bgp/`.
    generated `*_generated.go` / `*.pb.go`).
 3. **A grep hit is a CANDIDATE, never a finding.** For every hit, open the file
    and read the surrounding code before classifying. Do not report a grep line
-   as a bug.
+   as a bug. Read the file's `// Design:` header and the pages
+   `ai/CODE-TO-DOCS.md` lists for it as well (`ai/rules/documentation.md`). A page
+   that states the intent turns a candidate into a finding or a false positive.
+   A page that disagrees with the code is itself a finding.
 4. Rule out the known false positives listed per hunt.
 5. For surviving candidates, verify against callers: does any caller handle the
    bad value (e.g. check `.IsValid()`, the error, the lock)? If yes, downgrade;

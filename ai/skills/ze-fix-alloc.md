@@ -16,10 +16,14 @@ See also: `/ze-find-alloc` (find allocations to fix)
    - Example: `internal/core/bgp/attribute/simple.go:MED.Pack`
    - Example: `internal/component/bgp/reactor/reactor.go`
    - If no argument: print "Usage: /ze-fix-alloc file.go:line-or-function" and stop
-3. Read the target file and understand the allocation context
-4. Read callers of the function to understand how the result is used
-5. Apply the appropriate fix pattern (see below)
-6. Run `./le verify lint run && ./le test-unit` to verify
+3. Read the target file's `// Design:` header and every page `ai/CODE-TO-DOCS.md` lists for it,
+   before any search (`ai/rules/documentation.md`). An encoding contract is usually written down
+   already, and a page that disagrees with the code is a defect this work repairs.
+4. Read the target file and understand the allocation context
+5. Read callers of the function to understand how the result is used
+6. Apply the appropriate fix pattern (see below)
+7. Update any page from step 3 that this change made wrong, in the same diff, before you verify
+8. Run `./le verify lint run && ./le test-unit` to verify
 
 ## Pre-Flight Checks
 
@@ -182,6 +186,7 @@ After making changes:
 2. **Lint:** `./le verify lint run`
 3. **Test:** `./le test-unit`
 4. **Check for Pack() deprecation:** If ALL callers now use WriteTo, add deprecation comment to Pack()
+5. **Documentation:** the pages from instruction 3 describe the code as it now stands, and the diff carries those edits (`ai/rules/documentation.md`)
 
 ## Common Mistakes to Avoid
 

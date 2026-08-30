@@ -350,7 +350,7 @@ SCOPE: Review these changed files: {file_list}
 For every changed function, struct, config option, CLI flag, or RPC:
 1. Does `docs/` contain documentation for this feature? Search for mentions.
 2. If docs exist: do they match the current code? Check field names, syntax, behavior descriptions.
-3. If the change modifies documented behavior: was the doc updated in this diff?
+3. If the change modifies documented behavior: was the doc updated in this diff? The page edit belongs beside the code edit (`ai/rules/documentation.md`). A plan to write it at closure is not an answer, and the missing page is a finding.
 4. For every `<!-- source: path -- symbol -->` anchor in related docs: does the anchor still point to valid code?
 
 Check these specific doc locations against changes:

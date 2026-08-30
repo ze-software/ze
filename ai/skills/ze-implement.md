@@ -23,6 +23,12 @@ phase itself.
   `subagent_type: ze-work` (`ai/rules/context-economy.md`). Do not run the
   steps below inline. You do not need to ask permission first
   (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
+- **Read the documentation for every surface the spec touches BEFORE you spawn
+  the first phase agent (`ai/rules/documentation.md`).** `ai/CODE-TO-DOCS.md`
+  names the pages that document each file in the spec's **Files to Modify**
+  list. Put those page paths in each agent's prompt. An agent sent to discover
+  a contract that a page already states pays twice for one answer. A page that
+  disagrees with the code is a defect this spec now owns.
 - **Order the phase agents by their dependencies.** Phases that do not depend on
   each other go out in ONE message with parallel `Agent` calls. A phase that
   consumes what an earlier phase wrote waits for that phase's handoff.
@@ -171,6 +177,11 @@ actions. `./le verify worktree` is the pre-commit GATE
      existing test), run it NOW — before any feature code — and flip Status to `confirmed`
      or `broken`. A `broken` assumption gets a Mistake Log "Wrong Assumptions" row; if it
      invalidates the approved design, STOP and present to the user before coding.
+   - **Documentation first (BLOCKING):** For every file in **Files to Modify**, read the pages
+     `ai/CODE-TO-DOCS.md` lists for it, and the file's own `// Design:` header
+     (`ai/rules/documentation.md`). Record the page paths in the state file: those are the pages
+     step 5 keeps true. A page that already answers a question the spec asks saves the search.
+     A page that disagrees with the code is a defect, and this spec repairs it.
    - If the spec has the section but with only placeholder rows, treat it as missing (see Rules).
 4. **Wiring phase (MANDATORY FIRST — before any feature code):**
    Read the spec's **Wiring Test** table. For each row:
@@ -190,6 +201,13 @@ actions. `./le verify worktree` is the pre-commit GATE
    - Before the phase ends, re-read the Go you wrote for it against `docs/contributing/ze-go-style.md`.
      A style defect caught in the phase that produced it costs one edit. The same defect
      caught in step 7 costs a re-read of every phase before it.
+   - **Update the documentation this phase made wrong, IN this phase, before the phase ends
+     (BLOCKING, `ai/rules/documentation.md`).** The pages are the ones step 3 recorded, plus any
+     page holding a `<!-- source: -->` anchor on a file you edited.
+     `ai/rules/repo-maintenance.md` says which page each change obliges you to update.
+     Write the page edit next to the code edit, in the same phase and the same diff.
+     `/ze-close` step 4 CHECKS these pages. It is not where they get written, and a phase that
+     changed behavior and touched no page has to say why in its report.
    - Move to next phase
 6. **Run full verification:** `./le verify lint run && ./le test-unit && ./le functional`
 7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
@@ -197,6 +215,10 @@ actions. `./le verify worktree` is the pre-commit GATE
    - Document pass/fail for each check
    - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests, Style)
    - **Ze Style (BLOCKING):** Apply the Style row of `ai/rules/quality.md` to every Go file this spec touched, against `docs/contributing/ze-go-style.md`. Four questions, and the first is a BLOCKER on its own. Can a peer reach any `panic()` you added? Trace the input back to the socket: a malformed message is an operating error and returns an error. What bounds each new loop, queue, retry, and cache? Does each new name say what the value IS rather than its Go type? Does each new lifecycle or paired call state its obligation with MUST on BOTH sides?
+   - **Documentation (BLOCKING):** Every page step 5 owed is already updated in this diff. Read
+     each one against the code as it now stands. A page still describing the old behavior is a
+     defect of the phase that changed it. Repair it here, and name that phase in the report.
+     Deferring it to `/ze-close` is banned (`ai/rules/documentation.md`).
    - **CLI grammar (BLOCKING):** If any CLI command was added or changed, verify it follows action-before-identifier per `ai/rules/cli.md`. Run the mechanical check: `args[0]` must always be a keyword, never a user identifier.
    - **Invocation-form change (BLOCKING):** If the change REMOVES or ALTERS how a binary is invoked (a launch/dispatch form, a positional's meaning, a flag's meaning), enumerate EVERY invocation site by searching for the bare invocation token (`\bze <positional>`), not only the framework directive (`exec=ze`). Invocations hide in `.ci` `exec=` directives, embedded `tmpfs=` bodies, compiled fixture drivers under `internal/test/fixture`, test-runner launch code, and compatibility launchers under `internal/test`. Prove the complete affected suite, never a sample, because only it runs every embedded launch (learned 1248).
    - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, socket, kernel module, port, TLS cert, external binary), verify a `ze doctor` check exists per `ai/rules/repo-maintenance.md`. Register diagnostic codes in `internal/core/diagnostic/codes.go`.
@@ -246,6 +268,10 @@ actions. `./le verify worktree` is the pre-commit GATE
 ## Rules
 
 - **Diagnosis before fix (BLOCKING).** When a test, gate, or review finding fails, write the five-part Diagnosis before editing (`ai/rules/completion.md`): symptom, root cause traced to the producing function, owning layer, two fixes labeled `[workaround]`/`[source]`, why not the workaround. Fix the root cause at the owning layer. Renaming, skipping, special-casing, or weakening a test to reach green is a workaround, not a fix. When a check rejects you, ask: is the check wrong, is the input wrong, or is the check's data/config incomplete?
+- **No deferred documentation (BLOCKING).** The pages a phase made wrong are updated in that
+  phase, never in a final pass and never in `/ze-close` (`ai/rules/documentation.md`). The
+  spec's **Documentation Update Checklist** is the list `/ze-close` verifies, not a queue of
+  work to start there. A diff that changes behavior and carries no page edit states why.
 - **No deferred work.** Every item in the spec must be implemented fully before reporting completion. No TODOs, no stubs, no placeholder implementations, no "left as future work" notes, no comments like "// TODO: handle X later". If an item turns out to be blocked, ambiguous, or harder than expected, stop and raise it with the user to re-negotiate scope. Never silently skip or defer.
 - **Design-doc "Deferred to a later phase" sections are not authoritative.** When the user picks an option whose design doc carves out follow-on work as deferred, do NOT parrot that carve-out. Treat the entire problem as in scope and ask before excluding anything.
 - Do NOT skip the audit step -- re-implementing existing code wastes time

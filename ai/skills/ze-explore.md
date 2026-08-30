@@ -36,7 +36,8 @@ phase itself.
 
 ## Steps
 
-1. **Search by category:** For each category, search for files related to the topic:
+1. **Read the pages first (BLOCKING, `ai/rules/documentation.md`):** `ai/INDEX.md` maps the topic to its page. `ai/DOCS-TO-CODE.md` maps a page to its files. `ai/CODE-TO-DOCS.md` maps a file to its pages. Read those pages before the search below. Say what they answered. Search for what they left silent or got wrong.
+2. **Search by category:** For each remaining question, search for files related to the topic:
 
    | Category | Where to look |
    |----------|--------------|
@@ -48,11 +49,12 @@ phase itself.
    | Config/YANG | `schema/`, `*.yang` |
    | Rules | `.claude/rules/` |
 
-2. **Read each file:** Read every match. Do not skim or skip.
-3. **Summarize findings:**
+3. **Read each file:** Read every match. Do not skim or skip.
+4. **Summarize findings:**
    - Which files exist and what they do
    - Current behavior and patterns used
    - How the pieces connect (data flow, imports, callers/callees)
-4. **Propose a plan:** Based on what exists, suggest what to change and how -- extending existing code, not duplicating
+   - Every place a page from step 1 disagrees with the code you read. Name the page, the sentence, and the producing function. That list is a defect list, and the work that acts on this exploration repairs it (`ai/rules/documentation.md`).
+5. **Propose a plan:** Based on what exists, suggest what to change and how -- extending existing code, not duplicating
 
 Do NOT edit anything. Summarize and propose only. Wait for user approval before making any changes.

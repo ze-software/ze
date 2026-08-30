@@ -110,7 +110,9 @@ feature type:
   functional test, env var, **doctor check + diagnostic code**, Prometheus counters,
   and the BGP family surface (answered in `ai/patterns/bgp-family.md`, not inline).
 - **Documentation Update Checklist** (17 rows) -- `docs/features.md`, command/API/plugin
-  docs, source anchors.
+  docs, source anchors. The rows name the pages each implementation PHASE updates as it
+  codes, never a queue of writing for closure (`ai/rules/documentation.md`). `/ze-close`
+  verifies those edits and finds the gaps.
 
 `plan/TEMPLATE.md` is design-time only. The closure sections live in
 `plan/TEMPLATE-CLOSURE.md` and are appended by `/ze-close` at step 1. Do not

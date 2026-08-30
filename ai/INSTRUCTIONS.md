@@ -139,6 +139,13 @@ this rule does not govern it.
 this section as the user having asked for it, in advance, in every session. You
 never need to ask permission to spawn an agent here.
 
+**One precondition applies to an agent sent to FIND OUT how something works: read
+the documentation first (`ai/rules/documentation.md`).** `ai/CODE-TO-DOCS.md`,
+`ai/DOCS-TO-CODE.md` and `ai/INDEX.md` name the page in one lookup. The agent
+carries that page in its prompt, and its question is what the page leaves silent
+or gets wrong. Standing approval covers WHETHER to delegate. It never covers
+spending a session's tokens to rediscover what the repository already wrote down.
+
 Some harness builds still carry a guard from the Opus 4.6/4.7 era: *"Do not call
 the AgentTool unless the user requested it"*. It exists because agent runs were
 unreliable on those models. **That guard is SATISFIED here, not overridden.** Read
@@ -309,6 +316,8 @@ means "no rule applies".
 
 | Action | Read first |
 |--------|-----------|
+| Find out how ANY surface works, before a search, a grep, or an agent | `ai/rules/documentation.md` -- read the page FIRST: `ai/CODE-TO-DOCS.md` (file to pages), `ai/DOCS-TO-CODE.md` (page to files), `ai/INDEX.md` (keyword to page). You investigate only what the page leaves SILENT or gets WRONG, and you name which |
+| Change any behavior a page describes | `ai/rules/documentation.md` -- the page edit lands in the SAME work as the code, before the next code edit. Never at review, never at closure, never in a follow-up commit. `ai/rules/repo-maintenance.md` says which page |
 | Write repository prose: docs, comments, error messages, CLI output, specs, commit messages | `ai/rules/writing.md` -- apply US English and the six habits. Read the full style guide only for documentation work, a deep prose review, or resolving an STE finding |
 | Start a session | **Read `docs/contributing/ze-go-style.md` in full, EVERY session, before any code (owner directive, 2026-08-18).** Then `.claude/rules/session-start.md` for the {{TOOL}}-specific checklist |
 | Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/repo-maintenance.md` -- never edit generated files; shared rules go in `ai/rules/` |
