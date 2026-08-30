@@ -149,7 +149,7 @@ set system authorization profile read-only run default-action allow
 set system authorization profile read-only edit default-action deny
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config ls
@@ -221,7 +221,7 @@ cat >>"$CONFIG_SET" <<'EOF'
 set plugin internal bgp-rr use bgp-rr
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service

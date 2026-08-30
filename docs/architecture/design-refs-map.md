@@ -6,7 +6,7 @@ that files in that directory should carry. Enforced by
 that are not test, generated, register, embed, or doc files).
 
 This file is the source of truth for the directory-to-document mapping consumed
-by `internal/le/docwiring.Answer`.
+by `internal/le/doc/wiring.Answer`.
 
 Multi-line entries (Design + RFC) appear when a plugin implements a specific
 RFC. Both lines belong at the top of every non-exempt file in the directory.

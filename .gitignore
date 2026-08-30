@@ -83,7 +83,7 @@ AGENTS.md
 test/perf/results/
 bin/ze-perf-linux
 # Cross-compiled ze binary staged into the IPsec interop Docker build context by
-# `internal/le/interoplab/ipsec.buildZe`; regenerated each run.
+# `buildZe` in `internal/le/interoplab/ipsec`; regenerated each run.
 test/interop-ipsec/ze-linux
 
 # Runtime / scratch artifacts that leak into the working tree from running ze

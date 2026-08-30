@@ -804,7 +804,8 @@ peer upstream1 update text nhop set 10.0.0.1 \
 
 ## Raw Passthrough Commands
 
-Send raw bytes with no validation ("trust me bro" mode):
+Send raw bytes with no validation ("trust me bro" mode). The peer must attach the
+program with `send [ raw ]`; no other send type permits it.
 
 | Command | What's sent | Header |
 |---------|-------------|--------|

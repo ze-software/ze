@@ -357,9 +357,36 @@ BGP-LS Propagator does not perform. `decodeAllAttrTLVs`
 session-path caller by design. `register.go` marks the point where such a call would have
 been wired in.
 
+### Receive-Path NLRI Validation (RFC 9552 Section 8.2.2)
+
+The Link-State NLRI is validated on the same session path, by the same section's other
+half. Section 8.2.2 lists seven syntactic checks and assigns each malformedness class one
+of two actions, so the walk has two entry points in
+`internal/component/bgp/message/rfc7606_bgpls_nlri.go`.
+
+`validateBGPLSNLRISyntax` reads the NLRI headers alone. An NLRI whose Total NLRI Length
+runs past the MP attribute, or a tail too short to hold another header, means the NLRI
+lengths do not sum to the attribute length and no boundary after it can be located.
+Section 8.2.2 calls that class non-skipable and prescribes 'AFI/SAFI disable' or, when
+that is not implemented, a session reset. Ze implements no AFI/SAFI disable, so the
+session resets. `validateMPNLRISyntax` (`rfc7606.go`) routes AFI 16388 here.
+
+`RetainWellFormedNLRI` judges each NLRI inside its own boundaries and removes the ones
+Section 8.2.2 calls malformed in a way that lets a router "skip the malformed NLRI(s) and
+continue the processing of the rest of the BGP UPDATE message": a TLV or Node Descriptor
+sub-TLV length that overruns its container, TLV types that do not ascend as Section 5.1
+requires, and a Node Descriptor repeating one sub-TLV type as Section 5.2.1.4 forbids.
+The action is 'NLRI discard', which `typedNLRIEdit`
+(`internal/component/bgp/reactor/session_validation_nlritype.go`) applies with the same
+rewrite it uses for the RFC 7606 Section 5.4 type discard.
+
+An NLRI Type this document does not define stays opaque and is propagated whole, because
+Section 5.2 requires it. No TLV value octet is read here either, for the reason the
+attribute half gives.
+
 <!-- source: internal/component/bgp/plugins/nlri/ls/types_nlri.go -- BGPLSNode, BGPLSLink, BGPLSPrefix -->
 <!-- source: internal/component/bgp/plugins/nlri/ls/types_srv6.go -- BGPLSSRv6SID -->
 
 ---
 
-**Last Updated:** 2026-08-25
+**Last Updated:** 2026-08-28

@@ -5,7 +5,7 @@ test target in this repository compiles the WORKING TREE, so a commit that
 lands a consumer while its producer stays uncommitted passes every gate and
 breaks HEAD for everyone else.
 
-<!-- source: internal/le/repositorytrackedbuild/actions.go -- Answer -->
+<!-- source: internal/le/repository/trackedbuild/actions.go -- Answer -->
 
 On 2026-08-04 four commits broke the retired tracked-build path in one day.
 The current replacement, `./le repository tracked-build check`, compiles the
@@ -102,7 +102,7 @@ four earlier rounds did not.
 - `_test.go` files are outside the gate forever, because `go build` never
   compiles them. A test file committed without its fixture producer stays
   invisible here.
-- Adding a binary flavor outside `internal/le/repositorytrackedbuild/matrix.go` does not
+- Adding a binary flavor outside `internal/le/repository/trackedbuild/matrix.go` does not
   extend the gate. `TestEveryFlavorNamesATagGatedAnchorFile` requires each
   shipped row to name the tag-gated file it exists to compile.
 - `REV=<commit-ish> ./le repository tracked-build check` judges a past commit,

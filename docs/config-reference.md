@@ -458,9 +458,10 @@ A plain type is fed in both directions. Add `-received` or `-sent` to name one:
 |-----------|---------|
 | `update` | originating routes toward the peer |
 | `refresh` | asking the peer to re-advertise |
-| `*` | both, and every send type registered later |
+| `raw` | writing a whole BGP message the program built itself |
+| `*` | all three, and every send type registered later |
 
-Those two are the base types. A plugin registers more, and naming one in a send
+Those three are the base types. A plugin registers more, and naming one in a send
 list auto-loads the plugin that enables it: `send [ enhanced-refresh ]` starts
 bgp-route-refresh.
 

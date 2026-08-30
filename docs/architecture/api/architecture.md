@@ -233,9 +233,11 @@ and `relay-stored-route` plugin RPCs and `peer <addr> raw` name their
 destinations directly, as an address list, one address, or one peer. All ten
 share one filter, `filterPermittedPeers`.
 
-Raw is gated on ATTACHMENT rather than on a send type. It carries a whole BGP
-message the caller chose, so no `send` word describes it; the peer must attach
-the process, and any `attach process <name> { }` block does.
+Raw is gated on `send [ raw ]`, a word of its own. It carries a whole BGP message
+the caller chose, so no other send type describes it and `send [ update ]` does
+not imply it. Until 2026-08-30 it was gated on ATTACHMENT alone, which left a
+raw-capable binding invisible to the count that holds a peer's End-of-RIB behind
+the routes its processes push.
 <!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendOrigin, filterPermittedPeers -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel, SendRawMessage -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate -->
@@ -345,7 +347,7 @@ internal/component/plugin/registry/registry.go
 **Registry is a leaf package:** `registry/` has zero dependencies on plugin implementations. Plugins import the registry to register; consumers import the registry to query. This one-directional flow prevents cycles.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration, Lookup, All -->
 
-**Code generation keeps `all.go` in sync:** `internal/le/pluginimports.Write` (invoked via `./le repository generate`) walks plugin implementation roots such as `internal/component/bgp/plugins/`, `internal/component/`, and `internal/plugins/` for `register.go` files that import the plugin registry, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
+**Code generation keeps `all.go` in sync:** `internal/le/plugin/imports.Write` (invoked via `./le repository generate`) walks plugin implementation roots such as `internal/component/bgp/plugins/`, `internal/component/`, and `internal/plugins/` for `register.go` files that import the plugin registry, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
 
 **Adding a new plugin:**
 

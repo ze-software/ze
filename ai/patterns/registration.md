@@ -427,5 +427,5 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 | No missing plugin deps | Resolver checks all declared deps exist |
 | Plugins never import siblings | `ai/rules/plugins.md` import rules + code review |
 | No duplicate show enricher keys | `show.Register()` returns error; `show.MustRegister()` panics |
-| All blank imports auto-generated | `./le repository generate` + `internal/le/pluginimports/pluginimports.go` |
+| All blank imports auto-generated | `./le repository generate` + `internal/le/plugin/imports/pluginimports.go` |
 | YANG is source of truth for CLI tree | WireMethod -> YANG path mapping in dispatcher |

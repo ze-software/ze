@@ -76,7 +76,7 @@ set bgp peer flowspec-rr session family ipv4/flow prefix maximum 1000
 set bgp peer flowspec-rr attach process flowspec-firewall receive [ update-received state ]
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service

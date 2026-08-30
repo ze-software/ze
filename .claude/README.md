@@ -32,7 +32,7 @@
 1. Rules auto-load based on file path
 2. Hooks automate git check, linting, spec validation
 3. Read `INDEX.md` to find architecture docs
-4. Run `./le verify-lint run && ./le test-unit && ./le functional` before claiming done
+4. Run `./le verify lint run && ./le test-unit && ./le functional` before claiming done
 
 ## Architecture Docs
 

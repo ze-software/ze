@@ -116,12 +116,12 @@ Always include `file:line` when referencing code:
 ### Tool Output
 Report verification results tersely:
 ```
-✅ make verify
+✅ ./le verify current mode full
    42 passed, 0 failed, lint clean, 80 functional
 ```
 On failure, show relevant error:
 ```
-❌ make lint
+❌ ./le verify lint run
    header.go:45: hugeParam: msg is heavy (512 bytes)
 ```
 

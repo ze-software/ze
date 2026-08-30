@@ -765,24 +765,32 @@ their peers directly, without a selector, and each applies the same check:
 `cache forward`, the `forward-cached` and `relay-stored-route` plugin RPCs, and
 `peer <addr> raw`.
 
-**Raw is the one exception to the type table, and it is gated on ATTACHMENT.**
-`bgp peer <addr> raw ...` carries a whole BGP message the caller chose, an OPEN
-or a NOTIFICATION included, so no `send` type describes it and the `send` list
-has no word to write. What ze requires instead is that the peer attaches the
-process at all: a bare `attach process <name> { }` is enough, and a peer that
-names the process nowhere refuses it. Write the block for any program that
-injects raw messages.
+**Raw has a word of its own: `raw`.** `bgp peer <addr> raw ...` carries a whole
+BGP message the caller chose, an OPEN or a NOTIFICATION included, so no other
+send type describes it and `send [ update ]` does not imply it. Write
+`attach process <name> { send [ raw ] }` for any program that injects raw
+messages. Until 2026-08-30 the rail was gated on attachment alone, and a bare
+`attach process <name> { }` was enough; that spelling no longer permits it.
 
 <!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendOrigin, filterPermittedPeers -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel, SendRawMessage -->
 
-**A truthful `send [ update ]` moves the peer's End-of-RIB.** The session's
-initial sync counts the bindings that carry it and holds the marker until each
-one has sent `plugin session ready`, so the marker means what RFC 4724 Section 2
-says it means. A program granted the permission that never sends that signal
-delays the marker by the sync timeout instead. ze's own plugins send it
-(bgp-rib, bgp-watchdog); a plugin author who originates routes at peer-up
-should.
+**A truthful `send [ update ]` or `send [ raw ]` moves the peer's End-of-RIB.**
+The session's initial sync counts the bindings that can put a route on the wire
+by either rail, and holds the marker until each one has sent `plugin session
+ready`, so the marker means what RFC 4724 Section 4 says it means: this
+speaker's initial routing update is complete, plugin-injected routes included. A
+program granted one of those permissions that never sends the signal delays the
+marker by the sync timeout instead. Every ze plugin that can be counted sends it
+(bgp-rib, bgp-watchdog, bgp-rs, bgp-adj-rib-in), and a plugin author who
+originates routes at peer-up must. A plugin with nothing to send still sends it,
+on every peer-up: the barrier cannot tell "finished with nothing to send" from
+"still working".
+
+The wait does not queue anything. The initial sync has written every route it
+owns before it starts waiting, so a route a program pushes during the wait goes
+straight to the wire, in front of the marker, where a route belonging to the
+initial update belongs.
 
 ---
 

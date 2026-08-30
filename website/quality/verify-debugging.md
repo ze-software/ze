@@ -2,8 +2,8 @@
 
 Use this page when `./le verify current mode full` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
 
-<!-- source: ../main/internal/le/verifyengine/run.go -- verify entry point -->
-<!-- source: ../main/internal/le/verifylock/register.go -- verify lock -->
+<!-- source: ../main/internal/le/verify/engine/run.go -- verify entry point -->
+<!-- source: ../main/internal/le/verify/lock/register.go -- verify lock -->
 <!-- source: ../main/internal/test/runner/failure_group.go -- failure grouping -->
 <!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->
 <!-- source: ../main/docs/guide/debugging-tools.md -- debugging tools -->
@@ -27,7 +27,7 @@ Use this page when `./le verify current mode full` fails, when a test needs to b
 </tbody>
 </table>
 
-The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. The lock in `internal/le/verifylock/register.go` prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
+The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. The lock in `internal/le/verify/lock/register.go` prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
 
 ## Reading the failure
 

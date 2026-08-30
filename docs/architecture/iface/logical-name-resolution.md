@@ -209,7 +209,7 @@ outside its allowlist. It runs as a `./le verify current mode full` stage throug
 site.
 
 <!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
-<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
 The gate proved load-bearing: the VPP tunnel, mirror and LCP files had to pass
 it. A consumer that needs interface identity imports iface, which is an

@@ -4,7 +4,7 @@ Third-party files served from this site. Nothing here is fetched at build time
 or at page load: the site is self-hosted, so a reader's browser talks to no CDN
 and to no third-party host.
 
-`internal/le/sitebuild.IsSourceOnly` keeps this file out of the published
+`internal/le/site.IsSourceOnly` keeps this file out of the published
 artifact. Every other file in this directory is staged verbatim because
 `assets/vendor` is a public asset directory.
 
@@ -27,7 +27,7 @@ Both files come from `dist/bundle/` of that tarball, unmodified.
 - The downloaded tarball's sha512 equals the digest the npm registry publishes
   for 3.17.0, and its sha1 equals the registry's `shasum`.
 - npm serves a SLSA v1 provenance attestation for the same sha512. It names the
-  build as a GitHub Actions workflow, `.github/workflows/release.yml`, run from
+  build as a GitHub Actions workflow, `.github/workflows/release.yml`, run from <!-- doc-links: ignore (a path in the asciinema-player repository, not in this one) -->
   `https://github.com/asciinema/asciinema-player` at `refs/tags/v3.17.0`.
 - The minified bundle contains no external host. The only absolute URLs are the
   SVG namespace and `http://localhost/`, which is the base a relative recording

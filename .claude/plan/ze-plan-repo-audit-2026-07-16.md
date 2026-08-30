@@ -55,7 +55,7 @@ Audit against three baselines:
 
 ## Dimensions 4-10 outcome (2026-07-16)
 
-Report: `tmp/repo-audit-dimensions-4-10-2026-07-16.md`. Dominant theme across 6 of 7 dims: **gate theatre** — heavy tooling exists (fuzz/mutation/perf/alloc/doc-links/integration/QEMU/govulncheck-worthy) but CI runs only `./le verify current mode full`, whose stage list omits most. Two BLOCKERs: (1) CI depth — no integration/QEMU/fuzz/mutation/interop in any CI [verified: grep .woodpecker+.github = none]; (2) uncommitted/unpushed — 53 unpushed commits + ~15 untracked planning-only specs, one an untracked dependency of a committed spec [verified: git]. HIGHs: ISIS/OSPF fuzzers written-but-not-enumerated; no govulncheck gate; doc gates dark + 16 broken discovery-index refs; verify-stage-list drift + ./le yang-glue check unwired; spec citation rot + done-but-unclosed + 65 skeletons. One genuine code bug: LDP Hello-starvation (register.go, read reaches ReadFromUDP only after 5s hello ticker) [verified: direct read]. Resolved: peer_contract.go test-masking lead REFUTED (hole closed, peer_contract.go). Side effect: docs_to_code.py regenerated ai/DOCS-TO-CODE.md in working tree.
+Report: `tmp/repo-audit-dimensions-4-10-2026-07-16.md`. Dominant theme across 6 of 7 dims: **gate theatre** — heavy tooling exists (fuzz/mutation/perf/alloc/doc-links/integration/QEMU/govulncheck-worthy) but CI runs only `./le verify current mode full`, whose stage list omits most. Two BLOCKERs: (1) CI depth — no integration/QEMU/fuzz/mutation/interop in any CI [verified: grep .woodpecker+.github = none]; (2) uncommitted/unpushed — 53 unpushed commits + ~15 untracked planning-only specs, one an untracked dependency of a committed spec [verified: git]. HIGHs: ISIS/OSPF fuzzers written-but-not-enumerated; no govulncheck gate; doc gates dark + 16 broken discovery-index refs; verify-stage-list drift + ./le yang glue check unwired; spec citation rot + done-but-unclosed + 65 skeletons. One genuine code bug: LDP Hello-starvation (register.go, read reaches ReadFromUDP only after 5s hello ticker) [verified: direct read]. Resolved: peer_contract.go test-masking lead REFUTED (hole closed, peer_contract.go). Side effect: docs_to_code.py regenerated ai/DOCS-TO-CODE.md in working tree.
 
 Each agent returns a fixed schema: 2-3 genuine strengths; findings ranked by severity, each with `file:line` citation(s), concrete failure scenario, suggested fix; and its single highest-leverage recommendation. Max ~12 findings per agent, quality over quantity.
 
@@ -129,7 +129,7 @@ component-edge direction check is not already planned:
 ### Deliberately deferred (LOW, per scope decision)
 
 hold-time-0 spurious log; wireu display-path decoders (ParsePrefixes bound, NextHop RFC 5549);
-verify stage-naming inconsistency + `./le yang-glue check` has no automatic caller; SSH client
+verify stage-naming inconsistency + `./le yang glue check` has no automatic caller; SSH client
 host-key TOFU; SSH server username-in-log bounding.
 
 ### Coverage check
