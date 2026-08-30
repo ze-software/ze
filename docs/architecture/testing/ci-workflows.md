@@ -1,11 +1,9 @@
 # What Actually Runs Each Suite
 
-Validation runs on GitHub Actions (`.github/workflows/`), not Codeberg. The
-repository is pushed to both codeberg.org and github.com/ze-software/ze. CI is
-on GitHub for two reasons: running heavy nightly sweeps on Codeberg's donated
-shared runners is inconsiderate of a free service, and GitHub's `ubuntu-latest`
-grants the root and `CAP_NET_ADMIN` the integration suites need, which the
-shared Woodpecker instance could not.
+Validation runs on GitHub Actions (`.github/workflows/`). The repository lives
+at github.com/ze-software/ze and is pushed nowhere else. GitHub's
+`ubuntu-latest` grants the root and `CAP_NET_ADMIN` the integration suites
+need.
 
 ## Where each suite runs
 
@@ -33,8 +31,7 @@ Run the QEMU target locally when you add a test, and say so.
 ## Why the privileged suites are on GitHub
 
 The native integration actions need `CAP_NET_ADMIN` or
-`CAP_NET_BIND_SERVICE`. A GitHub job can run the action with those privileges;
-the shared Codeberg runner cannot grant them.
+`CAP_NET_BIND_SERVICE`. A GitHub job can run the action with those privileges.
 
 ## The cron lives in the workflow
 

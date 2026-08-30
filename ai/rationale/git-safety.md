@@ -16,12 +16,12 @@ When tests fail or approach isn't working:
 - Always confirm scope with `git diff --stat` before running `git commit`
 - Never include unrelated changes (e.g., spec files when fixing editor bugs)
 
-## Codeberg CLI Examples
+## Forge CLI Examples
 ```bash
-tea pr list
-tea pr create --title "..." --description "..."
-tea issue list
-tea issue create --title "..."
+gh pr list
+gh pr create --title "..." --body "..."
+gh issue list
+gh issue create --title "..."
 ```
 
 ## Why `./le verify current mode full` Runs Foreground
@@ -36,7 +36,7 @@ duration typed into a document is a claim, not a measurement.
 
 If a previous run is still going, the admission wrapper blocks the second
 invocation inside the same foreground Bash call until a slot frees. There is
-no lock file: `internal/le/verifylock/register.go` is an alias for
+no lock file: `internal/le/verify/lock/register.go` is an alias for
 `internal/le/job/answer.go`, which keeps one entry per running job under
 `tmp/.ze-jobs/` and admits `ZE_RUN_SLOTS` of them at a time.
 

@@ -16,7 +16,7 @@
 
 **`--no-gpg-sign`, `-c commit.gpgsign=false` and `--no-verify` MUST NOT be used, and a hook MUST NOT be disabled to make a commit pass.** What to do when signing fails is `docs/contributing/committing.md`.
 
-**Pull requests and issues MUST go through `tea`:** `tea pr list`, `tea pr create`, `tea issue list`, `tea issue create`.
+**Pull requests and issues MUST go through `gh`:** `gh pr list`, `gh pr create`, `gh issue list`, `gh issue create`. Development moved off Codeberg in July 2026 and the repository is now only at github.com/ze-software/ze, so `tea`, the Gitea client this rule named until 2026-08-30, addresses a forge Ze no longer publishes to.
 
 ## Before Destructive Actions
 

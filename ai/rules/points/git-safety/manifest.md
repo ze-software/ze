@@ -9,6 +9,6 @@ directives ## Directives
   land-each-chunk-as-it-finishes
   stay-on-your-branch-and-integrate-by-rebase
   never-disable-gpg-signing-or-a-hook
-  use-tea-for-pull-requests-and-issues
+  use-gh-for-pull-requests-and-issues
 before-destructive-actions ## Before Destructive Actions
   never-run-a-destructive-git-verb

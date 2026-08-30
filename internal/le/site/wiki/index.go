@@ -41,11 +41,11 @@ const (
 
 // DefaultBaseURL is where a reader opens a wiki page.
 //
-// The wiki is mirrored to GitHub and to Codeberg, and the two serve different
-// page URLs, so the base belongs in the committed index rather than in this
-// code: `le site wiki update base-url <url>` changes it in one place and every
-// link follows. This value is the default the site publishes today.
-const DefaultBaseURL = "https://codeberg.org/thomas-mangin/ze/wiki/"
+// The base belongs in the committed index rather than in this code, because a
+// host change must not need a Go edit: `le site wiki update base-url <url>`
+// changes it in one place and every link follows. This value is the default
+// the site publishes today.
+const DefaultBaseURL = "https://github.com/ze-software/ze/wiki/"
 
 // summaryLimit bounds one page summary, in characters.
 //

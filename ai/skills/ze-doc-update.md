@@ -12,7 +12,7 @@ See also: `/ze-commit` (commit after updating)
 ## Wiki layout
 
 The wiki is a separate git repo at `../wiki`. It mirrors content from `docs/` but is
-structured for Codeberg's wiki renderer. Key files:
+structured for the GitHub wiki renderer. Key files:
 
 | File | Role |
 |------|------|
