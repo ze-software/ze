@@ -105,6 +105,8 @@ func usageContract(loader *yang.Loader, head map[string]usageRow) usageReport {
 		if walk.authored[cliPath] {
 			continue
 		}
+		// A path HEAD knew that names no command now is RETIRED, not hidden.
+		// Its sentence went with the command it described.
 		now, reached := walk.generated[cliPath]
 		if !reached {
 			continue
@@ -189,7 +191,15 @@ func collectUsage(node *command.Node, path []string, walk *usageWalk) {
 		}
 		var tb textbuf.Buffer
 		cliPath := tb.Join(childPath, " ").String()
-		walk.generated[cliPath] = command.UsageLine(command.Usage(childPath, child))
+		// Only a node that RUNS a command has an invocation form, so only such
+		// a node records a generated line. A grouping node renders the empty
+		// string, and recording that would make every path a HEAD sentence
+		// names look REACHED: a command retired by being split into its forms
+		// would then be read as a sentence deleted while the model renders
+		// something else, which is the opposite of what happened.
+		if child.WireMethod != "" {
+			walk.generated[cliPath] = command.UsageLine(command.Usage(childPath, child))
+		}
 		if marker, authored := authoredUsage(child.Description); authored != "" {
 			walk.authored[cliPath] = true
 			row := usageRow{

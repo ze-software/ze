@@ -293,6 +293,51 @@ func TestUsageContractIgnoresARetiredCommand(t *testing.T) {
 	}
 }
 
+// splitModule is the shape a command takes when it is split into its forms:
+// the parent keeps its container and loses its `ze:command`, and each form
+// becomes a command of its own. `announce` took this shape on 2026-08-30
+// (internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang).
+const splitModule = `
+module ze-fixture-cmd {
+  namespace "urn:ze:fixture:cmd";
+  prefix zefix;
+  import ze-extensions { prefix ze; }
+  container show {
+    config false;
+    description "Show operational state.";
+    container sockets {
+      config false;
+      description "List open sockets.";
+      container tcp {
+        config false;
+        ze:command "ze-show:sockets-tcp";
+        description "List open TCP sockets.";
+      }
+    }
+  }
+}
+`
+
+// VALIDATES: a command SPLIT into its forms is not reported as a deletion that
+// hides a difference. The parent path still exists as a grouping node, and a
+// grouping node has no invocation form.
+// PREVENTS: the retirement test above passing while the split case fails.
+// A vanished path is `!reached` and was already ignored; a path that survives
+// as a container was reached with the EMPTY line, so its HEAD sentence compared
+// against "" and every split looked like a hidden difference. That made the
+// gate refuse the one change it exists to encourage: moving a grammar out of
+// prose and into the model.
+func TestUsageContractIgnoresACommandSplitIntoItsForms(t *testing.T) {
+	head := map[string]usageRow{
+		"show sockets": {Path: "show sockets", Authored: "show sockets [port <N>]", Marker: "Usage:"},
+	}
+	report := usageContract(fixtureLoader(t, splitModule), head)
+
+	if len(report.Hidden) != 0 {
+		t.Fatalf("a command split into its forms was reported as a hidden difference: %+v", report.Hidden)
+	}
+}
+
 // valuePositionModule declares the shape the fifteen value-position commands
 // have: the leaf is declared on the LAST container of the path, so the renderer
 // appends it after that keyword while the authored sentence placed it one
