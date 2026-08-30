@@ -9,6 +9,7 @@ package docwiring
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -464,6 +465,130 @@ func TestTheRatchetRefusesABaselineItCannotRead(t *testing.T) {
 	}
 	if _, code := Run(root, Options{Changed: []string{"test/ui/a.ci"}}); code != 0 {
 		t.Error("a tree that commits no baseline was refused")
+	}
+}
+
+// docDriftTree writes a committed fixture whose page claims two symbols of one
+// file, then answers the root. A test edits one declaration and asks what the
+// check makes of it.
+func docDriftTree(t *testing.T) string {
+	t.Helper()
+	root := tree(t, map[string]string{
+		"internal/x/x.go": "package x\n\nfunc Documented() int { return 1 }\n\nfunc Other() int { return 2 }\n",
+		"docs/one.md":     "# One\n\nDocumented answers one.\n<!-- source: internal/x/x.go -- Documented -->\n",
+		"docs/two.md":     "# Two\n\nOther answers two.\n<!-- source: internal/x/x.go -- Other -->\n",
+	})
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"add", "-A"},
+		{"-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "fixture"},
+	} {
+		cmd := exec.Command("git", append([]string{"-C", root}, args...)...) //nolint:gosec,noctx // this test's own fixture
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+		}
+	}
+	return root
+}
+
+// editDocumented rewrites the body of Documented and leaves Other untouched.
+func editDocumented(t *testing.T, root string) {
+	t.Helper()
+	body := "package x\n\nfunc Documented() int { return 42 }\n\nfunc Other() int { return 2 }\n"
+	if err := os.WriteFile(filepath.Join(root, "internal", "x", "x.go"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestDocDriftRefusesAClaimWhoseSymbolChanged proves the check fires and
+// BLOCKS, and the two siblings below prove it goes quiet on the same tree when
+// the page follows and when the diff misses the claimed symbol. A check that
+// never fires and a check that always fires read the same from a green bar, so
+// every polarity is asserted (ai/rules/testing.md).
+func TestDocDriftRefusesAClaimWhoseSymbolChanged(t *testing.T) {
+	root := docDriftTree(t)
+	editDocumented(t, root)
+
+	g := &checker{root: root, report: Report{Changed: []string{"internal/x/x.go"}}}
+	result := g.checkDocDrift()
+	if !result.Failed {
+		t.Fatalf("a changed symbol whose page stood still passed: %+v", result)
+	}
+	if len(result.Violations) != 1 || !strings.Contains(result.Violations[0], "docs/one.md:4") {
+		t.Fatalf("the finding does not name the claim: %+v", result.Violations)
+	}
+	if !strings.Contains(result.Violations[0], "Documented") {
+		t.Errorf("the finding does not name the symbol: %q", result.Violations[0])
+	}
+	related := map[string]bool{}
+	for _, group := range g.report.Groups {
+		for _, path := range group.Related {
+			related[path] = true
+		}
+	}
+	for _, want := range []string{"internal/x/x.go", "docs/one.md"} {
+		if !related[want] {
+			t.Errorf("no group names %s, so the red is charged to whoever is committing", want)
+		}
+	}
+}
+
+func TestDocDriftAcceptsAPageChangedWithItsSymbol(t *testing.T) {
+	root := docDriftTree(t)
+	editDocumented(t, root)
+
+	g := &checker{root: root, report: Report{Changed: []string{"internal/x/x.go", "docs/one.md"}}}
+	if result := g.checkDocDrift(); result.Failed {
+		t.Errorf("a page changed with its symbol was refused: %+v", result.Violations)
+	}
+}
+
+// TestDocDriftIgnoresAClaimTheDiffNeverReached is the precision this check
+// blocks on. Editing Documented says nothing about the page that claims Other,
+// and a file-level reading would refuse the commit for it.
+func TestDocDriftIgnoresAClaimTheDiffNeverReached(t *testing.T) {
+	root := docDriftTree(t)
+	editDocumented(t, root)
+
+	g := &checker{root: root, report: Report{Changed: []string{"internal/x/x.go", "docs/one.md"}}}
+	result := g.checkDocDrift()
+	if strings.Contains(strings.Join(result.Violations, "\n"), "docs/two.md") {
+		t.Errorf("the page claiming an untouched symbol was reported: %+v", result.Violations)
+	}
+}
+
+// TestDocDriftIgnoresATestFile keeps the check on the product. A test file
+// states no behavior a page describes.
+func TestDocDriftIgnoresATestFile(t *testing.T) {
+	root := tree(t, map[string]string{
+		"internal/x/x_test.go": "package x\n",
+		"docs/one.md":          "<!-- source: internal/x/x_test.go -- X -->\n",
+	})
+
+	g := &checker{root: root, report: Report{Changed: []string{"internal/x/x_test.go"}}}
+	if result := g.checkDocDrift(); !result.Skipped {
+		t.Errorf("a changed test file was judged: %+v", result)
+	}
+}
+
+// TestDocDriftCountsAClaimItCannotResolve keeps an unanswerable claim visible.
+// A page whose anchor names no symbol cannot be judged against a diff, and
+// silence would read exactly like a clean check.
+func TestDocDriftCountsAClaimItCannotResolve(t *testing.T) {
+	root := docDriftTree(t)
+	page := filepath.Join(root, "docs", "one.md")
+	if err := os.WriteFile(page, []byte("# One\n\n<!-- source: internal/x/x.go -- the answering path -->\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	editDocumented(t, root)
+
+	g := &checker{root: root, report: Report{Changed: []string{"internal/x/x.go"}}}
+	result := g.checkDocDrift()
+	if result.Failed {
+		t.Fatalf("an unresolvable claim refused the commit: %+v", result.Violations)
+	}
+	if !strings.Contains(result.Output, "name no symbol") {
+		t.Errorf("the unresolvable claim was not counted: %q", result.Output)
 	}
 }
 

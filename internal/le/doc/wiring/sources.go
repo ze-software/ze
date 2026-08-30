@@ -368,8 +368,8 @@ func readHeadOrEmpty(root, path string) string {
 func ChangedFiles(root string) ([]string, error) {
 	files := make(map[string]bool)
 	for _, argv := range [][]string{
-		{"diff", "--name-only"},
-		{"diff", "--cached", "--name-only"},
+		{gitDiff, "--name-only"},
+		{gitDiff, "--cached", "--name-only"},
 		{"ls-files", "--others", "--exclude-standard"},
 	} {
 		out, err := gitLines(root, argv)

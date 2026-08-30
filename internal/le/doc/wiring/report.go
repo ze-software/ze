@@ -47,6 +47,7 @@ const (
 	checkLoadExcuseName         = "known-failure-load-excuse"
 	checkLogSubsystemName       = "ci-log-subsystem-key"
 	checkDesignRefsName         = "design-refs"
+	checkDocDriftName           = "doc-drift"
 )
 
 // advice is the fixed block printed after a failed check's violations. The map
@@ -71,6 +72,12 @@ var advice = map[string][]string{
 		"  An internal plugin's logger name is CanonicalSubsystemName of its",
 		"  registry name (plugin/inprocess.go): every hyphen becomes a dot.",
 	},
+	checkDocDriftName: {
+		"  Update each page in THIS work, beside the code that made it wrong,",
+		"  and keep its <!-- source: --> anchor valid. When the change leaves",
+		"  the claim true, the page still owes the edit that says so.",
+		"  See ai/rules/documentation.md.",
+	},
 }
 
 // preamble is what a failing check prints between its verdict line and its
@@ -90,6 +97,11 @@ var preamble = map[string][]string{
 		"  A hyphenated ze.log.<subsystem> key only works when that exact",
 		"  subsystem is declared literally in Go. These match nothing, so the",
 		"  level silently stays at the WARN default:",
+	},
+	checkDocDriftName: {
+		"  A page carries a <!-- source: --> anchor over each claim it makes",
+		"  about code. These claims name a symbol this diff changed, and their",
+		"  page did not change with it:",
 	},
 }
 

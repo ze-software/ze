@@ -223,6 +223,41 @@ func CheckCodeIndex(root string) (CodeReport, error) {
 	return report, nil
 }
 
+// AnchorClaim is one page's anchored claim about one code path: where the claim
+// is written, and the symbols it names.
+//
+// Symbols is what makes a claim answerable. An anchor naming `Sym` is a claim
+// about `Sym`, so an edit elsewhere in the same file leaves it true.
+type AnchorClaim struct {
+	Doc     string   `json:"doc"`
+	Line    int      `json:"line"`
+	Symbols []string `json:"symbols"`
+}
+
+// ClaimsByPath answers, for each code path a page anchors, every claim written
+// about it. It reads the tree, not the generated ai/CODE-TO-DOCS.md, so a
+// caller judging an uncommitted change sees the anchors as they stand.
+//
+// This is the same walk CheckCodeIndex reads. That check asks whether an anchor
+// still resolves; a caller of this asks the opposite question, which page a
+// changed symbol owes an edit to.
+func ClaimsByPath(root string) (map[string][]AnchorClaim, error) {
+	index, err := buildCodeIndex(root)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := make(map[string][]AnchorClaim, len(index.Refs))
+	for _, anchor := range index.Anchors {
+		symbols := anchorSymbolTokens(anchor.Descrip)
+		for _, path := range anchor.Paths {
+			clean := lineSuffixRe.ReplaceAllString(path, "")
+			claims[clean] = append(claims[clean], AnchorClaim{Doc: anchor.Doc, Line: anchor.Line, Symbols: symbols})
+		}
+	}
+	return claims, nil
+}
+
 // UpdateCodeIndex rewrites ai/CODE-TO-DOCS.md from the tree.
 func UpdateCodeIndex(root string) (CodeReport, error) {
 	index, err := buildCodeIndex(root)

@@ -12,6 +12,10 @@ package docwiring
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/docstocode"
 )
 
 const (
@@ -33,6 +38,9 @@ const (
 
 	// knownFailuresDir holds the shards that cannot contain a load excuse.
 	knownFailuresDir = "plan/known-failures/"
+
+	// gitDiff is the one git subcommand this package's queries share.
+	gitDiff = "diff"
 )
 
 // knownFailuresExempt are the two shard files this check does not read.
@@ -486,6 +494,281 @@ func (g *checker) checkDesignRefs() CheckResult {
 		"a `// Design:` reference does not resolve to a durable document", actionRerun)
 	var tb textbuf.Buffer
 	return CheckResult{Failed: true, Output: tb.Join(findings, "\n").Byte('\n').String()}
+}
+
+// checkDocDrift reports a changed Go file whose documenting page did not change
+// with it.
+//
+// A page carries a `<!-- source: <path> -- <symbol> -->` anchor over each claim
+// it makes about code, so a changed file an anchor names is a file whose
+// documented behavior can have moved. The page edit belongs in the same work as
+// the code edit (`ai/rules/documentation.md`), and this check asks only whether
+// the page moved at all. Whether the claim is still true is a reader's judgment
+// and stays with `/ze-review`.
+//
+// One page of a file's several counts for that page alone. A file cited by
+// three pages that changed one of them still leaves two claims unread.
+//
+// The check is SYMBOL-level, and that is what lets it block. An anchor naming
+// `Sym` claims something about `Sym`, so an edit to a different declaration in
+// the same file leaves the claim true and reports nothing. Measured on
+// 2026-08-30 over the recent commits carrying non-test Go, each replayed
+// against its own parent: a file-level reading reported nine of twelve, and
+// this reading reports one of nine. That one names six claims whose symbols the
+// commit rewrote while its pages stood still.
+//
+// A claim naming no symbol, and a file the parser cannot read, are both
+// unanswerable rather than clean. Neither blocks, and the trailer counts them,
+// so a silent check and a check with nothing to say never read alike.
+func (g *checker) checkDocDrift() CheckResult {
+	sources := changedGoSources(g.report.Changed)
+	if len(sources) == 0 {
+		return CheckResult{Skipped: true}
+	}
+
+	claims, err := docstocode.ClaimsByPath(g.root)
+	if err != nil {
+		return g.readFailure(checkDocDriftName, err)
+	}
+
+	pages := changedPages(g.report.Changed)
+	related := map[string]bool{}
+	var findings []string
+	unanswerable := 0
+	for _, source := range sources {
+		if len(claims[source]) == 0 {
+			continue
+		}
+		touched, ok := touchedSymbols(g.root, source)
+		if !ok {
+			unanswerable++
+			continue
+		}
+		for _, claim := range claims[source] {
+			if pages[claim.Doc] {
+				continue
+			}
+			named := claimedSymbolsTouched(claim.Symbols, touched)
+			if len(named) == 0 {
+				if len(claim.Symbols) == 0 {
+					unanswerable++
+				}
+				continue
+			}
+			var tb textbuf.Buffer
+			findings = append(findings, tb.Str(claim.Doc).Byte(':').Int(int64(claim.Line)).Str(": ").
+				Str(source).Byte(' ').Str(strings.Join(named, ", ")).
+				Str(" changed under this claim and the page did not").String())
+			related[claim.Doc] = true
+			related[source] = true
+		}
+	}
+
+	var tb textbuf.Buffer
+	if len(findings) == 0 {
+		tb.Str("every claim about a changed symbol changed with it")
+		if unanswerable > 0 {
+			tb.Str(" (").Int(int64(unanswerable)).Str(" claim(s) name no symbol this check can resolve)")
+		}
+		return CheckResult{Output: tb.Byte('\n').String()}
+	}
+
+	sort.Strings(findings)
+	g.declareFailureGroup(checkDocDriftName, sortedKeys(related),
+		"a changed symbol's documentation did not change with it", actionRerun)
+	return CheckResult{Failed: true, Violations: findings}
+}
+
+// touchedSymbols answers the declarations of one changed file that the diff
+// reached. The second result reports a file this check cannot judge: git or the
+// Go parser could not read it, and an unreadable file is never a clean one.
+func touchedSymbols(root, rel string) (map[string]bool, bool) {
+	lines, ok := changedLines(root, rel)
+	if !ok {
+		return nil, false
+	}
+
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // a repository path the caller named
+	if err != nil {
+		return nil, false
+	}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, rel, body, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, false
+	}
+
+	touched := map[string]bool{}
+	for _, decl := range file.Decls {
+		from := fset.Position(decl.Pos()).Line
+		to := fset.Position(decl.End()).Line
+		for _, name := range declaredNames(decl) {
+			if lines.overlaps(from, to) {
+				touched[name] = true
+			}
+		}
+	}
+	return touched, true
+}
+
+// declaredNames answers what one top-level declaration declares. A method
+// answers both its bare name and its Recv.Member spelling, because an anchor
+// claims it either way.
+func declaredNames(decl ast.Decl) []string {
+	switch typed := decl.(type) {
+	case *ast.FuncDecl:
+		name := typed.Name.Name
+		if typed.Recv == nil || len(typed.Recv.List) == 0 {
+			return []string{name}
+		}
+		var tb textbuf.Buffer
+		return []string{name, tb.Str(receiverName(typed.Recv.List[0].Type)).Byte('.').Str(name).String()}
+	case *ast.GenDecl:
+		var names []string
+		for _, spec := range typed.Specs {
+			switch declared := spec.(type) {
+			case *ast.TypeSpec:
+				names = append(names, declared.Name.Name)
+			case *ast.ValueSpec:
+				for _, ident := range declared.Names {
+					names = append(names, ident.Name)
+				}
+			}
+		}
+		return names
+	default:
+		return nil
+	}
+}
+
+// receiverName answers a method receiver's type name, pointer or value.
+func receiverName(expr ast.Expr) string {
+	if star, pointer := expr.(*ast.StarExpr); pointer {
+		expr = star.X
+	}
+	if index, generic := expr.(*ast.IndexExpr); generic {
+		expr = index.X
+	}
+	if ident, named := expr.(*ast.Ident); named {
+		return ident.Name
+	}
+	return ""
+}
+
+// claimedSymbolsTouched answers the claim's symbols that the diff reached. A
+// dotted claim matches on its member as well, so `Peer.Stop` answers for a
+// change to `Stop`.
+func claimedSymbolsTouched(symbols []string, touched map[string]bool) []string {
+	var named []string
+	for _, symbol := range symbols {
+		bare := symbol
+		if _, member, dotted := strings.Cut(symbol, "."); dotted {
+			bare = member
+		}
+		if touched[symbol] || touched[bare] {
+			named = append(named, symbol)
+		}
+	}
+	return named
+}
+
+// lineRange is one contiguous run of changed lines.
+type lineRange struct{ from, to int }
+
+// lineRanges is one file's changed lines, as the hunks git reported.
+type lineRanges []lineRange
+
+// overlaps reports whether a declaration spanning from..to holds a changed line.
+func (r lineRanges) overlaps(from, to int) bool {
+	for _, one := range r {
+		if one.from <= to && from <= one.to {
+			return true
+		}
+	}
+	return false
+}
+
+// changedLines answers the lines of one file the diff touched, reading the
+// unstaged and staged hunks together. The second result reports a file git
+// could not diff.
+//
+// A file with no hunk in either diff is untracked, so every line of it is new.
+// That is the one case where a whole-file answer is the right one.
+func changedLines(root, rel string) (lineRanges, bool) {
+	var ranges lineRanges
+	for _, argv := range [][]string{
+		{gitDiff, "-U0", "--", rel},
+		{gitDiff, "--cached", "-U0", "--", rel},
+	} {
+		out, err := gitLines(root, argv)
+		if err != nil {
+			return nil, false
+		}
+		ranges = append(ranges, hunkRanges(out)...)
+	}
+	if len(ranges) == 0 {
+		return lineRanges{{from: 1, to: math.MaxInt32}}, true
+	}
+	return ranges, true
+}
+
+// hunkRe reads the new-side span of a unified diff hunk header.
+var hunkRe = regexp.MustCompile(`^@@ -\S+ \+(\d+)(?:,(\d+))? @@`)
+
+// hunkRanges answers the new-side line spans of one diff's hunk headers. A hunk
+// of zero new lines is a deletion, and it takes the line it deleted from, so a
+// declaration losing its body still counts as touched.
+func hunkRanges(lines []string) lineRanges {
+	var ranges lineRanges
+	for _, line := range lines {
+		match := hunkRe.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+		from, err := strconv.Atoi(match[1])
+		if err != nil {
+			continue
+		}
+		count := 1
+		if match[2] != "" {
+			if parsed, err := strconv.Atoi(match[2]); err == nil {
+				count = parsed
+			}
+		}
+		if count == 0 {
+			ranges = append(ranges, lineRange{from: from, to: from})
+			continue
+		}
+		ranges = append(ranges, lineRange{from: from, to: from + count - 1})
+	}
+	return ranges
+}
+
+// changedGoSources answers the changed paths a page can carry a claim about.
+//
+// A test file is excluded: it states no behavior a page describes, and a page
+// anchoring one is anchoring the test rather than the product.
+func changedGoSources(changed []string) []string {
+	var out []string
+	for _, path := range changed {
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		out = append(out, path)
+	}
+	return out
+}
+
+// changedPages answers the changed documentation pages as a set.
+func changedPages(changed []string) map[string]bool {
+	pages := map[string]bool{}
+	for _, path := range changed {
+		if !strings.HasSuffix(path, ".md") {
+			continue
+		}
+		pages[path] = true
+	}
+	return pages
 }
 
 // readFailure answers the result when a check cannot read its judged tree. It

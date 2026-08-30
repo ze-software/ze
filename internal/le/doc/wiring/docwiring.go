@@ -127,6 +127,7 @@ func (g *checker) run() int {
 		{checkLoadExcuseName, func() CheckResult { return g.checkLoadExcuses() }},
 		{checkLogSubsystemName, func() CheckResult { return g.checkLogSubsystemKeys() }},
 		{checkDesignRefsName, func() CheckResult { return g.checkDesignRefs() }},
+		{checkDocDriftName, func() CheckResult { return g.checkDocDrift() }},
 	} {
 		if current := g.runCheck(check.name, actionRerun, check.run); current != 0 && code == 0 {
 			code = current
