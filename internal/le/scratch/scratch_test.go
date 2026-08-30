@@ -81,10 +81,8 @@ func TestEnsureActionDefaultOutput(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("ensure exit = %d, results = %#v", code, report.Results)
 	}
-	want := strings.Join([]string{
-		"created  tmp -> " + manager.scratchTarget(),
-		"created  cache -> " + mustCacheTarget(t, manager),
-	}, "\n") + "\n"
+	want := "created  tmp -> " + manager.scratchTarget() + "\n" +
+		"created  cache -> " + mustCacheTarget(t, manager) + "\n"
 	if report.Quiet || report.Text() != want {
 		t.Fatalf("report = %#v, text = %q, want default text %q", report, report.Text(), want)
 	}
@@ -453,11 +451,11 @@ func TestMoveEntryAcrossDevicesPreservesMetadata(t *testing.T) {
 	}
 }
 
-// VALIDATES: both scratch actions publish their native names and write flags.
+// VALIDATES: every scratch action publishes its native name and write flag.
 // PREVENTS: help calling a writing action a check.
 func TestActionsPublishBothWrites(t *testing.T) {
 	list := Actions()
-	want := []string{"links-ensure", "migrate"}
+	want := []string{"links-ensure", "cache-clean", "migrate"}
 	if len(list.Actions) != len(want) {
 		t.Fatalf("actions = %#v", list.Actions)
 	}

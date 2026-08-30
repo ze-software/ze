@@ -345,6 +345,14 @@ func atoi(s string) (int, bool) {
 	return value, true
 }
 
+// GoCache answers the Go build cache every le-driven command writes for one
+// checkout. It takes the root rather than a Toolchain, so a caller that only
+// has to name or empty the cache needs no manifest read (internal/le/scratch,
+// CleanCaches).
+func GoCache(root string) string {
+	return filepath.Join(root, "cache", "go-cache")
+}
+
 // LDFlags answers the linker flags every released binary carries.
 //
 // One string, because that is how `go build -ldflags` takes it. A binary built
@@ -412,7 +420,7 @@ func (t Toolchain) Overrides(opts EnvOptions) []string {
 	var tb textbuf.Buffer
 	over := make([]string, 0, 8)
 
-	over = append(over, tb.Str("GOCACHE=").Str(filepath.Join(t.Root, "cache", "go-cache")).String())
+	over = append(over, tb.Str("GOCACHE=").Str(GoCache(t.Root)).String())
 	tb.Reset()
 	over = append(over, tb.Str("GOLANGCI_LINT_CACHE=").
 		Str(filepath.Join(t.Root, "tmp", "golangci-lint-cache")).String())

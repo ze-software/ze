@@ -134,6 +134,51 @@ whose owners are provably gone. Artifacts that are already session-keyed, and th
 shared-by-design ones (`tmp/ze-verify.*`, and the durable Go build cache
 `internal/le/gotoolchain` assigns), stay where they are.
 
+## When the disk is full
+
+A full cache disk has been read as a code defect four times
+(`plan/journal/full-disk-false-red.md`). It arrives as a wave of unrelated
+failures:
+
+- Packages that do not import each other fail to build.
+- The linker says `mapping output file failed: no space left on device`.
+- A verification stage reports `cache entry not found`.
+- A whole functional suite goes red at once.
+
+`df` on the checkout answers about the wrong device. `cache/` is a symlink to
+`$XDG_CACHE_HOME/ze`, or to `~/.cache/ze` (`internal/le/scratch/scratch.go`,
+`cacheTarget`), and that target is frequently its own filesystem. Read the device
+that holds the cache:
+
+```
+stat -f cache/go-cache        # blocks available on the cache device
+findmnt -T cache/go-cache     # Linux: which device that path is on
+```
+
+Two Go build caches fill, on two filesystems, and emptying one leaves the other
+full. `./le scratch cache-clean` empties both and prints what each one returned:
+
+```
+$ ./le scratch cache-clean
+checkout /Users/thomas/Unix/cache/ze/go-cache    freed 256.0G, free 34.2G
+ambient  /Users/thomas/Library/Caches/go-build   freed 1.2G, free 34.2G
+```
+
+The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
+`Overrides` (`internal/le/gotoolchain/gotoolchain.go`) points GOCACHE there, and
+`gotoolchain.GoCache` names it. The AMBIENT cache is the one a bare `go build`
+writes outside le. The action asks `go env GOCACHE` for that path with the
+inherited override removed. The two rows are therefore the two real caches,
+never one cache twice. The equivalent by hand is:
+
+```
+go clean -cache                                   # the ambient cache
+env GOCACHE="$PWD/cache/go-cache" go clean -cache  # the checkout cache
+```
+
+Nothing caps either cache, so both grow until the disk fills. The clean costs
+recompilation, which makes the next run slow once.
+
 ## Session binaries
 
 Native test actions build their binaries inside the current session's private
