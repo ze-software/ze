@@ -71,14 +71,12 @@ var searchSkipDirectories = map[string]bool{
 // value each because the page's script reads the display pair and the matcher
 // reads the other.
 type searchRecord struct {
-	Title           string `json:"title"`
-	DisplayTitle    string `json:"displayTitle"`
-	URL             string `json:"url"`
-	Section         string `json:"section"`
-	DisplaySection  string `json:"displaySection"`
-	Text            string `json:"text"`
-	discoveryOrder  int
-	discoveryIsPage bool
+	Title          string `json:"title"`
+	DisplayTitle   string `json:"displayTitle"`
+	URL            string `json:"url"`
+	Section        string `json:"section"`
+	DisplaySection string `json:"displaySection"`
+	Text           string `json:"text"`
 }
 
 // newSearchRecord answers one record with its display fields stripped of
@@ -176,11 +174,19 @@ func searchRecords(output string) ([]searchRecord, error) {
 		return nil, err
 	}
 	records = append(records, configRecords...)
-	for index := range records {
-		records[index].discoveryOrder = index
-	}
-	sort.SliceStable(records, func(left, right int) bool { return records[left].URL < records[right].URL })
+	sortSearchRecords(records)
 	return records, nil
+}
+
+// sortSearchRecords orders one index by URL and keeps the order two records
+// sharing one URL were discovered in.
+//
+// The sort is STABLE because the discovery it orders is already sorted: the
+// page mirrors arrive in path order and the configuration sections in name
+// order. A tie is therefore an order the walk STATES, and sort.Slice would
+// discard it for whatever partition its pivots chose.
+func sortSearchRecords(records []searchRecord) {
+	sort.SliceStable(records, func(left, right int) bool { return records[left].URL < records[right].URL })
 }
 
 // pageSearchRecords answers one record for each published Markdown mirror.
@@ -227,7 +233,6 @@ func pageSearchRecords(output string) ([]searchRecord, error) {
 		}
 		record := newSearchRecord(searchTitleOf(string(content), directory), searchURLOf(directory),
 			searchSectionOf(directory), capRunes(stripMarkdown(string(content)), searchBodyCap))
-		record.discoveryIsPage = true
 		records = append(records, record)
 	}
 	return records, nil

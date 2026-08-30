@@ -208,9 +208,12 @@ func renderProducers(paths Paths) ([]Claim, error) {
 	if err := renderInto(byRoute, registeredProducers, paths); err != nil {
 		return nil, err
 	}
-	if _, err := rewriteArtifactLegacyURLs(paths); err != nil {
-		return nil, fmt.Errorf("site legacy-url rewrite: %w", err)
-	}
+	// The legacy-URL rewrite ran here until 2026-08-30 and does not run now.
+	// Owner decision: the site maps nothing to an old page before the first
+	// release, so neither the redirect stubs nor this rewrite of addresses
+	// inside published pages happens. `rewriteArtifactLegacyURLs` in
+	// redirect.go is what returns, together with the producer that file
+	// registers, when redirects are reconsidered after release.
 	if err := renderInto(byRoute, derivedProducers, paths); err != nil {
 		return nil, err
 	}

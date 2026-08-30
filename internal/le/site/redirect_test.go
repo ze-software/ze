@@ -2,7 +2,6 @@
 package site
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -103,43 +102,10 @@ func TestTheLegacyRewriteReachesEveryPageAndMirror(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-12 -- the rewrite runs BETWEEN the page producers and the
-// producers that read what they wrote.
-//
-// A mirror the search index and llms-full.txt read after the rewrite carries
-// the address a reader reaches. Ordered the other way, both would inline the
-// retired one and the site would publish two answers for one link.
-func TestTheLegacyRewriteRunsBeforeTheDerivedProducers(t *testing.T) {
-	source := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(source, changesSourceDirectory), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	output := t.TempDir()
-	link := siteBase + "roadmap/"
-	moved := siteBase + "project/roadmap/"
-
-	page := Producer{Name: "test-page", Render: func(paths Paths) ([]string, error) {
-		return nil, writeNamedArtifact(paths.Output, "docs/index.md",
-			"# Docs\n\nSee the [roadmap]("+link+").\n")
-	}}
-	seen := ""
-	reader := Producer{Name: "test-reader", Render: func(paths Paths) ([]string, error) {
-		content, err := os.ReadFile(filepath.Join(paths.Output, "docs", "index.md"))
-		seen = string(content)
-		return nil, err
-	}}
-
-	registeredProducers = []Producer{page}
-	derivedProducers = []Producer{reader}
-	t.Cleanup(func() { registeredProducers, derivedProducers = nil, nil })
-
-	if _, err := renderProducers(Paths{Repository: t.TempDir(), Source: source, Output: output}); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(seen, link) {
-		t.Errorf("the derived producer read the retired address; the rewrite must run before it:\n%s", seen)
-	}
-	if !strings.Contains(seen, moved) {
-		t.Errorf("the derived producer read %q, which carries neither address", seen)
-	}
-}
+// The test that pinned the legacy rewrite's position in the producer pass was
+// removed on 2026-08-30, with the wiring it asserted. Owner decision: the site
+// maps nothing to an old page before the first release, so neither the redirect
+// stubs nor the rewrite of retired addresses inside published pages runs.
+// `test/weakened.md` carries the row. `rewriteLegacyPublicURLs` keeps its own
+// test above, so the transformation itself stays covered and only its place in
+// a build is unasserted.

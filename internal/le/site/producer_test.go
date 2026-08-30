@@ -290,8 +290,16 @@ func TestExactlyOneProducerClaimsEachCommandRoute(t *testing.T) {
 // having lost seventeen of its eighteen sections with nothing to say so, and
 // llms-full.txt is the file this phase adds to it.
 func TestCheckRefusesAMissingNamedArtifact(t *testing.T) {
-	if !slices.Contains(namedArtifacts, llmsFullFile) {
-		t.Errorf("%s is published and no check answers for it", llmsFullFile)
+	// The population AC-16 names. Each one is published, none of them is a
+	// route, and the list is the whole population rather than a sample: the
+	// loop below removes every entry in turn.
+	for _, name := range []string{
+		llmsFile, llmsFullFile, sitemapFile, robotsFile, searchIndexFile,
+		blogFeedDest, changesFeedDest, changesLegacyFeedDest,
+	} {
+		if !slices.Contains(namedArtifacts, name) {
+			t.Errorf("%s is published and no check answers for it", name)
+		}
 	}
 	output := t.TempDir()
 	for _, name := range namedArtifacts {
@@ -310,6 +318,11 @@ func TestCheckRefusesAMissingNamedArtifact(t *testing.T) {
 		missing := checkNamedArtifacts(output)
 		if len(missing) != 1 || missing[0] != name {
 			t.Errorf("removing %s was reported as %v", name, missing)
+		}
+		// Naming the file in a report is not refusing the artifact. The check
+		// must exit non-zero for it, which is what a caller acts on.
+		if exit := (checkReport{MissingArtifacts: missing}).exit(); exit == 0 {
+			t.Errorf("a check missing %s exited zero", name)
 		}
 		if err := writeNamedArtifact(output, name, "content\n"); err != nil {
 			t.Fatal(err)

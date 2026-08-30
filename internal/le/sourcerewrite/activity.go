@@ -3,6 +3,7 @@ package sourcerewrite
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -77,7 +78,9 @@ type activityTotals struct {
 	Commits   map[time.Time]int
 }
 
-type goBucketStats struct {
+// ActivityGoBucket counts one class of Go file: how many files it holds, and
+// how their lines divide between code, blank and comment.
+type ActivityGoBucket struct {
 	Files        int
 	TotalLines   int
 	CodeLines    int
@@ -85,11 +88,14 @@ type goBucketStats struct {
 	CommentLines int
 }
 
-type goStats struct {
-	Total         goBucketStats
-	Code          goBucketStats
-	Tests         goBucketStats
-	Vendor        goBucketStats
+// ActivityGo is a checkout's tracked Go source in four buckets. Total counts
+// every first-party file, and Code and Tests divide that same population, so
+// Code plus Tests equals Total and Vendor stands outside all three.
+type ActivityGo struct {
+	Total         ActivityGoBucket
+	Code          ActivityGoBucket
+	Tests         ActivityGoBucket
+	Vendor        ActivityGoBucket
 	VendorModules int
 }
 
@@ -108,7 +114,7 @@ func defaultActivityOptions(root string) ActivityOptions {
 // parseExtensions parses the producer's comma-separated extension grammar.
 func parseExtensions(raw string) (map[string]bool, error) {
 	extensions := make(map[string]bool)
-	for _, item := range strings.Split(raw, ",") {
+	for item := range strings.SplitSeq(raw, ",") {
 		item = strings.ToLower(strings.TrimSpace(item))
 		if item == "" {
 			continue
@@ -156,10 +162,10 @@ func writeActivity(options ActivityOptions) (activityReport, error) {
 	if err != nil {
 		return activityReport{}, err
 	}
-	if err := os.MkdirAll(filepath.Dir(resolved.Output), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(resolved.Output), 0o750); err != nil {
 		return activityReport{}, err
 	}
-	if err := os.WriteFile(resolved.Output, []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(resolved.Output, []byte(body), 0o600); err != nil {
 		return activityReport{}, err
 	}
 	if options.Open {
@@ -181,7 +187,7 @@ func serveActivity(options ActivityOptions, address string) error {
 	if err != nil {
 		return err
 	}
-	listener, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", net.JoinHostPort(host, strconv.Itoa(port)))
 	if err != nil {
 		return err
 	}
@@ -251,9 +257,10 @@ func parseActivityAddress(value string) (string, int, error) {
 }
 
 func runGit(repo string, check bool, arguments ...string) (string, error) {
-	argv := []string{"-c", "core.quotePath=false", "-C", repo}
+	argv := make([]string, 0, 4+len(arguments))
+	argv = append(argv, "-c", "core.quotePath=false", "-C", repo)
 	argv = append(argv, arguments...)
-	command := exec.Command("git", argv...) //nolint:gosec,noctx // argv is a direct native git invocation; no shell interprets it
+	command := exec.CommandContext(context.Background(), "git", argv...) //nolint:gosec // argv is a direct native git invocation; no shell interprets it
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout
 	command.Stderr = &stderr
@@ -290,7 +297,7 @@ func collectActivity(options ActivityOptions, today time.Time) (activityTotals, 
 	}
 	totals := activityTotals{Additions: make(map[time.Time]int), Commits: make(map[time.Time]int)}
 	var current time.Time
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		if strings.HasPrefix(line, "@@@") {
 			current, err = time.Parse("2006-01-02", line[3:])
 			if err != nil {
@@ -328,7 +335,7 @@ func firstActivityCommit(options ActivityOptions) (*time.Time, error) {
 		return nil, err
 	}
 	var earliest *time.Time
-	for _, line := range strings.Fields(output) {
+	for line := range strings.FieldsSeq(output) {
 		day, parseErr := time.Parse("2006-01-02", line)
 		if parseErr != nil {
 			return nil, parseErr
@@ -414,13 +421,13 @@ func fnmatch(pattern, value string) bool {
 	return err == nil && matched
 }
 
-func collectGoStats(options ActivityOptions) (goStats, error) {
+func collectGoStats(options ActivityOptions) (ActivityGo, error) {
 	output, err := runGit(options.Repo, true, "ls-files", "--", "*.go")
 	if err != nil {
-		return goStats{}, err
+		return ActivityGo{}, err
 	}
-	var stats goStats
-	for _, relative := range strings.Split(strings.TrimSpace(output), "\n") {
+	var stats ActivityGo
+	for relative := range strings.SplitSeq(strings.TrimSpace(output), "\n") {
 		if relative == "" {
 			continue
 		}
@@ -431,7 +438,7 @@ func collectGoStats(options ActivityOptions) (goStats, error) {
 		}
 		if strings.HasPrefix(relative, "vendor/") {
 			if err := addGoFile(&stats.Vendor, path); err != nil {
-				return goStats{}, err
+				return ActivityGo{}, err
 			}
 			continue
 		}
@@ -446,31 +453,31 @@ func collectGoStats(options ActivityOptions) (goStats, error) {
 			continue
 		}
 		if err := addGoFile(&stats.Total, path); err != nil {
-			return goStats{}, err
+			return ActivityGo{}, err
 		}
 		bucket := &stats.Code
 		if strings.HasSuffix(relative, "_test.go") {
 			bucket = &stats.Tests
 		}
 		if err := addGoFile(bucket, path); err != nil {
-			return goStats{}, err
+			return ActivityGo{}, err
 		}
 	}
 	modules, readErr := os.ReadFile(filepath.Join(options.Repo, "vendor", "modules.txt"))
 	if readErr == nil {
-		for _, line := range strings.Split(string(modules), "\n") {
+		for line := range strings.SplitSeq(string(modules), "\n") {
 			if strings.HasPrefix(line, "# ") && !strings.HasPrefix(line, "##") {
 				stats.VendorModules++
 			}
 		}
 	} else if !os.IsNotExist(readErr) {
-		return goStats{}, readErr
+		return ActivityGo{}, readErr
 	}
 	return stats, nil
 }
 
-func addGoFile(bucket *goBucketStats, path string) error {
-	raw, err := os.ReadFile(path)
+func addGoFile(bucket *ActivityGoBucket, path string) error {
+	raw, err := os.ReadFile(path) //nolint:gosec // a rewrite tool reads the path the operator named
 	if err != nil {
 		return err
 	}
@@ -489,7 +496,7 @@ func addGoFile(bucket *goBucketStats, path string) error {
 		switch kind {
 		case "blank":
 			bucket.BlankLines++
-		case "comment":
+		case lineComment:
 			bucket.CommentLines++
 		default:
 			bucket.CodeLines++
@@ -507,26 +514,26 @@ func classifyGoLine(line string, inBlock bool) (string, bool) {
 		if inBlock {
 			end := strings.Index(cursor, "*/")
 			if end < 0 {
-				return "comment", true
+				return lineComment, true
 			}
 			cursor = strings.TrimSpace(cursor[end+2:])
 			inBlock = false
 			if cursor == "" {
-				return "comment", false
+				return lineComment, false
 			}
 			continue
 		}
 		if strings.HasPrefix(cursor, "//") {
-			return "comment", false
+			return lineComment, false
 		}
 		if strings.HasPrefix(cursor, "/*") {
 			end := strings.Index(cursor[2:], "*/")
 			if end < 0 {
-				return "comment", true
+				return lineComment, true
 			}
 			cursor = strings.TrimSpace(cursor[end+4:])
 			if cursor == "" {
-				return "comment", false
+				return lineComment, false
 			}
 			continue
 		}
@@ -535,47 +542,13 @@ func classifyGoLine(line string, inBlock bool) (string, bool) {
 }
 
 func renderActivityPage(options ActivityOptions, generated time.Time) (string, error) {
-	today := dateOnly(generated)
-	start := today.AddDate(0, 0, -(options.Days - 1))
-	activity, err := collectActivity(options, today)
+	window, err := measureActivity(options, generated)
 	if err != nil {
 		return "", err
 	}
-	repoStart, err := firstActivityCommit(options)
-	if err != nil {
-		return "", err
-	}
-	stats, err := collectGoStats(options)
-	if err != nil {
-		return "", err
-	}
-	lineThresholds := activityThresholds(activity.Additions)
-	commitThresholds := activityThresholds(activity.Commits)
-	gridStart := sundayBefore(start)
-	gridEnd := saturdayAfter(today)
-	weeks := weeksBetween(gridStart, gridEnd)
-	label, _ := activityGitLabel(options)
-
-	lineSummary := summarizeActivity(activity.Additions, start, today, "Total added lines", "Days with added lines", "Peak line day", "Top Added-Line Days", "Added lines", "Line thresholds", lineThresholds)
-	commitSummary := summarizeActivity(activity.Commits, start, today, "Total commits", "Days with commits", "Peak commit day", "Top Commit Days", "Commits", "Commit thresholds", commitThresholds)
+	lineSummary := summarizeActivity(window.Lines, "Total added lines", "Days with added lines", "Peak line day", "Top Added-Line Days", "Added lines", "Line thresholds")
+	commitSummary := summarizeActivity(window.Commits, "Total commits", "Days with commits", "Peak commit day", "Top Commit Days", "Commits", "Commit thresholds")
 	summaryJSON, _ := json.Marshal(map[string]activitySummary{"lines": lineSummary, "commits": commitSummary})
-
-	var cells strings.Builder
-	for _, week := range weeks {
-		for _, day := range week {
-			added, committed := activity.Additions[day], activity.Commits[day]
-			classes := "day-cell"
-			if day.Before(start) || day.After(today) {
-				classes += " outside"
-			}
-			if repoStart != nil && day.Before(*repoStart) {
-				classes += " pre-repo"
-			}
-			dateLabel := day.Format("Mon 02 Jan 2006")
-			fmt.Fprintf(&cells, `<div class="%s" data-date="%s" data-date-label="%s" data-lines="%d" data-lines-display="%s" data-lines-level="%d" data-commits="%d" data-commits-display="%s" data-commits-level="%d" data-level="%d" aria-label="%s: %s lines added, %s commits" tabindex="0"></div>`+"\n",
-				classes, day.Format("2006-01-02"), html.EscapeString(dateLabel), added, displayNumber(added), activityLevel(added, lineThresholds), committed, displayNumber(committed), activityLevel(committed, commitThresholds), activityLevel(added, lineThresholds), html.EscapeString(dateLabel), displayNumber(added), displayNumber(committed))
-		}
-	}
 
 	filterLabel := "source files"
 	if options.AllFiles {
@@ -585,12 +558,14 @@ func renderActivityPage(options ActivityOptions, generated time.Time) (string, e
 	if author == "" {
 		author = "all authors"
 	}
-	return renderActivityHTML(activityPageData{
-		Repo: html.EscapeString(options.Repo), Ref: html.EscapeString(label), Range: start.Format("2006-01-02") + " to " + today.Format("2006-01-02"),
+	return renderActivityHTML(&activityPageData{
+		Repo: html.EscapeString(options.Repo), Ref: html.EscapeString(activityGitLabel(options)),
+		Range:     window.Start.Format("2006-01-02") + " to " + window.End.Format("2006-01-02"),
 		Generated: generated.Format("2006-01-02 15:04:05"), Filter: filterLabel, Author: html.EscapeString(author),
-		WeekCount: len(weeks), MonthLabels: monthLabels(weeks), Cells: cells.String(), SummaryJSON: string(summaryJSON),
-		LineSummary: lineSummary, CommitSummary: commitSummary, LineTop: renderTopDays(activity.Additions, "No added source lines in this range."),
-		CommitTop: renderTopDays(activity.Commits, "No commits in this range."), Stats: stats,
+		WeekCount: window.Weeks, MonthLabels: window.MonthLabels, Cells: window.Cells, SummaryJSON: string(summaryJSON),
+		LineSummary: lineSummary, CommitSummary: commitSummary,
+		LineTop:   renderTopDays(window.Lines.daily, "No added source lines in this range."),
+		CommitTop: renderTopDays(window.Commits.daily, "No commits in this range."), Stats: window.Go,
 	}), nil
 }
 
@@ -613,32 +588,24 @@ type activityPageData struct {
 	MonthLabels, Cells, SummaryJSON             string
 	LineSummary, CommitSummary                  activitySummary
 	LineTop, CommitTop                          string
-	Stats                                       goStats
+	Stats                                       ActivityGo
 }
 
-func summarizeActivity(values map[time.Time]int, start, today time.Time, totalLabel, activeLabel, peakPrefix, topHeading, topColumn, thresholdLabel string, thresholds []int) activitySummary {
-	total, active, peak := 0, 0, 0
-	peakDay := today
-	for day, value := range values {
-		if day.Before(start) || day.After(today) {
-			continue
-		}
-		total += value
-		if value > 0 {
-			active++
-		}
-		if value > peak {
-			peak, peakDay = value, day
-		}
-	}
-	thresholdText := make([]string, len(thresholds))
-	for index, value := range thresholds {
+// summarizeActivity labels one measured series for the standalone dashboard,
+// which names the peak day inside its own label because it shows no date column
+// beside it.
+func summarizeActivity(series ActivitySeries, totalLabel, activeLabel, peakPrefix, topHeading, topColumn, thresholdLabel string) activitySummary {
+	thresholdText := make([]string, len(series.Thresholds))
+	for index, value := range series.Thresholds {
 		thresholdText[index] = displayNumber(value)
 	}
 	return activitySummary{
-		TotalLabel: totalLabel, TotalValue: displayNumber(total), ActiveLabel: activeLabel, ActiveValue: displayNumber(active),
-		PeakLabel: peakPrefix + " (" + peakDay.Format("2006-01-02") + ")", PeakValue: displayNumber(peak),
-		TopHeading: topHeading, TopColumn: topColumn, ThresholdLabel: thresholdLabel, ThresholdValue: strings.Join(thresholdText, ", "),
+		TotalLabel: totalLabel, TotalValue: displayNumber(series.Total),
+		ActiveLabel: activeLabel, ActiveValue: displayNumber(series.ActiveDays),
+		PeakLabel:  peakPrefix + " (" + series.PeakDay.Format("2006-01-02") + ")",
+		PeakValue:  displayNumber(series.Peak),
+		TopHeading: topHeading, TopColumn: topColumn,
+		ThresholdLabel: thresholdLabel, ThresholdValue: strings.Join(thresholdText, ", "),
 	}
 }
 
@@ -753,16 +720,16 @@ func displayNumber(value int) string {
 	return text
 }
 
-func activityGitLabel(options ActivityOptions) (string, error) {
+func activityGitLabel(options ActivityOptions) string {
 	if options.AllRefs {
-		return "all refs", nil
+		return "all refs"
 	}
 	branch, branchErr := runGit(options.Repo, false, "rev-parse", "--abbrev-ref", options.Ref)
 	commit, commitErr := runGit(options.Repo, false, "rev-parse", "--short", options.Ref)
 	if branchErr == nil && commitErr == nil {
-		return strings.TrimSpace(branch) + " @ " + strings.TrimSpace(commit), nil
+		return strings.TrimSpace(branch) + " @ " + strings.TrimSpace(commit)
 	}
-	return options.Ref, nil
+	return options.Ref
 }
 
 func openActivityURL(url string) error {
@@ -776,10 +743,10 @@ func openActivityURL(url string) error {
 	default:
 		name, arguments = "xdg-open", []string{url}
 	}
-	return exec.Command(name, arguments...).Start() //nolint:gosec,noctx // fixed platform opener, with the URL as one uninterpreted argv
+	return exec.CommandContext(context.Background(), name, arguments...).Start() //nolint:gosec // fixed platform opener, with the URL as one uninterpreted argv
 }
 
-func renderGoCards(stats goBucketStats) string {
+func renderGoCards(stats ActivityGoBucket) string {
 	return fmt.Sprintf(`<div class="stat"><span>Files</span><strong>%s</strong></div>
 <div class="stat"><span>Total lines</span><strong>%s</strong></div>
 <div class="stat"><span>Code lines</span><strong>%s</strong></div>
@@ -787,11 +754,11 @@ func renderGoCards(stats goBucketStats) string {
 <div class="stat"><span>Comment lines</span><strong>%s</strong></div>`, displayNumber(stats.Files), displayNumber(stats.TotalLines), displayNumber(stats.CodeLines), displayNumber(stats.BlankLines), displayNumber(stats.CommentLines))
 }
 
-func renderGoBucket(title string, stats goBucketStats, note string) string {
+func renderGoBucket(title string, stats ActivityGoBucket, note string) string {
 	return `<div class="go-bucket"><h3>` + html.EscapeString(title) + `</h3><div class="go-stats">` + renderGoCards(stats) + `</div><p class="note">` + html.EscapeString(note) + `</p></div>`
 }
 
-func renderActivityHTML(data activityPageData) string {
+func renderActivityHTML(data *activityPageData) string {
 	goBuckets := renderGoBucket("All First-Party Go", data.Stats.Total, "Tracked .go files outside vendor/.") +
 		renderGoBucket("Production Go", data.Stats.Code, "First-party tracked .go files excluding _test.go.") +
 		renderGoBucket("Go Tests", data.Stats.Tests, "First-party tracked _test.go files.") +
@@ -808,3 +775,10 @@ func renderActivityHTML(data activityPageData) string {
 		data.MonthLabels, data.Cells, data.LineSummary.ThresholdLabel, data.LineSummary.ThresholdValue, data.LineSummary.TopHeading, data.LineSummary.TopColumn, data.LineTop,
 		goBuckets, data.SummaryJSON, data.LineTop, data.CommitTop)
 }
+
+// The Go line class this counter reports, and the parameter value name the
+// command grammar prints.
+const (
+	lineComment = "comment"
+	valuePath   = "path"
+)

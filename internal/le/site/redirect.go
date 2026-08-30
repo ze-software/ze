@@ -14,12 +14,27 @@ import (
 	"strings"
 )
 
-// The redirect stubs are written after every page producer, because a stub
-// replaces the index.html of a route and removes the Markdown mirror beside it.
-// A page producer that ran afterwards would write the page back.
-func init() {
-	registerDerivedProducer(Producer{Name: "legacy-redirects", Render: renderLegacyRedirects})
-}
+// The redirect producer is NOT registered, by owner decision on 2026-08-30:
+// the site publishes no redirect stubs before the first release.
+//
+// The legacy-URL REWRITING still runs, and it matters more without the stubs
+// rather than less. A stub catches a reader who follows an old address from
+// outside; the rewrite fixes the old addresses inside our own pages, and with
+// no stub behind them an unrewritten one reaches nothing at all.
+//
+// The code stays rather than being deleted, because the decision is about WHEN
+// and not about whether: retiring a route without leaving a stub breaks every
+// link to the old address, which is a cost worth paying only while nobody has
+// linked one yet. Re-registering is the two lines below.
+//
+// When it comes back, it registers as a DERIVED producer, after every page
+// producer: a stub replaces the index.html of a route and removes the Markdown
+// mirror beside it, so a page producer running afterwards would write the page
+// back.
+//
+//	func init() {
+//		registerDerivedProducer(Producer{Name: "legacy-redirects", Render: renderLegacyRedirects})
+//	}
 
 // legacyRoute is one retired site-relative directory and the directory it moved
 // to. Neither carries a leading or a trailing slash.
