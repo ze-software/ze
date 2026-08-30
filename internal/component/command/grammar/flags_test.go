@@ -12,6 +12,8 @@ package grammar
 import (
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // VALIDATES: the flag shape the daemon refuses by, which this package and
@@ -92,20 +94,82 @@ func TestF2LeavesProseAndUsageLinesAlone(t *testing.T) {
 	}
 }
 
-// VALIDATES: F3 -- a flag that renders an answer the pipe layer already
-// renders, on a command served with data.
-// PREVENTS: `--json` and `| json` living side by side, where an operator learns
-// one job twice and only one of the two composes.
-func TestAFlagThatRepeatsAPipeOperatorIsAFinding(t *testing.T) {
-	findings := CheckPipeFlags("config dump", []string{"json", "strip-private"})
-	if len(findings) != 1 {
-		t.Fatalf("CheckPipeFlags drew %d findings, want the one --json row: %+v", len(findings), findings)
+// VALIDATES: F3 -- a rendering flag is a finding on every command, whether or
+// not the command's answer is registered for the pipe layer, and the fix the
+// finding names is the one the reader owes in each case.
+// PREVENTS: "this command reaches no pipe layer" being read as an exemption.
+// Whether a command reaches that layer is a fact about how it was registered,
+// so an unregistered command is the defect rather than the case F3 skips.
+func TestARenderingFlagIsAFindingOnEveryCommand(t *testing.T) {
+	served := CheckPipeFlags("config dump", []string{"json", "strip-private"}, true)
+	if len(served) != 1 {
+		t.Fatalf("a registered command drew %d findings, want the one --json row: %+v", len(served), served)
 	}
-	if findings[0].Rule != RuleFlagIsAPipe || findings[0].Flag != "--json" {
-		t.Errorf("the finding is %+v, want F3 on --json", findings[0])
+	if served[0].Rule != RuleFlagIsAPipe || served[0].Flag != "--json" {
+		t.Errorf("the finding is %+v, want F3 on --json", served[0])
 	}
-	if len(CheckPipeFlags("config dump", []string{"strip-private", "user"})) != 0 {
-		t.Error("a flag that renders nothing was read as a pipe operator")
+	if !strings.Contains(served[0].Message, "config dump | json") {
+		t.Errorf("a registered command's finding does not name the operator that already renders it: %q", served[0].Message)
+	}
+
+	unserved := CheckPipeFlags("config show", []string{"json", "strip-private"}, false)
+	if len(unserved) != 1 || unserved[0].Flag != "--json" {
+		t.Fatalf("an unregistered command drew %+v, want the one --json row", unserved)
+	}
+	if !strings.Contains(unserved[0].Message, "MustRegisterLocalData") {
+		t.Errorf("an unregistered command's finding does not name the registration that fixes it: %q", unserved[0].Message)
+	}
+
+	for _, served := range []bool{true, false} {
+		if findings := CheckPipeFlags("config dump", []string{"strip-private", "user"}, served); len(findings) != 0 {
+			t.Errorf("a flag that renders nothing drew %+v (served=%t)", findings, served)
+		}
+	}
+}
+
+// VALIDATES: the one shape ai/rules/cli.md permits, a session default that
+// lowers into the pipe operator, is not reported as a rendering flag, and the
+// exemption is keyed by path and flag rather than by the flag token alone.
+// PREVENTS: a gate that contradicts the rule it enforces, and an exemption on
+// --format wide enough to forgive every command that spells it.
+func TestASessionDefaultThatLowersIntoTheOperatorIsNotAFinding(t *testing.T) {
+	if findings := CheckPipeFlags("cli", []string{"format", "user"}, false); len(findings) != 0 {
+		t.Errorf("`ze cli --format` drew %+v; commandWithFormat lowers it into the operator, so the pipe layer still renders", findings)
+	}
+
+	other := CheckPipeFlags("config show", []string{"format"}, false)
+	if len(other) != 1 || other[0].Flag != "--format" {
+		t.Fatalf("--format on another command drew %+v, want the one row: the exemption is cli's lowering, not the token", other)
+	}
+}
+
+// VALIDATES: the banned spellings are DERIVED from the operator catalog, plus
+// the two ai/rules/cli.md names that no operator carries.
+// PREVENTS: a hand-typed list. The catalog is the one statement of the operator
+// language, so an operator added to it is a banned flag spelling on the same
+// commit, and a list copied beside it would say otherwise a release later.
+func TestTheBannedSpellingsAreTheCatalogsRenderingOperators(t *testing.T) {
+	rendering := 0
+	for _, operator := range command.PipeOperatorCatalog() {
+		findings := CheckPipeFlags("fixture thing", []string{operator.Name}, false)
+		if !operator.Renders() {
+			if len(findings) != 0 {
+				t.Errorf("operator %q renders nothing and drew %+v", operator.Name, findings)
+			}
+			continue
+		}
+		rendering++
+		if len(findings) != 1 || findings[0].Flag != FlagToken(operator.Name) {
+			t.Errorf("rendering operator %q drew %+v, want one F3 row", operator.Name, findings)
+		}
+	}
+	if rendering < len(namedRenderingFlags) {
+		t.Errorf("the catalog answered %d rendering operators, which is fewer than the flags named by hand", rendering)
+	}
+	for _, name := range namedRenderingFlags {
+		if findings := CheckPipeFlags("fixture thing", []string{name}, false); len(findings) != 1 {
+			t.Errorf("flag --%s drew %+v, want the one F3 row ai/rules/cli.md names", name, findings)
+		}
 	}
 }
 

@@ -49,18 +49,43 @@ gate collects the populations they judge by parsing every Go source under
 |------|-----------|----------------|
 | F1 | a registered root whose name is a flag | a flag that dispatches enters no tree, so completion, `ze help command` and every grammar feeder are blind to it. `--version`, `-V`, `--help` and `-h` are the stated exception |
 | F2 | a string literal that names a daemon command path and carries a flag | `(*Dispatcher).Dispatch` refuses a flag-shaped token before any handler runs, so the command fails on every invocation while its client half and its daemon-side parser both read as finished code |
-| F3 | `--json`, `--yaml`, `--table`, `--text` or `--format` on a command served by `registry.MustRegisterLocalData` | the answer already reaches the pipe layer, so the flag is a second spelling of `\| json`, and only the operator composes |
+| F3 | a rendering flag on any command of the `ze` surface: `--json`, `--ndjson`, `--table`, `--text`, `--yaml`, `--raw`, `--format` and `--no-header` | rendering is the pipe layer's job. Where the answer is served by `registry.MustRegisterLocalData` the flag is a second spelling of `\| json` and only the operator composes; where it is not, the missing registration is the defect the finding names |
 | F4 | a flag the parser reads that `registry.RegisterCommandFlags` never declared, or a declared flag no parser reads | completion offers what the registry holds, and prose drifts from the parser in both directions |
 
 `FlagShaped` is the same predicate the daemon refuses by, called from
 `firstFlagToken`. A gate that judged flag shape differently from the daemon
 would pass a command string the daemon rejects.
 
+## Decision: F3 asks about the flag, never about the registration
+
+F3 first fired only where `registry.MustRegisterLocalData` served the path, so
+the commands that reach no pipe layer at all were the ones it passed. That
+condition read the accident as the rule: whether a command reaches the pipe
+layer is a fact about how it was registered, and `command.ServeLocal` renders
+the whole operator set over any path registered that way. So "this command
+reaches no pipe layer" is the defect, and the finding names the registration as
+the fix rather than skipping the command.
+
+The banned spellings are DERIVED. `command.PipeOperatorCatalog` is the one
+statement of the operator language and `PipeOperator.Renders` says which of its
+operators decide the form of an answer, so `--json`, `--ndjson`, `--table`,
+`--text`, `--yaml` and `--raw` are read from there and an operator added to the
+catalog is a banned flag spelling on the same commit. Two spellings are named in
+`internal/component/command/grammar/flags.go` because no operator carries them:
+`--format` selects among the rendering operators, and `--no-header` drops the
+header the table renderer writes. `ai/rules/cli.md` bans both by name.
+
+Widening it drew 11 more violations, all tracked as debt: eight commands parse
+`--json` or `--yaml` with no local-data registration behind them, `config
+migrate` parses `--format`, and `ze cli --format` sets a session default that
+`commandWithFormat` lowers into the pipe operator.
+
 ## Decision: the debt is a ledger, never an allowlist
 
-The tree carried 50 violations when the feeder landed, so a feeder that failed
-on all of them would block every commit. `flagRegisterDebt` and
-`flagDeclarationDebt` list each one with the reason it is still there, and the
+The tree carried 50 violations when the feeder landed, and 11 more when F3
+widened, so a feeder that failed on all of them would block every commit.
+`flagRegisterDebt` and `flagDeclarationDebt` list each one with the reason it is
+still there, and the
 gate prints the whole ledger and its count on every run. A violation that is not
 listed fails. The F4 entries name the exact flags they forgive, so a listed path
 that starts parsing a NEW flag still fails.
@@ -138,6 +163,14 @@ The feeder governs the **root** surface only. The local-handler surface is not
 covered: local registration validates an empty path and a nil handler and never
 checks command-name grammar. A hyphenated local command would not be flagged.
 Extending the gate there is separate work.
+
+F3 reads the flags a `flag.NewFlagSet` declares, so a rendering flag a command
+parses BY HAND is invisible to it. `ze pipe help --json` is read by
+`slices.Contains(args, "--json")` in `runPipe` (`cmd/ze/ze_core_pipe.go`), and
+`explain` switches on the same token in its own argument loop
+(`internal/plugins/explain/main.go`). Neither reaches the scan. Covering them
+needs a second population, because a hand-read token carries no flag set to name
+the command it belongs to.
 
 Three further items are deliberately untouched. A root-level flag is a
 different rule's question, and the feeder skips leading-hyphen roots. No root

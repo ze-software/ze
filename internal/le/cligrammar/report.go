@@ -200,7 +200,7 @@ func (r Result) Text() string {
 	if len(r.FlagDebt) > 0 {
 		tb.Str("## Tracked flag-register debt (").Int(int64(len(r.FlagDebt))).Str(")\n\n").
 			Str("The reason each entry is still here is in flagRegisterDebt and\n").
-			Str("flagDeclarationDebt (internal/le/cligrammar/flags.go), beside the fix.\n\n")
+			Str("flagDeclarationDebt (internal/le/cligrammar/flagdebt.go), beside the fix.\n\n")
 		for _, entry := range r.FlagDebt {
 			tb.Str("  ").Str(entry.Entry)
 			switch {

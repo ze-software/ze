@@ -3,8 +3,9 @@
 // flagdebt.go is the ledger feeder 7 judges against, apart from the scan that
 // produces the findings (flags.go).
 //
-// The tree carried 50 violations when the feeder landed, so a feeder that
-// failed on all of them would have blocked every commit. Each one is listed
+// The tree carried 50 violations when the feeder landed, and 11 more the day F3
+// widened to every command of the `ze` surface, so a feeder that failed on all
+// of them would have blocked every commit. Each one is listed
 // here with the reason it is still there, and the gate prints the whole ledger
 // and its count on every run. This is DEBT, never an allowlist: a violation
 // that is not listed fails the gate, and deleting an entry is what a fix
@@ -39,6 +40,24 @@ var flagRegisterDebt = map[string]string{
 	"F3 schema list --json":     "`show schema list` is served by registry.MustRegisterLocalData, so `| json` already renders it; the flag is the second spelling",
 	"F3 yang tree --json":       "`show yang tree` is served by registry.MustRegisterLocalData, so `| json` already renders it; the flag is the second spelling",
 	"F3 yang completion --json": "`show yang completion` is served by registry.MustRegisterLocalData, so `| json` already renders it; the flag is the second spelling",
+
+	// F3 widened to every command of the `ze` surface on 2026-08-30: rendering
+	// is the pipe layer's job whether or not a command's answer was registered
+	// for it, so "this command reaches no pipe layer" is the defect these
+	// entries record rather than the reason they are forgiven. Each names the
+	// source that parses the flag, so the fix is one MustRegisterLocalData
+	// registration in that package plus the flag's deletion, and the entry
+	// then goes.
+	"F3 config completion --json": "the flag is parsed in internal/component/config/cli/cmd_completion.go and no registry.MustRegisterLocalData call serves `config completion`, so its answer reaches no pipe layer",
+	"F3 config diff --json":       "the flag is parsed in internal/component/config/cli/cmd_diff.go and no registry.MustRegisterLocalData call serves `config diff`, so its answer reaches no pipe layer",
+	"F3 config fix --json":        "the flag is parsed in internal/component/config/cli/cmd_fix.go and no registry.MustRegisterLocalData call serves `config fix`, so its answer reaches no pipe layer",
+	"F3 config migrate --format":  "the flag is parsed in internal/component/config/cli/cmd_migrate.go and no registry.MustRegisterLocalData call serves `config migrate`, so its answer reaches no pipe layer",
+	"F3 config show --json":       "the flag is parsed in internal/component/config/cli/cmd_show.go and no registry.MustRegisterLocalData call serves `config show`, so its answer reaches no pipe layer",
+	"F3 config validate --json":   "the flag is parsed in internal/component/config/cli/cmd_validate.go and no registry.MustRegisterLocalData call serves `config validate`, so its answer reaches no pipe layer",
+	"F3 interface scan --json":    "the flag is parsed in internal/component/iface/cli/scan.go and no registry.MustRegisterLocalData call serves `interface scan`, so its answer reaches no pipe layer",
+	"F3 interface scan --yaml":    "the flag is parsed in internal/component/iface/cli/scan.go and no registry.MustRegisterLocalData call serves `interface scan`, so its answer reaches no pipe layer",
+	"F3 schema show --json":       "the flag is parsed in internal/component/config/schema/cli/main.go and no registry.MustRegisterLocalData call serves `schema show`, so its answer reaches no pipe layer",
+	"F3 tacacs show --json":       "the flag is parsed in internal/component/tacacs/cli/main.go and no registry.MustRegisterLocalData call serves `tacacs show`, so its answer reaches no pipe layer",
 }
 
 // flagPathDebt is one command path's undeclared flags: why they are still

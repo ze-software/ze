@@ -11,7 +11,7 @@
 //
 //	F1 is this flag a command name (a registered root spelled as a flag)
 //	F2 does a client build this flag into a command string it sends to the daemon
-//	F3 does this flag render an answer the pipe layer already renders
+//	F3 does this flag render, which is the pipe layer's job on every command
 //	F4 does the flag registry agree with the parser about which flags exist
 //
 // The checks themselves are grammar.CheckRootFlagForm, grammar.DaemonCommandFlag,
@@ -480,10 +480,15 @@ func checkFlagRegister(surface goSurface, daemonPaths map[string]bool, roots []s
 	}
 	for _, set := range surface.FlagSets {
 		path := flagSetPath(set.Name)
-		if served[path] {
-			hits = append(hits, sited(grammar.CheckPipeFlags(path, set.Flags), set)...)
+		inSurface := offlineZeCommand(path, roots, surface.Declared)
+		// F3 judges every command of the `ze` surface, registered for local
+		// data or not: rendering is the pipe layer's job unconditionally, and a
+		// command that reaches no pipe layer is the defect rather than the
+		// exemption. served decides only how the finding words the fix.
+		if inSurface || served[path] {
+			hits = append(hits, sited(grammar.CheckPipeFlags(path, set.Flags, served[path]), set)...)
 		}
-		if !offlineZeCommand(path, roots, surface.Declared) {
+		if !inSurface {
 			result.FlagSetsOutOfScope++
 			continue
 		}

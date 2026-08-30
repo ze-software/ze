@@ -327,6 +327,54 @@ func TestTheFlagFeederDrawsARowForEachShape(t *testing.T) {
 	}
 }
 
+// VALIDATES: F3 fires on a rendering flag whose command is NOT registered
+// through registry.MustRegisterLocalData, and stops at the ze command surface.
+// PREVENTS: the condition the feeder first shipped with, which asked how a
+// command was registered before it asked whether the flag renders. That made a
+// command reaching no pipe layer the exempt case, when it is the defect.
+func TestARenderingFlagOnAnUnregisteredCommandIsAFinding(t *testing.T) {
+	files := cleanFixture(t)
+	files["cmd/ze/roots.go"] = "package main\n\n" +
+		"func wire() {\n" +
+		"\tregistry.MustRegisterRootHandler(\"env\", nil, meta)\n" +
+		"\tregistry.MustRegisterRootHandler(\"fixture\", nil, meta)\n" +
+		"}\n"
+	files["internal/fixture/tool.go"] = "package fixture\n\n" +
+		"func run(args []string) int {\n" +
+		"\tfs := flag.NewFlagSet(\"ze fixture thing\", flag.ContinueOnError)\n" +
+		"\tyaml := fs.Bool(\"yaml\", false, \"output as YAML\")\n" +
+		"\tdepth := fs.Int(\"depth\", 0, \"how deep to walk\")\n" +
+		"\treturn use(yaml, depth, fs.Parse(args))\n" +
+		"}\n\n" +
+		"func perf(args []string) int {\n" +
+		"\tfs := flag.NewFlagSet(\"ze-perf run\", flag.ContinueOnError)\n" +
+		"\treturn use(fs.Bool(\"json\", false, \"output as JSON\"), fs.Parse(args))\n" +
+		"}\n"
+	tree := writeTree(t, files)
+
+	result, err := Check(tree, Floor{}, leProbeRoots())
+	if err != nil {
+		t.Fatalf("the gate failed over the fixture: %v", err)
+	}
+
+	pipeHits := 0
+	for _, hit := range result.FlagFindings {
+		if hit.Rule != grammar.RuleFlagIsAPipe {
+			continue
+		}
+		pipeHits++
+		if hit.Command != "fixture thing" || hit.Flag != "--yaml" {
+			t.Errorf("F3 drew %s %s, want the unregistered command's --yaml", hit.Command, hit.Flag)
+		}
+		if !strings.Contains(hit.Message, "MustRegisterLocalData") {
+			t.Errorf("the finding does not name the registration that fixes it: %q", hit.Message)
+		}
+	}
+	if pipeHits != 1 {
+		t.Errorf("F3 drew %d rows, want the one on the unregistered ze command:\n%s", pipeHits, result.Text())
+	}
+}
+
 // VALIDATES: --version, -V, --help and -h pass, and so does a root with no
 // hyphen at all.
 // PREVENTS: the one exception ai/rules/cli.md names being gated away. A person

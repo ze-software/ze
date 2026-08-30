@@ -13,8 +13,10 @@
 //	F2 a flag a client builds into a command string it SENDS TO THE DAEMON --
 //	   (*Dispatcher).Dispatch refuses it before any handler runs, so the command
 //	   fails on every invocation while both halves read as finished code
-//	F3 a flag that is a second spelling of a PIPE OPERATOR on a command whose
-//	   answer already reaches the pipe layer
+//	F3 a flag that RENDERS. Rendering is the pipe layer's job on every command,
+//	   so the flag is banned whether or not the command's answer reaches that
+//	   layer yet: how a command was registered is a fact about its wiring, not
+//	   about the command
 //	F4 a flag the parser reads that the flag registry never declared, or the
 //	   reverse
 //
@@ -27,6 +29,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -56,19 +59,62 @@ var universalFlags = map[string]bool{
 	"-h":        true,
 }
 
-// pipeFlags are the flag spellings of a pipe operator. `--json` and `| json`
-// are one job under two names and only one of them composes, so a command
-// whose answer already reaches the pipe layer must not carry these.
+// namedRenderingFlags are the two rendering flag spellings no operator carries,
+// so no catalog entry can name them. `--format` SELECTS among the rendering
+// operators rather than being one of them, and `--no-header` drops the header
+// the table renderer writes. ai/rules/cli.md bans both by name.
+var namedRenderingFlags = []string{"format", "no-header"}
+
+// renderingFlags are the flag spellings that do the pipe layer's rendering job.
+// `--json` and `| json` are one job under two names and only one of them
+// composes, so no command carries these.
+//
+// The operator spellings are DERIVED from the operator catalog
+// (command.PipeOperatorCatalog, filtered by PipeOperator.Renders), which is the
+// one statement of the operator language: an operator added to it is a banned
+// flag spelling on the same commit, with nothing to hand-copy.
 //
 // The names are stored bare, as Go's flag package holds them; FlagName
 // normalizes a token before the lookup.
-var pipeFlags = map[string]bool{
-	"json":   true,
-	"yaml":   true,
-	"table":  true,
-	"text":   true,
-	"format": true,
-}
+var renderingFlags = func() map[string]bool {
+	flags := make(map[string]bool, len(namedRenderingFlags)+len(operatorFlags))
+	for _, name := range namedRenderingFlags {
+		flags[name] = true
+	}
+	for name := range operatorFlags {
+		flags[name] = true
+	}
+	return flags
+}()
+
+// operatorFlags are the rendering flag spellings an operator carries, which is
+// what lets a finding name the exact pipe expression that does the flag's job.
+var operatorFlags = func() map[string]bool {
+	flags := map[string]bool{}
+	for _, operator := range command.PipeOperatorCatalog() {
+		if operator.Renders() {
+			flags[operator.Name] = true
+		}
+	}
+	return flags
+}()
+
+// renderingOperatorList spells the rendering operators as an operator types
+// them, in the catalog's published order, for the finding that cannot name one
+// operator because the flag names none.
+var renderingOperatorList = func() string {
+	var tb textbuf.Buffer
+	for _, operator := range command.PipeOperatorCatalog() {
+		if !operator.Renders() {
+			continue
+		}
+		if tb.Len() > 0 {
+			tb.Str(", ")
+		}
+		tb.Str("`| ").Str(operator.Name).Byte('`')
+	}
+	return tb.String()
+}()
 
 // FlagShaped reports whether a token is a flag rather than a value.
 //
@@ -208,27 +254,64 @@ func ClientFlagFinding(path, flag string) FlagFinding {
 }
 
 // ze point: cli/cli-grammar-keywords-before-values/what-a-flag-must-never-be
-// CheckPipeFlags applies F3: a command whose answer already reaches the pipe
-// layer must not carry a flag that renders it.
+// CheckPipeFlags applies F3: no command in the `ze` command surface carries a
+// flag that renders its answer, because rendering is the pipe layer's job.
 //
-// The caller passes only a path it has established is served with data
-// (registry.MustRegisterLocalData, rendered by command.ServeLocal), because
-// that is what makes `| json` available and the flag a duplicate.
-func CheckPipeFlags(path string, parsed []string) []FlagFinding {
+// served says whether the path is registered through
+// registry.MustRegisterLocalData, which decides the FIX and never the verdict.
+// A registered path already reaches the pipe layer (command.ServeLocal renders
+// the whole operator set over its answer), so the flag is a second spelling and
+// the fix is to delete it. An unregistered path reaches no pipe layer, and that
+// is the defect rather than the exemption: whether a command reaches the layer
+// is a fact about how it was registered, so the fix is to register the answer
+// and then delete the flag.
+// pipeLoweringExempt is the one shape ai/rules/cli.md permits: a flag that sets
+// a SESSION default and lowers into the pipe operator before dispatch, so the
+// pipe layer still does the rendering. `ze cli --format json` is that flag, and
+// commandWithFormat (internal/component/cli/client) is the lowering: it appends
+// the operator to the command unless the operator is already there.
+//
+// It is keyed by path and flag rather than by flag alone, because the property
+// that makes it legal lives in the caller and not in the token. A second entry
+// needs its own lowering to point at.
+var pipeLoweringExempt = map[string]bool{"cli --format": true}
+
+func CheckPipeFlags(path string, parsed []string, served bool) []FlagFinding {
 	var out []FlagFinding
 	for _, name := range sortedUnique(parsed) {
-		if !pipeFlags[FlagName(name)] {
+		if !renderingFlags[FlagName(name)] {
+			continue
+		}
+		if pipeLoweringExempt[path+" "+FlagToken(name)] {
 			continue
 		}
 		out = append(out, FlagFinding{
 			Command: path,
 			Rule:    RuleFlagIsAPipe,
 			Flag:    FlagToken(name),
-			Message: msg("flag ", FlagToken(name), " renders an answer this command already serves through the pipe layer -- `",
-				path, " | ", FlagName(name), "` is the same job, and only the operator composes"),
+			Message: pipeFlagMessage(path, FlagToken(name), FlagName(name), served),
 		})
 	}
 	return out
+}
+
+// pipeFlagMessage states the fix the reader owes: which pipe expression does
+// this flag's job, and whether the command's answer already reaches the layer
+// that runs it.
+func pipeFlagMessage(path, token, bare string, served bool) string {
+	expression := msg("`", path, " | ", bare, "`")
+	if !operatorFlags[bare] {
+		// `--format` and `--no-header` name no operator, so the reader is
+		// pointed at the operators that do their job instead.
+		expression = msg("the rendering operators (", renderingOperatorList, ")")
+	}
+	if served {
+		return msg("flag ", token, " is a second spelling of ", expression,
+			", which this command's answer already reaches. Only the operator composes, so delete the flag")
+	}
+	return msg("flag ", token, " renders an answer that reaches no pipe layer, which is the defect and not the exemption. ",
+		"Register the answer through registry.MustRegisterLocalData, which renders it through ", expression,
+		", then delete the flag")
 }
 
 // ze point: cli/cli-grammar-keywords-before-values/declare-every-offline-flag-through-the-flag-registry
