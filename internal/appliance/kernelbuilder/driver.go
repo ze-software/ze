@@ -246,7 +246,7 @@ var commandAvailable = func(name string) bool {
 
 func runDocker(ctx context.Context, req Request) error {
 	platform := dockerPlatforms[req.Arch]
-	if err := os.MkdirAll(hostOutputPath(req), 0o755); err != nil {
+	if err := os.MkdirAll(hostOutputPath(req), 0o750); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 	buildArgs := []string{"build", dockerPlatformFlag, platform, "-t", req.Image, "-f", filepath.Join(req.BuilderDir, "Dockerfile"), req.Root}
@@ -274,7 +274,7 @@ func runDocker(ctx context.Context, req Request) error {
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			return fmt.Errorf("patches directory %s must be under source directory %s", req.PatchesDir, req.SourceDir)
 		}
-		args = append(args, "--patches-dir", filepath.ToSlash(filepath.Join("/src", rel)))
+		args = append(args, "--patches-dir", filepath.ToSlash(filepath.Join(containerSrcDir, rel)))
 	}
 	if req.FirmwareDir != "" {
 		args = append(args, "--firmware-dir", "/firmware")
@@ -302,13 +302,20 @@ func runDocker(ctx context.Context, req Request) error {
 	return nil
 }
 
+// The mount points the kernel build container sees. A path handed to the
+// container is one of these joined with a path relative to its host directory.
+const (
+	containerSrcDir    = "/src"
+	containerCommonDir = "/builder/common"
+)
+
 func containerFragmentPath(req Request, fragment string) (string, error) {
 	fragment = filepath.Clean(fragment)
 	if rel, err := filepath.Rel(req.CommonDir, fragment); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return filepath.ToSlash(filepath.Join("/builder/common", rel)), nil
+		return filepath.ToSlash(filepath.Join(containerCommonDir, rel)), nil
 	}
 	if rel, err := filepath.Rel(req.SourceDir, fragment); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return filepath.ToSlash(filepath.Join("/src", rel)), nil
+		return filepath.ToSlash(filepath.Join(containerSrcDir, rel)), nil
 	}
 	return "", fmt.Errorf("fragment %s is outside source directory %s and common directory %s", fragment, req.SourceDir, req.CommonDir)
 }
@@ -331,11 +338,11 @@ var runCommand = func(ctx context.Context, req Request, name string, args ...str
 
 func writeProvenance(outputDir string, req Request, backend string) error {
 	path := hostOutputPath(Request{Root: req.Root, OutputDir: outputDir})
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	if err := os.MkdirAll(path, 0o750); err != nil {
 		return fmt.Errorf("create provenance directory: %w", err)
 	}
 	data := fmt.Sprintf("version=%s\ntarget=%s\nprofile=%s\narch=%s\nmodules=%s\nbuilder=%s\n", req.Version, req.Target, req.Profile, req.Arch, req.Modules, backend)
-	if err := os.WriteFile(filepath.Join(path, provenanceName), []byte(data), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(path, provenanceName), []byte(data), 0o600); err != nil {
 		return fmt.Errorf("write kernel provenance: %w", err)
 	}
 	return nil

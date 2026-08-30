@@ -36,7 +36,7 @@ var alpineReleaseBaseURL = "https://dl-cdn.alpinelinux.org/alpine"
 
 func runQEMU(ctx context.Context, req Request) error {
 	arch := alpineArch(req.Arch)
-	iso, err := ensureAlpineISO(ctx, req, arch)
+	iso, err := ensureAlpineISO(ctx, arch)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func qemuBinary(arch string) string {
 	return "qemu-system-x86_64"
 }
 
-func ensureAlpineISO(ctx context.Context, req Request, arch string) (string, error) {
+func ensureAlpineISO(ctx context.Context, arch string) (string, error) {
 	cacheHome := os.Getenv("XDG_CACHE_HOME")
 	if cacheHome == "" {
 		home, err := os.UserHomeDir()
@@ -70,7 +70,7 @@ func ensureAlpineISO(ctx context.Context, req Request, arch string) (string, err
 		cacheHome = filepath.Join(home, ".cache")
 	}
 	cache := filepath.Join(cacheHome, "ze", "alpine-iso")
-	if err := os.MkdirAll(cache, 0o755); err != nil {
+	if err := os.MkdirAll(cache, 0o750); err != nil {
 		return "", fmt.Errorf("create Alpine ISO cache: %w", err)
 	}
 	name := fmt.Sprintf("alpine-virt-%s.%s-%s.iso", alpineVersion, alpineMinor, arch)
@@ -102,13 +102,13 @@ func ensureAlpineISO(ctx context.Context, req Request, arch string) (string, err
 	}
 	if actual != expected {
 		_ = os.Remove(part)
-		return "", fmt.Errorf("Alpine ISO checksum mismatch for %s: got %s, want %s", name, actual, expected)
+		return "", fmt.Errorf("checksum mismatch for Alpine ISO %s: got %s, want %s", name, actual, expected)
 	}
 	if err := os.Rename(part, iso); err != nil {
 		_ = os.Remove(part)
 		return "", fmt.Errorf("publish Alpine ISO: %w", err)
 	}
-	if err := os.WriteFile(sidecar, []byte(fmt.Sprintf("%s  %s\n", expected, name)), 0o644); err != nil {
+	if err := os.WriteFile(sidecar, []byte(fmt.Sprintf("%s  %s\n", expected, name)), 0o600); err != nil {
 		return "", fmt.Errorf("write Alpine ISO checksum: %w", err)
 	}
 	return iso, nil
@@ -154,7 +154,7 @@ func downloadFile(ctx context.Context, url, path string) error {
 	if response.StatusCode < 200 || response.StatusCode > 299 {
 		return fmt.Errorf("download %s: HTTP %s", url, response.Status)
 	}
-	out, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	out, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // G304: path is this package's own download cache entry
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func downloadFile(ctx context.Context, url, path string) error {
 	return nil
 }
 func fileSHA256(path string) (string, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // G304: path is a cache entry or a build artifact this package named
 	if err != nil {
 		return "", err
 	}
@@ -181,7 +181,7 @@ func fileSHA256(path string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 func readChecksum(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: path is the checksum sidecar this package writes beside the ISO
 	if err != nil {
 		return "", err
 	}
@@ -198,7 +198,7 @@ func readChecksum(path string) (string, error) {
 func buildGuestWorker(ctx context.Context, req Request) (string, error) {
 	rel := filepath.Join("tmp", backendQEMU, "bin", workerGOARCH(req.Arch), "ze-kernel-builder")
 	path := filepath.Join(req.Root, rel)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return "", err
 	}
 	cmd := exec.CommandContext(ctx, "go", "build", "-o", path, "./tools/kernel-builder") //nolint:gosec // fixed Go package and validated output
@@ -212,14 +212,14 @@ func buildGuestWorker(ctx context.Context, req Request) (string, error) {
 }
 
 func runQEMUBuild(ctx context.Context, req Request, iso, workerRel string) error {
-	port, err := freeTCPPort()
+	port, err := freeTCPPort(ctx)
 	if err != nil {
 		return err
 	}
 	ccache := filepath.Join(req.Root, "tmp", backendQEMU, "ccache")
 	build := filepath.Join(req.Root, "tmp", backendQEMU, "build", alpineArch(req.Arch))
 	for _, dir := range []string{ccache, build, hostOutputPath(req)} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return err
 		}
 	}
@@ -311,8 +311,8 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel string) error
 			return fmt.Errorf("kernel tarball download failed: %w", err)
 		}
 	} else {
-		fmt.Fprintf(req.Stderr, "  %s cached on host\n", filepath.Base(tarball))
-	} //nolint:errcheck // progress output
+		fmt.Fprintf(req.Stderr, "  %s cached on host\n", filepath.Base(tarball)) //nolint:errcheck // progress output
+	}
 	fmt.Fprintf(req.Stderr, "  building kernel (version=%s, arch=%s, profile=%s)...\n", req.Version, req.Arch, req.Profile) //nolint:errcheck // progress output
 	buildCtx, cancel := context.WithTimeout(ctx, buildTimeout)
 	defer cancel()
@@ -358,7 +358,7 @@ func availableAccelerators(ctx context.Context, binary string) map[string]bool {
 		return result
 	}
 	known := map[string]bool{"hvf": true, "kvm": true, "tcg": true, "whpx": true, "xen": true}
-	for _, line := range strings.Split(string(output), "\n") {
+	for line := range strings.SplitSeq(string(output), "\n") {
 		token := strings.TrimSpace(line)
 		if known[token] {
 			result[token] = true
@@ -375,9 +375,9 @@ func findAArch64Firmware() (string, error) {
 		prefixes = append(prefixes, filepath.Dir(filepath.Dir(brew)))
 	}
 	prefixes = append(prefixes, "/opt/homebrew", "/usr/local")
-	candidates := []string{}
+	candidates := make([]string, 0, len(prefixes)+3)
 	for _, prefix := range prefixes {
-		candidates = append(candidates, filepath.Join(prefix, "share/qemu/edk2-aarch64-code.fd"))
+		candidates = append(candidates, filepath.Join(prefix, "share", "qemu", "edk2-aarch64-code.fd"))
 	}
 	candidates = append(candidates, "/usr/share/qemu/edk2-aarch64-code.fd", "/usr/share/AAVMF/AAVMF_CODE.fd", "/usr/share/edk2/aarch64/QEMU_EFI-pflash.raw")
 	for _, path := range candidates {
@@ -387,8 +387,9 @@ func findAArch64Firmware() (string, error) {
 	}
 	return "", errors.New("aarch64 UEFI firmware not found; install QEMU with firmware (brew install qemu) or qemu-efi-aarch64 on Debian/Ubuntu")
 }
-func freeTCPPort() (int, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+func freeTCPPort(ctx context.Context) (int, error) {
+	var config net.ListenConfig
+	listener, err := config.Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, err
 	}
@@ -403,7 +404,7 @@ func freeTCPPort() (int, error) {
 func vmMemoryMiB(ctx context.Context) int {
 	total := int64(0)
 	if data, err := os.ReadFile("/proc/meminfo"); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
+		for line := range strings.SplitSeq(string(data), "\n") {
 			if strings.HasPrefix(line, "MemTotal:") {
 				fields := strings.Fields(line)
 				if len(fields) >= 2 {
@@ -437,7 +438,7 @@ func waitForSSH(ctx context.Context, port int, timeout time.Duration) error {
 	for time.Now().Before(deadline) {
 		attempt, cancel := context.WithTimeout(ctx, 2*time.Second)
 		args := append(sshOptions(port), "-o", "ConnectTimeout=2", "root@localhost", "true")
-		cmd := exec.CommandContext(attempt, "ssh", args...)
+		cmd := exec.CommandContext(attempt, "ssh", args...) //nolint:gosec // fixed "ssh" binary, options and loopback port built here
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, io.Discard, io.Discard
 		err := cmd.Run()
 		cancel()
@@ -452,7 +453,7 @@ func waitForSSH(ctx context.Context, port int, timeout time.Duration) error {
 }
 func sshRun(ctx context.Context, port int, command string, req Request) error {
 	args := append(sshOptions(port), "-o", "ServerAliveInterval=30", "root@localhost", command)
-	cmd := exec.CommandContext(ctx, "ssh", args...)
+	cmd := exec.CommandContext(ctx, "ssh", args...) //nolint:gosec // fixed "ssh" binary, options and loopback port built here
 	cmd.Stdout, cmd.Stderr = req.Stdout, req.Stderr
 	return cmd.Run()
 }

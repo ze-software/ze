@@ -222,8 +222,7 @@ func TestEnsureAlpineISOChecksumAndCacheInvalidation(t *testing.T) {
 	alpineReleaseBaseURL = server.URL
 	t.Cleanup(func() { alpineReleaseBaseURL = old })
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
-	req := Request{}
-	path, err := ensureAlpineISO(context.Background(), req, "x86_64")
+	path, err := ensureAlpineISO(context.Background(), "x86_64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +233,7 @@ func TestEnsureAlpineISOChecksumAndCacheInvalidation(t *testing.T) {
 	if requests != 2 {
 		t.Fatalf("download requests = %d, want 2", requests)
 	}
-	if _, err := ensureAlpineISO(context.Background(), req, "x86_64"); err != nil {
+	if _, err := ensureAlpineISO(context.Background(), "x86_64"); err != nil {
 		t.Fatal(err)
 	}
 	if requests != 2 {
@@ -243,7 +242,7 @@ func TestEnsureAlpineISOChecksumAndCacheInvalidation(t *testing.T) {
 	if err := os.WriteFile(path, []byte("corrupt"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ensureAlpineISO(context.Background(), req, "x86_64"); err != nil {
+	if _, err := ensureAlpineISO(context.Background(), "x86_64"); err != nil {
 		t.Fatal(err)
 	}
 	if requests != 4 {

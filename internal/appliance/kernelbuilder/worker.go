@@ -93,7 +93,7 @@ func RunWorker(ctx context.Context, req WorkerRequest) error {
 			return err
 		}
 	}
-	if err := os.MkdirAll(req.WorkDir, 0o755); err != nil {
+	if err := os.MkdirAll(req.WorkDir, 0o750); err != nil {
 		return fmt.Errorf("create work directory: %w", err)
 	}
 	tarball, err := downloadKernelSource(ctx, req)
@@ -112,7 +112,8 @@ func RunWorker(ctx context.Context, req WorkerRequest) error {
 		return err
 	}
 	merge := filepath.Join(buildTree, "scripts", "kconfig", "merge_config.sh")
-	args := []string{"-m", ".config"}
+	args := make([]string, 0, 2+len(req.Fragments))
+	args = append(args, "-m", ".config")
 	args = append(args, req.Fragments...)
 	if err := runWorkerCommand(ctx, req, buildTree, merge, args...); err != nil {
 		return fmt.Errorf("merge kernel config: %w", err)
@@ -134,7 +135,7 @@ func RunWorker(ctx context.Context, req WorkerRequest) error {
 	if err := runWorkerCommand(ctx, req, buildTree, "make", makeArgs...); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(req.OutputDir, 0o755); err != nil {
+	if err := os.MkdirAll(req.OutputDir, 0o750); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 	if err := copyFile(filepath.Join(buildTree, ".config"), filepath.Join(req.OutputDir, "config")); err != nil {
@@ -232,7 +233,7 @@ func downloadKernelSource(ctx context.Context, req WorkerRequest) (string, error
 	if response.StatusCode < 200 || response.StatusCode > 299 {
 		return "", fmt.Errorf("download kernel source: HTTP %s", response.Status)
 	}
-	out, err := os.OpenFile(part, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	out, err := os.OpenFile(part, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // G304: part is the download scratch name this function built from WorkDir
 	if err != nil {
 		return "", fmt.Errorf("create kernel source part: %w", err)
 	}
@@ -250,7 +251,7 @@ func downloadKernelSource(ctx context.Context, req WorkerRequest) (string, error
 }
 
 func restoreOrExtractTree(ctx context.Context, req WorkerRequest, tarball string) (string, error) {
-	if err := os.MkdirAll(req.BuildDir, 0o755); err != nil {
+	if err := os.MkdirAll(req.BuildDir, 0o750); err != nil {
 		return "", fmt.Errorf("create build directory: %w", err)
 	}
 	buildTree := filepath.Join(req.BuildDir, fmt.Sprintf("linux-%s-%s", req.Version, req.Modules))
@@ -302,7 +303,7 @@ func extractTar(ctx context.Context, req WorkerRequest, archive, dest string, xz
 	if err != nil {
 		return fmt.Errorf("list kernel archive: %w", err)
 	}
-	for _, name := range strings.Split(string(listing), "\n") {
+	for name := range strings.SplitSeq(string(listing), "\n") {
 		clean := filepath.Clean(name)
 		if filepath.IsAbs(name) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 			return fmt.Errorf("kernel tarball contains unsafe path: %s", name)
@@ -319,12 +320,12 @@ func applyPatches(ctx context.Context, req WorkerRequest, buildTree string) erro
 		return nil
 	}
 	series := filepath.Join(req.PatchesDir, "series")
-	data, err := os.ReadFile(series)
+	data, err := os.ReadFile(series) //nolint:gosec // G304: PatchesDir is a request field the caller validated, and "series" is fixed
 	if err != nil {
 		return fmt.Errorf("read patch series: %w", err)
 	}
 	fmt.Fprintf(req.Stdout, ">>> applying patches from %s\n", req.PatchesDir) //nolint:errcheck // progress output
-	for _, raw := range strings.Split(string(data), "\n") {
+	for raw := range strings.SplitSeq(string(data), "\n") {
 		name := strings.TrimSpace(raw)
 		if name == "" || strings.HasPrefix(name, "#") {
 			continue
@@ -333,7 +334,7 @@ func applyPatches(ctx context.Context, req WorkerRequest, buildTree string) erro
 			return fmt.Errorf("invalid patch name in series: %s", name)
 		}
 		path := filepath.Join(req.PatchesDir, name)
-		file, err := os.Open(path)
+		file, err := os.Open(path) //nolint:gosec // G304: the series entry is rejected above when it holds a separator or ".."
 		if err != nil {
 			return fmt.Errorf("open patch %s: %w", path, err)
 		}
@@ -364,7 +365,7 @@ func embedFirmware(req WorkerRequest, buildTree string) error {
 		return fmt.Errorf("missing firmware %s: %w", blob, err)
 	}
 	fmt.Fprintf(req.Stdout, ">>> embedding firmware from %s\n  %s: %d bytes\n", req.FirmwareDir, i915Firmware, info.Size()) //nolint:errcheck // progress output
-	config, err := os.OpenFile(filepath.Join(buildTree, ".config"), os.O_APPEND|os.O_WRONLY, 0)
+	config, err := os.OpenFile(filepath.Join(buildTree, ".config"), os.O_APPEND|os.O_WRONLY, 0)                             //nolint:gosec // G304: the kernel config in the tree this worker extracted
 	if err != nil {
 		return fmt.Errorf("open kernel config for firmware: %w", err)
 	}
@@ -377,7 +378,7 @@ func enforceRequiredSymbols(req WorkerRequest, buildTree string) error {
 	seen := make(map[string]bool)
 	for _, fragment := range req.Fragments {
 		manifest := strings.TrimSuffix(fragment, filepath.Ext(fragment)) + ".require"
-		file, err := os.Open(manifest)
+		file, err := os.Open(manifest) //nolint:gosec // G304: the manifest sits beside a fragment path the request named
 		if err != nil {
 			return fmt.Errorf("missing require manifest %s: %w", manifest, err)
 		}
@@ -389,8 +390,8 @@ func enforceRequiredSymbols(req WorkerRequest, buildTree string) error {
 			if line == "" || strings.HasPrefix(line, "#") {
 				continue
 			}
-			if strings.HasSuffix(line, "=y") {
-				line = strings.TrimSuffix(line, "=y")
+			if trimmed, found := strings.CutSuffix(line, "=y"); found {
+				line = trimmed
 			} else if strings.Contains(line, "=") {
 				_ = file.Close()
 				return fmt.Errorf("%s:%d require entries must be CONFIG_SYMBOL or CONFIG_SYMBOL=y", manifest, lineNo)
@@ -409,12 +410,12 @@ func enforceRequiredSymbols(req WorkerRequest, buildTree string) error {
 			return fmt.Errorf("read require manifest %s: %w", manifest, err)
 		}
 	}
-	data, err := os.ReadFile(filepath.Join(buildTree, ".config"))
+	data, err := os.ReadFile(filepath.Join(buildTree, ".config")) //nolint:gosec // G304: the kernel config in the tree this worker extracted
 	if err != nil {
 		return fmt.Errorf("read resolved kernel config: %w", err)
 	}
 	enabled := make(map[string]bool)
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		if key, value, ok := strings.Cut(line, "="); ok && strings.HasPrefix(key, "CONFIG_") && value == "y" {
 			enabled[key] = true
 		}
@@ -441,7 +442,7 @@ func copyRuntimeOutputs(ctx context.Context, req WorkerRequest, buildTree, kerne
 				return walkErr
 			}
 			if !entry.IsDir() && (entry.Name() == "build" || entry.Name() == "source") {
-				return os.Remove(path)
+				return os.Remove(path) //nolint:gosec // G122: walks the module tree this worker just wrote in its own output directory; no other writer races it
 			}
 			return nil
 		})
@@ -527,7 +528,7 @@ func regularFile(path string) bool {
 	return err == nil && info.Mode().IsRegular()
 }
 func copyFile(source, dest string) (err error) {
-	in, err := os.Open(source)
+	in, err := os.Open(source) //nolint:gosec // G304: both ends are paths inside the build tree and the output directory
 	if err != nil {
 		return fmt.Errorf("open %s: %w", source, err)
 	}
@@ -538,10 +539,10 @@ func copyFile(source, dest string) (err error) {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
 		return err
 	}
-	out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode().Perm())
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode().Perm()) //nolint:gosec // G304+G302: dest mirrors source inside the output directory, and the copy keeps the source mode
 	if err != nil {
 		return err
 	}
@@ -571,7 +572,7 @@ func copyTree(source, dest string) error {
 				return err
 			}
 			_ = os.Remove(target)
-			return os.Symlink(link, target)
+			return os.Symlink(link, target) //nolint:gosec // G122: recreating a symlink is the point of this branch, and both trees are the worker's own
 		}
 		return copyFile(path, target)
 	})

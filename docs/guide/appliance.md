@@ -91,7 +91,7 @@ Each symbol has a producer in Ze rather than a test that wanted it.
 config fragment and are not pinned in a manifest.
 <!-- source: gokrazy/kernel/runtime.require -- runtime requirements -->
 <!-- source: gokrazy/kernel/kernel.require -- base requirements -->
-<!-- source: internal/appliance/kernelbuilder/worker.go -- EnforceRequiredSymbols -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- enforceRequiredSymbols -->
 
 ## L2TP Kernel Support
 
