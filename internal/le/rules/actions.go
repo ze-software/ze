@@ -49,8 +49,7 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "gate-map-report", Why: "which rule point each hook check enforces. Gated and ungated are " +
 		"MEASUREMENTS and exit 0: an ungated point is a rule no machine enforces yet. " +
 		"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
-		"now, a rule holding fewer points than HEAD with no row in ai/rules/points/RETIRED.md, " +
-		"and a rationale or excepted-by naming nothing",
+		"now while that point is still on disk, and a rationale or excepted-by naming nothing",
 		Answer: coverageAnswer},
 	leaction.Action{Verb: "index-check", Why: "ai/rules/INDEX.md names every rule and its trigger, so an agent can " +
 		"tell which rule covers a topic without opening all of them",

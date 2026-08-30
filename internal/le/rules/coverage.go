@@ -52,12 +52,6 @@ const noCheck = "<source>"
 // emptyRef stands in for a `// ze point:` comment with no payload.
 const emptyRef = "!empty"
 
-// retiredFile is the ledger a point's removal is declared in.
-const retiredFile = "RETIRED.md"
-
-// retiredTableHead is the ledger's table header, excluded from its rows.
-const retiredTableHead = "| Point | Why |"
-
 // gitTimeout bounds one git call. Each reads an object or lists a tree, which
 // is milliseconds, so a run past this is a wedged repository rather than a slow
 // one.
@@ -72,8 +66,6 @@ var (
 	// enforces no written point. The reason distinguishes an intentional
 	// exception from a forgotten binding.
 	noPointLine  = regexp.MustCompile(`^none[ \t\n\r\f\v]+--[ \t\n\r\f\v]+(\S.*)$`)
-	retirementRe = regexp.MustCompile(
-		"^\\|[ \t\n\r\f\v]*`([a-z0-9-]+/[a-z0-9-]+/[a-z0-9-]+)`[ \t\n\r\f\v]*\\|[ \t\n\r\f\v]*([^|]*\\S)[ \t\n\r\f\v]*\\|[ \t\n\r\f\v]*$")
 )
 
 // structuralKinds are excluded from the ungated DENOMINATOR, so the number
@@ -205,7 +197,9 @@ func bindingComment(text, path string, line int, check string) (Binding, bool) {
 
 // parseHookRegistry answers the action-to-check function names from the
 // composite literal used by hookruntime.Run. A malformed registry is an error,
-// never a shortened roster.
+// never a shortened roster. A file that declares no registry answers an empty
+// map, which the caller tells from a parsed one by its length: a parsed
+// registry always names at least one action.
 func parseHookRegistry(tree *ast.File) (map[string][]string, error) {
 	var literal *ast.CompositeLit
 	for _, declaration := range tree.Decls {
@@ -233,7 +227,7 @@ func parseHookRegistry(tree *ast.File) (map[string][]string, error) {
 		}
 	}
 	if literal == nil {
-		return nil, nil
+		return map[string][]string{}, nil
 	}
 
 	actions := map[string][]string{}
@@ -381,16 +375,16 @@ func nativeHookSources(root string) (map[string]string, []string) {
 			}
 			functions[function] = name
 		}
-		if file.registry == nil {
+		if len(file.registry) == 0 {
 			continue
 		}
-		if registry != nil {
+		if len(registry) != 0 {
 			problems = append(problems, hookRegistry+" is declared in more than one Go file")
 			continue
 		}
 		registry = file.registry
 	}
-	if registry == nil {
+	if len(registry) == 0 {
 		problems = append(problems, hookRegistry+": native hook action registry is missing")
 		return sources, problems
 	}
@@ -524,10 +518,11 @@ func gatedRegressions(gm gateMap, baseline map[string]map[string]bool) []string 
 // makes its binding dangle and fail. Replacing that binding with
 // `// ze point: none -- <why>` puts it in UNBOUND, which does not fail.
 //
-// retired contains ids that retiredRowsSince VALIDATED as declared since HEAD.
-// Such a ref is not a regression. Retirement, declaration, and check relabeling
-// are the normal route out of the corpus. A PARTIAL declaration fails closed.
-func unboundRegressions(gm gateMap, baseline map[string]map[string]bool, retired map[string]bool) []string {
+// onDisk holds the point ids present now. A baseline ref absent from it left the
+// corpus, so the check that named it rightly enforces nothing and git history
+// says where the instruction went. A ref still on disk is the rename being
+// laundered, and it fails.
+func unboundRegressions(gm gateMap, baseline map[string]map[string]bool, onDisk map[string]bool) []string {
 	now := map[string]bool{}
 	for _, binding := range gm.gatedBindings() {
 		now[binding.Check] = true
@@ -545,7 +540,7 @@ func unboundRegressions(gm gateMap, baseline map[string]map[string]bool, retired
 		}
 		var live []string
 		for ref := range baseline[check] {
-			if !retired[ref] {
+			if onDisk[ref] {
 				live = append(live, ref)
 			}
 		}
@@ -561,172 +556,10 @@ func unboundRegressions(gm gateMap, baseline map[string]map[string]bool, retired
 	return out
 }
 
-// retirementRows answers the ledger's table rows, its header and separator
-// excluded. The rest of the file is prose explaining the mechanism, so a row is
-// recognized by its markdown table shape rather than by position.
-func retirementRows(text string) []string {
-	var out []string
-	for line := range strings.SplitSeq(text, "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "|") || line == retiredTableHead {
-			continue
-		}
-		if strings.Trim(line, "|-: ") == "" {
-			continue
-		}
-		out = append(out, line)
-	}
-	return out
-}
 
-// retiredRowsSince answers the ids declared retired since HEAD, and the rows
-// that declare nothing.
-//
-// The function returns IDS, not a count. A count cannot identify invalid
-// substitutions. An edit can delete a real point and declare a nonexistent id.
-// An edit can also change a committed row's Why text to permit a second deletion.
-//
-// Four shapes declare nothing and are REFUSED:
-//
-// - A row lacks a `<rule>/<section>/<slug>` and a reason.
-// - A row names an id that was absent at git HEAD.
-// - A row names a point that remains on disk.
-// - A row duplicates an id in this file.
-//
-// Two shapes declare nothing and are SKIPPED. HEAD already contains each
-// declaration, so another run must not reject a committed line. These shapes
-// are an unchanged row and an id that HEAD already declares. They keep the
-// ledger a scope instead of an allowlist.
-func retiredRowsSince(nowText, wasText string, headIDs map[string]bool, haveHeadIDs bool,
-	nowIDs map[string]bool) (map[string]bool, []string) {
-	var tb textbuf.Buffer
-	where := tb.Str(pointsRel).Byte('/').Str(retiredFile).String()
 
-	unchanged := map[string]bool{}
-	atHead := map[string]bool{}
-	for _, row := range retirementRows(wasText) {
-		unchanged[row] = true
-		if found := retirementRe.FindStringSubmatch(row); found != nil {
-			atHead[found[1]] = true
-		}
-	}
 
-	declared := map[string]bool{}
-	var problems []string
-	for _, row := range retirementRows(nowText) {
-		if unchanged[row] {
-			continue
-		}
-		found := retirementRe.FindStringSubmatch(row)
-		if found == nil {
-			tb.Reset()
-			problems = append(problems, tb.Str(where).Str(": ").Str(pyRepr(row)).
-				Str(" is not '<rule>/<section>/<slug> -- <why>'").String())
-			continue
-		}
-		ref := found[1]
-		switch {
-		case atHead[ref]:
-		case declared[ref]:
-			tb.Reset()
-			problems = append(problems, tb.Str(where).Str(": `").Str(ref).
-				Str("` is declared twice; one row retires one point").String())
-		case haveHeadIDs && !headIDs[ref]:
-			tb.Reset()
-			problems = append(problems, tb.Str(where).Str(": `").Str(ref).
-				Str("` names no point at HEAD; a retirement declares an instruction that left the corpus, and this id was never in it").String())
-		case nowIDs[ref]:
-			tb.Reset()
-			problems = append(problems, tb.Str(where).Str(": `").Str(ref).
-				Str("` is still on disk; a retirement declares an instruction that left, and this one has not").String())
-		default:
-			declared[ref] = true
-		}
-	}
-	return declared, problems
-}
 
-// retiredSinceHead runs retiredRowsSince over the ledger on disk and the ledger
-// at HEAD.
-func retiredSinceHead(root, pointsDir string, headIDs map[string]bool, haveHeadIDs bool,
-	nowIDs map[string]bool) (map[string]bool, []string) {
-	nowText := ""
-	if raw, err := os.ReadFile(filepath.Join(pointsDir, retiredFile)); err == nil { // #nosec G304 -- a path derived from the checkout
-		nowText = string(raw)
-	}
-	var tb textbuf.Buffer
-	wasText, _ := gitOutput(root, "show", tb.Str("HEAD:").Str(retiredRel).String())
-	return retiredRowsSince(nowText, wasText, headIDs, haveHeadIDs, nowIDs)
-}
-
-// headPointIDs answers every point id at git HEAD and whether git answered.
-//
-// It reads file names at a fixed depth of two. Thus, manifests, the ledger, and
-// deeper files are not points. Retirement rows are checked against ids, so this
-// function returns names instead of only a count.
-func headPointIDs(root string) (map[string]bool, bool) {
-	if _, ok := gitOutput(root, "rev-parse", "--verify", "HEAD"); !ok {
-		return nil, false
-	}
-	listed, ok := gitOutput(root, "ls-tree", "-r", "--name-only", "HEAD", pointsRel)
-	if !ok {
-		return nil, false
-	}
-	out := map[string]bool{}
-	var tb textbuf.Buffer
-	for line := range strings.SplitSeq(listed, "\n") {
-		parts := strings.Split(strings.TrimSpace(line), "/")
-		if len(parts) != 6 || parts[0] != "ai" || parts[1] != "rules" || parts[2] != "points" {
-			continue
-		}
-		if !strings.HasSuffix(parts[5], ".md") {
-			continue
-		}
-		tb.Reset()
-		out[tb.Str(parts[3]).Byte('/').Str(parts[4]).Byte('/').
-			Str(strings.TrimSuffix(parts[5], ".md")).String()] = true
-	}
-	return out, true
-}
-
-// corpusShrink answers the point ids git HEAD carried that are gone from disk
-// and undeclared.
-//
-// IDENTITY, never a count. An addition masks a count because the rule retains
-// its point total. A specific instruction still leaves. On 2026-08-09, 17
-// points were deleted and 6 were declared. The count reported ZERO affected
-// rules while four rules each lost a point behind an addition.
-//
-// A RENAME therefore retires the old id. The count form cannot detect one. This
-// form reports it, so the ledger records the destination for readers of the old
-// id.
-func corpusShrink(headIDs, nowIDs, declared map[string]bool) []string {
-	var vanished []string
-	for ref := range headIDs {
-		if nowIDs[ref] || declared[ref] {
-			continue
-		}
-		vanished = append(vanished, ref)
-	}
-	sort.Strings(vanished)
-
-	byRule := map[string][]string{}
-	for _, ref := range vanished {
-		rule, _, _ := strings.Cut(ref, "/")
-		byRule[rule] = append(byRule[rule], ref)
-	}
-
-	out := make([]string, 0, len(byRule))
-	var tb textbuf.Buffer
-	for _, rule := range sortedKeys(byRule) {
-		refs := byRule[rule]
-		tb.Reset()
-		out = append(out, tb.Str(rule).Str(": ").Int(int64(len(refs))).
-			Str(" vanished since HEAD with no ").Str(retiredFile).Str(" row: ").
-			Join(refs, ", ").String())
-	}
-	return out
-}
 
 // rationaleProblems answers the declared rationale links, and the ones naming
 // no RECORD.

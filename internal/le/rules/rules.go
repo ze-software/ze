@@ -35,13 +35,12 @@ import (
 // `ze-rules-<verb>`, so the whole family is one area.
 const area = "rules"
 
-// rulesRel, pointsRel and retiredRel name the corpus, relative to the checkout.
-// A path is joined from these rather than spelled inline, so a reader finds
-// every consumer of the tree by finding the three names.
+// rulesRel and pointsRel name the corpus, relative to the checkout. A path is
+// joined from these rather than spelled inline, so a reader finds every
+// consumer of the tree by finding the two names.
 const (
-	rulesRel   = "ai/rules"
-	pointsRel  = "ai/rules/points"
-	retiredRel = "ai/rules/points/RETIRED.md"
+	rulesRel  = "ai/rules"
+	pointsRel = "ai/rules/points"
 )
 
 // skip names the generated aggregates that sit beside the rules and are not

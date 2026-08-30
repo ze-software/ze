@@ -473,8 +473,8 @@ func checkSeverityAgrees(severity, title string, lines []string, bodyStart int) 
 
 // checkPointFiles answers the point-file count and all RFC 2119 violations.
 //
-// manifest.md is not a point. A file with an all-caps stem is also not a point
-// because RETIRED.md is the ledger.
+// manifest.md is not a point, and neither is a file with an all-caps stem:
+// TRIGGERS.md and CORE.md are generated aggregates that sit beside the rules.
 func checkPointFiles(tree, pointsDir string) (int, []LintProblems, error) {
 	// An ABSENT point tree gives zero points, which Lint refuses. An UNREADABLE
 	// tree is an error, not a zero. The script conflates the cases. This port

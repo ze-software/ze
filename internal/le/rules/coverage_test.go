@@ -266,70 +266,6 @@ func TestOnlyABacktickedStemNamesARule(t *testing.T) {
 	}
 }
 
-func TestTheRetiredLedgerRefusesARowThatDeclaresNothing(t *testing.T) {
-	head := map[string]bool{"alpha/section/gone": true, "alpha/section/kept": true}
-	now := map[string]bool{"alpha/section/kept": true}
-	rows := func(lines ...string) string {
-		return retiredTableHead + "\n|---|---|\n" + strings.Join(lines, "\n") + "\n"
-	}
-
-	declared, problems := retiredRowsSince(
-		rows("| `alpha/section/gone` | it left |"), "", head, true, now)
-	if !declared["alpha/section/gone"] || len(problems) != 0 {
-		t.Fatalf("a good row was refused: %v / %v", sortedKeys(declared), problems)
-	}
-
-	cases := []struct{ name, row, want string }{
-		{"not a row shape", "| nonsense |", "is not '<rule>/<section>/<slug> -- <why>'"},
-		{"never at HEAD", "| `alpha/section/invented` | why |", "names no point at HEAD"},
-		{"still on disk", "| `alpha/section/kept` | why |", "is still on disk"},
-	}
-	for _, tc := range cases {
-		_, problems := retiredRowsSince(rows(tc.row), "", head, true, now)
-		if len(problems) != 1 || !strings.Contains(problems[0], tc.want) {
-			t.Errorf("%s: retiredRowsSince said %v, want it to mention %q", tc.name, problems, tc.want)
-		}
-	}
-
-	_, problems = retiredRowsSince(
-		rows("| `alpha/section/gone` | one |", "| `alpha/section/gone` | two |"), "", head, true, now)
-	if len(problems) != 1 || !strings.Contains(problems[0], "is declared twice") {
-		t.Errorf("a duplicate row was accepted: %v", problems)
-	}
-}
-
-func TestARowCommittedAtHeadIsNotRejudged(t *testing.T) {
-	// Re-judging a committed line would fail somebody else's later run, and
-	// re-wording one would mint a second deletion for the same point. Both are
-	// what keep the ledger a scope rather than an allowlist.
-	head := map[string]bool{"alpha/section/gone": true}
-	now := map[string]bool{"alpha/section/gone": true}
-	was := retiredTableHead + "\n|---|---|\n| `alpha/section/gone` | it left |\n"
-	reworded := retiredTableHead + "\n|---|---|\n| `alpha/section/gone` | it left, in detail |\n"
-
-	declared, problems := retiredRowsSince(reworded, was, head, true, now)
-	if len(problems) != 0 {
-		t.Errorf("a reworded committed row was refused: %v", problems)
-	}
-	if declared["alpha/section/gone"] {
-		t.Errorf("a reworded committed row minted a fresh retirement: %v", sortedKeys(declared))
-	}
-}
-
-func TestTheCorpusRatchetReportsIdentityNotACount(t *testing.T) {
-	// An addition masks a count because the rule retains its point total. A
-	// specific instruction still leaves.
-	head := map[string]bool{"alpha/s/one": true, "alpha/s/two": true}
-	now := map[string]bool{"alpha/s/one": true, "alpha/s/three": true}
-	got := corpusShrink(head, now, nil)
-	if len(got) != 1 || !strings.Contains(got[0], "alpha/s/two") {
-		t.Fatalf("corpusShrink = %v", got)
-	}
-	if len(corpusShrink(head, now, map[string]bool{"alpha/s/two": true})) != 0 {
-		t.Errorf("a declared retirement still counted")
-	}
-}
-
 func TestARenamedPointCannotBeLaunderedIntoDeclaredNone(t *testing.T) {
 	gm := gateMap{
 		Points: map[string]string{"alpha/s/live": kindDirective},
@@ -340,18 +276,20 @@ func TestARenamedPointCannotBeLaunderedIntoDeclaredNone(t *testing.T) {
 	}
 	baseline := map[string]map[string]bool{"firstCheck": {"alpha/s/renamed": true}}
 
-	got := unboundRegressions(gm, baseline, nil)
+	onDisk := map[string]bool{"alpha/s/renamed": true}
+	got := unboundRegressions(gm, baseline, onDisk)
 	if len(got) != 1 || !strings.Contains(got[0], "named alpha/s/renamed at HEAD, declares `none` now") {
 		t.Fatalf("unboundRegressions = %v", got)
 	}
-	// A validated retirement IS the ordinary route out of the corpus.
-	if got := unboundRegressions(gm, baseline, map[string]bool{"alpha/s/renamed": true}); len(got) != 0 {
-		t.Errorf("a declared retirement was still a regression: %v", got)
+	// An instruction that LEFT the corpus is the ordinary route out, and git
+	// history says where it went. The check rightly enforces nothing.
+	if got := unboundRegressions(gm, baseline, nil); len(got) != 0 {
+		t.Errorf("a point that left the corpus was still a regression: %v", got)
 	}
-	// A PARTIAL declaration still lost a gate.
+	// One ref gone and one still on disk still lost a gate.
 	baseline["firstCheck"]["alpha/s/other"] = true
-	if got := unboundRegressions(gm, baseline, map[string]bool{"alpha/s/renamed": true}); len(got) != 1 {
-		t.Errorf("a partial declaration excused the whole check: %v", got)
+	if got := unboundRegressions(gm, baseline, onDisk); len(got) != 1 {
+		t.Errorf("a partly-removed baseline excused the whole check: %v", got)
 	}
 }
 
@@ -427,12 +365,12 @@ func TestAPointCannotExceptItself(t *testing.T) {
 }
 
 func TestTheGateMapReadingNothingIsNeverAPass(t *testing.T) {
-	empty := fillCoverage(gateMap{}, true, true)
+	empty := fillCoverage(gateMap{}, true)
 	if !empty.Failed() || len(empty.Empty) != 1 ||
 		!strings.Contains(empty.Empty[0], "no points under ai/rules/points/") {
 		t.Fatalf("an empty corpus passed: %+v", empty)
 	}
-	noBindings := fillCoverage(gateMap{Points: map[string]string{"a/s/p": kindDirective}}, true, true)
+	noBindings := fillCoverage(gateMap{Points: map[string]string{"a/s/p": kindDirective}}, true)
 	if !noBindings.Failed() || !strings.Contains(noBindings.Empty[0], "no `// ze point:` binding") {
 		t.Fatalf("a corpus with no binding passed: %+v", noBindings)
 	}
@@ -446,15 +384,12 @@ func TestAMissingBaselinePrintsItsAbsenceRatherThanAZero(t *testing.T) {
 		Bindings: []Binding{{File: "bash.go", Check: "firstCheck", Ref: "a/s/p"}},
 		Gated:    map[string][]Binding{"a/s/p": {{Check: "firstCheck", Ref: "a/s/p"}}},
 	}
-	report := fillCoverage(gm, false, false)
+	report := fillCoverage(gm, false)
 	page := report.Text()
 	if !strings.Contains(page, "REGRESSED: no HEAD baseline") {
 		t.Errorf("the native source ratchet absence is not reported: %s", page)
 	}
-	if !strings.Contains(page, "SHRUNK: no HEAD point baseline") {
-		t.Errorf("the page does not say the corpus ratchet did not run: %s", page)
-	}
-	if strings.Contains(page, "REGRESSED: 0") || strings.Contains(page, "SHRUNK: 0") {
+	if strings.Contains(page, "REGRESSED: 0") {
 		t.Errorf("the page printed a zero for a comparison that never ran: %s", page)
 	}
 }
@@ -470,8 +405,8 @@ func TestTheCoverageAnswerIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 		t.Fatalf("marshaling the report: %v", err)
 	}
 	for _, key := range []string{
-		`"ungated-by-kind"`, `"most-ungated"`, `"corpus-baseline"`, `"no-head-for"`,
-		`"declared-none"`, `"retired-ledger"`, `"missing-rationale"`, `"missing-exception"`,
+		`"ungated-by-kind"`, `"most-ungated"`, `"no-head-for"`,
+		`"declared-none"`, `"missing-rationale"`, `"missing-exception"`,
 		`"doc-missing"`, `"diagnosis"`,
 	} {
 		if !strings.Contains(string(raw), key) {

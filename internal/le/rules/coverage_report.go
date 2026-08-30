@@ -82,12 +82,6 @@ type CoverageReport struct {
 	NoHeadFor    []string `json:"no-head-for"`
 	DeclaredNone []string `json:"declared-none"`
 
-	// CorpusBaseline reports whether git named the points at HEAD. It is a
-	// second baseline and does not depend on the Go source baseline.
-	CorpusBaseline bool     `json:"corpus-baseline"`
-	Shrunk         []string `json:"shrunk"`
-	RetiredLedger  []string `json:"retired-ledger"`
-
 	MissingRationale []MissingLink `json:"missing-rationale"`
 	MissingException []MissingLink `json:"missing-exception"`
 
@@ -118,7 +112,6 @@ type CoverageReport struct {
 func (r *CoverageReport) Failed() bool {
 	return len(r.Refused) > 0 || len(r.Empty) > 0 || r.DocMissing ||
 		len(r.Dangling) > 0 || len(r.Regressed) > 0 || len(r.DeclaredNone) > 0 ||
-		len(r.Shrunk) > 0 || len(r.RetiredLedger) > 0 ||
 		len(r.MissingRationale) > 0 || len(r.MissingException) > 0 ||
 		len(r.Published) > 0
 }
@@ -179,24 +172,6 @@ func (r *CoverageReport) Text() string {
 		tb.Byte('\n').Str("REGRESSED: no HEAD baseline (git could not answer, or no hookruntime ").
 			Str("Go source has a version at HEAD); not ratcheted\n")
 		r.writeNoHead(&tb)
-	}
-
-	if r.CorpusBaseline {
-		tb.Byte('\n').Str("SHRUNK: ").Int(int64(len(r.Shrunk))).
-			Str(" rule(s) lost a point git HEAD carried, undeclared in ").
-			Str(pointsRel).Byte('/').Str(retiredFile).Byte('\n')
-		for _, line := range r.Shrunk {
-			tb.Str("  ").Str(line).Byte('\n')
-		}
-	} else {
-		tb.Byte('\n').Str("SHRUNK: no HEAD point baseline (git could not name the points at ").
-			Str("HEAD); not ratcheted\n")
-	}
-
-	tb.Byte('\n').Str("RETIRED LEDGER: ").Int(int64(len(r.RetiredLedger))).Str(" row(s) in ").
-		Str(pointsRel).Byte('/').Str(retiredFile).Str(" declare no retirement\n")
-	for _, line := range r.RetiredLedger {
-		tb.Str("  ").Str(line).Byte('\n')
 	}
 
 	tb.Byte('\n').Str("UNBOUND: ").Int(int64(len(r.Unbound))).
@@ -311,28 +286,20 @@ func Coverage(tree string) (*CoverageReport, error) {
 	for ref := range gm.Points {
 		nowIDs[ref] = true
 	}
-	headIDs, haveHeadIDs := headPointIDs(tree)
-	retired, ledger := retiredSinceHead(tree, pointsDir, headIDs, haveHeadIDs, nowIDs)
-
-	var regressed, declaredNone, shrunk []string
+	var regressed, declaredNone []string
 	if haveBaseline {
 		atHead, err := bindingsAtHead(head)
 		if err != nil {
 			return nil, err
 		}
 		regressed = gatedRegressions(gm, atHead)
-		declaredNone = unboundRegressions(gm, atHead, retired)
-	}
-	if haveHeadIDs {
-		shrunk = corpusShrink(headIDs, nowIDs, retired)
+		declaredNone = unboundRegressions(gm, atHead, nowIDs)
 	}
 
-	report = fillCoverage(gm, haveBaseline, haveHeadIDs)
+	report = fillCoverage(gm, haveBaseline)
 	report.NoHeadFor = noHeadFor
 	report.Regressed = regressed
 	report.DeclaredNone = declaredNone
-	report.Shrunk = shrunk
-	report.RetiredLedger = ledger
 
 	reason := coverageReason(&report)
 	if reason == "" && len(report.Empty) > 0 {
@@ -374,8 +341,8 @@ func Coverage(tree string) (*CoverageReport, error) {
 //
 // An EMPTY result is never a pass: no point, or no binding at all, means the
 // join read nothing and must say so.
-func fillCoverage(gm gateMap, baseline, corpusBaseline bool) CoverageReport {
-	report := CoverageReport{Baseline: baseline, CorpusBaseline: corpusBaseline}
+func fillCoverage(gm gateMap, baseline bool) CoverageReport {
+	report := CoverageReport{Baseline: baseline}
 	if len(gm.Points) == 0 {
 		report.Empty = []string{
 			"no points under ai/rules/points/; the gate map read nothing and must not report success"}
@@ -516,16 +483,7 @@ func coverageReason(r *CoverageReport) string {
 			Str(" point(s) were gated at HEAD and are gated by nothing now; restore the binding, or say which check replaces it").String()
 	case len(r.DeclaredNone) > 0:
 		return tb.Int(int64(len(r.DeclaredNone))).
-			Str(" check(s) named a point at HEAD and declare `none` now; repoint the binding at where the point moved to. A renamed point does not stop being enforced. When the instruction itself left, retire it in ").
-			Str(pointsRel).Byte('/').Str(retiredFile).Str(" and the check may declare `none`").String()
-	case len(r.Shrunk) > 0:
-		return tb.Int(int64(len(r.Shrunk))).Str(" rule(s) lost points that ").
-			Str(pointsRel).Byte('/').Str(retiredFile).
-			Str(" does not account for; restore the point, or add one line per retired instruction saying which id left and why").String()
-	case len(r.RetiredLedger) > 0:
-		return tb.Int(int64(len(r.RetiredLedger))).Str(" row(s) in ").
-			Str(pointsRel).Byte('/').Str(retiredFile).
-			Str(" declare no retirement; each row names one id that HEAD carried and disk does not, and says where the instruction went").String()
+			Str(" check(s) named a point at HEAD and declare `none` now, and each of those points is still on disk; repoint the binding at where the point moved to. A renamed point does not stop being enforced").String()
 	case len(r.MissingRationale) > 0:
 		return tb.Int(int64(len(r.MissingRationale))).
 			Str(" point(s) name a rationale that is not on disk; repoint it at where the record moved to, or drop the field rather than leave it naming nothing").String()

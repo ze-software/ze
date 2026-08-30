@@ -12,9 +12,10 @@ import (
 // TestNativeImplementationFixture pins the native tables and render decisions
 // that the retired cross-runtime oracle compared.
 func TestNativeImplementationFixture(t *testing.T) {
-	// Updated 2026-08-29: isArtifact became exported IsArtifact so
-	// internal/le/sourcerewrite could delete its own copy of the predicate. The
-	// judgement it makes is unchanged; only the name and its comment moved.
+	// Updated 2026-08-30: the point retirement ledger was removed on owner
+	// directive. Git history records what left the corpus, so RETIRED.md, the
+	// shrink ratchet, and their report fields are gone, and unboundRegressions
+	// now asks whether the point is still on disk instead of reading a ledger.
 	//
 	// The value is computed over the COMMITTED file set, not the working tree.
 	// This digest covers every non-test file in the package, so a second
@@ -22,7 +23,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// in the working tree's answer and are not in the tree this commit makes.
 	// Recording the working-tree value would have left HEAD red for a change
 	// HEAD does not contain.
-	const want = "3086e325c552cadad537584746a9473b4036e75a31e1a67c13d22b4073a41455"
+	const want = "d7e0c3a98cb0aad5fb06eaabdf7e25c14658d4e93736dcaa705a1c0ddbfcc763"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

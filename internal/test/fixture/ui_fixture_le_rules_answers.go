@@ -39,7 +39,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(work)
+	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
 	binary, err := uiLEBinary(root)
 	if err != nil {
@@ -66,10 +66,10 @@ func leRulesAnswers(ctx context.Context) error {
 		args    []string
 		markers []string
 	}{
-		{"rules lint", []string{"rules", "lint"}, []string{"rule point(s) state an RFC 2119 level"}},
-		{"rules render-check", []string{"rules", "render-check"}, []string{"rules are fresh"}},
-		{"rules points-roundtrip-check", []string{"rules", "points-roundtrip-check"}, []string{"round-trip byte-identical"}},
-		{"rules gate-map-report", []string{"rules", "gate-map-report"}, []string{"gate map: ", "PUBLISHED: "}},
+		{"rules lint", []string{areaRules, "lint"}, []string{"rule point(s) state an RFC 2119 level"}},
+		{"rules render-check", []string{areaRules, "render-check"}, []string{"rules are fresh"}},
+		{"rules points-roundtrip-check", []string{areaRules, "points-roundtrip-check"}, []string{"round-trip byte-identical"}},
+		{"rules gate-map-report", []string{areaRules, "gate-map-report"}, []string{"gate map: ", "PUBLISHED: "}},
 	}
 	for _, gate := range readOnly {
 		answer, err := le(root, gate.args...)
@@ -97,8 +97,8 @@ func leRulesAnswers(ctx context.Context) error {
 	const oldRule = "# A\n\n**When:** when it happens\n**Severity:** blocking\n\n## S\n\n- **MUST do the OLD thing.**\n"
 	const newRule = "# A\n\n**When:** when it happens\n**Severity:** blocking\n\n## S\n\n- **MUST do the NEW thing.**\n"
 	fixtureFiles := map[string]string{
-		"go.mod":                          "module example.com/fixture\n",
-		"feature-gates.txt":               "ze_core\n",
+		fileGoMod:                         "module example.com/fixture\n",
+		fileFeatureGates:                  "ze_core\n",
 		"ai/rules/aaa.md":                 oldRule,
 		"ai/rules/points/aaa/manifest.md": "---\ntitle: A\nwhen: when it happens\nseverity: blocking\n---\ns ## S\n  p\n",
 		"ai/rules/points/aaa/s/p.md":      "---\nkind: directive\nlevel: MUST\n---\n- **MUST do the NEW thing.**\n",
@@ -163,7 +163,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, key := range []string{"rules", "rule-violations", "points", "point-violations", "empty"} {
+	for _, key := range []string{areaRules, "rule-violations", "points", "point-violations", "empty"} {
 		if _, ok := lint[key]; !ok {
 			return uiLeRulesAnswersFailf("the lint gate answered no %q key: %v", key, uiLeRulesAnswersSortedKeys(lint))
 		}
@@ -188,7 +188,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, key := range []string{"gated", "dangling", "ungated", "missing-rationale", "missing-exception", "corpus-baseline", "declared-none", "retired-ledger", "published"} {
+	for _, key := range []string{"gated", "dangling", "ungated", "missing-rationale", "missing-exception", "declared-none", "published"} {
 		if _, ok := gateMap[key]; !ok {
 			return uiLeRulesAnswersFailf("the gate map answered no %q key: %v", key, uiLeRulesAnswersSortedKeys(gateMap))
 		}
@@ -197,8 +197,7 @@ func leRulesAnswers(ctx context.Context) error {
 		return uiLeRulesAnswersFailf("a binding names no point: %v", gateMap["dangling"])
 	}
 	baseline, baselineOK := gateMap["baseline"].(bool)
-	corpusBaseline, corpusBaselineOK := gateMap["corpus-baseline"].(bool)
-	if !baselineOK || !corpusBaselineOK || !baseline || !corpusBaseline {
+	if !baselineOK || !baseline {
 		return uiLeRulesAnswersFailf("a ratchet did not run over this checkout, so its zero says nothing")
 	}
 	if n, ok := listLength(gateMap["gated"]); !ok || n < 10 {
@@ -226,7 +225,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if listing.code != 0 {
 		return uiLeRulesAnswersFailf("`le rules` exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
 	}
-	for _, word := range []string{"lint", "render-check", "render-update", "points-roundtrip-check", "gate-map-report", "writes", "checks"} {
+	for _, word := range []string{"lint", "render-check", "render-update", "points-roundtrip-check", "gate-map-report", wordWrites, fieldChecks} {
 		if !strings.Contains(listing.stdout, word) {
 			return uiLeRulesAnswersFailf("the rules listing does not carry %q: %s", word, listing.stdout)
 		}
@@ -264,10 +263,10 @@ func leRulesAnswers(ctx context.Context) error {
 		markers []string
 		absent  []string
 	}{
-		{"rules index-check", "index-check", []string{"rules, ai/rules/INDEX.md up to date"}, nil},
-		{"rules condensed-check", "condensed-check", []string{"ai/rules/TRIGGERS.md up to date", "ai/rules/CORE.md up to date"}, nil},
-		{"rules payload-report", "payload-report", nil, []string{"ai/rules/CORE.md: 0 chars"}},
-		{"rules router-report", "router-report", nil, []string{"corpus: 0 past task descriptions"}},
+		{"rules index-check", actionIndexCheck, []string{"rules, ai/rules/INDEX.md up to date"}, nil},
+		{"rules condensed-check", actionCondensedCheck, []string{"ai/rules/TRIGGERS.md up to date", "ai/rules/CORE.md up to date"}, nil},
+		{"rules payload-report", actionPayloadReport, nil, []string{"ai/rules/CORE.md: 0 chars"}},
+		{"rules router-report", actionRouterReport, nil, []string{"corpus: 0 past task descriptions"}},
 	}
 	for _, gate := range digestGates {
 		answer, err := le(root, "rules", gate.verb)
@@ -296,7 +295,7 @@ func leRulesAnswers(ctx context.Context) error {
 	// writers. Corrupt each destination, run only the compiled product command,
 	// and require exact restoration from one immutable corpus snapshot.
 	corpusTree := filepath.Join(work, "digest-corpus")
-	if err := os.MkdirAll(corpusTree, 0o755); err != nil {
+	if err := os.MkdirAll(corpusTree, 0o750); err != nil {
 		return fmt.Errorf("FAIL: create digest corpus: %w", err)
 	}
 	for _, sub := range []string{"ai", "plan"} {
@@ -305,15 +304,15 @@ func leRulesAnswers(ctx context.Context) error {
 		}
 	}
 	golden := make(map[string][]byte)
-	for _, name := range []string{"INDEX.md", "TRIGGERS.md", "CORE.md"} {
-		body, err := os.ReadFile(filepath.Join(corpusTree, "ai", "rules", name))
+	for _, name := range []string{"INDEX.md", fileTriggersMD, fileCoreMD} {
+		body, err := os.ReadFile(filepath.Join(corpusTree, "ai", "rules", name)) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return fmt.Errorf("FAIL: read checked-in %s: %w", name, err)
 		}
 		golden[name] = body
 	}
 
-	if err := os.WriteFile(filepath.Join(corpusTree, "ai", "rules", "INDEX.md"), []byte("stale index\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(corpusTree, "ai", "rules", "INDEX.md"), []byte("stale index\n"), 0o600); err != nil {
 		return fmt.Errorf("FAIL: make INDEX.md stale: %w", err)
 	}
 	indexUpdate, err := le(corpusTree, "rules", "index-update")
@@ -333,8 +332,8 @@ func leRulesAnswers(ctx context.Context) error {
 		return err
 	}
 
-	for _, name := range []string{"TRIGGERS.md", "CORE.md"} {
-		if err := os.WriteFile(filepath.Join(corpusTree, "ai", "rules", name), []byte("stale digest\n"), 0o644); err != nil {
+	for _, name := range []string{fileTriggersMD, fileCoreMD} {
+		if err := os.WriteFile(filepath.Join(corpusTree, "ai", "rules", name), []byte("stale digest\n"), 0o600); err != nil {
 			return fmt.Errorf("FAIL: make %s stale: %w", name, err)
 		}
 	}
@@ -351,7 +350,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if strings.Contains(condensedUpdate.stdout, corpusTree+string(os.PathSeparator)) {
 		return uiLeRulesAnswersFailf("condensed-update exposed an absolute fixture path: %s", condensedUpdate.stdout)
 	}
-	for _, name := range []string{"TRIGGERS.md", "CORE.md"} {
+	for _, name := range []string{fileTriggersMD, fileCoreMD} {
 		if err := requireBytes(filepath.Join(corpusTree, "ai", "rules", name), golden[name], "condensed-update wrote different "+name+" bytes"); err != nil {
 			return err
 		}
@@ -367,10 +366,10 @@ func leRulesAnswers(ctx context.Context) error {
 		verb string
 		keys []string
 	}{
-		{"index-check", []string{"file", "rules", "written", "stale", "missing", "rows"}},
-		{"condensed-check", []string{"written", "empty-corpus", "artifacts"}},
-		{"payload-report", []string{"parts", "chars", "tokens", "budget", "met", "headroom-percent", "missing"}},
-		{"router-report", []string{"tasks", "corpus-size", "rules-total", "core", "routed", "blocking-routed", "surfaced-any", "missed-blocking", "unroutable-terms"}},
+		{actionIndexCheck, []string{fieldFile, areaRules, fieldWritten, statusStale, "missing", fieldRows}},
+		{actionCondensedCheck, []string{fieldWritten, "empty-corpus", "artifacts"}},
+		{actionPayloadReport, []string{"parts", "chars", "tokens", "budget", "met", "headroom-percent", "missing"}},
+		{actionRouterReport, []string{"tasks", "corpus-size", "rules-total", "core", "routed", "blocking-routed", "surfaced-any", "missed-blocking", "unroutable-terms"}},
 	}
 	var router map[string]any
 	for _, contract := range payloadContracts {
@@ -386,7 +385,7 @@ func leRulesAnswers(ctx context.Context) error {
 		if err := requireRenderings(le, root, contract.verb); err != nil {
 			return err
 		}
-		if contract.verb == "router-report" {
+		if contract.verb == actionRouterReport {
 			router = answer
 		}
 	}
@@ -414,7 +413,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, word := range []string{"index-check", "index-update", "condensed-check", "condensed-update", "payload-report", "router-report"} {
+	for _, word := range []string{actionIndexCheck, actionIndexUpdate, actionCondensedCheck, "condensed-update", actionPayloadReport, actionRouterReport} {
 		if !strings.Contains(listing.stdout, word) {
 			return uiLeRulesAnswersFailf("the rules listing does not carry %q: %s", word, listing.stdout)
 		}
@@ -433,7 +432,7 @@ func leRulesAnswers(ctx context.Context) error {
 }
 
 func uiLeRulesAnswersExecute(ctx context.Context, dir string, env []string, program string, args ...string) (uiLeRulesAnswersCommandResult, error) {
-	cmd := exec.CommandContext(ctx, program, args...)
+	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = dir
 	if env != nil {
 		cmd.Env = env
@@ -446,8 +445,7 @@ func uiLeRulesAnswersExecute(ctx context.Context, dir string, env []string, prog
 	if err == nil {
 		return result, nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.code = exitErr.ExitCode()
 		return result, nil
 	}
@@ -479,7 +477,7 @@ func jsonAnswer(le func(string, ...string) (uiLeRulesAnswersCommandResult, error
 }
 
 func requireRenderings(le func(string, ...string) (uiLeRulesAnswersCommandResult, error), tree, verb string) error {
-	for _, operator := range []string{"yaml", "table"} {
+	for _, operator := range []string{renderYAML, renderTable} {
 		answer, err := le(tree, "rules", verb, "|", operator)
 		if err != nil {
 			return err
@@ -537,10 +535,10 @@ func uiLeRulesAnswersSetEnv(env []string, key, value string) []string {
 func writeFixture(root string, files map[string]string) error {
 	for relative, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(relative))
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			return fmt.Errorf("FAIL: create %s: %w", filepath.Dir(path), err)
 		}
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 			return fmt.Errorf("FAIL: write %s: %w", path, err)
 		}
 	}
@@ -552,7 +550,7 @@ func requireFile(path, expected, message string) error {
 }
 
 func requireBytes(path string, expected []byte, message string) error {
-	actual, err := os.ReadFile(path)
+	actual, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("FAIL: %s: %w", message, err)
 	}
@@ -584,24 +582,24 @@ func copyTree(source, destination string) error {
 			if err != nil {
 				return err
 			}
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 				return err
 			}
-			return os.Symlink(link, target)
+			return os.Symlink(link, target) //nolint:gosec // the tree is the fixture's own scratch copy
 		}
 		if !entry.Type().IsRegular() {
 			return fmt.Errorf("unsupported corpus entry %s (%s)", path, entry.Type())
 		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 			return err
 		}
-		input, err := os.Open(path)
+		input, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
 			return err
 		}
-		output, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
+		output, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm()) //nolint:gosec // the path is the fixture's own scratch file
 		if err != nil {
-			input.Close()
+			input.Close() //nolint:errcheck // fixture teardown
 			return err
 		}
 		_, copyErr := io.Copy(output, input)
