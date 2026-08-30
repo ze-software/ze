@@ -31,8 +31,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../project/roadmap/">Roadmap</a>
-                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -54,7 +54,7 @@
                     <div class="status-copy">
                         <span class="tag">Appliance</span>
                         <p>
-                            Four QEMU evidence scripts cover the installer end
+                            Four native QEMU actions cover the installer end
                             to end: the PXE/HTTP chain boots the installer
                             kernel and initrd, serves the image over HTTP, and
                             asserts serial success markers before rebooting
@@ -64,7 +64,7 @@
                             power-off-not-reboot behaviour. The Ventoy path
                             proves the installer finds the appliance ISO as a
                             <em>file</em> on a FAT/exFAT data partition rather
-                            than as burned boot media. The scenarios script
+                            than as burned boot media. The scenarios action
                             covers what the other three do not: a forced
                             mid-init panic recovering cleanly, MAC-based
                             install pinning on multi-homed boxes, and rescue
@@ -72,8 +72,8 @@
                         </p>
                         <p>
                             The installer kernel is operator-supplied by
-                            design; Ze neither ships nor builds it. Point
-                            any script at one with <code>ZE_INSTALL_KERNEL</code>.
+                            design; Ze neither ships nor builds it. Set
+                            <code>ZE_INSTALL_KERNEL</code> to its path.
                         </p>
                     </div>
                     <div class="status-table" aria-label="Lab facts">
@@ -108,16 +108,16 @@
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># HTTP/PXE install chain</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-test
 
 <span class="term-comment"># bootable ISO chain</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-iso-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-iso-test
 
 <span class="term-comment"># Ventoy ISO-on-FAT path</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-ventoy-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-ventoy-test
 
 <span class="term-comment"># fault/pin/rescue scenarios</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-install-scenarios-test</pre>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-scenarios-test</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
@@ -166,7 +166,6 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 27 August 2026 15:11 UTC</span>
                 </div>
             </div>
         </footer>

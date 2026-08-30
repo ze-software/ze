@@ -431,7 +431,7 @@ Ze Engine Core (event bus for components and plugins)
 
 ### Gate
 
-- `make ze-precommit-verify`: 28 linters + unit + functional + ExaBGP tests
+- `./le verify current mode full`: 28 linters + unit + functional + ExaBGP tests
 - Full gate takes over 15 minutes, so day-to-day work uses targeted checks first
 
 ---
@@ -466,7 +466,7 @@ Ze Engine Core (event bus for components and plugins)
 
 - Docs: **github.com/ze-software/ze/wiki**
 - Source and issues: **github.com/ze-software/ze**
-- Build from source today: `make build`, then `bin/ze init`
+- Build from source today: `go build -o bin/ze ./cmd/ze`, then `bin/ze init`
 - Validate first: `bin/ze config validate <file>`
 
 ### Deployment choices

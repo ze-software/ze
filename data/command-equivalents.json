@@ -1087,7 +1087,6 @@
       "category": "Configuration",
       "intent": "Validate and commit configuration",
       "ze": [
-        "validate config",
         "request commit"
       ],
       "vendors": {
@@ -1147,20 +1146,6 @@
       "ze": [
         "show pki certificates",
         "show pki certificate name"
-      ],
-      "vendors": {
-        "junos-mx": [],
-        "cisco-ios-xr": [],
-        "nokia-sros": [],
-        "vyos": []
-      }
-    },
-    {
-      "id": "wireguard-keypair",
-      "category": "Security",
-      "intent": "Generate a WireGuard keypair",
-      "ze": [
-        "generate wireguard keypair"
       ],
       "vendors": {
         "junos-mx": [],

@@ -31,8 +31,8 @@
                     <a href="../docs/">Docs</a>
                     <a href="../features/">Features</a>
                     <a href="../compare/">Compare</a>
-                    <a href="../project/roadmap/">Roadmap</a>
-                    <a href="../project/changes/">Changes</a>
+                    <a href="../roadmap/">Roadmap</a>
+                    <a href="../changes/">Changes</a>
                     <a href="../faq/">FAQ</a>
                     <a href="../contribute/">Contribute</a>
                 </nav>
@@ -281,7 +281,7 @@
                     </article>
                     <article class="card">
                         <h3>.md-content</h3>
-                        <p>Wraps markdown rendered by tools/render-doc.py -- headings, tables, blockquotes, code, all styled to match the rest of the site.</p>
+                        <p>Wraps Markdown rendered by the native <code>./le site build</code> pipeline: headings, tables, blockquotes, and code all match the rest of the site.</p>
                     </article>
                 </div>
             </section>
@@ -319,7 +319,7 @@
                     </article>
                     <article class="card">
                         <h3>External links</h3>
-                        <p>Every external link opens with <code>target="_blank"</code> and <code>rel="noopener"</code>. Never use a named target. Do not add duplicate links to the same external page; validate with <code>tools/check-page-links.py</code>.</p>
+                        <p>Every external link opens with <code>target="_blank"</code> and <code>rel="noopener"</code>. Never use a named target. Keep each external destination once in <code>data/page-links.json</code> instead of duplicating it in page bodies.</p>
                     </article>
                     <article class="card">
                         <h3>Easy scanning</h3>
@@ -384,7 +384,7 @@
                     </article>
                     <article class="card">
                         <h3>Markdown-sourced where it can be</h3>
-                        <p>Content that changes often (like Compare) lives in a .md file rendered by tools/render-doc.py, so updating it doesn't mean hand-editing HTML tables.</p>
+                        <p>Content that changes often, such as Compare, lives in a Markdown file rendered by <code>./le site build</code>, so updating it does not require hand-editing HTML tables.</p>
                     </article>
                 </div>
             </section>
@@ -396,7 +396,6 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

@@ -12,8 +12,8 @@ The complete live state shows Ze is master.
 $ ip -n vrrp-ze -o addr show | grep 192.0.2.1 | tr -s ' ' | cut -d' ' -f2,4
 The kernel shows the VIP on Ze's RFC virtual-MAC interface.
 
-$ cat /src/demos/terminal/vrrp-failover/failover-proof.sh
-$ bash -x /src/demos/terminal/vrrp-failover/failover-proof.sh
-The recording displays and traces the exact commands that kill Ze, remove its namespace, inspect the VIP on keepalived, and send two probes.
+$ ze-demo run vrrp-failover proof-show
+$ ze-demo run vrrp-failover proof
+The recording runs the compiled proof that stops Ze, removes its namespace, inspects the VIP on keepalived, and sends two probes.
 
 The final kernel output shows 192.0.2.1 on keepalived's `vrrp.10` interface, and both probes succeed after failover.

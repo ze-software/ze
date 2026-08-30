@@ -31,8 +31,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../project/roadmap/">Roadmap</a>
-                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -141,7 +141,7 @@
                         </div>
                         <div class="status-row">
                             <strong>Requires</strong>
-                            <span>Docker, Python 3, ~1.5 GB disk for daemon images</span>
+                            <span>Docker and ~1.5 GB disk for daemon images</span>
                         </div>
                         <div class="status-row">
                             <strong>Source</strong>
@@ -161,10 +161,10 @@
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># all 68 scenarios</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-interop-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> integration interop
 
 <span class="term-comment"># single scenario, verbose</span>
-<span class="term-prompt">$</span> <span class="term-cmd">python3</span> test/interop/run.py bgp-ebgp-ipv4-frr</pre>
+<span class="term-prompt">$</span> INTEROP_SCENARIO=bgp-ebgp-ipv4-frr <span class="term-cmd">./le</span> integration interop</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
@@ -217,7 +217,6 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

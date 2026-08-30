@@ -31,8 +31,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../project/roadmap/">Roadmap</a>
-                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -46,8 +46,8 @@
                     <h1 id="lab-title">Looking Glass Graph Demo</h1>
                     <p>
                         A realistic UK topology with real external ASNs
-                        populates the Looking Glass topology graph. This is
-                        the one lab that is browsable today.
+                        populates the Looking Glass topology graph. The native
+                        plugin suite runs it as an executable browser proof.
                     </p>
                 </div>
                 <div class="status-panel reveal">
@@ -63,10 +63,10 @@
                             (peering), all under AS65000.
                         </p>
                         <p>
-                            Unlike the interop labs, this one starts a real
-                            Looking Glass on localhost and prints a URL. Open
-                            it in a browser and the topology graph and route
-                            views are populated with this data.
+                            The Go test runner starts a real Looking Glass in
+                            an isolated workspace, injects the routes, checks
+                            the topology graph and route views, then tears the
+                            instance down.
                         </p>
                     </div>
                     <div class="status-table" aria-label="Lab facts">
@@ -80,14 +80,14 @@
                         </div>
                         <div class="status-row">
                             <strong>Requires</strong>
-                            <span>Go toolchain to build ze if not already built -- nothing else</span>
+                            <span>Go toolchain</span>
                         </div>
                         <div class="status-row">
                             <strong>Source</strong>
                             <span
                                 ><a
-                                    href="https://github.com/ze-software/ze/tree/main/test/plugin/lg-graph-lab" target="_blank" rel="noopener"
-                                    >test/plugin/lg-graph-lab/</a
+                                    href="https://github.com/ze-software/ze/tree/main/internal/le/interoplab/bgp" target="_blank" rel="noopener"
+                                    >internal/le/interoplab/bgp/</a
                                 ></span
                             >
                         </div>
@@ -100,11 +100,8 @@
                             <span class="terminal-title">looking-glass-graph</span>
                         </div>
                         <div class="terminal-body">
-                            <pre><span class="term-comment"># builds ze if needed, injects routes, starts the looking glass</span>
-<span class="term-prompt">$</span> <span class="term-cmd">./test/plugin/lg-graph-lab/run.sh</span> [lg-port]
-
-<span class="term-comment"># then browse to the printed URL (default port 8443)</span>
-<span class="term-comment"># Ctrl+C to stop</span></pre>
+                            <pre><span class="term-comment"># runs the native plugin suite, including the graph lab</span>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> functional plugin-test</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
@@ -152,7 +149,6 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

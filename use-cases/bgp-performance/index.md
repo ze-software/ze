@@ -8,7 +8,7 @@ This page shows Ze in the tester role. The device under test can be FRR, BIRD, G
 
 <!-- source: ../main/internal/perf/cli/cmd_run.go -- ze-perf sender, receiver, repeat, JSON, and output flags -->
 <!-- source: ../main/internal/perf/result.go -- result fields -->
-<!-- source: ../main/test/perf/run.py -- Docker DUT benchmark runner -->
+<!-- source: ../main/internal/test/perfrunner/run.go -- Runner.RunCLI -->
 
 ## What a good test answers
 
@@ -44,11 +44,12 @@ AS 65001             AS 65000             AS 65002
 
 ## Fastest working test
 
-Use the existing Docker runner from the main Ze checkout when you want the whole setup built for you.
+Use the native Docker runner from the main Ze checkout when you want the whole setup built for you.
 
 ```text
-python3 test/perf/run.py --build --test frr
-ze-perf report test/perf/results/*.json
+go build -o bin/ze-perf ./cmd/ze-perf
+go run ./cmd/ze-perf-run --build --test frr
+bin/ze-perf report test/perf/results/*.json
 ```
 
 Run a smaller wiring test first when you are adding a new DUT target.
@@ -235,14 +236,14 @@ Ze's automated performance evidence already wires sender, DUT, and receiver the 
 | --- | --- |
 | `internal/perf/cli/cmd_run.go` | `ze-perf run` accepts DUT, sender, receiver, repeat, warmup, JSON, output, family, MP, and batch flags |
 | `internal/perf/result.go` | JSON results include convergence, throughput, latency percentiles, withdrawal time, lost routes, seed, family, and repeat metadata |
-| `test/perf/run.py` | The Docker runner benchmarks Ze, FRR, BIRD, GoBGP, rustbgpd, RustyBGP, freeRtr, and OpenBGPD |
+| `internal/test/perfrunner/run.go` | The native Docker runner benchmarks Ze, FRR, BIRD, GoBGP, rustbgpd, RustyBGP, freeRtr, and OpenBGPD |
 | `test/perf/configs/` | DUT configs are stored with the test runner rather than hidden in a report |
 
 Run the Ze performance suite from the main checkout:
 
 ```text
-python3 test/perf/run.py --build --test frr bird gobgp
-ze-perf report test/perf/results/*.json
+go run ./cmd/ze-perf-run --build --test frr bird gobgp
+bin/ze-perf report test/perf/results/*.json
 ```
 
 The full benchmarking guide is at [docs/guide/benchmarking](../../guides/benchmarking/).

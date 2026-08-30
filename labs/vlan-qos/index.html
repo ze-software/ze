@@ -31,8 +31,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../project/roadmap/">Roadmap</a>
-                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -85,14 +85,14 @@
                         </div>
                         <div class="status-row">
                             <strong>Requires</strong>
-                            <span>Linux with network namespace support, root (CAP_NET_ADMIN), iproute2, tcpdump, python3</span>
+                            <span>Linux with network namespace support, root (CAP_NET_ADMIN), iproute2, nftables</span>
                         </div>
                         <div class="status-row">
                             <strong>Source</strong>
                             <span
                                 ><a
-                                    href="https://github.com/ze-software/ze/tree/main/test/vlan-qos-lab" target="_blank" rel="noopener"
-                                    >test/vlan-qos-lab/</a
+                                    href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go" target="_blank" rel="noopener"
+                                    >internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go</a
                                 ></span
                             >
                         </div>
@@ -105,11 +105,8 @@
                             <span class="terminal-title">vlan-qos</span>
                         </div>
                         <div class="terminal-body">
-                            <pre><span class="term-comment"># interactive (requires Linux root)</span>
-<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> ./test/vlan-qos-lab/run.sh
-
-<span class="term-comment"># CI-style smoke test, exits 0 on success</span>
-<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> ./test/vlan-qos-lab/run.sh --selftest</pre>
+                            <pre><span class="term-comment"># run the wire-level Go integration proof (requires Linux root)</span>
+<span class="term-prompt">$</span> <span class="term-cmd">sudo -E env "PATH=$PATH" go test</span> -tags integration -count=1 ./internal/plugins/iface/netlink -run TestVLANQoS</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
@@ -120,9 +117,9 @@
                         </p>
                         <div class="link-list">
                             <a
-                                href="https://github.com/ze-software/ze/blob/main/test/vlan-qos-lab/README.md" target="_blank" rel="noopener"
-                                >test/vlan-qos-lab/README.md
-                                <span>full lab documentation</span></a
+                                href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go" target="_blank" rel="noopener"
+                                >VLAN QoS integration proof
+                                <span>Go producer and assertions</span></a
                             >
                         </div>
                     </div>
@@ -156,7 +153,6 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>

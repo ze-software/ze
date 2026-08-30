@@ -31,8 +31,8 @@
                     <a href="../../docs/">Docs</a>
                     <a href="../../features/">Features</a>
                     <a href="../../compare/">Compare</a>
-                    <a href="../../project/roadmap/">Roadmap</a>
-                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../roadmap/">Roadmap</a>
+                    <a href="../../changes/">Changes</a>
                     <a href="../../faq/">FAQ</a>
                     <a href="../../contribute/">Contribute</a>
                 </nav>
@@ -102,22 +102,22 @@
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># Docker lab, all scenarios</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-deployment-docker-l2tp-ppp-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> deployment docker-l2tp-ppp-test
 
 <span class="term-comment"># single scenario, verbose</span>
-<span class="term-prompt">$</span> <span class="term-cmd">python3</span> test/interop-l2tp/run.py 01-ppp-ipv4
+<span class="term-prompt">$</span> ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 <span class="term-cmd">./le</span> deployment docker-l2tp-ppp-test
 
 <span class="term-comment"># QEMU path instead of Docker (needs tmp/kernel/vmlinuz)</span>
-<span class="term-prompt">$</span> <span class="term-cmd">make</span> ze-qemu-l2tp-ppp-test</pre>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> deployment gokrazy-l2tp-ppp-test</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
                         <span class="tag">Prerequisites</span>
                         <p>
-                            Docker for the primary path. The QEMU path needs a
-                            staged kernel (<code>make ze-kernel-build
-                            GOKRAZY_ARCH=arm64</code>) and works where Docker
-                            Desktop's VM lacks the PPPoL2TP kernel module.
+                            Docker for the primary path. The QEMU path uses the
+                            runtime kernel built by <code>ze appliance kernel
+                            --target runtime --arch arm64</code> and works where
+                            Docker Desktop's VM lacks the PPPoL2TP kernel module.
                         </p>
                         <div class="link-list">
                             <a
@@ -157,7 +157,6 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
                 </div>
             </div>
         </footer>
