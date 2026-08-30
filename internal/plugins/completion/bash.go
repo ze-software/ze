@@ -10,7 +10,7 @@ import "github.com/ze-software/ze/internal/core/textbuf"
 //
 // Top-level commands are derived from the command registry at generation time.
 // Dynamic completions call back to ze at tab time for YANG-driven data:
-// plugin names (ze --plugins --json), schema modules (ze schema list),
+// plugin names (ze cli -c "show plugins | json"), schema modules (ze schema list),
 // show subcommands (ze completion words show), and env keys
 // (ze completion words env).
 func bashScript() string {
@@ -44,8 +44,6 @@ _ze_find_subcmd() {
             --plugin|--pprof|--chaos-seed|--chaos-rate)
                 (( i++ ))  # skip argument
                 ;;
-            --plugins)
-                ;;
             -*)
                 ;;  # skip unknown flags
             *)
@@ -73,7 +71,7 @@ _ze() {
     case "${prev}" in
         --plugin)
             local plugins
-            plugins=$(ze --plugins --json 2>/dev/null | grep -o '"Name":"[^"]*"' | sed 's/"Name":"//;s/"//')
+            plugins=$(ze cli -c 'show plugins | json' 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//')
             COMPREPLY=($(compgen -W "${plugins}" -- "${cur}"))
             return
             ;;
@@ -96,7 +94,7 @@ _ze() {
     # No subcommand found yet -- complete top-level commands and global flags
     if [[ ${_ze_subcmd_idx} -eq 0 ]]; then
         if [[ "${cur}" == -* ]]; then
-            COMPREPLY=($(compgen -W "-d --debug -h --help --plugin --plugins --pprof --chaos-seed --chaos-rate" -- "${cur}"))
+            COMPREPLY=($(compgen -W "-d --debug -h --help --plugin --pprof --chaos-seed --chaos-rate" -- "${cur}"))
         else
             COMPREPLY=($(compgen -W "${commands}" -- "${cur}"))
         fi
@@ -178,7 +176,7 @@ _ze() {
             if [[ ${depth} -eq 1 ]]; then
                 # Dynamic: plugin names from YANG-driven registry
                 local plugins
-                plugins=$(ze --plugins --json 2>/dev/null | grep -o '"Name":"[^"]*"' | sed 's/"Name":"//;s/"//')
+                plugins=$(ze cli -c 'show plugins | json' 2>/dev/null | grep -o '"name": *"[^"]*"' | sed 's/.*: *"//;s/"$//')
                 plugins="${plugins} test help"
                 COMPREPLY=($(compgen -W "${plugins}" -- "${cur}"))
             fi

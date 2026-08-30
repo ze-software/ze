@@ -32,7 +32,7 @@ func shellRootCommands() []rootEntry {
 	}
 
 	entries = append(entries, rootEntry{
-		Name:        "show",
+		Name:        verbShow,
 		Description: "Show daemon state (read-only commands)",
 	})
 

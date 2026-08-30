@@ -2,6 +2,7 @@ package localdatacoverage
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +15,17 @@ import (
 	"sync"
 )
 
-const CompletionMarker = "OK: 15/15 local-data commands and local one-shot save"
+// The two schema views this coverage walk names in its command, its evidence
+// and its expected-shape table.
+const (
+	commandShowSchemaEvents   = "show schema events"
+	commandShowSchemaHandlers = "show schema handlers"
+)
+
+// envKeyCLIFormat is the env row this walk reads, sets and clears.
+const envKeyCLIFormat = "ze.cli.format"
+
+const CompletionMarker = "OK: 16/16 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -37,8 +48,8 @@ func Evidence() []Invocation {
 		{Command: "show config ls | json compact", Evidence: "show config ls"},
 		{Command: "show schema list | json compact", Evidence: "show schema list"},
 		{Command: "show schema methods | json compact", Evidence: "show schema methods"},
-		{Command: "show schema events | count | json compact", Evidence: "show schema events"},
-		{Command: "show schema handlers | count | json compact", Evidence: "show schema handlers"},
+		{Command: "show schema events | count | json compact", Evidence: commandShowSchemaEvents},
+		{Command: "show schema handlers | count | json compact", Evidence: commandShowSchemaHandlers},
 		{Command: "show schema protocol | json compact", Evidence: "show schema protocol"},
 		{Command: "show data ls --path %s | json compact", Evidence: "show data ls"},
 		{Command: "show data registered | json compact", Evidence: "show data registered"},
@@ -48,6 +59,7 @@ func Evidence() []Invocation {
 		{Command: "show env list | json compact", Evidence: "show env list"},
 		{Command: "show env get ze.cli.format | json compact", Evidence: "show env get"},
 		{Command: "show env registered | json compact", Evidence: "show env registered"},
+		{Command: "show plugins | json compact", Evidence: "show plugins"},
 	}
 }
 
@@ -57,7 +69,7 @@ type commandResult struct {
 }
 
 func run(argv ...string) (commandResult, error) {
-	command := exec.Command(argv[0], argv[1:]...) // #nosec G204 -- this compiled test helper owns every executable and argument.
+	command := exec.CommandContext(context.Background(), argv[0], argv[1:]...) // #nosec G204 -- this compiled test helper owns every executable and argument.
 	command.Env = os.Environ()
 	var stdout, stderr bytes.Buffer
 	command.Stdout, command.Stderr = &stdout, &stderr
@@ -442,8 +454,8 @@ func runScenario(output io.Writer, work string) error {
 	}
 
 	for _, one := range []struct{ command, evidence, key string }{
-		{"show schema events", "show schema events", "events"},
-		{"show schema handlers", "show schema handlers", "handlers"},
+		{commandShowSchemaEvents, commandShowSchemaEvents, "events"},
+		{commandShowSchemaHandlers, commandShowSchemaHandlers, "handlers"},
 	} {
 		raw, runErr := localJSON(one.command+" | json compact", one.evidence, output)
 		if runErr != nil {
@@ -560,7 +572,7 @@ func runScenario(output io.Writer, work string) error {
 	}
 	if err := requireAnyRow(values, func(row map[string]any) bool {
 		_, current := row["current"]
-		return row["key"] == "ze.cli.format" && current
+		return row["key"] == envKeyCLIFormat && current
 	}, "env list lost ze.cli.format effective data"); err != nil {
 		return err
 	}
@@ -580,7 +592,7 @@ func runScenario(output io.Writer, work string) error {
 		}
 	}
 	current, hasCurrent := selected["current"]
-	if err := require(selected["key"] == "ze.cli.format" && hasCurrent, "env get returned the wrong row: %#v (current=%#v)", values, current); err != nil {
+	if err := require(selected["key"] == envKeyCLIFormat && hasCurrent, "env get returned the wrong row: %#v (current=%#v)", values, current); err != nil {
 		return err
 	}
 	payload, err = localJSON("show env registered | json compact", "show env registered", output)
@@ -593,8 +605,25 @@ func runScenario(output io.Writer, work string) error {
 	}
 	if err := requireAnyRow(values, func(row map[string]any) bool {
 		_, current := row["current"]
-		return row["key"] == "ze.cli.format" && !current
+		return row["key"] == envKeyCLIFormat && !current
 	}, "env registered leaked or lost declaration data"); err != nil {
+		return err
+	}
+
+	payload, err = localJSON("show plugins | json compact", "show plugins", output)
+	if err != nil {
+		return err
+	}
+	values, err = rows(payload, "plugins")
+	if err != nil {
+		return err
+	}
+	// The system RIB plugin is in every build: it carries no feature tag, so a
+	// binary without it is a binary this walk was never run against.
+	if err := requireAnyRow(values, func(row map[string]any) bool {
+		description, ok := row["description"].(string)
+		return row["name"] == "rib" && ok && description != ""
+	}, "show plugins lost the system RIB row or its description"); err != nil {
 		return err
 	}
 
@@ -603,7 +632,7 @@ func runScenario(output io.Writer, work string) error {
 	if err != nil {
 		return fmt.Errorf("local save: %w: %s%s", err, result.stdout, result.stderr)
 	}
-	saved, err := os.ReadFile(savePath)
+	saved, err := os.ReadFile(savePath) //nolint:gosec // G304: savePath is the scratch file this function just told ze to write
 	if err != nil {
 		return err
 	}

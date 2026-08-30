@@ -4,5 +4,8 @@ package yang
 
 import _ "embed"
 
+//go:embed ze-plugin-cmd.yang
+var ZePluginCmdYANG string
+
 //go:embed ze-plugin-conf.yang
 var ZePluginConfYANG string

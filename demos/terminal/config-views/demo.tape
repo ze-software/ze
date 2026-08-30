@@ -38,11 +38,11 @@ Type "cmp -s router.set roundtrip.set && echo 'canonical output: identical'"
 Enter
 Wait+Screen /canonical output: identical/
 Sleep 5s
-Type "ze --plugins | ze pipe match flowspec"
+Type "ze show plugins | ze pipe match flowspec"
 Enter
 Wait+Screen /bgp-nlri-flowspec/
 Sleep 5s
-Type "ze --plugins | ze pipe match flowspec | ze pipe count"
+Type "ze show plugins | ze pipe match flowspec | ze pipe count"
 Enter
 Sleep 5s
 

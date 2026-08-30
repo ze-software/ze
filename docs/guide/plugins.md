@@ -315,7 +315,7 @@ Internal mode (`use pluginname`) runs a compiled-in plugin as a goroutine within
 List available plugins:
 
 ```
-ze --plugins
+ze show plugins
 ```
 
 ### Storage and Policy

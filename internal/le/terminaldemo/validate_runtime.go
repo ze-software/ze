@@ -557,7 +557,7 @@ func validateConfigViews() error {
 	if !bytes.Equal(left, right) {
 		return errors.New("validation failed: hierarchical/set round trip changed canonical output")
 	}
-	matches, err := pipeline([][]string{{"ze", "--plugins"}, {"ze", pipeKeyword, matchKeyword, "flowspec"}}, demoEnvironment())
+	matches, err := pipeline([][]string{{"ze", commandShow, "plugins"}, {"ze", pipeKeyword, matchKeyword, "flowspec"}}, demoEnvironment())
 	if err != nil {
 		return err
 	}

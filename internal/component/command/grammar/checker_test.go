@@ -222,7 +222,7 @@ func TestRootNamespaceGrammar(t *testing.T) { // R9 across surfaces, root namesp
 	// Pre-split root set: the feeder MUST flag all four hyphenated roots. A gate
 	// that cannot catch the bug it was written for is not a gate (R-2). This is
 	// the red-then-green that matters most in this spec.
-	pre := []string{"pipe", "traffic-control", "isis-decode", "ospf-decode", "update-serve", "start", "version", "--plugins"}
+	pre := []string{"pipe", "traffic-control", "isis-decode", "ospf-decode", "update-serve", "start", "version", "--show-traffic"}
 	got := CheckRootNamespace(pre, ns)
 	flagged := map[string]bool{}
 	for _, f := range got {
@@ -237,7 +237,7 @@ func TestRootNamespaceGrammar(t *testing.T) { // R9 across surfaces, root namesp
 		}
 	}
 	// A non-hyphenated root and a flag-shaped root (leading '-') must not fire.
-	for _, ok := range []string{"pipe", "start", "version", "--plugins"} {
+	for _, ok := range []string{"pipe", "start", "version", "--show-traffic"} {
 		if flagged[ok] {
 			t.Errorf("root %q wrongly flagged", ok)
 		}
@@ -247,7 +247,7 @@ func TestRootNamespaceGrammar(t *testing.T) { // R9 across surfaces, root namesp
 	}
 
 	// Post-split root set: zero findings.
-	post := []string{"pipe", "traffic", "isis", "ospf", "start", "version", "--plugins"}
+	post := []string{"pipe", "traffic", "isis", "ospf", "start", "version", "--show-traffic"}
 	if got := CheckRootNamespace(post, ns); len(got) != 0 {
 		t.Errorf("post-split set: expected 0 findings, got %v", got)
 	}

@@ -1,20 +1,14 @@
-// Design: docs/architecture/system-architecture.md -- ze usage and plugin listing
+// Design: docs/architecture/system-architecture.md -- ze usage
 
 //go:build ze_core
 
 package main
 
 import (
-	"encoding/json"
-	"os"
-	"strings"
-
 	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func zeUsage() {
@@ -51,7 +45,6 @@ func zeUsage() {
 			{Name: "-d, --debug", Desc: "Enable debug logging (sets ze.log=debug for all subsystems)"},
 			{Name: "-f <file>", Desc: "Use filesystem directly, bypass blob store"},
 			{Name: "--plugin <name>", Desc: "Load plugin before starting (repeatable)"},
-			{Name: "--plugins", Desc: "List available internal plugins"},
 			{Name: "--web <port>", Desc: "Start web server on given port"},
 			{Name: flagStartInsecureWeb, Desc: "Disable web auth (binds to localhost only)"},
 			{Name: helpMCPPortOption, Desc: "Start MCP server on 127.0.0.1:<port>"},
@@ -76,7 +69,7 @@ func zeUsage() {
 		Examples: []string{
 			"ze start config.conf                 Start with config",
 			"ze --plugin ze.hostname -            Start with hostname plugin, config on stdin",
-			"ze --plugins                         List available plugins",
+			"ze show plugins                      List the plugins in this build",
 			"ze help ai                           AI reference (commands, RPCs, MCP tools)",
 			"ze help ai api                       Daemon API endpoints (ze-show:*, ...)",
 			"ze cli                               Interactive CLI",
@@ -87,41 +80,4 @@ func zeUsage() {
 		},
 	}
 	p.WriteErr()
-}
-
-func printPlugins(jsonOutput bool) {
-	plugins := plugin.InternalPluginInfo()
-
-	if jsonOutput {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		_ = enc.Encode(plugins)
-		return
-	}
-
-	entries := make([]helpfmt.HelpEntry, 0, len(plugins))
-	var tb textbuf.Buffer
-	for _, info := range plugins {
-		tb.Reset()
-		desc := helpfmt.Summary(info.Description)
-		tb.Str(desc)
-
-		if len(info.Families) > 0 {
-			tb.Str(" [").Str(textbuf.Join(info.Families, ", ")).Byte(']')
-		}
-		if len(info.RFCs) > 0 && !strings.Contains(desc, "RFC") {
-			tb.Str(" (RFC ").Str(textbuf.Join(info.RFCs, ", ")).Byte(')')
-		}
-
-		entries = append(entries, helpfmt.HelpEntry{Name: info.Name, Desc: tb.String()})
-	}
-
-	p := helpfmt.Page{
-		Command: "ze --plugins",
-		Summary: "Internal plugins available in this build",
-		Sections: []helpfmt.HelpSection{
-			{Title: "Plugins", Entries: entries},
-		},
-	}
-	p.WriteOut()
 }

@@ -19,9 +19,9 @@ func nushellScript() string {
 ` + nushellRootCompleter() + `
 def "nu-complete ze plugins" [] {
     try {
-        ^ze --plugins --json
+        ^ze cli -c "show plugins | json"
         | from json
-        | each {|p| { value: $p.Name, description: $p.Description? } }
+        | each {|p| { value: $p.name, description: $p.description? } }
         | append [{ value: "test", description: "Run plugin tests" } { value: "help", description: "Show help" }]
     } catch {
         ["test" "help"]
@@ -81,7 +81,6 @@ extern "ze" [
     --help(-h)                                                  # Show help
     --version(-V)                                               # Show version
     --plugin: string@"nu-complete ze plugins"                   # Load plugin before starting (repeatable)
-    --plugins                                                   # List available internal plugins
     --pprof: string                                             # Start pprof HTTP server
     --chaos-seed: int                                           # Enable chaos self-test mode with PRNG seed
     --chaos-rate: number                                        # Fault probability per operation (0.0-1.0)

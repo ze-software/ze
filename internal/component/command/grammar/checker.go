@@ -230,13 +230,14 @@ func joinPath(parent, tok string) string {
 // container). A root whose left segment is in that set is the violation. The
 // multi-hyphen walk mirrors CheckSiblings so `a-b-c` is tested at each boundary.
 //
-// A leading '-' (a flag-shaped root such as `--plugins`) has an empty left
-// segment and is never flagged, and that is the intended scope rather than an
-// artifact of the loop bound. Owner ruling 2026-08-05: "We do not want any flags
-// where the cli maps to the Yang otherwise it is ok." A root handler registered
-// in cmd/ze/ maps to no YANG node, so R3 does not reach it -- which is what
-// ai/rules/cli.md already says, that the --flag form "belongs ONLY" to the
-// offline cmd/ze/ tooling and "never in the YANG layer".
+// A leading '-' (a flag-shaped root) has an empty left segment and is never
+// flagged, and that is the intended scope rather than an artifact of the loop
+// bound. Owner ruling 2026-08-05: "We do not want any flags where the cli maps
+// to the Yang otherwise it is ok." A root handler registered in cmd/ze/ maps to
+// no YANG node, so R3 does not reach it -- which is what ai/rules/cli.md already
+// says, that the --flag form "belongs ONLY" to the offline cmd/ze/ tooling and
+// "never in the YANG layer". No root is flag-shaped today: `--plugins` was the
+// last one and is now `show plugins`.
 //
 // R9 is different and DOES bind a root whatever its shape, because a name
 // colliding with a YANG namespace confuses a reader no matter which surface

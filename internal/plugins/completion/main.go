@@ -27,14 +27,14 @@ func Run(args []string) int {
 	}
 
 	switch args[0] {
-	case "bash":
-		return generate("bash", os.Stdout)
-	case "zsh":
-		return generate("zsh", os.Stdout)
-	case "fish":
-		return generate("fish", os.Stdout)
-	case "nushell", "nu":
-		return generate("nushell", os.Stdout)
+	case shellBash:
+		return generate(shellBash, os.Stdout)
+	case shellZsh:
+		return generate(shellZsh, os.Stdout)
+	case shellFish:
+		return generate(shellFish, os.Stdout)
+	case shellNushell, "nu":
+		return generate(shellNushell, os.Stdout)
 	case "words":
 		return words(args[1:])
 	case "flags":
@@ -60,10 +60,10 @@ func usage() {
 		Usage:   []string{"ze completion <shell>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Shells", Entries: []helpfmt.HelpEntry{
-				{Name: "bash", Desc: "Generate bash completion script"},
-				{Name: "zsh", Desc: "Generate zsh completion script"},
-				{Name: "fish", Desc: "Generate fish completion script"},
-				{Name: "nushell", Desc: "Generate nushell completion script (alias: nu)"},
+				{Name: shellBash, Desc: "Generate bash completion script"},
+				{Name: shellZsh, Desc: "Generate zsh completion script"},
+				{Name: shellFish, Desc: "Generate fish completion script"},
+				{Name: shellNushell, Desc: "Generate nushell completion script (alias: nu)"},
 			}},
 		},
 		Examples: []string{
@@ -81,13 +81,13 @@ func usage() {
 func generate(shell string, w io.Writer) int {
 	var s string
 	switch shell {
-	case "bash":
+	case shellBash:
 		s = bashScript()
-	case "zsh":
+	case shellZsh:
 		s = zshScript()
-	case "fish":
+	case shellFish:
 		s = fishScript()
-	case "nushell":
+	case shellNushell:
 		s = nushellScript()
 	default:
 		return 1

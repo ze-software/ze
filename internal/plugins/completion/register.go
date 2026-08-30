@@ -8,10 +8,18 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The shell names ze generates a completion script for. "nu" is an alias for
+// nushell, accepted on the command line and not listed as a shell of its own.
+const (
+	shellBash    = "bash"
+	shellZsh     = "zsh"
+	shellFish    = "fish"
+	shellNushell = "nushell"
+)
+
 // shells lists the user-facing shell names for completion generation.
-// "nu" is an alias for "nushell" and not listed separately.
 // "words" and "peers" are internal helpers, not user-facing.
-var shells = []string{"bash", "zsh", "fish", "nushell"}
+var shells = []string{shellBash, shellZsh, shellFish, shellNushell}
 
 // subcommands returns the shell list as a comma-separated string,
 // derived from shells (the single source of truth).

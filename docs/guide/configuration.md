@@ -697,7 +697,7 @@ family {
 }
 ```
 
-Use `ze --plugins` to see available families from registered plugins.
+Use `ze show plugins` to see available families from registered plugins.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin Families registration -->
 
 ### A Peer That Declares No Family

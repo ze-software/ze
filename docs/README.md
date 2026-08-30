@@ -48,7 +48,7 @@ This directory contains user guides, feature inventories, implementation referen
 
 | Surface | Check |
 |---------|-------|
-| Registered plugins | `./ze --plugins` |
+| Registered plugins | `./ze show plugins` |
 | All commands | `./ze help command` (filterable, `--json` for tooling) |
 | Root CLI verbs | `./ze help ai` |
 | Daemon API endpoints | `./ze help ai api` (`ze-show:*`, `ze-set:*`, ...) |

@@ -4,7 +4,7 @@
 <!-- source: internal/plugins/env/env.go -- ze env subcommands -->
 <!-- source: cmd/ze/help_ai.go -- ze help ai output -->
 <!-- source: internal/le/inventory/inventory.go -- Answer -->
-<!-- source: internal/le/commandlist/commandlist.go -- Answer -->
+<!-- source: internal/le/command/list/commandlist.go -- Answer -->
 <!-- source: internal/le/docvalid/actions.go -- Answer -->
 <!-- source: internal/le/docvalid/actions.go -- Answer -->
 
@@ -26,7 +26,7 @@ unregistered access (`env.MustRegister()`).
 | `ze env list` | All registered environment variables with types and defaults |
 | `ze env list -v` | Same, plus current values |
 | `ze env get <key>` | Details for a single environment variable |
-| `ze --plugins` | All registered plugins with families, capabilities, dependencies |
+| `ze show plugins` | All registered plugins with families, RFCs, and capability codes |
 | `ze help command [filter]` | Full command catalog, filterable, with descriptions |
 | `ze help command --json` | Command catalog as JSON (for wiki generation, tooling) |
 | `ze help ai` | Machine-readable command reference generated from live binary |
@@ -50,6 +50,13 @@ its aliases.
 | `./le command list` | Reads every CLI command from the compiled registries |
 | `./le docvalid command-contract` | Cross-checks YANG commands and handlers |
 | `./le docvalid doc-drift` | Detects documentation drift |
+
+Each plugin the inventory reports also carries the package directory it
+registers from and every YANG file beside it. Both are DERIVED, so no plugin
+declares either: the directory is the package the plugin's engine function was
+compiled in, and the file list is the directory holding the module the
+registration carries. The public plugin catalog publishes both.
+<!-- source: internal/le/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
 
 ## Design Principle
 

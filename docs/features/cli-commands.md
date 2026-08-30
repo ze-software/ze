@@ -193,7 +193,7 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 | `ze exabgp plugin` | Run ExaBGP plugin with ze bridge |
 | `ze exabgp migrate` | Convert ExaBGP config to ze |
 | `ze completion bash/zsh/fish/nushell` | Generate shell completion scripts |
-| `ze --plugins` | List available internal plugins |
+| `ze show plugins` | List the plugins compiled into this binary |
 
 <!-- source: internal/plugins/completion/main.go -- completion subcommand -->
 <!-- source: internal/component/plugin/cli/main.go -- plugin subcommand -->

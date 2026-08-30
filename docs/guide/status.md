@@ -22,7 +22,7 @@ Ze establishes BGP sessions, exchanges routes, and handles the full FSM lifecycl
 
 ### Address Families
 
-All families decode. Most encode. Use `ze --plugins` to see the current state.
+All families decode. Most encode. Use `ze show plugins` to see the current state.
 
 | Family | Decode | Encode | Config Routes |
 |--------|--------|--------|---------------|
@@ -90,7 +90,7 @@ Unit tests run with the race detector enabled (`-race`). Functional, browser, an
 <!-- source: internal/le/testunit/actions.go -- Actions -->
 <!-- source: internal/le/functional/actions.go -- Actions -->
 <!-- source: internal/le/fuzz/actions.go -- Actions -->
-<!-- source: internal/le/verifylint/actions.go -- Actions -->
+<!-- source: internal/le/verify/lint/actions.go -- Actions -->
 
 ## What Does NOT Work Yet
 

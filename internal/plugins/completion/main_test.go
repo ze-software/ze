@@ -90,14 +90,14 @@ func TestBashContainsSubcommands(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-5 — dynamic plugin completion calls ze --plugins --json.
+// VALIDATES: AC-5 — dynamic plugin completion calls ze cli -c "show plugins | json".
 func TestBashDynamicPlugins(t *testing.T) {
 	var buf strings.Builder
 	generate("bash", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "ze --plugins --json") {
-		t.Error("bash output missing dynamic plugin completion via 'ze --plugins --json'")
+	if !strings.Contains(out, `ze cli -c 'show plugins | json'`) {
+		t.Error(`bash output missing dynamic plugin completion via "ze cli -c 'show plugins | json'"`)
 	}
 }
 
@@ -136,7 +136,7 @@ func TestBashGlobalFlagSkipping(t *testing.T) {
 
 	// Verify global flags are handled in the finder
 	for _, flag := range []string{
-		"--debug", "--plugin", "--pprof", "--chaos-seed", "--chaos-rate", "--plugins",
+		"--debug", "--plugin", "--pprof", "--chaos-seed", "--chaos-rate",
 	} {
 		if !strings.Contains(out, flag) {
 			t.Errorf("bash _ze_find_subcmd missing global flag %q", flag)
@@ -239,15 +239,15 @@ func TestFishDepthGuards(t *testing.T) {
 	}
 }
 
-// VALIDATES: fish plugin completion is dynamic (calls ze --plugins --json).
+// VALIDATES: fish plugin completion is dynamic (calls ze cli -c "show plugins | json").
 // PREVENTS: fish missing dynamically registered plugin names.
 func TestFishDynamicPlugins(t *testing.T) {
 	var buf strings.Builder
 	generate("fish", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "ze --plugins --json") {
-		t.Error("fish output missing dynamic plugin completion via 'ze --plugins --json'")
+	if !strings.Contains(out, `ze cli -c 'show plugins | json'`) {
+		t.Error(`fish output missing dynamic plugin completion via "ze cli -c 'show plugins | json'"`)
 	}
 }
 
@@ -284,7 +284,7 @@ func TestZshGlobalFlags(t *testing.T) {
 	out := buf.String()
 
 	for _, flag := range []string{
-		"--debug", "--help", "--version", "--plugin", "--plugins", "--pprof",
+		"--debug", "--help", "--version", "--plugin", "--pprof",
 		"--chaos-seed", "--chaos-rate",
 	} {
 		if !strings.Contains(out, flag) {
@@ -356,7 +356,7 @@ func TestBashPluginArgCompletion(t *testing.T) {
 	generate("bash", &buf)
 	out := buf.String()
 
-	// Should have a prev-based check for --plugin that calls ze --plugins --json
+	// Should have a prev-based check for --plugin that calls ze cli -c "show plugins | json".
 	if !strings.Contains(out, `"${prev}"`) {
 		t.Error("bash should check prev for flag argument completion")
 	}
@@ -439,7 +439,7 @@ func TestNushellGlobalFlags(t *testing.T) {
 
 	for _, flag := range []string{
 		"--debug(-d)", "--help(-h)", "--version(-V)",
-		"--plugin:", "--plugins", "--pprof:", "--chaos-seed:", "--chaos-rate:",
+		"--plugin:", "--pprof:", "--chaos-seed:", "--chaos-rate:",
 	} {
 		if !strings.Contains(out, flag) {
 			t.Errorf("nushell output missing global flag %q", flag)
@@ -478,8 +478,8 @@ func TestNushellDynamicPlugins(t *testing.T) {
 	generate("nushell", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "ze --plugins --json") {
-		t.Error("nushell output missing dynamic plugin completion via 'ze --plugins --json'")
+	if !strings.Contains(out, `^ze cli -c "show plugins | json"`) {
+		t.Error(`nushell output missing dynamic plugin completion via '^ze cli -c "show plugins | json"'`)
 	}
 }
 

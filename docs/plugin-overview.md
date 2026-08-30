@@ -109,7 +109,7 @@ when you configure the corresponding address family. You do not need to declare 
 
 ## Shipped Plugins
 
-`./ze --plugins` is the runtime source of truth for the complete registered
+`./ze show plugins` is the runtime source of truth for the complete registered
 plugin list. The groups below mirror the current registrations in
 `internal/component/plugin/all/all.go`.
 

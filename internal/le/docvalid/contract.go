@@ -290,7 +290,7 @@ func localCommandRegistryFiles(root string) ([]string, error) {
 		switch filepath.Base(filepath.Dir(path)) {
 		case "cli", "client":
 			files = append(files, path)
-		case "crashes", "debug", "diag", "env", "explain", "host", "skills", "support":
+		case "crashes", "debug", "diag", "env", "explain", "host", "plugin", "skills", "support":
 			files = append(files, path)
 		}
 		return nil

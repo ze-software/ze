@@ -10,7 +10,7 @@ import (
 )
 
 // ensureLocalCommandsRegistered registers the cmd/ze-owned root and local
-// commands (pipe, start, version, help, --plugins, update serve) exactly once
+// commands (pipe, start, version, help, update serve) exactly once
 // into the shared test-binary registry. registerLocalCommands runs from zeSetup
 // in production, which `go test` never calls, so these roots are otherwise
 // absent from the process-wide registry the cmd/ze tests share (see

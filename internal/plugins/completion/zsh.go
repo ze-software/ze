@@ -28,7 +28,6 @@ _ze() {
         '-V[Show version]' \
         '--version[Show version]' \
         '--plugin[Load plugin before starting]:plugin name:' \
-        '--plugins[List available internal plugins]' \
         '--pprof[Start pprof HTTP server]:address:' \
         '--chaos-seed[Enable chaos self-test mode with PRNG seed]:seed:' \
         '--chaos-rate[Fault probability per operation (0.0-1.0)]:rate:' \
@@ -162,7 +161,7 @@ _ze() {
                     if (( CURRENT == 2 )); then
                         # Dynamic: plugin names from YANG-driven registry
                         local -a plugin_names
-                        plugin_names=(${(f)"$(ze --plugins --json 2>/dev/null | grep -o '` + `"Name":"[^"]*"` + `' | sed 's/\"Name\":\"//;s/\"//')"})
+                        plugin_names=(${(f)"$(ze cli -c 'show plugins | json' 2>/dev/null | grep -o '` + `"name": *"[^"]*"` + `' | sed 's/.*: *\"//;s/\"$//')"})
                         plugin_names+=(test help)
                         _describe 'plugin' plugin_names
                     fi

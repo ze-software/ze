@@ -264,8 +264,6 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 		case "--no-color":
 			_ = env.Set("ze.log.color", "false")
 			args = args[1:]
-		case "--plugins":
-			return args, 0
 		case "--version", "-V":
 			return nil, printVersion(false)
 		case flagExtendedVersion:
@@ -457,15 +455,6 @@ func registerLocalCommands() {
 		Mode:        commandModeOffline,
 		Section:     registry.SectionSystem,
 		Subs:        "command [<filter>] [--json], ai [cli|api|mcp|dispatch|all] [--json]",
-	})
-	registry.MustRegisterRootHandler("--plugins", func(_ *registry.RuntimeContext, args []string) int {
-		printPlugins(len(args) > 0 && args[0] == flagJSON)
-		return 0
-	}, registry.Meta{
-		Description: "List loaded plugins",
-		Mode:        commandModeOffline,
-		Section:     registry.SectionSystem,
-		Subs:        flagJSON,
 	})
 	registry.MustRegisterRootHandler("pipe", func(_ *registry.RuntimeContext, args []string) int {
 		return runPipe(args)

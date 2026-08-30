@@ -25,7 +25,7 @@ function __ze_needs_command
     set -l i 2
     while test $i -le (count $cmd)
         switch $cmd[$i]
-            case '-d' '--debug' '-V' '--version' '--plugins'
+            case '-d' '--debug' '-V' '--version'
                 # no-arg flags
             case '--plugin' '--pprof' '--chaos-seed' '--chaos-rate'
                 set i (math $i + 1)
@@ -54,7 +54,7 @@ function __ze_depth
             continue
         end
         switch $word
-            case '-d' '--debug' '-V' '--version' '--plugins'
+            case '-d' '--debug' '-V' '--version'
                 continue
             case '--plugin' '--pprof' '--chaos-seed' '--chaos-rate'
                 set skip_next 1
@@ -89,7 +89,7 @@ function __ze_under_command
             continue
         end
         switch $word
-            case '-d' '--debug' '-V' '--version' '--plugins'
+            case '-d' '--debug' '-V' '--version'
                 continue
             case '--plugin' '--pprof' '--chaos-seed' '--chaos-rate'
                 set skip_next 1
@@ -104,9 +104,9 @@ function __ze_under_command
 end
 
 # __ze_complete_plugins outputs dynamic plugin names for completion.
-# Uses ze --plugins --json at tab time, plus the static test/help entries.
+# Uses ze cli -c "show plugins | json" at tab time, plus the static test/help entries.
 function __ze_complete_plugins
-    ze --plugins --json 2>/dev/null | string match -r '"Name":"[^"]*"' | string replace -r '"Name":"([^"]*)"' '$1'
+    ze cli -c 'show plugins | json' 2>/dev/null | string match -r '"name": *"[^"]*"' | string replace -r '"name": *"([^"]*)"' '$1'
     echo test
     echo help
 end
@@ -124,7 +124,7 @@ function __ze_complete_schema_modules
             continue
         end
         switch $word
-            case '-d' '--debug' '-V' '--version' '--plugins'
+            case '-d' '--debug' '-V' '--version'
                 continue
             case '--plugin' '--pprof' '--chaos-seed' '--chaos-rate'
                 set skip_next 1
@@ -161,7 +161,7 @@ function __ze_complete_dynamic
             continue
         end
         switch $word
-            case '-d' '--debug' '-V' '--version' '--plugins'
+            case '-d' '--debug' '-V' '--version'
                 continue
             case '--plugin' '--pprof' '--chaos-seed' '--chaos-rate'
                 set skip_next 1

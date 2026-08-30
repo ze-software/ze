@@ -74,6 +74,13 @@ func writeWords(w io.Writer, args []string) int {
 	return 0
 }
 
+// The two command paths this file names more than once: the read-only verb that
+// roots every show tree, and the BGP RIB the "rib" shorthand expands to.
+const (
+	verbShow = "show"
+	nameRIB  = "rib"
+)
+
 func completionTree(args []string) (*command.Node, []string) {
 	if len(args) == 0 {
 		return nil, nil
@@ -81,8 +88,8 @@ func completionTree(args []string) (*command.Node, []string) {
 	if args[0] == "run" {
 		return runCompletionTree(args[1:])
 	}
-	if args[0] == "show" {
-		return cli.BuildVerbCommandTree("show"), args[1:]
+	if args[0] == verbShow {
+		return cli.BuildVerbCommandTree(verbShow), args[1:]
 	}
 	if tree := rootCommandTree(args[0]); tree != nil {
 		return tree, args[1:]
@@ -124,7 +131,7 @@ func mergeShowDescriptions(name string, root *command.Node) {
 	if root.Children == nil {
 		return
 	}
-	showTree := cli.BuildVerbCommandTree("show")
+	showTree := cli.BuildVerbCommandTree(verbShow)
 	if showTree == nil {
 		return
 	}
@@ -157,12 +164,12 @@ func runCompletionTree(path []string) (*command.Node, []string) {
 		return cli.BuildCommandTree(false), nil
 	}
 	switch path[0] {
-	case "show", "set", "delete", "clear", "request", "monitor", "resolve", "validate":
+	case verbShow, "set", "delete", "clear", "request", "monitor", "resolve", "validate":
 		return cli.BuildVerbCommandTree(path[0]), path[1:]
-	case "rib":
-		tree := cli.BuildVerbCommandTree("show")
+	case nameRIB:
+		tree := cli.BuildVerbCommandTree(verbShow)
 		addRIBRoutesAlias(tree)
-		return tree, append([]string{"bgp", "rib"}, path[1:]...)
+		return tree, append([]string{"bgp", nameRIB}, path[1:]...)
 	default:
 		return cli.BuildCommandTree(false), path
 	}
@@ -173,7 +180,7 @@ func addRIBRoutesAlias(tree *command.Node) {
 		return
 	}
 	current := tree
-	for _, name := range []string{"bgp", "rib"} {
+	for _, name := range []string{"bgp", nameRIB} {
 		if current.Children == nil {
 			return
 		}

@@ -21,6 +21,7 @@ expect=stdout:contains=COVERED: show data registered [done]
 expect=stdout:contains=COVERED: show env get [done]
 expect=stdout:contains=COVERED: show env list [done]
 expect=stdout:contains=COVERED: show env registered [done]
+expect=stdout:contains=COVERED: show plugins [done]
 expect=stdout:contains=COVERED: show schema events [done]
 expect=stdout:contains=COVERED: show schema handlers [done]
 expect=stdout:contains=COVERED: show schema list [done]
@@ -28,4 +29,4 @@ expect=stdout:contains=COVERED: show schema methods [done]
 expect=stdout:contains=COVERED: show schema protocol [done]
 expect=stdout:contains=COVERED: show yang completion [done]
 expect=stdout:contains=COVERED: show yang tree [done]
-expect=stdout:contains=OK: 15/15 local-data commands and local one-shot save
+expect=stdout:contains=OK: 16/16 local-data commands and local one-shot save
