@@ -3,11 +3,11 @@
 // flagdebt.go is the ledger feeder 7 judges against, apart from the scan that
 // produces the findings (flags.go).
 //
-// The tree carried 50 violations when the feeder landed, and 11 more the day F3
-// widened to every command of the `ze` surface, so a feeder that failed on all
-// of them would have blocked every commit. Each one is listed
-// here with the reason it is still there, and the gate prints the whole ledger
-// and its count on every run. This is DEBT, never an allowlist: a violation
+// The tree carried 61 violations across the two days the feeder landed and F3
+// widened, so a feeder that failed on all of them would have blocked every
+// commit. Twenty-one went when the rendering flags were deleted. Each one that
+// remains is listed here with the reason it is still there, and the gate prints
+// the whole ledger and its count on every run. This is DEBT, never an allowlist: a violation
 // that is not listed fails the gate, and deleting an entry is what a fix
 // landing looks like.
 
@@ -34,31 +34,11 @@ import (
 // gate, so a fix landing in this shared checkout never turns the gate red for
 // the session that did not write it. What that report asks for is the entry's
 // deletion, which is the last step of the fix rather than a later cleanup.
-var flagRegisterDebt = map[string]string{
-	"F3 config dump --json":     "`show config dump` is served by registry.MustRegisterLocalData, so `| json` already renders it; the flag is the second spelling",
-	"F3 schema handlers --json": "`show schema handlers` is served by registry.MustRegisterLocalData, so `| json` already renders it; the flag is the second spelling",
-	"F3 schema list --json":     "`show schema list` is served by registry.MustRegisterLocalData, so `| json` already renders it; the flag is the second spelling",
-	"F3 yang tree --json":       "`show yang tree` is served by registry.MustRegisterLocalData, so `| json` already renders it; the flag is the second spelling",
-	"F3 yang completion --json": "`show yang completion` is served by registry.MustRegisterLocalData, so `| json` already renders it; the flag is the second spelling",
-
-	// F3 widened to every command of the `ze` surface on 2026-08-30: rendering
-	// is the pipe layer's job whether or not a command's answer was registered
-	// for it, so "this command reaches no pipe layer" is the defect these
-	// entries record rather than the reason they are forgiven. Each names the
-	// source that parses the flag, so the fix is one MustRegisterLocalData
-	// registration in that package plus the flag's deletion, and the entry
-	// then goes.
-	"F3 config completion --json": "the flag is parsed in internal/component/config/cli/cmd_completion.go and no registry.MustRegisterLocalData call serves `config completion`, so its answer reaches no pipe layer",
-	"F3 config diff --json":       "the flag is parsed in internal/component/config/cli/cmd_diff.go and no registry.MustRegisterLocalData call serves `config diff`, so its answer reaches no pipe layer",
-	"F3 config fix --json":        "the flag is parsed in internal/component/config/cli/cmd_fix.go and no registry.MustRegisterLocalData call serves `config fix`, so its answer reaches no pipe layer",
-	"F3 config migrate --format":  "the flag is parsed in internal/component/config/cli/cmd_migrate.go and no registry.MustRegisterLocalData call serves `config migrate`, so its answer reaches no pipe layer",
-	"F3 config show --json":       "the flag is parsed in internal/component/config/cli/cmd_show.go and no registry.MustRegisterLocalData call serves `config show`, so its answer reaches no pipe layer",
-	"F3 config validate --json":   "the flag is parsed in internal/component/config/cli/cmd_validate.go and no registry.MustRegisterLocalData call serves `config validate`, so its answer reaches no pipe layer",
-	"F3 interface scan --json":    "the flag is parsed in internal/component/iface/cli/scan.go and no registry.MustRegisterLocalData call serves `interface scan`, so its answer reaches no pipe layer",
-	"F3 interface scan --yaml":    "the flag is parsed in internal/component/iface/cli/scan.go and no registry.MustRegisterLocalData call serves `interface scan`, so its answer reaches no pipe layer",
-	"F3 schema show --json":       "the flag is parsed in internal/component/config/schema/cli/main.go and no registry.MustRegisterLocalData call serves `schema show`, so its answer reaches no pipe layer",
-	"F3 tacacs show --json":       "the flag is parsed in internal/component/tacacs/cli/main.go and no registry.MustRegisterLocalData call serves `tacacs show`, so its answer reaches no pipe layer",
-}
+// It is EMPTY, and that is the state to keep it in: every rendering flag and
+// every root spelled as a flag has been deleted, so F1, F2 and F3 have nothing
+// left to forgive. A new entry here means a new violation was written, not that
+// an old one was found.
+var flagRegisterDebt = map[string]string{}
 
 // flagPathDebt is one command path's undeclared flags: why they are still
 // undeclared, and exactly which flags the entry forgives.
@@ -71,9 +51,9 @@ type flagPathDebt struct {
 	Flags  []string
 }
 
-// flagDeclarationDebt is the F4 debt: 43 offline `ze` command paths parse 113
-// flags between them, and registry.RegisterCommandFlags declares the flags of
-// two paths (`exabgp plugin` and `exabgp migrate`) plus the three `l2tp` verbs.
+// flagDeclarationDebt is the F4 debt: the offline `ze` command paths whose flags
+// registry.RegisterCommandFlags does not declare. It declares the flags of two
+// paths (`exabgp plugin` and `exabgp migrate`) plus the three `l2tp` verbs.
 // Every one of these is invisible to completion until its path is registered.
 //
 // This is DEBT, never an allowlist. Each entry names the source that parses the
@@ -143,15 +123,11 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 	},
 	"config completion": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_completion.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--context", "--ghost", "--input", "--json"},
-	},
-	"config diff": {
-		Reason: "the flags are parsed in internal/component/config/cli/cmd_diff.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json"},
+		Flags:  []string{"--context", "--ghost", "--input"},
 	},
 	"config dump": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_dump.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json", "--strip-private"},
+		Flags:  []string{"--strip-private"},
 	},
 	"config edit": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_edit.go and no RegisterCommandFlags call declares them",
@@ -159,7 +135,7 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 	},
 	"config fix": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_fix.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json", "--plan"},
+		Flags:  []string{"--plan"},
 	},
 	"config fmt": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_fmt.go and no RegisterCommandFlags call declares them",
@@ -171,19 +147,15 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 	},
 	"config migrate": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_migrate.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--dry-run", "--format", "--list", "-o"},
+		Flags:  []string{"--dry-run", "--list", "-o"},
 	},
 	"config set": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_set.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--dry-run", "--reload", "--user", "-u"},
 	},
-	"config show": {
-		Reason: "the flags are parsed in internal/component/config/cli/cmd_show.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json"},
-	},
 	"config validate": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_validate.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json", "--limit", "--pending", "-q", "-v"},
+		Flags:  []string{"--limit", "--pending", "-q", "-v"},
 	},
 	"env list": {
 		Reason: "the flags are parsed in internal/plugins/env/env.go and no RegisterCommandFlags call declares them",
@@ -199,7 +171,7 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 	},
 	"interface scan": {
 		Reason: "the flags are parsed in internal/component/iface/cli/scan.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--config", "--json", "--managed", "--yaml"},
+		Flags:  []string{"--config", "--managed"},
 	},
 	"plugin cli": {
 		Reason: "the flags are parsed in internal/component/bgp/cli/cmd_plugin.go and no RegisterCommandFlags call declares them",
@@ -221,18 +193,6 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 		Reason: "the flags are parsed in internal/component/resolve/cli/cmd_peeringdb.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--url"},
 	},
-	"schema handlers": {
-		Reason: "the flags are parsed in internal/component/config/schema/cli/main.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json"},
-	},
-	"schema list": {
-		Reason: "the flags are parsed in internal/component/config/schema/cli/main.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json"},
-	},
-	"schema show": {
-		Reason: "the flags are parsed in internal/component/config/schema/cli/main.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json"},
-	},
 	"signal": {
 		Reason: "the flags are parsed in internal/plugins/signal/main.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--host", "--port", "--user", "-u"},
@@ -241,13 +201,9 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 		Reason: "the flags are parsed in internal/plugins/signal/main.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--host", "--port"},
 	},
-	"tacacs show": {
-		Reason: "the flags are parsed in internal/component/tacacs/cli/main.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json"},
-	},
 	"yang completion": {
 		Reason: "the flags are parsed in internal/component/config/yang/cli/main.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--json", "--min-prefix"},
+		Flags:  []string{"--min-prefix"},
 	},
 	"yang doc": {
 		Reason: "the flags are parsed in internal/component/config/yang/cli/main.go and no RegisterCommandFlags call declares them",
@@ -255,7 +211,7 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 	},
 	"yang tree": {
 		Reason: "the flags are parsed in internal/component/config/yang/cli/main.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--config", "--json"},
+		Flags:  []string{"--config"},
 	},
 }
 

@@ -1,8 +1,8 @@
 // Design: docs/architecture/cli/root-namespace-grammar.md -- which register a token belongs to
 //
-// flags.go mechanizes the flag-register rules of ai/rules/cli.md ("`--flag` or
-// Keyword: Which Register a Token Belongs To"), as pure functions beside the
-// path-level rules in checker.go.
+// flags.go mechanizes the flag-register rules of ai/rules/cli.md ("CLI Grammar:
+// Keywords Before Values"), as pure functions beside the path-level rules in
+// checker.go.
 //
 // R1-R9 govern the YANG command model, where a flag is banned outright. The
 // four rules here govern the OFFLINE surface, where a flag is legal and the
@@ -173,8 +173,7 @@ type FlagFinding struct {
 	Message string
 }
 
-// ze point: cli/cli-grammar-keywords-before-values/keep-the-flag-form-to-the-tools-that-reach-no-daemon
-// ze point: cli/cli-grammar-keywords-before-values/what-a-flag-must-never-be
+// ze point: cli/cli-grammar-keywords-before-values/flags-belong-to-the-offline-tooling-only
 // CheckRootFlagForm applies F1 to the registered root command names: a root
 // whose name is a flag is a verb in disguise.
 //
@@ -200,7 +199,7 @@ func CheckRootFlagForm(roots []string) []FlagFinding {
 	return out
 }
 
-// ze point: cli/cli-grammar-keywords-before-values/never-send-a-flag-from-a-client-to-the-daemon
+// ze point: cli/cli-grammar-keywords-before-values/flags-belong-to-the-offline-tooling-only
 // DaemonCommandFlag applies F2 to one string literal: it answers the daemon
 // command path the literal names and the first flag-shaped token that follows
 // that path.
@@ -253,7 +252,7 @@ func ClientFlagFinding(path, flag string) FlagFinding {
 	}
 }
 
-// ze point: cli/cli-grammar-keywords-before-values/what-a-flag-must-never-be
+// ze point: cli/cli-grammar-keywords-before-values/flags-belong-to-the-offline-tooling-only
 // CheckPipeFlags applies F3: no command in the `ze` command surface carries a
 // flag that renders its answer, because rendering is the pipe layer's job.
 //
@@ -314,7 +313,7 @@ func pipeFlagMessage(path, token, bare string, served bool) string {
 		", then delete the flag")
 }
 
-// ze point: cli/cli-grammar-keywords-before-values/declare-every-offline-flag-through-the-flag-registry
+// ze point: cli/cli-grammar-keywords-before-values/flags-belong-to-the-offline-tooling-only
 // CheckFlagDeclarations applies F4 to one command path: every flag its parser
 // reads is declared through registry.RegisterCommandFlags, and every flag that
 // registry declares is read by a parser.
