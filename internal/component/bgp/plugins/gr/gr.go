@@ -107,6 +107,15 @@ type grPlugin struct {
 	// peer does not re-activate GR. Cleared when the peer re-establishes.
 	removedPeers map[string]bool
 	state        *grStateManager // RFC 4724 Receiving Speaker state machine
+
+	// dispatchHook, when non-nil, intercepts dispatchCommand for test
+	// inspection instead of issuing the dispatch-command RPC. Production
+	// leaves it nil. It is what lets a test read the RIB commands the RFC 4724
+	// and RFC 9494 procedures owe: retaining and marking routes stale on a
+	// session drop, and deleting them when the Long-Lived Stale Time expires.
+	// The sibling RIB plugin carries the same field for the same reason
+	// (RIBManager.dispatchHook, rib.go).
+	dispatchHook func(command string, args ...string)
 }
 
 // RunGRPlugin runs the GR plugin using the SDK RPC protocol.
@@ -125,48 +134,14 @@ func RunGRPlugin(conn net.Conn) int {
 		removedPeers: make(map[string]bool),
 	}
 
-	// Create state manager with callbacks for GR and LLGR lifecycle events.
-	gp.state = newGRStateManager(func(peerAddr string) {
-		gp.onTimerExpired(peerAddr)
-	})
-	// RFC 9494: LLGR callbacks compose generic RIB commands.
-	// LLGR_STALE = 0xFFFF0006, NO_LLGR = 0xFFFF0007 (wire hex).
-	gp.state.onLLGREnter = func(peerAddr string, fam family.Family, llst uint32) {
-		famStr := fam.String()
-		// 1. Delete routes with NO_LLGR community
-		gp.dispatchCommand("request bgp rib delete-with-community", peerAddr, famStr, "ffff0007")
-		// 2. Attach LLGR_STALE community to remaining stale routes
-		gp.dispatchCommand("request bgp rib attach-community", peerAddr, famStr, "ffff0006")
-		// 3. Raise stale level to depreference threshold
-		// Raise stale level to 2 (depreference threshold) via mark-stale
-		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
-		gp.dispatchCommand("request bgp rib mark-stale", peerAddr, "0", "2")
-	}
-	gp.state.onLLGREntryDone = func(peerAddr string, families []family.Family) {
-		addr, err := netip.ParseAddr(peerAddr)
-		if err != nil {
-			logger().Error("gr: invalid peer address in LLGR entry done", "peer", peerAddr, "error", err)
-			return
-		}
-		excludeSel := selector.ExcludeAddr(addr).String()
-		// RFC 9494: readvertise per-fam (not all-fam) to avoid resending unrelated families.
-		for _, fam := range families {
-			gp.dispatchCommand("clear bgp rib out", excludeSel, fam.String())
-		}
-	}
-	gp.state.onLLGRFamilyExpired = func(peerAddr string, fam family.Family) {
-		gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
-	}
-	gp.state.onLLGRComplete = func(peerAddr string) {
-		gp.dispatchCommand("request bgp rib release-routes", peerAddr)
-	}
+	gp.wireStateCallbacks()
 
 	// OnConfigure callback: parse bgp config, extract per-peer restart-time
 	// and long-lived-stale-time, then set capabilities for Stage 3.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		var caps []sdk.CapabilityDecl
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			caps = append(caps, extractGRCapabilities(section.Data)...)
@@ -219,7 +194,7 @@ func RunGRPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	})
 	if err != nil {
 		logger().Error("gr plugin failed", "error", err)
@@ -227,6 +202,52 @@ func RunGRPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// wireStateCallbacks builds the state manager and attaches every GR and LLGR
+// lifecycle callback. Each callback is the only thing that turns a state machine
+// transition into the RIB command the RFC requires, so a missing assignment is a
+// silent protocol violation rather than a compile error: RFC 9494 Section 4.2
+// says the helper "MUST delete all stale routes of that AFI/SAFI from the
+// neighbor" when the Long-Lived Stale Time expires, and onLLGRFamilyExpired is
+// what performs that deletion.
+//
+// It is a method rather than inline setup in RunGRPlugin so a test can install
+// the production callbacks without a plugin connection.
+func (gp *grPlugin) wireStateCallbacks() {
+	gp.state = newGRStateManager(func(peerAddr string) {
+		gp.onTimerExpired(peerAddr)
+	})
+	// RFC 9494: LLGR callbacks compose generic RIB commands.
+	// LLGR_STALE = 0xFFFF0006, NO_LLGR = 0xFFFF0007 (wire hex).
+	gp.state.onLLGREnter = func(peerAddr string, fam family.Family, llst uint32) {
+		famStr := fam.String()
+		// 1. Delete routes with NO_LLGR community
+		gp.dispatchCommand("request bgp rib delete-with-community", peerAddr, famStr, "ffff0007")
+		// 2. Attach LLGR_STALE community to remaining stale routes
+		gp.dispatchCommand("request bgp rib attach-community", peerAddr, famStr, "ffff0006")
+		// 3. Raise stale level to 2 (depreference threshold) via mark-stale
+		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
+		gp.dispatchCommand("request bgp rib mark-stale", peerAddr, "0", "2")
+	}
+	gp.state.onLLGREntryDone = func(peerAddr string, families []family.Family) {
+		addr, err := netip.ParseAddr(peerAddr)
+		if err != nil {
+			logger().Error("gr: invalid peer address in LLGR entry done", "peer", peerAddr, "error", err)
+			return
+		}
+		excludeSel := selector.ExcludeAddr(addr).String()
+		// RFC 9494: readvertise per-fam (not all-fam) to avoid resending unrelated families.
+		for _, fam := range families {
+			gp.dispatchCommand("clear bgp rib out", excludeSel, fam.String())
+		}
+	}
+	gp.state.onLLGRFamilyExpired = func(peerAddr string, fam family.Family) {
+		gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
+	}
+	gp.state.onLLGRComplete = func(peerAddr string) {
+		gp.dispatchCommand("request bgp rib release-routes", peerAddr)
+	}
 }
 
 // handleStructuredEvent dispatches a StructuredEvent to the appropriate GR handler.
@@ -600,6 +621,10 @@ func (gp *grPlugin) releaseRoutes(peerAddr string) {
 // dispatchCommand sends a command to the engine for inter-plugin coordination.
 // Logs errors but does not fail — the GR state machine proceeds regardless.
 func (gp *grPlugin) dispatchCommand(command string, args ...string) {
+	if gp.dispatchHook != nil {
+		gp.dispatchHook(command, args...)
+		return
+	}
 	if gp.sdk == nil {
 		return // unit test — no SDK available
 	}
