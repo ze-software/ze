@@ -50,7 +50,7 @@ func TestPythonInvalidCommitDiagnosticParityWithoutVerifyBody(t *testing.T) {
 func TestPythonAddFailureDiagnosticNamesShortCommitWithoutVerifyBody(t *testing.T) {
 	root := t.TempDir()
 	sha := strings.Repeat("b", 40)
-	fakeGit := func(_ context.Context, _ string, args ...string) (commandResult, error) {
+	fakeGit := func(_ context.Context, _ time.Duration, _ string, args ...string) (commandResult, error) {
 		switch args[0] {
 		case "rev-parse":
 			return commandResult{Output: sha + "\n"}, nil

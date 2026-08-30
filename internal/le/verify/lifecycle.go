@@ -22,8 +22,29 @@ import (
 
 const (
 	actionName = "worktree"
-	gitTimeout = 30 * time.Second
+
+	// gitTimeoutMetadata bounds a git call that reads refs or worktree
+	// registrations. Such a call touches a handful of files whatever the size
+	// of the checkout, so thirty seconds is already far beyond what one costs.
+	gitTimeoutMetadata = 30 * time.Second
+
+	// gitTimeoutWorktree bounds a git call that materializes, walks, or deletes
+	// a whole checkout. This repository is 22,439 tracked files, and a checkout
+	// of it measured over thirty seconds on the development machine on
+	// 2026-08-30 with three sessions active, so the metadata bound aborts a
+	// checkout that is working correctly. Ten minutes is under a quarter of the
+	// verification run this call precedes, which measured 25 to 53 minutes on
+	// the same machine, so the bound still ends a hang inside the life of one
+	// run.
+	gitTimeoutWorktree = 10 * time.Minute
 )
+
+// errGitTimeout reports that verify stopped waiting for git, not that git
+// refused the work. Git is killed at the deadline and the kill is reported as a
+// signal, so the exit code cannot tell the two apart. A child git started can
+// outlive the kill and finish the operation, so a caller MUST treat whatever
+// the call was creating as present until it looks.
+var errGitTimeout = errors.New("verify stopped waiting")
 
 var runSequence atomic.Uint64
 
@@ -61,7 +82,11 @@ type commandResult struct {
 	Output string
 }
 
-type gitRunner func(context.Context, string, ...string) (commandResult, error)
+// gitRunner runs one git call in root under the timeout the caller states. The
+// timeout is a parameter rather than a property of the runner because the calls
+// differ by orders of magnitude: a ref read is milliseconds and a full checkout
+// is minutes.
+type gitRunner func(ctx context.Context, timeout time.Duration, root string, args ...string) (commandResult, error)
 
 type dependencies struct {
 	git   gitRunner
@@ -126,12 +151,18 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		Str("-p").Int(int64(deps.pid())).Str("-r").Uint(runSequence.Add(1)).String()
 	path := worktreePath(root, sha, stamp)
 	report.Worktree = path
-	add, addErr := deps.git(ctx, root, "worktree", "add", "--detach", path, sha)
+	add, addErr := deps.git(ctx, gitTimeoutWorktree, root, "worktree", "add", "--detach", path, sha)
 	if addErr != nil || add.Code != 0 {
-		report.Failure = &verifyengine.Failure{Kind: "worktree-add", Message: commandFailure("git worktree add", add, addErr)}
-		report.Diagnostics = append(report.Diagnostics, text.Reset().
-			Str("verify-worktree: git worktree add failed for ").Str(shortSHA(sha)).
-			Str(": ").Str(strings.TrimSpace(add.Output)).String())
+		failure, diagnostic := addFailure(sha, add, addErr)
+		report.Failure = &failure
+		report.Diagnostics = append(report.Diagnostics, diagnostic)
+		reclaimed := reclaimWorktree(context.WithoutCancel(ctx), root, path, deps.git)
+		report.Cleanup = append(report.Cleanup, reclaimed...)
+		for _, cleanupFailure := range reclaimed {
+			report.Diagnostics = append(report.Diagnostics, text.Reset().
+				Str("verify-worktree: reclaiming the failed add left ").Str(cleanupFailure.Operation).
+				Str(" failed: ").Str(cleanupFailure.Message).String())
+		}
 		return report
 	}
 
@@ -140,9 +171,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		if !cleanup {
 			return
 		}
-		cleanupContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), gitTimeout)
-		defer cancel()
-		report.Cleanup = removeWorktree(cleanupContext, root, path, deps.git)
+		report.Cleanup = removeWorktree(context.WithoutCancel(ctx), root, path, deps.git)
 		if len(report.Cleanup) != 0 {
 			report.Code = 1
 			report.Failure = &verifyengine.Failure{Kind: "cleanup", Message: cleanupMessage(report.Cleanup)}
@@ -154,7 +183,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		}
 	}()
 
-	branch, branchErr := deps.git(ctx, path, "symbolic-ref", "--quiet", "--short", "HEAD")
+	branch, branchErr := deps.git(ctx, gitTimeoutMetadata, path, "symbolic-ref", "--quiet", "--short", "HEAD")
 	if branchErr != nil {
 		report.Failure = &verifyengine.Failure{Kind: "branch-check", Message: branchErr.Error()}
 		return report
@@ -230,7 +259,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 
 func resolveCommit(ctx context.Context, root, revision string, git gitRunner) (string, error) {
 	var text textbuf.Buffer
-	result, err := git(ctx, root, "rev-parse", "--verify",
+	result, err := git(ctx, gitTimeoutMetadata, root, "rev-parse", "--verify",
 		text.Str(revision).Str("^{commit}").Slice())
 	if err != nil || result.Code != 0 {
 		return "", fmt.Errorf("%s does not name a commit", revision)
@@ -240,6 +269,27 @@ func resolveCommit(ctx context.Context, root, revision string, git gitRunner) (s
 		return "", fmt.Errorf("%s resolved to an empty commit", revision)
 	}
 	return sha, nil
+}
+
+// addFailure states whether git refused the checkout or verify stopped waiting
+// for it, and returns the failure with the diagnostic line that reports it. The
+// two cases are indistinguishable in the exit code, because the deadline kills
+// git and a kill is reported as a signal. Naming the wrong one sends the reader
+// hunting for a git problem that does not exist.
+func addFailure(sha string, result commandResult, err error) (verifyengine.Failure, string) {
+	var text textbuf.Buffer
+	if errors.Is(err, errGitTimeout) {
+		message := text.Str("git worktree add: verify stopped waiting after ").
+			Str(gitTimeoutWorktree.String()).
+			Str("; git reported no refusal, so it may have completed the checkout after the deadline").String()
+		diagnostic := text.Reset().Str("verify-worktree: gave up waiting for git worktree add of ").
+			Str(shortSHA(sha)).Str(" after ").Str(gitTimeoutWorktree.String()).String()
+		return verifyengine.Failure{Kind: "worktree-add-timeout", Message: message}, diagnostic
+	}
+	diagnostic := text.Str("verify-worktree: git worktree add failed for ").Str(shortSHA(sha)).
+		Str(": ").Str(strings.TrimSpace(result.Output)).String()
+	failure := verifyengine.Failure{Kind: "worktree-add", Message: commandFailure("git worktree add", result, err)}
+	return failure, diagnostic
 }
 
 func worktreePath(root, sha, stamp string) string {
@@ -268,8 +318,8 @@ func processAlive(pid int) bool {
 	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
-func runGit(parent context.Context, root string, args ...string) (commandResult, error) {
-	ctx, cancel := context.WithTimeout(parent, gitTimeout)
+func runGit(parent context.Context, timeout time.Duration, root string, args ...string) (commandResult, error) {
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", args...) // #nosec G204 -- the executable and Git subcommands are fixed; revisions are data arguments.
 	cmd.Dir = root
@@ -277,6 +327,9 @@ func runGit(parent context.Context, root string, args ...string) (commandResult,
 	result := commandResult{Output: string(output)}
 	if err == nil {
 		return result, nil
+	}
+	if parent.Err() == nil && ctx.Err() != nil {
+		return result, fmt.Errorf("git %s: %w after %s", strings.Join(args, " "), errGitTimeout, timeout)
 	}
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.Code = gaterun.ExitCode(exit)

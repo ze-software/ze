@@ -1,13 +1,18 @@
 // VALIDATES: commit selection, detached creation, stale cleanup, KEEP, red-log
 // preservation, cleanup errors, and interruption match the verify_worktree.py
-// lifecycle while every verification stage is an injected in-process call.
+// lifecycle while every verification stage is an injected in-process call. Also
+// that a whole checkout and a ref read run under separate deadlines, that a
+// deadline verify chose is reported as such, and that a failed add leaves no
+// worktree behind, locked or not.
 // PREVENTS: a mutable branch, missing runner result, or failed cleanup being
-// reported as a verified commit.
+// reported as a verified commit, and a checkout aborted by the bound meant for
+// git plumbing being reported as a git failure.
 package verify
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -115,7 +120,7 @@ func TestBranchPostconditionRefusesAnAttachedWorktree(t *testing.T) {
 	root := t.TempDir()
 	sha := strings.Repeat("a", 40)
 	calls := 0
-	fakeGit := func(_ context.Context, dir string, args ...string) (commandResult, error) {
+	fakeGit := func(_ context.Context, _ time.Duration, dir string, args ...string) (commandResult, error) {
 		calls++
 		switch args[0] {
 		case "rev-parse":
@@ -271,14 +276,14 @@ func TestRedRunPreservesLogsAndPythonDiagnosticOrder(t *testing.T) {
 func TestCleanupFailureOverridesAFalseGreenAndIsReported(t *testing.T) {
 	repo := newFixtureRepo(t)
 	prunes := 0
-	git := func(ctx context.Context, root string, args ...string) (commandResult, error) {
+	git := func(ctx context.Context, timeout time.Duration, root string, args ...string) (commandResult, error) {
 		if len(args) >= 2 && args[0] == "worktree" && args[1] == "prune" {
 			prunes++
 			if prunes == 2 {
 				return commandResult{Code: 7, Output: "prune refused"}, nil
 			}
 		}
-		return runGit(ctx, root, args...)
+		return runGit(ctx, timeout, root, args...)
 	}
 	deps := dependencies{git: git, now: time.Now, pid: os.Getpid, alive: processAlive}
 
@@ -332,4 +337,201 @@ func TestActionsDeclareWorktreeCurrentAndList(t *testing.T) {
 
 func leactionArguments(key, value string) leaction.Arguments {
 	return leaction.Arguments{key: value}
+}
+
+// TestGitBoundsSeparateAWholeCheckoutFromARefRead drives the lifecycle with a
+// fake git that records the deadline each call is given. One bound must not
+// govern both a ref read and a checkout of 22,439 files: the calls that
+// materialize, walk, or delete a worktree get the worktree bound, and every
+// metadata call keeps the short one.
+func TestGitBoundsSeparateAWholeCheckoutFromARefRead(t *testing.T) {
+	root := t.TempDir()
+	sha := strings.Repeat("a", 40)
+	abandoned := filepath.Join(root, "tmp", "verify-worktree", "20260101T000000Z-deadbeef1234")
+	if err := os.MkdirAll(abandoned, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	bounds := map[string]time.Duration{}
+	fakeGit := func(_ context.Context, timeout time.Duration, _ string, args ...string) (commandResult, error) {
+		bounds[strings.Join(args[:2], " ")] = timeout
+		switch {
+		case args[0] == "rev-parse":
+			return commandResult{Output: sha + "\n"}, nil
+		case args[0] == "worktree" && args[1] == "add":
+			if err := os.MkdirAll(args[3], 0o750); err != nil {
+				return commandResult{}, err
+			}
+			return commandResult{}, nil
+		case args[0] == "symbolic-ref":
+			return commandResult{Output: "main\n"}, nil
+		default:
+			return commandResult{}, nil
+		}
+	}
+	deps := dependencies{git: fakeGit, now: func() time.Time { return time.Unix(0, 0) }, pid: func() int { return 1 }, alive: func(int) bool { return false }}
+
+	report := run(context.Background(), root, Options{}, passingRunner, deps)
+	if report.Failure == nil || report.Failure.Kind != "branch-refusal" {
+		t.Fatalf("report = %#v", report)
+	}
+	want := map[string]time.Duration{
+		"rev-parse --verify":   gitTimeoutMetadata,
+		"symbolic-ref --quiet": gitTimeoutMetadata,
+		"worktree prune":       gitTimeoutMetadata,
+		"status --porcelain":   gitTimeoutWorktree,
+		"worktree add":         gitTimeoutWorktree,
+		"worktree remove":      gitTimeoutWorktree,
+	}
+	for call, expected := range want {
+		if bounds[call] != expected {
+			t.Errorf("git %s ran under %s, want %s", call, bounds[call], expected)
+		}
+	}
+	if gitTimeoutWorktree <= gitTimeoutMetadata {
+		t.Errorf("worktree bound %s does not exceed the metadata bound %s", gitTimeoutWorktree, gitTimeoutMetadata)
+	}
+	// The metadata bound stays short. Raising it globally would hide the
+	// checkout failure this separation exists to fix, rather than fix it.
+	if gitTimeoutMetadata != 30*time.Second {
+		t.Errorf("metadata bound = %s, want 30s", gitTimeoutMetadata)
+	}
+}
+
+// TestRunGitSeparatesADeadlineFromARefusal runs a real git that outlives its
+// deadline, through an alias so the process sleeps instead of working. Killing
+// git reports a signal, and a signal is indistinguishable from a refusal in the
+// exit code alone, so runGit classifies the case from the deadline it set.
+func TestRunGitSeparatesADeadlineFromARefusal(t *testing.T) {
+	repo := newFixtureRepo(t)
+
+	result, err := runGit(context.Background(), 200*time.Millisecond, repo.root, "-c", "alias.slow=!sleep 2", "slow")
+	if !errors.Is(err, errGitTimeout) {
+		t.Fatalf("timed-out git: result = %#v, err = %v", result, err)
+	}
+	if !strings.Contains(err.Error(), "200ms") {
+		t.Errorf("error does not name the bound it exceeded: %v", err)
+	}
+
+	refused, refusedErr := runGit(context.Background(), gitTimeoutMetadata, repo.root, "rev-parse", "--verify", "not-a-commit^{commit}")
+	if refusedErr != nil || refused.Code == 0 {
+		t.Fatalf("refused git: result = %#v, err = %v", refused, refusedErr)
+	}
+}
+
+// TestATimedOutAddIsNamedAsSuchAndReclaimsTheWorktree holds the two
+// consequences of a deadline that fires on a checkout. The report must say
+// verify stopped waiting rather than blame git, which reported no refusal, and
+// the worktree git left on disk must be gone when the run returns.
+func TestATimedOutAddIsNamedAsSuchAndReclaimsTheWorktree(t *testing.T) {
+	root := t.TempDir()
+	sha := strings.Repeat("b", 40)
+	removals := 0
+	fakeGit := func(_ context.Context, _ time.Duration, _ string, args ...string) (commandResult, error) {
+		switch {
+		case args[0] == "rev-parse":
+			return commandResult{Output: sha + "\n"}, nil
+		case args[0] == "worktree" && args[1] == "add":
+			// Git checks out from a child that outlives the kill, so the
+			// deadline leaves a populated worktree and reports a signal.
+			if err := os.MkdirAll(filepath.Join(args[3], "internal"), 0o750); err != nil {
+				return commandResult{}, err
+			}
+			return commandResult{Code: 137, Output: "Updating files: 100% (22439/22439), done."},
+				fmt.Errorf("git %s: %w after %s", strings.Join(args, " "), errGitTimeout, gitTimeoutWorktree)
+		case args[0] == "worktree" && args[1] == "remove":
+			removals++
+			if err := os.RemoveAll(args[len(args)-1]); err != nil {
+				return commandResult{}, err
+			}
+			return commandResult{}, nil
+		default:
+			return commandResult{}, nil
+		}
+	}
+	deps := dependencies{git: fakeGit, now: time.Now, pid: func() int { return 1 }, alive: func(int) bool { return false }}
+
+	report := run(context.Background(), root, Options{}, passingRunner, deps)
+	if report.Code == 0 || report.Failure == nil || report.Failure.Kind != "worktree-add-timeout" {
+		t.Fatalf("report = %#v", report)
+	}
+	if !strings.Contains(report.Failure.Message, "verify stopped waiting") {
+		t.Errorf("failure message does not say what happened: %q", report.Failure.Message)
+	}
+	if strings.Contains(report.Text(), "git worktree add failed") {
+		t.Errorf("diagnostic blames git for a deadline verify chose: %s", report.Text())
+	}
+	if !strings.Contains(report.Text(), "gave up waiting for git worktree add") {
+		t.Errorf("diagnostic does not name the deadline: %s", report.Text())
+	}
+	if removals == 0 {
+		t.Error("the timed-out add left its worktree registered")
+	}
+	if _, err := os.Stat(report.Worktree); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("worktree left on disk: %v", err)
+	}
+	if len(report.Cleanup) != 0 {
+		t.Errorf("cleanup failures = %#v", report.Cleanup)
+	}
+}
+
+// TestARefusedAddReportsGitAndReclaimsNothing holds that reclaiming a failed
+// add stays silent when git created nothing, so a genuine refusal is not
+// reported with a cleanup failure of its own on top.
+func TestARefusedAddReportsGitAndReclaimsNothing(t *testing.T) {
+	root := t.TempDir()
+	sha := strings.Repeat("c", 40)
+	removals := 0
+	fakeGit := func(_ context.Context, _ time.Duration, _ string, args ...string) (commandResult, error) {
+		switch {
+		case args[0] == "rev-parse":
+			return commandResult{Output: sha + "\n"}, nil
+		case args[0] == "worktree" && args[1] == "add":
+			return commandResult{Code: 128, Output: "fatal: invalid reference: " + sha}, nil
+		case args[0] == "worktree" && args[1] == "remove":
+			removals++
+			return commandResult{}, nil
+		default:
+			return commandResult{}, nil
+		}
+	}
+	deps := dependencies{git: fakeGit, now: time.Now, pid: func() int { return 1 }, alive: func(int) bool { return false }}
+
+	report := run(context.Background(), root, Options{}, passingRunner, deps)
+	if report.Failure == nil || report.Failure.Kind != "worktree-add" {
+		t.Fatalf("report = %#v", report)
+	}
+	if !strings.Contains(report.Failure.Message, "invalid reference") {
+		t.Errorf("failure message drops what git said: %q", report.Failure.Message)
+	}
+	if removals != 0 {
+		t.Errorf("removed a worktree the add never created (%d removals)", removals)
+	}
+	if len(report.Cleanup) != 0 {
+		t.Errorf("cleanup failures = %#v", report.Cleanup)
+	}
+}
+
+// TestAWorktreeLockedByAnUnfinishedAddIsRemoved runs real git. An interrupted
+// add leaves git's own creation lock behind, a locked file reading
+// "initializing", and git refuses "worktree remove --force" while it is there
+// and never prunes the registration. --lock reproduces that state without
+// interrupting a checkout.
+func TestAWorktreeLockedByAnUnfinishedAddIsRemoved(t *testing.T) {
+	repo := newFixtureRepo(t)
+	path := filepath.Join(repo.root, "tmp", "verify-worktree", "20260101T000000Z-locked1234ab")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	repo.git(t, "worktree", "add", "--detach", "--lock", path, "HEAD")
+
+	failures := removeWorktree(t.Context(), repo.root, path, runGit)
+	if len(failures) != 0 {
+		t.Fatalf("cleanup failures = %#v", failures)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("locked worktree left on disk: %v", err)
+	}
+	if strings.Contains(repo.git(t, "worktree", "list", "--porcelain"), path) {
+		t.Errorf("locked registration survived cleanup: %s", path)
+	}
 }

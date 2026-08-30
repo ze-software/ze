@@ -45,7 +45,7 @@ func sweepAbandoned(ctx context.Context, root, base string, deps dependencies) (
 				Str(", treating it as abandoned: ").Err(readErr).String())
 		}
 
-		status, statusErr := deps.git(ctx, path, "status", "--porcelain")
+		status, statusErr := deps.git(ctx, gitTimeoutWorktree, path, "status", "--porcelain")
 		if statusErr != nil || status.Code != 0 {
 			message := commandFailure("git status", status, statusErr)
 			diagnostics = append(diagnostics, text.Reset().Str("verify-worktree: ").Str(entry.Name()).
@@ -78,13 +78,28 @@ func sweepAbandoned(ctx context.Context, root, base string, deps dependencies) (
 	return removed, diagnostics, failures
 }
 
+// reclaimWorktree removes a worktree that a failed or abandoned add left on
+// disk. Git creates the worktree directory before it checks anything out, so an
+// add that created no directory left nothing to reclaim, and a removal there
+// would report a failure of its own.
+func reclaimWorktree(ctx context.Context, root, path string, git gitRunner) []CleanupFailure {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return removeWorktree(ctx, root, path, git)
+}
+
 func removeWorktree(ctx context.Context, root, path string, git gitRunner) []CleanupFailure {
 	failures := make([]CleanupFailure, 0)
 	if err := os.Remove(ownerMarker(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		failures = append(failures, CleanupFailure{Operation: "remove owner marker", Message: err.Error()})
 	}
 
-	removed, err := git(ctx, root, "worktree", "remove", "--force", path)
+	// A killed "git worktree add" leaves git's own creation lock behind, and git
+	// refuses to remove a locked worktree with one --force. Nothing but this
+	// package creates a worktree under tmp/verify-worktree, so the second --force
+	// can only override an add this tool did not finish.
+	removed, err := git(ctx, gitTimeoutWorktree, root, "worktree", "remove", "--force", "--force", path)
 	if err != nil || removed.Code != 0 {
 		failures = append(failures, CleanupFailure{Operation: "git worktree remove", Message: commandFailure("git worktree remove", removed, err)})
 	}
@@ -102,7 +117,7 @@ func removeWorktree(ctx context.Context, root, path string, git gitRunner) []Cle
 }
 
 func pruneWorktrees(ctx context.Context, root string, git gitRunner) error {
-	result, err := git(ctx, root, "worktree", "prune", "--expire", "now")
+	result, err := git(ctx, gitTimeoutMetadata, root, "worktree", "prune", "--expire", "now")
 	if err != nil || result.Code != 0 {
 		return errors.New(commandFailure("git worktree prune", result, err))
 	}
