@@ -4,8 +4,4 @@ level: MUST
 stage:
 rationale: ai/rationale/buffer-first.md
 ---
-- **All wire encoding MUST write into pooled, bounded buffers.**
-- **`fmt.Sprintf`, `fmt.Fprintf` and `fmt.Errorf` MUST NOT be used where a zero-allocation or lower-allocation alternative exists.**
-- **`.String()` concatenation MUST NOT be used on a hot path where an append-into-buffer pattern exists.**
-- **This file MUST be read before any allocation or memory-lifecycle decision.** It carries the obligations; the model behind them (data lifecycle, caller-owned buffers, pool strategy, the wire abstractions) is `docs/architecture/buffer-architecture.md`, and the string-building reference is `docs/architecture/textbuf-string-building.md`.
-- Principle: `ai/rules/architecture.md` -- encapsulation onion plus buffer-first encoding.
+**All wire encoding MUST write into a pooled, bounded buffer the CALLER owns: the callee writes into `buf[off:]`, returns the bytes written, and allocates nothing.** Encoding code MUST NOT call `append(buf, ...)`, `make([]byte, N)` in a helper, `buildFoo() ([]byte, error)`, `.Bytes()`, `.Pack()`, `x.Len()` before `x.WriteTo()` on a hot path, or a hand-built `BufHandle{Buf: make(...)}`, and MUST use an offset write, a pool-issued handle, `writeFoo(buf, off) int`, `.WriteTo(buf, off)` and skip-and-backfill for a length field instead. `make([]byte, N)` stays correct in a pool `New` func, session buffer creation, cached encoding, a result copy handed to a caller, JSON marshaling, tests, IPC framing and config parsing. Every buffer in one pool is the same maximum size; the model behind all of it is `docs/architecture/buffer-architecture.md`, and `/ze-find-alloc` and `/ze-fix-alloc` audit and repair a path.

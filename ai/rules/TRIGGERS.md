@@ -15,11 +15,11 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/commands.md` | blocking | running any test, build, lint, or verification command from Bash, or writing a shell loop that forks or waits |
 | `ai/rules/completion.md` | blocking | before claiming any work done, complete, or ready to commit, and whenever a defect, a red test, or a missing behavior blocks that claim |
 | `ai/rules/config.md` | blocking | adding or changing a config option, YANG module, env var, listener endpoint, or code that reads config values |
-| `ai/rules/context-economy.md` | blocking | spawning an agent, batching tool calls, looking up a symbol, reading a source file, or running a shell command in a long session |
+| `ai/rules/context-economy.md` | blocking | spawning an agent, looking up a Go symbol, or deciding how much of a file to read |
 | `ai/rules/documentation.md` | blocking, always-on | before you spawn an agent or open a search to learn how a surface works, and whenever an edit changes behavior a page describes |
 | `ai/rules/evidence.md` | blocking | stating what code does, acting on recorded claims, writing or reviewing a guard, or writing any string that enumerates data a registry already holds |
 | `ai/rules/git-safety.md` | blocking, always-on | before any git operation, and when writing or running a commit script |
-| `ai/rules/go-standards.md` | blocking | writing Go in Ze: naming, env access, context, logging, imports, errors, API contracts, typed-vs-string choices, file layout and cross-references... |
+| `ai/rules/go-standards.md` | blocking | writing Go in Ze: naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim |
 | `ai/rules/goroutine-lifecycle.md` | blocking | before writing `go func()` anywhere |
 | `ai/rules/interop-and-goal-validation.md` | blocking, always-on | implementing or changing protocol behavior, and when validating that a spec's stated goals are met |
 | `ai/rules/never-destroy-work.md` | blocking, always-on | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work |
@@ -27,12 +27,13 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/performance.md` | blocking | before writing buffer, pool, allocation, string-building, or wire-encoding code |
 | `ai/rules/planning.md` | blocking | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes |
 | `ai/rules/platform-linux.md` | blocking | writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency |
-| `ai/rules/plugins.md` | blocking | creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate |
+| `ai/rules/plugins.md` | blocking | "creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate" |
 | `ai/rules/pre-release.md` | blocking | when a test or a gate goes red, when you are about to re-run a check, or when you are deciding what a commit owes |
-| `ai/rules/precommit-verify.md` | blocking | before running precommit-verify, judging its red in a shared checkout, or running the tracked-build check after a commit script |
+| `ai/rules/precommit-verify.md` | blocking | before running the verification gate, or after running a commit script that carried Go |
+| `ai/rules/principles.md` | blocking, always-on | before any decision about how to build, test, verify, or report work in this repository |
 | `ai/rules/protocol.md` | blocking | implementing or changing a protocol, an external API, a wire format, or a backend that applies operator config |
 | `ai/rules/quality.md` | blocking | before presenting any work as complete |
-| `ai/rules/repo-maintenance.md` | blocking | adding or changing a feature, tool, gate, hook, runtime dependency, or generated file, looking up which check enforces a rule, or reporting... |
+| `ai/rules/repo-maintenance.md` | blocking | adding or changing a feature, tool, gate, or generated file, or editing a canonical source whose generated files need a resync |
 | `ai/rules/rfc-compliance.md` | blocking, always-on | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements |
 | `ai/rules/rule-format.md` | blocking | authoring or editing any rule: a point file under `ai/rules/points/`, its manifest, or a check's binding comment |
 | `ai/rules/rule-precedence.md` | blocking, always-on | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue |

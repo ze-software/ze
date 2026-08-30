@@ -5,13 +5,4 @@
 
 ## Directives
 
-**A spec MUST NOT contain a code snippet, in any language.**
-
-**A spec MUST state each of these in prose or a table instead:**
-
-| Instead of | Use |
-|------------|-----|
-| Go struct | Table: Field / Type / Description |
-| Function implementation | Prose: numbered steps |
-| Code example | Text: input/output format |
-| State machine code | State transition table |
+**A spec MUST NOT contain a code snippet, in any language.** Write a Field, Type and Description table instead of a Go struct, numbered prose steps instead of a function body, an input and output text sample instead of a code example, and a state transition table instead of state machine code.

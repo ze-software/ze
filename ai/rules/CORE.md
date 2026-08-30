@@ -23,29 +23,8 @@ Core reasons: no past task would surface it, precedence rung 1/2, the ladder its
 **When:** before you spawn an agent or open a search to learn how a surface works, and whenever an edit changes behavior a page describes — **Severity:** blocking — **Related:** completion, evidence, context-economy, repo-maintenance, writing
 
 ## Directives
-**You MUST NOT spawn an agent to establish how a surface works before you READ the page that covers it.** The ban covers a broad search and a wide code read too.
-**The lookup costs one command.** `ai/CODE-TO-DOCS.md` names the pages for a file, `ai/DOCS-TO-CODE.md` the files for a page, and `ai/INDEX.md` the page for a keyword. A surface that no index reaches is itself a finding, and the next point governs it.
-**An investigation MUST be authorized by a GAP you can name.** There are two: the page is SILENT on the question, or the page DISAGREES with the code.
-**You MUST name the page you read, and the sentence that is silent or wrong, before the agent starts.** "I did not check" is not a gap, and neither is "the code is faster to read". An investigation that names no page skipped the cheapest answer.
-**A page that disagrees with the code is a DEFECT, and it MUST be repaired in the work that found it.** Read the producing function to learn which side is wrong (`ai/rules/evidence.md`). Correct the page when the code is right, and the code when the page states the contract the code owes.
-**Reporting the disagreement is not repairing it (`ai/rules/completion.md`).** A line in a report leaves every later reader believing the page, and the next session pays for the same investigation.
-**A change that makes a page wrong MUST carry its page edit in the SAME piece of work.** That edit lands before the next code edit starts. A page is wrong from the moment the behavior it describes changes. The window where nobody notices is the cost this rule removes.
-**`ai/rules/repo-maintenance.md` owns WHICH page each change obliges you to update. This point owns WHEN: now, not at review, not at closure, not in a follow-up commit.**
-**You MUST NOT defer documentation to a final pass, a closing commit, a review gate, or a follow-up spec.** A batched pass is written from memory, about code that moved three times since. It records what you INTENDED rather than what shipped.
-**A skill whose last steps check documentation MUST NOT be read as permission to write none until then.** Those steps CHECK the pages the work already updated. A check that finds nothing updated is a failed step.
-## Where The Doc Lives
-**You MUST read the surface that answers your question before you search for the answer:**
-| Question | Read this first |
-|----------|-----------------|
-| How is this Go file's surface meant to work | Its `// Design:` header, then every page `ai/CODE-TO-DOCS.md` lists for it |
-| Where is this documented contract implemented | `ai/DOCS-TO-CODE.md` |
-| Which page owns this topic, keyword, or tool | `ai/INDEX.md` |
-| Which rule governs this task | `ai/rules/INDEX.md`, then that rule's file in full |
-| What does this command do for a user | `docs/guide/`, then `docs/features/` |
-| What is this component's contract or data flow | The owning page under `docs/architecture/` |
-## What This Rule Never Licenses
-**A page MUST NOT be cited as evidence for what the code does.** It says where to look, and what the surface was meant to be. `ai/rules/evidence.md` is unchanged: a behavioral claim still requires the producing function to be read.
-**A page that agrees with your reading is a second opinion, never a proof.** Reading first and believing are different acts, and this rule asks for the first one.
+**You MUST read the page that covers a surface before you spawn an agent, open a broad search, or read wide code to learn how it works.** `ai/CODE-TO-DOCS.md` names the pages for a file, `ai/DOCS-TO-CODE.md` the files for a page, and `ai/INDEX.md` the page for a keyword. The investigation is then authorized by a gap you NAME: the page is SILENT on the question, or the page DISAGREES with the code.
+**A change that makes a page wrong MUST carry its page edit in the SAME piece of work, before the next code edit starts.** A page that disagrees with the code is a defect repaired here rather than reported, and you MUST read the producing function to learn which side is wrong. You MUST NOT defer a page to a final pass, a closing commit, a review gate, or a follow-up spec.
 
 <!-- always-on: precedence rung 1/2 -->
 
@@ -55,86 +34,17 @@ Core reasons: no past task would surface it, precedence rung 1/2, the ladder its
 `ai/rules/git-safety.md`
 **When:** before any git operation, and when writing or running a commit script — **Severity:** blocking
 
-## Commit Rules
-**`git commit`, `git add`, `git rm`, `git restore --staged` and `git stash` MUST NOT be invoked as a direct Bash tool call.** `ai/INSTRUCTIONS.md` carries the ban into every session, so it is not restated here.
-**The same verbs inside the generated commit script are ALLOWED.** The ban is on the direct tool call, not on what the script does when you run it. `docs/contributing/committing.md` describes what the command writes and what it refuses.
-**A shared single-file plan log cross-commits even with a correct, explicit
-`file <path>` list.** The ban on bare staging verbs fixes staging *timing*; it cannot fix staging *granularity*: the generated script stages the whole file, including hunks another session left uncommitted in it.
-**A cross-commit of a shared plan file is STRUCTURAL, not misconduct by the other session. With concurrent sessions and a shared single-file log it is expected, and you MUST NOT read it as a rule violation. Each situation MUST be handled as its row says:**
-| Situation | Do |
-|-----------|-----|
-| Your rows in a shared plan file are already committed by someone else | Nothing. The content is correct and preserved; only attribution is off. NEVER rewrite history to reclaim it |
-| You edited a shared plan file | Commit it promptly. The longer it sits, the likelier another session's commit absorbs it |
-| Your commit omits a shared plan file you edited | Check `git log -1 -- <file>` before assuming the edit was lost: another session probably committed it already |
-| You see foreign rows in a shared plan file's diff | That is expected. Do not "clean" them out; you would revert another session's work |
-**A `file <path>` list is a list of PATHS, and a path carries whatever the file holds
-- Every hunk is yours: commit it.
-- A hunk is another session's, and the file is a shared plan log or journal class
-- A hunk is another session's, and the file is anything else: drop the path from
-**Explicit commit requests are a fast path.** When the user asks for a
-**One check is exempt, because it cannot run earlier: `./le repository tracked-build check`
-**Thomas ruled on this exemption on 2026-08-04: KEEP IT.** It is settled, so you
-**Commit workflow:**
-1. You MUST use `./le commit session` to create or reuse this harness session's eight-hex commit namespace.
-2. You MUST use `./le commit create` to write one message file and one commit script. It is the sole staging and commit route, and there is no hand-written fallback. `docs/contributing/committing.md` carries the keywords, the refusals, and worked invocations.
-3. **The `script=` line the command prints is the only authoritative path. You MUST copy it, and MUST NOT construct it from the session id.**
-4. Before creating the script, you MUST read `.gitignore` and name only canonical sources.
-5. You MUST read the generated message file before running the script, at the path on the `message=` line.
-6. You MUST run the finished script yourself with `bash` and the printed path. For a commit carrying Go, module, or vendor paths, you MUST run `./le repository tracked-build check` immediately afterwards.
-7. You MUST report the commit SHA, the included files, the message file, the script path, the push status, and the verification evidence or the skip reason.
-**The command asks for no lesson artifact, and it MUST NOT be made to.** Apply a lesson by updating the surface that governs behaviour. Journal rows exist only to count recurrence of a problem class.
-**A file modified during implementation and then removed MUST be committed in its current state first**, before the `remove` that deletes it (`ai/rules/planning.md`, Spec Closure). `./le commit create` already refuses a `remove` path that is not tracked.
-**You MUST NOT suggest / ask / hint at committing.** Complete ALL work first
-## Pushing (2026-08-05, owner amendment)
-- **A bare `git push` from a Bash call stays forbidden; the hook enforces it.**
-- **You MUST push only with `./le commit create ... push "<owner authorisation>"`; the generated script performs it after every commit succeeds.**
-- **The owner orders a push; you MUST NOT add `push` on your own initiative.**
-- **`git push --force` and `-f` stay forbidden; the native route never forces.**
-**When a push goes wrong, you MUST take the action its row names:**
-| Situation | Do |
-|-----------|-----|
-| The script's commit step failed | Nothing is pushed and nothing SHOULD be: `set -euo pipefail` stops the script before the push. Fix the cause (staged index, GPG), then re-run the script |
-| The commits are made and no push was ordered | Stop and report the SHAs. A push nobody asked for is a push without authority, whatever the branch looks like |
-| You are a worktree agent | Never push. Work on your branch and stop there (`ai/INSTRUCTIONS.md`) |
-| The owner orders a push after your script already ran | Say so and let him push, or carry `push "<owner authorisation>"` on the next commit you prepare. Do not type the command to close the gap |
-## Commit Granularity
-**A commit MUST have a single focus: one logical change.** One system is one commit, carrying its feature, tests and docs together. Several unrelated changes are several commits, never one bundle. An unrelated bug fix is its own commit. The fixes from one review pass are one commit.
-**A finished chunk MUST be committed when it finishes, not when the session does (owner directive, 2026-08-21).** Work that is done and green sits in one working tree, where the next `git clean`, checkout or crashed session destroys it, and where every later chunk has to be diffed around it. The question to answer after each piece of work is "does this stand on its own", never "am I finished for the day". A defect fix, a rule change, a gate repair and a spec's implementation are four commits, and the first three MUST NOT wait behind the fourth's review gate.
-**Read the working tree's SPREAD before starting new work, and land what is already finished first.** `./le working-tree` reports the changed paths grouped by area. More than one area in flight means a chunk is waiting that could already be committed, and it MUST be landed before the next piece starts. The cost of getting this wrong compounds: an unrelated fix folded into a closing commit costs that commit its single focus and its review its scope, and it restarts gates that were already green (`ai/rules/rule-precedence.md`).
-## Verify a Commit, Not the Working Tree
-**The pre-commit gate MUST run against a COMMIT in a throwaway worktree, never against the working tree (owner directive, 2026-08-21).** `./le verify worktree` adds a detached worktree at HEAD, runs every native verification stage, and removes it on every exit path. `commit <revision>` selects another commit; `keep` leaves the tree for inspection when it goes red.
-**An in-place run is void the moment the tree moves under it, and the run does NOT say so.** Each stage reads the bytes present when that stage starts, so an edit landing mid-run leaves earlier stages judging a tree that no longer exists and later stages judging one the earlier ones never saw. The result reads green or red for a tree that was never committed. A red from such a run MUST NOT be diagnosed as a defect and a green MUST NOT be cited as evidence: it is void, and the answer is to re-run against a commit.
-**Verification is PERIODIC: a commit waits for its focused tests, never for the gate (owner directive, 2026-08-21).** The gate costs 25 to 53 minutes on this hardware, measured on 2026-08-21 at 1486s, 1574s and 3195s (`tmp/.ze-verify-duration.txt`). A session that verifies before every commit therefore batches its work until one run is worth the wait, and that accumulation is the thing this rule exists to stop. Each finished chunk MUST land when it is finished, with its focused tests green, and the worktree gate MUST run over the resulting commits on a cadence.
-**The gate therefore gates PUSHING, not committing.** A commit that stays local costs nobody anything and a commit that never happens costs the work, so a stale verify records a verification-debt row and the commit proceeds. `push "<owner authorisation>"` refuses while any row is open, which is where the debt is actually owed: a push is what reaches users. The one thing still refused at commit time is a STRUCTURAL gate red charged to the commit, because that says the tree is broken rather than merely unverified.
-## Worktree Cleanup
-**A worktree MUST be removed as soon as its commits are merged, rebased, or pushed, and the removal MUST clear the registration with `git worktree prune --expire now`.** A bare `git worktree prune` respects a three-month expiry, so a stale entry survives it, holds its branch checked out against rebase and deletion, and stays invisible for a quarter.
-**A worktree audit MUST read the `.git` file of every directory under `.claude/worktrees/` and test that the gitdir path it names exists; `git worktree list` alone MUST NOT be treated as the answer.** A repository that moved leaves each worktree pointing at the old path, so git reports a clean tree while the checkout and its disk remain.
-## Commit Ownership in Parallel Sessions (2026-07-10, owner decision)
-**A FAILED commit leaves the index STAGED, and the next session's commit inherits
-it.
-**The failure mode is invisible from the failed run.** It exits non-zero, prints
-**When several sessions work the same tree, each session MUST commit the features it is in charge of implementing. You MUST NOT leave your own finished work uncommitted for another session to sweep or strand.**
-**You MUST scope every commit script to your own files, one `file <path>` keyword per file, and MUST verify `git diff --cached --name-only` shows nothing foreign before running it.**
-**An uncommitted improvement written by ANOTHER agent MAY be included in your commit when it is IN SCOPE of the feature you own**: it edits a file your feature owns, or your acceptance criteria depend on it. **The inclusion and its origin MUST be named in the commit body.** An out-of-scope foreign file MUST be left untouched.
-**The rule above governs CODE. A concurrent session's out-of-scope NON-CODE files (generated discovery indexes, docs, tracking markdown) MAY be swept into your commit when that keeps the tree consistent or unblocks you. Foreign source and test files MUST NOT be.** The inclusion and its origin MUST be named in the commit body.
-**Sweeping a file does not clear a whole-tree closure gate.** The deferral homing check folds over every shard in `plan/deferrals/`, so a foreign entry lacking a real destination spec surfaces at closure whatever you commit. You MUST home it in its own shard rather than paper over it.
-**This checkout is shared by several sessions ON PURPOSE, so that concurrent work needs no merge. A session working here MUST NOT move its own work into a worktree it creates:** that reintroduces the integration step the shared tree exists to avoid. A worktree AGENT launched by the owner is a different thing and keeps its own rules.
-**`git worktree add --detach <scratch-path> HEAD` MAY be used to READ a clean tree**, to establish whether a build break or a red test predates your own change. It MUST be created outside the repository, MUST NOT be written to, and MUST be removed with `git worktree remove` as soon as the read is done: a registered worktree shows up in every other session's `git worktree list`. When a single file answers the question, `git show HEAD:<path>` costs nothing and registers nothing.
-## Branch Changes Are Forbidden
-**Stay on the branch you started on. You MUST NOT change, create, delete, rename, or integrate a branch from a tool call.**
-**These branch-changing commands MUST NOT be run: `git switch`, `git checkout <branch>`, `git branch`, `git rebase`, `git merge`, `git cherry-pick`.**
-**When branch movement or integration is needed, you MUST stop and ask the user to do it manually.**
+## Directives
+**Every commit MUST go through `./le commit create`, which writes one message file and one commit script; `git commit`, `git add`, `git rm`, `git restore --staged` and `git stash` MUST NOT be invoked as a direct Bash call.** `ai/INSTRUCTIONS.md` carries that ban into every session, and the same verbs inside the generated script are allowed.
+**The printed `script=` line is the only authoritative path: MUST copy it, and MUST NOT construct it from the session id.** Read the message file first, name only canonical sources, run the script yourself with `bash`, then report the SHA, the files and the verification evidence. `docs/contributing/committing.md` carries the keywords and the refusals.
+**A push MUST be ordered by the owner and MUST NOT be added on your own initiative; it MUST go through `./le commit create ... push "<owner authorisation>"`, which the generated script performs after every commit succeeds (owner amendment, 2026-08-05).** A bare `git push` from a Bash call stays forbidden and the hook enforces it, `--force` and `-f` are never used, and a worktree agent never pushes at all.
+**A finished chunk MUST be committed when it finishes, not when the session does, and one commit carries one logical change (owner directive, 2026-08-21).** The question after each piece of work is "does this stand on its own", never "am I finished for the day". A defect fix, a rule change, a gate repair and a spec's implementation are four commits, and the first three MUST NOT wait behind the fourth's review gate.
+**A branch MUST NOT be changed, created, deleted, renamed or integrated from a tool call: stay on the branch you started on and ask the user to move it.** When the user integrates a worktree branch it lands on main via `git rebase <branch>`, never `git merge`, so history stays linear.
+**`--no-gpg-sign`, `-c commit.gpgsign=false` and `--no-verify` MUST NOT be used, and a hook MUST NOT be disabled to make a commit pass.** What to do when signing fails is `docs/contributing/committing.md`.
+**Pull requests and issues MUST go through `tea`:** `tea pr list`, `tea pr create`, `tea issue list`, `tea issue create`.
 ## Before Destructive Actions
 **The destructive git verbs MUST NOT be run.** `ai/INSTRUCTIONS.md`, "Destructive git commands are FORBIDDEN", carries the list into every session, so it is not restated here.
 **Before anything destructive you MUST save a patch, write the destructive commands to `tmp/delete-SESSION.sh`, tell the user, and STOP.** The patch is `git diff > backups/work-$(date +%Y%m%d-%H%M%S).patch`.
-## Forbidden Raw Output
-**`git status` and `git diff --stat` MUST NOT be dumped raw into your output. Summarise them.**
-## Branch Integration
-**When the user integrates a worktree branch manually, it MUST land on main via `git rebase <branch>`, never `git merge`.** History stays linear.
-## GPG Signing
-**`--no-gpg-sign`, `-c commit.gpgsign=false` and `--no-verify` MUST NOT be used, and a hook MUST NOT be disabled to make a commit pass.** What to do when signing fails is in `docs/contributing/committing.md`.
-## Codeberg CLI
-**Pull requests and issues MUST go through `tea`:** `tea pr list`, `tea pr create`, `tea issue list`, `tea issue create`.
 
 <!-- always-on: precedence rung 1/2 -->
 
@@ -145,69 +55,11 @@ it.
 **When:** implementing or changing protocol behavior, and when validating that a spec's stated goals are met — **Severity:** blocking
 
 ## Directives
-**A protocol feature MUST have an interop test. Every feature MUST have goal validation proving it achieves its intended purpose, not merely that the code runs without error.**
-## Interop Testing (protocol features)
-**When a spec implements or changes protocol behavior (BGP, IPsec, L2TP, PPPoE, or any wire protocol), an interop test MUST prove Ze works correctly with at least one other implementation.** The suites, their scenario directories, their native actions, and how a scenario is discovered and checked are in `docs/architecture/testing/interop.md`.
-**Each feature type MUST prove the interop assertion its row names:**
-| Feature type | Interop assertion |
-|-------------|-------------------|
-| New address family or NLRI | Routes exchanged and installed by the peer daemon |
-| New capability | Capability negotiated, verified in the peer's neighbor output |
-| Session behavior (GR, route refresh) | Session survives the event, and the peer confirms the expected behavior |
-| Policy (community, filter, role) | Peer receives or rejects routes per the policy |
-| Wire format change | Peer accepts the message, no NOTIFICATION |
-| Authentication (MD5, EAP, PSK) | Session authenticates, handshake completes |
-**An interop test MAY be omitted only in these three conditions:**
-| Condition | Why |
-|-----------|-----|
-| A pure internal refactor with no wire-visible change | The existing interop tests cover the path |
-| A config-only feature with no protocol impact | CLI and config tests suffice |
-| Tooling (`ze-analyse`, `ze-perf`) | No protocol peer is involved |
-**An interop scenario directory MUST be NAMED and MUST NOT carry a numeric prefix, and a spec planning a future scenario MUST name it too.** The directory name is the scenario's identity: `interoplab.Discover` matches it exactly, the native `./le integration` action takes it as a scenario selector, and specs, journal rows and code comments cite it.
-**A number goes stale in two ways a name cannot.** A deleted scenario leaves a hole no reader can tell from a reservation, and a planned number is a reservation a second spec can take, which nothing detects because neither directory exists yet.
-## Prove the test discriminates (BLOCKING)
-**A passing interop or functional test is evidence only if it would FAIL when the behavior under test is broken. A test that passes whether or not the fix is present MUST NOT be presented as evidence.**
-**A test added to ALREADY-WORKING code never had a red phase, so its discrimination is unproven until you force one.** This is not TDD's red-then-green: a regression test and an interop scenario for existing behavior both start green.
-**Before claiming an interop/functional test validates a change, MUST revert the
-change and confirm the test goes RED.** MUST rebuild the artifact the test drives (the container image, the daemon binary) so the revert actually takes effect, then restore the fix and confirm GREEN again.
-**Each trap below MUST be checked for by its tell before a test is called evidence:**
-| Vacuity trap | Why it passes anyway | The tell |
-|--------------|----------------------|----------|
-| An interop test for a sender-side wire change whose receiver is obliged to accept any form (RFC 7606 Section 5.1: receivers accept any field combination) | A conforming peer accepts the old and new wire equally | Reverting the sender change leaves the peer's routing table identical |
-| A test asserting the ABSENCE of something (no log line, no allocation, no route) | Deleting the mechanism leaves the same absence | Ask "what would still be absent if the code were removed?" |
-| A test whose fixture is at an extreme (all-fields-set, max value) | An off-by-one or partial break still handles the extreme | Boundary the fixture: test one below and one above |
-| A functional test whose data reaches the peer by a DIFFERENT path than the one changed | The unchanged path still delivers | Trace which code path actually produces the asserted bytes |
-**When a change genuinely cannot be discriminated by the peer, because the receiver is required to accept both forms, you MUST say so explicitly in Goal Validation and move the discrimination to unit or mutation tests that CAN fail.** An interop test in that case proves ACCEPTANCE rather than correctness of the specific form, and you MUST state which.
-## Goal Validation (all features)
-**Before claiming a feature is done, MUST answer for each spec goal: "What concrete evidence proves this goal is achieved, beyond individual test assertions?"**
-**Each goal type MUST carry the evidence its row names. "Tests pass" is not that evidence: goal validation is the bridge between the individual acceptance criteria and the feature's purpose:**
-| Goal type | Required evidence |
-|-----------|-------------------|
-| Protocol interop ("ze speaks X with Y") | Interop test passes with the named peer daemon |
-| Performance ("handles N updates/sec") | `ze-perf` benchmark result pasted |
-| User workflow ("user can do X via CLI") | Functional `.ci` test exercising the full workflow, or an `.et` test for editor workflows |
-| Data correctness ("routes installed correctly") | Functional test with explicit data assertions (hex match, JSON field match), never just exit code 0 |
-| Resilience ("survives X failure") | Chaos test or fault-injection scenario |
-| Security ("rejects unauthorized X") | Negative test: the unauthorized attempt fails with the expected error |
-**These MUST NOT be offered as goal validation:**
-| Not this | This instead |
-|----------|-------------|
-| "All tests pass" | "Here is the specific evidence for each goal" |
-| "AC-1 through AC-5 implemented" | "AC-1 through AC-5 implemented, and together they prove [goal]" |
-| "I tested it manually" | An automated test that can be re-run |
-| "The code looks correct" | Observable behavior matching the spec's stated purpose |
-**The spec's Goal Validation section MUST map each stated goal to the evidence that proves it.** It is filled during `/ze-close` step 1 and verified during `/ze-review`.
-## Mechanical Check
-**For every protocol feature in the spec, you MUST confirm a matching interop scenario exists under the suite's scenario directory. When none matches, one MUST be created before you claim done.**
-**The spec's Goal Validation table MUST carry:**
-- One row per stated goal, taken from the Task section
-- An Evidence column filled with a concrete reference: a test name, a file path, or command output
-- No empty evidence cells
-## Relationship to Other Rules
-**This rule adds to its neighbors and MUST NOT be read as replacing any of them:**
-- `ai/rules/testing.md` requires functional tests per feature type, and owns the test infrastructure and workflow. This rule adds interop on top for protocol features, and says when each test type is mandatory
-- `ai/rules/completion.md` requires every acceptance criterion tested. This rule requires the AGGREGATE goal proven
-- `ai/rules/rfc-compliance.md` requires RFC conformance in code. This rule requires that conformance proven against another implementation
+**A spec that implements or changes protocol behavior (BGP, IPsec, L2TP, PPPoE, or any wire protocol) MUST carry an interop test proving Ze works correctly with at least one other implementation, and every feature MUST carry goal validation proving it achieves its intended purpose rather than merely running without error.** The interop test MAY be omitted only for a pure internal refactor with no wire-visible change, a config-only feature with no protocol impact, or tooling with no protocol peer. When no scenario matches the feature, you MUST create one before you claim done. The suites, their scenario directories, their native actions, and the assertion each feature type owes are in `docs/architecture/testing/interop.md`.
+**An interop scenario directory MUST be NAMED and MUST NOT carry a numeric prefix, and a spec planning a future scenario MUST name it too.** The directory name is the scenario's identity: `interoplab.Discover` matches it exactly, the native `./le integration` action takes it as a scenario selector, and specs, journal rows and code comments cite it. A number goes stale in two ways a name cannot, because a deleted scenario leaves a hole no reader can tell from a reservation, and a planned number is a reservation a second spec can take.
+**Before you claim an interop or functional test validates a change, you MUST revert the change, rebuild the artifact the test drives (the container image, the daemon binary) so the revert takes effect, confirm the test goes RED, restore the fix, confirm GREEN, and record the RED result.** A test added to ALREADY-WORKING code never had a red phase, so its discrimination is unproven until you force one. The four vacuity traps and their tells are in `docs/architecture/testing/interop.md`.
+**Before you claim a feature is done, you MUST answer for each spec goal: what concrete evidence proves this goal is achieved, beyond the individual test assertions?** "All tests pass", "AC-1 through AC-5 implemented", "I tested it manually" and "the code looks correct" are not that evidence.
+**The spec's Goal Validation table MUST carry one row per stated goal from the Task section, with a concrete reference in the Evidence column and no empty cell.** Interop needs a passing scenario against the named peer daemon, performance a pasted `ze-perf` result, a user workflow a `.ci` or `.et` test over the whole path, data correctness a functional test with explicit hex or JSON assertions, resilience a chaos or fault-injection scenario, and security a negative test whose unauthorized attempt fails with the expected error.
 
 <!-- always-on: precedence rung 1/2 -->
 
@@ -220,38 +72,17 @@ change and confirm the test goes RED.** MUST rebuild the artifact the test drive
 ## Directives
 **You MUST NOT delete, revert, or overwrite a file holding uncommitted work the user wrote or requested, without explicit permission.**
 **You MUST NOT leave a file undeleted only because deletion needs permission. Ask for the permission instead.**
+**You MUST treat each of these as work the user paid for: any file the user asked you to write, any file you wrote at the user's direction in this session, any in-progress implementation even when it does not compile or pass lint, and any scratchpad the user might be reading (`to-check`, `Stub/`, notes).**
+**You MAY act without asking on a build artifact that `make`, `go mod vendor` or codegen regenerates, on a cache under `~/.cache/` or similar, and on a file the user EXPLICITLY marked disposable. Care is still owed.**
+**You MUST NOT destroy work on any of this reasoning: "lint is blocking", "it will be rewritten anyway", "I just wrote it one turn ago", "it is clearly an error, dead code, or scaffolding", "I am reverting my own mistake", or "the tree is in a broken state".** A hook is advisory, the user might want to diff what is there, you wrote it at their direction so it is theirs now, "clearly" is often wrong, and a broken tree is preferable to lost work.
+**When a file SHOULD be deleted and this rule needs permission for it, you MUST ask the user directly, and you MUST NOT call the work complete while an unwanted file stays in place only because permission was needed.**
+**When you are unsure whether the file SHOULD be deleted, you MUST state the situation ("file X exists, lint is flagging Y, tests fail because of Z") and ask what to do.**
 ## Forbidden Without Explicit Permission
 **Each operation below MUST NOT be performed without explicit permission:**
-| Operation | Scope | Replacement |
-|-----------|-------|-------------|
-| `rm <path>` on user-visible files | Any path not already in git index of untracked trash | Ask for permission before deleting it. If deletion is the correct fix, do not leave the file behind as a workaround. |
-| `git restore <path>` | Any modified working-tree file | Already in `ai/rules/git-safety.md`; same rule |
-| `git reset --hard`, `git clean -f` | Any | Already forbidden |
-| Overwriting an existing file with content that drops user edits | Overwriting unsaved changes | Read the current file; merge or ask |
-| Truncating or overwriting log files, session state, or `tmp/` artifacts the user might be inspecting | Any | Leave it |
-## What Counts as "Work the User Paid For"
-**You MUST treat each of these as work the user paid for:**
-- Any file the user asked you to write.
-- Any file you wrote at the user's direction in this session.
-- Any in-progress implementation, even when it does not yet compile or pass lint.
-- Any scratchpad the user might be reading (`to-check`, `Stub/`, notes).
-**These are not user work, and you MAY act on them without asking. Care is still owed:**
-- Build artifacts regenerated by `make`, `go mod vendor`, or codegen.
-- Caches under `~/.cache/` or similar.
-- Files the user EXPLICITLY marked disposable ("go ahead and delete").
-## Bad Reasoning That Triggers This Rule
-**You MUST NOT destroy work on any of this reasoning:**
-| Excuse | Why it fails |
-|--------|-------------|
-| "Lint is blocking" | Hooks are advisory. The file's contents are orthogonal to whether a hook passes. |
-| "It'll be rewritten anyway" | The user might want to diff the current version, or have a different plan than you assume. |
-| "I just wrote it one turn ago" | It does not matter. You wrote it at their direction; it is theirs now. |
-| "It's clearly an error, dead code, or scaffolding" | Ask. "Clearly" is often wrong. |
-| "Reverting my own mistake" | When deletion is the correct fix and the file is user-visible, ask for permission instead of leaving it behind. |
-| "The tree is in a broken state" | Tree-broken is preferable to work-lost. Tell the user; let them decide. |
-## When Deletion Is The Correct Fix
-**When a file SHOULD be deleted and this rule needs permission for it, you MUST ask the user directly.** You MUST NOT claim the work complete while an unwanted file stays in place only because permission was needed.
-**When you are unsure whether the file SHOULD be deleted, you MUST state the situation ("file X exists, lint is flagging Y, tests fail because of Z") and ask what to do.**
+- `rm <path>` on any user-visible file, meaning any path that is not already untracked trash. Ask before deleting it, and never leave the file behind as a workaround when deletion is the correct fix.
+- `git restore <path>` on a modified working-tree file, and `git reset --hard` or `git clean -f` anywhere. `ai/rules/git-safety.md` forbids these outright.
+- Overwriting an existing file with content that drops user edits. Read the current file, then merge or ask.
+- Truncating or overwriting a log file, session state, or a `tmp/` artifact the user might be inspecting. Leave it.
 
 <!-- always-on: precedence rung 1/2 -->
 
@@ -262,10 +93,29 @@ change and confirm the test goes RED.** MUST rebuild the artifact the test drive
 **When:** when replacing X with Y — **Severity:** blocking
 
 ## Directives
-**When replacing X with Y, X MUST be deleted first, and Y MUST be implemented after.** Both MUST NOT be kept.
-**"Keep old and add new", "hybrid approach", "gradual migration" and "fallback to old" MUST NOT be used.** Before every change, ask "am I adding or replacing?".
+**When replacing X with Y, X MUST be deleted first and Y MUST be implemented after. A hybrid, a gradual migration, a fallback to the old path and any other shape that keeps both MUST NOT be written.** Before every change, ask "am I adding or replacing?".
 
 <!-- always-on: no past task would surface it -->
+
+---
+
+## Principles
+`ai/rules/principles.md`
+**When:** before any decision about how to build, test, verify, or report work in this repository — **Severity:** blocking — **Related:** completion, evidence, testing, rule-precedence
+
+## Directives
+**A value that is silently wrong MUST NOT be reachable: code that cannot answer MUST say so, and MUST NOT return zero, nil, false, empty, or the default in place of an answer.** A caller cannot tell a real zero from a failure that produced one, so the defect surfaces far from its cause and reads as data. This is the single largest source of defects this repository has recorded: a type assertion that fails and disables a feature with no log line, a cross-boundary call that no-ops when the plugin runs external, a search whose zero hits are read as absence, a test whose passing assertion would also pass against a stub.
+**Before stating what code does, or acting on a claim about it, you MUST read the function that PRODUCES the behavior.** A document, a comment, a commit message, a report from another agent, a test name and a decision record are each a claim by their author on the day they wrote it. They say where to look. They are never the evidence. A self-consistent story is a hypothesis; a coherent explanation that you did not verify at the producer is the shape a fabricated claim takes.
+**Work MUST NOT be called done until a user reaches the behavior through the real entry point and a test proves they do.** A library that compiles, an interface that exists, a unit test that passes over the logic in isolation: none of these is the feature. The feature is the path from what the user types to what the product answers, and the proof is a test that exercises that path and would fail if the path broke.
+**Writing a defect down MUST NOT be treated as addressing it.** A journal row, a tracking table, a report paragraph and a comment each change nothing about the product. Recording is a step toward a fix and never a substitute for one. The only failure that MAY be recorded instead of fixed is one you actively tried to reproduce and could not, and that record MUST carry the reproduction attempt and the next step.
+**Every fact MUST be declared once, and every other surface MUST derive from that declaration.** A second copy is not a convenience: it is a future disagreement with nothing to arbitrate it. A hand-written list beside a registry, a table beside the generator that could emit it, a rule restating a page: each drifts, and the reader cannot tell which side is wrong. When a copy is unavoidable, the copy names its source and a check compares them.
+**A new feature MUST register itself and be discovered; it MUST NOT require an edit to a switch, a case, a factory, a field list, or any other central enumeration.** A central list is a second declaration of what already exists, so adding a feature means editing code that has nothing to do with it, and removing one means finding every place that named it. Registration makes the feature's own package the only thing that has to change.
+**The work a change owes MUST be measured by what the change can now REACH, and MUST NOT be measured by the files you edited.** The other call site, the sibling path with the same shape, the test that asserts the behavior you changed, the consumer of the name you renamed: each is inside the change whether or not it appears in the diff. A set derived from `git diff` is the edited set wearing another name.
+**Scope MUST NOT be reduced, renamed, deferred, or tabled without the user deciding it, and an author MUST NOT be the reviewer of their own work.** Both failures feel like judgement from the inside. Shrinking scope reads as pragmatism, and reviewing your own change reads as efficiency because the context is already loaded. Independence is a property of the CONTEXT, not of the intention: the reader who did not write it is the only one who can find what the writer could not see.
+**A rule, a document or a comment MUST NOT carry a copy of what a command already prints.** The tool answers at the moment the answer is actionable, over the tree in hand, and it cannot be stale. A cached copy is stale from the first change and costs every reader who never runs that command. Run it, read what it says, and act on that.
+**Several sessions work this checkout at once, so a red, a hunk, a staged file or an artifact you did not produce MUST NOT be treated as yours to fix, wait for, or carry.** A fully green tree is unreachable by construction. Judge your own change by the evidence your own change produced, name what you could not see, and leave another session's work alone.
+
+<!-- always-on: precedence rung 1/2 -->
 
 ---
 
@@ -274,94 +124,17 @@ change and confirm the test goes RED.** MUST rebuild the artifact the test drive
 **When:** writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements — **Severity:** blocking
 
 ## Directives
-**Ze aims to be a model of RFC compliance, for EVERY RFC it implements.** Not
-just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RADIUS, TACACS+, gNMI, BMP, RPKI, VRRP -- every protocol surface MUST be held to its own RFCs, and so MUST anything Ze speaks that has a...
-**Conformance is a property of the code, checked against the RFC text. It MUST NOT be traded away for convenience, for a green test, or for expedience.** You cannot write an RFC-based application and not ensure RFC compliance.
-**Conformance is not negotiable and nothing in the repo overrides the RFC: a deviation MUST NOT be made without an explicit instruction from Thomas, given in answer to the question that "Implement Full Compliance. Ask Thomas Only Before Doing LESS" (below) requires you to put to him. That question is owed only when you are about to do less than the RFC asks. Full compliance needs no question.**
-**When Thomas authorises a deviation, it MUST be recorded as a row in `plan/journal/<class>.md` with the RFC section and the reason**, so the next reader finds a decision rather than a bug.
-| Situation | What you MUST do |
-|-----------|------------------|
-| Full conformance and full proof of it are reachable | Implement it and prove it with a tagged test. Do not ask which subset Thomas wants |
-| Anything short of full conformance or full proof of conformance looks like the answer | You are not authorized to pick it. STOP and ask Thomas -- see "Implement Full Compliance. Ask Thomas Only Before Doing LESS" below |
-| You find code that does not do what the RFC requires, and the goal of the work in hand depends on that path | Fix it here. A known wire-visible violation the work depends on is a defect you are now the entry point for (`ai/rules/completion.md`) |
-| You find code that does not do what the RFC requires, and the goal of the work in hand does not depend on it | Write the spec, close the work in hand, and put the violation to Thomas the moment it closes, quoting the requirement id and the RFC section text (`ai/rules/completion.md`). The ask is owed the same session; the fix waits for his answer. Leaving it as a comment, a report line, or an unhomed row is banned |
-| A test pins the non-conformant behaviour | The TEST is wrong. A fixture, golden file, or assertion encoding a violation is not evidence the violation is intended -- it is the violation with a green bar on top. Fix the code, then correct the test and say so |
-| A code comment calls the deviation deliberate | A comment is its author's belief, not a decision record (`ai/rules/evidence.md`). Check the RFC text, then `plan/learned/` for a real ruling. Absent one, the RFC wins |
-| The RFC requirement is not in `rfc/short/<stem>.md` | An unextracted obligation is still an obligation. Add the checklist row (see Extraction Completeness) -- the gate's silence is not conformance |
-| Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
-| An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
-**Before claiming a protocol behaviour is correct, the RFC text MUST be read**, not only the summary and not only the surrounding code. The section relied on MUST be cited.
-**A claim that Ze violates an RFC MUST quote the RFC's own text before it is
-**A `rfc/short/` summary is not the source.** It is a derived artifact and it is
-**The failure this prevents is fabrication, not sloppiness.** A requirement id
-**An RFC that the current one OBSOLETES MUST NOT be read as evidence about what Ze
-**The lineage that matters runs FORWARD: the documents that UPDATE the current one,
-**A predecessor MAY be opened for one purpose alone: to see why a clause is worded
-**An obsoleted RFC quoted by a document Ze summarises stays as it is.** A
+**Every protocol surface MUST be held to its own RFCs, and so MUST anything Ze speaks that has a standard behind it.** Not just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE and IPsec, L2TP, PPPoE, DHCP, NTP, RADIUS, TACACS+, gNMI, BMP, RPKI and VRRP.
+**Every MUST and MUST NOT enforced in code MUST carry a comment directly above it naming the RFC section and quoting the requirement (`// RFC NNNN Section X.Y: "quoted requirement"`), covering whichever of the validation rules, error conditions, state transitions, timer constraints and message ordering the code enforces.** Protocol code MUST NOT be changed without documenting the wire format: an ASCII diagram with field offsets, byte offset annotations, and the RFC section reference.
+**A MAY clause MUST be put to the user: implement it, skip it, or make it a config option.** You are not authorized to pick.
+**Conformance is not negotiable and nothing in the repo overrides the RFC: a deviation MUST NOT be made without an explicit instruction from Thomas, given in answer to the question the next section requires you to put to him.** It MUST NOT be traded away for convenience, for a green test, or for expedience. A test, a golden file, a code comment or an `rfc/audit` verdict that pins non-conformant behavior is the violation with a green bar on top, so fix the code and then correct the test. When Thomas authorizes a deviation, you MUST record it as a row in `plan/journal/<class>.md` carrying the RFC section and the reason.
+**Before you claim a protocol behavior is correct, or report that Ze violates an RFC, you MUST read the RFC's own text in `rfc/full/<stem>.txt` or `rfc/drafts/` and quote at least one whole sentence with the section number you read it at.** A `rfc/short/` summary is a derived artifact and never the authority, so a finding that cites only a requirement id, only a summary line, or only its own paraphrase is UNVERIFIED and MUST be labelled so. Fetch a missing text first: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`.
+**The RFC MUST outrank ExaBGP API compatibility, which MUST outrank the ExaBGP implementation.** An RFC the current one OBSOLETES MUST NOT be read as evidence about what Ze owes; the lineage that matters runs FORWARD, through the documents that UPDATE the current one and its errata. The enrolment walk, the extraction sign-off, the superseded marker and the eight ratchets are in `docs/contributing/rfc-conformance-gates.md`.
 ## Implement Full Compliance. Ask Thomas Only Before Doing LESS (owner directive, 2026-07-27, clarified 2026-08-01)
 **When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. It MUST be implemented and proven. Thomas has already chosen, so there is nothing to put to him.**
-**Asking MUST happen only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: it MUST be done, then reported (`ai/rules/completion.md` still governs everything else). The gate exists in one direction only.
-**Two readings, and the one that governs.** "Full compliance is on the table" MUST be treated as a trigger to IMPLEMENT. It MUST NOT be treated as a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "MAY I do less". **Full compliance MUST NOT be put beside a narrower option when asking Thomas to pick between them.**
-| You are about to ... | Do instead |
-|----------------------|------------|
-| Classify a requirement `{gap}`, `{not-applicable}`, `partial`, or "does not apply to ze" | Ask. A classification that lowers what Ze owes is a decision about compliance, not bookkeeping |
-| Leave a MUST implemented but unproven (no `RFC requirement:` tagged test) | Ask. "Implemented" is a claim; the tagged test is the evidence (`ai/rules/testing.md`, `ai/rules/testing.md`) |
-| Leave a MUST unextracted, or scope a spec so an RFC obligation falls outside it | Ask. See Extraction Completeness -- the gate cannot see an obligation nobody wrote down |
-| Defer an RFC requirement to a follow-up spec, a deferral row, or a known-failure shard | Ask. Recording is not fixing (`ai/rules/completion.md`), and the deferral machinery is not a compliance decision procedure. The spec-close-ask route in the conformance table above IS that ask, made the same session. The deferral row is never a substitute for it |
-| Lower a requirement's level in `rfc/short/`, so the row stops being MUST-level | Read the RFC sentence first. It is a CORRECTION only when the document states the lower strength, and then it MUST be recorded as a `Correction <YYYY-MM-DD>:` paragraph quoting that sentence, which `check_level_ratchet` refuses to do without. Anything else lowers what Ze owes: ask |
-| Close a spec, review, or audit whose RFC rows are anything other than implemented-and-proven | Ask before closing, not after |
-| Answer "is this conformant enough" with anything but yes | Ask. "Enough" is Thomas's word to say, never yours |
-**How to ask (never "MAY I skip it").** The requirement id and the RFC section text MUST be quoted verbatim, the producing function MUST be named (`ai/rules/evidence.md`), what full implementation plus a tagged test would actually cost MUST be stated, and then which way he wants it fixed MUST be asked. Offering "leave it non-conformant" as an option MUST NOT be done (`ai/rules/completion.md`).
-**Every earlier answer that pointed away from full compliance or full proof MUST be treated as VOID.** Thomas voided them on 2026-07-27. A prior decision to skip, defer, partially implement, or leave a requirement untested is not authority, MUST NOT be cited as one, and does not survive being rediscovered.
-**A void answer MUST be re-derived rather than relied on, wherever you meet it:**
-| Where a void answer hides | What to do when you meet one |
-|---------------------------|------------------------------|
-| A `plan/learned/` deviation record, or a spec `Deviations` row | Do not rely on it. Raise the requirement with Thomas again, then correct the record with the new answer |
-| A `{gap}`, `{not-applicable}` or `partial` in `rfc/short/*.md` or `docs/features/rfc-status.md` | Re-derive it from the RFC text. If it still reads as less than full compliance, ask |
-| A deferral row marked `user-approved-drop`, or a `cancelled` status, covering an RFC obligation | Void. Re-raise it; the row is not a close |
-| A code comment or `rfc/audit/*.json` verdict calling the deviation deliberate | A comment is a belief, not a ruling (`ai/rules/evidence.md`). Void by default; ask |
-**Finding a void answer while doing something else is not permission to move on.** It MUST be raised, and the fresh answer MUST be recorded where the stale one lived, so the next reader inherits a decision rather than a rationalization.
-## RFC Summaries (`rfc/short/`)
-**A summary's PROSE is a protocol-only reference document: it MUST NOT contain Ze-specific information -- no Ze implementation notes, no Ze file paths, no "Ze does/does not" statements, no "for ze" sections.** Implementation decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`), or code comments. A reader SHOULD be able to read any `rfc/short/` file's prose as a standalone protocol reference with no knowledge of Ze.
-**The `{...}` annotation on a requirement line is a SEPARATE register, and the constraint above does not reach it.** An annotation exists to say why this codebase owes less than the literal requirement, and `ai/rules/evidence.md` requires that justification to name the producing function. So a `{gap: ...}`, `{not-applicable: ...}`, `{partial: ...}` or `{single-polarity: ...}` MUST name the code it judges, file and symbol, and a search it relied on MUST be recorded the same way. An annotation that names no code is an assertion, and the two registers MUST NOT be traded against each other: stripping a path out of an annotation to satisfy the prose rule destroys the evidence the annotation exists to carry.
-**The boundary is the line, not the file.** A requirement line and its wrapped continuation are annotation; every other line is prose. A Ze path that has escaped into a bullet, a heading or a paragraph is what this rule was written for, and it stays forbidden.
-**A summary whose forward Meta row names a successor MUST carry a `{superseded: ...}` marker on EVERY requirement line it declares.** `checkSuperseded` (`internal/le/rfc/check_core.go`) refuses the summary otherwise. The accepted labels, the four dispositions and the precondition each one carries are in `docs/contributing/rfc-conformance-gates.md`.
-**The marker states where the obligation NOW LIVES. It MUST NOT be read, or written, as saying Ze owes less.** It is a fact about the DOCUMENT, so it composes with `{gap}`, `{not-applicable}` and `{single-polarity}` rather than replacing one. A marked requirement stays gated, stays counted, and stays judged by every ratchet.
-**A `dropped` obligation is still owed for as long as Ze speaks the wire format the obsoleted document defines.** RFC 3768 is the VRRPv2 format keepalived speaks by default. RFC 9568 removing an obligation says what VRRPv3 requires, and nothing about what a VRRPv2 speaker owes on the wire.
-**An `unresolved` or `unextracted` disposition is DEBT. Marking a line MUST NOT be treated as closing it.** Draining either is separable work with its own spec.
-## Extraction Completeness (BLOCKING when enrolling a summary)
-**Before enrolling `rfc/short/<stem>.md` in `rfc/enrolled.txt`, you MUST walk the RFC's own text section by section and confirm every MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED has a checklist row.** A green gate is bounded by what was extracted, so an obligation nobody wrote down is invisible to it and to any audit that only re-checks classifications.
-**When `rfc/full/` lacks the source, you MUST fetch it first: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`.** A claim of "verified against the RFC" is not reproducible without it.
-**The walk MUST be RECORDED, not asserted.** Its record is `rfc/extraction/<stem>.json`, a sign-off artifact a machine re-checks, and it is a precondition of a new enrolment. The steps, the contract, and the five properties of the artifact are in `docs/contributing/rfc-conformance-gates.md`.
-**Summaries enrolled before the gate existed are grandfathered and published as a counted backlog. Grandfathering MUST be implemented as SCOPE (new-since-HEAD); it MUST NOT be implemented as an allowlist file**, so nothing is added to a list of exceptions when an RFC stops being one.
-**The requirement TEXT MUST be verified against the RFC, not only its presence.** A misquoted obligation licenses a justification that never engages it: RFC 4271 §5.1.6 binds a speaker THAT RECEIVES a route with ATOMIC_AGGREGATE, and recording it as an aggregator rule let the readvertisement path be cited as evidence of non-applicability when it is the bound path.
-## What Keeps RFC Testing Valid (the eight ratchets)
-**`./le rfc check` reads the WORKING TREE, and eight comparisons against HEAD supply what a tree cannot tell: "never proven" from "stopped being proven". Each fires only on a real downgrade, so you MUST treat a green run as evidence the proof held rather than as evidence nobody looked.**
-**A red ratchet names a DOWNGRADE you made. You MUST restore the evidence it names; you MUST NOT reach for the annotation, the level change, or the deleted row that would make it green.** Each ratchet, what fires it, and the one documented escape are in `docs/contributing/rfc-conformance-gates.md`.
-**A tagged test's assertions MUST NOT be weakened IN PLACE while the shape stays the same.** No ratchet catches that. The write-time guard, the commit audit and the audit-freshness SHA ratchet do, and `docs/contributing/rfc-conformance-gates.md` says which does what.
-**A `test/weakened.md` row is self-service and MUST NOT be treated as authorizing the weakening of an RFC-tagged test.**
-## Before Implementing BGP Features
-1. Find RFC in `rfc/` — if missing: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
-2. Read relevant sections, note MUST/SHOULD/MAY
-3. Check ExaBGP reference
-**Priority:** the RFC MUST outrank ExaBGP API compat, which MUST outrank the ExaBGP implementation.
-## Wire Format Documentation (MANDATORY)
-**Protocol code MUST NOT be modified without documenting the wire format: an ASCII diagram with field offsets, byte offset annotations, and the RFC section reference.**
-## RFC MUST Comments (BLOCKING)
-**Every MUST and MUST NOT enforced in code MUST carry a comment directly above it, naming the RFC section and quoting the requirement:**
-**The comment MUST document whichever of these the code enforces: validation rules, error conditions, state transitions, timer constraints, and message ordering.**
-## MAY Clauses
-**A MAY clause MUST be put to the user: implement it, skip it, or make it a config option.** You are not authorized to pick.
-## Common RFCs
-**A change to one of these BGP features MUST be read against the RFC in its row, at the code its row names:**
-| Feature | RFC | Location |
-|---------|-----|----------|
-| BGP-4 base | 4271 | `internal/component/bgp/message/`, `internal/component/bgp/reactor/` |
-| MP-BGP | 4760 | `internal/component/bgp/reactor/received_update.go`, `internal/core/bgp/attribute/` |
-| 4-byte ASN | 6793 | `internal/core/bgp/capability/capability.go` |
-| Add-Path | 7911 | `internal/core/bgp/capability/capability.go` |
-| GR | 4724 | `internal/core/bgp/capability/capability.go` |
-| Revised error handling | 7606 | `internal/component/bgp/reactor/received_update.go` |
+**Asking MUST happen only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: it MUST be done, then reported. The gate exists in one direction only. You are about to do less when you classify a requirement `{gap}`, `{not-applicable}` or `partial`, leave a MUST implemented but unproven by a tagged test, leave one unextracted, defer one to a follow-up spec or a deferral row, lower its level in `rfc/short/`, or close a spec whose RFC rows are anything other than implemented-and-proven.
+**The question MUST be "which way do I fix it", and MUST NOT be "MAY I do less".** Quote the requirement id and the RFC section text verbatim, name the producing function, state what full implementation plus a tagged test would cost, and never offer "leave it non-conformant" as an option. Full compliance MUST NOT be placed beside a narrower option for Thomas to pick between.
+**Every earlier answer that pointed away from full compliance or full proof is VOID (Thomas, 2026-07-27), wherever it hides: a `plan/learned/` deviation record, a spec `Deviations` row, a `{gap}` in `rfc/short/` or `docs/features/rfc-status.md`, a deferral marked `user-approved-drop`, or a comment calling the deviation deliberate.** A void answer MUST NOT be cited as authority. Finding one while doing something else is not permission to move on: raise it, and record the fresh answer where the stale one lived.
 
 <!-- always-on: precedence rung 1/2 -->
 
@@ -377,15 +150,18 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | Rung | Governs | Rules | What it does to the decision |
 |------|---------|-------|------------------------------|
 | 1 | Irreversible or destructive action | `never-destroy-work`, `git-safety` bans, `CLAUDE.md` prohibitions | STOP and ask. Nothing on any lower rung licenses it, including an explicit instruction to hurry |
+| 1 | What every other rule is an instance of | `principles` | Ten statements the rest of the corpus derives from. A rule that merely restates one of them carries nothing the reader did not already have |
 | 2 | Correctness owed to someone outside this repo | `rfc-compliance`, `interop-and-goal-validation`, `documentation` | When full compliance AND full proof of it is reachable, IMPLEMENT it. Picking anything narrower is not permitted, and neither is asking Thomas to pick for you. Ask only when you are about to do LESS, and then ask which way to fix it. A page your change made wrong is a debt to a reader outside this repo. Read the page before you investigate. Repair it in the work that broke it |
 | 3 | Scope integrity | `completion` (no partial completion, no parking, fix do not record), `testing` (no test deletion) | Never silently reduce scope, park a blocker, or weaken a test. If scope has to change, the user decides |
 | 4 | Phase boundaries | `planning` (model selection, spec delegation, critical review) | End the phase, report, and hand off. Do not cross onto the next phase in this context |
 | 5 | Autonomy | `completion` (no asking) | Everything not caught above: finish the work, then report. Do not ask permission to do what you were already asked to do |
 **Stopping at a phase boundary is NOT asking permission.** The no-asking directive in `completion` bans "would you like me to...?" before work you were already asked to do. You MAY end a phase, report the result, and let the operator choose the next model or session. Rung 4 and rung 5 only look like a conflict if you read that directive as "never stop".
 **When a higher rung forces a question, the question MUST be HOW; it MUST NOT be WHETHER.** "Which way do you want this fixed" is always legitimate. `May I skip it`, `may I drop the test`, `shall I defer this` are banned at every rung (`completion.md`).
-**Deferral versus parking, settled by one question: does the goal this work exists to achieve still hold if I leave this?** If yes, it is separable future work: MUST home it in a spec per `planning.md`, close the work in hand, and ask Thomas whether that spec runs. If no, it is parking with a polite name: MUST fix it now (`completion.md`).
+**Deferral versus parking, settled by one question: does the goal this work exists to achieve still hold if I leave this?** If no, it is parking with a polite name: MUST fix it now (`completion.md`). If yes, it is separable future work, and its home depends on what it is.
+**A DEFECT you walked into MUST get ONE row in `plan/journal/<class>.md`, then the work in hand closes and you stop: no spec, no deferral row, no question to Thomas (owner directive, 2026-08-10). A distinct, larger, separable FEATURE MUST be homed in a spec per `planning.md`, and Thomas MUST be asked whether that spec runs.**
 **Closing comes first, and the same question decides the ORDER as well as the verdict: a defect the goal does NOT depend on MUST NOT be fixed on the way to closing the work in hand.** `completion.md` makes you the owner of a defect you walked into, and it does not make you its owner this minute. Work that was finished but never landed is the most expensive failure this repo has, and an unrelated fix folded into a closing commit is its usual cause: it costs the commit its single focus and the review its scope, and it restarts the gates that were already green.
-**The route is fixed and it has four steps: MUST spec the defect, close the work in hand, ask Thomas whether to implement that spec, stop.** MUST NOT fix it after closing either, and silence is not consent (`completion.md`, "A problem you FIND while working on something else gets a SPEC"). The one defect you fix on the spot is the one that BLOCKS the goal, because there is no closing the work in hand around it.
+**The route is fixed and it has three steps: MUST write ONE row in `plan/journal/<class>.md`, close the work in hand, and stop (owner directive, 2026-08-10).** MUST NOT write a spec for it, MUST NOT open a deferral row, and MUST NOT ask Thomas whether to implement one (`completion.md`). MUST NOT fix it after closing either. Rows accumulate by problem class, and a class that collects rows earns its fix in a deliberate pass over the journal.
+**Three finds are fixed on the spot, and `completion.md` names all three: a defect that stops a test or a gate from passing, a test that is wrong about what it asserts, and code related to the problem in hand.** The blocking defect is the first of them, because there is no closing the work in hand around it.
 **Recording versus fixing, settled by one question: did I try to reproduce it and fail?** Only a failure whose mechanism you actively tried and could not reproduce MAY be written down instead of fixed. Anything deterministic, structural, or load-explained MUST be fixed (`completion.md`).
 **A spec is not a record, so this question MUST decide WHAT you write; it MUST NOT decide WHETHER the fix happens.** A reproducible defect that does not block the work in hand MUST still get a spec and an ask rather than a same-session fix (the point above); the shard route stays reserved for the failure you could not reproduce.
 **Simplest-correct-solution MUST sit UNDER rungs 2 and 3; it MUST NOT sit beside them.** `ai/rules/simplicity.md` requires the simplest fully correct answer, and "fully correct" is what rungs 2 and 3 already own. It cuts machinery: an abstraction with one user, an option nobody asked for, a layer that transforms nothing. It MUST NOT cut correctness, conformance, a test, a guard, or an error path, and quality is 0% compromise.
@@ -403,17 +179,5 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 
 ## Directives
 **When you change code behavior, you MUST update or remove the comments that described the old behavior.** A comment that no longer matches the code is worse than no comment.
-## Checklist
-**Each change below MUST carry its comment update:**
-| Change | Action |
-|--------|--------|
-| Function signature changes (return type, params) | Update all doc comments on the function |
-| Control flow changes (new branch, removed path) | Update inline comments describing the flow |
-| Error handling changes | Update comments explaining error propagation |
-| Callers change behavior | Update comments at the call site |
-## Do Not
-- MUST NOT leave a comment that describes one specific case when the code now handles multiple cases.
-- MUST NOT keep a comment about "returns X" when the function now returns Y.
-- MUST NOT add "also does Z" to an existing comment that says "does X". MUST rewrite to cover both.
 
 <!-- always-on: no past task would surface it -->

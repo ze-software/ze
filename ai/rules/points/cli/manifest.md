@@ -5,102 +5,14 @@ severity: blocking
 related: evidence, performance, protocol, repo-maintenance, git-safety
 ---
 directives ## Directives
-  put-a-closed-keyword-before-every-user-supplied-value
-  follow-the-cli-patterns-in-every-command
-  answer-every-global-operator-in-every-command-that-produces-output
-  answer-every-operator-the-answer-shape-supports-and-refuse-the-rest-by-name
   answer-with-structured-data-never-pre-rendered-text
-  keep-state-in-a-field-or-a-column-never-a-sigil
-  say-what-failed-why-and-what-to-do-next-in-every-error
-  follow-the-json-format-conventions-in-all-json-output
-  follow-the-agent-tooling-contract-in-agent-facing-output
+  name-json-keys-in-lowercase-kebab-case
 cli-grammar-keywords-before-values ## CLI Grammar: Keywords Before Values
   the-first-token-after-the-noun-must-be-a-keyword
-  type-the-selector-when-addressing-one-member
-  the-selector-keywords-and-what-each-one-addresses
-  commands-using-a-typed-selector
-  peer-commands-are-the-exception-to-typed-selectors
-  peer-command-examples
-  never-invent-a-mutating-peer-example
-  never-expose-selector-as-an-operator-keyword
-  the-named-resource-pattern-violates-this-rule
-  put-the-action-before-the-identifier
-  the-list-action-needs-no-change
-  hyphenate-only-words-that-name-one-thing
-  the-tests-that-decide-compound-token-or-namespace
-  how-r9-sibling-collision-is-enforced
-  when-the-compound-is-genuine-exempt-it-do-not-split-it
   the-verb-is-chosen-by-the-command-s-effect-on-live-state
-  pick-show-monitor-or-an-action-verb-by-effect
-  debug-is-both-a-verb-and-a-noun-under-show
-  verbose-logging-is-configuration-not-debug
-  do-not-invent-operational-add-del-remove-or-similar-verbs
-  the-engine-mutation-verbs
-  keep-tree-mutation-in-engine-path-form
-  tree-mutations-versus-runtime-actions
-  before-changing-any-command-grammar-classify-it-first
-  the-command-classes-and-the-surface-each-one-uses
-  never-redesign-a-tree-mutation-as-an-rpc
-  never-move-a-command-family-while-fixing-grammar
-  where-the-owning-module-is-recorded
-  never-reshuffle-command-ownership-while-cleaning-grammar
-  the-yang-path-is-the-dispatch-key
-  renaming-a-programmatic-command-path-breaks-the-wire
-  find-every-programmatic-sender-before-migrating
-  drop-the-legacy-verb-from-isreadonlypath
-  keep-identifiers-string-typed-even-when-numeric
-  replace-an-unreleased-grammar-outright
-  the-questions-that-decide-if-a-handler-conforms
-  passing-args-0-to-a-parser-is-a-violation
-  the-r1-to-r9-ruleset-and-where-it-is-implemented
-  mirror-the-command-grammar-in-the-yang-tree
-  never-write-flag-syntax-in-a-yang-file
-  a-filter-is-keyword-grammar-never-a-flag
-  model-a-filter-as-a-yang-keyword-value-pair
   flags-belong-to-the-offline-tooling-only
-  a-flag-belongs-to-the-process-a-keyword-to-the-command
-  the-tests-that-place-a-token-in-its-register
-  what-a-flag-must-never-be
-  never-send-a-flag-from-a-client-to-the-daemon
-  keep-the-flag-form-to-the-tools-that-reach-no-daemon
-  declare-every-offline-flag-through-the-flag-registry
-  the-rule-covers-online-and-offline-commands-alike
+  the-r1-to-r9-ruleset-and-where-it-is-implemented
 cli-patterns ## CLI Patterns
   return-exit-codes-and-write-errors-to-stderr
-  every-user-facing-command-must-have-tab-completion
-  hide-a-command-with-hidden-true-as-the-exception
-  plugin-commands-complete-live-but-not-offline
-pipe-completeness ## Pipe Completeness
-  route-output-through-applypipes-in-every-path
-error-messages ## Error Messages
-  what-the-error-contract-legs-must-carry
-  attach-a-diagnostic-code-rather-than-truncate
-  verify-the-remediation-actually-works
-  where-the-corrective-action-is-mandatory
-  name-what-the-operator-configured-never-the-library
-  a-row-s-state-is-a-field-never-a-glued-character
-  render-state-as-its-own-column-and-json-field
-  assert-the-identifier-is-exactly-the-identifier
-  return-an-error-when-a-check-cannot-run
-  runtime-failures-carry-a-registered-code
-  the-questions-to-ask-before-returning-an-error
-json-format ## JSON Format
-  name-json-keys-in-lowercase-kebab-case
-  derive-the-json-key-from-the-yang-leaf-name
-  tag-every-exported-field-with-a-kebab-name
-  the-envelope-and-value-conventions
 agent-tooling-contract ## Agent Tooling Contract
-  what-a-json-producing-command-owes-agents
-  build-json-with-encoding-json-and-kebab-keys
-  every-agent-facing-error-carries-a-diagnostic-code
-  register-and-explain-every-diagnostic-code
-  repair-metadata-is-plan-only-never-edit-the-file
-  give-every-repair-a-stable-id-and-a-safety-label
   use-the-skill-instead-of-a-raw-agent
-  the-hook-blocks-a-raw-spawn-a-named-skill-passes
-  prepare-commit-scripts-with-the-native-commit-action
-  a-commit-request-is-the-work-add-no-late-review
-  add-a-skill-to-the-embedded-data-directory-and-inventory
-  validate-config-at-every-entry-boundary
-  the-boundaries-that-must-validate-config
-  document-every-agent-facing-feature

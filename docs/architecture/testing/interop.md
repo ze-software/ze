@@ -162,10 +162,24 @@ review on 2026-08-05. `Docker.Build` reads the image ID from `docker build -q`,
 and the suite pins every container of the run to that immutable ID.
 Quote that line beside the result, because it names the binary the run measured.
 
-A scenario that passes either way
-(common when the peer must accept both the old and new wire form) proves acceptance,
-not correctness -- see `ai/rules/interop-and-goal-validation.md` "Prove the test
-discriminates".
+A scenario that passes either way (common when the peer must accept both the old
+and the new wire form) proves acceptance, not correctness. Say which one it
+proves in the spec's Goal Validation, and move the discrimination to a unit or
+mutation test that CAN fail.
+
+A scenario added to ALREADY-WORKING code never had a red phase, so its
+discrimination is unproven until you force one. That is not TDD's red-then-green:
+a regression test and a scenario for existing behaviour both start green.
+
+Four traps make a scenario pass whatever the code does. Check each by its tell
+before you call the scenario evidence:
+
+| Vacuity trap | Why it passes anyway | The tell |
+|--------------|----------------------|----------|
+| A scenario for a sender-side wire change whose receiver is obliged to accept any form (RFC 7606 Section 5.1: receivers accept any field combination) | A conforming peer accepts the old and the new wire equally | Reverting the sender change leaves the peer's routing table identical |
+| A test asserting the ABSENCE of something (no log line, no allocation, no route) | Deleting the mechanism leaves the same absence | Ask what would still be absent if the code were removed |
+| A test whose fixture is at an extreme (all fields set, maximum value) | An off-by-one or a partial break still handles the extreme | Boundary the fixture: test one below and one above |
+| A test whose data reaches the peer by a DIFFERENT path than the one changed | The unchanged path still delivers | Trace which code path actually produces the asserted bytes |
 
 ### Typed checker operations
 

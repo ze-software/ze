@@ -500,6 +500,116 @@ US English, with no exceptions in the repository: `color`, `behavior`,
 voice, which keeps UK English and which this page does not govern
 (`ai/rules/writing.md`).
 
+## Detail budget
+
+Write what changes the reader's next action, and write nothing else. Detail is a
+cost the reader pays, not proof that you did the work. A fact the reader can
+recover in seconds by opening the code does not get written down.
+
+- Cite a location so the reader can NAVIGATE, never to show that you looked.
+  Name the file and the symbol: `session.go` `Session.Run`. A line number is
+  correct when the line IS the fact, or when a gate or a generator pins it.
+- One example for one point. A second example earns its place only when it shows
+  a different reading.
+- When a directive can be read two ways, write both readings and name the one
+  that governs. More examples hide an ambiguity.
+- Do not make the same cut twice. When a table and a paragraph draw the same
+  distinction, keep the table and delete the paragraph.
+- State the obligation, name the gate, and stop. How a gate is implemented lives
+  in the code and its fixtures.
+- Report the conclusion, not the search. What you tried, in what order, and how
+  long it took are yours.
+- Give a count plus the exceptions, not a row per item. "12 call sites updated,
+  2 refused and listed below" is complete.
+- A pointer line points, and it does not summarise. An entry in `ai/INDEX.md`,
+  or in any other index, says what the target answers and then stops, under 120
+  characters after the link.
+- Ask for a decision the way you would ask a colleague. Say the thing, then the
+  reason. Drop the machinery from the sentence. Do not stack qualifiers. Plain
+  is not loose: say exactly what happened, in the words a person would use.
+
+Over budget means CUT. Do not split a long record into two documents.
+
+| Artifact | Contains | Budget |
+|----------|----------|--------|
+| Subagent report to the main thread | the conclusion, the evidence that would overturn it, open questions | under 40 lines |
+| Review finding | the claim, where it lives, how it fails | 3 lines |
+| Commit subject | what changed, imperative | one line |
+| Commit body | the defect, its cause, what the fix does | under 15 lines |
+| Known-failure shard | the failing output, the repro command, the next step | under 20 lines |
+| Learned summary | what the code cannot tell a future reader | 25 to 35 lines |
+| Index or pointer line | what the target answers | under 120 characters after the link |
+| Rule file | trigger, directives, one example for each | under 150 lines |
+
+These patterns are banned:
+
+| Banned | Why |
+|--------|-----|
+| Recounting dead ends, wrong hypotheses, or the order you tried things | The reader needs the answer, not the route to it |
+| Any sentence about the difficulty or the size of the work | It changes no action |
+| Restating a fact in the next paragraph, or "as noted above" | Say it once, in the place the reader looks first |
+| A line number for a claim the symbol name already locates | It rots at the next edit and forces a re-index |
+| Pasting a whole file, table, or log when the answer is one row | Quote the row |
+| A third example to settle an ambiguity that two readings would settle | The ambiguity survives, now hidden |
+
+## Comparison honesty
+
+A product comparison is advice, never marketing. A comparison can create tension
+between projects, so every claim helps the reader choose the right tool rather
+than make Ze look better.
+
+1. Cite every capability claim with a durable source. Prefer upstream source code
+   links for implemented behavior, and official feature documentation when the
+   code is not practical to cite. For an integrated product, cite the wrapper
+   surface and the integrated project where the runtime behavior lives. For VyOS
+   routing features, cite the VyOS config and templates plus FRR documentation
+   or source.
+2. State the comparison scope before the matrix. Name the inspected checkout,
+   release, branch, commit, docs page, or upstream feature page. Say that
+   `not found` means not found in the inspected scope.
+3. Label uncertainty instead of turning it into a gap. Use `Unclear` when the
+   evidence is incomplete, and `Partial` when a narrower feature exists that is
+   not equivalent. Separate similarly named features, such as IS-IS L1/L2 route
+   leaking against cross-VRF route leaking.
+4. Do not cherry-pick categories to favor Ze. Include the other products'
+   equivalent strengths, say where Ze is behind and cite the evidence, and
+   describe delegation to an integrated daemon neutrally.
+5. Make a wide table user-controllable. A page with three or more product
+   columns provides keyboard-accessible controls to hide products, and those
+   controls never delete evidence from the source document.
+
+Every row carries its evidence or an explicit caveat, and a row with neither is
+removed. A public comparison opens with its inspected scope, near the top:
+
+    Scope: inspected <projects/versions/paths>. Claims cite code or official
+    docs. Integrated products cite their integration surface and the integrated
+    implementation when relevant. `Not found` means not found in this inspected
+    scope.
+
+## Config examples in docs
+
+Write every config example one statement per line, and do not collapse it onto
+one line. The multi-line form is the house style. An agent that reflows an
+example onto one line, followed by an agent that reflows it back, costs two
+diffs and tells the reader nothing.
+
+The one-line form is also a syntax error unless the last statement carries its
+semicolon. Automatic semicolon insertion fires at a newline, so a closing brace
+on the same line as the statement it closes ends the block before the statement
+ends. Measured with a built `ze config validate`:
+`attach process bgp-rr { receive [ update ] }` is refused with
+"expected ';' after receive, got RBRACE", and
+`attach process bgp-rr { receive [ update ]; }` is accepted. An operator copies
+what a guide shows, so a guide never shows the refused form.
+
+An inline mention inside a sentence or a table cell can stay on one line, and it
+then carries the semicolon: `internal rib { use bgp-rib; }`. Reflowing a phrase
+into a block would break the sentence around it.
+
+Every config example in `docs/` parses, and an excerpt parses inside the
+smallest complete config that carries it. Build the binary and run
+`ze config validate` over that config before you publish the example.
+
 ## How to check your writing
 
 | Command | What it does |
@@ -521,6 +631,13 @@ MUST, or the noun `setup` teaches its readers to ignore it.
 When a document must quote non-conforming text at length, exempt it with
 `<!-- ste: ignore-file <reason> -->` on its own line. The reason is required.
 
+A document that is DELETED when its work closes is out of scope, and rewriting
+its prose is wasted work. `plan/spec-*.md`, `plan/deferrals/` and
+`plan/known-failures/` are excluded in `internal/le/ste/ste.go`.
+`plan/journal/`, `plan/learned/` and `plan/TEMPLATE.md` stay in scope: they
+outlive every spec and are read by sessions that were not there.
+<!-- source: internal/le/ste/ste.go -- excluded plan trees -->
+
 ## Lineage
 
 This standard follows the discipline of Simplified Technical English, the
@@ -528,5 +645,18 @@ controlled-language standard ASD-STE100. The aerospace industry wrote it for
 maintenance documentation that a non-native reader must understand the first
 time. The rules are restated in Ze's words, and every example is written for Ze's own
 surfaces. Where a question is not answered here, the
-published standard is the authority, and `ai/rules/writing.md`
-records where to get it.
+published standard is the authority.
+
+ASD gives Issue 9 (2025-01-15) at no cost from `https://www.asd-ste100.org`, and
+the direct file is
+`https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf`. It carries 53
+writing rules in 9 sections, about 900 approved words, and about 1200
+unapproved words with their alternatives.
+
+The document is copyright (c) ASD 2025, and Ze holds no reproduction right. The
+special usage rights cover ASD, AIA and ICCAIA members and their customers,
+ministries of defense, airworthiness authorities, and universities. Ze is in
+none of those categories, so the PDF, its text and its dictionary stay out of
+the tracked repository. Keep the local copy in `tmp/asd-ste100/`, which
+`.gitignore` excludes. Naming the standard is free, and copying its text is
+not.

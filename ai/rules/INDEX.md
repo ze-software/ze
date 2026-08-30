@@ -13,11 +13,11 @@ full before acting on a topic it covers.
 | Running Commands | running any test, build, lint, or verification command from Bash, or writing a shell loop that forks or waits | blocking | `ai/rules/commands.md` |
 | Finishing Work | before claiming any work done, complete, or ready to commit, and whenever a defect, a red test, or a missing behavior blocks that claim | blocking | `ai/rules/completion.md` |
 | Configuration and YANG | adding or changing a config option, YANG module, env var, listener endpoint, or code that reads config values | blocking | `ai/rules/config.md` |
-| Context Economy | spawning an agent, batching tool calls, looking up a symbol, reading a source file, or running a shell command in a long session | blocking | `ai/rules/context-economy.md` |
+| Context Economy | spawning an agent, looking up a Go symbol, or deciding how much of a file to read | blocking | `ai/rules/context-economy.md` |
 | Documentation First | before you spawn an agent or open a search to learn how a surface works, and whenever an edit changes behavior a page describes | blocking | `ai/rules/documentation.md` |
 | Evidence and Guards | stating what code does, acting on recorded claims, writing or reviewing a guard, or writing any string that enumerates data a registry already holds | blocking | `ai/rules/evidence.md` |
 | Git Safety | before any git operation, and when writing or running a commit script | blocking | `ai/rules/git-safety.md` |
-| Go Standards | writing Go in Ze: naming, env access, context, logging, imports, errors, API contracts, typed-vs-string choices, file layout and cross-references, compatibility shims, or a Go compiler bump | blocking | `ai/rules/go-standards.md` |
+| Go Standards | writing Go in Ze: naming, env access, logging, imports, typed-vs-string choices, external commands, or a compatibility shim | blocking | `ai/rules/go-standards.md` |
 | Goroutine Lifecycle | before writing `go func()` anywhere | blocking | `ai/rules/goroutine-lifecycle.md` |
 | Interop Testing and Goal Validation | implementing or changing protocol behavior, and when validating that a spec's stated goals are met | blocking | `ai/rules/interop-and-goal-validation.md` |
 | Never Destroy Uncommitted Work | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work | blocking | `ai/rules/never-destroy-work.md` |
@@ -25,12 +25,13 @@ full before acting on a topic it covers.
 | Memory and Encoding | before writing buffer, pool, allocation, string-building, or wire-encoding code | blocking | `ai/rules/performance.md` |
 | Specs and Phases | before implementing any non-trivial feature, and whenever a spec phase starts, resumes, or closes | blocking | `ai/rules/planning.md` |
 | Linux, QEMU and the Appliance | writing Linux-only code, changing the installer initrd, or bumping and booting an appliance dependency | blocking | `ai/rules/platform-linux.md` |
-| Plugins | creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate | blocking | `ai/rules/plugins.md` |
+| Plugins | "creating or changing a plugin: its registration, placement, transport, command surface, process boundary, dispatch table, or a feature gate" | blocking | `ai/rules/plugins.md` |
 | Pre-Release, and the Product Is the Deliverable | when a test or a gate goes red, when you are about to re-run a check, or when you are deciding what a commit owes | blocking | `ai/rules/pre-release.md` |
-| Pre-Commit Verification | before running precommit-verify, judging its red in a shared checkout, or running the tracked-build check after a commit script | blocking | `ai/rules/precommit-verify.md` |
+| Pre-Commit Verification | before running the verification gate, or after running a commit script that carried Go | blocking | `ai/rules/precommit-verify.md` |
+| Principles | before any decision about how to build, test, verify, or report work in this repository | blocking | `ai/rules/principles.md` |
 | Protocol Implementation | implementing or changing a protocol, an external API, a wire format, or a backend that applies operator config | blocking | `ai/rules/protocol.md` |
 | Quality Standards | before presenting any work as complete | blocking | `ai/rules/quality.md` |
-| Repository Maintenance | adding or changing a feature, tool, gate, hook, runtime dependency, or generated file, looking up which check enforces a rule, or reporting development friction | blocking | `ai/rules/repo-maintenance.md` |
+| Repository Maintenance | adding or changing a feature, tool, gate, or generated file, or editing a canonical source whose generated files need a resync | blocking | `ai/rules/repo-maintenance.md` |
 | RFC Compliance (every protocol, not just BGP) | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements | blocking | `ai/rules/rfc-compliance.md` |
 | Rule File Format | authoring or editing any rule: a point file under `ai/rules/points/`, its manifest, or a check's binding comment | blocking | `ai/rules/rule-format.md` |
 | Rule Precedence | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue | blocking | `ai/rules/rule-precedence.md` |

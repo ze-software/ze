@@ -315,7 +315,7 @@ all render it.
 | `./le repository tracked-build` | `internal/le/repository/trackedbuild.Answer` | the tree git holds compiles in every shipped flavor, so a consumer committed without its producer is caught before anybody else builds the commit |
 | `./le rfc` | `internal/le/rfc.Answer` | RFC conformance: bind every MUST-level requirement of an enrolled RFC to the tests that enforce it, and bound what the summaries missed |
 | `./le rules` | `internal/le/rules.Answer` | the rule corpus in ai/rules/: lint and render it, map hook enforcement, and report matched rules unread in a session transcript |
-| `./le scratch` | `internal/le/scratch.Answer` | keep disposable scratch and durable caches outside the checkout without overwriting existing work |
+| `./le scratch` | `internal/le/scratch.Answer` | keep disposable scratch and durable caches outside the checkout without overwriting existing work, and empty both Go build caches when the cache disk fills |
 | `./le session` | `internal/le/session.Answer` | manage this development session's isolated state |
 | `./le setup` | `internal/le/setup.Answer` | install and verify every tool a Ze dev or test workflow needs |
 | `./le site facts` | `internal/le/site/facts.Answer` | the numbers the website publishes about this repository: derive them into website/data/repo-facts.json, or check what has gone stale in it |
@@ -629,3 +629,50 @@ Session markers: `tmp/session/.session-<ID>` map sessions to specs. `./le spec s
 reads the claim, `./le spec session state current` locates this session's state, and
 `./le spec session state latest spec <spec-file>` locates the newest prior state. The
 producer is `internal/le/spec/session/`.
+
+## Project Facts (no rule carries these)
+
+Trivia that costs a session to rediscover. Moved here from `ai/rules/repo-maintenance.md`
+on 2026-08-30, because a lookup is not a rule.
+
+- **Family registration** is dynamic via `PluginRegistry.Register()` -- never enumerate, validate format only.
+- **Config pipeline**: File -> Tree -> `ResolveBGPTree()` -> `map[string]any` -> `reactor.PeersFromTree()`. Files: `internal/component/bgp/config/{resolve,peers}.go`, `.../reactor/config.go`.
+- **Linter hook**: `postFormatGo` in `internal/le/hookruntime/postwrite.go` runs gofmt, `goimports -format-only`, and changed-code lint on Edit/Write. Imports are not auto-removed, so add an import and its use in the same edit.
+- **Arch-0**: 4 components (Engine, ConfigProvider, PluginManager, Subsystem). Subsystem != Plugin (BGP daemon = subsystem; bgp-rib/rs/gr = plugins). Stream system = pub/sub backbone (`internal/component/plugin/server/dispatch.go`). Interfaces in `pkg/ze/`.
+- **YANG choice/case**: `mandatory true` and inner-choice exclusivity are NOT enforced by the walker. Plugins using `choice` add Go-side validation in their parser. `ze config validate` does not invoke `OnConfigVerify`.
+- **Constants for command/status names** -- literals catch typos at compile time. Editor commands: `internal/component/cli/model.go`. Plugin status: `plugin.StatusDone`/`StatusError`.
+- **Proximity**: `bgp/handler/` is a middleman; handlers belong in `bgp/plugins/`. ALL RPCs need YANG.
+- **Inventory**: `./le inventory [--json]` imports `plugin/all` and queries real registries. Use it for plugin counts, RPC totals, family coverage.
+- **SDK type aliases** (`pkg/plugin/sdk/sdk_types.go` re-exporting `rpc.*`) are intentional -- external plugins import only `sdk`. They are not identity wrappers.
+- **No filtered/noexport route tracking** -- Ze does not store import-filtered or export-filtered routes (unlike BIRD's "import keep filtered on"): the RIB pipeline has scope keywords (sent/received/sent-received) and filter stages, but no "filtered" scope. The birdwatcher-compatible endpoints `/routes/filtered/{name}` and `/routes/noexport/{name}` return empty lists for compatibility; if filtered tracking ever lands, point them at the real store.
+- **Gokrazy appliance owns process lifecycle** -- ze deploys as a gokrazy appliance: no systemd, no init system, no package manager. Any external process ze depends on (VPP or future dependencies) is exec'd, supervised, and cleaned up by ze itself; ze is never designed around an OS-level process manager.
+- **Stress tooling is native Go**: `internal/le/integration/stress.go` owns stress orchestration, and the BGP UPDATE stream is generated inside `ze-test peer --mode inject`. Extend the Go injector for a new scenario with a pool-friendly byte builder, one pre-allocated buffer, one TCP writer, and a keepalive goroutine. Run it through `./le integration stress`.
+- **CLI dispatch discoverability gaps**: (1) no one-shot command against a RUNNING daemon (`ze cli -c "summary"` shape). `ze show` and `ze run` use SSH (`sshclient.ExecCommand`) internally but expose no shell one-liner. The offline-config half is covered by `ze config show <file> [path...]`. (2) `ze help --ai --api` prints YANG RPC names (`ze-bgp:overview`), not the dispatch strings users type. (3) No way to list the Dispatcher's match keys. `reactor.ExecuteCommand()` accepts strings undiscoverable without reading source. The highest-value fix is the one-shot daemon command (SSH port 2222, credentials from the zefs database).
+
+### Mistakes that recur, and their corrections
+
+One line each. The full class, with reproduction and fix, is in `plan/learned/RECURRING-PATTERNS.md`
+and the matching `plan/journal/` class file. A mistake-log entry is one line: the lesson, then the
+rule it points at.
+
+- **"Linux-only tests cannot run on this macOS host" is false** (RECURRING, ZERO TOL). Mark kernel-dependent `.ci` cases with `option=needs-linux`, use `./le qemu netns-test suites <names>` for a focused pass, and `./le qemu all-tests` for the full guest proof. Never dismiss such a failure as environmental.
+- **Feature not wired** (RECURRING, ZERO TOL). Unit tests are not wiring. Name the user entry point.
+- **Daemon command without offline CLI** (sysctl-0). Every `CommandDecl` plugin needs a `cmd/ze/<name>/` offline entry point.
+- **Wrong production path** (rib-04). Grep ALL implementations; trace the consumer's call chain.
+- **Count-only test assertions** (addpath-rib). Assert on content (keys/values), not `Len()`.
+- **Wrapper struct pattern** (alloc-4). Pass raw bytes and existing iterators; do not wrap data in accessor types.
+- **Tests-pass is not done** (RECURRING). Tests are step 10 of 12: docs, spec, summary and audit follow.
+- **Mechanism-not-behavior test** (prefix-limit). Assert the AC, not a code-path proxy. A no-op that passes is the wrong test.
+- **Plugin placement anchor bias** (jsonrpc). Apply the "delete the folder" test. Cross-cutting -> `internal/component/`. Domain -> `bgp/plugins/`. Infra -> `internal/core/`.
+- **Docs from assumption** (RECURRING). Read the source before any factual claim.
+- **Reinventing repo contents** (lg-overhaul). Grep existing code before writing new infra; `third_party/` and the components often already have it.
+- **Spec claimed complete with gaps** (lg-0..4). A learned summary saying "future X" means the spec is NOT done.
+- **Stale deferrals** (redist-phase2). Grep the code before creating a phase-N spec out of open deferrals.
+- **Same-day blocker fix** (cmd-4, RECURRING). An adversarial review races on reactor code, greps renamed-name consumers and sibling call sites, and breaks production to confirm the `.ci` test fails.
+- **Substring collision in bulk edits** (iface-tunnel). Match the longest prefix first, or add non-name context, then grep for mangled names afterwards.
+- **Vendor is not upstream** (iface-tunnel). Verify behavior against `vendor/<lib>/`, not upstream docs, and cite the vendor path.
+- **Naive reconciliation drops live state** (iface-tunnel). Diff the new config against the previous one and act on the delta; pass `previous` explicitly.
+- **Invented config shape** (iface-tunnel). Grep the existing `*-conf.yang` files for the closest analog before defining a new endpoint shape.
+- **Scratch `.go` in `tmp/`** (iface-tunnel). `go test ./...` walks `tmp/`; research agents write `.txt` or build-tagged directories.
+- **CLI grammar from container nesting, not wire method** (as112-cli-audit). Operator-facing command words come from the YANG `container` tree; `ze:command "ze-X:Y"` is the INTERNAL RPC name and is deliberately different (`ze-bgp:peer-teardown` is the command `request peer teardown`). The top-level operational verb is `request` (`request <object> <action>`); reads are `show`/`monitor`.
+- **ExaBGP migration sync** (exabgp-compat-sync). When ExaBGP adds a SAFI or route type, update three things: the `exabgp.yang` schema container, the `flexSafis` list or a dedicated `convert*ToUpdate` in `migrate_routes.go`, and the compat test files (`.ci` + `.conf`). `ai/patterns/bgp-family.md` Section 5b.

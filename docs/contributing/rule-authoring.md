@@ -149,6 +149,95 @@ introduces is decidable at write time. Run the pass alone with:
 
     ./le rules lint
 
+## The rule header
+
+The manifest frontmatter produces the header of the rendered rule. It carries
+these elements, in this order:
+
+| Element | Requirement |
+|---------|-------------|
+| `# Title` | First non-blank line, a single H1. It does not contain "BLOCKING": `**Severity:**` carries that, and no tool can read a title marker |
+| `**When:** <trigger>` | Required. One line. The SITUATION that makes this rule apply, phrased so an agent can match it against the task at hand |
+| `**Severity:** blocking\|advisory` | Required. `blocking` means a gate or hook enforces it, or violating it breaks correctness. `advisory` means a strong convention. It agrees with the prose: a rule whose body says BLOCKING does not declare `advisory` |
+| `**Related:** slug, slug` | Optional. Comma-separated rule slugs (the filename without `.md`), never paths |
+
+A line that legitimately describes ANOTHER artifact's severity is marked
+`<!-- severity-note: whose severity this is -->`. `internal/le/rules/lint.go`
+reads the RENDERED rule, so an unmarked line reads as this rule's own severity.
+The marker is line-scoped on purpose. A file-scoped opt-out would silently cover
+every later addition to that file.
+
+## The trigger is a routing key
+
+`**When:**` is not a summary, and it is not the rule's first directive. It names
+a situation and nothing else. It is the only field an agent matches against the
+task in hand before it decides whether to open the file.
+
+| Requirement | Why |
+|-------------|-----|
+| Start with a temporal opener (`when`, `whenever`, `before`, `after`, `while`, `during`, `if`, `once`, `unless`, `upon`, `on`, `at`, `any/every/each time`, `prior to`, `as soon as`) or a gerund (`writing`, `adding`, `reviewing`, `naming`, `closing`) | A uniform opening makes the column scannable, and both forms force a situation rather than an assertion |
+| Name what the author is DOING, or what has HAPPENED, never what they are obliged to do | "All CLI commands MUST follow these patterns" matches every task and therefore routes nothing. "adding or changing a CLI subcommand, flag, or exit code" routes |
+| One complete clause, one line | A trigger that ends on a comma, a dangling `by`, `with` or `the`, or an unbalanced `**` was copied out of a wrapped bold body line |
+| Do not restate the directive | The directive belongs under `## Directives`, where the digest picks it up. A copy in the trigger costs tokens in every session and routes nothing |
+
+A reference rule (a lookup table, a glossary, an architecture summary) carries a
+trigger too, phrased as the moment you would reach for it: "looking up which
+check enforces a rule", "reasoning about where a component sits".
+
+Score a candidate trigger before you split a section into a rule of its own.
+`distinctive_terms` (`internal/le/rules/artifacts.go`) drops every trigger term
+that too many other triggers share, and `unreachable_blocking` names each
+blocking rule no past task would surface. `core_members` then makes exactly that
+set always-on, so a split whose trigger scores nothing returns the new rule to
+the core at full size and saves nothing. `./le rules router-report` prints the
+set and the corpus it read.
+
+## The body budget
+
+The lint caps the trigger line, and nothing caps the body. These are the
+author's to keep:
+
+| Requirement | Why |
+|-------------|-----|
+| One example for one point. A second example earns its place only by showing a DIFFERENT reading | A second instance of the same reading teaches nothing and enters every session through the digest |
+| An ambiguous directive gets both readings and a statement of which governs, never a third example | Examples hide an ambiguity. Named readings end it |
+| One table per distinction. Delete the paragraph that repeats the table | Two statements of one cut drift apart, and then the reader has to decide which is current |
+| State the obligation and name the gate. Never narrate the gate's implementation | Flags, exit codes, guard order and line offsets live in the code and its fixtures. A rule that copies them holds a stale second copy |
+| A point says what to DO next, and it carries no history | A rule enters EVERY session's context. Route the date a mechanism changed, the post-mortem count, and the account of why the old way failed to `plan/learned/`, `plan/journal/`, `ai/rationale/` or the spec |
+
+A rule over about 150 lines is carrying reference material. Move its tables to
+`docs/` and link them, or split the rule at its real seam.
+
+An always-on rule holds prohibitions, and a PROCEDURE lives in its own rule
+under its own trigger. `core_members` derives eagerness from the precedence
+ladder, so a procedure written inside a rung-1 rule is loaded in full by every
+session that will never carry it out. The ban earns its permanent seat because
+acting without it is unrecoverable, and the how-to is one Read away for the
+session that reaches the work.
+
+### Write so the directive reaches the digest
+
+The metadata block is contiguous and immediately follows the title, with at most
+one blank line between them. Prose, tables and headings never sit between the
+title and the block.
+
+Imperative content goes under `## Directives`, or under the rule's own directive
+sections. That is what the digest artifacts carry. The "why" goes under
+`## Rationale`, and code under `## Examples`. The digest DROPS both sections,
+fenced code blocks, and `Rationale:` or `See:` pointer lines, so anything an
+agent has to obey belongs in a directive section.
+
+Write directives as bullets, table rows, or `**bold**` lines. Those reach the
+digest verbatim, and prose does not. The condenser keeps only the FIRST prose
+paragraph of each section, truncated to its first sentence or 220 characters,
+and it drops every later prose paragraph in that section outright
+(`condense_body` and `flush_prose`, `internal/le/rules/artifacts.go`).
+
+Keep each bullet on ONE physical line when its full text has to reach the
+digest. A wrapped bullet's continuation lines do not match the list-item
+pattern, so they are read as prose and are dropped or truncated by the paragraph
+rule above. A long single line is correct here. Do not wrap it for looks.
+
 ## What the renderer refuses
 
 `internal/le/rules.Answer` fails closed rather than rendering a partial rule.

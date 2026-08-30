@@ -3,7 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-**A change MUST update the document its row names:**
+**A change MUST update the document its row names when it changes user or agent behavior, changes an architecture contract, invariant or documented data flow, makes existing documentation stale, or adds a surface users or agents have to discover.** A private implementation change that meets none of those triggers needs no prose. Name the file and the section and describe the change: "update documentation" is not an instruction. Every spec carries the Documentation Update Checklist from `plan/TEMPLATE.md`, each row answered Yes or No, and each Yes naming the file and what to add.
 
 | # | Category | Location | When to update |
 |---|----------|----------|----------------|

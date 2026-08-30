@@ -3,16 +3,6 @@ kind: directive
 level: MUST
 stage:
 ---
-- **Prefer registered `./le` actions. A bare `go test` omits Ze's feature build tags and produces phantom reds in unrelated packages.**
-- **Never pipe a test/build command through `head`/`tail`/`grep`/`awk`/`sed`/`cat` -- run clean, read the log.**
-- **Never write a shell for-loop that forks an external command per iteration when a single invocation can process all inputs.**
-- **Never poll for work you launched. A Bash command started with `run_in_background` re-invokes the session when it exits, so that notification IS the wait.**
-- **A loop that watches the same command adds a process and reports nothing the notification does not already carry.**
-- **Never write a `while` or `until` loop that calls `sleep`, and never put `pgrep` in a loop condition.**
-- **A poll that is genuinely the only available signal MUST die on its own. Wrap it in `timeout <seconds>`.** An unbounded watcher outlives the reason it was started for, because the session that started it has moved on.
-- **Stop a watcher the moment its reason changes.** `TaskStop` the background task. "It will end eventually" is how four of them come to tick at once.
-- **One watcher at a time, and never faster than one wake every 30 seconds.** Each wake competes with QEMU, Docker and `./le verify current mode full` for the same cores. That contention is what makes the functional suites flaky, so a watcher can corrupt the run it is watching.
-- **Foreground `sleep` is blocked by the harness because waiting is not work.** Reaching for a loop to win the sleep back inverts that intent. Do other work, or end the turn.
-- **The harness's own examples are unbounded, and this repo overrides them.** The Bash tool text prescribes an `until` loop when a foreground `sleep` is refused, and the `Monitor` schema shows `until grep -q ...; do sleep 0.5; done`. Both are refused here, and one word fixes both: `timeout`. The 30-second floor governs a watcher that spawns a process per wake (`pgrep`, `docker`, `curl`); a local file test inside a bound can be faster.
-- **Run `./le verify lint run` before claiming any Go implementation work is done.**
-- **Fix every issue it reports. Do not claim done with lint failures outstanding.**
+- **Every test, build, lint or verify command MUST run through the registered `./le` action that owns it.** A bare `go test` omits Ze's feature build tags, so plugins never register and unrelated packages fail with a phantom red; a `ze-test` runner launched directly rebuilds a daemon without its test-only surface and gives a convincing false red; a bare `golangci-lint` inherits host defaults and reports an environment failure as a code finding. The tag list, the suite table and the log paths are `docs/contributing/running-commands.md`.
+- **A command started with `run_in_background` re-invokes the session when it exits, so that notification IS the wait: a polling loop MUST NOT be written.** No `while` or `until` around `sleep`, no `pgrep` in a loop condition, and no shell loop that forks one process per input where one invocation takes them all.
+- **The harness's own Bash and Monitor examples show an unbounded `until ... sleep` loop, and this repository overrides them.** A poll that is genuinely the only signal MUST be wrapped in `timeout <seconds>`, MUST NOT wake faster than once every 30 seconds, and MUST be stopped the moment its reason changes. Each wake competes with QEMU, Docker and the verify gate for the same cores, so a watcher can corrupt the run it watches.

@@ -120,6 +120,18 @@ that fixes that bound, and it is a precondition of a new enrolment
 | Read the published backlog | `ai/RFC-REQUIREMENTS.md`, "Extraction sign-off" |
 | Read the counts machine-readably | `./le rfc extraction-status` |
 
+Before you enrol `rfc/short/<stem>.md` in `rfc/enrolled.txt`, walk the RFC's own
+text section by section and confirm that every MUST, MUST NOT, SHALL, SHALL NOT
+and REQUIRED has a checklist row. When `rfc/full/` lacks the source, fetch it
+first, because "verified against the RFC" is not reproducible without it:
+
+    curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt
+
+Summaries enrolled before the gate existed are grandfathered and published as a
+counted backlog. Grandfathering is implemented as SCOPE (new since HEAD), never
+as an allowlist file, so nothing is added to a list of exceptions when an RFC
+stops being one.
+
 The contract is `rfc/extraction/README.md`. Five properties are worth knowing
 before you meet one:
 

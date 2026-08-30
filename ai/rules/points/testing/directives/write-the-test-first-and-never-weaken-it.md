@@ -3,9 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-- **Tests MUST exist and fail before implementation.**
-- **Every user-facing behavior MUST have a functional test that exercises it through a user entry point. Unit tests (`_test.go`) prove internal logic. Functional tests (`.ci`, `.et`) prove the feature works end-to-end through the daemon. Both are required. Neither substitutes for the other.**
-- **A red test means the CODE is wrong by default. MUST diagnose the failure and fix the source. MUST NOT weaken the test to make it green. MUST ask the user before deleting OR weakening any test code (`*_test.go`, `.ci`, `Test*`, `t.Run`, assertions, table entries). Exception: the user already explicitly requested it.**
-- **A test that cannot run on every OS MUST either carry a build tag (`//go:build linux`) on its file, or skip (`t.Skip`) with a reason on the OSes where it cannot run. MUST NOT weaken the assertion to accept both outcomes.**
-- **Every `time.sleep(` call in a `.ci` test MUST have an explanatory comment on the line directly above it, or trailing it on the same line. A bare sleep with no comment is rejected.**
-- **A load-dependent failure is DIAGNOSED, and the outcome is always a fix. Load-dependence is the diagnosis (the test asserts on elapsed time instead of on state), and `ai/rules/completion.md` bans recording it as a `plan/known-failures/` shard, bans "passes in isolation" as a conclusion, and bans raising the timeout. MUST reproduce it with the stress reproducer, then fix the timing assumption.**
+- **A test MUST exist and MUST go red before the code that satisfies it is written.** A test that passes the moment it is written proves nothing about the code, so it MUST be strengthened until it fails.
+- **A red test means the CODE is wrong. MUST NOT weaken, skip, retarget, or delete a test to reach green, and MUST ask the user before deleting or weakening any `*_test.go`, `.ci`, or `.et` content.**
+- **A change MUST NOT be claimed done on unit tests alone.** A unit test proves the logic; only a `.ci` or `.et` proves the daemon exposes the behavior through the entry point an operator uses. Which suite runs which format, and what each one asserts, is `docs/functional-tests.md`.
+- **A test that cannot run everywhere MUST carry `//go:build linux` on its file or `t.Skip` with a reason, and its assertion MUST NOT be widened to accept both outcomes.**

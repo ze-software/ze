@@ -5,13 +5,8 @@ severity: blocking
 ---
 directives ## Directives
   never-destroy-uncommitted-work-without-permission
+  treat-these-files-as-user-work
+  excuses-for-destroying-work-and-why-each-fails
+  ask-for-permission-rather-than-leaving-the-file
 forbidden-without-explicit-permission ## Forbidden Without Explicit Permission
   ask-before-deleting-or-overwriting-user-work
-what-counts-as-work-the-user-paid-for ## What Counts as "Work the User Paid For"
-  treat-these-files-as-user-work
-  files-that-do-not-count-as-user-work
-bad-reasoning-that-triggers-this-rule ## Bad Reasoning That Triggers This Rule
-  excuses-for-destroying-work-and-why-each-fails
-when-deletion-is-the-correct-fix ## When Deletion Is The Correct Fix
-  ask-for-permission-rather-than-leaving-the-file
-  state-the-situation-and-ask-when-unsure

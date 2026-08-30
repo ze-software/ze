@@ -1,10 +1,6 @@
 ---
 kind: directive
-level: MUST NOT
+level: MUST
 stage:
 ---
-**A scratch file MUST go under the project's gitignored `tmp/`, and the system
-`/tmp` MUST NOT be used.** A subfolder per debugging task
-(`tmp/watchdog-debug/`) isolates artifacts from each other but not from a sibling
-session, so it goes under this session's own directory unless the artifact has to
-outlive the session.
+- **A scratch file MUST go under this session's own directory, and the system `/tmp` MUST NOT be used.** `dir=$(./le session scratch ensure)` prints the `scratch/` subdirectory of `tmp/session/<YYYY-MM-DD>-<session-id>/`. A fixed name at the `tmp/` root is the failure this replaces: it names the same file for every session in the checkout. `bashScratch` and the Write/Edit scratch check in `internal/le/hookruntime` refuse that path.
