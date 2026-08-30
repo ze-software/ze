@@ -47,7 +47,67 @@ const (
 	cmdClearNeighbor           = "clear ospf neighbor"
 	cmdClearCounters           = "clear ospf counters"
 	cmdGRPrepare               = "request ospf graceful-restart"
+
+	cmdShowDatabaseRouter       = "show ospf database router"
+	cmdShowDatabaseNetwork      = "show ospf database network"
+	cmdShowDatabaseSummary      = "show ospf database summary"
+	cmdShowDatabaseASBRSummary  = "show ospf database asbr-summary"
+	cmdShowDatabaseExternal     = "show ospf database external"
+	cmdShowDatabaseNSSAExternal = "show ospf database nssa-external"
+	cmdShowDatabaseOpaqueLink   = "show ospf database opaque-link"
+	cmdShowDatabaseOpaqueArea   = "show ospf database opaque-area"
+	cmdShowDatabaseOpaqueAS     = "show ospf database opaque-as"
+
+	cmdShowDatabaseOpaqueAreaDetail = "show ospf database opaque-area detail"
+	cmdShowDatabaseOpaqueASDetail   = "show ospf database opaque-as detail"
+	cmdShowDatabaseOpaqueLinkDetail = "show ospf database opaque-link detail"
+	cmdShowSPFDetail                = "show ospf spf detail"
+	cmdShowNeighborDetail           = "show ospf neighbor detail"
+	cmdShowInterfaceDetail          = "show ospf interface detail"
+
+	cmdShowIPv6Database               = "show ospf ipv6 database"
+	cmdShowIPv6DatabaseDetail         = "show ospf ipv6 database detail"
+	cmdShowIPv6DatabaseRouterDetail   = "show ospf ipv6 database router detail"
+	cmdShowIPv6DatabaseScopeLink      = "show ospf ipv6 database scope link"
+	cmdShowIPv6DatabaseScopeArea      = "show ospf ipv6 database scope area"
+	cmdShowIPv6DatabaseScopeAS        = "show ospf ipv6 database scope as"
+	cmdShowIPv6DatabaseRI             = "show ospf ipv6 database router-information"
+	cmdShowIPv6DatabaseExtended       = "show ospf ipv6 database extended"
+	cmdShowIPv6DatabaseSegmentRouting = "show ospf ipv6 database segment-routing"
+	cmdShowIPv6Instance               = "show ospf ipv6 instance"
+	cmdShowIPv6Neighbor               = "show ospf ipv6 neighbor"
+	cmdShowIPv6NeighborDetail         = "show ospf ipv6 neighbor detail"
+	cmdShowIPv6InterfaceDetail        = "show ospf ipv6 interface detail"
+	cmdShowIPv6SPF                    = "show ospf ipv6 spf"
+	cmdShowIPv6SPFDetail              = "show ospf ipv6 spf detail"
+
+	cmdDebugInjectOpaque  = "debug ip ospf inject opaque"
+	cmdDebugInjectLSA     = "debug ipv6 ospf inject lsa"
+	cmdDebugInjectEnable  = "debug ospf inject enable"
+	cmdDebugInjectDisable = "debug ospf inject disable"
 )
+
+// The names OSPF uses for one concept across its metric labels, its YANG leaves
+// and its CLI keywords. One spelling each, so a metric and the leaf it reports
+// on cannot drift apart.
+const (
+	labelArea        = "area"
+	labelDirection   = "direction"
+	labelFamily      = "family"
+	labelInterface   = "interface"
+	labelKind        = "kind"
+	labelOpaqueType  = "opaque_type"
+	labelReason      = "reason"
+	labelScope       = "scope"
+	labelState       = "state"
+	labelTransitArea = "transit_area"
+)
+
+// dependencyConfigTree is the plugin every OSPF doctor check reads its input from.
+const dependencyConfigTree = "config-tree"
+
+// exampleDoctorJSON is the command every OSPF diagnostic code offers first.
+const exampleDoctorJSON = "ze doctor --json"
 
 func init() {
 	pluginserver.RegisterRPCs(
@@ -68,15 +128,15 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-ipv6-graceful-restart", Handler: forwardShowOSPFIPv6GracefulRestart, PluginCommand: cmdShowIPv6GracefulRestart},
 		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-segment-routing", Handler: forwardShowOSPFSegmentRouting, PluginCommand: cmdShowSegmentRouting},
 		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-ipv6-segment-routing", Handler: forwardShowOSPFIPv6SegmentRouting, PluginCommand: cmdShowIPv6SegmentRouting},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-router", Handler: dbSubviewForwarder("show ospf database router"), PluginCommand: "show ospf database router"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-network", Handler: dbSubviewForwarder("show ospf database network"), PluginCommand: "show ospf database network"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-summary", Handler: dbSubviewForwarder("show ospf database summary"), PluginCommand: "show ospf database summary"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-asbr-summary", Handler: dbSubviewForwarder("show ospf database asbr-summary"), PluginCommand: "show ospf database asbr-summary"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-external", Handler: dbSubviewForwarder("show ospf database external"), PluginCommand: "show ospf database external"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-nssa-external", Handler: dbSubviewForwarder("show ospf database nssa-external"), PluginCommand: "show ospf database nssa-external"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-link", Handler: dbSubviewForwarder("show ospf database opaque-link"), PluginCommand: "show ospf database opaque-link"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-area", Handler: dbSubviewForwarder("show ospf database opaque-area"), PluginCommand: "show ospf database opaque-area"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-as", Handler: dbSubviewForwarder("show ospf database opaque-as"), PluginCommand: "show ospf database opaque-as"},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-router", Handler: dbSubviewForwarder(cmdShowDatabaseRouter), PluginCommand: cmdShowDatabaseRouter},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-network", Handler: dbSubviewForwarder(cmdShowDatabaseNetwork), PluginCommand: cmdShowDatabaseNetwork},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-summary", Handler: dbSubviewForwarder(cmdShowDatabaseSummary), PluginCommand: cmdShowDatabaseSummary},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-asbr-summary", Handler: dbSubviewForwarder(cmdShowDatabaseASBRSummary), PluginCommand: cmdShowDatabaseASBRSummary},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-external", Handler: dbSubviewForwarder(cmdShowDatabaseExternal), PluginCommand: cmdShowDatabaseExternal},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-nssa-external", Handler: dbSubviewForwarder(cmdShowDatabaseNSSAExternal), PluginCommand: cmdShowDatabaseNSSAExternal},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-link", Handler: dbSubviewForwarder(cmdShowDatabaseOpaqueLink), PluginCommand: cmdShowDatabaseOpaqueLink},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-area", Handler: dbSubviewForwarder(cmdShowDatabaseOpaqueArea), PluginCommand: cmdShowDatabaseOpaqueArea},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-as", Handler: dbSubviewForwarder(cmdShowDatabaseOpaqueAS), PluginCommand: cmdShowDatabaseOpaqueAS},
 		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-router-information", Handler: dbSubviewForwarder(cmdShowDatabaseRI), PluginCommand: cmdShowDatabaseRI},
 		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-te-database", Handler: dbSubviewForwarder(cmdShowTEDatabase), PluginCommand: cmdShowTEDatabase},
 		pluginserver.RPCRegistration{WireMethod: "ze-clear:ospf-process", Handler: forwardClearOSPFProcess, PluginCommand: cmdClearProcess},
@@ -85,50 +145,50 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:graceful-restart-prepare", Handler: forwardOSPFGRPrepare, PluginCommand: cmdGRPrepare},
 
 		// spec-ospf-ext-14 IPv4 deep-introspection views.
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-area-detail", Handler: dbSubviewForwarder("show ospf database opaque-area detail"), PluginCommand: "show ospf database opaque-area detail"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-as-detail", Handler: dbSubviewForwarder("show ospf database opaque-as detail"), PluginCommand: "show ospf database opaque-as detail"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-link-detail", Handler: dbSubviewForwarder("show ospf database opaque-link detail"), PluginCommand: "show ospf database opaque-link detail"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-spf-detail", Handler: dbSubviewForwarder("show ospf spf detail"), PluginCommand: "show ospf spf detail"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-neighbor-detail", Handler: dbSubviewForwarder("show ospf neighbor detail"), PluginCommand: "show ospf neighbor detail"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-interface-detail", Handler: dbSubviewForwarder("show ospf interface detail"), PluginCommand: "show ospf interface detail"},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-area-detail", Handler: dbSubviewForwarder(cmdShowDatabaseOpaqueAreaDetail), PluginCommand: cmdShowDatabaseOpaqueAreaDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-as-detail", Handler: dbSubviewForwarder(cmdShowDatabaseOpaqueASDetail), PluginCommand: cmdShowDatabaseOpaqueASDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-database-opaque-link-detail", Handler: dbSubviewForwarder(cmdShowDatabaseOpaqueLinkDetail), PluginCommand: cmdShowDatabaseOpaqueLinkDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-spf-detail", Handler: dbSubviewForwarder(cmdShowSPFDetail), PluginCommand: cmdShowSPFDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-neighbor-detail", Handler: dbSubviewForwarder(cmdShowNeighborDetail), PluginCommand: cmdShowNeighborDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospf-interface-detail", Handler: dbSubviewForwarder(cmdShowInterfaceDetail), PluginCommand: cmdShowInterfaceDetail},
 
 		// spec-ospf-ext-14 IPv6 (OSPFv3) deep-introspection views. Distinct ze-show:ospfv3-*
 		// wire methods so the v4 and v6 surfaces cannot collide (AC-26, R-9).
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database", Handler: dbSubviewForwarder("show ospf ipv6 database"), PluginCommand: "show ospf ipv6 database"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-detail", Handler: dbSubviewForwarder("show ospf ipv6 database detail"), PluginCommand: "show ospf ipv6 database detail"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-router-detail", Handler: dbSubviewForwarder("show ospf ipv6 database router detail"), PluginCommand: "show ospf ipv6 database router detail"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-scope-link", Handler: dbSubviewForwarder("show ospf ipv6 database scope link"), PluginCommand: "show ospf ipv6 database scope link"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-scope-area", Handler: dbSubviewForwarder("show ospf ipv6 database scope area"), PluginCommand: "show ospf ipv6 database scope area"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-scope-as", Handler: dbSubviewForwarder("show ospf ipv6 database scope as"), PluginCommand: "show ospf ipv6 database scope as"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-router-information", Handler: dbSubviewForwarder("show ospf ipv6 database router-information"), PluginCommand: "show ospf ipv6 database router-information"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-extended", Handler: dbSubviewForwarder("show ospf ipv6 database extended"), PluginCommand: "show ospf ipv6 database extended"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-segment-routing", Handler: dbSubviewForwarder("show ospf ipv6 database segment-routing"), PluginCommand: "show ospf ipv6 database segment-routing"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-instance", Handler: dbSubviewForwarder("show ospf ipv6 instance"), PluginCommand: "show ospf ipv6 instance"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-neighbor", Handler: dbSubviewForwarder("show ospf ipv6 neighbor"), PluginCommand: "show ospf ipv6 neighbor"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-neighbor-detail", Handler: dbSubviewForwarder("show ospf ipv6 neighbor detail"), PluginCommand: "show ospf ipv6 neighbor detail"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-interface-detail", Handler: dbSubviewForwarder("show ospf ipv6 interface detail"), PluginCommand: "show ospf ipv6 interface detail"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-spf", Handler: dbSubviewForwarder("show ospf ipv6 spf"), PluginCommand: "show ospf ipv6 spf"},
-		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-spf-detail", Handler: dbSubviewForwarder("show ospf ipv6 spf detail"), PluginCommand: "show ospf ipv6 spf detail"},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database", Handler: dbSubviewForwarder(cmdShowIPv6Database), PluginCommand: cmdShowIPv6Database},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-detail", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseDetail), PluginCommand: cmdShowIPv6DatabaseDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-router-detail", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseRouterDetail), PluginCommand: cmdShowIPv6DatabaseRouterDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-scope-link", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseScopeLink), PluginCommand: cmdShowIPv6DatabaseScopeLink},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-scope-area", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseScopeArea), PluginCommand: cmdShowIPv6DatabaseScopeArea},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-scope-as", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseScopeAS), PluginCommand: cmdShowIPv6DatabaseScopeAS},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-router-information", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseRI), PluginCommand: cmdShowIPv6DatabaseRI},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-extended", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseExtended), PluginCommand: cmdShowIPv6DatabaseExtended},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-database-segment-routing", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseSegmentRouting), PluginCommand: cmdShowIPv6DatabaseSegmentRouting},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-instance", Handler: dbSubviewForwarder(cmdShowIPv6Instance), PluginCommand: cmdShowIPv6Instance},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-neighbor", Handler: dbSubviewForwarder(cmdShowIPv6Neighbor), PluginCommand: cmdShowIPv6Neighbor},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-neighbor-detail", Handler: dbSubviewForwarder(cmdShowIPv6NeighborDetail), PluginCommand: cmdShowIPv6NeighborDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-interface-detail", Handler: dbSubviewForwarder(cmdShowIPv6InterfaceDetail), PluginCommand: cmdShowIPv6InterfaceDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-spf", Handler: dbSubviewForwarder(cmdShowIPv6SPF), PluginCommand: cmdShowIPv6SPF},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:ospfv3-spf-detail", Handler: dbSubviewForwarder(cmdShowIPv6SPFDetail), PluginCommand: cmdShowIPv6SPFDetail},
 
 		// spec-ospf-ext-14 guarded LSA injection (both families). The inject proxies pass the
 		// trailing keyword-value tokens through as args; the read-only authz `deny debug`
 		// blocks them before dispatch (AC-16) and the engine debug-enablement is the 2nd gate.
-		pluginserver.RPCRegistration{WireMethod: "ze-debug:ospf-inject", Handler: forwardOSPFInjectV4, PluginCommand: "debug ip ospf inject opaque"},
-		pluginserver.RPCRegistration{WireMethod: "ze-debug:ospfv3-inject", Handler: forwardOSPFInjectV6, PluginCommand: "debug ipv6 ospf inject lsa"},
-		pluginserver.RPCRegistration{WireMethod: "ze-debug:ospf-inject-enable", Handler: dbSubviewForwarder("debug ospf inject enable"), PluginCommand: "debug ospf inject enable"},
-		pluginserver.RPCRegistration{WireMethod: "ze-debug:ospf-inject-disable", Handler: dbSubviewForwarder("debug ospf inject disable"), PluginCommand: "debug ospf inject disable"},
+		pluginserver.RPCRegistration{WireMethod: "ze-debug:ospf-inject", Handler: forwardOSPFInjectV4, PluginCommand: cmdDebugInjectOpaque},
+		pluginserver.RPCRegistration{WireMethod: "ze-debug:ospfv3-inject", Handler: forwardOSPFInjectV6, PluginCommand: cmdDebugInjectLSA},
+		pluginserver.RPCRegistration{WireMethod: "ze-debug:ospf-inject-enable", Handler: dbSubviewForwarder(cmdDebugInjectEnable), PluginCommand: cmdDebugInjectEnable},
+		pluginserver.RPCRegistration{WireMethod: "ze-debug:ospf-inject-disable", Handler: dbSubviewForwarder(cmdDebugInjectDisable), PluginCommand: cmdDebugInjectDisable},
 	)
 }
 
 // forwardOSPFInjectV4 proxies `debug ip ospf inject opaque ...` to the OSPF engine, passing
 // the trailing scope/id/type/hex tokens through as args (the inject grammar is variable).
 func forwardOSPFInjectV4(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return forwardToOSPFArgs(ctx, "debug ip ospf inject opaque", args)
+	return forwardToOSPFArgs(ctx, cmdDebugInjectOpaque, args)
 }
 
 // forwardOSPFInjectV6 proxies `debug ipv6 ospf inject lsa ...` to the OSPF engine.
 func forwardOSPFInjectV6(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return forwardToOSPFArgs(ctx, "debug ipv6 ospf inject lsa", args)
+	return forwardToOSPFArgs(ctx, cmdDebugInjectLSA, args)
 }
 
 // forwardToOSPFArgs proxies a command AND its trailing arguments to the OSPF engine (unlike
