@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-When a handoff must survive beyond the chat (multi-session work, work picked
-up days later), write it to `plan/handover/NN-<slug>.md` using the same template.
+- **A handoff that has to survive the chat MUST be written to `plan/handover/NN-<slug>.md`, with the same template.** Multi-session work, and work picked up days later, are the two cases.

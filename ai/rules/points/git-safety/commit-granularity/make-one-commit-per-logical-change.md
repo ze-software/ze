@@ -1,9 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Single-focus commits: one logical change per commit. Same system =
-one commit (feature + tests + docs). Multiple unrelated changes =
-multiple commits, not one bundle. Unrelated bug fix = separate commit.
-Review fixes from a review pass = one commit.
+**A commit MUST have a single focus: one logical change.** One system is one commit, carrying its feature, tests and docs together. Several unrelated changes are several commits, never one bundle. An unrelated bug fix is its own commit. The fixes from one review pass are one commit.

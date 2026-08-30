@@ -1,12 +1,7 @@
 ---
-kind: fence
-level:
+kind: directive
+level: MUST
 stage:
 ---
-```
-[ ] 3. Spec completion gate (if driven by a plan/ spec):
-      [ ] Journal row appended to plan/journal/<class>.md, its Spec cell naming the spec stem
-      [ ] Spec file staged for deletion (git rm)
-      Not done -> STOP.
-[ ] 4. Executive Summary Report (rules/planning.md). What was done, what is left.
-```
+- **Step 3. A commit driven by a `plan/` spec MUST carry a journal row appended to `plan/journal/<class>.md` whose Spec cell names the spec stem, and the spec file staged for deletion. Neither done, STOP.**
+- **Step 4. An Executive Summary Report MUST be written (`ai/rules/planning.md`): what was done, and what is left.**

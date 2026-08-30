@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-A rule over about 150 lines is carrying reference material. Move the tables to
-`docs/` and link to them, or split the rule at its real seam.
+**A rule over about 150 lines is carrying reference material. Its tables MUST be moved to `docs/` and linked, or the rule MUST be split at its real seam.**

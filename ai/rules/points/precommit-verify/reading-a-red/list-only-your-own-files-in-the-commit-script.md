@@ -1,12 +1,11 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Then prepare the commit script with `./le commit create`, listing ONLY this
-session's files as repeated `file <path>` pairs, so the commit never pulls in
-another session's working-tree edits. Exclude other sessions' files when
-reviewing `git diff`. This applies only when the global red is not yours -- a red
-caused by your own change must be fixed, not scoped around. Activate it only on an
-explicit owner direction (e.g. "another session is clearing ./le verify current mode full, check only
-what we changed"), never inferred from a red suite alone.
+**The commit script MUST list ONLY this session's files, as repeated `file
+<path>` pairs, so the commit never pulls in another session's working-tree
+edits**, and other sessions' files MUST be excluded when reviewing `git diff`.
+**This route MUST NOT be taken for a red your own change caused, which is fixed
+rather than scoped around, and it MUST NOT be inferred from a red suite alone.**
+It needs an explicit owner direction naming the other session's clearing run.

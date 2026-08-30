@@ -1,9 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Start with a short rationale section, then output **exact edits**.
-The rationale exists so the user can catch a misaligned handoff BEFORE the next
-session blindly applies the edits. If the rationale and the edits disagree,
-the user must be able to spot it from the handoff alone.
+- **A handoff MUST open with a short rationale section, then give the EXACT edits.** The rationale exists so the owner catches a misaligned handoff BEFORE the next session applies the edits, so a disagreement between the rationale and the edits MUST be visible from the handoff alone. `docs/contributing/spec-workflow.md` carries the template and what it includes.

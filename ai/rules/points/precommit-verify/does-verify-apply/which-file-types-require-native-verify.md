@@ -1,8 +1,11 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**A commit whose files fall on a YES row MUST have the gate run over it; a
+commit whose files all fall on the NO row MUST NOT pay for one.**
+
 | Files in commit | Run `./le verify current mode full`? |
 |-----------------|------------------|
 | Any `.go`, `go.mod`, `go.sum`, `vendor/**` | YES |

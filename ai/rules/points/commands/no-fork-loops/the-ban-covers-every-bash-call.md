@@ -1,7 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Applies to every `Bash` tool call. First-party repository tooling belongs in
-native Go packages and MUST NOT add a shell script.
+**The fork-loop ban covers every `Bash` tool call, with no exemption for a one-off.**
+First-party repository tooling belongs in native Go packages, and a shell script MUST NOT be added for it.

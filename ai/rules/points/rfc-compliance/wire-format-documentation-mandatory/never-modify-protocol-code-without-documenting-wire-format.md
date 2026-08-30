@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Never modify protocol code without documenting wire format: ASCII diagram with field offsets, byte offset annotations, RFC section reference.
+**Protocol code MUST NOT be modified without documenting the wire format: an ASCII diagram with field offsets, byte offset annotations, and the RFC section reference.**

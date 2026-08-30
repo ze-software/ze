@@ -1,6 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
+rationale: ai/rationale/derive-not-hardcode.md
 ---
-Principle: **registry/struct is truth; every surface is a view of it**.
+**The registry or struct is the truth, and every surface MUST be a view of it.**

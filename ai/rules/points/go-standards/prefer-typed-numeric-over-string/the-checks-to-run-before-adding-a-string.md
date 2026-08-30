@@ -3,11 +3,7 @@ kind: directive
 level: MUST
 stage:
 ---
-**You MUST run these checks before adding a string:**
-1. Finite set, compile-time? -> typed enum.
-2. Plugin-extensible? -> numeric ID + registry.
-3. External contract (YANG/JSON/CLI/log)? -> OK at boundary; convert internally.
-4. None of the above? Ask why a string.
-5. Does `String()` allocate? -> const literals, or registry + `unsafe.String` on packed store.
-6. Consumer parses back to typed? -> emit typed with `MarshalText`; no roundtrip.
-7. Map key? -> use numeric type; parse string to numeric at the boundary.
+**Before adding a `string` field that crosses a component seam, or that sits on a hot path, you MUST answer all three:**
+- Is this value one of a closed set? Then it MUST be a typed enum
+- Is it read more than once per message? Then it MUST be parsed at the boundary and carried typed
+- Does the receiving side compare it against a literal? Then the literal MUST become a constant and the field MUST become its type

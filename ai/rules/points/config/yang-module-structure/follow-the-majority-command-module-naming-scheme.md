@@ -3,4 +3,4 @@ kind: directive
 level: MUST NOT
 stage:
 ---
-**Until then: a NEW command module SHOULD follow the majority `ze-cli-<verb>-cmd` / paired `-api` form and MUST NOT invent a fourth scheme.** Command ownership and grammar rules live in `cli.md` and `plugins.md`.
+**A NEW command module for an operational verb SHOULD take the majority `ze-cli-<verb>-cmd` form with a paired `-api`, and it MUST NOT invent a fourth scheme.** Converging the existing names is a rename tracked separately, and it is described in `docs/architecture/config/yang-config-design.md`. Command ownership and grammar rules are `ai/rules/cli.md` and `ai/rules/plugins.md`.

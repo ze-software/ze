@@ -217,6 +217,32 @@ Dockerfiles, and copied fixtures can live outside Go packages; executable
 repository tooling lives under `internal/le`, `internal/test`, or
 `internal/appliance`.
 
+### Which surface answers a discovery question
+
+Reach for one of these before inventing a new mechanism.
+
+| Need | Existing surface |
+|------|------------------|
+| Changed-file-aware wiring, doc, command, and inventory gate | `./le doc wiring` |
+| Documentation drift and YANG command contracts | `./le doc check verify` |
+| Source-to-document reverse index | `./le docs-to-code index-update`; read `ai/CODE-TO-DOCS.md` |
+| Which tests enforce an RFC MUST, and what the backlog is | `./le rfc index-update`. Read `rfc/requirements/<stem>.md` for one RFC, `ai/RFC-REQUIREMENTS.md` for the rollup over all of them. Coverage is gated by `./le rfc check`, freshness by `./le doc check verify` |
+| What each package does | `./le discovery-index update`; read `ai/PACKAGE-MAP.md` |
+| Which `.go` files implement a design doc | read `ai/DOCS-TO-CODE.md`, the inverse of `// Design:` |
+| Which problems recur | `./le journal report`; read `plan/journal/`, one file per class, where the row count is the recurrence |
+| Whether every path a tracked file names still resolves | `./le doc check links`. It is its own `./le verify current mode full` stage, and `sweepTracked` in `internal/le/doc/check/links.go` sweeps every tracked file, not only the instruction corpus. Repair the reference, or mark its line with a `doc-links: ignore` marker that states why the path cannot resolve. `vendor/`, `third_party/` and `plan/handover/` are excluded |
+| Whether every symbol a `docs/` source anchor names is declared where the anchor points | `./le doc check verify` (`checkAnchors` in `internal/le/docstocode/codetodocs.go`) |
+| How data flows through a subsystem | read `ai/digests/<subsystem>.md`; `ai/digests/README.md` lists them and `./le digest` validates their anchors |
+| Plugin, command, YANG, and test inventory | `./le inventory` |
+| Command inventory | `./le command list` |
+| Spec progress | `./le spec status` |
+| Generated plugin imports | `./le plugin imports check` |
+| Whether the tree git holds compiles | `./le repository tracked-build check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
+| Runtime readiness | `ze doctor --json` and `ze explain <diagnostic-code>` |
+
+Each of these answers with structured data, so `| json`, `| yaml` and `| table`
+all render it.
+
 ### Add a development tool
 
 1. Add one package at the path the command name predicts: a space in the name
@@ -380,6 +406,8 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | RIB transition | `docs/architecture/rib-transition.md` |
 | RIB storage | `docs/architecture/plugin/rib-storage-design.md` |
 | Plugin relationships | `docs/architecture/plugin/plugin-relationships.md` |
+| Plugin system reference | `docs/architecture/plugin/plugin-system.md` |
+| Feature gates | `docs/architecture/plugin/feature-gates.md` |
 | Route types | `docs/architecture/route-types.md` |
 | MRT | `docs/architecture/mrt.md` |
 | Route selection | `docs/architecture/route-selection.md` |
@@ -438,6 +466,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | CI format | `docs/architecture/testing/ci-format.md` |
 | Interop testing | `docs/architecture/testing/interop.md` |
 | QEMU integration | `docs/architecture/testing/qemu-integration.md` |
+| CI workflows: which suite runs where, and what blocks | `docs/architecture/testing/ci-workflows.md` |
 | Test runner | `docs/architecture/testing/runner-architecture.md` |
 | ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
 | ExaBGP compat | `docs/exabgp/exabgp-differences.md` |
@@ -448,6 +477,9 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 |----------|------|
 | buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `ai/rules/performance.md` |
 | encode, Pack, WriteTo, alloc | `ai/rules/performance.md`, `buffer-architecture.md` |
+| string building, textbuf, Sprintf, concatenation | `textbuf-string-building.md`, `ai/rules/performance.md` |
+| pool, BufHandle, BufMux, peerPool, copy-on-modify | `buffer-architecture.md`, `pool-architecture.md`, `forward-congestion-pool.md` |
+| tier, placement, core vs component vs plugin, compile-out | `module-tiers.md`, `ai/rules/architecture.md` |
 | UPDATE, message, build, route | `core-design.md`, `update-building.md`, `encoding-context.md` |
 | attribute, AS_PATH, NEXT_HOP, MED | `core-design.md`, `wire/attributes.md`, `update-building.md` |
 | community, ext community, large community | `wire/attributes.md` |
@@ -534,6 +566,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | declared failure group, VERIFY FAILURE GROUP, whose red is this, attributing a structural red, failure index | `internal/le/verify/engine.RunMode`, `internal/le/doc/wiring.Group`, `internal/le/commit.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/precommit-verify.md` |
 | commit, commit script, commit message, verified commit, verify freshness, owner override, commit no test, verification debt, gate owed, push refused | `internal/le/commit.Answer`, `internal/le/verify/status.Answer`, `ai/rules/git-safety.md`, `ai/rules/precommit-verify.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
 | weekly update, Zeledon, ze-news, Discord announcement, website changes, homepage latest updates | `ai/skills/ze-weekly-update.md`, `website/AI.md`, `website/changes/discord/STYLE.md`, `internal/le/weekly`, `internal/le/site` |
+| spec status, spec metadata, spec closure, deferral row, deferral shard, executive summary, session handoff, handover | `ai/rules/planning.md`, `docs/contributing/spec-workflow.md`, `plan/TEMPLATE.md`, `./le spec status` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md` |
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`, `docs/contributing/documentation-testing.md`, `./le inventory`, `./le docvalid`, `./le docs-to-code` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |

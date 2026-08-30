@@ -3,13 +3,8 @@ kind: directive
 level: MUST
 stage:
 ---
-Every sleep in a `.ci` test MUST carry its justification marker. Two producers
-enforce it, at different moments.
-
-- **Blocking gate:** `checkSleepJustification` in
-  `internal/le/doc/wiring`, run by `./le doc wiring`.
-  Scoped to changed `.ci` files, it lists every unjustified `file:line` and
-  returns exit 1.
-- **Edit-time nudge:** `writeCISleep` in `internal/le/hookruntime/writeedit.go`
-  blocks a Write/Edit that introduces `time.sleep(` with no recognised
-  justification.
+**Every sleep in a `.ci` test MUST carry its justification marker, in the form
+`// sleep(<kind>): <reason>`.** Two producers enforce it: `./le doc wiring` at
+gate time, and the Write/Edit hook at edit time. The closed set of kinds, what
+each reason owes, and where the comment goes are
+`docs/architecture/testing/ci-format.md`.

@@ -1,12 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-`internal/le/rules/lint.go` enforces all of this, and it reads the RENDERED
-rule rather than the points, so the metadata contract is what it always was.
-When a line legitimately
-describes ANOTHER artifact's severity (as `repo-maintenance.md` does), mark that
-line `<!-- severity-note: whose severity this is -->`. The marker is
-line-scoped on purpose: a file-scoped opt-out would silently cover every later
-addition to that file.
+**A line that legitimately describes ANOTHER artifact's severity MUST be marked `<!-- severity-note: whose severity this is -->`.** `internal/le/rules/lint.go` reads the RENDERED rule, so an unmarked line reads as this rule's own severity. The marker is line-scoped on purpose: a file-scoped opt-out would silently cover every later addition to that file.

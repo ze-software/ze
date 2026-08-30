@@ -68,6 +68,14 @@ disagree. The table below describes what each operator does for a reader.
 
 <!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
 
+A display operator changes how an answer is shown. A data operator changes what
+the answer holds. The two are independent, so a display mode never suppresses a
+data transform: `monitor traceroute | log` and `monitor ping | log` render
+directly from hop and ping statistics rather than through `ApplyPipes`, and they
+still apply `resolve` and `origin` to their legend addresses through the shared
+`enrichAddr` helper.
+<!-- source: internal/component/cli/model_enrich.go -- enrichAddr -->
+
 ### Scripting against the daemon: `| raw`
 
 The SSH exec channel is two surfaces at once. An operator running
@@ -180,10 +188,10 @@ can inspect compact hierarchical blocks, while automation can consume one comple
 
 ```bash
 ze config show router.conf bgp peer transit-a
-ze config migrate --format set router.conf
+ze config migrate format set router.conf
 ```
 
-`ze config migrate --format hierarchical` converts set syntax back to blocks.
+`ze config migrate format hierarchical` converts set syntax back to blocks.
 Rendering both forms back to canonical set syntax provides a presentation-neutral
 comparison.
 

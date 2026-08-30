@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Find what the test waits ON, and make it wait for the thing instead of for a
-duration.
+**You MUST find what the test waits ON, and make it wait for that thing rather than for a duration.**

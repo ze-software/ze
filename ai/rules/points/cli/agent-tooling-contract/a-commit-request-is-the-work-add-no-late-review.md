@@ -1,10 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-On explicit commit requests, commit-helper invocation is the work. Do not run
-late completeness checks, health checks, recent-commit style reviews, or
-remaining-work tables unless the user explicitly asks for them. Before any
-verify target, run `./le verify status check`; a FRESH result
-forbids rerunning `./le verify worktree` or `./le verify worktree`.
+**On an explicit commit request, preparing the commit IS the work: a late completeness check, health check, recent-commit style review or remaining-work table MUST NOT be run unless the user asks for one.** `./le verify status check` MUST be run before any verify target, and a FRESH result MUST NOT be followed by a rerun of `./le verify worktree`.

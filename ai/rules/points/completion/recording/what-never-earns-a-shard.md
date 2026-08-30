@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These MUST NOT be written:**
+
 | Do not write | Do |
 |--------------|-----|
 | a shard for anything that reproduces, or that load explains | fix it |

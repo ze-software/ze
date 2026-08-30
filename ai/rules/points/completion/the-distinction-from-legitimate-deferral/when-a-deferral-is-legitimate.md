@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**One question decides it, and you MUST answer it before deferring anything:**
+
 | Situation | Verdict |
 |-----------|---------|
 | The goal still works; this is a distinct, larger, separable feature | Deferral is legitimate. Home it in a spec per `planning.md`, close the work in hand, then ask Thomas whether that spec runs. |

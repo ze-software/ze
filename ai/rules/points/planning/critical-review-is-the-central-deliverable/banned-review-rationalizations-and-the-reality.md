@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**Each line below is a signal that you are about to skip the independent pass. Thinking one MUST NOT be treated as a reason to skip it: stop and spawn the reviewers.**
+
 | Banned | Reality |
 |--------|---------|
 | "I reviewed it as I wrote it." | That is authoring, not reviewing. Same blind spot. |

@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MAY
 stage:
 ---
-The only exception is a compile-time constant expression where both sides are
-untyped string literals: `const x = "foo" + "bar"` (the compiler folds these).
+- **A compile-time constant expression whose sides are both untyped string literals MAY use `+`: `const x = "foo" + "bar"`. The compiler folds it, so nothing is allocated. No other `+` between strings is permitted.**

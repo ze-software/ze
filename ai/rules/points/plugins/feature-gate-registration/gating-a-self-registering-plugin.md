@@ -3,4 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-**Plugin compile-out (routing protocols).** When the feature is already a self-registering plugin discovered by the generator (`register.go` -> `plugin/all`), there is NO new `register_<x>.go` or seam: gating is purely *blank-import partitioning*. Each owned dir MUST be listed as its own `feature-gates.txt` line under the shared tag, because a protocol spans several discovered dirs (engine + `transport` + `cli` + the `*-cmd` command schema), for example:
+- **When the feature is already a self-registering plugin the generator discovers, gating is blank-import partitioning: there is no new `register_<x>.go` and no seam, and every owned directory MUST be its own `feature-gates.txt` line under the shared tag.** A protocol spans several discovered directories: engine, `transport`, `cli`, and the `*-cmd` command schema.

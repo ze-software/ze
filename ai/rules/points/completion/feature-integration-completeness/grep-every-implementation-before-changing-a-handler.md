@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Before modifying any handler, dispatcher, or protocol step: **grep for ALL implementations** of that function/protocol step in the codebase. Ze has multiple code paths for the same protocol (e.g., `subsystem.go` and `plugin/server/startup.go` both implement stage-1). Modifying one is not enough.
+**Before modifying any handler, dispatcher, or protocol step, you MUST grep for ALL implementations of it.** Ze has several code paths for one protocol step, so modifying one is not enough.

@@ -1,9 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-When a plugin sends commands to the engine via DispatchCommand, name the helper
-for what it does (dispatch a command), not where it sends it (to a specific plugin).
-The engine routes commands by prefix, so the caller must not encode the destination
-in function names, variable names, or type names.
+- **A helper that sends a command through `DispatchCommand` MUST be named for what it does, never for where it sends it.** The engine routes by prefix, so a function, variable or type name MUST NOT encode the destination: `dispatchCommand`, never `dispatchRIBCommand`.

@@ -5,160 +5,93 @@
 
 ## Directives
 
-Protocol features MUST have interop tests. All features MUST have
-goal validation proving the feature achieves its intended purpose, not just that
-the code runs without error.
+**A protocol feature MUST have an interop test. Every feature MUST have goal validation proving it achieves its intended purpose, not merely that the code runs without error.**
 
 ## Interop Testing (protocol features)
 
-When a spec implements or modifies protocol behavior (BGP, IPsec, L2TP, or any
-wire protocol), an interop test MUST prove ze works correctly with at least one
-other implementation.
+**When a spec implements or changes protocol behavior (BGP, IPsec, L2TP, PPPoE, or any wire protocol), an interop test MUST prove Ze works correctly with at least one other implementation.** The suites, their scenario directories, their native actions, and how a scenario is discovered and checked are in `docs/architecture/testing/interop.md`.
 
-### Required interop test by protocol
-
-| Protocol area | Test infrastructure | Directory | Native action |
-|---------------|---------------------|-----------|---------------|
-| BGP (session, capability, NLRI, community, policy) | Docker: FRR, BIRD, GoBGP | `test/interop/scenarios/` | `./le integration interop` |
-| IPsec (IKEv2, EAP, MOBIKE) | Docker: strongSwan | `test/interop-ipsec/` | `./le integration interop-ipsec` |
-| L2TP | Docker | `test/interop-l2tp/` | (L2TP runner) |
-| PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le deployment docker-pppoe-accel-test` |
-
-### What must be tested
+**Each feature type MUST prove the interop assertion its row names:**
 
 | Feature type | Interop assertion |
 |-------------|-------------------|
-| New address family / NLRI | Routes exchanged and installed by peer daemon |
-| New capability | Capability negotiated, verified in peer's neighbor output |
-| Session behavior (GR, route refresh) | Session survives the event, peer confirms expected behavior |
-| Policy (community, filter, role) | Peer receives/rejects routes per the policy |
+| New address family or NLRI | Routes exchanged and installed by the peer daemon |
+| New capability | Capability negotiated, verified in the peer's neighbor output |
+| Session behavior (GR, route refresh) | Session survives the event, and the peer confirms the expected behavior |
+| Policy (community, filter, role) | Peer receives or rejects routes per the policy |
 | Wire format change | Peer accepts the message, no NOTIFICATION |
 | Authentication (MD5, EAP, PSK) | Session authenticates, handshake completes |
 
-### When interop tests are NOT required
+**An interop test MAY be omitted only in these three conditions:**
 
 | Condition | Why |
 |-----------|-----|
-| Pure internal refactor, no wire-visible change | Existing interop tests cover the path |
-| Config-only feature (no protocol impact) | CLI/config tests suffice |
-| Tooling (ze-analyse, ze-perf) | No protocol peer involved |
+| A pure internal refactor with no wire-visible change | The existing interop tests cover the path |
+| A config-only feature with no protocol impact | CLI and config tests suffice |
+| Tooling (`ze-analyse`, `ze-perf`) | No protocol peer is involved |
 
-### Interop scenario structure
-
-**An interop scenario directory MUST be NAMED and MUST NOT carry a numeric prefix, and a spec planning a future scenario MUST name it too** (owner directive, 2026-08-24). The directory name is the scenario's identity: `internal/le/interoplab.Discover` matches it exactly, the native `./le integration` action accepts it through its scenario selector, and specs, journal rows and code comments cite it.
-
-A number adds nothing a name does not carry, and it goes stale in two ways a
-name cannot: a deleted scenario leaves a hole no reader can tell from a
-reservation, and a planned number is a reservation a second spec can take,
-which nothing detects because neither directory exists yet. Before the prefixes
-were removed from `test/interop-ipsec/`, several numbers were claimed by more
-than one planned scenario, and some had already been built under a different
-name. The count is left out because it moves with how you count, which is the
-brittleness the numbering itself has.
-
-Run order is `sorted(os.listdir(scenarios_dir))` and no scenario depends on it:
-each gets its own `setup()`, `run_check()` and `teardown()` in that loop, so
-they are independent by construction and the number encoded a sequence that was
-never a dependency.
-
-Each scenario under `test/interop*/scenarios/` carries the declarative inputs
-that its native runner reads: `ze.conf` plus the peer configuration and argument
-files required by that topology. Assertions do not live in the scenario
-directory. They are typed Go checkers under `internal/le/interoplab/`.
-
-Every scenario MUST have an exact-name entry in the owning native checker
-registry. BGP uses the package-local `checkers` registry and typed operations in
-`internal/le/interoplab/bgp`; IPsec uses `scenarioCheckers` in
-`internal/le/interoplab/ipsec`. The checker MUST wait for readiness, assert the
-protocol behavior, verify stability where the scenario requires it, and return
-an error on failure. `interoplab.Discover` fails closed when a fixture and its
-checker registry disagree.
+**An interop scenario directory MUST be NAMED and MUST NOT carry a numeric prefix, and a spec planning a future scenario MUST name it too.** The directory name is the scenario's identity: `interoplab.Discover` matches it exactly, the native `./le integration` action takes it as a scenario selector, and specs, journal rows and code comments cite it.
+**A number goes stale in two ways a name cannot.** A deleted scenario leaves a hole no reader can tell from a reservation, and a planned number is a reservation a second spec can take, which nothing detects because neither directory exists yet.
 
 ## Prove the test discriminates (BLOCKING)
 
-A passing interop or functional test is evidence only if it would FAIL when the
-behaviour under test is broken. A test that passes whether or not the fix is
-present proves nothing and must never be presented as evidence.
+**A passing interop or functional test is evidence only if it would FAIL when the behavior under test is broken. A test that passes whether or not the fix is present MUST NOT be presented as evidence.**
+**A test added to ALREADY-WORKING code never had a red phase, so its discrimination is unproven until you force one.** This is not TDD's red-then-green: a regression test and an interop scenario for existing behavior both start green.
 
 **Before claiming an interop/functional test validates a change, MUST revert the
 change and confirm the test goes RED.** MUST rebuild the artifact the test drives
 (the container image, the daemon binary) so the revert actually takes effect,
 then restore the fix and confirm GREEN again. MUST record the RED result.
 
-This is not the same as TDD's red-then-green: a test added to ALREADY-WORKING
-code (a regression test, an interop scenario for existing behaviour) never had a
-red phase, so its discrimination is unproven until you force one.
+**Each trap below MUST be checked for by its tell before a test is called evidence:**
 
 | Vacuity trap | Why it passes anyway | The tell |
 |--------------|----------------------|----------|
-| An interop test for a sender-side wire change whose receiver must accept any form (e.g. RFC 7606 Section 5.1: receivers accept any field combination) | a conforming peer accepts the old and new wire equally | reverting the sender change leaves the peer's routing table identical |
-| A test asserting the ABSENCE of something (no log line, no allocation, no route) | deleting the mechanism leaves the same absence | ask "what would still be absent if the code were removed?" |
-| A test whose fixture is at an extreme (all-fields-set, max value) | an off-by-one or partial break still handles the extreme | boundary the fixture, test one-below and one-above |
-| A functional test whose data reaches the peer by a DIFFERENT path than the one changed | the unchanged path still delivers | trace which code path actually produces the asserted bytes |
+| An interop test for a sender-side wire change whose receiver is obliged to accept any form (RFC 7606 Section 5.1: receivers accept any field combination) | A conforming peer accepts the old and new wire equally | Reverting the sender change leaves the peer's routing table identical |
+| A test asserting the ABSENCE of something (no log line, no allocation, no route) | Deleting the mechanism leaves the same absence | Ask "what would still be absent if the code were removed?" |
+| A test whose fixture is at an extreme (all-fields-set, max value) | An off-by-one or partial break still handles the extreme | Boundary the fixture: test one below and one above |
+| A functional test whose data reaches the peer by a DIFFERENT path than the one changed | The unchanged path still delivers | Trace which code path actually produces the asserted bytes |
 
-When a change genuinely cannot be discriminated by the peer (the receiver is
-required to accept both forms), say so explicitly in Goal Validation and move the
-discrimination to unit/mutation tests that CAN fail. An interop test in that case
-proves ACCEPTANCE, not correctness of the specific form — state which.
+**When a change genuinely cannot be discriminated by the peer, because the receiver is required to accept both forms, you MUST say so explicitly in Goal Validation and move the discrimination to unit or mutation tests that CAN fail.** An interop test in that case proves ACCEPTANCE rather than correctness of the specific form, and you MUST state which.
 
 ## Goal Validation (all features)
 
-Every spec has acceptance criteria (AC-1..AC-N). Tests prove each AC passes. But
-"tests pass" does not mean "the feature achieves its goal." Goal validation is the
-bridge between individual AC assertions and the feature's intended purpose.
-
-### The rule
-
-Before claiming a feature is done, answer for each spec goal:
-
 **Before claiming a feature is done, MUST answer for each spec goal: "What concrete evidence proves this goal is achieved, beyond individual test assertions?"**
+
+**Each goal type MUST carry the evidence its row names. "Tests pass" is not that evidence: goal validation is the bridge between the individual acceptance criteria and the feature's purpose:**
 
 | Goal type | Required evidence |
 |-----------|-------------------|
 | Protocol interop ("ze speaks X with Y") | Interop test passes with the named peer daemon |
 | Performance ("handles N updates/sec") | `ze-perf` benchmark result pasted |
-| User workflow ("user can do X via CLI") | Functional `.ci` test exercising the full workflow, or `.et` test for editor workflows |
-| Data correctness ("routes installed correctly") | Functional test with explicit data assertions (hex match, JSON field match), not just exit code 0 |
+| User workflow ("user can do X via CLI") | Functional `.ci` test exercising the full workflow, or an `.et` test for editor workflows |
+| Data correctness ("routes installed correctly") | Functional test with explicit data assertions (hex match, JSON field match), never just exit code 0 |
 | Resilience ("survives X failure") | Chaos test or fault-injection scenario |
-| Security ("rejects unauthorized X") | Negative test: unauthorized attempt fails with expected error |
+| Security ("rejects unauthorized X") | Negative test: the unauthorized attempt fails with the expected error |
 
-### What goal validation is NOT
+**These MUST NOT be offered as goal validation:**
 
 | Not this | This instead |
 |----------|-------------|
 | "All tests pass" | "Here is the specific evidence for each goal" |
 | "AC-1 through AC-5 implemented" | "AC-1 through AC-5 implemented, and together they prove [goal]" |
-| "I tested it manually" | Automated test that can be re-run |
-| "The code looks correct" | Observable behavior matches the spec's stated purpose |
+| "I tested it manually" | An automated test that can be re-run |
+| "The code looks correct" | Observable behavior matching the spec's stated purpose |
 
-### Where goal validation goes in the spec
-
-The spec template has a **Goal Validation** section (added below the Implementation Audit).
-Each row maps a stated goal to the evidence that proves it. This section is filled during
-`/ze-close` step 1 (Deliverables review) and verified during `/ze-review`.
+**The spec's Goal Validation section MUST map each stated goal to the evidence that proves it.** It is filled during `/ze-close` step 1 and verified during `/ze-review`.
 
 ## Mechanical Check
 
-### Interop check (protocol specs)
+**For every protocol feature in the spec, you MUST confirm a matching interop scenario exists under the suite's scenario directory. When none matches, one MUST be created before you claim done.**
 
-```
-# For each protocol feature in the spec, verify an interop scenario exists:
-ls test/interop/scenarios/*<feature-keyword>*/ 2>/dev/null
-ls test/interop-ipsec/scenarios/*<feature-keyword>*/ 2>/dev/null
-```
-
-If no matching scenario exists, one must be created before claiming done.
-
-### Goal validation check (all specs)
-
-The spec's Goal Validation table must have:
-- One row per stated goal (from the Task section)
-- Evidence column filled with a concrete reference (test name, file path, command output)
+**The spec's Goal Validation table MUST carry:**
+- One row per stated goal, taken from the Task section
+- An Evidence column filled with a concrete reference: a test name, a file path, or command output
 - No empty evidence cells
 
 ## Relationship to Other Rules
 
-- `testing.md`: requires functional tests per feature type; this rule adds interop on top for protocol features
-- `completion.md`: requires every AC tested; this rule requires the *aggregate* goal proven
-- `rfc-compliance.md`: requires RFC conformance in code; this rule requires conformance proven against other implementations
-- `testing.md`: test infrastructure and workflow; this rule specifies when each test type is mandatory
+**This rule adds to its neighbors and MUST NOT be read as replacing any of them:**
+- `ai/rules/testing.md` requires functional tests per feature type, and owns the test infrastructure and workflow. This rule adds interop on top for protocol features, and says when each test type is mandatory
+- `ai/rules/completion.md` requires every acceptance criterion tested. This rule requires the AGGREGATE goal proven
+- `ai/rules/rfc-compliance.md` requires RFC conformance in code. This rule requires that conformance proven against another implementation

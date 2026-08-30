@@ -35,6 +35,8 @@
 
 ## What Over-Engineering Looks Like
 
+**When your diff carries one of these shapes, you MUST write the simpler answer instead:**
+
 | Shape in the diff | The simpler answer |
 |-------------------|--------------------|
 | An interface with one implementation | The concrete type. Two use cases earn an abstraction, and the second use case is when you add it (`ai/rules/architecture.md`) |
@@ -54,11 +56,3 @@
 
 **Short is not simple. A dense expression the reader needs to simulate to understand fails this rule exactly as a five-file framework does, and it fails it in the less visible direction.**
 **You MUST write the version that is boring to read.**
-
-## Rationale
-
-Two failures were already named in this repository and neither had an owning rule. `ai/rules/architecture.md` carried YAGNI and Simplicity as two rows in a 19-row design-principles table, and `ai/rules/quality.md` asked "Simplest solution? Over-engineered?" as one review question. Both are read after the design exists. Neither says what to do at the moment the shape of a fix is chosen, and neither is reachable from a trigger.
-
-The standard is stated as a pair because each half fails alone. "Simplest" alone reads as permission to solve less of the problem, which rung 2 and rung 3 of `ai/rules/rule-precedence.md` already forbid. "Fully correct" alone is satisfied by any amount of machinery, which is how an interface with one implementation and an option nobody asked for enter the tree and stay there.
-
-The cost this removes is paid by the next reader. Somebody who did not write the machinery cannot delete it safely, because the absence of a reason is not proof there was none. That is why `name-the-simpler-design-you-rejected` asks for one line. It lets the next reader delete the machinery, or keep it, on evidence.

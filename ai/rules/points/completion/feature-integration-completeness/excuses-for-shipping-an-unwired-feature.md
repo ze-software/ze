@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These MUST NOT be offered for shipping an unwired feature:**
+
 | Banned | Why |
 |--------|-----|
 | "Deferred to next spec" | Next spec won't pick it up. Feature ships unwired. |

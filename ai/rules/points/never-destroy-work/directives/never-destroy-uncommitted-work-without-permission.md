@@ -1,10 +1,8 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
+rationale: ai/rationale/never-destroy-work.md
 ---
-Never delete, revert, or overwrite files holding uncommitted
-work the user wrote or requested without explicit permission. Never leave a
-file undeleted solely because deletion requires permission; ask the user for
-permission instead.
-Rationale: `ai/rationale/never-destroy-work.md`.
+**You MUST NOT delete, revert, or overwrite a file holding uncommitted work the user wrote or requested, without explicit permission.**
+**You MUST NOT leave a file undeleted only because deletion needs permission. Ask for the permission instead.**

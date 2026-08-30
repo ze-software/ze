@@ -1,10 +1,12 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These three patterns MUST NOT be converted to `textbuf` during a sweep. Each one is correct as written.**
+
 | Pattern | Why |
 |---------|-----|
-| `net.JoinHostPort(host, port)` where port is already a string and no numeric conversion is needed | Acceptable when the port comes from `net.SplitHostPort` or config as a string; prefer `textbuf.HostPort` for new code |
-| `strings.Builder` as a long-lived `io.Writer` field | Struct fields like `pasteBuffer *strings.Builder` that accumulate writes over time are not string-building helpers. `textbuf.Buffer` freezes on `Slice()` and its pool semantics differ |
-| `strconv.Itoa(n)` passed to sysctl/procfs map values | Writing to kernel interfaces that require `string`; the allocation is once per config reload, not per-packet |
+| `net.JoinHostPort(host, port)` where the port is already a string | Correct when the port came from `net.SplitHostPort` or from config as a string. New code SHOULD prefer `textbuf.HostPort` |
+| `strings.Builder` as a long-lived `io.Writer` field | A field such as `pasteBuffer *strings.Builder` accumulates writes over time. `textbuf.Buffer` freezes on `Slice()` and its pool semantics differ |
+| `strconv.Itoa(n)` passed to a sysctl or procfs map value | The kernel interface requires a `string`, and the allocation happens once per config reload, not per packet |

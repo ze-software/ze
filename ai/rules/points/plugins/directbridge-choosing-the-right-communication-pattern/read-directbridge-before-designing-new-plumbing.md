@@ -1,10 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-DirectBridge (`pkg/plugin/rpc/bridge.go`) provides typed direct function calls
-between the engine and internal plugins, bypassing JSON serialization and socket
-I/O entirely. It supports multiple communication patterns. Before designing any
-new core-to-plugin communication, read DirectBridge and check whether it already
-covers your use case.
+- **Before designing any new core-to-plugin communication, `pkg/plugin/rpc/bridge.go` MUST be read to check whether DirectBridge already covers the case.** It gives typed direct function calls between the engine and an internal plugin, bypassing JSON serialization and socket I/O. Which pattern fits which problem is `docs/architecture/plugin/plugin-system.md`, "Communication patterns".

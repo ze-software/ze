@@ -3,11 +3,10 @@ kind: directive
 level: MUST
 stage:
 ---
-**Before any design decision (communication mechanism, naming, package placement, platform backend, lifecycle), load the relevant context below. Trained instincts about "how software works" are wrong here: ze has opinions.**
-**Complete the "Before Writing Code" checklist before writing any code, tests, or documentation.**
-**Before any spec: READ source, document current behavior, preserve by default.**
-**Before modifying a file, check what else needs to change. Changes to certain file types have predictable ripple effects.**
-**Trace full data flow before writing or reviewing specs.**
-**Where a Go package lives under `internal/` is decided by dependency direction, not by size or age. Three tiers, two mechanical axes. New code MUST land in the correct tier; an engine in the wrong tier fails `./le verify worktree`.**
-**Persist runtime state through the managed zefs store, never as a loose file.**
-**Ze differs from typical Go projects in specific, load-bearing ways. An AI trained on standard Go patterns will default to the wrong approach unless it reads the divergence tables below. Each entry names the standard approach, the Ze approach, the rule that governs it, and a one-line reason.**
+**Before any design decision (communication mechanism, naming, package placement, platform backend, lifecycle), the reading named below for that artifact and that area MUST be loaded. Trained instincts about "how software works" are wrong here: ze has opinions, and `docs/contributing/ze-go-style.md` names each divergence from standard Go.**
+**The "Before Writing Code" checklist MUST be completed before writing any code, tests, or documentation.**
+**Before any spec: source MUST be read, current behavior MUST be documented, and existing behavior MUST be preserved by default.**
+**Before modifying a file, what else the change obliges MUST be checked. A change to a YANG file, a registration file, Go source, a `.ci` test, a docs page, or a spec has a predictable ripple, and the Impact Analysis directives name it.**
+**The full data flow MUST be traced before writing or reviewing a spec.**
+**Where a Go package lives under `internal/` is decided by dependency direction, not by size or age: three tiers, two mechanical axes (`docs/architecture/module-tiers.md`). New code MUST land in the correct tier; an engine in the wrong tier fails `./le verify worktree`.**
+**Runtime state MUST persist through the managed zefs store, never as a loose file.**

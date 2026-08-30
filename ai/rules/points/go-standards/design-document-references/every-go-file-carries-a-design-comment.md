@@ -1,6 +1,7 @@
 ---
-kind: note
+kind: directive
 level: MUST
 stage:
+rationale: ai/rationale/design-doc-references.md
 ---
-All `.go` source files (non-test, non-generated) MUST have `// Design:` comment.
+**Every non-test, non-generated `.go` file MUST carry a `// Design:` comment, and it MUST be the first comment in the file.** The format, the line ordering, the situation table and the exempt set are in `docs/contributing/go-conventions.md`.

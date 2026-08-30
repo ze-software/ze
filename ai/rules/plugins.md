@@ -6,9 +6,7 @@
 
 ## Directives
 
-All plugins MUST follow these patterns.
-Rationale: `ai/rationale/plugin-design.md`
-Structural template: `ai/patterns/plugin.md`
+- **Every plugin MUST follow the directives in this rule.** The mechanism behind them is documented, and the page is the place to read it: `docs/architecture/plugin/plugin-system.md` for registration and the engine boundary, `docs/architecture/plugin/feature-gates.md` for compile-out, `docs/architecture/command-ownership.md` for command placement, `docs/architecture/api/process-protocol.md` for the wire protocol, and `ai/patterns/plugin.md` for the file template and the new-plugin checklist.
 
 - **A plugin MUST own its ENTIRE feature surface. Removing the plugin MUST make every one of its features disappear; every OTHER plugin and the core MUST keep working.** Section "Plugin Self-Containment".
 - **A plugin that calls a same-process-effect function in another package directly MUST check `sdk.Plugin.IsInternal()` and then refuse to start, or warn, when it runs external.** Section "Plugin Process Boundary".
@@ -17,131 +15,34 @@ Structural template: `ai/patterns/plugin.md`
 
 ## Cross-Boundary Value Types (BLOCKING)
 
-Payloads that cross plugin or component boundaries MUST be self-contained value types.
-No pointer fields pointing to data owned by another plugin or component, even when the
-target lives in a shared core package.
+- **A payload that crosses a plugin or component boundary MUST be a self-contained value type.** It carries no pointer field into data another plugin or component owns, and a shared core package is no exception. The surface-by-surface list is `docs/architecture/plugin/plugin-system.md`, "Cross-boundary value types".
 
-| Surface | Rule |
-|---------|------|
-| Event bus (`Emit`/`Subscribe`) | Value types only: numeric IDs, `family.Family`, `netip.Prefix`, `netip.Addr`, enum uint8 |
-| Cross-plugin identifiers | Registered numeric IDs, not pointers into a shared registry |
-| Cross-component IPC | `*foopkg.Something` as a payload field is forbidden even when `foopkg` is "shared core" |
-| Registry surfaces | Store value types only (IDs, immutable string copies, bits), not pointers to producer-allocated handles |
-
-Shared type definitions (`family.Family`, `RouteChangeBatch`) are fine as compile-time contracts.
-What is forbidden is one plugin holding a pointer to data another plugin allocated.
-
-## Architecture
-
-| Layer | Location | Purpose |
-|-------|----------|---------|
-| Registry | `internal/component/plugin/registry/` | Central registry (leaf package, no plugin deps) |
-| Family registry | `internal/core/family/` | Cross-component address-family registration (`Family`/`AFI`/`SAFI` types + `family.MustRegister`) |
-| Public SDK | `pkg/plugin/sdk/` | Callback abstraction for external plugins |
-| RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC types + `MuxConn` for concurrent RPCs |
-| Internal | `internal/component/bgp/plugins/<name>/` | Plugin implementations + `register.go` |
-| All imports | `internal/component/plugin/all/` | Blank imports triggering all `init()` |
-| CLI shared | `internal/component/plugin/cli/` | `PluginConfig` + `RunPlugin()` |
+- **A shared type definition such as `family.Family` or `RouteChangeBatch` MAY cross a boundary, because it is a compile-time contract rather than data.** The ban is on one plugin holding a pointer to data another plugin allocated.
 
 ## Component vs Plugin Placement (BLOCKING)
 
-See `docs/architecture/command-ownership.md` for the full rationale.
-
-Three directories, three roles:
-
-| Directory | Contains | Depends on |
-|-----------|----------|------------|
-| `core/` | Shared primitives (logging, crashlog, env, events, diagnostics) | Nothing internal (or only other `core/`) |
-| `component/` | Subsystem implementations + config YANG (data model) | `core/`, other `component/` |
-| `plugins/` | User-facing command surfaces: command YANG, RPC handlers, CLI registration | `core/`, `component/` |
-
-**The folder test:** copying a plugin folder in and running `./le repository generate`
-MUST make its commands live. Deleting it and running `./le repository generate` MUST
-make them vanish. No manual wiring. This is the same invariant as the "delete the folder" proximity test
-below, applied to the entire user-facing surface.
-
-### Plugin layout
-
-```
-internal/plugins/<name>/
-    register.go                # CLI registration (RegisterRoot, MustRegisterLocalMeta)
-    yang/
-        ze-<name>-cmd.yang     # hand-written command YANG
-        embed.go               # GENERATED from .yang files
-        register.go            # GENERATED yang.RegisterModule()
-        self_containment_test.go
-    cmd/
-        register.go            # pluginserver.RegisterRPCs() in init()
-        handler.go             # RPC handler (imports component/<name> for real work)
-```
-
-YANG files are declarations, not code. The Go glue (`embed.go`, `register.go`)
-in `yang/` is generated by codegen from the `.yang` files present. The only
-hand-written artifact is the `.yang` file itself.
-
-### What goes where
-
-| Artifact | Location |
-|----------|----------|
-| Implementation library | `component/<name>/` or `core/<name>/` |
-| Config YANG (data model) | `component/<name>/yang/` |
-| Command YANG (CLI tree) | `plugins/<name>/yang/` |
-| RPC handlers | `plugins/<name>/cmd/` |
-| Offline CLI registration | `plugins/<name>/register.go` |
-| YANG embed + register | `plugins/<name>/yang/` (generated) |
-| Blank imports | `all.go` (generated) |
+- **Copying a plugin folder in and running `./le repository generate` MUST make its commands live, and deleting the folder and running it again MUST make them vanish.** No manual wiring. This is the "delete the folder" proximity test applied to the whole user-facing surface. The directory layout, the codegen that discovers it, and the two folder tests are `docs/architecture/command-ownership.md`.
 
 ## SDK Is Generic (BLOCKING)
 
-**The SDK (`pkg/plugin/sdk/`) MUST NOT contain plugin-specific code.** Adding or removing
-a callback type requires only one `On*` method in `sdk_callbacks.go` that registers a
-handler in the callback map. The event loops, dispatch logic, and transport layers are
-callback-agnostic: they dispatch through `map[string]callbackHandler` without knowing
-what callbacks exist.
-
-| Rule | Meaning |
-|------|---------|
-| No switch/case on method names in event loops | Dispatch is map lookup, not enumeration |
-| No transport-specific handler methods | One handler per callback, used by both pipe and bridge |
-| Bye is the only special case | It terminates the loop -- checked by method name, not by handler signature |
-| Adding a callback = one On* method | Zero changes to sdk_dispatch.go or event loop code |
+- **The SDK (`pkg/plugin/sdk/`) MUST NOT contain plugin-specific code.** Adding or removing a callback type is one `On*` method in `sdk_callbacks.go` and nothing else: the event loops, the dispatch logic and the transport layers dispatch through `map[string]callbackHandler` without knowing which callbacks exist. What that property requires is `docs/architecture/plugin/plugin-system.md`, "The SDK stays generic".
 
 ## Proximity Principle (BLOCKING)
 
-**Related code MUST belong together.** The "delete the folder" test is a mechanical check for proximity.
+- **Related code MUST belong together in one folder.** The "delete the folder" test is the mechanical check, and what proximity requires of each surface is `docs/architecture/plugin/plugin-system.md`, "Proximity".
 
-The full user-facing version of this test is the "Plugin Self-Containment" section below:
-remove a plugin and ALL its features (commands, schema, help, doctor checks)
-vanish while every other plugin and the core keep working.
-
-| Rule | Meaning |
-|------|---------|
-| All code for a concern in its folder | Commands, handlers, registration, logic, not scattered across packages |
-| No external references to internals | Infrastructure, reactor, other units never import a specific plugin/command module |
-| Blank import is the only coupling | A single `_ "package"` triggers init(); removing it cleanly disables the unit |
-| Engine core works without any command module | Reactor, FSM, wire layer must function without CLI command handlers |
-
-Doctor checks follow the same proximity rule. A runtime dependency check,
-its registration, and its unit test belong in the plugin, component, backend,
-or command package that owns the dependency. `internal/component/doctor` keeps the runner,
-the user-entry functional tests, and checks for dependencies with no narrower
-owner.
+- **A runtime dependency check, its registration and its unit test MUST live in the plugin, component, backend or command package that owns the dependency.** `internal/component/doctor` keeps only the runner, the user-entry functional tests, and the checks for a dependency with no narrower owner.
 
 ## YANG Is Required (BLOCKING)
 
-**All RPCs MUST have YANG registration for the CLI.** Any command handler without a YANG schema is a structural issue to fix, not a different category. There is no "command module": everything with RPCs is a plugin and lives under `plugins/<name>/`.
-
-| Registration | YANG | Location |
-|-------------|------|----------|
-| `registry.Register()` (SDK) | Required | `plugins/<name>/` |
-| `pluginserver.RegisterRPCs()` (engine-side) | Required | `plugins/<name>/` |
+- **Every RPC MUST carry a YANG registration for the CLI, whether it is registered through `registry.Register()` or through `pluginserver.RegisterRPCs()`.** A command handler with no YANG schema is a structural defect to fix, not a different category. There is no "command module": everything with RPCs is a plugin and lives under `plugins/<name>/`.
 
 **Anti-pattern:** command handlers MUST NOT be placed in reactor/ (couples engine core to command surface), in a separate handler/ package (middleman), or in a `command/` folder (formalizes missing YANG as acceptable). Commands MUST belong in `plugins/` with YANG schemas.
 
 ## Import Rules (BLOCKING)
 
-Infrastructure MUST NOT import plugin implementations directly -- use registry lookups.
-Plugins MUST NOT import sibling plugin packages -- use text commands via DispatchCommand.
+- **Infrastructure MUST NOT import a plugin implementation directly; it MUST use a registry lookup.**
+- **A plugin MUST NOT import a sibling plugin package; it MUST send a text command through `DispatchCommand`.**
 
 - `internal/component/plugin/`, `internal/component/bgp/`, `internal/component/config/`, `cmd/ze/` -> registry
 - NLRI decoding: `registry.NLRIDecoder(family)` -> `func(hex) (json, error)`
@@ -152,981 +53,215 @@ Plugins MUST NOT import sibling plugin packages -- use text commands via Dispatc
 
 ## Plugin Boundary Naming (BLOCKING)
 
-When a plugin sends commands to the engine via DispatchCommand, name the helper
-for what it does (dispatch a command), not where it sends it (to a specific plugin).
-The engine routes commands by prefix, so the caller must not encode the destination
-in function names, variable names, or type names.
+- **A helper that sends a command through `DispatchCommand` MUST be named for what it does, never for where it sends it.** The engine routes by prefix, so a function, variable or type name MUST NOT encode the destination: `dispatchCommand`, never `dispatchRIBCommand`.
 
-| Banned | Use Instead |
-|--------|-------------|
-| `dispatchRIBCommand` | `dispatchCommand` |
-| `sendToRIB` | `dispatchCommand` |
-| `ribClient` | `sdk.DispatchCommand` directly |
+## Command Answer Framing (BLOCKING)
 
-## 5-Stage Protocol
+- **A plugin MUST NOT be written to assume a single-line command frame.** A command answer is a head, one line for each record, and a terminator. It is that in both directions, on every connection, and Stage 3 carries no wire shape to ask for another.
 
-| Stage | Direction | RPC |
-|-------|-----------|-----|
-| 1. Declaration | Plugin->Engine (A) | `ze-plugin-engine:declare-registration` |
-| 2. Config | Engine->Plugin (B) | `ze-plugin-callback:configure` |
-| 3. Capability | Plugin->Engine (A) | `ze-plugin-engine:declare-capabilities` |
-| 4. Registry | Engine->Plugin (B) | `ze-plugin-callback:share-registry` |
-| 5. Ready | Plugin->Engine (A) | `ze-plugin-engine:ready`, enter event loop |
-| Post | Engine->Plugin (B) | `ze-plugin-callback:post-startup`, sent once after every startup phase completes and both the plugin registry and dispatcher command registry are frozen |
+- **The frame never follows the payload.** A plugin answers every `execute-command` with a head, its records and a terminator, a built value included. The VALUE is unchanged, byte for byte; the frame around it is not. A test peer written by hand MUST write and read that frame, or the engine takes a head line's tail for its result. The line tags are in `docs/architecture/api/process-protocol.md`, "Command Execution".
 
-After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispatches Socket A requests in goroutines. Wire format: `#<id> <verb> [<json>]\n` (see `docs/architecture/api/wire-format.md`).
-
-### One command-answer encoding (BLOCKING)
-
-A command answer is a head, one line for each record, and a terminator. It is that in both directions, on every connection, and Stage 3 carries no wire shape to ask for another. A plugin MUST NOT be written to assume a single-line command frame.
-
-**The frame never follows the payload.** A plugin answers every `execute-command` with a head, its records and a terminator, a built value included. The VALUE is unchanged, byte for byte. The frame around it is not. A test peer written by hand MUST write and read that frame, or the engine takes a head line's tail for its result. The field after the id names which line it is, in three bytes: `top` for the head, `row` and `bad` for a produced row and a rejected one, `end` for the terminator, and `nay` for a command text naming no command.
-
-A command handler MAY answer with a `plugin.Records` rather than a built value. `Records.Rows` is walked once, before the handler's call returns, and MUST NOT be stored.
-<!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
+- **A command handler MAY answer with a `plugin.Records` rather than a built value, and `Records.Rows` MUST NOT be stored.** It is walked once, before the handler's call returns.
 <!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
-<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer -->
 
 ## OnStarted vs OnAllPluginsReady (BLOCKING)
 
-Stages 1-5 run per-phase. The engine loads plugins across up to five phases
-(config-path auto-load -> explicit -> family -> event-type -> send-type) serially,
-so a plugin's `OnStarted` fires after its own handshake but potentially before
-plugins in later phases are loaded.
-
-| Where to put it | Rule |
-|-----------------|------|
-| `OnStarted(fn)` | Local setup only: start long-lived goroutines, register subscriptions, initialise per-plugin state. |
-| `OnAllPluginsReady(fn)` | Any `DispatchCommand` targeting another plugin's command at startup. The callback fires via the event loop once the dispatcher command registry is frozen, so cross-plugin dispatch is guaranteed to resolve. |
-
-`bgp-rpki` is the reference example: the `adj-rib-in enable-validation` dispatch lives in `OnAllPluginsReady` (`internal/component/bgp/plugins/rpki/rpki.go`). `OnStarted` can run before `bgp-adj-rib-in` loads and fail with "unknown command".
+- **A `DispatchCommand` that targets another plugin's command at startup MUST be issued from `OnAllPluginsReady`, and MUST NOT be issued from `OnStarted`.** The engine loads plugins across up to five phases in series, so `OnStarted` fires after this plugin's own handshake and before a later phase's plugins load, and the dispatch fails with "unknown command". `OnAllPluginsReady` fires once the dispatcher command registry is frozen.
+- **`OnStarted` MUST carry local setup only:** long-lived goroutines, subscriptions, per-plugin state. The phase order is `docs/architecture/plugin/plugin-system.md`, "Startup phases and callbacks".
 
 ## Exclusive Role Claims (BLOCKING for cross-plugin default overrides)
 
-When plugin A takes over a role that plugin B performs by default, B must learn
-that BEFORE it can receive its first runtime event. **Declare it; never dispatch
-a command at `OnAllPluginsReady` to announce it.**
+- **When plugin A takes over a role plugin B performs by default, A MUST declare it as `Claims` in its `registry.Registration`, and MUST NOT announce it by dispatching a command at runtime.** B has to learn the claim before its first runtime event, and the engine delivers the union of the startup set's claims on every plugin's stage-2 configure callback. B reads `sdk.Plugin.ClaimActive("<role-token>")` from `OnConfigure`. The resolution mechanism is `docs/architecture/plugin/plugin-system.md`, "Exclusive role claims".
 
-| Step | What |
-|------|------|
-| A declares | `Claims: []string{"<role-token>"}` in its `registry.Registration` |
-| Engine resolves | Unions the claims of the whole startup set and delivers them on every plugin's **Stage-2 configure** callback (`rpc.ConfigureInput.Claims`) |
-| B stands down | Reads `sdk.Plugin.ClaimActive("<role-token>")` from its `OnConfigure` handler |
-
-Stage 2 is part of the sequential handshake, so it completes before Stage 5 ready
-and therefore before `SignalPluginStartupComplete` -> StartPeers. The token is
-opaque to the engine: A and B agree on the spelling, and B spells it itself rather
-than importing A's package, so deleting A leaves B building and self-serving.
-
-**Why not `OnAllPluginsReady`:** A role MUST NOT be resolved from
-`OnAllPluginsReady`. `sendPostStartupToAll` fans that callback out on
-detached goroutines immediately before peers start, and waiting there deadlocks
-(its doc comment records the attempt). A role resolved from it races the first
-session by 1-2 ms on an idle host, which inverts under load: the duplicate
-peer-up replay in `plan/known-failures/bgp-plugin-rs-forward-duplicate-and-order.md`.
+- **A role MUST NOT be resolved from `OnAllPluginsReady`.** `sendPostStartupToAll` fans that callback out on detached goroutines immediately before peers start, so waiting there deadlocks, and a role resolved from it races the first session by 1 to 2 milliseconds on an idle host, which inverts under load.
 
 **Fail closed:** an unclaimed or unresolvable role reads `false`, so B keeps doing
 the work. That MUST NOT be inverted: standing down for an owner that never runs
 is worse than both running. If a claimant never reaches Running, the engine logs it
 (`verifyAdvertisedClaims`) but does not fail startup.
 
-**A claim is daemon-wide and delivery is per-peer, so the engine retracts it per
-event.** Each peer-scoped event carries the claimed roles that NO process being
-fed that event holds (`UnheldRoles`): `StructuredEvent.UnheldRoles` on the direct
-bridge, the `unheld-roles` member of the JSON event otherwise. A plugin that
-stood a role down MUST run its own default behaviour for an event that names the
-role, because for that peer nothing else will. An absent list means every claim
-holds, which is the common case.
-
-Reference: `bgp-rs` claims `bgp-peer-up-replay`
-(`internal/component/bgp/plugins/rs/register.go`); `bgp-adj-rib-in` stands down in
-`internal/component/bgp/plugins/adj_rib_in/rib_claims.go`.
+- **A plugin that stood a role down MUST run its own default behaviour for an event whose unheld-roles list names that role.** A claim is daemon-wide and delivery is per-peer, so the engine retracts it per event: for that peer, nothing else will do the work. An absent list means every claim holds, which is the common case.
 
 ## Peer-Up Barrier (BLOCKING for plugins that register peers)
 
-A plugin that decides, ON the peer-up event, whether a peer is eligible to
-receive traffic MUST declare `PeerUpBarrier: true`. Declaring it makes the
-engine hold that peer's initial-sync End-of-RIB until the plugin has taken
-delivery of the event, so **"End-of-RIB sent" implies "every barrier plugin has
-registered this peer"**, the property a peer, or a test, needs to treat the
-marker as the go-ahead to send.
-
-| Step | What |
-|------|------|
-| Plugin declares | `PeerUpBarrier: true` in its `registry.Registration` |
-| Engine counts | The barrier-declaring plugins among those the peer-up event is ACTUALLY delivered to (`countPeerUpBarrier`, `internal/component/bgp/server/events.go`), before the first delivery |
-| Engine acknowledges | Each successful delivery result signals the peer's barrier: the result IS the plugin's acknowledgement that its handler ran and returned |
-| Peer waits | `Peer.waitPeerUpBarrier` before the initial-sync End-of-RIB (`internal/component/bgp/reactor/peer_initial_sync.go`) |
+- **A plugin that decides, ON the peer-up event, whether a peer is eligible to receive traffic MUST declare `PeerUpBarrier: true` in its `registry.Registration`.** The engine then holds that peer's initial-sync End-of-RIB until the plugin has taken delivery of the event, so "End-of-RIB sent" implies "every barrier plugin has registered this peer", the property a peer or a test needs to treat the marker as the go-ahead to send. How the barrier is counted, acknowledged and bounded is `docs/architecture/plugin/plugin-system.md`, "Peer-up barrier".
 
 **The barrier MUST be counted over the delivery set, never the registry.** A
 plugin that declares the barrier but is not subscribed to state events never
 takes delivery, so counting it would cost every peer the full barrier timeout.
 
-**Separate from the API-sync wait.** `apiSync` counts plugins that SEND routes
-and carries a 500 ms IPC grace for external ones. Barrier plugins only register,
-so they MUST NOT drag that sleep in, and the two counters MUST NOT merge: a
-route sender's signal satisfying a registrar's obligation is a fail-open
-(`ai/rules/evidence.md`). A peer whose only barrier plugin is
-in-process does not block on the wait: state-event delivery is synchronous, so
-the acknowledgement has already landed on the FSM callback goroutine by the time
-`sendInitialRoutes` is spawned, and the wait finds the channel closed. The
-barrier is therefore an enforced invariant rather than a delay on that path:
-it blocks only where delivery is genuinely asynchronous or slow.
+- **The peer-up barrier and the API-sync wait MUST NOT be merged, and a barrier plugin MUST NOT drag in `apiSync`'s 500 ms IPC grace.** `apiSync` counts plugins that SEND routes; a barrier plugin only registers. A route sender's signal satisfying a registrar's obligation is a fail-open (`ai/rules/evidence.md`).
 
-**Bounded, and it says so.** A plugin that never acknowledges delays the marker
-to `peerUpBarrierTimeout` (2 s), which releases it with a WARN naming the peer
-and the shortfall. Establishment MUST NOT be blocked.
-
-Reference: `bgp-rs` declares it because `handleState` sets `Up` and captures
-`ForwardFrom` in one critical section; an UPDATE taken delivery of before that
-lands at or below the peer's cut and belongs to the announce-only Adj-RIB-In
-replay, so its withdrawals never reach the peer.
-
-## Registration Fields
-
-| Field | Type | Required | Purpose |
-|-------|------|----------|---------|
-| `Name` | string | Yes | Plugin name |
-| `Description` | string | Yes | Human-readable description |
-| `RunEngine` | func(Conn, Conn) int | Yes | Engine-mode entry point |
-| `CLIHandler` | func([]string) int | Yes | CLI dispatch handler |
-| `Families` | []string | No | Address families ("afi/safi") |
-| `CapabilityCodes` | []uint8 | No | Capability codes decoded |
-| `ConfigRoots` | []string | No | Config roots plugin wants |
-| `Dependencies` | []string | No | Plugin names that MUST also be loaded. Missing name -> `ErrMissingDependency`. |
-| `OptionalDependencies` | []string | No | Plugin names the owner uses when loaded but can run without. Missing name is silently skipped (no error). Owner must handle runtime absence gracefully. |
-| `YANG` | string | No | YANG schema content |
-| `InProcessNLRIDecoder` | func | No | NLRI decode |
-| `InProcessNLRIEncoder` | func | No | NLRI encode |
-| `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
-| `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
-| `Claims` | []string | No | Exclusive runtime roles this plugin takes over from another plugin's default behavior (e.g., ["bgp-peer-up-replay"]). See "Exclusive Role Claims" above. |
-| `PeerUpBarrier` | bool | No | This plugin registers the peer (forward target, per-peer cut) on the peer-up event, so the peer's initial-sync End-of-RIB must not overtake it. See "Peer-Up Barrier" above. |
-| `DoctorChecks` | []DoctorCheckDef | No | Doctor readiness checks this plugin provides. Each entry carries metadata (name, phase, order, platforms, codes) and a check function. Component is set from the plugin Name. See `ai/rules/repo-maintenance.md`. |
-| `Features` | string | No | Space-separated flags ("nlri yang capa") |
+- **Establishment MUST NOT be blocked by the barrier.** A plugin that never acknowledges delays the marker to `peerUpBarrierTimeout` (2 s), which releases it with a WARN naming the peer and the shortfall.
 
 ## Registration Metadata Feeds Generated Docs
 
-The website plugin catalog in `../gh-pages/docs/features/plugins/` is
-generated from `registry.Registration` fields by `./le site build`.
-`internal/le/site` owns the website catalog producer. When adding or
-changing a
-plugin, treat `Name`, `Description`, `ConfigRoots`, `Dependencies`,
-`OptionalDependencies`, and `YANG` as public catalog data.
+- **`Name`, `Description`, `ConfigRoots`, `Dependencies`, `OptionalDependencies` and `YANG` MUST be treated as public catalog data.** `./le site build` generates the website plugin catalog from them, so a package move or a config-root change changes what is published. The generation path is `docs/architecture/plugin/plugin-system.md`, "Registration metadata feeds the website catalog".
 
-Do not create a second hand-written plugin list in docs or website content.
-If the catalog needs local prose or display metadata, add a `PLUGIN.md` next
-to that plugin's `register.go` with front matter (`area`, `summary`, `tags`)
-and body Markdown. If it needs a new machine fact, add structured metadata to
-the registry or extractor, then render the website from that data. Catalog
-grouping is derived from `ConfigRoots` and source path layout, so package moves
-and config-root changes affect the generated site.
+- **A second hand-written plugin list MUST NOT be created in docs or website content.** Local prose or display metadata goes in a `PLUGIN.md` beside that plugin's `register.go`; a new machine fact goes into the registry or the extractor, and the website renders from that data.
 
 ## Optional Dependencies
 
-Plugins that USE another plugin when it is present but can run without it
-declare the relationship as `OptionalDependencies` rather than `Dependencies`.
-Example: `bgp-rs` uses `bgp-adj-rib-in` for replay-on-peer-up when present,
-and disables replay (with a one-shot WARN log) when it is not.
+- **A plugin that USES another plugin when it is present but runs without it MUST declare the relationship as `OptionalDependencies`, never as `Dependencies`.** `Dependencies` is hard: a missing name gives `ErrMissingDependency` and startup fails. The resolver, validation and ordering semantics are `docs/architecture/plugin/plugin-system.md`, "Dependencies".
 
-| Field | Semantics |
-|-------|-----------|
-| `Dependencies` | Hard. Resolver returns `ErrMissingDependency` when the named plugin is not registered. Startup fails. |
-| `OptionalDependencies` | Soft. Resolver pulls the plugin in if registered, silently skips if not. No error. Owner MUST detect absence at run time and fall back cleanly. |
-
-Validation at registration is the same for both fields: empty string or
-self-dependency is rejected.
-
-Cycle detection and `TopologicalTiers` walk both kinds of edges when BOTH
-endpoints appear in the resolved name set, so startup ordering is preserved
-whenever the optional dep is actually present.
-
-Graceful fallback is the owner's responsibility. The pattern used by `bgp-rs`:
-
-1. Dispatch the command targeting the optional dep normally.
-2. If the response returns the engine's `ErrUnknownCommand` (propagated as a
-   string across the plugin IPC boundary), it MUST be treated as the "plugin
-   absent" signal.
-3. `sync.Once` MUST be used to log one `WARN` per process lifetime, skip the
-   feature (e.g. replay convergence loop), and continue with the rest of the
-   flow.
+- **The owner of an optional dependency MUST detect its absence at run time and fall back cleanly.** It MUST treat the engine's `ErrUnknownCommand`, propagated as a string across the plugin IPC boundary, as the plugin-absent signal, and it MUST use `sync.Once` to log one `WARN` per process lifetime before skipping the feature and continuing. `bgp-rs` disabling replay when `bgp-adj-rib-in` is absent is the worked example.
 
 ## Family Registration (BLOCKING)
 
-NLRI plugins MUST register the address families they handle via
-`family.MustRegister(afi, safi, afiStr, safiStr)` at package init time. The four
-RFC 4760 base families (`IPv4Unicast`, `IPv6Unicast`, `IPv4Multicast`,
-`IPv6Multicast`) live in `internal/core/family/registry.go` itself; everything
-else is owned by the plugin's `types.go`.
+- **An NLRI plugin MUST register every address family it handles with `family.MustRegister(afi, safi, afiStr, safiStr)` at package init time.** Each family gets ONE canonical name and no alias, the plugin owns its SAFI spelling, and a number collision under a different name panics. The four RFC 4760 base families live in `internal/core/family/registry.go`; everything else is owned by its plugin. What registration guarantees, and how a forked plugin declares families over the wire, is `docs/architecture/plugin/plugin-system.md`, "Address family registration".
 
-| Rule | Detail |
-|------|--------|
-| One canonical name per family | No aliases. The `afiStr/safiStr` arguments form the canonical `<afi>/<safi>` string. |
-| Registration is fatal on conflict | `family.MustRegister` panics if AFI or SAFI numbers collide with a different name. Same name + same numbers is a no-op. |
-| Plugin owns the SAFI name | `vpn` plugin chose `mpls-vpn`; `flowspec` plugin chose `flow`. The plugin is the authority. |
-| External plugins use the protocol | Forked plugins declare families in `declare-registration` (Stage 1) with AFI/SAFI numbers; the engine forwards to `family.RegisterFamily` via `registerPluginFamilies` in `plugin/server/startup.go`. See `docs/architecture/api/process-protocol.md`. |
-| Test packages call `family.RegisterTestFamilies()` | If a test exercises a SAFI not registered by an internal plugin, register it via the helper in `internal/core/family/testfamilies.go`. |
+## Non-CIDR Filter Declaration (BLOCKING for filter plugin authors)
 
-## Runtime Filter Declaration (planned -- stage 1 wire protocol)
-
-External plugins can declare named route filters at stage 1 via `declare-registration`.
-This is runtime IPC, not compile-time registration. Filter fields are stored in
-`PluginRegistration` (`internal/component/plugin/registration.go`), not `Registration`.
-
-| Field | Type | Purpose |
-|-------|------|---------|
-| `filters[].name` | string | Filter name (config references as `<plugin>:<name>`) |
-| `filters[].direction` | enum | import, export, both |
-| `filters[].attributes` | []string | Attribute names to receive |
-| `filters[].raw` | bool | Include raw wire bytes; REQUIRED for non-CIDR families |
-| `filters[].on-error` | enum | reject (fail-closed) or accept (fail-open) |
-| `filters[].overrides` | []string | Default filters this filter replaces |
-
-### Non-CIDR Families (BLOCKING for filter plugin authors)
-
-| Family set | Text protocol emits | Filter plugin requirement |
-|------------|---------------------|--------------------------|
-| CIDR (ipv4/ipv6 unicast, multicast, mpls-label) | `nlri <family> <op> <prefix>...` with the prefixes inlined | `raw=false` is sufficient |
-| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, and every future non-CIDR family) | `nlri <family> <op>` (marker only, no prefixes) | `raw=true` REQUIRED for per-NLRI decisions, and the plugin parses `FilterUpdateInput.Raw` itself |
-
-See `docs/architecture/api/process-protocol.md` "Non-CIDR Families in the
-Filter Text Protocol" for the full contract and
-`internal/component/bgp/reactor/filter_format.go` (`isCIDRFamily`,
-`formatMPBlock`) for the implementation.
+- **A filter plugin that needs per-NLRI decisions on a non-CIDR family MUST declare `raw=true` and MUST parse `FilterUpdateInput.Raw` itself.** For EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC and every future non-CIDR family the text protocol emits `nlri <family> <op>` as a marker with no prefixes. A CIDR family inlines its prefixes, so `raw=false` is sufficient there. The contract is `docs/architecture/api/process-protocol.md`, "Non-CIDR Families in the Filter Text Protocol".
 
 ## Answer Shape Declaration (stage 1 wire protocol)
 
-Each `CommandDecl` a plugin sends at stage 1 carries three optional fields:
-`shape`, `columns` and `address-fields`. They say what the command's ANSWER
-holds, so the CLI publishes the operators the command supports and refuses the
-others by name before dispatch. An absent field is an undeclared field. A plugin
-that sends none keeps the behavior it had before the fields existed.
-
-| Field | Type | Purpose |
-|-------|------|---------|
-| `commands[].shape` | string | `doc` for one document, `map` for rows that carry their own keys, `tab` for rows read against column names |
-| `commands[].columns` | []string | The answer's keys, in reading order. Needs a shape with rows. Maximum 64, each name 1 to 64 bytes |
-| `commands[].address-fields` | []string | The keys whose value holds an address. Needs a shape. Maximum 16, each name 1 to 64 bytes |
-
-**A plugin declaration MUST NOT be able to panic the daemon.** The three
-registries keep their panic on `declare`, which only in-tree Go reaches. A
-plugin's declaration goes through `declareFor` instead. That is the same four
-cases with the panic replaced by an error, so a conflicting plugin is refused
-and the daemon keeps running. `RegisterPluginShapes`
-(`internal/component/command/answer_shape.go`) is the only caller-facing write.
-`UnregisterPluginShapes` takes the whole declaration back when the plugin stops.
+- **A plugin's declaration MUST NOT be able to panic the daemon.** The shape, column and address-field registries keep their panic on `declare`, which only in-tree Go reaches. A plugin's declaration goes through `declareFor` instead: the same cases with the panic replaced by an error, so a conflicting plugin is refused and the daemon keeps running. `RegisterPluginShapes` is the only caller-facing write, and `UnregisterPluginShapes` takes the whole declaration back when the plugin stops.
 <!-- source: internal/component/command/column_order.go -- declare, declareFor, withdraw -->
 
-**A command MUST answer one shape whatever its argument.** One command path
-carries one declaration. A command answering a row set with no argument, and one
-bare object with an argument, declares neither branch truthfully.
-`show bgp healthcheck <name>` and `show bgp rpki aspa <asn>` were both corrected
-to answer a one-element row set. The other route declares the shape of one
-branch and refuses the operators of the other.
+- **A command MUST answer one shape whatever its argument.** One command path carries one declaration, so a command that answers a row set with no argument and a bare object with an argument declares neither branch truthfully. `show bgp healthcheck <name>` was corrected to answer a one-element row set; the other route declares the shape of one branch and refuses the operators of the other.
 <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleShow -->
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- aspaCommand -->
 
-**A declared column name MUST be a key the plugin's handler writes, in the same
-spelling.** The engine never sees the payload. So `validateShapeDecls` checks
-the shape spelling, the presence of a command path and the two bounds, and it
-cannot check that a name names anything. A functional test over the rendered
-answer is what checks that half.
-
-One bad entry refuses the whole list and fails stage 1. The message names the
-command and the offending value, clamped to 64 bytes so a plugin cannot write an
-unbounded string into the daemon log.
-<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateDeclaredFieldName, clampDeclared -->
-
-**A declared address-field list is an ADMISSION gate, not a selector.** It
-decides whether `| resolve` and `| origin` run at all. It does not decide what
-they decorate: `resolveJSON` and `originJSON` walk every key of the answer and
-decorate each string that parses as an address. So a plugin that declares one
-address field gets decoration on every address in the answer. A plugin that
-declares none gets both operators refused by name.
-<!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
-<!-- source: internal/component/command/pipe_origin.go -- originJSON -->
+- **A declared column name MUST be a key the plugin's handler writes, in the same spelling, and a functional test over the rendered answer MUST be what checks it.** The engine never sees the payload: `validateShapeDecls` checks the shape spelling, the presence of a command path and the two bounds, and it cannot check that a name names anything.
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls -->
 
 ## Runtime Pipe Alias Declaration (stage 1 wire protocol)
 
-External plugins can name a CLI pipe alias for their own commands at stage 1 via
-`declare-registration`. An alias is the word an operator types after the pipe
-character, and it stands for an operator chain. The engine parses the expansion
-once, at registration, and the daemon resolves it. `RegisterPluginAliases`
-(`internal/component/command/alias.go`) reports a bad declaration as an error
-rather than a panic, because the strings arrived over a socket.
+- **A pipe alias SELECTS and re-sequences an answer: it renames no key, adds no number and counts no row. A command that wants an alias MUST therefore emit the aggregate fields beside the detail rows, as siblings at one level.** `show bgp rpki` is the worked example: `overviewCommand` writes both halves into one record and `| summary` selects the first half. A view whose data has to be computed stays a subcommand, and so does one that takes a value.
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, appendSummaryFields -->
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `pipes[].command` | string | Command path the alias sits on. MUST be one of this plugin's own declared commands |
-| `pipes[].name` | string | The word an operator types after the pipe character (kebab-case, 1-64 chars) |
-| `pipes[].description` | string | The line completion and `command help` show beside the name |
-| `pipes[].expansion` | string | The operator chain the name stands for, as an operator would type it |
-
-**A pipe alias SELECTS and re-sequences an answer. It renames no key, adds no
-numbers and counts no matching rows.** So a command that wants an alias MUST
-emit the aggregate fields beside the detail rows, as siblings at one level.
-`show bgp rpki` is the worked example: `overviewCommand` writes both halves into
-one record, and `| summary` selects the first half. A command whose second view
-needs computed data stays a subcommand, and so does one that takes a value.
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, appendSummaryFields, summaryFieldNames -->
-
-**Three holders refuse a declared alias name:**
-
-- a built-in pipe operator that carries the name.
-- a pipe filter on an OVERLAPPING command path that carries it.
-- an alias on the EXACT same command path that carries it.
-
-The two populations differ because the two resolution rules differ. A filter
-wins its whole subtree, and a longer alias path deliberately shadows a shorter
-one. A plugin MUST NOT name a command path it did not declare in the same
-message. One refusal fails the whole stage 1 registration, and the daemon log is
-where an operator reads it.
-
-**A declared alias resolves over the SSH exec channel and in the daemon-hosted
-interactive session. It does NOT resolve in `ze cli` with no command argument.**
-That process runs its own copy of the interactive model and expands the chain
-before it sends anything, and no plugin alias is registered there. An operator
-reads `pipe error: unknown pipe operator: <name>`, and Tab offers the name
-nowhere. The repair is a channel that carries the daemon's alias table to the
-client, and it is not built. `cliClient.StreamMonitor` has the same gap.
-<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+- **A plugin MUST NOT declare an alias name that a built-in pipe operator, an overlapping pipe filter or a same-path alias already carries, and MUST NOT name a command path it did not declare in the same message.** One refusal fails the whole stage 1 registration, and the daemon log is where an operator reads it. Which holder wins, and why the populations differ, is `docs/architecture/api/process-protocol.md`, "Pipe Alias Declaration".
 
 ## Modification-Accumulator Buffer Arity (BLOCKING for filter plugin authors)
 
 - **An egress filter records attribute modifications with `filterapi.ModAccumulator.Op(code, action, buf)`. For an attribute whose value is a LIST of fixed-width wire values, `buf` MUST hold a whole number of those values, concatenated.** Several values in ONE operation is allowed and means "every one of them"; splitting them across operations is allowed too. A buffer that is not a whole number of values is what is forbidden.
-- **A handler MUST NOT assume one value.** `wireu.StripControlCommunities` returns every matching route-server control community as one buffer, and a consumer that accepted only a single value left every route carrying two or more of them unstripped, in silence, for months.
-
-| Attribute | Code | Value width | One `Op` may carry |
-|-----------|------|-------------|--------------------|
-| COMMUNITY | 8 | 4 octets | any number of values, concatenated |
-| EXTENDED_COMMUNITY | 16 | 8 octets | any number of values, concatenated |
-| LARGE_COMMUNITY | 32 | 12 octets | any number of values, concatenated |
-
-`Op` does NOT check this. It holds no attribute-width table and runs once per
-forwarded UPDATE, so the check belongs to the handler that already knows its own
-width: `filter_community.wholeValues`, called from
-`filter_community.genericCommunityHandler`. A violation is refused per
-operation, logged with the attribute code, the value width and the buffer
-length, and counted as `ze_bgp_attr_mod_remove_buffer_refused_total`. The
-attribute's other operations still apply. Contract:
-`filterapi.ModAccumulator.Op`. Architecture:
-`docs/architecture/core-design.md`, "Buffer arity, list-valued attributes".
+- **A handler MUST NOT assume one value.** `wireu.StripControlCommunities` returns every matching route-server control community as one buffer. The per-attribute widths, who checks the arity, and what a violation costs are in `docs/architecture/core-design.md`, "Buffer arity, list-valued attributes".
 
 ## Renaming a Registered Name (BLOCKING)
 
-A plugin or subsystem name is not a single string. It appears in many places
-that all have to agree, and most of them are loose strings (config keys, log
-keys, dispatch keys, env vars) that no compiler will catch.
+- **Before changing any registered name (plugin name, subsystem name, log subsystem, dispatch key, command prefix, family canonical name), EVERY consumer of that name MUST be grepped.** A registered name is not a single string, and most of its consumers are loose strings that no compiler catches. The consumer list and the grep to run are `docs/architecture/plugin/plugin-system.md`, "A registered name lives in many loose strings".
 
-The `938df51d` fix exists because BGP-as-plugin Phase 2 registered subsystems
-as `bgp-gr` / `bgp-rib` etc., but config and `ze.log.*` env vars expected
-`bgp.gr` / `bgp.rib`. Log levels were silently never applied. Six days passed
-before review caught it.
+- **Every match of the old name MUST be resolved before the rename is committed.** Each one is a deliberate keep (vendored code, history, a learned summary) or a bug, and a diff that updates one consumer is incomplete by definition.
 
-**Before changing any registered name (plugin name, subsystem name, log
-subsystem, dispatch key, command prefix, family canonical name), grep MUST be
-run for EVERY consumer in the table below.** A diff that updates only one of
-these locations is incomplete by definition.
-
-| Consumer | Where to grep | Looks like |
-|----------|--------------|-----------|
-| Plugin registration | `internal/component/bgp/plugins/*/register.go`, `internal/component/plugin/all/all.go` | `Name: "bgp-gr"` |
-| Subsystem logger | `internal/core/slogutil/`, `slogutil.Logger("...")` calls | `slogutil.Logger("bgp.gr")` |
-| Env var registration | `env.MustRegister("ze.log.bgp.gr", ...)` | `ze.log.<name>` |
-| YANG config keys | `internal/component/*/yang/*.yang`, `grouping`/`container` names | `container gr { ... }` |
-| Config consumer | `internal/component/bgp/config/`, anything that does string-keyed lookups in the parsed tree | `tree["bgp"]["gr"]` |
-| Dispatch keys | `dispatchCommand("bgp gr ...")`, command prefix matching | `"bgp gr"` |
-| Test fixtures | `test/**/*.ci`, `test/**/*.conf`, env vars in tests | `option=env:var=ze.log.bgp.gr` |
-| Documentation | `docs/`, `<!-- source: -->` anchors | text references |
-| Problem journal | `plan/journal/*.md` | text references |
-
-**A mechanical check MUST run before committing the rename:**
-
-```
-old_name="bgp-gr"  # what you are renaming away from
-new_name="bgp.gr"  # what you are renaming to
-# Show every place that still mentions the old name
-grep -rn "$old_name" internal/ pkg/ cmd/ test/ docs/ plan/ .claude/ 2>/dev/null
-```
-
-Every match is either a deliberate keep (vendored code, history, learned
-summary) or a bug. Do not commit until each match is resolved.
-
-**Naming convention:** subsystem and log keys MUST use dots (`bgp.gr`,
-`bgp.rib`). Plugin names registered with `registry.Register()` MUST use
-hyphens (`bgp-gr`, `bgp-rib`). The two are NOT the same string. The hub
-canonicalizes hyphen -> dot for in-process subsystem names (`938df51d`). When
-a new plugin is added, it MUST be registered with the hyphen form, and every
-config / log / env consumer MUST use the dot form (or the canonicalized form,
-depending on which side of the hub it lives on).
-
-## New Plugin Checklist
-
-```
-[ ] Create internal/plugins/<name>/<name>.go (package-level logger with SetLogger)
-[ ] Create internal/plugins/<name>/register.go (init() → registry.Register())
-[ ] Run ./le repository generate (regenerates all.go)
-[ ] Update TestAllPluginsRegistered expected count
-[ ] Add YANG schema if config support (schema/ subdir)
-[ ] Add EventTypes if plugin produces custom event types (e.g., ["update-rpki"])
-[ ] Add DoctorChecks if plugin adds runtime dependencies (see ai/rules/repo-maintenance.md)
-[ ] Add functional tests in test/plugin/
-[ ] If plugin sets/reads route metadata: register keys in docs/architecture/meta/README.md, create docs/architecture/meta/<name>.md (see template there)
-```
-
-Auto-populated: CLI dispatch, plugin runners, YANG schemas, config roots, family/capability maps, decoder maps.
-
-## Invocation Modes
-
-| Mode | Syntax | Implementation |
-|------|--------|----------------|
-| Fork (default) | `pluginname` | Subprocess via exec, TLS connect-back |
-| Internal | `ze.pluginname` | Goroutine + net.Pipe + DirectBridge (hot path bypasses pipes) |
-| Direct | `ze-pluginname` | Sync in-process call |
-| Path | `/path/to/binary` | External binary, TLS connect-back |
-
-## Transport
-
-| Plugin type | Transport | Auth | Config |
-|-------------|-----------|------|--------|
-| Internal (goroutine) | `net.Pipe()` then DirectBridge | N/A | implicit |
-| External (local) | TLS over TCP (single connection) | Per-plugin token via `ZE_PLUGIN_HUB_TOKEN` env + cert pinning via `ZE_PLUGIN_CERT_FP` | `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` |
-| External (remote) | TLS over TCP (single connection) | Token via out-of-band config | `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` |
-
-External plugins connect back to the engine's TLS listener. Auth is stage 0: `#0 auth {"token":"...","name":"..."}`. Each forked plugin receives a unique random token bound to its name. A plugin cannot use its token to impersonate another. The token is cleared from the OS environment after first read (`Secret: true` on the env registration). The engine also passes its TLS certificate SHA-256 fingerprint via `ZE_PLUGIN_CERT_FP` so the SDK verifies the server identity during the TLS handshake.
+- **A subsystem or log key MUST use dots (`bgp.gr`), and a plugin name registered with `registry.Register()` MUST use hyphens (`bgp-gr`).** The two are NOT the same string. The hub canonicalizes hyphen to dot for in-process subsystem names, so a new plugin MUST be registered in the hyphen form while every config, log and env consumer uses the dot form, or the canonicalized form, depending on which side of the hub it sits on.
 
 ## DirectBridge: Choosing the Right Communication Pattern (BLOCKING)
 
-DirectBridge (`pkg/plugin/rpc/bridge.go`) provides typed direct function calls
-between the engine and internal plugins, bypassing JSON serialization and socket
-I/O entirely. It supports multiple communication patterns. Before designing any
-new core-to-plugin communication, read DirectBridge and check whether it already
-covers your use case.
+- **Before designing any new core-to-plugin communication, `pkg/plugin/rpc/bridge.go` MUST be read to check whether DirectBridge already covers the case.** It gives typed direct function calls between the engine and an internal plugin, bypassing JSON serialization and socket I/O. Which pattern fits which problem is `docs/architecture/plugin/plugin-system.md`, "Communication patterns".
 
-Design history: `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture" (retired summary 294)
+- **A new direct-call mechanism MUST NOT be proposed where DirectBridge already provides typed handler slots.** The bridge struct carries a `Set*`/`Has*`/call triplet for each fast-path handler, and a new one MUST follow that same pattern: a function type, an `atomic.Bool`, and the `Set`/`Has`/call methods.
 
-| Pattern | Mechanism | Use when |
-|---------|-----------|----------|
-| Async broadcast (one-to-many) | EventBus (`pkg/ze/eventbus.go`) | A component notifies zero or more listeners about a state change. No return value needed. Example: `(l2tp, session-down)`, `(bgp-rib, best-change)`. |
-| Sync request/response (one-to-one) | DirectBridge typed handler | Core calls a plugin function with typed args and waits for a typed result. Example: `ForwardCached`, `DispatchCommand`, `EmitEvent`. |
-| Structured event delivery | DirectBridge `DeliverStructured` | Engine delivers pre-parsed event data to internal plugins (zero JSON). Example: `StructuredEvent` for BGP UPDATEs. |
-| Text command dispatch | `DispatchCommand` (via bridge or pipe) | Plugin sends a text command to the engine's command registry. Slow path for ad-hoc or external callers. |
+- **EventBus MUST NOT be used for request and response.** It is pub/sub with no return channel, so emitting a request event and subscribing for a response event adds correlation IDs, timeouts and two event registrations that a direct function call avoids entirely.
 
-**Anti-pattern:** MUST NOT propose a new direct-call mechanism when DirectBridge
-already provides typed handler slots. The bridge struct has `Set*`/`Has*`/call
-triplets for each fast-path handler. Adding a new one MUST follow the same
-pattern (function type + `atomic.Bool` + `Set`/`Has`/call methods).
-
-**Anti-pattern:** MUST NOT use EventBus for request/response. EventBus is
-pub/sub with no return channel. Emitting a request event and subscribing for a response event
-adds complexity (correlation IDs, timeouts, two event registrations) that a
-direct function call avoids entirely.
-
-**Anti-pattern:** A plugin MUST NOT call a plain exported function in another
-`internal/component/*` package directly to register a callback or reach shared
-engine state; it MUST go through DirectBridge/DispatchCommand instead. This
-compiles and works when the plugin happens to run internal, then silently
-no-ops when it runs external (the call mutates the subprocess's own
-disconnected copy of that package's state). See "Process Boundary" below,
-gated by `./le plugin boundary check`.
-
-## Structured Event Delivery (DirectBridge)
-
-Internal plugins that register `OnStructuredEvent` receive `*rpc.StructuredEvent` instead of formatted text. The engine delivers pre-extracted peer metadata + `RawMessage` pointer, eliminating JSON formatting on the engine side and `ParseEvent` on the plugin side.
-
-| Event type | StructuredEvent fields | RawMessage |
-|------------|----------------------|------------|
-| UPDATE (received/sent) | PeerAddress, PeerAS, LocalAS, Direction, MessageID, Meta | Set, carries `AttrsWire` (lazy attributes) + `WireUpdate` (zero-copy sections) |
-| State (up/down) | PeerAddress, PeerAS, State, Reason | nil |
-| OPEN, NOTIFICATION, REFRESH | PeerAddress, PeerAS, Direction, MessageID | Set, carries `RawBytes` for wire decoding |
-
-Plugins read attributes via `AttrsWire.Get(code)` (lazy, per-attribute) and NLRIs via `WireUpdate.NLRI()` / `MPReach()` / `MPUnreach()` (zero-copy byte slices). External/forked plugins continue receiving JSON text via `OnEvent`.
+- **A plugin MUST NOT call a plain exported function in another `internal/component/*` package directly to register a callback or reach shared engine state; it MUST go through DirectBridge or `DispatchCommand`.** The direct call compiles and works when the plugin runs internal, then silently no-ops when it runs external, because it mutates the subprocess's own disconnected copy of that package's state. Section "Plugin Process Boundary" carries the guard, and `./le plugin boundary check` enforces it.
 
 ## EventBus Typed Payloads (BLOCKING)
 
-`pkg/ze/eventbus.go` carries `payload any`. New events MUST be declared via
-`events.Register[T](namespace, eventType)` (typed) or
-`events.RegisterSignal(namespace, eventType)` (no payload). Producers call
-`Handle.Emit(bus, payload)` and consumers call
-`Handle.Subscribe(bus, func(T))`; the registry is the single source of
-truth for the payload type.
+- **A new event MUST be declared with `events.Register[T](namespace, eventType)`, or with `events.RegisterSignal(namespace, eventType)` when it carries no payload.** `pkg/ze/eventbus.go` carries `payload any`, so the registry is the single source of truth for the payload type. Producers call `Handle.Emit(bus, payload)` and consumers call `Handle.Subscribe(bus, func(T))`.
 
-**Engine (in-process) subscribers deliver synchronously within `Emit`;
-plugin-process subscribers deliver asynchronously** (`Emit` returns the
-plugin-process delivery count -- see `internal/core/events/typed.go`). A
-request/re-emit correlation MUST NOT assume all subscribers answered by the
-time `Emit` returns, unless every subscriber is in-process. The
-redistribute late-join replay (`redistevents.ReplayRequest` + echoed `ReplayID`
-token) correlates a returning `RouteChangeBatch` to the requesting peer via an
-opaque token the producer echoes, and holds the `ReplayID -> peer` map for a TTL
-rather than dropping it right after `Emit`, precisely because an out-of-process
-producer's re-emit arrives after `Emit` returns.
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- ReplayID token + TTL map -->
-<!-- source: internal/core/redistevents/events.go -- ReplayRequest event -->
+- **Engine (in-process) subscribers deliver synchronously within `Emit`, and plugin-process subscribers deliver asynchronously, so a request and re-emit correlation MUST NOT assume every subscriber answered by the time `Emit` returns unless every subscriber is in-process.** `Emit` returns the plugin-process delivery count. The redistribute late-join replay holds its `ReplayID -> peer` map for a TTL rather than dropping it right after `Emit`, precisely because an out-of-process producer's re-emit arrives later.
 <!-- source: internal/core/events/typed.go -- Emit returns plugin-process delivery count -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- ReplayID token + TTL map -->
 
-**External-plugin startup subscriptions carry a namespace and an optional
-envelope.** `SetStartupSubscriptions(events, peers, format)` subscribes in the
-protocol component's default namespace (`bgp`). To observe another namespace
-(e.g. `vpn-ipsec`) from an out-of-tree plugin, a plugin MUST call
-`SetStartupSubscriptionsIn(namespace, events, peers, format)`; an unregistered
-namespace is warned and skipped, never registered dead. To discriminate several
-event types that share a payload shape (e.g. `sa-up` vs `sa-down`), a plugin
-MUST call `SetEnvelope(true)` and parse each delivery with
-`rpc.ParseEventEnvelope`
-(`{namespace,event,payload}`); the default remains the bare payload, byte-for-byte
-unchanged. All three are additive (new `omitempty` fields, new `Set*` methods):
-no existing SDK signature or wire byte changed. In-process plugins do not need
-this: they subscribe to any namespace directly on the `EventBus`.
+- **`SetStartupSubscriptions(events, peers, format)` subscribes in the protocol component's default namespace (`bgp`). An out-of-tree plugin that observes another namespace MUST call `SetStartupSubscriptionsIn(namespace, events, peers, format)`, and one that discriminates several event types sharing a payload shape MUST call `SetEnvelope(true)` and parse each delivery with `rpc.ParseEventEnvelope`.** An unregistered namespace is warned and skipped, never registered dead. An in-process plugin needs neither: it subscribes to any namespace directly on the `EventBus`.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptionsIn, SetEnvelope -->
-<!-- source: internal/component/plugin/server/dispatch.go -- registerSubscriptions, buildEventEnvelope -->
-<!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput.Namespace/Envelope, EventEnvelope -->
 
-A payload-carrying request event (`events.Register[T]`) is preferred over a
-payload-less signal (`RegisterSignal`) when a returning batch must be correlated
-back to a specific requestor: the token rides the request and the producer echoes
-it, keeping the returning batch peer-agnostic.
+- **A payload-carrying request event (`events.Register[T]`) SHOULD be preferred over a payload-less signal (`RegisterSignal`) when a returning batch has to be correlated back to a specific requestor.** The token rides the request and the producer echoes it, which keeps the returning batch peer-agnostic.
 
-**Test-stub convention.** Every test file that defines a private mock of
-`ze.EventBus` MUST add a compile-time check on the same file:
+- **Every test file that defines a private mock of `ze.EventBus` MUST carry a compile-time check in that same file: `var _ ze.EventBus = (*<stubName>)(nil)`.** Without it, an interface change compiles the stub against an outdated signature and fails only when a test actually constructs the stub.
 
-```go
-var _ ze.EventBus = (*<stubName>)(nil)
-```
-
-Without this line, an interface change (e.g. `Emit` gaining `any`) compiles
-the stub against an outdated signature and only fails when the test
-actually constructs the stub. The current 8 stub files
-(`pkg/ze/ze_test.go`, `internal/plugins/{sysrib,ntp}/*_test.go`,
-`internal/plugins/iface/dhcp/*_test.go`,
-`internal/plugins/iface/netlink/monitor_linux_test.go`,
-`internal/component/iface/{migrate_linux,integration_helpers_linux,config}_test.go`,
-`internal/component/plugin/{server,manager}/*_test.go`,
-`internal/component/bgp/plugins/rib/rib_bestchange_test.go`) all carry
-this assertion. New stubs without it should fail review.
-
-Subscribers MUST type-assert via the typed handle (`Event[T].Subscribe`)
-rather than calling `bus.Subscribe` directly. The handle's wrapper logs a
-warn on type mismatch; raw `bus.Subscribe` callers swallow mismatches
-silently. The legacy `events.AsString` shim exists only for events that
-have not yet migrated to a typed handle and is not for new code.
+- **A subscriber MUST type-assert through the typed handle (`Event[T].Subscribe`) rather than calling `bus.Subscribe` directly.** The handle's wrapper logs a warn on a type mismatch; a raw `bus.Subscribe` caller swallows the mismatch in silence. The legacy `events.AsString` shim covers events not yet migrated to a typed handle, and MUST NOT be used in new code.
 
 ## Plugin Self-Containment
 
 **A plugin MUST own its ENTIRE feature surface. Removing the plugin MUST make every one of its features disappear; every OTHER plugin and the core MUST keep working.**
 
-This is the load-bearing invariant of the registration architecture. It is the
-"delete the folder" test from the Proximity Principle above, stated for the full
-user-facing surface, not just internal wiring.
+- **Deleting a plugin's package directory plus its blank import in `internal/component/plugin/all/all.go` MUST remove every user-visible feature of that plugin and nothing else:** CLI commands, `show`/`set`/`clear`/`delete`/`update` subtrees, RPC registration, offline command registration, YANG command schema, help and usage text, completion entries, web and looking-glass routes, doctor checks, metrics.
+- **The build MUST stay green after that deletion:** no dangling reference, no orphaned command spelling, no half-registered command anywhere.
+- **Every other plugin and the core MUST keep fully working after it.** Removing BGP MUST NOT break iface, firewall, l2tp or the generic command plumbing.
 
-### The Removal Test
+- **A surface whose removal would break a different plugin, break the core, or leave a broken or empty command MUST be moved to its owner.** It is in the wrong package. The anti-patterns that fail this test are listed in `docs/architecture/command-ownership.md`, "What the Removal Test Forbids".
 
-Deleting a plugin's package directory plus its blank import in
-`internal/component/plugin/all/all.go` MUST:
-
-1. **Every user-visible feature of that plugin MUST be removed** and nothing else: CLI commands, `show`/`set`/`clear`/`delete`/`update` subtrees, RPC registration, offline command registration, YANG command schema, help and usage text, completion entries, web/looking-glass routes, doctor checks, metrics.
-2. **The build MUST stay green.** No dangling reference, no orphaned command spelling, no half-registered command anywhere.
-3. **Every other plugin and the core MUST keep fully working.** Removing BGP MUST NOT break iface, firewall, l2tp, or the generic command plumbing.
-
-If removing a plugin would break a different plugin, the core, or leave a
-broken/empty command, the surface is in the wrong package. Move it to the owner.
-
-### What This Forbids
-
-| Anti-pattern | Why it fails the removal test |
-|--------------|-------------------------------|
-| Plugin command spelling in generic dispatch (`internal/component/plugin/server`) | Deleting the plugin leaves dead BGP/iface knowledge in shared code |
-| A plugin's subtree in a central verb schema (e.g. `show bgp ...` in `internal/component/cmd/show/yang/ze-cli-show-cmd.yang`) | Deleting the plugin leaves a `show bgp` branch with no handler |
-| Plugin handlers registered from a central verb package (`internal/component/cmd/show`, `internal/component/cmd/delete`, ...) | Deleting the plugin leaves the central package referencing gone symbols |
-| Help / usage / inventory strings that hardcode a plugin's commands in a generic package | Deleting the plugin leaves help advertising commands that no longer exist |
-| The CLI helper (`cmd/ze/internal/cmdutil`) special-casing a plugin's selectors | Selector handling is generic; per-plugin knowledge belongs to the owner |
-
-### What Shared Code MAY Do
-
-Generic command plumbing carries **selector scope**, not command spelling.
-The dispatcher may extract a typed selector value because a YANG `ArgDef`
-declares it (`internal/component/plugin/server/command.go`), but it must not
-contain the words `peer`, `bgp`, `bfd`, or any plugin's grammar. The
-classification rule is ownership before grammar: shared dispatch may carry
-selector scope; it must not own a plugin's command spelling.
-
-### Finding the Owner: follow the code, not the wire-method namespace
+- **Generic command plumbing MUST NOT carry a plugin's command spelling; it carries selector scope only.** The dispatcher MAY extract a typed selector value because a YANG `ArgDef` declares it, and it contains no plugin grammar: not `peer`, not `bgp`, not `bfd`. The classification rule is ownership before grammar.
 
 **The `ze-<ns>:` prefix on a WireMethod is a label, not an ownership claim, and is often a legacy misnomer. The owner MUST be determined by what the handler actually calls; the handler, schema, and registration MUST then be placed in that package.**
 
-Trace the handler's real dependencies:
+- **A command MUST stay in a central verb package only when it has no single removable owner:** it aggregates a cross-plugin registry, it reads a generic core system, or it is process-global (`show warnings`, `show health`, `subscribe`). Everything that reads one plugin's or one component's state MUST be placed with that owner, whatever the `ze-<ns>:` label on its WireMethod says. Worked examples are in `docs/architecture/command-ownership.md`, "Finding the Owner".
 
-| Command (WireMethod) | What the handler calls | Owner |
-|----------------------|------------------------|-------|
-| `ze-show:ip-route` / `ze-show:neighbors` / `ze-show:kernel-routes` | `iface.ListKernelRoutes` / `iface.ListNeighbors` (kernel tables via the iface backend) | `internal/component/iface` (NOT central `show`; NOT the BGP RIB) |
-| `ze-bgp:pool-stats` | `bgp/plugins/rib/pool` attribute-pool metrics | BGP RIB plugin |
-| `ze-bgp:metrics-values` / `ze-bgp:metrics-list` | generic core Prometheus registry (`internal/core/metrics`) | generic, stays central |
-| `ze-bgp:subscribe` / `ze-bgp:unsubscribe` | generic `pluginserver` subscription manager | generic, stays central |
-| `ze-show:policy-list` | cross-plugin filter-type registry (`registry.FilterTypesMap`) | generic, stays central |
+- **A carve MUST put the handler and its `pluginserver.RegisterRPCs` in the owner package, and the command YANG in `<owner>/yang/` as a standalone module that re-declares the path from the root.** The command YANG MUST NOT be nested under `<owner>/cmd/yang/`. The step-by-step, including the generator refresh a new `yang/` package needs, is `docs/architecture/command-ownership.md`, "Carving a Command Into Its Owner".
 
-A command is **generic (stays central)** only when it has no single removable
-owner: it aggregates a cross-plugin registry, reads a generic core system, or is
-process-global (`show warnings`, `show health`, `subscribe`). Everything that
-reads one plugin's or component's state belongs to that owner, regardless of the
-`ze-<ns>:` label on its WireMethod.
+- **A verb whose subcommands belong to several owners MUST NOT declare its root container inside any one plugin.** Deleting that plugin would delete the whole verb. The root MUST live in a central, plugin-free `internal/component/cmd/<verb>` that holds NO handler, and each owner container-merges only its own subtree onto it.
 
-### Where a Plugin's Surface Lives
+- **The central verb anchor MUST NOT be deleted once every subcommand has carved out to an owner.** It is then a bare `container <verb>` owning no command, and it stays REQUIRED rather than optional, because an augmenting owner names it as its target module. `internal/component/cmd/clear` is the precedent.
 
-| Surface | Owner location |
-|---------|----------------|
-| RPC handler + `pluginserver.RegisterRPCs` | owner package (e.g. `internal/component/<owner>/cmd/` or the plugin's own package) |
-| YANG command schema (full path from root, e.g. `show bgp peer ...`) | `<owner>/yang/ze-<x>-cmd.yang`, NEVER `<owner>/cmd/yang/` |
-| Offline/root command + handler | owner package via the offline command registry |
-| Help / usage / completion | derived from the owner's registry + schema (see `ai/rules/evidence.md`) |
-| Doctor check + its unit test | owner package (Proximity Principle) |
+- **A new carve SHOULD attach to a verb anchor by container merge rather than by `augment`.** The YANG loader unions same-named top-level containers, so container merge creates no base-module coupling. An `augment` names its target module, so deleting the anchor breaks every augmenting owner's build.
 
-Central verb packages (`internal/component/cmd/show`, `internal/component/cmd/delete`, ...) keep ONLY
-generic cross-system commands (`show warnings`, `show health`), never a specific
-plugin's commands.
+- **A feature that spreads across several verbs MUST get its own module `internal/component/<feature>` that owns every one of those commands, rather than being scattered across the verb packages.** Create the module when none exists. When two such modules would share low-level primitives, those primitives MUST be extracted to an `internal/core/<x>` package, so neither feature module depends on the other or on a central verb package.
 
-#### How to carve a command into its owner
+- **A new feature MUST NOT require editing a `switch`, a `case`, a field list or a factory in a core or shared package: it registers and is discovered.** This holds for the CLI client model as much as for the daemon's command and schema tree. `plan/TEMPLATE.md` carries it as a review item, and the client-side view registry is described in `docs/architecture/command-ownership.md`, "Registration Over Hardcoding".
 
-1. **Handler:** add `func init() { pluginserver.RegisterRPCs(...) }` + the handler in the owner package. If the owner package is already blank-imported (it has a `register.go` found by the generator's `pluginDirs`, or sits in `rpcDirs`), the registration links with NO generator or manual-island change. The handler imports only `plugin` + `pluginserver` (+ the owner's own API), so it does not create an import cycle.
-2. **Schema (container merge, NOT `augment`):** add `<owner>/yang/ze-<x>-cmd.yang`, a standalone module that re-declares the path from the root: `container show { container <x> { ... ze:command "ze-show:<x>"; } }`. The YANG loader unions same-named top-level containers across all registered modules, so the owner module needs no `import`/`augment` of the central schema and has no base-module coupling. Give it a unique `namespace`/`prefix` and `import ze-extensions`. Add the embed var + `yang.RegisterModule` call. A NEW `<owner>/yang/` package whose `register.go` imports `config/yang` is auto-discovered, so run `go run internal/le/plugin/imports/pluginimports.go` to refresh `internal/component/plugin/all/all.go`.
-3. **Schema location:** the command YANG MUST live in `<owner>/yang/` (top level, sibling of `cli`/`cmd`), and MUST NOT be nested under `<owner>/cmd/yang`.
-4. **Both halves of the invariant:** the owner `yang/` gets a presence test asserting its command tokens ARE declared; the central verb schema test bans the moved tokens (below).
+- **A removal-compliance test MUST exist and MUST run in verification:** build, or analyse the command and schema registries, with a plugin's provider import removed, and assert that no command, schema node, help string or handler reference to that plugin survives in any generic or central package. Adding this invariant means adding the gate that enforces it (`ai/rules/repo-maintenance.md`).
 
-#### Unowned verb roots (multi-owner verbs)
-
-A verb whose subcommands belong to several owners (e.g. `monitor bgp`,
-`monitor vpn ipsec`, `monitor ping`) must NOT declare its root container inside
-any one plugin. If it does, deleting that plugin deletes the whole verb. The
-root lives in a central, plugin-free package `internal/component/cmd/<verb>`
-(a `doc.go` that blank-imports its `yang/` subpackage, mirroring `internal/component/cmd/delete`);
-each owner container-merges only its own subtree onto that root. Precedent:
-`internal/component/cmd/monitor` holds the `container monitor` root, while
-`monitor bgp` stays in the BGP plugin and the other subcommands carve out to
-their feature owners. The central package holds NO handlers; subcommand handlers
-register from their owners.
-
-**The root anchor stays even when it declares zero commands, and is REQUIRED, not optional.** Once every subcommand of a verb has carved out to an owner, the central verb schema is a bare `container <verb>` with no `ze:command` leaf of its own. It MUST NOT be deleted. `internal/component/cmd/clear` is the precedent: `clear interface counters` (iface), `clear dns cache` (resolve), `clear vpn ipsec sa` (ike), `clear l2tp ...` (l2tp), and `clear bgp rib ...` (bgp) are all owner-owned, so `ze-cli-clear-cmd.yang` declares only the bare `container clear` anchor. Owners attach to that anchor two ways, and the second one has a hard dependency on it:
-
-- **Container-merge:** the owner declares its own `container <verb> { container <noun> ... }` and the YANG loader unions same-named roots (iface, resolve, ike use this for `clear`). Container-merge SHOULD be used for new carves (no base-module coupling; see "How to carve" above).
-- **Augment:** the owner declares `augment "/<prefix>:<verb>" { container <noun> ... }` against the anchor module (l2tp and bgp use this for `clear`, via `augment "/cliclearcmd:clear"`). An augment names its target module, so deleting the anchor breaks every augmenting owner's build. This is the concrete reason the bare anchor MUST remain.
-
-The anchor still owns NO command. The central guard test bans each carved token so
-a command cannot drift back into the central schema (for `clear`:
-`internal/component/cmd/clear/yang/self_containment_test.go`,
-`TestClearSchemaHasNoMigratedOwnerCommands`; each owner `yang/` holds the matching
-presence test, e.g. `TestResolveCmdSchemaOwnsClearDNSCache`).
-
-#### Dedicated feature modules
-
-When one feature spreads across several verbs (a one-shot root command, a `show`
-view, a `monitor` stream, a `resolve` variant), give the feature its own module
-`internal/component/<feature>` that owns every one of those commands, rather than
-scattering them across the verb packages. Create the module if none exists. When
-two such modules would share low-level primitives (e.g. ping and traceroute both
-build ICMP echo packets and resolve targets), extract those primitives to a
-`internal/core/<x>` package (e.g. `internal/core/probe`) so neither feature
-module depends on the other or on a central verb package.
-
-#### Registration over hardcoding (the CLI client too)
-
-The registration discipline applies to the **CLI client model**, not only the
-daemon's command/schema tree. The daemon registers streaming views generically
-(`pluginserver.RegisterMonitorProvider(MonitorProvider{Prefix, CreateFn})` plus
-`RegisterStreamingHandler(prefix, handler)`, resolved by longest-prefix
-`matchesPrefix` in `internal/component/plugin/server/handler.go`); the Bubble Tea
-client mirrors this with its own view registry and must not regress into
-per-feature hardcoding.
-
-Anti-pattern: each rich live view (dashboard, traceroute,
-ping, traffic) adding its own field + factory + state + dispatch to the core
-`cli.Model` (`internal/component/cli/model*.go`), wired one-by-one in
-`cmd/ze/hub/session_factory.go` and `internal/component/cli/client/main.go`. Every
-new view then edits the core struct in 4-5 places, the opposite of "the core
-discovers features through a registry."
-
-Correct (live in the tree): the client-side view registry in
-`internal/component/cli/view_registry.go` (`RegisterView(viewSpec{key, prefix,
-matches, start})`, `RegisteredViews()`, longest-prefix `resolveView` copied from
-`handler.go` `matchesPrefix`). Each view registers from its own
-`register_view_*.go` `init()` (`ViewKeyPing`/`ViewKeyTraceroute`/`ViewKeyDashboard`)
-and hangs its session state off the single `Model.activeView` handle plus the
-generic `Model.viewFactories` store, with no per-feature field. Consumers iterate
-`cli.RegisteredViews()` and inject each factory by key via `SetViewFactory`, not
-three typed setters. The `TestModelHasNoPerFeatureViewField` reflection guard
-(`internal/component/cli/model_test.go`) fails if a per-feature field returns.
-
-General test for any spec: **a new feature must not require editing a `switch`, `case`, field list, or factory in a core or shared package: it registers and is discovered.** This is the "Registration over hardcoding" review item carried by `plan/TEMPLATE.md` and checked during spec review.
-
-### Mechanical Check
-
-A removal-compliance test must exist and run in verification: build (or analyse
-the command/schema registries) with a plugin's provider import removed and
-assert no command, schema node, help string, or handler reference to that
-plugin survives in any generic or central package. See
-`ai/rules/repo-maintenance.md`: adding this invariant means adding the gate
-that enforces it.
-
-The first instance is `TestShowSchemaHasNoBGPPluginCommands`
-(`internal/component/cmd/show/yang/self_containment_test.go`): it asserts the
-central `show` verb schema declares no part of the `show bgp ...` subtree
-(`ze-rib-api:`, `ze-bgp:peer-`, `ze-show:bgp-decode`, `ze-show:bgp-encode`),
-because `show bgp rib ...` / `show bgp peer ...` are owned by
-`internal/component/bgp/plugins/cmd/{rib,peer}/yang` and the offline
-`show bgp decode` / `show bgp encode` diagnostics are owned by
-`internal/component/bgp/cli/yang`. The owner half is asserted by
-`internal/component/bgp/cli/yang`'s `TestBGPToolsSchemaOwnsDecodeEncode` (the surface moved,
-it did not vanish).
-
-Non-BGP owners share one general central guard,
-`TestShowSchemaHasNoMigratedOwnerCommands` (same file), whose banned-token map
-grows by one entry per carved owner (flow-export, rsvp-te, ldp, policy-routes,
-static, vpn-ipsec, vpp, the iface kernel reads, ...); each owner's `yang/`
-package holds the matching presence test (e.g. `TestRSVPTECmdSchemaOwnsShowRSVPTE`).
-When you carve a new command, add both halves: the banned token here and the
-presence assertion in the owner. Extend the same pattern to the other central
-verb schemas (`internal/component/cmd/delete`, `internal/component/cmd/set`, ...) as they are made compliant.
+- **A carve MUST add BOTH halves of the guard: the banned token in the central verb schema's self-containment test, and the presence assertion in the owner's `yang/` package.** One half alone lets the command drift back into the central schema, or lets the surface vanish rather than move. The guards already in the tree, and the test names to extend, are in `docs/architecture/command-ownership.md`, "The Removal-Compliance Guards In The Tree".
 
 ## Plugin Process Boundary
 
-### The problem
-
-A Ze plugin can run **internal** (a goroutine sharing the daemon's own process, wired via `internal/component/plugin/process/process.go`'s `startInternal`) or **external** (a forked subprocess talking only over TLS/RPC, via `startExternal`). Plugin code is supposed to reach the engine only through the SDK's RPC layer, which handles this difference transparently.
-
-A plugin that instead calls a plain exported Go function in another `internal/component/*` package, reaching straight into that package's shared, process-local state, works perfectly when the plugin happens to run internal (same memory), and silently does nothing useful when it runs external: the call mutates the *subprocess's own disconnected copy* of that package's state. No error, no panic, no log line. The feature just quietly never works.
-
-Five confirmed instances, all fixed:
-
-| Plugin | Same-process-effect call | Severity | Fix |
-|--------|---------------------------|----------|-----|
-| `as112` | `iface.RegisterOwnedAddresses`/`UnregisterOwnedAddresses` | total feature loss | refuse to start external |
-| `cos` | `iface.GetBackend` | partial (dynamic QoS updates only) | warn |
-| `traffic-usage` | `iface.SubscribeCollectNotify` | total feature loss (only attach mechanism) | refuse to start external |
-| `flow-export` | `iface.SubscribeCollectNotify` | total feature loss (only data source) | refuse to start external |
-| `ddos-detect` | `iface.SubscribeCollectNotify` + `trafficstat.EnsureGlobal`/`Global` | total feature loss (both paths affected) | warn |
-
-### The rule
-
-If your plugin calls a same-process-effect function directly, check `sdk.Plugin.IsInternal()` (`pkg/plugin/sdk/sdk.go`) right after `sdk.NewWithConn(...)` and choose severity by how much of the plugin's value survives running external:
+- **A plugin that calls a same-process-effect function in another `internal/component/*` package directly MUST check `sdk.Plugin.IsInternal()` right after `sdk.NewWithConn(...)`.** Such a call works when the plugin runs internal and silently no-ops when it runs external, with no error, no panic and no log line. Why it is silent is `docs/architecture/plugin/plugin-system.md`, "The process boundary".
 
 - **The call is the plugin's core purpose** (nothing useful happens without it) -> MUST hard refuse: log an error naming the specific call and why, `return 1` before doing anything else. See `internal/plugins/as112/register.go`, `internal/plugins/trafficusage/register.go`, `internal/plugins/flowexport/register.go`.
 - **The plugin still provides real value external** (only one feature degrades) -> MUST warn: a `warnIfExternal(isInternal bool)` helper, called once after `sdk.NewWithConn`, logging what breaks and what still works. See `internal/plugins/cos/register.go`, `internal/plugins/ddos/detect/register.go`.
 
-Do not copy-paste the severity choice between plugins: judge each one on what actually survives.
+- **The severity choice MUST NOT be copy-pasted between plugins.** Judge each one on how much of its value actually survives running external.
 
-### The mechanical check
-
-`./le plugin boundary check` (wired into `./le verify current mode full`/`./le verify current mode changed`) runs `internal/le/plugin/boundary/pluginboundary.go`: it scans every package under the generator's plugin search roots, derived at runtime from `internal/le/plugin/imports/pluginimports.go`'s `pluginDirs` + `nestedPluginDomains` (13 namespaces today, including `internal/component/l2tp/plugins/` and `internal/component/firewall/plugins/`), never a second hardcoded list, for calls to a maintained dangerous-call list, and fails if a plugin package contains one with no `.IsInternal()`/`warnIfExternal(` call anywhere in that same package. `--print-roots` shows the derived set. This is a presence heuristic (it does not prove the guard actually covers the call at runtime), the same rigor level as the sibling `ze-iface-resolution-check`.
-<!-- source: internal/le/plugin/boundary/pluginboundary.go -- loadScanRootsFrom -->
-
-Add a new entry to `internal/le/plugin/boundary/pluginboundary.go`'s `dangerousCalls` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.
+- **A new instance of this class MUST be added to `dangerousCalls` in `internal/le/plugin/boundary/pluginboundary.go` when it is found and fixed, so `./le plugin boundary check` stays current.** An `allowlist` entry MUST cover only a package's own legitimate calls to its own function.
 
 ## Registration-Based Dispatch
 
-### Rule
-
 **MUST NOT use switch/case to dispatch subcommands.** All command dispatch MUST use the registration pattern: register handlers into a dispatcher (or sub-dispatcher), then call `Dispatch(args)`. This applies at every level of nesting.
 
-### How to Apply
-
-Use `subdispatch.New(name, summary)` for any command group that has sub-actions.
-Register each sub-action with its handler and description. The dispatcher handles
-help, unknown-command errors, and suggestions automatically.
-
-### Banned Patterns
+- **A command group that has sub-actions MUST be built with `subdispatch.New(name, summary)`, registering each sub-action with its handler and description.** The dispatcher then owns help, the unknown-command error and the suggestion. The template is `ai/patterns/plugin.md`, "Sub-Dispatcher Registration".
 
 The following dispatch patterns MUST NOT be used:
 - `switch args[0] { case "x": ... }` for command dispatch
 - Manual "unknown command" error messages (the dispatcher handles this)
 - Hand-written help listing subcommands (derive from registration)
 
-### Why registration-based dispatch, not switch/case
-
-Switch-based dispatch:
-- Hides available commands from help/completion systems
-- Requires editing the dispatcher when adding a command (violates open/closed)
-- Cannot provide "did you mean?" suggestions
-- Cannot list available subcommands programmatically
-
-Registration-based dispatch:
-- Self-documenting (descriptions visible to help formatters)
-- Open for extension without modifying existing code
-- Supports typo suggestions via `suggest.Command`
-- Discoverable by tooling
-
-### Example: sub-dispatcher registration
-
-```go
-var fooDispatcher = newFooDispatcher()
-
-func newFooDispatcher() *subdispatch.Dispatcher {
-    d := subdispatch.New("foo", "Foo operations")
-    d.Register("bar", runBar, subdispatch.SubMeta{Desc: "Do bar"})
-    d.Register("baz", runBaz, subdispatch.SubMeta{Desc: "Do baz"})
-    return d
-}
-
-func runFoo(args []string) int {
-    return fooDispatcher.Dispatch(args)
-}
-```
-
 ## Feature-Gate Registration
 
-How to add or change a **compile-out-able feature**: a subsystem that can be
-dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag,
-for a smaller binary and a smaller attack surface (looking-glass `ze_lg`, ssh
-`ze_ssh`, web `ze_web`, gNMI `ze_gnmi`, MCP `ze_mcp`, REST API `ze_rest`, gRPC
-API `ze_grpc`, Prometheus exporter `ze_telemetry`, routing protocols `ze_isis` /
-`ze_ldp` / `ze_ospf` / `ze_rsvpte`, first-hop redundancy `ze_vrrp`, BGP `ze_bgp`,
-BMP `ze_bmp`, MRT `ze_mrt`, and since feature-gate-12 the remaining service and
-protocol surface: BFD `ze_bfd`, IKEv2/IPsec `ze_ike`, the L2TP/PPPoE BNG
-`ze_l2tp`, RADIUS `ze_radius`, TACACS+ `ze_tacacs`, the VPP dataplane `ze_vpp`,
-flow export `ze_flowexport`, DDoS `ze_ddos`, anomaly `ze_anomaly`, AS112
-`ze_as112`, GeoDNS `ze_geodns`, DHCP server `ze_dhcpserver`, netboot `ze_pxe`
-(tftpserver + imageserver), NTP `ze_ntp`, traffic accounting `ze_trafficusage`,
-policy routing `ze_policyroute`, CoS `ze_cos`, CoPP `ze_copp`, MPLS operational
-surface `ze_mpls`, ExaBGP bridge `ze_exabgp`). The manifest is the inventory;
-this list is illustrative.
+- **An always-on (untagged, non-test) package MUST NOT import a gated feature package, for ANY reason: lifecycle or a borrowed helper.** One direct import pins the package into every binary and defeats the compile-out, and `./le tier check` fails on it. Always-on code reaches a feature only through build-tag-gated registration.
 
-Read this before touching `feature-gates.txt`, `cmd/ze/hub/service_registry.go`,
-a `register_<x>.go` or `service_<x>.go` file, an `*_infra.go` seam,
-`internal/le/gotoolchain`, `.golangci.yml` build tags, `TestBuildTags`,
-`internal/le/plugin/imports`, or `internal/le/tier`.
+- **A non-lifecycle helper that always-on code needs MUST be extracted to an always-on `internal/core/*` leaf BEFORE the feature is gated.** Extract-then-gate is the order, and the registry work is the easy half.
 
-Companion rule: `ai/rules/architecture.md` (disable-ability + the gate). Inside
-this file: "Plugin Self-Containment" (the delete-the-folder invariant) and
-"Registration-Based Dispatch" (command dispatch, not feature gating).
+- **Every gated package MUST be declared in the repo-root `feature-gates.txt`, and that file is the ONLY declaration point.** Every other consumer derives from it, so there is nothing to hand-sync. The line format, the consumer list and the current tag inventory are `docs/architecture/plugin/feature-gates.md` and the manifest itself.
 
-### The one invariant
+- **The static files derived from the manifest MUST NOT have their tag lists hand-edited.** Add the gate to `feature-gates.txt`, run `./le feature-tags write`, then `./le feature-tags check`.
 
-A feature is compile-out-able **only when nothing always-on (untagged, non-test)
-imports its package** for ANY reason: lifecycle OR a borrowed helper. Always-on
-code reaches it ONLY through build-tag-gated registration. A single direct
-`import` from untagged code pins the package into every binary and defeats the
-compile-out. `internal/le/tier/tier.go --check` (run by `./le verify worktree`, target
-`./le tier check`) fails on any such importer.
+- **A new gate MUST be finished with `./le repository generate`, which emits `all_ze_<x>.go` and regenerates every derived tag list, and then `./le verify worktree`.** A feature-only helper MUST live INSIDE a gated file, or a no-feature build flags it U1000-unused. The six-step procedure is `docs/architecture/plugin/feature-gates.md`, "Procedure: add a feature gate".
 
-If always-on code needs a non-lifecycle helper the feature happens to export
-(e.g. web exported cert generation to the installer), **extract that helper to an
-always-on home FIRST** (`internal/core/*` leaf), then gate the feature. This is
-"extract-then-gate"; the registry-ize is the easy half.
+- **A seam SHOULD be used ONLY when the listener construction registry genuinely cannot express the construction shape; the registry SHOULD be preferred.** ssh and gNMI are the two that qualify today. Both shapes, and what crosses the boundary in each, are in `docs/architecture/plugin/feature-gates.md`, "The registration shapes".
 
-### `feature-gates.txt` is the single source of truth
+- **When start sites in DIFFERENT components reach one gated feature, the seam var MUST live in the always-on leaf both sites already import, never in the hub.** Only the part nothing always-on imports MUST be gated: the telemetry HTTP exporter is gated while the metric collection API stays in `internal/core/metrics`, so dependents keep working. A core leaf holding a nil-able hook var that a gated `init()` sets keeps `./le tier check` green, because it is a value rather than an import.
 
-The repo-root file `feature-gates.txt` declares every gated package. Most
-features need one line; features with owned sidecar packages use the same tag on
-additional lines:
+- **When the feature is already a self-registering plugin the generator discovers, gating is blank-import partitioning: there is no new `register_<x>.go` and no seam, and every owned directory MUST be its own `feature-gates.txt` line under the shared tag.** A protocol spans several discovered directories: engine, `transport`, `cli`, and the `*-cmd` command schema.
 
-```
-ze_gnmi  internal/component/gnmi
-ze_gnmi  internal/plugins/gnmi-cmd
-```
+- **BOTH composition roots MUST be minded when gating a plugin: the generated `all.go` AND the hand-written `cmd/ze/ze_core_dispatch.go`.** A protocol with a programmatic `cli` package MUST move its dispatch-root blank import into a per-protocol gated `cmd/ze/dispatch_<proto>.go`; miss that root and the package stays linked. A plugin that registers its CLI through the registry's `CLIHandler` has only the ONE root and needs no dispatch companion.
 
-`<build-tag>` then `<gated-package>`. Tags are `ze_<feature>` by convention.
-The generator gates both `<pkg>` and `<pkg>/yang` when those packages are
-discovered. The direct package covers RPC/registration side effects, and the
-YANG package covers config or command schema. **Every other consumer
-DERIVES from this file**. Do NOT hand-edit a parallel list:
+- **An always-on importer that blocks a gate MUST be cleared by transitive package drop first, then core-leaf move, then inversion-of-control seam, and implementers SHOULD aim for the FEWEST source-tagged files rather than the fewest edits.** A core-leaf move MUST move the LEAF rather than the package, or it becomes a core-tier violation. A nil seam MUST have a CORRECT no-feature behaviour, not just a nil check. What each technique looks like at subsystem scale is `docs/architecture/plugin/feature-gates.md`.
 
-| Consumer | Role | Mechanism |
-|----------|------|-----------|
-| `internal/le/gotoolchain` | feature tags for native builds and tests | reads `feature-gates.txt` |
-| `internal/test/runner` `TestBuildTags` | tags for the functional-test daemon | reads `feature-gates.txt` |
-| `internal/le/plugin/imports` | gated composition imports | reads `feature-gates.txt` |
-| `internal/le/tier` | disable-able package import checks | reads `feature-gates.txt` |
-| `./le stress-repro run` | full-feature race build | uses the native Go toolchain configuration |
-| `.golangci.yml` `build-tags` | lint feature-on build | generated by `./le feature-tags write` |
-| `gokrazy/ze/config.json` `GoBuildTags` | appliance image tags | generated by `./le feature-tags write` |
-| `docs/guide/quickstart.md` `go install` command | install without cloning | generated by `./le feature-tags write` |
+- **A feature-gated file is still an always-on pin for a DIFFERENT gate, so gated files MUST be cleared too, not only untagged ones.** `dep_audit.file_requires_tag` is per-tag: a `ze_ssh`-on, `ze_bgp`-off build genuinely fails to compile when a `ze_ssh` file imports `bgp/config`.
+- **After deleting an always-on import, what that package's `init()` was providing MUST be checked.** Removing the import can unlink an `init()` nobody else pulls in. A `package main` root can never be imported back, so linking it from `cmd/ze/dispatch_<x>.go` is always a safe edge.
 
-**No consumer is hand-maintained.** The four static files that cannot read the manifest at runtime (`.golangci.yml`, `gokrazy/ze/config.json`, `docs/guide/quickstart.md`, and `.github/workflows/codeql.yml`) are generated by `internal/le/featuretags`. Their tag lists MUST NOT be hand-edited: add the gate to `feature-gates.txt`, run `./le feature-tags write`, then `./le feature-tags check`.
+- **A gated package that lives INSIDE another gate's package tree and imports it is a DEPENDENT piece, and its present build-tag test MUST carry the same compound constraint as the generated group file.** Otherwise the test runs in a build combination that cannot exist. The generator derives the constraint from the package path, so the manifest line stays the ordinary `<tag> <pkg>` with no new column. `ze_bmp` inside `ze_bgp` is the worked example, in `docs/architecture/plugin/feature-gates.md`.
 
-### Procedure: add a feature gate
+- **A contract package other features consume, a nil-able seam or the value types a gated feature exposes, MUST stay OFF the manifest and always-on; only the machinery gates.** Every consumer of such a seam MUST already handle the absent case, so verify each call site before choosing this shape, and make the absent-build `nm` needles NAME the gated sub-packages instead of using the subtree prefix.
 
-1. **Extract first.** Search for always-on importers of the feature package (`<module>/internal/component/<x>`). Move every non-lifecycle helper they use to an always-on `internal/core/*` leaf. Re-check until only gated construction remains.
-2. **Pick the shape** (see below): construction registry, or a seam.
-3. **Add lines** to `feature-gates.txt` for every owned package that MUST vanish: the main package (`ze_<x> internal/component/<x>`) plus sidecars such as command-schema packages under `internal/plugins/<x>-cmd`.
-4. **Create the gated files** for your shape (`service_<x>.go` + `register_<x>.go`, or an `*_infra.go` seam + gated registration). All carry `//go:build ze_<x>`. Feature-only helpers live INSIDE a gated file, or a no-feature build flags them U1000-unused.
-5. `./le repository generate`. This emits `all_ze_<x>.go` (plugin_imports) AND regenerates the three static tag lists from the manifest (`feature_tags.go`: `.golangci.yml` `build-tags`, `gokrazy/ze/config.json` `GoBuildTags`, `docs/guide/quickstart.md`). Those files' tag lists MUST NOT be hand-edited. Then `./le verify worktree`.
-6. Write present/absent build-tag tests: `cmd/ze/hub/build_tag_<x>_present_test.go` (`//go:build ze_<x>`) and `_absent_test.go` (`//go:build !ze_<x>`); an absent test asserts via `go tool nm` that zero feature symbols are linked.
+- **When a feature of plugin A exists only because feature B exists, A's files MUST carry B's tag, and each one MUST get a counterpart stub.** A stub MUST ANSWER HONESTLY, naming the missing feature, and MUST NOT silently no-op a user-visible request.
 
-That is the whole list. Step 3 (edit `feature-gates.txt`) is the ONLY manifest
-declaration point. The native runner, `internal/le/plugin/imports`,
-`internal/le/featuretags`, tier checks, and stress tooling all derive from it.
-`./le repository generate` refreshes every generated consumer. There is nothing to hand-sync.
+- **When the hub CONSTRUCTS a feature, parsing params and calling `eng.RegisterSubsystem`, rather than blank-importing it, a hub-local nil-able hook MUST carry the construction.** It is the ssh and gNMI seam shape, carrying only generic values across the boundary: config trees, the engine handle, portal entries.
 
-### Two registration shapes
-
-**Listener service (default: looking-glass, web).** The feature plugs into the construction registry (`cmd/ze/hub/service_registry.go`). A gated `service_<x>.go` builds a `Service` (the `Reconfigurable` listener-migration contract + `Name` + `Shutdown`); `register_<x>.go`'s `init()` calls `registerService("<x>", build<X>Service, wireMigrator)`. The hub iterates the registry in `buildServices(deps)` and routes the built service via `registerBuiltService`. Generic inputs cross the boundary as plain values in `serviceDeps`; **an `internal/component/<x>` type MUST NOT appear in `serviceDeps` or any always-on signature**: widen always-on handles to `Reconfigurable` (as `setWeb`/`setLG` do). A second construction path (e.g. a `ze start --web` standalone mode) MUST go through a nil-able seam var set from the gated registration, never a direct always-on import.
-
-**Seam (ssh, gNMI).** A seam SHOULD be used when the listener registry genuinely cannot express the construction shape. ssh is built inside shared daemon startup, interleaved with always-on AAA/authz/accounting, and owns an interactive session, so it uses `ssh_infra.go` (`sshBuild` / `sshWirePostStart` / `sshBuildStandalone`). gNMI has richer constructor dependencies, a reload notification hook, and no listener live-migration contract, so it uses `gnmi_infra.go` (`gnmiBuild` / `gnmiReloadNotify`). Always-on code calls the seam if non-nil; with the tag off the vars stay nil and the feature is skipped. A seam SHOULD be used ONLY when the registry genuinely does not fit; the registry SHOULD be preferred.
-
-**Core-level seam (telemetry).** When more than one start site in *different components* needs to reach a gated feature, the seam var MUST NOT live in the hub; it MUST live in the always-on leaf both sites already import. The Prometheus exporter (`ze_telemetry`) is started from the hub standalone path *and* the bgp reactor path (`internal/component/bgp/config`), so its hook `metrics.StartExporter` lives in `internal/core/metrics`; the hub's gated `register_telemetry.go` wires the gated `internal/component/telemetry/exporter` (and its `collector` sidecar) into it. The metric COLLECTION API (registry + the `NopRegistry` dummy) stays in that same always-on leaf so dependents keep working when the exporter is gated: only the part nothing always-on imports (the HTTP exporter) MUST be gated, never the collection API. A core leaf MAY hold a nil-able hook var set by a gated component init; `./le tier check` stays green (a value, not an import).
-
-**Plugin compile-out (routing protocols).** When the feature is already a self-registering plugin discovered by the generator (`register.go` -> `plugin/all`), there is NO new `register_<x>.go` or seam: gating is purely *blank-import partitioning*. Each owned dir MUST be listed as its own `feature-gates.txt` line under the shared tag, because a protocol spans several discovered dirs (engine + `transport` + `cli` + the `*-cmd` command schema), for example:
-
-```
-ze_ospf  internal/plugins/ospf
-ze_ospf  internal/plugins/ospf/cli
-ze_ospf  internal/plugins/ospf/transport
-ze_ospf  internal/plugins/ospf/v3/transport
-```
-
-The plugin's `.go` files are NOT source-tagged; `./le repository generate` moves their blank
-imports into `all_<tag>.go` and dead-code elimination drops the unreferenced
-packages when the tag is off (A-1: nothing always-on imports a protocol). Mind the
-**two composition roots**: the generated `all.go` AND the hand-written
-`cmd/ze/ze_core_dispatch.go` (CLI). Protocols with a programmatic `cli` package
-(isis, ospf) move their dispatch-root CLI blank import into a per-protocol gated
-companion `cmd/ze/dispatch_<proto>.go` (`//go:build ze_core && ze_<proto>`); miss
-that root and the package stays linked. A plugin that registers its CLI through the
-plugin registry's `CLIHandler` (not a programmatic `cli` package) has only the ONE
-root -- the generated `all.go` -- and needs NO dispatch companion. The shape is not
-protocol-specific: `ze_vrrp` (first-hop redundancy; the `vrrp` plugin + its `transport`
-sidecar, two manifest lines, no `cli` package) is that single-plugin case, gated purely
-by blank-import partitioning like ldp/rsvpte. Routing protocols are also the first gated
-packages that are `sdk.NewWithConn` *engines* and multi-package features whose
-sub-packages import each other, so `./le tier check` (a) counts the generated
-`all_<tag>.go` as a registration importer (an engine's blank import there is not a
-"feature depends on it" tier violation) and (b) skips same-tag importers in the
-disableable check (the engine importing its own `transport` sub-package is
-intra-feature -- dropped together, not an always-on pin).
-
-**Extract-then-gate at subsystem scale (`ze_bgp`).** Gating the BGP subsystem (~59 manifest lines: the whole `internal/component/bgp` tree plus `internal/plugins/flowspec-firewall`) is the same blank-import partitioning, but the one invariant does NOT hold going in: 27 always-on files imported a bgp package. Three techniques clear them, in this order of preference. Implementers SHOULD aim for the FEWEST source-tagged files, not the fewest edits:
-
-1. **Transitive package drop** (no tag). A manifest line moves the package's blank imports into `all_<tag>.go`; dead-code elimination does the rest. Whole plugins qualify: `flowspec-firewall` needed one line and no source change.
-2. **Core-leaf move** (no tag). A contract always-on consumers share with the feature moves to an always-on `internal/core/*` leaf; consumers change an import path only. `ze_bgp` needed three: `internal/core/bgp/routeaction` (the route-action/verb vocabulary sysrib and every FIB backend use), `internal/core/bgp/msgtype` (the message-type codes MRT classifies by), and `internal/core/bgp/ribevents` (the best-change contract sysrib and flow-export subscribe to). The LEAF MUST be moved, not the package: `bgp/message` imports `plugin/registry`, so relocating it wholesale would be a core-tier violation.
-3. **Inversion-of-control seam** (no tag on the always-on side). Where always-on code reaches INTO the feature, invert it: the always-on side exposes a nil-able hook and the gated code self-registers from its own `init()`. A nil seam MUST have a CORRECT no-feature behavior, not just a nil check. `ze_bgp` inverted five: `ze config dump|diff|validate` tree resolution and peer validation plus the graceful-restart marker writer (`internal/component/config/infra`), the MRT RIB-dump provider and the web hex-packet decoder (`internal/component/plugin/registry`), and the IGP next-hop cost sysrib used to push into BGP best-path (`internal/core/rib/igpcost`).
-
-Two traps that only appear at this scale:
-
-- **A feature-gated file is still an always-on pin for a DIFFERENT gate.** `cmd/ze/hub/service_ssh.go` (`//go:build ze_ssh`) imported `bgp/config`. `dep_audit.file_requires_tag` is per-tag, so it flags that file, correctly: a `ze_ssh`-on / `ze_bgp`-off build genuinely fails to compile. Gated files MUST be cleared too, not just untagged ones.
-- **Removing an always-on import can unlink an `init()` nobody else pulls in.** `bgp/config` registers the reactor factory, and it was linked ONLY because the hub imported it. Blank-importing it from `bgp/plugin` is the natural fix but cycles in test (`bgp/config`'s own tests import `plugin/all`, which imports `bgp/plugin`). It is linked from `cmd/ze/dispatch_bgp.go` instead: a `package main` root can never be imported back, so the edge is always safe there. After deleting an always-on import, what that package's `init()` was providing MUST be checked.
-
-**Dependent gate (a feature that requires another gate: `ze_bmp`, `ze_radius`).** A gated package that lives INSIDE another gate's package tree AND imports it is a DEPENDENT piece: it can only be built when the parent gate is on. `ze_bmp` (BMP; `internal/component/bgp/plugins/bmp`) imports `bgp/message` / `bgp/types` and monitors the BGP RIB, so it exists only in a `ze_bgp` build. The generator detects the nesting PER PACKAGE (`plugin_imports.go parentTagOfImport`: the longest gated package of another tag that is a path-prefix of the import) and emits a COMPOUND constraint: `all_ze_bmp.go` carries `//go:build ze_bgp && ze_bmp`. That is what makes `-tags ze_bmp` WITHOUT `ze_bgp` drop BMP entirely instead of dragging the whole engine back in through BMP's blank import (prove it with an `nm` build of `ze_core,ze_bmp` that links zero `internal/component/bgp` symbols). The dependency is DERIVED from the package path, so the manifest line is the ordinary `ze_bmp <pkg>` (no new column) and every other manifest consumer is unaffected; `dep_audit`'s existing subtree-prefix same-feature skip already treats a bmp->bgp import as intra-`ze_bgp`-family (bmp lives under `internal/component/bgp`). The present build-tag test MUST be tagged `//go:build ze_bgp && ze_bmp` to match the group file, so it never runs in a nonsensical `ze_bmp`-without-`ze_bgp` build (feature-gate-11).
-
-A tag may MIX independent and dependent packages (feature-gate-12): `ze_radius`
-gates `internal/component/radius` (RADIUS system auth, usable alone) AND
-`internal/component/l2tp/plugins/authradius` (needs the BNG). The generator
-splits such a tag's group by per-package constraint: `all_ze_radius.go` carries
-the plain tag with the independent imports, and `all_ze_radius_ze_l2tp.go`
-carries `//go:build ze_l2tp && ze_radius` with the nested subset, so a
-radius-without-l2tp build keeps its schema and an l2tp-with-local-auth build
-links zero radius symbols. A tag whose packages ALL share one constraint keeps
-the single historic `all_<tag>.go` file.
-
-**What stays UNGATED on purpose: shared contract leaves.** When other features consume a nil-able seam or value types a gated feature exposes, that contract package stays OFF the manifest and always-on, and only the machinery gates: `bfd/api` (the `SetService`/`GetService` seam BGP/OSPF/static nil-check, plus `bfd/packet` for its State/Diag re-exports) and `ike/dataplane` (the XFRM programming seam OSPF's RFC 4552 authentication also uses). Every consumer of such a seam MUST already handle nil/absent: verify each call site before choosing this shape, and make the absent-build nm needles NAME the gated sub-packages instead of using the subtree prefix.
-
-**Dependent FILES inside another feature (`ze_l2tp` consumers).** When a feature of plugin A only exists because feature B exists, A's files MUST be tagged with B's tag and MUST get a counterpart: the cos dynamic RADIUS-CoS handler is `//go:build ze_l2tp` with a no-op stub (no BNG session events, nothing to react to), the diag l2tp capture branches live in `capture_l2tp.go` / `capture_raw_l2tp.go` with stubs answering "l2tp is not included in this build", and the web VPN/L2TP pages have not-in-this-build stub renderers so the workbench routes stay valid. A stub MUST ANSWER HONESTLY (name the missing feature) and MUST NOT silently no-op a user-visible request.
-
-**Subsystem-builder seam (`ze_l2tp` hub construction).** When the hub CONSTRUCTS a feature (parses params, `eng.RegisterSubsystem`) rather than blank-importing it, a hub-local nil-able hook MUST be used (`bng_infra.go` `bngRegister`, filled by the gated `register_l2tp.go` init): the ssh/gnmi seam shape carrying only generic values (config trees, engine handle, portal entries) across the boundary.
-
-### Banned
-
-- A hand-maintained second list of gate tags or gated packages MUST NOT exist anywhere. Declare the gate ONCE in `feature-gates.txt`; derive the rest.
-- An always-on (untagged, non-test) `import` of a gated feature package MUST NOT exist. Route through the registry or a seam. `./le tier check` enforces this.
-- A feature type MUST NOT appear in an always-on signature (`*zeweb.WebServer`, etc.). Use `Reconfigurable` or another always-on interface.
-- A feature's borrowed helper MUST NOT be left in the feature package when always-on code needs it. Extract to `internal/core/*` first.
-- A gate MUST NOT be added without present/absent build-tag tests and an `nm` symbol check.
+- **A hand-maintained second list of gate tags or gated packages MUST NOT exist anywhere.**
+- **A feature type MUST NOT appear in an always-on signature.** Widen the always-on handle to `Reconfigurable` or another always-on interface.
+- **A gate MUST NOT be added without present and absent build-tag tests plus an `nm` symbol check.** The absent test asserts that zero feature symbols are linked.
 
 ## Related Rules
 

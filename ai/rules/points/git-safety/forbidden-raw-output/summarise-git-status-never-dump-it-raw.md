@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-`git diff --stat` / `git status` dumped raw in output -- summarise.
+**`git status` and `git diff --stat` MUST NOT be dumped raw into your output. Summarise them.**

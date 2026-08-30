@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These MUST NOT be offered as a conclusion, in a shard, a commit body, a report, or a reply to the user. Each one already states its own diagnosis:**
+
 | Banned | What it actually says |
 |--------|-----------------------|
 | "fails under load / on a loaded host" | the test waits a fixed time instead of waiting for the condition |

@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-When unsure whether the file should be deleted, state the situation ("file X
-exists, lint is flagging Y, tests are failing because of Z") and ask what to do.
+**When you are unsure whether the file SHOULD be deleted, you MUST state the situation ("file X exists, lint is flagging Y, tests fail because of Z") and ask what to do.**

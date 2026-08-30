@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-See: `ai/INSTRUCTIONS.md`, "Destructive git commands are FORBIDDEN" -- `git reset`, `git checkout -- <file>`, `git restore`, `git clean`, `git revert`, `git push --force`, `git push -f`, `git stash drop` and `git stash clear` are banned there, in every session, and are not restated here.
+**The destructive git verbs MUST NOT be run.** `ai/INSTRUCTIONS.md`, "Destructive git commands are FORBIDDEN", carries the list into every session, so it is not restated here.

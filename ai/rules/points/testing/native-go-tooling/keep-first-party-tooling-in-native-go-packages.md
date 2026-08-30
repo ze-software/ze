@@ -1,8 +1,9 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Do not add first-party development or test tooling outside `internal/le`,
-`internal/test`, or `internal/appliance`. Register every command or fixture in
-its native Go inventory; a source file with no caller is not a tool.
+**First-party development or test tooling MUST NOT be added outside
+`internal/le`, `internal/test`, or `internal/appliance`, and every command or
+fixture MUST be registered in its native Go inventory.** A source file with no
+caller is not a tool.

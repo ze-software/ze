@@ -1,10 +1,13 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-| Do | Don't |
-|----|-------|
+**While another verify holds the slot, the second invocation MUST be left to
+block.**
+
+| Do | MUST NOT |
+|----|----------|
 | Let the second invocation block | Kill the running verify |
-| If the run is yours (same tree), read `tmp/ze-verify.log` instead of re-running | Delete the lockfile |
-| If "waiting for lock" appears, do other work | Start `go test` / `golangci-lint` / `bin/ze-test` in parallel (bypasses lock) |
+| When the run is yours in the same tree, read `tmp/ze-verify.log` rather than re-running | Delete a job entry to take the slot |
+| When the wait message appears, do other work | Start `go test`, `golangci-lint` or a `ze-test` binary in parallel, which bypasses admission |

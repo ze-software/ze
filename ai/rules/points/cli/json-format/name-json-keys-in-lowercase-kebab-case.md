@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-All JSON keys: lowercase kebab-case. Never camelCase or snake_case.
+**Every JSON key MUST be lowercase kebab-case, and MUST NOT be camelCase or snake_case.** The key set, the address families, the envelope shape and the one exemption are `docs/architecture/api/json-format.md`.

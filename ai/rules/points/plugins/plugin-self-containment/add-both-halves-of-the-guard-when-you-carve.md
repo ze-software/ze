@@ -1,13 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Non-BGP owners share one general central guard,
-`TestShowSchemaHasNoMigratedOwnerCommands` (same file), whose banned-token map
-grows by one entry per carved owner (flow-export, rsvp-te, ldp, policy-routes,
-static, vpn-ipsec, vpp, the iface kernel reads, ...); each owner's `yang/`
-package holds the matching presence test (e.g. `TestRSVPTECmdSchemaOwnsShowRSVPTE`).
-When you carve a new command, add both halves: the banned token here and the
-presence assertion in the owner. Extend the same pattern to the other central
-verb schemas (`internal/component/cmd/delete`, `internal/component/cmd/set`, ...) as they are made compliant.
+- **A carve MUST add BOTH halves of the guard: the banned token in the central verb schema's self-containment test, and the presence assertion in the owner's `yang/` package.** One half alone lets the command drift back into the central schema, or lets the surface vanish rather than move. The guards already in the tree, and the test names to extend, are in `docs/architecture/command-ownership.md`, "The Removal-Compliance Guards In The Tree".

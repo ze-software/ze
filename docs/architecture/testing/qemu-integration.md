@@ -13,11 +13,47 @@ with full kernel capabilities.
 ./le qemu all-tests
 ```
 
-Prerequisites: `qemu` (`brew install qemu` on macOS).
+Prerequisites: `qemu` (`brew install qemu` on macOS). On macOS the run uses HVF
+acceleration when it is available and falls back to TCG software emulation.
+
+On Linux the invoking user has to be in the `kvm` group. `/dev/kvm` is
+`root:kvm` 0660, so a user outside the group gets no run rather than a slow one:
+QEMU exits with `Could not access KVM kernel module: Permission denied` and the
+caller reports the generic "did not reach SSH within the timeout", which reads
+as flakiness. `./le setup` checks this as `kvm-access` and applies
+`sudo usermod -aG kvm $USER`. The new group only reaches a new login, so use
+`sg kvm -c '<command>'` in an existing shell. A host with no `/dev/kvm` reports
+`n/a` and runs under TCG.
 
 First run takes ~1 min to download Alpine ISO and Go toolchain. Both are
 cached in `tmp/qemu/` and reused on subsequent runs. A typical run boots
 the VM in ~15s and runs tests in ~30-60s.
+
+### The two entry points
+
+Both entry points run one VM for the whole population, never one VM per test.
+
+| Command | Population |
+|---------|------------|
+| `./le qemu netns-test suites <comma-separated-suites>` | The selected kernel-dependent functional suites. A tight iteration loop |
+| `./le qemu all-tests` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package |
+| `./le qemu all-tests only needs-linux` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
+
+Neither entry point needs per-test wiring. The suites are the same ones the
+native runner discovers, so the QEMU pass finds a new `needs-linux` test with no
+registration.
+
+<!-- source: internal/le/qemu/alltests.go -- AllTestsRun.Run, the phase population -->
+<!-- source: internal/le/qemu/guestlabs.go -- the netns-test suite selection -->
+
+### How `option=needs-linux` behaves on each host
+
+| Host | Behavior |
+|------|----------|
+| `GOOS != linux` | The runner sets `SkipReason` and the test reports SKIP, never FAIL. `./le verify worktree` and `./le functional` stay green on darwin without running the test |
+| `GOOS == linux`, inside the VM | The option is inert, so the same `.ci` test runs for real against the Linux kernel |
+
+<!-- source: internal/test/runner/record_parse.go -- the needs-linux option -->
 
 ## Every QEMU target boots the kernel ze ships
 
@@ -78,6 +114,18 @@ excludes every file behind it. On a host that is not Linux,
 is where they run.
 
 ## Writing Integration Tests
+
+### Which test each Linux-only change needs
+
+| You wrote | You need |
+|-----------|----------|
+| `//go:build linux` source file | A matching `*_integration_linux_test.go` |
+| termios / serial port code | A PTY-pair test (`creack/pty`, vendored) |
+| netlink / interface code | A network namespace plus veth or dummy test |
+| nftables / firewall code | A network namespace plus nft test |
+| sysctl / kernel tuning | A procfs read test (a write may need `t.Skip`) |
+| Any new Linux-only package | An entry in `integrationPackages`, `internal/le/qemu/alltests.go` |
+| A Docker interop lab needing host-kernel features | A native `./le qemu <feature>` action beside the Docker action |
 
 ### Build Tags
 
@@ -170,19 +218,81 @@ The host prepares the binary and kernel; the guest action owns only the proof.
 
 ## VM Environment
 
-The Alpine VM provides:
+The guest is an Alpine live system with no systemd. It provides:
 
 | Feature | Available | Notes |
 |---------|-----------|-------|
 | Root access | Yes | All capabilities |
 | PTY pairs | Yes | `/dev/ptmx` |
 | Network namespaces | Yes | `ip netns` |
-| nftables | Yes | Installed via `--packages` |
-| Kernel modules | Yes | ppp, l2tp, nft loaded at boot |
-| Go toolchain | Yes | Downloaded and cached |
-| systemd | **No** | Alpine uses OpenRC |
-| Physical NICs | **No** | Use veth pairs |
-| Persistent state | **No** | Boots fresh from ISO each run |
+| nftables | Yes | Installed through the `packages` keyword of `./le qemu run` |
+| Go toolchain | Yes | Downloaded and cached under `tmp/qemu/` |
+| Repository | Yes | Mounted read-write over virtio-9p at `/workspace` |
+| Kernel modules | **No** | See below |
+| systemd | **No** | Alpine uses OpenRC, or the test skips |
+| Physical serial ports | **No** | Use PTY pairs |
+| Multiple physical NICs | **No** | Use veth pairs |
+| GPU or display | **No** | Every run is headless |
+| Persistent state | **No** | Boots fresh from the ISO each run |
+
+### No module loads in the guest
+
+The VM pairs Ze's runtime kernel with Alpine's initramfs and Alpine's
+`/lib/modules`, which are built for the ISO's own release. No module loads at
+all: not Alpine's, and not one built from Ze's kernel tree. Every symbol a QEMU
+run needs therefore has to be `=y` in `gokrazy/kernel/*.config`, and the
+matching `gokrazy/kernel/*.require` manifest is what makes a silent demotion to
+`=m` fail the build instead of the test. `CONFIG_PPP`, `CONFIG_L2TP`,
+`CONFIG_PPPOE`, `CONFIG_VLAN_8021Q`, `CONFIG_DUMMY` and the qdisc set are all
+`=y` for this reason.
+
+`Run.setupCommand` still issues `modprobe` for ppp, l2tp and netfilter modules,
+each with `|| true`. Those lines are best-effort and load nothing on a
+`kernel`-supplied boot. They are not the reason those features work.
+
+<!-- source: internal/le/qemu/run.go -- Run.setupCommand, the best-effort modprobe list -->
+<!-- source: gokrazy/kernel/runtime.config -- "no module of this kernel can load" -->
+<!-- source: gokrazy/kernel/runtime.require -- the symbols a =m answer must fail -->
+
+## Interop labs need a QEMU path too
+
+A Linux-only interop lab that runs as Docker containers and depends on
+host-kernel features (L2TP, PPPoE, netfilter) runs on neither macOS nor a
+plain CI runner by itself: Docker Desktop's VM lacks the kernel modules, and
+the Alpine QEMU VM has no Docker. Each such lab therefore ships two native
+actions.
+
+| Lab | Docker action | QEMU action | Native producer |
+|-----|---------------|-------------|-----------------|
+| L2TP (Ze LNS against xl2tpd) | `./le deployment docker-l2tp-ppp-test` | `./le deployment gokrazy-l2tp-ppp-test` | `internal/le/deployment` |
+| PPPoE (Ze client against accel-ppp) | `./le deployment docker-pppoe-accel-test` | `./le qemu pppoe-accel-test` | `internal/le/qemu/pppoe_accel_linux.go` |
+| VRRP (Ze against keepalived) | `./le integration interop`, scenario `vrrp-mastership-keepalived` | `./le qemu vrrp-keepalived-test` | `internal/le/qemu/vrrp_keepalived_linux.go` |
+
+<!-- source: internal/le/deployment/actions.go -- gokrazy-l2tp-ppp-test, docker-l2tp-ppp-test, docker-pppoe-accel-test -->
+<!-- source: internal/le/qemu/actions.go -- pppoe-accel-test, vrrp-keepalived-test -->
+
+## Reference Implementations
+
+| What | File |
+|------|------|
+| Network namespace helper | `internal/component/iface/integration_helpers_linux_test.go` |
+| Netlink integration test | `internal/plugins/traffic/netlink/integration_linux_test.go` |
+| nftables integration test | `internal/plugins/firewall/nft/integration_linux_test.go` |
+| Route watch integration | `internal/core/routewatch/integration_linux_test.go` |
+| PTY/termios integration | `internal/component/config/system/console_integration_linux_test.go` |
+| QEMU runner | `internal/le/qemu/run.go` |
+
+## Common Mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| "Needs real hardware, skipping test" | Use the virtual substitute in the table above |
+| `//go:build linux` on a test that needs root | Use `//go:build integration && linux` |
+| A new Linux package absent from `integrationPackages` | The test compiles and never runs. Add it to `internal/le/qemu/alltests.go` |
+| `t.Fatal` for a missing capability | Use `t.Skip`, so the file stays portable |
+| Hardcoding `/dev/ttyS0` | Use `pty.Open()` for a real PTY pair |
+| Reading a QEMU timeout as "TCG is slow" | On Linux, check `kvm-access` first with `./le setup check`. A user outside the `kvm` group makes QEMU refuse to start, which surfaces as a timeout |
+| Selecting the accelerator on the existence of `/dev/kvm` | Existence is not access. Probe for read and write, and take an explicit `hvf` branch on darwin |
 
 ## Troubleshooting
 
@@ -201,12 +311,11 @@ networking provides NAT. Check that the host has connectivity.
 
 ## Existing Integration Test Packages
 
-| Package | What it tests |
-|---------|---------------|
-| `internal/component/iface/` | Interface create/delete, config apply, migration, mirroring, monitoring |
-| `internal/component/config/system/` | Serial console termios configuration via PTY |
-| `internal/core/routewatch/` | Kernel route change notifications |
-| `internal/plugins/fib/kernel/` | FIB route installation via netlink |
-| `internal/plugins/firewall/nft/` | nftables rule management |
-| `internal/plugins/firewall/vpp/` | VPP firewall backend (fakeOps) |
-| `internal/plugins/traffic/netlink/` | Traffic shaping via netlink |
+The population is `integrationPackages` in `internal/le/qemu/alltests.go`, a
+closed list. `TestEveryIntegrationPackageIsNamed` derives every package holding
+an `integration`-tagged test file from the tree and fails when one is absent
+from that list; `TestEveryNamedIntegrationPackageExists` fails on a named
+package that is not in the tree. Read the Go list rather than a copy of it.
+
+<!-- source: internal/le/qemu/alltests.go -- integrationPackages -->
+<!-- source: internal/le/qemu/integration_coverage_test.go -- TestEveryIntegrationPackageIsNamed, TestEveryNamedIntegrationPackageExists -->

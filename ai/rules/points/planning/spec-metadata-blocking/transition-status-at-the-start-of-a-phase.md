@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Status transitions happen at the BEGINNING of the phase, not at the end.
-A spec that stays in `design` during implementation is lying about its state.
+- **A status transition MUST happen at the BEGINNING of the phase, never at its end.** A spec left in `design` during implementation is lying about its state.

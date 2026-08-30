@@ -3,4 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-**Pattern: Registry Maps Name to ID at Init, All Lookups Use ID.** Code MUST parse the string once at the boundary (config load, CLI parse, JSON unmarshal), convert to the numeric type, and pass the numeric value everywhere internally. The string exists only at the boundary for human readability.
+**A hot-path map MUST be keyed by a numeric or typed value. The string MUST be parsed ONCE where it enters the component, and the typed value MUST be passed to every internal helper.**

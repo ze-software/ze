@@ -77,3 +77,38 @@ failure cannot grow it without bound.
 `TestDoctorDependencyInventory` holds an expected total. Adding a runtime
 dependency without a doctor check fails it, which forces the decision to be
 made rather than forgotten.
+
+## Which check a new dependency needs
+
+| New dependency | Doctor check |
+|----------------|--------------|
+| Config leaf that references a file path (cert, key, binary) | File existence check |
+| Config leaf that names an external service or socket | Reachability probe |
+| Kernel module requirement | `/proc/modules` check (Linux) |
+| New listen address or port | Port bind probe |
+| New UDP listener | UDP `ListenPacket` bind probe |
+| New service with TLS | Certificate validity and expiry check |
+| Embedded certificate material | Parse the certificate and check its validity window |
+| External binary (plugin, helper) | `exec.LookPath` or `os.Stat` check |
+| Procfs or sysctl dependency | Read and write probe for the exact `/proc` path |
+| Netlink dependency | Open the specific netlink family or handle |
+
+## Where each owner registers its check
+
+<!-- source: internal/core/diagnostic -- RegisterDoctorCheck -->
+
+| Dependency owner | Registration mechanism |
+|------------------|------------------------|
+| Internal plugin (registered by `registry.Register`) | The `Registration.DoctorChecks` field. The doctor runner bridges these at execution time through `checks_plugin_registry.go`. The check function takes `registry.DoctorCheckContext` and returns `[]rpc.DoctorCheckDiagnostic`, and Component is set from the plugin name. `l2tpauthradius/register.go` is the reference example |
+| Web, MCP, looking-glass, or other listener component | `diagnostic.RegisterDoctorCheck()` from the owning component's `init()` |
+| SSH host-key dependency | `diagnostic.RegisterDoctorCheck()` from the SSH component |
+| Interface backend | `diagnostic.RegisterDoctorCheck()` from the backend owner |
+| Kernel module, procfs, sysctl, netlink, VPP, or platform-specific backend | `diagnostic.RegisterDoctorCheck()` from the owning backend or component, with build-tagged files where needed |
+| Blob storage, platform detection, generic runner state, or a dependency with no narrower owner | `internal/component/doctor`, with a comment or test name making the absent owner explicit |
+
+## The two tests a new check carries
+
+| Test type | What it proves | Location |
+|-----------|----------------|----------|
+| Unit test | The check fires only when its config block is present, and emits the registered code | The owning package beside the registration, or `internal/component/doctor` when there is no narrower owner |
+| Functional test | `ze doctor --json <config>` exposes the behavior through the user entry point | `internal/component/doctor`, or the existing functional suite for that entry point |

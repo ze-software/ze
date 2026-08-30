@@ -1,8 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-General quality check: "If I deleted this row, would a future session repeat the problem it records?"
-Source: extract from the Task, Design Insights, Mistake Log, and Deviations sections of the spec.
-Include the journal file in the same commit as the code changes.
+- **Every row MUST pass one test: "if I deleted this row, would a future session repeat the problem it records?"** The row MUST be extracted from the spec's Task, Design Insights, Mistake Log and Deviations sections, and the journal file MUST be in the same commit as the code. `plan/journal/README.md` gives the cell format.

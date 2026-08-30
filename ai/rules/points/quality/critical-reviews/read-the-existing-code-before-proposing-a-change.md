@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Validate understanding of existing architecture BEFORE proposing changes. Read code first. Check git history.
+**You MUST read the existing code, and check its history, before you propose a change to it.**

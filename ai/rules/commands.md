@@ -50,24 +50,15 @@ running them. Every other agent MUST report the command it wants run, and stop.*
 A suite target, the runner binary, a race run, a QEMU target and a Docker
 deployment target all count.
 
-The reason is attribution, not speed and not memory. Suites share the build
-cache, the ports and the `bin/ze` processes. A concurrent run therefore makes a
-red that belongs to nobody. A killed process and a real defect read the same in
-a log.
-
-The repo-wide verify lock says this for one target. This says it for every
-suite, and it names who holds the right to run one.
-
 **You MUST NOT attribute a suite result taken while another suite ran.** Saying
 "that red is another session's" from such a run is a guess wearing evidence's
 clothes, and it can dismiss a real defect as somebody else's noise.
 
-This costs an agent almost nothing. The evidence a fix owes is a single-test
-mutation: revert the change, watch one named test go red, restore. That is one
-`-run` on one package.
-
-A suite count proves the tree, never the fix. It is also the part that does not
-survive contention.
+**The evidence a fix owes is a single-test mutation, and a suite count MUST NOT
+be offered in its place.** Revert the change, watch one named test go red,
+restore. That is one `-run` on one package, and it costs an agent almost
+nothing. A suite count proves the tree, never the fix, and it is the part that
+does not survive contention.
 
 - A known failing test MUST stay at the narrowest runnable scope until it passes. For Go tests, run `./le job run label unit-pkg command go test PKG=./path/to/package RUN='^TestName$' RACE=0`.
 - Use `RACE=0` only for non-race iteration. A race or concurrency failure MUST keep race detection enabled.
@@ -81,219 +72,69 @@ survive contention.
 
 ## Bare `go test` Lies -- Always Pass The Feature Tags
 
-`go test ./...` is **NOT** equivalent to `./le test-unit`. Ze compiles features
-out behind build tags (`//go:build ze_isis`, `ze_ospf`, `ze_ldp`, `ze_rsvpte`,
-`ze_web`, `ze_ssh`, ...). `internal/le/gotoolchain` derives the feature set from
-`feature-gates.txt` for native unit and verification actions. Omit those tags and the plugins
-never register, so their validators, listeners and schema vanish and **unrelated
-tests fail with phantom reds**.
-
-**SHOULD prefer a registered native action** (`./le test-unit`, `./le verify worktree`). When you
-MUST scope to packages, MUST pass the tags:
-
-```
-go test -tags "ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')" ./internal/component/foo/
-```
-
-Same for `git archive HEAD` scratch-tree checks: a bare run there reproduces your
-own mistake and "confirms" a red that does not exist.
-
-A bare `go test` omits feature tags and can produce a phantom red with a
-plausible but false root cause. Use the owning native action so the result
-describes the real build.
-
-Symptom: a test asserting on something registered by another feature
-(listeners, validators, plugin names, wire methods, schema) fails, and the
-failure says a thing is *missing* or *not produced*. Check the tags before
-believing it.
+**A registered native action (`./le test-unit`, `./le verify worktree`) is the
+route, and a run scoped to packages MUST carry the feature build tags itself.**
+A bare `go test` omits them, so plugins never register and unrelated tests fail
+with a phantom red. The tag list, the symptom, and the `git archive` variant of
+the same trap are `docs/contributing/running-commands.md`.
 
 ## No Pipes On Expensive Commands
 
-Never pipe `./le`, `go test`, `go build`, `golangci-lint`, `bin/ze*`, or any
-test, verify, or build command through `head`, `tail`,
-`grep`, `awk`, `sed`, `cat`. Run clean. Read the log after.
+**`./le`, `go test`, `go build`, `golangci-lint`, `bin/ze*`, and any other test,
+verify, or build command MUST NOT be piped through `head`, `tail`, `grep`,
+`awk`, `sed`, or `cat`.** Run it clean, then read the log. Losing one failure
+line costs the whole re-run. Where each run writes its logs is
+`docs/contributing/running-commands.md`.
 
 **Exception:** `| tee <file>` MAY be used -- it is non-lossy and captures
 output to a file while still displaying it.
 
-Losing a failure line to `| head` means re-running the whole thing.
-`./le verify worktree*` writes to `tmp/ze-verify.log` (+ `-failures.log`
-summary) by default. Override with `ZE_VERIFY_LOG=tmp/ze-verify-$$.log`
-to avoid collisions between concurrent sessions. Read logs with the
-Read tool, with `offset`/`limit` for paging.
-
 ## Write Ad-Hoc Scratch Under Your Per-Session Dir
 
-`tmp/` is shared by every concurrent session in this checkout (it is keyed
-per-checkout, not per-session -- `internal/le/scratch/scratch.go`). A fixed name at
-the `tmp/` root -- `tmp/out.log`, `tmp/stdout`, `tmp/gotest.log` -- collides with
-a sibling session writing the same name, and is never cleaned when your session
-ends.
-
-**A file at the `tmp/` root is REFUSED, on both surfaces that create one**:
-`bashScratch` and the Write/Edit path check in `internal/le/hookruntime` answer
-alike. A path carrying a directory component passes, including a session's
-private scratch path and a producer-owned subdirectory.
-Session-keyed names and producer-owned root artifacts are explicit exceptions in
-`internal/le/hookruntime.IsAdHocScratch`.
-
-Write ad-hoc scratch under this session's private directory instead:
-
-```
-dir=$(./le session scratch ensure)          # <session-dir>/scratch/, created for you
-./le test-unit > "$dir/unit.log" 2>&1
-```
-
-**Nothing under `tmp/session/` is ever deleted automatically**: not at session
-end, not on an age timer, not by a hook. Your directory outlives your session,
-so a log you wrote is still there tomorrow. `./le session reap` removes only
-session directories whose owners are provably gone. Do NOT relocate artifacts
-that are already session-keyed (commit scripts under the session directory) or
-shared by design (`tmp/ze-verify.*` and the durable cache); those stay put.
-`internal/le/gotoolchain` assigns the repository Go build cache to native test
-and verification actions.
+**Ad-hoc scratch MUST be written under this session's private directory,
+`dir=$(./le session scratch ensure)`, and MUST NOT be written at the `tmp/`
+root.** `tmp/` is keyed per checkout, so a fixed name there is one file for every
+session in the tree and nothing removes it. Both write surfaces refuse it. Which
+root names are shared by design, and what outlives a session, is
+`docs/contributing/running-commands.md`.
 
 ## Your Binaries Live In This Session's Directory -- Ask For The Path
 
-Native test actions build their binaries inside the current session's private
-directory, under bare names. `internal/le/functional/binaries.go` resolves that
-location and supplies the pair to the suite. A sibling session therefore cannot
-overwrite the binary under test.
-
-**MUST NOT hardcode `bin/ze`** in a command, script, or doc. Ask:
-
-```
-./le functional <suite>
-```
-
-The directory carries the id, so the file name does not. That is what keeps
-argv[0] personality dispatch working (`cmd/ze/dispatch.go` `binarySuffixRoot`
-reads the segment after the last `-`) and lets a `.ci` test exec `ze` by bare
-name off one PATH entry. A binary's location also decides where `ze` resolves
-its config and database (`internal/core/paths/paths.go` `ConfigDirFromBinary`),
-so a session's `ze` reads `<session-dir>/etc/ze` and the repository's `etc/ze`
-is the human's alone.
-
-The directory is LOOKED UP, never recomputed: every consumer takes the single
-directory matching `tmp/session/????-??-??-<id>`, and names a new one with
-today's date only on a miss. Recomputing from today's date would move a
-session's directory at midnight and orphan the binaries it is running.
-
-The session-local `etc/ze` is seeded once by
-`./le session seed-store binary <session-bin>/ze`. `SeedStore` in
-`internal/le/session/seed.go` validates that the binary belongs to the current
-session directory. Credentials are generated per session, with user `admin`
-and a random password at `<session-dir>/etc/ze/.dev-password`, mode 0600.
-A later seed preserves the existing store and does not rotate the credentials.
-
-Test binaries live in a private `bin/` under the native functional action's
-session scratch directory. `.ci` tests execute bare names and need an isolated
-`etc/ze` (`internal/le/functional/binaries.go`, `internal/test/sessionpath`).
+**`bin/ze` MUST NOT be hardcoded in a command, a script, or a doc. MUST ask the
+owning native action (`./le functional <suite>`) for the path it built.** Every
+binary a native test action builds lives in the current session's private
+directory under a bare name, so a sibling session cannot overwrite the binary
+under test. Why the path is looked up rather than recomputed, and how the
+session store is seeded, is `docs/contributing/running-commands.md`.
 
 ## Never Launch a Functional Suite By Running The Runner Binary
 
-Running a raw `ze-test` binary is not equivalent to `./le functional <suite>`.
-The native action builds the isolated tagged pair, sets `ZE_BIN` and
-`ZE_TEST_BIN`, and owns the scratch environment. Bypassing it can produce a convincing false red.
-
-`internal/le/functional/binaries.go` builds an isolated bare-named pair into the
-session scratch directory. The daemon carries the test-only tag set, and the
-suite runs with `ZE_TEST_NO_BUILD=1`, `ZE_BIN`, and `ZE_TEST_BIN` set to that
-pair. A directly launched runner can rebuild a daemon without the test-only
-surface, so a fixture can time out for a build-population error.
-
-This is the same trap as bare `go test` above, one layer out: the invocation is
-accepted and the failure looks like the code under test. `test/plugin/cos-external-warns.ci`
-cost an hour of bisecting innocent changes this way; it passed in 2.0s through
-the native action (`plan/learned/HOOK-FRICTION.md` F17).
-
-| Want | Use |
-|------|-----|
-| A whole suite | `./le functional plugin` (or `encode`, `parse`, and the other actions listed by `./le functional list`) |
-| One test, iterating | Use the owning compiled fixture's Go test, then rerun the complete `./le functional <suite>` action |
-| A kernel-dependent suite in the VM | `./le qemu netns-test suites <comma-separated-suites>` |
-
-The `--server` / `--client` hints the runner prints on failure inherit the same
-gap: they re-run the same non-equivalent launch.
+**A functional suite MUST NOT be launched by running a `ze-test` binary
+directly. MUST use `./le functional <suite>`.** A raw runner rebuilds a daemon
+without the test-only surface, so it produces a convincing false red. The
+`--server` and `--client` hints the runner prints on failure repeat that same
+launch and MUST NOT be followed either. The mechanism, and the table of how to
+run one suite, one test, or a VM suite, is
+`docs/contributing/running-commands.md`.
 
 ## The Bash Hook Matches Your Command Text, Including Search Patterns
 
-`internal/le/hookruntime/bash.go` judges the command string. It cannot distinguish
-a forbidden verb being executed from the same token appearing in a search
-pattern, so a read-only search can be refused.
-
-```
-grep -l "git add -A\|git commit -a" tmp/commit-*.sh   # blocked: "git commit"
-```
-
-This is a false positive, not a rule violation, and it appears when auditing
-commit scripts. Do not rephrase the ban away or work around the hook's intent.
-Use the harness `Grep` tool instead of putting the banned verb in a Bash command.
-
-Use `Grep` with pattern `add\s+(-A|--all|\.)|commit\s+-a` and path
-`tmp/commit-*.sh`. The query never enters a Bash command line, and the result
-still names every matching script.
-
-Same class as the pipe ban above: the hook is coarse on purpose. The cost of
-one extra round-trip is lower than the cost of a real bare `git commit`.
+**A Bash refusal that fired on a SEARCH PATTERN is a false positive, and rephrasing the ban away or working around the guard's intent MUST NOT be the answer.**
+MUST run the scan through the harness `Grep` tool instead, so the
+banned verb never enters a Bash command line. Why the guard is coarse, and what
+the substitute scan looks like, is `docs/contributing/running-commands.md`.
 
 ## No Fork Loops
 
-### Bad
+**The fork-loop ban covers every `Bash` tool call, with no exemption for a one-off.**
+First-party repository tooling belongs in native Go packages, and a shell script MUST NOT be added for it.
 
-```bash
-for f in test/plugin/*.ci; do grep -n 'pattern' "$f"; done       # 400 forks
-for f in *.go; do grep -l 'Foo' "$f" | xargs sed -n '1p'; done  # 800 forks
-```
-
-### Good
-
-```bash
-grep -rn 'pattern' test/plugin/ --include='*.ci'                 # 1 fork
-grep -n 'pattern' test/plugin/*.ci                                # 1 fork (glob)
-```
-
-### When a loop is unavoidable
-
-If the loop body genuinely needs per-file logic that a single command cannot
-express, batch with `xargs` or `find -exec +` instead of per-file forks:
-
-```bash
-find test/plugin -name '*.ci' -exec grep -l 'pattern' {} +
-```
-
-### Scope
-
-Applies to every `Bash` tool call. First-party repository tooling belongs in
-native Go packages and MUST NOT add a shell script.
-
-## No Poll Loops
-
-| Waiting for | Mechanism |
-|-------------|-----------|
-| A command this session launched in the background | Nothing. The completion notification is the wake-up |
-| A file or a log line one of your own commands will produce | ONE bounded loop in `run_in_background`: `timeout 300 bash -c 'until [ -f <path> ]; do sleep 30; done'`. It notifies once, then it is gone |
-| A repeated event (every ERROR line, every CI step) | The `Monitor` tool, with `persistent` left false so its `timeout_ms` deadline applies. `persistent: true` disables that deadline and rebuilds the problem this rule exists to stop |
-| Another session's heavy job to free a slot | Do other work. `tmp/.ze-jobs/` holds one entry per running job, with its label, pid and log, and `./le verify status check` reports the last verify's verdict. `tmp/.ze-verify.lock.owner` is a copy of ONE entry, so read the directory when more than one job can run. Never a watcher |
-| Nothing in particular | Do not wait at all |
+**When the loop body genuinely needs per-file logic that one command cannot
+express, it MUST be batched with `xargs` or `find -exec +` rather than forked per
+file.** One recursive `grep`, one glob, or one `find -exec +` is a single fork.
+The measured cost is `docs/contributing/running-commands.md`.
 
 ## Lint Gate
-
-### The Problem
-
-The native per-edit hook in `internal/le/hookruntime/postwrite.go` judges changed
-lines only. Cross-file effects can slip through: unused functions after
-refactoring, import issues after renaming, and type mismatches across packages.
-`./le verify worktree` catches these but takes minutes (see `ai/rules/testing.md`
-for current timings).
-
-### The Rule
-
-Before claiming any Go implementation work is done, run:
-
-```
-./le verify lint run
-```
 
 **You MUST lint through `./le verify lint run`, never by calling
 `golangci-lint` directly.** The native action derives the pinned toolchain and
@@ -304,92 +145,10 @@ The same rule applies to every tool whose native action configures its
 environment. The action is the interface; reaching past it drops the
 configuration that makes the result representative.
 
-This lints all packages with uncommitted Go changes, once for each BUILD, not
-once. golangci-lint analyzes one GOOS, one GOARCH and one tag set for each run.
-As a result, a file outside that build is not merely unchecked: the pass exits 0
-and reads as clean over it.
-
-The native action starts with the host build, then runs `GOOS=linux` with the
-`integration` build tag. The second pass is the only one that reads a
-`//go:build integration` file. On a non-Linux host it is also the only one that
-reads a `//go:build linux` file. The rest come from
-`internal/le/verify/lint/matrix.go`, one for each personality tag (`ze_installer`,
-`ze_distro`, `ze_appliance`, `ze_setup`), the capability tags, `tinygo`, and each
-GOOS and GOARCH a tracked file names. Each flavor lints only the packages holding
-a file the first two passes do not load. That package set is derived from the
-tree on every run rather than written down.
-
-One directory answers with the whole tree, on purpose. Every file in
-`cmd/ze-installer` carries `//go:build linux && ze_installer`, so `go list` under
-the unit tag set reports no package there. The change-set selector then has
-nothing narrower to name (`internal/le/changed/scope.go`,
-`uncompiledTreeReaders`). It widens to `./...`, and the wide answer is what makes
-the `ze_installer` flavor run at all. A narrow answer would hand the driver a
-scope the initrd's PID 1 is not in. The gate would then exit 0 over it.
-
-Takes 3-10 seconds once the caches are warm, plus about 2 seconds for each flavor
-whose packages the change reaches. The first run after a checkout pays a cold
-analysis for each build, which is minutes.
-
-Fix every issue it reports. Do not claim done with lint failures outstanding.
-
-### When to run
-
-| Moment | Action |
-|--------|--------|
-| After finishing all edits for a task | Run `./le verify lint run` |
-| After fixing lint issues | Re-run to confirm clean |
-| Before `/ze-commit` or `/ze-commit-check` | Already covered if you ran it above |
-
-### What it catches that per-edit hooks miss
-
-- Functions/variables made unused by refactoring another file
-- Import cycles introduced by cross-package changes
-- Type mismatches from interface changes
-- Constants/vars that became unreferenced
-- Package-level issues that only manifest with full package analysis
-
 ## Which Packages "Changed" Means
-
-`./le changed scope` and `./le verify current mode changed` both scope to one
-native answer, and `./le changed scope` prints it. The answer is
-the changed packages plus two levels of their importers, and the feature tags the
-change can reach.
-
-```
-./le changed scope print both
-./le changed scope print packages paths-from FILE
-```
-
-A non-Go path seeds the Go packages whose tests read it, so a `.ci` or rule
-point selects native tooling packages rather than nothing. The `paths-from`
-keyword asks `./le changed scope` about a supplied path list.
 
 **You MUST read the selector's stderr before you trust a scoped run.** It widens
 to `./...` and names the reason whenever it cannot narrow, and one reason is
 routine: `tmp/ze-verify.status` holding no green commit. With nothing proven,
 every scoped target judges the whole tree until a full run passes. The contract
 is `docs/architecture/testing/verify-freshness-scope.md`.
-
-**A scoped run judges fewer Staticcheck matrix rows too.** `scopeFeatureMatrix` (`internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go`) keeps the two rows that omit no feature tag, plus one row per tag the change reached: 3 of 38 for a `ze_ssh`-local change. `all_features` and `core_only` judge the combinations Ze ships, and `validateScopedMatrix` refuses any scope that subtracts one of them.
-
-**`./le staticcheck-feature-matrix check` typed on its own judges every row**, because only a verify run publishes the feature-tag answer that `ZE_VERIFY_SCOPE_TAGS` names. So does an answer that cannot be read, one naming a tag `feature-gates.txt` does not declare, and one naming every tag. An EMPTY answer is a real answer and judges the two shipped rows.
-
-**Suite selection is not scoped: every functional suite runs on every verify, whatever the change set says.** `go list -deps ./cmd/ze` links 562 of the module's 646 packages, so no static signal attributes a `.ci` file to a Go package.
-
-## Rationale
-
-### Fork cost
-
-On macOS, each `fork+exec` costs ~4-5 ms. A loop over 400 files x one `grep`
-per iteration = ~2 seconds of pure fork overhead before any real work. Add a
-second command per iteration (pipe to `sed`, call `awk`) and it doubles. Nested
-loops make it quadratic.
-
-### Poll cost
-
-An abandoned poll loop keeps taking CPU after its answer is no longer needed.
-That contention can make concurrent QEMU, Docker, and verification work fail.
-
-The harm is not the fork cost measured above. It is the wake and its lifetime: a
-poll loop keeps taking CPU on a loaded box long after anybody wants its answer.

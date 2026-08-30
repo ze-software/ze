@@ -359,6 +359,43 @@ option=<type>:key=value[:key=value...]
 <!-- source: internal/test/runner/needs_path.go -- repoRootFrom, the needs-path lookup -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
 
+#### Choosing between `needs-linux`, `caps=`, and `skip-os`
+
+| The `.ci` test ... | Use |
+|--------------------|-----|
+| Only validates config (`ze config validate -`), parses, or runs an offline `ze show` / `ze env` | Nothing. It runs natively on every OS |
+| Boots a daemon that APPLIES Linux-only config (interface, VLAN, firewall, L2TP kernel) | `option=needs-linux` |
+| The same, and needs privileged network configuration (creates interfaces, brings links up, programs netlink) | `option=needs-linux:caps=net-admin` |
+| The same, and opens a raw or packet socket (`resolve ping`, traceroute) | `option=needs-linux:caps=net-raw` |
+| The same, and loads eBPF | `option=needs-linux:caps=bpf` |
+| Skips on one non-Linux OS for a reason unrelated to the kernel | `option=skip-os:value=darwin` |
+| Needs an optional heavyweight artifact the checkout does not carry | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
+
+`caps=` takes a comma-separated list, so a test that programs netlink and loads
+eBPF declares `caps=net-admin,bpf` and is gated on both. An unknown token is a
+parse error on every host, macOS included, so a typo cannot silently disable the
+gate.
+
+`caps=net-admin` exists because Linux alone is not the requirement. On an
+unprivileged Linux host, a CI runner or a rootless container, a test that
+applies interface config does not fail cleanly: the interface plugin fails its
+configure handshake with `operation not permitted` and the DAEMON exits 1, then
+the TEST hangs because its check peer waits for a session the exited daemon will
+never open. The gate reads `CapEff` from `/proc/self/status`, not uid 0: a
+setcap'd binary holds the capability without being root, and a restricted
+container can be root without it.
+
+A `caps=` test does not run in the merge gate. `./le verify worktree` runs
+unprivileged, so the marker turns an opaque hang into an honest skip there, and
+the coverage relocates to `.github/workflows/qemu-nightly.yml`.
+`TestCapabilityGatedTestsHaveANativeVMHome` fails when that link is broken:
+marking a test with a capability nobody's CI has would be a coverage deletion
+wearing a skip's clothing.
+
+<!-- source: internal/test/runner/caps.go -- capsRequired, capsAccepted -->
+<!-- source: internal/test/runner/caps_linux.go -- probeCaps, the CapEff read -->
+<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestCapabilityGatedTestsHaveANativeVMHome -->
+
 ### OPEN Behaviors
 
 | Value | Description |
@@ -910,13 +947,13 @@ script (e.g. `test/managed/auth-reject.ci`), and any `reject=` test.
 ### Strengthen with a readback
 
 Add a second `cmd=` that dumps the parsed tree and assert a representative value
-with `expect=stdout:contains=` / `pattern=`. `ze config dump --json -` reads a
-config from stdin and prints the stored tree as JSON, so the assertion observes the
-parsed VALUE, not just that parsing did not error.
+with `expect=stdout:contains=` / `pattern=`. `show config dump -` reads a config
+from stdin and answers the stored tree, and `| json` renders it, so the assertion
+observes the parsed VALUE, not just that parsing did not error.
 
 ```
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=0
-cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump
+cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=config-dump
 expect=exit:code=0
 expect=stdout:pattern="interval": "300"
 ```
@@ -1116,6 +1153,69 @@ http=get:seq=1:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=asp
 # Substring check
 http=get:seq=2:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=nexthop&format=text:status=200:contains=egress
 ```
+
+## Sleeps and their justification markers
+
+<!-- source: internal/le/doc/wiring -- checkSleepJustification -->
+<!-- source: internal/le/hookruntime/writeedit.go -- writeCISleep -->
+
+Every `time.sleep(` in a live `.ci` carries a marker comment in the form
+`// sleep(<kind>): <reason>`, on one `#` comment line directly above the sleep,
+indented to match it exactly. The embedded `.ci` observer body is indentation
+sensitive. Two producers enforce the marker: `checkSleepJustification` in
+`internal/le/doc/wiring` (run by `./le doc wiring`, scoped to changed `.ci`
+files, listing every unjustified `file:line` and exiting 1), and `writeCISleep`
+in `internal/le/hookruntime/writeedit.go`, which blocks a Write or Edit that
+introduces an unmarked sleep.
+
+The kinds are a closed set, and each one owes a different reason:
+
+| Kind | What the reason states |
+|------|------------------------|
+| `poll-interval` | The real condition the enclosing loop breaks or returns on. This is already a deterministic wait; the sleep is only its granularity |
+| `timer` | The delay itself IS the behavior under test, and the mechanism plus where its period is set |
+| `timeout-under-test` | The fixed internal timeout the sleep waits out, which the test asserts on |
+| `needs-linux` | A dataplane effect (tc, qdisc, nft, kernel FIB) with no readback in the driver, convertible only after a QEMU run |
+| `no-signal` | The awaited effect exposes no queryable state to this driver, and what is held until instead |
+
+A free-text `// settle` comment is insufficient: it names no mechanism a reader
+can check. "The tracker pushes live carrier once a second" is a reason a later
+reader can overturn; "needs a moment" is the shape that makes a deliberate timer
+and a guessed duration the same line of code.
+
+A separate ratchet caps how MANY sleeps exist: the total `time.sleep(` count
+across `test/**/*.ci` may not exceed the committed baseline in
+`test/.ci-sleep-baseline`, and `./le doc wiring` fails when it does. The markers
+cap how many are unexplained.
+
+## The compiled observer API
+
+<!-- source: internal/test/fixture/fixture.go -- Register, Run, Observe, ObserveConfigured, Dispatch, Poll, ReportFailure -->
+
+Compiled `.ci` observers live under `internal/test/fixture`. They use
+`pkg/plugin/sdk` for the five-stage plugin protocol (`Plugin.Run` owns it) and
+the local `fixture` package for registration, dispatch, polling and failure
+reporting.
+
+| Function | Purpose |
+|----------|---------|
+| `fixture.Register(name, driver)` | Register one compiled fixture command |
+| `fixture.Run(args)` | Dispatch `ze-test fixture <name> [args...]` |
+| `fixture.Observe(...)` | Connect through the SDK, complete startup, run the scenario after all plugins are ready, then request shutdown |
+| `fixture.ObserveConfigured(...)` | Install callbacks before startup, then run the same observer lifecycle |
+| `fixture.Dispatch(...)` | Send one command and decode its JSON answer into a Go value |
+| `fixture.Poll(...)` | Retry a predicate until success, exhaustion, or context cancellation |
+| `fixture.ReportFailure(err)` | Emit the `ZE-OBSERVER-FAIL` sentinel `checkObserverSentinel` (`internal/test/runner/runner_validate.go`) detects |
+| `sdk.Plugin.DispatchCommand(...)` | Send a typed command request through the plugin connection |
+
+`fixture.Poll` around `fixture.Dispatch` is the payload-predicate wait: it blocks
+until the observed payload matches, within a bounded attempt count. It is what
+replaces a `time.Sleep` followed by a one-shot assertion.
+
+`fixture.Observe` can request a clean daemon shutdown even after an assertion
+failed, so the daemon's exit code does not prove the observer's assertion. A
+failing observer returns an error, which `fixture.Run` hands to
+`fixture.ReportFailure`.
 
 ## Engine Steps
 

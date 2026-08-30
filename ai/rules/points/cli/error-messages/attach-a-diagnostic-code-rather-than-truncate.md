@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-If the next step needs more than one line, attach a diagnostic code (below)
-rather than truncating the guidance.
+**When the next step needs more than one line, a diagnostic code MUST be attached rather than the guidance truncated.**

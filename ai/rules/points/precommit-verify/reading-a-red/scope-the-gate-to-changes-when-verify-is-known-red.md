@@ -1,11 +1,10 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-When `./le verify worktree` is known-red from failures this session did not cause --
-pre-existing reds, or a separate session is actively clearing the global suite --
-a commit carrying NO Go is gated on changed scope only. Rerunning the full gate for
-it re-surfaces other sessions' noise that is not your regression and blocks progress.
-A commit carrying Go still owes the full run above: the known red is ATTRIBUTED
-there, and is never a reason to skip it. Gate the rest on changed scope only:
+**When `./le verify worktree` is known-red from failures this session did not
+cause, a commit carrying NO Go MUST be gated on changed scope alone.** Re-running
+the full gate for it re-surfaces other sessions' noise that is not your
+regression. **A commit carrying Go still owes the run named above: a known red is
+ATTRIBUTED there and is never a reason to skip it.**

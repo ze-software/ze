@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**You MUST classify what you are holding, and take the action its row names:**
+
 | What you are holding | Which debt | What to do |
 |---|---|---|
 | A gate you have not run yet over code you believe correct | verification | Record the row, commit, clear it later |

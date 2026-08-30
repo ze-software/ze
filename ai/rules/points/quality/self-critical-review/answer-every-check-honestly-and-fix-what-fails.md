@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Every check answered honestly. "Probably fine" is not a pass — run the code, read the diff. If any fails, fix before proceeding.
+**Every check MUST be answered honestly. "Probably fine" is not a pass: run the code and read the diff.** A check that fails MUST be fixed before you proceed.

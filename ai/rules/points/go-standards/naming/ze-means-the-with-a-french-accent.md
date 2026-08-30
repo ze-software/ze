@@ -1,6 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
+rationale: ai/rationale/naming.md
 ---
-"Ze" = "The" with a French accent. Use "ze" where "the" works grammatically.
+**"Ze" is "The" with a French accent, and it MUST be used wherever "the" works grammatically.** Which spelling each surface takes is in `docs/contributing/go-conventions.md`.

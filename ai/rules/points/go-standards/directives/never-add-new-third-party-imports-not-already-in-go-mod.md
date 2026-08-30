@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Never add new third-party imports (not already in `go.mod`) without asking the user first.
+**A third-party import that is not already in `go.mod` MUST NOT be added without asking the user first.**

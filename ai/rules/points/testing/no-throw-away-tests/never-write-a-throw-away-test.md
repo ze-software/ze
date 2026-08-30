@@ -1,6 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Never write temporary test code. Add functional or unit tests that run in CI.
+**Temporary test code MUST NOT be written.** Add a functional or unit test that
+runs in CI.

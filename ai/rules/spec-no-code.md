@@ -5,8 +5,9 @@
 
 ## Directives
 
-Specs MUST NOT contain code snippets (any language).
-Rationale: `ai/rationale/spec-no-code.md`
+**A spec MUST NOT contain a code snippet, in any language.**
+
+**A spec MUST state each of these in prose or a table instead:**
 
 | Instead of | Use |
 |------------|-----|

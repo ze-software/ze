@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Not part of `./le verify current mode full` today because of a pre-existing drift backlog. Run on demand. See `docs/contributing/documentation-testing.md` for the full workflow and how to interpret output.
+**`./le doc check verify` is not part of `./le verify current mode full`, so you MUST run it on demand.** `docs/contributing/documentation-testing.md` carries the workflow and how to read its output.

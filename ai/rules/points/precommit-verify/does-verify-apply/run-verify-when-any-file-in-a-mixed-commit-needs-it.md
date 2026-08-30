@@ -1,8 +1,9 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Mixed commit: one YES row -> run. Do not split a commit to skip.
-Decision rule: "could this make a Go test fail or break the build?"
-No = skip and note in commit summary. Unsure = run.
+**A mixed commit with one YES row MUST be verified, and it MUST NOT be split to
+escape that.** The question to answer is "could this make a Go test fail or break
+the build?". A no skips the gate and says so in the commit summary. Anything
+short of certainty MUST be treated as a yes.

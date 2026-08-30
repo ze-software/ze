@@ -12,80 +12,27 @@ cgo-free-builds ## CGO-Free Builds
   ze-is-cgo-free
 one-owner-runs-the-suites ## One Owner Runs The Suites
   rule
-  why-one-owner-and-not-a-lock
   never-attribute-a-red-taken-under-contention
   the-proof-a-fix-needs-is-not-a-suite
   known-failure-reruns-stay-focused-until-final-verification
   sample-tests-before-aggregate-suite
 bare-go-test-lies-always-pass-the-feature-tags ## Bare `go test` Lies -- Always Pass The Feature Tags
-  bare-go-test-omits-the-feature-build-tags
   prefer-a-native-action-or-pass-the-tags-yourself
-  go-test-invocation-carrying-the-feature-tags
-  a-git-archive-scratch-tree-has-the-same-trap
-  phantom-reds-have-cost-real-debugging-time
-  how-to-recognize-a-missing-tags-failure
 no-pipes-on-expensive-commands ## No Pipes On Expensive Commands
   never-pipe-an-expensive-command-read-the-log
   tee-is-the-one-allowed-pipe
-  where-verify-writes-its-log-and-how-to-read-it
 write-ad-hoc-scratch-under-your-per-session-dir ## Write Ad-Hoc Scratch Under Your Per-Session Dir
-  a-fixed-name-in-tmp-collides-between-sessions
   write-ad-hoc-scratch-under-this-session-s-private-directory
-  session-scratch-sh-gives-you-a-private-directory
-  nothing-is-deleted-automatically-and-what-stays-put
 your-binaries-live-in-this-session-s-directory ## Your Binaries Live In This Session's Directory -- Ask For The Path
-  every-binary-is-built-in-this-session-s-directory
   never-hardcode-bin-ze-ask-for-the-path
-  use-the-owning-native-action-to-build-test-binaries
-  why-the-binaries-live-with-the-session
-  the-session-store-is-seeded-on-the-first-build
-  why-test-binaries-live-in-a-private-bin
 never-launch-a-functional-suite-by-running-the-runner-binary ## Never Launch a Functional Suite By Running The Runner Binary
   running-the-runner-binary-gives-a-false-red
-  the-native-action-builds-a-zetest-tagged-pair
-  the-same-trap-as-bare-go-test-one-layer-out
-  how-to-run-a-suite-one-test-or-a-vm-test
-  the-runner-s-failure-hints-repeat-the-bad-launch
 the-bash-hook-matches-your-command-text-including-search ## The Bash Hook Matches Your Command Text, Including Search Patterns
-  the-hook-matches-the-command-string-not-intent
-  a-grep-whose-pattern-spells-a-banned-verb
   scan-with-grep-tool-never-work-around-the-hook
-  grep-tool-scan-that-keeps-the-verb-out-of-bash
-  why-the-hook-is-coarse-on-purpose
 no-fork-loops ## No Fork Loops
-  bad
-  per-file-fork-loops-that-cost-hundreds-of-forks
-  good
-  one-recursive-grep-instead-of-a-loop
-  when-a-loop-is-unavoidable
-  batch-with-xargs-or-find-exec-when-a-loop-is-needed
-  find-exec-batching-many-files-into-one-call
-  scope
   the-ban-covers-every-bash-call
-no-poll-loops ## No Poll Loops
-  what-to-do-for-each-kind-of-wait
+  batch-with-xargs-or-find-exec-when-a-loop-is-needed
 lint-gate ## Lint Gate
-  the-problem
-  the-per-edit-hook-only-sees-changed-lines
-  the-rule
-  run-the-lint-gate-before-claiming-go-work-done
-  run-native-changed-lint
   never-invoke-golangci-lint-directly
-  what-native-changed-lint-covers-and-costs
-  fix-every-lint-issue-before-claiming-done
-  when-to-run
-  lint-moments-and-the-action-each-one-needs
-  what-it-catches-that-per-edit-hooks-miss
-  cross-file-defects-only-package-lint-finds
 the-changed-set-selector ## Which Packages "Changed" Means
-  which-packages-changed-means
-  print-the-answer-before-you-trust-a-scoped-run
-  a-non-go-path-selects-its-readers
   read-the-stderr-line-before-you-trust-the-answer
-  a-scoped-run-judges-fewer-staticcheck-matrix-rows
-rationale ## Rationale
-  fork-cost
-  measured-fork-cost-on-macos
-  poll-cost
-  abandoned-poll-loops-made-the-suites-flaky
-  the-harm-is-the-wake-and-its-lifetime

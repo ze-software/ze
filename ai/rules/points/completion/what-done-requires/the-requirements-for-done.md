@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**All eleven MUST hold:**
+
 | # | Requirement |
 |---|-------------|
 | 1 | Every acceptance criterion in the spec has working code |

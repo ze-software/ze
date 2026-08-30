@@ -1,9 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-A pasted line number proves nothing about what you read, and it goes stale at the
-next edit (`ai/rules/writing.md`). The `writePointLanguage` check in
-`internal/le/hookruntime/writeedit.go` blocks new line-number citations in
-repository prose.
+**A pasted line number proves nothing about what you read, and it goes stale at the next edit, so it MUST NOT be written into repository prose** (`ai/rules/writing.md`). `writePointLanguage` in `internal/le/hookruntime/writeedit.go` blocks a new one.

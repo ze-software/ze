@@ -513,6 +513,35 @@ inside a `terminator=` block):
   `{single-polarity: positive|negative; why}` instead. `{gap: why; ref}` and
   `{not-applicable: why}` cover deliberate divergence and inapplicability, each
   with a reason (a bare annotation is rejected).
+- **Place the tag inline at the table case** when one function covers many
+  requirements. One id per line, polarity mandatory. The tag is the only authored
+  half of the binding, so it dies with the test.
+
+#### What each carrier earns in the ledger
+
+<!-- source: internal/le/rfc/carriers.go -- Carrier, suiteCarriers, interopCarriers, interopTrees -->
+
+Evidence has two axes: KIND (which layer the test exercises) and TIER (whether
+anything executes it). Both are DERIVED from the carrier table rather than
+declared by the test.
+
+| Carrier | Kind | Executed by | Tier |
+|---------|------|-------------|------|
+| `*_test.go` outside `internal/le/` | `unit` | `./le test-unit` | `verify`, on every push |
+| `test/<suite>/*.ci` | `functional` | `./le functional` | `verify`, but only from a suite the functional run actually gates. `suiteCarriers` builds one prefixed row per name in `functional.GatingNames()`, so a `.ci` in a non-gating suite (static, traffic, flow-export, vpp, vrrp) earns no verify tier, and `test/draft/` is skipped entirely |
+| `test/editor/*.et` | `editor` | `./le functional editor` | `verify`, on the same earned-per-suite basis |
+| `internal/le/interoplab/bgp/*.go` | `interop` | `./le integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
+| `internal/le/interoplab/ipsec/*.go` | `interop` | `./le integration interop-ipsec` | same derivation |
+| `internal/le/interoplab/l2tp/*.go` | `interop` | `./le deployment docker-l2tp-ppp-test` | same derivation |
+| `internal/le/interoplab/pppoe/*.go` | `interop` | `./le deployment docker-pppoe-accel-test` | same derivation |
+
+The four legacy trees under `test/interop*/` carry the same interop kinds through
+`legacyInteropCarriers`, keyed on a `/check.py` suffix.
+
+A requirement whose only evidence is nightly-tier is marked `**nightly-only**` on
+its ledger row and counted in its own rollup column. The rollup deliberately
+never sums the two, because a nightly tier is not merge-gate proof.
+
 - **Five native RFC actions clear different failures.**
   - `./le rfc check` gates coverage and validates the audit records.
   - `./le rfc index-update` renders one ledger per RFC and

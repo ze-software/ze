@@ -1,9 +1,10 @@
 ---
-kind: note
-level: MUST NOT
+kind: directive
+level: MUST
 stage:
 ---
-Every MUST/MUST NOT enforced in code needs a comment directly above:
+**Every MUST and MUST NOT enforced in code MUST carry a comment directly above it, naming the RFC section and quoting the requirement:**
+
 ```
 // RFC NNNN Section X.Y: "quoted requirement"
 <enforcing code>

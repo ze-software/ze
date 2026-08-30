@@ -219,7 +219,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 | 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
 | 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec-citation anchors spec plan/<this-spec>.md` lists them. A doc DECLARED by a changed file's `// Design:` header BLOCKS until named here; a doc that only `<!-- source: -->` mentions it is advisory. Naming it as unaffected, with the reason, satisfies the check |
+| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec citation anchors spec plan/<this-spec>.md` lists them. A doc DECLARED by a changed file's `// Design:` header BLOCKS until named here; a doc that only `<!-- source: -->` mentions it is advisory. Naming it as unaffected, with the reason, satisfies the check |
 | 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
 
 ## Implementation Steps
@@ -303,6 +303,19 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ## Checklist
 
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
@@ -325,7 +338,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/specsession/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**At each boundary below, the action in its row MUST be taken.**
+
 | Situation | Do |
 |-----------|-----|
 | The spec is approved and coding is about to start | Start. No model switch is needed, and no announcement is owed |

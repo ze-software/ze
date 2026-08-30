@@ -7,160 +7,62 @@ related: config, cli, performance, repo-maintenance, architecture
 directives ## Directives
   read-the-ze-style-guide-before-go-design-or-review
   guard-with-early-returns-one-fact-per-guard
-  required
   always-follow-these-required-go-patterns
-  logging-log-slog-only
   log-through-slog-never-printf
-  dependencies
   never-add-new-third-party-imports-not-already-in-go-mod
-  environment-variables-internal-core-env-only
   access-env-vars-only-through-internal-core-env
   read-the-config-rule-before-adding-an-env-var
-  the-env-getters
-  the-env-setters
   reset-the-env-cache-after-a-direct-os-setenv
   register-every-env-var-with-mustregister
-  registration-flags
-  what-each-registration-flag-means
   use-os-getenv-only-for-system-env-vars
-  aliased-imports
   alias-an-import-when-two-packages-share-a-name
-  first-party-tooling-native-go-only
   put-first-party-tooling-in-native-go-packages
-  style-patterns-to-prefer
   adopt-these-style-patterns-on-touch-not-in-a-sweep
   prefer-guard-clauses-slice-types-and-narrow-constructors
-  json-struct-tags-mandatory
   tag-every-json-field-with-a-kebab-case-name
-  forbidden
   never-write-these-forbidden-go-patterns
 naming ## Naming
   ze-means-the-with-a-french-accent
-  the-ze-name-to-use-in-each-context
   config-naming-lives-in-the-config-rule
-  naming-describe-what-not-the-type
   name-a-value-for-what-it-is-not-its-go-type
-  the-banned-name-patterns-and-their-fixes
-  distinguish-representations-by-what-they-represent
-  package-naming-glossary
   pick-a-package-name-from-the-glossary-not-a-synonym
-  what-each-recurring-package-name-means
-  source-anchor-for-the-package-glossary
-  the-cli-cmd-command-trio-internal-component
-  which-of-cli-cmd-and-command-to-use
-  the-rib-named-packages
-  what-each-rib-named-package-holds
-  source-anchor-for-the-rib-packages
 prefer-typed-numeric-over-string ## Prefer Typed Numeric Over String
   use-typed-numeric-identity-on-hot-paths
-  rule
-  what-to-prefer-and-reject-on-each-surface
   make-zero-invalid-and-never-compare-with-string
-  where-strings-are-ok-boundaries-only
-  the-surfaces-where-a-string-is-correct
-  minimize-conversions
   convert-to-string-only-at-the-wire-and-human-sinks
-  map-keys-prefer-numeric
   key-a-hot-path-map-with-a-numeric-type
   parse-the-string-once-at-the-boundary
-  when-map-string-v-is-acceptable
-  where-a-string-keyed-map-is-acceptable
   bind-an-accepted-string-key-to-a-constant
-  anti-patterns
-  the-string-key-anti-patterns-and-their-fixes
-  mechanical-check
-  before-you-add-a-string-across-a-seam
   the-checks-to-run-before-adding-a-string
 api-contracts-in-comments ## API Contracts in Comments
   document-every-caller-obligation-in-the-godoc
-  when-to-document
-  document-any-step-whose-omission-breaks-the-caller
-  the-comment-each-lifecycle-pattern-requires
-  format
   write-must-and-put-it-on-both-sides-of-the-pair
-  checklist-before-merging-new-api
   name-the-release-and-the-ordering-in-both-comments
 file-modularity ## File Modularity
-  one-concern-per-file
   keep-one-concern-in-each-go-file
-  split-only-when-the-separation-is-right
-  what-to-do-at-each-file-size
   judge-file-size-against-one-threshold-only
   ask-one-concern-before-you-create-or-extend-a-file
-  splitting
   split-a-file-with-go-extract-and-fix-the-headers
-  exempt-test-files
-  test-go-files-are-not-subject-to-line-count-thresholds
-  not-a-reason-to-split
   size-alone-is-not-a-reason-to-split
 design-document-references ## Design Document References
   every-go-file-carries-a-design-comment
-  format
   write-the-design-line-with-a-topic-annotation
-  line-ordering
   the-design-line-must-be-the-first-comment-in-every-file
-  when-to-add
-  the-design-line-for-each-situation
-  exempt
-  the-files-exempt-from-the-design-line
 file-cross-references ## File Cross-References
-  purpose
-  cross-reference-comments-let-claude-load-only-needed-files
-  keywords
-  the-directional-keywords-between-files
-  what-each-cross-reference-keyword-means
-  what-a-hub-a-leaf-and-a-peer-file-are
-  bidirectionality-blocking
   every-cross-reference-needs-a-back-reference
-  keep-file-cross-references-bidirectional
-  format
-  place-cross-references-under-the-design-line
-  the-order-of-the-header-lines
-  when-to-add
-  the-cross-reference-to-add-in-each-situation
-  when-not-to-add
   when-a-file-needs-no-cross-reference
-  not-a-directory-listing
   point-detail-lines-at-non-obvious-relationships
   keep-a-detail-line-a-reader-would-otherwise-miss
-  maintenance
-  update-cross-references-when-a-file-moves
-  exempt
-  the-files-exempt-from-cross-references
 external-commands ## External Commands
   ze-code-must-not-fork-a-system-tool
   an-authorised-command-is-in-the-register
   read-the-kernel-interface-instead
   the-harness-is-not-ze
 no-backwards-compatibility ## No Backwards Compatibility
-  pre-release-current-state
   ze-is-unreleased-so-write-no-compat-code
-  post-release-future-state
   internal-code-changes-freely-forever
   the-plugin-api-is-frozen-once-released
   only-the-plugin-api-contract-is-frozen-not-its-code
-  exabgp-compat
   keep-exabgp-awareness-out-of-engine-code
 go-compiler-upgrade-checklist ## Go Compiler Upgrade Checklist
-  textbuf-noescape-vs-strings-builder
-  textbuf-copies-the-stdlib-noescape-technique
-  on-every-go-update
   compare-noescape-against-the-stdlib-after-a-go-update
-  what-breaks-if-noescape-disappears
-rationale ## Rationale
-  where-the-per-topic-rationale-lives
-  why-numeric-map-keys
-  string-map-keys-cost-more-at-every-operation
-  the-cost-of-a-string-key-against-a-numeric-key
-  string-keys-give-the-gc-pointers-to-scan
-  reference-file-modularity-and-cross-references
-  the-retired-file-modularity-summaries
-examples ## Examples
-  registry-maps-name-to-id-at-init-all-lookups-use-id
-  example-of-a-name-to-id-registry
-  file-header-ordering
-  example-of-the-file-header-order
-  a-good-hub-header
-  example-of-a-good-hub-header
-  a-bad-hub-header
-  example-of-a-bad-hub-header

@@ -3,6 +3,9 @@ kind: directive
 level: MUST
 stage:
 ---
-- Every row MUST have source evidence, a link, or an explicit `Unclear`/`Not found in inspected scope` caveat.
-- Product columns MAY be hidden when the table is too wide.
-- The prose MUST NOT imply Ze is better without evidence that would convince a maintainer from the other project.
+**Before you publish or hand off a comparison, every row MUST carry its evidence or an explicit caveat, and a row with neither MUST be removed.**
+**A public comparison MUST open with its inspected scope, near the top:**
+
+```
+Scope: inspected <projects/versions/paths>. Claims cite code or official docs. Integrated products cite their integration surface and the integrated implementation when relevant. `Not found` means not found in this inspected scope.
+```

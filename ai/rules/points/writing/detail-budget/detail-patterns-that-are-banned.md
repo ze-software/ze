@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These MUST NOT be written:**
+
 | Banned | Why |
 |--------|-----|
 | Recounting dead ends, wrong hypotheses, or the order you tried things | The reader needs the answer, not the route to it |

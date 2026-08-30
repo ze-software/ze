@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-If no matching scenario exists, one must be created before claiming done.
+**For every protocol feature in the spec, you MUST confirm a matching interop scenario exists under the suite's scenario directory. When none matches, one MUST be created before you claim done.**

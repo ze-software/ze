@@ -88,3 +88,134 @@ in".
 counts needed their own map. 64 pages would otherwise report as 65536.
 
 <!-- source: internal/component/host/memory_linux.go -- meminfoCounts against meminfoFields -->
+
+
+## Why a module cache is checked in
+
+`gok` (`cmd/ze-gok`, wrapping `github.com/gokrazy/tools`) compiles every
+appliance package in module mode and fetches with `go get`. It has no vendor
+support at all: a `vendor/` tree in a builddir is ignored. The build therefore
+resolves through a checked-in module cache, `gokrazy/modcache/`, with
+`GOMODCACHE` set by `cmd/ze-gok/main.go`.
+
+`gokrazy/modcache/.gitignore` ignores everything except the gokrazy init source
+(`github.com/gokrazy/gokrazy@*/**`). That committed source carries upstream's
+own `go.mod`, and GitHub's dependency graph scans every `go.mod` in the
+repository as a manifest. When upstream's `go.mod` names a version with a later
+advisory, the alert fires on that file even though the image never builds the
+vulnerable version: the builddir modules pin the fix and minimal version
+selection takes the maximum. A Dependabot alert on a `go.mod` under
+`gokrazy/modcache/` is therefore almost always a stale vendored upstream
+manifest rather than the real dependency graph.
+
+<!-- source: cmd/ze-gok/main.go -- GOMODCACHE and the -modcacherw GOFLAGS append -->
+<!-- source: gokrazy/modcache/.gitignore -- the init-source whitelist -->
+
+### The eight builddir modules
+
+`gokrazy/ze/builddir/` holds eight modules. Seven are tracked locks whose
+`go.sum` shows a diff on a bump:
+
+```text
+github.com/gokrazy/gokrazy
+github.com/gokrazy/gokrazy/cmd/dhcp
+github.com/gokrazy/gokrazy/cmd/heartbeat
+github.com/gokrazy/gokrazy/cmd/ntp
+github.com/gokrazy/gokrazy/cmd/randomd
+github.com/gokrazy/serial-busybox
+github.com/rtr7/kernel
+```
+
+The eighth, `github.com/ze-software/ze`, is only `replace ze => <repo root>`, so
+every line of its sum is already in the root `go.sum`. Its `go.sum` is
+gitignored (`.gitignore`). Regenerate it like the rest and expect no diff.
+
+### Dependabot is off for these paths
+
+`.github/dependabot.yml` scopes version updates to the root module. The builddir
+modules and the checked-in cache are excluded on purpose: an automated PR would
+fight the hand-pin, because the maximum minimal-version-selection answer is
+chosen deliberately, and a bot bump reopens the stale-manifest churn. A
+proactive review replaces the bot. Security-alert scanning is always on and
+cannot be suppressed there, which is why the alert still arrives.
+
+## Module cache hygiene
+
+`gokrazy/modcache/` is a real Go module cache and Go never garbage-collects it.
+Two kinds of growth are expected, and one is a defect.
+
+Expected: superseded versions after a pin bump, which the bump runbook removes,
+and the breadth of `go mod download all`, which is the whole module graph
+including test-only dependencies and their fixtures (`pierrec/lz4` is 75 MB of
+`testdata/`, `klauspost/compress` 46 MB). A second Go toolchain also lands here,
+`golang.org/toolchain@...` at roughly 310 MB with its zip, whenever a builddir
+`go` directive is newer than the host toolchain and `GOTOOLCHAIN=auto`.
+
+A defect, because each one means a build resolved over the network instead of
+through the pins:
+
+| What you find | What it means |
+|---------------|---------------|
+| `github.com/ze-software/ze@v0.0.0-<date>-<hash>` | Ze was fetched from the proxy. The builddir replaces Ze with the working tree, so a build that reached the proxy for Ze did not read the builddir and compiled a PUSHED commit rather than your tree |
+| A version of a builddir-pinned module that is not the pinned one | `gok` fell back to `go get` and took whatever upstream had. For `github.com/rtr7/kernel` that is the appliance's KERNEL |
+
+Timestamps under `cache/download/*/@v/` reconstruct which build fetched what, to
+the minute. A reappearance is a regression in whatever new path prepares an
+instance: find that path rather than deleting the directory.
+`TestPrepareRealInstanceCarriesEveryModule` and
+`TestPreparedModulesResolveIdenticallyToTracked` gate preparation against the
+real eight-module instance, the second by comparing `go list -m all` before and
+after preparation.
+
+<!-- source: internal/appliance/instance/prepare_repo_test.go -- TestPrepareRealInstanceCarriesEveryModule, TestPreparedModulesResolveIdenticallyToTracked -->
+
+### Cache permissions
+
+Go's default cache permissions leave directories `r-x`, which makes git unable
+to delete or overwrite modcache files on a later checkout or rebase. Anything
+that downloads into `gokrazy/modcache/` carries `-modcacherw`
+(`GOFLAGS=-modcacherw`). `ze appliance build` sets it through `ensureModcacheRW`
+(`internal/appliance/cmd_build.go`) and `ze-gok` sets it in
+`cmd/ze-gok/main.go`. Keep the flag when running `go mod download` by hand. A
+cache written before the flag existed needs a one-time
+`chmod -R u+w gokrazy/modcache`.
+
+<!-- source: internal/appliance/cmd_build.go -- ensureModcacheRW -->
+
+## Which boot proof asserts what
+
+| Proof | What it does | Use it for |
+|-------|--------------|------------|
+| `./le qemu vpp-hugepages-test` | Builds a real image through `ze appliance build`, boots it in QEMU, asserts the kernel command line and the reserved hugepage count | The default boot proof |
+| `./le deployment gokrazy-l2tp-ppp-test` | Builds the appliance and boots it against a real LAC | The L2TP path |
+| `test/appliance/serial-login.ci` | Boots nothing. Its header says the QEMU plan applies "when appliance serial test infrastructure is ready"; it asserts the argv[0] shell-invocation gate offline | Never a boot proof |
+
+An image build alone is not a boot proof.
+
+## Root-module pseudo-version pins
+
+Some root `go.mod` direct dependencies are pinned to pseudo-versions
+(`v0.0.0-<date>-<hash>`) because their upstreams publish no semver tag. This is
+not a defect, and a reviewer should not "fix" it.
+
+| Root dependency | Pin form | Upstream semver tag |
+|-----------------|----------|---------------------|
+| `github.com/gokrazy/tools` | pseudo-version | none published |
+| `github.com/gokrazy/updater` | pseudo-version | none published |
+| `github.com/insomniacslk/dhcp` | pseudo-version | none published |
+| `github.com/packetcap/go-pcap` | pseudo-version | none published |
+| `golang.zx2c4.com/wireguard/wgctrl` | pseudo-version | none published |
+
+Confirm with `go list -m -versions`, `proxy.golang.org/<mod>/@v/list` and
+`@latest` before classifying a pseudo-version pin as a defect. A module that
+leaves this table has either been tagged or moved; find out which before
+re-adding a row.
+
+## GPLv2 source offer for the shipped kernel
+
+The appliance image ships a GPLv2 Linux kernel, `github.com/rtr7/kernel`
+(`gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod`, pinned as an indirect
+pseudo-version). Distributing a GPLv2 binary obliges the distributor to make the
+corresponding source available, typically through a written offer accompanying
+the image. No source-offer compliance sign-off is recorded today. That is a
+licensing decision, not an engineering one.

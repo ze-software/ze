@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Forbidden: "keep old + add new", "hybrid approach", "gradual migration", "fallback to old".
-Ask "am I adding or replacing?" before every change.
+**"Keep old and add new", "hybrid approach", "gradual migration" and "fallback to old" MUST NOT be used.** Before every change, ask "am I adding or replacing?".

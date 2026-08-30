@@ -286,6 +286,28 @@ and the AAA chain, the web login and the session check all answer from it. A
 second reader could disagree with the first, and a login the chain granted would
 then be revoked by the session check on the next request.
 
+## Markup guards
+
+`ai/rules/architecture.md` states the obligations: markup lives in a `.templ`
+file, a component takes a named struct, and a page carries no inline script,
+style attribute or event handler. Each obligation has one guard, and each guard
+walks its own directory, so a guard naming one package never covers its
+sibling.
+
+| Guard | Where the rules live | What it refuses |
+|---|---|---|
+| `TestNoGoFileBuildsMarkup` | `internal/test/markupcheck`, `AssertNoMarkup` | A Go string literal that builds a tag. It reads the FORM of a tag, so `usage: set <leaf>` is not a finding, and it knows HTML's void elements, so a bare `<br>` is one. An exemption that explains nothing is a finding, and so is a table that changed size |
+| `TestTemplatesAvoidInlineScriptAndStyle` | `internal/test/markupcheck`, `AssertNoInlineScriptOrStyle` | An inline `<script>` block, an inline `style=`, an `on*` handler, an `hx-on` attribute |
+| `TestTemplAssetsResolve` | `internal/test/markupcheck`, `AssertAssetsResolve` | A `src` or `href` the served filesystem does not hold, and one naming an asset tree the package does not serve |
+| `TestWebViewDataIsTyped`, `TestLGViewDataIsTyped` | `internal/test/templcheck`, `AssertTyped` | A component parameter that is a map, a named map, a bare `any`, or a struct wrapping any of them |
+| `./le doc check templ-output` | `internal/le/doc/check` and `internal/le/doc/wiring` | A `*_templ.go` its `.templ` source no longer produces |
+| `go test ./internal/component/web ./internal/component/lg` | `internal/test/golden` and the package capture tests | A rendered byte that moved with no fixture behind it |
+
+<!-- source: internal/test/markupcheck/markupcheck.go -- AssertNoMarkup -->
+<!-- source: internal/test/markupcheck/inline.go -- AssertNoInlineScriptOrStyle -->
+<!-- source: internal/test/markupcheck/assets.go -- AssertAssetsResolve -->
+<!-- source: internal/test/templcheck/templcheck.go -- AssertTyped -->
+
 ## Security
 
 | Aspect | Implementation |

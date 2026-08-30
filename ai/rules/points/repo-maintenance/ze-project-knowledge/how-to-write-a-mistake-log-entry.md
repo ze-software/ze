@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-One-line lesson + rule pointer. Full root-cause in the linked journal row's Fix cell.
+- **A mistake-log entry MUST be one line: the lesson, then the rule it points at.** The full root cause MUST live in the linked `plan/journal/<class>.md` row's Fix cell, never here.

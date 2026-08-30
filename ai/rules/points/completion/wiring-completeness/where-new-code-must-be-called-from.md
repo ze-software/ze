@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**New code MUST be called from the site its row names:**
+
 | New code in | Must be called from |
 |-------------|---------------------|
 | `internal/component/host/` | `cmd/ze/hub/main.go`, `loader_create.go`, `internal/component/cmd/show/system.go`, or `web/page_system.go` |

@@ -1,9 +1,6 @@
 ---
-kind: table
+kind: directive
 level: MUST
 stage:
 ---
-| Family set | Text protocol emits | Filter plugin requirement |
-|------------|---------------------|--------------------------|
-| CIDR (ipv4/ipv6 unicast, multicast, mpls-label) | `nlri <family> <op> <prefix>...` with the prefixes inlined | `raw=false` is sufficient |
-| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, and every future non-CIDR family) | `nlri <family> <op>` (marker only, no prefixes) | `raw=true` REQUIRED for per-NLRI decisions, and the plugin parses `FilterUpdateInput.Raw` itself |
+- **A filter plugin that needs per-NLRI decisions on a non-CIDR family MUST declare `raw=true` and MUST parse `FilterUpdateInput.Raw` itself.** For EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC and every future non-CIDR family the text protocol emits `nlri <family> <op>` as a marker with no prefixes. A CIDR family inlines its prefixes, so `raw=false` is sufficient there. The contract is `docs/architecture/api/process-protocol.md`, "Non-CIDR Families in the Filter Text Protocol".

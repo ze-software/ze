@@ -1,7 +1,8 @@
 ---
-kind: note
-level:
+kind: directive
+level: SHOULD
 stage:
 ---
-If the change does not fit any row (pure internal refactor, no user-visible effect),
-no functional test is required. But if you are unsure, write one.
+**A change fitting no row (a pure internal refactor with no user-visible effect)
+owes no functional test, and anything short of certainty about that SHOULD be
+answered by writing one.**

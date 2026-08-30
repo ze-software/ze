@@ -123,6 +123,30 @@ A type that can hold an invalid value will hold one.
 
 Full rule: `ai/rules/go-standards.md`, "Prefer Typed Numeric Over String".
 
+Storing an address as a string and parsing it back for a comparison is the
+common shape of this failure.
+
+| Anti-pattern | Fix |
+|-------------|-----|
+| `type Foo struct { Addr string }` then `net.ParseIP(a.Addr).Compare(...)` | `type Foo struct { Addr netip.Addr }` then `a.Addr.Compare(b.Addr)` |
+| Formatting to a string, storing it, parsing it back to compare | Parse once at construction, store the typed value, format only for display |
+| `compareAddrs(a.PeerAddr, b.PeerAddr)` with string parsing inside | `a.PeerIP.Compare(b.PeerIP)` over a `netip.Addr` field |
+
+When a struct genuinely needs both forms, the typed one for comparison and the
+string one for a map key or JSON, it stores both and parses once at
+construction.
+
+```go
+type Candidate struct {
+    PeerAddr string     // for map keys, JSON, interning
+    PeerIP   netip.Addr // for comparison (zero-alloc)
+}
+
+// At construction:
+c.PeerAddr = peerAddr
+c.PeerIP, _ = netip.ParseAddr(peerAddr)
+```
+
 ### Assertions, in a language that has none
 
 An assertion detects a programmer error. An error return handles an operating
@@ -346,7 +370,7 @@ a sentence, an email, or a heading. A present participle must be rephrased
 first. `peer.pipeline` beats `peer.preparing`, and it composes into
 `pipelineMax`.
 
-Go casing, package naming, and the package glossary: `ai/rules/go-standards.md`.
+Go casing, package naming, and the package glossary: `docs/contributing/go-conventions.md`.
 
 ### Comments
 
@@ -453,6 +477,85 @@ fixtures live under that package's `testdata/` directory or
 `internal/test/fixture`. Python remains relevant only when documentation or
 interoperability concerns an external Python program.
 <!-- source: internal/le/register.go -- native tooling composition root -->
+
+## Where Ze differs from standard Go
+
+Ze differs from a typical Go project in specific, load-bearing ways. A reader
+trained on standard Go patterns defaults to the wrong approach in each of the
+rows below. Each row names the standard approach, the Ze approach, the rule
+that governs it, and the reason.
+
+### Encoding and wire
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| `func (t T) Marshal() ([]byte, error)` | `func (t T) WriteTo(buf []byte, off int) int` | `ai/rules/performance.md` | Zero allocations on a hot path; the caller owns the buffer |
+| `bytes.Buffer` or `append` in helpers | Pre-allocated pooled buffers, sliced inward | `ai/rules/performance.md` | Bounded memory, no GC pressure |
+| `make([]byte, n)` for variable-length wire data | Pool-backed buffers of one fixed maximum size | `ai/rules/performance.md` | Block accounting can release a block whole |
+| A helper allocating its own scratch | The caller passes the buffer down and the callee writes into it | `ai/rules/performance.md` | One allocation at the outermost scope, not N in sub-functions |
+| `sync.Pool` only for reuse | `sync.Pool` for multi-goroutine scratch, a ring for a single goroutine | `ai/rules/performance.md` | The pool shape follows the goroutine shape |
+| Parse into structs eagerly | Lazy iterators over raw byte slices (`Next()`) | `ai/rules/architecture.md` | N to zero-until-needed, not N to one |
+| `fmt.Sprintf` for formatting | `textbuf.Buffer` (128-byte stack inline) or `strconv.Append*` | `ai/rules/performance.md` | Sprintf allocates two to three times; textbuf allocates once |
+| `strings.Join(parts, " ")` | One `textbuf.Buffer` with `.Byte(' ')` separators | `ai/rules/performance.md` | Removes the intermediate `[]string` and the final join |
+
+### Architecture and registration
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| Direct imports between packages | `init()` plus a registry plus a blank import | `ai/patterns/registration.md` | A small core discovers components and never imports them |
+| Constructor injection | Registry lookup at runtime, such as `Registration.InProcessNLRIDecoder` through the family index | `ai/rules/plugins.md` | A plugin is removable by dropping its blank import |
+| `os.Getenv("FOO")` | `env.Get("ze.foo")` through `internal/core/env` | `ai/rules/go-standards.md` | Caching, registration, dot and underscore agnostic, secret clearing |
+| `log.Printf` or `logrus` | `slog` through `slogutil.Logger("subsystem")` | `ai/rules/go-standards.md` | Per-subsystem levels set by env var |
+| Shared types by direct import | Cross-boundary payloads are value types only | `ai/rules/plugins.md` | No pointer fields cross a plugin or component boundary |
+
+<!-- source: internal/core/env/env.go -- Get -->
+<!-- source: internal/core/slogutil/slogutil.go -- Logger -->
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.InProcessNLRIDecoder -->
+
+### Config and schema
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| Struct tags plus `json.Unmarshal` | YANG schema as the sole source of truth | `ai/rules/config.md` | Schema-driven validation, migration, completion and diff |
+| A config version field | No version numbers; machine-transformable migration | `ai/rules/config.md` | YANG evolution handles schema change |
+| Silent defaults for missing fields | Fail on an unknown key and suggest the closest valid one | `ai/rules/config.md` | Explicit beats implicit |
+| `interface{}` for flexible config | `map[string]any` through one canonical pipeline | `ai/rules/repo-maintenance.md` | File to Tree to `ResolveBGPTree` to `map[string]any` to `PeersFromTree` |
+
+### Communication and IPC
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| gRPC or HTTP between services | JSON events down and text commands up, over pipes or `net.Pipe` | `ai/rules/plugins.md` | The plugin SDK is language-agnostic (Go, Python, Rust) |
+| Direct function calls for synchronous work | DirectBridge for typed in-process calls | `ai/rules/plugins.md` | Skips JSON serialization for internal plugins |
+| Channel-based pub/sub | EventBus with typed handles (`events.Register[T]`) | `ai/rules/plugins.md` | Type-safe registered event types, no raw `bus.Subscribe` |
+
+<!-- source: internal/core/events/typed.go -- Register -->
+
+### Testing
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| `go test ./...` for verification | `./le verify worktree` (two-pass, plus functional and exabgp stages) | `ai/rules/testing.md` | Cached full run, race on the changed groups |
+| Unit tests prove correctness | Unit tests and `.ci` functional tests, both required | `ai/rules/completion.md` | A unit test proves the algorithm; a `.ci` test proves a user can reach the feature |
+| `testify/assert` | The standard library `testing` package | (convention) | No test framework dependencies |
+| `go test -race` once | `go test -race -count=20 ./internal/component/bgp/reactor/...` for reactor code | `ai/rules/testing.md` | A rare schedule needs repeated runs to surface |
+
+### CLI and commands
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| `cobra` or `flag` | YANG-modeled dispatch with RPC handlers | `ai/patterns/cli-command.md` | One schema serves CLI, web, config and completion |
+| `command <identifier> [flags]` | `<verb> <noun> <action> [<identifier>]` | `ai/rules/cli.md` | Removes identifier-keyword ambiguity |
+| Format the output as a string | Return structured data and format through pipe operators | `ai/rules/cli.md` | `\| json`, `\| table`, `\| match`, `\| resolve` |
+| Hardcode help text | Derive it from the registry or schema | `ai/rules/evidence.md` | One source of truth, no stale enumerations |
+
+### Native tooling
+
+| Standard Go | Ze | Rule | Why |
+|---|---|---|---|
+| Ad-hoc scripts for tooling | A native Go package with a registered `./le` action | `ai/rules/go-standards.md` | One typed implementation serves the local caller and CI |
+| `/tmp` for scratch files | The per-session directory from `./le session scratch ensure` | `ai/rules/commands.md` | Concurrent sessions never share a name |
+| A bare staging verb followed by a bare commit | `./le commit create`, then the generated script | `ai/rules/git-safety.md` | The declared file population is checked before staging |
 
 ## Where Ze differs from TigerStyle
 

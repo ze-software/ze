@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MAY
 stage:
 ---
-To be clear: the plugin API's *implementation* can change freely. Only its *contract* (signatures, protocol shape, documented semantics) is frozen post-release.
+**The plugin API's IMPLEMENTATION MAY change freely. Only its CONTRACT is frozen once released:** the signatures, the protocol shape, and the documented semantics.

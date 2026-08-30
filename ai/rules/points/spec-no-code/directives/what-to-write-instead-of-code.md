@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**A spec MUST state each of these in prose or a table instead:**
+
 | Instead of | Use |
 |------------|-----|
 | Go struct | Table: Field / Type / Description |

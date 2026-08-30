@@ -3,5 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-**Test-stub convention.** Every test file that defines a private mock of
-`ze.EventBus` MUST add a compile-time check on the same file:
+- **Every test file that defines a private mock of `ze.EventBus` MUST carry a compile-time check in that same file: `var _ ze.EventBus = (*<stubName>)(nil)`.** Without it, an interface change compiles the stub against an outdated signature and fails only when a test actually constructs the stub.

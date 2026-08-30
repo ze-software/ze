@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Advisory, not a sweep. Adopt opportunistically the next time you are in the relevant code.
+**These style patterns are advisory. They SHOULD be adopted opportunistically the next time you are in the relevant code, and MUST NOT be applied as a sweep.**

@@ -1,13 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Enforced: `checkLoadExcuses` in `internal/le/doc/wiring/docwiring.go`
-(`./le doc wiring`, inside `./le verify worktree`) fails a CHANGED
-`plan/known-failures/` shard containing "under load", "loaded host", "load
-average", "load-sensitive", "passes in isolation", "resource contention" or
-"contended host". `README.md` and `RESOLVED.md` are exempt: the first states this
-policy, the second is a verbatim archive of history and is not edited to satisfy
-a present-day gate. The gate checks the excuse, not the existence of a shard:
-a red whose mechanism is genuinely unknown still belongs there.
+**A load excuse MUST NOT be written into a `plan/known-failures/` shard.** `checkLoadExcuses` (`internal/le/doc/wiring/docwiring.go`) fails a changed shard that carries one.
+**The gate checks the EXCUSE, not the existence of a shard.** A red whose mechanism is genuinely unknown still belongs there.

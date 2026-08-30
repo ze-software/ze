@@ -3,4 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-**Anything that downloads into `gokrazy/modcache/` MUST carry `-modcacherw` (`GOFLAGS=-modcacherw`):** go's default read-only cache permissions (dirs `r-x`) make git unable to delete or overwrite modcache files on later checkouts and rebases (a `git pull --rebase` across the 2026-07 init bump wedged exactly this way).
+**Anything that downloads into `gokrazy/modcache/` MUST carry `-modcacherw` (`GOFLAGS=-modcacherw`).** Go's default read-only cache permissions leave directories `r-x`, which makes git unable to delete or overwrite modcache files on a later checkout or rebase. Which tools already set the flag, and how to repair a cache written without it, is `docs/architecture/appliance/gokrazy-build-pins.md`.

@@ -1,8 +1,11 @@
 ---
-kind: table
-level:
+kind: directive
+level: MAY
 stage:
 ---
+**Unit tests alone MAY stand without a functional test ONLY when the change
+matches one of these rows. In every other case both kinds are required.**
+
 | Condition | Example |
 |-----------|---------|
 | Pure internal logic with no user entry point | Helper function, data structure, algorithm |

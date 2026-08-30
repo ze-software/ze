@@ -48,8 +48,9 @@ const (
 
 // manifest is the protocol list: the display name and the repo-relative root.
 // Protocols are not mechanically discoverable -- "is this directory a protocol"
-// needs judgement -- so the list is declared here and mirrored by the probe
-// table in ai/rules/protocol.md. A row is added when a protocol lands.
+// needs judgement -- so the list is declared here and mirrored by the mapping
+// table in docs/architecture/protocol-skeleton.md. A row is added when a
+// protocol lands.
 var manifest = []Protocol{
 	{Name: protoBGP, Root: "internal/component/bgp"},
 	{Name: protoBFD, Root: "internal/component/bfd"},
@@ -71,8 +72,8 @@ var canonical = []string{
 var rfcState = []string{"session", "adjacency", "neighbor", "fsm"}
 
 // legacyExceptions are the documented kept names that predate the glossary,
-// keyed by protocol and module. It mirrors the exceptions table in
-// ai/rules/protocol.md.
+// keyed by protocol and module. It mirrors the class table in
+// docs/architecture/protocol-skeleton.md.
 var legacyExceptions = map[string][]string{
 	protoBGP: {"message", "wireu", "reactor"},
 	protoIKE: {moduleWire},

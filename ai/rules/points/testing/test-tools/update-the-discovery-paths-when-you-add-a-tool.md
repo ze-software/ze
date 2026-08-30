@@ -1,10 +1,10 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-When adding a test runner, test format, native action, or verification gate, update
-`ai/rules/repo-maintenance.md` paths in the same change: `ai/INDEX.md` for the
-tool, `ai/INDEX.md` (task navigation) if it changes task selection, this file for required
-usage, and `docs/architecture/testing/` or `docs/contributing/` for detailed
-operator documentation.
+**A new test runner, test format, native action, or verification gate MUST update
+its discovery paths in the SAME change**: `ai/INDEX.md` for the tool and for task
+navigation when it changes task selection, this rule for required usage, and
+`docs/architecture/testing/` or `docs/contributing/` for the operator
+documentation. Which page owns what is `ai/rules/repo-maintenance.md`.

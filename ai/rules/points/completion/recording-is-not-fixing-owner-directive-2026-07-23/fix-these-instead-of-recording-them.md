@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Each of these MUST be fixed rather than recorded:**
+
 | What you are about to do | Do this instead |
 |---|---|
 | Add a `plan/known-failures/` entry for a test that fails deterministically | Diagnose it (see "Diagnosis Before Fix" below) and fix the root cause |

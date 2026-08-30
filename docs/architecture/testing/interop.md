@@ -9,6 +9,42 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).
 
 For BGP terminology used in this document, see [docs/features.md](../../features.md).
 
+`ai/rules/interop-and-goal-validation.md` states when an interop test is owed.
+This page is the infrastructure it is owed against.
+
+## The suites, one per protocol area
+
+| Protocol area | Peer implementation | Scenario directory | Native action |
+|---------------|---------------------|--------------------|---------------|
+| BGP (session, capability, NLRI, community, policy) | Docker: FRR, BIRD, GoBGP, StayRTR | `test/interop/scenarios/` | `./le integration interop` |
+| IPsec (IKEv2, EAP, MOBIKE) | Docker: strongSwan | `test/interop-ipsec/` | `./le integration interop-ipsec` |
+| L2TP | Docker | `test/interop-l2tp/` | `./le deployment l2tp-test`, and `./le deployment l2tp-ppp-test` for the full PPP and NCP path |
+| PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le deployment docker-pppoe-accel-test` |
+
+<!-- source: internal/le/integration/gates.go -- interop and interop-ipsec verbs -->
+<!-- source: internal/le/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
+
+Every suite discovers its scenarios the same way. `Discover`
+(`internal/le/interoplab/discover.go`) reads the scenario directory, keeps the
+subdirectories, sorts the names lexically, and joins each one against the
+owning checker registry. A scenario with no checker, or a nil checker, is an
+ERROR rather than a skipped test, so a fixture and its registry cannot silently
+disagree. Nothing depends on the order: each scenario gets its own setup, check
+and teardown.
+
+A scenario directory carries only declarative inputs its runner reads: `ze.conf`
+plus the peer configuration and argument files that topology needs. Assertions
+never live there. They are typed Go checkers under `internal/le/interoplab/`:
+BGP builds its registry from `scenarioOperations` in
+`internal/le/interoplab/bgp/checkers.go`, and IPsec declares `scenarioCheckers`
+in `internal/le/interoplab/ipsec/checkers.go`. A checker waits for readiness,
+asserts the protocol behaviour, verifies stability where the scenario needs it,
+and returns an error on failure.
+
+A scenario directory is NAMED and carries no numeric prefix. The name is the
+scenario's identity: `Discover` matches it exactly, `./le integration` takes it
+as a scenario selector, and specs, journal rows and code comments cite it.
+
 ## Tested Daemons
 
 | Daemon | Version | Image | Query Method | What It Validates |

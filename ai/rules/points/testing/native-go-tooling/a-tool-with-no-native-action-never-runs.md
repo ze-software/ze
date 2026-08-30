@@ -1,8 +1,8 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-A native tool that no `./le` action or compiled fixture driver invokes never
-runs, and reads as coverage while providing none. Register the action and test
-the callable Go producer.
+**A native tool MUST be reachable from a `./le` action or a compiled fixture
+driver, and its callable Go producer MUST have a test.** A tool nothing invokes
+never runs, and it reads as coverage while providing none.

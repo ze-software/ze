@@ -3,7 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-- **Bring a link up / apply address + route**: you MUST use `netlink`, not `ip`.
-- **DHCP lease**: you MUST use in-process `nclient4` (`internal/install/disk/dhcp_linux.go`), not `udhcpc` plus a lease script.
-- **HTTP image/database download**: you MUST use `net/http` (`internal/install/disk/download.go`), not `wget`.
-- **mount / umount / loop / mknod / reboot / poweroff**: you MUST use `golang.org/x/sys/unix` syscalls and ioctls isolated in named `_linux.go` helpers (`mount_linux.go`, `loop_linux.go`, `blockdev_linux.go`), not `mount`/`losetup`/`reboot`.
+**An initrd operation MUST use its in-process Go replacement; it MUST NOT shell out to an external tool.** That covers bringing a link up, applying an address and a route, the DHCP lease, the image download, and mount, umount, loop, block-device ioctls, reboot and poweroff. The replacement for each operation, and the procfs or sysfs source for each state read, is `docs/architecture/appliance/installer-initrd.md`.

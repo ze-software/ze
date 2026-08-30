@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**Each row below MUST NOT be given as a reason to ship without a functional test.**
+
 | Pattern | Why it's wrong |
 |---------|----------------|
 | "Unit tests cover this" | Unit tests prove the function works in isolation. They do not prove the daemon exposes the feature to users. |

@@ -36,6 +36,19 @@ Memory-efficient attribute and NLRI deduplication for API programs.
 
 ---
 
+## Why attribute dedup pays
+
+Attribute deduplication is worth its machinery because real BGP attribute bytes
+overlap heavily. Training intuition says the opposite, so these four facts are
+the ones to check a design against.
+
+| Fact | Why it matters |
+|------|---------------|
+| NEXT_HOP is set at the eBGP border router, so all IBGP routes share a small set of next-hops: the L3 device originating the prefix, or the eBGP peer | Attribute byte overlap across IBGP peers is high, not low |
+| MED, LOCAL_PREF and communities are policy-set by the sender, and tend to be identical across many routes from the same peer | Same-peer attribute reuse is very high |
+| AS_PATH is identical for all routes learned from the same external source, and IBGP does not prepend | Cross-peer attribute overlap within an AS is significant |
+| UPDATE packing groups NLRIs with identical attributes into one message, but convergence events and incremental announcements spread them across several UPDATEs | Attribute reuse across UPDATEs from one peer is common |
+
 ## Data Flow
 
 The pool lives in the **API program**, not the engine. Wire bytes flow from engine to API:

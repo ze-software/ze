@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These completion excuses MUST NOT be acted on:**
+
 | Excuse | Answer |
 |--------|--------|
 | "Should work" / "Probably fine" | Run it, paste output |

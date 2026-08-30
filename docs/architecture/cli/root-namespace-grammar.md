@@ -14,6 +14,40 @@ carrying a whole operator language.
 
 The load-bearing deliverable was the **gate**, not the renames.
 
+## The command shape, and what each feeder checks
+
+```
+<verb> <noun> <action> [<args>]
+<verb> <noun> <selector-kind> <selector-value> <action> [<args>]
+```
+
+| Incorrect | Correct | Why |
+|-----------|---------|-----|
+| `show interface <name>` | `show interface name <name> detail` | `<name>` is untyped and could collide with a keyword (`brief`, `errors`) |
+| `show interface <name> counters` | `show interface name <name> counters` | The selector value appears before its kind |
+| `show l2tp session <id>` | `show l2tp session id <id> detail` | The id is typed before use |
+| `show vpn ipsec peer <name>` | `show vpn ipsec peer name <name> detail` | A named lookup needs an explicit selector kind |
+| `cache <id> retain` | `cache retain <id>` | Id before action |
+| `commit <name> start` | `commit start <name>` | Name before action |
+
+Seven feeders enforce this, and `./le cli-grammar` runs them.
+
+| Feeder | What it checks | Run |
+|--------|----------------|-----|
+| Static gate | Every built-in command (YANG command tree) against R1-R9, plus no `--flag` in any `.yang`. R9 sibling-collision is static-gate-only because it needs sibling context | `./le cli-grammar`. It is not a `./le verify worktree` stage; it reaches CI through `TestTheRealCheckoutPassesAndWasRead` in `internal/le/cligrammar/cligrammar_test.go`, which runs the same checker over the real checkout under the unit stage |
+| Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in the functional and exabgp suites |
+| Runtime guard | The runtime built-in assembly (`AllBuiltinRPCs` by `WireMethodToPaths`) re-checked with `ExemptCategory` by wire method, and the `CommandRegistry.Register` boundary rejecting a bad name | `TestRuntimeBuiltinSurfaceGrammar`, `TestRegistrationRejectsBadGrammar` (unit) |
+| Root namespace | Every registered root command against R9 across surfaces (`grammar.CheckRootNamespace`): a hyphenated root whose left segment names a YANG verb or container is a namespace member masquerading as a compound root. Root handlers never pass through the YANG-tree static gate, so this is the only feeder that governs them | `./le cli-grammar`; `TestRootNamespaceGrammar` (unit) |
+| Demo call sites | Every `ze <token>` invocation under `demos/terminal/`: the position-1 token must be a YANG verb, a registered root, or the `-` stdin sentinel | `./le cli-grammar` reads the demo sources; `./le terminal-demo check-all` validates the published artifacts |
+| `le` surface | `le`'s own command tree, which the first five feeders never reach because it registers outside the YANG tree and outside `registry.RegisterRoot` | `./le cli-grammar` |
+| Offline flags | The `cmd/ze/` flag surface: a root spelled as a flag, a flag a client sends to the daemon, a flag repeating a pipe operator, and a flag the parser and `registry.RegisterCommandFlags` disagree about. What a static scan cannot place is counted and printed, never dropped | `./le cli-grammar`; the shapes are pinned by `TestTheFlagFeederDrawsARowForEachShape` (unit) |
+
+A verb is added by editing `command.Verbs`, which both the plugin gate and the
+static gate derive from. Category exemptions — the text bridge, the
+`ze-plugin:`/`ze-system:` wire-protocol directives, and `ze-editor:` modes —
+live in `grammar.ExemptCategory`, keyed on the handler wire-method namespace,
+never a per-command allowlist.
+
 ## Decision: a fourth feeder for the grammar gate
 
 `grammar.CheckRootNamespace(roots, namespaces)` flags a root whose left

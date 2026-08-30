@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-The four subsection names below are required in a spec's Data Flow section (`plan/TEMPLATE.md`, checked by `hookValidateSpec` in `internal/le/hookruntime/lifecycle.go`).
+- **A spec's Data Flow section MUST carry the four subsection names below, spelled as `plan/TEMPLATE.md` spells them. `hookValidateSpec` in `internal/le/hookruntime/lifecycle.go` refuses the spec otherwise.**

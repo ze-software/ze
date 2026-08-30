@@ -1,10 +1,12 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
-| What changed | Also check |
+**A change to a spec under `plan/` MUST also update everything its row names.**
+
+| What changed | Also update |
 |---|---|
-| Status change | per-session marker via `./le spec session` |
-| AC added/removed | Wiring test table, audit table |
-| Design decision | Annotate with `-> Decision:` for post-compaction recovery |
+| Status change | The per-session marker, through `./le spec session` |
+| An AC added or removed | The wiring test table and the audit table |
+| A design decision | Annotate it with `-> Decision:` for post-compaction recovery |

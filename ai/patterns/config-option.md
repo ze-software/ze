@@ -190,18 +190,92 @@ has no matching `reg.Register()` call.
 
 Namespace: `urn:ze:<domain>:<purpose>` (e.g., `urn:ze:bgp:conf`).
 
+## YANG Config or Env Var
+
+`ai/rules/config.md` carries the obligations. This is the decision aid.
+
+| Question | If YES | If NO |
+|----------|--------|-------|
+| Would an operator change this during normal capacity planning or traffic engineering? | YANG config | Keep reading |
+| Does it need validation, commit and rollback, or a config diff? | YANG config | Keep reading |
+| Should it appear in `show configuration` or in a config backup? | YANG config | Keep reading |
+| Is it a debug, emergency, or development-only knob? | Env var only | YANG config |
+| Is it needed before config loads (bootstrap)? | Env var only | YANG config |
+| Is it a safety cap that should never be tuned in production? | Env var only | YANG config |
+
+A YANG leaf is visible in `show configuration`, validated by YANG constraints,
+part of commit and rollback, included in config backups, and discoverable
+through CLI completion. An env-only setting has none of those: it is invisible
+unless the operator reads the source, it is unvalidated, and changing it needs a
+restart.
+
 ## Naming Across Layers
 
 Full naming conventions: `ai/rules/config.md`
-Decision framework (YANG vs env var): `ai/rules/config.md`
 
 | Layer | Convention | Example |
 |-------|-----------|---------|
 | YANG leaf | kebab-case, no abbreviations | `forward-queue-size` |
-| Go struct field | PascalCase of YANG leaf | `ForwardQueueSize` |
-| Env var | `ze.<component>.<container>.<yang-leaf>` | `ze.bgp.reactor.forward-queue-size` |
+| Go struct field | PascalCase of the YANG leaf, same word boundaries | `ForwardQueueSize`, `ReadBufferSize` (not `ReadBufSize`) |
+| Env var | `ze.<component>.<container>.<yang-leaf>`, dot-separated and lowercase | `ze.bgp.reactor.forward-queue-size` |
 | CLI input | kebab-case | `reactor forward-queue-size 128` |
 | Config file | kebab-case | `forward-queue-size 128;` |
+
+### YANG leaf names
+
+| Rule | Example | Anti-pattern |
+|------|---------|--------------|
+| kebab-case, no abbreviations | `forward-queue-size` | `fwd-chan-size` |
+| Noun or noun phrase | `read-buffer-size` | `read-buf-sz` |
+| Dimensioned value: state the unit through a `units` statement and keep the name unit-free | `teardown-grace` plus `units seconds;` | `teardown-grace-seconds`, or `teardown-grace` with no `units` |
+| No `ze-` prefix; it is implicit in the tree | `cache-ttl` | `ze-cache-ttl` |
+| Boolean: positive assertion | `update-groups` | `no-update-groups`, `disable-update-groups` |
+| A `leaf-list` or a `list` is named in the PLURAL; a single `leaf` is singular, so a reader knows how many values may be written before reaching the type | `communities`, `prefixes`, `as-sets` | `community`, `prefix`, `as-set` on a leaf-list |
+
+The one exception to "no abbreviations" is an industry-standard abbreviation
+clearer than its expansion: `ttl`, `mtu`, `tcp`, `bgp`, `asn`, `med`, `ebgp`,
+`ibgp`.
+
+### YANG container names
+
+| Rule | Example | Anti-pattern |
+|------|---------|--------------|
+| Singular noun for the subsystem | `reactor` | `reactor-settings`, `reactor-config` |
+| No `-config` or `-settings` suffix | `session` | `session-config` |
+| Group related leaves, rather than one leaf per container | `reactor { cache-ttl; cache-max; forward-queue-size; }` | `reactor-cache { ttl; max; }` plus `reactor-forward { queue-size; }` |
+
+### The env var path mirrors the YANG path
+
+The dotted env var path mirrors the YANG tree from the component root down, and
+its final segment is the YANG leaf name exactly.
+
+| YANG path under `environment` | Env var |
+|-------------------------------|---------|
+| `bgp / reactor / cache-ttl` | `ze.bgp.reactor.cache-ttl` |
+| `bgp / reactor / cache-max` | `ze.bgp.reactor.cache-max` |
+| `bgp / reactor / update-groups` | `ze.bgp.reactor.update-groups` |
+| `bgp / openwait` | `ze.bgp.openwait` |
+| `chaos / seed` | `ze.bgp.chaos.seed` |
+
+<!-- source: internal/component/config/apply_env.go -- envPlumbingTable, the YANG-leaf-to-env-key map -->
+<!-- source: internal/component/config/environment.go -- env.MustRegister for each key -->
+
+### Legacy env var keys that predate the convention
+
+Each of these is registered with a `Deprecated:` note naming its YANG leaf, and
+each still owes the alias that matches the YANG name. `envPlumbingTable`
+(`internal/component/config/apply_env.go`) maps the YANG leaf to the legacy key
+only, and no alias is registered today.
+
+| YANG leaf under `environment/bgp/reactor` | Legacy env key | Alias owed |
+|-------------------------------------------|----------------|------------|
+| `forward-queue-size` | `ze.fwd.chan.size` | `ze.bgp.reactor.forward-queue-size` |
+| `forward-batch-limit` | `ze.fwd.batch.limit` | `ze.bgp.reactor.forward-batch-limit` |
+| `forward-pool-max-bytes` | `ze.fwd.pool.maxbytes` | `ze.bgp.reactor.forward-pool-max-bytes` |
+| `forward-pool-headroom` | `ze.fwd.pool.headroom` | `ze.bgp.reactor.forward-pool-headroom` |
+| `forward-teardown-grace` | `ze.fwd.teardown.grace` | `ze.bgp.reactor.forward-teardown-grace` |
+| `read-buffer-size` | `ze.buf.read.size` | `ze.bgp.reactor.read-buffer-size` |
+| `write-buffer-size` | `ze.buf.write.size` | `ze.bgp.reactor.write-buffer-size` |
 
 ## Config Override Priority (highest first)
 
@@ -231,11 +305,28 @@ Core types/extensions must be embedded. Plugin schemas are registered at import 
 ## Checklist
 
 ```
+[ ] Classified as YANG config or env-only using the decision table above
+[ ] If env-only: documented WHY (debug, bootstrap, safety cap)
+[ ] If promoting an env var: old key preserved, precedence documented
 [ ] YANG leaf defined with type, default, description
+[ ] YANG leaf: full words, kebab-case, no abbreviations
+[ ] YANG leaf: dimensioned value carries a `units` statement, name unit-free
+[ ] YANG leaf: description names the env var override when one exists
 [ ] YANG module registered (init() + go:embed) or existing module extended
+[ ] Namespace is urn:ze:<component>:<kind> (kind is a colon segment)
+[ ] Prefix is short, unquoted, no hyphens; zt and ze not reused
+[ ] Module has a revision and a description; no stray organization
+[ ] Every IP, prefix, ASN, port or community leaf uses the zt typedef
+[ ] ze:validate used only for runtime sets, never to duplicate pattern/range
+[ ] Endpoint uses zt:listener (bind) or zt:endpoint (target); no host:port string
+[ ] Toggles are positive `enabled` booleans; no type empty, no enable/disable enum
+[ ] Cross-protocol concept matches its siblings (grep OSPF, IS-IS, BGP first)
+[ ] 4-space indent; compact leaves only for type (+ default, description)
 [ ] If env var: env.MustRegister() in environment.go
-[ ] If env var: Go struct field in environment.go
+[ ] If env var: key is ze.<component>.<container>.<yang-leaf>, final segment exact
+[ ] If env var: Go struct field in environment.go, PascalCase of the YANG leaf
 [ ] If env var: Loaded in LoadEnvironmentWithConfig() via SchemaDefault*()
+[ ] If a legacy env var exists: alias registered matching the new convention
 [ ] If custom validation: validator in validators.go
 [ ] If custom validation: registered in validators_register.go
 [ ] If custom validation: ze:validate in YANG leaf

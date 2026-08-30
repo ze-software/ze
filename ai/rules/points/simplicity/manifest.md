@@ -18,5 +18,3 @@ over-engineering ## What Over-Engineering Looks Like
 simple-is-not-less ## Simple Is Not Less
   complexity-a-rule-requires-is-not-over-engineering
   a-clever-line-is-not-a-simple-line
-rationale ## Rationale
-  why-the-standard-is-simplest-and-fully-correct

@@ -1,7 +1,6 @@
 ---
-kind: note
+kind: directive
 level: MUST
 stage:
 ---
-Every spec MUST have a **Documentation Update Checklist** (see `plan/TEMPLATE.md`).
-Each row answered Yes/No. Each Yes names the file and what to add.
+**Every spec MUST carry a Documentation Update Checklist (`plan/TEMPLATE.md`). Each row MUST be answered Yes or No, and each Yes MUST name the file and what to add.**

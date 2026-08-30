@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Always ask: am I fixing where the problem **is**, or where it **shows up**? A special case layered on shared infrastructure means the underlying mechanism should be generalized instead. See "No Workarounds For Missing Behavior" below.
+**You MUST always ask: am I fixing where the problem IS, or where it SHOWS UP?** A special case layered on shared infrastructure means the underlying mechanism MUST be generalized instead.

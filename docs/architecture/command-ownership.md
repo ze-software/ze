@@ -2,7 +2,7 @@
 
 <!-- source: ai/rules/plugins.md -- full rule -->
 <!-- source: internal/component/plugin/all/all.go -- blank imports that wire init() -->
-<!-- source: internal/le/pluginimports/actions.go -- Answer -->
+<!-- source: internal/le/plugin/imports/actions.go -- Answer -->
 
 ## The Folder Test
 
@@ -96,7 +96,7 @@ This means adding a YANG command schema to a plugin is:
 
 ### How Codegen Enables the Folder Test
 
-The codegen (`internal/le/pluginimports.Write`) scans the directory tree for:
+The codegen (`internal/le/plugin/imports.Write`) scans the directory tree for:
 
 - Packages containing `yang.RegisterModule` calls -> adds to `all.go` schema imports
 - Packages containing `pluginserver.RegisterRPCs` calls -> adds to `all.go` RPC imports
@@ -187,14 +187,170 @@ The package must be blank-imported (directly or transitively) from
 containing `pluginserver.RegisterRPCs` or `yang.RegisterModule` calls and
 generates the import list.
 
+## What the Removal Test Forbids
+
+| Anti-pattern | Why it fails the removal test |
+|--------------|-------------------------------|
+| A plugin's command spelling in generic dispatch (`internal/component/plugin/server`) | Deleting the plugin leaves dead BGP or iface knowledge in shared code |
+| A plugin's subtree in a central verb schema, such as `show bgp ...` in `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` | Deleting the plugin leaves a `show bgp` branch with no handler |
+| Plugin handlers registered from a central verb package (`internal/component/cmd/show`, `internal/component/cmd/delete`) | Deleting the plugin leaves the central package referencing gone symbols |
+| Help, usage or inventory strings that hardcode a plugin's commands in a generic package | Deleting the plugin leaves help advertising commands that no longer exist |
+| The CLI helper (`cmd/ze/internal/cmdutil`) special-casing a plugin's selectors | Selector handling is generic, and per-plugin knowledge belongs to the owner |
+
+### What shared code may carry
+
+Generic command plumbing carries selector scope, not command spelling. The
+dispatcher extracts a typed selector value because a YANG `ArgDef` declares it,
+and it contains no plugin grammar: not the word `peer`, `bgp` or `bfd`. The
+classification rule is ownership before grammar.
+
+<!-- source: internal/component/plugin/server/command.go -- ArgDef selector extraction -->
+
+## Finding the Owner: follow the code, not the wire method
+
+The `ze-<ns>:` prefix on a `WireMethod` is a label rather than an ownership
+claim, and it is often a legacy misnomer. The owner is what the handler actually
+calls.
+
+| Command (WireMethod) | What the handler calls | Owner |
+|----------------------|------------------------|-------|
+| `ze-show:ip-route`, `ze-show:neighbors`, `ze-show:kernel-routes` | `iface.ListKernelRoutes`, `iface.ListNeighbors` (kernel tables through the iface backend) | `internal/component/iface`, not central `show` and not the BGP RIB |
+| `ze-bgp:pool-stats` | `bgp/plugins/rib/pool` attribute-pool metrics | The BGP RIB plugin |
+| `ze-bgp:metrics-values`, `ze-bgp:metrics-list` | The generic core Prometheus registry (`internal/core/metrics`) | Generic, stays central |
+| `ze-bgp:subscribe`, `ze-bgp:unsubscribe` | The generic `pluginserver` subscription manager | Generic, stays central |
+| `ze-show:policy-list` | The cross-plugin filter-type registry (`registry.FilterTypesMap`) | Generic, stays central |
+
+A command is generic, and stays central, only when it has no single removable
+owner: it aggregates a cross-plugin registry, reads a generic core system, or is
+process-global (`show warnings`, `show health`, `subscribe`). Everything that
+reads one plugin's or one component's state belongs to that owner, whatever the
+`ze-<ns>:` label on its WireMethod says.
+
+## Carving a Command Into Its Owner
+
+1. **Handler.** Add `func init() { pluginserver.RegisterRPCs(...) }` and the
+   handler in the owner package. When the owner package is already
+   blank-imported, because it has a `register.go` the generator's `pluginDirs`
+   finds or it sits in `rpcDirs`, the registration links with no generator and
+   no manual-island change. The handler imports `plugin` and `pluginserver` plus
+   the owner's own API, so it creates no import cycle.
+2. **Schema, by container merge rather than `augment`.** Add
+   `<owner>/yang/ze-<x>-cmd.yang`, a standalone module that re-declares the path
+   from the root. The YANG loader unions same-named top-level containers across
+   every registered module, so the owner module needs no `import` or `augment`
+   of the central schema and has no base-module coupling. Give it a unique
+   `namespace` and `prefix`, `import ze-extensions`, and add the embed var and
+   the `yang.RegisterModule` call. A new `<owner>/yang/` package whose
+   `register.go` imports `config/yang` is auto-discovered, so re-run the plugin
+   import generator to refresh `internal/component/plugin/all/all.go`.
+3. **Schema location.** The command YANG lives in `<owner>/yang/`, a sibling of
+   `cli` and `cmd`, and never under `<owner>/cmd/yang/`.
+4. **Both halves of the invariant.** The owner `yang/` gets a presence test
+   asserting its command tokens are declared, and the central verb schema test
+   bans the moved tokens.
+
+### Unowned verb roots
+
+A verb whose subcommands belong to several owners, such as `monitor bgp`,
+`monitor vpn ipsec` and `monitor ping`, does not declare its root container
+inside any one plugin. Declaring it there means deleting that plugin deletes the
+whole verb. The root lives in a central, plugin-free package
+`internal/component/cmd/<verb>`: a `doc.go` that blank-imports its `yang/`
+subpackage. Each owner container-merges only its own subtree onto that root, and
+the central package holds no handlers.
+
+The root anchor stays even when it declares zero commands. Once every subcommand
+of a verb has carved out, the central verb schema is a bare `container <verb>`
+with no `ze:command` leaf of its own. `internal/component/cmd/clear` is the
+precedent: `clear interface counters` (iface), `clear dns cache` (resolve),
+`clear vpn ipsec sa` (ike), `clear l2tp ...` (l2tp) and `clear bgp rib ...`
+(bgp) are all owner-owned, so `ze-cli-clear-cmd.yang` declares only the bare
+anchor. Owners attach to it two ways, and the second has a hard dependency on
+it:
+
+- **Container merge.** The owner declares its own
+  `container <verb> { container <noun> ... }` and the YANG loader unions
+  same-named roots. iface, resolve and ike use this for `clear`. New carves use
+  this shape, because it creates no base-module coupling.
+- **Augment.** The owner declares `augment "/<prefix>:<verb>"` against the
+  anchor module. l2tp and bgp use this for `clear`, through
+  `augment "/cliclearcmd:clear"`. An augment names its target module, so
+  deleting the anchor breaks every augmenting owner's build. That is the
+  concrete reason the bare anchor remains.
+
+### Dedicated feature modules
+
+When one feature spreads across several verbs, a one-shot root command, a `show`
+view, a `monitor` stream and a `resolve` variant, the feature gets its own
+module `internal/component/<feature>` that owns every one of those commands,
+rather than scattering them across the verb packages. When two such modules
+would share low-level primitives, ping and traceroute both build ICMP echo
+packets and resolve targets, those primitives are extracted to an
+`internal/core/<x>` package such as `internal/core/probe`, so neither feature
+module depends on the other or on a central verb package.
+
+## Registration Over Hardcoding: the CLI client too
+
+The registration discipline covers the CLI client model, not only the daemon's
+command and schema tree. The daemon registers streaming views generically with
+`pluginserver.RegisterMonitorProvider(MonitorProvider{Prefix, CreateFn})` and
+`RegisterStreamingHandler(prefix, handler)`, resolved by longest-prefix
+`matchesPrefix`. The Bubble Tea client mirrors this with its own view registry.
+
+The anti-pattern is each rich live view (dashboard, traceroute, ping, traffic)
+adding its own field, factory, state and dispatch to the core `cli.Model`, wired
+one at a time in `cmd/ze/hub/session_factory.go` and
+`internal/component/cli/client/main.go`. Every new view then edits the core
+struct in four or five places, which is the opposite of a core that discovers
+features through a registry.
+
+The shape in the tree is the client-side view registry in
+`internal/component/cli/view_registry.go`: `RegisterView(viewSpec{key, prefix,
+matches, start})`, `RegisteredViews()`, and a longest-prefix `resolveView`
+copied from `matchesPrefix`. Each view registers from its own
+`register_view_*.go` `init()` and hangs its session state off the single
+`Model.activeView` handle plus the generic `Model.viewFactories` store, with no
+per-feature field. Consumers iterate `cli.RegisteredViews()` and inject each
+factory by key through `SetViewFactory` rather than through typed setters. The
+`TestModelHasNoPerFeatureViewField` reflection guard fails when a per-feature
+field returns.
+
+<!-- source: internal/component/cli/view_registry.go -- RegisterView, RegisteredViews, resolveView -->
+<!-- source: internal/component/plugin/server/handler.go -- matchesPrefix -->
+<!-- source: internal/component/cli/model_test.go -- TestModelHasNoPerFeatureViewField -->
+
+## The Removal-Compliance Guards In The Tree
+
+The first instance is `TestShowSchemaHasNoBGPPluginCommands` in
+`internal/component/cmd/show/yang/self_containment_test.go`. It asserts the
+central `show` verb schema declares no part of the `show bgp ...` subtree
+(`ze-rib-api:`, `ze-bgp:peer-`, `ze-show:bgp-decode`, `ze-show:bgp-encode`),
+because `show bgp rib ...` and `show bgp peer ...` are owned by
+`internal/component/bgp/plugins/cmd/{rib,peer}/yang`, and the offline
+`show bgp decode` and `show bgp encode` diagnostics are owned by
+`internal/component/bgp/cli/yang`. The owner half is
+`TestBGPToolsSchemaOwnsDecodeEncode`, which asserts the surface moved rather
+than vanished.
+
+Non-BGP owners share one general central guard,
+`TestShowSchemaHasNoMigratedOwnerCommands` in the same file. Its banned-token
+map grows by one entry per carved owner: flow export, RSVP-TE, LDP, policy
+routes, static, VPN IPsec, VPP, the iface kernel reads. Each owner's `yang/`
+package holds the matching presence test, such as
+`TestRSVPTECmdSchemaOwnsShowRSVPTE`. For `clear`, the pair is
+`TestClearSchemaHasNoMigratedOwnerCommands` and, for example,
+`TestResolveCmdSchemaOwnsClearDNSCache`.
+
 ## Summary: Where Things Go
 
 | Artifact | Location | Hand-written? |
 |----------|----------|---------------|
 | Implementation library | Shared code: `component/<name>/` or `core/<name>/`<br>Full-subsystem plugin: `plugins/<name>/` | Yes |
 | Config YANG (data model) | Shared subsystem: `component/<name>/yang/`<br>Full-subsystem plugin: `plugins/<name>/yang/` | Yes |
-| Command YANG (CLI tree) | `plugins/<name>/yang/` | Yes (`.yang` only) |
+| Command YANG (CLI tree) | `plugins/<name>/yang/`, never `<owner>/cmd/yang/` | Yes (`.yang` only) |
 | YANG embed + register | `plugins/<name>/yang/` | Generated |
-| RPC handlers | `plugins/<name>/cmd/` | Yes |
+| RPC handlers | `plugins/<name>/cmd/`, or the owner package | Yes |
 | Offline CLI registration | `plugins/<name>/register.go` | Yes |
+| Help, usage and completion | Derived from the owner's registry and schema | Derived |
+| Doctor check and its unit test | The owner package | Yes |
 | Blank imports | `all.go` | Generated |

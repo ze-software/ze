@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These moves MUST NOT be made. Each reduces scope invisibly:**
+
 | Banned | Why |
 |--------|-----|
 | Offering the user "drop the interop / functional test" as an option | Reducing coverage to reach green is the failure, not a choice. Do not put it on the table. |

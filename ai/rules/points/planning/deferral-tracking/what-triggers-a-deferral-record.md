@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Each trigger below MUST produce a row, recorded when the decision is made rather than at commit time.**
+
 | Trigger | Action |
 |---------|--------|
 | Deciding work is "out of scope" | Record with reason |

@@ -1,12 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Why: closure DELETES the spec, and `deferral_unassigned_problems`
-(`internal/le/commit`) checks that every live row's destination exists on
-disk. A row left pointing at a closed spec can therefore never be satisfied: it
-dangles forever, is reported on every future commit (as a WARNING: that gate is
-advisory and does not block), and the next reader cannot tell whether the work was
-done or silently lost. Closure must enforce both compatible rules:
-"destination must exist" and "closure deletes the spec".
+- **Closure DELETES the spec, so every live row naming it MUST be re-homed in the same work.** A row left pointing at a deleted spec can never be satisfied, and no gate reads deferral destinations, so nothing will ever report it. The next reader cannot tell whether the work was done or silently lost.

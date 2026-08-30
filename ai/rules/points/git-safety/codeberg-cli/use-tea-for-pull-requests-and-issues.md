@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-`tea` for PRs/issues: `tea pr list`, `tea pr create`, `tea issue list`, `tea issue create`.
+**Pull requests and issues MUST go through `tea`:** `tea pr list`, `tea pr create`, `tea issue list`, `tea issue create`.

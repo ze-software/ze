@@ -22,10 +22,10 @@ internal/component/bgp/plugins/<name>/
   register.go         # REQUIRED: init() -> registry.Register()
   <name>.go           # REQUIRED: Package doc, logger, RunXxxPlugin()
   <name>_test.go      # Tests
-  schema/             # If plugin has YANG config
-    register.go       # init() -> yang.RegisterModule()
-    embed.go          # //go:embed ze-<name>-conf.yang
-    ze-<name>-conf.yang
+  yang/               # If plugin has YANG config or command schema
+    ze-<name>-conf.yang # hand-written; the only hand-written file here
+    embed.go          # GENERATED: //go:embed ze-<name>-conf.yang
+    register.go       # GENERATED: init() -> yang.RegisterModule()
 ```
 
 After creating, run `./le repository generate` to update `internal/component/plugin/all/all.go`.
@@ -55,7 +55,7 @@ func init() {
         // RFCs:            []string{"4271"},
         // Features:        "yang",           // space-separated: "nlri", "yang", "capa"
         // ConfigRoots:     []string{"bgp"},
-        // YANG:            schema.Ze<Name>YANG,
+        // YANG:            zeyang.Ze<Name>YANG,
         // CapabilityCodes: []uint8{64},
         // Dependencies:    []string{"bgp-rib"},
         // Families:        []string{"ipv4/unicast"},
@@ -277,10 +277,37 @@ Space-separated flags: `"nlri yang capa"`.
 [ ] Create plugins/<name>/<name>.go with atomic logger + Run<Name>Plugin()
 [ ] Run ./le repository generate (updates all.go)
 [ ] Update TestAllPluginsRegistered expected count
-[ ] If YANG config: create schema/ subdir with register.go + embed.go + .yang file
+[ ] If YANG config or commands: create yang/ subdir with the .yang file, then generate embed.go + register.go
 [ ] If capabilities: set CapabilityCodes, Features: "capa"
 [ ] If NLRI codec: set Families, InProcessNLRIDecoder/Encoder, Features: "nlri"
-[ ] If route metadata: register keys in docs/architecture/meta/README.md
+[ ] If the plugin produces custom event types: set EventTypes (e.g. ["update-rpki"])
+[ ] If the plugin adds a runtime dependency: set DoctorChecks (see ai/rules/repo-maintenance.md)
+[ ] If route metadata: register keys in docs/architecture/meta/README.md, and create docs/architecture/meta/<name>.md from the template there
 [ ] Functional tests in test/plugin/
 [ ] No imports of sibling plugins (use DispatchCommand for inter-plugin communication)
+```
+
+`./le repository generate` populates the rest: CLI dispatch, plugin runners,
+YANG embed and register glue, config roots, family and capability maps, and
+decoder maps.
+
+## Sub-Dispatcher Registration
+
+A command group with sub-actions registers each handler rather than switching on
+`args[0]`. The dispatcher then owns help, the unknown-command error, and the
+"did you mean" suggestion.
+
+```go
+var fooDispatcher = newFooDispatcher()
+
+func newFooDispatcher() *subdispatch.Dispatcher {
+    d := subdispatch.New("foo", "Foo operations")
+    d.Register("bar", runBar, subdispatch.SubMeta{Desc: "Do bar"})
+    d.Register("baz", runBaz, subdispatch.SubMeta{Desc: "Do baz"})
+    return d
+}
+
+func runFoo(args []string) int {
+    return fooDispatcher.Dispatch(args)
+}
 ```

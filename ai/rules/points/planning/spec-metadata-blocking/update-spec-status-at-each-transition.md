@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Each event below MUST update the spec's Status, Phase and Updated fields as its row says. `writeSpecStatus` in `internal/le/hookruntime/writeedit.go` refuses a source edit while the claimed spec is not `in-progress`, and `docs/contributing/spec-workflow.md` says what each status means.**
+
 | Event | Status change | Phase | Updated | When exactly |
 |-------|--------------|-------|---------|--------------|
 | Start research | `skeleton` to `design` | - | Yes | When research begins |

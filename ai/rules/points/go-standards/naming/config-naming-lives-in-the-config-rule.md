@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Config-specific naming (YANG leaves, env var keys, Go struct fields): `ai/rules/config.md`
+**Config-specific naming, for a YANG leaf, an env var key, or its Go struct field, MUST follow `ai/rules/config.md`.**

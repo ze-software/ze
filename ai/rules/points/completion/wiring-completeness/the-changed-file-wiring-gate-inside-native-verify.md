@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-`./le verify worktree` runs `./le doc wiring`. That changed-file
-gate is blocking and checks:
+**`./le doc wiring` is a STRUCTURAL stage of `./le verify worktree`, so its red says the tree is broken and MUST be fixed rather than recorded.** It is a changed-file gate.

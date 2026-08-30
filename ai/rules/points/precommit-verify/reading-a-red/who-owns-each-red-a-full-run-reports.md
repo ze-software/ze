@@ -1,8 +1,11 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Every red a full run reports MUST be placed on one of these rows before it is
+acted on.**
+
 | The failing path | Whose red | What you do |
 |------------------|-----------|-------------|
 | In this commit's `--file` list | Yours | Fix it. A red you caused is never attributed away |

@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-One spec at a time per session.
+- **A session MUST work one spec at a time.** `./le spec session claim spec <spec-file>` records it.

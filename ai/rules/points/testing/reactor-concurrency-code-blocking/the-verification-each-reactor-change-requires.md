@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**The verification each row names MUST run before the change is claimed done.**
+
 | Touched | Required verification |
 |---------|----------------------|
 | `session*.go` lock acquire/release, field assign | `go test -race -count=20 ./internal/component/bgp/reactor/...` |

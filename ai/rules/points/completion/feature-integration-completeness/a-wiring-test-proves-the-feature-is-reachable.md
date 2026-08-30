@@ -1,6 +1,6 @@
 ---
-kind: note
+kind: directive
 level: MUST
 stage:
 ---
-A wiring test proves the feature is reachable from its intended entry point (config, CLI, event dispatch, plugin launch). It is the minimum proof that the feature is integrated, not just isolated. **For user-facing features, the wiring test MUST be a `.ci` functional test**, not a Go unit test.
+**A wiring test proves the feature is reachable from its intended entry point: config, CLI, event dispatch, or plugin launch. It is the minimum proof that a feature is integrated. For a user-facing feature it MUST be a `.ci` functional test, never a Go unit test.**

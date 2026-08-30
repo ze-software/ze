@@ -10,3 +10,7 @@ stage:
 3. Display-mode pipes (`| log`, `| no-more`) are flags, not data transforms. They
    change HOW output is shown, not WHAT data is shown. Data-transform pipes apply
    regardless of display mode.
+
+What each operator does, and which class it belongs to, is
+`docs/features/formatting.md`; the catalog it is generated from is
+`internal/component/command/pipe_catalog.go`.

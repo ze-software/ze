@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-If the only hits are the definition and test files, the symbol is dead
-code. Dead code is a BLOCKER, not a NOTE.
+**A new exported symbol MUST have a non-test caller. Grep it across `internal/` and `cmd/`: if the only hits are its definition and test files, it is dead code, and dead code is a BLOCKER rather than a NOTE.**

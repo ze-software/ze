@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-General test for any spec: **a new feature must not require editing a `switch`, `case`, field list, or factory in a core or shared package: it registers and is discovered.** This is the "Registration over hardcoding" review item carried by `plan/TEMPLATE.md` and checked during spec review.
+- **A new feature MUST NOT require editing a `switch`, a `case`, a field list or a factory in a core or shared package: it registers and is discovered.** This holds for the CLI client model as much as for the daemon's command and schema tree. `plan/TEMPLATE.md` carries it as a review item, and the client-side view registry is described in `docs/architecture/command-ownership.md`, "Registration Over Hardcoding".

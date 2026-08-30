@@ -1,8 +1,6 @@
 ---
-kind: note
+kind: directive
 level: MUST
 stage:
 ---
-Payloads that cross plugin or component boundaries MUST be self-contained value types.
-No pointer fields pointing to data owned by another plugin or component, even when the
-target lives in a shared core package.
+- **A payload that crosses a plugin or component boundary MUST be a self-contained value type.** It carries no pointer field into data another plugin or component owns, and a shared core package is no exception. The surface-by-surface list is `docs/architecture/plugin/plugin-system.md`, "Cross-boundary value types".

@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Never bury incomplete work in a deferral table and then present the task as finished.
-The user reads "ready to commit" as "everything works." Honor that reading.
+**Incomplete work MUST NOT be buried in a deferral table and the task then presented as finished.** The user reads "ready to commit" as "everything works", and you MUST honor that reading.

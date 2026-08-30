@@ -1,9 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-The claim-done ban above has no synonyms. "Deferred" does not mean "done."
-"Tracked in a plan/deferrals/ shard" does not mean "done." "Will be handled in
-a follow-up" does not mean "done." If the spec lists it and you did not build
-it, the work is not done.
+**The claim-done ban has no synonyms. "Deferred" MUST NOT be written as "done", and neither MUST "tracked in a `plan/deferrals/` shard" nor "will be handled in a follow-up".** If the spec lists it and you did not build it, the work is not done.

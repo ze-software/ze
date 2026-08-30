@@ -5,11 +5,11 @@
 
 ## Directives
 
-When changing code behavior, update or remove comments that
-described the old behavior. A comment that no longer matches the code is
-worse than no comment.
+**When you change code behavior, you MUST update or remove the comments that described the old behavior.** A comment that no longer matches the code is worse than no comment.
 
 ## Checklist
+
+**Each change below MUST carry its comment update:**
 
 | Change | Action |
 |--------|--------|

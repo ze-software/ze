@@ -20,6 +20,42 @@ its own file under `internal/install/disk`.
 <!-- source: internal/install/disk/dhcp_linux.go -- single-shot DHCPv4 through nclient4 -->
 <!-- source: internal/install/disk/netlink_linux.go -- link, address, and route control -->
 
+## Detect state through procfs and sysfs
+
+The initrd reads kernel state out of `/proc` and `/sys` and programs it through
+netlink. It runs no external tool, and `internal/install/disk` and
+`cmd/ze-installer` contain no `exec.Command` of an external binary.
+
+| Need | Source | Producer |
+|------|--------|----------|
+| List the interfaces | `os.ReadDir("/sys/class/net")` | `fallbackDHCP`, `bringUpAllNICs`, `internal/install/disk/network.go` |
+| Wait for carrier or link | `/sys/class/net/<if>/carrier` | `waitForCarrier`, `internal/install/disk/network.go` |
+| Report operstate and MAC in the rescue shell | `/sys/class/net/<if>/operstate`, `/address` | `internal/install/disk/rescue_linux.go` |
+| Decide whether the image server is reachable | An HTTP probe of the image URL, not a route table read | `probeServer`, `waitForServer`, `internal/install/disk/network.go` |
+
+The connectivity decision is an HTTP probe on purpose. A default route says a
+route exists; it does not say the image server answers, and the server answering
+is what the install needs.
+
+## In-process replacements, one per shell tool
+
+| Operation | Use | Never |
+|-----------|-----|-------|
+| Bring a link up, apply an address and a route | `github.com/vishvananda/netlink` behind `netlinkOps` (`internal/install/disk/netlink_linux.go`) | `ip link set`, `ip addr`, `ip route` |
+| DHCP lease | In-process `nclient4` (`internal/install/disk/dhcp_linux.go`) | `udhcpc` plus a lease script |
+| HTTP image or database download | `net/http` (`internal/install/disk/download.go`) | `wget`, `curl` |
+| mount, umount, loop, block-device ioctls, reboot, poweroff | `golang.org/x/sys/unix` syscalls and ioctls, each isolated in a named `_linux.go` helper (`mount_linux.go`, `loop_linux.go`, `blockdev_linux.go`, `unix.Reboot` in `rescue_linux.go`) | `mount`, `losetup`, `reboot` |
+
+The installer uses the upstream `vishvananda/netlink` package directly. It does
+not import `internal/plugins/iface/netlink`: the initrd is a separate binary
+with its own build tag, and the plugin tree is not in it.
+
+`./le qemu install-test` proves the initrd boots and installs cleanly.
+
+<!-- source: internal/install/disk/network.go -- waitForCarrier, fallbackDHCP, probeServer, waitForServer -->
+<!-- source: internal/install/disk/netlink_linux.go -- netlinkOps, realNetlinkOps -->
+<!-- source: internal/install/disk/rescue_linux.go -- the sysfs interface report and unix.Reboot -->
+
 ## Host binaries and target binaries
 
 The initrd binary is a TARGET binary. It is cross-compiled

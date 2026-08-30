@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-If a spec describes work that is **already implemented**, run the full Completion Checklist immediately -- audit, append the journal row to `plan/journal/<class>.md`, include it in the same commit as the code. Never commit a spec in `plan/` for work that's already done.
+- **A spec describing work that is ALREADY implemented MUST run the full Completion Checklist immediately:** audit it, append the journal row to `plan/journal/<class>.md`, and include it in the same commit as the code. A spec for work that is already done MUST NOT be left in `plan/`.

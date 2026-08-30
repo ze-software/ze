@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: SHOULD
 stage:
 ---
-Prefer writing a spec (`plan/spec-<task>.md`) over a plan file.
+- **A spec at `plan/spec-<task>.md` SHOULD be written in place of a plan file.**

@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-An existing spec is preferred over a new file. Do not create a deferral spec to
-avoid the grep.
+- **An existing spec MUST be preferred over a new file, and a deferral spec MUST NOT be created to avoid the grep.**

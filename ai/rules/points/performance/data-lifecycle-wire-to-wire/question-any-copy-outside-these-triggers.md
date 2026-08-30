@@ -3,4 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-- **A copy that fits none of these four categories SHOULD be treated as wrong. The reason the copy is needed MUST be asked.**
+- **A copy on the UPDATE path MUST match one of the four deliberate copy triggers in `docs/architecture/buffer-architecture.md` ("When a copy is deliberate"). A copy that matches none of them SHOULD be treated as wrong, and the reason it is needed MUST be asked before the code lands.**

@@ -3,8 +3,6 @@ title: Quality Standards
 when: before presenting any work as complete
 severity: blocking
 ---
-directives ## Directives
-  where-the-rationale-lives
 linting ## Linting
   fix-lint-issues-never-disable-a-linter
 self-critical-review ## Self-Critical Review

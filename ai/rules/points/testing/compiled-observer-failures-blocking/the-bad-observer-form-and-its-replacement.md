@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**The left column MUST NOT be written; the right column is what replaces it.**
+
 | Bad | Good |
 |-----|------|
 | `fmt.Fprintln(os.Stderr, "FAIL: ..."); return nil` | `return errors.New("reason")` |

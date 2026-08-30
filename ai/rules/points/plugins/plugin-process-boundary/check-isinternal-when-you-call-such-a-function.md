@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-If your plugin calls a same-process-effect function directly, check `sdk.Plugin.IsInternal()` (`pkg/plugin/sdk/sdk.go`) right after `sdk.NewWithConn(...)` and choose severity by how much of the plugin's value survives running external:
+- **A plugin that calls a same-process-effect function in another `internal/component/*` package directly MUST check `sdk.Plugin.IsInternal()` right after `sdk.NewWithConn(...)`.** Such a call works when the plugin runs internal and silently no-ops when it runs external, with no error, no panic and no log line. Why it is silent is `docs/architecture/plugin/plugin-system.md`, "The process boundary".

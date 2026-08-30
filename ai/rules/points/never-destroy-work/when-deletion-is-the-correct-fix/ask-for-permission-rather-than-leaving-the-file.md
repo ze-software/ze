@@ -1,8 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-If a file should be deleted but this rule requires permission, ask the user
-directly. Do not claim the work is complete while leaving an unwanted file in
-place only because permission was needed.
+**When a file SHOULD be deleted and this rule needs permission for it, you MUST ask the user directly.** You MUST NOT claim the work complete while an unwanted file stays in place only because permission was needed.

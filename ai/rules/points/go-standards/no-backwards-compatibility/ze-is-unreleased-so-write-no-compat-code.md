@@ -1,6 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
+rationale: ai/rationale/compatibility.md
 ---
-Ze has never been released. No users. No compat code, comments, shims, or fallbacks anywhere, including the plugin API. If something needs to change, just change it.
+**Ze has never been released and has no users. Compat code, comments, shims and fallbacks MUST NOT be written anywhere, the plugin API included. When something needs to change, change it.**

@@ -1,27 +1,30 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
+rationale: ai/rationale/design-principles.md
 ---
+**Every design decision MUST satisfy these principles. Where a principle names a rule, that rule governs the detail.**
+
 | Principle | Rule |
 |-----------|------|
-| YAGNI | Don't build what's not immediately needed |
+| YAGNI | Do not build what is not needed now |
 | Simplest correct solution | The simplest answer that is FULLY correct, and nothing beyond it. It cuts machinery, never correctness. `ai/rules/simplicity.md` owns this and is BLOCKING |
-| Simplicity | Boring code that obviously works > clever code |
-| No identity wrappers | Wrapper must transform (type conversion, error wrapping, defaults). A struct holding raw data + accessor methods is an identity wrapper, pass the data, use existing type methods |
-| Single responsibility | One thing per function/struct/package. "And" in name = split |
-| Explicit > implicit | No hidden magic, convention-based behavior, silent defaults |
-| Minimize coupling | Components know the minimum about each other. High->low dependency |
-| Interface segregation | Clients depend only on methods they use |
-| Abstract when you can | Two concrete use cases justify an abstraction. Abstract at the second use case; don't wait for a third |
-| Design for change | Isolate volatility behind stable interfaces |
-| Fail-mode awareness | Every external call can fail; every input can be malformed |
-| Do it right | Zero-copy, pool dedup, buffer-first. Never trade correctness for implementation speed |
-| Exact or reject | Backend/translator cannot apply config EXACTLY -> verify/commit fails with a clear error. No silent approximation. `ai/rules/protocol.md` |
-| Durability over velocity | "Never revisit this code" > "get to commit fast". Rework wastes more time than thoroughness |
-| Encapsulation onion | Allocate one buffer at the outermost protocol layer; slice inward with specialised types (`WireUpdate`, `PackContext`). Peel by narrowing the window, never by copying |
-| Buffer-first encoding | Write side: all wire encoding into pooled, bounded buffers via `WriteTo(buf, off) int`. No `append`, `make`, or `buildFoo() []byte` in helpers. `ai/rules/performance.md` |
-| No `make` where pools exist | Variable-N `make([]byte, N)` on a wire-facing path comes from a pre-allocated, bounded pool. `make` is OK for fixed-size headers and one-shot startup allocations |
-| Pool strategy by goroutine shape | Single-backing ring (single reactor goroutine, sequential) OR `sync.Pool` seeded for peak (multiple concurrent goroutines). All buffers in a pool are the SAME MAX size |
-| Lazy over eager | Read side: raw byte slices + offset iterators (`Next()`), not parsed structs or collected slices. Consumer acts on data directly. N->0-until-needed, not N->1 |
-| Zero-copy, copy-on-modify | Allocate at receive (Incoming Peer Pool); share read-only through forwarding; copy only when egress filters modify (Outgoing Peer Pool); release after send. Global Shared Pool handles overflow |
+| Simplicity | Boring code that obviously works beats clever code |
+| No identity wrappers | A wrapper MUST transform: a type conversion, error wrapping, a default. A struct holding raw data plus accessors is an identity wrapper, so pass the data and use the existing type's methods |
+| Single responsibility | One thing per function, struct and package. "And" in the name means split it |
+| Explicit over implicit | No hidden magic, no convention-based behavior, no silent default |
+| Minimize coupling | Each component knows the minimum about the others, and dependencies run high to low |
+| Interface segregation | A client depends only on the methods it uses |
+| Abstract when you can | Two concrete use cases justify an abstraction. Abstract at the second, do not wait for a third |
+| Design for change | Isolate volatility behind a stable interface |
+| Fail-mode awareness | Every external call CAN fail and every input CAN be malformed |
+| Do it right | Zero-copy, pool dedup, buffer-first. Correctness MUST NOT be traded for implementation speed |
+| Exact or reject | A backend or translator that cannot apply config EXACTLY MUST fail verify or commit with a clear error. No silent approximation. `ai/rules/protocol.md` |
+| Durability over velocity | "Never revisit this code" beats "get to commit fast". Rework costs more than thoroughness |
+| Encapsulation onion | Allocate one buffer at the outermost protocol layer and slice inward with specialised types. Peel by narrowing the window, never by copying. `docs/architecture/buffer-architecture.md` |
+| Buffer-first encoding | All wire encoding goes into pooled bounded buffers through `WriteTo(buf, off) int`. `ai/rules/performance.md` |
+| No `make` where pools exist | A variable-N `make([]byte, N)` on a wire-facing path MUST come from a bounded pool. `make` stays correct for a fixed-size header and a one-shot startup allocation |
+| Pool strategy by goroutine shape | A single-backing ring for one sequential goroutine, a pool seeded for peak where several goroutines share. Every buffer in one pool is the SAME maximum size |
+| Lazy over eager | Read side: raw byte slices plus offset iterators (`Next()`), never parsed structs or collected slices |
+| Zero-copy, copy-on-modify | Allocate at receive, share read-only through forwarding, copy only when an egress filter modifies, release after send. `docs/architecture/buffer-architecture.md` |

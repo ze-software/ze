@@ -247,6 +247,103 @@ output on failure (and on all tests under `-v`).
 <!-- source: internal/component/cli/testing/parser.go -- TestCase.Steps, InputAction, Expectation -->
 <!-- source: internal/component/cli/testing/runner.go -- runTestCaseIn iterates tc.Steps; runTestCase owns the temp directory and delegates -->
 
+## Selecting one test
+
+<!-- source: internal/test/runner/selection.go -- indexRecordSelector -->
+
+The runner's one-based ordinal is an internal DISPLAY position over a sorted
+fixture population. Adding or renaming an earlier fixture silently renumbers
+every later row, so a numeric id kept past the turn names a different test than
+it did when it was written. On one occasion a concurrent session added `.ci`
+files and moved id 373 from `resolve-ping` to `remove-private-as-replace-peer`
+while an id-driven script reported green for tests it never ran.
+
+A positional selector matches a record's Nick, Name, or CIFile EXACTLY
+(`indexRecordSelector`), so passing a NAME positionally is as stable as
+`--pattern` and, unlike a substring pattern, cannot widen.
+`internal/le/qemu/netns_linux.go` selects all four of its subsets by name for
+that reason, and its `assert_named` guard refuses a subset still carrying a
+numeric selector: a nick had already drifted there, with firewall `"17"`
+resolving to `command-owner-firewall-root.ci` rather than to any `017-*.ci`.
+
+## Scratch roots
+
+The functional runner writes its per-run and per-test working directories
+(configs, sockets, daemon pid and ready files) under
+`sessionpath.DefaultScratchRoot()` / `EnsureScratchRoot(baseDir)` when a session
+is active, rather than an unowned `$TMPDIR/ze-functional-*`. Off-session it
+still uses the system temp directory.
+
+<!-- source: internal/test/sessionpath -- DefaultScratchRoot, EnsureScratchRoot -->
+<!-- source: internal/test/runner/runner.go -- run and per-test working directories -->
+
+## Timing baseline and auto-timeout
+
+`ze-test` saves per-test timing to `tmp/test-timings.json` as a rolling EMA with
+alpha 0.3. After three samples the baseline drives two things:
+
+- **Auto-timeout.** The per-test timeout is `min(global, max(5s, 5 x baseline avg))`.
+  A test that normally takes 500ms gets a 5s timeout instead of the default 15s,
+  so a hang is caught in seconds rather than minutes. An explicit `.ci`
+  `timeout=` overrides it.
+- **Slow detection.** A test exceeding 2x its baseline is flagged in the summary.
+
+Baseline updates are suppressed during a contended run, so a slow run does not
+pollute the EMA.
+
+## Contended run verdicts
+
+<!-- source: internal/test/runner/hostload.go -- HostLoad, Contended, IsNearTimeout -->
+
+On a loaded machine the failure index is headed
+`VERIFY FAILURE INDEX (CONTENDED RUN)` with host load details. That means load
+exceeded the CPU count with concurrent `ze-test` or `go test` processes.
+
+- A `near_timeout` kind says the test consumed over 80% of its timeout without
+  the context deadline firing. That is CPU starvation, not a bug. Rerun it on a
+  quiet machine.
+- The `host-load` field in the failure group JSON carries the load average, the
+  CPU count, and the concurrent process counts at run start.
+
+The project rejects retry-on-failure masking: a contended verdict is a
+classification, never an automatic retry.
+
+## Reproducing a load-dependent flake
+
+Some failures surface only under the scheduling and GC pressure of the whole
+functional run, with many concurrent `ze` daemons on every core. Rerunning the
+single suite never triggers them, looping the whole run is impractical, and the
+verify aggregator truncates the crashing daemon's goroutine stack to about two
+lines, so the crash site is usually lost.
+
+`./le stress-repro run suite <suite>` recreates that pressure cheaply: CPU and GC
+burner processes oversubscribe every core while many concurrent copies of one
+suite loop, and it captures the FIRST failure's complete, untruncated output. It
+sets `GOTRACEBACK=all` so a panic dumps every goroutine, reuses the isolated
+binary set `internal/le/functional` prepared during the loaded window, and writes
+the capture to `tmp/stress-repro/<slug>-<ts>.log`. Exit 0 means reproduced, 1 not
+reproduced, 2 a setup error.
+
+```
+./le stress-repro run suite rsvpte iterations 80
+./le stress-repro run suite rsvpte race
+./le stress-repro run suite bgp burners 32 parallel 8
+./le stress-repro run suite "bgp plugin" test 97 any-failure
+```
+
+The suite selector and `test` selector are both split on whitespace, so a
+sub-suite and a multi-token selector reach `ze-test` exactly as typed by hand.
+
+By default only a CRASH signature (a panic, a `DATA RACE`, or a runtime error)
+counts as a reproduction, and everything else is discarded down to the last 500
+bytes. An assertion flake exits non-zero with no crash signature, so
+`any-failure` is what keeps its evidence.
+
+A no-build reproduction tests the isolated binary set it was given. After
+changing daemon source, run the owning `./le functional <suite>` action once
+(`internal/le/functional.Prepare` rebuilds the pair) before trusting a verdict:
+otherwise a fixed bug still reproduces against the stale binary.
+
 ## Per-step trace output
 
 The `.ci`, editor, and web execution paths record `trace.StepResult` slices.

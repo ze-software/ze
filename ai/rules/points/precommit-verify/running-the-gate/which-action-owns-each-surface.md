@@ -1,8 +1,11 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**The action on the matching row MUST be run for the surface the change touched,
+after each edit.**
+
 | You changed | Run this |
 |-------------|----------|
 | A `.go` file | `./le job run label unit-pkg command go test <that package>`, or the component group covering it (`./le test-unit bgp`, `core`, `plugins`, `config`, or `cli`). Then run `./le verify lint run` (`ai/rules/commands.md`) |

@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**When your diff carries one of these shapes, you MUST write the simpler answer instead:**
+
 | Shape in the diff | The simpler answer |
 |-------------------|--------------------|
 | An interface with one implementation | The concrete type. Two use cases earn an abstraction, and the second use case is when you add it (`ai/rules/architecture.md`) |

@@ -1,9 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Never report spec progress by reading the spec alone. Grep the codebase to verify
-claims. Spec "What Remains" and "Implementation Summary" sections go stale. Before
-reporting any item as unimplemented, search for the function/type/test in the code.
-If it exists, the spec is stale, not the code. Update the spec to match reality.
+- **Spec progress MUST NOT be reported from the spec alone.** "What Remains" and "Implementation Summary" go stale, so the codebase MUST be searched for the function, type, or test before any item is reported unimplemented. When it exists, the SPEC is stale rather than the code, and the spec MUST be corrected to match.

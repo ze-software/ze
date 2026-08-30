@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Document: validation rules, error conditions, state transitions, timer constraints, message ordering.
+**The comment MUST document whichever of these the code enforces: validation rules, error conditions, state transitions, timer constraints, and message ordering.**

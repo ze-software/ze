@@ -1,6 +1,6 @@
 ---
 kind: directive
-level: SHOULD
+level: MUST NOT
 stage:
 ---
-**`// Detail:` lines SHOULD point to files with non-obvious relationships, not enumerate every file in the package.** If the relationship is self-evident from the filename (e.g., `config.go` has config, `validators.go` has validators), omit it.
+**A file header is not a directory listing. A `// Detail:` line MUST point at a relationship a reader would otherwise miss, and it MUST NOT reproduce `ls`.**

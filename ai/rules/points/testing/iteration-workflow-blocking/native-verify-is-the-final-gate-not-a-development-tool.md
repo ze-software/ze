@@ -1,5 +1,5 @@
 ---
-kind: note
+kind: directive
 level: MUST
 stage:
 ---
@@ -8,6 +8,6 @@ On failure, `./le verify worktree` writes the compact index `tmp/ze-verify-failu
 Read that file first. The next run MUST be the listed `Rerun` command for the
 failed stage, or an even narrower single test/package from the detail log. If
 multiple failures are listed, clear each one with its focused rerun. Only after
-all focused reruns pass may you rerun the whole suite or gate as final
+all focused reruns pass MAY you rerun the whole suite or gate as final
 confirmation. The combined log is `tmp/ze-verify.log`, and automation can read
 `tmp/ze-verify-failures.json`.

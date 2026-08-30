@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Each timing assumption MUST be replaced by the fix in its row:**
+
 | Symptom | Fix |
 |---------|-----|
 | `time.Sleep` then assert | poll the condition with `fixture.Poll`, using `fixture.Dispatch` when the state comes from the engine |

@@ -2,6 +2,7 @@
 kind: directive
 level: MUST
 stage:
+rationale: ai/rationale/implementation-audit.md
 ---
 **You MUST:**
 1. Extract all requirements from spec: task items, AC-N assertions, TDD tests, files listed

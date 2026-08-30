@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Add a new entry to `internal/le/plugin/boundary/pluginboundary.go`'s `dangerousCalls` list whenever a new instance of this class is found and fixed, so the check stays current. Add a new `allowlist` entry only for a package's own legitimate calls to its own function.
+- **A new instance of this class MUST be added to `dangerousCalls` in `internal/le/plugin/boundary/pluginboundary.go` when it is found and fixed, so `./le plugin boundary check` stays current.** An `allowlist` entry MUST cover only a package's own legitimate calls to its own function.

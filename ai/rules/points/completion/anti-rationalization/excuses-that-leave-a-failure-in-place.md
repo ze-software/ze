@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These MUST NOT be written. Each leaves a failure in place:**
+
 | Banned | Why |
 |--------|-----|
 | "Pre-existing, not my changes" | Acknowledging a failure without fixing it means the next session hits the same wall |

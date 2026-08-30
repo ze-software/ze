@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-A record earns its length from what the reader must DO. Over budget means cut, never split into two documents.
+**A record earns its length from what the reader has to DO. Over budget means CUT, and it MUST NOT be split into two documents.**

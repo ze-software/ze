@@ -1,8 +1,12 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**The functional test a change owes MUST take the form and live in the directory
+its row names.** Each `test/<subdir>/` has its own runner and format, and they
+are not interchangeable.
+
 | Change type | Required functional test | Directory |
 |-------------|------------------------|-----------|
 | New/changed BGP wire behavior | `.ci` with `expect=bgp:` hex match | `test/encode/` or `test/decode/` |

@@ -5,20 +5,15 @@ severity: blocking
 related: git-safety, commands, completion
 ---
 does-verify-apply ## Does `./le verify current mode full` Apply?
-  run-verify-only-when-the-commit-can-affect-the-build
   which-file-types-require-native-verify
   run-verify-when-any-file-in-a-mixed-commit-needs-it
 running-the-gate ## Running The Gate
   run-native-verify-and-check-freshness-first
-  what-computes-the-changed-mode-package-list
-  what-each-changed-path-selects
   the-pre-commit-verify-checklist
   run-verify-in-the-foreground-and-wait
   run-the-full-gate-once-when-the-work-is-finished
   run-the-action-that-owns-what-you-changed
   use-the-native-action-or-carry-the-go-build-environment
-  test-one-package-with-a-native-job
-  native-package-test-examples
   which-action-owns-each-surface
   a-wire-behaviour-change-owes-its-functional-suite
   run-the-gates-your-new-files-join
@@ -36,11 +31,7 @@ reading-a-red ## Reading A Red
   one-run-covers-every-commit-until-the-next-go-edit
   who-owns-each-red-a-full-run-reports
   a-red-is-dropped-only-when-every-group-names-a-foreign-file
-  what-attribution-does-with-each-structural-red
-  which-gates-attribution-reaches-today
-  how-far-attribution-carries-the-open-debt
   take-another-sessions-red-as-working-code
-  a-full-gate-run-reddens-other-sessions
   freshness-answers-about-the-paths-you-name
   use-evidence-scoped-to-your-own-files
   the-scoped-evidence-a-shared-checkout-owes
@@ -56,26 +47,17 @@ what-may-be-overridden ## What May Be Overridden
   structural-red-ok-is-an-owner-only-escape
   a-stale-generated-file-is-structural-not-flaky
   thomas-can-override-the-verify-requirement
-  the-override-needs-both-parts-said-explicitly
   the-two-parts-the-override-must-name
   phrases-that-activate-the-owner-override
-  when-the-override-is-active
   what-the-override-permits-and-forbids
 after-the-commit ## After The Commit
   only-one-check-compiles-what-git-holds
-  what-native-tracked-build-check-reads
   commit-the-producer-with-its-consumer
   clear-a-broken-head-by-committing-the-producer
-  bisect-a-broken-head-with-rev
   the-tracked-build-check-never-reads-test-files
-  the-doc-test-only-checks-that-escape-the-gate
-  keep-the-structural-gate-list-matching-live-stages
-  the-helper-refuses-a-commit-while-a-gate-is-red
   clear-verification-debt-by-running-the-gate
-  the-debt-rows-the-clearing-pass-leaves-open
 concurrency ## Concurrency
   run-one-verify-at-a-time-repo-wide
   what-to-do-while-another-verify-holds-the-lock
-  the-verify-lock-releases-when-the-command-exits
   a-second-verify-blocks-rather-than-overlaps
   never-edit-the-tree-while-a-verify-runs

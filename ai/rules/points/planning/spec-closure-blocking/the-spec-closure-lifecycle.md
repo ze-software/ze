@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-The lifecycle is: `in-progress` -> Review Gate clean -> write journal row -> `git rm` spec.
-Leaving a completed spec in `plan/` causes every future session to count it as open work.
+- **Closure MUST run in this order: `in-progress`, then a clean Review Gate, then the journal row, then `git rm` of the spec.** A completed spec left in `plan/` MUST NOT happen: every future session counts it as open work.

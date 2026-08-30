@@ -3,4 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-**All RPCs MUST have YANG registration for the CLI.** Any command handler without a YANG schema is a structural issue to fix, not a different category. There is no "command module": everything with RPCs is a plugin and lives under `plugins/<name>/`.
+- **Every RPC MUST carry a YANG registration for the CLI, whether it is registered through `registry.Register()` or through `pluginserver.RegisterRPCs()`.** A command handler with no YANG schema is a structural defect to fix, not a different category. There is no "command module": everything with RPCs is a plugin and lives under `plugins/<name>/`.

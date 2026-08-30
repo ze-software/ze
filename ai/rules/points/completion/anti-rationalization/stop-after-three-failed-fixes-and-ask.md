@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-3 failed fixes: STOP. Report all 3 approaches. Question the mental model. Ask user.
+**After three failed fixes you MUST STOP.** Report all three approaches, question the mental model, and ask the user.

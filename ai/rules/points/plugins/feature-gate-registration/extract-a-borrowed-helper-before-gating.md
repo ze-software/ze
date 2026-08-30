@@ -1,9 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-If always-on code needs a non-lifecycle helper the feature happens to export
-(e.g. web exported cert generation to the installer), **extract that helper to an
-always-on home FIRST** (`internal/core/*` leaf), then gate the feature. This is
-"extract-then-gate"; the registry-ize is the easy half.
+- **A non-lifecycle helper that always-on code needs MUST be extracted to an always-on `internal/core/*` leaf BEFORE the feature is gated.** Extract-then-gate is the order, and the registry work is the easy half.

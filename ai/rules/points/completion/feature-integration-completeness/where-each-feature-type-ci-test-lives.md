@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Each feature type MUST have its `.ci` test in the directory its row names:**
+
 | Feature Type | `.ci` Location | What the test does |
 |-------------|----------------|-------------------|
 | Config option | `test/parse/` | Config with option, ze parses without error |

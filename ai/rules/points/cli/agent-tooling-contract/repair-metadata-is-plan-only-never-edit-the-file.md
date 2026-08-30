@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Repair metadata is plan-only. Commands must never edit config files.
+**Repair metadata is a plan only: a command MUST NOT edit a config file.**

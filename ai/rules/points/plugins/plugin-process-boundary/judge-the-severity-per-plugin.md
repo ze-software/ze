@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Do not copy-paste the severity choice between plugins: judge each one on what actually survives.
+- **The severity choice MUST NOT be copy-pasted between plugins.** Judge each one on how much of its value actually survives running external.

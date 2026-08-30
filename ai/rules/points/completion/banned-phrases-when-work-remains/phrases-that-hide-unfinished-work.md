@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These phrases MUST NOT be written while work remains:**
+
 | Phrase | Why it is banned |
 |--------|-----------------|
 | "Ready to commit" | Implies nothing is left. If something is left, do not say this. |

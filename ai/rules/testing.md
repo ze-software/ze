@@ -6,9 +6,6 @@
 
 ## Directives
 
-Rationale: `ai/rationale/testing.md`, `ai/rationale/tdd.md`, `ai/rationale/no-test-deletion.md`
-Structural template: `ai/patterns/functional-test.md`
-
 - **Tests MUST exist and fail before implementation.**
 - **Every user-facing behavior MUST have a functional test that exercises it through a user entry point. Unit tests (`_test.go`) prove internal logic. Functional tests (`.ci`, `.et`) prove the feature works end-to-end through the daemon. Both are required. Neither substitutes for the other.**
 - **A red test means the CODE is wrong by default. MUST diagnose the failure and fix the source. MUST NOT weaken the test to make it green. MUST ask the user before deleting OR weakening any test code (`*_test.go`, `.ci`, `Test*`, `t.Run`, assertions, table entries). Exception: the user already explicitly requested it.**
@@ -18,55 +15,26 @@ Structural template: `ai/patterns/functional-test.md`
 
 ## Test-Driven Development
 
-### Cycle
-
 1. Write test with `VALIDATES:` and `PREVENTS:` comments
 2. Run → MUST FAIL (paste output)
 3. Minimum implementation
 4. Run → MUST PASS (paste output)
 5. Refactor while green
 
-### RFC-Enforcing Tests
-
-A test that enforces an RFC obligation carries a third tag beside `VALIDATES:`/`PREVENTS:`:
-
-```go
-// RFC requirement: RFC7606-7.1-1 negative: ORIGIN length != 1 is treated as withdraw.
-```
-
-One id per line, polarity mandatory (`positive`/`negative`), placed INLINE at the table
-case when one function covers many requirements. `./le rfc check` binds it to
-`rfc/short/*.md`; the tag is the only authored half, so it dies with the test. Once
-tagged, the test may not change behavior without user approval (see "RFC-Tagged Tests"
-below). Full rules: `ai/skills/ze-rfc.md`.
-
-### Patterns
-
 - **Table-driven:** `tests := []struct{...}` with `t.Run(tt.name, ...)`
 - **Round-trip:** `original → packed → unpacked == original`
 - **Fuzz (REQUIRED for wire format):** All external input parsing
 - **Non-default params:** MUST test with non-default/non-zero values
 
-### Boundary Testing (MANDATORY)
-
 All numeric ranges MUST test: last valid, first invalid below, first invalid above.
 
-| Range | Last Valid | Invalid Below | Invalid Above |
-|-------|------------|---------------|---------------|
-| Port 1-65535 | 65535 | 0 | 65536 |
-| Hold time 0,3+ | 0, 3 | 1, 2 | N/A |
-| Prefix IPv4 0-32 | 32 | N/A | 33 |
-| Message len 19-4096 | 4096 | 18 | 4097 |
-
-### Coverage
+**Code that ships SHOULD reach the coverage target its row names.**
 
 | Code Type | Target |
 |-----------|--------|
 | Wire format (pack/unpack) | 90%+ |
 | Public functions | 100% |
 | Error paths | 100% |
-
-### AC-Linked Tests (BLOCKING)
 
 Every AC-N MUST have a test whose assertion directly verifies the AC's **expected behavior**, not just the mechanism used to achieve it.
 
@@ -81,8 +49,6 @@ Every AC-N MUST have a test whose assertion directly verifies the AC's **expecte
 
 **Red flag:** A test MUST NOT assert the ABSENCE of an action ("no NOTIFICATION", "no error") as proof that a DIFFERENT action happened ("routes rejected"). Absence of X does not prove Y.
 
-### Rules (test-first)
-
 - If you debug something, MUST add a test so it's never re-investigated
 - Implementation written before its test → MUST back-fill the test. Working product code MUST NOT be deleted to restore the ordering (`ai/rules/pre-release.md`)
 - Test passes immediately → invalid test, MUST add failing assertion
@@ -90,21 +56,12 @@ Every AC-N MUST have a test whose assertion directly verifies the AC's **expecte
 
 ## Draft a Functional Test Before It Is Live (BLOCKING)
 
-Never write or iterate on a `.ci` inside `test/<suite>/`, and never edit a live
-one in place. That directory runs on every `./le verify worktree` in the checkout,
+**A `.ci` MUST NOT be written or iterated on inside `test/<suite>/`, and a live
+one MUST NOT be edited in place.** Copy it into `test/draft/<suite>/`, work
+there, and move it back. That directory runs on every verify in the checkout,
 including runs by OTHER sessions, who then have to work out whether your
-half-written test is their regression.
-
-| Step | Command |
-|------|---------|
-| Write it in the incubator | `test/draft/<suite>/<name>.ci` |
-| Prove it under load | `./le stress-repro run suite "<suite> --draft" test <id> any-failure` |
-| Promote when green | `mv test/draft/<suite>/<name>.ci test/<suite>/` |
-
-`test/draft/` is gitignored and skipped by every repo-wide gate, so a draft
-cannot redden anything for anyone. Changing an existing test is the same move:
-copy it into the incubator, work there, `mv` it back. Full workflow: the
-`/ze-test` skill, `test/draft/README.md`, `docs/functional-tests.md`.
+half-written test is their regression. The incubator's contract is
+`docs/functional-tests.md`.
 
 **A draft is not a test yet, so the draft workflow MUST end in exactly two moves:
 promote it into `test/<suite>/`, or delete it.** Leaving it in the incubator is
@@ -112,22 +69,18 @@ the third move, and it is the one that is refused. A draft proves no obligation,
 claims no evidence, and appears in no coverage ledger, so a session that finds
 one cannot tell abandoned scaffolding from work in progress.
 
-Because a draft is not a test, the guards that protect tests do not protect
-drafts, and deleting one needs no approval. `bashTestDeletion` in
-`internal/le/hookruntime/bash.go` exempts a command whose every named test path
-is the incubator or sits under it. A test path is one carrying a `test/` segment
-or a `_test.go` name, so a Go test counts. `writeWeakening` in
-`internal/le/hookruntime/writeedit.go` returns before both its weakening
-analysis and its RFC-tag branch for a file there. A command that mixes a draft
-with a live test still blocks: the live one is the reason those guards exist.
-
-An `RFC requirement:` tag inside a draft is worth nothing until the file is
-live, which is why the tag guard skips it. Promoting the file is what turns the
+**Deleting a draft needs no approval, and a command that mixes a draft with a
+LIVE test is still refused.** The guards that protect tests do not protect
+drafts: `bashTestDeletion` and `writeWeakening`
+(`internal/le/hookruntime`) both exempt a path under the incubator, and only a
+path under it.
+**An `RFC requirement:` tag inside a draft is worth nothing until the file is
+live**, which is why the tag guard skips it. Promoting the file is what turns the
 tag into proof.
 
-Nothing in the incubator is gated, so promote early: the accept-only check, the
-`time.sleep(` ratchet, and frame-length validation only start applying once the
-file is live.
+**A draft SHOULD be promoted early, because nothing in the incubator is gated.**
+The accept-only check, the `time.sleep(` ratchet, and frame-length validation all
+start applying only once the file is live.
 
 ## Test Code Is Held to One Standard
 
@@ -138,18 +91,21 @@ file is live.
 
 ## Fix Code, Not Tests
 
-When a test fails, fix the code to make the test pass. NEVER weaken or simplify test expectations to match broken code. Tests are ground truth. Even if an underlying mechanism changed (e.g., Unix sockets replaced by SSH), the test expectations stay and the replacement mechanism must satisfy them.
+**When a test fails, the CODE MUST be fixed to make it pass, and the test's
+expectations MUST NOT be weakened or simplified to match broken code.** Tests are
+ground truth. When an underlying mechanism changes (Unix sockets replaced by SSH,
+for instance), the expectations stay and the replacement mechanism satisfies
+them.
 
-NEVER modify test data (golden files, expected output, fixtures, `.ci` expectations) to make a failing test pass without explicit user authorization. When output changes, the default assumption is that the code is wrong, not the test data. Ask the user before updating any test data, even if the new output looks plausible.
+**Without explicit user authorization, test data (a golden file, expected output, a fixture, a `.ci` expectation) MUST NOT be modified to make a failing test pass.**
+When output changes, the default assumption is that the code is
+wrong, not the data. MUST ask the user before updating any test data, even when
+the new output looks plausible.
 
 ## Test Deletion and Weakening
 
 **Legitimate reasons a test MAY be deleted:** testing removed functionality, duplicating another test, fundamentally wrong, replacing with better coverage.
 **Reasons that MUST NOT justify deletion:** failing and hard to fix, slow, "annoying", don't understand what it checks.
-
-### Mechanically blocked (`writeWeakening` in `internal/le/hookruntime/writeedit.go`)
-
-Blocked on Edit / Write / MultiEdit to a test file (exit 2):
 
 **Every weakening below MUST NOT be introduced. What the hook REFUSES is a
 narrower set than what this rule forbids, and the difference is not permission.**
@@ -186,11 +142,11 @@ value in place while the assertion structure stays (e.g. `Equal(t, 1, x)` ->
 the same discipline manually. Adjusting an expected value to match broken code is
 the same violation as removing the assertion.
 
-### Test Rewrite as Replacement (BLOCKING)
+**A new issue in an area that already has tests MUST get a NEW test case or
+function, and an existing test MUST NOT be repurposed to cover the new
+behavior.** The old test verified a behavior that still needs coverage.
 
-When fixing a new issue that happens to touch an area with existing tests, ADD a
-new test case or function for the new issue. Do not repurpose an existing test to
-cover the new behavior. The old test verified a behavior that still needs coverage.
+**The Wrong column MUST NOT be taken in any of these scenarios.**
 
 | Scenario | Correct | Wrong |
 |----------|---------|-------|
@@ -215,44 +171,28 @@ weakened the test writes its own justification, so the only thing that makes it
 safe is a human reading it. The file is replaced per commit: it holds the rows of
 one change, and git history holds the rest.
 
-### Escape hatch (auditable)
+**A legitimate weakening MUST have its row written in `test/weakened.md` BEFORE
+the edit is made, and that row MUST name the test THIS edit weakens.** The
+detector reads the file from disk, so a row written after the refusal buys
+nothing until the edit is retried, and a row naming another test opens nothing.
+The row's format is `docs/architecture/testing/test-health.md`.
 
-When a weakening IS legitimate, write its row in `test/weakened.md` BEFORE you
-make the edit. `c_test_weakening` reads that file from disk, so a row written
-after the refusal buys nothing until you retry the edit. The row names the test
-this edit weakens, and a row naming another test opens nothing.
-
-Two columns, under the exact header the parser anchors on:
-
-```
-| Test | Reason |
-|------|--------|
-| TestName | <what left the suite, and why the commit is correct without it> |
-```
-
-The name is the enclosing top-level `func TestXxx` for Go, and the file stem for
-a `.ci`, a `.et`, or a Go weakening sitting outside every func.
-`internal/le/rfc/tags.go` resolves each one, so the edit-time hook and
-the commit gate name the same unit. A bare name is accepted when it resolves to
-exactly one weakened test in the commit. Write `package.TestName` when it does
-not.
-
-The row unblocks the edit and leaves an audit trail. `test/weakened.md` is
-replaced per commit and never accumulates, so the trail lives in git history:
-`git log -p -- test/weakened.md` shows the rows of any commit beside the change
-they accepted. `internal/le/commit` refuses a commit that weakens a
-test and does not carry the file, so no row is left behind in the working tree.
-Writing a row without a real reason is a violation.
+**A row in `test/weakened.md` MUST state a real reason; writing one without a
+reason is a violation.** The row unblocks the edit and leaves the audit trail,
+and the commit MUST carry the file: `internal/le/commit` refuses a commit that
+weakens a test without it, so no row is left behind in the working tree. Why the
+file is replaced per commit rather than accumulated is
+`docs/architecture/testing/test-health.md`.
 
 ## Functional Test Gate
-
-### The Rule
 
 When you add or change user-facing behavior, a corresponding functional test MUST
 exist in the correct `test/` directory. "User-facing" means: reachable via CLI command,
 config option, API call, web endpoint, plugin event, or wire protocol exchange.
 
-### Required Test Type by Change
+**The functional test a change owes MUST take the form and live in the directory
+its row names.** Each `test/<subdir>/` has its own runner and format, and they
+are not interchangeable.
 
 | Change type | Required functional test | Directory |
 |-------------|------------------------|-----------|
@@ -267,43 +207,18 @@ config option, API call, web endpoint, plugin event, or wire protocol exchange.
 | Cross-component integration | `.ci` | `test/integration/` |
 | Interoperability | `.ci` | `test/interop/` |
 
-If the change does not fit any row (pure internal refactor, no user-visible effect),
-no functional test is required. But if you are unsure, write one.
+**A change fitting no row (a pure internal refactor with no user-visible effect)
+owes no functional test, and anything short of certainty about that SHOULD be
+answered by writing one.**
 
-### When Unit Tests Alone Are Sufficient
-
-Unit tests (`_test.go`) without a functional test are acceptable ONLY when:
+**Unit tests alone MAY stand without a functional test ONLY when the change
+matches one of these rows. In every other case both kinds are required.**
 
 | Condition | Example |
 |-----------|---------|
 | Pure internal logic with no user entry point | Helper function, data structure, algorithm |
 | Existing functional test already covers the path | Bug fix where the `.ci` test already exercises the scenario |
 | Wire encoding internals tested via round-trip | `pack -> unpack == original` in `_test.go`, AND a `.ci` encode test covers the message type |
-
-In all other cases, both unit tests AND a functional test are required.
-
-### Mechanical Check (MANDATORY before claiming done)
-
-For every new or changed user-facing behavior in the diff:
-
-```
-# 1. Identify the feature's test directory from the table above
-# 2. Check for a functional test covering the behavior
-find test/<directory>/ -name "*.ci" -o -name "*.et" | xargs grep -l '<feature-keyword>'
-```
-
-If no functional test exists for a user-facing behavior, that is a BLOCKER.
-
-### Mutation-Verify the Test Actually Gates (MANDATORY for behavior-guarding tests)
-
-A functional test that EXISTS is not the same as one that GATES. A `.ci`/`.et` can
-pass whether or not the feature works (a **false-pass**) when the observed effect
-reaches the assertion by a path OTHER than the one under test. Real example: three
-`redistribute-late-join*.ci` tests kept passing with the late-join replay
-(`handleReplayBatch`) disabled, so the route reached the peer by some path other than
-the replay: they guarded nothing and shipped green.
-
-For every NEW or CHANGED `.ci`/`.et` that is meant to guard a SPECIFIC behavior:
 
 1. Disable the producing function (the code the test exists to prove): an early
    `return`, a no-op, or `if true { return }` at the top of the function.
@@ -313,15 +228,12 @@ For every NEW or CHANGED `.ci`/`.et` that is meant to guard a SPECIFIC behavior:
    or the test is worthless: delete it, do not ship it.
 3. Revert the mutation immediately and confirm the test is green again.
 
-Mutation testing through the Go `gomu` binary runs unit tests only. It never
-executes `.ci` or `.et`, so it cannot catch a functional false pass. This remains
-a manual test-design discipline.
-
-If a test genuinely cannot be made to fail under mutation because the behavior is not
-observable end-to-end (e.g. the reactor suppresses a duplicate announce, so per-peer
-targeting is wire-indistinguishable), guard it with a UNIT test that inspects the
-producing value directly, and say so in the test comment. Do NOT keep a `.ci` that
-passes with the feature disabled.
+**A behavior that genuinely cannot be made to fail under mutation because it is
+not observable end to end MUST be guarded by a UNIT test that inspects the
+producing value directly, and the test comment MUST say so. A `.ci` that passes
+with the feature disabled MUST NOT be kept.** The reactor suppressing a duplicate
+announce, which makes per-peer targeting wire-indistinguishable, is the shape
+this covers.
 
 **A functional fixture MUST give distinct roles distinct identities, even where the
 host lets them share one.** Loopback, one container and one process make it cheap
@@ -338,7 +250,7 @@ that moment is to weaken the guard. That is the one move this point exists to st
 **Give each role its own identity when you WRITE the fixture.** It costs one line
 there and an investigation anywhere else.
 
-### Common Violations
+**Each row below MUST NOT be given as a reason to ship without a functional test.**
 
 | Pattern | Why it's wrong |
 |---------|----------------|
@@ -349,8 +261,6 @@ there and an investigation anywhere else.
 | "The behavior is too simple to need a functional test" | Simple behaviors break when config parsing, CLI dispatch, or plugin registration changes. The functional test catches that. |
 | "There's no test infrastructure for this path" | Build the infrastructure or flag it as blocked. Do not skip the test. |
 
-### Relationship to Other Rules
-
 - `completion.md` requirement #2: both unit AND functional tests MUST exist per AC
 - `completion.md` checks that code is reachable; this rule checks that the reachable path is tested end-to-end
 - "Test-Driven Development" (above) governs the test-first cycle; this section governs test completeness at the feature level
@@ -358,27 +268,22 @@ there and an investigation anywhere else.
 
 ## RFC-Tagged Tests (BLOCKING)
 
-A test carrying an `RFC requirement: <id> <polarity>` tag is the proof behind a public
-compliance claim in `docs/features/rfc-status.md`, and `./le rfc check` counts it as
-that proof. Editing it to match the code retires the evidence while the claim stays up.
+**A test carrying an `RFC requirement: <id> <polarity>` tag MUST NOT be edited to
+match the code.** It is the proof behind a public compliance claim in
+`docs/features/rfc-status.md`, and `./le rfc check` counts it as that proof, so
+such an edit retires the evidence while the claim stays up.
+
+**The row that matches the situation MUST be followed.**
 
 | Situation | Do |
 |-----------|-----|
 | A tagged test fails after your change | Fix YOUR code. The test is the requirement |
 | You believe the test is genuinely wrong | STOP. Show the user the RFC text beside the test and ask. Do not edit first and explain after |
 | The summary misquotes the RFC | Fix `rfc/short/rfcNNNN.md` (keep the id), then re-run `/ze-rfc-audit` |
-| Reformat / comment / re-tag | Allowed; behavior must be unchanged |
+| Reformat / comment / re-tag | Allowed, and the behavior stays unchanged |
 | You added, moved, deleted, or re-tagged a tagged test (or an edit shifted its line) | Run `./le rfc index-update` and commit BOTH of its outputs in the SAME commit: `ai/RFC-REQUIREMENTS.md` and every changed file under `rfc/requirements/`. The per-RFC file records each test's `file:line`, and `./le rfc check` (both verify modes) fails on a stale index AND on a stale per-RFC file, so committing the index alone lands on the next session as a red gate |
 
-**Where a tag MAY live, and what it is worth: four carriers, declared once in `CARRIERS` (`internal/le/rfc/rfc.go`) and derived by the scanner, the HEAD baseline, the ledger and the ratchets. Evidence has two axes: KIND (which layer the test exercises) and TIER (whether anything executes it).**
-
-| Carrier | Cell in the ledger | Executed by | Tier |
-|---------|--------------------|-------------|------|
-| `*_test.go` | `unit/verify` | `./le test-unit` | runs on every push |
-| `*.ci` | `functional/verify` | `./le functional` | runs on every push, but ONLY from a suite that target actually runs: the tier is derived per-suite from the functional run's own suite list (`GATING`, in `internal/le/functional/actions.go`), so a `.ci` in a suite outside it (traffic, vrrp, flow-export, static, vpp, chaos) earns no verify tier, and `test/draft/` is skipped entirely |
-| `*.et` | `editor/verify` | `./le functional editor` | runs on every push, on the same earned-per-suite basis as `*.ci` |
-| `internal/le/interoplab/bgp/*_test.go` | `interop/nightly` | `./le integration interop` | scheduled, advisory |
-| `internal/le/interoplab/ipsec/*_test.go` | `interop/nightly` | `./le integration interop-ipsec` | scheduled, advisory |
+**A tag MAY live only in a recognized carrier, and every carrier is declared once in `internal/le/rfc/carriers.go` and derived from there by the scanner, the HEAD baseline, the ledger and the ratchets. Evidence has two axes: KIND (which layer the test exercises) and TIER (whether anything executes it), and neither is declared by the test.** The carrier table and what each one earns is `docs/contributing/rfc-implementation-guide.md`.
 
 - **SHOULD prefer a `.ci` over an interop binding** when a behavior is reachable from both: a `.ci` runs inside `./le verify current mode full` on every push, interop does not (owner decision, umbrella D3).
 - A requirement whose ONLY evidence is nightly-tier is marked `**nightly-only**` on its ledger row and counted in its own rollup column: it is not merge-gate-proven, and the rollup deliberately never sums the two.
@@ -387,49 +292,44 @@ that proof. Editing it to match the code retires the evidence while the claim st
 - **A QEMU sibling is not that pipeline.** The registered QEMU actions execute their own Go packages and cannot justify an interop tier for a checker they never call.
 - **Non-unit evidence is monotonic, per requirement and per tier.** Replacing a `.ci` binding with a unit tag, or with a nightly interop tag, fails `./le rfc check`, and no annotation satisfies it.
 
-A row in `test/weakened.md` does **not** authorize changing a tagged test: it is your own
-justification, not the user's approval. Enforced by the `rfc-tagged-test` hook, which runs
-before `test-weakening` precisely so the weakening record cannot pre-empt it
-(`ai/rules/repo-maintenance.md`). Once the USER approves, write what they approved as one
-row in `test/rfc-changed.md`. The row names the test the change touches. Commit that file
-with the change. The hook reads the file from disk, so the row comes first and the edit
-comes second.
+**A row in `test/weakened.md` MUST NOT be read as approval to change an
+RFC-tagged test.** It is the agent's own justification, never the user's
+approval. The `rfc-tagged-test` check runs BEFORE `test-weakening` precisely so
+the weakening record cannot pre-empt it.
+**Once the USER approves, what they approved MUST be written as one row in
+`test/rfc-changed.md`, naming the test the change touches, and that file MUST be
+committed with the change.** The hook reads the file from disk, so the row comes
+first and the edit second.
+**A justification explains ONE diff, so it MUST live with the commit and MUST NOT
+be left in the test file forever.** That is why `test/weakened.md` is replaced per
+commit: a permanent comment explains a change the reader of the test file can no
+longer see.
+**`rfc-test-change-approved:` is RETIRED (owner ruling, 2026-08-19) and a new one
+MUST NOT be written.** No gate reads one. `writeWeakening`
+(`internal/le/hookruntime/writeedit.go`) and the commit gate both read
+`test/rfc-changed.md` instead. `test-asserts-nothing:` is NOT retired:
+`escapeComment` (`internal/le/testhealth/collect.go`) still reads it.
+**Before writing any justification an instruction hands you, MUST check whether
+this repository already has a canonical home for that class of record.** A gate's
+message states a constraint to satisfy; it does not decide where the record
+belongs.
 
-**A justification explains one diff, so it belongs with the commit and not in the file
-forever.** That is the principle behind `test/weakened.md` being REPLACED per commit, and
-its own prose gives the reason: a permanent comment "explains a change the reader of the
-test file can no longer see", and storing it permanently "is what built the pile" -- 601
-justifications across 413 files before the `test-relax:` mechanism was retired for it.
-Before writing any justification an instruction hands you, check whether this repository
-already has a canonical home for that class of record. A gate's message states a
-constraint to satisfy; it does not decide where the record belongs.
-
-**`rfc-test-change-approved:` was the last mechanism on the wrong side of this principle,
-and it is RETIRED** (owner ruling, 2026-08-19). It was a comment, so it stayed in the test
-file after the diff it explained was gone: 255 of them across 120 test files. Beside them
-sit 27 `test-relax:` that survived the reform meant to replace them, and 6
-`test-asserts-nothing:`.
-
-Never write a new one. No gate reads one. `writeWeakening` in
-`internal/le/hookruntime/writeedit.go` and `rfcChangedProblems` in
-`internal/le/commit` both read `test/rfc-changed.md` instead.
-`test-asserts-nothing:` is NOT retired and was left alone -- `escapeComment`
-(`internal/le/testhealth/collect.go`) still reads it. Retiring a token is not the same as
-discarding what it said: about one block in six stated a fact about its own test found
-nowhere else, and 57 survive as ordinary comments. Recorded in
-`plan/journal/guard-message-teaches-the-violation.md`.
-
-Every gated requirement needs BOTH a positive and a negative test. A negative-only test
-passes if the code rejects everything; a positive-only test passes if it accepts
-everything. Only the pair pins behavior to the requirement. Assert the EXACT outcome, never
-a floor: `GreaterOrEqual(TreatAsWithdraw)` is also satisfied by `SessionReset`, so it cannot
-fail when the implementation over-reacts. See `ai/skills/ze-rfc.md`.
+**Every gated requirement MUST have BOTH a positive and a negative test.** A
+negative-only test passes when the code rejects everything, and a positive-only
+test passes when it accepts everything; only the pair pins behavior to the
+requirement.
+**The assertion MUST name the EXACT outcome and MUST NOT assert a floor.**
+`GreaterOrEqual(TreatAsWithdraw)` is also satisfied by `SessionReset`, so it
+cannot fail when the implementation over-reacts.
 
 ## Back-Fill New Test Types (BLOCKING)
 
-When you introduce a new test type, technique, or infrastructure (fuzz target, property test, mutation gate, `-race` sweep, clock-injection audit, new `.ci`/`.et` category, QEMU harness), apply it to the existing code it covers, not only to the code added alongside it. Coverage that grows only forward from the introduction date is the trap (`plan/learned/RECURRING-PATTERNS.md`, "New test type added but not back-filled to existing code").
-
-In the same work:
+**A new test type, technique, or infrastructure (a fuzz target, a property test,
+a mutation gate, a `-race` sweep, a clock-injection audit, a new `.ci` or `.et`
+category, a QEMU harness) MUST be applied to the existing code it covers, in the
+same work, not only to the code added alongside it.** Coverage that grows only
+forward from the introduction date is the trap
+(`plan/learned/RECURRING-PATTERNS.md`).
 
 1. MUST name the applicable set: the package glob, symbol kind, or call-site pattern the new test type is meant to cover.
 2. MUST back-fill that set, or record the uncovered remainder as explicit, tracked backlog (spec, handoff, or deferral table). MUST NOT leave it implicit.
@@ -437,67 +337,37 @@ In the same work:
 
 ## Test Sensitivity Ratchets (BLOCKING)
 
-A test that cannot fail, and a test file no target builds, both read as coverage
-while providing none. Neither is visible in any count of tests, which is how the
-published totals grew for years without either being noticed.
-
-**No gate catches a test that re-implements the logic it names, and none is
-planned.** Such a test builds the production algorithm again inside itself, in a
+**A test MUST NOT re-implement the logic it names, and no gate catches one that
+does.** Such a test builds the production algorithm again inside itself, in a
 local variable, then asserts on its own copy. It DOES assert, so the
-assert-nothing detector never sees it, and its name and `VALIDATES:` comment read
-as coverage of the real thing. It is green against every implementation, the
-correct one and the broken one alike.
-
-The tell is mechanical and it is the only one there is: **the test names a
+assert-nothing detector never sees it, and it is green against the correct
+implementation and the broken one alike.
+**The tell is mechanical and it is the only one there is: the test names a
 function it never calls.** Before writing a test, name the function under test
-and check the body calls it. When reviewing one, read what the assertion reads
-from -- a local the test itself filled is the defect, whatever the test is
+and check the body calls it. When reviewing one, MUST read what the assertion
+reads FROM: a local the test itself filled is the defect, whatever the test is
 called. A broad detector would also flag correct table-driven tests that build
-local fixtures, so this remains a review obligation.
+local fixtures, so this stays a review obligation.
 
-`./le test-sensitivity check` (stage 10 of `./le verify worktree`, both modes) counts
-them and enforces committed floors in `test/health/sensitivity-baseline.json`. The
-counts may only go DOWN, following the `test/.ci-sleep-baseline` convention.
-
-| Detector | Fires when | Fix |
-|----------|-----------|-----|
-| assert-nothing | A `Test*` function has no reachable `Error`/`Fatal`/`Fail` call, no assertion-library call, no compile-time `var _ T = ...` assertion, and no `panic` | Add a real assertion, or annotate: `// test-asserts-nothing: <why the oracle is implicit>` |
-| tag-orphan | A `_test.go` build constraint needs a `ze_*` tag absent from the native action population derived by `internal/le/testsensitivity.TagUniverse` | Add the tag to `feature-gates.txt` when it is a real feature, or delete the unreachable test |
-
-Benchmarks and fuzz targets are deliberately exempt: a benchmark measures, and a
-fuzz target delegates its oracle to the engine. Raising a floor is forbidden:
-`./le test-health update` only lowers one, so a regression cannot be laundered into
-the baseline by regenerating.
-
-`docs/features/test-health.md` (generated, `./le test-health update`) reports these
-alongside RFC proof density, mutation kill rate, negative-test ratio, and
-technique adoption by package age. Read it before claiming the suite is healthy:
-it is the answer to "would a regression be caught", which no test count gives.
-Details: `test/health/README.md`.
-
-| Action | Enforces | Notes |
-|--------|----------|-------|
-| `./le test-sensitivity check` | The two ratchets, read from the tree | Stage 10 of `./le verify current mode full`, both modes. Independent of the report |
-| `./le test-health check` | STRUCTURAL facts only: orphaned test files, unproven RFCs, metric statuses | Inside `./le repository generated-check`. Volume counters are published, not gated, so adding a test does not force a regeneration |
-
-The split is deliberate. Byte-gating the whole report charged a
-regenerate-and-commit to ~60% of commits, and a check that fires that often for
-cosmetic reasons gets routed around instead of read: the same "advisory gate
-permanently red" failure the report is built to expose.
+**`docs/features/test-health.md` MUST be read before the suite is claimed
+healthy.** It is generated by `./le test-health update` and reports the
+sensitivity counts alongside RFC proof density, mutation kill rate,
+negative-test ratio, and technique adoption by package age. It is the answer to
+"would a regression be caught", which no test count gives. The mechanism is
+`docs/architecture/testing/test-health.md`.
 
 ## The Affected Population Is Not the Edited Population
 
 **When a change alters what reaches a component at runtime, the tests you MUST re-check are the ones its new semantics can REACH, not only the ones it edited.** Delivery, wiring, subscription and permission are the four shapes of that change: each one moves a fixture onto a different code path while every line of that fixture stays as it was.
 
-**Every gate in this repository scopes itself to the files the commit touched, so the reachable set is yours to find.** `changed_test_files` (`./le commit audit`) builds its population from `git diff --name-status`, and the lint, the relaxation audit and the changed-file targets all read that same list. A fixture the change never opened is outside every one of them.
+**Every gate in this repository scopes itself to the files the commit touched, so the reachable set is yours to find.** `./le commit audit` builds its population from `git diff --name-status`, and the lint, the weakening audit and the changed-file targets all read that same list. A fixture the change never opened is outside every one of them.
 
-A discrimination proof expires when the environment changes. `ai/rules/interop-and-goal-validation.md` requires you to revert a change once and watch the test go red, which proves that test could fail on the day it was proven, against the wiring of that day. This point is about the proof EXPIRING. A change to what reaches a component moves a green test onto another rail without touching one assertion, so the test still passes, no gate reddens, and the recorded proof now describes code the test no longer runs.
-
-| The fixture | What the change did to it | Why nothing named it |
-|-------------|---------------------------|----------------------|
-| `test/plugin/bgp-rs-reactor-fastpath-fallback.ci` | its config stopped feeding `bgp-rs`, so it exercised the reactor fast path instead of the `bgp-rs` fallback rail its name certifies | it kept PASSING and no assertion moved. It burned its authored budget on every run, 31.5s against a 15s timeout, and it was found days later through suite instability |
-| `test/plugin/role-otc-rs-withdraw-eor.ci` | went RED for the same missing attachment | the commit never edited it, so the relaxation audit never opened it. That audit reports the diff, and this file was not in the diff |
-| `test/plugin/local-pref-strip-ebgp.ci` | gained a route server it deliberately ran without, because a peer that attaches `bgp-rs` becomes a destination in `selectForwardTargets` (`internal/component/bgp/plugins/rs/server_forward.go`) | its header still states that no route-server plugin is loaded. A header is read by people, and no gate compares one against the config below it |
+**A recorded discrimination proof MUST NOT be relied on after a change to what
+reaches the component under test.** `ai/rules/interop-and-goal-validation.md`
+proves a test could fail on the day it was proven, against the wiring of that
+day. A change to what reaches a component moves a green test onto another rail
+without touching one assertion, so the test still passes, no gate reddens, and
+the recorded proof now describes code the test no longer runs.
 
 **MUST derive the reachable set from the graph the change alters, then state that derivation and its count in the report.** A set derived from `git diff` is the edited set wearing another name, and it answers a question nobody asked.
 
@@ -539,102 +409,37 @@ The third is the one this directive is for: no diff-scoped gate reaches a file t
 
 ## No Throw-Away Tests
 
-Never write temporary test code. Add functional or unit tests that run in CI.
+**Temporary test code MUST NOT be written.** Add a functional or unit test that
+runs in CI.
 
-| Situation | Location | Format |
-|-----------|----------|--------|
-| Valid config parses | `test/parse/` | `.ci` with `expect=exit:code=0` |
-| Invalid config fails | `test/parse/` | `.ci` with `expect=exit:code=1` + `expect=stderr:contains=` |
-| BGP encoding | `test/encode/` | Config + expectations |
-| Plugin behavior | `test/plugin/` | Config + expectations |
-| Wire decoding | `test/decode/` | stdin + cmd + `expect=json:` |
-| Editor/TUI behavior | `test/editor/` | `.et` with `input=`/`expect=` directives |
-| Internal logic | `internal/<pkg>/<file>_test.go` | Go test file |
-
-Each `test/<subdir>/` has its own runner and format, and they are not interchangeable. `test/parse/` only accepts config-parse `.ci` files (config text + `expect=exit:code=`). Putting a BGP-plugin scenario there will be rejected; put it in `test/plugin/`. Pure-logic, reactor-free code (encoders, parsers, state machines exercised directly) belongs in Go unit tests (`internal/<pkg>/<file>_test.go`), not in any `.ci` directory: `.ci` tests exist to prove a user entry point works end-to-end through the daemon.
+**A test MUST go in the suite that runs its format.** Each `test/<subdir>/` has
+its own runner and format, and they are not interchangeable: `test/parse/`
+accepts only config-parse `.ci` files, so a BGP-plugin scenario placed there is
+rejected and belongs in `test/plugin/`.
+**Pure-logic, reactor-free code (an encoder, a parser, a state machine exercised
+directly) MUST be tested in a Go unit test, never in a `.ci` directory.** A `.ci`
+exists to prove a user entry point works end to end through the daemon.
 
 ## Native Test Actions
-
-### Component-Group Unit Tests
-
-Test one logical area during development instead of all 349 packages:
-
-| Action | Scope | Approx time |
-|--------|-------|-------------|
-| `./le test-unit bgp` | `./internal/component/bgp/...` (96 pkgs) | ~1:30 |
-| `./le test-unit core` | `./internal/core/...` (26 pkgs) | ~30s |
-| `./le test-unit plugins` | `./internal/plugins/...` (44 pkgs) | ~40s |
-| `./le test-unit config` | `./internal/component/config/...` (13 pkgs) | ~20s |
-| `./le test-unit cli` | `./internal/component/cli/...` (3 pkgs) | ~10s |
-| `go test -race <package-pattern>` | A package or pattern outside the five component groups | varies |
-| `./le job run label unit-pkg command go test <package-pattern>` | One admitted focused Go test job | seconds |
-
-All groups run with `-race`. Use the group matching your change during iteration.
-
-### Verification Actions
-
-| Action | Purpose |
-|--------|---------|
-| `./le verify worktree` | Pre-commit gate: lint, changed-file wiring/doc/inventory, vet evidence, Linux/amd64 SCA (`govulncheck`), two-pass unit, functional, and ExaBGP |
-| `./le verify worktree` | Changed-package lint/test plus wiring/doc/inventory, Linux/amd64 SCA (`govulncheck`), functional, and ExaBGP |
-| `./le doc wiring` | Changed-file-aware wiring, documentation, command, and inventory gate |
-| `./le test-unit` | All unit tests with `-race` under default-on feature tags, plus bare `ze_core` compile-out checks (~5 min) |
-| `./le functional` | All 13 functional test suites |
-| `./le verify lint run` | 26 linters |
-| `./le verify current mode full` | Native lint, unit, functional, build, documentation, and structural stages |
-| `./le fuzz run` | Every registered fuzz target |
-| `./le functional exabgp-test` | ExaBGP compatibility |
-| `./le verify worktree` | Full pre-commit proof over a detached committed tree |
-| `./le functional editor` | Editor `.et` tests |
-| `./le test-chaos` | Chaos simulator tests and checks |
-| `go test -race -count=20 ./internal/component/bgp/reactor/...` | Required repeated reactor race proof |
-| `go run github.com/sivchari/gomu/cmd/gomu run ...` | Advisory mutation execution |
-| `./le mutation combine` | Combine native mutation reports |
-| `./le mutation record-history` | Append package mutation scores to history |
-| `./le test-sensitivity check` | Assert-nothing and tag-orphan ratchets (in `./le verify current mode full`, both modes) |
-| `./le test-weakened check` | Selftests `internal/le/testweakened/testweakened.go`, then checks that `test/weakened.md` parses (in `./le verify current mode full`, both modes) |
-| `./le test-health update` | Regenerate `docs/features/test-health.md` + `test/health/latest.json` |
-| `./le test-health record` | Append one KPI sample to `test/health/history.ndjson` |
-
-### Contended Run Verdicts
-
-When `./le verify worktree` runs on a loaded machine, the failure index may show
-`VERIFY FAILURE INDEX (CONTENDED RUN)` with host load details. This means the
-system had load > CPU count with concurrent ze-test or go-test processes.
-
-How to read contended failures:
-- `near_timeout` kind: the test consumed >80% of its timeout but the context
-  deadline did not fire. This is CPU starvation, not a bug. Rerun on a quiet
-  machine.
-- `host-load` field in failure group JSON: load average, CPU count, and
-  concurrent process counts at run start.
-- Timing baseline updates are suppressed during contended runs to prevent
-  slow-run pollution of the EMA.
-- The project rejects retry-on-failure masking. Contended verdicts are for
-  classification, not automatic retry.
-<!-- source: internal/test/runner/hostload.go -- HostLoad, Contended, IsNearTimeout -->
-
-### Linux-Only Tests (QEMU)
 
 **Full rule: `ai/rules/platform-linux.md`** (build tags, virtual substitutes,
 native action wiring, reference implementations). MUST read it before writing
 any `//go:build linux` code.
 
+**Any change to `//go:build linux` code MUST run this action.**
+
 | Action | What it runs | When required |
 |--------|--------------|---------------|
 | `./le qemu all-tests` | Registered Linux integration packages in the runtime-kernel guest | Any change to `//go:build linux` code |
 
-### Capability-Requiring `.ci` Tests (Linux host, per-test netns)
+**A change matching a "when required" cell MUST run that action.** How the netns
+actions obtain and drop their privilege is `docs/functional-tests.md`, "Netns
+launch mode".
 
 | Action | What it runs | When required |
 |--------|--------------|---------------|
 | `./le qemu netns-test suites firewall,policy,ospf,ospfv3` | Kernel-programming functional suites | Changes to nft, FIB, or OSPF kernel programming |
 | `./le qemu run command '<focused Go test>'` | A focused capability-dependent package test | Changes to kernel log or other guest-only behavior |
-
-Both setcap a **throwaway** binary, run under `sudo` with a per-test network
-namespace, assert the host's kernel state is byte-identical before and after,
-and exit non-zero (never skip) when Linux, `sudo`, or `setcap` is missing.
-Details: `docs/functional-tests.md` "Netns launch mode".
 
 **SHOULD prefer a knob that skips the work over an action that supplies the privilege.**
 Use `ze.l2tp.disable-kernel-dataplane=true` when a test asserts only on the CLI
@@ -652,9 +457,7 @@ types) but do NOT need real VPP. They run in QEMU alongside the integration
 tests. See `internal/plugins/traffic/vpp/apply_test.go` for the reference
 pattern.
 
-### VPP Backend Testing Is Mandatory (BLOCKING)
-
-Every VPP backend must ship with functional tests. No exceptions, no deferrals.
+**Every row MUST be covered before a VPP backend merges.**
 
 | Requirement | How |
 |-------------|-----|
@@ -663,16 +466,12 @@ Every VPP backend must ship with functional tests. No exceptions, no deferrals.
 | Verify/reject logic | `verify_test.go` asserting accepted configs pass and unsupported configs return clear errors |
 | Registration side-effects | `register_test.go` confirming `init()` wires the backend into the correct registry |
 
-"VPP needs a real daemon" is not a valid reason to skip tests. The `vppOps`
-interface seam exists precisely so Apply logic can be tested without VPP.
-Translate and Verify are pure functions with no VPP dependency at all. If a
-new backend cannot be tested with the fakeOps pattern, that is a design
-problem to fix before merging, not a deferral to log.
-
-### Two-Pass Verification (how `./le verify current mode full` works)
-
-`./le verify current mode full` uses a two-pass strategy to avoid recompiling all 349 packages with
-`-race` every time:
+**"VPP needs a real daemon" MUST NOT be given as a reason to skip a test, and
+every VPP backend MUST ship with functional tests.** The `vppOps` interface seam
+exists so Apply logic can be tested without VPP, and Translate and Verify are
+pure functions with no VPP dependency at all. A new backend that cannot be tested
+with the fakeOps pattern is a design problem to fix before merging, never a
+deferral to log.
 
 **A `./le verify current mode full` run MUST execute these stages, in order:**
 
@@ -693,9 +492,6 @@ problem to fix before merging, not a deferral to log.
 4. **Functional tests** (13 suites via `ze-test`)
 5. **ExaBGP compatibility**
 
-Recorded full passes (`tmp/.ze-verify-duration.txt`) run 4-10 minutes;
-a one-group change sits at the low end. Budget 10 minutes, not 2.
-
 ## Iteration Workflow (BLOCKING)
 
 **One change, one test, then scale.** MUST NOT bulk-modify test files or source files without validating the pattern on a single case first.
@@ -706,56 +502,13 @@ case, file-level test, feature test, or suite-local command. Then move outward
 only after the narrower test passes. MUST NOT spend CPU on unaffected packages or
 whole suites before proving the affected code path works.
 
-If a changed file has an associated test file, feature test, or suite test, run
-that first. After it passes, run the next broader relevant scope, then the
-remaining gate. Order is: direct test -> file/feature test -> package ->
-component group -> whole suite or `./le verify current mode full`.
-
-| Step | Action | Command |
-|------|--------|---------|
-| 1 | Make the change in ONE file | Edit a single `.ci` or `.go` file |
-| 2 | Run just that behavior | Focused compiled-fixture Go test or `./le job run label unit-pkg command go test ... RUN=TestName` |
-| 3 | Investigate if it fails | Read output, understand the format, fix |
-| 4 | Only then apply to remaining files | Repeat the pattern that worked |
-
-**SHOULD use targeted test commands for development:**
-
-| Scope | Command | Speed |
-|-------|---------|-------|
-| Single functional behavior | Run the owning compiled fixture's focused Go test, then the complete `./le functional <suite>` action | seconds plus suite |
-| Functional suite | `./le functional <suite>` | suite budget |
-| Encode or decode behavior | Focused Go test in the owning package, then `./le functional encode` or `./le functional decode` | seconds plus suite |
-| Single editor behavior | Focused Go test under `internal/component/cli/testing`, then `./le functional editor` | seconds plus suite |
-| ExaBGP compatibility | `./le functional exabgp-test` | suite budget |
-| Single Go test | `./le job run label unit-pkg command go test PKG=./pkg/... RUN=TestName` | seconds |
-| Single package | `./le job run label unit-pkg command go test PKG=./internal/component/bgp/reactor/` | seconds |
-| Component group | `./le test-unit bgp` (or core, plugins, config, cli, rest) | 10s-1:30 |
-| All unit tests | `./le test-unit` | ~5 min |
-| All editor tests | `./le functional editor` | ~30s |
-| Pre-commit gate | `./le verify worktree` | 4-10 min (see `tmp/.ze-verify-duration.txt`) |
-
 **A numeric id is a position, not an identity (BLOCKING for anything you keep).**
 The runner's one-based ordinal is an internal display position over a sorted
 fixture population. Adding or renaming an earlier fixture silently renumbers
 later rows. MUST use the stable scenario or Go test name in any verification
-command, handover, gate subset, or evidence claim.
-This ratchet exists because a concurrent session added `.ci` files and moved id
-373 from `resolve-ping` to `remove-private-as-replace-peer` while an id-driven
-script reported green for tests it never ran.
-
-| Use | Form |
-|-----|------|
-| Iterating right now | Use the stable Go test name with an admitted focused `go test` job |
-| A gate, handover, or evidence claim | Name the owning `./le functional <suite>` action and stable test identity |
-
-A positional selector matches a record's Nick, Name, or CIFile EXACTLY
-(`indexRecordSelector`, `internal/test/runner/selection.go`), so passing names as
-positional ids is as stable as `--pattern` and, unlike a substring pattern,
-cannot widen. `internal/le/qemu/netns_linux.go` selects all four of its subsets by
-name for exactly this reason, and its `assert_named` guard refuses to run a
-subset that still carries a numeric selector -- a nick had already drifted there,
-with firewall `"17"` resolving to `command-owner-firewall-root.ci` rather than to
-any `017-*.ci`.
+command, handover, gate subset, or evidence claim. Why a positional NAME is
+stable and a positional number is not is
+`docs/architecture/testing/runner-architecture.md`.
 
 **A `ze.log.<subsystem>` key in a `.ci` test MUST name a real slog subsystem.**
 An internal plugin's logger name is `CanonicalSubsystemName` of its registry name
@@ -775,7 +528,7 @@ On failure, `./le verify worktree` writes the compact index `tmp/ze-verify-failu
 Read that file first. The next run MUST be the listed `Rerun` command for the
 failed stage, or an even narrower single test/package from the detail log. If
 multiple failures are listed, clear each one with its focused rerun. Only after
-all focused reruns pass may you rerun the whole suite or gate as final
+all focused reruns pass MAY you rerun the whole suite or gate as final
 confirmation. The combined log is `tmp/ze-verify.log`, and automation can read
 `tmp/ze-verify-failures.json`.
 
@@ -783,19 +536,7 @@ confirmation. The combined log is `tmp/ze-verify.log`, and automation can read
 
 **Understand before modifying:** Before bulk-editing `.ci` files or test files, MUST run one test and read its output to understand the format and expected behavior. Assumptions about test syntax cause cascading failures across every modified file.
 
-## Individual Commands
-
-```bash
-go test -race ./internal/component/bgp/message/... -v  # Single package
-go test -race ./... -run TestName -v          # Single test
-go test -race -cover ./...                    # Coverage
-FUZZ=FuzzName TIME=30s ./le fuzz run          # Single fuzz target
-```
-
 ## Timing Baseline
-
-`ze-test` saves per-test timing to `tmp/test-timings.json` (rolling EMA, alpha=0.3).
-After 3 samples, the baseline is used for two things:
 
 **Auto-timeout:** Per-test timeout = min(global, max(5s, 5x baseline avg)). A test that normally takes 500ms gets a 5s timeout instead of the default 15s. Catches hangs in seconds, not minutes. Explicit `.ci` `timeout=` overrides MUST win.
 
@@ -806,26 +547,17 @@ After 3 samples, the baseline is used for two things:
 - `ze-peer` MAY be used as a BGP test peer through the owning native fixture.
 - `ze-test` is the internal functional runner. MUST launch its suites through `./le functional`, which prepares the isolated binaries and environment.
 
-When adding a test runner, test format, native action, or verification gate, update
-`ai/rules/repo-maintenance.md` paths in the same change: `ai/INDEX.md` for the
-tool, `ai/INDEX.md` (task navigation) if it changes task selection, this file for required
-usage, and `docs/architecture/testing/` or `docs/contributing/` for detailed
-operator documentation.
+**A new test runner, test format, native action, or verification gate MUST update
+its discovery paths in the SAME change**: `ai/INDEX.md` for the tool and for task
+navigation when it changes task selection, this rule for required usage, and
+`docs/architecture/testing/` or `docs/contributing/` for the operator
+documentation. Which page owns what is `ai/rules/repo-maintenance.md`.
 
 ## Native Go Tooling
 
-A native tool that no `./le` action or compiled fixture driver invokes never
-runs, and reads as coverage while providing none. Register the action and test
-the callable Go producer.
-
-| Tool kind | Convention | Runs because |
-|-----------|------------|--------------|
-| Repository action | Put callable behavior and `*_test.go` beside it under `internal/le/<area>/`; register the command in `register.go` | `./le <area> <verb>` reaches the same Go function the package test calls |
-| Functional fixture | Put the compiled driver and its tests under `internal/test/fixture`; register the driver with `fixture.Register` | `ze-test fixture <name>` reaches the registry, and the owning `./le functional <suite>` action exercises the `.ci` caller |
-
-Both conventions compile inside `go test`, so `./le test-unit` and
-`./le verify current mode full` cover the permanent unit tests without an
-interpreter-specific runner.
+**A native tool MUST be reachable from a `./le` action or a compiled fixture
+driver, and its callable Go producer MUST have a test.** A tool nothing invokes
+never runs, and it reads as coverage while providing none.
 
 **A native action table MUST have a package test that asserts its exact verb
 population and which verbs write.** The bare `./le <area>` answer is the
@@ -837,16 +569,18 @@ duplicate or unknown names.** `internal/test/fixture.Register`, `Names`, and
 `Run` hold that contract. An exit code alone cannot distinguish every intended
 case passing from no case being registered.
 
-Do not add first-party development or test tooling outside `internal/le`,
-`internal/test`, or `internal/appliance`. Register every command or fixture in
-its native Go inventory; a source file with no caller is not a tool.
+**First-party development or test tooling MUST NOT be added outside
+`internal/le`, `internal/test`, or `internal/appliance`, and every command or
+fixture MUST be registered in its native Go inventory.** A source file with no
+caller is not a tool.
 
 ## Temporary Files
 
-Use project `tmp/` (gitignored) for scratch files, never `/tmp`.
-A subfolder per debugging task (`tmp/watchdog-debug/`) isolates artifacts from each
-other, but not from a sibling session: put it under your session's own directory
-(below), unless the artifact must outlive the session.
+**A scratch file MUST go under the project's gitignored `tmp/`, and the system
+`/tmp` MUST NOT be used.** A subfolder per debugging task
+(`tmp/watchdog-debug/`) isolates artifacts from each other but not from a sibling
+session, so it goes under this session's own directory unless the artifact has to
+outlive the session.
 
 **MUST write it under your session's own directory**: `dir=$(./le session scratch ensure)`
 gives the `scratch/` subdirectory of `tmp/session/<YYYY-MM-DD>-<session-id>/`, so scratch
@@ -857,13 +591,6 @@ the failure this replaces: it names the same file for every session in the
 checkout. `bashScratch` and the Write/Edit scratch check in
 `internal/le/hookruntime` refuse that path.
 
-The functional-test runner already writes there: its per-run and per-test working
-directories (configs, sockets, daemon pid/ready files) root at
-`sessionpath.DefaultScratchRoot()` / `EnsureScratchRoot(baseDir)` when a session is
-active, instead of the unowned `$TMPDIR/ze-functional-*` they used before
-(`internal/test/sessionpath`, `internal/test/runner/runner.go`). Off-session the
-runner still uses the system temp dir, unchanged.
-
 ## Debugging Failures
 
 Read the failure index before opening full logs or re-running.
@@ -871,18 +598,12 @@ After a suite or gate fails, the next test command MUST target
 only the failing part: a single `.ci`/`.et` case, single Go test, single
 package, or the stage-local `Rerun` command from the failure index. If there
 are multiple failures, clear each one with its focused rerun. Only after all
-focused reruns pass may you rerun the whole suite or gate as final
+focused reruns pass MAY you rerun the whole suite or gate as final
 confirmation, except when the suite is the only available reproduction.
 
-```bash
-./le verify worktree
-# On failure, read:
-tmp/ze-verify-failures.log
-```
-
-Use each group's `Rerun` command for the smallest useful scope. Open the
-group's `Detail log` only after choosing the group. On success: one final pass
-line plus fresh artifacts. Never `| tail`.
+**Each failure group's `Rerun` command MUST be used for the smallest useful
+scope, and its `Detail log` MUST NOT be opened before the group is chosen. A
+test, verify, or build command MUST NOT be piped through `tail`.**
 
 ## Editor Tests (.et format)
 
@@ -892,54 +613,16 @@ Run `./le functional editor`. Use focused Go tests under the compiled runner whe
 
 ## OS-Specific Tests
 
+**A test that cannot run on every OS MUST be gated by the row that fits it, and
+its assertion MUST NOT be weakened to accept both outcomes.**
+
 | Situation | Do |
 |-----------|-----|
 | Whole file is OS-specific | `//go:build linux` on the file |
 | One test in a mixed file | `if runtime.GOOS != "linux" { t.Skip(...) }` at the top of that test |
 | `.ci` / `.et` test | Split or gate in the runner; do not land an always-failing .ci |
 
-A darwin `FAIL` caused by a `_other.go` stub returning `ErrUnsupported`
-is a test-setup bug, not a real failure. Keep the failure list
-meaningful.
-
-## Common Flaky Test Causes
-
-| Symptom | Root Cause | Fix |
-|---------|-----------|-----|
-| Port reuse race in reactor tests | `Stop()` not waiting for cleanup | Ensure cleanup goroutines complete before returning |
-| Completion test fails intermittently | Real bug, not flaky | Check `completeShowPath` includes YANG schema children |
-| Inter-message timing in plugin tests | Sleep too tight under load | Increase inter-message delay or use synchronization |
-
-Seven flake shapes have been seen here: locked-write with unlocked-read,
-subscribe-before-broadcast, gate-handler queue state, barrier FIFO order,
-cleanup-drains-work, a fixed port behind an SO_REUSEPORT gate, and colliding
-test-fake pool IDs. Check each one against your test before investigating a new
-race or isolation flake.
-
 ## Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures
-
-Some failures only surface under the scheduling and GC pressure of the full
-~22-suite run (many concurrent `ze` daemons on all cores). Rerunning the single
-suite never triggers them, and looping the full suite to hunt the bug is
-impractical (minutes per run, low hit rate). The verify aggregator also
-truncates the crashing daemon's goroutine stack to ~2 lines, so the crash site
-is usually lost.
-
-### Use the stress reproducer, not the full suite
-
-`./le stress-repro run <suite>` recreates that pressure cheaply: CPU + GC
-"burner" processes oversubscribe every core while many concurrent copies of one
-suite loop, and it captures the FIRST failure's complete, untruncated output.
-
-```
-./le stress-repro run suite rsvpte iterations 80
-./le stress-repro run suite rsvpte race
-./le stress-repro run suite bgp burners 32 parallel 8
-./le stress-repro run suite "bgp plugin" test 97 any-failure
-```
-
-`<suite>` and `--test` are both split on whitespace, so a sub-suite and a
-multi-token selector reach `ze-test` exactly as you would type them by hand.
 
 **A crash is not the only reproduction.** By default only a CRASH signature
 (panic / `DATA RACE` / runtime error) counts, and everything else is discarded
@@ -948,19 +631,11 @@ is merely missed under load) exits non-zero with no crash signature, so
 `--any-failure` MUST be passed, or the run reports "not reproduced" while quietly throwing the
 evidence away.
 
-It sets `GOTRACEBACK=all` so a panic dumps every goroutine (the one racing on
-the corrupt buffer shows up next to the crasher), reuses the isolated binary set
-prepared by `internal/le/functional` during the loaded window, and writes the
-full capture to `tmp/stress-repro/<slug>-<ts>.log`. Exit
-0 = reproduced, 1 = not reproduced, 2 = setup error.
-
 **A no-build stress reproduction tests the isolated binary set it was given.** After
 changing daemon source, MUST rebuild before trusting a verdict, otherwise a fixed
 bug still "reproduces" against the stale binary. Run the owning
 `./le functional <suite>` action once; `internal/le/functional.Prepare` rebuilds
 the isolated daemon and runner pair.
-
-### Rules (stress reproduction)
 
 - **MUST NOT loop `./le functional` / `./le verify worktree` to hunt a flake.**
   MUST use the stress reproducer against the suspected suite.
@@ -981,12 +656,14 @@ the isolated daemon and runner pair.
 
 ## Reactor Concurrency Code (BLOCKING)
 
-When touching `internal/component/bgp/reactor/session*.go`, `forward_pool*.go`,
-`peer.go`, or any other reactor file that holds locks or shares state across
-goroutines, the standard `-race -count=1` unit run is **not enough**. The
-bufReader/bufWriter races (`d5843235`, `8dffd422`) lived 47 days because the
-schedule that triggered them was rare. Run
-`go test -race -count=20 ./internal/component/bgp/reactor/...` before claiming the change done.
+**A change to `internal/component/bgp/reactor/session*.go`,
+`forward_pool*.go`, `peer.go`, or any other reactor file that holds locks or
+shares state across goroutines MUST run
+`go test -race -count=20 ./internal/component/bgp/reactor/...` before it is
+claimed done.** The standard `-race -count=1` unit run is not enough: a schedule
+rare enough to need twenty runs has hidden a reactor race for weeks.
+
+**The verification each row names MUST run before the change is claimed done.**
 
 | Touched | Required verification |
 |---------|----------------------|
@@ -996,8 +673,10 @@ schedule that triggered them was rare. Run
 | Any reactor field shared between Run loop and other goroutines | same repeated reactor race proof |
 | Reactor doc-only edits, log message changes | Not required |
 
-A passing `./le test-unit` action is NOT proof that a reactor concurrency change is
-race-free. Paste the admitted `go test -race -count=20 ./internal/component/bgp/reactor/...` output as evidence.
+**A passing `./le test-unit` MUST NOT be offered as proof that a reactor
+concurrency change is race-free.** MUST paste the admitted
+`go test -race -count=20 ./internal/component/bgp/reactor/...` output as the
+evidence.
 
 ## Compiled Observer Failures (BLOCKING)
 
@@ -1009,6 +688,8 @@ assertion. Return an error from the scenario.
 **A failing observer MUST return an error.** `fixture.Run` passes it to
 `fixture.ReportFailure`, which emits the `ZE-OBSERVER-FAIL` sentinel that
 `checkObserverSentinel` in `internal/test/runner/runner_validate.go` detects.
+
+**The left column MUST NOT be written; the right column is what replaces it.**
 
 | Bad | Good |
 |-----|------|
@@ -1022,32 +703,28 @@ route: it asserted `expect=stderr:pattern=prefix-list accept` plus
 `bgp-filter-prefix`. That is the strongest pattern because it verifies the
 production code path, not the observer.
 
+**The assertion pattern MUST match the row that describes the case, and
+`expect=exit:code=0` alone MUST NOT be relied on.**
+
 | Pattern | When to use |
 |---------|------------|
 | `expect=stderr:pattern=<production log line>` plus `reject=stderr:pattern=<wrong outcome>` | The plugin emits a decision log on every iteration. Preferred. |
-| Return an error from the compiled observer | The observer must compute something the engine cannot log directly |
+| Return an error from the compiled observer | The observer computes something the engine cannot log directly |
 | Rely on `expect=exit:code=0` alone | Forbidden: it does not prove the observer's assertion |
 
-`internal/test/fixture` owns the failure boundary. Its package tests MUST prove
-that an unknown driver is refused and a returned error reaches
-`fixture.ReportFailure`.
+**`internal/test/fixture` owns the failure boundary, and its package tests MUST
+prove that an unknown driver is refused and that a returned error reaches
+`fixture.ReportFailure`.**
 
-**Sleep ratchet (BLOCKING):** the total `time.sleep(` count across
-`test/**/*.ci` MUST NOT increase. The committed baseline lives in
-`test/.ci-sleep-baseline`; `./le doc wiring` fails when the count
-exceeds it. Use `ze_api` `wait_for_event` / `wait_for_shutdown` / `wait_until` /
-`dispatch_until` (the payload-predicate waits, below) instead of sleeps (sleeps
-hide real races). When your change removes sleeps, lower the baseline in the same
-change. Known violations are tracked in `plan/known-failures/`
-and MUST be migrated.
-
-Every sleep the ratchet tolerates must also be justified: see "CI Sleep
-Justification" below.
+**Sleep ratchet: the total `time.sleep(` count across `test/**/*.ci` MUST NOT
+increase.** The committed baseline lives in `test/.ci-sleep-baseline`, and
+`./le doc wiring` fails when the count exceeds it. **A payload-predicate wait
+MUST be used instead of a sleep**, because a sleep hides a real race:
+`fixture.Poll` around `fixture.Dispatch` in a compiled observer, or a
+`wait_until` / `dispatch_until` engine step. **A change that removes sleeps MUST
+lower the baseline in the same change.**
 
 ## CI Sleep Justification
-
-This is the qualitative companion to the **Sleep ratchet** (above), which caps how
-MANY sleeps exist: this section caps how many are unexplained. Two reasons:
 
 1. A blind sleep hides real races. A reader cannot tell whether it is safe (a
    bounded poll interval that already blocks on a real condition) or a guessed
@@ -1062,18 +739,6 @@ The sleep MUST be converted to a deterministic wait with `fixture.Poll`,
 whenever a condition exists to wait on. Only when no such condition exists
 does the sleep stay, and then it MUST be justified. See "Try a sync primitive
 before you write a sleep" below for what trying means and how the comment records it.
-
-### What counts as justified
-
-The comment must state which of these the sleep is:
-
-| Kind | What the comment should say |
-|------|-----------------------------|
-| Bounded poll interval | Name the real condition the enclosing loop breaks/returns on ("poll interval; the loop above breaks when the nft table appears"). This is already a deterministic wait; the sleep is only its granularity. |
-| Deliberate timer | The delay itself IS the behaviour under test ("the 3s verify hold IS the concurrency race window; do NOT convert"). |
-| Timeout under test | The sleep waits out a fixed internal timeout that the test asserts ("the 5s vpp WaitConnected timeout IS the behaviour under test"). |
-| needs-linux effect | A dataplane effect (tc/qdisc/nft/kernel FIB) with no readback in the driver, convertible only after a QEMU run ("needs-linux; no queryable signal that the qdisc was programmed"). |
-| No readiness signal | The awaited effect exposes no queryable state to this driver ("backgrounded ze gets no ZE_READY_FILE marker; hold until OnConfigure emits the asserted log line"). |
 
 **A `time.Sleep` MUST NOT be written until a synchronization primitive has been
 tried and found not to fit.** Compiled fixtures use `fixture.Poll`,
@@ -1099,62 +764,24 @@ same line of code.
 can perform into a bounded wait. Its own timer is the synchronization helper,
 not a delay before an unrelated assertion.
 
-Placement (mechanical): one `#` comment line directly above the sleep, indented
-to match the sleep exactly. The embedded `.ci` observer body is indentation
-sensitive. No em dashes in the comment text.
+**Every sleep in a `.ci` test MUST carry its justification marker, in the form
+`// sleep(<kind>): <reason>`.** Two producers enforce it: `./le doc wiring` at
+gate time, and the Write/Edit hook at edit time. The closed set of kinds, what
+each reason owes, and where the comment goes are
+`docs/architecture/testing/ci-format.md`.
 
-### Enforcement
-
-Every sleep in a `.ci` test MUST carry its justification marker. Two producers
-enforce it, at different moments.
-
-- **Blocking gate:** `checkSleepJustification` in
-  `internal/le/doc/wiring`, run by `./le doc wiring`.
-  Scoped to changed `.ci` files, it lists every unjustified `file:line` and
-  returns exit 1.
-- **Edit-time nudge:** `writeCISleep` in `internal/le/hookruntime/writeedit.go`
-  blocks a Write/Edit that introduces `time.sleep(` with no recognised
-  justification.
-
-### Related (CI sleep)
-
-- `spec-fixit-redistribute-establishment-stall` -- the redistribute establishment sleeps MUST NOT be converted until this P0 spec lands. It landed on 2026-08-23 in commit `8f3a80bf9`, which closed the spec and deleted it from `plan/`.
-- The external-plugin refuse/warn sleeps wait on a reject-fence signal the daemon does not emit, so no deterministic wait exists for them yet.
+- The external-plugin refuse/warn sleeps wait on a reject-fence signal the daemon does not emit, so no deterministic wait exists for them yet and they MUST NOT be converted.
 
 ## Compiled Observer API (`internal/test/fixture`)
-
-Compiled `.ci` observers live under `internal/test/fixture`. They use
-`pkg/plugin/sdk` for the five-stage plugin protocol and the local `fixture`
-package for registration, dispatch, polling, and failure reporting.
-
-| Function | Purpose |
-|----------|---------|
-| `fixture.Register(name, driver)` | Register one compiled fixture command |
-| `fixture.Run(args)` | Dispatch `ze-test fixture <name> [args...]` |
-| `fixture.Observe(...)` | Connect through the SDK, complete startup, run the scenario after all plugins are ready, then request shutdown |
-| `fixture.ObserveConfigured(...)` | Install callbacks before startup, then run the same observer lifecycle |
-| `fixture.Dispatch(...)` | Send one command and decode its JSON answer into a Go value |
-| `fixture.Poll(...)` | Retry a predicate until success, exhaustion, or context cancellation |
-| `fixture.ReportFailure(err)` | Emit the observer-failure sentinel the runner treats as authoritative |
-| `sdk.Plugin.DispatchCommand(...)` | Send a typed command request through the plugin connection |
 
 **SHOULD wait for route-server readiness through a compiled payload predicate.**
 Poll the pushed state or `eor-sent` counters before shutdown. Do not replace the
 barrier with a guessed delay or a synchronous one-shot query.
 
-`fixture.Poll` around `fixture.Dispatch` is the compiled payload-predicate wait.
-Prefer it over `time.Sleep` plus a one-shot assertion so the test blocks until
-the observed payload matches, within a bounded attempt count.
-
-Use `fixture.ObserveConfigured` when callbacks or subscriptions must be
-installed before startup. `Plugin.Run` in `pkg/plugin/sdk` owns the five-stage protocol.
-
-Source and examples: `internal/test/fixture/fixture.go` and the registered drivers beside it.
-<!-- source: internal/test/fixture/fixture.go -- Register, Run, ObserveConfigured, Dispatch, Poll, ReportFailure -->
-
-First-class `.ci` engine steps have the symmetric declarative form
-(`expect=output:matches=`/`absent=`/`json=`); see
-`docs/architecture/testing/ci-format.md` "Engine Steps".
+**`fixture.Poll` around `fixture.Dispatch` is the compiled payload-predicate
+wait, and it SHOULD be used in place of a `time.Sleep` followed by a one-shot
+assertion.** The test then blocks until the observed payload matches, within a
+bounded attempt count. The API is `docs/architecture/testing/ci-format.md`.
 
 ## Mutation Testing
 
@@ -1270,12 +897,11 @@ a proof is in, not to spend the cache to avoid thinking about it.
 
 ## Pre-Commit
 
-See `ai/rules/git-safety.md` for the full pre-commit workflow.
-
-A commit owes NO verification pass at all (`ai/rules/pre-release.md`). `./le verify worktree` is the full gate and it is owed before a PUSH. What a commit owes is the focused test for what you changed, run once.
-Run that focused test through a native action: `./le job run label unit-pkg command go test PKG=<what you are changing>`, a component group
-(`./le test-unit bgp`), or `./le test-unit`. A BARE `go test`
-is not: `internal/le/gotoolchain.Toolchain` gives native actions the repository
-`GOCACHE`, while a shell run uses ambient toolchain state and shares nothing
-with `./le verify current mode full`. It also drops the feature tags, which is
-the separate lie recorded above.
+**A commit owes NO verification pass (`ai/rules/pre-release.md`): the full gate
+is owed before a PUSH. What a commit owes is the focused test for what it
+changed, run once.**
+**That focused test MUST run through a native action** -- `./le job run label
+unit-pkg command go test PKG=<what you are changing>`, a component group
+(`./le test-unit bgp`), or `./le test-unit`. **A bare `go test` MUST NOT be used
+in its place**: `internal/le/gotoolchain.Toolchain` gives native actions the
+repository build cache and the feature tags, and a shell run has neither.

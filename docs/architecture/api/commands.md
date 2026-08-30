@@ -1471,10 +1471,21 @@ calls `tab` "rows read against a declared column order", and `operatorNeeds`
 reads the operator's own shape set. Calling both "rows" gave a refusal that
 contradicted itself, in front of an operator whose answer HAS rows.
 
-A declared address-field list is an ADMISSION gate and not a selector. It decides
-whether `| resolve` and `| origin` run at all. It does not decide what they
-decorate: `resolveJSON` and `originJSON` walk every key of the answer and
-decorate each string that parses as an address.
+A declared address-field list is an ADMISSION gate AND a selector. It decides
+whether `| resolve` and `| origin` run at all, and it decides what they
+decorate. `bindAddressFields` copies the declaration onto each address operator
+when the chain is parsed, so a later registry withdrawal cannot change an
+in-flight chain, and `resolveJSON` and `originJSON` decorate a key only when
+`addressFieldSelected` finds it in that list.
+
+Standalone stdin is the one path that decorates every key.
+`ProcessStandalonePipesChecked` sets `allAddressFields` on each address
+operator, because stdin has no command path and therefore no declaration to
+read. There `addressFieldSelected` returns true for every key whose value parses
+as an address.
+<!-- source: internal/component/command/pipe.go -- bindAddressFields, ProcessStandalonePipesChecked -->
+<!-- source: internal/component/command/pipe_resolve.go -- resolveJSON, addressFieldSelected -->
+<!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 
 Every `show bgp` command declares a shape, and two channels write them. Go
 compiled into the daemon declares sixteen paths. Nine of those name an address

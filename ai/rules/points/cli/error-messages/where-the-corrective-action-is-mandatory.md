@@ -1,10 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Scope of leg 3: it is mandatory on machine-facing surfaces (doctor, startup,
-config apply/verify, readiness, plugin load -- the diagnostic-code surfaces
-below). For internal errors that get wrapped upward, legs 1 and 2 plus a
-wrapped cause (`%w`) are the requirement; add the corrective action whenever
-a clear next step exists, but a deep internal error need not invent one.
+**The corrective action MUST be carried on a machine-facing surface (doctor, startup, config apply and verify, readiness, plugin load).** An internal error wrapped upward MUST carry the first two legs and a wrapped cause (`%w`), and SHOULD carry the corrective action whenever a clear next step exists. A deep internal error MUST NOT invent one.

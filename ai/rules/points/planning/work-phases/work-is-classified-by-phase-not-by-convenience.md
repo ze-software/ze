@@ -1,7 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Ze work has three phases: planning and design, implementation, and review and
-audit. They are distinguished by what the work IS, never by convenience.
+- **Ze work has three phases, and each piece of work MUST be classified by what it IS rather than by convenience:** planning and design, implementation, and review and audit.

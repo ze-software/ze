@@ -106,6 +106,24 @@ naming the test the edit weakens.
 | Parse gate | `./le test-weakened check`, in `./le verify current mode full` both modes |
 <!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
+The file holds two columns, under the exact header the parser anchors on:
+
+```
+| Test | Reason |
+|------|--------|
+| TestName | <what left the suite, and why the commit is correct without it> |
+```
+
+The name is the enclosing top-level `func TestXxx` for Go, and the file stem for
+a `.ci`, an `.et`, or a Go weakening sitting outside every func.
+`internal/le/rfc/tags.go` resolves each one, so the edit-time hook and the commit
+gate name the same unit. A bare name is accepted when it resolves to exactly one
+weakened test in the commit; write `package.TestName` when it does not.
+
+The row is written BEFORE the edit. The detector reads the file from disk, so a
+row written after a refusal buys nothing until the edit is retried, and a row
+naming another test opens nothing.
+
 **The file is replaced per commit, and that shape is the whole design.** Delete
 the rows of the last commit. Write the rows of this one. Git history holds every
 past row beside the change it accepted. A record that cannot accumulate cannot

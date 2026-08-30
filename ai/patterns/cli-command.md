@@ -314,6 +314,27 @@ The YANG path maps directly: `show bgp peer` = container nesting = WireMethod `z
 | Stdin/stdout | `-` means stdin (read) / stdout (write). Read/write a user-supplied path through `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), NEVER a raw `os` call -- `./le dash-stdio check` enforces it |
 | JSON output | `\| json` over a structured payload. A `--json` flag is legitimate only on a tool that reaches no pipe layer -- see `ai/rules/cli.md` "`--flag` or Keyword" |
 
+### Flag spellings
+
+A flag that already has a meaning here keeps it. A new flag takes a spelling no
+row below uses.
+
+| Short | Meaning | Short | Meaning |
+|-------|---------|-------|---------|
+| `-v` | Verbose | `-q` | Quiet |
+| `-o` | Output file | `-f` | Family/file |
+| `-i` | Enable feature | `-a` | Local AS |
+| `-z` | Peer AS | `-n` | Dry run/count |
+
+| Long | Meaning | Long | Meaning |
+|------|---------|------|---------|
+| `--dry-run` | Preview | `--socket` | Unix socket path |
+| `--log-level` | Logging level | `--no-header` | Exclude headers |
+
+A rendering flag (`--json`, `--text`, `--yaml`, `--format`, `--no-header`) is a
+pipe operator's second spelling and exists on no command. Register the answer
+and the pipe layer renders it.
+
 ## Command Registration (BLOCKING)
 
 The owner package owns a `register.go` whose `init()` registers its root

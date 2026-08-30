@@ -1,8 +1,9 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Examples that activate it: `owner override: commit without verify`, `commit no
-test`, `commit without running tests`, or an equivalent direct instruction from
-Thomas in the active conversation. Do not infer the override from urgency alone.
+**The override MUST come from a direct instruction by Thomas in the active
+conversation, and it MUST NOT be inferred from urgency.** `owner override: commit
+without verify`, `commit no test` and `commit without running tests` activate it;
+an equivalent direct instruction does too.

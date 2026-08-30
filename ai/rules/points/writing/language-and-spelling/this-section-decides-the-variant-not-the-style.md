@@ -2,6 +2,6 @@
 kind: directive
 level: MUST
 stage:
-excepted-by: writing/language-and-spelling/prose-written-in-thomas-s-voice-keeps-uk-british-english
 ---
-**You MUST use this section to decide the English VARIANT. You MUST use the Simplified Technical English section to decide the STYLE, and it is rule one.** STE Rule 1.14 also requires American English spelling, so the two agree. Thomas's authored prose is the exception to both: UK English, and no STE.
+**This section decides the VARIANT; `docs/contributing/writing-style.md` decides the style.** Before writing or reviewing any project text you MUST ask: is this the project speaking, or Thomas speaking? Spell to match.
+**A new identifier, comment, doc, or error string MUST be US English, with no exceptions.**

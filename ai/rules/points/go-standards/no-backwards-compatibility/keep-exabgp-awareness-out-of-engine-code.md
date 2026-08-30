@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-External tools only (`ze exabgp plugin`, `ze config migrate`). Engine code: zero ExaBGP format awareness.
+**ExaBGP format awareness MUST live only in the external tools `ze exabgp plugin` and `ze config migrate`. Engine code MUST carry none.**

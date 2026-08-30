@@ -2,6 +2,7 @@
 kind: directive
 level: MUST
 stage:
+rationale: ai/rationale/go-standards.md
 ---
 - **You MUST read `docs/contributing/ze-go-style.md` at the START of EVERY session, before any code (owner directive, 2026-08-18).** `.claude/rules/session-start.md` step 2 carries it as a blocking checklist item.
 - **The three-trigger gate this point used to state is WITHDRAWN.** It read the guide only before a Go design decision, a review, or an argument about how Ze code is written, and told you not to open it for an ordinary edit. It was set to save context and it cost more than it saved: a session can write Go all day, meet none of those three triggers, and never learn that Ze guards with early returns, splits a compound condition, and states an invariant positively. Measured 2026-08-18, on four `internal/` files in one session.

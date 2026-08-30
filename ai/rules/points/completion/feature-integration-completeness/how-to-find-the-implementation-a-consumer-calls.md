@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**You MUST take all four steps to find the implementation a consumer actually calls:**
+
 | Step | Action |
 |------|--------|
 | 1 | Grep for the protocol method/handler name across all `.go` files |

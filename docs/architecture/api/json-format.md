@@ -36,6 +36,56 @@ This structure keeps message metadata (type, id, direction) together in the `mes
 | `rib` | RIB events (cache, route changes) |
 | `response` | API command responses |
 
+### The IPC envelope
+
+```json
+{"type":"bgp","bgp":{"peer":{"address":"...","group":"...","name":"...","remote":{"as":N}},"message":{"id":N,"direction":"received","type":"open"},"open":{...}}}
+```
+
+Envelope and value conventions:
+
+- Error: `{"error":"description","parsed":false}`
+- CLI: `{"status":"ok","data":{...}}` or `{"status":"error","error":"msg"}`
+- Raw hex: uppercase, no `0x`. `"parsed":false` plus `"raw":"DEADBEEF"`
+- Numbers decode as `float64` in Go, so integer display goes through `formatNumber()`
+
+---
+
+## Address families
+
+A family is written `afi/safi`. Plugins register families at startup, so this
+is not a static list: `./le inventory` prints what the build actually carries,
+and the registry is the authority.
+
+| AFI | SAFIs |
+|-----|-------|
+| ipv4 | `unicast`, `multicast`, `mpls-label`, `mvpn`, `sr-policy`, `mup`, `mpls-vpn`, `rtc`, `flow`, `flow-vpn` |
+| ipv6 | `unicast`, `multicast`, `mpls-label`, `mvpn`, `sr-policy`, `mup`, `mpls-vpn`, `flow`, `flow-vpn` |
+| l2vpn | `evpn`, `vpls` |
+| bgp-ls | `bgp-ls`, `bgp-ls-vpn` |
+
+Unicast and multicast are built into the engine. Every other family arrives
+with a `bgp-nlri-*` plugin, so removing that plugin removes the family.
+<!-- source: internal/core/family/family.go -- SAFI constants -->
+<!-- source: internal/core/family/registry.go -- Register -->
+
+---
+
+## Field naming
+
+JSON keys are lowercase kebab-case, never camelCase and never snake_case. The
+key matches the YANG leaf name or config tree key it carries, so the config key
+`remove-private-as` is `json:"remove-private-as"`.
+
+| Wrong | Right | Why |
+|-------|-------|-----|
+| `json:"remove-private"` | `json:"remove-private-as"` | Truncated; the key must match the full config key |
+| `json:"policyAttrASPathRemovePrivate"` | `json:"remove-private-as"` | camelCase is not kebab-case |
+| No `json` tag on an exported field | `json:"kebab-name"` | Go's default marshaling leaks the PascalCase field name |
+
+`internal/component/lg/handler_api.go` is the one exemption: the looking-glass
+API keeps birdwatcher-convention `snake_case` for Alice-LG compatibility.
+
 ---
 
 ## BGP Events

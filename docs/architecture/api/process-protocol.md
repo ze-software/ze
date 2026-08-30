@@ -306,6 +306,23 @@ nothing and counts nothing, so a command that wants one MUST emit the aggregate
 fields beside the detail rows. The full contract, both collision rules and the
 derived inheritance barrier are in `docs/architecture/api/commands.md`.
 
+Three holders refuse a declared alias name: a built-in pipe operator that
+carries the name, a pipe filter on an OVERLAPPING command path that carries it,
+and an alias on the EXACT same command path that carries it. The two populations
+differ because the two resolution rules differ: a filter wins its whole subtree,
+and a longer alias path deliberately shadows a shorter one.
+
+A declared alias resolves over the SSH exec channel and in the daemon-hosted
+interactive session, because the daemon expands the chain. It does not resolve
+in `ze cli` with no command argument. That process runs its own copy of the
+interactive model and expands the chain before it sends anything, and no plugin
+alias is registered there, so an operator reads
+`pipe error: unknown pipe operator: <name>` and Tab offers the name nowhere.
+`cliClient.StreamMonitor` has the same gap. The repair is a channel that carries
+the daemon's alias table to the client, and it is not built.
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+<!-- source: internal/component/command/alias.go -- RegisterPluginAliases -->
+
 <!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->

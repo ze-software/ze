@@ -428,6 +428,213 @@ Once all consumers migrated:
 
 ---
 
+## Why allocations on the UPDATE path cost
+
+Ze processes millions of BGP UPDATEs per second. Each UPDATE touches wire
+parsing, attribute extraction, pool dedup, RIB storage, route selection, filter
+evaluation, UPDATE building, and the TCP write. Every allocation on that path
+adds GC pressure and latency, so the path is built from three interlocking
+strategies: the caller owns the buffer, bounded pools replace `make()`, and the
+read side stays lazy (raw byte slices plus offset iterators, never parsed
+structs). `ai/rules/performance.md` carries the obligations.
+
+## The wire-to-wire buffer path
+
+```
+TCP recv → bufMuxStd / bufMuxExt block-backed buffer
+    → WireUpdate (lazy, references the pool buffer)
+    → attribute extraction (lazy iterators, no copy)
+    → pool dedup (per-attribute-type, refcounted)
+    → RIB entry (NLRI → attribute handle refs)
+    → route selection (operates on handles)
+    → outbound building (WriteTo into the destination peerPool buffer)
+    → TCP send → return the peerPool buffer
+```
+
+### Who owns the buffer at each stage
+
+| Stage | Buffer owner | What happens |
+|---|---|---|
+| TCP read | `bufMuxStd` (4K) or `bufMuxExt` (64K) | Wire bytes land in a block-backed pool buffer |
+| Parsing | Same buffer | `WireUpdate` holds a slice into the pool buffer, no copy |
+| Attribute extract | Same buffer | Lazy iterators return sub-slices, no copy |
+| Pool dedup | Attribute pool | First time: copy into the pool slab. Afterwards: refcount++ |
+| Forwarding, same context | Same pool buffer | Zero-copy: matching `ContextID` means the wire bytes are reusable |
+| Forwarding, different context | Destination `peerPool` | Copy-on-modify: the modified UPDATE is built into the outgoing buffer |
+| Overflow | `MixedBufMux` | Byte-budgeted, mixed 4K and 64K blocks |
+
+<!-- source: internal/component/bgp/reactor/session.go -- bufMuxStd, bufMuxExt, getReadBuffer -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- peerPool, peerPoolSize -->
+<!-- source: internal/component/bgp/reactor/bufmux.go -- BufMux, MixedBufMux, BufHandle -->
+
+### When a copy is deliberate
+
+A copy outside these four triggers is a defect until its reason is stated.
+
+| Copy trigger | Why |
+|---|---|
+| An attribute enters the pool for the first time | The pool owns the canonical copy; the wire buffer will be reused |
+| `ContextID` mismatch on forward | Wire bytes encoded for other capabilities need re-encoding |
+| A filter modifies attributes | The modified attributes are written into the outgoing buffer |
+| JSON serialization for an external plugin | An external plugin needs formatted text, not wire bytes |
+
+## The pools Ze runs
+
+| Pool | Location | Shape | Purpose |
+|---|---|---|---|
+| `bufMuxStd` | `internal/component/bgp/reactor/session.go` | Block-backed multiplexer, `message.MaxMsgLen` (4096) buffers | Session reads before Extended Message negotiation, and UPDATE attribute building |
+| `bufMuxExt` | `internal/component/bgp/reactor/session.go` | Block-backed multiplexer, `message.ExtMsgLen` (65535) buffers | Session reads after RFC 8654 Extended Message negotiation |
+| `peerPool` | `internal/component/bgp/reactor/forward_pool.go` | Ring of `peerPoolSize` (64) slots over one contiguous backing array | Per-peer outgoing buffers for copy-on-modify forwarding |
+| `MixedBufMux` | `internal/component/bgp/reactor/bufmux.go` | Byte-budgeted, mixed 4K and 64K blocks | Forward overflow when a peer pool is exhausted |
+| `modBufPool` | `internal/component/bgp/reactor/forward_build.go` | `sync.Pool` of 4096-byte buffers | Progressive-build scratch when no peer-pool slot is free |
+| Per-attribute-type pools | `internal/component/bgp/plugins/rib/pool/attributes.go` | `attrpool.Pool` dedup slabs, one per attribute type | RIB attribute deduplication |
+| `textbuf` pool | `internal/core/textbuf/textbuf.go` | `sync.Pool` reached through `Get()` and `Release()` | String building |
+
+The `bufMuxStd` and `bufMuxExt` names are the two read multiplexers
+`Session.getReadBuffer` and `getReadBuf` select between; there is no
+`readBufPool4K`, `readBufPool64K`, or `buildBufPool` in the tree.
+
+### Pool shape follows goroutine shape
+
+| Goroutine pattern | Pool strategy | Example |
+|---|---|---|
+| Single goroutine, sequential processing | Ring over a contiguous backing array, index stack | `peerPool`: one reactor loop builds one modified payload at a time per destination |
+| Multiple goroutines, concurrent access | Block-backed multiplexer or `sync.Pool` | `bufMuxStd`: many peers read at once |
+
+Every buffer in one pool is the same maximum size. Variable-sized allocation
+defeats the block accounting that lets a block be released whole.
+
+## Key wire abstractions
+
+| Type | Location | Purpose | Lifecycle |
+|---|---|---|---|
+| `WireUpdate` | `internal/component/bgp/wireu/wire_update.go` | Lazy-parsed UPDATE message, with `sync.Once`-guarded section, attribute and shape caches | Lives as long as the pool buffer its payload references |
+| `EncodingContext` | `internal/core/bgp/context/context.go` | Negotiated capabilities for one peer and one direction; derives the per-family ADD-PATH and paths-limit maps | Created once per peer per direction at session establishment |
+| `ContextID` | `internal/core/bgp/context/registry.go` | `uint16` naming a distinct encoding context | Same ID means same encoding, so wire bytes forward unchanged |
+| `BufHandle` | `internal/component/bgp/reactor/bufmux.go` | `{ID, idx, Buf}`: the block, the slot inside it, and the buffer slice | Zero `Buf` means the pool was exhausted; the caller returns it exactly once |
+| `BufWriter` | `internal/core/bgp/wire/writer.go` | `WriteTo(buf []byte, off int) int` | Implemented by every wire-encodable type |
+| `CheckedBufWriter` | `internal/core/bgp/wire/writer.go` | `BufWriter` plus `CheckedWriteTo(buf, off) (int, error)` and `Len() int` | Implemented where capacity is validated or a length is needed before the write |
+
+`Len()` is on `CheckedBufWriter`, not on `BufWriter`.
+
+Context-dependent encoding adds a second method, carried by the `Attribute`
+interface in `internal/core/bgp/attribute/attribute.go`:
+
+```go
+WriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) int
+```
+
+## Encoding patterns
+
+**Get, write, put.** Take a buffer from the pool, write with
+`WriteTo(buf, off) int`, return it to the pool.
+
+**Skip and backfill.** For a message with variable-length sections and a
+fixed-position length field: write the fixed bytes, skip the length field and
+save its offset (`lengthPos := off; off += 2`), write the payload forward at the
+advancing offset, then backfill the length at the saved position. This avoids
+the `Len()`-then-`WriteTo()` double traversal. `reactor_wire.go` holds the
+canonical implementation.
+
+### Where the buffer comes from
+
+```
+Is this on a per-UPDATE / per-route / per-NLRI path?
+├── YES: Does the caller already have a buffer in scope?
+│   ├── YES: Add buf/off parameters, write into it (WriteTo pattern)
+│   └── NO: Is there a pool for this goroutine shape?
+│       ├── YES: Get from pool, use, put back
+│       └── NO: Can the buffer be a struct field reused across calls?
+│           ├── YES: Store it on the struct, reset between uses
+│           └── NO: Create a sync.Pool for this use case
+└── NO (startup, config, CLI, one-shot):
+    ├── One-shot allocation → make() is fine
+    ├── String building → textbuf.Buffer (stack, 128B inline)
+    └── fmt.Sprintf → acceptable on cold paths
+```
+
+## Caller-owned buffers
+
+The most common allocation mistake is a callee allocating a buffer the caller
+could have passed down. The caller knows the loop count, the bounded maximum
+size, and when the buffer can be released; the callee knows none of the three.
+
+```go
+// BAD: allocates N times inside the loop
+for _, attr := range attributes {
+    packed := attr.Pack()         // make([]byte, attr.Len()) inside
+    copy(buf[off:], packed)
+    off += len(packed)
+}
+
+// GOOD: zero allocations
+for _, attr := range attributes {
+    off += attr.WriteTo(buf, off) // writes directly into the caller's buffer
+}
+```
+
+```go
+// BAD: buildPayload allocates its own scratch buffer
+func buildPayload(attrs []Attribute) []byte {
+    buf := make([]byte, totalLen(attrs))   // ALLOCATION
+    off := 0
+    for _, a := range attrs {
+        off += a.WriteTo(buf, off)
+    }
+    return buf
+}
+
+// GOOD: the caller passes its buffer
+func writePayload(buf []byte, off int, attrs []Attribute) int {
+    start := off
+    for _, a := range attrs {
+        off += a.WriteTo(buf, off)
+    }
+    return off - start
+}
+```
+
+When the caller cannot supply a buffer, because the function has many call
+sites or the scratch size varies, use a `sync.Pool` seeded with the
+common-case size. A caller needing more grows the slice with `append`, and the
+grown slice returns to the pool for later reuse.
+
+```go
+var scratchPool = sync.Pool{
+    New: func() any { return make([]byte, 0, 4096) },
+}
+
+func process(data []byte) Result {
+    scratch := scratchPool.Get().([]byte)[:0]
+    defer scratchPool.Put(scratch)
+
+    scratch = append(scratch, data...)
+    return buildResult(scratch)
+}
+```
+
+| Situation | Use |
+|---|---|
+| The caller has a buffer in scope | Pass it as a parameter |
+| The function has one or two call sites | Add a buf parameter to those callers |
+| The function has many call sites and the scratch is internal | `sync.Pool` |
+| The buffer is needed across goroutines | `sync.Pool` (goroutine-safe) |
+| Single goroutine, sequential processing | Ring buffer or struct field |
+
+## Common allocation mistakes
+
+| Mistake | Why it is wrong | Fix |
+|---|---|---|
+| `make([]byte, n)` in a per-UPDATE function | Allocates on every UPDATE | Get from a pool, or write into the caller's buffer |
+| `func Encode() []byte` returning allocated bytes | The caller must copy into its own buffer | `WriteTo(buf, off) int` |
+| `fmt.Sprintf` in reactor, wire, or attribute code | Two or more allocations per call | `textbuf.Buffer` or a `textbuf.String*` helper |
+| `addr.String()` in a loop | Allocates per iteration | `textbuf.Addr(buf[:0], addr)` into a stack buffer |
+| Holding a `WireUpdate` past the return of its pool buffer | The payload is a slice into that buffer | Copy what is needed before returning the buffer |
+| Building `[]string` then `strings.Join` in a loop | N+1 allocations | One `textbuf.Buffer` outside the loop |
+| `string(bytes)` for a comparison in a filter | Allocates the string | Compare bytes, or compare a typed value |
+| `map[string]V` keyed by a value from a known set | String keys hash over bytes and the GC scans their pointers | `map[uint16]V` or `map[TypedEnum]V`, parsing at the boundary |
+| `BufHandle{Buf: make(...)}` | Corrupts pool tracking: the `ID` names no block | Only use pool-issued handles |
+
 ## Related Documentation
 
 - `docs/architecture/encoding-context.md` - Context-dependent encoding

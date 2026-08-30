@@ -1,9 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Plugins that USE another plugin when it is present but can run without it
-declare the relationship as `OptionalDependencies` rather than `Dependencies`.
-Example: `bgp-rs` uses `bgp-adj-rib-in` for replay-on-peer-up when present,
-and disables replay (with a one-shot WARN log) when it is not.
+- **A plugin that USES another plugin when it is present but runs without it MUST declare the relationship as `OptionalDependencies`, never as `Dependencies`.** `Dependencies` is hard: a missing name gives `ErrMissingDependency` and startup fails. The resolver, validation and ordering semantics are `docs/architecture/plugin/plugin-system.md`, "Dependencies".

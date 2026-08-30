@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**Each reason below MUST NOT be used to carry a phase past its boundary.**
+
 | Banned | Reality |
 |--------|---------|
 | "I am already here, I will just implement it" | The phase changed. The model has to change with it |

@@ -1,9 +1,10 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 rationale: plan/journal/concurrent-session-corruption.md
 ---
-This is a false positive, not a rule violation, and it appears when auditing
-commit scripts. Do not rephrase the ban away or work around the hook's intent.
-Use the harness `Grep` tool instead of putting the banned verb in a Bash command.
+**A Bash refusal that fired on a SEARCH PATTERN is a false positive, and rephrasing the ban away or working around the guard's intent MUST NOT be the answer.**
+MUST run the scan through the harness `Grep` tool instead, so the
+banned verb never enters a Bash command line. Why the guard is coarse, and what
+the substitute scan looks like, is `docs/contributing/running-commands.md`.

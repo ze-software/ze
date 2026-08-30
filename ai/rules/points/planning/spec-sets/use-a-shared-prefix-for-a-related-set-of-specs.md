@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-When multiple specs form a related set (umbrella + child specs), use a shared prefix with numbering:
+- **A related set of specs, an umbrella with its children, MUST share one prefix and be numbered `spec-<prefix>-<N>-<name>.md`.** `docs/contributing/spec-workflow.md` gives the pattern and how the closure detector reads an umbrella.

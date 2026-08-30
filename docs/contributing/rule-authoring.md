@@ -173,16 +173,28 @@ rendered rule keeps the bytes the source had.
 
 A point IS an instruction. Delete the file and its manifest line together and
 every gate stays green, because the points and the rendered rule then agree on
-the smaller corpus.
+the smaller corpus. Git history says what left and when, so no ledger file
+records the removal.
 
-So a removal is declared: one row in `ai/rules/points/RETIRED.md`, naming the id
-and saying what happened to the instruction. `./le rules gate-map-report` compares
-each rule's point count against git HEAD and fails when a drop is not covered by
-a row added since HEAD. A row stops counting once it is committed, so nothing
-there pre-approves a future deletion.
+Moving a point between sections is a rename, not a retirement: the point's
+`// ze point:` binding is repointed at the new id.
 
-Moving a point between sections is a rename, not a retirement: the count does
-not change, and the point's `# ze point:` binding is repointed at the new id.
+## What the session payload artifacts hold
+
+Two files load into every session, and one generator emits both from one parse.
+
+| Artifact | Holds |
+|----------|-------|
+| `ai/rules/TRIGGERS.md` | One routing line per rule: its path, its severity, and its `**When:**` trigger. Every rule appears, so none is ever invisible |
+| `ai/rules/CORE.md` | The condensed directives of the always-on rules only |
+
+<!-- source: internal/le/rules/artifacts.go -- core_members -->
+Core membership is derived, never listed. A rule is always-on when the ladder in
+`ai/rules/rule-precedence.md` names it on rung 1 or 2, when it IS that ladder,
+when it has no routable trigger, or when no past task description in `plan/`
+would surface it. `./le rules router-report` prints that last set and the corpus
+it read, and `./le rules payload-report` measures what a session loads against a
+40,000-token budget.
 
 ## Binding a hook check to a point
 
@@ -209,10 +221,9 @@ Six of those sets fail. Dangling is a binding naming a point that does not
 exist. Regressed is a point that carried a binding at HEAD and carries none now,
 which is the one route from gated to ungated that leaves every other gate green.
 Declared-none is the same route with one more step: rename the point, then
-rewrite the dangling binding as `none -- <why>`. Shrunk is a rule that lost
-points no `RETIRED.md` row accounts for. The last two are a `rationale` naming
-no record and an `excepted-by` naming no point: the same defect one direction
-out, where the explanation or the exception moved out from under the
+rewrite the dangling binding as `none -- <why>`. The last two are a `rationale`
+naming no record and an `excepted-by` naming no point: the same defect one
+direction out, where the explanation or the exception moved out from under the
 instruction.
 
 Every count is a measurement and exits 0 whatever its value.
@@ -221,9 +232,12 @@ The files it reads come from the PreToolUse entries in `.claude/settings.json`.
 A fourth dispatcher joins the map by being wired up. A dispatcher that no entry
 runs is reported rather than skipped.
 
-The same target compares the Hook-to-Rule Mapping table in
-`ai/rules/repo-maintenance.md` against those comments. A new check therefore
-owes a row in that table, and a deleted check's row cannot survive it.
+The same target compares the Hook-to-Rule Mapping tables in
+`ai/rules/repo-maintenance.md` against those comments. Each table carries two
+columns, `Check` and `Enforces`, under a heading naming its Go source. A new
+check therefore owes a row, and a deleted check's row cannot survive it. What
+each check triggers on and what it does is documentation, and it lives in
+`.claude/hooks/README.md`.
 
 ## The order the generators run in
 

@@ -1,8 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-The spec template has a **Goal Validation** section (added below the Implementation Audit).
-Each row maps a stated goal to the evidence that proves it. This section is filled during
-`/ze-close` step 1 (Deliverables review) and verified during `/ze-review`.
+**The spec's Goal Validation section MUST map each stated goal to the evidence that proves it.** It is filled during `/ze-close` step 1 and verified during `/ze-review`.

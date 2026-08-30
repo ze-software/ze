@@ -1,11 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-User-facing and runtime failures (doctor, startup, config apply, readiness, plugin
-load) must carry a registered code in `internal/core/diagnostic/codes.go` with
-title, description, examples, and remediation, explainable via
-`ze explain <code>`. Return the code plus structured fields, not a pre-formatted
-sentence -- see `ai/rules/evidence.md`. The diagnostic code is what
-makes the corrective action machine-readable for an agent.
+**A user-facing or runtime failure (doctor, startup, config apply, readiness, plugin load) MUST carry a registered code in `internal/core/diagnostic/codes.go`, and the handler MUST return that code with structured fields rather than a pre-formatted sentence** (`ai/rules/evidence.md`). What each code holds, and how it reaches an operator, is `docs/architecture/cli/error-surface.md`.

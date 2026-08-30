@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**A piece of work MUST be assigned to the phase whose row covers it.**
+
 | Phase | Covers |
 |-------|--------|
 | Planning and design | research, `/ze-spec`, `/ze-design`, spec writing and revision, architecture decisions, RFC reading, handoff authoring |

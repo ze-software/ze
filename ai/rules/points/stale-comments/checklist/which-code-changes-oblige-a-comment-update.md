@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Each change below MUST carry its comment update:**
+
 | Change | Action |
 |--------|--------|
 | Function signature changes (return type, params) | Update all doc comments on the function |

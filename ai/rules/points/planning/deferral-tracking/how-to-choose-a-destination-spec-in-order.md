@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**These steps MUST be taken in this order, and a new deferral spec MUST NOT be created before step 1 has been searched.**
+
 | Order | Action | Detail |
 |-------|--------|--------|
 | 1 | Find an existing spec that already covers the topic | Search `plan/spec-*.md` for the topic, and scan `./le spec status`. Prefer a `spec-finish-<subsystem>` / `spec-followup-<subsystem>` umbrella when one owns the area |

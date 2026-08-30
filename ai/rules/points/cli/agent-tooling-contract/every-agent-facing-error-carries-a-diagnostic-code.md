@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Every validation error surfaced to agents must carry a stable diagnostic code.
+**Every validation error surfaced to an agent MUST carry a stable diagnostic code.**

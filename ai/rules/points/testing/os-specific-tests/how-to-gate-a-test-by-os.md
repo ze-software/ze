@@ -1,8 +1,11 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**A test that cannot run on every OS MUST be gated by the row that fits it, and
+its assertion MUST NOT be weakened to accept both outcomes.**
+
 | Situation | Do |
 |-----------|-----|
 | Whole file is OS-specific | `//go:build linux` on the file |

@@ -441,3 +441,207 @@ internal/component/cli/
     completer_command.go    # Command mode completion
     completer_plugin.go     # Plugin SDK method completion
 ```
+
+
+## 8. Module Identity
+
+| Element | Canonical | Anti-pattern |
+|---------|-----------|--------------|
+| Module name | `ze-<component>[-<kind>]`, matching the filename | `exabgp` (unprefixed; external-compat only) |
+| Namespace | `urn:ze:<component>:<kind>`, where `<kind>` (`conf`, `cmd`, `api`) is always a final colon segment | `urn:ze:ddos-detect-conf` (kind fused with a hyphen), `urn:ze:role` (no kind segment) |
+| Prefix | short, lowercase, unquoted, no hyphens, derived from the module | `prefix "bgp-mon-api";` (quoted, hyphens, abbreviated), `prefix updateshowcmd;` |
+| `revision` | at least one `revision YYYY-MM-DD { description ...; }` | no revision statement |
+| `description` | module-level `description` required | omitted |
+| `organization` / `contact` | omitted; not a project convention, and present in only one legacy batch | adding `organization` to a new module |
+
+`<component>` may contain hyphens for a multi-word name (`ddos-detect`,
+`firewall-irr`). `internal/plugins/ddos/local/` is the current inconsistency:
+its config module declares `urn:ze:ddos-local-conf` while its command module
+declares `urn:ze:ddos-local:cmd`.
+
+`zt` (ze-types) and `ze` (ze-extensions) are reserved prefixes.
+
+### Command-module naming is not converged
+
+The `-cmd` (grammar tree) and `-api` (handler) modules for operational verbs
+carry several names for the same verb: `ze-cli-monitor-cmd`
+(`internal/component/cmd/monitor/yang/`), `ze-monitor-cmd`
+(`internal/component/bgp/plugins/cmd/monitor/yang/`) and `ze-command-monitor-cmd`
+(`internal/plugins/meta/yang/`) all exist, and `ze-bgp-cmd-log-api` names a
+non-BGP command. Converging them is a rename that touches `//go:embed`,
+`register.go` and the YANG dispatch keys, so it is tracked separately and is not
+done piecemeal. A new command module for a verb takes the majority
+`ze-cli-<verb>-cmd` form with a paired `-api`.
+
+## 9. Value Typing
+
+Use the shared typedef. Do not re-express the same constraint a second way.
+
+| Concept | Use | Do not use |
+|---------|-----|------------|
+| IPv4, IPv6, or either address | `zt:ipv4-address`, `zt:ipv6-address`, `zt:ip-address` | raw `type string`; `type string; ze:validate "ipv4-address"` |
+| IPv4, IPv6, or either prefix | `zt:prefix-ipv4`, `zt:prefix-ipv6`, `zt:ip-prefix` | `type string; ze:validate "ipv4-prefix\|ipv6-prefix"` |
+| ASN, port | `zt:asn`, `zt:asn2`, `zt:port`, `zt:listener-port` | an inline `uint32` or `uint16` with a copied range |
+| Community, route distinguisher, address family | `zt:community`, `zt:route-distinguisher`, `zt:address-family` | a per-module pattern for the same shape |
+| MAC address | `zt:mac-address`, which `ze-types.yang` does not declare yet and which is added there | a per-plugin `ze:validate "mac-address"` |
+| Duration or other dimensioned value | an unsigned integer leaf with a `units` statement | `type string` for a duration; the unit implied only in the description |
+
+`ze:validate` is for runtime-determined valid sets: registered address families,
+plugin names, IRR set references, or a union with a literal keyword
+(`nonzero-ipv4|literal-self`). It does not duplicate a constraint that a native
+`pattern`, `range` or `enumeration`, or an existing `zt` typedef, already
+expresses. That is the contract stated on the `validate` extension in
+`ze-extensions.yang`.
+
+<!-- source: internal/component/config/yang/modules/ze-types.yang -- the typedef and grouping library -->
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension validate -->
+
+## 10. Units
+
+A leaf whose value carries a physical unit states that unit once, through the
+YANG `units` statement, and keeps the leaf name unit-free. This supersedes any
+unit-suffix-in-the-name guidance.
+
+| Rule | Canonical | Anti-pattern |
+|------|-----------|--------------|
+| One mechanism | `type uint32; units milliseconds;` | the unit in the leaf name (`min-tx-us`, `spf-delay-ms`, `teardown-grace-seconds`) |
+| Full word, unquoted | `units microseconds;`, `units seconds;`, `units bytes/second;` | `units "seconds";` (quoted), `-us`, `-ms`, `-secs` abbreviations |
+| Integer, not string | `type uint32; units seconds;` | `type string` for a duration |
+| Protocol-sane default | every dimensioned leaf carries a `default` set to the protocol's standard value (OSPF `hello-interval` 10s, `dead-interval` 40s, BFD tx and rx per RFC 5880) | no `default`, so omitting the leaf yields 0 or undefined timing |
+
+```
+leaf hello-interval { type uint32; units seconds; default 10; }
+```
+
+## 11. Network Endpoints
+
+An endpoint, a place to bind or a remote to connect to, is two structured fields
+from a shared grouping. A combined `"host:port"` string is never used.
+
+| Endpoint kind | Grouping | Fields | Port type |
+|---------------|----------|--------|-----------|
+| Inbound bind (the service listens) | `uses zt:listener` plus the `ze:listener` extension | `ip` (local literal), `port` | `zt:listener-port` (0 means OS-assigned) |
+| Outbound target (the service connects out) | `uses zt:endpoint`, added to `ze-types.yang`, which does not declare it yet | `address` (IP or hostname), `port` | `zt:port` (1..65535) |
+
+`ip` is a local literal address (`zt:ip-address`); `address` is a remote host
+that may be a name. The two field names encode that difference on purpose.
+`host` is not used, and `ip` is not used for a remote target.
+
+`refine` sets the per-service defaults for `ip` and `port`.
+
+| Listener pattern | When |
+|------------------|------|
+| `container` + `ze:listener` + `uses zt:listener` | Single-endpoint services: web, SSH, MCP, LG, telemetry, BGP global listen |
+| `list` + `ze:listener` + `uses zt:listener` | Named multi-instance listeners, such as the plugin hub server |
+| `container` + `ze:listener` + a manual ip/port pair | Only when the ip type differs from the standard one. BGP peer-local is the documented exception: a union with an `auto` enum |
+
+## 12. Structure, Toggles, Defaults and Layout
+
+| Pattern | Use |
+|---------|-----|
+| `grouping` plus `uses` | Shared structure within or across components |
+| `augment` | Only when a plugin extends another component's YANG |
+
+An on/off setting has one shape:
+`leaf enabled { type boolean; default false; }`.
+
+| Rule | Detail |
+|------|--------|
+| Positive assertion, one word | `enabled`, not `enable`, `disable` or `disabled` |
+| Standard admin-state words are the only exception | `shutdown` (BFD, RFC 5880 section 6.8.16) and interface `disable` (kernel admin-down) are the canonical protocol and kernel terms, so they are allowed, typed `boolean` with `default false`, never `type empty` |
+| No boolean-as-enum | A two-value on/off is not `enumeration { enum enable; enum disable; }`. A genuine tri-state for config inheritance is justified in the module; it is an exception |
+| Bare flag | "This section is on when present" is a `presence` container, not a `type empty` leaf |
+
+| Rule | Canonical | Anti-pattern |
+|------|-----------|--------------|
+| Boolean default is unquoted | `default false;` | `default "false";` |
+| enum `value N` only for wire numbers | assign `value` when the number is protocol-significant (AFI, SAFI, ORIGIN); otherwise omit it | assigning arbitrary values to cosmetic enums |
+
+| Layout rule | Detail |
+|-------------|--------|
+| Indentation | 4 spaces per level. No tabs, no 2-space modules |
+| Compact leaf | A leaf whose body is only `type`, optionally with `default` and `description`, may be one line: `leaf med { type uint32; description "..."; }` |
+| Expanded leaf | A leaf with nested constraints (`pattern`, `range`, `enumeration`, `must`, or several sub-statements) is expanded, one statement per line |
+| List key | quoted: `key "name";`. Prefer `name` for the operator-assigned key |
+
+## 13. Cross-Protocol Consistency
+
+Equivalent concepts are modelled the same way across BGP, OSPF, IS-IS, BFD, LDP
+and RSVP-TE, so an operator who has configured one protocol recognizes the next.
+
+| Concept | Canonical | Do not |
+|---------|-----------|--------|
+| BFD integration | `container bfd { leaf enabled; [leaf mode;] leaf profile; }` referencing a profile in the top-level `bfd { profile <name> }` list, which is BGP's pattern | redefine BFD timers inline (`min-tx`, `min-rx`, `multiplier`) |
+| Authentication | reference a shared `key-chains` list, which is IS-IS's model, through a `leaf key-chain`, and name the auth container the same everywhere | a per-protocol private key store; a container named `md5` in one place and `authentication` in another; a reference leaf named `key-chain` here and `auth-key-chain` there |
+| Per-interface protocol config | `container interfaces { list interface { key "name"; ... } }`, as OSPF and IS-IS do | a bare top-level `list interface` (RSVP-TE), or a `leaf-list interfaces` when per-interface settings exist (LDP) |
+| Multiplier, interval and timer names | one vocabulary for one concept, dimensioned through a `units` statement | four names for one concept (`detect-multiplier` against `multiplier` for the same BFD field) |
+| Toggle | positive `enabled` at every nesting level, sub-features included | `enabled` on the interface and `enable` on its sub-blocks |
+
+A genuine RFC-term difference is the only allowed divergence, and it is
+justified in the leaf or container `description`. Two exist: the metric name,
+OSPF `cost` against IS-IS `metric`, and the router identity, `router-id` for
+BGP, OSPF and RSVP-TE, `lsr-id` for LDP, `system-id` plus `net` for IS-IS.
+
+## 14. How a Config Value Reaches a Plugin
+
+### Every delivered value is a JSON string
+
+The plugin config framework hands every YANG leaf value to a plugin's
+`ParseConfig` as a JSON string (`"true"`, `"50000"`, `"3.5"`), never the native
+JSON type. A hand-written parser that coerces with a native type assertion fails
+that assertion and silently falls back to the leaf's default. There is no error,
+no panic and no log line, so a boolean `enabled` gate reading `"true"` leaves the
+whole feature off.
+
+A string-tolerant helper is the shape that works:
+
+```go
+func cfgBool(v any) (bool, bool) {
+	switch b := v.(type) {
+	case bool:
+		return b, true
+	case string:
+		if pb, err := strconv.ParseBool(strings.TrimSpace(b)); err == nil {
+			return pb, true
+		}
+	}
+	return false, false
+}
+```
+
+`./le config coercion check`
+(`internal/le/config/coercion/configcoercion.go`, wired into
+`./le verify current mode full`) parses every `internal/**/config.go` and fails
+on a type switch whose cases include a numeric or bool type but not `string`, or
+on a direct type assertion to a numeric or bool type.
+
+<!-- source: internal/le/config/coercion/configcoercion.go -- the coercion check -->
+<!-- source: internal/plugins/trafficusage/config.go -- cfgBool and the string arms of toInt and toFloat -->
+
+### The shapes a leaf-list and a list arrive in
+
+`Tree.ToMap` does not hand a reader what the YANG node type suggests, and JSON
+delivery adds one more shape on top.
+
+| Node | Members | Shape in process | Shape after JSON |
+|------|---------|------------------|------------------|
+| `leaf-list` | none active | key absent | key absent |
+| `leaf-list` | exactly one | bare `string` | bare `string` |
+| `leaf-list` | two or more | `[]string` | `[]any` |
+| `list` | any count, one included | `map[string]any` keyed by the list key | `map[string]any` keyed by the list key |
+
+A `list` is never a slice, and its key leaf is the map key rather than a field
+inside the entry.
+
+<!-- source: internal/core/configvalue -- LeafList, ListEntries -->
+<!-- source: internal/core/configorder -- Entries, OrderKey -->
+
+### Config text is set commands
+
+The config format is set commands. Duplicate blocks are additive and the parser
+merges them, so concatenating two valid config texts produces valid config.
+
+| Manipulation method | When |
+|---------------------|------|
+| Parsed YANG tree | When a loaded config tree is in memory |
+| Set command lines | When building or merging config text |

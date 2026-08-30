@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Paste command output as evidence. "Should work" is not evidence.
+**Command output MUST be pasted as the evidence. "Should work" is not evidence.**

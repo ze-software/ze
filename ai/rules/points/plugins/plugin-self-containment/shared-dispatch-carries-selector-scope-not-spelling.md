@@ -1,11 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Generic command plumbing carries **selector scope**, not command spelling.
-The dispatcher may extract a typed selector value because a YANG `ArgDef`
-declares it (`internal/component/plugin/server/command.go`), but it must not
-contain the words `peer`, `bgp`, `bfd`, or any plugin's grammar. The
-classification rule is ownership before grammar: shared dispatch may carry
-selector scope; it must not own a plugin's command spelling.
+- **Generic command plumbing MUST NOT carry a plugin's command spelling; it carries selector scope only.** The dispatcher MAY extract a typed selector value because a YANG `ArgDef` declares it, and it contains no plugin grammar: not `peer`, not `bgp`, not `bfd`. The classification rule is ownership before grammar.

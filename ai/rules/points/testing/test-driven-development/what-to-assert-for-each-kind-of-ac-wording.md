@@ -1,5 +1,5 @@
 ---
-kind: table
+kind: directive
 level: MUST NOT
 stage:
 ---

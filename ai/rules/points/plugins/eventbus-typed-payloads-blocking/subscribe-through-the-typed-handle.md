@@ -1,10 +1,6 @@
 ---
-kind: note
+kind: directive
 level: MUST
 stage:
 ---
-Subscribers MUST type-assert via the typed handle (`Event[T].Subscribe`)
-rather than calling `bus.Subscribe` directly. The handle's wrapper logs a
-warn on type mismatch; raw `bus.Subscribe` callers swallow mismatches
-silently. The legacy `events.AsString` shim exists only for events that
-have not yet migrated to a typed handle and is not for new code.
+- **A subscriber MUST type-assert through the typed handle (`Event[T].Subscribe`) rather than calling `bus.Subscribe` directly.** The handle's wrapper logs a warn on a type mismatch; a raw `bus.Subscribe` caller swallows the mismatch in silence. The legacy `events.AsString` shim covers events not yet migrated to a typed handle, and MUST NOT be used in new code.

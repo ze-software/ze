@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Every closure table MUST be re-verified after the audit, by the method its row names:**
+
 | Table | What to verify | How |
 |-------|---------------|-----|
 | Files Exist | Every file from "Files to Create" | `ls -la <path>`, paste output |

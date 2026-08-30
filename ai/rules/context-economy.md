@@ -6,9 +6,7 @@
 
 ## Directives
 
-Every figure here is reproducible from a named command, and there are two of them. A figure about this machine's session transcripts is printed by `./le token-economy`, which reads the local Claude Code transcript store. A figure about a FILE, including the `gopls` byte and token counts and command timings, comes from running the named command in this checkout; token counts there are characters / 3.6, the approximation `internal/le/tokeneconomy/tokeneconomy.go` uses. Nothing here is estimated, and a figure that no command reproduces does not belong in this rule.
-
-The store grows with every session. Re-run `./le token-economy` for current ratios instead of copying absolute measurements into rules.
+**An absolute token or byte measurement MUST NOT be copied into a rule.** The transcript store and the tree both grow, so the figure is wrong by the time a reader meets it. Re-run `./le token-economy` for a current ratio (`docs/contributing/navigating-the-code.md`).
 
 - **Cost per API call is the context size at that call, so the bill is round trips times context and nothing else moves it much.** Every choice below lowers one of those two terms.
 - **Trimming tool OUTPUT lowers neither term, so MUST NOT spend effort there.** A shorter command output changes no number a session pays for.
@@ -38,52 +36,19 @@ The store grows with every session. Re-run `./le token-economy` for current rati
 - **A Go symbol question MUST use the LSP tool or `gopls` before a whole-file read.**
 - Where no symbol server is available, use a narrow search followed by a ranged read.
 
-## Which LSP Operation Answers Which Question
-
-| Question | LSP tool operation | `gopls` CLI, available everywhere | What comes back |
-|----------|-----------|-----------------|-----------------|
-| What is in this file? | `documentSymbol` | `gopls symbols <file>` | every symbol with its line range: the map you would otherwise read the whole file to build |
-| What does this one symbol declare or say? | `goToDefinition`, then `hover` | `gopls definition <file>:<line>:<col>` | the declaration and its doc comment, not the file around it |
-| Who calls this? | `findReferences` | `gopls references <file>:<line>:<col>` | every call site as file plus line. `grep` on a common name returns the comments and the string literals too |
-| Who calls this, and from inside WHICH function? | `callHierarchy` | `gopls call_hierarchy <file>:<line>:<col>` | each caller's range AND the enclosing function that `references` leaves you to work out |
-| Where does a name I can spell actually live? | `workspaceSymbol` | `gopls workspace_symbol <name>` | the file holding it, without guessing a directory |
-| Does this file compile, and with what errors? | (diagnostics) | `gopls check <file>` | the type errors for that file. Silence and exit 0 mean clean |
-
 ## The gopls CLI: LSP From Any Context, Subagents Included
 
-- **`gopls` is on PATH (`internal/le/setup/tools.go`, `REQUIRED_TOOLS`), so ANY context with Bash reaches the capability, whatever its tool registry holds.** This is the fall-back route of the two above, and it needs no session restart. A context whose `ToolSearch` came back empty MUST run the command instead. It MUST NOT read a whole file to hunt for a symbol, and it MUST NOT report back that it could not look.
-- **The measured saving is the CLI's, not only the tool's.** `gopls symbols` output against the whole file: `internal/component/bgp/reactor/peer.go` 5,338 bytes against 48,513 (9.1x), `internal/component/ike/engine/fsm.go` 1,297 against 44,164 (34.1x), `internal/component/bgp/reactor/session_prefix.go` 2,254 against 23,395 (10.4x). One `definition` answered in 705 bytes, doc comment included.
-- **The two-step recipe, and the only one you need: `gopls symbols <file>` prints `Name Kind <line>:<col>-<line>:<col>`, and that `<line>:<col>` is exactly what `definition`, `references` and `call_hierarchy` take.** MUST find the symbol in step one, ask about it in step two. MUST NOT guess a position.
-- **Positions are 1-based and the column is the START of the identifier, never the start of the line.** A `func` declaration puts its name at column 6.
-- **Every invocation starts a fresh server and loads the workspace, so MUST budget seconds, not milliseconds.** Measured warm in this repository: `symbols` 3.3s, `workspace_symbol` 3.7s, `references` 4.1s, `definition` 6.5s. A 60s timeout is generous; MUST NOT paste a multi-minute one.
-- **MUST batch them like any other Bash call.** Several independent `gopls` questions belong in ONE message, as with any independent calls.
-- **The `gopls mcp` server is not registered.** Headless `gopls mcp` watches every directory under the workspace root and holds one open file descriptor per file because fsnotify uses kqueue on macOS. It honors no directory filter: `skipDir` in `golang.org/x/tools/gopls/internal/filewatcher/fsnotify_watcher.go` skips only names that start with `.` or `_`, and `testdata`. MUST use the LSP tool or the CLI above.
-
-```
-$ gopls symbols internal/component/bgp/config/resolve.go
-ResolveBGPTree Function 43:6-43:20
-$ gopls definition internal/component/bgp/config/resolve.go:43:6
-.../resolve.go:43:6-43:20: defined here as func ResolveBGPTree(tree *config.Tree) (map[string]any, error)
-ResolveBGPTree resolves peer-group inheritance and returns the bgp block as map[string]any.
-$ gopls references internal/component/bgp/config/resolve.go:43:6
-.../loader_create.go:274:28-42
-.../peers.go:53:18-32
-```
+- **`gopls` is on PATH (`requiredTools`, `internal/le/setup/tools.go`), so ANY context with Bash reaches the capability, whatever its tool registry holds.** This is the fall-back route of the two above, and it needs no session restart. A context whose `ToolSearch` came back empty MUST run the command instead. It MUST NOT read a whole file to hunt for a symbol, and it MUST NOT report back that it could not look.
+- **MUST find the symbol with `gopls symbols <file>` first, then ask about that position. MUST NOT guess a position.** The operations, the position format, the cost, and a worked example are in `docs/contributing/navigating-the-code.md`.
+- **MUST batch `gopls` calls like any other Bash call.** Several independent questions belong in ONE message.
+- **The `gopls mcp` server is not registered and MUST NOT be used.** It holds one open file descriptor per file under the workspace root. Use the LSP tool or the command line.
 
 ## Which Index Answers Which Question
 
-- **A question about what a file is FOR, what a package does, or which doc governs a subsystem MUST go to the index that answers it, before Read and before Grep over `docs/`.** The symbol route above answers what code IS; these answer what it is FOR, and neither substitutes for the other.
-- **Every non-test `.go` file carries that answer in its own first 25 lines, as a `// Design: <doc> -- topic` header** (`DESIGN_RE`, `internal/le/docstocode/docstocode.go`). On `internal/component/bgp/reactor/peer.go` the header block is 378 bytes against the file's 66,700 (176x), and it names the sibling files that own each detail.
-- **MUST grep an index; MUST NOT read one.** `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md` are about 293KB and 301KB, so reading either whole costs more than the source it was meant to save.
+- **A question about what a file is FOR, what a package does, or which doc governs a subsystem MUST go to the index that answers it, before Read and before Grep over `docs/`.** The symbol route above answers what code IS; these answer what it is FOR, and neither substitutes for the other. `docs/contributing/navigating-the-code.md` names which index answers which question.
+- **Every non-test `.go` file carries that answer in its own first 25 lines, as a `// Design: <doc> -- topic` header** (`HeaderLines` and `designLine`, `internal/le/docstocode/docstocode.go`).
+- **MUST grep an index; MUST NOT read one.** `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md` are each several hundred kilobytes, so reading either whole costs more than the source it was meant to save.
 - **A digest orients; it never proves.** `ai/digests/*.md` are hand-maintained (`ai/digests/README.md`), so MUST open the files a digest names before stating what code does (`ai/rules/evidence.md`).
-
-| Question | Where the answer is | What comes back |
-|----------|---------------------|-----------------|
-| What is this file for, and which doc governs it? | the file's own `// Design:` header, in its first 25 lines | the design doc, plus the sibling files that own each detail |
-| Which docs cover this code? | `grep` the basename under its package heading in `ai/CODE-TO-DOCS.md` | every doc citing it. Rows are keyed by BASENAME, so the package heading is what stops a bare `grep peer.go` returning three packages |
-| Which `.go` files implement this design doc? | `grep` the doc path in `ai/DOCS-TO-CODE.md` | every file whose `// Design:` header cites that doc, one line each |
-| What does this package do? | `grep` the package path in `ai/PACKAGE-MAP.md` | one line, derived from the package doc comment |
-| How does this subsystem flow, entry to exit? | `ai/digests/<subsystem>.md` | the flow with `file:line`, the load-bearing files, and the invariants |
 
 ## What This Rule Never Targets
 
@@ -99,6 +64,8 @@ $ gopls references internal/component/bgp/config/resolve.go:43:6
 **Not the agents: "this edit is small, I will just do it inline" is banned reasoning (`ai/rules/planning.md`), and this rule says MUST SIZE an agent, MUST NOT spawn fewer.**
 **Not the rounds: `ai/rules/planning.md` "Bounding the loop" owns that number, and the diff's SIZE never bounds it. Every fix is new code and earns a fresh pass, and any always-in-scope class re-opens the loop whatever the diff's size, so a two-line change that removes a guard earns a second round exactly like a large one. What DOES bound it is what the rounds are finding: `./le spec session review record` refuses more than three without `--rounds-reason` naming the PRODUCT defect a later round found, because a round auditing the spec's own closure prose is not converging on anything (`ai/rules/planning.md`, "A finding in the record is not a finding in the product").**
 
+**A change MUST get the process its row names, and no more:**
+
 | The change | The process it earns |
 |------------|----------------------|
 | Anything short of a non-trivial feature, whatever its line count | No spec. Every phase it does run still runs in its own agent, and the review loop keeps its own bound |
@@ -110,9 +77,11 @@ $ gopls references internal/component/bgp/config/resolve.go:43:6
 
 ## Banned Reasoning
 
+**This reasoning MUST NOT be acted on:**
+
 | Banned | Reality |
 |--------|---------|
-| "I will read the whole file so I have the full picture" | Grep for the symbol, then read its range |
+| "I will read the whole file so I have the full picture" | Resolve the symbol, then read its range |
 | "One tool call at a time is safer" | Safety is dependency, not sequence: independent calls are safe in one message |
 | "These two calls are related, so batch them" | Related is not independent. An Edit that consumes a Read in the same batch runs on content that was never returned |
 | "My package is bigger than one agent, so I will drop the last acceptance criterion" | Scope is not yours to cut (`ai/rules/completion.md`). Report the size; the main thread re-cuts the packages |
@@ -121,7 +90,7 @@ $ gopls references internal/component/bgp/config/resolve.go:43:6
 | "My context is nearly full, I will push through to the end" | Write the state file and hand off |
 | "LSP is IDE navigation, grep is enough for me" | Grep matches strings; LSP resolves symbols |
 | "I need to know what this file is for, so I will read it" | Its `// Design:` header sits in the first 25 lines and names the doc that governs it |
-| "I will read `ai/CODE-TO-DOCS.md` to find which doc covers this" | It is 293KB. Grep the basename under its package heading |
+| "I will read `ai/CODE-TO-DOCS.md` to find which doc covers this" | It is hundreds of kilobytes. Grep the basename under its package heading |
 | "The LSP schema loaded, so LSP works" | A loaded schema is not a running server. With `gopls` absent every call returns `ENOENT`. Verify the server once (`.claude/rules/session-start.md`) |
 | "My ToolSearch came back empty, so I have no LSP here" | You have no LSP TOOL here. The capability is on PATH: run `gopls` from Bash |
 | "Subagents never get LSP, so I will not try" | Which contexts carry the tool depends on the harness build and the machine, and both change. Issue the query, then fall back |

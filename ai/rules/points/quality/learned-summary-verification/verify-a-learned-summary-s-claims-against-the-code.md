@@ -1,9 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Learned summaries can contain wrong claims about what is "deferred" or "requires X change."
-When a summary says something is "deferred because X is missing" or "requires Y change,"
-verify the claim against actual code before reporting it to the user. Read the function
-signature, check the types. Do not parrot deferred-item descriptions from summaries.
+**A learned summary's claim that something is "deferred because X is missing" or "requires Y change" MUST be verified against the code before you report it.** Read the function signature and check the types. You MUST NOT repeat a deferred-item description from a summary as fact.

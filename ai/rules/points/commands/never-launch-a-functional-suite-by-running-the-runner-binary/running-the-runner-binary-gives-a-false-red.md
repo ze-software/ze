@@ -1,8 +1,12 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Running a raw `ze-test` binary is not equivalent to `./le functional <suite>`.
-The native action builds the isolated tagged pair, sets `ZE_BIN` and
-`ZE_TEST_BIN`, and owns the scratch environment. Bypassing it can produce a convincing false red.
+**A functional suite MUST NOT be launched by running a `ze-test` binary
+directly. MUST use `./le functional <suite>`.** A raw runner rebuilds a daemon
+without the test-only surface, so it produces a convincing false red. The
+`--server` and `--client` hints the runner prints on failure repeat that same
+launch and MUST NOT be followed either. The mechanism, and the table of how to
+run one suite, one test, or a VM suite, is
+`docs/contributing/running-commands.md`.

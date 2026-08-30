@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Each feature type MUST carry the test its row names:**
+
 | Feature Type | Required Test |
 |-------------|---------------|
 | Injectable interface | Inject fake, verify component uses it |

@@ -1,10 +1,12 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Every gated requirement needs BOTH a positive and a negative test. A negative-only test
-passes if the code rejects everything; a positive-only test passes if it accepts
-everything. Only the pair pins behavior to the requirement. Assert the EXACT outcome, never
-a floor: `GreaterOrEqual(TreatAsWithdraw)` is also satisfied by `SessionReset`, so it cannot
-fail when the implementation over-reacts. See `ai/skills/ze-rfc.md`.
+**Every gated requirement MUST have BOTH a positive and a negative test.** A
+negative-only test passes when the code rejects everything, and a positive-only
+test passes when it accepts everything; only the pair pins behavior to the
+requirement.
+**The assertion MUST name the EXACT outcome and MUST NOT assert a floor.**
+`GreaterOrEqual(TreatAsWithdraw)` is also satisfied by `SessionReset`, so it
+cannot fail when the implementation over-reacts.

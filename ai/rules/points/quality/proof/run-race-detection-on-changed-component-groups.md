@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Race coverage: `./le verify current mode full` runs `-race` on component groups with changed `.go` files. For reactor concurrency changes, also run `go test -race -count=20 ./internal/component/bgp/reactor/...`.
+**A change to reactor concurrency code MUST also be run under `go test -race -count=20 ./internal/component/bgp/reactor/...`.** `./le verify current mode full` already race-instruments the component groups your changed `.go` files reach.

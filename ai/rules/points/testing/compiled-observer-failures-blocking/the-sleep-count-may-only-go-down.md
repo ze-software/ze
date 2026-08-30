@@ -3,11 +3,10 @@ kind: directive
 level: MUST
 stage:
 ---
-**Sleep ratchet (BLOCKING):** the total `time.sleep(` count across
-`test/**/*.ci` MUST NOT increase. The committed baseline lives in
-`test/.ci-sleep-baseline`; `./le doc wiring` fails when the count
-exceeds it. Use `ze_api` `wait_for_event` / `wait_for_shutdown` / `wait_until` /
-`dispatch_until` (the payload-predicate waits, below) instead of sleeps (sleeps
-hide real races). When your change removes sleeps, lower the baseline in the same
-change. Known violations are tracked in `plan/known-failures/`
-and MUST be migrated.
+**Sleep ratchet: the total `time.sleep(` count across `test/**/*.ci` MUST NOT
+increase.** The committed baseline lives in `test/.ci-sleep-baseline`, and
+`./le doc wiring` fails when the count exceeds it. **A payload-predicate wait
+MUST be used instead of a sleep**, because a sleep hides a real race:
+`fixture.Poll` around `fixture.Dispatch` in a compiled observer, or a
+`wait_until` / `dispatch_until` engine step. **A change that removes sleeps MUST
+lower the baseline in the same change.**

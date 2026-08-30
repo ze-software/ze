@@ -1,11 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-The website plugin catalog in `../gh-pages/docs/features/plugins/` is
-generated from `registry.Registration` fields by `./le site build`.
-`internal/le/site` owns the website catalog producer. When adding or
-changing a
-plugin, treat `Name`, `Description`, `ConfigRoots`, `Dependencies`,
-`OptionalDependencies`, and `YANG` as public catalog data.
+- **`Name`, `Description`, `ConfigRoots`, `Dependencies`, `OptionalDependencies` and `YANG` MUST be treated as public catalog data.** `./le site build` generates the website plugin catalog from them, so a package move or a config-root change changes what is published. The generation path is `docs/architecture/plugin/plugin-system.md`, "Registration metadata feeds the website catalog".

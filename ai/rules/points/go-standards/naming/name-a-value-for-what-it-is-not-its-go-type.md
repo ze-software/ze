@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-Names of variables and constants must describe what the value IS, not its Go type.
+**A variable or constant MUST name what the value IS. It MUST NOT encode its Go type.** `famStr`, `levelStr` and `addrStr` name the type; `family`, `level` and `addr` name the value. The banned patterns and their fixes are in `docs/contributing/go-conventions.md`.

@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-A rule is a DIRECTORY of points, and `ai/rules/<rule>.md` is generated from it. An agent reads the rendered file and gets the same bytes it always got. An author edits the points. `writeRenderedRule` in `internal/le/hookruntime/writeedit.go` refuses an edit to the rendered file and names the canonical point directory.
+**A rule is a DIRECTORY of points, and `ai/rules/<rule>.md` is GENERATED from it. You MUST edit the points; you MUST NOT edit the rendered file.** `writeRenderedRule` in `internal/le/hookruntime/writeedit.go` refuses the edit and names the canonical point directory. The layout, the frontmatter fields, the renderer's refusals and the generator order are in `docs/contributing/rule-authoring.md`.

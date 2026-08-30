@@ -1,16 +1,9 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-| Mistake | Why it's wrong | Fix |
-|---|---|---|
-| `make([]byte, n)` in a per-UPDATE function | Allocates on every UPDATE | Get from pool or write into caller's buffer |
-| `func Encode() []byte` returning allocated bytes | Caller must copy into its buffer | Change to `WriteTo(buf, off) int` |
-| `fmt.Sprintf` in reactor/wire/attribute code | 2+ allocations per call | `textbuf.Buffer` or `textbuf.StringUint32()` |
-| `addr.String()` in a loop | Allocates per iteration | `addr.AppendTo(buf[:0])` into stack buffer |
-| Holding WireUpdate past readBuf return | WireUpdate references readBuf memory | Copy needed data before returning readBuf to pool |
-| Building `[]string` + `strings.Join` in a loop | N+1 allocations | Single `textbuf.Buffer` outside the loop |
-| `string(bytes)` + comparison in a filter | Allocates the string | Compare bytes directly or use typed value |
-| `map[string]V` keyed by value from a known set | String keys cost: hash over bytes, GC scans pointers | `map[uint16]V` or `map[TypedEnum]V`; parse string at boundary (`ai/rules/go-standards.md`) |
-| `BufHandle{Buf: make(...)}` | Corrupts pool tracking | Only use pool-issued BufHandles; `writeGoPatterns` in `internal/le/hookruntime/writeedit.go` enforces |
+- **A per-UPDATE, per-route or per-NLRI function MUST NOT allocate: no `make([]byte, n)`, no `func Encode() []byte`, no `fmt.Sprintf`, no `.String()` in a loop, no `[]string` plus `strings.Join`. It MUST take a pool buffer or the caller's buffer, and MUST return bytes written.**
+- **A `BufHandle` MUST NOT be hand-built. `BufHandle{Buf: make(...)}` names no block and corrupts pool tracking, so only a pool-issued handle is valid. `writeGoPatterns` in `internal/le/hookruntime/writeedit.go` refuses both at edit time.**
+- **A `WireUpdate` MUST NOT be held past the return of the pool buffer its payload references. Anything still needed MUST be copied first.**
+- The full mistake-and-fix table, with the reason each one costs, is `docs/architecture/buffer-architecture.md` ("Common allocation mistakes").

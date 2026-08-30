@@ -1,6 +1,7 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-What the recurring package names mean, verified against each package's own doc comment (`ai/PACKAGE-MAP.md`). When creating a NEW package, pick the term whose definition matches your concern; do not coin a new synonym. The glossary documents existing packages: it does not force renames (existing protocols keep their vocabulary; renames need an explicit user-approved shortlist).
+**When you create a NEW package, you MUST pick the term from the glossary whose definition matches your concern. You MUST NOT coin a synonym.** The glossary is in `docs/contributing/go-conventions.md`, verified against each package's own doc comment.
+**The glossary documents the packages that exist and forces no rename.** An existing protocol keeps its vocabulary, and a rename needs an explicit user-approved shortlist.

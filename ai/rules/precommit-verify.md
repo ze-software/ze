@@ -6,8 +6,8 @@
 
 ## Does `./le verify current mode full` Apply?
 
-BLOCKING only when the commit could plausibly affect build, tests, or
-generated code.
+**A commit whose files fall on a YES row MUST have the gate run over it; a
+commit whose files all fall on the NO row MUST NOT pay for one.**
 
 | Files in commit | Run `./le verify current mode full`? |
 |-----------------|------------------|
@@ -17,129 +17,39 @@ generated code.
 | Anything that runs at build time or affects a binary | YES |
 | `ai/**/*.md`, `.claude/**/*.md`, `plan/**/*.md`, `docs/**/*.md`, `README.md` | NO |
 
-Mixed commit: one YES row -> run. Do not split a commit to skip.
-Decision rule: "could this make a Go test fail or break the build?"
-No = skip and note in commit summary. Unsure = run.
+**A mixed commit with one YES row MUST be verified, and it MUST NOT be split to
+escape that.** The question to answer is "could this make a Go test fail or break
+the build?". A no skips the gate and says so in the commit summary. Anything
+short of certainty MUST be treated as a yes.
 
 ## Running The Gate
 
-`./le verify worktree`, in the foreground ("Running ./le verify current mode full" below). Not `go test`,
-not any subset.
-Before any verify target, check freshness. `./le verify status check`
-with no arguments asks about the whole tree, and `check <PATH>...` asks about the
-named paths alone. A FRESH answer covers the paths it was asked about and forbids
-rerunning `./le verify worktree` or
-`./le verify worktree`. The check output is qualified by mode:
-`FRESH(./le verify current mode full)` covers everything; `FRESH(./le verify current mode changed)` is a
-weaker pass (no full lint, no vet evidence, no cached full unit pass) --
-for commit preparation treat both as FRESH, but when the work explicitly
-needs the full gate (release evidence, repo-wide changes), a full
-`./le verify worktree` on a FRESH(./le verify current mode changed) tree is permitted. A pass
-recorded with skipped suites (`ZE_SKIP_SUITES`) reports STALE. `./le verify current mode full` uses a two-pass strategy: cached
-full pass (no `-race`) + `-race` only on component groups with changed
-`.go` files. `./le verify current mode changed` scopes to the packages the change set
-reaches: the uncommitted and untracked paths, PLUS the paths committed
-since the last green verify (`runSelector`,
-`internal/le/changed/scope.go`; baseline = `git_sha` in
-`tmp/ze-verify.status`), so a package committed before it was verified is
-still tested rather than skipped on the now-clean tree. What that
-selection answers is below. For reactor concurrency changes, also run
-`./le job run label reactor-race command go test -race -count=20 ./internal/component/bgp/reactor/...`. Output writes: `tmp/ze-verify.log`, per-stage logs
-under that run's own `tmp/verify/run-<start>-<mode>-<id>/` (reach one through the
-`detail-log` field of the failure index, never by guessing a path),
-`tmp/ze-verify-failures.log`,
-`tmp/ze-verify-failures.json`, and `tmp/ze-verify.status`. The full mode writes
-`tmp/ze-verify-full.json` as well, which is the coverage record a Go-carrying
-commit is gated on: the changed mode never writes it, so a cheaper run cannot
-certify one.
+**Freshness MUST be checked before any verify target, and a FRESH answer MUST NOT
+be answered with another run.** `./le verify status check` with no arguments asks
+about the whole tree; `check <PATH>...` asks about the named paths alone. Treat
+`FRESH(full)` and `FRESH(changed)` alike for commit preparation. A full run on a
+`FRESH(changed)` tree is permitted when the work explicitly needs the full gate.
+**A per-stage log MUST be reached through the `detail-log` field of the failure
+index, never by constructing a path**: each run gets its own directory under
+`tmp/verify/`. What each mode covers and what each run writes is
+`docs/architecture/testing/verify-freshness-scope.md` and
+`docs/contributing/running-commands.md`.
 
-- **One producer answers the change set: `runSelector` (`internal/le/changed/scope.go`). `internal/le/changed/changed.go` holds no selection logic and only dispatches between the two routes to it.**
-- **A verify run selects ONCE, before the first stage, writes the answer into that run's own artifact directory, and names that file to every stage in `ZE_VERIFY_SCOPE_PACKAGES`.** Two runs of one checkout therefore never share a scope, and no two stages of one run scope to different trees.
-- **A direct `./le verify lint run` or `./le test-unit` outside a verify run has no published answer, so it selects its own** (2.4 to 2.9s). Both routes reach the same producer.
-- **The import graph is built with `ze_core` and every tag in `feature-gates.txt`, so a `//go:build ze_<feature>` importer is selected.** One file under `internal/component/ssh` selects `./cmd/ze`, `./cmd/ze/hub` and `./internal/component/ssh`, and the feature answer is `ze_ssh` alone.
-- **The reverse walk stops at two levels of importers.** `./le changed scope drop-log FILE` records which packages that bound dropped.
-- **Ask before assuming:** `./le changed scope print both` shows the current change set's package and feature-tag scope.
+- **Step 0. Run `./le verify status check`. A FRESH answer MUST NOT be answered with another run; note its timestamp. A STALE answer continues only when the table above says verification applies.**
+- **Step 1. Run `./le verify worktree` in the foreground, with the largest timeout your harness allows, and never kill it early. On failure you MUST read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open the stage log its `detail-log` field names in `tmp/ze-verify-failures.json`.**
+- **Step 2. A failure from the current work, or any failure blocking this commit's goal, MUST be fixed and re-run. Any other failure gets its spec, this commit finished, and the question to Thomas whether that spec runs (`ai/rules/completion.md`). A deterministic structural gate is NEVER on this branch and MUST be fixed before any commit. A `plan/known-failures/` shard is only for a failure you tried and could not reproduce, and it carries the reproduction attempt and the next step.**
 
-| The change set holds | The scoped stages get |
-|----------------------|-----------------------|
-| a `.go` file | its package, plus every importer within two levels, with the feature tags on |
-| `go.mod`, `go.sum`, or a `vendor/` path | `./...`, and the widening names the path: a dependency moved, so every package that compiles against it is reachable |
-| a kind a rule names: the RFC corpus, Markdown under `ai/`, `plan/`, or `docs/`, `.github/*.yml`, or `.claude/settings*.json` | the native Go packages whose tests read that kind, never the whole tree |
-| a `.ci`, `.et`, or `.wb` body under `test/` | the Go packages that walk that corpus. `.ci` selects `./internal/test/runner`, `./internal/le/docvalid`, and `./internal/le`; `.et` selects `./internal/component/cli/testing`; `.wb` selects `./internal/component/web/testing` |
-| a path under `examples/plugin/go`, matched BEFORE the `.go` rule | no package. It is a separate module, so `go list ./...` never reports it and nothing here compiles or reads it. Ordering is load-bearing: the `.go` rule would seed a directory no package owns and widen the whole run |
-| a path under `gokrazy/modcache/` | no package. A third-party module cache every tree walker names in a skip list |
-| a `.go` file the unit tag set never compiles, in the module root | `./internal/le`, whose tree-walking tests read it. `./...` does not compile it either, so widening would buy nothing |
-| a `.go` file under `cmd/ze-installer` | `./...`. The row was no-widen until 2026-08-24. `internal/le/verify/lint/matrix.go` now lints that package under a `ze_installer` flavor whenever the lint runs over `./...`. As a result, the wide answer is the only one that reports on an edit to the initrd's PID 1 |
-| a kind no rule names | the package it sits in when that directory holds Go source, the tooling packages otherwise. The path is NAMED on stderr, which is the evidence for writing it a rule |
-| nothing, and `tmp/ze-verify.status` holds no green commit | `./...`, and the widening names the condition. Without a proven commit, every commit in history is unverified, so a clean tree must not select nothing |
+**MUST run `./le verify worktree` in the foreground, wait for it, and never poll: the foreground return IS the completion signal.**
+**MUST NOT kill it for being slow, and MUST give the call the largest timeout the harness allows.** A verify that is still running is not a verify that is hung, and killing one costs the whole pass rather than the seconds it saves.
+**When the harness caps a foreground call BELOW a full pass, the run MAY be started detached, and only where the harness raises a completion event of its own.** A truncated run rewrites no verify record, so a commit gate reading that record could never be cleared from inside such a harness. Where the harness itself says when the job ended, that event IS the completion signal.
+**Waiting on that event is not polling: MUST NOT sleep-and-check, MUST NOT `tail` a log that is still growing, and MUST NOT start a second run to find out where the first one got to.** A second run contends for the same job slot, and a live run is never the one displaced.
+**A harness that raises no completion event has no detached route: MUST say the cap is in the way and hand the run to the operator.** Claiming a pass from a run that was killed at a ceiling is worse than not running it.
+**MUST NOT edit the tree while the run is detached.** Detached says where the completion signal comes from. It does not license other work in the tree meanwhile, because the run reads the working tree either way.
+**MUST NOT take a timeout from a duration written in any rule: read `tmp/.ze-verify-duration.txt` instead.** Two rules quoting different figures are different hardware, not a contradiction, and a slow run is never broken for being slow. What writes that file, and the stall window that actually displaces a holder, are `docs/contributing/running-commands.md`.
 
-```
-[ ] 0. `./le verify status check`. FRESH -> MUST NOT run `./le verify worktree` or `./le verify worktree` again; note timestamp. STALE -> continue only if the table above says verification applies.
-[ ] 1. `./le verify worktree` (foreground, largest timeout your harness allows, never killed early) only when status is STALE and the table above says YES. On failure read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open the stage log its `detail-log` field names in `tmp/ze-verify-failures.json`. Each run keeps its own directory, so a path from an earlier run is a different run's evidence.
-[ ] 2. Failure from current work, or any failure that blocks this commit's goal: fix + re-run. Any other failure, and never a deterministic structural gate, which is fixed before any commit (see "Structural Gates Are Never Known-Red" below): write its spec, finish this commit, ask Thomas whether that spec runs (`ai/rules/completion.md`). A `plan/known-failures/` shard is for a failure you tried and could not reproduce, and it carries the reproduction attempt and the next step.
-```
-
-Each directive below is one physical line on purpose. `condense_body`
-(`internal/le/rules/artifacts.go`) emits a bold-led LINE raw into
-`ai/rules/CORE.md`, so an instruction that wraps arrives there cut in half.
-
-**Run `./le verify worktree` in the foreground, wait for it, and never poll: the foreground return IS the completion signal.**
-No background run, no sleep-and-check loop, no `tail` on a log that is still
-growing.
-
-**Do not kill it for being slow. Give the call the largest timeout your harness allows.**
-A verify that is still running is not a verify that is hung, and killing one
-costs the whole pass rather than the seconds it saves.
-
-**When your harness caps a foreground call BELOW a full pass, you MAY start the run detached, and only where the harness raises a completion event of its own.**
-The two directives above are one requirement, not two: wait for the completion
-signal, and never substitute a guess for it. A harness that kills the call at a
-fixed ceiling turns "run it in the foreground" into an instruction that cannot be
-followed, and a truncated run rewrites no verify record, so a commit gate that
-reads that record can never be cleared from inside such a harness. Where the
-harness itself says when the job ended, that event IS the completion signal the
-first directive names, and starting the run detached costs none of the
-properties these directives protect.
-
-**Waiting on that event is not polling. MUST NOT sleep-and-check, MUST NOT `tail` a log that is still growing, and MUST NOT start a second run to find out where the first one got to.**
-The ban is on inventing a progress signal, never on the run being detached. A
-second run is the worst of these: it contends for the same job slot, and
-`_scan_and_claim` (`./le job run`) judges a holder by its log's mtime,
-so a live run is never the one displaced.
-
-**A harness that raises no completion event has no detached route: say the cap is in the way and hand the run to the operator.**
-Reporting the limit costs one line. A verify nobody watched, whose record nobody
-refreshed, is the failure this whole point exists to prevent, and claiming a pass
-from a run that was killed at a ceiling is worse than not running it.
-
-**Never edit the tree while the run is detached, and treat the wait as the same blocking wait a foreground call would have been.**
-Detached says where the completion signal comes from. It does not license doing
-other work in the tree meanwhile, because the run reads the working tree either
-way.
-
-**Never take a timeout from a duration written in a rule: read `tmp/.ze-verify-duration.txt` instead.**
-How long a full pass takes depends on the machine, and on what else that machine
-is doing. "25 to 30 minutes" below and "4-10 minutes" in `ai/rules/testing.md`
-are not a contradiction. They are different hardware. A loaded VM is not
-deterministic either, so even one machine gives a spread rather than a figure.
-`_release` (`./le job run`) appends the real elapsed
-seconds for the machine you are on, and `tmp/*` is gitignored, so that file is
-the only per-machine record there is. Read it as an expectation, never as a
-threshold: a run past it is a slow run, not a failed one.
-
-**A slow run is never broken for being slow, so there is no threshold to raise.**
-A waiter breaks a holder's slot only when that holder is DEAD, or when it has
-made no progress for the stall window: `_scan_and_claim` (`./le job run`)
-judges progress by the mtime of the job's log, never by elapsed time. A run still
-writing stages is a run still working, however long it has taken. `ZE_JOB_STALL_SECONDS`
-sets the window and is bounded to 60..3600; a value outside that range is refused
-before the job starts, so raising it past an hour is not a route to anything.
-
-**Never edit the tree while a verify runs, yours or anybody's: it reads the working tree.**
-An edit mid-run invalidates the run you are waiting for.
-
-**`./le verify worktree` is a 25-stage full gate and takes 25 to 30 minutes. You MUST run it ONE
-time, when the work is finished and you are about to prepare the commit script.**
+**`./le verify worktree` is the full gate, and you MUST run it ONE time, when the
+work is finished and you are about to prepare the commit script.** What it costs
+on this machine is `tmp/.ze-verify-duration.txt`, never a figure written here.
 Running it to "check in" mid-change is the single most expensive habit available in
 this repository, and it buys nothing a scoped check does not.
 
@@ -156,15 +66,8 @@ the required tags, `GOCACHE`, `GOMODCACHE`, `CGO_ENABLED`, and race setting
 explicitly. Race-built test executables never ship or serve as release evidence
 (`ai/rules/commands.md`, "Bare `go test` Lies").
 
-`./le job run label unit-pkg command go test PKG=<pattern>` is the supported way to test ONE package while
-you develop it. It carries all of the above. Add `RUN=<regexp>` to narrow, and
-`RACE=0` to drop `-race` while iterating -- but a package tested without `-race`
-has not been tested the way `./le verify current mode full` tests it, so put it back before the end.
-
-```
-./le job run label unit-pkg command go test PKG=./internal/component/ike/eap
-./le job run label unit-pkg command go test PKG=./internal/component/ike/... RUN=TestEAPTLS
-```
+**The action on the matching row MUST be run for the surface the change touched,
+after each edit.**
 
 | You changed | Run this |
 |-------------|----------|
@@ -227,23 +130,21 @@ the usual carriers, because each lands in a tree something else counts.
 `ai/rules/repo-maintenance.md` maps each gate to the rule it enforces. When a
 surface has no owning action, you SHOULD say so in the report rather than reach for the full gate.
 
-Never commit with lint issues your own diff caused: lint costs seconds and says the tree is broken. Test evidence is the focused test for what you changed, run once. A test that stays red is named in the commit body, and it does not hold the commit (`ai/rules/pre-release.md`).
+**A commit MUST NOT carry a lint issue its own diff caused**: lint costs seconds
+and says the tree is broken. **The test evidence a commit owes is the focused
+test for what it changed, run once.** A test that stays red is named in the
+commit body, and it does not hold the commit (`ai/rules/pre-release.md`).
 
-```
-[ ] 3. Spec completion gate (if driven by a plan/ spec):
-      [ ] Journal row appended to plan/journal/<class>.md, its Spec cell naming the spec stem
-      [ ] Spec file staged for deletion (git rm)
-      Not done -> STOP.
-[ ] 4. Executive Summary Report (rules/planning.md). What was done, what is left.
-```
+- **Step 3. A commit driven by a `plan/` spec MUST carry a journal row appended to `plan/journal/<class>.md` whose Spec cell names the spec stem, and the spec file staged for deletion. Neither done, STOP.**
+- **Step 4. An Executive Summary Report MUST be written (`ai/rules/planning.md`): what was done, and what is left.**
 
 ## Reading A Red
 
 **YOU MUST READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
 `FAIL N verify stage(s) failed` and one line per failing stage, and
 `tmp/ze-verify-failures.log` holds the same list. A re-run started from a partial
-read costs another half hour and usually reports the same stages. Two specific
-traps, both of which have cost a full run:
+read costs another full pass and usually reports the same stages. Two traps
+follow, and each has cost one.
 
 - **`tail` on the log of a run that is still going.** The stage banner tells you
   where it is (`### Stage 18/22`). You MUST check `./le verify status check` for
@@ -279,6 +180,9 @@ unreachable by construction. You MUST NOT wait for one and you MUST NOT re-run f
 
 **One full run covers EVERY commit prepared from it. You MUST NOT re-run the gate between back-to-back commits of the same code.** The debt is incurred by an EDIT, never by a commit: one body of work split into three commits owes one run, not three, and the same run answers for all of them. What owes a fresh run is a Go file written again after that run started, and nothing else does.
 
+**Every red a full run reports MUST be placed on one of these rows before it is
+acted on.**
+
 | The failing path | Whose red | What you do |
 |------------------|-----------|-------------|
 | In this commit's `--file` list | Yours | Fix it. A red you caused is never attributed away |
@@ -287,56 +191,17 @@ unreachable by construction. You MUST NOT wait for one and you MUST NOT re-run f
 | Clean and tracked, and unrelated to your diff | Pre-existing | Attribute it against `git log`, name it in `--unverified`, and commit |
 | Any deterministic structural gate | Yours until you prove otherwise | Fix it. Those read files rather than a moving tree. The helper drops the charge only when every file the failure groups name lies outside your commit |
 
-**A structural gate red is charged to your commit unless EVERY file its failure groups name lies outside your `--file` list. You MUST NOT expect attribution to drop a red whose groups name no file at all.** `structural_gate_reds` (`internal/le/commit`) reports three sets: `charged` refuses the commit, `foreign` names each gate the file list ruled out, and `unattributed` names each group that carries a check name, a suite name or the stage's own name. A group that names nothing is charged exactly as before, and the refusal prints which one it was. Attribution reaches the gates whose groups name a file or a package directory, and `./le doc wiring` is one of them: its sub-checks declare their own failure groups (`declare_failure_group`, `internal/le/doc/wiring/docwiring.go`). Its ci-sleep ratchet and its delegated targets judge a population rather than a file, so those two still charge.
-
-| What the red gate's failure groups name | What the helper does | What you do |
-|---|---|---|
-| Files, and one of them is in your `--file` list | Charges the gate and refuses | Fix it. The red is yours |
-| Files, and every one lies outside your list | Drops the charge and prints the gate name | Commit. The gate is still red for the tree, so say whose it is in your report |
-| A check name, a suite name, or the stage itself | Charges the gate and names it as unattributed | Read that stage's log and attribute the red by hand. The file list cannot rule it out for you |
-
-| Gate | What its groups name | Expect |
-|------|----------------------|--------|
-| `./le verify lint run`, `./le changed scope` | the `.go` file each finding sits in | a drop when none of them is in your `--file` list |
-| `ze-evidence-vet` | the package pattern of each red | a drop when your list holds no file under it |
-| `./le doc wiring` | the files each sub-check is about, one declared group per failure | a drop, except for the ci-sleep ratchet and a delegated target, which name no file and charge |
-| Every other stage, `./le repository generated-check`, `./le doc check links` and `./le test-weakened check` among them | the stage's own name, through `genericGroup` (`internal/le/verify/engine/run.go`) | a charge, always. Read that stage's log and attribute the red by hand |
-
-`./le doc wiring` is the gate most open `structural gates (red)` rows in
-`plan/verification-debt/` name, so attribution now reaches the largest single
-class of them. It does not reach most of the rest: a large minority of those rows
-ALSO name a gate no classifier attributes, led by `./le repository generated-check`,
-`./le doc check links` and `./le test-weakened check`, and a further group names no
-gate at all in its Reason prose. A commit meeting one of those is refused exactly
-as before. Read the live split off the ledger rather than a number written here,
-which goes stale as sessions commit.
-
-Attribution also answers a NARROWER question than the ledger asks. It says the
-files this commit carries cannot have caused the red. It never says the red is
-somebody else's work rather than yours from an earlier session.
-
-The declared-group protocol is available to EVERY stage, not only this one
-(`parseDeclaredGroups` and `classifyStage`, `internal/le/verify/engine/run.go`).
-Teaching another producer to declare its groups is separable work with its own
-evidence, and until it is done that stage's red charges whoever is committing.
+**A structural gate red is charged to your commit unless EVERY file its failure groups name lies outside your `--file` list. You MUST NOT expect attribution to drop a red whose groups name no file at all.** `structuralGateReds` (`internal/le/commit/verification.go`) reports three sets, and the refusal prints which group carried the charge. Attribution reaches the gates whose groups name a file or a package directory; `./le doc wiring` is one, through `declareFailureGroup` (`internal/le/doc/wiring/groups.go`), except for its ci-sleep ratchet and its delegated targets, which judge a population rather than a file. Which gates that leaves charging every time is `docs/architecture/testing/verify-freshness-scope.md`.
 
 **Owner directive, 2026-08-17: code another session holds uncommitted MUST be taken as WORKING. You MUST NOT fix its red, wait for it, or re-run the gate to see whether it cleared.** Attribution is the whole answer: name the file and say whose it is, put that in `--unverified`, and commit. The row that MUST NOT be attributed away is a red your own diff produced, and the table above is what decides which row you are on.
 
-The full gate saturates every core for half an hour, and that contention is what
-makes the functional suites flake, so a run started to prove your own work
-reddens somebody else's at the same time. Expect reds you did not cause. That is
-the condition the attribution table answers, and it is why the run is made ONCE,
-in the foreground, at the end of the work.
-
-**A verify verdict answers about the paths it was ASKED about, and `./le commit create` asks about the commit's own `--file` list. You MUST NOT read a FRESH as a verdict on the whole checkout.** `verify_status` (`internal/le/commit`) passes that list to `./le verify status check <PATH>...`, and `manifest_scoped` (`./le verify status`) compares only the named rows. An edit another session makes to a path your commit does not carry no longer makes your evidence STALE. Three limits come with the narrower question:
-
-- A path that MOVED while the run was in flight is STALE whatever it holds now, because no stage judged the content it holds today (`MOVED_MARKER`, `./le verify status`). The record names which paths moved instead of voiding the run, so this is finer granularity and never leniency.
-- `check` reads the run's recorded exit code BEFORE it reads any scope, so a run that FAILED is STALE for every path list. Scoping is no route around a red run, and it is no route around a red structural gate either: that is `structural_gate_reds`, and it still reads every red the run recorded.
-- `check` with no path arguments keeps its whole-tree meaning. You MUST use that form when the question is about the tree rather than about one commit.
+**A verify verdict answers about the paths it was ASKED about, and `./le commit create` asks about the commit's own `--file` list. You MUST NOT read a FRESH as a verdict on the whole checkout.** `verificationState` (`internal/le/commit/verification.go`) passes that list to `./le verify status check <PATH>...`, and `CheckCertificate` (`internal/le/verify/engine/status.go`) compares only the named rows. An edit another session makes to a path your commit does not carry no longer makes your evidence STALE.
+**A run that FAILED is STALE for every path list, so scoping MUST NOT be used as a route around a red run, and it is no route around a red structural gate either.** That is `structuralGateReds` (`internal/le/commit/verification.go`), which still reads every red the run recorded.
+**`check` with no path arguments keeps its whole-tree meaning, and you MUST use that form when the question is about the tree rather than about one commit.** The other limits of the narrower question are `docs/architecture/testing/verify-freshness-scope.md`.
 
 **A commit that carries NO Go owes no full run. You MUST scope its evidence to YOUR
-files, running the narrow gate that owns each surface it changes.** Before preparing
-the commit script, on either route:
+files, running the narrow gate that owns each surface it changes.** That evidence
+is gathered before the commit script is prepared, on either route.
 
 1. You MUST run the gate the commit owes: `./le verify worktree` when it carries Go,
    and the narrow gate owning each changed surface (the table below) when it does not.
@@ -372,12 +237,11 @@ reproducible and yours to fix when your diff caused them: `./le verify lint run`
 `./le tier check`. You MUST always green those. It is the TEST stages -- unit, functional,
 web -- whose reds a concurrent tree can manufacture.
 
-When `./le verify worktree` is known-red from failures this session did not cause --
-pre-existing reds, or a separate session is actively clearing the global suite --
-a commit carrying NO Go is gated on changed scope only. Rerunning the full gate for
-it re-surfaces other sessions' noise that is not your regression and blocks progress.
-A commit carrying Go still owes the full run above: the known red is ATTRIBUTED
-there, and is never a reason to skip it. Gate the rest on changed scope only:
+**When `./le verify worktree` is known-red from failures this session did not
+cause, a commit carrying NO Go MUST be gated on changed scope alone.** Re-running
+the full gate for it re-surfaces other sessions' noise that is not your
+regression. **A commit carrying Go still owes the run named above: a known red is
+ATTRIBUTED there and is never a reason to skip it.**
 
 You MUST run these scoped gates instead:
 
@@ -386,13 +250,12 @@ You MUST run these scoped gates instead:
 - `./le doc check verify` / `./le repository check` when those surfaces changed
 - a QEMU run for any linux-only runtime code touched
 
-Then prepare the commit script with `./le commit create`, listing ONLY this
-session's files as repeated `file <path>` pairs, so the commit never pulls in
-another session's working-tree edits. Exclude other sessions' files when
-reviewing `git diff`. This applies only when the global red is not yours -- a red
-caused by your own change must be fixed, not scoped around. Activate it only on an
-explicit owner direction (e.g. "another session is clearing ./le verify current mode full, check only
-what we changed"), never inferred from a red suite alone.
+**The commit script MUST list ONLY this session's files, as repeated `file
+<path>` pairs, so the commit never pulls in another session's working-tree
+edits**, and other sessions' files MUST be excluded when reviewing `git diff`.
+**This route MUST NOT be taken for a red your own change caused, which is fixed
+rather than scoped around, and it MUST NOT be inferred from a red suite alone.**
+It needs an explicit owner direction naming the other session's clearing run.
 
 **A red you have not looked at MUST NOT be assumed to be somebody else's.** Read the failing assertion once, and decide whether your own diff produces the symbol it names.
 **A change that could break a package you did not edit MUST have its reverse-dependency closure compiled once.** Scope-to-changed tests the packages you edited, not the packages your edit breaks TRANSITIVELY: a new import broke `bgp/config` through `plugin/all`, a missing YANG typedef failed a consumer rather than the plugin that introduced it, and adding a plugin invalidates the `plugin/all` golden snapshots. `go vet` over that closure answers it in seconds, and the full gate is not the way to ask.
@@ -402,19 +265,17 @@ what we changed"), never inferred from a red suite alone.
 
 ## What May Be Overridden
 
-The pre-commit checklist's "write its spec, finish this commit, ask" branch, and
-its `plan/known-failures/` shard, are for **non-deterministic** failures only.
-Those are flaky or environmental TEST reds: load-sensitive races, GC-pressure pool
-flakes, host-specific listener probes ("Reading A Red", above). A **deterministic
-structural gate** is NEVER eligible: `./le verify lint run`, `./le changed scope`,
-`./le tier check`, `./le verify deps evidence-vet`, `./le plugin boundary check`,
-`./le iface-resolution`, `./le repository generated-check`, `./le doc wiring`,
-and `./le repository tracked-build check`
-fail only when the tree is structurally broken (a misplaced module tier, a
-lint/vet violation, a broken plugin boundary, an unresolved iface, a stale
-generated file, a stale wiring index, a HEAD that does not compile). Such a red
-must be fixed at the source before any commit -- do not park it, do not
-`--unverified` past it.
+**The checklist's "write its spec, finish this commit, ask" branch and its
+`plan/known-failures/` shard are for NON-DETERMINISTIC failures only**: flaky or
+environmental TEST reds such as load-sensitive races, GC-pressure pool flakes,
+and host-specific listener probes. **A deterministic structural gate is NEVER
+eligible, MUST be fixed at the source before any commit, and MUST NOT be parked
+or passed with `--unverified`.** Those gates (`./le verify lint run`, `./le
+changed scope`, `./le tier check`, `./le verify deps evidence-vet`, `./le plugin
+boundary check`, `./le iface-resolution`, `./le repository generated-check`,
+`./le doc wiring`, `./le repository tracked-build check`) fail only when the tree
+is structurally broken. Which stages carry that status is DERIVED rather than
+listed: `docs/architecture/testing/verify-freshness-scope.md`.
 
 **The general escape is owner-only: `--structural-red-ok "<reason>"`** (the
 narrow `--broken-head-fix` above is the only other, and it reaches one gate).
@@ -423,35 +284,28 @@ SEPARATE flag from `--unverified` precisely so the flaky-test path can never
 reach this branch, it refuses an empty reason, and it prints the red gate names
 with the reason to stderr so a red tree can never look green in a transcript.
 You MUST use it only when Thomas says so and the red provably belongs to another
-session's in-flight work that this commit cannot affect. It exists because a
-refusal with NO escape made a green tree the only route to any commit at all,
-including one touching no compiled code -- which pushed sessions toward the real
-hole this gate was built to close: widening `--unverified`, or editing
-`STRUCTURAL_GATES` to drop the failing name. An override that is written down
-and shouted is safer than one that is improvised. It is never a substitute for
-fixing your own red (`ai/rules/completion.md`).
+session's in-flight work that this commit cannot affect. An override that is
+written down and shouted is safer than one that is improvised, and it is never a
+substitute for fixing your own red (`ai/rules/completion.md`).
 
-`./le repository generated-check` qualifies on the rule's own terms: a stale generated
-file is deterministic, reproducible, and fixed by `./le repository generate` (or the
-specific `--fix` the failing check names). It is never flaky or environmental.
+**A `./le repository generated-check` red MUST NOT be treated as flaky or
+environmental.** A stale generated file is deterministic and reproducible, and it
+is fixed by `./le repository generate`, or by the specific `--fix` the failing
+check names.
 
-Thomas owns the repository and may explicitly override the `./le verify current mode full`
-requirement for commit-script preparation. This override exists because an
-OpenAI session blocked Thomas by treating the agent rule as if it also bound
-the repository owner. It was added for OpenAI behavior, not for Anthropic.
-
-The override is valid only when Thomas explicitly directs both parts:
+**Thomas owns the repository and MAY explicitly override the
+`./le verify current mode full` requirement for commit-script preparation.** The
+requirement binds the agent, never the owner.
 
 Thomas MAY use the override to do two things:
 
 1. prepare a commit script, and
 2. skip tests, skip verify, or commit without running tests.
 
-Examples that activate it: `owner override: commit without verify`, `commit no
-test`, `commit without running tests`, or an equivalent direct instruction from
-Thomas in the active conversation. Do not infer the override from urgency alone.
-
-When the override is active:
+**The override MUST come from a direct instruction by Thomas in the active
+conversation, and it MUST NOT be inferred from urgency.** `owner override: commit
+without verify`, `commit no test` and `commit without running tests` activate it;
+an equivalent direct instruction does too.
 
 - You MUST NOT run `./le verify worktree`, `./le verify worktree`, lint, or tests as a
   late commit gate.
@@ -484,9 +338,9 @@ commit a CONSUMER while its PRODUCER stays uncommitted: it is green for you and
 broken for everybody who builds what git holds. This is a structural blind
 spot.
 
-`./le repository tracked-build check` (`internal/le/repository/trackedbuild/repositorytrackedbuild.go`) is the one
-check that reads what git holds: it extracts the commit with `git archive` and
-compiles six build flavors of the extracted tree. Three rules follow.
+**A consumer MUST NOT be committed without the file that DEFINES every symbol it
+newly uses, and a commit script that carried Go MUST be followed by
+`./le repository tracked-build check`.**
 
 | Situation | Do |
 |-----------|-----|
@@ -494,105 +348,45 @@ compiles six build flavors of the extracted tree. Three rules follow.
 | The commit script has just run and it carried Go | Run `./le repository tracked-build check`. About 45s. This is step 7 of the commit workflow, not an optional extra |
 | It goes red | Commit the producer. Never revert the consumer, and never park it: HEAD is broken for everyone until you do |
 
-`./le repository tracked-build check` is the one entry whose red is cleared BY a commit
-rather than before one. It judges what git already holds, so a broken HEAD is
-fixed by committing the producer a previous commit left behind, and every other
-gate on the list is fixed in the working tree first. Refusing every commit until
-it goes green would therefore deadlock: the refusal would block the only commit
-that can lift it. **`--broken-head-fix "<reason>"` is that commit's route
-through**, and it is narrow by construction: `internal/le/commit` accepts it only
-when tracked-build is the ONLY structural red, so a lint, tier or wiring failure
-riding alongside still refuses. Run `./le repository tracked-build check` after the
-script and confirm it went green. If it did not, HEAD is still broken for
-everybody who builds it.
-
-`REV=<commit-ish>` judges any commit, so a break found later is bisectable:
-`./le repository tracked-build check REV=<commit-ish>`. `ARGS=--keep` leaves the extracted
-tree in place for inspection.
+**`./le repository tracked-build check` is the one entry whose red is cleared BY
+a commit rather than before one, so a broken HEAD MUST be fixed by committing the
+producer a previous commit left behind.** Every other gate on the list is fixed in
+the working tree first.
+**`--broken-head-fix "<reason>"` is that commit's route through, and it MUST NOT
+be reached for while any other structural gate is red**: `internal/le/commit`
+accepts it only when tracked-build is the ONLY structural red.
+**After the script runs, `./le repository tracked-build check` MUST be run again
+and confirmed green.** If it is not, HEAD is still broken for everybody who builds
+it. The gate's design is `docs/architecture/testing/tracked-build-gate.md`.
 
 **What it does NOT read: test files.** `go build` MUST NOT compile `_test.go`, so a
 test file committed without its fixture producer stays invisible here.
 
-`./le doc check verify` and `./le repository generated-check` are separate
-native actions. `internal/le/doc/wiring.Verify` owns the ordered documentation
-gate, including `internal/le/docvalid` command and drift checks,
-`internal/le/doc/check` links, and RFC freshness. `internal/le/repository` owns
-generated repository artifacts. Run the documentation action when the changed
-surface selects it; never invoke a retired producer directly.
-
-There is no list to keep matching. A stage declares whether its red means the
-tree is BROKEN, on the stage itself: `structural(...)` rather than `stage(...)`
-in `fullStages` (`internal/le/verify/engine/stages.go`), read back through
-`verifyengine.Structural`. A rename moves the name and its membership together,
-so the prose above is a description rather than a second source.
-
-This replaced a hand-written map of the same eight names in
-`internal/le/commit`. Two lists of one population drift, and this pair drifted
-in the dangerous direction: a stage renamed in the population silently left the
-commit gate's set, its red filed as unattributable, and the commit proceeded
-over a tree the gate had called broken.
-
-This note previously claimed `test_structural_gates_are_live_stages` and
-`TestStructuralGatesAreLiveStages` enforced the agreement. Neither has ever
-existed, and it named `STRUCTURAL_GATES`, a symbol from the retired Python
-helper. A rule naming an enforcement nobody wrote is worse than one naming
-none: a reader who checks the claim stops looking.
-
-What is tested now is what survives derivation:
-`TestStructuralStagesAreMembersOfThePopulation` and
-`TestStructuralIsASubsetOfFull`
-(`internal/le/verify/engine/stages_structural_test.go`) hold that the set is
-non-empty in both modes, names only stages that run, and never marks a stage
-structural in the cheaper mode alone. The CLI grammar gate runs through
-`TestCLIGrammarGateStatic` (`internal/le/cligrammar/cligrammar_test.go`).
-
-This is enforced, not honor-system: `./le commit create` reads
-the native failure index produced by `internal/le/verify/engine` and refuses to prepare
-a script while `structuralGateReds` in `internal/le/commit/verification.go`
-charges a deterministic structural red to this commit.
-A red is charged unless every file its failure groups name lies outside the
-commit's `--file` list, and a group that names no file is charged as it always
-was ("Reading A Red", above). A green verify rewrites the artifact, so a
-fixed-and-reverified gate clears automatically.
-
 **Verification debt MUST be cleared by RUNNING the gate: `./le commit debt-clear`. You MUST NOT edit a row to `cleared`.** Every override on `./le commit create` writes a row into `plan/verification-debt/<session>.md`, and `create push <remote>` refuses while one is open (`ai/rules/completion.md`). The pass re-runs each DISTINCT gate the open rows name, once per pass whatever the row count, and writes `cleared` only on exit 0 (`clearDebt`, `internal/le/commit/actions.go`). A gate that exits non-zero leaves its rows open and prints its output. The pass runs whatever the named gates cost, `./le verify worktree` included, so run it in the foreground and let it finish.
 
-**A cleared row says the gate was green over the COMMIT.** Since 2026-08-22 every runnable gate runs inside ONE throwaway worktree at HEAD (`clear_debt`, `internal/le/commit`). A pass no longer judges the uncommitted files several sessions keep in this checkout. Before that change a `cleared` meant only "green HERE". Such a pass CAN go red on work nobody in it owns, and green on work nobody in it wrote.
+**A cleared row says the gate was green over the COMMIT**, because every runnable gate runs inside ONE throwaway worktree at HEAD. A pass does not judge the uncommitted files several sessions keep in this checkout.
 
-**When no worktree can be made, NOTHING clears and the pass exits 1.** You MUST NOT read that as a gate failure. The fallback it refuses is to run the gates against the working tree. That fallback is the defect the worktree removes. Taking it writes `cleared` into the artifact that exists to hold verification evidence (`ai/rules/evidence.md`).
+**When no worktree can be made, NOTHING clears and the pass exits 1. You MUST NOT read that as a gate failure.** The fallback it refuses is to run the gates against the working tree, and taking it would write `cleared` into the artifact that exists to hold verification evidence (`ai/rules/evidence.md`).
 
-**A pass whose every row names an unrunnable gate materializes no worktree.** A worktree is a full checkout. A pass with nothing to run MUST NOT pay for one.
-
-The pass clears no row whose gate no command produces. A row naming
-`independent critical review` prints UNRUNNABLE and stays open, and a row naming
-a gate string the runner table does not hold stays open the same way. Those rows
-are answered by doing the work the row names, which for a review is `/ze-review`
-recorded through `internal/le/spec/session/review.go`. Read what the pass printed before
-you report the ledger clear.
+**A row the pass leaves open MUST be answered by doing the work the row names, never by editing the row.** What the pass runs, what it refuses to run, and why an unrunnable row keeps the debt open are `docs/architecture/testing/verify-freshness-scope.md`.
 
 ## Concurrency
 
-One `./le verify worktree` (or `./le test-chaos`) at a time repo-wide:
-parallel runs share build cache, ports, and test binaries. Every heavy native
-action is admitted by `./le job run`, which runs a job now, queues it behind the
-jobs already in flight, or attaches it to an equivalent run. A second verify
-therefore blocks automatically. `internal/le/job` owns `ZE_RUN_SLOTS`; the native
-`internal/le/gotoolchain` policy derives the per-process `GOMAXPROCS` ceiling.
+**One `./le verify worktree` (or `./le test-chaos`) MUST run at a time
+repo-wide.** Parallel runs share the build cache, the ports and the test
+binaries. Every heavy native action is admitted through `./le job run`, which runs
+a job now, queues it, or attaches it to an equivalent run, so a second verify
+blocks automatically. The admission registry, its slot and stall settings, and
+what a job entry holds are `docs/contributing/running-commands.md`.
 
-Admission state is one file per running job,
-`tmp/.ze-jobs/<label>.<pid>.job`. `tmp/.ze-verify.lock` is dead:
-nothing takes that flock any more. A job started INSIDE another job's
-slot runs straight through instead of queueing behind its own parent,
-which is how every stage of `./le verify current mode full` runs.
+**While another verify holds the slot, the second invocation MUST be left to
+block.**
 
-| Do | Don't |
-|----|-------|
+| Do | MUST NOT |
+|----|----------|
 | Let the second invocation block | Kill the running verify |
-| If the run is yours (same tree), read `tmp/ze-verify.log` instead of re-running | Delete the lockfile |
-| If "waiting for lock" appears, do other work | Start `go test` / `golangci-lint` / `bin/ze-test` in parallel (bypasses lock) |
-
-Lock releases when the command exits. `flock` is fd-backed, not
-PID-backed -- no cleanup after a crash.
+| When the run is yours in the same tree, read `tmp/ze-verify.log` rather than re-running | Delete a job entry to take the slot |
+| When the wait message appears, do other work | Start `go test`, `golangci-lint` or a `ze-test` binary in parallel, which bypasses admission |
 
 **A second `./le verify current mode full` cannot overlap the first: it blocks on the repo-wide lock**
 and runs the whole thing again afterwards, so you MUST NOT start one while another

@@ -1,6 +1,11 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-When you introduce a new test type, technique, or infrastructure (fuzz target, property test, mutation gate, `-race` sweep, clock-injection audit, new `.ci`/`.et` category, QEMU harness), apply it to the existing code it covers, not only to the code added alongside it. Coverage that grows only forward from the introduction date is the trap (`plan/learned/RECURRING-PATTERNS.md`, "New test type added but not back-filled to existing code").
+**A new test type, technique, or infrastructure (a fuzz target, a property test,
+a mutation gate, a `-race` sweep, a clock-injection audit, a new `.ci` or `.et`
+category, a QEMU harness) MUST be applied to the existing code it covers, in the
+same work, not only to the code added alongside it.** Coverage that grows only
+forward from the introduction date is the trap
+(`plan/learned/RECURRING-PATTERNS.md`).

@@ -1,10 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Before final testing/verify, run a code review against the diff. Fill the
-`## Review Gate` section in the spec with the findings list. If ANY finding
-is severity BLOCKER or ISSUE (anything above NOTE), fix it and re-run the
-review. Loop until the review returns only NOTEs (or nothing). Paste the
-final clean review output into the spec. NOTE-only findings do NOT block.
+- **A code review MUST run against the diff before the final verification, and its findings MUST be written into the spec's `## Review Gate` section.** Any finding above NOTE MUST be fixed and the review MUST re-run, so the loop ends only when the review returns NOTEs or nothing. The final clean output MUST be pasted into the spec. A NOTE-only finding does not block.

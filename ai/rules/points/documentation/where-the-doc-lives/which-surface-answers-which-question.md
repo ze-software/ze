@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**You MUST read the surface that answers your question before you search for the answer:**
+
 | Question | Read this first |
 |----------|-----------------|
 | How is this Go file's surface meant to work | Its `// Design:` header, then every page `ai/CODE-TO-DOCS.md` lists for it |

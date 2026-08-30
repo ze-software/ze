@@ -349,6 +349,56 @@ Go places the failing input in `testdata/fuzz/<TestName>/` under the package.
 The file contains the input that triggered the crash. Fix the code, then the
 fuzz corpus entry becomes a regression test automatically.
 
+## A test that exists is not a test that gates
+
+A `.ci` or `.et` can pass whether or not the feature works when the observed
+effect reaches the assertion by a path OTHER than the one under test. That is a
+FALSE PASS. Three `redistribute-late-join*.ci` tests kept passing with the
+late-join replay (`handleReplayBatch`) disabled: the route reached the peer by
+some other path, so they guarded nothing and shipped green.
+
+No tool catches this. Mutation testing through the Go `gomu` binary runs unit
+tests only; it never executes `.ci` or `.et`. Proving that a functional test
+gates is a manual design discipline: disable the producing function, confirm the
+test flips to red, and revert.
+
+When a behavior genuinely cannot be made to fail under mutation because it is
+not observable end to end (the reactor suppresses a duplicate announce, so
+per-peer targeting is wire-indistinguishable), guard it with a unit test that
+inspects the producing value directly and say so in the test comment. Do not keep
+a `.ci` that passes with the feature disabled.
+
+## Boundary values for common ranges
+
+Every numeric range is tested at three points: the last valid value, the first
+invalid value below, and the first invalid value above.
+
+| Range | Last valid | Invalid below | Invalid above |
+|-------|------------|---------------|---------------|
+| Port 1-65535 | 65535 | 0 | 65536 |
+| Hold time 0, 3+ | 0, 3 | 1, 2 | none |
+| Prefix IPv4 0-32 | 32 | none | 33 |
+| Message length 19-4096 | 4096 | 18 | 4097 |
+
+## Flake shapes seen in this repository
+
+Check each of these against the test before investigating a new race or
+isolation flake: locked-write with unlocked-read, subscribe-before-broadcast,
+gate-handler queue state, barrier FIFO order, cleanup-drains-work, a fixed port
+behind an `SO_REUSEPORT` gate, and colliding test-fake pool IDs.
+
+| Symptom | Root cause | Fix |
+|---------|------------|-----|
+| Port reuse race in reactor tests | `Stop()` not waiting for cleanup | Ensure cleanup goroutines complete before returning |
+| Completion test fails intermittently | A real bug, not a flake | Check `completeShowPath` includes YANG schema children |
+| Inter-message timing in plugin tests | Sleep too tight under load | Increase the inter-message delay, or synchronize |
+
+A darwin `FAIL` caused by a `_other.go` stub returning `ErrUnsupported` is a
+test-setup bug rather than a real failure. Keep the failure list meaningful.
+
+Reproducing a load-dependent flake is
+`../architecture/testing/runner-architecture.md`.
+
 ## Cheat sheet
 
 | I want to... | Run |

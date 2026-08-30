@@ -1,6 +1,6 @@
 ---
-kind: note
+kind: directive
 level: MUST
 stage:
 ---
-Every spec MUST have a `## Wiring Test` table (see `plan/TEMPLATE.md`). Every row for a user-facing feature must name a `.ci` test file.
+**Every spec MUST carry a `## Wiring Test` table (`plan/TEMPLATE.md`), and every row for a user-facing feature MUST name a `.ci` test file.**

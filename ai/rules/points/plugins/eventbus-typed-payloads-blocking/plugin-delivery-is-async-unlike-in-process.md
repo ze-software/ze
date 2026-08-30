@@ -3,16 +3,6 @@ kind: directive
 level: MUST NOT
 stage:
 ---
-**Engine (in-process) subscribers deliver synchronously within `Emit`;
-plugin-process subscribers deliver asynchronously** (`Emit` returns the
-plugin-process delivery count -- see `internal/core/events/typed.go`). A
-request/re-emit correlation MUST NOT assume all subscribers answered by the
-time `Emit` returns, unless every subscriber is in-process. The
-redistribute late-join replay (`redistevents.ReplayRequest` + echoed `ReplayID`
-token) correlates a returning `RouteChangeBatch` to the requesting peer via an
-opaque token the producer echoes, and holds the `ReplayID -> peer` map for a TTL
-rather than dropping it right after `Emit`, precisely because an out-of-process
-producer's re-emit arrives after `Emit` returns.
-<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- ReplayID token + TTL map -->
-<!-- source: internal/core/redistevents/events.go -- ReplayRequest event -->
+- **Engine (in-process) subscribers deliver synchronously within `Emit`, and plugin-process subscribers deliver asynchronously, so a request and re-emit correlation MUST NOT assume every subscriber answered by the time `Emit` returns unless every subscriber is in-process.** `Emit` returns the plugin-process delivery count. The redistribute late-join replay holds its `ReplayID -> peer` map for a TTL rather than dropping it right after `Emit`, precisely because an out-of-process producer's re-emit arrives later.
 <!-- source: internal/core/events/typed.go -- Emit returns plugin-process delivery count -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- ReplayID token + TTL map -->

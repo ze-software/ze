@@ -6,15 +6,15 @@
 
 ## Directives
 
-Rules that disagree almost always disagree about one thing: whether to keep going. This ladder settles that, so the question is not re-litigated under context pressure.
-
 **The ladder. A higher rung MUST win, and the rungs below it MUST NOT get a vote.**
+
+**The ladder. Each rung MUST decide what its row names:**
 
 | Rung | Governs | Rules | What it does to the decision |
 |------|---------|-------|------------------------------|
 | 1 | Irreversible or destructive action | `never-destroy-work`, `git-safety` bans, `CLAUDE.md` prohibitions | STOP and ask. Nothing on any lower rung licenses it, including an explicit instruction to hurry |
-| 2 | Correctness owed to someone outside this repo | `rfc-compliance`, `interop-and-goal-validation`, `documentation` | When full compliance AND full proof of it is reachable, IMPLEMENT it. You may not pick anything narrower, and you may not ask Thomas to pick for you. Ask only when you are about to do LESS, and then ask which way to fix it. A page your change made wrong is a debt to a reader outside this repo. Read the page before you investigate. Repair it in the work that broke it |
-| 3 | Scope integrity | `completion` (no partial completion, no parking, fix do not record), `testing` (no test deletion) | Never silently reduce scope, park a blocker, or weaken a test. If scope must change, the user decides |
+| 2 | Correctness owed to someone outside this repo | `rfc-compliance`, `interop-and-goal-validation`, `documentation` | When full compliance AND full proof of it is reachable, IMPLEMENT it. Picking anything narrower is not permitted, and neither is asking Thomas to pick for you. Ask only when you are about to do LESS, and then ask which way to fix it. A page your change made wrong is a debt to a reader outside this repo. Read the page before you investigate. Repair it in the work that broke it |
+| 3 | Scope integrity | `completion` (no partial completion, no parking, fix do not record), `testing` (no test deletion) | Never silently reduce scope, park a blocker, or weaken a test. If scope has to change, the user decides |
 | 4 | Phase boundaries | `planning` (model selection, spec delegation, critical review) | End the phase, report, and hand off. Do not cross onto the next phase in this context |
 | 5 | Autonomy | `completion` (no asking) | Everything not caught above: finish the work, then report. Do not ask permission to do what you were already asked to do |
 
@@ -36,17 +36,3 @@ Rules that disagree almost always disagree about one thing: whether to keep goin
 **A rule's own subject matter MUST NOT be overridden by this ladder.** The ladder decides stop/ask/delegate/continue. It does not license writing `fmt.Sprintf` on a hot path because you were in a hurry, and it does not exempt you from `no-fabrication` at any rung.
 
 **If the ladder genuinely does not resolve a conflict, MUST say so in one or two sentences, name both rules, state the reading you are taking, and proceed under it** -- unless the conflict sits on rung 1 or 2, where you MUST stop instead. Silently picking a side and not mentioning it is the failure this clause exists to prevent.
-
-## Rationale
-
-Four directives give instructions about the same moment and were written independently: no-asking in `completion` ("finish the task, then report; ask only for destructive actions or genuine scope changes"), model-selection in `planning` ("announce the boundary and stop rather than crossing it on the wrong model"), spec-delegation in `planning` ("the main thread supervises only"), and `rfc-compliance` ("implement full compliance, and ask only before doing LESS"). Each is right. Read together with no ordering, they let an agent justify almost any choice at the moment it is least able to reason carefully, which is precisely when the wrong choice is expensive.
-
-Naming the ladder costs one short rule and removes the most common runtime ambiguity in the system.
-
-## Examples
-
-An implementation phase finishes and the Review Gate is next. Rung 4 applies: report what was built, state that review wants the review model, stop. The no-asking directive (rung 5) does not override this, and the report is not a request for permission.
-
-A functional test fails on a busy host and passes in isolation. Rung 3 applies via the fix-do-not-record directive in `completion`: the test waits on elapsed time instead of on state. Fix the wait. Do not write a known-failure shard, and do not report "flaky, passes in isolation" as an outcome.
-
-An RFC MUST is implemented but has no tagged test, and the spec is otherwise finished. Rung 2 applies: do not close, do not file a deferral. Writing that test is reachable full proof, so WRITE it. No question is owed. Ask only if you are about to leave the MUST unproven, and then quote the requirement, name the producing function, say what a tagged test would cost, and ask which way he wants it fixed.

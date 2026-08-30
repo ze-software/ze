@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST
 stage:
 ---
-Before marking a spec done, for every deferral: verify the receiving spec exists, has the deferred item listed, and the deferral is recorded in the current spec's Deviations section.
+- **Before a spec is marked done, every deferral MUST be verified three ways: the receiving spec exists, it lists the deferred item, and the deferral is recorded in this spec's Deviations section.**

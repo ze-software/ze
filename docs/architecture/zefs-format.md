@@ -257,6 +257,60 @@ CLI: `ze data check`, `ze data repair --output <path>`, `ze data encode`.
 <!-- source: internal/component/config/storage/blob.go -- NewBlob corrupt-store self-heal -->
 <!-- source: internal/plugins/init/main.go -- moveAsideDB uses zefs.MoveAside -->
 
+## Runtime state through statestore
+
+Runtime state persists through the managed zefs store, never as a loose file.
+`internal/core/statestore` is the plugin-facing wrapper:
+`statestore.Put(key, data)` and `statestore.Get(key)`, keyed by a registered
+`pkg/zefs` key of the form `meta/<subsystem>/<name>` declared in
+`pkg/zefs/keys.go`.
+
+On the gokrazy appliance the writable `/perm` partition holds exactly one
+managed artifact, `database.zefs`. It is integrity-checked, seeded at install,
+and understood by the image build and verify tooling. A loose `state/foo.json`
+next to it is invisible to all of that: not backed up, not verified, and gone
+after a reimage.
+
+Three properties decide how `statestore` is used.
+
+- **One shared handle, not a transient open.** The config system opens
+  `database.zefs` once at startup and holds that single `*zefs.BlobStore` for
+  the process, and a flush re-encodes the whole file from its in-memory tree.
+  A separate transient store would let the config store's next flush drop every
+  state key, and a state write could revert a concurrent config commit. So
+  `statestore` writes through that same handle, registered with
+  `statestore.SetStore` in `cmd/ze/hub`, serialized by the store's own lock.
+- **Best-effort.** `Put` is a no-op when no blob store is registered, which is
+  the filesystem-fallback mode used on a dev machine. Persistence stays
+  non-fatal.
+- **Whole-file flush.** A write rewrites the whole store per flush, so write
+  cadences stay modest: best-effort caches, never per-packet.
+
+```go
+// save (best-effort; a no-op when no blob store is registered)
+data, _ := json.Marshal(snapshot)
+_, _ = statestore.Put(zefs.KeyDDoSDetectBaseline.Pattern, data)
+
+// restore
+if data, ok := statestore.Get(zefs.KeyDDoSDetectBaseline.Pattern); ok {
+    _ = json.Unmarshal(data, &snapshot) // keep version and sanity guards
+}
+```
+
+<!-- source: internal/core/statestore/statestore.go -- Put, Get, SetStore -->
+
+`./le fs-persistence check`, which runs inside `./le verify worktree` and
+`./le verify current mode changed`, flags any non-allowlisted raw filesystem
+write in the scanned trees. The categories that legitimately stay raw are
+kernel and device control (`/proc`, `/sys`, `/dev`, cgroup, ethtool), ephemeral
+scratch (`/tmp`, `/run`, pid files, sockets, probe and ready files), artifacts
+produced for another consumer (`resolv.conf`, systemd units, PEM exports, MRT
+dumps, the ze binary during self-update, the externally-written
+`config-pushed.conf` inbox), and the storage layer itself
+(`internal/component/config/storage`, `pkg/zefs`, the crash-time writers in
+`internal/core/crashlog`, and the append-only audit log in
+`internal/core/audit`).
+
 ## Implementation
 
 Reference implementation: `pkg/zefs/` in the ze repository.

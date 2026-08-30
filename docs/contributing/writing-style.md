@@ -508,7 +508,7 @@ voice, which keeps UK English and which this page does not govern
 | `./le ste check` | The gate. It fails when a habit grew in a file you changed |
 | `./le ste review` | The whole tree, for a rewriting session |
 | `./le ste check file <path>...` | Named files |
-| `git log -1 --format=%B \| ./le ste check file -` | A commit message or a PR body |
+| `./le ste check file <scratch>/msg.txt` | A commit message or a PR body, written to a file first. `namedFiles` in `internal/le/ste/actions.go` takes paths only, and the package reads no stdin |
 
 The gate compares each file against its own version at HEAD. Legacy prose in a
 file you touch costs nothing, and the sentence you add is what goes red. No

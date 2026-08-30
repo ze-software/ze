@@ -3,10 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-1. Dispatch the command targeting the optional dep normally.
-2. If the response returns the engine's `ErrUnknownCommand` (propagated as a
-   string across the plugin IPC boundary), it MUST be treated as the "plugin
-   absent" signal.
-3. `sync.Once` MUST be used to log one `WARN` per process lifetime, skip the
-   feature (e.g. replay convergence loop), and continue with the rest of the
-   flow.
+- **The owner of an optional dependency MUST detect its absence at run time and fall back cleanly.** It MUST treat the engine's `ErrUnknownCommand`, propagated as a string across the plugin IPC boundary, as the plugin-absent signal, and it MUST use `sync.Once` to log one `WARN` per process lifetime before skipping the feature and continuing. `bgp-rs` disabling replay when `bgp-adj-rib-in` is absent is the worked example.

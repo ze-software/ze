@@ -102,6 +102,55 @@ peer in `idle` is a BGP fact, and it stays in the peer table, in its own color.
 The test is the subject, not the severity: ask what the operator typed, and
 whether the line answers it.
 
+## How an error reads
+
+An error answers what failed, why, and what to do next. `ai/rules/cli.md` states
+the obligation; this is the shape it takes.
+
+| Rule | Why |
+|------|-----|
+| Lowercase start, no trailing punctuation, single line | Go convention; errors get wrapped, joined, and grepped |
+| One stable leading phrase per failure kind (e.g. `reject=syslog pattern found:`) | Agents and log scanners match on it, so it is not reworded per call site |
+| Wrap the cause and add context: `fmt.Errorf("parse %s: %w", path, err)` | Preserves the `errors.Is`/`errors.As` chain; each layer adds what it knows |
+| Name the subject and the value, not just the type | "invalid value" with no value is unactionable |
+| Truncate a large blob (body, dump, hex) before embedding it | A 10 MB error is unreadable for a human and for an agent |
+| No `fmt.Sprintf`/`fmt.Errorf` on a hot path | A boundary or one-shot error may use `fmt.Errorf`; a hot path uses an append builder (`ai/rules/performance.md`) |
+
+These are the forms that fail, and what to write instead.
+
+| Pattern | Fix |
+|---------|-----|
+| `errors.New("failed")`, `"invalid input"`, `"unexpected error"` | Name what, the value, and the expected |
+| Dropping the cause inside `if err != nil` (`return errors.New("parse failed")`) | Wrap: `fmt.Errorf("parse %s: %w", name, err)` |
+| Reporting a value as invalid without printing it | Include `%q` of the offending value |
+| Rewording a stable error phrase per call site | Keep one phrase so it stays greppable |
+| Returning `nil` or skipping when a check cannot run | Return an error; fail closed |
+| A user-facing failure with no diagnostic code or remediation | Register a `doctor-*` code and make it `ze explain`-able |
+
+A machine-facing failure carries a registered code from
+`internal/core/diagnostic/codes.go`, holding a title, a description, examples
+and remediation, and `ze explain <code>` prints it. The handler returns the code
+and structured fields rather than a finished sentence, which is what makes the
+corrective action machine-readable.
+
+## A value carries no marker
+
+State is a field or a column. It is never a character glued to a value: no `*`,
+`>`, `+`, or leading dot on an identifier.
+
+| What breaks | Why |
+|-------------|-----|
+| The value | `\| grep <lsp-id>` stops matching, and a parsed field carries a character that is not part of the identifier. The text form and the JSON form then disagree about what the identifier IS |
+| The token | `*` is already an INPUT token in Ze: the selector wildcard for "all" (`peer *`, `clear bgp rib in *`, `192.168.*.*`), documented in `docs/architecture/api/commands.md`, `docs/architecture/api/ipc_protocol.md` and `docs/guide/route-injection.md`. One character pointing in two directions |
+
+A marker that exists only in the text rendering is decoration rather than
+information: `| json` has nowhere to put it, so the two renderings carry
+different facts. Every command here composes with the pipe operators, which is
+why a sigil is a defect in Ze rather than a matter of style.
+
+Other implementations do decorate. FRR and Extreme both print the local system's
+IS-IS LSP as `rtr.00-00 *`. Copying that breaks both of the things above.
+
 ## Related
 
 - `docs/architecture/cli/color-system.md` -- the seven semantic roles, and the

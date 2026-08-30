@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST
 stage:
 ---
+**Each phase MUST run where its row says, through the skill its row names.**
+
 | Phase | Skill | Runs in | The main thread does |
 |-------|-------|---------|----------------------|
 | Research a topic or subsystem | `/ze-explore`, `/ze-audit` | subagent | states the question, reads the findings, decides what they change |

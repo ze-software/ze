@@ -1,8 +1,10 @@
 ---
-kind: table
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
+**These test-failure excuses MUST NOT be acted on:**
+
 | Excuse | Answer |
 |--------|--------|
 | "Transient" / "resource contention" | Investigate. A failure happened |

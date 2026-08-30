@@ -1,6 +1,6 @@
 ---
-kind: note
-level:
+kind: directive
+level: MUST NOT
 stage:
 ---
-The source of truth for intentional non-engine placements outside `internal/core/` is `internal/le/tier/testdata/tier_non_engine_categories.txt`. It is non-code data consumed by `./le tier check`; do not hide new exceptions in Go code.
+- **An intentional non-engine placement outside `internal/core/` MUST have a row in `internal/le/tier/testdata/tier_non_engine_categories.txt`, which `./le tier check` reads. A new exception MUST NOT be hidden in Go code. The row format and the categories are `docs/architecture/module-tiers.md`.**

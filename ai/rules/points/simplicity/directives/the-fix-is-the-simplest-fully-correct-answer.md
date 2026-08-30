@@ -2,6 +2,7 @@
 kind: directive
 level: MUST
 stage:
+rationale: ai/rationale/simplicity.md
 excepted-by: simplicity/simple-is-not-less/complexity-a-rule-requires-is-not-over-engineering
 ---
 **A fix MUST be the simplest solution that is fully correct. Nothing in the change exists for a problem you were not asked to solve.**

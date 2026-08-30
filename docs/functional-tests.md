@@ -17,7 +17,7 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 ## Release Gate Coverage
 
 The stage list is **not reproduced here**. It lives in `stagesForMode`
-(`internal/le/verifyengine/stages.go`) and nowhere else. Each shard of
+(`internal/le/verify/engine/stages.go`) and nowhere else. Each shard of
 `.github/workflows/verify.yml` reads that same list through
 `./le verify current mode full-list`, so a gate absent from the Go table runs
 nowhere and a gate added to it needs no duplicate list in this page. Run
@@ -31,10 +31,10 @@ Broadly, `./le verify current mode full` runs the static gates first, then
 `./le verify current mode changed` substitutes changed-only lint and unit
 stages. Both modes run the same vulnerability scan. It needs network access to
 the live Go vulnerability database. `TestStagesForModeBranchesAgree` and
-`TestStagesForModeMatchesGolden` in `internal/le/verifyengine` pin the two lists.
+`TestStagesForModeMatchesGolden` in `internal/le/verify/engine` pin the two lists.
 
 Both modes use the shared admission code in `internal/le/job` and
-`internal/le/verifylock`. A verify run continues across top-level stage
+`internal/le/verify/lock`. A verify run continues across top-level stage
 failures and writes:
 
 Each run writes its artifacts into its OWN directory, `tmp/verify/run-<start>-<mode>-<id>/`,
@@ -91,12 +91,12 @@ web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
 implementation mistakes: stale source anchors, line-number anchors, unwired
 exported symbols, and incomplete spec AC tables. Run it after `./le verify current mode full` passes,
 before presenting work as complete.
-<!-- source: internal/le/verifyengine/stages.go -- stagesForMode -->
-<!-- source: internal/le/verifydeps/actions.go -- Actions -->
+<!-- source: internal/le/verify/engine/stages.go -- stagesForMode -->
+<!-- source: internal/le/verify/deps/actions.go -- Actions -->
 <!-- source: internal/le/repository/actions.go -- Answer -->
-<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 <!-- source: internal/le/job/answer.go -- Answer -->
-<!-- source: internal/le/verifystatus/answer.go -- Answer -->
+<!-- source: internal/le/verify/status/answer.go -- Answer -->
 <!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
 <!-- source: internal/le/functional/actions.go -- Answer -->
 
@@ -179,11 +179,14 @@ Darwin and unprivileged Linux, then run inside `./le qemu all-tests`.
 `.github/workflows/qemu-nightly.yml` invokes the registered `./le qemu`
 actions. `./le qemu all-tests` covers the Linux functional suites;
 `vrrp-keepalived-test`, `pppoe-accel-test`, and `pppoe-test` own their protocol
-labs. `TestQemuAndInteropTargetsHaveACaller` refuses a registered action that no
-workflow or native aggregate reaches.
+labs. `TestEveryWorkflowNativeActionExists` checks the other direction: every
+`./le` action a workflow names is registered in the Go action tables. Nothing
+today refuses a REGISTERED action that no workflow reaches, so a new lab needs
+its workflow job added by hand. The full workflow map is
+`docs/architecture/testing/ci-workflows.md`.
 
 <!-- source: .github/workflows/qemu-nightly.yml -- protocol-labs, runtime-kernel-labs -->
-<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestQemuAndInteropTargetsHaveACaller -->
+<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestEveryWorkflowNativeActionExists -->
 
 <!-- source: internal/test/cli/register.go -- subcommand registry -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
@@ -501,14 +504,14 @@ Timing regressions run separately through `bin/ze-perf track --check`, while
 the Docker DUT matrix uses the native Go runner:
 `go run ./cmd/ze-perf-run --build --test`.
 <!-- source: internal/perf/allocgate.go -- AllocCeilings, checkAllocCeilings -->
-<!-- source: internal/le/verifydeps/actions.go -- Actions -->
+<!-- source: internal/le/verify/deps/actions.go -- Actions -->
 <!-- source: cmd/ze-perf-run/main.go -- main -->
 
 ### Privileged kernel-state tests under QEMU (`option=needs-linux`)
 
 `.ci` tests tagged `option=needs-linux` skip on non-Linux hosts and unprivileged
 Linux, then run as root inside `./le qemu all-tests`. CAP_NET_ADMIN and real
-interfaces are available in that guest. `TestCapabilityGatedTestsHaveAQemuHome`
+interfaces are available in that guest. `TestCapabilityGatedTestsHaveANativeVMHome`
 fails when a capability-gated test has no registered QEMU path.
 <!-- source: internal/le/qemu/alltests.go -- AllTestsRun -->
 <!-- source: internal/test/runner/record_parse.go -- capability gate -->
@@ -782,7 +785,7 @@ failure index. Use
 `tmp/ze-verify.log` only when the whole combined run is needed.
 Automation should read `tmp/ze-verify-failures.json`.
 <!-- source: internal/le/testunit/actions.go -- Actions -->
-<!-- source: internal/le/verifyengine/run.go -- Run, RunMode -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
 ---
 
@@ -1577,7 +1580,7 @@ expect=json:conn=1:seq=1:json={...}
 ### Waiting without sleep (the quiesce barrier)
 
 Prefer a completion signal over a fixed `time.sleep` (the ci-sleep ratchet in
-`internal/le/docwiring.Answer` counts sleeps in `test/**/*.ci`). Existing
+`internal/le/doc/wiring.Answer` counts sleeps in `test/**/*.ci`). Existing
 options: `ze_api.wait_for_event` / `wait_for_shutdown` / `wait_for_post_startup`
 (block on a delivered event / bye / post-startup RPC), `expect=event`, and
 `http=wait`.
