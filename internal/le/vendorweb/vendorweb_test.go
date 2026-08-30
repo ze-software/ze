@@ -617,7 +617,7 @@ func TestAnUnknownActionIsRefusedApartFromAFailure(t *testing.T) {
 // VALIDATES: the bare command lists its actions, and the listing says which one
 // writes. The native action table carries that fact and the shared renderer
 // prints `writes` or `checks` beside the reason
-// (`internal/le/leaction.List.Text`).
+// (`List.Text` in `internal/le/leaction`).
 // PREVENTS: a writing tool that reads like a check. A developer picking an
 // action out of a listing has one place to learn that one of the three changes
 // the tree, and it must not be a comment.

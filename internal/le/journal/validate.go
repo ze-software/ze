@@ -1,4 +1,4 @@
-// Design: .claude/hooks/posttool-writeedit.py -- immediate journal row validation
+// Design: internal/le/hookruntime/postwrite.go -- immediate journal row validation
 package journal
 
 import (

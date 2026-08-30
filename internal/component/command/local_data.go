@@ -57,12 +57,15 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 		return pipeError(errMsg), 1, true
 	}
 
+	// The PAYLOAD decides whether there is an answer to render, and the CODE
+	// decides what the process exits with. They are independent: `validate
+	// config` answers the diagnostics of a config it rejects and exits 1, so a
+	// handler that returns both MUST have both honored. A handler with nothing
+	// to say has already written its reason to stderr and returns a nil
+	// payload.
 	payload, code := handler(args)
-	if code != 0 {
-		return "", code, true
-	}
 	if payload == nil {
-		return "", 0, true
+		return "", code, true
 	}
 
 	encoded, err := json.Marshal(payload)
@@ -75,7 +78,7 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	if IsPipeError(rendered) {
 		return rendered, 1, true
 	}
-	return rendered, 0, true
+	return rendered, code, true
 }
 
 // HasLocalData reports whether a command is served in this process, which is

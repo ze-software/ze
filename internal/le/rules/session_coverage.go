@@ -1,4 +1,4 @@
-// Design: plan/spec-knowledge-3-rule-digest.md -- measure whether routed rules were read
+// Design: docs/architecture/core-design.md -- measure whether routed rules were read
 // Overview: actions.go -- the rules command surface
 // Related: rules.go -- the shared rule corpus predicate
 //
@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -49,7 +50,7 @@ type TranscriptSource interface {
 type NativeTranscriptSource struct{}
 
 // TranscriptPath answers this session's transcript, or an empty path when it
-// cannot identify one. An explicit session id never falls back to a neighbour.
+// cannot identify one. An explicit session id never falls back to a neighbor.
 func (NativeTranscriptSource) TranscriptPath(root string) string {
 	dir := transcriptDirectory(root)
 	if dir == "" {
@@ -321,7 +322,7 @@ var coverageFileKinds = []fileKind{
 		"allocation", "string-building", "fmt.sprintf", "hot path", "exported", "protocol-implementing",
 		"protocol behavior", "wire format", "import", "function", "functions", "error", "errors",
 	}},
-	{name: "go-test", matches: func(path string) bool { return strings.HasSuffix(path, "_test.go") }, keywords: []string{"test", "tests", "tdd", "test-first"}},
+	{name: "go-test", matches: func(path string) bool { return strings.HasSuffix(path, "_test.go") }, keywords: []string{testKeyword, testsKeyword, "tdd", "test-first"}},
 	{name: "ci-test", matches: func(path string) bool { return strings.HasSuffix(path, ".ci") || strings.HasSuffix(path, ".et") }, keywords: []string{
 		"functional test", "functional tests", ".ci", "user-facing behavior", "user-visible behavior", "test", "tests",
 	}},
@@ -390,7 +391,7 @@ func RunSessionCoverage(root string, options SessionCoverageOptions, source Tran
 			Str(": ").Err(err).Str("; reporting nothing rather than guessing which rules were consulted").String())
 		files = TranscriptFiles{Written: []string{}, RulesRead: []string{}}
 	}
-	report := analyseSessionCoverage(rules, files)
+	report := analyzeSessionCoverage(rules, files)
 
 	session := options.Session
 	if session == "" {
@@ -448,7 +449,7 @@ func loadAlwaysOnRules(rulesDir string, errOut io.Writer) map[string]bool {
 	}
 	members := make(map[string]bool)
 	prefix := "`" + rulesRel + "/"
-	for _, rawLine := range strings.Split(string(raw), "\n") {
+	for rawLine := range strings.SplitSeq(string(raw), "\n") {
 		line := strings.TrimRight(rawLine, " \t\r\n\v\f")
 		if !strings.HasPrefix(line, prefix) || !strings.HasSuffix(line, ".md`") {
 			continue
@@ -469,7 +470,7 @@ func loadAlwaysOnRules(rulesDir string, errOut io.Writer) map[string]bool {
 	return members
 }
 
-func analyseSessionCoverage(rules []coverageRule, files TranscriptFiles) sessionCoverageReport {
+func analyzeSessionCoverage(rules []coverageRule, files TranscriptFiles) sessionCoverageReport {
 	written := make(map[string]bool, len(files.Written))
 	for _, path := range files.Written {
 		written[path] = true
@@ -573,12 +574,12 @@ func previousCoverageMissed(path, session string) ([]string, bool) {
 		return nil, false
 	}
 	lines := strings.Split(string(raw), "\n")
-	for index := len(lines) - 1; index >= 0; index-- {
+	for _, line := range slices.Backward(lines) {
 		var row struct {
 			Session string   `json:"session"`
 			Missed  []string `json:"missed"`
 		}
-		if err := json.Unmarshal([]byte(lines[index]), &row); err != nil {
+		if err := json.Unmarshal([]byte(line), &row); err != nil {
 			continue
 		}
 		if row.Session == session {
@@ -619,10 +620,11 @@ func appendCoverageReport(path, session string, report sessionCoverageReport, no
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o777); err != nil {
+	// 0o777 is deliberate: every agent account on this host appends to one report.
+	if err := os.MkdirAll(filepath.Dir(path), 0o777); err != nil { //nolint:gosec // shared across agent accounts, see above
 		return err
 	}
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o666) // #nosec G304 -- fixed report path
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o666) //nolint:gosec // fixed report path, and 0o666 lets every agent account append to it
 	if err != nil {
 		return err
 	}
@@ -675,3 +677,9 @@ func coverageReportAnswer(args leaction.Arguments) (any, int) {
 	}
 	return RunSessionCoverage(root, options, NativeTranscriptSource{}, time.Now, os.Stderr)
 }
+
+// testKeyword is the trigger word a task description uses for test work.
+const testKeyword = "test"
+
+// testsKeyword is the plural trigger word a task description uses for test work.
+const testsKeyword = "tests"

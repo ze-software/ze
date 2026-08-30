@@ -283,7 +283,7 @@ func writeGoPatterns(ctx context) *verdict {
 	// literal. Judging it by its own list refuses the edit that repairs the list,
 	// which is how a wrong pattern here becomes permanent. The links checker
 	// excludes its own source for the same reason (sweepExcluded,
-	// internal/le/doccheck/links.go). The exclusion is by suffix, so a checkout at
+	// internal/le/doc/check/links.go). The exclusion is by suffix, so a checkout at
 	// any path is covered.
 	if strings.HasSuffix(path, "/internal/le/hookruntime/writeedit.go") {
 		return nil

@@ -7,6 +7,6 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-plugin-show.yang", ZePluginShowYANG)
 	configyang.RegisterModule("ze-plugin-conf.yang", ZePluginConfYANG)
+	configyang.RegisterModule("ze-plugin-show.yang", ZePluginShowYANG)
 }

@@ -17,13 +17,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// `ai/rules/`, so hooktable.go names the published document in one constant
 	// and coverage_report.go reads that path instead of joining a rule stem.
 	//
-	// The value is computed over the COMMITTED file set, not the working tree.
-	// This digest covers every non-test file in the package, so a second
-	// session's uncommitted edits to session_coverage.go were in the working
-	// tree's answer and are not in the tree this commit makes. Recording the
-	// working-tree value would have left HEAD red for a change HEAD does not
-	// contain.
-	const want = "78d0577159d627e56e7e939b88ab3d525088599768c646a6953405c9a8117b77"
+	// Updated 2026-08-30: the second session's edits to session_coverage.go are
+	// committed now, so the digest moves to the value the tree with them in it
+	// answers. Those edits rename analyseSessionCoverage to the US spelling,
+	// name the go-test keyword constant, and repoint the Design reference at
+	// docs/architecture/core-design.md. None of them changes what the coverage
+	// report decides, which is what the digest exists to pin.
+	const want = "a7af5ef3c8fcfafb36433badd6b1524c1436dbb9db8d85eded9a9dbdf552b030"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

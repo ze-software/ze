@@ -56,6 +56,19 @@ func plugin16L2TPArgs(args []string, withSession bool) (*net.UDPAddr, uint16, ui
 	return &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: port}, uint16(tid), uint16(sid), nil
 }
 
+// plugin16L2TPAVP builds one AVP, with the M bit of RFC 2661 Section 4.1 under
+// the caller's control.
+//
+// Every call site passes true today, and unparam therefore reports the
+// parameter. It is kept anyway, because the M bit is the input to a conformance
+// behavior a fixture must be able to reach from both sides: Section 4.1 says an
+// unrecognized AVP with the M bit SET terminates the session or the tunnel, and
+// one with the M bit CLEAR is ignored, and Section 4.1's Message Type paragraph
+// keys the same fork on the same bit. A builder that can only set the bit can
+// test only half of that, so removing the parameter would cost the suite a
+// capability to satisfy a linter.
+//
+//nolint:unparam // the M bit is a conformance input; see the paragraph above
 func plugin16L2TPAVP(mandatory bool, attribute uint16, value []byte) []byte {
 	length := 6 + len(value)
 	word := uint16(length)
@@ -99,9 +112,7 @@ func plugin16L2TPParse(packet []byte) map[uint16][]byte {
 		return out
 	}
 	length := int(binary.BigEndian.Uint16(packet[2:4]))
-	if length > len(packet) {
-		length = len(packet)
-	}
+	length = min(length, len(packet))
 	for offset := 12; offset+6 <= length; {
 		word := binary.BigEndian.Uint16(packet[offset : offset+2])
 		avpLength := int(word & 0x03ff)
@@ -172,22 +183,22 @@ func plugin16L2TPHandshake(ctx context.Context, target *net.UDPAddr, tid uint16,
 		}
 		select {
 		case <-ctx.Done():
-			conn.Close()
+			conn.Close() //nolint:errcheck // fixture teardown
 			return nil, 0, ctx.Err()
 		default:
 		}
 	}
 	if len(response[9]) < 2 {
-		conn.Close()
+		conn.Close() //nolint:errcheck // fixture teardown
 		return nil, 0, fmt.Errorf("no SCCRP for tunnel %d", tid)
 	}
 	remoteTID := binary.BigEndian.Uint16(response[9])
 	if len(secret) != 0 && len(response[11]) == 0 {
-		conn.Close()
+		conn.Close() //nolint:errcheck // fixture teardown
 		return nil, 0, fmt.Errorf("SCCRP missing Challenge")
 	}
 	if _, err = conn.WriteToUDP(plugin16L2TPSCCCN(remoteTID, secret, response[11]), target); err != nil {
-		conn.Close()
+		conn.Close() //nolint:errcheck // fixture teardown
 		return nil, 0, err
 	}
 	_, _ = plugin16L2TPRead(conn, time.Second)
@@ -234,7 +245,7 @@ func plugin16L2TPTunnelPeer(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	fmt.Printf("OK: tunnel established local_tid=%d remote_tid=%d\n", tid, remoteTID)
 	return plugin16L2TPIdle(ctx, conn, plugin16L2TPIdleTimeout(tid))
 }
@@ -251,7 +262,7 @@ func plugin16L2TPSessionPeer(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck // fixture teardown
 	body := plugin16L2TPAVP(true, 0, plugin16L2TPU16(10))
 	body = append(body, plugin16L2TPAVP(true, 14, plugin16L2TPU16(sid))...)
 	body = append(body, plugin16L2TPAVP(true, 15, plugin16L2TPU32(42))...)
@@ -288,7 +299,7 @@ func plugin16L2TPSessionPeer(ctx context.Context, args []string) error {
 
 func plugin16L2TPList(ctx context.Context, p *sdk.Plugin, command string) ([]map[string]any, bool) {
 	r := plugin16Dispatch(ctx, p, command)
-	if r.status != "done" || r.err != nil {
+	if r.status != statusDone || r.err != nil {
 		return nil, false
 	}
 	values, ok := r.data.([]any)
@@ -309,7 +320,7 @@ func plugin16L2TPList(ctx context.Context, p *sdk.Plugin, command string) ([]map
 func plugin16L2TPEstablished(rows []map[string]any) int {
 	count := 0
 	for _, row := range rows {
-		if row["state"] == "established" {
+		if row["state"] == stateEstablished {
 			count++
 		}
 	}
@@ -334,11 +345,11 @@ func plugin16TeardownTunnel(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("tunnel never established")
 	}
 	r := plugin16Dispatch(ctx, p, fmt.Sprintf("clear l2tp tunnel id %d", localTID))
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("teardown %d: status=%s data=%s", localTID, r.status, r.text())
 	}
 	payload, ok := r.data.(map[string]any)
-	if !ok || payload["status"] != "sent" {
+	if !ok || payload["status"] != directionSent {
 		return fmt.Errorf("teardown payload status=%v want sent", payload["status"])
 	}
 	payloadTID, ok := plugin16Number(payload["tunnel-id"])
@@ -352,7 +363,7 @@ func plugin16TeardownTunnel(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("tunnel remained in established state after teardown")
 	}
 	unknown := plugin16Dispatch(ctx, p, "clear l2tp tunnel id 65535")
-	if unknown.status != "error" || !strings.Contains(unknown.text(), "65535") {
+	if unknown.status != statusError || !strings.Contains(unknown.text(), "65535") {
 		return fmt.Errorf("teardown unknown: status=%s error=%q", unknown.status, unknown.text())
 	}
 	if err := plugin16L2TPWriteExit(); err != nil {
@@ -372,7 +383,7 @@ func plugin16TeardownTunnelAll(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("both tunnels never appeared (peers did not finish handshake)")
 	}
 	r := plugin16Dispatch(ctx, p, "clear l2tp tunnel all")
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("teardown-all: status=%s data=%s", r.status, r.text())
 	}
 	payload, ok := r.data.(map[string]any)
@@ -412,11 +423,11 @@ func plugin16TeardownSession(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("session never established")
 	}
 	r := plugin16Dispatch(ctx, p, fmt.Sprintf("clear l2tp session id %d", localSID))
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("session teardown %d: status=%s data=%s", localSID, r.status, r.text())
 	}
 	payload, ok := r.data.(map[string]any)
-	if !ok || payload["status"] != "sent" {
+	if !ok || payload["status"] != directionSent {
 		return fmt.Errorf("teardown payload status=%v want sent", payload["status"])
 	}
 	payloadSID, ok := plugin16Number(payload["session-id"])
@@ -430,7 +441,7 @@ func plugin16TeardownSession(ctx context.Context, p *sdk.Plugin) error {
 		}
 		for _, row := range rows {
 			sid, _ := plugin16Number(row["local-sid"])
-			if sid == localSID && row["state"] == "established" {
+			if sid == localSID && row["state"] == stateEstablished {
 				return false
 			}
 		}
@@ -439,7 +450,7 @@ func plugin16TeardownSession(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("session remained established after teardown")
 	}
 	unknown := plugin16Dispatch(ctx, p, "clear l2tp session id 65534")
-	if unknown.status != "error" || !strings.Contains(unknown.text(), "65534") {
+	if unknown.status != statusError || !strings.Contains(unknown.text(), "65534") {
 		return fmt.Errorf("teardown unknown: status=%s error=%q", unknown.status, unknown.text())
 	}
 	return plugin16L2TPWriteExit()
@@ -459,7 +470,7 @@ func plugin16TeardownSessionAll(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("no session ever appeared")
 	}
 	r := plugin16Dispatch(ctx, p, "clear l2tp session all")
-	if r.err != nil || r.status != "done" {
+	if r.err != nil || r.status != statusDone {
 		return fmt.Errorf("teardown-all: status=%s data=%s", r.status, r.text())
 	}
 	payload, ok := r.data.(map[string]any)

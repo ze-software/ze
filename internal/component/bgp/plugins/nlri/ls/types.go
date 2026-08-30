@@ -320,11 +320,9 @@ func ParseBGPLS(data []byte) (bGPLSNLRI, error) {
 	case BGPLSNodeNLRI:
 		// RFC 7752 Section 3.2.1 - Node NLRI (Type 1)
 		node := &BGPLSNode{
-			bgplsBase: bgplsBase{
-				nlriType:   nlriType,
-				protocolID: proto,
-				identifier: identifier,
-			},
+			nlriType:   nlriType,
+			protocolID: proto,
+			identifier: identifier,
 		}
 		// RFC 7752 Section 3.2.1.2 - Parse Local Node Descriptors
 		if err := parseNodeDescriptorTLVs(body[9:], &node.LocalNode); err != nil {
@@ -336,11 +334,9 @@ func ParseBGPLS(data []byte) (bGPLSNLRI, error) {
 	case BGPLSLinkNLRI:
 		// RFC 7752 Section 3.2.2 - Link NLRI (Type 2)
 		link := &BGPLSLink{
-			bgplsBase: bgplsBase{
-				nlriType:   nlriType,
-				protocolID: proto,
-				identifier: identifier,
-			},
+			nlriType:   nlriType,
+			protocolID: proto,
+			identifier: identifier,
 		}
 		link.cached = data[:4+nlriLen]
 		return link, nil
@@ -348,11 +344,9 @@ func ParseBGPLS(data []byte) (bGPLSNLRI, error) {
 	case BGPLSPrefixV4NLRI, BGPLSPrefixV6NLRI:
 		// RFC 7752 Section 3.2.3 - Prefix NLRI (Types 3 and 4)
 		prefix := &BGPLSPrefix{
-			bgplsBase: bgplsBase{
-				nlriType:   nlriType,
-				protocolID: proto,
-				identifier: identifier,
-			},
+			nlriType:   nlriType,
+			protocolID: proto,
+			identifier: identifier,
 		}
 		prefix.cached = data[:4+nlriLen]
 		return prefix, nil
@@ -360,11 +354,9 @@ func ParseBGPLS(data []byte) (bGPLSNLRI, error) {
 	case BGPLSSRv6SIDNLRI:
 		// RFC 9514 - SRv6 SID NLRI (Type 6)
 		srv6 := &BGPLSSRv6SID{
-			bgplsBase: bgplsBase{
-				nlriType:   nlriType,
-				protocolID: proto,
-				identifier: identifier,
-			},
+			nlriType:   nlriType,
+			protocolID: proto,
+			identifier: identifier,
 		}
 		// Parse Local Node Descriptors (same format as RFC 7752)
 		if err := parseNodeDescriptorTLVs(body[9:], &srv6.LocalNode); err != nil {
@@ -389,6 +381,32 @@ func ParseBGPLS(data []byte) (bGPLSNLRI, error) {
 //	| Value (variable) |
 //	+------------------+
 func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
+	return parseNodeDescriptorTLVsAt(data, nd, 0)
+}
+
+// nodeDescriptorMaxDepth bounds how far the walk follows a container.
+//
+// RFC 7752 Section 3.2.1.2 puts the Node Descriptor sub-TLVs one level inside
+// the container, and Section 3.2.1.4 defines no container among them, so one
+// level covers every legal input. The bound exists because the walk is driven by
+// lengths a PEER chose: without it a TLV 256 whose value is another TLV 256
+// recurses until the stack is gone.
+const nodeDescriptorMaxDepth = 1
+
+// parseNodeDescriptorTLVsAt walks one TLV level, descending into a Local Node
+// Descriptors container up to nodeDescriptorMaxDepth levels.
+//
+// Descending and then RESUMING the outer walk is the whole point. Replacing the
+// iteration buffer with the container's value, which is what this did, discards
+// every octet that follows the container: for an RFC 9514 SRv6 SID NLRI the SRv6
+// SID Information TLV sits after it at NLRI level, so it was never read for any
+// wire-decoded NLRI.
+//
+// A container nested deeper than the bound is skipped rather than refused. RFC
+// 9552 Section 8.2.2: "A Link-State NLRI MUST NOT be considered malformed or
+// invalid based on the inclusion/exclusion of TLVs or contents of the TLV
+// fields", so an unexpected nesting costs its own bytes and nothing else.
+func parseNodeDescriptorTLVsAt(data []byte, nd *NodeDescriptor, depth int) error {
 	for len(data) >= 4 {
 		tlvType := binary.BigEndian.Uint16(data[0:2])     // TLV Type (2 bytes)
 		tlvLen := int(binary.BigEndian.Uint16(data[2:4])) // TLV Length (2 bytes)
@@ -400,9 +418,13 @@ func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
 		value := data[4 : 4+tlvLen]
 
 		// RFC 7752 Section 3.2.1.2 - Local Node Descriptor container (TLV 256)
-		// Unwrap container by continuing iteration on its contents (avoids recursion).
 		if tlvType == TLVLocalNodeDesc {
-			data = value
+			if depth < nodeDescriptorMaxDepth {
+				if err := parseNodeDescriptorTLVsAt(value, nd, depth+1); err != nil {
+					return err
+				}
+			}
+			data = data[4+tlvLen:]
 			continue
 		}
 
@@ -415,10 +437,19 @@ func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
 		case TLVBGPLSIdentifier: // TLV 513 - 4 bytes
 			if len(value) >= 4 {
 				nd.BGPLSIdentifier = binary.BigEndian.Uint32(value)
+				// Presence is recorded apart from the value, because 0 is a
+				// legal BGP-LS Identifier and Section 5.2.1.4 RECOMMENDS it as
+				// the default. Without this the descriptor cannot re-encode a
+				// received zero, and the sub-TLV would vanish on the way out.
+				nd.HasBGPLSIdentifier = true
 			}
 		case TLVOSPFAreaID: // TLV 514 - 4 bytes
 			if len(value) >= 4 {
 				nd.OSPFAreaID = binary.BigEndian.Uint32(value)
+				// Same reason, and it matters more here: area 0.0.0.0 is the
+				// OSPF backbone, and Section 5.2.1.1 makes the Area-ID part of
+				// the node key.
+				nd.HasOSPFAreaID = true
 			}
 		case TLVIGPRouterID: // TLV 515 - variable length
 			nd.IGPRouterID = make([]byte, len(value))
@@ -498,6 +529,14 @@ func tlv(t uint16, v []byte) []byte {
 func uint32ToBytes(v uint32) []byte {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, v)
+	return b
+}
+
+// uint16ToBytes renders a 2-octet TLV value, such as the Multi-Topology
+// Identifier of TLV 263.
+func uint16ToBytes(v uint16) []byte {
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, v)
 	return b
 }
 

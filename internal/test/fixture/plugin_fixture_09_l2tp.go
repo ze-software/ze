@@ -15,6 +15,19 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// l2tpAVP09 builds one AVP, with the M bit of RFC 2661 Section 4.1 under the
+// caller's control.
+//
+// Every call site passes true today, and unparam therefore reports the
+// parameter. It is kept anyway, because the M bit is the input to a conformance
+// behavior a fixture must be able to reach from both sides: Section 4.1 says an
+// unrecognized AVP with the M bit SET terminates the session or the tunnel, and
+// one with the M bit CLEAR is ignored, and Section 4.1's Message Type paragraph
+// keys the same fork on the same bit. A builder that can only set the bit can
+// test only half of that, so removing the parameter would cost the suite a
+// capability to satisfy a linter.
+//
+//nolint:unparam // the M bit is a conformance input; see the paragraph above
 func l2tpAVP09(mandatory bool, attribute uint16, value []byte) []byte {
 	out := make([]byte, 6+len(value))
 	word := uint16(len(out))
@@ -65,9 +78,7 @@ func l2tpParse09(packet []byte) map[uint16][]byte {
 		return out
 	}
 	length := int(binary.BigEndian.Uint16(packet[2:4]))
-	if length > len(packet) {
-		length = len(packet)
-	}
+	length = min(length, len(packet))
 	for offset := 12; offset+6 <= length; {
 		word := binary.BigEndian.Uint16(packet[offset:])
 		span := int(word & 0x03ff)
@@ -105,9 +116,9 @@ func l2tpPeer09(session bool) Driver {
 		if err != nil {
 			return err
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck // fixture teardown
 
-		hostname := "py-peer"
+		hostname := hostnamePyPeer
 		if session {
 			hostname = fmt.Sprintf("py-peer-%d", peerTID)
 		}
@@ -159,7 +170,8 @@ func l2tpPeer09(session bool) Driver {
 			if len(challenge) == 0 {
 				return fmt.Errorf("L2TP SCCRP missing Challenge")
 			}
-			sum := md5.Sum(append(append([]byte{3}, secret...), challenge...))
+			sum := md5.Sum( //nolint:gosec // RFC 2661 Section 4.4.3 makes the Challenge Response a CHAP value, and RFC 1994 CHAP is MD5
+				append(append([]byte{3}, secret...), challenge...))
 			scccnAVPs = append(scccnAVPs, l2tpAVP09(true, 13, sum[:]))
 		}
 		_ = conn.SetDeadline(time.Now().Add(time.Second))
@@ -203,9 +215,9 @@ func l2tpPeer09(session bool) Driver {
 			}
 			_ = conn.SetDeadline(time.Now().Add(time.Second))
 			_, _, _ = conn.ReadFromUDP(buffer)
-			fmt.Fprintf(os.Stdout, "OK[%d]: session established local_sid=%d remote_sid=%d\n", peerTID, peerSID, zeSID)
+			fmt.Fprintf(os.Stdout, "OK[%d]: session established local_sid=%d remote_sid=%d\n", peerTID, peerSID, zeSID) //nolint:errcheck // progress output
 		} else {
-			fmt.Fprintf(os.Stdout, "OK: tunnel established local_tid=%d remote_tid=%d\n", peerTID, localTID)
+			fmt.Fprintf(os.Stdout, "OK: tunnel established local_tid=%d remote_tid=%d\n", peerTID, localTID) //nolint:errcheck // progress output
 		}
 
 		deadline := time.Now().Add(15 * time.Second)
@@ -259,7 +271,7 @@ func l2tpConfigShow09(ctx context.Context, _ []string) error {
 		if !done09(r) {
 			return fmt.Errorf("show l2tp config: status=%s data=%s", r.status, r.text)
 		}
-		checks := map[string]any{"enabled": true, "max-tunnels": 50, "max-sessions": 75, "hello-interval": 45, "shared-secret": "<set>"}
+		checks := map[string]any{"enabled": true, "max-tunnels": 50, "max-sessions": 75, "hello-interval": 45, "shared-secret": valueRedacted}
 		for key, want := range checks {
 			got := cfg[key]
 			if fmt.Sprint(got) != fmt.Sprint(want) {
@@ -283,16 +295,16 @@ func l2tpEmptyShow09(ctx context.Context, _ []string) error {
 		}
 		listeners := dispatch09(ctx, p, "show l2tp listeners")
 		rows := list09(listeners.data)
-		if !done09(listeners) || len(rows) != 1 || map09(rows[0])["address"] != "127.0.0.1" {
+		if !done09(listeners) || len(rows) != 1 || map09(rows[0])["address"] != addrLoopback {
 			return fmt.Errorf("show l2tp listeners unexpected: %s", listeners.text)
 		}
 		config := dispatch09(ctx, p, "show l2tp config")
 		secret := map09(config.data)["shared-secret"]
-		if !done09(config) || (secret != "<set>" && secret != "<unset>") {
+		if !done09(config) || (secret != valueRedacted && secret != "<unset>") {
 			return fmt.Errorf("show l2tp config shared-secret leaked: %v", secret)
 		}
 		missing := dispatch09(ctx, p, "show l2tp tunnel id 999")
-		if missing.status != "error" || !strings.Contains(missing.text, "999") {
+		if missing.status != statusError || !strings.Contains(missing.text, "999") {
 			return fmt.Errorf("show l2tp tunnel id 999: expected named error, status=%s data=%s", missing.status, missing.text)
 		}
 		return nil
@@ -316,7 +328,7 @@ func l2tpHealthShow09(ctx context.Context, _ []string) error {
 			fmt.Fprintf(os.Stderr, "OK: l2tp health done count=%v\n", data["count"])
 			return nil
 		}
-		if r.status == "error" && (strings.Contains(r.text, "observer not enabled") || strings.Contains(r.text, "CQM") || strings.Contains(r.text, "l2tp subsystem")) {
+		if r.status == statusError && (strings.Contains(r.text, "observer not enabled") || strings.Contains(r.text, "CQM") || strings.Contains(r.text, "l2tp subsystem")) {
 			fmt.Fprintln(os.Stderr, "OK: l2tp health reached handler (CQM/observer off in harness)")
 			return nil
 		}
@@ -340,7 +352,7 @@ func l2tpTunnelsShow09(ctx context.Context, _ []string) error {
 			return err
 		}
 		t := map09(rows[0])
-		if t["peer-hostname"] != "py-peer" || t["state"] != "established" || number09(t["local-tid"]) == 0 || number09(t["remote-tid"]) != 0x0123 {
+		if t["peer-hostname"] != hostnamePyPeer || t["state"] != stateEstablished || number09(t["local-tid"]) == 0 || number09(t["remote-tid"]) != 0x0123 {
 			return fmt.Errorf("unexpected tunnel: %v", t)
 		}
 		if err := l2tpWriteExit09(); err != nil {
@@ -367,7 +379,7 @@ func l2tpTunnelDetailShow09(ctx context.Context, _ []string) error {
 				return fmt.Errorf("tunnel detail missing %q: %v", key, t)
 			}
 		}
-		if _, ok := t["sessions"].([]any); !ok || t["peer-hostname"] != "py-peer" || number09(t["remote-tid"]) != 0x0123 {
+		if _, ok := t["sessions"].([]any); !ok || t["peer-hostname"] != hostnamePyPeer || number09(t["remote-tid"]) != 0x0123 {
 			return fmt.Errorf("unexpected tunnel detail: %v", t)
 		}
 		if err := l2tpWriteExit09(); err != nil {
@@ -390,7 +402,7 @@ func l2tpSessionsShow09(ctx context.Context, _ []string) error {
 			return err
 		}
 		s := map09(rows[0])
-		for _, key := range []string{"local-sid", "remote-sid", "tunnel-local-tid", "state"} {
+		for _, key := range []string{"local-sid", "remote-sid", "tunnel-local-tid", fieldState} {
 			if _, ok := s[key]; !ok {
 				return fmt.Errorf("session missing %q: %v", key, s)
 			}
