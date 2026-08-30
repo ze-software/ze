@@ -3,6 +3,7 @@ module ze-peer-cmd {
     prefix peercmd;
     import ze-extensions { prefix ze; }
     description "BGP peer operations: show, delete, and control peer sessions. Owns the show bgp health overview and the delete bgp peer command surface; container-merges onto the show and delete verb roots.";
+    revision 2026-08-30 { description "Delete the usage sentences of show bgp peer rib and request peer teardown. The model states both grammars and the renderer reproduces each line, so the prose stated a second time what the model already says."; }
     revision 2026-08-29 { description "request peer teardown takes a cease subcode or it fails: handleTeardown refuses an empty tail. The description wrote it as optional and the model stated nothing. The peer selector of every command under show bgp peer, update bgp peer and request peer moves to the peer container, which is the keyword the operator types it after; show bgp peer list reads every peer, so it states ze:inherit none."; }
     revision 2026-03-16 { description "Initial revision"; }
     revision 2026-06-03 { description "Relocated show bgp-health and delete bgp peer out of the central show/delete schemas into this owner (plugin self-containment)."; }
@@ -66,8 +67,7 @@ the per-peer detail.";
                 container rib {
                     config false;
                     ze:command "ze-bgp:peer-rib";
-                    description "Show RIB data scoped to one peer.
-Usage: show bgp peer <selector> rib [sent|advertised|received|sent-received].";
+                    description "Show RIB data scoped to one peer.";
 
                     container scope {
                         config false;
@@ -164,8 +164,7 @@ to apply.";
             container teardown {
                 config false;
                 ze:command "ze-bgp:peer-teardown";
-                description "Tear down a peer session.
-Usage: request peer <selector> teardown <cease-subcode>.";
+                description "Tear down a peer session.";
                 leaf cease-subcode { type uint8; mandatory true; description "BGP cease NOTIFICATION subcode"; }
             }
 

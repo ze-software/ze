@@ -913,6 +913,9 @@ Each row says what the spec claimed, what the code says, and why the change.
   `id` and treats `scope` as a cross-check, so the model states it optional.
   Correcting those three sentences is what closes the two differences, and this
   phase left every authored sentence untouched.
+- **The prose deletion stopped at 72 of the 81 sentences, and 9 stand.** The
+  count below records the pass that took it to 24; 3b376b4b7 took it to 11 and
+  the review commit took it to 9. Each of the 9 is named in Closure status.
 - **The prose deletion stopped at 57 of the 81 sentences, and 24 stand.**
   `./le docvalid usage-contract` reported 379 command nodes, 81 authored
   sentences and 32 differences before the deletion phase, then 379, 32 and 32,
@@ -1009,10 +1012,55 @@ N-A. This spec implements no RFC obligation and changes no wire-visible behavior
 
 ## Review Gate
 
+Independent review of the eight commits 5f5b73261, e53c244ab, bd25f033e,
+2e5e502f1, 5bcb20da2, 0b0c965b9, 3b376b4b7 and eff4c1e38, run by a context that
+wrote none of them. Artifact:
+`tmp/review/generated-command-usage-0d49d3a4-3753-4eb2-86d9-cd63bdb9cafb.md`,
+verdict clean, 9 files pinned, `./le spec session review check` exits 0.
+
 ### Run 1
 | Severity | Finding | File | Resolution |
 |----------|---------|------|------------|
+| BLOCKER | `show route lookup not-an-ip` stopped reaching `netip.ParseAddr` once the `ip` leaf declared a pattern, and answered `unexpected argument "not-an-ip", valid keywords: ip`. That names a keyword the published form `show route lookup <ip>` never asks anybody to type and drops the reason the value was refused. `test/ui/cli-verb-daemon-dispatch.ci` check 10 was red at HEAD on it | `internal/component/plugin/server/command.go`, `positionalError` | Fixed. `positionalError` reads the definitions still OPEN and answers the refusal of the one that is open, so the message is `invalid value "not-an-ip", does not match expected pattern` -- the family `show log recent count not-a-number` already answered in. Check 10 now drives a value the pattern ADMITS and `ParseAddr` refuses, check 10b is new and covers the value the pattern refuses, and both were proven to redden |
+| ISSUE | `TestDeclaredValuesKeepAcceptedInvocations` keeps `show metrics name ze_bgp_updates_total peer=edge1` and calls the packed token a label filter. `metricLabelFilters` refuses that form now, so the row states a kept invocation the product no longer keeps | `internal/component/plugin/server/usage_model_test.go` | NOT landed, and this is the reason: another session holds that file with an uncommitted `request interface migrate` case whose YANG is also uncommitted, so committing the file would break HEAD the way 5f5b73261 did twice. The correction is one case: input `show metrics name ze_bgp_updates_total label peer edge1`, args `label peer edge1` |
+| NOTE | Deleting an authored sentence AND renaming the command path in one commit passes the HEAD comparison: `usageContract` skips a HEAD path the working tree no longer reaches | `internal/le/docvalid/usage.go` | Accepted. Every other attempt to defeat the guard fails closed, including deleting the `ze:command` (the generated line becomes empty and the shapes differ) |
+| NOTE | `request interface migrate` at HEAD documents `--from`/`--to` flags, which `ai/rules/cli.md` forbids and `firstFlagToken` refuses | `internal/component/iface/cmd/cmd.go`, `parseMigrateArgs` | Another session is converting it to keyword groups in the working tree. Out of this spec's diff |
 
 ### Run 2
 | Severity | Finding | File | Resolution |
 |----------|---------|------|------------|
+| - | No BLOCKER and no ISSUE. The dispatcher package, the command, yang, docvalid, cmd/ze, show, iface, wikicatalog and site packages are green, and `ze-test fixture ui/cli-verb-daemon-dispatch` exits 0 | - | - |
+
+### What the review verified against source
+
+| Claim | How |
+|-------|-----|
+| Moving a leaf onto a container changed no command's argument set | A dump of every node's `ArgDef` at 2e22aebb1 and at HEAD differs in ONE line, the new `show metrics name label` group. So the `ze:inherit "none"` opt-out is COMPLETE: a command that gained an inherited leaf it did not declare before would appear as a set difference, and none does |
+| 19 commands inherit and 2 opt out | A walk of the built tree prints `selector@peer` on nine `request peer`, five `show bgp peer` and `update bgp peer prefix`, `name@interface` on four `request interface`, and the opt-out on `request interface migrate` and `show bgp peer list` |
+| Positional binding is order-independent | `positionalDef` ranks by `command.Constraint` and breaks a tie by name, which is the ALPHABETICAL order the slice used to carry, so a same-rank pair binds exactly as it did. A wrong bind fails closed at the selector fence: `Dispatch` adopts a lone positional only when `positional[selectorLeaf]` holds it |
+| The generated line reads the model only | `usage.go` imports `textbuf` and reads `Node` and `ArgDef`. No description reaches it |
+| HEAD compiles | `go build ./...` and `go build -tags <each of the nine>` `./cmd/ze` both exit 0 in a detached worktree at eff4c1e38 |
+| Neither repair reverted another session's work | e53c244ab restores two string literals the consumer never needed; bd25f033e ADDS a const block. Both files are clean in the working tree, so nothing was overwritten |
+
+## Closure status: BLOCKED, and the spec stays open
+
+The review is clean and the code is sound. The spec does not close, for one
+reason: its own Deliverables Checklist asks that no authored usage prose remain
+and that `./le docvalid usage-contract` exit 0, and 9 sentences still prescribe
+a CLI spelling. The Task section allows exactly one residue -- "a command the
+model cannot express keeps its authored sentence" -- and only two of the nine
+are that.
+
+`show bgp peer rib` and `request peer teardown` were deletable at this review
+and are deleted here, which is the second half of the two-step 3b376b4b7 set up.
+
+| Remaining | Why it is still there | What closes it |
+|-----------|----------------------|----------------|
+| `debug ip ospf inject opaque`, `debug ipv6 ospf inject lsa`, `resolve traceroute`, `delete interface name unit`, `show system sockets`, `show capture`, `show policy test peer` | the model states the grammar and the PROSE is wrong. `usageShape` folds placeholder wording only, so the deletion is refused against the HEAD sentence | one commit correcting each sentence to the generated line, then a second deleting it. Seven commands, two passes, no code |
+| `announce` | the route specification is a grammar the model cannot state, which the Task section allows | nothing. It is the declared end state |
+| `show pki certificate name` | whole-form alternation, class (e). `handleShowPKICertificate` switches over `pem`, `bundle pem` and `fingerprint [sha256\|sha384\|sha512]` | three sibling containers with their own `ze:command`, and three handler registrations: the shape `withdraw` was split into |
+
+Two further facts the next session needs. The gate is not wired into
+`./le verify`, so nothing runs it: `usageRow` and its siblings stay
+package-private until the prose is gone. And `./le` is an existence cache, so a
+stale `bin/le` reports stale counts; build a fresh one before reading them.
