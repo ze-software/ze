@@ -675,7 +675,9 @@ func (p *Peer) SetDialer(d network.Dialer) {
 
 // resetAPISync resets the per-session API synchronization state.
 // Called when session transitions to Established.
-// expectedCount is the number of API processes with SendUpdate permission.
+// expectedCount is the number of process bindings that may push a route into
+// this peer's initial routing update, by either rail: `send [ update ]` or
+// `send [ raw ]` (ProcessBinding.MayPushRoutes, counted in peer_run.go).
 func (p *Peer) resetAPISync(expectedCount int) {
 	p.mu.Lock()
 	p.apiSyncExpected = int32(expectedCount) //nolint:gosec // API process count will never overflow int32
@@ -1001,7 +1003,7 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 // breaks a deliberate feature. test/plugin/flowspec-open-capability.ci pins that
 // loading a plugin auto-adds its Multiprotocol capabilities "WITHOUT explicit
 // family configuration", and the peer in that test attaches no process. The
-// defect and the feature are the same behaviour seen from two sides, so which
+// defect and the feature are the same behavior seen from two sides, so which
 // one wins is an operator-visible decision about the feature rather than a defect
 // fix. PluginRegistry.DecodeFamiliesForPlugins is the narrowing, written and
 // tested, and is not called from here until that decision is made.

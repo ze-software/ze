@@ -4,25 +4,34 @@
 stdin=peer:terminator=EOF_PEER
 # Step 5: commands migrated to bgp peer prefix
 #
+# This file used to quote a ruling of 2026-07-27 saying the marker is ordered
+# only against this speaker's own initial dump, never against routes learned
+# afterwards, and applied it to a PLUGIN-INJECTED route. That application is
+# VOID: the owner ruled on 2026-08-30 that a plugin-injected route DOES belong
+# to this speaker's initial routing update, so the End-of-RIB waits for it
+# (RFC 4724 Section 4, ProcessBinding.MayPushRoutes, peer_initial_sync.go).
+# The sentence stays true where role-otc-unicast-scope.ci and the forward tests
+# use it, because there the route is FORWARDED from another peer and was never
+# part of this speaker's dump.
 #
-#   "RFC 4724 S2 orders the EOR only against this speaker's own initial dump,
-#   never against routes learned afterwards. There is no ordering here for a
-#   test to assert. Same ruling as role-otc-unicast-scope."
+# The EOR-position rule stays absent here even so, and this file is not where
+# the new order is proven. The driver (`nexthopRoutes`,
+# internal/test/fixture/plugin_fixture_11.go) sends the seq=1 announce and only
+# then waits for `eor-sent`, so under ruling 1 the marker is owed between seq=1
+# and seq=2. Which frame wins is decided by how fast the plugin announces inside
+# the barrier window rather than by an order Ze publishes, and this file's rule
+# failed 13 of 40 on exactly that (internal/le/stressrepro/actions.go). The
+# order ruling 1 makes assertable is asserted where the barrier, not a race,
+# decides it: test/plugin/initial-sync-barrier-raw.ci, whose plugin dispatches
+# `plugin session ready` so the marker is released by the barrier itself.
 #
-# Precedent: role-otc-unicast-scope.ci:43-52 removed an equivalent EOR-position
-# rule for the same reason. The marker this rule pinned is the daemon's OWN
-# initial-sync EOR (peer_initial_sync.go); whether it landed before or after a
-# plugin-injected announce was decided by host scheduling, so the rule asserted
-# an ordering Ze never owed and failed intermittently (reproduced 13/40 under
-# internal/le/stressrepro/actions.go).
+# The rule's cmd=api documentation line went with it: cmd=api sets Cmd on the
+# message at that conn/seq (internal/test/runner/record_parse.go), so leaving it
+# would have relabelled the renumbered 2001::2 announce with the EOR command
+# text.
 #
-# Its cmd=api documentation line went with it: cmd=api sets Cmd on the message at
-# that conn/seq (internal/test/runner/record_parse.go:797), so leaving it would
-# have relabelled the renumbered 2001::2 announce with the EOR command text.
-#
-# The marker's EXISTENCE is still required, just not its position: the plugin
-# below blocks on wait_peer_eor_sent() and calls runtime_fail if it never
-# reaches the wire.
+# The marker's EXISTENCE is still required: the driver fails the run with
+# "initial-sync end-of-rib never reached the wire" when `eor-sent` never rises.
 #
 # Nothing else is relaxed. All three announce rules keep their exact hex,
 # including the ORIGIN, AS_PATH, LOCAL_PREF, MP_REACH attribute order that

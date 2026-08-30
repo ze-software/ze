@@ -21,7 +21,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -497,8 +496,16 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 }
 
 // validatePeerProcessCaps checks that peers with route-refresh or graceful-restart
-// capabilities attach at least one process permitted to send updates.
+// capabilities attach at least one process permitted to put a route on the wire.
 // These capabilities require a process to resend routes on demand.
+//
+// Reads ProcessBinding.MayPushRoutes rather than MaySend(SendUpdate), because
+// either rail satisfies the demand: ze builds the UPDATE from the process's
+// route operation (`send [ update ]`), or the process hands over a whole message
+// it built itself (`send [ raw ]`). The owner added the `raw` word on 2026-08-30
+// and ruled that what it carries belongs to this speaker's routing update, so a
+// raw-only process answers a route refresh and refills a peer after a restart.
+// Naming one rail here would refuse a config that can serve both capabilities.
 func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 	for _, ps := range peers {
 		needsProcess := false
@@ -527,7 +534,7 @@ func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 
 		hasValidProcess := false
 		for _, b := range ps.ProcessBindings {
-			if b.MaySend(bgpevents.SendUpdate) {
+			if b.MayPushRoutes() {
 				hasValidProcess = true
 				break
 			}
@@ -537,14 +544,14 @@ func validatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 		}
 
 		if len(ps.ProcessBindings) == 0 {
-			return fmt.Errorf("peer %s: %s requires an attached process with send [ update ]\n  the peer attaches no process",
+			return fmt.Errorf("peer %s: %s requires an attached process with send [ update ] or send [ raw ]\n  the peer attaches no process",
 				ps.Address, capName)
 		}
 		var names []string
 		for _, b := range ps.ProcessBindings {
 			names = append(names, "attach process "+b.PluginName)
 		}
-		return fmt.Errorf("peer %s: %s requires an attached process with send [ update ]\n  configured: %s - none have send [ update ]",
+		return fmt.Errorf("peer %s: %s requires an attached process with send [ update ] or send [ raw ]\n  configured: %s - none carry either word",
 			ps.Address, capName, textbuf.Join(names, ", "))
 	}
 	return nil

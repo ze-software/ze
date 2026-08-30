@@ -181,8 +181,8 @@ func (p *Peer) sendInitialRoutes() {
 	// sends reads it to mean. Kept SEPARATE from the API-sync wait below: this
 	// one is free in the common case (nothing expected, or an in-process plugin
 	// that already acknowledged on the FSM callback goroutine before this
-	// goroutine was spawned), so it must not drag in that wait's 500ms IPC
-	// grace. Bounded; on timeout it releases and says so.
+	// goroutine was spawned), so it must not drag in that wait's apiSyncTimeout
+	// of 2s (api_sync.go). Bounded; on timeout it releases and says so.
 	p.waitPeerUpBarrier()
 
 	// The wait for the processes that push routes into this peer's initial

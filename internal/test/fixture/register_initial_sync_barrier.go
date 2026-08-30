@@ -76,7 +76,13 @@ func initialSyncBarrierRaw(ctx context.Context, _ []string) error {
 		if !plugin01WaitCounter(ctx, plugin, "*", "eor-sent", 1, 100) {
 			return errors.New("the peer never reported eor-sent, so the marker never reached the wire")
 		}
-		fmt.Fprintln(os.Stderr, "OK: the raw route reached the wire before the end-of-rib")
+		// States what this observer SAW, which is the injection acknowledged
+		// and the marker counted. The ORDER of the two on the wire is asserted
+		// by the .ci hex expectations and by nothing here: this fixture reads
+		// counters, never frames, so a line claiming an order would pass in a
+		// run where the marker went first (measured 2026-08-30, forcing the red
+		// phase by deleting the SendRaw arm of ProcessBinding.MayPushRoutes).
+		fmt.Fprintln(os.Stderr, "OK: the raw route was injected and the end-of-rib was counted")
 		return nil
 	})
 }

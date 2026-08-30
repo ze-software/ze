@@ -1468,25 +1468,73 @@ RIB signals: "peer <addr> plugin session ready"
 
 ### API Sync Protocol
 
-To ensure routes are replayed before EOR is sent, the engine uses an API sync protocol:
+The engine holds this peer's End-of-RIB until every plugin that can push a route
+into the session has pushed it. RFC 4724 Section 4 owes the marker "once it
+completes the initial routing update", and the owner ruled on 2026-08-30 that a
+plugin-injected route belongs to that update.
 
-1. **Session establishment:** Engine counts API bindings with `SendUpdate` permission
-2. **ResetAPISync(count):** Peer initializes sync state with expected signal count
-3. **RIB replays routes:** After "state up", replays stored routes
-4. **RIB signals ready:** `"peer <addr> plugin session ready"`
-5. **SignalPeerAPIReady:** Engine decrements counter, closes channel when all received
-6. **sendInitialRoutes:** Waits up to 500ms for API sync before sending EOR
-7. **AnnounceEOR guard:** External `AnnounceEOR` calls (plugin, route-server) skip peers where `ShouldQueue()` is true, preventing a race where a plugin EoR reaches the wire before queued route NLRI. The peer's own `sendInitialRoutes` EoR covers those families.
+1. **Session establishment:** `setState` closes the queueing gate
+   (`sendingInitialRoutes`) and marks the marker owed (`initialSyncEOROwed`) in
+   the same call that publishes Established.
+2. **Engine counts the route-pushing bindings:** every `attach process` binding
+   `ProcessBinding.MayPushRoutes` reports true for, which is `send [ update ]`,
+   `send [ raw ]`, or the `*` wildcard. A binding that only receives events is
+   not counted.
+3. **resetAPISync(count):** the peer stores that count as the number of ready
+   signals it expects for this session.
+4. **Plugins do their peer-up work:** bgp-rib replays the routes it stored for
+   this peer after "state up".
+5. **Each counted plugin signals ready:** `"peer <addr> plugin session ready"`.
+   A plugin with nothing to send signals too, on every peer-up: the barrier
+   cannot tell "finished with nothing to send" from "still working".
+6. **SignalPeerAPIReady:** the engine routes the signal to the peer, which
+   counts it and closes `apiSyncReady` when the last one arrives.
+7. **sendInitialRoutes writes what it owns:** config static routes,
+   default-originate, the peer-up barrier, then the family routes.
+8. **drainAndCloseQueueGate:** the opQueue is drained and the queueing gate
+   CLOSES here, before the wait. The forwarding rails parked behind the sync are
+   released with it.
+9. **waitForAPISync:** bounded by `apiSyncTimeout`, which is 2s. A route a
+   plugin pushes during this wait goes straight to the wire, in front of the
+   marker, where a route belonging to the initial update belongs.
+10. **End-of-RIB, then the marker fact clears:** one marker per negotiated
+    family, then `initialSyncEOROwed` goes false.
+11. **AnnounceEOR guard:** a marker from another producer (a plugin, the route
+    server) is suppressed while `shouldQueue()` OR `initialSyncEOROwed` is true.
+    The caller is told the marker was handled, the suppression is logged, and
+    the peer's own `sendInitialRoutes` marker covers the family.
+<!-- source: internal/component/bgp/reactor/peer_run.go -- the route-pushing binding count at Established -->
+<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding.MayPushRoutes -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, drainAndCloseQueueGate -->
+<!-- source: internal/component/bgp/reactor/api_sync.go -- apiSyncTimeout -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.waitForAPISync, Peer.initialSyncEOROwed -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR -->
+
+**The queueing gate and the owed marker are two facts, and steps 8 to 10 are
+where the difference shows.** `sendingInitialRoutes` says the initial sync is
+still writing the routes it owns, and it gates queueing and the forwarding
+rails. `initialSyncEOROwed` says the marker is still owed, and it gates the
+marker alone. One flag carried both until 2026-08-30, so any hold taken before
+the marker also held the queueing window open: measured on 2026-08-08, a 500ms
+hold made `test/plugin/role-otc-rs-withdraw-eor.ci` deliver the same relayed
+route to the destination peer TWICE. Splitting the facts is what lets the
+barrier cover every route-pushing binding without widening that window.
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.sendingInitialRoutes, Peer.initialSyncEOROwed -->
 
 ```go
-// In sendInitialRoutes()
+// In sendInitialRoutes(), once the routes this goroutine owns are on the wire.
+p.drainAndCloseQueueGate(addr, opMaxMsgSize) // Queueing gate closes HERE.
+p.wakeForwardOverflow()                      // Parked forwarded UPDATEs go out.
+
 p.mu.RLock()
 needsAPIWait := p.apiSyncExpected > 0
 p.mu.RUnlock()
 if needsAPIWait {
-    time.Sleep(500 * time.Millisecond)
+    p.waitForAPISync() // Bounded by apiSyncTimeout (2s). The marker stays owed.
 }
-// Then process opQueue and send EOR
+
+// Then one End-of-RIB per negotiated family, and finally:
+p.initialSyncEOROwed.Store(false)
 ```
 
 ---

@@ -734,11 +734,12 @@ document names its generated `dyn-<address>` identity, and none needs to.
 |-------|-------------|
 | `update` | Can inject routes |
 | `refresh` | Can request route refresh |
+| `raw` | Can send a whole BGP message it built itself, an OPEN or a NOTIFICATION included |
 | `*` | Every message type, including every one a plugin registers later |
 <!-- source: internal/core/bgp/events/events.go -- BaseSendTypes -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf-list send, ze:validate send-message-type -->
 
-`update` and `refresh` are the two BASE types. A plugin registers more through
+`update`, `refresh` and `raw` are the three BASE types. A plugin registers more through
 `Registration.SendTypes`, and naming one in a send list auto-loads the plugin
 that enables it: `send [ enhanced-refresh ]` starts bgp-route-refresh, which
 sends the RFC 7313 BoRR and EoRR markers. `*` names no type, so it auto-loads

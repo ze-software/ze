@@ -1614,3 +1614,64 @@ func TestReloadFuncRefusesIncompleteCandidate(t *testing.T) {
 	assert.Contains(t, err.Error(), "incomplete peer definition")
 	assert.Contains(t, err.Error(), "broken:connection/remote/ip")
 }
+
+// TestRouteRefreshAcceptsARawOnlyProcess pins the population of the
+// capability validator that demands a route-pushing process.
+//
+// VALIDATES: validatePeerProcessCaps reads ProcessBinding.MayPushRoutes, so a
+// process that puts a whole message it built itself on the wire satisfies
+// route-refresh and graceful-restart, and a process that can put no route on
+// the wire at all still does not.
+//
+// PREVENTS: the `raw` send word, added on 2026-08-30, being expressible in the
+// config and refused by this validator. Before that word a raw injector had to
+// carry `send [ update ]` as well, so naming one rail here cost nothing; it now
+// refuses a peer whose only route-pushing process declares the rail it uses.
+func TestRouteRefreshAcceptsARawOnlyProcess(t *testing.T) {
+	peerConfig := func(sendList string) string {
+		return `
+plugin { external injector { run ./injector; } }
+
+bgp {
+    router-id 10.0.0.1;
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
+
+    peer transit1 {
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+                route-refresh;
+            }
+        }
+        attach process injector { send [ ` + sendList + ` ]; }
+    }
+}
+`
+	}
+
+	t.Run("raw alone is a route-pushing process", func(t *testing.T) {
+		r, err := LoadReactor(peerConfig("raw"))
+		require.NoError(t, err)
+		require.Len(t, r.Peers(), 1)
+	})
+
+	t.Run("refresh alone pushes no route", func(t *testing.T) {
+		_, err := LoadReactor(peerConfig("refresh"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "send [ update ] or send [ raw ]")
+	})
+}
