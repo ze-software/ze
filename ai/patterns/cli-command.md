@@ -312,7 +312,7 @@ The YANG path maps directly: `show bgp peer` = container nesting = WireMethod `z
 | Suggest | Unknown subcommand: `suggest.Command(arg, candidates)` + hint to stderr |
 | Help | Handle `help`, `-h`, `--help` at parent level BEFORE dispatch |
 | Stdin/stdout | `-` means stdin (read) / stdout (write). Read/write a user-supplied path through `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), NEVER a raw `os` call -- `./le dash-stdio check` enforces it |
-| JSON output | `--json` flag. Default is human-readable text |
+| JSON output | `\| json` over a structured payload. A `--json` flag is legitimate only on a tool that reaches no pipe layer -- see `ai/rules/cli.md` "`--flag` or Keyword" |
 
 ## Command Registration (BLOCKING)
 

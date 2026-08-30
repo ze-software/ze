@@ -310,11 +310,10 @@ only at the point of use if the underlying API requires it. This avoids:
 
 ### Backward Compatibility
 
-If the wrong grammar has not shipped, replace it outright. Do not add
-deprecation branches for unreleased syntax.
-
-If fixing a released grammar, accept the old grammar with a deprecation warning.
-Log the warning once per session. Remove old grammar after two release cycles.
+Replace a wrong grammar outright. Ze has never been released, so no grammar is
+owed to a user and none is kept working alongside its replacement: delete the
+old form, then implement the new one (`ai/rules/go-standards.md`, "No Backwards
+Compatibility"; `ai/rules/no-layering.md`).
 
 ### Mechanical Check (grammar)
 
@@ -343,15 +342,17 @@ ruleset is R1-R9 (verb-first, token form, no `--flag`, namespace discipline,
 keyword-before-value, action-before-identifier, config-tree-mutation stays in
 `set`/`delete`, string identifiers, compound-vs-namespace split), implemented once in
 `internal/component/command/grammar` and read from the canonical verb registry
-`internal/component/command` (`Verbs`). Five feeders enforce it:
+`internal/component/command` (`Verbs`). Seven feeders enforce it:
 
 | Feeder | What it checks | Run |
 |--------|----------------|-----|
-| Static gate | Every built-in command (YANG command tree) against R1-R9 (R9 sibling-collision is static-gate-only, it needs sibling context), plus no `--flag` in any `.yang` | `./le cli-grammar` (NOT a `./le verify worktree` stage -- it is not in `stagesForMode`; the gate reaches CI through `TestCLIGrammarGateStatic` in `internal/le/cligrammar/cligrammar_test.go`, which runs the same checker under the unit stage) |
+| Static gate | Every built-in command (YANG command tree) against R1-R9 (R9 sibling-collision is static-gate-only, it needs sibling context), plus no `--flag` in any `.yang` | `./le cli-grammar` (NOT a `./le verify worktree` stage -- it is not in `stagesForMode`; the gate reaches CI through `TestTheRealCheckoutPassesAndWasRead` in `internal/le/cligrammar/cligrammar_test.go`, which runs the same checker over the real checkout under the unit stage) |
 | Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in functional/exabgp suites |
 | Runtime guard | The runtime built-in assembly (`AllBuiltinRPCs` x `WireMethodToPaths`) re-checked with `ExemptCategory` by wire method; and the `CommandRegistry.Register` boundary rejecting a bad name | `TestRuntimeBuiltinSurfaceGrammar` / `TestRegistrationRejectsBadGrammar` (unit) |
 | Root namespace | Every registered root command (`registry.MustRegisterRootHandler` / `RegisterRoot`, enumerated from source) against R9 across surfaces (`grammar.CheckRootNamespace`): a hyphenated root whose left segment names a YANG verb or container is a namespace member masquerading as a compound root. Root handlers never pass through the YANG-tree static gate, so this feeder is the only one that governs them | `./le cli-grammar` (same gate); `TestRootNamespaceGrammar` (unit) |
 | Demo call sites | Every `ze <token>` invocation under `demos/terminal/`: the position-1 token must be a YANG verb, a registered root, or the `-` stdin sentinel. `./le cli-grammar` reads the demo sources; `./le terminal-demo check-all` validates the published artifacts |
+| `le` surface | `le`'s own command tree, which the first five feeders never reach because it registers outside the YANG tree and outside `registry.RegisterRoot` | `./le cli-grammar` (same gate) |
+| Offline flags | The `cmd/ze/` flag surface against "`--flag` or Keyword" below: a root spelled as a flag, a flag a client sends to the daemon, a flag repeating a pipe operator, and a flag the parser and `registry.RegisterCommandFlags` disagree about. What a static scan cannot place is COUNTED and printed, never dropped | `./le cli-grammar` (same gate); the shapes are pinned by `TestTheFlagFeederDrawsARowForEachShape` (unit) |
 
 Feeder 3 is an **in-process** guard, not a daemon-boot audit: built-ins are 100%
 YANG-derived (a handler with no YANG path is skipped, `LoadBuiltinsWithAliases`) so
@@ -407,6 +408,34 @@ Mechanical check (must return nothing):
 grep -rnE '\-\-[a-z]' internal --include='*.yang' | grep -vE 'urn:|http|xml'
 ```
 
+### `--flag` or Keyword: Which Register a Token Belongs To
+
+- **A `--flag` belongs to the PROCESS that runs a command; a bare keyword belongs to the COMMAND itself.** The daemon states the cut in the error it returns when a flag reaches it: `flags are interpreted by the client, not the daemon` (`firstFlagToken`, `internal/component/plugin/server/command.go`).
+- **A filter names part of the question, so it MUST take the first register and never the third.** `family`, `limit`, `vrf` and `table` are keywords: `show bgp neighbor ipv6`, never `--family ipv6`.
+
+| Test, applied in order, first yes wins | Register | Form |
+|----------------------------------------|----------|------|
+| Does it change WHICH answer is produced: the object, the sub-section, the selector, the filter, the variant? | Command grammar | bare keyword, declared in YANG or a `CommandDecl` |
+| Does it change how an answer already in hand is rendered or reduced? | Pipe operator | `\| json`, `\| count`, `\| match` |
+| Does it change how this process starts, before any command exists: which config, which daemon, which credentials, which plugins, which listener, which colors? | Process option | `--flag` |
+
+| A `--flag` MUST NOT be | Why | Use instead |
+|------------------------|-----|-------------|
+| A command name | A flag that dispatches is a verb in disguise: it enters no tree, so completion, `ze help command` and the grammar gate never see it | a registered root, or a path under a read verb |
+| One of a mutually exclusive set | Several booleans of which exactly one is legal is a closed keyword set the type system is not checking | one keyword slot |
+| A second spelling of a pipe operator | `--json` and `\| json` are one job under two names, and only one of them composes. A flag MAY set a session default only by lowering into the operator, as `commandWithFormat` does (`internal/component/cli/client/main.go`) | `\| json` |
+| A filter that exists as grammar elsewhere | The operator learns one concept twice, and the two surfaces then disagree about it | the keyword |
+| Silently ignored when unknown | The operator's intent is dropped and the exit code reports it was honored | name the token in the error and exit non-zero |
+
+- **A client MUST NOT build a flag into a command string it sends to the daemon.** `(*Dispatcher).Dispatch` (`internal/component/plugin/server/command.go`) refuses any flag-shaped token before the handler runs, so such a command fails on every invocation while its client half and its daemon-side parser both read as finished code.
+
+- **The `--flag` form MUST stay in the offline `cmd/ze/` tools that reach no daemon and have no pipe layer: `appliance`, `analyze`, `perf`, `chaos`, `le`, `install`, `provision` and the mock servers.** These are build, lab and analysis tools, not the router's operator language.
+- **A command that crosses to the daemon MUST take keywords, on every front end an operator can type it from.** The SSH CLI, the web terminal, `ze cli -c` and the offline `ze <verb>` dispatch all reach the same command, so one spelling MUST serve all four.
+- **MUST NOT give any command a flag spelling, with one exception: `--version`, `-V`, `--help` and `-h`, which every Unix program answers.** A person meeting `ze` for the first time types one of the four before any help exists to tell them otherwise, so `ze` answers them.
+- **The four are ADDITIVE, never a replacement: `ze version` and `ze help` MUST exist as commands and MUST stay the canonical form.** The command is what the tree declares, what completion offers and what the documentation names; the flag answers identically beside it. This is a Unix convention, not a compatibility shim, so `ai/rules/go-standards.md` "No Backwards Compatibility" does not reach it and nothing else joins the set.
+
+- **Every flag an offline command accepts MUST be declared once through `registry.RegisterCommandFlags` (`internal/component/command/registry/flags.go`).** A flag declared only in `Meta.Subs` prose is invisible to completion, and prose drifts from the parser in both directions: a flag the handler parses and the help never names, and a flag the help names and the handler never reads.
+
 ### Applies To
 
 All CLI commands: online (RPC handlers via YANG dispatch) and offline
@@ -437,9 +466,12 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 
 | Flag | Meaning | Flag | Meaning |
 |------|---------|------|---------|
-| `--json` | JSON output | `--text` | Human-readable |
 | `--dry-run` | Preview | `--socket` | Unix socket path |
 | `--log-level` | Logging level | `--no-header` | Exclude headers |
+
+A rendering flag (`--json`, `--text`, `--yaml`, `--format`) is legitimate only on
+a tool that reaches no pipe layer. Elsewhere it is the pipe operator's second
+spelling: see "What a `--flag` MUST NOT be" above.
 
 ### Exit Codes
 
@@ -451,7 +483,7 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 - MUST return exit codes; MUST NOT call `os.Exit()` in handlers
 - `-` means stdin (read) / stdout (write): MUST read/write a user-supplied path through
   `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), MUST NOT make a raw
-  `os` call. `./le dash-stdio check` fails any command that bypasses it. `--json` for JSON output
+  `os` call. `./le dash-stdio check` fails any command that bypasses it
 - Repeatable flags MUST use `stringSlice` with `String()` + `Set()`
 
 ### Command Completion (BLOCKING)

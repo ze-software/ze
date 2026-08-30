@@ -74,7 +74,6 @@ cli-grammar-keywords-before-values ## CLI Grammar: Keywords Before Values
   keep-identifiers-string-typed-even-when-numeric
   backward-compatibility
   replace-an-unreleased-grammar-outright
-  deprecate-a-released-grammar-do-not-cut-it
   mechanical-check-grammar
   for-every-handler-that-dispatches-on-args-0
   the-questions-that-decide-if-a-handler-conforms
@@ -95,6 +94,13 @@ cli-grammar-keywords-before-values ## CLI Grammar: Keywords Before Values
   where-the-family-as-filter-rationale-lives
   mechanical-check-must-return-nothing
   grep-for-flag-syntax-in-yang-files
+  flag-or-keyword-which-register-a-token-belongs-to
+  a-flag-belongs-to-the-process-a-keyword-to-the-command
+  the-tests-that-place-a-token-in-its-register
+  what-a-flag-must-never-be
+  never-send-a-flag-from-a-client-to-the-daemon
+  keep-the-flag-form-to-the-tools-that-reach-no-daemon
+  declare-every-offline-flag-through-the-flag-registry
   applies-to
   the-rule-covers-online-and-offline-commands-alike
 cli-patterns ## CLI Patterns
