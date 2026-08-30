@@ -66,6 +66,12 @@ type LocalHandler func(args []string) int
 // a struct. It MUST NOT be text a renderer already formatted, for the reason
 // ai/rules/cli.md gives for every other handler: `| json`, `| yaml` and
 // `| table` are three renderings of ONE payload.
+//
+// The two results are INDEPENDENT. The payload says whether there is an answer
+// to render, the code says what the process exits with, and a command MAY have
+// both: `validate config` answers the diagnostics of a config it rejects and
+// exits 1. A handler with nothing to say MUST write its reason to stderr and
+// return a nil payload.
 type LocalDataHandler func(args []string) (any, int)
 
 // RootHandler runs an owner-backed root command in-process. It receives the
@@ -397,11 +403,18 @@ func RegisterLocalData(path string, handler LocalDataHandler, meta Meta, render 
 		return fmt.Errorf("registry.RegisterLocalData: nil renderer for %q", path)
 	}
 	if err := RegisterLocalMeta(path, func(args []string) int {
+		// A nonzero code with a payload is an ANSWER the command exits
+		// nonzero on, not an error with nothing to say: `validate config`
+		// renders the diagnostics of a config it rejects and exits 1. The
+		// renderer's own failure wins, because then nothing was printed.
 		payload, code := handler(args)
-		if code != 0 || payload == nil {
+		if payload == nil {
 			return code
 		}
-		return render(path, payload)
+		if renderCode := render(path, payload); renderCode != 0 {
+			return renderCode
+		}
+		return code
 	}, meta); err != nil {
 		return err
 	}
