@@ -6,7 +6,7 @@ Rationale: `ai/rationale/post-compaction.md`
 ## Tier 1 — Always
 
 ```
-[ ] 1. Run `./le spec-session current` → read spec if one is claimed
+[ ] 1. Run `./le spec session current` → read spec if one is claimed
 [ ] 2. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
 [ ] 3. Check git status
 ```

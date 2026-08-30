@@ -6,7 +6,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 
 | Tool | Purpose | Usage |
 |------|---------|-------|
-| `ze config dump` | Inspect parsed config | `ze config dump [--json] config.conf` |
+| `ze config dump` | Inspect parsed config | `ze config dump config.conf`, or `ze cli -c "show config dump config.conf \| json"` |
 | `ze-peer --decode` | Decode BGP messages | `ze-peer --decode --sink` |
 | `ze.log.*` | Per-subsystem logging | `ze.log.bgp.routes=debug ze bgp server config.conf` |
 | Functional test diff | Test failure analysis | Automatic on message mismatch |
@@ -28,7 +28,7 @@ Parses a config file and displays the interpreted values. Useful for verifying t
 ze config dump config.conf
 
 # JSON output (for scripting)
-ze config dump --json config.conf
+ze cli -c "show config dump config.conf | json"
 ```
 
 ### Example Output
@@ -263,7 +263,7 @@ ze config dump config.conf
 ze config dump config.conf 2>&1 | grep -i warning
 
 # Step 3: Check JSON for exact values
-ze config dump --json config.conf | jq '.Neighbors[0].StaticRoutes'
+ze cli -c "show config dump config.conf | json" | jq '.Neighbors[0].StaticRoutes'
 ```
 
 ### 2. Route Not Being Sent

@@ -20,7 +20,7 @@ scenario carry an `RFC requirement:` tag at all (`ai/rules/rfc-compliance.md`).
 A suite with five unexplained reds trains its readers to discard it.
 
 **Measured 2026-08-05**, each run twice, once with the working tree's
-`test/interop/interop.py` and once with HEAD's, with identical results:
+`test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> and once with HEAD's, with identical results:
 
 | Scenario | Symptom |
 |----------|---------|
@@ -41,8 +41,8 @@ faults stacked behind the single `0` this spec predicted would hide them:
 | Fault | Producer | Fix |
 |-------|----------|-----|
 | The verb form resolved nothing, for ANY verb. 56 of the 63 `ze show` subcommands answered `unknown command` on the HOST, and `clear` / `monitor` / `request` / `set` / `delete` with them | `RunCommand` (`cmd/ze/internal/cmdutil/cmdutil.go`) walked the verb-RELATIVE tree from `cli.BuildVerbCommandTree` with the verb-INCLUSIVE argv | `ResolveCommand` aligns the words; `cli.AbsoluteVerbPath` (`internal/component/cli/client/verb_tree.go`) rebuilds every absolute form |
-| The interop daemon started no SSH listener, so no CLI client could reach it whatever the verb | `infraSetup` (`cmd/ze/hub/infra_setup.go`) starts one only when the config asks, and no scenario `ze.conf` asked | `ZE_CLI_CONFIG` appended to every RENDERED `ze.conf`, queried through `ze cli -c`, as `test/interop-ipsec/lab.py` already did |
-| `Ze.rib_count` returned 0 on failure, which is what made the two above indistinguishable | `Ze.rib_count` (`test/interop/interop.py`) | raises, naming the command and the container (AC-1 **met**) |
+| The interop daemon started no SSH listener, so no CLI client could reach it whatever the verb | `infraSetup` (`cmd/ze/hub/infra_setup.go`) starts one only when the config asks, and no scenario `ze.conf` asked | `ZE_CLI_CONFIG` appended to every RENDERED `ze.conf`, queried through `ze cli -c`, as `test/interop-ipsec/lab.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> already did |
+| `Ze.rib_count` returned 0 on failure, which is what made the two above indistinguishable | `Ze.rib_count` (`test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) | raises, naming the command and the container (AC-1 **met**) |
 
 It was NOT the `use bgp-rib` producer this spec named as the first thing to read.
 The plugin loads; nothing could ask it anything.
@@ -58,7 +58,7 @@ masked zero had been carrying. Their rows are below, and none was silenced.
 | Scenario | Symptom | Verified |
 |----------|---------|----------|
 | `bgp-srv6-frr` | Session never leaves Active over the 90s budget, so the RIB is never queried. Ze LISTENS (TCP connect to `172.30.0.2:179` from the FRR container succeeds) and logs nothing about the attempt, while FRR reports `remote router ID 0.0.0.0`. FRR also reports `Configuration file[/etc/frr/frr.conf] processing failure: 11`, so whether the fault is Ze's or the scenario's SRv6 config is OPEN | Reproduced with the config append disabled, so it predates this work and is not caused by it. The producer that should log an accepted connection has NOT been read |
-| `bgp-routes-gobgp` | `route_json returned no data`: `GoBGP.route_json` (`test/interop/interop.py`) answers None and the check raises BEFORE any RIB query | The failure is in the GoBGP-side helper, not the Ze-side one. `rib_count` is never reached |
+| `bgp-routes-gobgp` | `route_json returned no data`: `GoBGP.route_json` (`test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) answers None and the check raises BEFORE any RIB query | The failure is in the GoBGP-side helper, not the Ze-side one. `rib_count` is never reached |
 | `ospf-gr-frr` | **Ze never starts: its own scenario config does not parse.** `ze validate config test/interop/scenarios/ospf-gr-frr/ze.conf` answers `line 11: expected ';' after support value, got WORD`. Line 11 is `restarter { support planned restart-interval 120 }`: two leaves on one line with no separator, which `p.errorf` (`internal/component/config/parser.go`) refuses. The same line is in `ospf-gr-fib-retention`, `ospfv3-gr-frr` and `ospfv3-gr-fib-retention` | Reproduced against the UNMODIFIED file with a host `ze` build, so it is neither the container nor this work. **Which side is wrong is a real question, not bookkeeping**: either the four configs are missing `;` or the parser should accept the compact form. Answer it before editing either |
 
 **A trap waiting behind the `ospf-gr-frr` config fix.** Its check calls
@@ -72,7 +72,7 @@ property.
 
 ## The reporting defect is separable from the reds, and it is the reason they are hard to read
 
-`Ze.rib_count` (`test/interop/interop.py`) ends `return 0` when its command
+`Ze.rib_count` (`test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) ends `return 0` when its command
 produces no parseable output. So "the daemon does not answer this verb" and "the
 daemon received no routes" are the same number, and every caller asserting a
 lower bound reports the second.
@@ -97,7 +97,7 @@ read the producer that resolves `use bgp-rib`. Do that first.
 ## `bgp-addpath-frr`: root cause, verified at the producer 2026-08-05
 
 The scenario sends `path-information` as a TOP-LEVEL token
-(`test/interop/scenarios/bgp-addpath-frr/announce-addpath.py`). `ParseUpdateText`
+(`test/interop/scenarios/bgp-addpath-frr/announce-addpath.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->). `ParseUpdateText`
 (`internal/component/bgp/plugins/cmd/update/update_text.go`) rejects it there, and
 the plugin dies on the `RuntimeError`.
 
@@ -126,14 +126,14 @@ answer from whichever fix is smaller.
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 - [ ] `ai/rules/evidence.md` - a guard or reader that fails open must say something
-- [ ] `test/interop/interop.py` - `Ze.rib_count`, `docker_exec_quiet`
+- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `Ze.rib_count`, `docker_exec_quiet`
 - [ ] `ai/rules/completion.md` - a red is fixed, not recorded; this spec is the home, not the resolution
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (re-read at design time; verify before trusting)
 
-- [ ] `test/interop/interop.py` (`Ze.rib_count` returns 0 on failure; `docker_exec_quiet` returns "" on non-zero exit)
+- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (`Ze.rib_count` returns 0 on failure; `docker_exec_quiet` returns "" on non-zero exit)
 - [ ] `test/interop/scenarios/bgp-routes-from-bird/ze.conf` (declares `internal rib { use bgp-rib; }`)
 - [ ] the producer that resolves `use bgp-rib` into a loaded plugin -- NOT YET READ, and it is the first thing this spec owes
 
@@ -202,10 +202,10 @@ reach green (`ai/rules/completion.md`).
      .ci and this row is revisited. -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test/interop/run.py` over the five named scenarios | `test/interop/` | the interop suite reports zero unexplained reds | |
+| `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> over the five named scenarios | `test/interop/` | the interop suite reports zero unexplained reds | |
 
 ## Files to Modify
-- `test/interop/interop.py` - `Ze.rib_count` fail-closed
+- `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `Ze.rib_count` fail-closed
 - `docs/architecture/testing/interop.md` - the harness contract, if helper behaviour changes
 
 ## Files to Create
@@ -232,7 +232,7 @@ reach green (`ai/rules/completion.md`).
 
 ### Goal Gates (MUST pass)
 - [ ] Every AC demonstrated
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Feature code integrated, not library-only
 

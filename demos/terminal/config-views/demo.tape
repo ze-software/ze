@@ -30,7 +30,7 @@ Wait+Screen /remote ip 192.0.2.2/
 Sleep 7s
 Type "clear"
 Enter
-Type "ze config migrate --format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'"
+Type "ze config migrate format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'"
 Enter
 Wait+Screen /set bgp peer transit-a/
 Sleep 7s

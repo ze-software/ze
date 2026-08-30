@@ -51,10 +51,14 @@ Markdown from the live registries.
 ## Structured Diagnostics
 
 ```
-ze config validate --json <file>
+ze cli -c "validate config <file> | json"
 ze explain [--json] <diagnostic-code>
-ze config fix --plan --json <file>
+ze config fix --plan <file>
 ```
+
+The validation verdict is a record the pipe layer renders, so `| json`,
+`| yaml` and `| table` are three views of one payload and no command carries a
+rendering flag of its own. The fix plan prints for a reader.
 
 Config validation emits structured diagnostic records with stable codes, source spans,
 expected/actual facts, and repair metadata. Agents parse JSON diagnostics instead of
@@ -63,7 +67,7 @@ scraping terminal prose.
 Each diagnostic carries a stable code (e.g., `config-parse`, `config-yang-type`,
 `config-listener-conflict`). Use `ze explain <code>` to get an explanation.
 
-`ze config fix --plan --json` reports candidate repairs without editing files.
+`ze config fix --plan` reports candidate repairs without editing files.
 Repair plans carry safety labels (`format-only`, `section-local`, `behavior-preserving`,
 `requires-human-review`) and stable repair IDs.
 
@@ -99,7 +103,7 @@ message file, executable user-run script, ignored-path checks, and `git commit -
 flow.
 <!-- source: internal/le/commit/actions.go -- Answer -->
 
-<!-- source: internal/le/doccheck/actions.go -- Actions -->
+<!-- source: internal/le/doc/check/actions.go -- Actions -->
 
 ## MCP Transport
 

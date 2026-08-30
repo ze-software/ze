@@ -24,7 +24,7 @@
 
 ### Documentation Updates
 - [docs updated, naming each source anchor, or "None" with the grep that proves it]
-- [`./le doc-check verify` result if docs changed]
+- [`./le doc check verify` result if docs changed]
 
 ### Deviations from Plan
 - [what differed from the spec and why]
@@ -102,7 +102,7 @@
      reasoning about code you just wrote.
 
      The machine-checked artifact is the deliverable, not this table:
-     internal/le/specsession/review.go record --spec <spec> --rounds <N> ... then check.
+     internal/le/spec/session/review.go record --spec <spec> --rounds <N> ... then check.
      --rounds is the pass count and is required; more than five needs
      --rounds-reason naming the PRODUCT defect a later round found, AND
      --owner-authorised carrying Thomas's word, because more than five passes

@@ -105,7 +105,7 @@ unconfigured, which is the same defect wearing a different hat.
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `./le verify current mode full` green
+- [ ] `./le verify worktree` green
 
 ### Integration Checklist
 - [ ] <to be filled>

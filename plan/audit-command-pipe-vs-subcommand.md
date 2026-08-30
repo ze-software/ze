@@ -30,7 +30,7 @@ the field names each emits.
 
 ## How the population was derived
 
-`./le command-list` is incomplete: the retired `scripts/inventory/commands.go` (current producer: `internal/le/commandlist/commandlist.go`) walks
+`./le command list` is incomplete: the retired `scripts/inventory/commands.go` (current producer: `internal/le/command/list/commandlist.go`) walks
 `AllBuiltinRPCs` plus the streaming prefixes, and reports neither
 plugin-registered commands nor `registry.MustRegisterLocal` ones. The population
 here is the union of three sources, derived mechanically on 2026-08-21:

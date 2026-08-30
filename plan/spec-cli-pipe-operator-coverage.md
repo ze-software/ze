@@ -180,7 +180,7 @@ This spec inserts one step and changes one:
   catalog.
 - `internal/le/wikicatalog/render.go`, `website/tools/render-cli-catalog.py`,
   `render-command-equivalents.py`, `render-llms-txt.py`: the generators.
-- `internal/le/docvalid/drift.go` under `./le doc-check verify`: the gate.
+- `internal/le/docvalid/drift.go` under `./le doc check verify`: the gate.
 
 ### Architectural Verification
 
@@ -280,7 +280,7 @@ not wired and the phase is not done.
 | **AC-12** | `\| resolve` / `\| origin` on a command declaring no address field | `resolve` and `origin` are refused unless a field is DECLARED to hold an address. A `tab` head carries field types; `doc` and `map` refuse until the command declares otherwise. |
 | **AC-13** | `ze help command --json` | `ze help command --json` publishes, per command, the operator list the command's shape derives, plus its filters and its aliases. The `global-pipes` boolean is gone. |
 | **AC-14** | `./le wiki-catalog update`; the website build | The wiki catalog and the website CLI catalog are generated from that JSON and hold no operator literal. `docs/architecture/api/commands.md` is in the website manifest. |
-| **AC-15** | an operator name in docs absent from the catalog | `./le doc-check verify` fails when any operator name in `docs/` or the wiki is absent from the catalog, or when a command's published list disagrees with what it declares. |
+| **AC-15** | an operator name in docs absent from the catalog | `./le doc check verify` fails when any operator name in `docs/` or the wiki is absent from the catalog, or when a command's published list disagrees with what it declares. |
 | **AC-16** | `ai/rules/cli.md` read against the product | `ai/rules/cli.md` states the two rules of audit section 6, replacing the unmeetable universal one, and its point file follows. |
 
 ## End-to-End User Stories
@@ -649,7 +649,7 @@ zero blockers and zero issues.
 | Field | Value |
 |-------|-------|
 | Artifact | `tmp/review/cli-pipe-operator-coverage-55d210d4-6348-48ab-9fd4-30966ec229f4.md` |
-| `./le spec-session review check` | `OK (14 code files, clean, hashes match)` on 2026-08-28 |
+| `./le spec session review check` | `OK (14 code files, clean, hashes match)` on 2026-08-28 |
 | Rounds | 26. Rounds 15-24 found native renderer and structural validator defects; round 25 verified their fixes and round 26 verified post-clean lint corrections |
 | Owner authorisation | `Thomas said ok finish on 2026-08-27` |
 | Reviewer lenses | `PipeRound14Coverage`, `PipeRound25Docs`, `PipeRound26Regression` |
@@ -1231,13 +1231,15 @@ Not applicable.
 
 - [x] Tests written
 - [x] Tests FAIL (red) before implementation
+- [ ] Tests PASS (paste output)
 - [x] Implementation passes
 - [x] Discrimination proven: catalog, rendered-surface, refusal, and local-data coverage mutations redden their named tests
 
 ### Closure
 
 - [x] `./le changed scope` was reviewed; the selected all-package result came from foreign migration status
-- [x] `./le verify current mode full` evidence is recorded at committed tree `08cba7efd`
+- [x] `./le verify current mode full` evidence is recorded at committed tree `08cba7efd`, under the name that gate carried then
+- [ ] `./le verify worktree` is re-run over the closing commit, because the gate now runs against a commit in a throwaway worktree rather than in place (`ai/rules/git-safety.md`)
 - [x] Review Gate 0 BLOCKER / 0 ISSUE
 - [x] `plan/deferrals/cli-pipe-operator-coverage.md` has no rows and is ready for removal
 - [ ] Citation and foreign-owned documentation edits landed
@@ -1429,7 +1431,7 @@ spec.
 | Release note | Yes | `website/changes/discord/2026-08-17-weekly.md` names `save`, per-command publication, and RIB shape changes |
 
 `./le docvalid doc-drift` and the tagged docvalid package passed before closure.
-The aggregate `./le doc-check verify` remains red only through foreign migration
+The aggregate `./le doc check verify` remains red only through foreign migration
 state already recorded in the Gates table below. No RFC status or doctor update
 applies.
 

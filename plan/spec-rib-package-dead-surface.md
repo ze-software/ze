@@ -118,8 +118,8 @@ costs what it uses.
 | AC-2 | `Route` declares exactly five fields: `nlri`, `nextHop`, `attributes`, `asPath`, `indexCache` | reading the struct, and `TestStructSizes` reporting the five component sizes |
 | AC-3 | `Route` measures 96 bytes, down from the 160 bytes measured on 2026-08-18 | `TestStructSizes` output recorded before and after |
 | AC-4 | `NewRouteWithASPath` performs no reference-count write | reading the constructor; no `refCount` identifier survives in the package |
-| AC-5 | All four flavors of the committed tree compile | `./le repository-tracked-build check` |
-| AC-6 | No documentation cites a deleted symbol or a stale byte figure | `./le docs-to-code index-check` and `./le doc-check links` both green, and the `pool-architecture.md` figures equal the AC-3 measurement |
+| AC-5 | All four flavors of the committed tree compile | `./le repository tracked-build check` |
+| AC-6 | No documentation cites a deleted symbol or a stale byte figure | `./le docs-to-code index-check` and `./le doc check links` both green, and the `pool-architecture.md` figures equal the AC-3 measurement |
 | AC-7 | Every production symbol the package exported before the change is still reachable | `NewRouteWithASPath`, `Route` accessors, `RouteJSON`, `NewCommitService` and `CommitOptions` still compile from their six importing files |
 
 ## Wiring Test
@@ -142,7 +142,7 @@ costs what it uses.
 
 No user-facing behavior changes: every symbol removed has no production caller,
 so nothing the daemon does can differ. The evidence that the removal is safe is
-`./le repository-tracked-build check` green across all four flavors and the
+`./le repository tracked-build check` green across all four flavors and the
 existing suites unchanged, not a new test.
 
 ## Files to Modify
@@ -168,16 +168,16 @@ existing suites unchanged, not a new test.
 4. Prune `sizeof_test.go` and `route_test.go` to the surviving surface
 5. Re-run the sizeof reporter and record the new size
 6. Update the three architecture docs, anchors first
-7. Run `./le changed scope`, `go test -race ./...` for the package, `./le docs-to-code index-check` and `./le doc-check links`
+7. Run `./le changed scope`, `go test -race ./...` for the package, `./le docs-to-code index-check` and `./le doc check links`
 8. Write `test/weakened.md` rows against this commit's removals only
-9. Commit, then `./le repository-tracked-build check`
+9. Commit, then `./le repository tracked-build check`
 
 ## Checklist
 
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `./le verify current mode full` green
+- [ ] `./le verify worktree` green
 
 ### Integration Checklist
 - [ ] YANG schema and validation - N/A, no config surface changes

@@ -120,8 +120,8 @@ Every BGP finding must include:
 - [ ] `internal/component/bgp/reactor/session_handlers_test.go` - covers route-refresh invalid length, unknown subtype, no capability, non-negotiated family, and update family mismatch paths
 - [ ] `internal/component/bgp/reactor/session_test.go` - covers normal route refresh, BoRR, EoRR, unknown subtype, reserved subtype, and bad route-refresh body length with an established test session
 - [ ] `test/interop/scenarios/*/check.py` - actual interop scenario tree currently includes scenarios through `bgp-remove-private-as-as4path-frr`
-- [ ] `test/interop/scenarios/bgp-addpath-frr/check.py` - checks ADD-PATH capability negotiation and multiple path receipt with FRR
-- [ ] `test/interop/scenarios/bgp-route-refresh-frr/check.py` - checks normal route refresh via FRR soft-in clear and route stability
+- [ ] `test/interop/scenarios/bgp-addpath-frr/check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - checks ADD-PATH capability negotiation and multiple path receipt with FRR
+- [ ] `test/interop/scenarios/bgp-route-refresh-frr/check.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - checks normal route refresh via FRR soft-in clear and route stability
 - [ ] `docs/architecture/testing/interop.md` - lists scenarios through 32 and says BFD is not covered
 - [ ] `docs/features/interoperability-testing.md` - says there are 32 interop scenarios and lists only 01 through 32
 
@@ -339,7 +339,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 | 3. Wiring phase | Data Flow and Wiring Test |
 | 4. Document findings | No production implementation in this spec |
 | 5. Review gate | Verify source/RFC/test evidence for each finding |
-| 6. Full verification | `./le spec-status`, `git diff --check`, and targeted source checks |
+| 6. Full verification | `./le spec status`, `git diff --check`, and targeted source checks |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Route issues | Record suggested direction and owner for future fix work |
 | 9. Re-verify audit evidence | Re-check source references and reproductions, not product fixes |
@@ -377,7 +377,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 | Initial findings exist | Initial Findings section |
 | RFC summaries cited | Required Reading and findings reference `rfc/short/` files |
 | Interop drift captured | RA-BGP-008 |
-| Spec visible to status tool | `./le spec-status` shows `release-audit-2-bgp-protocol` |
+| Spec visible to status tool | `./le spec status` shows `release-audit-2-bgp-protocol` |
 
 ### Security Review Checklist
 
@@ -539,8 +539,8 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 - [ ] AC-1..AC-7 demonstrated (protocol surfaces mapped, findings evidence-backed, audit-only scope held)
 - [ ] Every finding RA-BGP-001..RA-BGP-008 cites source/RFC/test evidence, owner, and requested verification
-- [ ] `./le spec-status` shows `release-audit-2-bgp-protocol`
-- [ ] `./le verify current mode full` unaffected (audit-only: this spec changes no product code or tests)
+- [ ] `./le spec status` shows `release-audit-2-bgp-protocol`
+- [ ] `./le verify worktree` unaffected (audit-only: this spec changes no product code or tests)
 
 ### TDD
 

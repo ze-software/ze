@@ -14,9 +14,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 The interop harness namespaces its CONTAINERS per run and its IMAGES not at all.
-`_SUFFIX` (`test/interop/interop.py`) is the process id, and every container name
+`_SUFFIX` (`test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) is the process id, and every container name
 derives from it, so two concurrent runs never collide on a container, a network,
-or a lab address. `build_images` (`test/interop/run.py`) then builds a bare,
+or a lab address. `build_images` (`test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) then builds a bare,
 shared tag: `ze-interop`.
 
 **So two concurrent runs race on the image, and the loser runs the winner's
@@ -41,16 +41,16 @@ only as trustworthy as the guarantee that the container ran the reverted build).
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
-- [ ] `test/interop/run.py` - `build_images`, and the `NO_BUILD=1` path
-- [ ] `test/interop/interop.py` - `_SUFFIX` and every `ze-interop` reference
+- [ ] `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `build_images`, and the `NO_BUILD=1` path
+- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `_SUFFIX` and every `ze-interop` reference
 - [ ] `ai/rules/interop-and-goal-validation.md` - why mutation evidence must name its binary
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (re-read at design time; verify before trusting)
 
-- [ ] `test/interop/run.py` (`build_images` builds the bare `ze-interop` tag)
-- [ ] `test/interop/interop.py` (containers carry `_SUFFIX`; the image reference does not, at six call sites)
+- [ ] `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (`build_images` builds the bare `ze-interop` tag)
+- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (containers carry `_SUFFIX`; the image reference does not, at six call sites)
 
 **Behavior to preserve:** `NO_BUILD=1` must keep working. It exists so a developer
 can iterate on a scenario without paying the image build, and it depends on a tag
@@ -115,12 +115,12 @@ the design question this spec exists to answer.
 <!-- Tooling scope: no daemon Go changes, so the driving surface is the runner. -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| two concurrent `test/interop/run.py` invocations, each with a distinguishable daemon build | `test/interop/` | overlapping runs do not share a daemon image, and each run's result describes the binary it built | |
-| `test/interop/run.py` under `NO_BUILD=1` | `test/interop/` | the iterate-fast path still finds an image to run (AC-2) | |
+| two concurrent `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> invocations, each with a distinguishable daemon build | `test/interop/` | overlapping runs do not share a daemon image, and each run's result describes the binary it built | |
+| `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> under `NO_BUILD=1` | `test/interop/` | the iterate-fast path still finds an image to run (AC-2) | |
 
 ## Files to Modify
-- `test/interop/run.py` - `build_images` and the tag it writes
-- `test/interop/interop.py` - the six `ze-interop` references
+- `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `build_images` and the tag it writes
+- `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - the six `ze-interop` references
 - `docs/architecture/testing/interop.md` - the harness contract, including how to name the tag for `NO_BUILD=1`
 
 ## Files to Create
@@ -146,7 +146,7 @@ the design question this spec exists to answer.
 
 ### Goal Gates (MUST pass)
 - [ ] Every AC demonstrated
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Feature code integrated, not library-only
 

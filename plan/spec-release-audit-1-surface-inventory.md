@@ -352,7 +352,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 | 3. Wiring phase | Data Flow and Boundaries Crossed |
 | 4. Document findings | No production implementation in this spec |
 | 5. Review gate | Verify matrix rows and findings for accuracy |
-| 6. Full verification | `./le spec-status`, targeted tests for confirmed findings |
+| 6. Full verification | `./le spec status`, targeted tests for confirmed findings |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Route issues | Record suggested direction and owner for future fix work |
 | 9. Re-verify audit evidence | Re-check source references and reproductions, not product fixes |
@@ -390,7 +390,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 | Surface matrix exists | Release Surface Matrix section |
 | Initial findings exist | Initial Findings section |
 | Plugin failure reproduced | `go test ./internal/component/plugin/all -run TestAllPluginsRegistered -count=1` output recorded in session |
-| Spec visible to status tool | `./le spec-status` shows `release-audit-1-surface-inventory` |
+| Spec visible to status tool | `./le spec status` shows `release-audit-1-surface-inventory` |
 
 ### Security Review Checklist
 
@@ -565,7 +565,7 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 - [ ] Every surface group has a matrix row with owner audit (AC-1)
 - [ ] Findings include reproduction, owner, and suggested direction (AC-9)
-- [ ] `./le verify current mode full` evidence requested from future fix work where findings demand it
+- [ ] `./le verify worktree` evidence requested from future fix work where findings demand it
 
 ### TDD (applies to future fix specs routed from findings)
 
@@ -583,6 +583,6 @@ Factual corrections only, re-verified in the current tree after the followup imp
   - Plugin: `exabgp-bridge` (`internal/plugins/exabgp/bridgeplugin/register.go`; snapshot entry `plugins.snapshot:53`), registering YANG module `ze-exabgp-bridge-conf` (`internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang`).
   - Network surface: `internal/core/dnsserver` listener core with DoT (RFC 7858, `internal/core/dnsserver/secure.go`) and DoH (RFC 8484, `secure.go`) listeners, consumed by as112 and geodns.
   - YANG config surfaces: DoT/DoH containers in `ze-as112-conf.yang` (tls container `:147`, DoT enable `:160`, DoH enable `:197`) and `ze-geodns-conf.yang` (tls container `:232`, DoT enable `:243`, DoH enable `:280`); DNSSEC leaf `dnssec-validation` in `internal/component/config/system/yang/ze-system-conf.yang`.
-  - Verification gates: the live `./le verify current mode full` stage list (`internal/le/verify/run.go`, consumed at `:104`) gained `./le port-defaults check` (`internal/le/portdefaults/portdefaults.go`) and `ze-platform-vet` (`internal/le/` native action tables) in both branches (`verify_run.go`, `:140-141`), alongside the existing `./le tier check`, `ze-iface-resolution-check` (`internal/le/ifaceresolution/ifaceresolution.go`), and `./le plugin-boundary check` (`internal/le/pluginboundary/pluginboundary.go`).
+  - Verification gates: the live `./le verify current mode full` stage list (`internal/le/verify/engine/run.go`, consumed at `:104`) gained `./le port-defaults check` (`internal/le/portdefaults/portdefaults.go`) and `ze-platform-vet` (`internal/le/` native action tables) in both branches (`verify_run.go`, `:140-141`), alongside the existing `./le tier check`, `ze-iface-resolution-check` (`internal/le/ifaceresolution/ifaceresolution.go`), and `./le plugin boundary check` (`internal/le/plugin/boundary/pluginboundary.go`).
 - **MCP row superseded** (Network and UI Surfaces): the legacy `internal/component/mcp/handler.go` was deleted; Streamable HTTP is the only transport (`internal/component/mcp/streamable.go` `handlePOST:404`, `handleGET:618`, `handleDELETE:681`). The row's "raw HTTP/OAuth/CORS route coverage" risk should be re-scoped to the streamable endpoints.
 - Housekeeping from this correction pass: the `## TDD Test Plan` heading was renamed to `## 🧪 TDD Test Plan` and the `## Wiring Test` and `## Checklist` sections above were added to satisfy the blocking spec validator; no audit content was changed by those edits.

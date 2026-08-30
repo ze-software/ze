@@ -13,7 +13,7 @@ One file per problem class. Each file holds one table:
 - **Date** is the day the occurrence was found, as `YYYY-MM-DD`. It is what the
   span is computed from, so anything else is refused.
 - **Spec** names the spec that found this instance, or `-` when found outside a
-  spec. The cell is a KEY. The review gate in `scripts/dev/commit_helper.py`
+  spec. The cell is a KEY. The review gate in the retired `scripts/dev/commit_helper.py` (current producer: `internal/le/commit/prepare.go`)
   looks up `tmp/review/<stem>-<session>.md` under it, so the cell holds spec
   stems and nothing else. Two specs are separated by a comma. An explanation
   goes in a trailing `(note)`, which the parser strips, or in the Symptom cell.
@@ -24,11 +24,11 @@ One file per problem class. Each file holds one table:
 - **Symptom** describes what went wrong.
 - **Fix** describes what was done about it.
 
-A row holds exactly five cells and starts with `|`. `make ze-journal-report` names a
+A row holds exactly five cells and starts with `|`. `./le journal report` names a
 row that does not and exits non-zero, so prose in one of these files must not
 contain a `|`.
 
-`make ze-journal-report` prints every class with 2 or more rows, its count, and
+`./le journal report` prints every class with 2 or more rows, its count, and
 the span between the first and last date. When every class has 1 row it
 prints nothing and exits 0. It reads git HEAD, never the working tree, so a
 row counts once it is committed.

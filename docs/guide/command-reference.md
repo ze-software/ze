@@ -1509,7 +1509,6 @@ one payload:
 
 ```
 ze cli -c "show schema list | json"
-ze cli -c "show schema module ze-bgp-conf | json"
 ze cli -c "show schema methods | match peer"
 ```
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->

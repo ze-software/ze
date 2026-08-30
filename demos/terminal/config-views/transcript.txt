@@ -7,7 +7,7 @@ session {
     asn { local 65000; remote 65001; }
     family ipv4/unicast { prefix maximum 1000000; }
 }
-$ ze config migrate --format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
+$ ze config migrate format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
 set bgp peer transit-a connection local ip 192.0.2.1
 set bgp peer transit-a connection remote ip 192.0.2.2
 set bgp peer transit-a session asn local 65000

@@ -56,6 +56,8 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
     TLS 1.2 peer still gets the RFC 5216 label.
 
 ### Architecture Docs
+- [ ] `docs/architecture/ike/ipsec-11-interop-eap.md` - EAP-MSCHAPv2 and EAP-TLS driven from the initiator seat
+- [ ] `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` - EAP authentication and NAT traversal, for site-to-site and road-warrior peers
 - [ ] `ai/rules/rfc-compliance.md` - Extraction Completeness, and the enrolment gates
   → Constraint: a new enrolment needs a hand-classified `rfc/extraction/rfc9190.json`
     sign-off. A generated skeleton can never pass, by design.
@@ -262,7 +264,7 @@ carried no such table, which `/ze-implement` needs before it may run.
 
 ## Goal Gates
 
-- `./le verify current mode full` passes.
+- `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`)
 - `./le rfc check` shows RFC 9190 enrolled, with no annotation covering a
   feature this spec built.
 - Scenarios eap-tls and eap-tls13 green, plus the new resumption scenario.

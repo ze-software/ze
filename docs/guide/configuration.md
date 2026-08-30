@@ -996,8 +996,9 @@ directions; `update-received` and `update-sent` name one. `*` names every
 registered type. Values are validated at config parse time.
 
 Base message types for `send`: `update` to originate routes, `refresh` to ask
-the peer to re-advertise. `*` grants both, and every send type registered
-later. A send a peer's block does not grant is refused and reported.
+the peer to re-advertise, `raw` to write a whole BGP message the program built
+itself. `*` grants all three, and every send type registered later. A send a
+peer's block does not grant is refused and reported.
 
 Write the block on a group and every peer of that group carries it, dynamic
 members included. A member that restates the block replaces the group's list

@@ -58,6 +58,7 @@ Key Design Decisions below.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/bgp/structural-forwarding.md` - what left the critical path to close the route-server forwarding gap against BIRD
 
 - [ ] `docs/architecture/core-design.md` - the zero-copy wire model the community
       paths sit in
@@ -283,7 +284,7 @@ Three entry points, one per direction.
 | A-4 | Function 4 suppression composes with existing egress filters without reordering them | `buildOrderedEgressSteps` resolves order from the declared stage | A suppression decision runs before a filter that would have modified the route | Read the ordered egress builder, then an ordering test | unvalidated |
 | A-5 | Ingress scrubbing does not break the route-server rail, which reads communities after ingress | The scrub is peer-scoped and eBGP-only | A route server scrubs the control communities its clients send it | Functional test: a client sends a control community and the route server still acts on it | unvalidated |
 | A-6 | `source_keyword_count` is the only reader that counts the RFC 2119 boilerplate as a gate input | Read of `check_new_summaries` and both counters on 2026-08-08 | Narrowing it leaves the red in place, or moves it elsewhere | Run `./le rfc check` before and after | unvalidated |
-| A-7 | New leaves under the existing `ingress/community` container inherit the four augment sites without a new augment statement | `ze-filter-community.yang` uses one grouping at four sites | The new leaves are settable at some levels and not others | Read the generated schema, then a config test setting the leaf at group level | confirmed 2026-08-12: every new leaf sits inside `grouping community-filter-fields`, which four `augment` statements `uses`, so no new augment was needed. `./le doc-check verify` and `./le cli-grammar` both load the module and pass. `TestMergeScalarLeavesOverrideOnlyWhenSet` covers the group-then-peer layering |
+| A-7 | New leaves under the existing `ingress/community` container inherit the four augment sites without a new augment statement | `ze-filter-community.yang` uses one grouping at four sites | The new leaves are settable at some levels and not others | Read the generated schema, then a config test setting the leaf at group level | confirmed 2026-08-12: every new leaf sits inside `grouping community-filter-fields`, which four `augment` statements `uses`, so no new augment was needed. `./le doc check verify` and `./le cli-grammar` both load the module and pass. `TestMergeScalarLeavesOverrideOnlyWhenSet` covers the group-then-peer layering |
 | A-8 | The keep-list can be expressed without changing `strip` semantics | `strip` is an exact whole-value match today and a wildcard there would change every existing config | Operators find `strip` silently matching more than before | Separate container, plus a test that an existing `strip` set still matches exactly | confirmed 2026-08-12: the scrub got its own leaves and REUSES `ingressStripCommunities`, so it selects different values through the same exact-value rebuild rather than giving `strip` a wildcard. `TestStripSetStillExact` proves a named set still matches exactly, with a sibling value sharing its ASN left in place |
 
 ### Risks
@@ -631,7 +632,7 @@ mapping (RFC 8195 §3.2), the scrub (RFC 7454 §11), the suppression (RFC 8195
 - [ ] AC-1..AC-21 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -651,7 +652,7 @@ mapping (RFC 8195 §3.2), the scrub (RFC 7454 §11), the suppression (RFC 8195
 ### Closure
 
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

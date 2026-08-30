@@ -502,7 +502,7 @@ N-A. No RFC governs kernel capability detection.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] `./le verify current mode full` green, or scoped evidence with attribution
+- [ ] `./le verify worktree` green, or scoped evidence with attribution
 
 ### TDD
 - [ ] Tests written

@@ -250,7 +250,7 @@ dropped from the command, and ze writes one WARN naming the peer, the process
 and the message type. When the selector names ONLY peers that refuse it, the
 whole command fails and the program is told why.
 
-The two BASE message types are separate permissions. A plugin registers more,
+The three BASE message types are separate permissions. A plugin registers more,
 and naming one auto-loads the plugin that enables it, `enhanced-refresh` from
 bgp-route-refresh among them:
 
@@ -258,8 +258,12 @@ bgp-route-refresh among them:
 |------|---------|----------|
 | `update` | originating routes toward the peer | `update text ... add`, `update text ... del`, an End-of-RIB marker, a named commit |
 | `refresh` | asking the peer to re-advertise | `peer <sel> refresh`, `borr`, `eorr`, `clear soft` |
+| `raw` | writing a whole BGP message the program built itself | `peer <sel> raw ...` |
 
-`send [ * ]` grants both, and every send type registered later.
+`raw` is the widest of the three, because the bytes can be any BGP message, an
+OPEN or a NOTIFICATION included. `send [ update ]` does not imply it.
+
+`send [ * ]` grants all three, and every send type registered later.
 
 An operator at the CLI, over SSH or through the REST API is not a process and is
 not gated by this: their authority is the one AAA already checked.

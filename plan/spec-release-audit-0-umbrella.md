@@ -567,7 +567,7 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 - [ ] Every release surface has an owner child audit (AC-2)
 - [ ] Findings use the Finding Schema with evidence (AC-4)
-- [ ] `./le verify current mode full` evidence requested from future fix work per the Release Blocker Policy
+- [ ] `./le verify worktree` evidence requested from future fix work per the Release Blocker Policy
 
 ### TDD (applies to future fix specs routed from findings)
 

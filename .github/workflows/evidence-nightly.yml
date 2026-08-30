@@ -95,3 +95,44 @@ jobs:
           cache-dependency-path: go.sum
       - name: IKEv2/IPsec interoperability
         run: ./le integration interop-ipsec
+
+  # The L2TP lab builds a PPP/NCP path between peer-isolated containers. It needs
+  # PPPoL2TP in the runner's kernel, so it is scheduled and advisory like the
+  # strongSwan lab above, never part of a merge gate.
+  #
+  # Scheduling it is what its RFC evidence depends on. interopCarriers
+  # (internal/le/rfc/carriers.go) DERIVES an interop tree's tier from whether a
+  # scheduled workflow names its action, so an unscheduled tree resolves unrun and
+  # every `RFC requirement:` tag inside it is refused. The RFC 2661 obligations
+  # this lab can prove were therefore held at unit-only evidence by the absence of
+  # these lines, not by anything about the tests.
+  l2tp-interop:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: L2TP PPP/NCP interoperability
+        run: ./le deployment docker-l2tp-ppp-test
+
+  # Ze's PPPoE client against a real accel-ppp access concentrator. Same tiering
+  # reason as the L2TP lab above, and the same advisory posture: it needs PPPoE
+  # support in the runner's kernel.
+  pppoe-interop:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: PPPoE client against accel-ppp
+        run: ./le deployment docker-pppoe-accel-test

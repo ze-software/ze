@@ -574,3 +574,30 @@ NEW CONSTRAINT for the VPP dataplane phase (AC-8b): implement the ESN flag chang
 - The hand-rolled types this spec planned to extend carry a comment anticipating exactly this migration, verified at `internal/component/ike/dataplane/vpp.go`: when govpp/binapi/ipsec is vendored, replace these with the generated types. The `ipsecSAEntry` struct that follows (:163 onward) has no Flags field, as the Current Behavior section records.
 - Consequences: the Dataplane phase should vendor `binapi/ipsec` and set the USE_ESN flag on the GENERATED SA-entry type. This retires the hand-layout hazard tracked as R-1 and assumption A-2 (the generated types carry the exact wire layout and CRC, so no manual field-order verification is needed); the corresponding row in Failure Routing ("re-check struct layout vs govpp binding") becomes "regenerate/re-vendor binapi/ipsec". The `TestVPPSAEntryESNFlag` unit test then asserts the flag on the generated type rather than a hand-encoded layout.
 - The Files to Modify bullet for vpp.go is struck above accordingly; the file is still modified, only the mechanism changes.
+
+### Landed ahead of this spec (2026-08-29)
+
+AC-7b is IMPLEMENTED and proven, and the spec stays `ready` because the other ten
+acceptance criteria are untouched. What landed is the honest refusal, not ESN support.
+
+Ze keys a 32-bit ESP sequence space: `dataplane.SAParams` carries no ESN field, so
+`xfrmStateFromParams` (`dataplane/xfrm_linux.go`) never sets `netlink.XfrmState.ESN` and
+`vppSAFlags` (`dataplane/vpp.go`) never sets `IPSEC_API_SAD_FLAG_USE_ESN`, though the
+vendored `ipsec_types` binding already defines the flag. RFC 7296 Section 2.7 requires the
+accepted suite to carry exactly one transform of each type the proposal includes, so the
+responder now refuses a proposal whose only Transform Type 5 value is 1
+(`espProposalMatches`, `engine/responder.go`), and the initiator ends the exchange when a
+responder answers a value it never offered (`acceptedESPESNConsistent`,
+`engine/initiator.go`). One constant, `espESNNotExtended`, is what ze offers, answers and
+accepts.
+
+Consequences for the remaining work:
+
+- Phase 2's `optional` and `required` modes must lift that refusal in step with the
+  dataplane, never before it. A `required` proposal ze answers today would be a claim it
+  cannot key.
+- The two interop scenarios this spec planned exist under their final names,
+  `esn-extended-only-refused` and `esn-both-offered`, and both pass against
+  strongSwan 5.9.14. Phase 5 extends them rather than creating them.
+- `RFC7296-2.7-1` now carries unit and interop evidence in `rfc/requirements/rfc7296.md`.
+  The evidence ratchet holds both, so a later phase MUST keep them green.

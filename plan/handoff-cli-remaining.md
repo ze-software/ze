@@ -127,7 +127,7 @@ holds zero rows and should not be left behind as an empty file.
 
 ## 6. Blockers, and one claim of mine that was wrong
 
-- **`./le doc-check verify` and `./le changed scope` are RED for reasons outside this
+- **`./le doc check verify` and `./le changed scope` are RED for reasons outside this
   work.** A source anchor in `docs/guide/web-interface.md` broken by another
   session's uncommitted edit to `cmd/ze/hub/aaa_authenticator_web.go`;
   `ai/PACKAGE-MAP.md` stale from their untracked `internal/core/configorder`

@@ -400,9 +400,9 @@ Offline commands for agent-driven config validation and repair:
 
 | Command | Purpose |
 |---------|---------|
-| `ze config validate --json <file>` | Structured diagnostics with stable codes |
+| `ze cli -c "validate config <file> \| json"` | Structured diagnostics with stable codes |
 | `ze explain [--json] <code>` | Explain a diagnostic code |
-| `ze config fix --plan --json <file>` | Plan-only repair candidates |
+| `ze config fix --plan <file>` | Plan-only repair candidates |
 | `ze skills list [--json]` | List bundled agent skills |
 | `ze skills get <name> [--full]` | Load version-matched skill content |
 

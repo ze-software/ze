@@ -7,7 +7,6 @@ stays as the fallback backend.
 <!-- source: internal/component/aaa/aaa.go -- Authenticator, Authorizer, Accountant, Default registry -->
 <!-- source: internal/component/tacacs/client.go -- TACACS+ client -->
 <!-- source: internal/component/tacacs/cli/main.go -- ze tacacs show reachability probe -->
-<!-- source: internal/component/tacacs/cli/register.go -- show tacacs servers, the registered answer -->
 
 ## A registry, not a hardcoded chain
 
@@ -113,12 +112,9 @@ test and it carries the mapped profiles as proof of the priv-lvl mapping.
   The ze config parser expects a value for a leaf, so a presence leaf would
   need a parser change to ship this feature. The boolean form also keeps the
   verb explicit: `set ... accounting true`.
-- The probe carries no rendering flag. It answers with DATA, registered as
-  `show tacacs servers` through `registry.MustRegisterLocalData`, so `| json`,
-  `| yaml` and `| table` are three renderings of one payload
-  (`ai/rules/cli.md`). `ze tacacs show <config>` prints that same payload in
-  the configured default format and adds the reachability verdict as its exit
-  code. No daemon is needed for either spelling: the command is served in the
-  operator's own process.
+- The probe carries no rendering flag (`ai/rules/cli.md`). `ze tacacs show
+  <config>` prints the rows in the configured default format and adds the
+  reachability verdict as its exit code. No daemon is needed: the probe reads
+  the config file and dials from the operator's own process.
 - Two identical server addresses in `tacacs.server` produce disambiguated YANG
   list keys (`127.0.0.1` and `127.0.0.1#1`).

@@ -204,11 +204,9 @@ local bcrypt user accepted the credentials.
   connections inherit the same VRF context.
 - **Single-connect mode** (RFC 8907 §4.4) is tested via `tacacs-singleconnect.ci`.
 - **Operational tooling**: `ze tacacs show <config>` probes every TACACS+
-  server the config names and reports whether it answers. The same probe is
-  `show tacacs servers <config>` through the pipe layer, so
-  `ze cli -c "show tacacs servers /etc/ze.conf | json"` renders it as JSON with
-  no daemon running. Runtime `ze show aaa accounting` exposes local accounting
-  queue drops.
+  server the config names and reports whether it answers, with no daemon
+  running. Runtime `ze show aaa accounting` exposes local accounting queue
+  drops.
 
 ## RFC reference
 

@@ -168,4 +168,4 @@ Build tooling only — no daemon feature, no new runtime entry point; existing t
 - [ ] Tests written (build-level: the QEMU boot evidence run is the test for this spec)
 - [ ] Tests FAIL before the change where applicable (N/A for the step-1 bump, already landed)
 - [ ] Tests PASS: `ze appliance build` image build + QEMU boot green
-- [ ] `./le verify current mode full` green before any commit
+- [ ] `./le verify worktree` green before any commit
