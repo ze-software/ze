@@ -423,13 +423,15 @@ grep -rnE '\-\-[a-z]' internal --include='*.yang' | grep -vE 'urn:|http|xml'
 |------------------------|-----|-------------|
 | A command name | A flag that dispatches is a verb in disguise: it enters no tree, so completion, `ze help command` and the grammar gate never see it | a registered root, or a path under a read verb |
 | One of a mutually exclusive set | Several booleans of which exactly one is legal is a closed keyword set the type system is not checking | one keyword slot |
-| A second spelling of a pipe operator | `--json` and `\| json` are one job under two names, and only one of them composes. A flag MAY set a session default only by lowering into the operator, as `commandWithFormat` does (`internal/component/cli/client/main.go`) | `\| json` |
+| A second spelling of a pipe operator | `--json` and `\| json` are one job under two names, and only one of them composes. A flag MAY set a session default only by lowering into the operator, as `commandWithFormat` does (`internal/component/cli/client/main.go`) | `\| json`, over an answer registered through `registry.MustRegisterLocalData` |
 | A filter that exists as grammar elsewhere | The operator learns one concept twice, and the two surfaces then disagree about it | the keyword |
 | Silently ignored when unknown | The operator's intent is dropped and the exit code reports it was honored | name the token in the error and exit non-zero |
 
 - **A client MUST NOT build a flag into a command string it sends to the daemon.** `(*Dispatcher).Dispatch` (`internal/component/plugin/server/command.go`) refuses any flag-shaped token before the handler runs, so such a command fails on every invocation while its client half and its daemon-side parser both read as finished code.
 
-- **The `--flag` form MUST stay in the offline `cmd/ze/` tools that reach no daemon and have no pipe layer: `appliance`, `analyze`, `perf`, `chaos`, `le`, `install`, `provision` and the mock servers.** These are build, lab and analysis tools, not the router's operator language.
+- **The `--flag` form MUST stay in the offline `cmd/ze/` tools that reach no daemon: `appliance`, `analyze`, `perf`, `chaos`, `le`, `install`, `provision` and the mock servers.** These are build, lab and analysis tools, not the router's operator language.
+- **A RENDERING flag is banned there too, and everywhere else: `--json`, `--yaml`, `--table`, `--text`, `--format` and `--no-header` MUST NOT exist on any command.** Rendering belongs to the pipe layer, so a command that has an answer MUST register it through `registry.MustRegisterLocalData` and let `| json`, `| yaml` and `| table` render it; a command that renders nothing needs no rendering flag either.
+- **"This command does not reach the pipe layer" is a defect, never an exemption.** Whether a command reaches it is decided by how the command was registered and not by anything about the command, so the answer is always to register the answer.
 - **A command that crosses to the daemon MUST take keywords, on every front end an operator can type it from.** The SSH CLI, the web terminal, `ze cli -c` and the offline `ze <verb>` dispatch all reach the same command, so one spelling MUST serve all four.
 - **MUST NOT give any command a flag spelling, with one exception: `--version`, `-V`, `--help` and `-h`, which every Unix program answers.** A person meeting `ze` for the first time types one of the four before any help exists to tell them otherwise, so `ze` answers them.
 - **The four are ADDITIVE, never a replacement: `ze version` and `ze help` MUST exist as commands and MUST stay the canonical form.** The command is what the tree declares, what completion offers and what the documentation names; the flag answers identically beside it. This is a Unix convention, not a compatibility shim, so `ai/rules/go-standards.md` "No Backwards Compatibility" does not reach it and nothing else joins the set.
@@ -469,9 +471,9 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 | `--dry-run` | Preview | `--socket` | Unix socket path |
 | `--log-level` | Logging level | `--no-header` | Exclude headers |
 
-A rendering flag (`--json`, `--text`, `--yaml`, `--format`) is legitimate only on
-a tool that reaches no pipe layer. Elsewhere it is the pipe operator's second
-spelling: see "What a `--flag` MUST NOT be" above.
+A rendering flag (`--json`, `--text`, `--yaml`, `--format`, `--no-header`) is the
+pipe operator's second spelling and exists on no command. Register the answer and
+the pipe layer renders it: see "`--flag` or Keyword" above.
 
 ### Exit Codes
 
